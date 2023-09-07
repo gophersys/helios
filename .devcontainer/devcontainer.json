@@ -1,0 +1,26 @@
+{
+  "name": "Concord Dev",
+  "build":{
+    "dockerfile": "Dockerfile",
+  
+    "context": ".",
+    "args": {
+      // None for now
+    }
+  },
+
+  "customizations": {
+    
+    // Configure properties specific to VS Code.
+    "vscode": {
+      "settings": {
+        "terminal.integrated.shell.linux": "/usr/bin/zsh"
+      },
+
+      // Add the IDs of extensions you want installed when the container is created.
+      "extensions": [
+      
+      ]
+    }
+  }
+}
