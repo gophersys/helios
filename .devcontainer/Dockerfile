@@ -117,6 +117,10 @@ RUN pip3 install --user -r bootloader/mcuboot/scripts/requirements.txt
 # We DONT Install udev rules, as passing a device to a container will automatically carry over its
 # persimissions. Documentation on how to pass a device correctly to the container will be provided
 
+# -----------------------------------------------------------------------------------------------------
+#                                                                                                   End 
+# ---------------------------------------------------------------------------------------------------*/
+
 # Clean registry after install to minimize size
 RUN apt clean && \
     rm -rf /var/lib/apt/lists/*
