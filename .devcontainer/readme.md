@@ -1,11 +1,41 @@
 # Getting Started
-There are 2 requirements that must be satisfiesd by the development machine in order to get started:
+There are 3 requirements that must be satisfiesd by the development machine in order to get started:
 
     1. VS Code
-    2. Docker
+    2. Windows Subsystem for Linux (WSL2)
+    2. Docker 
 
-## Installing Docker on Windows
+# Installing VS Code
+Download and install from the [official website](https://code.visualstudio.com/download)
 
+# Installing WSL
+Please follow the [official docs](https://learn.microsoft.com/en-us/windows/wsl/setup/environment)
+
+This will install Ubunut 22.04, which is what the DevOps team recommends & uses as a development environment. If you use prefer other flavors of Linux, the DevOps team will **not** provide any support if things break. 
+
+## Configuring Resources (Not Required)
+WSL2 will automatically allocated about 1/2 of your host resources. It is recommended you change this to allocated about 3/4 of your resources, [follow this link](https://learn.microsoft.com/en-us/windows/wsl/wsl-config) to find out more. You're looking to edit your ***global*** .wslconfig.
+
+# Installing Docker
+Although there's an option to install the [Docker Desktop App](https://www.docker.com/products/docker-desktop/), it is highly recommended you install the docker daemon and tools natively on WSL2. 
+
+The script ***'install-docker.sh'*** under the **'.devcontainer/assets/'** folder will install Docker and all needed dependencies for you. 
+
+## Note
+Run these commands from the root folder of the monorepo *concord/*
+
+1. Provide execution permissions to the script:
+    ```bash
+    chmod +x .devcontainer/assets/install-docker.sh
+    ```
+3. Run the script:
+    ```bash
+    bash .devcontainer/assets/install-docker.sh 
+    ```
+4. Once the installation is complete, you can verify the Docker installation with:
+    ```bash
+    docker --version
+    ```
 
 # Requirements
 
