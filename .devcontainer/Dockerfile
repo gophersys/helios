@@ -1,28 +1,125 @@
 FROM ubuntu:22.04
 
-WORKDIR /concord
-
 # Update System
 RUN apt update && apt upgrade 
 
-# Curl and Git are used extensivel to setup system
-RUN apt install -y curl git
+# Install global dependencies needed for downloading, installing & building software
+RUN apt install -y curl git libc6-dev
 
 # Setup shell
 RUN apt install -y zsh
 RUN sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
 RUN chsh -s $(which zsh)
 
-# # Install Node Version Manager
-# RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.5/install.sh | bash
+# Switch to zsh for all subsequent RUN commands
+SHELL ["/usr/bin/zsh", "-c"]
 
-# COPY . /concord/
+# -----------------------------------------------------------------------------------------------------
+#                                                                                                    Nx
+# ---------------------------------------------------------------------------------------------------*/
 
-# # Install VS Code (code-server)
-# RUN curl -fsSL https://code-server.dev/install.sh | sh
+# Install Node Version Manager and latest LTS release of Node.js
+RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.5/install.sh | bash && \
+    source ~/.zshrc && \
+    nvm install v18.17.1 && \
+    npm install -g npm@10.0.0 && \
+    npm install -g nx
 
-# # Install VS Code extension
-# RUN code-server --install-extension ms-python.python
+# -----------------------------------------------------------------------------------------------------
+#                                                                                                    Go
+# ---------------------------------------------------------------------------------------------------*/
 
-# The command that keeps the container alive
-CMD ["tail", "-f", "/dev/null"]
+# Install Go 1.20.1
+RUN curl -LO "https://golang.org/dl/go1.20.1.linux-amd64.tar.gz" \
+    && tar -C /usr/local -xzf go1.20.1.linux-amd64.tar.gz \
+    && rm go1.20.1.linux-amd64.tar.gz
+
+# Set up environment
+ENV GOPATH /go
+ENV PATH $GOPATH/bin:/usr/local/go/bin:$PATH
+RUN mkdir -p "$GOPATH/src" "$GOPATH/bin" && chmod -R 777 "$GOPATH"
+
+# -----------------------------------------------------------------------------------------------------
+#                                                                                         Zephyr &  NCS
+# ---------------------------------------------------------------------------------------------------*/
+
+# From -> https://developer.nordicsemi.com/nRF_Connect_SDK/doc/latest/nrf/installation/installing.html
+
+# Runnineg DEBIAN_FRONTEND option will choose the default for any commands that require user input
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends git cmake ninja-build gperf \
+    ccache dfu-util device-tree-compiler wget \
+    python3-dev python3-pip python3-setuptools python3-tk python3-wheel xz-utils file \
+    make gcc gcc-multilib g++-multilib libsdl2-dev libmagic1
+
+# Install west and update PATH
+RUN pip3 install --user west && \
+    echo 'export PATH=~/.local/bin:"$PATH"' >> ~/.zshrc && \
+    /bin/zsh -c "source ~/.zshrc"
+
+# Update PATH to include user's local bin, so that we can use west in follow up RUN
+ENV PATH="${PATH}:/root/.local/bin"
+
+# Install the Zephyr SDK
+WORKDIR /usr/home
+RUN wget https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v0.16.1/zephyr-sdk-0.16.1_linux-x86_64.tar.xz
+RUN wget -O - https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v0.16.1/sha256.sum | shasum --check --ignore-missing
+RUN tar xf zephyr-sdk-0.16.1_linux-x86_64.tar.xz > /dev/null
+RUN rm -rf zephyr-sdk-0.16.1_linux-x86_64.tar.xz
+
+# Run the Zephyr SDK bundle setup script
+# The setup script asks for user input twice, so we use printf to send multiple y responses
+WORKDIR /usr/home/zephyr-sdk-0.16.1
+RUN printf "y\ny\n" | ./setup.sh
+
+# Create the ncs directory and set it as the working directory
+RUN mkdir ncs
+WORKDIR /ncs
+
+# Perform the west init, this will be cached as a separate layer
+RUN west init -m https://github.com/nrfconnect/sdk-nrf --mr v2.4.1 && \ 
+    west update
+    
+# Modify the west.yml using the awk command to add espressif & nxp support
+#
+# Here's what the awk command does:
+#   - /name-allowlist:/: Matches lines containing name-allowlist:.
+#     getline: Fetches the next line.
+#   - The inner while loop prints lines while they're less than " - hal_nxp" 
+#     (since "hal_nxp" is the last entry alphabetically).
+#   - Once we reach a line that is greater alphabetically than " - hal_nxp"
+#     or an empty line (end of list), we print "hal_espressif" and "hal_nxp".
+#   - > nrf/temp.yml: Writes the output to a temporary file.
+#   - mv nrf/temp.yml nrf/west.yml: Replaces the original west.yml with our modified temporary file.
+#
+RUN awk '/name-allowlist:/{ \
+        print; \
+        getline; \
+        while ($0 < "          - hal_nxp" && $1 != "") { \
+            print; \
+            getline; \
+        }; \
+        print "          - hal_espressif # Added by CoreKinect"; \
+        print "          - hal_nxp # Added by CoreKinect"; \
+        print; \
+        next \
+    }1' nrf/west.yml > nrf/temp.yml && \
+    mv nrf/temp.yml nrf/west.yml
+
+# Perform west update and zephyr-export
+RUN west update && \
+    west zephyr-export
+
+# Install additional Python dependencies 
+RUN pip3 install --user -r zephyr/scripts/requirements.txt
+RUN pip3 install --user -r nrf/scripts/requirements.txt
+RUN pip3 install --user -r bootloader/mcuboot/scripts/requirements.txt
+
+# We DONT Install udev rules, as passing a device to a container will automatically carry over its
+# persimissions. Documentation on how to pass a device correctly to the container will be provided
+
+# Clean registry after install to minimize size
+RUN apt clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Source the environment
+RUN echo 'source /ncs/zephyr/zephyr-env.sh' >> ~/.zshrc
