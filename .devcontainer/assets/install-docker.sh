@@ -32,7 +32,7 @@ function install-docker {
     sudo usermod -aG docker ${USER}
 
     # Switch to the current user session for the group addition to take effect
-    su - ${USER}
+    su - ${USER} -c "cd $PWD && $(getent passwd $USER | cut -d: -f7)"
 }
 
 install-docker
