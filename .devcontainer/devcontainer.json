@@ -1,5 +1,6 @@
 {
   "name": "Concord Dev",
+  // Build from a Dockerfile for now
   "build": {
     "dockerfile": "Dockerfile",
     "context": ".",
@@ -7,6 +8,11 @@
       // None for now
     }
   },
+  // Pass USB devices
+  "runArgs": [
+    // "--device=dev/bus/usb/"
+  ],
+  // Vs Code Customizations
   "customizations": {
     // Configure properties specific to VS Code.
     "vscode": {
