@@ -118,12 +118,42 @@ RUN pip3 install --user -r bootloader/mcuboot/scripts/requirements.txt
 # persimissions. Documentation on how to pass a device correctly to the container will be provided
 
 # -----------------------------------------------------------------------------------------------------
-#                                                                                                   End 
+#                                                                                                 JLink
 # ---------------------------------------------------------------------------------------------------*/
 
-# Clean registry after install to minimize size
+WORKDIR /tmp
+
+# Install dependencies first
+RUN apt update && \
+    apt install -y \
+    libxcb-render0 \
+    libxcb-render-util0 \
+    libxcb-shape0 \
+    libxcb-icccm4 \
+    libxcb-keysyms1 \
+    libxcb-image0 \
+    libxkbcommon-x11-0 \
+    udev 
+
+# Mock udevadm to bypass the post-install script issue.
+RUN ln -s /bin/true /usr/local/bin/udevadm
+
+# Download and install JLink package
+RUN curl -d "accept_license_agreement=accepted&submit=Download+software" -X POST -O "https://www.segger.com/downloads/jlink/JLink_Linux_x86_64.deb" && \
+    dpkg -i JLink_Linux_x86_64.deb || true && \
+    rm JLink_Linux_x86_64.deb
+
+# Setup config folder to avoid "Terms of Use" pop up window of JLink on every board flash
+COPY ./assets/segger /root/.config/SEGGER
+
+# Remove udev mock
+RUN rm /usr/local/bin/udevadm
+
+# # Clean registry after install to minimize size
 RUN apt clean && \
     rm -rf /var/lib/apt/lists/*
 
 # Source the environment
 RUN echo 'source /ncs/zephyr/zephyr-env.sh' >> ~/.zshrc
+
+CMD ["tail", "-f", "/dev/null"]
