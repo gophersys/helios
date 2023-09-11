@@ -10,7 +10,8 @@
   },
   // Pass USB devices
   "runArgs": [
-    // "--device=dev/bus/usb/"
+    "--device=/dev/bus/usb"
+    // "--privileged -v /dev/ttyACM0"
   ],
   // Vs Code Customizations
   "customizations": {
@@ -24,7 +25,7 @@
         "ms-azuretools.vscode-docker",
         "nrwl.angular-console",
         "golang.go",
-        "ms-vscode.cpptools-extension-pack",
+        "ms-vscode.cpptools-extension-pack"
       ]
     }
   }
