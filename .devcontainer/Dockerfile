@@ -149,10 +149,30 @@ COPY ./assets/segger /root/.config/SEGGER
 # Remove udev mock
 RUN rm /usr/local/bin/udevadm
 
-# # Clean registry after install to minimize size
+# -----------------------------------------------------------------------------------------------------
+#                                                                                         nRF CLI Tools
+# ---------------------------------------------------------------------------------------------------*/
+
+# Get .deb package and install
+RUN curl -o nrf-cli-tools.deb "https://nsscprodmedia.blob.core.windows.net/prod/software-and-other-downloads/desktop-software/nrf-command-line-tools/sw/versions-10-x-x/10-23-0/nrf-command-line-tools_10.23.0_amd64.deb" && \
+    dpkg -i nrf-cli-tools.deb || true && \
+    apt install -f -y && \
+    rm nrf-cli-tools.deb
+
+# Clean registry after install to minimize size
 RUN apt clean && \
     rm -rf /var/lib/apt/lists/*
 
+# -----------------------------------------------------------------------------------------------------
+#                                                                                           Other tools
+# ---------------------------------------------------------------------------------------------------*/
+
+# Serial terminal
+RUN apt update && apt install -y minicom
+
+# -----------------------------------------------------------------------------------------------------
+#                                                                                                   End
+# ---------------------------------------------------------------------------------------------------*/
 # Source the environment
 RUN echo 'source /ncs/zephyr/zephyr-env.sh' >> ~/.zshrc
 
