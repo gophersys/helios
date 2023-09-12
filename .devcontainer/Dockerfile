@@ -170,6 +170,22 @@ RUN apt clean && \
 # Serial terminal
 RUN apt update && apt install -y minicom
 
+# 1. Install necessary packages
+# - locales: This package is required to set up and generate locales in Debian/Ubuntu.
+RUN apt update && apt install -y locales
+
+# 2. Generate the desired locale (en_US.UTF-8 in this example)
+# The locale-gen command reads the /etc/locale.gen file to determine which locales to generate.
+# Uncommenting a specific locale in this file and then running locale-gen will generate that locale.
+RUN sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && locale-gen
+
+# 3. Set the locale environment variables for the container
+# Setting these environment variables will ensure that processes run in the container use the desired locale.
+# This can prevent issues with software that expects specific locales.
+ENV LANG=en_US.UTF-8  
+ENV LANGUAGE=en_US:en  
+ENV LC_ALL=en_US.UTF-8 
+
 # -----------------------------------------------------------------------------------------------------
 #                                                                                                   End
 # ---------------------------------------------------------------------------------------------------*/
