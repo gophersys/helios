@@ -25,6 +25,7 @@ LOG_MODULE_DECLARE(protocol);
  *                                                                                    Private Functions
  *---------------------------------------------------------------------------------------------------*/
 
+// TODO: How do I add unit tests to these functions?
 static bool handshake_uplink(const tal_config_t *cfg);
 static bool handshake_downlink(const tal_config_t *cfg);
 
@@ -74,7 +75,7 @@ static bool handshake_uplink(const tal_config_t *cfg)
     uint16_t bytes_sent = 0;
     bool conn_closed = false;
 
-    uint16_t local_node_version = htons(*(uint16_t *)CIPHER_PROTOCOL_VERSION);
+    uint16_t local_node_version = htons(CIPHER_PROTOCOL_VERSION);
     if (!tal_send(cfg, &local_node_version, sizeof(local_node_version), &bytes_sent, &conn_closed))
         if (!conn_closed)
             WARN("Could not send on interface");
@@ -87,21 +88,19 @@ static bool handshake_uplink(const tal_config_t *cfg)
     {
         if (!tal_recv(cfg, recv_buffer, sizeof(recv_buffer), &bytes_recv, &conn_closed))
             if (!conn_closed)
-                WARN("Could not send on interface");
+                WARN("Could not recv on interface");
 
-        bool valid_packet = false;
         if (bytes_recv == sizeof(bool) && !conn_closed)
-            valid_packet = true;
-        else
-            WARN("Connection timeout while sending protocol version");
-
-        if (valid_packet)
         {
             bool supported = recv_buffer[0];
             if (supported)
                 status = true;
             else
-                WARN("Local node attempted protocol version %d does not match remote", CIPHER_PROTOCOL_VERSION);
+                WARN("Local node protocol version %d does not match remote", CIPHER_PROTOCOL_VERSION);
+        }
+        else
+        {
+            WARN("Connection timeout while sending protocol version");
         }
     }
 
@@ -151,7 +150,7 @@ static bool handshake_downlink(const tal_config_t *cfg)
                     WARN("Could not send on interface");
         }
 
-        if (supported)
+        if (supported && !conn_closed)
             status = true;
         else
             WARN("Remote node attempted to connect with protocol version %d, expected %d", rmt_node_version, CIPHER_PROTOCOL_VERSION);

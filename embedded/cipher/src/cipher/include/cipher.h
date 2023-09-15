@@ -6,7 +6,7 @@
 // CoreKinect includes
 #include "tal.h"
 
-#define CIPHER_PROTOCOL_VERSION 1
+#define CIPHER_PROTOCOL_VERSION (uint16_t)1
 
 void init_cipher(void);
 
