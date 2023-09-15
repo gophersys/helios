@@ -30,12 +30,13 @@ typedef struct
     // Socket connection info
     uint16_t port;
     char *host;
+    uint16_t socket;
 
     // Uart info
 } tal_config_t;
 
 // TODO: Add functions to set timeouts for send/recv
-bool tal_connect(const tal_config_t *cfg);
+bool tal_connect(tal_config_t *cfg);
 bool tal_accept(const tal_config_t *cfg);
 bool tal_send(const tal_config_t *cfg, const void *buffer, const size_t buffer_size, uint16_t *send_count, bool *conn_closed);
 bool tal_recv(const tal_config_t *cfg, void *buffer, const size_t buffer_size, uint16_t *recv_count, bool *conn_closed);

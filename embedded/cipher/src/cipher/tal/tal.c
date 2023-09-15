@@ -14,7 +14,7 @@
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                        Configuration
  *---------------------------------------------------------------------------------------------------*/
-LOG_MODULE_REGISTER(tal);
+LOG_MODULE_REGISTER(tal, LOG_LEVEL_DBG);
 
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                 Private Data & Types
@@ -25,14 +25,14 @@ LOG_MODULE_REGISTER(tal);
  *---------------------------------------------------------------------------------------------------*/
 
 // Sockets
-static bool socket_connect(const tal_config_t *cfg);
+static bool socket_connect(tal_config_t *cfg);
 static bool socket_send(const tal_config_t *cfg, const void *buffer, const size_t buffer_size, uint16_t *send_count, bool *conn_closed);
 static bool socket_recv(const tal_config_t *cfg, void *buffer, const size_t buffer_size, uint16_t *recv_count, bool *conn_closed);
 
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                           Public API
  *---------------------------------------------------------------------------------------------------*/
-bool tal_connect(const tal_config_t *cfg)
+bool tal_connect(tal_config_t *cfg)
 {
     bool status = false;
 
@@ -92,7 +92,7 @@ bool tal_send(const tal_config_t *cfg, const void *buffer, const size_t buffer_s
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                Socket Implementation
  *---------------------------------------------------------------------------------------------------*/
-bool socket_connect(const tal_config_t *cfg)
+bool socket_connect(tal_config_t *cfg)
 {
     bool status = false;
 
@@ -124,6 +124,7 @@ bool socket_connect(const tal_config_t *cfg)
             else
             {
                 status = true; // Succesful connection
+                cfg->socket = sockfd;
             }
         }
     }
@@ -134,13 +135,54 @@ bool socket_connect(const tal_config_t *cfg)
 static bool socket_send(const tal_config_t *cfg, const void *buffer, const size_t buffer_size, uint16_t *send_count, bool *conn_closed)
 {
     bool status = false;
-    // TODO: Me
+
+    int socket_send_count = send(cfg->socket, buffer, buffer_size, 0);
+    if (socket_send_count > 0)
+    {
+        *send_count = (uint16_t)socket_send_count;
+        status = true;
+    }
+    else
+    {
+        if (errno == ECONNRESET || errno == EPIPE)
+        {
+            *conn_closed = true;
+        }
+        else
+        {
+            WARN("Unknown socket send error: %d", errno);
+        }
+        *send_count = 0;
+    }
+
     return status;
 }
 
 static bool socket_recv(const tal_config_t *cfg, void *buffer, const size_t buffer_size, uint16_t *recv_count, bool *conn_closed)
 {
     bool status = false;
-    // TODO: Me
+
+    int socket_recv_count = recv(cfg->socket, buffer, buffer_size, 0);
+
+    if (socket_recv_count > 0)
+    {
+        *recv_count = (uint16_t)socket_recv_count;
+        status = true;
+    }
+    else if (socket_recv_count == 0)
+    {
+        // The recv function returning 0 indicates a graceful shutdown by the peer.
+        *conn_closed = true;
+        *recv_count = 0;
+    }
+    else
+    {
+        if (errno == ECONNRESET)
+        {
+            *conn_closed = true;
+        }
+        *recv_count = 0;
+    }
+
     return status;
 }
