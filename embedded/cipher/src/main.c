@@ -37,9 +37,15 @@
 
 LOG_MODULE_REGISTER(cipher, LOG_LEVEL_DBG);
 
+void cipher_daemon(void *arg0, void *arg1, void *arg2)
+{
+	cipher_daemon_t daemon = {0};
+	init_cipher(&daemon);
+}
+
 K_THREAD_DEFINE(cipher_id,
 				2048,
-				init_cipher,
+				cipher_daemon,
 				NULL, NULL, NULL,
 				10,
 				0,
