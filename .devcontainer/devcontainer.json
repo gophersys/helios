@@ -11,14 +11,17 @@
   // Pass all USB devices
   "runArgs": [
     "--device=/dev/bus/usb",
-    "--device=/dev/ttyACM0"
+    "--device=/dev/ttyACM0",
+    "--network=host"
   ],
   // Vs Code Customizations
   "customizations": {
     // Configure properties specific to VS Code.
     "vscode": {
       "settings": {
-        "terminal.integrated.shell.linux": "/usr/bin/zsh"
+        "terminal.integrated.shell.linux": "/usr/bin/zsh",
+        // Disable RTOS window
+        "mcu-debug.rtos-views.showRTOS": false
       },
       // Add the IDs of extensions you want installed when the container is created.
       "extensions": [
@@ -26,6 +29,12 @@
         "nrwl.angular-console",
         "golang.go",
         "ms-vscode.cpptools-extension-pack",
+        "mcu-debug.debug-tracker-vscode",
+        "marus25.cortex-debug",
+        "mcu-debug.peripheral-viewer",
+        "ms-vscode.vscode-serial-monitor",
+        "plorefice.devicetree",
+        "cschlosser.doxdocgen"
       ]
     }
   }
