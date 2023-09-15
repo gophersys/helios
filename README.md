@@ -62,3 +62,6 @@ https://www.youtube.com/watch?v=0H2miBK_gAk
 https://code.visualstudio.com/docs/devcontainers/create-dev-container
 https://github.com/alfredodeza/devcontainer-python-template/blob/main/.devcontainer/devcontainer.json
 https://github.com/dorssel/usbipd-win
+
+# TODO:
+Add info on networkin: https://jwstanly.com/blog/article/Port+Forwarding+WSL+2+to+Your+LAN/
