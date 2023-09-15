@@ -9,11 +9,16 @@
         "socket.h": "c",
         "stdio.h": "c",
         "stdlib.h": "c",
-        "errno.h": "c"
+        "errno.h": "c",
+        "string.h": "c",
+        "tal.h": "c",
+        "kernel.h": "c",
+        "log.h": "c"
     },
+    // Editor actions
     "editor.codeActionsOnSave": {
         "source.fixAll": true,
-        "C_Cpp.ResetDatabase": true
+        // "C_Cpp.ResetDatabase": true
     },
     "editor.formatOnSave": true,
     // Update and auto-format on save
