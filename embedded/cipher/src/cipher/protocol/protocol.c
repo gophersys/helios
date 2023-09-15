@@ -15,9 +15,7 @@
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                        Configuration
  *---------------------------------------------------------------------------------------------------*/
-LOG_MODULE_REGISTER(protocol);
-
-#define CIPHER_PROTOCOL_VERSION 1
+LOG_MODULE_REGISTER(protocol, LOG_LEVEL_DBG);
 
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                 Private Data & Types
@@ -27,15 +25,14 @@ LOG_MODULE_REGISTER(protocol);
  *                                                                                    Private Functions
  *---------------------------------------------------------------------------------------------------*/
 
-// Init
-bool cipher_interface_init(tal_config_t *cfg);
+static bool cipher_interface_init(tal_config_t *cfg);
 
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                      Main Event Loop
  *---------------------------------------------------------------------------------------------------*/
-void init_cipher(void)
+void init_cipher(cipher_daemon_t *daemon)
 {
-    DBG("Starting Cipher");
+    LOG("Starting Cipher");
 
     tal_config_t uplink_cfg = {
         .interface = TAL_INTERFACE_TYPE_SOCKET,
@@ -44,7 +41,11 @@ void init_cipher(void)
         .port = 6969,
     };
 
-    cipher_interface_init(&uplink_cfg);
+    if (!cipher_interface_init(&uplink_cfg))
+        ERROR("Could not initialize uplink interface");
+
+    if (!cipher_threads_init(daemon))
+        ERROR("Could not protocol threads");
 
     while (1)
     {
@@ -54,10 +55,10 @@ void init_cipher(void)
 }
 
 /*-----------------------------------------------------------------------------------------------------
- *                                                                      Private Function Implementation
+ *                                                                                                 Init
  *---------------------------------------------------------------------------------------------------*/
 
-bool cipher_interface_init(tal_config_t *cfg)
+static bool cipher_interface_init(tal_config_t *cfg)
 {
     bool status = false;
 
@@ -77,7 +78,7 @@ bool cipher_interface_init(tal_config_t *cfg)
             }
             else
             {
-                DBG("Uplink interface initialized OK");
+                LOG("Uplink interface initialized OK");
                 status = true;
             }
         }
@@ -88,8 +89,12 @@ bool cipher_interface_init(tal_config_t *cfg)
         // TODO: Implement me
         break;
     default:
-        LOG_ERR("%s: unhandled exception", __func__);
+        ERROR("Unhandled exception");
     }
 
     return status;
 }
+
+/*-----------------------------------------------------------------------------------------------------
+ *                                                                                              Threads
+ *---------------------------------------------------------------------------------------------------*/
