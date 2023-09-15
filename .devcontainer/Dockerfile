@@ -164,12 +164,10 @@ RUN apt clean && \
     rm -rf /var/lib/apt/lists/*
 
 # -----------------------------------------------------------------------------------------------------
-#                                                                                           Other tools
+#                                                                                     Fix Locales Issue
 # ---------------------------------------------------------------------------------------------------*/
 
-# Serial terminal
-RUN apt update && apt install -y minicom
-
+#TODO: document me
 # 1. Install necessary packages
 # - locales: This package is required to set up and generate locales in Debian/Ubuntu.
 RUN apt update && apt install -y locales
@@ -185,6 +183,19 @@ RUN sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && locale-gen
 ENV LANG=en_US.UTF-8  
 ENV LANGUAGE=en_US:en  
 ENV LC_ALL=en_US.UTF-8 
+
+# -----------------------------------------------------------------------------------------------------
+#                                                                                           Other tools
+# ---------------------------------------------------------------------------------------------------*/
+
+# Serial terminal
+RUN apt update && apt install -y minicom
+
+# Go tools
+RUN go install -v golang.org/x/tools/gopls@latest
+
+# Net tools
+RUN apt install -y net-tools iputils-ping
 
 # -----------------------------------------------------------------------------------------------------
 #                                                                                                   End
