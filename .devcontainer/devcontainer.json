@@ -34,7 +34,8 @@
         "mcu-debug.peripheral-viewer",
         "ms-vscode.vscode-serial-monitor",
         "plorefice.devicetree",
-        "cschlosser.doxdocgen"
+        "cschlosser.doxdocgen",
+        "hediet.vscode-drawio"
       ]
     }
   }
