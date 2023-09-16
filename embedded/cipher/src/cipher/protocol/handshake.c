@@ -68,14 +68,14 @@ static bool handshake_uplink(const tal_config_t *cfg)
 {
     bool status = false;
 
-    DBG("Handshaking downlink node");
+    LOG("Handshaking downlink node");
 
     uint8_t recv_buffer[sizeof(bool)] = {0};
     uint16_t bytes_recv = 0;
     uint16_t bytes_sent = 0;
     bool conn_closed = false;
 
-    uint16_t local_node_version = htons(CIPHER_PROTOCOL_VERSION);
+    uint16_t local_node_version = htons(CIPHER_CONFIG_PROTOCOL_VERSION);
     if (!tal_send(cfg, &local_node_version, sizeof(local_node_version), &bytes_sent, &conn_closed))
         if (!conn_closed)
             WARN("Could not send on interface");
@@ -96,7 +96,7 @@ static bool handshake_uplink(const tal_config_t *cfg)
             if (supported)
                 status = true;
             else
-                WARN("Local node protocol version %d does not match remote", CIPHER_PROTOCOL_VERSION);
+                WARN("Local node protocol version %d does not match remote", CIPHER_CONFIG_PROTOCOL_VERSION);
         }
         else
         {
@@ -120,7 +120,7 @@ static bool handshake_downlink(const tal_config_t *cfg)
 {
     bool status = false;
 
-    DBG("Handshaking downlink node");
+    LOG("Handshaking downlink node");
 
     uint8_t recv_buffer[sizeof(uint16_t)] = {0};
     uint16_t bytes_recv = 0;
@@ -142,7 +142,7 @@ static bool handshake_downlink(const tal_config_t *cfg)
         uint16_t rmt_node_version = ntohs(*(uint16_t *)recv_buffer);
 
         bool supported = false;
-        if (rmt_node_version == CIPHER_PROTOCOL_VERSION)
+        if (rmt_node_version == CIPHER_CONFIG_PROTOCOL_VERSION)
         {
             supported = true;
             if (!tal_send(cfg, &supported, sizeof(supported), &bytes_sent, &conn_closed))
@@ -153,7 +153,7 @@ static bool handshake_downlink(const tal_config_t *cfg)
         if (supported && !conn_closed)
             status = true;
         else
-            WARN("Remote node attempted to connect with protocol version %d, expected %d", rmt_node_version, CIPHER_PROTOCOL_VERSION);
+            WARN("Remote node attempted to connect with protocol version %d, expected %d", rmt_node_version, CIPHER_CONFIG_PROTOCOL_VERSION);
     }
 
     return status;

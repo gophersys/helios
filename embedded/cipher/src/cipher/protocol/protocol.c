@@ -34,14 +34,7 @@ void init_cipher(cipher_daemon_t *daemon)
 {
     LOG("Starting Cipher");
 
-    tal_config_t uplink_cfg = {
-        .interface = TAL_INTERFACE_TYPE_SOCKET,
-        .link = TAL_LINK_TYPE_UPLINK,
-        .host = "192.168.0.11",
-        .port = 6969,
-    };
-
-    if (!cipher_interface_init(&uplink_cfg))
+    if (!cipher_interface_init(&daemon->uplink_cfg))
         ERROR("Could not initialize uplink interface");
 
     if (!cipher_threads_init(daemon))
@@ -50,7 +43,7 @@ void init_cipher(cipher_daemon_t *daemon)
     while (1)
     {
         k_msleep(1000);
-        LOG("In busy loop");
+        // LOG("In busy loop");
     }
 }
 
@@ -72,6 +65,8 @@ static bool cipher_interface_init(tal_config_t *cfg)
         }
         else
         {
+            LOG("Succesfully connected to remote node, handshaking...");
+
             if (!cipher_handshake(cfg))
             {
                 WARN("Could not handshake link");
