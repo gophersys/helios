@@ -15,7 +15,8 @@
         "kernel.h": "c",
         "log.h": "c",
         "cipher.h": "c",
-        "utils.h": "c"
+        "utils.h": "c",
+        "cstddef": "c"
     },
     // Editor actions
     "editor.codeActionsOnSave": {

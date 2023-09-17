@@ -23,7 +23,6 @@ void cipher_daemon(void *arg0, void *arg1, void *arg2)
 K_THREAD_DEFINE(cipher_id, 10000, cipher_daemon, NULL, NULL, NULL, 10, K_USER, 0);
 
 int main(void)
-
 {
 	while (1)
 		k_msleep(1000);

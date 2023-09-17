@@ -2,4 +2,5 @@ target_sources(app PRIVATE protocol.c
                            handshake.c
                            threads.c
                            packet.c
-                           buffers.c)
+                           buffers.c
+                           serdes.c)

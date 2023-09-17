@@ -29,7 +29,7 @@ LOG_MODULE_DECLARE(protocol, LOG_LEVEL_DBG);
  *                                                                                           Public API
  *---------------------------------------------------------------------------------------------------*/
 
-void cipher_print_header(const cipher_packet_header_t *header)
+void cipher_print_header(const cipher_header_t *header)
 {
     if (header == NULL)
         ERROR("NULL header passed");
@@ -46,7 +46,7 @@ void cipher_print_header(const cipher_packet_header_t *header)
     LOG("Flags: 0x%02x", header->flags);
 }
 
-bool cipher_packet_parse_header(const uint8_t *recv_buffer, uint16_t recv_buffer_size, cipher_packet_header_t *header_buffer)
+bool cipher_packet_parse_header(const uint8_t *recv_buffer, uint16_t recv_buffer_size, cipher_header_t *header_buffer)
 {
     __ASSERT(recv_buffer != NULL, "recv_buffer is NULL");
     __ASSERT(header_buffer != NULL, "header_buffer is NULL");
@@ -54,10 +54,10 @@ bool cipher_packet_parse_header(const uint8_t *recv_buffer, uint16_t recv_buffer
     bool status = false;
 
     // Size of the header, taking care to include all fields
-    const size_t header_size = sizeof(cipher_packet_header_t);
+    const size_t header_size = sizeof(cipher_header_t);
     if (recv_buffer_size < header_size)
     {
-        WARN("Packet must be at least %d bytes, got %d", sizeof(cipher_packet_header_t), recv_buffer_size);
+        WARN("Packet must be at least %d bytes, got %d", sizeof(cipher_header_t), recv_buffer_size);
     }
     else
     {
