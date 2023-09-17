@@ -50,24 +50,21 @@ func handleConnection(conn net.Conn) {
 		return
 	}
 
-	conn.(*net.TCPConn).SetKeepAlive(true)
-	conn.(*net.TCPConn).SetKeepAlivePeriod(100 * time.Millisecond) // Set period as suitable for your use-case
-
 	log.Printf("Received connection from %s", conn.RemoteAddr())
 
 	header := &CipherPacketHeader{
 		SourceID:      1234,
 		DestinationID: 5678,
+		Type:          2,
+		PayloadLen:    1,
 		Flags:         0x01,
 	}
 
-	ticker := time.NewTicker(10 * time.Millisecond)
+	ticker := time.NewTicker(1000 * time.Millisecond)
 	defer ticker.Stop()
 
 	for range ticker.C {
-		header.SourceID++
-		header.DestinationID++
-		sendPacket(conn, header, []byte("Test payload"))
+		sendPacket(conn, header)
 	}
 }
 
@@ -106,8 +103,11 @@ func PackHeader(header *CipherPacketHeader) []byte {
 	return buf
 }
 
-func sendPacket(conn net.Conn, header *CipherPacketHeader, payload []byte) {
-	packet := append(PackHeader(header))
+var counter byte
+
+func sendPacket(conn net.Conn, header *CipherPacketHeader) {
+	counter++
+	packet := append(PackHeader(header), counter)
 	_, err := conn.Write(packet)
 	if err != nil {
 		log.Printf("Failed to send packet: %v\n", err)
