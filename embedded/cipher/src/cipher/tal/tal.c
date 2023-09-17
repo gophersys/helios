@@ -12,6 +12,12 @@
 #include "utils.h"
 
 /*-----------------------------------------------------------------------------------------------------
+ *                                                                                      Developer Notes
+ *---------------------------------------------------------------------------------------------------*/
+
+// TODO:  Assert that none of the passed configs are null
+
+/*-----------------------------------------------------------------------------------------------------
  *                                                                                        Configuration
  *---------------------------------------------------------------------------------------------------*/
 LOG_MODULE_REGISTER(tal, LOG_LEVEL_DBG);
@@ -28,6 +34,7 @@ LOG_MODULE_REGISTER(tal, LOG_LEVEL_DBG);
 static bool socket_connect(tal_config_t *cfg);
 static bool socket_send(const tal_config_t *cfg, const void *buffer, const size_t buffer_size, uint16_t *send_count, bool *conn_closed);
 static bool socket_recv(const tal_config_t *cfg, void *buffer, const size_t buffer_size, uint16_t *recv_count, bool *conn_closed);
+static bool socket_close(const tal_config_t *cfg);
 
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                           Public API
@@ -78,6 +85,25 @@ bool tal_send(const tal_config_t *cfg, const void *buffer, const size_t buffer_s
     {
     case TAL_INTERFACE_TYPE_SOCKET:
         status = socket_send(cfg, buffer, buffer_size, send_count, conn_closed);
+        break;
+    case TAL_INTERFACE_TYPE_UART:
+        // TODO: Implement me
+        break;
+    default:
+        ERROR("Unknown or implemented interface interface: %d", cfg->interface);
+    }
+
+    return status;
+}
+
+bool tal_close(const tal_config_t *cfg)
+{
+    bool status = false;
+
+    switch (cfg->interface)
+    {
+    case TAL_INTERFACE_TYPE_SOCKET:
+        status = socket_close(cfg);
         break;
     case TAL_INTERFACE_TYPE_UART:
         // TODO: Implement me
@@ -185,4 +211,10 @@ static bool socket_recv(const tal_config_t *cfg, void *buffer, const size_t buff
     }
 
     return status;
+}
+
+static bool socket_close(const tal_config_t *cfg)
+{
+    close(cfg->socket);
+    return true;
 }

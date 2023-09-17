@@ -14,7 +14,8 @@
         "tal.h": "c",
         "kernel.h": "c",
         "log.h": "c",
-        "cipher.h": "c"
+        "cipher.h": "c",
+        "utils.h": "c"
     },
     // Editor actions
     "editor.codeActionsOnSave": {

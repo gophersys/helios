@@ -12,11 +12,10 @@ typedef struct
 {
     // Interfaces
     tal_config_t uplink_cfg;
-    tal_config_t downlink_cfg; // TODO: me
 
     // Threads
+    k_tid_t controller_tid;
     k_tid_t uplink_listener_tid;
-    k_tid_t downlink_listener_tid; // TODO: me
 } cipher_daemon_t;
 
 void init_cipher(cipher_daemon_t *daemon);
@@ -51,5 +50,11 @@ typedef struct __attribute__((packed))
 
 void cipher_print_header(const cipher_packet_header_t *header);
 bool cipher_packet_parse_header(const uint8_t *recv_buffer, uint16_t recv_buffer_size, cipher_packet_header_t *header_buffer);
+
+/*-----------------------------------------------------------------------------------------------------
+ *                                                                                              Buffers
+ *---------------------------------------------------------------------------------------------------*/
+uint8_t *cipher_new_buffer(size_t size);
+void cipher_free_buffer(uint8_t *buffer);
 
 #endif // RAL_H
