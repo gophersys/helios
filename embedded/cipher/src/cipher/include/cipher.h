@@ -10,13 +10,19 @@
 
 typedef struct
 {
+    uint16_t device_id;
+
     // Interfaces
     tal_config_t uplink_cfg;
 
     // Threads
     k_tid_t controller_tid;
-    k_tid_t service_discovery_tid;
     k_tid_t uplink_listener_tid;
+    k_tid_t sd_tid;
+    k_tid_t router_tid;
+    k_tid_t rpc_tid;
+    k_tid_t event_tid;
+
 } cipher_daemon_t;
 
 void init_cipher(cipher_daemon_t *daemon);
@@ -40,7 +46,6 @@ typedef enum
 {
     CIPHER_PACKET_TYPE_RPC,
     CIPHER_PACKET_TYPE_EVENT,
-
     CIPHER_PACKET_TYPE_SD,
 
     CIPHER_PACKET_TYPE_MAX
@@ -48,15 +53,9 @@ typedef enum
 
 typedef struct
 {
-    // TODO: me
-    uint8_t dummy;
-} cipher_service_discovery_payload_t;
-
-typedef struct
-{
     cipher_packet_type_t header;
-    cipher_service_discovery_payload_t payload;
-} cipher_service_discovery_packet_t;
+    void *payload;
+} cipher_packet_t;
 
 // Cipher Header (11 bytes)
 typedef struct __attribute__((packed))
@@ -74,11 +73,11 @@ typedef struct __attribute__((packed))
 void cipher_print_header(const cipher_header_t *header);
 bool cipher_packet_parse_header(const uint8_t *recv_buffer, uint16_t recv_buffer_size, cipher_header_t *header_buffer);
 
-/*-----------------------------------------------------------------------------------------------------
- *                                                                                              Buffers
- *---------------------------------------------------------------------------------------------------*/
-uint8_t *cipher_new_buffer(size_t size);
-void cipher_free_buffer(uint8_t *buffer);
+typedef struct
+{
+    uint8_t service_id;
+    uint16_t num_hops;
+} cipher_payload_sd_t;
 
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                               Serdes
@@ -87,6 +86,7 @@ void cipher_free_buffer(uint8_t *buffer);
 typedef enum
 {
     CIPHER_ERROR_OK,
+    CIPHER_ERROR_INVALID_HEADER,
     CIPHER_ERROR_MAX
 } cipher_error_t;
 
