@@ -28,7 +28,20 @@ LOG_MODULE_DECLARE(cipher);
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                           Public API
  *---------------------------------------------------------------------------------------------------*/
+void cipher_router_thread(void *arg0, void *arg1, void *arg2)
+{
+    LOG("Starting cipher router thread");
+    while (true)
+        k_msleep(1000);
+    cipher_daemon_t *d = (cipher_daemon_t *)arg0;
 
+    while (true)
+    {
+        void *packet = k_fifo_get(&d->unrouted_packets_queue, K_FOREVER);
+        LOG("Doing something with unrouted packet");
+        k_heap_free(&d->unrouted_packets_heap, packet);
+    }
+}
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                               Thread
  *---------------------------------------------------------------------------------------------------*/

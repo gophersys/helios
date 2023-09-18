@@ -38,9 +38,16 @@ int main(void)
 {
 	LOG_RAW("\n\n%s\n", "********** Cipher Protocol App **********");
 
-	if (!init_cipher_daemon(&daemon))
+	if (!cipher_init_daemon(&daemon))
 		ERROR("Unable to initialize cipher daemon");
+
+	LOG("App Initialized OK");
 
 	while (true)
 		k_msleep(1000);
 }
+
+// (1 Uplink + 1 Downlink only)
+// 162488 [1]
+// 186152 [2] +23664
+// 209816 [3] +23664

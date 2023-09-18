@@ -24,6 +24,9 @@ typedef enum
 
 typedef struct
 {
+    // private:
+    uint16_t id;
+
     // public:
     tal_interface_type_t type;
     tal_link_type_t link;
@@ -32,9 +35,6 @@ typedef struct
     uint16_t port;
     char *host;
     uint16_t socket;
-
-    // private:
-    uint16_t id;
 } tal_config_t;
 
 // TODO: Add functions to set timeouts for send/recv

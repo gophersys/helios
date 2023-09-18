@@ -1,6 +1,10 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
+// Number of interfaces
+#define CONFIG_UP_LINK_INTERFACE_COUNT 1
+#define CONFIG_DOWN_LINK_INTERFACE_COUNT 1
+
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                              Threads
  *---------------------------------------------------------------------------------------------------*/
@@ -44,9 +48,5 @@
 
 // Local packet heaps
 #define CONFIG_CIPHER_LOCAL_PACKETS_HEAP 2048
-
-// Number of interfaces
-#define CONFIG_UP_LINK_INTERFACE_COUNT 1
-#define CONFIG_DOWN_LINK_INTERFACE_COUNT 2
 
 #endif // CONFIG_H

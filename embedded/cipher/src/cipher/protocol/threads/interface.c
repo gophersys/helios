@@ -102,18 +102,24 @@ static void process_packet(cipher_daemon_t *d, uint8_t *recv_buffer, uint16_t by
 
 void cipher_interface_conn_thread(void *arg0, void *arg1, void *arg2)
 {
+    LOG("Starting interface conn thread");
     while (true)
         k_msleep(1000);
 }
 
 void cipher_interface_send_thread(void *arg0, void *arg1, void *arg2)
 {
+    LOG("Starting interface send thread");
     while (true)
         k_msleep(1000);
 }
 
 void cipher_interface_recv_thread(void *arg0, void *arg1, void *arg2)
 {
+    LOG("Starting interface recv thread");
+    while (true)
+        k_msleep(1000);
+
     cipher_daemon_t *d = (cipher_daemon_t *)arg0;
     tal_config_t *interface_cfg = (tal_config_t *)arg1;
 

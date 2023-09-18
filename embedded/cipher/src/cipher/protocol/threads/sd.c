@@ -29,54 +29,32 @@ LOG_MODULE_DECLARE(cipher);
  *                                                                                           Public API
  *---------------------------------------------------------------------------------------------------*/
 
-bool cipher_controller_exit(cipher_daemon_t *daemon)
+typedef struct
 {
-    bool status = false;
-    controller_event_t exit_event = {
-        .type = CONTROLLER_EVENT_TYPE_EXIT,
-    };
-    k_fifo_alloc_put(&daemon->controller_event_queue, &exit_event);
+    uint16_t destination_id;
+    uint16_t service_id;
+    uint8_t max_hops;
+} cipher_sd_table_entry_t;
 
-    // TODO: me
-    status = true;
-    return status;
+void cipher_sd_thread(void *arg0, void *arg1, void *arg2)
+{
+    LOG("Starting cipher service discovery thread");
+    while (true)
+        k_msleep(1000);
+
+    cipher_daemon_t *d = (cipher_daemon_t *)arg0;
+
+    while (true)
+    {
+        cipher_packet_t *packet = k_fifo_get(&d->service_discovery_queue, K_FOREVER);
+        // cipher_payload_sd_t *payload = (cipher_payload_sd_t *)packet->payload;
+        // LOG("SD packet: ID -> %d, Hops: %d ", payload->service_id, payload->num_hops);
+
+        k_heap_free(&d->local_packets_heap, packet->payload);
+        k_heap_free(&d->local_packets_heap, packet);
+    }
 }
 
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                               Thread
  *---------------------------------------------------------------------------------------------------*/
-
-void cipher_controller_thread(void *arg0, void *arg1, void *arg2)
-{
-    LOG("Starting cipher controller thread");
-    while (true)
-        k_msleep(1000);
-    cipher_daemon_t *daemon = (cipher_daemon_t *)arg0;
-
-    while (true)
-    {
-        controller_event_t *event = k_fifo_get(&daemon->controller_event_queue, K_FOREVER);
-
-        switch (event->type)
-        {
-        case CONTROLLER_EVENT_TYPE_EXIT:
-
-            DBG("Ending dameon instance...");
-
-            k_thread_abort(daemon->sd_t_id);
-            // k_thread_abort(daemon->);
-            k_thread_abort(daemon->router_t_id);
-
-            // tal_close(&daemon->uplink_cfg);
-
-            DBG("Exiting");
-
-            k_thread_abort(k_current_get());
-
-            break;
-
-        default:
-            ERROR("Unknown controller event type: %d", event->type);
-        }
-    }
-}

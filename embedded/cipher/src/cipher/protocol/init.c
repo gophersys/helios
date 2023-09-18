@@ -29,6 +29,9 @@ LOG_MODULE_REGISTER(cipher, LOG_LEVEL_DBG);
 // Check configurations
 static bool cipher_assert_daemon(cipher_daemon_t *d);
 
+// Threads
+static void cipher_init_threads(cipher_daemon_t *d);
+
 // Objects
 static bool cipher_init_objects(cipher_daemon_t *d);
 
@@ -36,16 +39,22 @@ static bool cipher_init_objects(cipher_daemon_t *d);
 static void initialize_interface_group(cipher_daemon_t *d, tal_config_t *interfaces, size_t num,
                                        cipher_interface_thread_group_t *t_g);
 
+// Helpers
+char *t_name(const char *prefix, uint16_t device_id, char *buffer, size_t buflen);
+
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                           Public API
  *---------------------------------------------------------------------------------------------------*/
-bool init_cipher_daemon(cipher_daemon_t *d)
+bool cipher_init_daemon(cipher_daemon_t *d)
 {
     sys_rand_get(&d->device_id, sizeof(d->device_id));
-    bool status = cipher_init_objects(d);
+    bool status = cipher_assert_daemon(d);
 
     if (status)
-        status = cipher_init_threads(d);
+        cipher_init_objects(d);
+
+    if (status)
+        cipher_init_threads(d);
 
     return status;
 }
@@ -57,23 +66,25 @@ static bool cipher_assert_daemon(cipher_daemon_t *d)
 {
     bool status = true;
 
-    for (uint8_t i = 0; i < CONFIG_UP_LINK_INTERFACE_COUNT && status; i++)
-    {
-        if (&d->uplink_interface_cfg[i] == NULL)
-        {
-            WARN("Uplink interface %d not defined, see CONFIG_UP_LINK_INTERFACE_COUNT", i);
-            status = false;
-        }
-    }
+    // TODO: How do we check for a blind interface?
 
-    for (uint8_t i = 0; i < CONFIG_DOWN_LINK_INTERFACE_COUNT && status; i++)
-    {
-        if (&d->downlink_interface_cfg[i] == NULL)
-        {
-            WARN("Downlink interface %d not defined, see CONFIG_DOWN_LINK_INTERFACE_COUNT", i);
-            status = false;
-        }
-    }
+    // for (uint8_t i = 0; i < CONFIG_UP_LINK_INTERFACE_COUNT && status; i++)
+    // {
+    //     if (d->uplink_interface_cfg[i] == NULL)
+    //     {
+    //         WARN("Uplink interface %d not defined, see CONFIG_UP_LINK_INTERFACE_COUNT", i);
+    //         status = false;
+    //     }
+    // }
+
+    // for (uint8_t i = 0; i < CONFIG_DOWN_LINK_INTERFACE_COUNT && status; i++)
+    // {
+    //     if (d->downlink_interface_cfg[i] == NULL)
+    //     {
+    //         WARN("Downlink interface %d not defined, see CONFIG_DOWN_LINK_INTERFACE_COUNT", i);
+    //         status = false;
+    //     }
+    // }
 
     return status;
 }
@@ -101,9 +112,10 @@ static bool cipher_init_objects(cipher_daemon_t *d)
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                              Threads
  *---------------------------------------------------------------------------------------------------*/
-bool cipher_init_threads(cipher_daemon_t *d)
+static void cipher_init_threads(cipher_daemon_t *d)
 {
-    // TODO: Add Ids to the thread names to make them easy to identify
+    // Initialize all daemon threads
+    char name_buf[32];
     d->ctrl_t_id = k_thread_create(&d->ctrl_t_data,
                                    d->ctrl_t_stack,
                                    K_THREAD_STACK_SIZEOF(d->ctrl_t_stack),
@@ -112,7 +124,7 @@ bool cipher_init_threads(cipher_daemon_t *d)
                                    CONTROLLER_THREAD_PRIORITY,
                                    0,
                                    K_FOREVER);
-    k_thread_name_set(d->ctrl_t_id, "cipher_controller");
+    k_thread_name_set(d->ctrl_t_id, t_name("cipher_controller", d->device_id, name_buf, sizeof(name_buf)));
 
     d->sd_t_id = k_thread_create(&d->sd_t_data,
                                  d->sd_t_stack,
@@ -122,7 +134,7 @@ bool cipher_init_threads(cipher_daemon_t *d)
                                  SD_THREAD_PRIORITY,
                                  0,
                                  K_FOREVER);
-    k_thread_name_set(d->sd_t_id, "cipher_sd");
+    k_thread_name_set(d->sd_t_id, t_name("cipher_sd", d->device_id, name_buf, sizeof(name_buf)));
 
     d->router_t_id = k_thread_create(&d->router_t_data,
                                      d->router_t_stack,
@@ -132,7 +144,7 @@ bool cipher_init_threads(cipher_daemon_t *d)
                                      ROUTER_THREAD_PRIORITY,
                                      0,
                                      K_FOREVER);
-    k_thread_name_set(d->router_t_id, "cipher_router");
+    k_thread_name_set(d->router_t_id, t_name("cipher_router", d->device_id, name_buf, sizeof(name_buf)));
 
     d->rpc_t_id = k_thread_create(&d->rpc_t_data,
                                   d->rpc_t_stack,
@@ -142,7 +154,7 @@ bool cipher_init_threads(cipher_daemon_t *d)
                                   RPC_THREAD_PRIORITY,
                                   0,
                                   K_FOREVER);
-    k_thread_name_set(d->rpc_t_id, "cipher_rpc");
+    k_thread_name_set(d->rpc_t_id, t_name("cipher_rpc", d->device_id, name_buf, sizeof(name_buf)));
 
     d->event_t_id = k_thread_create(&d->event_t_data,
                                     d->event_t_stack,
@@ -152,19 +164,18 @@ bool cipher_init_threads(cipher_daemon_t *d)
                                     EVENT_THREAD_PRIORITY,
                                     0,
                                     K_FOREVER);
-    k_thread_name_set(d->event_t_id, "cipher_event");
+    k_thread_name_set(d->event_t_id, t_name("cipher_event", d->device_id, name_buf, sizeof(name_buf)));
 
+    // Initialize & Start all interface threads
     initialize_interface_group(d, d->uplink_interface_cfg, CONFIG_UP_LINK_INTERFACE_COUNT, d->uplink_t_g);
     initialize_interface_group(d, d->downlink_interface_cfg, CONFIG_DOWN_LINK_INTERFACE_COUNT, d->downlink_t_g);
 
+    // Start all dameon threads
     k_thread_start(d->ctrl_t_id);
     k_thread_start(d->sd_t_id);
     k_thread_start(d->router_t_id);
     k_thread_start(d->rpc_t_id);
     k_thread_start(d->event_t_id);
-
-    // TODO: how do we verify all threads were initialized ok?
-    return true;
 }
 
 /*-----------------------------------------------------------------------------------------------------
@@ -212,4 +223,18 @@ static void initialize_interface_group(cipher_daemon_t *d, tal_config_t *interfa
         k_thread_start(send_t->id);
         k_thread_start(recv_t->id);
     }
+}
+
+/*-----------------------------------------------------------------------------------------------------
+ *                                                                                              Helpers
+ *---------------------------------------------------------------------------------------------------*/
+char *t_name(const char *prefix, uint16_t device_id, char *buffer, size_t buflen)
+{
+    // Extract the last 4 digits of device_id
+    uint16_t last_4_digits = device_id % 10000; // This gives the last 4 digits
+
+    // Use snprintf to format the string and store in the buffer
+    snprintf(buffer, buflen, "%s_%04u", prefix, last_4_digits);
+
+    return buffer;
 }

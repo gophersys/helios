@@ -1,4 +1,7 @@
-target_sources(app PRIVATE threads.c
-                           accept.c
+target_sources(app PRIVATE accept.c
                            controller.c
-                           interface.c)
+                           event.c
+                           interface.c
+                           router.c
+                           rpc.c
+                           sd.c)

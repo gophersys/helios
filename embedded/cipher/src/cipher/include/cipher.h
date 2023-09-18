@@ -97,7 +97,7 @@ typedef struct
 
 } cipher_daemon_t;
 
-bool init_cipher_daemon(cipher_daemon_t *daemon);
+bool cipher_init_daemon(cipher_daemon_t *d);
 
 /**
  * @brief Ensure that node at end point matches protocol version, and exchange configs
@@ -107,8 +107,6 @@ bool init_cipher_daemon(cipher_daemon_t *daemon);
  * @return false If node protocol version mismatch or connection issue occurs
  */
 bool cipher_handshake(const tal_config_t *cfg);
-
-bool cipher_init_threads(cipher_daemon_t *daemon);
 
 void cipher_controller_thread(void *arg0, void *arg1, void *arg2);
 void cipher_sd_thread(void *arg0, void *arg1, void *arg2);
