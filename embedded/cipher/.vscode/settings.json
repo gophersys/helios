@@ -16,7 +16,11 @@
         "log.h": "c",
         "cipher.h": "c",
         "utils.h": "c",
-        "cstddef": "c"
+        "cstddef": "c",
+        "config.h": "c",
+        "array": "c",
+        "string": "c",
+        "string_view": "c"
     },
     // Editor actions
     "editor.codeActionsOnSave": {

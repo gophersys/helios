@@ -1,16 +1,13 @@
 #ifndef UTILS_H
 #define UTILS_H
 
+// Zephyr includes
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/logging/log_ctrl.h>
 
-#define CIPHER_CONFIG_PROTOCOL_VERSION (uint16_t)1
-#define CIPHER_CONFIG_MAX_PAYLOAD_SIZE 1024
-
-// Recv Buffer Pool
-#define CONFIG_CIPHER_RECV_BUFFER_SIZE CIPHER_CONFIG_MAX_PAYLOAD_SIZE
-#define CONFIG_CIPHER_RECV_BUFFERS 5
+// Cipher includes
+#include "config.h"
 
 // Logging and Debugging
 #define LOG(fmt, ...) LOG_INF("%s: " fmt, "", ##__VA_ARGS__)

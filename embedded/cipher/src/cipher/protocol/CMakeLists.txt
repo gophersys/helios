@@ -1,5 +1,7 @@
-target_sources(app PRIVATE protocol.c
+add_subdirectory(threads)
+
+target_sources(app PRIVATE init.c
                            handshake.c
-                           threads.c
                            packet.c
                            serdes.c)
+

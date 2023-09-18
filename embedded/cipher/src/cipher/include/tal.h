@@ -24,20 +24,22 @@ typedef enum
 
 typedef struct
 {
-    tal_interface_type_t interface;
+    // public:
+    tal_interface_type_t type;
     tal_link_type_t link;
 
-    // Socket connection info
+    // socket
     uint16_t port;
     char *host;
     uint16_t socket;
 
-    // Uart info
+    // private:
+    uint16_t id;
 } tal_config_t;
 
 // TODO: Add functions to set timeouts for send/recv
 bool tal_connect(tal_config_t *cfg);
-bool tal_accept(const tal_config_t *cfg);
+bool tal_accept(tal_config_t *cfg);
 bool tal_send(const tal_config_t *cfg, const void *buffer, const size_t buffer_size, uint16_t *send_count, bool *conn_closed);
 bool tal_recv(const tal_config_t *cfg, void *buffer, const size_t buffer_size, uint16_t *recv_count, bool *conn_closed);
 bool tal_close(const tal_config_t *cfg);
