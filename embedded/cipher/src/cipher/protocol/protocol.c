@@ -41,10 +41,7 @@ void init_cipher(cipher_daemon_t *daemon)
         ERROR("Could not protocol threads");
 
     while (1)
-    {
         k_msleep(1000);
-        // LOG("In busy loop");
-    }
 }
 
 /*-----------------------------------------------------------------------------------------------------
