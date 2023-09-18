@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/binary"
 	"log"
 	"net"
@@ -19,6 +20,11 @@ type CipherPacketHeader struct {
 	SequenceNum   uint16
 	Type          uint16
 	Flags         uint8
+}
+
+type CipherPayloadSd struct {
+	ServiceID uint8
+	NumHops   uint16
 }
 
 func main() {
@@ -54,17 +60,25 @@ func handleConnection(conn net.Conn) {
 
 	header := &CipherPacketHeader{
 		SourceID:      1234,
-		DestinationID: 5678,
+		DestinationID: 0,
 		Type:          2,
-		PayloadLen:    1,
+		PayloadLen:    3,
 		Flags:         0x01,
 	}
 
-	ticker := time.NewTicker(1000 * time.Millisecond)
+	ticker := time.NewTicker(1 * time.Millisecond)
 	defer ticker.Stop()
 
+	var counter int
 	for range ticker.C {
-		sendPacket(conn, header)
+		raw := &CipherPayloadSd{
+			ServiceID: 69,
+			NumHops:   uint16(counter),
+		}
+		counter++
+
+		payload := PackPayloadSd(raw)
+		sendPacket(conn, header, payload)
 	}
 }
 
@@ -103,11 +117,27 @@ func PackHeader(header *CipherPacketHeader) []byte {
 	return buf
 }
 
-var counter byte
+func PackPayloadSd(payload *CipherPayloadSd) []byte {
+	buf := new(bytes.Buffer)
 
-func sendPacket(conn net.Conn, header *CipherPacketHeader) {
-	counter++
-	packet := append(PackHeader(header), counter)
+	// Write ServiceID in network byte order
+	err := binary.Write(buf, binary.BigEndian, payload.ServiceID)
+	if err != nil {
+		log.Fatalf("Failed to pack ServiceID: %v\n", err)
+	}
+
+	// Write NumHops in network byte order
+	err = binary.Write(buf, binary.BigEndian, payload.NumHops)
+	if err != nil {
+		log.Fatalf("Failed to pack NumHops: %v\n", err)
+	}
+
+	return buf.Bytes()
+}
+
+func sendPacket(conn net.Conn, header *CipherPacketHeader, payload []byte) {
+	packet := append(PackHeader(header), payload...)
+	log.Printf(("Sending %v bytes"), len(packet))
 	_, err := conn.Write(packet)
 	if err != nil {
 		log.Printf("Failed to send packet: %v\n", err)
