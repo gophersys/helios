@@ -28,7 +28,7 @@ typedef struct
     K_THREAD_STACK_MEMBER(stack, TRANSPORT_THREAD_STACK_SIZE);
 } cipher_transport_thread_info_t;
 
-// Transport abstraction layer
+// Interface thread group (connect, send and recv)
 typedef struct
 {
     cipher_connection_thread_info_t connection_t;
@@ -42,8 +42,8 @@ typedef struct
 typedef struct
 {
     // user Config
-    tal_config_t uplink_interface_cfg[CONFIG_UP_LINK_INTERFACE_COUNT];
-    tal_config_t downlink_interface_cfg[CONFIG_DOWN_LINK_INTERFACE_COUNT];
+    tal_interface_t uplink_interface_cfg[CONFIG_UP_LINK_INTERFACE_COUNT];
+    tal_interface_t downlink_interface_cfg[CONFIG_DOWN_LINK_INTERFACE_COUNT];
 
     // Device Unique Id
     uint16_t device_id;
@@ -93,7 +93,6 @@ typedef struct
     uint8_t __aligned(8) unrouted_packets_heap_mem[CONFIG_CIPHER_UNROUTED_PACKETS_HEAP];
     struct k_heap local_packets_heap;
     uint8_t __aligned(8) local_packets_heap_mem[CONFIG_CIPHER_LOCAL_PACKETS_HEAP];
-
 } cipher_daemon_t;
 
 /*-----------------------------------------------------------------------------------------------------
