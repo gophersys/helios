@@ -23,8 +23,8 @@ type CipherPacketHeader struct {
 }
 
 type CipherPayloadSd struct {
-	ServiceID uint8
-	NumHops   uint16
+	ServiceID uint16
+	NumHops   uint8
 }
 
 func main() {
@@ -66,14 +66,14 @@ func handleConnection(conn net.Conn) {
 		Flags:         0x01,
 	}
 
-	ticker := time.NewTicker(1 * time.Millisecond)
+	ticker := time.NewTicker(1000 * time.Millisecond)
 	defer ticker.Stop()
 
-	var counter int
+	var counter int8
 	for range ticker.C {
 		raw := &CipherPayloadSd{
 			ServiceID: 69,
-			NumHops:   uint16(counter),
+			NumHops:   uint8(counter),
 		}
 		counter++
 
