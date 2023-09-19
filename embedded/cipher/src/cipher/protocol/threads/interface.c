@@ -12,29 +12,104 @@
 #include "tal.h"
 #include "utils.h"
 
-/*-----------------------------------------------------------------------------------------------------
- *                                                                                        Configuration
- *---------------------------------------------------------------------------------------------------*/
 LOG_MODULE_DECLARE(cipher);
-
-/*-----------------------------------------------------------------------------------------------------
- *                                                                                 Private Data & Types
- *---------------------------------------------------------------------------------------------------*/
-
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                    Private Functions
  *---------------------------------------------------------------------------------------------------*/
-
-static void process_packet(cipher_daemon_t *d, uint8_t *recv_buffer, uint16_t bytes_recv);
-
-/*-----------------------------------------------------------------------------------------------------
- *                                                                                           Public API
- *---------------------------------------------------------------------------------------------------*/
+static void await_interface_connection(tal_interface_t *interface);
+static void process_ingress_packet(cipher_daemon_t *d, uint8_t *recv_buffer, uint16_t bytes_recv);
+static void process_egress_packet(cipher_daemon_t *d, uint8_t *send_buffer, uint16_t send_bytes);
 
 /*-----------------------------------------------------------------------------------------------------
- *                                                                                               Thread
+ *                                                                                    Connection Thread
  *---------------------------------------------------------------------------------------------------*/
-static void process_packet(cipher_daemon_t *d, uint8_t *recv_buffer, uint16_t bytes_recv)
+void cipher_interface_conn_thread(void *arg0, void *arg1, void *arg2)
+{
+    cipher_daemon_t *d = (cipher_daemon_t *)arg0;
+    tal_interface_t *interface = (tal_interface_t *)arg1;
+
+    __ASSERT(d != NULL, "null daemon passed to thread");
+    __ASSERT(interface != NULL, "null interface passed to thread");
+
+    await_interface_connection(interface);
+
+    while (true)
+        k_msleep(1000);
+}
+
+static void await_interface_connection(tal_interface_t *interface)
+{
+    switch (interface->link)
+    {
+    case TAL_LINK_TYPE_UPLINK:
+
+        break;
+    case TAL_LINK_TYPE_DOWNLINK:
+
+        break;
+    default:
+        ERROR("Unknown interface link type: %d", interface->link);
+    }
+}
+
+/*-----------------------------------------------------------------------------------------------------
+ *                                                                                          Send Thread
+ *---------------------------------------------------------------------------------------------------*/
+void cipher_interface_send_thread(void *arg0, void *arg1, void *arg2)
+{
+    LOG("Starting interface send thread");
+    while (true)
+        k_msleep(1000);
+}
+
+/*-----------------------------------------------------------------------------------------------------
+ *                                                                                          Recv Thread
+ *---------------------------------------------------------------------------------------------------*/
+void cipher_interface_recv_thread(void *arg0, void *arg1, void *arg2)
+{
+    LOG("Starting interface recv thread");
+    while (true)
+        k_msleep(1000);
+
+    cipher_daemon_t *d = (cipher_daemon_t *)arg0;
+    tal_interface_t *interface_cfg = (tal_interface_t *)arg1;
+
+    while (1)
+    {
+        // TODO: Only stop listening after interface is connected
+
+        const size_t buffer_size = CIPHER_CONFIG_MAX_PAYLOAD_SIZE;
+        uint8_t *recv_buffer = k_heap_alloc(&d->recv_buffers_heap, CIPHER_CONFIG_MAX_PAYLOAD_SIZE, K_FOREVER);
+        uint16_t bytes_recv = 0;
+        bool conn_closed = false;
+
+        if (tal_recv(interface_cfg, recv_buffer, buffer_size, &bytes_recv, &conn_closed))
+        {
+            process_ingress_packet(d, recv_buffer, bytes_recv);
+        }
+        else
+        {
+            if (!conn_closed)
+            {
+                WARN("Could not recv on interface");
+            }
+            else
+            {
+                WARN("Remote connection closed");
+
+                cipher_controller_exit(d);
+                k_thread_suspend(k_current_get());
+            }
+        }
+
+        k_heap_free(&d->recv_buffers_heap, recv_buffer);
+    }
+}
+
+/*-----------------------------------------------------------------------------------------------------
+ *                                                                                              Ingress
+ *---------------------------------------------------------------------------------------------------*/
+static void process_ingress_packet(cipher_daemon_t *d, uint8_t *recv_buffer, uint16_t bytes_recv)
 {
     if (bytes_recv < sizeof(cipher_header_t))
     {
@@ -100,110 +175,9 @@ static void process_packet(cipher_daemon_t *d, uint8_t *recv_buffer, uint16_t by
     }
 }
 
-void cipher_interface_conn_thread(void *arg0, void *arg1, void *arg2)
-{
-    LOG("Starting interface conn thread");
-    while (true)
-        k_msleep(1000);
-}
-
-void cipher_interface_send_thread(void *arg0, void *arg1, void *arg2)
-{
-    LOG("Starting interface send thread");
-    while (true)
-        k_msleep(1000);
-}
-
-void cipher_interface_recv_thread(void *arg0, void *arg1, void *arg2)
-{
-    LOG("Starting interface recv thread");
-    while (true)
-        k_msleep(1000);
-
-    cipher_daemon_t *d = (cipher_daemon_t *)arg0;
-    tal_config_t *interface_cfg = (tal_config_t *)arg1;
-
-    while (1)
-    {
-        // TODO: Only stop listening after interface is connected
-
-        const size_t buffer_size = CIPHER_CONFIG_MAX_PAYLOAD_SIZE;
-        uint8_t *recv_buffer = k_heap_alloc(&d->recv_buffers_heap, CIPHER_CONFIG_MAX_PAYLOAD_SIZE, K_FOREVER);
-        uint16_t bytes_recv = 0;
-        bool conn_closed = false;
-
-        if (tal_recv(interface_cfg, recv_buffer, buffer_size, &bytes_recv, &conn_closed))
-        {
-            process_packet(d, recv_buffer, bytes_recv);
-        }
-        else
-        {
-            if (!conn_closed)
-            {
-                WARN("Could not recv on interface");
-            }
-            else
-            {
-                WARN("Remote connection closed");
-
-                cipher_controller_exit(d);
-                k_thread_suspend(k_current_get());
-            }
-        }
-
-        k_heap_free(&d->recv_buffers_heap, recv_buffer);
-    }
-}
-
 /*-----------------------------------------------------------------------------------------------------
- *                                                                                               Uplink
+ *                                                                                               Egress
  *---------------------------------------------------------------------------------------------------*/
-/**
- * @brief Calls connect() and attempts a protocol handshake
- *
- * @param interface Desired interface to connect
- * @return true If connect and handshake succeed
- * @return false If remote end not found, or handshake failed
- */
-static bool cipher_init_uplink(tal_config_t *interface)
+static void process_egress_packet(cipher_daemon_t *d, uint8_t *send_buffer, uint16_t send_bytes)
 {
-    bool status = false;
-    if (!tal_connect(interface))
-    {
-        WARN("Could not connect uplink interface");
-    }
-    else
-    {
-        DBG("Succesfully connected to remote node, handshaking...");
-
-        if (!cipher_handshake(interface))
-        {
-            WARN("Could not handshake remote link");
-        }
-        else
-        {
-            LOG("Uplink interface initialized OK");
-            status = true;
-        }
-    }
-
-    return status;
-}
-
-/*-----------------------------------------------------------------------------------------------------
- *                                                                                             Downlink
- *---------------------------------------------------------------------------------------------------*/
-
-/**
- * @brief Spins off a new connection listener thread, which gets cleaned up on accept()
- *
- * @param interface
- * @return true
- * @return false
- */
-static bool cipher_init_downlink(tal_config_t *interface)
-{
-    bool status = false;
-
-    return status;
 }

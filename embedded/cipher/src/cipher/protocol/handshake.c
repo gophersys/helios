@@ -26,13 +26,13 @@ LOG_MODULE_DECLARE(cipher);
  *---------------------------------------------------------------------------------------------------*/
 
 // TODO: How do I add unit tests to these functions?
-static bool handshake_uplink(const tal_config_t *cfg);
-static bool handshake_downlink(const tal_config_t *cfg);
+static bool handshake_uplink(const tal_interface_t *cfg);
+static bool handshake_downlink(const tal_interface_t *cfg);
 
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                           Public API
  *---------------------------------------------------------------------------------------------------*/
-bool cipher_handshake(const tal_config_t *cfg)
+bool cipher_handshake(const tal_interface_t *cfg)
 {
     bool status = false;
 
@@ -64,7 +64,7 @@ bool cipher_handshake(const tal_config_t *cfg)
  * @return true If the remote node's protocol version matches
  * @return false If a version mismatch, or send/recv errors
  */
-static bool handshake_uplink(const tal_config_t *cfg)
+static bool handshake_uplink(const tal_interface_t *cfg)
 {
     bool status = false;
 
@@ -116,7 +116,7 @@ static bool handshake_uplink(const tal_config_t *cfg)
  * @return true If the remote node's protocol version matches
  * @return false If a version mismatch, or send/recv errors
  */
-static bool handshake_downlink(const tal_config_t *cfg)
+static bool handshake_downlink(const tal_interface_t *cfg)
 {
     bool status = false;
 

@@ -37,8 +37,8 @@ static void cipher_init_threads(cipher_daemon_t *d);
 static bool cipher_init_objects(cipher_daemon_t *d);
 
 // Interfaces
-static void initialize_interface_group(cipher_daemon_t *d, tal_config_t *interfaces, size_t num,
-                                       cipher_interface_thread_group_t *t_g);
+static void initialize_interface_group(cipher_daemon_t *d, tal_interface_t *interfaces, size_t num,
+                                       cipher_interface_thread_group_t *t_group);
 
 // Helpers
 char *t_name(const char *prefix, uint16_t device_id, char *buffer, size_t buflen);
@@ -182,12 +182,12 @@ static void cipher_init_threads(cipher_daemon_t *d)
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                           Interfaces
  *---------------------------------------------------------------------------------------------------*/
-static void initialize_interface_group(cipher_daemon_t *d, tal_config_t *interfaces, size_t num,
-                                       cipher_interface_thread_group_t *t_g)
+static void initialize_interface_group(cipher_daemon_t *d, tal_interface_t *interfaces, size_t num,
+                                       cipher_interface_thread_group_t *t_group)
 {
     for (uint8_t i = 0; i < num; i++)
     {
-        cipher_connection_thread_info_t *conn_t = &t_g[i].connection_t;
+        cipher_connection_thread_info_t *conn_t = &t_group[i].connection_t;
         conn_t->id = k_thread_create(&conn_t->data,
                                      conn_t->stack,
                                      K_THREAD_STACK_SIZEOF(conn_t->stack),
@@ -198,7 +198,7 @@ static void initialize_interface_group(cipher_daemon_t *d, tal_config_t *interfa
                                      K_FOREVER);
         k_thread_name_set(conn_t->id, "cipher_int_conn");
 
-        cipher_transport_thread_info_t *send_t = &t_g[i].send_t;
+        cipher_transport_thread_info_t *send_t = &t_group[i].send_t;
         send_t->id = k_thread_create(&send_t->data,
                                      send_t->stack,
                                      K_THREAD_STACK_SIZEOF(send_t->stack),
@@ -209,7 +209,7 @@ static void initialize_interface_group(cipher_daemon_t *d, tal_config_t *interfa
                                      K_FOREVER);
         k_thread_name_set(send_t->id, "cipher_int_send");
 
-        cipher_transport_thread_info_t *recv_t = &t_g[i].recv_t;
+        cipher_transport_thread_info_t *recv_t = &t_group[i].recv_t;
         recv_t->id = k_thread_create(&recv_t->data,
                                      recv_t->stack,
                                      K_THREAD_STACK_SIZEOF(recv_t->stack),

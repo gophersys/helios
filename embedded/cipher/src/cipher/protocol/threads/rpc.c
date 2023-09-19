@@ -38,6 +38,9 @@ void cipher_rpc_thread(void *arg0, void *arg1, void *arg2)
     while (true)
     {
         cipher_packet_t *packet = k_fifo_get(&d->rpc_queue, K_FOREVER);
+
+        // process it
+
         k_heap_free(&d->local_packets_heap, packet->payload);
         k_heap_free(&d->local_packets_heap, packet);
     }
