@@ -15,6 +15,11 @@
 typedef struct
 {
     tal_config_t cfg;
+
+    uint8_t _id;
+    bool _connected;
+    struct k_sem _conn_sem;
+    struct k_sem _disconn_sem;
 } cipher_iface_t;
 
 // Connection manager thread for the given interface
@@ -53,6 +58,9 @@ typedef struct
     // Device Unique Id
     uint16_t device_id;
 
+    // Daemon Instance Id
+    uint8_t _id;
+
     // Controller thread info
     k_tid_t ctrl_t_id;
     struct k_thread ctrl_t_data;
@@ -85,6 +93,7 @@ typedef struct
     cipher_interface_thread_group_t downlink_t_g[CONFIG_DOWN_LINK_INTERFACE_COUNT];
 
     // Queues
+    struct k_fifo send_queue;
     struct k_fifo controller_event_queue;
     struct k_fifo service_discovery_queue;
     struct k_fifo unrouted_packets_queue;
@@ -92,12 +101,15 @@ typedef struct
     struct k_fifo event_queue;
 
     // Heaps
+    struct k_heap send_buffers_heap;
+    uint8_t __aligned(8) send_buffers_heap_mem[CONFIG_CIPHER_SEND_BUFFER_SIZE * CONFIG_CIPHER_SEND_BUFFERS];
     struct k_heap recv_buffers_heap;
     uint8_t __aligned(8) recv_buffers_heap_mem[CONFIG_CIPHER_RECV_BUFFER_SIZE * CONFIG_CIPHER_RECV_BUFFERS];
     struct k_heap unrouted_packets_heap;
     uint8_t __aligned(8) unrouted_packets_heap_mem[CONFIG_CIPHER_UNROUTED_PACKETS_HEAP];
     struct k_heap local_packets_heap;
     uint8_t __aligned(8) local_packets_heap_mem[CONFIG_CIPHER_LOCAL_PACKETS_HEAP];
+
 } cipher_daemon_t;
 
 /*-----------------------------------------------------------------------------------------------------

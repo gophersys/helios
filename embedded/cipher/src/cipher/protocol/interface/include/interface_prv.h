@@ -12,12 +12,13 @@
  *---------------------------------------------------------------------------------------------------*/
 typedef enum
 {
-    // Connection errors
-    IFACE_CREATE_FAILED,
-    IFACE_CONNECT_FAILED,
-    IFACE_SET_OPT_FAILED,
-    IFACE_ACCEPT_FAILED,
-    IFACE_CLOSE_FAILED,
+    IFACE_ERROR_CREATE,
+    IFACE_ERROR_SET_OPT,
+    IFACE_ERROR_CONNECT,
+    IFACE_ERROR_ACCEPT,
+    IFACE_ERROR_CLOSE,
+    IFACE_ERROR_SEND,
+    IFACE_ERROR_RECV,
 
     IFACE_ERROR_MAX,
 } iface_error_t;

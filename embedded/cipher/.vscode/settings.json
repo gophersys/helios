@@ -21,7 +21,8 @@
         "array": "c",
         "string": "c",
         "string_view": "c",
-        "stdbool.h": "c"
+        "stdbool.h": "c",
+        "interface_prv.h": "c"
     },
     // Editor actions
     "editor.codeActionsOnSave": {

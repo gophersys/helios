@@ -1,4 +1,4 @@
-#include "interface.h"
+#include "interface_prv.h"
 
 // Standard includes
 #include <stdio.h>

@@ -1,4 +1,4 @@
-#include "interface.h"
+#include "interface_prv.h"
 
 // Standard includes
 #include <stdio.h>
@@ -33,10 +33,6 @@ static void process_ingress_packet(cipher_daemon_t *d, uint8_t *recv_buffer, uin
  *---------------------------------------------------------------------------------------------------*/
 void cipher_interface_recv_thread(void *arg0, void *arg1, void *arg2)
 {
-    LOG("Starting iface recv thread");
-    while (true)
-        k_msleep(1000);
-
     cipher_daemon_t *d = (cipher_daemon_t *)arg0;
     cipher_iface_t *iface = (cipher_iface_t *)arg1;
 
@@ -47,33 +43,38 @@ void cipher_interface_recv_thread(void *arg0, void *arg1, void *arg2)
 
     while (1)
     {
-        // TODO: Only stop listening after iface is connected
+        // Wait until the connection is established before receiving data
+        k_sem_take(&iface->_conn_sem, K_FOREVER);
 
-        const size_t buffer_size = CIPHER_CONFIG_MAX_PAYLOAD_SIZE;
-        uint8_t *recv_buffer = k_heap_alloc(&d->recv_buffers_heap, CIPHER_CONFIG_MAX_PAYLOAD_SIZE, K_FOREVER);
-        uint16_t bytes_recv = 0;
-        bool conn_closed = false;
+        while (iface->_connected) // Only receive data while connected
+        {
+            const size_t buffer_size = CIPHER_CONFIG_MAX_PAYLOAD_SIZE;
+            uint8_t *recv_buffer = k_heap_alloc(&d->recv_buffers_heap, CIPHER_CONFIG_MAX_PAYLOAD_SIZE, K_FOREVER);
+            uint16_t bytes_recv = 0;
+            bool conn_closed = false;
 
-        if (tal_recv(interface_cfg, recv_buffer, buffer_size, &bytes_recv, &conn_closed))
-        {
-            process_ingress_packet(d, recv_buffer, bytes_recv);
-        }
-        else
-        {
-            if (!conn_closed)
+            if (tal_recv(interface_cfg, recv_buffer, buffer_size, &bytes_recv, &conn_closed))
             {
-                WARN("Could not recv on iface");
+                process_ingress_packet(d, recv_buffer, bytes_recv);
             }
             else
             {
-                WARN("Remote connection closed");
+                if (!conn_closed)
+                {
+                    handle_interface_error(d, iface, IFACE_ERROR_RECV);
+                }
+                else
+                {
+                    // Signal a disconnection
+                    k_sem_give(&iface->_disconn_sem);
 
-                cipher_controller_exit(d);
-                k_thread_suspend(k_current_get());
+                    // Break out of the inner loop to await a new connection
+                    break;
+                }
             }
-        }
 
-        k_heap_free(&d->recv_buffers_heap, recv_buffer);
+            k_heap_free(&d->recv_buffers_heap, recv_buffer);
+        }
     }
 }
 

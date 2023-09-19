@@ -53,12 +53,6 @@ typedef enum
     CIPHER_PACKET_TYPE_MAX
 } cipher_packet_type_t;
 
-typedef struct
-{
-    cipher_packet_type_t header;
-    void *payload;
-} cipher_packet_t;
-
 // Cipher Header (12 bytes)
 typedef struct __attribute__((packed))
 {
@@ -72,6 +66,12 @@ typedef struct __attribute__((packed))
     uint8_t flags;              // Protocol/admin level communication (unimplemented methods, etc)
     uint8_t hop_count;          // TODO: Serdes for me
 } cipher_header_t;
+
+typedef struct
+{
+    cipher_header_t header;
+    void *payload;
+} cipher_packet_t;
 
 void cipher_print_header(const cipher_header_t *header);
 bool cipher_packet_parse_header(const uint8_t *recv_buffer, uint16_t recv_buffer_size, cipher_header_t *header_buffer);

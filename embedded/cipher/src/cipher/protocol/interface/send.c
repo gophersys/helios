@@ -1,4 +1,4 @@
-#include "interface.h"
+#include "interface_prv.h"
 
 // Standard includes
 #include <stdio.h>
@@ -45,9 +45,60 @@ void cipher_interface_send_thread(void *arg0, void *arg1, void *arg2)
     __ASSERT(d != NULL, "null daemon passed to thread");
     __ASSERT(iface != NULL, "null interface passed to thread");
 
-    LOG("Starting iface send thread");
-    while (true)
-        k_msleep(1000);
+    tal_config_t *interface_cfg = &iface->cfg;
+
+    while (1)
+    {
+        // Wait until the connection is established before sending data
+        k_sem_take(&iface->_conn_sem, K_FOREVER);
+
+        while (iface->_connected) // Only send data while connected
+        {
+            // Await for a thread to request a send packet
+            cipher_packet_t *packet = k_fifo_get(&d->rpc_queue, K_FOREVER);
+            // TODO: Verify that the packet received is correct
+
+            // Allocate a big enough buffer to store the serialized payload
+            uint8_t *send_buffer = k_heap_alloc(&d->send_buffers_heap, packet->header.payload_len, K_FOREVER);
+
+            // Host byte order to Network byte order
+            cipher_encode_args_t args = {
+                .header = &packet->header,
+                .raw_payload = packet->payload,
+                .raw_payload_size = packet->header.payload_len,
+                .encoded_payload = send_buffer,
+            };
+            cipher_error_t err = cipher_encode_packet(args);
+            if (err != CIPHER_ERROR_OK)
+                ERROR("Could not encode packet, err: %d", err);
+
+            // Free raw packet memory
+            k_heap_free(&d->local_packets_heap, packet->payload);
+            k_heap_free(&d->local_packets_heap, packet);
+
+            // Send packet
+            uint16_t bytes_sent = 0;
+            bool conn_closed = false;
+            if (!tal_send(interface_cfg, send_buffer, packet->header.payload_len, &bytes_sent, &conn_closed))
+            {
+                if (!conn_closed)
+                {
+                    handle_interface_error(d, iface, IFACE_ERROR_SEND);
+                }
+                else
+                {
+                    // Signal a disconnection
+                    k_sem_give(&iface->_disconn_sem);
+
+                    // Break out of the inner loop to await a new connection
+                    break;
+                }
+            }
+
+            // Free network payload buffer
+            k_heap_free(&d->send_buffers_heap, send_buffer);
+        }
+    }
 }
 
 /*-----------------------------------------------------------------------------------------------------

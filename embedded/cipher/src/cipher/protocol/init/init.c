@@ -97,6 +97,7 @@ static bool cipher_init_objects(cipher_daemon_t *d)
 {
     bool status = false;
 
+    k_fifo_init(&d->send_queue);
     k_fifo_init(&d->controller_event_queue);
     k_fifo_init(&d->service_discovery_queue);
     k_fifo_init(&d->unrouted_packets_queue);
