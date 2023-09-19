@@ -23,7 +23,7 @@ LOG_MODULE_REGISTER(tal, TAL_LOG_LEVEL);
  *  - Should work like a single socket connection
  *  - Should behave like a stream based transport layer
  *
- * In you implementation you need NOT to check for NULL interfaces, this module asserts for this.
+ * In you implementation you need NOT to check for NULL configurations, this module asserts for this.
  */
 
 /*-----------------------------------------------------------------------------------------------------
@@ -35,15 +35,15 @@ LOG_MODULE_REGISTER(tal, TAL_LOG_LEVEL);
  */
 typedef struct
 {
-    bool (*create)(tal_interface_t *iface);
-    bool (*set_opt)(tal_interface_t *iface, tal_option_type_t type, void *option, size_t option_size);
-    bool (*connect)(tal_interface_t *iface, bool *timeout);
-    bool (*accept)(tal_interface_t *iface, bool *timeout);
-    bool (*send)(const tal_interface_t *iface, const void *buffer, const size_t buffer_size,
+    bool (*create)(tal_config_t *cfg);
+    bool (*set_opt)(tal_config_t *cfg, tal_option_type_t type, void *option, size_t option_size);
+    bool (*connect)(tal_config_t *cfg, bool *timeout);
+    bool (*accept)(tal_config_t *cfg, bool *timeout);
+    bool (*send)(const tal_config_t *cfg, const void *buffer, const size_t buffer_size,
                  uint16_t *send_count, bool *conn_closed);
-    bool (*recv)(const tal_interface_t *iface, void *buffer, const size_t buffer_size,
+    bool (*recv)(const tal_config_t *cfg, void *buffer, const size_t buffer_size,
                  uint16_t *recv_count, bool *conn_closed);
-    bool (*close)(const tal_interface_t *iface);
+    bool (*close)(const tal_config_t *cfg);
 } tal_interface_ops_t;
 
 /**
@@ -69,61 +69,61 @@ static const tal_interface_ops_t tal_ops[] = {
 /**
  * @brief Check that the interface is not NULL, and that it's implemented
  *
- * @param iface The desired interface
+ * @param cfg The desired interface
  * @param func_name The name of the caller (__func__)
  */
-static void iface_assert(const tal_interface_t *iface, const char *func_name)
+static void iface_assert(const tal_config_t *cfg, const char *func_name)
 {
-    __ASSERT(iface, "%s Interface pointer cannot be NULL", func_name);
+    __ASSERT(cfg, "%s Config pointer cannot be NULL", func_name);
 
     // TODO: Implement UART, and change macro below to TAL_INTERFACE_TYPE_MAX
-    __ASSERT(iface->type < TAL_INTERFACE_TYPE_UART, "%s Unknown or unimplemented interface: %d",
-             func_name, iface->type);
+    __ASSERT(cfg->type < TAL_INTERFACE_TYPE_UART, "%s Unknown or unimplemented interface: %d",
+             func_name, cfg->type);
 }
 
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                           Public API
  *---------------------------------------------------------------------------------------------------*/
-bool tal_create(tal_interface_t *iface)
+bool tal_create(tal_config_t *cfg)
 {
-    iface_assert(iface, __func__);
-    return tal_ops[iface->type].create(iface);
+    iface_assert(cfg, __func__);
+    return tal_ops[cfg->type].create(cfg);
 }
 
-bool tal_set_opt(tal_interface_t *iface, tal_option_type_t type, void *option, size_t option_size)
+bool tal_set_opt(tal_config_t *cfg, tal_option_type_t type, void *option, size_t option_size)
 {
-    iface_assert(iface, __func__);
-    return tal_ops[iface->type].set_opt(iface, type, option, option_size);
+    iface_assert(cfg, __func__);
+    return tal_ops[cfg->type].set_opt(cfg, type, option, option_size);
 }
 
-bool tal_connect(tal_interface_t *iface, bool *timeout)
+bool tal_connect(tal_config_t *cfg, bool *timeout)
 {
-    iface_assert(iface, __func__);
-    return tal_ops[iface->type].connect(iface, timeout);
+    iface_assert(cfg, __func__);
+    return tal_ops[cfg->type].connect(cfg, timeout);
 }
 
-bool tal_accept(tal_interface_t *iface, bool *timeout)
+bool tal_accept(tal_config_t *cfg, bool *timeout)
 {
-    iface_assert(iface, __func__);
-    return tal_ops[iface->type].accept(iface, timeout);
+    iface_assert(cfg, __func__);
+    return tal_ops[cfg->type].accept(cfg, timeout);
 }
 
-bool tal_send(const tal_interface_t *iface, const void *buffer, const size_t buffer_size,
+bool tal_send(const tal_config_t *cfg, const void *buffer, const size_t buffer_size,
               uint16_t *send_count, bool *conn_closed)
 {
-    iface_assert(iface, __func__);
-    return tal_ops[iface->type].send(iface, buffer, buffer_size, send_count, conn_closed);
+    iface_assert(cfg, __func__);
+    return tal_ops[cfg->type].send(cfg, buffer, buffer_size, send_count, conn_closed);
 }
 
-bool tal_recv(const tal_interface_t *iface, void *buffer, const size_t buffer_size,
+bool tal_recv(const tal_config_t *cfg, void *buffer, const size_t buffer_size,
               uint16_t *recv_count, bool *conn_closed)
 {
-    iface_assert(iface, __func__);
-    return tal_ops[iface->type].recv(iface, buffer, buffer_size, recv_count, conn_closed);
+    iface_assert(cfg, __func__);
+    return tal_ops[cfg->type].recv(cfg, buffer, buffer_size, recv_count, conn_closed);
 }
 
-bool tal_close(const tal_interface_t *iface)
+bool tal_close(const tal_config_t *cfg)
 {
-    iface_assert(iface, __func__);
-    return tal_ops[iface->type].close(iface);
+    iface_assert(cfg, __func__);
+    return tal_ops[cfg->type].close(cfg);
 }

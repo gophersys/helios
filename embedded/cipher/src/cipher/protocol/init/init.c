@@ -37,7 +37,7 @@ static void cipher_init_threads(cipher_daemon_t *d);
 static bool cipher_init_objects(cipher_daemon_t *d);
 
 // Interfaces
-static void initialize_interface_group(cipher_daemon_t *d, tal_interface_t *interfaces, size_t num,
+static void initialize_interface_group(cipher_daemon_t *d, cipher_iface_t *ifaces, size_t num,
                                        cipher_interface_thread_group_t *t_group);
 
 // Helpers
@@ -71,7 +71,7 @@ static bool cipher_assert_daemon(cipher_daemon_t *d)
 
     // for (uint8_t i = 0; i < CONFIG_UP_LINK_INTERFACE_COUNT && status; i++)
     // {
-    //     if (d->uplink_interface_cfg[i] == NULL)
+    //     if (d->uplink_ifaces[i] == NULL)
     //     {
     //         WARN("Uplink interface %d not defined, see CONFIG_UP_LINK_INTERFACE_COUNT", i);
     //         status = false;
@@ -80,7 +80,7 @@ static bool cipher_assert_daemon(cipher_daemon_t *d)
 
     // for (uint8_t i = 0; i < CONFIG_DOWN_LINK_INTERFACE_COUNT && status; i++)
     // {
-    //     if (d->downlink_interface_cfg[i] == NULL)
+    //     if (d->downlink_ifaces[i] == NULL)
     //     {
     //         WARN("Downlink interface %d not defined, see CONFIG_DOWN_LINK_INTERFACE_COUNT", i);
     //         status = false;
@@ -168,8 +168,8 @@ static void cipher_init_threads(cipher_daemon_t *d)
     k_thread_name_set(d->event_t_id, t_name("cipher_event", d->device_id, name_buf, sizeof(name_buf)));
 
     // Initialize & Start all interface threads
-    initialize_interface_group(d, d->uplink_interface_cfg, CONFIG_UP_LINK_INTERFACE_COUNT, d->uplink_t_g);
-    initialize_interface_group(d, d->downlink_interface_cfg, CONFIG_DOWN_LINK_INTERFACE_COUNT, d->downlink_t_g);
+    initialize_interface_group(d, d->uplink_ifaces, CONFIG_UP_LINK_INTERFACE_COUNT, d->uplink_t_g);
+    initialize_interface_group(d, d->downlink_ifaces, CONFIG_DOWN_LINK_INTERFACE_COUNT, d->downlink_t_g);
 
     // Start all dameon threads
     k_thread_start(d->ctrl_t_id);
@@ -182,7 +182,7 @@ static void cipher_init_threads(cipher_daemon_t *d)
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                           Interfaces
  *---------------------------------------------------------------------------------------------------*/
-static void initialize_interface_group(cipher_daemon_t *d, tal_interface_t *interfaces, size_t num,
+static void initialize_interface_group(cipher_daemon_t *d, cipher_iface_t *ifaces, size_t num,
                                        cipher_interface_thread_group_t *t_group)
 {
     for (uint8_t i = 0; i < num; i++)
@@ -192,7 +192,7 @@ static void initialize_interface_group(cipher_daemon_t *d, tal_interface_t *inte
                                      conn_t->stack,
                                      K_THREAD_STACK_SIZEOF(conn_t->stack),
                                      cipher_interface_conn_thread,
-                                     (void *)d, (void *)&interfaces[i], NULL,
+                                     (void *)d, (void *)&ifaces[i], NULL,
                                      CONNECTION_THREAD_PRIORITY,
                                      0,
                                      K_FOREVER);
@@ -203,7 +203,7 @@ static void initialize_interface_group(cipher_daemon_t *d, tal_interface_t *inte
                                      send_t->stack,
                                      K_THREAD_STACK_SIZEOF(send_t->stack),
                                      cipher_interface_send_thread,
-                                     (void *)d, (void *)&interfaces[i], NULL,
+                                     (void *)d, (void *)&ifaces[i], NULL,
                                      TRANSPORT_THREAD_PRIORITY,
                                      0,
                                      K_FOREVER);
@@ -214,7 +214,7 @@ static void initialize_interface_group(cipher_daemon_t *d, tal_interface_t *inte
                                      recv_t->stack,
                                      K_THREAD_STACK_SIZEOF(recv_t->stack),
                                      cipher_interface_recv_thread,
-                                     (void *)d, (void *)&interfaces[i], NULL,
+                                     (void *)d, (void *)&ifaces[i], NULL,
                                      TRANSPORT_THREAD_PRIORITY,
                                      0,
                                      K_FOREVER);

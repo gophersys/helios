@@ -13,7 +13,7 @@
  * @return true If node was handshook correctly
  * @return false If node protocol version mismatch or connection issue occurs
  */
-bool cipher_handshake(const tal_interface_t *cfg);
+bool cipher_handshake(const tal_config_t *cfg);
 
 void cipher_controller_thread(void *arg0, void *arg1, void *arg2);
 void cipher_sd_thread(void *arg0, void *arg1, void *arg2);

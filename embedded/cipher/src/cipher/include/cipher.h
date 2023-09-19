@@ -12,6 +12,11 @@
  *                                                                                         Packet Layer
  *---------------------------------------------------------------------------------------------------*/
 
+typedef struct
+{
+    tal_config_t cfg;
+} cipher_iface_t;
+
 // Connection manager thread for the given interface
 typedef struct
 {
@@ -42,8 +47,8 @@ typedef struct
 typedef struct
 {
     // user Config
-    tal_interface_t uplink_interface_cfg[CONFIG_UP_LINK_INTERFACE_COUNT];
-    tal_interface_t downlink_interface_cfg[CONFIG_DOWN_LINK_INTERFACE_COUNT];
+    cipher_iface_t uplink_ifaces[CONFIG_UP_LINK_INTERFACE_COUNT];
+    cipher_iface_t downlink_ifaces[CONFIG_DOWN_LINK_INTERFACE_COUNT];
 
     // Device Unique Id
     uint16_t device_id;

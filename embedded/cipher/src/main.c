@@ -16,13 +16,13 @@ LOG_MODULE_REGISTER(app);
 #define DOWNLINK_SOCKET 5001
 
 static cipher_daemon_t daemon = {
-	.uplink_interface_cfg[0] = {
+	.uplink_ifaces[0].cfg = {
 		.type = TAL_INTERFACE_TYPE_SOCKET,
 		.link = TAL_LINK_TYPE_UPLINK,
 		.host = POSIX_HOST_IP,
 		.port = UPLINK_SOCKET,
 	},
-	.downlink_interface_cfg[0] = {
+	.downlink_ifaces[0].cfg = {
 		.type = TAL_INTERFACE_TYPE_SOCKET,
 		.link = TAL_LINK_TYPE_DOWNLINK,
 		.host = POSIX_HOST_IP,

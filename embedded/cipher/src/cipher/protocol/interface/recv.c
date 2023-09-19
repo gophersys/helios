@@ -1,4 +1,4 @@
-#include "cipher.h"
+#include "interface.h"
 
 // Standard includes
 #include <stdio.h>
@@ -8,75 +8,46 @@
 #include <zephyr/kernel.h>
 #include <zephyr/net/socket.h>
 
-// Private includes
+// Cipher includes
 #include "tal.h"
 #include "utils.h"
+#include "cipher.h"
 
 LOG_MODULE_DECLARE(cipher);
+
+/*-----------------------------------------------------------------------------------------------------
+ *                                                                                      Developer Notes
+ *---------------------------------------------------------------------------------------------------*/
+
+/*-----------------------------------------------------------------------------------------------------
+ *                                                                                         Data & Types
+ *---------------------------------------------------------------------------------------------------*/
+
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                    Private Functions
  *---------------------------------------------------------------------------------------------------*/
-static void await_interface_connection(tal_interface_t *interface);
 static void process_ingress_packet(cipher_daemon_t *d, uint8_t *recv_buffer, uint16_t bytes_recv);
-static void process_egress_packet(cipher_daemon_t *d, uint8_t *send_buffer, uint16_t send_bytes);
-
-/*-----------------------------------------------------------------------------------------------------
- *                                                                                    Connection Thread
- *---------------------------------------------------------------------------------------------------*/
-void cipher_interface_conn_thread(void *arg0, void *arg1, void *arg2)
-{
-    cipher_daemon_t *d = (cipher_daemon_t *)arg0;
-    tal_interface_t *interface = (tal_interface_t *)arg1;
-
-    __ASSERT(d != NULL, "null daemon passed to thread");
-    __ASSERT(interface != NULL, "null interface passed to thread");
-
-    await_interface_connection(interface);
-
-    while (true)
-        k_msleep(1000);
-}
-
-static void await_interface_connection(tal_interface_t *interface)
-{
-    switch (interface->link)
-    {
-    case TAL_LINK_TYPE_UPLINK:
-
-        break;
-    case TAL_LINK_TYPE_DOWNLINK:
-
-        break;
-    default:
-        ERROR("Unknown interface link type: %d", interface->link);
-    }
-}
-
-/*-----------------------------------------------------------------------------------------------------
- *                                                                                          Send Thread
- *---------------------------------------------------------------------------------------------------*/
-void cipher_interface_send_thread(void *arg0, void *arg1, void *arg2)
-{
-    LOG("Starting interface send thread");
-    while (true)
-        k_msleep(1000);
-}
 
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                          Recv Thread
  *---------------------------------------------------------------------------------------------------*/
 void cipher_interface_recv_thread(void *arg0, void *arg1, void *arg2)
 {
-    LOG("Starting interface recv thread");
+    LOG("Starting iface recv thread");
     while (true)
         k_msleep(1000);
 
     cipher_daemon_t *d = (cipher_daemon_t *)arg0;
-    tal_interface_t *interface_cfg = (tal_interface_t *)arg1;
+    cipher_iface_t *iface = (cipher_iface_t *)arg1;
+
+    __ASSERT(d != NULL, "null daemon passed to thread");
+    __ASSERT(iface != NULL, "null interface passed to thread");
+
+    tal_config_t *interface_cfg = &iface->cfg;
 
     while (1)
     {
-        // TODO: Only stop listening after interface is connected
+        // TODO: Only stop listening after iface is connected
 
         const size_t buffer_size = CIPHER_CONFIG_MAX_PAYLOAD_SIZE;
         uint8_t *recv_buffer = k_heap_alloc(&d->recv_buffers_heap, CIPHER_CONFIG_MAX_PAYLOAD_SIZE, K_FOREVER);
@@ -91,7 +62,7 @@ void cipher_interface_recv_thread(void *arg0, void *arg1, void *arg2)
         {
             if (!conn_closed)
             {
-                WARN("Could not recv on interface");
+                WARN("Could not recv on iface");
             }
             else
             {
@@ -173,11 +144,4 @@ static void process_ingress_packet(cipher_daemon_t *d, uint8_t *recv_buffer, uin
             }
         }
     }
-}
-
-/*-----------------------------------------------------------------------------------------------------
- *                                                                                               Egress
- *---------------------------------------------------------------------------------------------------*/
-static void process_egress_packet(cipher_daemon_t *d, uint8_t *send_buffer, uint16_t send_bytes)
-{
 }
