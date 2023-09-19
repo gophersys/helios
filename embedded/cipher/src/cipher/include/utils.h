@@ -8,6 +8,7 @@
 
 // Cipher includes
 #include "config.h"
+#include "cipher_priv.h"
 
 // Logging and Debugging
 #define LOG(fmt, ...) LOG_INF("%s: " fmt, "", ##__VA_ARGS__)
