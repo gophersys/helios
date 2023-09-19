@@ -21,180 +21,206 @@ LOG_MODULE_DECLARE(tal);
  *                                                                                      Developer Notes
  *---------------------------------------------------------------------------------------------------*/
 
-bool socket_connect(tal_config_t *cfg)
+/**
+ * We don't check for NULL interfaces in any function, since TAL guarantees to not call us without a
+ * valid interface pointer.
+ */
+
+/*-----------------------------------------------------------------------------------------------------
+ *                                                                            Socket TAL Implementation
+ *---------------------------------------------------------------------------------------------------*/
+bool socket_create(tal_interface_t *iface)
 {
-    bool status = false;
+    __ASSERT(iface->host, "Interface host cannot be NULL");
+    __ASSERT(iface->port != 0, "Interface port cannot be zero");
 
-    int sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (sockfd < 0)
+    iface->socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (iface->socket < 0)
     {
-        WARN("Error creating socket");
+        WARN("Socket creation failed: %s", strerror(-errno));
+        return false;
     }
-    else
+
+    // If the interface is set to DOWNLINK, we'll bind the socket to the provided port.
+    // This prepares the socket to accept incoming connections.
+    if (iface->link == TAL_LINK_TYPE_DOWNLINK)
     {
-        struct sockaddr_in serv_addr;
-        memset(&serv_addr, 0, sizeof(serv_addr));
+        struct sockaddr_in local_addr = {0};
+        local_addr.sin_family = AF_INET;
+        local_addr.sin_port = htons(iface->port);
+        local_addr.sin_addr.s_addr = INADDR_ANY; // Bind to all available interfaces
 
-        serv_addr.sin_family = AF_INET;
-        serv_addr.sin_port = htons(cfg->port);
-
-        if (inet_pton(AF_INET, cfg->host, &serv_addr.sin_addr) <= 0)
+        if (bind(iface->socket, (struct sockaddr *)&local_addr, sizeof(local_addr)) < 0)
         {
-            WARN("Invalid IP address/not supported");
-            close(sockfd);
-        }
-        else
-        {
-            if (connect(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
-            {
-                WARN("connect() failed");
-                close(sockfd);
-            }
-            else
-            {
-                status = true; // Succesful connection
-                cfg->socket = sockfd;
-            }
+            WARN("Socket bind failed: %s", strerror(-errno));
+            close(iface->socket);
+            return false;
         }
     }
 
-    return status;
+    return true;
 }
 
-bool socket_accept(tal_config_t *cfg)
+bool socket_set_opt(tal_interface_t *iface, tal_option_type_t type, void *option, size_t option_size)
 {
-    bool status = true;
-    int sockfd;
+    __ASSERT(option, "Option pointer cannot be NULL");
 
-    struct sockaddr_in server_addr;
+    int ret = -1;
+
+    switch (type)
+    {
+    case TAL_OPTION_SEND_TIMEOUT:
+    case TAL_OPTION_RECV_TIMEOUT:
+    {
+        __ASSERT(option_size == sizeof(uint16_t), "Option size mismatch for TIMEOUT options");
+
+        struct timeval tv;
+        tv.tv_sec = (*(uint16_t *)option) / 1000;
+        tv.tv_usec = ((*(uint16_t *)option) % 1000) * 1000;
+        int optname = (type == TAL_OPTION_SEND_TIMEOUT) ? SO_SNDTIMEO : SO_RCVTIMEO;
+
+        ret = setsockopt(iface->socket, SOL_SOCKET, optname, &tv, sizeof(tv));
+        if (ret < 0)
+        {
+            WARN("Failed to set socket option: %s", strerror(-errno));
+            return false;
+        }
+    }
+    break;
+    default:
+        WARN("Invalid option type %d provided", type);
+        return false;
+    }
+
+    return true;
+}
+
+bool socket_connect(tal_interface_t *iface, bool *timeout)
+{
+    __ASSERT(timeout, "Timeout pointer cannot be NULL");
+    __ASSERT(iface->host, "Interface host cannot be NULL");
+    __ASSERT(iface->port != 0, "Interface port cannot be zero");
+
+    struct sockaddr_in remote_addr;
+    remote_addr.sin_family = AF_INET;
+    remote_addr.sin_port = htons(iface->port);
+    inet_pton(AF_INET, iface->host, &remote_addr.sin_addr); // Convert IP string to sockaddr_in format.
+
+    if (connect(iface->socket, (struct sockaddr *)&remote_addr, sizeof(remote_addr)) < 0)
+    {
+        if (errno == EINPROGRESS || errno == EAGAIN || errno == EWOULDBLOCK) // These indicate a timeout.
+        {
+            *timeout = true;
+            return false;
+        }
+        WARN("Socket connect failed: %s", strerror(-errno));
+        return false;
+    }
+
+    *timeout = false; // No timeout occurred.
+    return true;
+}
+
+bool socket_accept(tal_interface_t *iface, bool *timeout)
+{
+    __ASSERT(timeout, "Timeout pointer cannot be NULL");
+
     struct sockaddr_in client_addr;
-    socklen_t client_addr_len = sizeof(client_addr);
+    socklen_t addr_len = sizeof(client_addr);
 
-    // Create the listening socket
-    int listen_sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-    if (listen_sock < 0)
+    int client_socket = accept(iface->socket, (struct sockaddr *)&client_addr, &addr_len);
+    if (client_socket < 0)
     {
-        WARN("Failed to create listening socket. Error: %d", errno);
-        status = false;
-    }
-
-    // If the listening socket was successfully created, continue with the bind operation
-    if (status)
-    {
-        memset(&server_addr, 0, sizeof(server_addr));
-        server_addr.sin_family = AF_INET;
-        server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-        server_addr.sin_port = htons(cfg->port);
-
-        sockfd = bind(listen_sock, (struct sockaddr *)&server_addr, sizeof(server_addr));
-        if (sockfd < 0)
+        if (errno == EAGAIN || errno == EWOULDBLOCK) // These indicate a timeout.
         {
-            WARN("Failed to bind to socket. Error: %d", errno);
-            status = false;
+            *timeout = true;
+            return false;
         }
+        WARN("Socket accept failed: %s", strerror(-errno));
+        return false;
     }
+    *timeout = false; // No timeout occurred.
 
-    // Start listening
-    if (status)
-    {
-        sockfd = listen(listen_sock, 1); // Only allowing 1 client in the queue for simplicity.
-        if (sockfd < 0)
-        {
-            WARN("Failed to start listening on socket. Error: %d", errno);
-            status = false;
-        }
-    }
-
-    // Accept the incoming client connection
-    if (status)
-    {
-        int client_sock = accept(listen_sock, (struct sockaddr *)&client_addr, &client_addr_len);
-        if (client_sock < 0)
-        {
-            WARN("Failed to accept client connection. Error: %d", errno);
-            status = false;
-        }
-        else
-        {
-
-            char ip_str[NET_IPV4_ADDR_LEN];
-            if (net_addr_ntop(AF_INET, &client_addr.sin_addr, ip_str, sizeof(ip_str)) == NULL)
-            {
-                WARN("Failed to convert IP address to string.");
-                status = false;
-            }
-            else
-            {
-                cfg->host = ip_str; // This may require additional modifications depending on how cfg->host is used elsewhere.
-            }
-
-            cfg->port = ntohs(client_addr.sin_port);
-            cfg->socket = client_sock;
-        }
-    }
-
-    // Always close the listening socket
-    close(listen_sock);
-
-    return status;
+    iface->socket = client_socket; // Update iface->socketfd with the new connected socket.
+    return true;
 }
-bool socket_send(const tal_config_t *cfg, const void *buffer, const size_t buffer_size, uint16_t *send_count, bool *conn_closed)
-{
-    bool status = false;
 
-    int socket_send_count = send(cfg->socket, buffer, buffer_size, 0);
+bool socket_send(const tal_interface_t *iface, const void *buffer, const size_t buffer_size, uint16_t *send_count, bool *conn_closed)
+{
+    __ASSERT(buffer, "Buffer pointer cannot be NULL");
+    __ASSERT(send_count, "Send count pointer cannot be NULL");
+    __ASSERT(conn_closed, "Connection closed pointer cannot be NULL");
+
+    int socket_send_count = send(iface->socket, buffer, buffer_size, 0);
+
     if (socket_send_count > 0)
     {
         *send_count = (uint16_t)socket_send_count;
-        status = true;
+        *conn_closed = false;
+        return true;
     }
     else
     {
+        *send_count = 0;
         if (errno == ECONNRESET || errno == EPIPE)
         {
             *conn_closed = true;
+            DBG("Connection closed by remote peer on socket %d", iface->socket);
         }
         else
         {
-            WARN("Unknown socket send error: %d", errno);
+            *conn_closed = false;
+            WARN("Socket send error: %s", strerror(-errno));
         }
-        *send_count = 0;
+        return false;
     }
-
-    return status;
 }
 
-bool socket_recv(const tal_config_t *cfg, void *buffer, const size_t buffer_size, uint16_t *recv_count, bool *conn_closed)
+bool socket_recv(const tal_interface_t *iface, void *buffer, const size_t buffer_size, uint16_t *recv_count, bool *conn_closed)
 {
-    bool status = false;
+    __ASSERT(buffer, "Buffer pointer cannot be NULL");
+    __ASSERT(recv_count, "Receive count pointer cannot be NULL");
+    __ASSERT(conn_closed, "Connection closed pointer cannot be NULL");
 
-    int socket_recv_count = recv(cfg->socket, buffer, buffer_size, 0);
+    int socket_recv_count = recv(iface->socket, buffer, buffer_size, 0);
 
     if (socket_recv_count > 0)
     {
         *recv_count = (uint16_t)socket_recv_count;
-        status = true;
+        *conn_closed = false;
+        return true;
     }
     else if (socket_recv_count == 0)
     {
-        // The recv function returning 0 indicates a graceful shutdown by the peer.
-        *conn_closed = true;
         *recv_count = 0;
+        *conn_closed = true; // Graceful shutdown by the peer.
+        DBG("Connection closed by remote peer on socket %d", iface->socket);
+        return false;
     }
     else
     {
+        *recv_count = 0;
         if (errno == ECONNRESET)
         {
             *conn_closed = true;
+            WARN("Connection reset by remote peer");
         }
-        *recv_count = 0;
+        else
+        {
+            *conn_closed = false;
+            WARN("Socket receive error: %s", strerror(-errno));
+        }
+        return false;
     }
-
-    return status;
 }
 
-bool socket_close(const tal_config_t *cfg)
+bool socket_close(const tal_interface_t *iface)
 {
-    close(cfg->socket);
+    int result = close(iface->socket);
+    if (result < 0)
+    {
+        WARN("Failed to close the socket: %s", strerror(-errno));
+        return false;
+    }
     return true;
 }
