@@ -12,7 +12,7 @@
 
 typedef struct
 {
-    tal_config_t cfg;
+    tal_config_t *cfg;
 
     uint8_t _id;
     bool _connected;
@@ -39,8 +39,7 @@ typedef struct
 // Interface thread group (connect, send and recv)
 typedef struct
 {
-    uint8_t id;
-    tal_config_t *cfg;
+    cipher_iface_t iface;
     cipher_connection_thread_info_t connection_t;
     cipher_transport_thread_info_t send_t;
     cipher_transport_thread_info_t recv_t;
