@@ -93,24 +93,24 @@ static void setup_timeouts(cipher_daemon_t *d, cipher_iface_t *iface)
 {
     // Set the timeout for the specific operation
     uint16_t timeout_opt = 0;
-    switch (iface->cfg.link)
+    switch (iface->cfg->link)
     {
     case TAL_LINK_TYPE_UPLINK:
 
         timeout_opt = TAL_CONNECT_TIMEOUT_MS;
-        if (!tal_set_opt(&iface->cfg, TAL_OPTION_SEND_TIMEOUT, &timeout_opt, sizeof(timeout_opt)))
+        if (!tal_set_opt(iface->cfg, TAL_OPTION_SEND_TIMEOUT, &timeout_opt, sizeof(timeout_opt)))
             handle_interface_error(d, iface, IFACE_ERROR_SET_OPT);
         break;
 
     case TAL_LINK_TYPE_DOWNLINK:
 
         timeout_opt = TAL_ACCEPT_TIMEOUT_MS;
-        if (!tal_set_opt(&iface->cfg, TAL_OPTION_RECV_TIMEOUT, &timeout_opt, sizeof(timeout_opt)))
+        if (!tal_set_opt(iface->cfg, TAL_OPTION_RECV_TIMEOUT, &timeout_opt, sizeof(timeout_opt)))
             handle_interface_error(d, iface, IFACE_ERROR_SET_OPT);
 
         break;
     default:
-        ERROR("Unknown iface link type: %d", iface->cfg.link);
+        ERROR("Unknown iface link type: %d", iface->cfg->link);
     }
 }
 
@@ -118,17 +118,17 @@ static void get_connection(cipher_daemon_t *d, cipher_iface_t *iface)
 {
     bool conn_timeout = false;
 
-    if (!tal_create(&iface->cfg))
+    if (!tal_create(iface->cfg))
         handle_interface_error(d, iface, IFACE_ERROR_CREATE);
 
     // Continuously try to establish the connection
     uint32_t start_time = k_uptime_get_32();
     while (!iface->_connected)
     {
-        switch (iface->cfg.link)
+        switch (iface->cfg->link)
         {
         case TAL_LINK_TYPE_UPLINK:
-            if (tal_connect(&iface->cfg, &conn_timeout))
+            if (tal_connect(iface->cfg, &conn_timeout))
             {
                 iface->_connected = true;
             }
@@ -144,7 +144,7 @@ static void get_connection(cipher_daemon_t *d, cipher_iface_t *iface)
             break;
 
         case TAL_LINK_TYPE_DOWNLINK:
-            if (tal_accept(&iface->cfg, &conn_timeout))
+            if (tal_accept(iface->cfg, &conn_timeout))
             {
                 iface->_connected = true;
             }
@@ -159,7 +159,7 @@ static void get_connection(cipher_daemon_t *d, cipher_iface_t *iface)
             }
             break;
         default:
-            ERROR("Unknown iface link type: %d", iface->cfg.link);
+            ERROR("Unknown iface link type: %d", iface->cfg->link);
         }
 
         // Add a small delay to avoid spamming connect/accept
@@ -169,7 +169,7 @@ static void get_connection(cipher_daemon_t *d, cipher_iface_t *iface)
 
     __ASSERT(iface->_connected, "Logic error in function, must always be connected before returning");
 
-    DBG("Daemon %d, iface %d connected (%ldms)", d->_id, iface->_id, k_uptime_get_32() - start_time);
+    DBG("Daemon %d, iface %d connected (%u ms)", d->_id, iface->_id, k_uptime_get_32() - start_time);
 }
 
 /*-----------------------------------------------------------------------------------------------------
@@ -188,7 +188,7 @@ static void await_disconnect(cipher_daemon_t *d, cipher_iface_t *iface)
 
     iface->_connected = false;
 
-    if (!tal_close(&iface->cfg))
+    if (!tal_close(iface->cfg))
         handle_interface_error(d, iface, IFACE_ERROR_CLOSE);
 
     // Reset the semaphore count to ensure it's 0
