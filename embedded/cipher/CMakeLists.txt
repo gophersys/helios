@@ -4,7 +4,6 @@ find_package(Zephyr)
 
 project(cipher)
 
-
 # Including the 'include' directory for the protocol
 zephyr_include_directories(src/cipher/include)
 

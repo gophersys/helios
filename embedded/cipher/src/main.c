@@ -3,9 +3,9 @@
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(app);
 
-// CoreKinect includes
-#include "cipher.h"
-#include "utils.h"
+// Cipher includes
+#include "daemon/api.h"
+#include "utils/err.h"
 
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                        Daemon Config
@@ -15,20 +15,22 @@ LOG_MODULE_REGISTER(app);
 #define UPLINK_SOCKET 5000
 #define DOWNLINK_SOCKET 5001
 
-static cipher_daemon_t daemon = {
-	.uplink_ifaces[0].cfg = {
+static cipher_daemon_config_t config = {
+	.uplink_ifaces[0] = {
 		.type = TAL_INTERFACE_TYPE_SOCKET,
 		.link = TAL_LINK_TYPE_UPLINK,
 		.host = POSIX_HOST_IP,
 		.port = UPLINK_SOCKET,
 	},
-	.downlink_ifaces[0].cfg = {
+	.downlink_ifaces[0] = {
 		.type = TAL_INTERFACE_TYPE_SOCKET,
 		.link = TAL_LINK_TYPE_DOWNLINK,
 		.host = POSIX_HOST_IP,
 		.port = DOWNLINK_SOCKET,
 	},
 };
+
+static cipher_daemon_t daemon;
 
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                                  App
@@ -38,8 +40,7 @@ int main(void)
 {
 	LOG_RAW("\n\n%s\n", "********** Cipher Protocol App **********");
 
-	if (!cipher_init_daemon(&daemon))
-		ERROR("Unable to initialize cipher daemon");
+	cipher_init_daemon(&config, &daemon);
 
 	LOG("App Initialized OK");
 
