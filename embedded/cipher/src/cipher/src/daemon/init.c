@@ -29,7 +29,7 @@ static void init_threads(cipher_daemon_t *d);
 
 static void initialize_interface_group(cipher_daemon_t *d, cipher_interface_thread_group_t *t_group, size_t num);
 
-char *cipher_t_name(const char *prefix, uint16_t device_id, char *buffer, size_t buflen);
+char *cipher_t_name(const char *prefix, uint8_t d_id, char *buffer, size_t buflen);
 char *iface_t_name(const char *prefix, uint8_t d_id, uint8_t iface_id, char *buffer, size_t buflen);
 
 /*-----------------------------------------------------------------------------------------------------
@@ -182,10 +182,10 @@ static void init_threads(cipher_daemon_t *d)
 
     // Start all dameon threads
     k_thread_start(d->ctrl_t_id);
-    k_thread_start(d->sd_t_id);
-    k_thread_start(d->router_t_id);
-    k_thread_start(d->rpc_t_id);
-    k_thread_start(d->event_t_id);
+    // k_thread_start(d->sd_t_id);
+    // k_thread_start(d->router_t_id);
+    // k_thread_start(d->rpc_t_id);
+    // k_thread_start(d->event_t_id);
 }
 
 /*-----------------------------------------------------------------------------------------------------
@@ -206,14 +206,14 @@ static void init_interfaces(cipher_daemon_t *d)
     uint8_t iface_id = 0;
     for (uint8_t i = 0; i < num_up_link_ifaces; i++)
     {
-        d->uplink_t_g[i].id = iface_id++;
-        d->uplink_t_g[i].cfg = &d->cfg->uplink_ifaces[i];
+        d->uplink_t_g[i].iface._id = iface_id++;
+        d->uplink_t_g[i].iface.cfg = &d->cfg->uplink_ifaces[i];
     }
 
     for (uint8_t i = 0; i < num_down_link_ifaces; i++)
     {
-        d->downlink_t_g[i].id = iface_id++;
-        d->downlink_t_g[i].cfg = &d->cfg->downlink_ifaces[i];
+        d->downlink_t_g[i].iface._id = iface_id++;
+        d->downlink_t_g[i].iface.cfg = &d->cfg->downlink_ifaces[i];
     }
 
     // Initialize & Start all interfaces
@@ -240,33 +240,33 @@ static void initialize_interface_group(cipher_daemon_t *d, cipher_interface_thre
                                      conn_t->stack,
                                      K_THREAD_STACK_SIZEOF(conn_t->stack),
                                      cipher_interface_conn_thread,
-                                     (void *)d, (void *)&t_group[i].cfg, NULL,
+                                     (void *)d, (void *)&t_group[i].iface, NULL,
                                      CONNECTION_THREAD_PRIORITY,
                                      0,
                                      K_FOREVER);
-        k_thread_name_set(conn_t->id, iface_t_name("conn", d->_id, t_group[i].id, name_buf, sizeof(name_buf)));
+        k_thread_name_set(conn_t->id, iface_t_name("iface_conn", d->_id, t_group[i].iface._id, name_buf, sizeof(name_buf)));
 
         cipher_transport_thread_info_t *send_t = &t_group[i].send_t;
         send_t->id = k_thread_create(&send_t->data,
                                      send_t->stack,
                                      K_THREAD_STACK_SIZEOF(send_t->stack),
                                      cipher_interface_send_thread,
-                                     (void *)d, (void *)&t_group[i].cfg, NULL,
+                                     (void *)d, (void *)&t_group[i].iface, NULL,
                                      TRANSPORT_THREAD_PRIORITY,
                                      0,
                                      K_FOREVER);
-        k_thread_name_set(send_t->id, iface_t_name("send", d->_id, t_group[i].id, name_buf, sizeof(name_buf)));
+        k_thread_name_set(send_t->id, iface_t_name("iface_send", d->_id, t_group[i].iface._id, name_buf, sizeof(name_buf)));
 
         cipher_transport_thread_info_t *recv_t = &t_group[i].recv_t;
         recv_t->id = k_thread_create(&recv_t->data,
                                      recv_t->stack,
                                      K_THREAD_STACK_SIZEOF(recv_t->stack),
                                      cipher_interface_recv_thread,
-                                     (void *)d, (void *)&t_group[i].cfg, NULL,
+                                     (void *)d, (void *)&t_group[i].iface, NULL,
                                      TRANSPORT_THREAD_PRIORITY,
                                      0,
                                      K_FOREVER);
-        k_thread_name_set(recv_t->id, iface_t_name("recv", d->_id, t_group[i].id, name_buf, sizeof(name_buf)));
+        k_thread_name_set(recv_t->id, iface_t_name("iface_send", d->_id, t_group[i].iface._id, name_buf, sizeof(name_buf)));
 
         k_thread_start(conn_t->id);
         k_thread_start(send_t->id);
@@ -277,15 +277,15 @@ static void initialize_interface_group(cipher_daemon_t *d, cipher_interface_thre
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                              Helpers
  *---------------------------------------------------------------------------------------------------*/
-char *cipher_t_name(const char *prefix, uint16_t device_id, char *buffer, size_t buflen)
+char *cipher_t_name(const char *prefix, uint8_t d_id, char *buffer, size_t buflen)
 {
-    uint16_t last_4_digits = device_id % 10000;
-    snprintf(buffer, buflen, "%s_%04u", prefix, last_4_digits);
+    uint16_t last_4_digits = d_id % 10000;
+    snprintf(buffer, buflen, "%s_%02u", prefix, last_4_digits);
     return buffer;
 }
 
 char *iface_t_name(const char *prefix, uint8_t d_id, uint8_t iface_id, char *buffer, size_t buflen)
 {
-    snprintf(buffer, buflen, "%s_%04u_%03u", prefix, d_id, iface_id);
+    snprintf(buffer, buflen, "%s_%02u_%03u", prefix, d_id, iface_id);
     return buffer;
 }
