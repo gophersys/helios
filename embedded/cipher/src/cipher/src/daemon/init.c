@@ -48,7 +48,7 @@ void cipher_init_daemon(cipher_daemon_config_t *cfg, cipher_daemon_t *d)
     init_interfaces(d);
     init_threads(d);
 
-    DBG("Daemon instance %d, initialized OK, device id: %d", d->_id, d->device_id);
+    DBG("Daemon instance %d, initialized OK, device id: %d", d->id, d->device_id);
 }
 
 /*-----------------------------------------------------------------------------------------------------
@@ -91,7 +91,7 @@ static void setup_ids(cipher_daemon_t *d)
     }
 
     d->device_id = device_id;
-    d->_id = instances++;
+    d->id = instances++;
 }
 
 /*-----------------------------------------------------------------------------------------------------
@@ -138,7 +138,7 @@ static void init_threads(cipher_daemon_t *d)
                                    CONTROLLER_THREAD_PRIORITY,
                                    0,
                                    K_FOREVER);
-    k_thread_name_set(d->ctrl_t_id, cipher_t_name("cipher_controller", d->_id, name_buf, sizeof(name_buf)));
+    k_thread_name_set(d->ctrl_t_id, cipher_t_name("cipher_controller", d->id, name_buf, sizeof(name_buf)));
 
     // d->sd_t_id = k_thread_create(&d->sd_t_data,
     //                              d->sd_t_stack,
@@ -206,13 +206,13 @@ static void init_interfaces(cipher_daemon_t *d)
     uint8_t iface_id = 0;
     for (uint8_t i = 0; i < num_up_link_ifaces; i++)
     {
-        d->uplink_t_g[i].iface._id = iface_id++;
+        d->uplink_t_g[i].iface.id = iface_id++;
         d->uplink_t_g[i].iface.cfg = &d->cfg->uplink_ifaces[i];
     }
 
     for (uint8_t i = 0; i < num_down_link_ifaces; i++)
     {
-        d->downlink_t_g[i].iface._id = iface_id++;
+        d->downlink_t_g[i].iface.id = iface_id++;
         d->downlink_t_g[i].iface.cfg = &d->cfg->downlink_ifaces[i];
     }
 
@@ -244,7 +244,7 @@ static void initialize_interface_group(cipher_daemon_t *d, cipher_interface_thre
                                      CONNECTION_THREAD_PRIORITY,
                                      0,
                                      K_FOREVER);
-        k_thread_name_set(conn_t->id, iface_t_name("iface_conn", d->_id, t_group[i].iface._id, name_buf, sizeof(name_buf)));
+        k_thread_name_set(conn_t->id, iface_t_name("iface_conn", d->id, t_group[i].iface.id, name_buf, sizeof(name_buf)));
 
         cipher_transport_thread_info_t *send_t = &t_group[i].send_t;
         send_t->id = k_thread_create(&send_t->data,
@@ -255,7 +255,7 @@ static void initialize_interface_group(cipher_daemon_t *d, cipher_interface_thre
                                      TRANSPORT_THREAD_PRIORITY,
                                      0,
                                      K_FOREVER);
-        k_thread_name_set(send_t->id, iface_t_name("iface_send", d->_id, t_group[i].iface._id, name_buf, sizeof(name_buf)));
+        k_thread_name_set(send_t->id, iface_t_name("iface_send", d->id, t_group[i].iface.id, name_buf, sizeof(name_buf)));
 
         cipher_transport_thread_info_t *recv_t = &t_group[i].recv_t;
         recv_t->id = k_thread_create(&recv_t->data,
@@ -266,7 +266,7 @@ static void initialize_interface_group(cipher_daemon_t *d, cipher_interface_thre
                                      TRANSPORT_THREAD_PRIORITY,
                                      0,
                                      K_FOREVER);
-        k_thread_name_set(recv_t->id, iface_t_name("iface_send", d->_id, t_group[i].iface._id, name_buf, sizeof(name_buf)));
+        k_thread_name_set(recv_t->id, iface_t_name("iface_send", d->id, t_group[i].iface.id, name_buf, sizeof(name_buf)));
 
         k_thread_start(conn_t->id);
         k_thread_start(send_t->id);

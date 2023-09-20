@@ -12,12 +12,11 @@
 
 typedef struct
 {
+    uint8_t id;
     tal_config_t *cfg;
-
-    uint8_t _id;
-    bool _connected;
-    struct k_sem _conn_sem;
-    struct k_sem _disconn_sem;
+    bool connected;
+    struct k_sem conn_sem;
+    struct k_sem disconn_sem;
 } cipher_iface_t;
 
 // Connection manager thread for the given interface
@@ -57,7 +56,7 @@ typedef struct
     uint16_t device_id;
 
     // Daemon Instance Id
-    uint8_t _id;
+    uint8_t id;
 
     // Controller thread info
     k_tid_t ctrl_t_id;

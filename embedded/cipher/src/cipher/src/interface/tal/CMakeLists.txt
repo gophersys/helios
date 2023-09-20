@@ -1,3 +1,2 @@
-zephyr_include_directories(priv)
-
-target_sources(app PRIVATE tal.c socket.c serdes.c)
+target_sources(app PRIVATE tal.c 
+                           socket.c)

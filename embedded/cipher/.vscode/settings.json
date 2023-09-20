@@ -28,7 +28,11 @@
         "daemon.h": "c",
         "default.h": "c",
         "threads.h": "c",
-        "socket_tal.h": "c"
+        "socket_tal.h": "c",
+        "interface.h": "c",
+        "transport.h": "c",
+        "protocol.h": "c",
+        "serdes.h": "c"
     },
     // Editor actions
     "editor.codeActionsOnSave": {

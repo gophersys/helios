@@ -25,12 +25,15 @@ typedef enum
     IFACE_ERROR_SEND,
     IFACE_ERROR_RECV,
 
+    IFACE_ERROR_HANDSHAKE,
+
     IFACE_ERROR_MAX,
 } iface_error_t;
 
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                                  API
  *---------------------------------------------------------------------------------------------------*/
+bool interface_handshake(cipher_iface_t *iface);
 void handle_interface_error(cipher_daemon_t *d, cipher_iface_t *iface, iface_error_t err);
 
 #endif // #define INTERFACE_H

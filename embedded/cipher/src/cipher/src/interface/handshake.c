@@ -14,41 +14,33 @@
 
 // Private include
 #include "threads.h"
-/*-----------------------------------------------------------------------------------------------------
- *                                                                                        Configuration
- *---------------------------------------------------------------------------------------------------*/
+#include "interface.h"
 
-LOG_MODULE_DECLARE(transport);
-
-/*-----------------------------------------------------------------------------------------------------
- *                                                                                 Private Data & Types
- *---------------------------------------------------------------------------------------------------*/
+LOG_MODULE_DECLARE(interface);
 
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                    Private Functions
  *---------------------------------------------------------------------------------------------------*/
-
-// TODO: How do I add unit tests to these functions?
 static bool handshake_uplink(const tal_config_t *cfg);
 static bool handshake_downlink(const tal_config_t *cfg);
 
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                           Public API
  *---------------------------------------------------------------------------------------------------*/
-bool cipher_handshake(const tal_config_t *cfg)
+bool interface_handshake(cipher_iface_t *iface)
 {
     bool status = false;
 
-    switch (cfg->link)
+    switch (iface->cfg->link)
     {
     case TAL_LINK_TYPE_UPLINK:
-        status = handshake_uplink(cfg);
+        status = handshake_uplink(iface->cfg);
         break;
     case TAL_LINK_TYPE_DOWNLINK:
-        status = handshake_downlink(cfg);
+        status = handshake_downlink(iface->cfg);
         break;
     default:
-        ERROR("Unknown or implemented link type: %d", cfg->link);
+        ERROR("Unknown or implemented link type: %d", iface->cfg->link);
     }
 
     return status;

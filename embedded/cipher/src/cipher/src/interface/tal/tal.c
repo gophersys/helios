@@ -9,7 +9,7 @@
 // Cipher includes
 #include "transport/transport.h"
 #include "utils/err.h"
-#include "socket_tal.h"
+#include "socket.h"
 
 LOG_MODULE_REGISTER(tal, TAL_LOG_LEVEL);
 

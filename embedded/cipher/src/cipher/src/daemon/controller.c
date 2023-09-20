@@ -54,6 +54,7 @@ void cipher_controller_thread(void *arg0, void *arg1, void *arg2)
     LOG("Starting cipher controller thread");
     while (true)
         k_msleep(1000);
+
     cipher_daemon_t *daemon = (cipher_daemon_t *)arg0;
 
     while (true)

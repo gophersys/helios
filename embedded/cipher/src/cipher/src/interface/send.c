@@ -1,5 +1,3 @@
-#include "interface_prv.h"
-
 // Standard includes
 #include <stdio.h>
 
@@ -11,14 +9,16 @@
 // Cipher includes
 #include "config/default.h"
 #include "transport/transport.h"
+#include "protocol/protocol.h"
+#include "protocol/serdes.h"
 #include "daemon/daemon.h"
 #include "utils/err.h"
 
 // Private include
+#include "interface.h"
 #include "threads.h"
-#include "protocol.h"
 
-LOG_MODULE_DECLARE(transport);
+LOG_MODULE_DECLARE(interface);
 
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                      Developer Notes
@@ -35,7 +35,7 @@ LOG_MODULE_DECLARE(transport);
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                    Private Functions
  *---------------------------------------------------------------------------------------------------*/
-static void process_egress_packet(cipher_daemon_t *d, uint8_t *send_buffer, uint16_t send_bytes);
+// static void process_egress_packet(cipher_daemon_t *d, uint8_t *send_buffer, uint16_t send_bytes);
 
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                          Send Thread
@@ -48,14 +48,14 @@ void cipher_interface_send_thread(void *arg0, void *arg1, void *arg2)
     __ASSERT(d != NULL, "null daemon passed to thread");
     __ASSERT(iface != NULL, "null interface passed to thread");
 
-    tal_config_t *interface_cfg = &iface->cfg;
+    tal_config_t *interface_cfg = iface->cfg;
 
     while (1)
     {
         // Wait until the connection is established before sending data
-        k_sem_take(&iface->_conn_sem, K_FOREVER);
+        k_sem_take(&iface->conn_sem, K_FOREVER);
 
-        while (iface->_connected) // Only send data while connected
+        while (iface->connected) // Only send data while connected
         {
             // Await for a thread to request a send packet
             cipher_packet_t *packet = k_fifo_get(&d->rpc_queue, K_FOREVER);
@@ -91,7 +91,7 @@ void cipher_interface_send_thread(void *arg0, void *arg1, void *arg2)
                 else
                 {
                     // Signal a disconnection
-                    k_sem_give(&iface->_disconn_sem);
+                    k_sem_give(&iface->disconn_sem);
 
                     // Break out of the inner loop to await a new connection
                     break;
@@ -107,6 +107,6 @@ void cipher_interface_send_thread(void *arg0, void *arg1, void *arg2)
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                               Egress
  *---------------------------------------------------------------------------------------------------*/
-static void process_egress_packet(cipher_daemon_t *d, uint8_t *send_buffer, uint16_t send_bytes)
-{
-}
+// static void process_egress_packet(cipher_daemon_t *d, uint8_t *send_buffer, uint16_t send_bytes)
+// {
+// }

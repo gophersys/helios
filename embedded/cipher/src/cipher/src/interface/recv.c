@@ -1,5 +1,3 @@
-#include "interface_prv.h"
-
 // Standard includes
 #include <stdio.h>
 
@@ -11,14 +9,16 @@
 // Cipher includes
 #include "config/default.h"
 #include "transport/transport.h"
+#include "protocol/protocol.h"
+#include "protocol/serdes.h"
 #include "daemon/daemon.h"
 #include "utils/err.h"
 
 // Private include
+#include "interface.h"
 #include "threads.h"
-#include "protocol.h"
 
-LOG_MODULE_DECLARE(transport);
+LOG_MODULE_DECLARE(interface);
 
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                      Developer Notes
@@ -44,14 +44,14 @@ void cipher_interface_recv_thread(void *arg0, void *arg1, void *arg2)
     __ASSERT(d != NULL, "null daemon passed to thread");
     __ASSERT(iface != NULL, "null interface passed to thread");
 
-    tal_config_t *interface_cfg = &iface->cfg;
+    tal_config_t *interface_cfg = iface->cfg;
 
     while (1)
     {
         // Wait until the connection is established before receiving data
-        k_sem_take(&iface->_conn_sem, K_FOREVER);
+        k_sem_take(&iface->conn_sem, K_FOREVER);
 
-        while (iface->_connected) // Only receive data while connected
+        while (iface->connected) // Only receive data while connected
         {
             const size_t buffer_size = CIPHER_CONFIG_MAX_PAYLOAD_SIZE;
             uint8_t *recv_buffer = k_heap_alloc(&d->recv_buffers_heap, CIPHER_CONFIG_MAX_PAYLOAD_SIZE, K_FOREVER);
@@ -71,7 +71,7 @@ void cipher_interface_recv_thread(void *arg0, void *arg1, void *arg2)
                 else
                 {
                     // Signal a disconnection
-                    k_sem_give(&iface->_disconn_sem);
+                    k_sem_give(&iface->disconn_sem);
 
                     // Break out of the inner loop to await a new connection
                     break;
