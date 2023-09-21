@@ -15,19 +15,20 @@
 // Private include
 #include "threads.h"
 
-LOG_MODULE_REGISTER(daemon, LOG_LEVEL_DBG);
+LOG_MODULE_REGISTER(daemon, DAEMON_LOG_LEVEL);
 
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                    Private Functions
  *---------------------------------------------------------------------------------------------------*/
 
 static void assert_config(const cipher_daemon_config_t *cfg);
+static void print_daemon_stats(cipher_daemon_t *d);
 static void setup_ids(cipher_daemon_t *d);
 static void init_objects(cipher_daemon_t *d);
 static void init_interfaces(cipher_daemon_t *d);
 static void init_threads(cipher_daemon_t *d);
 
-static void initialize_interface_group(cipher_daemon_t *d, cipher_interface_thread_group_t *t_group, size_t num);
+static void initialize_interface_group(cipher_daemon_t *d, cipher_iface_thread_group_t *t_group, size_t num);
 
 char *cipher_t_name(const char *prefix, uint8_t d_id, char *buffer, size_t buflen);
 char *iface_t_name(const char *prefix, uint8_t d_id, uint8_t iface_id, char *buffer, size_t buflen);
@@ -42,6 +43,8 @@ void cipher_init_daemon(cipher_daemon_config_t *cfg, cipher_daemon_t *d)
 
     assert_config(cfg);
     d->cfg = cfg;
+
+    print_daemon_stats(d);
 
     setup_ids(d);
     init_objects(d);
@@ -65,6 +68,33 @@ void cipher_init_daemon(cipher_daemon_config_t *cfg, cipher_daemon_t *d)
 static void assert_config(const cipher_daemon_config_t *cfg)
 {
     // TODO: What checks can be done here?
+}
+
+/*-----------------------------------------------------------------------------------------------------
+ *                                                                                           Print Size
+ *---------------------------------------------------------------------------------------------------*/
+
+/**
+ * @brief Prints useful debug information such as stack sizes, heap pool sizes, number of interfaces,
+ * etc
+ *
+ * @param d The daemon
+ */
+static void print_daemon_stats(cipher_daemon_t *d)
+{
+#if DAEMON_LOG_LEVEL == LOG_LEVEL_DBG
+    LOG_RAW("\nDaemon instance %d stats:\n", d->id);
+    LOG_RAW("\tcipher_daemon_t size: %d bytes\n", sizeof(cipher_daemon_t));
+
+    // Heaps
+    LOG_RAW("%s", "\nHEAPS:\n");
+    LOG_RAW("\tnet_packets_heap: %d bytes\n", CONFIG_NET_PACKET_HEAP_SIZE);
+    LOG_RAW("\tnet_partial_packets_heap: %d bytes\n", CONFIG_NET_PART_PACKET_HEAP_SIZE);
+    LOG_RAW("\tunrouted_packets_heap: %d bytes\n", CONFIG_UNROUTED_PACKETS_HEAP_SIZE);
+    LOG_RAW("\tlocal_packets_heap: %d bytes\n", CONFIG_LOCAL_PACKETS_HEAP_SIZE);
+
+    LOG_RAW("%s", "\n\n");
+#endif
 }
 
 /*-----------------------------------------------------------------------------------------------------
@@ -112,7 +142,7 @@ static void init_objects(cipher_daemon_t *d)
     k_fifo_init(&d->rpc_queue);
     k_fifo_init(&d->event_queue);
 
-    k_heap_init(&d->recv_buffers_heap, d->recv_buffers_heap_mem, sizeof(d->recv_buffers_heap_mem));
+    k_heap_init(&d->net_packets_heap, d->net_packets_heap_mem, sizeof(d->net_packets_heap_mem));
     k_heap_init(&d->unrouted_packets_heap, d->unrouted_packets_heap_mem, sizeof(d->unrouted_packets_heap_mem));
     k_heap_init(&d->local_packets_heap, d->local_packets_heap_mem, sizeof(d->local_packets_heap_mem));
 }
@@ -199,8 +229,8 @@ static void init_threads(cipher_daemon_t *d)
  */
 static void init_interfaces(cipher_daemon_t *d)
 {
-    uint8_t num_up_link_ifaces = CONFIG_UP_LINK_INTERFACE_COUNT;
-    uint8_t num_down_link_ifaces = CONFIG_UP_LINK_INTERFACE_COUNT;
+    uint8_t num_up_link_ifaces = CONFIG_UP_LINK_IFACE_COUNT;
+    uint8_t num_down_link_ifaces = CONFIG_UP_LINK_IFACE_COUNT;
 
     // Assign an interface to each thread group
     uint8_t iface_id = 0;
@@ -229,44 +259,47 @@ static void init_interfaces(cipher_daemon_t *d)
  * @param num The number of interfaces in the group
  * @param t_group The thread group
  */
-static void initialize_interface_group(cipher_daemon_t *d, cipher_interface_thread_group_t *t_group, size_t num)
+static void initialize_interface_group(cipher_daemon_t *d, cipher_iface_thread_group_t *t_group, size_t num)
 {
     char name_buf[32];
+    uint8_t conn_t_prio = TRANSPORT_THREAD_BASE_PRIORITY - 1;
+    uint8_t send_t_prio = TRANSPORT_THREAD_BASE_PRIORITY;
+    uint8_t recv_t_prio = TRANSPORT_THREAD_BASE_PRIORITY;
 
     for (uint8_t i = 0; i < num; i++)
     {
-        cipher_connection_thread_info_t *conn_t = &t_group[i].connection_t;
+        cipher_iface_thread_info_t *conn_t = &t_group[i].connection_t;
         conn_t->id = k_thread_create(&conn_t->data,
                                      conn_t->stack,
                                      K_THREAD_STACK_SIZEOF(conn_t->stack),
                                      cipher_interface_conn_thread,
                                      (void *)d, (void *)&t_group[i].iface, NULL,
-                                     CONNECTION_THREAD_PRIORITY,
+                                     conn_t_prio,
                                      0,
                                      K_FOREVER);
         k_thread_name_set(conn_t->id, iface_t_name("iface_conn", d->id, t_group[i].iface.id, name_buf, sizeof(name_buf)));
 
-        cipher_transport_thread_info_t *send_t = &t_group[i].send_t;
+        cipher_iface_thread_info_t *send_t = &t_group[i].send_t;
         send_t->id = k_thread_create(&send_t->data,
                                      send_t->stack,
                                      K_THREAD_STACK_SIZEOF(send_t->stack),
                                      cipher_interface_send_thread,
                                      (void *)d, (void *)&t_group[i].iface, NULL,
-                                     TRANSPORT_THREAD_PRIORITY,
+                                     send_t_prio,
                                      0,
                                      K_FOREVER);
         k_thread_name_set(send_t->id, iface_t_name("iface_send", d->id, t_group[i].iface.id, name_buf, sizeof(name_buf)));
 
-        cipher_transport_thread_info_t *recv_t = &t_group[i].recv_t;
+        cipher_iface_thread_info_t *recv_t = &t_group[i].recv_t;
         recv_t->id = k_thread_create(&recv_t->data,
                                      recv_t->stack,
                                      K_THREAD_STACK_SIZEOF(recv_t->stack),
                                      cipher_interface_recv_thread,
                                      (void *)d, (void *)&t_group[i].iface, NULL,
-                                     TRANSPORT_THREAD_PRIORITY,
+                                     recv_t_prio,
                                      0,
                                      K_FOREVER);
-        k_thread_name_set(recv_t->id, iface_t_name("iface_send", d->id, t_group[i].iface.id, name_buf, sizeof(name_buf)));
+        k_thread_name_set(recv_t->id, iface_t_name("iface_recv", d->id, t_group[i].iface.id, name_buf, sizeof(name_buf)));
 
         k_thread_start(conn_t->id);
         k_thread_start(send_t->id);
