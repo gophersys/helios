@@ -8,6 +8,9 @@
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                            Debugging
  *---------------------------------------------------------------------------------------------------*/
+
+#define DAEMON_LOG_LEVEL LOG_LEVEL_DBG
+#define IFACE_LOG_LEVEL LOG_LEVEL_DBG
 #define TAL_LOG_LEVEL LOG_LEVEL_INF
 
 /*-----------------------------------------------------------------------------------------------------
@@ -42,20 +45,20 @@
 #define CIPHER_CONFIG_PROTOCOL_VERSION (uint16_t)1
 
 // Maximum allowed packet size (header + payload)
-#define CIPHER_CONFIG_MAX_PAYLOAD_SIZE 1024
+#define CONFIG_MAX_PAYLOAD_SIZE 1024
 
-// Recv Buffer Pool. Used to store raw network packets on recv()
-#define CONFIG_CIPHER_RECV_BUFFER_SIZE CIPHER_CONFIG_MAX_PAYLOAD_SIZE
-#define CONFIG_CIPHER_RECV_BUFFERS 5
+// Network Heap
+#define CONFIG_NET_PACKETS_COUNT 4
+#define CONFIG_NET_PACKET_HEAP_SIZE (CONFIG_NET_PACKETS_COUNT * CONFIG_MAX_PAYLOAD_SIZE)
 
-// Send Buffer Pool
-#define CONFIG_CIPHER_SEND_BUFFER_SIZE CIPHER_CONFIG_MAX_PAYLOAD_SIZE
-#define CONFIG_CIPHER_SEND_BUFFERS 5
+#define CONFIG_NET_PART_PACKET_HEAP_SIZE (CONFIG_NET_PACKET_HEAP_SIZE / 2)
 
 // Unrecv packet heaps
-#define CONFIG_CIPHER_UNROUTED_PACKETS_HEAP 2048
+#define CONFIG_UNROUTED_PACKETS_COUNT 2
+#define CONFIG_UNROUTED_PACKETS_HEAP_SIZE (CONFIG_UNROUTED_PACKETS_COUNT * CONFIG_MAX_PAYLOAD_SIZE)
 
 // Local packet heaps
-#define CONFIG_CIPHER_LOCAL_PACKETS_HEAP 2048
+#define CONFIG_LOCAL_PACKETS_COUNT 2
+#define CONFIG_LOCAL_PACKETS_HEAP_SIZE (CONFIG_LOCAL_PACKETS_COUNT * CONFIG_MAX_PAYLOAD_SIZE)
 
 #endif // DEFAULT_H

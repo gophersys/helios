@@ -97,15 +97,41 @@ typedef struct
     struct k_fifo rpc_queue;
     struct k_fifo event_queue;
 
-    // Heaps
-    struct k_heap send_buffers_heap;
-    uint8_t __aligned(8) send_buffers_heap_mem[CONFIG_CIPHER_SEND_BUFFER_SIZE * CONFIG_CIPHER_SEND_BUFFERS];
-    struct k_heap recv_buffers_heap;
-    uint8_t __aligned(8) recv_buffers_heap_mem[CONFIG_CIPHER_RECV_BUFFER_SIZE * CONFIG_CIPHER_RECV_BUFFERS];
+    /**
+     * @brief Heap pool to receive and send network packets using send() and recv()
+     *
+     * @allocator: I-RT, I-ST
+     * @deallocator:
+     */
+    struct k_heap net_packets_heap;
+    uint8_t __aligned(8) net_packets_heap_mem[CONFIG_NET_PACKET_HEAP_SIZE];
+
+    /**
+     * @brief Heap pool to keep partial packets stored, until the rest arrives on the network
+     *
+     * @allocator:
+     * @deallocator:
+     */
+    struct k_heap net_partial_packets_heap;
+    uint8_t __aligned(8) net_partial_packets_heap_mem[CONFIG_NET_PART_PACKET_HEAP_SIZE];
+
+    /**
+     * @brief Heap pool to keep unrouted packets until they're routed on the network again
+     *
+     * @allocator:
+     * @deallocator:
+     */
     struct k_heap unrouted_packets_heap;
-    uint8_t __aligned(8) unrouted_packets_heap_mem[CONFIG_CIPHER_UNROUTED_PACKETS_HEAP];
+    uint8_t __aligned(8) unrouted_packets_heap_mem[CONFIG_UNROUTED_PACKETS_HEAP_SIZE];
+
+    /**
+     * @brief Heap pool to keep local deserialized packets ready for processing
+     *
+     * @allocator:
+     * @deallocator:
+     */
     struct k_heap local_packets_heap;
-    uint8_t __aligned(8) local_packets_heap_mem[CONFIG_CIPHER_LOCAL_PACKETS_HEAP];
+    uint8_t __aligned(8) local_packets_heap_mem[CONFIG_LOCAL_PACKETS_HEAP_SIZE];
 
 } cipher_daemon_t;
 
