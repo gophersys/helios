@@ -8,7 +8,7 @@
 
 // Logging and Debugging
 #define LOG(fmt, ...) LOG_INF("%s: " fmt, "", ##__VA_ARGS__)
-#define DBG(fmt, ...) LOG_DBG(fmt, ##__VA_ARGS__)
+#define DBG(fmt, ...) LOG_DBG("%s: " fmt, "", ##__VA_ARGS__)
 #define WARN(fmt, ...) LOG_WRN("%s: " fmt, __func__, ##__VA_ARGS__)
 #define ERROR(fmt, ...)                               \
     {                                                 \
