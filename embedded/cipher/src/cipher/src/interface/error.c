@@ -16,7 +16,7 @@
 #include "threads.h"
 #include "interface.h"
 
-LOG_MODULE_DECLARE(interface);
+LOG_MODULE_DECLARE(iface);
 
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                      Developer Notes

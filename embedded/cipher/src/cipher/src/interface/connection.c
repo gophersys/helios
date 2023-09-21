@@ -16,16 +16,16 @@
 #include "threads.h"
 #include "interface.h"
 
-LOG_MODULE_REGISTER(interface);
+LOG_MODULE_REGISTER(iface, IFACE_LOG_LEVEL);
 
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                      Developer Notes
  *---------------------------------------------------------------------------------------------------*/
 
 // TODO: Somehow include these timeouts in the tal_cfg_t interface
-#define TAL_CONNECT_TIMEOUT_MS 0 // Timeout in milliseconds for connection. Set to 0 for indefinite.
-#define TAL_ACCEPT_TIMEOUT_MS 0  // Timeout in milliseconds for accept. Set to 0 for indefinite.
-#define TAL_RETRY_DELAY_MS 0     // Delay between retry attempts.
+#define TAL_CONNECT_TIMEOUT_MS 500 // Timeout in milliseconds for connection. Set to 0 for indefinite.
+#define TAL_ACCEPT_TIMEOUT_MS 500  // Timeout in milliseconds for accept. Set to 0 for indefinite.
+#define TAL_RETRY_DELAY_MS 0       // Delay between retry attempts.
 
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                         Data & Types
@@ -37,9 +37,12 @@ LOG_MODULE_REGISTER(interface);
 
 // Connection
 static void await_connect(cipher_daemon_t *d, cipher_iface_t *iface);
-static void setup_timeouts(cipher_daemon_t *d, cipher_iface_t *iface);
 static void get_connection(cipher_daemon_t *d, cipher_iface_t *iface);
 static void do_handshake(cipher_daemon_t *d, cipher_iface_t *iface);
+static void set_send_recv_timeouts(cipher_daemon_t *d, cipher_iface_t *iface);
+
+// Signaling
+static void signal_send_recv(cipher_daemon_t *d, cipher_iface_t *iface);
 
 // Disconnection
 static void await_disconnect(cipher_daemon_t *d, cipher_iface_t *iface);
@@ -62,7 +65,7 @@ void cipher_interface_conn_thread(void *arg0, void *arg1, void *arg2)
     while (true)
     {
         await_connect(d, iface);
-        k_sem_give(&iface->conn_sem); // Signal send and recv threads to start
+        signal_send_recv(d, iface);
         await_disconnect(d, iface);
     }
 }
@@ -72,39 +75,9 @@ void cipher_interface_conn_thread(void *arg0, void *arg1, void *arg2)
  *---------------------------------------------------------------------------------------------------*/
 static void await_connect(cipher_daemon_t *d, cipher_iface_t *iface)
 {
-    // Usually the interfaces would just wait "forever", but in case not
-    setup_timeouts(d, iface);
-
-    // Do connect() or accept() depending on config type
     get_connection(d, iface);
-
-    // Exchange protocol versions
+    set_send_recv_timeouts(d, iface);
     do_handshake(d, iface);
-}
-
-static void setup_timeouts(cipher_daemon_t *d, cipher_iface_t *iface)
-{
-    // Set the timeout for the specific operation
-    uint16_t timeout_opt = 0;
-    switch (iface->cfg->link)
-    {
-    case TAL_LINK_TYPE_UPLINK:
-
-        timeout_opt = TAL_CONNECT_TIMEOUT_MS;
-        if (!tal_set_opt(iface->cfg, TAL_OPTION_SEND_TIMEOUT, &timeout_opt, sizeof(timeout_opt)))
-            handle_interface_error(d, iface, IFACE_ERROR_SET_OPT);
-        break;
-
-    case TAL_LINK_TYPE_DOWNLINK:
-
-        timeout_opt = TAL_ACCEPT_TIMEOUT_MS;
-        if (!tal_set_opt(iface->cfg, TAL_OPTION_RECV_TIMEOUT, &timeout_opt, sizeof(timeout_opt)))
-            handle_interface_error(d, iface, IFACE_ERROR_SET_OPT);
-
-        break;
-    default:
-        ERROR("Unknown iface link type: %d", iface->cfg->link);
-    }
 }
 
 static void get_connection(cipher_daemon_t *d, cipher_iface_t *iface)
@@ -116,7 +89,7 @@ static void get_connection(cipher_daemon_t *d, cipher_iface_t *iface)
 
     // Continuously try to establish the connection
     uint32_t start_time = k_uptime_get_32();
-    while (!iface->connected)
+    while (!iface->connected) // TODO: Zephyr's sockets dont yet support a connect() timeout
     {
         switch (iface->cfg->link)
         {
@@ -129,10 +102,6 @@ static void get_connection(cipher_daemon_t *d, cipher_iface_t *iface)
             {
                 if (!conn_timeout)
                     handle_interface_error(d, iface, IFACE_ERROR_SET_OPT);
-
-                /* You requested a timeout other than "always", halting app until
-                 * you figure out your connections... or your life :) */
-                ERROR("Connect timeout on interface %d, daemon %d", iface->id, d->id);
             }
             break;
 
@@ -162,16 +131,52 @@ static void get_connection(cipher_daemon_t *d, cipher_iface_t *iface)
 
     __ASSERT(iface->connected, "Logic error in function, must always be connected before returning");
 
-    DBG("Daemon %d, iface %d connected (%u ms)", d->id, iface->id, k_uptime_get_32() - start_time);
+    uint32_t connection_time = k_uptime_get_32() - start_time;
+    // DBG("Daemon %d, iface %d connected (%u ms)", d->id, iface->id, connection_time);
 }
 
-/*-----------------------------------------------------------------------------------------------------
- *                                                                                            Handshake
- *---------------------------------------------------------------------------------------------------*/
+static void set_send_recv_timeouts(cipher_daemon_t *d, cipher_iface_t *iface)
+{
+    // Set the timeout for the specific operation
+    uint16_t timeout_opt = 0;
+    switch (iface->cfg->link)
+    {
+    case TAL_LINK_TYPE_UPLINK:
+
+        timeout_opt = TAL_CONNECT_TIMEOUT_MS;
+        if (!tal_set_opt(iface->cfg, TAL_OPTION_SEND_TIMEOUT, &timeout_opt, sizeof(timeout_opt)))
+            handle_interface_error(d, iface, IFACE_ERROR_SET_OPT);
+
+        timeout_opt = TAL_ACCEPT_TIMEOUT_MS;
+        if (!tal_set_opt(iface->cfg, TAL_OPTION_RECV_TIMEOUT, &timeout_opt, sizeof(timeout_opt)))
+            handle_interface_error(d, iface, IFACE_ERROR_SET_OPT);
+
+        break;
+
+    case TAL_LINK_TYPE_DOWNLINK:
+
+        timeout_opt = TAL_ACCEPT_TIMEOUT_MS;
+        if (!tal_set_opt(iface->cfg, TAL_OPTION_RECV_TIMEOUT, &timeout_opt, sizeof(timeout_opt)))
+            handle_interface_error(d, iface, IFACE_ERROR_SET_OPT);
+
+        break;
+    default:
+        ERROR("Unknown iface link type: %d", iface->cfg->link);
+    }
+}
+
 static void do_handshake(cipher_daemon_t *d, cipher_iface_t *iface)
 {
     if (!interface_handshake(iface))
         handle_interface_error(d, iface, IFACE_ERROR_HANDSHAKE);
+}
+
+/*-----------------------------------------------------------------------------------------------------
+ *                                                                                     Signal Send/Recv
+ *---------------------------------------------------------------------------------------------------*/
+static void signal_send_recv(cipher_daemon_t *d, cipher_iface_t *iface)
+{
+    k_sem_give(&iface->conn_sem); // Signal send and recv threads to start
 }
 
 /*-----------------------------------------------------------------------------------------------------

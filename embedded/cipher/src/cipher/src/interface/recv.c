@@ -18,7 +18,7 @@
 #include "interface.h"
 #include "threads.h"
 
-LOG_MODULE_DECLARE(interface);
+LOG_MODULE_DECLARE(iface);
 
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                      Developer Notes
@@ -50,35 +50,42 @@ void cipher_interface_recv_thread(void *arg0, void *arg1, void *arg2)
     {
         // Wait until the connection is established before receiving data
         k_sem_take(&iface->conn_sem, K_FOREVER);
+        LOG("Recv thread for iface %d unblocked", iface->id);
 
         while (iface->connected) // Only receive data while connected
         {
-            const size_t buffer_size = CIPHER_CONFIG_MAX_PAYLOAD_SIZE;
-            uint8_t *recv_buffer = k_heap_alloc(&d->recv_buffers_heap, CIPHER_CONFIG_MAX_PAYLOAD_SIZE, K_FOREVER);
+            const size_t buffer_size = CONFIG_MAX_PAYLOAD_SIZE;
+            uint8_t *recv_buffer = k_heap_alloc(&d->net_packets_heap, CONFIG_MAX_PAYLOAD_SIZE, K_FOREVER);
             uint16_t bytes_recv = 0;
             bool conn_closed = false;
+            bool timeout = false;
 
-            if (tal_recv(interface_cfg, recv_buffer, buffer_size, &bytes_recv, &conn_closed))
+            if (!tal_recv(interface_cfg, recv_buffer, buffer_size, &bytes_recv, &conn_closed, &timeout))
             {
-                process_ingress_packet(d, recv_buffer, bytes_recv);
-            }
-            else
-            {
-                if (!conn_closed)
+                if (timeout || conn_closed)
                 {
-                    handle_interface_error(d, iface, IFACE_ERROR_RECV);
-                }
-                else
-                {
+                    if (timeout)
+                        WARN("Timeout trying to recv on iface %d, daemon %d", iface->id, d->id);
+                    else
+                        WARN("Connection closed trying to recv on iface %d, daemon %d", iface->id, d->id);
+
                     // Signal a disconnection
                     k_sem_give(&iface->disconn_sem);
 
                     // Break out of the inner loop to await a new connection
                     break;
                 }
+                else
+                {
+                    handle_interface_error(d, iface, IFACE_ERROR_RECV);
+                }
+            }
+            else
+            {
+                process_ingress_packet(d, recv_buffer, bytes_recv);
             }
 
-            k_heap_free(&d->recv_buffers_heap, recv_buffer);
+            k_heap_free(&d->net_packets_heap, recv_buffer);
         }
     }
 }

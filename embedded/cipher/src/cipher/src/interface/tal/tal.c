@@ -39,9 +39,9 @@ typedef struct
     bool (*connect)(tal_config_t *cfg, bool *timeout);
     bool (*accept)(tal_config_t *cfg, bool *timeout);
     bool (*send)(const tal_config_t *cfg, const void *buffer, const size_t buffer_size,
-                 uint16_t *send_count, bool *conn_closed);
+                 uint16_t *send_count, bool *conn_closed, bool *timeout);
     bool (*recv)(const tal_config_t *cfg, void *buffer, const size_t buffer_size,
-                 uint16_t *recv_count, bool *conn_closed);
+                 uint16_t *recv_count, bool *conn_closed, bool *timeout);
     bool (*close)(const tal_config_t *cfg);
 } tal_interface_ops_t;
 
@@ -108,17 +108,17 @@ bool tal_accept(tal_config_t *cfg, bool *timeout)
 }
 
 bool tal_send(const tal_config_t *cfg, const void *buffer, const size_t buffer_size,
-              uint16_t *send_count, bool *conn_closed)
+              uint16_t *send_count, bool *conn_closed, bool *timeout)
 {
     iface_assert(cfg, __func__);
-    return tal_ops[cfg->type].send(cfg, buffer, buffer_size, send_count, conn_closed);
+    return tal_ops[cfg->type].send(cfg, buffer, buffer_size, send_count, conn_closed, timeout);
 }
 
 bool tal_recv(const tal_config_t *cfg, void *buffer, const size_t buffer_size,
-              uint16_t *recv_count, bool *conn_closed)
+              uint16_t *recv_count, bool *conn_closed, bool *timeout)
 {
     iface_assert(cfg, __func__);
-    return tal_ops[cfg->type].recv(cfg, buffer, buffer_size, recv_count, conn_closed);
+    return tal_ops[cfg->type].recv(cfg, buffer, buffer_size, recv_count, conn_closed, timeout);
 }
 
 bool tal_close(const tal_config_t *cfg)

@@ -18,7 +18,7 @@
 #include "interface.h"
 #include "threads.h"
 
-LOG_MODULE_DECLARE(interface);
+LOG_MODULE_DECLARE(iface);
 
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                      Developer Notes
@@ -54,6 +54,7 @@ void cipher_interface_send_thread(void *arg0, void *arg1, void *arg2)
     {
         // Wait until the connection is established before sending data
         k_sem_take(&iface->conn_sem, K_FOREVER);
+        DBG("Send thread for iface %d unblocked", iface->id);
 
         while (iface->connected) // Only send data while connected
         {
@@ -62,7 +63,7 @@ void cipher_interface_send_thread(void *arg0, void *arg1, void *arg2)
             // TODO: Verify that the packet received is correct
 
             // Allocate a big enough buffer to store the serialized payload
-            uint8_t *send_buffer = k_heap_alloc(&d->send_buffers_heap, packet->header.payload_len, K_FOREVER);
+            uint8_t *send_buffer = k_heap_alloc(&d->net_packets_heap, packet->header.payload_len, K_FOREVER);
 
             // Host byte order to Network byte order
             cipher_encode_args_t args = {
@@ -82,7 +83,8 @@ void cipher_interface_send_thread(void *arg0, void *arg1, void *arg2)
             // Send packet
             uint16_t bytes_sent = 0;
             bool conn_closed = false;
-            if (!tal_send(interface_cfg, send_buffer, packet->header.payload_len, &bytes_sent, &conn_closed))
+            bool timeout = false;
+            if (!tal_send(interface_cfg, send_buffer, packet->header.payload_len, &bytes_sent, &conn_closed, &timeout))
             {
                 if (!conn_closed)
                 {
@@ -90,6 +92,8 @@ void cipher_interface_send_thread(void *arg0, void *arg1, void *arg2)
                 }
                 else
                 {
+                    DBG("Connection closed on send, iface %d", iface->id);
+
                     // Signal a disconnection
                     k_sem_give(&iface->disconn_sem);
 
@@ -99,7 +103,7 @@ void cipher_interface_send_thread(void *arg0, void *arg1, void *arg2)
             }
 
             // Free network payload buffer
-            k_heap_free(&d->send_buffers_heap, send_buffer);
+            k_heap_free(&d->net_packets_heap, send_buffer);
         }
     }
 }

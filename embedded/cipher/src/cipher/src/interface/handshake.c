@@ -16,13 +16,13 @@
 #include "threads.h"
 #include "interface.h"
 
-LOG_MODULE_DECLARE(interface);
+LOG_MODULE_DECLARE(iface);
 
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                    Private Functions
  *---------------------------------------------------------------------------------------------------*/
-static bool handshake_uplink(const tal_config_t *cfg);
-static bool handshake_downlink(const tal_config_t *cfg);
+static bool handshake_uplink(tal_config_t *cfg);
+static bool handshake_downlink(tal_config_t *cfg);
 
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                           Public API
@@ -47,7 +47,7 @@ bool interface_handshake(cipher_iface_t *iface)
 }
 
 /*-----------------------------------------------------------------------------------------------------
- *                                                                      Private Function Implementation
+ *                                                                                               Uplink
  *---------------------------------------------------------------------------------------------------*/
 
 /**
@@ -59,49 +59,65 @@ bool interface_handshake(cipher_iface_t *iface)
  * @return true If the remote node's protocol version matches
  * @return false If a version mismatch, or send/recv errors
  */
-static bool handshake_uplink(const tal_config_t *cfg)
+static bool handshake_uplink(tal_config_t *cfg)
 {
-    bool status = false;
-
-    LOG("Handshaking downlink node");
-
     uint8_t recv_buffer[sizeof(bool)] = {0};
     uint16_t bytes_recv = 0;
     uint16_t bytes_sent = 0;
     bool conn_closed = false;
+    bool timeout = false;
 
     uint16_t local_node_version = htons(CIPHER_CONFIG_PROTOCOL_VERSION);
-    if (!tal_send(cfg, &local_node_version, sizeof(local_node_version), &bytes_sent, &conn_closed))
-        if (!conn_closed)
-            WARN("Could not send on interface");
+    if (!tal_send(cfg, &local_node_version, sizeof(local_node_version), &bytes_sent, &conn_closed, &timeout))
+    {
+        if (timeout)
+            WARN("Timeout trying to send protocol version to server");
+        else if (conn_closed)
+            WARN("Connection closed trying to send protocol version to server");
+        else
+            WARN("Interface send error");
+
+        return false;
+    }
 
     if (bytes_sent != sizeof(local_node_version))
     {
         WARN("Expected to send %d bytes but only sent %d", sizeof(local_node_version), bytes_sent);
+        return false;
     }
-    else
+
+    if (!tal_recv(cfg, recv_buffer, sizeof(recv_buffer), &bytes_recv, &conn_closed, &timeout))
     {
-        if (!tal_recv(cfg, recv_buffer, sizeof(recv_buffer), &bytes_recv, &conn_closed))
-            if (!conn_closed)
-                WARN("Could not recv on interface");
-
-        if (bytes_recv == sizeof(bool) && !conn_closed)
-        {
-            bool supported = recv_buffer[0];
-            if (supported)
-                status = true;
-            else
-                WARN("Local node protocol version %d does not match remote", CIPHER_CONFIG_PROTOCOL_VERSION);
-        }
+        if (timeout)
+            WARN("Timeout trying to recv server response");
+        else if (conn_closed)
+            WARN("Connection closed trying to recv server response");
         else
-        {
-            WARN("Connection timeout while sending protocol version");
-        }
+            WARN("Interface recv error");
+
+        return false;
     }
 
-    return status;
+    if (bytes_recv != sizeof(bool))
+    {
+        WARN("Expected to recv %d bytes but only recv %d", sizeof(bool), bytes_recv);
+        return false;
+    }
+
+    bool supported = recv_buffer[0];
+    if (!supported)
+    {
+        WARN("Local node protocol version %d does not match server's", CIPHER_CONFIG_PROTOCOL_VERSION);
+        return false;
+    }
+
+    LOG("Uplink handshake succesful");
+    return true;
 }
 
+/*-----------------------------------------------------------------------------------------------------
+ *                                                                                             Downlink
+ *---------------------------------------------------------------------------------------------------*/
 /**
  * Handshaking a downlink connection involves a server (us) awaiting a protocol version from the remote
  * node, which acts as a client. If our protocol version matches, then a boolean is sent to the remote
@@ -111,45 +127,61 @@ static bool handshake_uplink(const tal_config_t *cfg)
  * @return true If the remote node's protocol version matches
  * @return false If a version mismatch, or send/recv errors
  */
-static bool handshake_downlink(const tal_config_t *cfg)
+static bool handshake_downlink(tal_config_t *cfg)
 {
-    bool status = false;
-
     LOG("Handshaking downlink node");
 
     uint8_t recv_buffer[sizeof(uint16_t)] = {0};
     uint16_t bytes_recv = 0;
     uint16_t bytes_sent = 0;
     bool conn_closed = false;
+    bool timeout = false;
 
-    if (!tal_recv(cfg, recv_buffer, sizeof(recv_buffer), &bytes_recv, &conn_closed))
-        if (!conn_closed)
-            WARN("Could not recv on interface");
-
-    bool valid_packet = false;
-    if (bytes_recv == sizeof(uint16_t) && !conn_closed)
-        valid_packet = true;
-    else
-        WARN("Connection timeout while awaiting protocol version");
-
-    if (valid_packet)
+    if (!tal_recv(cfg, recv_buffer, sizeof(recv_buffer), &bytes_recv, &conn_closed, &timeout))
     {
-        uint16_t rmt_node_version = ntohs(*(uint16_t *)recv_buffer);
-
-        bool supported = false;
-        if (rmt_node_version == CIPHER_CONFIG_PROTOCOL_VERSION)
-        {
-            supported = true;
-            if (!tal_send(cfg, &supported, sizeof(supported), &bytes_sent, &conn_closed))
-                if (!conn_closed)
-                    WARN("Could not send on interface");
-        }
-
-        if (supported && !conn_closed)
-            status = true;
+        if (timeout)
+            WARN("Timeout trying to recv client protocol version");
+        else if (conn_closed)
+            WARN("Connection closed trying to recv client protocol version");
         else
-            WARN("Remote node attempted to connect with protocol version %d, expected %d", rmt_node_version, CIPHER_CONFIG_PROTOCOL_VERSION);
+            WARN("Interface recv error");
+
+        return false;
     }
 
-    return status;
+    if (bytes_recv != sizeof(uint16_t))
+    {
+        WARN("Expected to recv %d bytes but only recv %d", sizeof(uint16_t), bytes_recv);
+        return false;
+    }
+
+    uint16_t rmt_node_version = ntohs(*(uint16_t *)recv_buffer);
+    bool supported = (rmt_node_version == CIPHER_CONFIG_PROTOCOL_VERSION) ? true : false;
+
+    if (!tal_send(cfg, &supported, sizeof(supported), &bytes_sent, &conn_closed, &timeout))
+    {
+        if (timeout)
+            WARN("Timeout trying to send response %d to client", supported);
+        else if (conn_closed)
+            WARN("Connection closed trying to send response %d to client", supported);
+        else
+            WARN("Interface send error");
+
+        return false;
+    }
+
+    if (bytes_sent != sizeof(supported))
+    {
+        WARN("Expected to send %d bytes but only sent %d", sizeof(supported), bytes_sent);
+        return false;
+    }
+
+    if (!supported)
+    {
+        WARN("Remote node attempted to connect with protocol version %d, expected %d", rmt_node_version, CIPHER_CONFIG_PROTOCOL_VERSION);
+        return false;
+    }
+
+    LOG("Downlink handshake succesful");
+    return true;
 }

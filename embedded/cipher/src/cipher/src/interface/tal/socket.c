@@ -36,7 +36,7 @@ bool socket_create(tal_config_t *cfg)
     cfg->socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (cfg->socket < 0)
     {
-        WARN("Socket creation failed: %s", strerror(-errno));
+        WARN("Socket creation failed: %s", strerror(errno));
         return false;
     }
 
@@ -51,7 +51,7 @@ bool socket_create(tal_config_t *cfg)
 
         if (bind(cfg->socket, (struct sockaddr *)&local_addr, sizeof(local_addr)) < 0)
         {
-            WARN("Socket bind failed: %s", strerror(-errno));
+            WARN("Socket bind failed: %s", strerror(errno));
             close(cfg->socket);
             return false;
         }
@@ -81,7 +81,7 @@ bool socket_set_opt(tal_config_t *cfg, tal_option_type_t type, void *option, siz
         ret = setsockopt(cfg->socket, SOL_SOCKET, optname, &tv, sizeof(tv));
         if (ret < 0)
         {
-            WARN("Failed to set socket option: %s", strerror(-errno));
+            WARN("Failed to set socket option: %s", strerror(errno));
             return false;
         }
     }
@@ -112,7 +112,7 @@ bool socket_connect(tal_config_t *cfg, bool *timeout)
             *timeout = true;
             return false;
         }
-        WARN("Socket connect failed: %s", strerror(-errno));
+        WARN("Socket connect failed: %s", strerror(errno));
         return false;
     }
 
@@ -135,7 +135,7 @@ bool socket_accept(tal_config_t *cfg, bool *timeout)
             *timeout = true;
             return false;
         }
-        WARN("Socket accept failed: %s", strerror(-errno));
+        WARN("Socket accept failed: %s", strerror(errno));
         return false;
     }
     *timeout = false; // No timeout occurred.
@@ -144,11 +144,13 @@ bool socket_accept(tal_config_t *cfg, bool *timeout)
     return true;
 }
 
-bool socket_send(const tal_config_t *cfg, const void *buffer, const size_t buffer_size, uint16_t *send_count, bool *conn_closed)
+bool socket_send(const tal_config_t *cfg, const void *buffer, const size_t buffer_size,
+                 uint16_t *send_count, bool *conn_closed, bool *timeout)
 {
     __ASSERT(buffer, "Buffer pointer cannot be NULL");
     __ASSERT(send_count, "Send count pointer cannot be NULL");
     __ASSERT(conn_closed, "Connection closed pointer cannot be NULL");
+    __ASSERT(timeout, "Timeout pointer cannot be NULL");
 
     int socket_send_count = send(cfg->socket, buffer, buffer_size, 0);
 
@@ -156,30 +158,40 @@ bool socket_send(const tal_config_t *cfg, const void *buffer, const size_t buffe
     {
         *send_count = (uint16_t)socket_send_count;
         *conn_closed = false;
+        *timeout = false;
         return true;
     }
     else
     {
         *send_count = 0;
+        *timeout = false; // Initialize to false
+
         if (errno == ECONNRESET || errno == EPIPE)
         {
             *conn_closed = true;
             DBG("Connection closed by remote peer on socket %d", cfg->socket);
         }
+        else if (errno == EAGAIN || errno == EWOULDBLOCK)
+        {
+            *timeout = true;
+        }
         else
         {
             *conn_closed = false;
-            WARN("Socket send error: %s", strerror(-errno));
+            WARN("Socket send error: %s", strerror(errno));
         }
+
         return false;
     }
 }
 
-bool socket_recv(const tal_config_t *cfg, void *buffer, const size_t buffer_size, uint16_t *recv_count, bool *conn_closed)
+bool socket_recv(const tal_config_t *cfg, void *buffer, const size_t buffer_size,
+                 uint16_t *recv_count, bool *conn_closed, bool *timeout)
 {
     __ASSERT(buffer, "Buffer pointer cannot be NULL");
     __ASSERT(recv_count, "Receive count pointer cannot be NULL");
     __ASSERT(conn_closed, "Connection closed pointer cannot be NULL");
+    __ASSERT(timeout, "Timeout pointer cannot be NULL");
 
     int socket_recv_count = recv(cfg->socket, buffer, buffer_size, 0);
 
@@ -187,38 +199,46 @@ bool socket_recv(const tal_config_t *cfg, void *buffer, const size_t buffer_size
     {
         *recv_count = (uint16_t)socket_recv_count;
         *conn_closed = false;
+        *timeout = false;
         return true;
     }
     else if (socket_recv_count == 0)
     {
         *recv_count = 0;
         *conn_closed = true; // Graceful shutdown by the peer.
+        *timeout = false;
         DBG("Connection closed by remote peer on socket %d", cfg->socket);
         return false;
     }
     else
     {
         *recv_count = 0;
+        *timeout = false; // Initialize to false
+
         if (errno == ECONNRESET)
         {
             *conn_closed = true;
             WARN("Connection reset by remote peer");
         }
+        else if (errno == EAGAIN || errno == EWOULDBLOCK)
+        {
+            *timeout = true;
+        }
         else
         {
             *conn_closed = false;
-            WARN("Socket receive error: %s", strerror(-errno));
+            WARN("Socket receive error: %s", strerror(errno));
         }
+
         return false;
     }
 }
-
 bool socket_close(const tal_config_t *cfg)
 {
     int result = close(cfg->socket);
     if (result < 0)
     {
-        WARN("Failed to close the socket: %s", strerror(-errno));
+        WARN("Failed to close the socket: %s", strerror(errno));
         return false;
     }
     return true;
