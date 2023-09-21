@@ -2,8 +2,8 @@
 #define DEFAULT_H
 
 // Number of interfaces
-#define CONFIG_UP_LINK_INTERFACE_COUNT 1
-#define CONFIG_DOWN_LINK_INTERFACE_COUNT 1
+#define CONFIG_UP_LINK_IFACE_COUNT 1
+#define CONFIG_DOWN_LINK_IFACE_COUNT 1
 
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                            Debugging
@@ -16,7 +16,7 @@
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                              Threads
  *---------------------------------------------------------------------------------------------------*/
-#define CONTROLLER_THREAD_PRIORITY 100
+#define CONTROLLER_THREAD_PRIORITY 90
 #define CONTROLLER_THREAD_STACK_SIZE 1024
 
 #define SD_THREAD_PRIORITY 100
@@ -31,10 +31,7 @@
 #define EVENT_THREAD_PRIORITY 100
 #define EVENT_THREAD_STACK_SIZE 1024
 
-#define CONNECTION_THREAD_PRIORITY 100
-#define CONNECTION_THREAD_STACK_SIZE 1024
-
-#define TRANSPORT_THREAD_PRIORITY 100
+#define TRANSPORT_THREAD_BASE_PRIORITY 100
 #define TRANSPORT_THREAD_STACK_SIZE 1024
 
 /*-----------------------------------------------------------------------------------------------------

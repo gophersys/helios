@@ -17,15 +17,11 @@ typedef struct
     bool connected;
     struct k_sem conn_sem;
     struct k_sem disconn_sem;
-} cipher_iface_t;
 
-// Connection manager thread for the given interface
-typedef struct
-{
-    k_tid_t id;
-    struct k_thread data;
-    K_THREAD_STACK_MEMBER(stack, CONNECTION_THREAD_STACK_SIZE);
-} cipher_connection_thread_info_t;
+    // Used by send thread
+    struct k_fifo encoded_packets_queue;
+    struct k_fifo decoded_packets_queue;
+} cipher_iface_t;
 
 // Send and Recv threads are identical
 typedef struct
@@ -33,16 +29,16 @@ typedef struct
     k_tid_t id;
     struct k_thread data;
     K_THREAD_STACK_MEMBER(stack, TRANSPORT_THREAD_STACK_SIZE);
-} cipher_transport_thread_info_t;
+} cipher_iface_thread_info_t;
 
 // Interface thread group (connect, send and recv)
 typedef struct
 {
     cipher_iface_t iface;
-    cipher_connection_thread_info_t connection_t;
-    cipher_transport_thread_info_t send_t;
-    cipher_transport_thread_info_t recv_t;
-} cipher_interface_thread_group_t;
+    cipher_iface_thread_info_t connection_t;
+    cipher_iface_thread_info_t send_t;
+    cipher_iface_thread_info_t recv_t;
+} cipher_iface_thread_group_t;
 
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                               Deamon
@@ -84,10 +80,10 @@ typedef struct
     K_THREAD_STACK_MEMBER(event_t_stack, 1024);
 
     // Uplink thread groups
-    cipher_interface_thread_group_t uplink_t_g[CONFIG_UP_LINK_INTERFACE_COUNT];
+    cipher_iface_thread_group_t uplink_t_g[CONFIG_UP_LINK_IFACE_COUNT];
 
     // Downlink thread groups
-    cipher_interface_thread_group_t downlink_t_g[CONFIG_DOWN_LINK_INTERFACE_COUNT];
+    cipher_iface_thread_group_t downlink_t_g[CONFIG_DOWN_LINK_IFACE_COUNT];
 
     // Queues
     struct k_fifo send_queue;
