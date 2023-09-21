@@ -118,11 +118,12 @@ bool tal_accept(tal_config_t *cfg, bool *timeout);
  * @param buffer_size Size of send buffer
  * @param send_count Number of bytes sent
  * @param conn_closed Remote connection status
+ * @param timeout Timeout buffer, set by set_opt
  * @return true If the data was sent succesfully
  * @return false If an error occurs. Implementation specific, printed to LOG_WRN
  */
 bool tal_send(const tal_config_t *cfg, const void *buffer, const size_t buffer_size,
-              uint16_t *send_count, bool *conn_closed);
+              uint16_t *send_count, bool *conn_closed, bool *timeout);
 
 /**
  * @brief Receive data on interface
@@ -132,11 +133,12 @@ bool tal_send(const tal_config_t *cfg, const void *buffer, const size_t buffer_s
  * @param buffer_size Size of recv buffer
  * @param recv_count Number of bytes received
  * @param conn_closed Remote connection status
+ * @param timeout Timeout buffer, set by set_opt
  * @return true If the data was received succesfully
  * @return false If an error occurs. Implementation specific, printed to LOG_WRN
  */
 bool tal_recv(const tal_config_t *cfg, void *buffer, const size_t buffer_size,
-              uint16_t *recv_count, bool *conn_closed);
+              uint16_t *recv_count, bool *conn_closed, bool *timeout);
 
 /**
  * @brief Closes and cleans up resources for interface
