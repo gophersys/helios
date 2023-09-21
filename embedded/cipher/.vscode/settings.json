@@ -32,7 +32,8 @@
         "interface.h": "c",
         "transport.h": "c",
         "protocol.h": "c",
-        "serdes.h": "c"
+        "serdes.h": "c",
+        "err.h": "c"
     },
     // Editor actions
     "editor.codeActionsOnSave": {
