@@ -33,7 +33,7 @@ typedef enum
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                                  API
  *---------------------------------------------------------------------------------------------------*/
-bool interface_handshake(cipher_iface_t *iface);
+bool interface_handshake(cipher_daemon_t *d, cipher_iface_t *iface);
 void handle_interface_error(cipher_daemon_t *d, cipher_iface_t *iface, iface_error_t err);
 
 #endif // #define INTERFACE_H
