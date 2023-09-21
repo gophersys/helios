@@ -202,5 +202,5 @@ RUN apt install -y net-tools iputils-ping
 # ---------------------------------------------------------------------------------------------------*/
 # Source the environment
 RUN echo 'source /ncs/zephyr/zephyr-env.sh' >> ~/.zshrc
-
+RUN echo "alias serial='minicom -D /dev/ttyACM0 -b 921600'" >> ~/.zshrc
 CMD ["tail", "-f", "/dev/null"]
