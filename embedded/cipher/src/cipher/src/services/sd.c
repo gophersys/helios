@@ -28,18 +28,10 @@ LOG_MODULE_REGISTER(sd, SD_LOG_LEVEL);
 /**
  * @brief The service discovery thread will do the following actions:
  *
- * [ ] Register a new service when it's broadcasted from an interface
- *     - Services are broadcasted at any point during runtime. The main thread awaits on a service
- *       discovery packet queue, which gets added to from any interfaces recv() thread when a new
- *       sd packet is received.
- *
- * [ ] Unregister a service when an interface disconnects
- *     -
- *
- * [ ] Broadcast new services to all affected interfaces when a new interface is connected
- *    - When a new service from an interface is registered, this thread will check if the number of
- *      hops is greater than 1, and then forward the new service to all the interfaces of the host,
- *      except the interface it came from.
+ * [ ] Register a new service when a service discovery status packet is received
+ * [ ] Unregister a service when a service discovery status packet is received
+ * [ ] Unregister all services on an interface when its disconnected
+ * [ ] Broadcast a service status to all affected interfaces when the service registry changes
  */
 
 #define EVENT_NUM 3
@@ -66,7 +58,7 @@ static void handle_iface_conn_event(cipher_daemon_t *d);
 static void handle_iface_disconn_event(cipher_daemon_t *d);
 
 /*-----------------------------------------------------------------------------------------------------
- *                                                                                           Public API
+ *                                                                                               Thread
  *---------------------------------------------------------------------------------------------------*/
 void cipher_sd_thread(void *arg0, void *arg1, void *arg2)
 {
@@ -213,7 +205,3 @@ static void handle_iface_disconn_event(cipher_daemon_t *d)
     if (iface == NULL)
         ERROR("Null item on sd_iface_disconn_queue, daemon %d", d->id);
 }
-
-/*-----------------------------------------------------------------------------------------------------
- *                                                                                               Thread
- *---------------------------------------------------------------------------------------------------*/
