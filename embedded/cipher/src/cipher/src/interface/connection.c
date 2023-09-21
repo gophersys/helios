@@ -197,7 +197,7 @@ static void await_disconnect(cipher_daemon_t *d, cipher_iface_t *iface)
     if (!tal_close(iface->cfg))
         handle_iface_error(d, iface, IFACE_ERROR_CLOSE, NULL, 0);
 
-    // Signal main daemon controller of an interface connection
+    // Signal main daemon controller of an interface disconnection
     ctrl_event_opt_iface_conn_t options = {
         .iface = iface,
     };

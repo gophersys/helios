@@ -17,7 +17,7 @@
 #include "controller.h"
 #include "packet.h"
 
-cipher_iface_packet_info_t *alloc_iface_packet_info(cipher_daemon_t *d, size_t payload_size)
+inline cipher_iface_packet_info_t *alloc_iface_packet_info(cipher_daemon_t *d, size_t payload_size)
 {
     cipher_iface_packet_info_t *packet_info = k_heap_alloc(&d->local_packets_heap, sizeof(cipher_iface_packet_info_t), K_FOREVER);
     if (!packet_info)
@@ -43,7 +43,7 @@ cipher_iface_packet_info_t *alloc_iface_packet_info(cipher_daemon_t *d, size_t p
     return packet_info;
 }
 
-void free_iface_packet_info(cipher_daemon_t *d, cipher_iface_packet_info_t *packet_info)
+inline void free_iface_packet_info(cipher_daemon_t *d, cipher_iface_packet_info_t *packet_info)
 {
     if (packet_info)
     {

@@ -84,6 +84,7 @@ typedef struct
 
 typedef struct
 {
+    bool alive;
     uint16_t id;
     uint8_t num_ops;
 } cipher_payload_sd_t;

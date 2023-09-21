@@ -26,12 +26,26 @@ LOG_MODULE_REGISTER(sd, SD_LOG_LEVEL);
  *---------------------------------------------------------------------------------------------------*/
 
 /**
- * @brief The service discovery thread will do the following actions
+ * @brief The service discovery thread will do the following actions:
  *
  * [ ] Register a new service when it's broadcasted from an interface
- * [ ] Unregister a service when an interface disconnects
+ *     - Services are broadcasted at any point during runtime. The main thread awaits on a service
+ *       discovery packet queue, which gets added to from any interfaces recv() thread when a new
+ *       sd packet is received.
  *
+ * [ ] Unregister a service when an interface disconnects
+ *     -
+ *
+ * [ ] Broadcast new services to all affected interfaces when a new interface is connected
+ *    - When a new service from an interface is registered, this thread will check if the number of
+ *      hops is greater than 1, and then forward the new service to all the interfaces of the host,
+ *      except the interface it came from.
  */
+
+#define EVENT_NUM 3
+#define SD_PACKET_EVENT 0
+#define IFACE_CONN_EVENT 1
+#define IFACE_DISCONN_EVENT 2
 
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                        Configuration
@@ -44,9 +58,12 @@ LOG_MODULE_REGISTER(sd, SD_LOG_LEVEL);
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                    Private Functions
  *---------------------------------------------------------------------------------------------------*/
+
+// Event handlers
 static void setup_thread_events(cipher_daemon_t *d, struct k_poll_event *events);
-static bool service_exists(cipher_daemon_t *d, cipher_service_entry_t *entry);
-static void register_service(cipher_daemon_t *d, cipher_service_entry_t *entry);
+static void handle_packet_event(cipher_daemon_t *d);
+static void handle_iface_conn_event(cipher_daemon_t *d);
+static void handle_iface_disconn_event(cipher_daemon_t *d);
 
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                           Public API
@@ -54,31 +71,34 @@ static void register_service(cipher_daemon_t *d, cipher_service_entry_t *entry);
 void cipher_sd_thread(void *arg0, void *arg1, void *arg2)
 {
     cipher_daemon_t *d = (cipher_daemon_t *)arg0;
+    __ASSERT(d != NULL, "null daemon passed to thread");
+
+    struct k_poll_event sd_events[EVENT_NUM];
+    setup_thread_events(d, sd_events);
 
     while (true)
     {
-        cipher_iface_packet_info_t *packet_info = k_fifo_get(&d->sd_packet_queue, K_FOREVER);
-        if (packet_info == NULL)
-            ERROR("Null item on sd_packet_queue, daemon %d", d->id);
+        int event = k_poll(sd_events, EVENT_NUM, K_FOREVER);
+        if (event == 0)
+        {
+            if (sd_events[SD_PACKET_EVENT].state == K_POLL_STATE_FIFO_DATA_AVAILABLE)
+                handle_packet_event(d);
+            else if (sd_events[IFACE_CONN_EVENT].state == K_POLL_STATE_FIFO_DATA_AVAILABLE)
+                handle_iface_conn_event(d);
+            else if (sd_events[IFACE_DISCONN_EVENT].state == K_POLL_STATE_FIFO_DATA_AVAILABLE)
+                handle_iface_disconn_event(d);
+            else
+                ERROR("Unknown poll condition: %d, daemon %d", event, d->id);
 
-        cipher_packet_t *packet = (cipher_packet_t *)packet_info->packet;
-
-        // Check if service is already registered
-        cipher_service_entry_t potential_entry = {
-            .device_id = packet->header.source_id,
-            .service_id = packet->header.service_id,
-            .iface = packet_info->iface,
-        };
-
-        if (!service_exists(d, &potential_entry))
-            register_service(d, &potential_entry);
-
-        free_iface_packet_info(d, packet_info);
+            // reset events
+            for (uint8_t i = 0; i < EVENT_NUM; i++)
+                sd_events[i].state = K_POLL_STATE_NOT_READY;
+        }
+        else
+        {
+            ERROR("Unexpected timeout on k_poll: %d, daemon %d", event, d->id);
+        }
     }
-}
-
-void cipher_sd_iface_disconnected(cipher_daemon_t *d, cipher_iface_t *iface)
-{
 }
 
 /*-----------------------------------------------------------------------------------------------------
@@ -86,11 +106,52 @@ void cipher_sd_iface_disconnected(cipher_daemon_t *d, cipher_iface_t *iface)
  *---------------------------------------------------------------------------------------------------*/
 static void setup_thread_events(cipher_daemon_t *d, struct k_poll_event *events)
 {
+    k_poll_event_init(&events[SD_PACKET_EVENT],
+                      K_POLL_TYPE_FIFO_DATA_AVAILABLE,
+                      K_POLL_MODE_NOTIFY_ONLY,
+                      &d->sd_packet_queue);
+
+    k_poll_event_init(&events[IFACE_CONN_EVENT],
+                      K_POLL_TYPE_FIFO_DATA_AVAILABLE,
+                      K_POLL_MODE_NOTIFY_ONLY,
+                      &d->sd_iface_conn_queue);
+
+    k_poll_event_init(&events[IFACE_DISCONN_EVENT],
+                      K_POLL_TYPE_FIFO_DATA_AVAILABLE,
+                      K_POLL_MODE_NOTIFY_ONLY,
+                      &d->sd_iface_disconn_queue);
 }
 
 /*-----------------------------------------------------------------------------------------------------
- *                                                                                               Thread
+ *                                                                                         Packet Event
  *---------------------------------------------------------------------------------------------------*/
+static bool service_exists(cipher_daemon_t *d, cipher_service_entry_t *entry);
+static void register_service(cipher_daemon_t *d, cipher_service_entry_t *entry);
+static void notify_interfaces(cipher_daemon_t *d);
+
+static void handle_packet_event(cipher_daemon_t *d)
+{
+    cipher_iface_packet_info_t *packet_info = k_fifo_get(&d->sd_packet_queue, K_FOREVER);
+    if (packet_info == NULL)
+        ERROR("Null item on sd_packet_queue, daemon %d", d->id);
+
+    cipher_packet_t *packet = (cipher_packet_t *)packet_info->packet;
+
+    // Check if service is already registered
+    cipher_service_entry_t potential_entry = {
+        .device_id = packet->header.source_id,
+        .service_id = packet->header.service_id,
+        .iface = packet_info->iface,
+    };
+
+    if (!service_exists(d, &potential_entry))
+    {
+        register_service(d, &potential_entry);
+        free_iface_packet_info(d, packet_info);
+
+        notify_interfaces(d);
+    }
+}
 
 static bool service_exists(cipher_daemon_t *d, cipher_service_entry_t *entry)
 {
@@ -126,3 +187,33 @@ static void register_service(cipher_daemon_t *d, cipher_service_entry_t *entry)
 
     ERROR("Daemon %d service registry is full!", d->id);
 }
+
+static void notify_interfaces(cipher_daemon_t *d)
+{
+}
+
+/*-----------------------------------------------------------------------------------------------------
+ *                                                                               Iface Connection Event
+ *---------------------------------------------------------------------------------------------------*/
+static void handle_iface_conn_event(cipher_daemon_t *d)
+{
+    // TODO: I'm just trying to pass a pointer here, but how do i stil do it with mallloc?
+    cipher_iface_t *iface = k_fifo_get(&d->sd_iface_conn_queue, K_FOREVER);
+    if (iface == NULL)
+        ERROR("Null item on sd_iface_conn_queue, daemon %d", d->id);
+}
+
+/*-----------------------------------------------------------------------------------------------------
+ *                                                                             Iface Disonnection Event
+ *---------------------------------------------------------------------------------------------------*/
+static void handle_iface_disconn_event(cipher_daemon_t *d)
+{
+    // TODO: I'm just trying to pass a pointer here, but how do i stil do it with mallloc?
+    cipher_iface_t *iface = k_fifo_get(&d->sd_iface_disconn_queue, K_FOREVER);
+    if (iface == NULL)
+        ERROR("Null item on sd_iface_disconn_queue, daemon %d", d->id);
+}
+
+/*-----------------------------------------------------------------------------------------------------
+ *                                                                                               Thread
+ *---------------------------------------------------------------------------------------------------*/

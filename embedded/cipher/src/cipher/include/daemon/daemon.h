@@ -120,12 +120,23 @@ typedef struct
     /*-----------------------------------------------
      *                                         Queues
      *---------------------------------------------*/
-    struct k_fifo send_queue;
-    struct k_fifo ctrl_event_queue;
-    struct k_fifo sd_packet_queue;
-    struct k_fifo unrouted_packets_queue;
+
+    // Controller
     struct k_fifo admin_packet_queue;
+    struct k_fifo ctrl_event_queue;
+
+    // Services
+    struct k_fifo sd_packet_queue;
+    struct k_fifo sd_iface_conn_queue;
+    struct k_fifo sd_iface_disconn_queue;
+
+    // Router
+    struct k_fifo unrouted_packets_queue;
+
+    // RPC
     struct k_fifo rpc_packet_queue;
+
+    // Events
     struct k_fifo event_packet_queue;
 
     /*-----------------------------------------------

@@ -137,7 +137,6 @@ static void setup_ids(cipher_daemon_t *d)
  */
 static void init_objects(cipher_daemon_t *d)
 {
-    k_fifo_init(&d->send_queue);
     k_fifo_init(&d->ctrl_event_queue);
     k_fifo_init(&d->sd_packet_queue);
     k_fifo_init(&d->unrouted_packets_queue);
