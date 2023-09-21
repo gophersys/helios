@@ -17,4 +17,7 @@
         k_fatal_halt(0);                              \
     }
 
+// Malloc helpers
+#define CHECK_MALLOC(ptr) __ASSERT((ptr) != NULL, "k_heap_alloc failed in %s at %s:%d", __func__, __FILE__, __LINE__)
+
 #endif // ERR_H

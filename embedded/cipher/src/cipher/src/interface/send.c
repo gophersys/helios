@@ -162,14 +162,14 @@ static void handle_decoded_packet_event(cipher_daemon_t *d, cipher_iface_t *ifac
     uint8_t *send_buffer = k_heap_alloc(&d->net_packets_heap, packet_len, K_FOREVER);
 
     // Encode raw payload
-    cipher_encode_args_t args = {
+    serdes_encode_args_t args = {
         .header = &decoded_packet->header,
         .raw_payload = decoded_packet,
         .raw_payload_size = packet_len,
         .encoded_payload = send_buffer,
     };
-    cipher_error_t err = cipher_encode_packet(args);
-    if (err != CIPHER_ERROR_OK)
+    serdes_error_t err = serdes_encode_packet(args);
+    if (err != SERDES_ERROR_OK)
         ERROR("Could not encode encoded_packet, err: %d. iface %d, daemon %d", err, iface->id, d->id);
 
     // Free daemon's memory allocated for decoded encoded_packet

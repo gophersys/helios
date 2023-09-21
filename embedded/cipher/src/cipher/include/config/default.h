@@ -20,6 +20,11 @@
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                              Threads
  *---------------------------------------------------------------------------------------------------*/
+#define CONFIG_MAX_NUM_SERVICES 10
+
+/*-----------------------------------------------------------------------------------------------------
+ *                                                                                              Threads
+ *---------------------------------------------------------------------------------------------------*/
 #define CONTROLLER_THREAD_PRIORITY 90
 #define CONTROLLER_THREAD_STACK_SIZE 1024
 
@@ -61,5 +66,7 @@
 // Local packet heaps
 #define CONFIG_LOCAL_PACKETS_COUNT 2
 #define CONFIG_LOCAL_PACKETS_HEAP_SIZE (CONFIG_LOCAL_PACKETS_COUNT * CONFIG_MAX_PAYLOAD_SIZE)
+
+#define CONFIG_CTRL_EVENTS_HEAP_SIZE 256
 
 #endif // DEFAULT_H

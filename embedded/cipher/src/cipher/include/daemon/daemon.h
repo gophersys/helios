@@ -5,9 +5,10 @@
 #include "config/default.h"
 #include "config/daemon.h"
 #include "transport/transport.h"
+#include "protocol/protocol.h"
 
 /*-----------------------------------------------------------------------------------------------------
- *                                                                                         Packet Layer
+ *                                                                                           Interfaces
  *---------------------------------------------------------------------------------------------------*/
 
 typedef struct
@@ -40,6 +41,30 @@ typedef struct
     cipher_iface_thread_info_t recv_t;
 } cipher_iface_thread_group_t;
 
+// Used to signal daemon threads of where a packet came from
+typedef struct
+{
+    cipher_packet_t *packet;
+    cipher_iface_t *iface;
+} cipher_iface_packet_info_t;
+
+/*-----------------------------------------------------------------------------------------------------
+ *                                                                                           Registries
+ *---------------------------------------------------------------------------------------------------*/
+
+typedef struct
+{
+    bool used;
+    uint16_t device_id;
+    uint16_t service_id;
+    cipher_iface_t *iface;
+} cipher_service_entry_t;
+
+typedef struct
+{
+    cipher_service_entry_t entries[CONFIG_MAX_NUM_SERVICES];
+} cipher_service_registry_t;
+
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                               Deamon
  *---------------------------------------------------------------------------------------------------*/
@@ -54,6 +79,9 @@ typedef struct
     // Daemon Instance Id
     uint8_t id;
 
+    /*-----------------------------------------------
+     *                                        Threads
+     *---------------------------------------------*/
     // Controller thread info
     k_tid_t ctrl_t_id;
     struct k_thread ctrl_t_data;
@@ -79,20 +107,39 @@ typedef struct
     struct k_thread event_t_data;
     K_THREAD_STACK_MEMBER(event_t_stack, 1024);
 
+    /*-----------------------------------------------
+     *                                         Ifaces
+     *---------------------------------------------*/
+
     // Uplink thread groups
     cipher_iface_thread_group_t uplink_t_g[CONFIG_UP_LINK_IFACE_COUNT];
 
     // Downlink thread groups
     cipher_iface_thread_group_t downlink_t_g[CONFIG_DOWN_LINK_IFACE_COUNT];
 
-    // Queues
+    /*-----------------------------------------------
+     *                                         Queues
+     *---------------------------------------------*/
     struct k_fifo send_queue;
-    struct k_fifo controller_event_queue;
+    struct k_fifo ctrl_event_queue;
     struct k_fifo sd_packet_queue;
     struct k_fifo unrouted_packets_queue;
     struct k_fifo admin_packet_queue;
     struct k_fifo rpc_packet_queue;
     struct k_fifo event_packet_queue;
+
+    /*-----------------------------------------------
+     *                                          Heaps
+     *---------------------------------------------*/
+
+    /**
+     * @brief Heap pool to send events to daemon controller thread
+     *
+     * @allocator: I-RT, I-ST
+     * @deallocator:
+     */
+    struct k_heap ctrl_events_heap;
+    uint8_t __aligned(8) ctrl_events_heap_mem[CONFIG_CTRL_EVENTS_HEAP_SIZE];
 
     /**
      * @brief Heap pool to receive and send network packets using send() and recv()
@@ -129,6 +176,11 @@ typedef struct
      */
     struct k_heap local_packets_heap;
     uint8_t __aligned(8) local_packets_heap_mem[CONFIG_LOCAL_PACKETS_HEAP_SIZE];
+
+    /*-----------------------------------------------
+     *                                     Registries
+     *---------------------------------------------*/
+    cipher_service_registry_t service_registry;
 
 } cipher_daemon_t;
 

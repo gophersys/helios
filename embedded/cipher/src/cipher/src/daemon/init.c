@@ -25,6 +25,7 @@ static void assert_config(const cipher_daemon_config_t *cfg);
 static void print_daemon_stats(cipher_daemon_t *d);
 static void setup_ids(cipher_daemon_t *d);
 static void init_objects(cipher_daemon_t *d);
+static void init_registries(cipher_daemon_t *d);
 static void init_interfaces(cipher_daemon_t *d);
 static void init_threads(cipher_daemon_t *d);
 
@@ -48,6 +49,7 @@ void cipher_init_daemon(cipher_daemon_config_t *cfg, cipher_daemon_t *d)
 
     setup_ids(d);
     init_objects(d);
+    init_registries(d);
     init_interfaces(d);
     init_threads(d);
 
@@ -136,17 +138,32 @@ static void setup_ids(cipher_daemon_t *d)
 static void init_objects(cipher_daemon_t *d)
 {
     k_fifo_init(&d->send_queue);
-    k_fifo_init(&d->controller_event_queue);
+    k_fifo_init(&d->ctrl_event_queue);
     k_fifo_init(&d->sd_packet_queue);
     k_fifo_init(&d->unrouted_packets_queue);
     k_fifo_init(&d->admin_packet_queue);
     k_fifo_init(&d->rpc_packet_queue);
     k_fifo_init(&d->event_packet_queue);
 
+    k_heap_init(&d->ctrl_events_heap, d->ctrl_events_heap_mem, sizeof(d->ctrl_events_heap_mem));
     k_heap_init(&d->net_packets_heap, d->net_packets_heap_mem, sizeof(d->net_packets_heap_mem));
-    k_heap_init(&d->net_partial_packets_heap, d->net_partial_packets_heap_mem, sizeof(d->net_packets_heap_mem));
+    k_heap_init(&d->net_partial_packets_heap, d->net_partial_packets_heap_mem, sizeof(d->net_partial_packets_heap_mem));
     k_heap_init(&d->unrouted_packets_heap, d->unrouted_packets_heap_mem, sizeof(d->unrouted_packets_heap_mem));
     k_heap_init(&d->local_packets_heap, d->local_packets_heap_mem, sizeof(d->local_packets_heap_mem));
+}
+
+/*-----------------------------------------------------------------------------------------------------
+ *                                                                                           Registries
+ *---------------------------------------------------------------------------------------------------*/
+
+/**
+ * @brief Initializes service registries, devices registries, etc. used by the daemon
+ *
+ * @param d The daemon
+ */
+static void init_registries(cipher_daemon_t *d)
+{
+    memset(&d->service_registry, 0, sizeof(d->service_registry));
 }
 
 /*-----------------------------------------------------------------------------------------------------
@@ -165,7 +182,7 @@ static void init_threads(cipher_daemon_t *d)
     d->ctrl_t_id = k_thread_create(&d->ctrl_t_data,
                                    d->ctrl_t_stack,
                                    K_THREAD_STACK_SIZEOF(d->ctrl_t_stack),
-                                   cipher_controller_thread,
+                                   cipher_ctrl_thread,
                                    (void *)d, NULL, NULL,
                                    CONTROLLER_THREAD_PRIORITY,
                                    0,

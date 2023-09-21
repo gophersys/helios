@@ -13,6 +13,7 @@
 #include "utils/err.h"
 
 // Private include
+#include "controller.h"
 #include "threads.h"
 #include "interface.h"
 
@@ -32,6 +33,9 @@ LOG_MODULE_REGISTER(iface, IFACE_LOG_LEVEL);
 #define HANDSHAKE_TIMEOUT_MS 500
 #define NORMAL_TIMEOUT_MS 3000
 
+// Send, Recv and SD
+#define CONN_SEM_COUNT 3
+
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                         Data & Types
  *---------------------------------------------------------------------------------------------------*/
@@ -47,7 +51,7 @@ static void do_handshake(cipher_daemon_t *d, cipher_iface_t *iface);
 static void set_send_recv_timeouts(cipher_daemon_t *d, cipher_iface_t *iface, uint16_t send_t, uint16_t recv_t);
 
 // Signaling
-static void signal_send_recv(cipher_daemon_t *d, cipher_iface_t *iface);
+static void signal_connection(cipher_daemon_t *d, cipher_iface_t *iface);
 
 // Disconnection
 static void await_disconnect(cipher_daemon_t *d, cipher_iface_t *iface);
@@ -63,7 +67,7 @@ void cipher_interface_conn_thread(void *arg0, void *arg1, void *arg2)
     __ASSERT(d != NULL, "Daemon struct pointer must not be NULL");
     __ASSERT(iface != NULL, "Interface pointer must not be NULL");
 
-    k_sem_init(&iface->conn_sem, 0, 2);
+    k_sem_init(&iface->conn_sem, 0, CONN_SEM_COUNT);
     k_sem_init(&iface->disconn_sem, 0, 1);
     iface->connected = false;
 
@@ -73,7 +77,7 @@ void cipher_interface_conn_thread(void *arg0, void *arg1, void *arg2)
     while (true)
     {
         await_connect(d, iface);
-        signal_send_recv(d, iface);
+        signal_connection(d, iface);
         await_disconnect(d, iface);
     }
 }
@@ -87,6 +91,18 @@ static void await_connect(cipher_daemon_t *d, cipher_iface_t *iface)
     set_send_recv_timeouts(d, iface, HANDSHAKE_TIMEOUT_MS, HANDSHAKE_TIMEOUT_MS);
     do_handshake(d, iface);
     set_send_recv_timeouts(d, iface, NORMAL_TIMEOUT_MS, NORMAL_TIMEOUT_MS);
+
+    // Signal main daemon controller of an interface connection
+    ctrl_event_opt_iface_conn_t options = {
+        .iface = iface,
+    };
+
+    ctrl_event_t conn_event = {
+        .type = CTRL_EVENT_TYPE_IFACE_CONNECTED,
+        .options = &options,
+    };
+
+    cipher_ctrl_add_event(d, &conn_event);
 }
 
 static void get_connection(cipher_daemon_t *d, cipher_iface_t *iface)
@@ -160,11 +176,11 @@ static void do_handshake(cipher_daemon_t *d, cipher_iface_t *iface)
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                     Signal Send/Recv
  *---------------------------------------------------------------------------------------------------*/
-static void signal_send_recv(cipher_daemon_t *d, cipher_iface_t *iface)
+static void signal_connection(cipher_daemon_t *d, cipher_iface_t *iface)
 {
     // Signal send and recv threads to start
-    k_sem_give(&iface->conn_sem);
-    k_sem_give(&iface->conn_sem);
+    for (size_t i = 0; i < CONN_SEM_COUNT; i++)
+        k_sem_give(&iface->conn_sem);
 }
 
 /*-----------------------------------------------------------------------------------------------------
@@ -176,11 +192,24 @@ static void await_disconnect(cipher_daemon_t *d, cipher_iface_t *iface)
 
     DBG("Daemon %d, iface %d disconnected", d->id, iface->id);
 
+    // Close and collect resources
     iface->connected = false;
-
     if (!tal_close(iface->cfg))
         handle_iface_error(d, iface, IFACE_ERROR_CLOSE, NULL, 0);
 
+    // Signal main daemon controller of an interface connection
+    ctrl_event_opt_iface_conn_t options = {
+        .iface = iface,
+    };
+
+    ctrl_event_t conn_event = {
+        .type = CTRL_EVENT_TYPE_IFACE_DISCONNECTED,
+        .options = &options,
+    };
+
+    cipher_ctrl_add_event(d, &conn_event);
+
+    // Await some time not to spam the connection
     k_msleep(IFACE_CLOSE_WAIT_TIME_MS);
 
     // Reset the semaphore count to ensure it's 0

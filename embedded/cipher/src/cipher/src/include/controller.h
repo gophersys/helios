@@ -22,18 +22,25 @@ bool cipher_handshake(const tal_config_t *cfg);
 
 typedef enum
 {
-    CONTROLLER_EVENT_TYPE_SPAWN_THREAD,
-    CONTROLLER_EVENT_TYPE_EXIT,
+    CTRL_EVENT_TYPE_IFACE_CONNECTED,
+    CTRL_EVENT_TYPE_IFACE_DISCONNECTED,
+    CTRL_EVENT_TYPE_EXIT,
 
-    CONTROLLER_EVENT_TYPE_MAX,
-} controller_event_type_t;
+    CTRL_EVENT_TYPE_MAX,
+} ctrl_event_type_t;
 
 typedef struct
 {
-    controller_event_type_t type;
-} controller_event_t;
+    cipher_iface_t *iface;
+} ctrl_event_opt_iface_conn_t;
 
-bool cipher_controller_exit(cipher_daemon_t *daemon);
+typedef struct
+{
+    ctrl_event_type_t type;
+    void *options;
+} ctrl_event_t;
+
+void cipher_ctrl_add_event(cipher_daemon_t *d, ctrl_event_t *event);
 
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                    Service Discovery

@@ -17,6 +17,7 @@
 // Private include
 #include "interface.h"
 #include "threads.h"
+#include "packet.h"
 
 LOG_MODULE_DECLARE(iface);
 
@@ -64,8 +65,9 @@ void cipher_interface_recv_thread(void *arg0, void *arg1, void *arg2)
         while (!conn_closed)
         {
             const size_t buffer_size = CONFIG_MAX_PAYLOAD_SIZE;
-            uint8_t *recv_buffer = k_heap_alloc(&d->net_packets_heap, CONFIG_MAX_PAYLOAD_SIZE, K_FOREVER);
             uint16_t bytes_recv = 0;
+            uint8_t *recv_buffer = k_heap_alloc(&d->net_packets_heap, CONFIG_MAX_PAYLOAD_SIZE, K_FOREVER);
+            CHECK_MALLOC(recv_buffer);
 
             if (!tal_recv(interface_cfg, recv_buffer, buffer_size, &bytes_recv, &conn_closed, &timeout))
             {
@@ -99,8 +101,8 @@ static void recv_ingress_packet(cipher_daemon_t *d, cipher_iface_t *iface, uint8
 
     // Unpack header so we can get the payload length to allocate a buffer
     cipher_header_t header = {0};
-    cipher_error_t err = cipher_decode_header(recv_buffer, bytes_recv, &header);
-    if (err != CIPHER_ERROR_OK)
+    serdes_error_t err = serdes_decode_header(recv_buffer, bytes_recv, &header);
+    if (err != SERDES_ERROR_OK)
         handle_iface_error(d, iface, IFACE_ERROR_SERDES, &err, sizeof(err));
 
     // cipher_print_header(&header); // Uncommnet to see raw header
@@ -122,6 +124,7 @@ static void process_complete_packet(cipher_daemon_t *d, cipher_iface_t *iface, c
     {
         // Copy unrouted packet into daemon's heap pool
         void *unrouted_packet = k_heap_alloc(&d->unrouted_packets_heap, bytes_recv, K_FOREVER);
+        CHECK_MALLOC(unrouted_packet);
         memcpy(unrouted_packet, recv_buffer, bytes_recv);
 
         k_heap_free(&d->net_packets_heap, recv_buffer);
@@ -132,19 +135,19 @@ static void process_complete_packet(cipher_daemon_t *d, cipher_iface_t *iface, c
     }
 
     // Allocate buffer for a local packet
-    cipher_packet_t *packet = k_heap_alloc(&d->local_packets_heap, sizeof(cipher_packet_t), K_FOREVER);
-    packet->payload = k_heap_alloc(&d->local_packets_heap, bytes_recv, K_FOREVER);
+    cipher_iface_packet_info_t *packet_info = alloc_iface_packet_info(d, bytes_recv);
+    CHECK_MALLOC(packet_info);
 
     // Decode packet
-    cipher_decode_args_t args = {
+    serdes_decode_args_t args = {
         .header = header,
         .raw_payload = recv_buffer,
         .raw_payload_size = bytes_recv,
-        .decoded_payload = packet->payload,
+        .decoded_payload = packet_info->packet->payload,
     };
 
-    cipher_error_t err = cipher_decode_packet(args);
-    if (err != CIPHER_ERROR_OK)
+    serdes_error_t err = serdes_decode_packet(args);
+    if (err != SERDES_ERROR_OK)
         handle_iface_error(d, iface, IFACE_ERROR_SERDES, &err, sizeof(err));
 
     k_heap_free(&d->net_packets_heap, recv_buffer);
@@ -153,16 +156,16 @@ static void process_complete_packet(cipher_daemon_t *d, cipher_iface_t *iface, c
     switch (header->type)
     {
     case CIPHER_PACKET_TYPE_ADMIN:
-        k_fifo_put(&d->admin_packet_queue, (cipher_packet_t *)packet);
+        k_fifo_put(&d->admin_packet_queue, packet_info);
         break;
     case CIPHER_PACKET_TYPE_RPC:
-        k_fifo_put(&d->rpc_packet_queue, (cipher_packet_t *)packet);
+        k_fifo_put(&d->rpc_packet_queue, packet_info);
         break;
     case CIPHER_PACKET_TYPE_EVENT:
-        k_fifo_put(&d->event_packet_queue, (cipher_packet_t *)packet);
+        k_fifo_put(&d->event_packet_queue, packet_info);
         break;
     case CIPHER_PACKET_TYPE_SD:
-        k_fifo_put(&d->sd_packet_queue, (cipher_packet_t *)packet);
+        k_fifo_put(&d->sd_packet_queue, packet_info);
         break;
     default:
         WARN("Unknow header type: %d", header->type); // TODO: Prevent spam of wrong header types

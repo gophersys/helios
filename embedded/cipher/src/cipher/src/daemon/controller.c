@@ -15,6 +15,7 @@
 // Private include
 #include "threads.h"
 #include "controller.h"
+#include "packet.h"
 
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                        Configuration
@@ -41,25 +42,45 @@ static void handle_local_event(cipher_daemon_t *d);
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                           Public API
  *---------------------------------------------------------------------------------------------------*/
-
-bool cipher_controller_exit(cipher_daemon_t *daemon)
+void cipher_ctrl_add_event(cipher_daemon_t *d, ctrl_event_t *event)
 {
-    bool status = false;
-    controller_event_t exit_event = {
-        .type = CONTROLLER_EVENT_TYPE_EXIT,
-    };
-    k_fifo_alloc_put(&daemon->controller_event_queue, &exit_event);
+    __ASSERT(d, "null daemon pointer");
+    __ASSERT(event, "null event pointer");
 
-    // TODO: me
-    status = true;
-    return status;
+    // Get the option size of the event
+    size_t option_size = 0;
+    switch (event->type)
+    {
+    case CTRL_EVENT_TYPE_IFACE_CONNECTED:
+    case CTRL_EVENT_TYPE_IFACE_DISCONNECTED:
+        option_size = sizeof(ctrl_event_opt_iface_conn_t);
+        break;
+
+    case CTRL_EVENT_TYPE_EXIT:
+        // TODO: how do i halt this thread?
+        break;
+    default:
+        ERROR("Unknown event type %d", event->type);
+        break;
+    }
+
+    // Allocate memory for the event
+    ctrl_event_t *local_event = k_heap_alloc(&d->ctrl_events_heap, sizeof(ctrl_event_t), K_FOREVER);
+    CHECK_MALLOC(local_event);
+    local_event->options = k_heap_alloc(&d->ctrl_events_heap, sizeof(ctrl_event_opt_iface_conn_t), K_FOREVER);
+    CHECK_MALLOC(local_event->options);
+
+    // Copy event from user's buffer
+    memcpy(&local_event->type, &event->type, sizeof(ctrl_event_type_t));
+    memcpy(local_event->options, event->options, sizeof(ctrl_event_opt_iface_conn_t));
+
+    k_fifo_put(&d->ctrl_event_queue, (ctrl_event_t *)local_event);
 }
 
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                               Thread
  *---------------------------------------------------------------------------------------------------*/
-
-void cipher_controller_thread(void *arg0, void *arg1, void *arg2)
+void cipher_ctrl_thread(void *arg0, void *arg1, void *arg2)
 {
     cipher_daemon_t *d = (cipher_daemon_t *)arg0;
 
@@ -104,7 +125,7 @@ static void setup_thread_events(cipher_daemon_t *d, struct k_poll_event *events)
     k_poll_event_init(&events[HOST_LOCAL_EVENT],
                       K_POLL_TYPE_FIFO_DATA_AVAILABLE,
                       K_POLL_MODE_NOTIFY_ONLY,
-                      &d->controller_event_queue);
+                      &d->ctrl_event_queue);
 }
 
 /*-----------------------------------------------------------------------------------------------------
@@ -112,16 +133,15 @@ static void setup_thread_events(cipher_daemon_t *d, struct k_poll_event *events)
  *---------------------------------------------------------------------------------------------------*/
 static void handle_admin_packet_event(cipher_daemon_t *d)
 {
-    cipher_packet_t *packet = k_fifo_get(&d->admin_packet_queue, K_NO_WAIT);
-    if (packet == NULL)
+    cipher_iface_packet_info_t *packet_info = k_fifo_get(&d->admin_packet_queue, K_NO_WAIT);
+    if (packet_info == NULL)
         ERROR("Null item on admin_packet_queue, daemon %d", d->id);
 
-    uint16_t packet_len = packet->header.payload_len + sizeof(packet->header);
+    uint16_t packet_len = packet_info->packet->header.payload_len + sizeof(packet_info->packet->header);
     LOG("Received admin packet, len %d", packet_len);
     // TODO: Implement me
 
-    k_heap_free(&d->local_packets_heap, packet->payload);
-    k_heap_free(&d->local_packets_heap, packet);
+    free_iface_packet_info(d, packet_info);
 }
 
 /*-----------------------------------------------------------------------------------------------------
@@ -129,18 +149,25 @@ static void handle_admin_packet_event(cipher_daemon_t *d)
  *---------------------------------------------------------------------------------------------------*/
 static void handle_local_event(cipher_daemon_t *d)
 {
-    controller_event_t *event = k_fifo_get(&d->controller_event_queue, K_NO_WAIT);
+    ctrl_event_t *event = k_fifo_get(&d->ctrl_event_queue, K_NO_WAIT);
     if (event == NULL)
-        ERROR("Null item on controller_event_queue, daemon %d", d->id);
+        ERROR("Null item on ctrl_event_queue, daemon %d", d->id);
+
+    LOG("Received local event, type %d", event->type);
 
     switch (event->type)
     {
-    case CONTROLLER_EVENT_TYPE_EXIT:
+    case CTRL_EVENT_TYPE_IFACE_CONNECTED:
+        DBG("CTRL_EVENT_TYPE_IFACE_CONNECTED received");
+        break;
+    case CTRL_EVENT_TYPE_IFACE_DISCONNECTED:
+        DBG("CTRL_EVENT_TYPE_IFACE_DISCONNECTED received");
+        break;
+    case CTRL_EVENT_TYPE_EXIT:
 
         DBG("Ending dameon instance...");
 
         k_thread_abort(d->sd_t_id);
-        // k_thread_abort(daemon->);
         k_thread_abort(d->router_t_id);
 
         // tal_close(&daemon->uplink_cfg);
@@ -154,4 +181,7 @@ static void handle_local_event(cipher_daemon_t *d)
     default:
         ERROR("Unknown controller event type: %d", event->type);
     }
+
+    k_heap_free(&d->ctrl_events_heap, event->options);
+    k_heap_free(&d->ctrl_events_heap, event);
 }

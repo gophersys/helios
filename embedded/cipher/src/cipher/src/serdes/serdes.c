@@ -12,7 +12,7 @@
 #include "protocol/serdes.h"
 #include "utils/err.h"
 
-// Private includes
+// User includes
 
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                        Configuration
@@ -34,46 +34,62 @@ LOG_MODULE_REGISTER(serdes, LOG_LEVEL_DBG);
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                           Public API
  *---------------------------------------------------------------------------------------------------*/
-cipher_error_t cipher_encode_packet(cipher_encode_args_t args)
+serdes_error_t serdes_encode_header(uint8_t *buffer, uint16_t buffer_size, const cipher_header_t *header)
 {
-    cipher_error_t status = CIPHER_ERROR_OK;
+    serdes_error_t status = SERDES_ERROR_OK;
     return status;
 }
-cipher_error_t cipher_decode_packet(cipher_decode_args_t args)
+
+serdes_error_t serdes_decode_header(const uint8_t *buffer, uint16_t buffer_size, cipher_header_t *header)
 {
-    cipher_error_t status = CIPHER_ERROR_OK;
-    if (!cipher_decode_header(args.raw_payload, args.raw_payload_size, args.header))
+    __ASSERT(buffer, "recv_buffer is NULL");
+    __ASSERT(buffer, "header_buffer is NULL");
+
+    // Size of the header, taking care to include all fields
+    const size_t header_size = sizeof(cipher_header_t);
+    if (buffer_size < header_size)
     {
-        status = CIPHER_ERROR_INVALID_HEADER;
+        WARN("Packet must be at least %d bytes, got %d", sizeof(cipher_header_t), buffer_size);
     }
     else
     {
-        const uint8_t *payload_buffer = args.raw_payload + sizeof(cipher_header_t);
+        header->source_id = ntohs(*(uint16_t *)buffer);
+        buffer += sizeof(uint16_t);
 
-        cipher_payload_sd_t *decoded_payload = (cipher_payload_sd_t *)args.decoded_payload;
-        decoded_payload->service_id = *payload_buffer;
-        payload_buffer += sizeof(uint8_t);
-        // decoded_payload->num_hops = ntohs(*(uint16_t *)payload_buffer);
-        payload_buffer += sizeof(uint16_t);
+        header->destination_id = ntohs(*(uint16_t *)buffer);
+        buffer += sizeof(uint16_t);
+
+        uint32_t temp = ntohl(*(uint32_t *)buffer);
+        header->service_id = temp & 0x3FFF;
+        header->operation_id = (temp >> 14) & 0xFF;
+        header->payload_len = (temp >> 22) & 0x3FF;
+        buffer += sizeof(uint32_t);
+
+        uint16_t temp2 = ntohs(*(uint16_t *)buffer);
+        header->sequence_num = temp2 & 0x1FFF;
+        header->type = (temp2 >> 13) & 0x7;
+        buffer += sizeof(uint16_t);
+
+        header->flags = *buffer;
     }
 
+    return SERDES_ERROR_OK;
+}
+
+serdes_error_t serdes_encode_packet(serdes_encode_args_t args)
+{
+    serdes_error_t status = SERDES_ERROR_OK;
+    return status;
+}
+serdes_error_t serdes_decode_packet(serdes_decode_args_t args)
+{
+    serdes_error_t status = SERDES_ERROR_OK;
     return status;
 }
 
-/*-----------------------------------------------------------------------------------------------------
- *                                                                                 Private Data & Types
- *---------------------------------------------------------------------------------------------------*/
-
-/*-----------------------------------------------------------------------------------------------------
- *                                                                                    Private Functions
- *---------------------------------------------------------------------------------------------------*/
-
-/*-----------------------------------------------------------------------------------------------------
- *                                                                                           Public API
- *---------------------------------------------------------------------------------------------------*/
-
-cipher_error_t cipher_print_header(const cipher_header_t *header)
+serdes_error_t cipher_print_header(const cipher_header_t *header)
 {
+    // TODO: Change this to LOG_RAW
     if (header == NULL)
         ERROR("NULL header passed");
 
@@ -87,41 +103,11 @@ cipher_error_t cipher_print_header(const cipher_header_t *header)
     LOG("Sequence Num: %u", header->sequence_num);
     LOG("Type: %u", header->type);
     LOG("Flags: 0x%02x", header->flags);
-    return CIPHER_ERROR_OK;
+    return SERDES_ERROR_OK;
 }
 
-cipher_error_t cipher_decode_header(const uint8_t *recv_buffer, uint16_t recv_buffer_size, cipher_header_t *header_buffer)
+serdes_error_t cipher_print_packet(const cipher_header_t *header, const void *payload, const size_t payload_len)
 {
-    __ASSERT(recv_buffer != NULL, "recv_buffer is NULL");
-    __ASSERT(header_buffer != NULL, "header_buffer is NULL");
-
-    // Size of the header, taking care to include all fields
-    const size_t header_size = sizeof(cipher_header_t);
-    if (recv_buffer_size < header_size)
-    {
-        WARN("Packet must be at least %d bytes, got %d", sizeof(cipher_header_t), recv_buffer_size);
-    }
-    else
-    {
-        header_buffer->source_id = ntohs(*(uint16_t *)recv_buffer);
-        recv_buffer += sizeof(uint16_t);
-
-        header_buffer->destination_id = ntohs(*(uint16_t *)recv_buffer);
-        recv_buffer += sizeof(uint16_t);
-
-        uint32_t temp = ntohl(*(uint32_t *)recv_buffer);
-        header_buffer->service_id = temp & 0x3FFF;
-        header_buffer->operation_id = (temp >> 14) & 0xFF;
-        header_buffer->payload_len = (temp >> 22) & 0x3FF;
-        recv_buffer += sizeof(uint32_t);
-
-        uint16_t temp2 = ntohs(*(uint16_t *)recv_buffer);
-        header_buffer->sequence_num = temp2 & 0x1FFF;
-        header_buffer->type = (temp2 >> 13) & 0x7;
-        recv_buffer += sizeof(uint16_t);
-
-        header_buffer->flags = *recv_buffer;
-    }
-
-    return CIPHER_ERROR_OK;
+    serdes_error_t status = SERDES_ERROR_OK;
+    return status;
 }

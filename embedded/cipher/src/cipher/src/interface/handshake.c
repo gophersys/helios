@@ -84,9 +84,10 @@ static bool handshake_uplink(cipher_daemon_t *d, tal_config_t *cfg)
         return false;
     }
 
+    uint16_t bytes_recv = 0;
     const size_t recv_buffer_size = CONFIG_MAX_PAYLOAD_SIZE;
     uint8_t *recv_buffer = k_heap_alloc(&d->net_packets_heap, recv_buffer_size, K_FOREVER);
-    uint16_t bytes_recv = 0;
+    CHECK_MALLOC(recv_buffer);
 
     if (!tal_recv(cfg, recv_buffer, recv_buffer_size, &bytes_recv, &conn_closed, &timeout))
     {
@@ -138,12 +139,13 @@ static bool handshake_downlink(cipher_daemon_t *d, tal_config_t *cfg)
 {
     LOG("Handshaking downlink node");
 
-    const size_t recv_buffer_size = CONFIG_MAX_PAYLOAD_SIZE;
-    uint8_t *recv_buffer = k_heap_alloc(&d->net_packets_heap, recv_buffer_size, K_FOREVER);
     uint16_t bytes_recv = 0;
     uint16_t bytes_sent = 0;
     bool conn_closed = false;
     bool timeout = false;
+    const size_t recv_buffer_size = CONFIG_MAX_PAYLOAD_SIZE;
+    uint8_t *recv_buffer = k_heap_alloc(&d->net_packets_heap, recv_buffer_size, K_FOREVER);
+    CHECK_MALLOC(recv_buffer);
 
     if (!tal_recv(cfg, recv_buffer, recv_buffer_size, &bytes_recv, &conn_closed, &timeout))
     {

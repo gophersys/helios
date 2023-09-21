@@ -12,13 +12,20 @@
 // Cipher includes
 #include "config/default.h"
 #include "transport/transport.h"
-#include "daemon/daemon.h"
 #include "utils/err.h"
+
+/*-----------------------------------------------------------------------------------------------------
+ *                                                                                      Developer Notes
+ *---------------------------------------------------------------------------------------------------*/
+// Auto-generated code cannot have same names are cipher structs
 
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                             Protocol
  *---------------------------------------------------------------------------------------------------*/
 
+/**
+ * @brief Cipher packet types
+ */
 typedef enum
 {
     CIPHER_PACKET_TYPE_ADMIN,
@@ -29,24 +36,56 @@ typedef enum
     CIPHER_PACKET_TYPE_MAX
 } cipher_packet_type_t;
 
-// Cipher Header (12 bytes)
+/**
+ * @brief Cipher packet header
+ */
 typedef struct __attribute__((packed))
 {
-    uint16_t source_id;         // Up to 65536 devices on a single network
-    uint16_t destination_id;    // Up to 65536 devices on a single network
-    uint32_t service_id : 14;   // Up to 16384 services
-    uint32_t operation_id : 8;  // Up to 256 operations per service
-    uint32_t payload_len : 10;  // Header + Payload will never exceed 1024 bytes
-    uint16_t sequence_num : 13; // Up to ~8MB streams (8192 sequences * 1005 bytes payload)
-    uint16_t type : 3;          // Up to 8 types (RPC, event, pub/sub, admin, etc)
-    uint8_t flags;              // Protocol/admin level communication (unimplemented methods, etc)
-    uint8_t hop_count;          // TODO: Serdes for me
+    // Up to 65536 devices on a single network
+    uint16_t source_id;
+
+    // Up to 65536 devices on a single network
+    uint16_t destination_id;
+
+    // Up to 16384 services
+    uint32_t service_id : 14;
+
+    // Up to 256 operations per service
+    uint32_t operation_id : 8;
+
+    // Header + Payload will never exceed 1024 bytes
+    uint32_t payload_len : 10;
+
+    // Up to ~8MB streams (8192 sequences * 1005 bytes payload)
+    uint16_t sequence_num : 13;
+
+    // Up to 8 types (RPC, event, pub/sub, admin, etc)
+    uint16_t type : 3;
+
+    // Protocol/admin level communication (unimplemented methods, etc)
+    uint8_t flags;
+
+    // Number of hops the packet has had
+    uint8_t hop_count;
 } cipher_header_t;
 
+/**
+ * @brief Cipher packet. Payload is a place holder
+ */
 typedef struct
 {
     cipher_header_t header;
     void *payload;
 } cipher_packet_t;
+
+/*-----------------------------------------------------------------------------------------------------
+ *                                                                           Service Discovery Payloads
+ *---------------------------------------------------------------------------------------------------*/
+
+typedef struct
+{
+    uint16_t id;
+    uint8_t num_ops;
+} cipher_payload_sd_t;
 
 #endif // PROTOCOL_H
