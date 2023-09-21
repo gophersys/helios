@@ -9,6 +9,10 @@
  *                                                                                            Debugging
  *---------------------------------------------------------------------------------------------------*/
 
+#define ROUTER_LOG_LEVEL LOG_LEVEL_DBG
+#define SD_LOG_LEVEL LOG_LEVEL_DBG
+#define EVENT_LOG_LEVEL LOG_LEVEL_DBG
+#define RPC_LOG_LEVEL LOG_LEVEL_DBG
 #define DAEMON_LOG_LEVEL LOG_LEVEL_DBG
 #define IFACE_LOG_LEVEL LOG_LEVEL_DBG
 #define TAL_LOG_LEVEL LOG_LEVEL_INF

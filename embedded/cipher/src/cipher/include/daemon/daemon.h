@@ -88,10 +88,11 @@ typedef struct
     // Queues
     struct k_fifo send_queue;
     struct k_fifo controller_event_queue;
-    struct k_fifo service_discovery_queue;
+    struct k_fifo sd_packet_queue;
     struct k_fifo unrouted_packets_queue;
-    struct k_fifo rpc_queue;
-    struct k_fifo event_queue;
+    struct k_fifo admin_packet_queue;
+    struct k_fifo rpc_packet_queue;
+    struct k_fifo event_packet_queue;
 
     /**
      * @brief Heap pool to receive and send network packets using send() and recv()

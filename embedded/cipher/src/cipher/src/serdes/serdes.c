@@ -42,7 +42,7 @@ cipher_error_t cipher_encode_packet(cipher_encode_args_t args)
 cipher_error_t cipher_decode_packet(cipher_decode_args_t args)
 {
     cipher_error_t status = CIPHER_ERROR_OK;
-    if (!cipher_packet_parse_header(args.raw_payload, args.raw_payload_size, args.header))
+    if (!cipher_decode_header(args.raw_payload, args.raw_payload_size, args.header))
     {
         status = CIPHER_ERROR_INVALID_HEADER;
     }
@@ -72,7 +72,7 @@ cipher_error_t cipher_decode_packet(cipher_decode_args_t args)
  *                                                                                           Public API
  *---------------------------------------------------------------------------------------------------*/
 
-void cipher_print_header(const cipher_header_t *header)
+cipher_error_t cipher_print_header(const cipher_header_t *header)
 {
     if (header == NULL)
         ERROR("NULL header passed");
@@ -87,14 +87,13 @@ void cipher_print_header(const cipher_header_t *header)
     LOG("Sequence Num: %u", header->sequence_num);
     LOG("Type: %u", header->type);
     LOG("Flags: 0x%02x", header->flags);
+    return CIPHER_ERROR_OK;
 }
 
-bool cipher_packet_parse_header(const uint8_t *recv_buffer, uint16_t recv_buffer_size, cipher_header_t *header_buffer)
+cipher_error_t cipher_decode_header(const uint8_t *recv_buffer, uint16_t recv_buffer_size, cipher_header_t *header_buffer)
 {
     __ASSERT(recv_buffer != NULL, "recv_buffer is NULL");
     __ASSERT(header_buffer != NULL, "header_buffer is NULL");
-
-    bool status = false;
 
     // Size of the header, taking care to include all fields
     const size_t header_size = sizeof(cipher_header_t);
@@ -122,9 +121,7 @@ bool cipher_packet_parse_header(const uint8_t *recv_buffer, uint16_t recv_buffer
         recv_buffer += sizeof(uint16_t);
 
         header_buffer->flags = *recv_buffer;
-
-        status = true;
     }
 
-    return status;
+    return CIPHER_ERROR_OK;
 }

@@ -27,6 +27,8 @@ typedef enum
 
     IFACE_ERROR_HANDSHAKE,
 
+    IFACE_ERROR_SERDES,
+
     IFACE_ERROR_MAX,
 } iface_error_t;
 
@@ -34,6 +36,9 @@ typedef enum
  *                                                                                                  API
  *---------------------------------------------------------------------------------------------------*/
 bool interface_handshake(cipher_daemon_t *d, cipher_iface_t *iface);
-void handle_interface_error(cipher_daemon_t *d, cipher_iface_t *iface, iface_error_t err);
+void handle_iface_error(cipher_daemon_t *d, cipher_iface_t *iface, iface_error_t err,
+                        void *options, size_t option_size);
+void handle_iface_timeout(cipher_daemon_t *d, cipher_iface_t *iface, const char *func);
+void handle_iface_disconnect(cipher_daemon_t *d, cipher_iface_t *iface, const char *func);
 
 #endif // #define INTERFACE_H

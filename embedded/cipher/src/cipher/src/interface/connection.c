@@ -94,7 +94,7 @@ static void get_connection(cipher_daemon_t *d, cipher_iface_t *iface)
     bool conn_timeout = false;
 
     if (!tal_create(iface->cfg))
-        handle_interface_error(d, iface, IFACE_ERROR_CREATE);
+        handle_iface_error(d, iface, IFACE_ERROR_CREATE, NULL, 0);
 
     // Continuously try to establish the connection
     uint32_t start_time = k_uptime_get_32();
@@ -110,7 +110,7 @@ static void get_connection(cipher_daemon_t *d, cipher_iface_t *iface)
             else
             {
                 if (!conn_timeout)
-                    handle_interface_error(d, iface, IFACE_ERROR_SET_OPT);
+                    handle_iface_error(d, iface, IFACE_ERROR_SET_OPT, NULL, 0);
             }
             break;
 
@@ -122,7 +122,7 @@ static void get_connection(cipher_daemon_t *d, cipher_iface_t *iface)
             else
             {
                 if (!conn_timeout)
-                    handle_interface_error(d, iface, IFACE_ERROR_SET_OPT);
+                    handle_iface_error(d, iface, IFACE_ERROR_SET_OPT, NULL, 0);
 
                 /* You requested a timeout other than "always", halting app until
                  * you figure out your connections... or your life :) */
@@ -139,24 +139,22 @@ static void get_connection(cipher_daemon_t *d, cipher_iface_t *iface)
     }
 
     __ASSERT(iface->connected, "Logic error in function, must always be connected before returning");
-
-    uint32_t connection_time = k_uptime_get_32() - start_time;
-    // DBG("Daemon %d, iface %d connected (%u ms)", d->id, iface->id, connection_time);
+    DBG("Daemon %d, iface %d connected (%u ms)", d->id, iface->id, k_uptime_get_32() - start_time);
 }
 
 static void set_send_recv_timeouts(cipher_daemon_t *d, cipher_iface_t *iface, uint16_t send_t, uint16_t recv_t)
 {
     if (!tal_set_opt(iface->cfg, TAL_OPTION_SEND_TIMEOUT, &send_t, sizeof(send_t)))
-        handle_interface_error(d, iface, IFACE_ERROR_SET_OPT);
+        handle_iface_error(d, iface, IFACE_ERROR_SET_OPT, NULL, 0);
 
     if (!tal_set_opt(iface->cfg, TAL_OPTION_RECV_TIMEOUT, &recv_t, sizeof(recv_t)))
-        handle_interface_error(d, iface, IFACE_ERROR_SET_OPT);
+        handle_iface_error(d, iface, IFACE_ERROR_SET_OPT, NULL, 0);
 }
 
 static void do_handshake(cipher_daemon_t *d, cipher_iface_t *iface)
 {
     if (!interface_handshake(d, iface))
-        handle_interface_error(d, iface, IFACE_ERROR_HANDSHAKE);
+        handle_iface_error(d, iface, IFACE_ERROR_HANDSHAKE, NULL, 0);
 }
 
 /*-----------------------------------------------------------------------------------------------------
@@ -181,7 +179,7 @@ static void await_disconnect(cipher_daemon_t *d, cipher_iface_t *iface)
     iface->connected = false;
 
     if (!tal_close(iface->cfg))
-        handle_interface_error(d, iface, IFACE_ERROR_CLOSE);
+        handle_iface_error(d, iface, IFACE_ERROR_CLOSE, NULL, 0);
 
     k_msleep(IFACE_CLOSE_WAIT_TIME_MS);
 

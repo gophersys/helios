@@ -31,8 +31,8 @@ typedef struct
     uint8_t *encoded_payload;
 } cipher_encode_args_t;
 
-void cipher_print_header(const cipher_header_t *header);
-bool cipher_packet_parse_header(const uint8_t *recv_buffer, uint16_t recv_buffer_size, cipher_header_t *header_buffer);
+cipher_error_t cipher_print_header(const cipher_header_t *header);
+cipher_error_t cipher_decode_header(const uint8_t *recv_buffer, uint16_t recv_buffer_size, cipher_header_t *header_buffer);
 cipher_error_t cipher_encode_packet(cipher_encode_args_t args);
 cipher_error_t cipher_decode_packet(cipher_decode_args_t args);
 
