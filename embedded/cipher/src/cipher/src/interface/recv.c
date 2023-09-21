@@ -95,6 +95,7 @@ void cipher_interface_recv_thread(void *arg0, void *arg1, void *arg2)
  *---------------------------------------------------------------------------------------------------*/
 static void process_ingress_packet(cipher_daemon_t *d, uint8_t *recv_buffer, uint16_t bytes_recv)
 {
+
     if (bytes_recv < sizeof(cipher_header_t))
     {
         WARN("Incomplete payload");
@@ -108,9 +109,9 @@ static void process_ingress_packet(cipher_daemon_t *d, uint8_t *recv_buffer, uin
         }
         else
         {
-            // cipher_print_header(&header);
+            cipher_print_header(&header);
 
-            if (header.payload_len == bytes_recv - sizeof(header))
+            if (header.payload_len == (bytes_recv - sizeof(header)))
             {
                 if (header.destination_id != d->device_id)
                 {
@@ -152,7 +153,7 @@ static void process_ingress_packet(cipher_daemon_t *d, uint8_t *recv_buffer, uin
             }
             else
             {
-                ERROR("Received incomplete packet, header.length = %d, recv: %d", header.payload_len, bytes_recv);
+                WARN("Received incomplete packet, header.length = %u, recv: %d", header.payload_len, bytes_recv);
                 // TODO: COuld receive less OR more bytes so account for this
             }
         }
