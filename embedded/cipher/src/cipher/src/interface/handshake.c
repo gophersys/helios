@@ -21,23 +21,23 @@ LOG_MODULE_DECLARE(iface);
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                    Private Functions
  *---------------------------------------------------------------------------------------------------*/
-static bool handshake_uplink(tal_config_t *cfg);
-static bool handshake_downlink(tal_config_t *cfg);
+static bool handshake_uplink(cipher_daemon_t *d, tal_config_t *iface);
+static bool handshake_downlink(cipher_daemon_t *d, tal_config_t *iface);
 
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                           Public API
  *---------------------------------------------------------------------------------------------------*/
-bool interface_handshake(cipher_iface_t *iface)
+bool interface_handshake(cipher_daemon_t *d, cipher_iface_t *iface)
 {
     bool status = false;
 
     switch (iface->cfg->link)
     {
     case TAL_LINK_TYPE_UPLINK:
-        status = handshake_uplink(iface->cfg);
+        status = handshake_uplink(d, iface->cfg);
         break;
     case TAL_LINK_TYPE_DOWNLINK:
-        status = handshake_downlink(iface->cfg);
+        status = handshake_downlink(d, iface->cfg);
         break;
     default:
         ERROR("Unknown or implemented link type: %d", iface->cfg->link);
@@ -59,10 +59,8 @@ bool interface_handshake(cipher_iface_t *iface)
  * @return true If the remote node's protocol version matches
  * @return false If a version mismatch, or send/recv errors
  */
-static bool handshake_uplink(tal_config_t *cfg)
+static bool handshake_uplink(cipher_daemon_t *d, tal_config_t *cfg)
 {
-    uint8_t recv_buffer[sizeof(bool)] = {0};
-    uint16_t bytes_recv = 0;
     uint16_t bytes_sent = 0;
     bool conn_closed = false;
     bool timeout = false;
@@ -82,11 +80,15 @@ static bool handshake_uplink(tal_config_t *cfg)
 
     if (bytes_sent != sizeof(local_node_version))
     {
-        WARN("Expected to send %d bytes but only sent %d", sizeof(local_node_version), bytes_sent);
+        WARN("Expected to send %d bytes but sent %d", sizeof(local_node_version), bytes_sent);
         return false;
     }
 
-    if (!tal_recv(cfg, recv_buffer, sizeof(recv_buffer), &bytes_recv, &conn_closed, &timeout))
+    const size_t recv_buffer_size = CONFIG_MAX_PAYLOAD_SIZE;
+    uint8_t *recv_buffer = k_heap_alloc(&d->net_packets_heap, recv_buffer_size, K_FOREVER);
+    uint16_t bytes_recv = 0;
+
+    if (!tal_recv(cfg, recv_buffer, recv_buffer_size, &bytes_recv, &conn_closed, &timeout))
     {
         if (timeout)
             WARN("Timeout trying to recv server response");
@@ -95,16 +97,21 @@ static bool handshake_uplink(tal_config_t *cfg)
         else
             WARN("Interface recv error");
 
+        k_heap_free(&d->net_packets_heap, recv_buffer);
         return false;
     }
 
     if (bytes_recv != sizeof(bool))
     {
-        WARN("Expected to recv %d bytes but only recv %d", sizeof(bool), bytes_recv);
+        WARN("Expected to recv %d bytes but recv %d", sizeof(bool), bytes_recv);
+
+        k_heap_free(&d->net_packets_heap, recv_buffer);
         return false;
     }
 
     bool supported = recv_buffer[0];
+    k_heap_free(&d->net_packets_heap, recv_buffer);
+
     if (!supported)
     {
         WARN("Local node protocol version %d does not match server's", CIPHER_CONFIG_PROTOCOL_VERSION);
@@ -127,17 +134,18 @@ static bool handshake_uplink(tal_config_t *cfg)
  * @return true If the remote node's protocol version matches
  * @return false If a version mismatch, or send/recv errors
  */
-static bool handshake_downlink(tal_config_t *cfg)
+static bool handshake_downlink(cipher_daemon_t *d, tal_config_t *cfg)
 {
     LOG("Handshaking downlink node");
 
-    uint8_t recv_buffer[sizeof(uint16_t)] = {0};
+    const size_t recv_buffer_size = CONFIG_MAX_PAYLOAD_SIZE;
+    uint8_t *recv_buffer = k_heap_alloc(&d->net_packets_heap, recv_buffer_size, K_FOREVER);
     uint16_t bytes_recv = 0;
     uint16_t bytes_sent = 0;
     bool conn_closed = false;
     bool timeout = false;
 
-    if (!tal_recv(cfg, recv_buffer, sizeof(recv_buffer), &bytes_recv, &conn_closed, &timeout))
+    if (!tal_recv(cfg, recv_buffer, recv_buffer_size, &bytes_recv, &conn_closed, &timeout))
     {
         if (timeout)
             WARN("Timeout trying to recv client protocol version");
@@ -146,16 +154,21 @@ static bool handshake_downlink(tal_config_t *cfg)
         else
             WARN("Interface recv error");
 
+        k_heap_free(&d->net_packets_heap, recv_buffer);
         return false;
     }
 
     if (bytes_recv != sizeof(uint16_t))
     {
-        WARN("Expected to recv %d bytes but only recv %d", sizeof(uint16_t), bytes_recv);
+        WARN("Expected to recv %d bytes but recv %d", sizeof(uint16_t), bytes_recv);
+
+        k_heap_free(&d->net_packets_heap, recv_buffer);
         return false;
     }
 
     uint16_t rmt_node_version = ntohs(*(uint16_t *)recv_buffer);
+    k_heap_free(&d->net_packets_heap, recv_buffer);
+
     bool supported = (rmt_node_version == CIPHER_CONFIG_PROTOCOL_VERSION) ? true : false;
 
     if (!tal_send(cfg, &supported, sizeof(supported), &bytes_sent, &conn_closed, &timeout))
@@ -172,7 +185,7 @@ static bool handshake_downlink(tal_config_t *cfg)
 
     if (bytes_sent != sizeof(supported))
     {
-        WARN("Expected to send %d bytes but only sent %d", sizeof(supported), bytes_sent);
+        WARN("Expected to send %d bytes but sent %d", sizeof(supported), bytes_sent);
         return false;
     }
 
