@@ -76,4 +76,4 @@
 
 #define CONFIG_CTRL_EVENTS_HEAP_SIZE 128
 
-#endif // DEFAULT_H
+#endif  // DEFAULT_H

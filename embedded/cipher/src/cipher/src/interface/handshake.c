@@ -2,19 +2,19 @@
 #include <stdio.h>
 
 // Zephyr includes
-#include <zephyr/logging/log.h>
 #include <zephyr/kernel.h>
+#include <zephyr/logging/log.h>
 #include <zephyr/net/socket.h>
 
 // Cipher includes
 #include "config/default.h"
-#include "transport/transport.h"
 #include "daemon/daemon.h"
+#include "transport/transport.h"
 #include "utils/err.h"
 
 // Private include
-#include "threads.h"
 #include "interface.h"
+#include "threads.h"
 
 LOG_MODULE_DECLARE(iface);
 
@@ -27,20 +27,18 @@ static bool handshake_downlink(cipher_daemon_t *d, tal_config_t *iface);
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                           Public API
  *---------------------------------------------------------------------------------------------------*/
-bool interface_handshake(cipher_daemon_t *d, cipher_iface_t *iface)
-{
+bool interface_handshake(cipher_daemon_t *d, cipher_iface_t *iface) {
     bool status = false;
 
-    switch (iface->cfg->link)
-    {
-    case TAL_LINK_TYPE_UPLINK:
-        status = handshake_uplink(d, iface->cfg);
-        break;
-    case TAL_LINK_TYPE_DOWNLINK:
-        status = handshake_downlink(d, iface->cfg);
-        break;
-    default:
-        ERROR("Unknown or implemented link type: %d", iface->cfg->link);
+    switch (iface->cfg->link) {
+        case TAL_LINK_TYPE_UPLINK:
+            status = handshake_uplink(d, iface->cfg);
+            break;
+        case TAL_LINK_TYPE_DOWNLINK:
+            status = handshake_downlink(d, iface->cfg);
+            break;
+        default:
+            ERROR("Unknown or implemented link type: %d", iface->cfg->link);
     }
 
     return status;
@@ -59,15 +57,13 @@ bool interface_handshake(cipher_daemon_t *d, cipher_iface_t *iface)
  * @return true If the remote node's protocol version matches
  * @return false If a version mismatch, or send/recv errors
  */
-static bool handshake_uplink(cipher_daemon_t *d, tal_config_t *cfg)
-{
+static bool handshake_uplink(cipher_daemon_t *d, tal_config_t *cfg) {
     uint16_t bytes_sent = 0;
     bool conn_closed = false;
     bool timeout = false;
 
     uint16_t local_node_version = htons(CIPHER_CONFIG_PROTOCOL_VERSION);
-    if (!tal_send(cfg, &local_node_version, sizeof(local_node_version), &bytes_sent, &conn_closed, &timeout))
-    {
+    if (!tal_send(cfg, &local_node_version, sizeof(local_node_version), &bytes_sent, &conn_closed, &timeout)) {
         if (timeout)
             WARN("Timeout trying to send protocol version to server");
         else if (conn_closed)
@@ -78,8 +74,7 @@ static bool handshake_uplink(cipher_daemon_t *d, tal_config_t *cfg)
         return false;
     }
 
-    if (bytes_sent != sizeof(local_node_version))
-    {
+    if (bytes_sent != sizeof(local_node_version)) {
         WARN("Expected to send %d bytes but sent %d", sizeof(local_node_version), bytes_sent);
         return false;
     }
@@ -89,8 +84,7 @@ static bool handshake_uplink(cipher_daemon_t *d, tal_config_t *cfg)
     uint8_t *recv_buffer = k_heap_alloc(&d->net_packets_heap, recv_buffer_size, K_FOREVER);
     CHECK_MALLOC(recv_buffer);
 
-    if (!tal_recv(cfg, recv_buffer, recv_buffer_size, &bytes_recv, &conn_closed, &timeout))
-    {
+    if (!tal_recv(cfg, recv_buffer, recv_buffer_size, &bytes_recv, &conn_closed, &timeout)) {
         if (timeout)
             WARN("Timeout trying to recv server response");
         else if (conn_closed)
@@ -102,8 +96,7 @@ static bool handshake_uplink(cipher_daemon_t *d, tal_config_t *cfg)
         return false;
     }
 
-    if (bytes_recv != sizeof(bool))
-    {
+    if (bytes_recv != sizeof(bool)) {
         WARN("Expected to recv %d bytes but recv %d", sizeof(bool), bytes_recv);
 
         k_heap_free(&d->net_packets_heap, recv_buffer);
@@ -113,8 +106,7 @@ static bool handshake_uplink(cipher_daemon_t *d, tal_config_t *cfg)
     bool supported = recv_buffer[0];
     k_heap_free(&d->net_packets_heap, recv_buffer);
 
-    if (!supported)
-    {
+    if (!supported) {
         WARN("Local node protocol version %d does not match server's", CIPHER_CONFIG_PROTOCOL_VERSION);
         return false;
     }
@@ -135,8 +127,7 @@ static bool handshake_uplink(cipher_daemon_t *d, tal_config_t *cfg)
  * @return true If the remote node's protocol version matches
  * @return false If a version mismatch, or send/recv errors
  */
-static bool handshake_downlink(cipher_daemon_t *d, tal_config_t *cfg)
-{
+static bool handshake_downlink(cipher_daemon_t *d, tal_config_t *cfg) {
     LOG("Handshaking downlink node");
 
     uint16_t bytes_recv = 0;
@@ -147,8 +138,7 @@ static bool handshake_downlink(cipher_daemon_t *d, tal_config_t *cfg)
     uint8_t *recv_buffer = k_heap_alloc(&d->net_packets_heap, recv_buffer_size, K_FOREVER);
     CHECK_MALLOC(recv_buffer);
 
-    if (!tal_recv(cfg, recv_buffer, recv_buffer_size, &bytes_recv, &conn_closed, &timeout))
-    {
+    if (!tal_recv(cfg, recv_buffer, recv_buffer_size, &bytes_recv, &conn_closed, &timeout)) {
         if (timeout)
             WARN("Timeout trying to recv client protocol version");
         else if (conn_closed)
@@ -160,8 +150,7 @@ static bool handshake_downlink(cipher_daemon_t *d, tal_config_t *cfg)
         return false;
     }
 
-    if (bytes_recv != sizeof(uint16_t))
-    {
+    if (bytes_recv != sizeof(uint16_t)) {
         WARN("Expected to recv %d bytes but recv %d", sizeof(uint16_t), bytes_recv);
 
         k_heap_free(&d->net_packets_heap, recv_buffer);
@@ -173,8 +162,7 @@ static bool handshake_downlink(cipher_daemon_t *d, tal_config_t *cfg)
 
     bool supported = (rmt_node_version == CIPHER_CONFIG_PROTOCOL_VERSION) ? true : false;
 
-    if (!tal_send(cfg, &supported, sizeof(supported), &bytes_sent, &conn_closed, &timeout))
-    {
+    if (!tal_send(cfg, &supported, sizeof(supported), &bytes_sent, &conn_closed, &timeout)) {
         if (timeout)
             WARN("Timeout trying to send response %d to client", supported);
         else if (conn_closed)
@@ -185,14 +173,12 @@ static bool handshake_downlink(cipher_daemon_t *d, tal_config_t *cfg)
         return false;
     }
 
-    if (bytes_sent != sizeof(supported))
-    {
+    if (bytes_sent != sizeof(supported)) {
         WARN("Expected to send %d bytes but sent %d", sizeof(supported), bytes_sent);
         return false;
     }
 
-    if (!supported)
-    {
+    if (!supported) {
         WARN("Remote node attempted to connect with protocol version %d, expected %d", rmt_node_version, CIPHER_CONFIG_PROTOCOL_VERSION);
         return false;
     }

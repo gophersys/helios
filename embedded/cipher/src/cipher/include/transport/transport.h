@@ -18,8 +18,7 @@
 /**
  * @brief Interfaces supported
  */
-typedef enum
-{
+typedef enum {
     TAL_INTERFACE_TYPE_SOCKET,
     TAL_INTERFACE_TYPE_UART,
 
@@ -29,10 +28,9 @@ typedef enum
 /**
  * @brief The kind of connection to the remote end
  */
-typedef enum
-{
-    TAL_LINK_TYPE_UPLINK,   // Interface is the client
-    TAL_LINK_TYPE_DOWNLINK, // Interface is the server
+typedef enum {
+    TAL_LINK_TYPE_UPLINK,    // Interface is the client
+    TAL_LINK_TYPE_DOWNLINK,  // Interface is the server
 
     TAL_LINK_TYPE_MAX,
 } tal_link_type_t;
@@ -40,10 +38,9 @@ typedef enum
 /**
  * @brief Available options on interface
  */
-typedef enum
-{
-    TAL_OPTION_SEND_TIMEOUT, // uint16_t in millis
-    TAL_OPTION_RECV_TIMEOUT, // uint16_t in millis
+typedef enum {
+    TAL_OPTION_SEND_TIMEOUT,  // uint16_t in millis
+    TAL_OPTION_RECV_TIMEOUT,  // uint16_t in millis
 
     TAL_OPTION_MAX
 } tal_option_type_t;
@@ -51,8 +48,7 @@ typedef enum
 /**
  * @brief Used to hold all interface metadata. All fields are not mandatory
  */
-typedef struct
-{
+typedef struct {
     tal_type_t type;
     tal_link_type_t link;
 
@@ -149,4 +145,4 @@ bool tal_recv(const tal_config_t *cfg, void *buffer, const size_t buffer_size,
  */
 bool tal_close(const tal_config_t *cfg);
 
-#endif // TRANSPORT_H
+#endif  // TRANSPORT_H

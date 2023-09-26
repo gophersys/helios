@@ -17,4 +17,4 @@ bool socket_recv(const tal_config_t *cfg, void *buffer, const size_t buffer_size
                  uint16_t *recv_count, bool *conn_closed, bool *timeout);
 bool socket_close(const tal_config_t *cfg);
 
-#endif // SOCKET_TAL_H
+#endif  // SOCKET_TAL_H

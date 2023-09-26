@@ -2,10 +2,10 @@
 #include <stdio.h>
 
 // Zephyr includes
-#include <zephyr/logging/log.h>
 #include <zephyr/kernel.h>
-#include <zephyr/random/rand32.h>
+#include <zephyr/logging/log.h>
 #include <zephyr/net/socket.h>
+#include <zephyr/random/rand32.h>
 
 // Cipher includes
 #include "config/default.h"
@@ -38,8 +38,7 @@ char *iface_t_name(const char *prefix, uint8_t d_id, uint8_t iface_id, char *buf
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                           Public API
  *---------------------------------------------------------------------------------------------------*/
-void cipher_init_daemon(cipher_daemon_config_t *cfg, cipher_daemon_t *d)
-{
+void cipher_init_daemon(cipher_daemon_config_t *cfg, cipher_daemon_t *d) {
     __ASSERT(cfg != NULL, "Daemon cfg pointer must not be NULL");
     __ASSERT(d != NULL, "Daemon struct pointer must not be NULL");
 
@@ -68,8 +67,7 @@ void cipher_init_daemon(cipher_daemon_config_t *cfg, cipher_daemon_t *d)
  * @return true If the configuration passed was valid
  * @return false If an invalid field or configuration are passed
  */
-static void assert_config(const cipher_daemon_config_t *cfg)
-{
+static void assert_config(const cipher_daemon_config_t *cfg) {
     // TODO: What checks can be done here?
 }
 
@@ -83,8 +81,7 @@ static void assert_config(const cipher_daemon_config_t *cfg)
  *
  * @param d The daemon
  */
-static void print_daemon_stats(cipher_daemon_t *d)
-{
+static void print_daemon_stats(cipher_daemon_t *d) {
 #if DAEMON_LOG_LEVEL == LOG_LEVEL_DBG
     LOG_RAW("\nDaemon instance %d stats:\n", d->id);
     LOG_RAW("\tcipher_daemon_t size: %d bytes\n", sizeof(cipher_daemon_t));
@@ -109,17 +106,14 @@ static void print_daemon_stats(cipher_daemon_t *d)
  *
  * @param d The daemon
  */
-static void setup_ids(cipher_daemon_t *d)
-{
+static void setup_ids(cipher_daemon_t *d) {
     static uint8_t instances = 0;
     static uint16_t device_id = 0;
     static bool initialized = false;
 
-    if (!initialized)
-    {
-
+    if (!initialized) {
         // All interfaces will broadcast the same device Id
-        sys_rand_get(&device_id, sizeof(device_id)); // TODO: What happens if remote end has same Id?
+        sys_rand_get(&device_id, sizeof(device_id));  // TODO: What happens if remote end has same Id?
         initialized = true;
     }
 
@@ -136,8 +130,7 @@ static void setup_ids(cipher_daemon_t *d)
  *
  * @param d The daemon
  */
-static void init_objects(cipher_daemon_t *d)
-{
+static void init_objects(cipher_daemon_t *d) {
     k_fifo_init(&d->admin_packet_queue);
     k_fifo_init(&d->ctrl_event_queue);
 
@@ -167,8 +160,7 @@ static void init_objects(cipher_daemon_t *d)
  *
  * @param d The daemon
  */
-static void init_registries(cipher_daemon_t *d)
-{
+static void init_registries(cipher_daemon_t *d) {
     memset(&d->service_registry, 0, sizeof(d->service_registry));
 }
 
@@ -180,8 +172,7 @@ static void init_registries(cipher_daemon_t *d)
  *
  * @param d The daemon
  */
-static void init_threads(cipher_daemon_t *d)
-{
+static void init_threads(cipher_daemon_t *d) {
     char name_buf[32];
     d->ctrl_t_id = k_thread_create(&d->ctrl_t_data,
                                    d->ctrl_t_stack,
@@ -249,8 +240,7 @@ static void init_threads(cipher_daemon_t *d)
  *
  * @param iface The interface
  */
-static void init_interface_objects(cipher_iface_t *iface)
-{
+static void init_interface_objects(cipher_iface_t *iface) {
     k_sem_init(&iface->conn_sem, 0, CONFIG_IFACE_CONN_SEM_COUNT);
     k_sem_init(&iface->disconn_sem, 0, 1);
     k_fifo_init(&iface->encoded_packets_queue);
@@ -262,23 +252,20 @@ static void init_interface_objects(cipher_iface_t *iface)
  *
  * @param d The daemon
  */
-static void init_interfaces(cipher_daemon_t *d)
-{
+static void init_interfaces(cipher_daemon_t *d) {
     uint8_t num_up_link_ifaces = CONFIG_UP_LINK_IFACE_COUNT;
     uint8_t num_down_link_ifaces = CONFIG_UP_LINK_IFACE_COUNT;
 
     // Assign an interface to each thread group
     uint8_t iface_id = 0;
-    for (uint8_t i = 0; i < num_up_link_ifaces; i++)
-    {
+    for (uint8_t i = 0; i < num_up_link_ifaces; i++) {
         d->uplink_t_g[i].iface.id = iface_id++;
         d->uplink_t_g[i].iface.cfg = &d->cfg->uplink_ifaces[i];
         d->uplink_t_g[i].iface.connected = false;
         init_interface_objects(&d->uplink_t_g[i].iface);
     }
 
-    for (uint8_t i = 0; i < num_down_link_ifaces; i++)
-    {
+    for (uint8_t i = 0; i < num_down_link_ifaces; i++) {
         d->downlink_t_g[i].iface.id = iface_id++;
         d->downlink_t_g[i].iface.cfg = &d->cfg->downlink_ifaces[i];
         d->downlink_t_g[i].iface.connected = false;
@@ -298,15 +285,13 @@ static void init_interfaces(cipher_daemon_t *d)
  * @param num The number of interfaces in the group
  * @param t_group The thread group
  */
-static void initialize_interface_group(cipher_daemon_t *d, cipher_iface_thread_group_t *t_group, size_t num)
-{
+static void initialize_interface_group(cipher_daemon_t *d, cipher_iface_thread_group_t *t_group, size_t num) {
     char name_buf[32];
     uint8_t conn_t_prio = TRANSPORT_THREAD_BASE_PRIORITY - 1;
     uint8_t send_t_prio = TRANSPORT_THREAD_BASE_PRIORITY;
     uint8_t recv_t_prio = TRANSPORT_THREAD_BASE_PRIORITY;
 
-    for (uint8_t i = 0; i < num; i++)
-    {
+    for (uint8_t i = 0; i < num; i++) {
         cipher_iface_thread_info_t *conn_t = &t_group[i].connection_t;
         conn_t->id = k_thread_create(&conn_t->data,
                                      conn_t->stack,
@@ -349,15 +334,13 @@ static void initialize_interface_group(cipher_daemon_t *d, cipher_iface_thread_g
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                              Helpers
  *---------------------------------------------------------------------------------------------------*/
-char *cipher_t_name(const char *prefix, uint8_t d_id, char *buffer, size_t buflen)
-{
+char *cipher_t_name(const char *prefix, uint8_t d_id, char *buffer, size_t buflen) {
     uint16_t last_4_digits = d_id % 10000;
     snprintf(buffer, buflen, "%s_%02u", prefix, last_4_digits);
     return buffer;
 }
 
-char *iface_t_name(const char *prefix, uint8_t d_id, uint8_t iface_id, char *buffer, size_t buflen)
-{
+char *iface_t_name(const char *prefix, uint8_t d_id, uint8_t iface_id, char *buffer, size_t buflen) {
     snprintf(buffer, buflen, "%s_%02u_%03u", prefix, d_id, iface_id);
     return buffer;
 }

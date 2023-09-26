@@ -15,8 +15,7 @@
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                         Data & Types
  *---------------------------------------------------------------------------------------------------*/
-typedef enum
-{
+typedef enum {
     IFACE_ERROR_CREATE,
     IFACE_ERROR_SET_OPT,
     IFACE_ERROR_CONNECT,
@@ -41,4 +40,4 @@ void handle_iface_error(cipher_daemon_t *d, cipher_iface_t *iface, iface_error_t
 void handle_iface_timeout(cipher_daemon_t *d, cipher_iface_t *iface, const char *func);
 void handle_iface_disconnect(cipher_daemon_t *d, cipher_iface_t *iface, const char *func);
 
-#endif // #define INTERFACE_H
+#endif  // #define INTERFACE_H

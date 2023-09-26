@@ -2,14 +2,14 @@
 #include <stdio.h>
 
 // Zephyr includes
-#include <zephyr/logging/log.h>
 #include <zephyr/kernel.h>
+#include <zephyr/logging/log.h>
 #include <zephyr/net/socket.h>
 
 // Private includes
-#include "transport/transport.h"
 #include "protocol/protocol.h"
 #include "protocol/serdes.h"
+#include "transport/transport.h"
 #include "utils/err.h"
 
 // User includes
@@ -34,25 +34,20 @@ LOG_MODULE_REGISTER(serdes, LOG_LEVEL_DBG);
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                           Public API
  *---------------------------------------------------------------------------------------------------*/
-serdes_error_t serdes_encode_header(uint8_t *buffer, uint16_t buffer_size, const cipher_header_t *header)
-{
+serdes_error_t serdes_encode_header(uint8_t *buffer, uint16_t buffer_size, const cipher_header_t *header) {
     serdes_error_t status = SERDES_ERROR_OK;
     return status;
 }
 
-serdes_error_t serdes_decode_header(const uint8_t *buffer, uint16_t buffer_size, cipher_header_t *header)
-{
+serdes_error_t serdes_decode_header(const uint8_t *buffer, uint16_t buffer_size, cipher_header_t *header) {
     __ASSERT(buffer, "recv_buffer is NULL");
     __ASSERT(buffer, "header_buffer is NULL");
 
     // Size of the header, taking care to include all fields
     const size_t header_size = sizeof(cipher_header_t);
-    if (buffer_size < header_size)
-    {
+    if (buffer_size < header_size) {
         WARN("Packet must be at least %d bytes, got %d", sizeof(cipher_header_t), buffer_size);
-    }
-    else
-    {
+    } else {
         header->source_id = ntohs(*(uint16_t *)buffer);
         buffer += sizeof(uint16_t);
 
@@ -76,19 +71,16 @@ serdes_error_t serdes_decode_header(const uint8_t *buffer, uint16_t buffer_size,
     return SERDES_ERROR_OK;
 }
 
-serdes_error_t serdes_encode_packet(serdes_encode_args_t args)
-{
+serdes_error_t serdes_encode_packet(serdes_encode_args_t args) {
     serdes_error_t status = SERDES_ERROR_OK;
     return status;
 }
-serdes_error_t serdes_decode_packet(serdes_decode_args_t args)
-{
+serdes_error_t serdes_decode_packet(serdes_decode_args_t args) {
     serdes_error_t status = SERDES_ERROR_OK;
     return status;
 }
 
-serdes_error_t cipher_print_header(const cipher_header_t *header)
-{
+serdes_error_t cipher_print_header(const cipher_header_t *header) {
     // TODO: Change this to LOG_RAW
     if (header == NULL)
         ERROR("NULL header passed");
@@ -106,8 +98,7 @@ serdes_error_t cipher_print_header(const cipher_header_t *header)
     return SERDES_ERROR_OK;
 }
 
-serdes_error_t cipher_print_packet(const cipher_header_t *header, const void *payload, const size_t payload_len)
-{
+serdes_error_t cipher_print_packet(const cipher_header_t *header, const void *payload, const size_t payload_len) {
     serdes_error_t status = SERDES_ERROR_OK;
     return status;
 }

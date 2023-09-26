@@ -5,8 +5,8 @@
 #include <stdio.h>
 
 // Zephyr includes
-#include <zephyr/logging/log.h>
 #include <zephyr/kernel.h>
+#include <zephyr/logging/log.h>
 #include <zephyr/net/socket.h>
 
 // Cipher includes
@@ -26,8 +26,7 @@
 /**
  * @brief Cipher packet types
  */
-typedef enum
-{
+typedef enum {
     CIPHER_PACKET_TYPE_ADMIN,
     CIPHER_PACKET_TYPE_SD,
     CIPHER_PACKET_TYPE_RPC,
@@ -39,8 +38,7 @@ typedef enum
 /**
  * @brief Cipher packet header
  */
-typedef struct __attribute__((packed))
-{
+typedef struct __attribute__((packed)) {
     // Up to 65536 devices on a single network
     uint16_t source_id;
 
@@ -72,8 +70,7 @@ typedef struct __attribute__((packed))
 /**
  * @brief Cipher packet. Payload is a place holder
  */
-typedef struct
-{
+typedef struct {
     cipher_header_t header;
     void *payload;
 } cipher_packet_t;
@@ -82,11 +79,10 @@ typedef struct
  *                                                                           Service Discovery Payloads
  *---------------------------------------------------------------------------------------------------*/
 
-typedef struct
-{
+typedef struct {
     bool alive;
     uint16_t id;
     uint8_t num_ops;
 } cipher_payload_sd_t;
 
-#endif // PROTOCOL_H
+#endif  // PROTOCOL_H

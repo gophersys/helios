@@ -2,16 +2,16 @@
 #include <stdio.h>
 
 // Zephyr includes
-#include <zephyr/logging/log.h>
 #include <zephyr/kernel.h>
+#include <zephyr/logging/log.h>
 #include <zephyr/net/socket.h>
 
 // Cipher includes
 #include "config/default.h"
-#include "transport/transport.h"
+#include "daemon/daemon.h"
 #include "protocol/protocol.h"
 #include "protocol/serdes.h"
-#include "daemon/daemon.h"
+#include "transport/transport.h"
 #include "utils/err.h"
 
 // Private include
@@ -47,8 +47,7 @@ static void handle_decoded_packet_event(cipher_daemon_t *d, cipher_iface_t *ifac
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                          Send Thread
  *---------------------------------------------------------------------------------------------------*/
-void cipher_interface_send_thread(void *arg0, void *arg1, void *arg2)
-{
+void cipher_interface_send_thread(void *arg0, void *arg1, void *arg2) {
     cipher_daemon_t *d = (cipher_daemon_t *)arg0;
     cipher_iface_t *iface = (cipher_iface_t *)arg1;
 
@@ -58,17 +57,14 @@ void cipher_interface_send_thread(void *arg0, void *arg1, void *arg2)
     struct k_poll_event send_events[EVENT_NUM];
     setup_thread_events(d, iface, send_events);
 
-    while (1)
-    {
+    while (1) {
         // Wait until the iface is connected
-        k_sem_take(&iface->conn_sem, K_FOREVER); // TODO: handle timeout
+        k_sem_take(&iface->conn_sem, K_FOREVER);  // TODO: handle timeout
         LOG("Send thread for iface %d unblocked", iface->id);
 
-        while (iface->connected)
-        {
+        while (iface->connected) {
             int event = k_poll(send_events, EVENT_NUM, K_FOREVER);
-            if (event == 0)
-            {
+            if (event == 0) {
                 if (send_events[ENCODED_EVENT].state == K_POLL_STATE_FIFO_DATA_AVAILABLE)
                     handle_encoded_packet_event(d, iface);
                 else if (send_events[DECODED_EVENT].state == K_POLL_STATE_FIFO_DATA_AVAILABLE)
@@ -79,9 +75,7 @@ void cipher_interface_send_thread(void *arg0, void *arg1, void *arg2)
                 // reset events
                 for (uint8_t i = 0; i < EVENT_NUM; i++)
                     send_events[i].state = K_POLL_STATE_NOT_READY;
-            }
-            else
-            {
+            } else {
                 ERROR("Unexpected timeout on k_poll: %d. iface %d, daemon %d", event, iface->id, d->id);
             }
         }
@@ -91,8 +85,7 @@ void cipher_interface_send_thread(void *arg0, void *arg1, void *arg2)
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                         Setup Events
  *---------------------------------------------------------------------------------------------------*/
-static void setup_thread_events(cipher_daemon_t *d, cipher_iface_t *iface, struct k_poll_event *events)
-{
+static void setup_thread_events(cipher_daemon_t *d, cipher_iface_t *iface, struct k_poll_event *events) {
     k_poll_event_init(&events[ENCODED_EVENT],
                       K_POLL_TYPE_FIFO_DATA_AVAILABLE,
                       K_POLL_MODE_NOTIFY_ONLY,
@@ -107,8 +100,7 @@ static void setup_thread_events(cipher_daemon_t *d, cipher_iface_t *iface, struc
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                 Encoded Packet Event
  *---------------------------------------------------------------------------------------------------*/
-static void handle_encoded_packet_event(cipher_daemon_t *d, cipher_iface_t *iface)
-{
+static void handle_encoded_packet_event(cipher_daemon_t *d, cipher_iface_t *iface) {
     __ASSERT(iface->connected, "Received an encoded_packet to be sent on a disconnected interface");
     LOG("Send thread for iface %d, daemon %d, received encoded encoded_packet", iface->id, d->id);
 
@@ -124,8 +116,7 @@ static void handle_encoded_packet_event(cipher_daemon_t *d, cipher_iface_t *ifac
 
     // Send the encoded encoded_packet on the interface
     uint16_t packet_len = sizeof(cipher_header_t) + encoded_packet->header.payload_len;
-    if (!tal_send(iface->cfg, encoded_packet, packet_len, &bytes_sent, &conn_closed, &timeout))
-    {
+    if (!tal_send(iface->cfg, encoded_packet, packet_len, &bytes_sent, &conn_closed, &timeout)) {
         if (timeout)
             handle_iface_timeout(d, iface, __func__);
         else if (conn_closed)
@@ -138,7 +129,7 @@ static void handle_encoded_packet_event(cipher_daemon_t *d, cipher_iface_t *ifac
     }
 
     if (bytes_sent != packet_len)
-        ERROR("Expected to send %d bytes, sent %d", packet_len, bytes_sent); // TODO: Implement retry functionality
+        ERROR("Expected to send %d bytes, sent %d", packet_len, bytes_sent);  // TODO: Implement retry functionality
 
     k_heap_free(&d->unrouted_packets_heap, encoded_packet);
 
@@ -148,8 +139,7 @@ static void handle_encoded_packet_event(cipher_daemon_t *d, cipher_iface_t *ifac
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                 Decoded Packet Event
  *---------------------------------------------------------------------------------------------------*/
-static void handle_decoded_packet_event(cipher_daemon_t *d, cipher_iface_t *iface)
-{
+static void handle_decoded_packet_event(cipher_daemon_t *d, cipher_iface_t *iface) {
     __ASSERT(iface->connected, "Received an encoded_packet to be sent on a disconnected interface");
     DBG("Send thread for iface %d, daemon %d, received decoded packet", iface->id, d->id);
 
@@ -172,8 +162,9 @@ static void handle_decoded_packet_event(cipher_daemon_t *d, cipher_iface_t *ifac
         .encoded_payload = send_buffer,
     };
     serdes_error_t err = serdes_encode_packet(args);
-    if (err != SERDES_ERROR_OK)
+    if (err != SERDES_ERROR_OK) {
         ERROR("Could not encode encoded_packet, err: %d. iface %d, daemon %d", err, iface->id, d->id);
+    }
 
     // Free daemon's memory allocated for cipher_packet_fifo_t
     k_heap_free(&d->local_packets_heap, fifo_item->packet.payload);
@@ -184,21 +175,21 @@ static void handle_decoded_packet_event(cipher_daemon_t *d, cipher_iface_t *ifac
     bool conn_closed = false;
     bool timeout = false;
 
-    if (!tal_send(iface->cfg, send_buffer, packet_len, &bytes_sent, &conn_closed, &timeout))
-    {
-        if (timeout)
+    if (!tal_send(iface->cfg, send_buffer, packet_len, &bytes_sent, &conn_closed, &timeout)) {
+        if (timeout) {
             handle_iface_timeout(d, iface, __func__);
-        else if (conn_closed)
+        } else if (conn_closed) {
             handle_iface_disconnect(d, iface, __func__);
-        else
+        } else {
             ERROR("Send error on iface %d, daemon %d", iface->id, d->id);
+        }
 
         k_heap_free(&d->net_packets_heap, send_buffer);
         return;
     }
 
     if (bytes_sent != packet_len)
-        ERROR("Expected to send %d bytes, sent %d", packet_len, bytes_sent); // TODO: Implement retry functionality
+        ERROR("Expected to send %d bytes, sent %d", packet_len, bytes_sent);  // TODO: Implement retry functionality
 
     k_heap_free(&d->net_packets_heap, send_buffer);
 

@@ -11,8 +11,7 @@
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                                Types
  *---------------------------------------------------------------------------------------------------*/
-typedef enum
-{
+typedef enum {
     CTRL_EVENT_TYPE_IFACE_CONNECTED,
     CTRL_EVENT_TYPE_IFACE_DISCONNECTED,
     CTRL_EVENT_TYPE_EXIT,
@@ -20,13 +19,11 @@ typedef enum
     CTRL_EVENT_TYPE_MAX,
 } ctrl_event_type_t;
 
-typedef struct
-{
+typedef struct {
     cipher_iface_t *iface;
 } ctrl_event_opt_iface_conn_t;
 
-typedef struct
-{
+typedef struct {
     uintptr_t __k_reserved;
 
     ctrl_event_type_t type;

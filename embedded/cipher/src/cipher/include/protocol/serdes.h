@@ -11,8 +11,7 @@
 /**
  * @brief Errors returned by the serdes module
  */
-typedef enum
-{
+typedef enum {
     SERDES_ERROR_OK,
     SERDES_ERROR_INVALID_HEADER,
 
@@ -22,8 +21,7 @@ typedef enum
 /**
  * @brief Network byte order to Host byte order arguements
  */
-typedef struct
-{
+typedef struct {
     cipher_header_t *header;
     uint8_t *raw_payload;
     size_t raw_payload_size;
@@ -33,8 +31,7 @@ typedef struct
 /**
  * @brief Host byte order to Network byte order arguements
  */
-typedef struct
-{
+typedef struct {
     cipher_header_t *header;
     void *raw_payload;
     size_t raw_payload_size;
@@ -96,4 +93,4 @@ serdes_error_t cipher_print_header(const cipher_header_t *header);
  */
 serdes_error_t cipher_print_packet(const cipher_header_t *header, const void *payload, const size_t payload_len);
 
-#endif // SERDES_H
+#endif  // SERDES_H

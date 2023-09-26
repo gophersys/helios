@@ -2,16 +2,16 @@
 #include <stdio.h>
 
 // Zephyr includes
-#include <zephyr/logging/log.h>
 #include <zephyr/kernel.h>
+#include <zephyr/logging/log.h>
 #include <zephyr/net/socket.h>
 
 // Cipher includes
 #include "config/default.h"
-#include "transport/transport.h"
+#include "daemon/daemon.h"
 #include "protocol/protocol.h"
 #include "protocol/serdes.h"
-#include "daemon/daemon.h"
+#include "transport/transport.h"
 #include "utils/err.h"
 
 // Private include
@@ -35,12 +35,10 @@ LOG_MODULE_REGISTER(router, ROUTER_LOG_LEVEL);
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                           Public API
  *---------------------------------------------------------------------------------------------------*/
-void cipher_router_thread(void *arg0, void *arg1, void *arg2)
-{
+void cipher_router_thread(void *arg0, void *arg1, void *arg2) {
     cipher_daemon_t *d = (cipher_daemon_t *)arg0;
 
-    while (true)
-    {
+    while (true) {
         cipher_packet_t *packet = k_fifo_get(&d->unrouted_packets_queue, K_FOREVER);
         if (packet == NULL)
             ERROR("Null item on unrouted_packets_queue, daemon %d", d->id);

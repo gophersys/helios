@@ -2,8 +2,8 @@
 #include <stdio.h>
 
 // Zephyr includes
-#include <zephyr/logging/log.h>
 #include <zephyr/kernel.h>
+#include <zephyr/logging/log.h>
 #include <zephyr/net/socket.h>
 #include <zephyr/random/rand32.h>
 
@@ -14,9 +14,9 @@
 #include "utils/err.h"
 
 // Private include
-#include "threads.h"
 #include "controller.h"
 #include "packet.h"
+#include "threads.h"
 
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                        Configuration
@@ -43,26 +43,24 @@ static void handle_admin_packet_event(cipher_daemon_t *d);
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                           Public API
  *---------------------------------------------------------------------------------------------------*/
-void cipher_ctrl_add_event(cipher_daemon_t *d, ctrl_event_t *event)
-{
+void cipher_ctrl_add_event(cipher_daemon_t *d, ctrl_event_t *event) {
     __ASSERT(d, "null daemon pointer");
     __ASSERT(event, "null event pointer");
 
     // Get the option size of the event
     size_t option_size = 0;
-    switch (event->type)
-    {
-    case CTRL_EVENT_TYPE_IFACE_CONNECTED:
-    case CTRL_EVENT_TYPE_IFACE_DISCONNECTED:
-        option_size = sizeof(ctrl_event_opt_iface_conn_t);
-        break;
+    switch (event->type) {
+        case CTRL_EVENT_TYPE_IFACE_CONNECTED:
+        case CTRL_EVENT_TYPE_IFACE_DISCONNECTED:
+            option_size = sizeof(ctrl_event_opt_iface_conn_t);
+            break;
 
-    case CTRL_EVENT_TYPE_EXIT:
-        // TODO: how do i halt this thread?
-        break;
-    default:
-        ERROR("Unknown event type %d", event->type);
-        break;
+        case CTRL_EVENT_TYPE_EXIT:
+            // TODO: how do i halt this thread?
+            break;
+        default:
+            ERROR("Unknown event type %d", event->type);
+            break;
     }
 
     // Allocate memory for the event & its options
@@ -83,8 +81,7 @@ void cipher_ctrl_add_event(cipher_daemon_t *d, ctrl_event_t *event)
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                               Thread
  *---------------------------------------------------------------------------------------------------*/
-void cipher_ctrl_thread(void *arg0, void *arg1, void *arg2)
-{
+void cipher_ctrl_thread(void *arg0, void *arg1, void *arg2) {
     cipher_daemon_t *d = (cipher_daemon_t *)arg0;
 
     __ASSERT(d != NULL, "null daemon passed to thread");
@@ -92,11 +89,9 @@ void cipher_ctrl_thread(void *arg0, void *arg1, void *arg2)
     struct k_poll_event ctrl_events[EVENT_NUM];
     setup_thread_events(d, ctrl_events);
 
-    while (true)
-    {
+    while (true) {
         int event = k_poll(ctrl_events, EVENT_NUM, K_FOREVER);
-        if (event == 0)
-        {
+        if (event == 0) {
             if (ctrl_events[HOST_LOCAL_EVENT].state == K_POLL_STATE_FIFO_DATA_AVAILABLE)
                 handle_local_event(d);
             else if (ctrl_events[ADMIN_PACKET_EVENT].state == K_POLL_STATE_FIFO_DATA_AVAILABLE)
@@ -107,9 +102,7 @@ void cipher_ctrl_thread(void *arg0, void *arg1, void *arg2)
             // reset events
             for (uint8_t i = 0; i < ARRAY_SIZE(ctrl_events); i++)
                 ctrl_events[i].state = K_POLL_STATE_NOT_READY;
-        }
-        else
-        {
+        } else {
             ERROR("Unexpected timeout on k_poll: %d. daemon %d", event, d->id);
         }
     }
@@ -118,8 +111,7 @@ void cipher_ctrl_thread(void *arg0, void *arg1, void *arg2)
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                         Setup Events
  *---------------------------------------------------------------------------------------------------*/
-static void setup_thread_events(cipher_daemon_t *d, struct k_poll_event *events)
-{
+static void setup_thread_events(cipher_daemon_t *d, struct k_poll_event *events) {
     k_poll_event_init(&events[HOST_LOCAL_EVENT],
                       K_POLL_TYPE_FIFO_DATA_AVAILABLE,
                       K_POLL_MODE_NOTIFY_ONLY,
@@ -134,8 +126,7 @@ static void setup_thread_events(cipher_daemon_t *d, struct k_poll_event *events)
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                 Admin Packet Handler
  *---------------------------------------------------------------------------------------------------*/
-static void handle_admin_packet_event(cipher_daemon_t *d)
-{
+static void handle_admin_packet_event(cipher_daemon_t *d) {
     cipher_iface_packet_info_t *packet_info = k_fifo_get(&d->admin_packet_queue, K_NO_WAIT);
     if (packet_info == NULL)
         ERROR("Null item on admin_packet_queue, daemon %d", d->id);
@@ -150,49 +141,41 @@ static void handle_admin_packet_event(cipher_daemon_t *d)
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                  Local Event Handler
  *---------------------------------------------------------------------------------------------------*/
-static void handle_local_event(cipher_daemon_t *d)
-{
+static void handle_local_event(cipher_daemon_t *d) {
     ctrl_event_t *event = k_fifo_get(&d->ctrl_event_queue, K_FOREVER);
     if (event == NULL)
         ERROR("Null item on ctrl_event_queue, daemon %d", d->id);
 
-    switch (event->type)
-    {
-    case CTRL_EVENT_TYPE_IFACE_CONNECTED:
-    {
-        DBG("CTRL_EVENT_TYPE_IFACE_CONNECTED received");
-        ctrl_event_opt_iface_conn_t *iface_options = (ctrl_event_opt_iface_conn_t *)event->options;
-        cipher_iface_t *iface = iface_options->iface;
-        k_fifo_put(&d->sd_iface_conn_queue, iface);
-    }
-    break;
+    switch (event->type) {
+        case CTRL_EVENT_TYPE_IFACE_CONNECTED: {
+            DBG("CTRL_EVENT_TYPE_IFACE_CONNECTED received");
+            ctrl_event_opt_iface_conn_t *iface_options = (ctrl_event_opt_iface_conn_t *)event->options;
+            cipher_iface_t *iface = iface_options->iface;
+            k_fifo_put(&d->sd_iface_conn_queue, iface);
+        } break;
 
-    case CTRL_EVENT_TYPE_IFACE_DISCONNECTED:
-    {
-        DBG("CTRL_EVENT_TYPE_IFACE_DISCONNECTED received");
-        ctrl_event_opt_iface_conn_t *iface_options = (ctrl_event_opt_iface_conn_t *)event->options;
-        cipher_iface_t *iface = iface_options->iface;
-        k_fifo_put(&d->sd_iface_disconn_queue, iface);
-    }
-    break;
+        case CTRL_EVENT_TYPE_IFACE_DISCONNECTED: {
+            DBG("CTRL_EVENT_TYPE_IFACE_DISCONNECTED received");
+            ctrl_event_opt_iface_conn_t *iface_options = (ctrl_event_opt_iface_conn_t *)event->options;
+            cipher_iface_t *iface = iface_options->iface;
+            k_fifo_put(&d->sd_iface_disconn_queue, iface);
+        } break;
 
-    case CTRL_EVENT_TYPE_EXIT:
-    {
-        DBG("Ending dameon instance...");
+        case CTRL_EVENT_TYPE_EXIT: {
+            DBG("Ending dameon instance...");
 
-        k_thread_abort(d->sd_t_id);
-        k_thread_abort(d->router_t_id);
+            k_thread_abort(d->sd_t_id);
+            k_thread_abort(d->router_t_id);
 
-        // tal_close(&daemon->uplink_cfg);
+            // tal_close(&daemon->uplink_cfg);
 
-        DBG("Exiting");
+            DBG("Exiting");
 
-        k_thread_abort(k_current_get());
-    }
-    break;
+            k_thread_abort(k_current_get());
+        } break;
 
-    default:
-        ERROR("Unknown controller event type: %d", event->type);
+        default:
+            ERROR("Unknown controller event type: %d", event->type);
     }
 
     k_heap_free(&d->ctrl_events_heap, event->options);

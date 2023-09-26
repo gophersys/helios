@@ -2,16 +2,15 @@
 #define DAEMON_CONFIG_H
 
 // Cipher includes
-#include "config/default.h"
 #include "config/daemon.h"
-#include "transport/transport.h"
+#include "config/default.h"
 #include "protocol/protocol.h"
+#include "transport/transport.h"
 
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                           Fifo Types
  *---------------------------------------------------------------------------------------------------*/
-typedef struct 
-{
+typedef struct {
     uintptr_t __k_reserved;
     cipher_packet_t packet;
 } cipher_packet_fifo_t;
@@ -20,36 +19,33 @@ typedef struct
  *                                                                                           Interfaces
  *---------------------------------------------------------------------------------------------------*/
 
-typedef struct
-{
+typedef struct {
     uint8_t id;               /*!< Unique Id for the interface */
     tal_config_t *cfg;        /*!< The TAL config for the interface */
     bool connected;           /*!< Used to indicate connection status */
     struct k_sem conn_sem;    /*!< Used to signal send/recv threads, from conn thread */
     struct k_sem disconn_sem; /*!< Used to signal conn thread, from send or recv threads */
 
-    struct k_fifo encoded_packets_queue; ///< Queue used by the router thread to send encoded
-                                         ///< packets out on the interface
-                                         ///< @param cipher_packet_t
-                                         ///< @heap unrouted_packets_heap
+    struct k_fifo encoded_packets_queue;  ///< Queue used by the router thread to send encoded
+                                          ///< packets out on the interface
+                                          ///< @param cipher_packet_t
+                                          ///< @heap unrouted_packets_heap
 
-    struct k_fifo decoded_packets_queue; ///< Queue used by the multiple daemon threads to send
-                                         ///< decoded packets on the interface
-                                         ///< @param cipher_packet_fifo_t
-                                         ///< @heap local_packets_heap
+    struct k_fifo decoded_packets_queue;  ///< Queue used by the multiple daemon threads to send
+                                          ///< decoded packets on the interface
+                                          ///< @param cipher_packet_fifo_t
+                                          ///< @heap local_packets_heap
 } cipher_iface_t;
 
 // Send and Recv threads are identical
-typedef struct
-{
+typedef struct {
     k_tid_t id;
     struct k_thread data;
     K_THREAD_STACK_MEMBER(stack, TRANSPORT_THREAD_STACK_SIZE);
 } cipher_iface_thread_info_t;
 
 // Interface thread group (connect, send and recv)
-typedef struct
-{
+typedef struct {
     cipher_iface_t iface;
     cipher_iface_thread_info_t connection_t;
     cipher_iface_thread_info_t send_t;
@@ -57,8 +53,7 @@ typedef struct
 } cipher_iface_thread_group_t;
 
 // Used to signal daemon threads of where a packet came from
-typedef struct
-{
+typedef struct {
     uintptr_t __k_reserved;
 
     cipher_packet_t *packet;
@@ -69,24 +64,21 @@ typedef struct
  *                                                                                           Registries
  *---------------------------------------------------------------------------------------------------*/
 
-typedef struct
-{
+typedef struct {
     bool used;
     uint16_t device_id;
     uint16_t service_id;
     cipher_iface_t *iface;
 } cipher_service_entry_t;
 
-typedef struct
-{
+typedef struct {
     cipher_service_entry_t entries[CONFIG_MAX_NUM_SERVICES];
 } cipher_service_registry_t;
 
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                               Deamon
  *---------------------------------------------------------------------------------------------------*/
-typedef struct
-{
+typedef struct {
     // user config
     cipher_daemon_config_t *cfg;
 
@@ -211,4 +203,4 @@ typedef struct
     cipher_service_registry_t service_registry;
 } cipher_daemon_t;
 
-#endif // DAEMON_CONFIG_H
+#endif  // DAEMON_CONFIG_H

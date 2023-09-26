@@ -2,22 +2,22 @@
 #include <stdio.h>
 
 // Zephyr includes
-#include <zephyr/logging/log.h>
 #include <zephyr/kernel.h>
+#include <zephyr/logging/log.h>
 #include <zephyr/net/socket.h>
 
 // Cipher includes
 #include "config/default.h"
-#include "transport/transport.h"
+#include "daemon/daemon.h"
 #include "protocol/protocol.h"
 #include "protocol/serdes.h"
-#include "daemon/daemon.h"
+#include "transport/transport.h"
 #include "utils/err.h"
 
 // Private include
 #include "interface.h"
-#include "threads.h"
 #include "packet.h"
+#include "threads.h"
 
 LOG_MODULE_REGISTER(event, EVENT_LOG_LEVEL);
 
@@ -36,12 +36,10 @@ LOG_MODULE_REGISTER(event, EVENT_LOG_LEVEL);
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                           Public API
  *---------------------------------------------------------------------------------------------------*/
-void cipher_event_thread(void *arg0, void *arg1, void *arg2)
-{
+void cipher_event_thread(void *arg0, void *arg1, void *arg2) {
     cipher_daemon_t *d = (cipher_daemon_t *)arg0;
 
-    while (true)
-    {
+    while (true) {
         cipher_iface_packet_info_t *packet_info = k_fifo_get(&d->event_packet_queue, K_FOREVER);
         if (packet_info == NULL)
             ERROR("Null item on event_packet_queue, daemon %d", d->id);
