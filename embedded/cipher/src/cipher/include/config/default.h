@@ -8,14 +8,14 @@
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                            Debugging
  *---------------------------------------------------------------------------------------------------*/
-#define REGISTRY_LOG_LEVEL LOG_LEVEL_DBG
-#define ROUTER_LOG_LEVEL LOG_LEVEL_DBG
-#define SD_LOG_LEVEL LOG_LEVEL_DBG
-#define EVENT_LOG_LEVEL LOG_LEVEL_DBG
-#define RPC_LOG_LEVEL LOG_LEVEL_DBG
-#define DAEMON_LOG_LEVEL LOG_LEVEL_DBG
-#define IFACE_LOG_LEVEL LOG_LEVEL_DBG
-#define TAL_LOG_LEVEL LOG_LEVEL_INF
+#define REGISTRY_LOG_LEVEL LOG_LEVEL_INF
+#define ROUTER_LOG_LEVEL LOG_LEVEL_WRN
+#define SD_LOG_LEVEL LOG_LEVEL_WRN
+#define EVENT_LOG_LEVEL LOG_LEVEL_WRN
+#define RPC_LOG_LEVEL LOG_LEVEL_WRN
+#define DAEMON_LOG_LEVEL LOG_LEVEL_INF
+#define IFACE_LOG_LEVEL LOG_LEVEL_INF
+#define TAL_LOG_LEVEL LOG_LEVEL_WRN
 
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                             Services

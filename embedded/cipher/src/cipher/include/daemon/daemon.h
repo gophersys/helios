@@ -56,6 +56,7 @@ typedef struct {
 
 typedef struct {
     bool _used;
+    bool local;
     cipher_iface_t *iface;
     cipher_service_t service;
 } cipher_service_entry_t;

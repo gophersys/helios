@@ -121,7 +121,7 @@ static void update_registry(cipher_daemon_t *d, cipher_iface_t *disconn_iface) {
             continue;
         }
 
-        if (!service_unregister(d, entry)) {
+        if (!cipher_service_unregister(d, entry)) {
             ERROR("Service should have been in registry");
         }
     }

@@ -24,10 +24,26 @@
 LOG_MODULE_REGISTER(registry, REGISTRY_LOG_LEVEL);
 
 /*-----------------------------------------------------------------------------------------------------
+ *                                                                                    Private Functions
+ *---------------------------------------------------------------------------------------------------*/
+
+/**
+ * @brief Verifies that the service entry being requested makes sense
+ *
+ * Checks that there's no clashing of ids, null interfaces, etc
+ *
+ * @param d The daemon
+ * @param entry The entry to check
+ * @retval true If the entry is valid
+ * @retval false If there's an invalid setting, printed as WARN
+ */
+static bool verify_entry(cipher_daemon_t *d, cipher_service_entry_t *entry);
+
+/*-----------------------------------------------------------------------------------------------------
  *                                                                                   API Implementation
  *---------------------------------------------------------------------------------------------------*/
 
-bool service_exists(cipher_daemon_t *d, cipher_service_entry_t *entry) {
+bool cipher_service_exists(cipher_daemon_t *d, cipher_service_entry_t *entry) {
 
     // If the device if, service id and name match, service is present
     for (size_t i = 0; i < ARRAY_SIZE(d->service_registry.entries); i++) {
@@ -38,30 +54,34 @@ bool service_exists(cipher_daemon_t *d, cipher_service_entry_t *entry) {
             continue;
         }
 
-        if (current_entry->service.service_id != entry->service.service_id) {
+        if (current_entry->service.service_id == entry->service.service_id) {
+
+            // Check that there aren't services with same ids but different names
+            if(strcmp(current_entry->service.name, entry->service.name) != 0){
+                ERROR("Found existing entry with name \"%s\" and id %d, but new entry has name \"%s\" and id %d",
+                    current_entry->service.name, current_entry->service.service_id,
+                    entry->service.name, entry->service.service_id);
+            }
+
             continue;
         }
 
-        if (strcmp(current_entry->service.name, entry->service.name) != 0) {
-            continue;
-        }
-
-        DBG("Service %d, for device %d, on iface %d found in daemon's %d registry",
+        DBG("Service %d, at device %d, on iface %d found in daemon's %d registry",
             entry->service.service_id, entry->service.device_id, entry->iface->id, d->id);
 
         return true;
     }
 
-    DBG("Service %d, for device %d, on iface %d not in daemon's %d registry",
+    DBG("Service %d, at device %d, on iface %d not in daemon's %d registry",
         entry->service.service_id, entry->service.device_id, entry->iface->id, d->id);
 
     return false;
 }
 
-bool service_register(cipher_daemon_t *d, cipher_service_entry_t *entry) {
+bool cipher_service_register(cipher_daemon_t *d, cipher_service_entry_t *entry) {
 
-    if (service_exists(d, entry)) {
-        return true;
+    if (!verify_entry(d, entry)) {
+        return false;
     }
 
     for (size_t i = 0; i < ARRAY_SIZE(d->service_registry.entries); i++) {
@@ -85,9 +105,9 @@ bool service_register(cipher_daemon_t *d, cipher_service_entry_t *entry) {
     return false;
 }
 
-bool service_unregister(cipher_daemon_t *d, cipher_service_entry_t *entry) {
+bool cipher_service_unregister(cipher_daemon_t *d, cipher_service_entry_t *entry) {
 
-    if (!service_exists(d, entry)) {
+    if (!cipher_service_exists(d, entry)) {
         return false;
     }
 
@@ -116,4 +136,46 @@ bool service_unregister(cipher_daemon_t *d, cipher_service_entry_t *entry) {
     }
 
     return false;
+}
+
+/*-----------------------------------------------------------------------------------------------------
+ *                                                                                         Verify Entry
+ *---------------------------------------------------------------------------------------------------*/
+static bool verify_entry(cipher_daemon_t *d, cipher_service_entry_t *entry) {
+
+    if (cipher_service_exists(d, entry)) {
+        return true;
+    }
+
+    if (entry->local) {
+        if (entry->iface != NULL) {
+            WARN("Cannot register a local service %d with a non-null iface, daemon %d",
+                 entry->service.service_id, d->id);
+
+            return false;
+        }
+
+        if (entry->service.device_id != d->device_id) {
+            WARN("Expected local service device id to be %d, got %d, daemon %d",
+                 d->device_id, entry->service.service_id, d->id);
+
+            return false;
+        }
+    } else {
+        if (entry->iface == NULL) {
+            WARN("Cannot register remote service %d with a null iface, daemon %d",
+                 entry->service.service_id, d->id);
+
+            return false;
+        }
+
+        if (entry->service.device_id == d->device_id) {
+            WARN("Cannot register remote device id %d, same as local id %d, daemon %d",
+                 entry->service.service_id, d->device_id, d->id);
+
+            return false;
+        }
+    }
+
+    return true;
 }

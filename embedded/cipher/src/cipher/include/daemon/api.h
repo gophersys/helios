@@ -15,5 +15,6 @@
  *---------------------------------------------------------------------------------------------------*/
 
 void cipher_init_daemon(cipher_daemon_config_t *cfg, cipher_daemon_t *d);
+void cipher_register_local_services(cipher_daemon_t *d, cipher_service_entry_t *entries, size_t num_entries);
 
 #endif  // API_H

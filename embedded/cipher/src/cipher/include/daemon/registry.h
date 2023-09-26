@@ -14,17 +14,21 @@
  * @retval true If found
  * @retval false If not found
  */
-bool service_exists(cipher_daemon_t *d, cipher_service_entry_t *entry);
+bool cipher_service_exists(cipher_daemon_t *d, cipher_service_entry_t *entry);
 
 /**
  * @brief Add an entry to the daemon's service registry
+ *
+ * If trying to register a local service, the device id must match the daemon's
+ * device id, and if trying to register a remote service, the device id must not
+ * match the daemon's device id
  *
  * @param d The daemon
  * @param entry The new entry we want to add
  * @retval true If the entry was added succesfully, or it already exists
  * @retval false If there's not enough space in the registry
  */
-bool service_register(cipher_daemon_t *d, cipher_service_entry_t *entry);
+bool cipher_service_register(cipher_daemon_t *d, cipher_service_entry_t *entry);
 
 /**
  * @brief Remove an entry from the daemon's service registry
@@ -34,6 +38,6 @@ bool service_register(cipher_daemon_t *d, cipher_service_entry_t *entry);
  * @retval true If the entry was removed succesfully
  * @retval false If the entry wasn't found in the registry
  */
-bool service_unregister(cipher_daemon_t *d, cipher_service_entry_t *entry);
+bool cipher_service_unregister(cipher_daemon_t *d, cipher_service_entry_t *entry);
 
 #endif

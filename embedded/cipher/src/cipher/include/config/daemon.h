@@ -12,6 +12,7 @@
 #include "transport/transport.h"
 
 typedef struct {
+    uint16_t device_id;
     tal_config_t uplink_ifaces[CONFIG_UP_LINK_IFACE_COUNT];
     tal_config_t downlink_ifaces[CONFIG_DOWN_LINK_IFACE_COUNT];
 } cipher_daemon_config_t;

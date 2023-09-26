@@ -52,6 +52,7 @@ void handle_sd_packet_event(cipher_daemon_t *d) {
 
     // Crate a potential entry to enter to our registry
     cipher_service_entry_t potential_entry = {
+        .local = false,
         .iface = fifo_item->iface,
         .service = {
             .service_id = sd_payload->service_id,
@@ -63,8 +64,8 @@ void handle_sd_packet_event(cipher_daemon_t *d) {
     strcpy(potential_entry.service.name, sd_payload->name);
 
     // Update registry
-    if (!service_exists(d, &potential_entry)) {
-        if (!service_register(d, &potential_entry)) {
+    if (!cipher_service_exists(d, &potential_entry)) {
+        if (!cipher_service_register(d, &potential_entry)) {
             ERROR("Unable to register service %d, for daemon %d", potential_entry.service.service_id, d->id);
         }
         notify_interfaces(d, &potential_entry, fifo_item->iface);

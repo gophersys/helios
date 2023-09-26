@@ -10,6 +10,7 @@
 // Cipher includes
 #include "config/default.h"
 #include "daemon/daemon.h"
+#include "daemon/registry.h"
 #include "utils/err.h"
 
 // Private include
@@ -23,7 +24,7 @@ LOG_MODULE_REGISTER(daemon, DAEMON_LOG_LEVEL);
 
 static void assert_config(const cipher_daemon_config_t *cfg);
 static void print_daemon_stats(cipher_daemon_t *d);
-static void setup_ids(cipher_daemon_t *d);
+static void setup_daemon_id(cipher_daemon_t *d);
 static void init_objects(cipher_daemon_t *d);
 static void init_registries(cipher_daemon_t *d);
 static void init_interface_objects(cipher_iface_t *iface);
@@ -44,16 +45,25 @@ void cipher_init_daemon(cipher_daemon_config_t *cfg, cipher_daemon_t *d) {
 
     assert_config(cfg);
     d->cfg = cfg;
+    d->device_id = cfg->device_id;
 
     print_daemon_stats(d);
 
-    setup_ids(d);
+    setup_daemon_id(d);
     init_objects(d);
     init_registries(d);
     init_interfaces(d);
     init_threads(d);
 
     DBG("Daemon instance %d, initialized OK, device id: %d", d->id, d->device_id);
+}
+
+void cipher_register_local_services(cipher_daemon_t *d, cipher_service_entry_t *entries, size_t num_entries) {
+    for (size_t i = 0; i < num_entries; i++) {
+        if (!cipher_service_register(d, &entries[i])) {
+            ERROR("Unable to register local service %d, for daemon %d", entries[i].service.service_id, d->id);
+        }
+    }
 }
 
 /*-----------------------------------------------------------------------------------------------------
@@ -102,22 +112,12 @@ static void print_daemon_stats(cipher_daemon_t *d) {
  *---------------------------------------------------------------------------------------------------*/
 
 /**
- * @brief Set the up ids of daemon instance and the device
+ * @brief Set the up id of daemon instance
  *
  * @param d The daemon
  */
-static void setup_ids(cipher_daemon_t *d) {
+static void setup_daemon_id(cipher_daemon_t *d) {
     static uint8_t instances = 0;
-    static uint16_t device_id = 0;
-    static bool initialized = false;
-
-    if (!initialized) {
-        // All interfaces will broadcast the same device Id
-        sys_rand_get(&device_id, sizeof(device_id));  // TODO: What happens if remote end has same Id?
-        initialized = true;
-    }
-
-    d->device_id = device_id;
     d->id = instances++;
 }
 
