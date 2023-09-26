@@ -25,7 +25,8 @@ LOG_MODULE_DECLARE(sd, SD_LOG_LEVEL);
 /*-----------------------------------------------------------------------------------------------------
  *                                                                             Iface Disonnection Event
  *---------------------------------------------------------------------------------------------------*/
-void send_service_broadcast(cipher_daemon_t *d, cipher_iface_t *iface, cipher_payload_sd_t *sd_payload) {
+void send_service_payload(cipher_daemon_t *d, cipher_iface_t *iface, cipher_payload_sd_t *sd_payload) {
+
     // Allocate memory for queue item
     cipher_packet_fifo_t *fifo_item = k_heap_aligned_alloc(&d->local_packets_heap, 8, sizeof(cipher_packet_fifo_t), K_FOREVER);
     CHECK_MALLOC(fifo_item);
@@ -38,10 +39,12 @@ void send_service_broadcast(cipher_daemon_t *d, cipher_iface_t *iface, cipher_pa
     // Set payload values
     cipher_payload_sd_t *payload = (cipher_payload_sd_t *)packet->payload;
     payload->alive = sd_payload->alive;
-    payload->id = sd_payload->id;
+    strcpy(payload->name, sd_payload->name);
+    payload->service_id = sd_payload->service_id;
     payload->num_ops = sd_payload->num_ops;
+    payload->allowed_hops = sd_payload->allowed_hops;
 
-    // Add to interface's send queue
-    DBG("Sending service discovery payload to iface %d", iface->id);
+    DBG("Sending SD payload, service %d name %s to iface %d", payload->service_id, payload->name, iface->id);
+
     k_fifo_put(&iface->decoded_packets_queue, packet);
 }

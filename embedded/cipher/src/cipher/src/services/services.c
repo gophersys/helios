@@ -46,7 +46,6 @@ LOG_MODULE_REGISTER(sd, SD_LOG_LEVEL);
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                    Private Functions
  *---------------------------------------------------------------------------------------------------*/
-
 static void setup_thread_events(cipher_daemon_t *d, struct k_poll_event *events) {
     k_poll_event_init(&events[SD_PACKET_EVENT],
                       K_POLL_TYPE_FIFO_DATA_AVAILABLE,
@@ -76,21 +75,24 @@ void cipher_sd_thread(void *arg0, void *arg1, void *arg2) {
 
     while (true) {
         int event = k_poll(sd_events, EVENT_NUM, K_FOREVER);
-        if (event == 0) {
-            if (sd_events[SD_PACKET_EVENT].state == K_POLL_STATE_FIFO_DATA_AVAILABLE)
+
+        if (event != 0) {
+            ERROR("Unexpected timeout on k_poll: %d, daemon %d", event, d->id);
+        } else {
+            if (sd_events[SD_PACKET_EVENT].state == K_POLL_STATE_FIFO_DATA_AVAILABLE) {
                 handle_packet_event(d);
-            else if (sd_events[IFACE_CONN_EVENT].state == K_POLL_STATE_FIFO_DATA_AVAILABLE)
+            } else if (sd_events[IFACE_CONN_EVENT].state == K_POLL_STATE_FIFO_DATA_AVAILABLE) {
                 handle_iface_conn_event(d);
-            else if (sd_events[IFACE_DISCONN_EVENT].state == K_POLL_STATE_FIFO_DATA_AVAILABLE)
+            } else if (sd_events[IFACE_DISCONN_EVENT].state == K_POLL_STATE_FIFO_DATA_AVAILABLE) {
                 handle_iface_disconn_event(d);
-            else
+            } else {
                 ERROR("Unknown poll condition: %d, daemon %d", event, d->id);
+            }
 
             // reset events
-            for (uint8_t i = 0; i < EVENT_NUM; i++)
+            for (uint8_t i = 0; i < EVENT_NUM; i++) {
                 sd_events[i].state = K_POLL_STATE_NOT_READY;
-        } else {
-            ERROR("Unexpected timeout on k_poll: %d, daemon %d", event, d->id);
+            }
         }
     }
 }

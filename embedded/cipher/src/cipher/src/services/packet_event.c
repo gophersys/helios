@@ -9,6 +9,7 @@
 // Cipher includes
 #include "config/default.h"
 #include "daemon/daemon.h"
+#include "daemon/registry.h"
 #include "protocol/protocol.h"
 #include "protocol/serdes.h"
 #include "transport/transport.h"
@@ -25,12 +26,12 @@ LOG_MODULE_DECLARE(sd, SD_LOG_LEVEL);
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                         Packet Event
  *---------------------------------------------------------------------------------------------------*/
-static bool service_exists(cipher_daemon_t *d, cipher_service_entry_t *entry);
-static void register_service(cipher_daemon_t *d, cipher_service_entry_t *entry);
 static void notify_interfaces(cipher_daemon_t *d);
 
 void handle_packet_event(cipher_daemon_t *d) {
+
     cipher_iface_packet_info_t *packet_info = k_fifo_get(&d->sd_packet_queue, K_FOREVER);
+
     if (packet_info == NULL)
         ERROR("Null item on sd_packet_queue, daemon %d", d->id);
 
@@ -38,47 +39,18 @@ void handle_packet_event(cipher_daemon_t *d) {
 
     // Check if service is already registered
     cipher_service_entry_t potential_entry = {
-        .device_id = packet->header.source_id,
-        .service_id = packet->header.service_id,
+        // .device_id = packet->header.source_id,
+        // .service_id = packet->header.service_id,
         .iface = packet_info->iface,
     };
 
     if (!service_exists(d, &potential_entry)) {
-        register_service(d, &potential_entry);
+        service_register(d, &potential_entry);
         free_iface_packet_info(d, packet_info);
 
         notify_interfaces(d);
     }
 }
 
-static bool service_exists(cipher_daemon_t *d, cipher_service_entry_t *entry) {
-    size_t service_count = sizeof(d->service_registry.entries) / sizeof(d->service_registry.entries[0]);
-    for (size_t i = 0; i < service_count; i++) {
-        if (d->service_registry.entries[i].device_id == entry->device_id) {
-            if (d->service_registry.entries[i].service_id == entry->device_id)
-                return true;
-        }
-    }
-
-    LOG("Service %d, for device %d, on iface %d not in daemon's %d registry",
-        entry->service_id, entry->device_id, entry->iface->id, d->id);
-    return false;
-}
-
-static void register_service(cipher_daemon_t *d, cipher_service_entry_t *entry) {
-    size_t service_count = sizeof(d->service_registry.entries) / sizeof(d->service_registry.entries[0]);
-    for (size_t i = 0; i < service_count; i++) {
-        if (d->service_registry.entries[i].used == false) {
-            memcpy(&d->service_registry.entries[i], entry, sizeof(cipher_service_entry_t));
-            d->service_registry.entries[i].used = true;
-            LOG("Service %d, device %d, on iface %d added to daemon's %d registry",
-                entry->service_id, entry->device_id, entry->iface->id, d->id);
-            return;
-        }
-    }
-
-    ERROR("Daemon %d service registry is full!", d->id);
-}
-
-static void notify_interfaces(cipher_daemon_t *d) {
+void notify_interfaces(cipher_daemon_t *d) {
 }

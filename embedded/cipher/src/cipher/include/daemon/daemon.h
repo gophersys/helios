@@ -8,17 +8,8 @@
 #include "transport/transport.h"
 
 /*-----------------------------------------------------------------------------------------------------
- *                                                                                           Fifo Types
- *---------------------------------------------------------------------------------------------------*/
-typedef struct {
-    uintptr_t __k_reserved;
-    cipher_packet_t packet;
-} cipher_packet_fifo_t;
-
-/*-----------------------------------------------------------------------------------------------------
  *                                                                                           Interfaces
  *---------------------------------------------------------------------------------------------------*/
-
 typedef struct {
     uint8_t id;               /*!< Unique Id for the interface */
     tal_config_t *cfg;        /*!< The TAL config for the interface */
@@ -26,7 +17,7 @@ typedef struct {
     struct k_sem conn_sem;    /*!< Used to signal send/recv threads, from conn thread */
     struct k_sem disconn_sem; /*!< Used to signal conn thread, from send or recv threads */
 
-    struct k_fifo encoded_packets_queue;  ///< Queue used by the router thread to send encoded
+    struct k_fifo encoded_packets_queue;  ///< Queue _used by the router thread to send encoded
                                           ///< packets out on the interface
                                           ///< @param cipher_packet_t
                                           ///< @heap unrouted_packets_heap
@@ -52,6 +43,35 @@ typedef struct {
     cipher_iface_thread_info_t recv_t;
 } cipher_iface_thread_group_t;
 
+/*-----------------------------------------------------------------------------------------------------
+ *                                                                                             Registry
+ *---------------------------------------------------------------------------------------------------*/
+typedef struct {
+    char name[CONFIG_CIPHER_NAME_LEN];
+    uint16_t service_id;
+    uint16_t device_id;
+    uint8_t num_ops;
+    uint8_t allowed_hops;
+} cipher_service_t;
+
+typedef struct {
+    bool _used;
+    cipher_iface_t *iface;
+    cipher_service_t service;
+} cipher_service_entry_t;
+
+typedef struct {
+    cipher_service_entry_t entries[CONFIG_MAX_NUM_SERVICES];
+} cipher_service_registry_t;
+
+/*-----------------------------------------------------------------------------------------------------
+ *                                                                                           Fifo Types
+ *---------------------------------------------------------------------------------------------------*/
+typedef struct {
+    uintptr_t __k_reserved;
+    cipher_packet_t packet;
+} cipher_packet_fifo_t;
+
 // Used to signal daemon threads of where a packet came from
 typedef struct {
     uintptr_t __k_reserved;
@@ -59,21 +79,6 @@ typedef struct {
     cipher_packet_t *packet;
     cipher_iface_t *iface;
 } cipher_iface_packet_info_t;
-
-/*-----------------------------------------------------------------------------------------------------
- *                                                                                           Registries
- *---------------------------------------------------------------------------------------------------*/
-
-typedef struct {
-    bool used;
-    uint16_t device_id;
-    uint16_t service_id;
-    cipher_iface_t *iface;
-} cipher_service_entry_t;
-
-typedef struct {
-    cipher_service_entry_t entries[CONFIG_MAX_NUM_SERVICES];
-} cipher_service_registry_t;
 
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                               Deamon
@@ -136,8 +141,16 @@ typedef struct {
 
     // Services
     struct k_fifo sd_packet_queue;
-    struct k_fifo sd_iface_conn_queue;
-    struct k_fifo sd_iface_disconn_queue;
+
+    struct k_fifo sd_iface_conn_queue;  ///< Queue used by the service discovery thread to
+                                        ///< receive connected interface updates
+                                        ///< @param cipher_iface_t *
+                                        ///< @heap No heap, passing pointer
+
+    struct k_fifo sd_iface_disconn_queue;  ///< Queue used by the service discovery thread to
+                                           ///< receive disconnected interface updates
+                                           ///< @param cipher_iface_t *
+                                           ///< @heap No heap, passing pointer
 
     // Router
     struct k_fifo unrouted_packets_queue;

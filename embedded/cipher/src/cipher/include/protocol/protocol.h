@@ -81,8 +81,10 @@ typedef struct {
 
 typedef struct {
     bool alive;
-    uint16_t id;
+    char name[CONFIG_CIPHER_NAME_LEN];
+    uint16_t service_id;
     uint8_t num_ops;
+    uint8_t allowed_hops;
 } cipher_payload_sd_t;
 
 #endif  // PROTOCOL_H

@@ -43,7 +43,6 @@ int main(void) {
     cipher_init_daemon(&config, &daemon);
 
     LOG("App Initialized OK");
-
     while (true)
         k_msleep(1000);
 }

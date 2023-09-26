@@ -1,0 +1,116 @@
+// Standard includes
+#include <stdio.h>
+
+// Zephyr includes
+#include <zephyr/kernel.h>
+#include <zephyr/logging/log.h>
+#include <zephyr/net/socket.h>
+
+// Cipher includes
+#include "config/default.h"
+#include "daemon/daemon.h"
+#include "daemon/registry.h"
+#include "protocol/protocol.h"
+#include "protocol/serdes.h"
+#include "transport/transport.h"
+#include "utils/err.h"
+
+// Private include
+#include "interface.h"
+#include "packet.h"
+#include "services.h"
+#include "threads.h"
+
+LOG_MODULE_REGISTER(registry, REGISTRY_LOG_LEVEL);
+
+/*-----------------------------------------------------------------------------------------------------
+ *                                                                                   API Implementation
+ *---------------------------------------------------------------------------------------------------*/
+
+bool service_exists(cipher_daemon_t *d, cipher_service_entry_t *entry) {
+
+    // If the device if, service id and name match, service is present
+    for (size_t i = 0; i < ARRAY_SIZE(d->service_registry.entries); i++) {
+
+        cipher_service_entry_t *current_entry = &d->service_registry.entries[i];
+
+        if (current_entry->service.device_id != entry->service.device_id) {
+            continue;
+        }
+
+        if (current_entry->service.service_id != entry->service.service_id) {
+            continue;
+        }
+
+        if (strcmp(current_entry->service.name, entry->service.name) != 0) {
+            continue;
+        }
+
+        DBG("Service %d, for device %d, on iface %d found in daemon's %d registry",
+            entry->service.service_id, entry->service.device_id, entry->iface->id, d->id);
+
+        return true;
+    }
+
+    WARN("Service %d, for device %d, on iface %d not in daemon's %d registry",
+         entry->service.service_id, entry->service.device_id, entry->iface->id, d->id);
+
+    return false;
+}
+
+bool service_register(cipher_daemon_t *d, cipher_service_entry_t *entry) {
+
+    if (service_exists(d, entry)) {
+        return true;
+    }
+
+    for (size_t i = 0; i < ARRAY_SIZE(d->service_registry.entries); i++) {
+
+        cipher_service_entry_t *current_entry = &d->service_registry.entries[i];
+
+        if (current_entry->_used == true) {
+            continue;
+        }
+
+        memcpy(current_entry, entry, sizeof(cipher_service_entry_t));
+        current_entry->_used = true;
+
+        return true;
+    }
+
+    WARN("Daemon %d service registry is full, number of entries: %d!", d->id, ARRAY_SIZE(d->service_registry.entries));
+    return false;
+}
+
+bool service_unregister(cipher_daemon_t *d, cipher_service_entry_t *entry) {
+
+    if (!service_exists(d, entry)) {
+        return false;
+    }
+
+    for (size_t i = 0; i < ARRAY_SIZE(d->service_registry.entries); i++) {
+
+        cipher_service_entry_t *current_entry = &d->service_registry.entries[i];
+
+        if (current_entry->service.device_id != entry->service.device_id) {
+            continue;
+        }
+
+        if (current_entry->service.service_id != entry->service.service_id) {
+            continue;
+        }
+
+        if (strcmp(current_entry->service.name, entry->service.name) != 0) {
+            continue;
+        }
+
+        memset(current_entry, 0, sizeof(cipher_service_entry_t));
+
+        DBG("Service %d, for device %d, on iface %d removed from daemon's %d registry",
+            entry->service.service_id, entry->service.device_id, entry->iface->id, d->id);
+
+        return true;
+    }
+
+    return false;
+}
