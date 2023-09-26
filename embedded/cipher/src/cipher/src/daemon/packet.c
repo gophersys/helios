@@ -17,36 +17,27 @@
 #include "packet.h"
 #include "threads.h"
 
-inline cipher_iface_packet_info_t *alloc_iface_packet_info(cipher_daemon_t *d, size_t payload_size) {
-    cipher_iface_packet_info_t *packet_info = k_heap_alloc(&d->local_packets_heap, sizeof(cipher_iface_packet_info_t), K_FOREVER);
-    if (!packet_info) {
+inline cipher_packet_fifo_item_t *alloc_packet_fifo_item(cipher_daemon_t *d, size_t payload_size) {
+
+    cipher_packet_fifo_item_t *fifo_item = k_heap_aligned_alloc(&d->local_packets_heap, 8, sizeof(cipher_packet_fifo_item_t), K_FOREVER);
+    if (!fifo_item) {
         return NULL;
     }
 
-    packet_info->packet = k_heap_alloc(&d->local_packets_heap, sizeof(cipher_packet_t), K_FOREVER);
-    if (!packet_info->packet) {
-        k_heap_free(&d->local_packets_heap, packet_info);
+    fifo_item->packet.payload = k_heap_aligned_alloc(&d->local_packets_heap, 8, payload_size, K_FOREVER);
+    if (!fifo_item->packet.payload) {
+        k_heap_free(&d->local_packets_heap, fifo_item);
         return NULL;
     }
 
-    packet_info->packet->payload = k_heap_alloc(&d->local_packets_heap, payload_size, K_FOREVER);
-    if (!packet_info->packet->payload) {
-        k_heap_free(&d->local_packets_heap, packet_info->packet);
-        k_heap_free(&d->local_packets_heap, packet_info);
-        return NULL;
-    }
-
-    return packet_info;
+    return fifo_item;
 }
 
-inline void free_iface_packet_info(cipher_daemon_t *d, cipher_iface_packet_info_t *packet_info) {
-    if (packet_info) {
-        if (packet_info->packet) {
-            if (packet_info->packet->payload) {
-                k_heap_free(&d->local_packets_heap, packet_info->packet->payload);
-            }
-            k_heap_free(&d->local_packets_heap, packet_info->packet);
+inline void free_packet_fifo_item(cipher_daemon_t *d, cipher_packet_fifo_item_t *fifo_item) {
+    if (fifo_item) {
+        if (fifo_item->packet.payload) {
+            k_heap_free(&d->local_packets_heap, fifo_item->packet.payload);
         }
-        k_heap_free(&d->local_packets_heap, packet_info);
+        k_heap_free(&d->local_packets_heap, fifo_item);
     }
 }

@@ -83,6 +83,7 @@ typedef struct {
     bool alive;
     char name[CONFIG_CIPHER_NAME_LEN];
     uint16_t service_id;
+    uint16_t device_id;
     uint8_t num_ops;
     uint8_t allowed_hops;
 } cipher_payload_sd_t;

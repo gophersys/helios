@@ -24,7 +24,7 @@ typedef struct {
 
     struct k_fifo decoded_packets_queue;  ///< Queue used by the multiple daemon threads to send
                                           ///< decoded packets on the interface
-                                          ///< @param cipher_packet_fifo_t
+                                          ///< @param cipher_packet_fifo_item_t
                                           ///< @heap local_packets_heap
 } cipher_iface_t;
 
@@ -67,18 +67,13 @@ typedef struct {
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                           Fifo Types
  *---------------------------------------------------------------------------------------------------*/
-typedef struct {
-    uintptr_t __k_reserved;
-    cipher_packet_t packet;
-} cipher_packet_fifo_t;
 
 // Used to signal daemon threads of where a packet came from
 typedef struct {
     uintptr_t __k_reserved;
-
-    cipher_packet_t *packet;
+    cipher_packet_t packet;
     cipher_iface_t *iface;
-} cipher_iface_packet_info_t;
+} cipher_packet_fifo_item_t;
 
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                               Deamon

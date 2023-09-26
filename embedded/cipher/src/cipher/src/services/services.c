@@ -80,7 +80,7 @@ void cipher_sd_thread(void *arg0, void *arg1, void *arg2) {
             ERROR("Unexpected timeout on k_poll: %d, daemon %d", event, d->id);
         } else {
             if (sd_events[SD_PACKET_EVENT].state == K_POLL_STATE_FIFO_DATA_AVAILABLE) {
-                handle_packet_event(d);
+                handle_sd_packet_event(d);
             } else if (sd_events[IFACE_CONN_EVENT].state == K_POLL_STATE_FIFO_DATA_AVAILABLE) {
                 handle_iface_conn_event(d);
             } else if (sd_events[IFACE_DISCONN_EVENT].state == K_POLL_STATE_FIFO_DATA_AVAILABLE) {

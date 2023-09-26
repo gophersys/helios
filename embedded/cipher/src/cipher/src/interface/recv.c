@@ -127,15 +127,15 @@ static void process_complete_packet(cipher_daemon_t *d, cipher_iface_t *iface, c
     }
 
     // Allocate buffer for a local packet
-    cipher_iface_packet_info_t *packet_info = alloc_iface_packet_info(d, bytes_recv);
-    CHECK_MALLOC(packet_info);
+    cipher_packet_fifo_item_t *fifo_item = alloc_packet_fifo_item(d, bytes_recv);
+    CHECK_MALLOC(fifo_item);
 
     // Decode packet
     serdes_decode_args_t args = {
         .header = header,
         .raw_payload = recv_buffer,
         .raw_payload_size = bytes_recv,
-        .decoded_payload = packet_info->packet->payload,
+        .decoded_payload = fifo_item->packet.payload,
     };
 
     serdes_error_t err = serdes_decode_packet(args);
@@ -147,16 +147,16 @@ static void process_complete_packet(cipher_daemon_t *d, cipher_iface_t *iface, c
     // Send packet to the right handler
     switch (header->type) {
         case CIPHER_PACKET_TYPE_ADMIN:
-            k_fifo_put(&d->admin_packet_queue, packet_info);
+            k_fifo_put(&d->admin_packet_queue, fifo_item);
             break;
         case CIPHER_PACKET_TYPE_RPC:
-            k_fifo_put(&d->rpc_packet_queue, packet_info);
+            k_fifo_put(&d->rpc_packet_queue, fifo_item);
             break;
         case CIPHER_PACKET_TYPE_EVENT:
-            k_fifo_put(&d->event_packet_queue, packet_info);
+            k_fifo_put(&d->event_packet_queue, fifo_item);
             break;
         case CIPHER_PACKET_TYPE_SD:
-            k_fifo_put(&d->sd_packet_queue, packet_info);
+            k_fifo_put(&d->sd_packet_queue, fifo_item);
             break;
         default:
             WARN("Unknow header type: %d", header->type);  // TODO: Prevent spam of wrong header types

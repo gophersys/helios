@@ -54,6 +54,7 @@ void handle_iface_conn_event(cipher_daemon_t *d) {
         cipher_payload_sd_t payload = {
             .alive = true,
             .service_id = entry->service.service_id,
+            .device_id = entry->service.device_id,
             .num_ops = entry->service.num_ops,
             .allowed_hops = entry->service.allowed_hops,
         };

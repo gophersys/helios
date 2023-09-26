@@ -5,7 +5,7 @@
 #include "daemon/daemon.h"
 
 // Event handlers
-void handle_packet_event(cipher_daemon_t *d);
+void handle_sd_packet_event(cipher_daemon_t *d);
 
 /**
  * @brief Event handler for a new interface connection detected

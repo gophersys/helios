@@ -28,13 +28,10 @@ LOG_MODULE_DECLARE(sd, SD_LOG_LEVEL);
 void send_service_payload(cipher_daemon_t *d, cipher_iface_t *iface, cipher_payload_sd_t *sd_payload) {
 
     // Allocate memory for queue item
-    cipher_packet_fifo_t *fifo_item = k_heap_aligned_alloc(&d->local_packets_heap, 8, sizeof(cipher_packet_fifo_t), K_FOREVER);
+    cipher_packet_fifo_item_t *fifo_item = alloc_packet_fifo_item(d, sizeof(cipher_payload_sd_t));
     CHECK_MALLOC(fifo_item);
 
-    // Allocate memory for packet payload
     cipher_packet_t *packet = &fifo_item->packet;
-    packet->payload = k_heap_aligned_alloc(&d->local_packets_heap, 8, sizeof(cipher_payload_sd_t), K_FOREVER);
-    CHECK_MALLOC(packet->payload);
 
     // Set payload values
     cipher_payload_sd_t *payload = (cipher_payload_sd_t *)packet->payload;
@@ -44,7 +41,8 @@ void send_service_payload(cipher_daemon_t *d, cipher_iface_t *iface, cipher_payl
     payload->num_ops = sd_payload->num_ops;
     payload->allowed_hops = sd_payload->allowed_hops;
 
-    DBG("Sending SD payload, service %d name %s to iface %d", payload->service_id, payload->name, iface->id);
+    DBG("Sending SD payload, service %d, device %d, name %s to iface %d",
+        payload->service_id, payload->device_id, payload->name, iface->id);
 
     k_fifo_put(&iface->decoded_packets_queue, packet);
 }

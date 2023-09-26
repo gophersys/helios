@@ -16,6 +16,7 @@
 
 // Private include
 #include "interface.h"
+#include "packet.h"
 #include "threads.h"
 
 LOG_MODULE_DECLARE(iface);
@@ -144,8 +145,8 @@ static void handle_decoded_packet_event(cipher_daemon_t *d, cipher_iface_t *ifac
     DBG("Send thread for iface %d, daemon %d, received decoded packet", iface->id, d->id);
 
     // Receive fifo item
-    cipher_packet_fifo_t *fifo_item = k_fifo_get(&iface->decoded_packets_queue, K_NO_WAIT);
-    CHECK_MALLOC(fifo_item);
+    cipher_packet_fifo_item_t *fifo_item = k_fifo_get(&iface->decoded_packets_queue, K_NO_WAIT);
+    CHECK_MALLOC(fifo_item);  // TODO: this is not a malloc lol
 
     cipher_packet_t *decoded_packet = &fifo_item->packet;
 
@@ -166,9 +167,8 @@ static void handle_decoded_packet_event(cipher_daemon_t *d, cipher_iface_t *ifac
         ERROR("Could not encode encoded_packet, err: %d. iface %d, daemon %d", err, iface->id, d->id);
     }
 
-    // Free daemon's memory allocated for cipher_packet_fifo_t
-    k_heap_free(&d->local_packets_heap, fifo_item->packet.payload);
-    k_heap_free(&d->local_packets_heap, fifo_item);
+    // After encoding we don't need the original buffer anymore
+    free_packet_fifo_item(d, fifo_item);
 
     // Send the encoded encoded_packet on the interface
     uint16_t bytes_sent = 0;

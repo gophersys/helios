@@ -52,8 +52,8 @@ bool service_exists(cipher_daemon_t *d, cipher_service_entry_t *entry) {
         return true;
     }
 
-    WARN("Service %d, for device %d, on iface %d not in daemon's %d registry",
-         entry->service.service_id, entry->service.device_id, entry->iface->id, d->id);
+    DBG("Service %d, for device %d, on iface %d not in daemon's %d registry",
+        entry->service.service_id, entry->service.device_id, entry->iface->id, d->id);
 
     return false;
 }
@@ -74,6 +74,9 @@ bool service_register(cipher_daemon_t *d, cipher_service_entry_t *entry) {
 
         memcpy(current_entry, entry, sizeof(cipher_service_entry_t));
         current_entry->_used = true;
+
+        DBG("Service %d, at device %d registered, daemon %d, allowed hops %d",
+            entry->service.service_id, entry->service.device_id, d->id, entry->service.allowed_hops);
 
         return true;
     }

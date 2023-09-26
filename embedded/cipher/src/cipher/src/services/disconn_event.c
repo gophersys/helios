@@ -86,6 +86,7 @@ static void update_affected_interfaces(cipher_daemon_t *d, cipher_iface_t *disco
         cipher_payload_sd_t payload = {
             .alive = false,  // Indicates the service is no longer available
             .service_id = entry->service.service_id,
+            .device_id = entry->service.device_id,
             .num_ops = entry->service.num_ops,
             .allowed_hops = entry->service.allowed_hops,
         };

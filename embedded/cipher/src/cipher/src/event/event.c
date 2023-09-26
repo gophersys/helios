@@ -40,15 +40,15 @@ void cipher_event_thread(void *arg0, void *arg1, void *arg2) {
     cipher_daemon_t *d = (cipher_daemon_t *)arg0;
 
     while (true) {
-        cipher_iface_packet_info_t *packet_info = k_fifo_get(&d->event_packet_queue, K_FOREVER);
+        cipher_packet_fifo_item_t *packet_info = k_fifo_get(&d->event_packet_queue, K_FOREVER);
         if (packet_info == NULL)
             ERROR("Null item on event_packet_queue, daemon %d", d->id);
 
-        uint16_t packet_len = packet_info->packet->header.payload_len + sizeof(packet_info->packet->header);
-        LOG("Received event packet, len %d", packet_len);
+        // uint16_t packet_len = packet_info->packet->header.payload_len + sizeof(packet_info->packet->header);
+        // LOG("Received event packet, len %d", packet_len);
         // TODO: Implement me
 
-        free_iface_packet_info(d, packet_info);
+        free_packet_fifo_item(d, packet_info);
     }
 }
 
