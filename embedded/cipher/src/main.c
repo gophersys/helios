@@ -30,7 +30,7 @@ static cipher_daemon_config_t config = {
 	},
 };
 
-static cipher_daemon_t daemon;
+static cipher_daemon_t daemon = {0};
 
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                                  App

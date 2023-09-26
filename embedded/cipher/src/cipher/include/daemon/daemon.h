@@ -8,20 +8,35 @@
 #include "protocol/protocol.h"
 
 /*-----------------------------------------------------------------------------------------------------
+ *                                                                                           Fifo Types
+ *---------------------------------------------------------------------------------------------------*/
+typedef struct 
+{
+    uintptr_t __k_reserved;
+    cipher_packet_t packet;
+} cipher_packet_fifo_t;
+
+/*-----------------------------------------------------------------------------------------------------
  *                                                                                           Interfaces
  *---------------------------------------------------------------------------------------------------*/
 
 typedef struct
 {
-    uint8_t id;
-    tal_config_t *cfg;
-    bool connected;
-    struct k_sem conn_sem;
-    struct k_sem disconn_sem;
+    uint8_t id;               /*!< Unique Id for the interface */
+    tal_config_t *cfg;        /*!< The TAL config for the interface */
+    bool connected;           /*!< Used to indicate connection status */
+    struct k_sem conn_sem;    /*!< Used to signal send/recv threads, from conn thread */
+    struct k_sem disconn_sem; /*!< Used to signal conn thread, from send or recv threads */
 
-    // Used by send thread
-    struct k_fifo encoded_packets_queue;
-    struct k_fifo decoded_packets_queue;
+    struct k_fifo encoded_packets_queue; ///< Queue used by the router thread to send encoded
+                                         ///< packets out on the interface
+                                         ///< @param cipher_packet_t
+                                         ///< @heap unrouted_packets_heap
+
+    struct k_fifo decoded_packets_queue; ///< Queue used by the multiple daemon threads to send
+                                         ///< decoded packets on the interface
+                                         ///< @param cipher_packet_fifo_t
+                                         ///< @heap local_packets_heap
 } cipher_iface_t;
 
 // Send and Recv threads are identical
@@ -44,6 +59,8 @@ typedef struct
 // Used to signal daemon threads of where a packet came from
 typedef struct
 {
+    uintptr_t __k_reserved;
+
     cipher_packet_t *packet;
     cipher_iface_t *iface;
 } cipher_iface_packet_info_t;
@@ -82,30 +99,26 @@ typedef struct
     /*-----------------------------------------------
      *                                        Threads
      *---------------------------------------------*/
-    // Controller thread info
+
     k_tid_t ctrl_t_id;
     struct k_thread ctrl_t_data;
-    K_THREAD_STACK_MEMBER(ctrl_t_stack, 1024);
+    K_THREAD_STACK_MEMBER(ctrl_t_stack, 4096);
 
-    // Service discovery thread info
     k_tid_t sd_t_id;
     struct k_thread sd_t_data;
-    K_THREAD_STACK_MEMBER(sd_t_stack, 1024);
+    K_THREAD_STACK_MEMBER(sd_t_stack, 2048);
 
-    // Router thread info
     k_tid_t router_t_id;
     struct k_thread router_t_data;
-    K_THREAD_STACK_MEMBER(router_t_stack, 1024);
+    K_THREAD_STACK_MEMBER(router_t_stack, 2048);
 
-    // RPC thread info
     k_tid_t rpc_t_id;
     struct k_thread rpc_t_data;
-    K_THREAD_STACK_MEMBER(rpc_t_stack, 1024);
+    K_THREAD_STACK_MEMBER(rpc_t_stack, 2048);
 
-    // Event thread info
     k_tid_t event_t_id;
     struct k_thread event_t_data;
-    K_THREAD_STACK_MEMBER(event_t_stack, 1024);
+    K_THREAD_STACK_MEMBER(event_t_stack, 2048);
 
     /*-----------------------------------------------
      *                                         Ifaces
@@ -123,6 +136,10 @@ typedef struct
 
     // Controller
     struct k_fifo admin_packet_queue;
+
+    /**
+     * @implements ctrl_event_t
+     */
     struct k_fifo ctrl_event_queue;
 
     // Services
@@ -150,7 +167,7 @@ typedef struct
      * @deallocator:
      */
     struct k_heap ctrl_events_heap;
-    uint8_t __aligned(8) ctrl_events_heap_mem[CONFIG_CTRL_EVENTS_HEAP_SIZE];
+    uint8_t __aligned(8) ctrl_events_heap_mem[1024];
 
     /**
      * @brief Heap pool to receive and send network packets using send() and recv()
@@ -192,7 +209,6 @@ typedef struct
      *                                     Registries
      *---------------------------------------------*/
     cipher_service_registry_t service_registry;
-
 } cipher_daemon_t;
 
 #endif // DAEMON_CONFIG_H

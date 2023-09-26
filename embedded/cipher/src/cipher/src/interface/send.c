@@ -62,7 +62,7 @@ void cipher_interface_send_thread(void *arg0, void *arg1, void *arg2)
     {
         // Wait until the iface is connected
         k_sem_take(&iface->conn_sem, K_FOREVER); // TODO: handle timeout
-        LOG("Recv thread for iface %d unblocked", iface->id);
+        LOG("Send thread for iface %d unblocked", iface->id);
 
         while (iface->connected)
         {
@@ -113,6 +113,7 @@ static void handle_encoded_packet_event(cipher_daemon_t *d, cipher_iface_t *ifac
     LOG("Send thread for iface %d, daemon %d, received encoded encoded_packet", iface->id, d->id);
 
     // Receive decoded_packet on queue
+    // TODO: The code below is technically wrong because the packet is already encoded, but then how do we get the header?
     cipher_packet_t *encoded_packet = k_fifo_get(&iface->encoded_packets_queue, K_NO_WAIT);
     if (encoded_packet == NULL)
         ERROR("Null item on encoded_packets_queue, iface %d, daemon %d", iface->id, d->id);
@@ -150,16 +151,18 @@ static void handle_encoded_packet_event(cipher_daemon_t *d, cipher_iface_t *ifac
 static void handle_decoded_packet_event(cipher_daemon_t *d, cipher_iface_t *iface)
 {
     __ASSERT(iface->connected, "Received an encoded_packet to be sent on a disconnected interface");
-    LOG("Send thread for iface %d, daemon %d, received decoded encoded_packet", iface->id, d->id);
+    DBG("Send thread for iface %d, daemon %d, received decoded packet", iface->id, d->id);
 
-    // Receive encoded_packet on queue
-    cipher_packet_t *decoded_packet = k_fifo_get(&iface->decoded_packets_queue, K_NO_WAIT);
-    if (decoded_packet == NULL)
-        ERROR("Null item on decoded_packets_queue, iface %d, daemon %d", iface->id, d->id);
+    // Receive fifo item
+    cipher_packet_fifo_t *fifo_item = k_fifo_get(&iface->decoded_packets_queue, K_NO_WAIT);
+    CHECK_MALLOC(fifo_item);
+
+    cipher_packet_t *decoded_packet = &fifo_item->packet;
 
     // Allocate a buffer to hold encoded payload
     uint16_t packet_len = sizeof(cipher_header_t) + decoded_packet->header.payload_len;
     uint8_t *send_buffer = k_heap_alloc(&d->net_packets_heap, packet_len, K_FOREVER);
+    CHECK_MALLOC(send_buffer);
 
     // Encode raw payload
     serdes_encode_args_t args = {
@@ -172,9 +175,9 @@ static void handle_decoded_packet_event(cipher_daemon_t *d, cipher_iface_t *ifac
     if (err != SERDES_ERROR_OK)
         ERROR("Could not encode encoded_packet, err: %d. iface %d, daemon %d", err, iface->id, d->id);
 
-    // Free daemon's memory allocated for decoded encoded_packet
-    k_heap_free(&d->local_packets_heap, decoded_packet->payload);
-    k_heap_free(&d->local_packets_heap, decoded_packet);
+    // Free daemon's memory allocated for cipher_packet_fifo_t
+    k_heap_free(&d->local_packets_heap, fifo_item->packet.payload);
+    k_heap_free(&d->local_packets_heap, fifo_item);
 
     // Send the encoded encoded_packet on the interface
     uint16_t bytes_sent = 0;
@@ -199,5 +202,5 @@ static void handle_decoded_packet_event(cipher_daemon_t *d, cipher_iface_t *ifac
 
     k_heap_free(&d->net_packets_heap, send_buffer);
 
-    LOG("Encoded encoded_packet sent succesfully on iface %d, daemon %d", iface->id, d->id);
+    DBG("Encoded encoded_packet sent succesfully on iface %d, daemon %d", iface->id, d->id);
 }

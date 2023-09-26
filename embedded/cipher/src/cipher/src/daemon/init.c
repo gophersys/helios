@@ -26,6 +26,7 @@ static void print_daemon_stats(cipher_daemon_t *d);
 static void setup_ids(cipher_daemon_t *d);
 static void init_objects(cipher_daemon_t *d);
 static void init_registries(cipher_daemon_t *d);
+static void init_interface_objects(cipher_iface_t *iface);
 static void init_interfaces(cipher_daemon_t *d);
 static void init_threads(cipher_daemon_t *d);
 
@@ -137,11 +138,17 @@ static void setup_ids(cipher_daemon_t *d)
  */
 static void init_objects(cipher_daemon_t *d)
 {
-    k_fifo_init(&d->ctrl_event_queue);
-    k_fifo_init(&d->sd_packet_queue);
-    k_fifo_init(&d->unrouted_packets_queue);
     k_fifo_init(&d->admin_packet_queue);
+    k_fifo_init(&d->ctrl_event_queue);
+
+    k_fifo_init(&d->sd_packet_queue);
+    k_fifo_init(&d->sd_iface_conn_queue);
+    k_fifo_init(&d->sd_iface_disconn_queue);
+
+    k_fifo_init(&d->unrouted_packets_queue);
+
     k_fifo_init(&d->rpc_packet_queue);
+
     k_fifo_init(&d->event_packet_queue);
 
     k_heap_init(&d->ctrl_events_heap, d->ctrl_events_heap_mem, sizeof(d->ctrl_events_heap_mem));
@@ -175,8 +182,6 @@ static void init_registries(cipher_daemon_t *d)
  */
 static void init_threads(cipher_daemon_t *d)
 {
-
-    // Initialize all daemon threads
     char name_buf[32];
     d->ctrl_t_id = k_thread_create(&d->ctrl_t_data,
                                    d->ctrl_t_stack,
@@ -228,7 +233,6 @@ static void init_threads(cipher_daemon_t *d)
                                     K_FOREVER);
     k_thread_name_set(d->event_t_id, cipher_t_name("cipher_event", d->device_id, name_buf, sizeof(name_buf)));
 
-    // Start all dameon threads
     k_thread_start(d->ctrl_t_id);
     k_thread_start(d->sd_t_id);
     k_thread_start(d->router_t_id);
@@ -239,6 +243,19 @@ static void init_threads(cipher_daemon_t *d)
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                           Interfaces
  *---------------------------------------------------------------------------------------------------*/
+
+/**
+ * @brief Initializes interface semaphores and queues
+ *
+ * @param iface The interface
+ */
+static void init_interface_objects(cipher_iface_t *iface)
+{
+    k_sem_init(&iface->conn_sem, 0, CONFIG_IFACE_CONN_SEM_COUNT);
+    k_sem_init(&iface->disconn_sem, 0, 1);
+    k_fifo_init(&iface->encoded_packets_queue);
+    k_fifo_init(&iface->decoded_packets_queue);
+}
 
 /**
  * @brief Initializes all the interfaces of the daemon instance
@@ -256,12 +273,16 @@ static void init_interfaces(cipher_daemon_t *d)
     {
         d->uplink_t_g[i].iface.id = iface_id++;
         d->uplink_t_g[i].iface.cfg = &d->cfg->uplink_ifaces[i];
+        d->uplink_t_g[i].iface.connected = false;
+        init_interface_objects(&d->uplink_t_g[i].iface);
     }
 
     for (uint8_t i = 0; i < num_down_link_ifaces; i++)
     {
         d->downlink_t_g[i].iface.id = iface_id++;
         d->downlink_t_g[i].iface.cfg = &d->cfg->downlink_ifaces[i];
+        d->downlink_t_g[i].iface.connected = false;
+        init_interface_objects(&d->downlink_t_g[i].iface);
     }
 
     // Initialize & Start all interfaces

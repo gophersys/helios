@@ -60,10 +60,10 @@ void cipher_interface_recv_thread(void *arg0, void *arg1, void *arg2)
         k_sem_take(&iface->conn_sem, K_FOREVER); // TODO: handle timeout
         LOG("Recv thread for iface %d unblocked", iface->id);
 
-        bool conn_closed = false;
         bool timeout = false;
-        while (!conn_closed)
+        while (iface->connected)
         {
+            bool conn_closed = false;
             const size_t buffer_size = CONFIG_MAX_PAYLOAD_SIZE;
             uint16_t bytes_recv = 0;
             uint8_t *recv_buffer = k_heap_alloc(&d->net_packets_heap, CONFIG_MAX_PAYLOAD_SIZE, K_FOREVER);

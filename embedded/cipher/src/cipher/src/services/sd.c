@@ -51,6 +51,8 @@ LOG_MODULE_REGISTER(sd, SD_LOG_LEVEL);
  *                                                                                    Private Functions
  *---------------------------------------------------------------------------------------------------*/
 
+static void send_service_broadcast(cipher_daemon_t *d, cipher_iface_t *iface, cipher_payload_sd_t *sd_payload);
+
 // Event handlers
 static void setup_thread_events(cipher_daemon_t *d, struct k_poll_event *events);
 static void handle_packet_event(cipher_daemon_t *d);
@@ -187,21 +189,109 @@ static void notify_interfaces(cipher_daemon_t *d)
 /*-----------------------------------------------------------------------------------------------------
  *                                                                               Iface Connection Event
  *---------------------------------------------------------------------------------------------------*/
+
 static void handle_iface_conn_event(cipher_daemon_t *d)
 {
-    // TODO: I'm just trying to pass a pointer here, but how do i stil do it with mallloc?
-    cipher_iface_t *iface = k_fifo_get(&d->sd_iface_conn_queue, K_FOREVER);
-    if (iface == NULL)
+    cipher_iface_t *conn_iface = k_fifo_get(&d->sd_iface_conn_queue, K_FOREVER);
+    if (conn_iface == NULL)
         ERROR("Null item on sd_iface_conn_queue, daemon %d", d->id);
+
+    LOG("iface %d connected!, advertising all services", conn_iface->id);
+
+    // For each registered service in our registry
+    for (size_t i = 0; i < ARRAY_SIZE(d->service_registry.entries); i++)
+    {
+        // If the interface is still connected
+        if (d->service_registry.entries[i].iface->connected)
+        {
+            // If the entry's iface is NOT the one that just connected
+            if (d->service_registry.entries[i].iface->id != conn_iface->id)
+            {
+                // Create the service discovery payload
+                cipher_payload_sd_t payload = {
+                    .alive = true,
+                    .id = d->service_registry.entries[i].service_id,
+                    .num_ops = 0,
+                };
+
+                send_service_broadcast(d, conn_iface, &payload);
+            }
+        }
+    }
 }
 
 /*-----------------------------------------------------------------------------------------------------
  *                                                                             Iface Disonnection Event
  *---------------------------------------------------------------------------------------------------*/
+
 static void handle_iface_disconn_event(cipher_daemon_t *d)
 {
-    // TODO: I'm just trying to pass a pointer here, but how do i stil do it with mallloc?
-    cipher_iface_t *iface = k_fifo_get(&d->sd_iface_disconn_queue, K_FOREVER);
-    if (iface == NULL)
-        ERROR("Null item on sd_iface_disconn_queue, daemon %d", d->id);
+    cipher_iface_t *disconn_iface = k_fifo_get(&d->sd_iface_disconn_queue, K_FOREVER);
+
+    __ASSERT(disconn_iface, "Null item on sd_iface_disconn_queue, daemon %d", d->id);
+    __ASSERT(!disconn_iface->connected, "Expected iface %d for daemon %d to be disconencted", disconn_iface->id, d->id);
+
+    DBG("iface %d disconnected!, advertising all services", disconn_iface->id);
+
+    // For each registered service in our registry
+    for (size_t i = 0; i < ARRAY_SIZE(d->service_registry.entries); i++)
+    {
+        // If the entry's iface is the one that just disconnected
+        if (d->service_registry.entries[i].iface->id == disconn_iface->id)
+        {
+            // Create the service discovery payload
+            cipher_payload_sd_t payload = {
+                .alive = false,
+                .id = d->service_registry.entries[i].service_id,
+                .num_ops = 0,
+            };
+
+            // Tell every other uplink interface about it
+            for (uint8_t i = 0; i < CONFIG_UP_LINK_IFACE_COUNT; i++)
+            {
+                cipher_iface_t *adv_iface = &d->uplink_t_g[i].iface;
+                if (adv_iface->connected)
+                    send_service_broadcast(d, adv_iface, &payload);
+            }
+
+            // Tell every other downlink interface about it
+            for (uint8_t i = 0; i < CONFIG_DOWN_LINK_IFACE_COUNT; i++)
+            {
+                cipher_iface_t *adv_iface = &d->downlink_t_g[i].iface;
+                if (adv_iface->connected)
+                {
+                    if (adv_iface->connected)
+                        send_service_broadcast(d, adv_iface, &payload);
+                }
+            }
+        }
+    }
+
+    // Update registry
+}
+
+/*-----------------------------------------------------------------------------------------------------
+ *                                                                                              Helpers
+ *---------------------------------------------------------------------------------------------------*/
+
+static void send_service_broadcast(cipher_daemon_t *d, cipher_iface_t *iface, cipher_payload_sd_t *sd_payload)
+{
+    // Allocate memory for queue item
+    cipher_packet_fifo_t *fifo_item = k_heap_aligned_alloc(&d->local_packets_heap, 8, sizeof(cipher_packet_fifo_t), K_FOREVER);
+    CHECK_MALLOC(fifo_item);
+
+    // Allocate memory for packet payload
+    cipher_packet_t *packet = &fifo_item->packet;
+    packet->payload = k_heap_aligned_alloc(&d->local_packets_heap, 8, sizeof(cipher_payload_sd_t), K_FOREVER);
+    CHECK_MALLOC(packet->payload);
+
+    // Set payload values
+    cipher_payload_sd_t *payload = (cipher_payload_sd_t *)packet->payload;
+    payload->alive = sd_payload->alive;
+    payload->id = sd_payload->id;
+    payload->num_ops = sd_payload->num_ops;
+
+    // Add to interface's send queue
+    DBG("Sending service discovery payload to iface %d", iface->id);
+    k_fifo_put(&iface->decoded_packets_queue, packet);
 }

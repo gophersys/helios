@@ -27,7 +27,7 @@ LOG_MODULE_REGISTER(iface, IFACE_LOG_LEVEL);
 #define TAL_CONNECT_TIMEOUT_MS 500 // Timeout in milliseconds for connection. Set to 0 for indefinite.
 #define TAL_ACCEPT_TIMEOUT_MS 500  // Timeout in milliseconds for accept. Set to 0 for indefinite.
 #define TAL_RETRY_DELAY_MS 0       // Delay between retry attempts.
-#define IFACE_CLOSE_WAIT_TIME_MS 3000
+#define IFACE_CLOSE_WAIT_TIME_MS 10000
 
 // Timeouts
 #define HANDSHAKE_TIMEOUT_MS 500
@@ -66,13 +66,6 @@ void cipher_interface_conn_thread(void *arg0, void *arg1, void *arg2)
 
     __ASSERT(d != NULL, "Daemon struct pointer must not be NULL");
     __ASSERT(iface != NULL, "Interface pointer must not be NULL");
-
-    k_sem_init(&iface->conn_sem, 0, CONN_SEM_COUNT);
-    k_sem_init(&iface->disconn_sem, 0, 1);
-    iface->connected = false;
-
-    k_fifo_init(&iface->encoded_packets_queue);
-    k_fifo_init(&iface->decoded_packets_queue);
 
     while (true)
     {
@@ -190,12 +183,7 @@ static void await_disconnect(cipher_daemon_t *d, cipher_iface_t *iface)
 {
     k_sem_take(&iface->disconn_sem, K_FOREVER);
 
-    DBG("Daemon %d, iface %d disconnected", d->id, iface->id);
-
-    // Close and collect resources
-    iface->connected = false;
-    if (!tal_close(iface->cfg))
-        handle_iface_error(d, iface, IFACE_ERROR_CLOSE, NULL, 0);
+    LOG("Daemon %d, iface %d disconnected", d->id, iface->id);
 
     // Signal main daemon controller of an interface disconnection
     ctrl_event_opt_iface_conn_t options = {
@@ -206,6 +194,11 @@ static void await_disconnect(cipher_daemon_t *d, cipher_iface_t *iface)
         .type = CTRL_EVENT_TYPE_IFACE_DISCONNECTED,
         .options = &options,
     };
+
+    // Close and collect resources
+    iface->connected = false;
+    if (!tal_close(iface->cfg))
+        handle_iface_error(d, iface, IFACE_ERROR_CLOSE, NULL, 0);
 
     cipher_ctrl_add_event(d, &conn_event);
 

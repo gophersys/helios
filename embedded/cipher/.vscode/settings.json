@@ -33,7 +33,8 @@
         "transport.h": "c",
         "protocol.h": "c",
         "serdes.h": "c",
-        "err.h": "c"
+        "err.h": "c",
+        "compare": "c"
     },
     // Editor actions
     "editor.codeActionsOnSave": {

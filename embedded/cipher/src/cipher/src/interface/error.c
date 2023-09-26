@@ -43,10 +43,6 @@ void handle_iface_timeout(cipher_daemon_t *d, cipher_iface_t *iface, const char 
 
 void handle_iface_disconnect(cipher_daemon_t *d, cipher_iface_t *iface, const char *func)
 {
-    LOG("Iface %d, daemon %d, disconnected, signaling iface controller", iface->id, d->id);
-
-    // TODO: Test if disconnects actually work lol
-
-    // Signal a disconnection
+    // LOG("Iface %d, daemon %d, disconnected, signaling iface controller", iface->id, d->id);
     k_sem_give(&iface->disconn_sem);
 }
