@@ -29,10 +29,10 @@ LOG_MODULE_REGISTER(sd, SD_LOG_LEVEL);
 /**
  * @brief The service discovery thread will do the following actions:
  *
- * [ ] Register a new service when a service discovery status packet is received
- * [ ] Unregister a service when a service discovery status packet is received
- * [ ] Unregister all services on an interface when its disconnected
- * [ ] Broadcast a service status to all affected interfaces when the service registry changes
+ * [x] Register a new service when a service discovery status packet is received
+ * [x] Unregister a service when a service discovery status packet is received
+ * [x] Unregister all services on an interface when its disconnected
+ * [x] Broadcast a service status to all affected interfaces when the service registry changes
  */
 
 /*-----------------------------------------------------------------------------------------------------

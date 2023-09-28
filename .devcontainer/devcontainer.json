@@ -19,6 +19,9 @@
     // Configure properties specific to VS Code.
     "vscode": {
       "settings": {
+        "C_Cpp.clang_format_fallbackStyle": "Google",
+        "C_Cpp.clang_format_style": "{ BasedOnStyle: Google, IndentWidth: 4, ColumnLimit: 0, KeepEmptyLinesAtTheStartOfBlocks: true, AllowShortIfStatementsOnASingleLine: false }",
+
         "terminal.integrated.shell.linux": "/usr/bin/zsh",
         // Disable RTOS window
         "mcu-debug.rtos-views.showRTOS": false

@@ -65,10 +65,20 @@ void handle_sd_packet_event(cipher_daemon_t *d) {
 
     // Update registry
     if (!cipher_service_exists(d, &potential_entry)) {
-        if (!cipher_service_register(d, &potential_entry)) {
-            ERROR("Unable to register service %d, for daemon %d", potential_entry.service.service_id, d->id);
+
+        // If the service is alive, register and update
+        if (sd_payload->alive) {
+
+            if (!cipher_service_register(d, &potential_entry)) {
+                ERROR("Unable to register service %d, for daemon %d", potential_entry.service.service_id, d->id);
+            }
+
+            notify_interfaces(d, &potential_entry, fifo_item->iface);
+        } else {
+            if (!cipher_service_unregister(d, &potential_entry)) {
+                ERROR("Unable to register service %d, for daemon %d", potential_entry.service.service_id, d->id);
+            }
         }
-        notify_interfaces(d, &potential_entry, fifo_item->iface);
     }
 
     free_packet_fifo_item(d, fifo_item);

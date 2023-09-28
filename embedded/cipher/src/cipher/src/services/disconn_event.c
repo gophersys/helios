@@ -66,6 +66,7 @@ void handle_iface_disconn_event(cipher_daemon_t *d) {
  *                                                                                  Affected Interfaces
  *---------------------------------------------------------------------------------------------------*/
 
+// TODO: Make me common between here and the packet_event
 static void update_affected_interfaces(cipher_daemon_t *d, cipher_iface_t *disconn_iface) {
 
     for (size_t i = 0; i < ARRAY_SIZE(d->service_registry.entries); i++) {

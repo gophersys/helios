@@ -20,6 +20,7 @@ type CipherPacketHeader struct {
 	SequenceNum   uint16
 	Type          uint16
 	Flags         uint8
+	HopCount      uint8
 }
 
 type CipherPayloadSd struct {
@@ -44,6 +45,10 @@ func main() {
 			continue
 		}
 
+		if err := handShakeDownlink(conn); err != nil {
+			log.Fatalf("Could not handshake link")
+		}
+
 		handleConnection(conn)
 	}
 }
@@ -51,25 +56,30 @@ func main() {
 func handleConnection(conn net.Conn) {
 	defer conn.Close()
 
-	if err := handShakeDownlink(conn); err != nil {
-		log.Printf("Could not handshake: %v", err)
-		return
-	}
-
 	log.Printf("Received connection from %s", conn.RemoteAddr())
 
 	header := &CipherPacketHeader{
 		SourceID:      1234,
 		DestinationID: 0,
 		Type:          2,
-		PayloadLen:    3,
 		Flags:         0x01,
 	}
 
-	ticker := time.NewTicker(1000 * time.Millisecond)
+	ticker := time.NewTicker(300 * time.Millisecond)
 	defer ticker.Stop()
-
 	var counter int8
+	raw := &CipherPayloadSd{
+		ServiceID: 69,
+		NumHops:   uint8(counter),
+	}
+	counter++
+
+	payload := PackPayloadSd(raw)
+	sendPacket(conn, header, payload)
+	// sendPacket(conn, header, payload)
+	time.Sleep(time.Second * 2)
+	os.Exit(1)
+
 	for range ticker.C {
 		raw := &CipherPayloadSd{
 			ServiceID: 69,
@@ -90,6 +100,8 @@ func handShakeDownlink(conn net.Conn) error {
 		return err
 	}
 
+	log.Printf("Protocol version received %v", clientVersion)
+
 	// Compare the version and send back the result
 	if clientVersion == ServerProtocolVersion {
 		_, err := conn.Write([]byte{1}) // Send true (as byte)
@@ -102,7 +114,7 @@ func handShakeDownlink(conn net.Conn) error {
 }
 
 func PackHeader(header *CipherPacketHeader) []byte {
-	buf := make([]byte, 11)
+	buf := make([]byte, 12)
 	binary.BigEndian.PutUint16(buf[0:], header.SourceID)
 	binary.BigEndian.PutUint16(buf[2:], header.DestinationID)
 	combinedUint32 := (header.ServiceID & 0x3FFF) |
@@ -113,7 +125,7 @@ func PackHeader(header *CipherPacketHeader) []byte {
 		(header.Type & 0x7 << 13)
 	binary.BigEndian.PutUint16(buf[8:], combinedUint16)
 	buf[10] = header.Flags
-
+	buf[11] = header.HopCount
 	return buf
 }
 
@@ -136,10 +148,11 @@ func PackPayloadSd(payload *CipherPayloadSd) []byte {
 }
 
 func sendPacket(conn net.Conn, header *CipherPacketHeader, payload []byte) {
+	header.PayloadLen = uint32(len(payload))
 	packet := append(PackHeader(header), payload...)
-	log.Printf(("Sending %v bytes"), len(packet))
+	log.Printf(("Sending %v bytes, %v"), len(packet), packet)
 	_, err := conn.Write(packet)
 	if err != nil {
-		log.Printf("Failed to send packet: %v\n", err)
+		log.Fatalf("Unable to send packet: %v", err)
 	}
 }
