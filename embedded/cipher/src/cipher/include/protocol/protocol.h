@@ -31,6 +31,7 @@ typedef enum {
     CIPHER_PACKET_TYPE_SD,
     CIPHER_PACKET_TYPE_RPC,
     CIPHER_PACKET_TYPE_EVENT,
+    CIPHER_PACKET_TYPE_STREAM,
 
     CIPHER_PACKET_TYPE_MAX
 } cipher_packet_type_t;
@@ -87,5 +88,9 @@ typedef struct {
     uint8_t num_ops;
     uint8_t allowed_hops;
 } cipher_payload_sd_t;
+
+/*-----------------------------------------------------------------------------------------------------
+ *                                                                           Service Discovery Payloads
+ *---------------------------------------------------------------------------------------------------*/
 
 #endif  // PROTOCOL_H

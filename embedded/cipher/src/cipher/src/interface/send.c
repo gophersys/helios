@@ -102,39 +102,40 @@ static void setup_thread_events(cipher_daemon_t *d, cipher_iface_t *iface, struc
  *                                                                                 Encoded Packet Event
  *---------------------------------------------------------------------------------------------------*/
 static void handle_encoded_packet_event(cipher_daemon_t *d, cipher_iface_t *iface) {
-    __ASSERT(iface->connected, "Received an encoded_packet to be sent on a disconnected interface");
-    LOG("Send thread for iface %d, daemon %d, received encoded encoded_packet", iface->id, d->id);
 
-    // Receive decoded_packet on queue
-    // TODO: The code below is technically wrong because the packet is already encoded, but then how do we get the header?
-    cipher_packet_t *encoded_packet = k_fifo_get(&iface->encoded_packets_queue, K_NO_WAIT);
-    if (encoded_packet == NULL)
-        ERROR("Null item on encoded_packets_queue, iface %d, daemon %d", iface->id, d->id);
+    __ASSERT(iface->connected, "Received an encoded_packet to be sent on a disconnected interface");
+    DBG("Send thread for iface %d, daemon %d, received encoded encoded_packet", iface->id, d->id);
+
+    cipher_router_packet_fifo_item_t *fifo_item = k_fifo_get(&iface->encoded_packets_queue, K_NO_WAIT);
+    __ASSERT(fifo_item, "Null item on encoded_packets_queue, iface %d, daemon %d", iface->id, d->id);
 
     uint16_t bytes_sent = 0;
     bool conn_closed = false;
     bool timeout = false;
 
     // Send the encoded encoded_packet on the interface
-    uint16_t packet_len = sizeof(cipher_header_t) + encoded_packet->header.payload_len;
-    if (!tal_send(iface->cfg, encoded_packet, packet_len, &bytes_sent, &conn_closed, &timeout)) {
-        if (timeout)
-            handle_iface_timeout(d, iface, __func__);
-        else if (conn_closed)
-            handle_iface_disconnect(d, iface, __func__);
-        else
-            ERROR("Send error on iface %d, daemon %d", iface->id, d->id);
+    if (!tal_send(iface->cfg, fifo_item->raw_packet, fifo_item->packet_len, &bytes_sent, &conn_closed, &timeout)) {
 
-        k_heap_free(&d->unrouted_packets_heap, encoded_packet);
+        free_router_packet_fifo_item(d, fifo_item);
+
+        if (timeout) {
+            handle_iface_timeout(d, iface, __func__);
+        } else if (conn_closed) {
+            handle_iface_disconnect(d, iface, __func__);
+        } else {
+            ERROR("Send error on iface %d, daemon %d", iface->id, d->id);
+        }
+
         return;
     }
 
-    if (bytes_sent != packet_len)
-        ERROR("Expected to send %d bytes, sent %d", packet_len, bytes_sent);  // TODO: Implement retry functionality
+    if (bytes_sent != fifo_item->packet_len) {
+        ERROR("Expected to send %d bytes, sent %d", fifo_item->packet_len, bytes_sent);  // TODO: Implement retry functionality
+    }
 
-    k_heap_free(&d->unrouted_packets_heap, encoded_packet);
+    free_router_packet_fifo_item(d, fifo_item);
 
-    LOG("Encoded encoded_packet sent succesfully on iface %d, daemon %d", iface->id, d->id);
+    DBG("Encoded encoded_packet sent succesfully on iface %d, daemon %d", iface->id, d->id);
 }
 
 /*-----------------------------------------------------------------------------------------------------

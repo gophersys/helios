@@ -9,3 +9,4 @@ zephyr_include_directories(src/cipher/include)
 
 target_sources(app PRIVATE src/main.c)
 add_subdirectory(src/cipher)
+add_subdirectory(src/autogen)

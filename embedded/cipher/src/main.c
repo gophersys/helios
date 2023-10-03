@@ -8,13 +8,17 @@ LOG_MODULE_REGISTER(app);
 #include "daemon/registry.h"
 #include "utils/err.h"
 
+// Test
+#include "cipher/src/include/packet.h"
+
+// App includes
+#include "autogen/autogen.h"
+
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                        Daemon Config
  *---------------------------------------------------------------------------------------------------*/
 
-#define THIS_DEVICE_ID (uint16_t)623
-
-#define POSIX_HOST_IP "192.168.0.11"
+#define POSIX_HOST_IP "192.168.0.110"
 #define UPLINK_SOCKET 5000
 #define DOWNLINK_SOCKET 5001
 
@@ -38,44 +42,60 @@ static cipher_daemon_config_t config = {
 static cipher_daemon_t daemon = {0};
 
 /*-----------------------------------------------------------------------------------------------------
- *                                                                                       Local Services
+ *                                                                                       Auto Gen Stuff
  *---------------------------------------------------------------------------------------------------*/
-static cipher_service_entry_t local_services[2] = {
-    {
-        .local = true,
-        .iface = NULL,
-        .service = {
-            .name = "Test Service 1",
-            .service_id = 6969,
-            .device_id = THIS_DEVICE_ID,
-            .num_ops = 2,
-            .allowed_hops = 1,
-        },
-    },
-    {
-        .local = true,
-        .iface = NULL,
-        .service = {
-            .name = "Test Service 2",
-            .service_id = 6969,
-            .device_id = THIS_DEVICE_ID,
-            .num_ops = 2,
-            .allowed_hops = 1,
-        },
-    },
-};
+
+// Generated RPC prototypes
+MotionResponse_t accel_command_motion_rpc(MotionRequest_t request) {
+    // ... user's implementation ...
+    MotionResponse_t resp = {
+        .success = true,
+    };
+    static int count = 0;
+    count++;
+
+    LOG("Calling me %d", count);
+    return resp;
+}
 
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                                  App
  *---------------------------------------------------------------------------------------------------*/
+void test_rpc(void);
 
 int main(void) {
     LOG_RAW("\n\n%s\n", "********** Cipher Protocol App **********");
 
     cipher_init_daemon(&config, &daemon);
-    cipher_register_local_services(&daemon, local_services, ARRAY_SIZE(local_services));
+
+    size_t num_services = 0;
+    cipher_service_entry_t* services = cipher_get_local_services(&num_services);
+    cipher_register_local_services(&daemon, services, num_services);
 
     LOG("App Initialized OK");
-    while (true)
+    while (true) {
+        test_rpc();
         k_msleep(1000);
+    }
+}
+
+void test_rpc(void) {
+    // Allocate packet memory
+    cipher_packet_fifo_item_t* fifo_item = alloc_packet_fifo_item(&daemon, sizeof(MotionRequest_t));
+    CHECK_MALLOC(fifo_item);
+
+    // Populate the right header
+    fifo_item->packet.header.type = CIPHER_PACKET_TYPE_RPC;
+    fifo_item->packet.header.destination_id = THIS_DEVICE_ID;
+    fifo_item->packet.header.service_id = 6969;
+    fifo_item->packet.header.operation_id = 1;
+
+    MotionRequest_t* request_payload = (MotionRequest_t*)fifo_item->packet.payload;
+
+    request_payload->Direction = DIRECTION_X;
+    request_payload->force = 2.54;
+    request_payload->interval = 2.3;
+
+    // Send packet to queue
+    k_fifo_put(&daemon.rpc_packet_queue, fifo_item);
 }

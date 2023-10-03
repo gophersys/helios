@@ -9,6 +9,7 @@
 // Cipher includes
 #include "config/default.h"
 #include "daemon/daemon.h"
+#include "daemon/registry.h"
 #include "protocol/protocol.h"
 #include "protocol/serdes.h"
 #include "transport/transport.h"
@@ -32,8 +33,11 @@ LOG_MODULE_DECLARE(iface);
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                    Private Functions
  *---------------------------------------------------------------------------------------------------*/
+// TODO: Document me
 static void recv_ingress_packet(cipher_daemon_t *d, cipher_iface_t *iface, uint8_t *recv_buffer,
                                 uint16_t bytes_recv);
+
+static void process_routing_packet(cipher_daemon_t *d, cipher_header_t *header, uint8_t *recv_buffer, uint16_t packet_size);
 
 static void process_complete_packet(cipher_daemon_t *d, cipher_iface_t *iface, cipher_header_t *header,
                                     uint8_t *recv_buffer, uint16_t bytes_recv);
@@ -67,14 +71,18 @@ void cipher_interface_recv_thread(void *arg0, void *arg1, void *arg2) {
             CHECK_MALLOC(recv_buffer);
 
             if (!tal_recv(interface_cfg, recv_buffer, buffer_size, &bytes_recv, &conn_closed, &timeout)) {
-                if (timeout)
-                    handle_iface_timeout(d, iface, __func__);
-                else if (conn_closed)
-                    handle_iface_disconnect(d, iface, __func__);
-                else
-                    ERROR("Recv error on iface %d, daemon %d", iface->id, d->id);  // TODO: iface error
 
+                // We don't need the network buffer anymore
                 k_heap_free(&d->net_packets_heap, recv_buffer);
+
+                if (timeout) {
+                    handle_iface_timeout(d, iface, __func__);
+                } else if (conn_closed) {
+                    handle_iface_disconnect(d, iface, __func__);
+                } else {
+                    ERROR("Recv error on iface %d, daemon %d", iface->id, d->id);  // TODO: iface error
+                }
+
                 break;
             }
 
@@ -88,41 +96,37 @@ void cipher_interface_recv_thread(void *arg0, void *arg1, void *arg2) {
  *---------------------------------------------------------------------------------------------------*/
 static void recv_ingress_packet(cipher_daemon_t *d, cipher_iface_t *iface, uint8_t *recv_buffer,
                                 uint16_t bytes_recv) {
+
     if (bytes_recv < sizeof(cipher_header_t)) {
         WARN("Dropping unexpected packet, len: %d, iface %d, daemon %d", bytes_recv, iface->id, d->id);
         return;
     }
 
-    // Unpack header so we can get the payload length to allocate a buffer
+    // Unpack header so we can get the expected length
     cipher_header_t header = {0};
     serdes_error_t err = serdes_decode_header(recv_buffer, bytes_recv, &header);
-    if (err != SERDES_ERROR_OK)
+    if (err != SERDES_ERROR_OK) {
         handle_iface_error(d, iface, IFACE_ERROR_SERDES, &err, sizeof(err));
+    }
 
     // cipher_print_header(&header); // Uncommnet to see raw header
 
-    if (header.payload_len == (bytes_recv - sizeof(header)))
+    if (header.payload_len == (bytes_recv - sizeof(header))) {
         process_complete_packet(d, iface, &header, recv_buffer, bytes_recv);
-    else
+    } else {
         process_incomplete_packet(d, iface, &header, recv_buffer, bytes_recv);
+    }
 }
 
 /*-----------------------------------------------------------------------------------------------------
- *                                                                                              Ingress
+ *                                                                                      Complete Packet
  *---------------------------------------------------------------------------------------------------*/
 static void process_complete_packet(cipher_daemon_t *d, cipher_iface_t *iface, cipher_header_t *header,
                                     uint8_t *recv_buffer, uint16_t bytes_recv) {
-    // Process remote packet
+
+    // Route packet if its not for local host
     if (header->destination_id != d->device_id) {
-        // Copy unrouted packet into daemon's heap pool
-        void *unrouted_packet = k_heap_alloc(&d->unrouted_packets_heap, bytes_recv, K_FOREVER);
-        CHECK_MALLOC(unrouted_packet);
-        memcpy(unrouted_packet, recv_buffer, bytes_recv);
-
-        k_heap_free(&d->net_packets_heap, recv_buffer);
-
-        // Signal daemon's router thread
-        k_fifo_put(&d->unrouted_packets_queue, unrouted_packet);
+        process_routing_packet(d, header, recv_buffer, bytes_recv);
         return;
     }
 
@@ -142,6 +146,7 @@ static void process_complete_packet(cipher_daemon_t *d, cipher_iface_t *iface, c
     if (err != SERDES_ERROR_OK)
         handle_iface_error(d, iface, IFACE_ERROR_SERDES, &err, sizeof(err));
 
+    // We no longer need the network buffer
     k_heap_free(&d->net_packets_heap, recv_buffer);
 
     // Send packet to the right handler
@@ -158,11 +163,41 @@ static void process_complete_packet(cipher_daemon_t *d, cipher_iface_t *iface, c
         case CIPHER_PACKET_TYPE_SD:
             k_fifo_put(&d->sd_packet_queue, fifo_item);
             break;
+        case CIPHER_PACKET_TYPE_STREAM:
+            k_fifo_put(&d->stream_packet_queue, fifo_item);
+            break;
         default:
             WARN("Unknow header type: %d", header->type);  // TODO: Prevent spam of wrong header types
     }
 }
 
+/*-----------------------------------------------------------------------------------------------------
+ *                                                                                       Routing Packet
+ *---------------------------------------------------------------------------------------------------*/
+static void process_routing_packet(cipher_daemon_t *d, cipher_header_t *header, uint8_t *recv_buffer, uint16_t packet_size) {
+
+    cipher_router_packet_fifo_item_t *fifo_item = alloc_router_packet_fifo_item(d, packet_size);
+    CHECK_MALLOC(fifo_item);
+
+    memcpy(fifo_item->raw_packet, recv_buffer, packet_size);
+    fifo_item->packet_len = packet_size;
+
+    // We no longer need the network buffer
+    k_heap_free(&d->net_packets_heap, recv_buffer);
+
+    // Look up the destination interface
+    cipher_iface_t *dest_iface = cipher_get_iface_by_device_id(d, header->destination_id);
+    if (dest_iface != NULL) {
+        k_fifo_put(&dest_iface->encoded_packets_queue, fifo_item);
+    } else {
+        // Device destination was not found, simply free the buffer and drop the packet
+        free_router_packet_fifo_item(d, fifo_item);
+    }
+}
+
+/*-----------------------------------------------------------------------------------------------------
+ *                                                                                    Incomplete Packet
+ *---------------------------------------------------------------------------------------------------*/
 static void process_incomplete_packet(cipher_daemon_t *d, cipher_iface_t *iface, cipher_header_t *header,
                                       uint8_t *recv_buffer, uint16_t bytes_recv) {
     WARN("Received incomplete packet, functionality not yet implemented, dropping packet");

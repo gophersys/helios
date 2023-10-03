@@ -40,7 +40,6 @@ serdes_error_t serdes_encode_header(uint8_t *buffer, uint16_t buffer_size, const
 }
 
 serdes_error_t serdes_decode_header(const uint8_t *buffer, uint16_t buffer_size, cipher_header_t *header) {
-    __ASSERT(buffer, "recv_buffer is NULL");
     __ASSERT(buffer, "header_buffer is NULL");
 
     // Size of the header, taking care to include all fields

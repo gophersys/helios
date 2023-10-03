@@ -13,6 +13,7 @@
 #define SD_LOG_LEVEL LOG_LEVEL_WRN
 #define EVENT_LOG_LEVEL LOG_LEVEL_WRN
 #define RPC_LOG_LEVEL LOG_LEVEL_WRN
+#define STREAM_LOG_LEVEL LOG_LEVEL_INF
 #define DAEMON_LOG_LEVEL LOG_LEVEL_INF
 #define IFACE_LOG_LEVEL LOG_LEVEL_INF
 #define TAL_LOG_LEVEL LOG_LEVEL_WRN
@@ -21,7 +22,8 @@
  *                                                                                             Services
  *---------------------------------------------------------------------------------------------------*/
 #define CONFIG_MAX_NUM_SERVICES 10
-#define CONFIG_CIPHER_NAME_LEN 16
+#define CONFIG_MAX_NUM_OPS_PER_SERVICE 15
+#define CONFIG_CIPHER_NAME_LEN 24
 
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                           Interfaces
@@ -33,8 +35,8 @@
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                              Threads
  *---------------------------------------------------------------------------------------------------*/
-#define CONTROLLER_THREAD_PRIORITY 90
-#define CONTROLLER_THREAD_STACK_SIZE 1024
+#define CTRL_THREAD_PRIORITY 90
+#define CTRL_THREAD_STACK_SIZE 1024
 
 #define SD_THREAD_PRIORITY 100
 #define SD_THREAD_STACK_SIZE 1024
@@ -48,8 +50,11 @@
 #define EVENT_THREAD_PRIORITY 100
 #define EVENT_THREAD_STACK_SIZE 1024
 
+#define STREAM_THREAD_PRIORITY 100
+#define STREAM_THREAD_STACK_SIZE 1024
+
 #define TRANSPORT_THREAD_BASE_PRIORITY 100
-#define TRANSPORT_THREAD_STACK_SIZE 2048
+#define TRANSPORT_THREAD_STACK_SIZE 1024
 
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                               Deamon

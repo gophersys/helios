@@ -23,19 +23,6 @@
 LOG_MODULE_REGISTER(sd, SD_LOG_LEVEL);
 
 /*-----------------------------------------------------------------------------------------------------
- *                                                                                      Developer Notes
- *---------------------------------------------------------------------------------------------------*/
-
-/**
- * @brief The service discovery thread will do the following actions:
- *
- * [x] Register a new service when a service discovery status packet is received
- * [x] Unregister a service when a service discovery status packet is received
- * [x] Unregister all services on an interface when its disconnected
- * [x] Broadcast a service status to all affected interfaces when the service registry changes
- */
-
-/*-----------------------------------------------------------------------------------------------------
  *                                                                                        Configuration
  *---------------------------------------------------------------------------------------------------*/
 #define EVENT_NUM 3
@@ -70,7 +57,7 @@ void cipher_sd_thread(void *arg0, void *arg1, void *arg2) {
     cipher_daemon_t *d = (cipher_daemon_t *)arg0;
     __ASSERT(d != NULL, "null daemon passed to thread");
 
-    struct k_poll_event sd_events[EVENT_NUM];
+    struct k_poll_event sd_events[EVENT_NUM] = {0};
     setup_thread_events(d, sd_events);
 
     while (true) {

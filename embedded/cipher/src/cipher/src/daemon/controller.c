@@ -127,15 +127,9 @@ static void setup_thread_events(cipher_daemon_t *d, struct k_poll_event *events)
  *                                                                                 Admin Packet Handler
  *---------------------------------------------------------------------------------------------------*/
 static void handle_admin_packet_event(cipher_daemon_t *d) {
-    cipher_packet_fifo_item_t *packet_info = k_fifo_get(&d->admin_packet_queue, K_NO_WAIT);
-    if (packet_info == NULL)
-        ERROR("Null item on admin_packet_queue, daemon %d", d->id);
-
-    // uint16_t packet_len = packet_info->packet->header.payload_len + sizeof(packet_info->packet->header);
-    // LOG("Received admin packet, len %d", packet_len);
-    // TODO: Implement me
-
-    free_packet_fifo_item(d, packet_info);
+    cipher_packet_fifo_item_t *fifo_item = k_fifo_get(&d->admin_packet_queue, K_NO_WAIT);
+    __ASSERT(fifo_item, "Null item on admin_packet_queue, daemon %d", d->id);
+    free_packet_fifo_item(d, fifo_item);
 }
 
 /*-----------------------------------------------------------------------------------------------------

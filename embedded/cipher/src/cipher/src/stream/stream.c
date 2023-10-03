@@ -16,9 +16,10 @@
 
 // Private include
 #include "interface.h"
+#include "packet.h"
 #include "threads.h"
 
-LOG_MODULE_REGISTER(router, ROUTER_LOG_LEVEL);
+LOG_MODULE_REGISTER(stream, STREAM_LOG_LEVEL);
 
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                        Configuration
@@ -35,19 +36,13 @@ LOG_MODULE_REGISTER(router, ROUTER_LOG_LEVEL);
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                           Public API
  *---------------------------------------------------------------------------------------------------*/
-void cipher_router_thread(void *arg0, void *arg1, void *arg2) {
+void cipher_stream_thread(void *arg0, void *arg1, void *arg2) {
     cipher_daemon_t *d = (cipher_daemon_t *)arg0;
 
     while (true) {
-        cipher_packet_t *packet = k_fifo_get(&d->unrouted_packets_queue, K_FOREVER);
-        if (packet == NULL)
-            ERROR("Null item on unrouted_packets_queue, daemon %d", d->id);
-
-        uint16_t packet_len = packet->header.payload_len + sizeof(packet->header);
-        LOG("Received unrouted packet, len %d", packet_len);
-        // TODO: Implement me
-
-        k_heap_free(&d->unrouted_packets_heap, packet);
+        cipher_packet_fifo_item_t *fifo_item = k_fifo_get(&d->stream_packet_queue, K_FOREVER);
+        __ASSERT(fifo_item, "Null item on stream_packet_queue, daemon %d", d->id);
+        free_packet_fifo_item(d, fifo_item);
     }
 }
 

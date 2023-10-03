@@ -57,10 +57,10 @@ bool cipher_service_exists(cipher_daemon_t *d, cipher_service_entry_t *entry) {
         if (current_entry->service.service_id == entry->service.service_id) {
 
             // Check that there aren't services with same ids but different names
-            if(strcmp(current_entry->service.name, entry->service.name) != 0){
+            if (strcmp(current_entry->service.name, entry->service.name) != 0) {
                 ERROR("Found existing entry with name \"%s\" and id %d, but new entry has name \"%s\" and id %d",
-                    current_entry->service.name, current_entry->service.service_id,
-                    entry->service.name, entry->service.service_id);
+                      current_entry->service.name, current_entry->service.service_id,
+                      entry->service.name, entry->service.service_id);
             }
 
             continue;
@@ -136,6 +136,26 @@ bool cipher_service_unregister(cipher_daemon_t *d, cipher_service_entry_t *entry
     }
 
     return false;
+}
+
+cipher_iface_t *cipher_get_iface_by_device_id(cipher_daemon_t *d, uint16_t device_id) {
+
+    for (size_t i = 0; i < ARRAY_SIZE(d->service_registry.entries); i++) {
+
+        cipher_service_entry_t *current_entry = &d->service_registry.entries[i];
+
+        if (current_entry->service.device_id != device_id) {
+            continue;
+        }
+
+        DBG("Device %d is at iface %d, daemon %d", device_id, current_entry->iface->id, d->id);
+
+        return current_entry->iface;
+    }
+
+    DBG("Device %d not found on daemons' %d interfaces", device_id, d->id);
+
+    return NULL;
 }
 
 /*-----------------------------------------------------------------------------------------------------

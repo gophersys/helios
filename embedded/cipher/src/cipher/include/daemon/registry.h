@@ -40,4 +40,13 @@ bool cipher_service_register(cipher_daemon_t *d, cipher_service_entry_t *entry);
  */
 bool cipher_service_unregister(cipher_daemon_t *d, cipher_service_entry_t *entry);
 
+/**
+ * @brief Get the interface where a destination device is located
+ *
+ * @param d The daemon
+ * @param device_id The device for which we want to find the interface
+ * @return cipher_iface_t* NULL if not found, pointer to an interface otherwise
+ */
+cipher_iface_t *cipher_get_iface_by_device_id(cipher_daemon_t *d, uint16_t device_id);
+
 #endif

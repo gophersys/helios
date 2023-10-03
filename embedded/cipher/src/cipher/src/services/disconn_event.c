@@ -66,11 +66,9 @@ void handle_iface_disconn_event(cipher_daemon_t *d) {
  *                                                                                  Affected Interfaces
  *---------------------------------------------------------------------------------------------------*/
 
-// TODO: Make me common between here and the packet_event
 static void update_affected_interfaces(cipher_daemon_t *d, cipher_iface_t *disconn_iface) {
 
     for (size_t i = 0; i < ARRAY_SIZE(d->service_registry.entries); i++) {
-
         cipher_service_entry_t *entry = &d->service_registry.entries[i];
 
         // Skip entry if it does NOT belong to the disconnected interface
@@ -83,28 +81,7 @@ static void update_affected_interfaces(cipher_daemon_t *d, cipher_iface_t *disco
             continue;
         }
 
-        // Create service discovery payload
-        cipher_payload_sd_t payload = {
-            .alive = false,  // Indicates the service is no longer available
-            .service_id = entry->service.service_id,
-            .device_id = entry->service.device_id,
-            .num_ops = entry->service.num_ops,
-            .allowed_hops = entry->service.allowed_hops,
-        };
-        strcpy(payload.name, entry->service.name);
-
-        // Send the broadcast on all interfaces
-        for (uint8_t i = 0; i < ARRAY_SIZE(d->uplink_t_g); i++) {
-            if (d->uplink_t_g[i].iface.connected) {
-                send_service_payload(d, &d->uplink_t_g[i].iface, &payload);
-            }
-        }
-
-        for (uint8_t i = 0; i < ARRAY_SIZE(d->downlink_t_g); i++) {
-            if (d->downlink_t_g[i].iface.connected) {
-                send_service_payload(d, &d->downlink_t_g[i].iface, &payload);
-            }
-        }
+        send_service_update(d, entry, NULL, false);
     }
 }
 

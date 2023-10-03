@@ -46,3 +46,34 @@ void send_service_payload(cipher_daemon_t *d, cipher_iface_t *iface, cipher_payl
 
     k_fifo_put(&iface->decoded_packets_queue, packet);
 }
+
+/*-----------------------------------------------------------------------------------------------------
+ *                                                                                  Send Service Update
+ *---------------------------------------------------------------------------------------------------*/
+void send_service_update(cipher_daemon_t *d, cipher_service_entry_t *entry, cipher_iface_t *omit_iface, bool alive) {
+
+    // Create service discovery payload
+    cipher_payload_sd_t payload = {
+        .alive = alive,
+        .service_id = entry->service.service_id,
+        .device_id = entry->service.device_id,
+        .num_ops = entry->service.num_ops,
+        .allowed_hops = entry->service.allowed_hops,
+    };
+    strcpy(payload.name, entry->service.name);
+
+    // Send the broadcast on all interfaces
+    for (uint8_t i = 0; i < ARRAY_SIZE(d->uplink_t_g); i++) {
+        if (!d->uplink_t_g[i].iface.connected || (omit_iface && d->uplink_t_g[i].iface.id == omit_iface->id)) {
+            continue;
+        }
+        send_service_payload(d, &d->uplink_t_g[i].iface, &payload);
+    }
+
+    for (uint8_t i = 0; i < ARRAY_SIZE(d->downlink_t_g); i++) {
+        if (!d->downlink_t_g[i].iface.connected || (omit_iface && d->downlink_t_g[i].iface.id == omit_iface->id)) {
+            continue;
+        }
+        send_service_payload(d, &d->downlink_t_g[i].iface, &payload);
+    }
+}

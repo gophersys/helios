@@ -138,8 +138,6 @@ static void init_objects(cipher_daemon_t *d) {
     k_fifo_init(&d->sd_iface_conn_queue);
     k_fifo_init(&d->sd_iface_disconn_queue);
 
-    k_fifo_init(&d->unrouted_packets_queue);
-
     k_fifo_init(&d->rpc_packet_queue);
 
     k_fifo_init(&d->event_packet_queue);
@@ -179,7 +177,7 @@ static void init_threads(cipher_daemon_t *d) {
                                    K_THREAD_STACK_SIZEOF(d->ctrl_t_stack),
                                    cipher_ctrl_thread,
                                    (void *)d, NULL, NULL,
-                                   CONTROLLER_THREAD_PRIORITY,
+                                   CTRL_THREAD_PRIORITY,
                                    0,
                                    K_FOREVER);
     k_thread_name_set(d->ctrl_t_id, cipher_t_name("cipher_controller", d->id, name_buf, sizeof(name_buf)));
@@ -193,16 +191,6 @@ static void init_threads(cipher_daemon_t *d) {
                                  0,
                                  K_FOREVER);
     k_thread_name_set(d->sd_t_id, cipher_t_name("cipher_sd", d->device_id, name_buf, sizeof(name_buf)));
-
-    d->router_t_id = k_thread_create(&d->router_t_data,
-                                     d->router_t_stack,
-                                     K_THREAD_STACK_SIZEOF(d->router_t_stack),
-                                     cipher_router_thread,
-                                     (void *)d, NULL, NULL,
-                                     ROUTER_THREAD_PRIORITY,
-                                     0,
-                                     K_FOREVER);
-    k_thread_name_set(d->router_t_id, cipher_t_name("cipher_router", d->device_id, name_buf, sizeof(name_buf)));
 
     d->rpc_t_id = k_thread_create(&d->rpc_t_data,
                                   d->rpc_t_stack,
@@ -224,11 +212,21 @@ static void init_threads(cipher_daemon_t *d) {
                                     K_FOREVER);
     k_thread_name_set(d->event_t_id, cipher_t_name("cipher_event", d->device_id, name_buf, sizeof(name_buf)));
 
+    d->stream_t_id = k_thread_create(&d->stream_t_data,
+                                     d->stream_t_stack,
+                                     K_THREAD_STACK_SIZEOF(d->stream_t_stack),
+                                     cipher_stream_thread,
+                                     (void *)d, NULL, NULL,
+                                     STREAM_THREAD_PRIORITY,
+                                     0,
+                                     K_FOREVER);
+    k_thread_name_set(d->event_t_id, cipher_t_name("cipher_stream", d->device_id, name_buf, sizeof(name_buf)));
+
     k_thread_start(d->ctrl_t_id);
     k_thread_start(d->sd_t_id);
-    k_thread_start(d->router_t_id);
     k_thread_start(d->rpc_t_id);
     k_thread_start(d->event_t_id);
+    k_thread_start(d->stream_t_id);
 }
 
 /*-----------------------------------------------------------------------------------------------------
