@@ -147,7 +147,6 @@ static void handle_decoded_packet_event(cipher_daemon_t *d, cipher_iface_t *ifac
 
     // Receive fifo item
     cipher_packet_fifo_item_t *fifo_item = k_fifo_get(&iface->decoded_packets_queue, K_NO_WAIT);
-    CHECK_MALLOC(fifo_item);  // TODO: this is not a malloc lol
 
     cipher_packet_t *decoded_packet = &fifo_item->packet;
 

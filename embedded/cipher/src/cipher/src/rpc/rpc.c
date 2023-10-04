@@ -52,9 +52,9 @@ void cipher_rpc_thread(void *arg0, void *arg1, void *arg2) {
         int event = k_poll(rpc_events, EVENT_NUM, K_FOREVER);
         if (event == 0) {
             if (rpc_events[LOCAL_RPC_EVENT].state == K_POLL_STATE_FIFO_DATA_AVAILABLE) {
-                handle_local_rpc_event(d);
+                handle_local_rpc_request_event(d);
             } else if (rpc_events[REMOTE_RPC_EVENT].state == K_POLL_STATE_FIFO_DATA_AVAILABLE) {
-                handle_remote_rpc_event(d);
+                handle_remote_rpc_request_event(d);
             } else {
                 ERROR("Unknown poll condition: %d, daemon %d", event, d->id);
             }

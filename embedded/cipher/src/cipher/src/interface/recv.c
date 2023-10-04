@@ -182,6 +182,8 @@ static void process_routing_packet(cipher_daemon_t *d, cipher_header_t *header, 
     memcpy(fifo_item->raw_packet, recv_buffer, packet_size);
     fifo_item->packet_len = packet_size;
 
+    // TODO: We must unpack the header, increase the hop count, and pack it up again
+
     // We no longer need the network buffer
     k_heap_free(&d->net_packets_heap, recv_buffer);
 

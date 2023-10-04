@@ -9,19 +9,6 @@
 LOG_MODULE_REGISTER(user, LOG_LEVEL_DBG);
 
 /*-----------------------------------------------------------------------------------------------------
- *                                                                                            Weak RPCs
- *---------------------------------------------------------------------------------------------------*/
-__attribute__((weak)) MotionResponse_t accel_command_motion_handler(MotionRequest_t request) {
-    WARN("no implementation for %s provided", __func__);
-
-    MotionResponse_t resp = {
-        .success = true,
-    };
-
-    return resp;
-}
-
-/*-----------------------------------------------------------------------------------------------------
  *                                                                                          Remote RPCs
  *---------------------------------------------------------------------------------------------------*/
 MotionResponse_t accel_command_motion_rpc(cipher_rpc_info_t* info, MotionRequest_t request) {
@@ -30,15 +17,33 @@ MotionResponse_t accel_command_motion_rpc(cipher_rpc_info_t* info, MotionRequest
 }
 
 /*-----------------------------------------------------------------------------------------------------
- *                                                                                         Private RPCs
+ *                                                                                      Weak Local RPCs
  *---------------------------------------------------------------------------------------------------*/
 
-void* accel_command_motion_prv_rpc(void* request) {
+static bool accel_command_motion_handler_implemented = true;
+__attribute__((weak)) MotionResponse_t accel_command_motion_handler(MotionRequest_t request) {
+    WARN("no implementation for %s provided", __func__);
+    accel_command_motion_handler_implemented = false;
+    MotionResponse_t resp = {0};
+    return resp;
+}
+
+/*-----------------------------------------------------------------------------------------------------
+ *                                                                               Private Local Handlers
+ *---------------------------------------------------------------------------------------------------*/
+
+cipher_rpc_err_t accel_command_motion_prv_handler(void* request, void* response) {
+
     MotionRequest_t* typed_request = (MotionRequest_t*)request;
-    MotionResponse_t response = accel_command_motion_handler(*typed_request);
-    MotionResponse_t* response_ptr = malloc(sizeof(MotionResponse_t));  // TODO: K_heap_malloc here
-    *response_ptr = response;
-    return response_ptr;
+    MotionResponse_t* typed_response = (MotionResponse_t*)response;
+
+    *typed_response = accel_command_motion_handler(*typed_request);
+
+    if (!accel_command_motion_handler_implemented) {
+        return CIPHER_RPC_ERR_NOT_IMPLEMENTED;
+    }
+
+    return CIPHER_RPC_ERR_OK;
 }
 
 /*-----------------------------------------------------------------------------------------------------
@@ -54,7 +59,7 @@ static cipher_ops_entry_t local_ops[] = {
             .rpc = {
                 .request_size = sizeof(MotionRequest_t),
                 .response_size = sizeof(MotionResponse_t),
-                .handler = accel_command_motion_prv_rpc,
+                .handler = accel_command_motion_prv_handler,
             },
         },
     },

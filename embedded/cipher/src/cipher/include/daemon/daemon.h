@@ -124,6 +124,12 @@ typedef struct {
     uint8_t __aligned(8) ctrl_events_heap_mem[CONFIG_CTRL_EVENTS_HEAP_SIZE];
 
     /**
+     * @brief Heap pool to send events to daemon controller thread
+     */
+    struct k_heap rpc_events_heap;
+    uint8_t __aligned(8) rpc_events_heap_mem[CONFIG_RPC_EVENTS_HEAP_SIZE];
+
+    /**
      * @brief Heap pool to receive and send network packets using send() and recv()
      */
     struct k_heap net_packets_heap;

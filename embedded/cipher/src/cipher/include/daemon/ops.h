@@ -31,6 +31,7 @@ typedef enum {
  * @brief Errors that a remote RPC call can return
  */
 typedef enum {
+    CIPHER_RPC_ERR_OK,              /*!< RPC executed correctly */
     CIPHER_RPC_ERR_TIMEOUT,         /*!< Remote host didn't respond before required timeout */
     CIPHER_RPC_ERR_CONN_LOST,       /*!< Connection lost with remote host on interface */
     CIPHER_RPC_ERR_NOT_FOUND,       /*!< RPC is not available on remote host */
@@ -51,7 +52,7 @@ typedef struct {
 /**
  * @brief Function signature called when an RPC needs to be ran in the localhost
  */
-typedef void *(*rpc_handler_func)(void *request);
+typedef cipher_rpc_err_t (*rpc_handler_func)(void *request, void *response);
 
 /**
  * @brief Used by daemon's RPC thread to execute a localhost handler

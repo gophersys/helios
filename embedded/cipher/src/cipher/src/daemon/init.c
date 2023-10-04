@@ -144,6 +144,7 @@ static void init_objects(cipher_daemon_t *d) {
     k_fifo_init(&d->event_packet_queue);
 
     k_heap_init(&d->ctrl_events_heap, d->ctrl_events_heap_mem, sizeof(d->ctrl_events_heap_mem));
+    k_heap_init(&d->rpc_events_heap, d->rpc_events_heap_mem, sizeof(d->rpc_events_heap_mem));
     k_heap_init(&d->net_packets_heap, d->net_packets_heap_mem, sizeof(d->net_packets_heap_mem));
     k_heap_init(&d->net_partial_packets_heap, d->net_partial_packets_heap_mem, sizeof(d->net_partial_packets_heap_mem));
     k_heap_init(&d->unrouted_packets_heap, d->unrouted_packets_heap_mem, sizeof(d->unrouted_packets_heap_mem));

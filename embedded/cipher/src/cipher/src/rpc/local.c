@@ -27,5 +27,5 @@ LOG_MODULE_DECLARE(rpc);
  *                                                                                               Assert
  *---------------------------------------------------------------------------------------------------*/
 
-void handle_local_rpc_event(cipher_daemon_t *d) {
+void handle_local_rpc_request_event(cipher_daemon_t *d) {
 }

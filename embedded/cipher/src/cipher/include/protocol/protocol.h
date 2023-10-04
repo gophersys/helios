@@ -11,6 +11,7 @@
 
 // Cipher includes
 #include "config/default.h"
+#include "daemon/ops.h"
 #include "transport/transport.h"
 #include "utils/err.h"
 
@@ -77,6 +78,24 @@ typedef struct {
 } cipher_packet_t;
 
 /*-----------------------------------------------------------------------------------------------------
+ *                                                                                                Flags
+ *---------------------------------------------------------------------------------------------------*/
+typedef enum {
+    CIPHER_FLAG_RPC_REQUEST = (1 << 0),
+    CIPHER_FLAG_RPC_RESPONSE = (1 << 1),
+    CIPHER_FLAG_RPC_ERR = (1 << 2),
+} cipher_flags_e;
+
+// Macro to set a flag
+#define CIPHER_SET_FLAG(FLAGS, FLAG) ((FLAGS) |= (FLAG))
+
+// Macro to clear a flag
+#define CIPHER_CLEAR_FLAG(FLAGS, FLAG) ((FLAGS) &= ~(FLAG))
+
+// Macro to check if a flag is set
+#define CIPHER_IS_FLAG_SET(FLAGS, FLAG) ((FLAGS) & (FLAG))
+
+/*-----------------------------------------------------------------------------------------------------
  *                                                                           Service Discovery Payloads
  *---------------------------------------------------------------------------------------------------*/
 
@@ -90,7 +109,11 @@ typedef struct {
 } cipher_payload_sd_t;
 
 /*-----------------------------------------------------------------------------------------------------
- *                                                                           Service Discovery Payloads
+ *                                                                                         RPC Payloads
  *---------------------------------------------------------------------------------------------------*/
+
+typedef struct {
+    cipher_rpc_err_t err;
+} cipher_payload_rpc_err_t;
 
 #endif  // PROTOCOL_H
