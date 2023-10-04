@@ -2,6 +2,7 @@
 
 // Cipher includes
 #include "daemon/api.h"
+#include "daemon/daemon.h"
 #include "daemon/registry.h"
 #include "utils/err.h"
 
@@ -10,7 +11,7 @@ LOG_MODULE_REGISTER(user, LOG_LEVEL_DBG);
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                            Weak RPCs
  *---------------------------------------------------------------------------------------------------*/
-__attribute__((weak)) MotionResponse_t accel_command_motion_rpc(MotionRequest_t request) {
+__attribute__((weak)) MotionResponse_t accel_command_motion_handler(MotionRequest_t request) {
     WARN("no implementation for %s provided", __func__);
 
     MotionResponse_t resp = {
@@ -21,49 +22,43 @@ __attribute__((weak)) MotionResponse_t accel_command_motion_rpc(MotionRequest_t 
 }
 
 /*-----------------------------------------------------------------------------------------------------
+ *                                                                                          Remote RPCs
+ *---------------------------------------------------------------------------------------------------*/
+MotionResponse_t accel_command_motion_rpc(cipher_rpc_info_t* info, MotionRequest_t request) {
+    // Add an rpc request to the rpc thread
+    // Await on a reponse
+}
+
+/*-----------------------------------------------------------------------------------------------------
  *                                                                                         Private RPCs
  *---------------------------------------------------------------------------------------------------*/
 
 void* accel_command_motion_prv_rpc(void* request) {
     MotionRequest_t* typed_request = (MotionRequest_t*)request;
-    MotionResponse_t response = accel_command_motion_rpc(*typed_request);
+    MotionResponse_t response = accel_command_motion_handler(*typed_request);
     MotionResponse_t* response_ptr = malloc(sizeof(MotionResponse_t));  // TODO: K_heap_malloc here
     *response_ptr = response;
     return response_ptr;
 }
 
 /*-----------------------------------------------------------------------------------------------------
- *                                                                                                  Ops
+ *                                                                                          Service Ops
  *---------------------------------------------------------------------------------------------------*/
 
-static cipher_op_union_t accel_command_motion_op = {
-    .type = CIPHER_OP_TYPE_RPC,
-    .op = {
-        .rpc = {
-            .base = {
-                .type = CIPHER_OP_TYPE_RPC,
-                .op_id = 1,
-                .name = "CommandMotion",
+static cipher_ops_entry_t local_ops[] = {
+    {
+        .id = 1,
+        .type = CIPHER_OPS_TYPE_RPC,
+        .name = "CommandMotion",
+        .op = {
+            .rpc = {
+                .request_size = sizeof(MotionRequest_t),
+                .response_size = sizeof(MotionResponse_t),
+                .handler = accel_command_motion_prv_rpc,
             },
-            .request_size = sizeof(MotionRequest_t),
-            .response_size = sizeof(MotionResponse_t),
-            .handler = accel_command_motion_prv_rpc,
         },
     },
-};
-
-static cipher_op_union_t accel_accelerometer_update_op = {
-    .type = CIPHER_OP_TYPE_EVENT,
-    .op = {
-        .event = {
-            .base = {
-                .type = CIPHER_OP_TYPE_EVENT,
-                .op_id = 2,
-                .name = "AccelerometerUpdate",
-            },
-            // Event-specific fields...
-        },
-    },
+    // Add more operations as needed...
 };
 
 /*-----------------------------------------------------------------------------------------------------
@@ -79,10 +74,7 @@ static cipher_service_entry_t local_services[] = {
             .device_id = THIS_DEVICE_ID,
             .num_ops = 2,
             .allowed_hops = 1,
-            .ops = {
-                &accel_command_motion_op,
-                &accel_accelerometer_update_op,
-            },
+            .ops = local_ops,
         },
     },
 };

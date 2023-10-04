@@ -5,6 +5,7 @@
 #include "config/daemon.h"
 #include "config/default.h"
 #include "daemon/daemon.h"
+#include "daemon/service.h"
 
 /**
  * @brief Check the internal daemon register for service entry existence

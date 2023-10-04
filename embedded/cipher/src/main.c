@@ -46,7 +46,7 @@ static cipher_daemon_t daemon = {0};
  *---------------------------------------------------------------------------------------------------*/
 
 // Generated RPC prototypes
-MotionResponse_t accel_command_motion_rpc(MotionRequest_t request) {
+MotionResponse_t accel_command_motion_handler(MotionRequest_t request) {
     // ... user's implementation ...
     MotionResponse_t resp = {
         .success = true,
@@ -61,7 +61,8 @@ MotionResponse_t accel_command_motion_rpc(MotionRequest_t request) {
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                                  App
  *---------------------------------------------------------------------------------------------------*/
-void test_rpc(void);
+void test_raw_rpc(void);
+void test_api_rpc(void);
 
 int main(void) {
     LOG_RAW("\n\n%s\n", "********** Cipher Protocol App **********");
@@ -74,12 +75,13 @@ int main(void) {
 
     LOG("App Initialized OK");
     while (true) {
-        test_rpc();
+        test_raw_rpc();
+        test_api_rpc();
         k_msleep(1000);
     }
 }
 
-void test_rpc(void) {
+void test_raw_rpc(void) {
     // Allocate packet memory
     cipher_packet_fifo_item_t* fifo_item = alloc_packet_fifo_item(&daemon, sizeof(MotionRequest_t));
     CHECK_MALLOC(fifo_item);
@@ -88,7 +90,7 @@ void test_rpc(void) {
     fifo_item->packet.header.type = CIPHER_PACKET_TYPE_RPC;
     fifo_item->packet.header.destination_id = THIS_DEVICE_ID;
     fifo_item->packet.header.service_id = 6969;
-    fifo_item->packet.header.operation_id = 1;
+    fifo_item->packet.header.operation_id = OP_ID_RPC_MOTION_COMMAND;
 
     MotionRequest_t* request_payload = (MotionRequest_t*)fifo_item->packet.payload;
 
@@ -98,4 +100,24 @@ void test_rpc(void) {
 
     // Send packet to queue
     k_fifo_put(&daemon.rpc_packet_queue, fifo_item);
+}
+
+void test_api_rpc(void) {
+
+    MotionRequest_t request = {
+
+    };
+
+    int err = 0;
+    cipher_rpc_info_t data = {
+        .device_id = THIS_DEVICE_ID,
+        .error = &err,
+        .timeout_ms = 500,
+    };
+
+    MotionResponse_t response = accel_command_motion_rpc(&data, request);
+
+    if (err != 0) {
+        ERROR("error calling rpc %d", err);
+    }
 }

@@ -1,0 +1,30 @@
+#ifndef SERVICE_H
+#define SERVICE_H
+
+#include "config/default.h"
+#include "daemon/iface.h"
+
+/**
+ * @brief Service definition
+ */
+typedef struct {
+    uint16_t device_id;                /*!< The device where the service is located. Localhost is valid */
+    uint16_t service_id;               /*!< ID of the service */
+    char name[CONFIG_CIPHER_NAME_LEN]; /*!< Name of the service */
+    uint8_t allowed_hops;              /*!< How many hosts the request can jump through */
+    cipher_ops_entry_t *ops;           /*!< List of ops, only needed for local services */
+    uint8_t num_ops;                   /*!< Number of ops in local service */
+} cipher_service_t;
+
+typedef struct {
+    bool _used;
+    bool local;
+    cipher_iface_t *iface;
+    cipher_service_t service;
+} cipher_service_entry_t;
+
+typedef struct {
+    cipher_service_entry_t entries[CONFIG_MAX_NUM_SERVICES];
+} cipher_service_registry_t;
+
+#endif

@@ -139,6 +139,7 @@ static void init_objects(cipher_daemon_t *d) {
     k_fifo_init(&d->sd_iface_disconn_queue);
 
     k_fifo_init(&d->rpc_packet_queue);
+    k_fifo_init(&d->localhost_rpc_queue);
 
     k_fifo_init(&d->event_packet_queue);
 

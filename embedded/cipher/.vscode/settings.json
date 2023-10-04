@@ -34,7 +34,8 @@
         "protocol.h": "c",
         "serdes.h": "c",
         "err.h": "c",
-        "compare": "c"
+        "compare": "c",
+        "registry.h": "c"
     },
     // Editor actions
     "editor.codeActionsOnSave": {
