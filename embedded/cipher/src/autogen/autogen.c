@@ -3,6 +3,7 @@
 // Cipher includes
 #include "daemon/api.h"
 #include "daemon/daemon.h"
+#include "daemon/fifo.h"
 #include "daemon/registry.h"
 #include "utils/err.h"
 
@@ -11,9 +12,24 @@ LOG_MODULE_REGISTER(user, LOG_LEVEL_DBG);
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                          Remote RPCs
  *---------------------------------------------------------------------------------------------------*/
-MotionResponse_t accel_command_motion_rpc(cipher_rpc_info_t* info, MotionRequest_t request) {
-    // Add an rpc request to the rpc thread
-    // Await on a reponse
+MotionResponse_t accel_command_motion_rpc(cipher_daemon_t* d, cipher_rpc_user_info_t* info, MotionRequest_t request) {
+
+    // Alloc and set fifo item
+    cipher_local_rpc_request_fifo_item_t* fifo_item = alloc_local_rpc_request_fifo_item(d, sizeof(MotionRequest_t), sizeof(MotionResponse_t));
+    CHECK_MALLOC(fifo_item);
+
+    // TODO: POPULATE SERVICE ID
+
+    k_sem_init(&fifo_item->entry->await_sem, 0, 1);
+
+    // Add request to thread
+    k_fifo_put(&d->localhost_rpc_queue, fifo_item);
+
+    // Async wait
+    k_sem_take(&fifo_item->entry->await_sem, K_FOREVER);  // Timeout is handled internally in thread
+
+    // TODO: sem destroy
+    free_local_rpc_request_fifo_item(d, fifo_item);
 }
 
 /*-----------------------------------------------------------------------------------------------------

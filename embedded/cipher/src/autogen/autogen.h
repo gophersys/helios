@@ -44,7 +44,7 @@ typedef struct {
 MotionResponse_t accel_command_motion_handler(MotionRequest_t request);
 
 // this is the function that localhost can call on a remote host to exectue an RPC
-MotionResponse_t accel_command_motion_rpc(cipher_rpc_info_t* data, MotionRequest_t request);
+MotionResponse_t accel_command_motion_rpc(cipher_daemon_t* d, cipher_rpc_user_info_t* info, MotionRequest_t request);
 
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                       Protocol Types

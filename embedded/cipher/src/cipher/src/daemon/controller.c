@@ -10,12 +10,13 @@
 // Cipher includes
 #include "config/default.h"
 #include "daemon/daemon.h"
+#include "daemon/fifo.h"
 #include "protocol/protocol.h"
 #include "utils/err.h"
 
 // Private include
 #include "controller.h"
-#include "packet.h"
+
 #include "threads.h"
 
 /*-----------------------------------------------------------------------------------------------------

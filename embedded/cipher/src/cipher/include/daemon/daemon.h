@@ -5,26 +5,9 @@
 #include "config/daemon.h"
 #include "config/default.h"
 #include "daemon/iface.h"
-#include "daemon/ops.h"
 #include "daemon/service.h"
 #include "protocol/protocol.h"
 #include "transport/transport.h"
-
-/*-----------------------------------------------------------------------------------------------------
- *                                                                                           Fifo Types
- *---------------------------------------------------------------------------------------------------*/
-
-typedef struct {
-    uintptr_t __k_reserved;
-    cipher_packet_t packet;
-    cipher_iface_t *iface;
-} cipher_packet_fifo_item_t;
-
-typedef struct {
-    uintptr_t __k_reserved;
-    uint8_t *raw_packet;
-    size_t packet_len;
-} cipher_router_packet_fifo_item_t;
 
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                               Deamon
@@ -157,7 +140,7 @@ typedef struct {
      *                                     Registries
      *---------------------------------------------*/
     cipher_service_registry_t service_registry;
-
+    cipher_rpc_registry_t rpc_registry;
 } cipher_daemon_t;
 
 #endif  // DAEMON_CONFIG_H

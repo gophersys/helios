@@ -3,6 +3,7 @@
 
 #include "config/default.h"
 #include "daemon/iface.h"
+#include "daemon/ops.h"
 
 /**
  * @brief Service definition
@@ -24,7 +25,25 @@ typedef struct {
 } cipher_service_entry_t;
 
 typedef struct {
+    bool _used;
+    uint8_t id;
+    uint16_t service_id;
+    uint16_t op_id;
+    void *request;
+    size_t request_size;
+    void *response;
+    size_t response_size;
+    struct k_timer timer;
+    struct k_sem await_sem;
+    cipher_rpc_user_info_t *user_info;
+} cipher_rpc_entry_t;
+
+typedef struct {
     cipher_service_entry_t entries[CONFIG_MAX_NUM_SERVICES];
 } cipher_service_registry_t;
+
+typedef struct {
+    cipher_rpc_entry_t *entries[CONFIG_MAX_NUM_CONCURRENT_RPCS];
+} cipher_rpc_registry_t;
 
 #endif

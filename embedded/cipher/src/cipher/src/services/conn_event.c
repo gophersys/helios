@@ -11,13 +11,13 @@
 #include "daemon/daemon.h"
 #include "daemon/registry.h"
 #include "protocol/protocol.h"
+#include "daemon/fifo.h"
 #include "protocol/serdes.h"
 #include "transport/transport.h"
 #include "utils/err.h"
 
 // Private include
 #include "interface.h"
-#include "packet.h"
 #include "services.h"
 #include "threads.h"
 

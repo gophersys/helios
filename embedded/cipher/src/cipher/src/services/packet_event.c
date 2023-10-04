@@ -8,6 +8,7 @@
 
 // Cipher includes
 #include "config/default.h"
+#include "daemon/fifo.h"
 #include "daemon/daemon.h"
 #include "daemon/registry.h"
 #include "protocol/protocol.h"
@@ -17,7 +18,6 @@
 
 // Private include
 #include "interface.h"
-#include "packet.h"
 #include "services.h"
 #include "threads.h"
 

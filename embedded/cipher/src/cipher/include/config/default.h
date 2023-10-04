@@ -21,6 +21,7 @@
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                             Services
  *---------------------------------------------------------------------------------------------------*/
+#define CONFIG_MAX_NUM_CONCURRENT_RPCS 3
 #define CONFIG_MAX_NUM_SERVICES 10
 #define CONFIG_MAX_NUM_OPS_PER_SERVICE 15
 #define CONFIG_CIPHER_NAME_LEN 24

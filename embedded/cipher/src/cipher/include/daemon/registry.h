@@ -50,4 +50,8 @@ bool cipher_service_unregister(cipher_daemon_t *d, cipher_service_entry_t *entry
  */
 cipher_iface_t *cipher_get_iface_by_device_id(cipher_daemon_t *d, uint16_t device_id);
 
+bool cipher_rpc_exists(cipher_daemon_t *d, cipher_rpc_entry_t *entry);
+bool cipher_rpc_register(cipher_daemon_t *d, cipher_rpc_entry_t *entry);
+bool cipher_rpc_unregister(cipher_daemon_t *d, cipher_rpc_entry_t *entry);
+
 #endif

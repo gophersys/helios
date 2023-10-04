@@ -10,6 +10,7 @@
 #include "config/default.h"
 #include "daemon/daemon.h"
 #include "daemon/registry.h"
+#include "daemon/fifo.h"
 #include "protocol/protocol.h"
 #include "protocol/serdes.h"
 #include "transport/transport.h"
@@ -17,7 +18,6 @@
 
 // Private include
 #include "interface.h"
-#include "packet.h"
 #include "threads.h"
 
 LOG_MODULE_DECLARE(iface);

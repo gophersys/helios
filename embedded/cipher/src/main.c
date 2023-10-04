@@ -4,12 +4,11 @@
 LOG_MODULE_REGISTER(app);
 
 // Cipher includes
+#include "cipher/test/include/cipher_tests.h"
 #include "daemon/api.h"
+#include "daemon/fifo.h"
 #include "daemon/registry.h"
 #include "utils/err.h"
-
-// Test
-#include "cipher/src/include/packet.h"
 
 // App includes
 #include "autogen/autogen.h"
@@ -36,7 +35,6 @@ static cipher_daemon_config_t config = {
         .host = POSIX_HOST_IP,
         .port = DOWNLINK_SOCKET,
     },
-
 };
 
 static cipher_daemon_t daemon = {0};
@@ -65,20 +63,22 @@ void test_raw_rpc(void);
 void test_api_rpc(void);
 
 int main(void) {
+
     LOG_RAW("\n\n%s\n", "********** Cipher Protocol App **********");
+    cipher_test_rpc();
+    // cipher_init_daemon(&config, &daemon);
 
-    cipher_init_daemon(&config, &daemon);
+    // size_t num_services = 0;
+    // cipher_service_entry_t* services = cipher_get_local_services(&num_services);
+    // cipher_register_local_services(&daemon, services, num_services);
 
-    size_t num_services = 0;
-    cipher_service_entry_t* services = cipher_get_local_services(&num_services);
-    cipher_register_local_services(&daemon, services, num_services);
-
-    LOG("App Initialized OK");
-    while (true) {
-        test_raw_rpc();
-        test_api_rpc();
-        k_msleep(1000);
-    }
+    // LOG("App Initialized OK");
+    // while (true) {
+    //     cipher_test_rpc();
+    //     test_raw_rpc();
+    //     test_api_rpc();
+    //     k_msleep(1000);
+    // }
 }
 
 void test_raw_rpc(void) {
@@ -109,13 +109,13 @@ void test_api_rpc(void) {
     };
 
     int err = 0;
-    cipher_rpc_info_t data = {
+    cipher_rpc_user_info_t data = {
         .device_id = THIS_DEVICE_ID,
         .error = &err,
         .timeout_ms = 500,
     };
 
-    MotionResponse_t response = accel_command_motion_rpc(&data, request);
+    MotionResponse_t response = accel_command_motion_rpc(&daemon, &data, request);
 
     if (err != 0) {
         ERROR("error calling rpc %d", err);

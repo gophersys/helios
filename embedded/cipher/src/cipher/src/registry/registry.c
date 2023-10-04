@@ -9,6 +9,7 @@
 // Cipher includes
 #include "config/default.h"
 #include "daemon/daemon.h"
+#include "daemon/fifo.h"
 #include "daemon/registry.h"
 #include "protocol/protocol.h"
 #include "protocol/serdes.h"
@@ -17,7 +18,6 @@
 
 // Private include
 #include "interface.h"
-#include "packet.h"
 #include "services.h"
 #include "threads.h"
 
@@ -37,7 +37,9 @@ LOG_MODULE_REGISTER(registry, REGISTRY_LOG_LEVEL);
  * @retval true If the entry is valid
  * @retval false If there's an invalid setting, printed as WARN
  */
-static bool verify_entry(cipher_daemon_t *d, cipher_service_entry_t *entry);
+static bool verify_service_entry(cipher_daemon_t *d, cipher_service_entry_t *entry);
+
+static bool verify_rpc_entry(cipher_daemon_t *d, cipher_service_entry_t *entry);
 
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                   API Implementation
@@ -80,7 +82,7 @@ bool cipher_service_exists(cipher_daemon_t *d, cipher_service_entry_t *entry) {
 
 bool cipher_service_register(cipher_daemon_t *d, cipher_service_entry_t *entry) {
 
-    if (!verify_entry(d, entry)) {
+    if (!verify_service_entry(d, entry)) {
         return false;
     }
 
@@ -158,10 +160,72 @@ cipher_iface_t *cipher_get_iface_by_device_id(cipher_daemon_t *d, uint16_t devic
     return NULL;
 }
 
+bool cipher_rpc_exists(cipher_daemon_t *d, cipher_rpc_entry_t *entry) {
+
+    // If the device if, service id and name match, service is present
+    for (size_t i = 0; i < ARRAY_SIZE(d->rpc_registry.entries); i++) {
+
+        cipher_rpc_entry_t *current_entry = &d->rpc_registry.entries[i];
+
+        if (current_entry->id == entry->id) {
+            continue;
+        }
+
+        return true;
+    }
+
+    return false;
+}
+
+bool cipher_rpc_register(cipher_daemon_t *d, cipher_rpc_entry_t *entry) {
+    if (!verify_rpc_entry(d, entry)) {
+        return false;
+    }
+
+    for (size_t i = 0; i < ARRAY_SIZE(d->rpc_registry.entries); i++) {
+
+        cipher_rpc_entry_t *current_entry = &d->rpc_registry.entries[i];
+
+        if (current_entry->_used == true) {
+            continue;
+        }
+
+        memcpy(current_entry, entry, sizeof(cipher_rpc_entry_t));
+        current_entry->_used = true;
+
+        return true;
+    }
+
+    WARN("Daemon %d rpc registry is full, number of entries: %d!", d->id, ARRAY_SIZE(d->rpc_registry.entries));
+    return false;
+}
+
+bool cipher_rpc_unregister(cipher_daemon_t *d, cipher_rpc_entry_t *entry) {
+
+    if (!cipher_rpc_exists(d, entry)) {
+        return false;
+    }
+
+    for (size_t i = 0; i < ARRAY_SIZE(d->rpc_registry.entries); i++) {
+
+        cipher_rpc_entry_t *current_entry = &d->service_registry.entries[i];
+
+        if (current_entry->id != entry->id) {
+            continue;
+        }
+
+        memset(current_entry, 0, sizeof(cipher_rpc_entry_t));
+
+        return true;
+    }
+
+    return false;
+}
+
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                         Verify Entry
  *---------------------------------------------------------------------------------------------------*/
-static bool verify_entry(cipher_daemon_t *d, cipher_service_entry_t *entry) {
+static bool verify_service_entry(cipher_daemon_t *d, cipher_service_entry_t *entry) {
 
     if (cipher_service_exists(d, entry)) {
         return true;

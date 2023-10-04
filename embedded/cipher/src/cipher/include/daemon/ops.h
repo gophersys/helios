@@ -6,6 +6,7 @@
 #include <stdint.h>
 
 // Cipher includes
+#include "config/daemon.h"
 #include "config/default.h"
 
 /*-----------------------------------------------------------------------------------------------------
@@ -47,7 +48,7 @@ typedef struct {
     uint16_t device_id;      /*!< Remote host ID where you want to execute the RPC */
     uint16_t timeout_ms;     /*!< How long the daemon should wait for a remote host to answer */
     cipher_rpc_err_t *error; /*!< Buffer to store error flag */
-} cipher_rpc_info_t;
+} cipher_rpc_user_info_t;
 
 /**
  * @brief Function signature called when an RPC needs to be ran in the localhost
