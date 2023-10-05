@@ -24,4 +24,27 @@ int main(void) {
 
     cipher_daemon_init(&cfg, &d);
     cipher_daemon_start(&d);
+
+    k_msleep(1000);
+
+    while (true) {
+
+        motion_request_t request = {
+            .direction = DIRECTION_X,
+            .force = 1,
+            .interval = 100,
+        };
+
+        cipher_rpc_user_info_t info = {
+            .device_id = 124,
+            .timeout_ms = 100,
+        };
+
+        motion_response_t response = accel_bench_rpc_command_motion(&d, &info, request);
+        if (info.error != CIPHER_RPC_ERR_OK) {
+            ERROR("RPC error: %d", info.error);
+        }
+
+        LOG("Success: %d, ErrCode: %d", response.success, response.error_code);
+    }
 }

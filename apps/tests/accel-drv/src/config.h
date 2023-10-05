@@ -5,18 +5,19 @@
 #include "transport/transport.h"
 
 #define THIS_DEVICE_ID 123
-#define POSIX_HOST_IP "127.0.0.1"
-#define UPLINK_SOCKET 5000    // Client connects to this port
-#define DOWNLINK_SOCKET 5000  // Server listens on this port
+#define REMOTE_HOST_IP "192.168.0.10"
+#define UPLINK_SOCKET 5000  // Client connects to this port
 
 static cipher_daemon_config_t cfg = {
     .device_id = THIS_DEVICE_ID,
     .uplink_ifaces[0] = {
         .type = TAL_INTERFACE_TYPE_SOCKET,
         .link = TAL_LINK_TYPE_UPLINK,
-        .host = POSIX_HOST_IP,
+        .host = REMOTE_HOST_IP,
         .port = UPLINK_SOCKET,
     },
+    .num_uplink_ifaces = 1,
+    .num_downlink_ifaces = 0,
 };
 
 static cipher_daemon_t d = {0};
