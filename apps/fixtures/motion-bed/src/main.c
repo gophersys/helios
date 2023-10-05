@@ -35,6 +35,7 @@ int main(void) {
 }
 
 motion_response_t accel_bench_rpc_command_motion_handler(motion_request_t request) {
+
     motion_response_t response = {0};
     return response;
 }
