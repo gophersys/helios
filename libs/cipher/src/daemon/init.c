@@ -255,18 +255,11 @@ static void init_interface_objects(cipher_iface_t *iface) {
  * @param d The daemon
  */
 static void init_interfaces(cipher_daemon_t *d) {
-    uint8_t num_up_link_ifaces = CONFIG_UP_LINK_IFACE_COUNT;
     uint8_t num_down_link_ifaces = CONFIG_UP_LINK_IFACE_COUNT;
+    uint8_t num_up_link_ifaces = CONFIG_UP_LINK_IFACE_COUNT;
 
     // Assign an interface to each thread group
     uint8_t iface_id = 0;
-    for (uint8_t i = 0; i < num_up_link_ifaces; i++) {
-        d->uplink_t_g[i].iface.id = iface_id++;
-        d->uplink_t_g[i].iface.cfg = &d->cfg->uplink_ifaces[i];
-        d->uplink_t_g[i].iface.connected = false;
-        init_interface_objects(&d->uplink_t_g[i].iface);
-    }
-
     for (uint8_t i = 0; i < num_down_link_ifaces; i++) {
         d->downlink_t_g[i].iface.id = iface_id++;
         d->downlink_t_g[i].iface.cfg = &d->cfg->downlink_ifaces[i];
@@ -274,9 +267,16 @@ static void init_interfaces(cipher_daemon_t *d) {
         init_interface_objects(&d->downlink_t_g[i].iface);
     }
 
+    for (uint8_t i = 0; i < num_up_link_ifaces; i++) {
+        d->uplink_t_g[i].iface.id = iface_id++;
+        d->uplink_t_g[i].iface.cfg = &d->cfg->uplink_ifaces[i];
+        d->uplink_t_g[i].iface.connected = false;
+        init_interface_objects(&d->uplink_t_g[i].iface);
+    }
+
     // Initialize & Start all interfaces
-    initialize_interface_group(d, d->uplink_t_g, num_up_link_ifaces);
     initialize_interface_group(d, d->downlink_t_g, num_down_link_ifaces);
+    initialize_interface_group(d, d->uplink_t_g, num_up_link_ifaces);
 }
 
 /**

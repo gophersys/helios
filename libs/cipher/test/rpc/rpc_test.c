@@ -137,9 +137,9 @@ cipher_service_entry_t services[] = {
  *                                                                                                 Test
  *---------------------------------------------------------------------------------------------------*/
 cipher_daemon_t d = {0};
-#define POSIX_HOST_IP "192.168.0.110"
-#define UPLINK_SOCKET 5000
-#define DOWNLINK_SOCKET 5001
+#define POSIX_HOST_IP "127.0.0.1"
+#define UPLINK_SOCKET 5000    // Client connects to this port
+#define DOWNLINK_SOCKET 5000  // Server listens on this port
 
 static cipher_daemon_config_t config = {
     .device_id = DEVICE_ID,
@@ -181,10 +181,12 @@ void cipher_test_rpc(void) {
 
     rand_response_t response = rand_rpc(&d, &info, request);
     if (info.error != CIPHER_RPC_ERR_OK) {
-        ERROR("This error shouldve returned OK");
+        WARN("This error shouldve returned OK");
     }
 
     (void)response;
+
+    k_msleep(20000);
 
     // Test 2: Test a remote RPC executing on this host
     // cipher_packet_fifo_item_t* fifo_item = alloc_packet_fifo_item(&d, sizeof(rand_request_t));

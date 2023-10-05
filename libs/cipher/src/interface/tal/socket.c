@@ -44,7 +44,7 @@ bool socket_create(tal_config_t *cfg) {
         struct sockaddr_in local_addr = {0};
         local_addr.sin_family = AF_INET;
         local_addr.sin_port = htons(cfg->port);
-        local_addr.sin_addr.s_addr = INADDR_ANY;  // Bind to all available interfaces
+        local_addr.sin_addr.s_addr = htonl(INADDR_ANY);  // Bind to all available interfaces
 
         if (bind(cfg->socket, (struct sockaddr *)&local_addr, sizeof(local_addr)) < 0) {
             WARN("Socket bind failed: %s", strerror(errno));
@@ -114,6 +114,12 @@ bool socket_accept(tal_config_t *cfg, bool *timeout) {
 
     struct sockaddr_in client_addr;
     socklen_t addr_len = sizeof(client_addr);
+
+    // Start listening on the socket (only ever allow 1 connection)
+    if (listen(cfg->socket, 1) < 0) {
+        WARN("Socket listen failed: %s", strerror(errno));
+        return false;
+    }
 
     int client_socket = accept(cfg->socket, (struct sockaddr *)&client_addr, &addr_len);
     if (client_socket < 0) {

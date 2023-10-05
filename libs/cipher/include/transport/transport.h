@@ -56,6 +56,7 @@ typedef struct {
     uint16_t port;
     char *host;
     uint16_t socket;
+    uint16_t backlog;
 } tal_config_t;
 
 /*-----------------------------------------------------------------------------------------------------

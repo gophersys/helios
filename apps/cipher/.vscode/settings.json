@@ -36,7 +36,9 @@
         "err.h": "c",
         "compare": "c",
         "registry.h": "c",
-        "controller.h": "c"
+        "controller.h": "c",
+        "in.h": "c",
+        "log_ctrl.h": "c"
     },
     // Editor actions
     "editor.codeActionsOnSave": {

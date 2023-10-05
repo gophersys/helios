@@ -107,6 +107,7 @@ static void get_connection(cipher_daemon_t *d, cipher_iface_t *iface) {
     {
         switch (iface->cfg->link) {
             case TAL_LINK_TYPE_UPLINK:
+
                 if (tal_connect(iface->cfg, &conn_timeout)) {
                     iface->connected = true;
                 } else {

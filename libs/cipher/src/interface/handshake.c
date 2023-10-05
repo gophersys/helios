@@ -58,6 +58,8 @@ bool interface_handshake(cipher_daemon_t *d, cipher_iface_t *iface) {
  * @return false If a version mismatch, or send/recv errors
  */
 static bool handshake_uplink(cipher_daemon_t *d, tal_config_t *cfg) {
+    LOG("Handshaking uplink node");
+
     uint16_t bytes_sent = 0;
     bool conn_closed = false;
     bool timeout = false;

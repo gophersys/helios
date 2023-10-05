@@ -11,7 +11,8 @@
   // Pass all USB devices
   "runArgs": [
     "--device=/dev/bus/usb",
-    "--device=/dev/ttyACM0",
+    "--device=/dev/ttyACM0", // NXP dev board
+    "--device=/dev/ttyACM1", // STM32 dev board
     "--network=host"
   ],
   // Vs Code Customizations

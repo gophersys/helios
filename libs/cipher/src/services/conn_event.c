@@ -9,9 +9,9 @@
 // Cipher includes
 #include "config/default.h"
 #include "daemon/daemon.h"
+#include "daemon/fifo.h"
 #include "daemon/registry.h"
 #include "protocol/protocol.h"
-#include "daemon/fifo.h"
 #include "protocol/serdes.h"
 #include "transport/transport.h"
 #include "utils/err.h"
@@ -31,7 +31,7 @@ void handle_iface_conn_event(cipher_daemon_t *d) {
 
     cipher_iface_t *conn_iface = k_fifo_get(&d->sd_iface_conn_queue, K_NO_WAIT);
     __ASSERT(conn_iface, "Null item on sd_iface_conn_queue, daemon %d", d->id);
-    __ASSERT(!conn_iface->connected, "Expected iface %d for daemon %d to be conencted", conn_iface->id, d->id);
+    __ASSERT(conn_iface->connected, "Expected iface %d for daemon %d to be conencted", conn_iface->id, d->id);
 
     DBG("Iface %d, daemon %d connected!, advertising all services", conn_iface->id, d->id);
 
