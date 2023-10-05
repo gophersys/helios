@@ -100,6 +100,7 @@ RUN awk '/name-allowlist:/{ \
         }; \
         print "          - hal_espressif # Added by CoreKinect"; \
         print "          - hal_nxp # Added by CoreKinect"; \
+        print "          - hal_stm32 # Added by CoreKinect"; \
         print; \
         next \
     }1' nrf/west.yml > nrf/temp.yml && \
@@ -188,6 +189,8 @@ ENV LC_ALL=en_US.UTF-8
 #                                                                                           Other tools
 # ---------------------------------------------------------------------------------------------------*/
 
+WORKDIR /
+
 # Serial terminal
 RUN apt update && apt install -y minicom
 
@@ -196,6 +199,9 @@ RUN go install -v golang.org/x/tools/gopls@latest
 
 # Net tools
 RUN apt install -y net-tools iputils-ping
+
+# Add OpenOCD binaries to the PATH
+ENV PATH="/usr/home/zephyr-sdk-0.16.1/sysroots/x86_64-pokysdk-linux/usr/bin:${PATH}"
 
 # -----------------------------------------------------------------------------------------------------
 #                                                                                                   End
