@@ -10,7 +10,7 @@
  *---------------------------------------------------------------------------------------------------*/
 #define REGISTRY_LOG_LEVEL LOG_LEVEL_INF
 #define ROUTER_LOG_LEVEL LOG_LEVEL_WRN
-#define SD_LOG_LEVEL LOG_LEVEL_WRN
+#define SD_LOG_LEVEL LOG_LEVEL_INF
 #define EVENT_LOG_LEVEL LOG_LEVEL_WRN
 #define RPC_LOG_LEVEL LOG_LEVEL_WRN
 #define STREAM_LOG_LEVEL LOG_LEVEL_INF

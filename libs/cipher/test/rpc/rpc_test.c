@@ -169,10 +169,8 @@ void cipher_test_rpc(void) {
     intentional_timeout_active = true;
     intentional_tiemout_ms = 500;
 
-    cipher_rpc_err_t err = CIPHER_RPC_ERR_OK;
     cipher_rpc_user_info_t info = {
         .device_id = DEVICE_ID,
-        .error = &err,
         .timeout_ms = 100,
     };
     rand_request_t request = {

@@ -68,12 +68,9 @@ void cipher_daemon_start(cipher_daemon_t *d) {
     k_thread_start(d->event_t_id);
     k_thread_start(d->stream_t_id);
 
-    uint8_t num_down_link_ifaces = CONFIG_UP_LINK_IFACE_COUNT;
-    uint8_t num_up_link_ifaces = CONFIG_UP_LINK_IFACE_COUNT;
-
     // Init interface threads
-    start_interface_group(d, d->downlink_t_g, num_down_link_ifaces);
-    start_interface_group(d, d->uplink_t_g, num_up_link_ifaces);
+    start_interface_group(d, d->downlink_t_g, d->cfg->num_downlink_ifaces);
+    start_interface_group(d, d->uplink_t_g, d->cfg->num_uplink_ifaces);
 }
 
 void cipher_register_local_services(cipher_daemon_t *d, cipher_service_entry_t *entries, size_t num_entries) {
@@ -267,19 +264,16 @@ static void init_interface_objects(cipher_iface_t *iface) {
  * @param d The daemon
  */
 static void init_interfaces(cipher_daemon_t *d) {
-    uint8_t num_down_link_ifaces = CONFIG_UP_LINK_IFACE_COUNT;
-    uint8_t num_up_link_ifaces = CONFIG_UP_LINK_IFACE_COUNT;
-
     // Assign an interface to each thread group
     uint8_t iface_id = 0;
-    for (uint8_t i = 0; i < num_down_link_ifaces; i++) {
+    for (uint8_t i = 0; i < d->cfg->num_downlink_ifaces; i++) {
         d->downlink_t_g[i].iface.id = iface_id++;
         d->downlink_t_g[i].iface.cfg = &d->cfg->downlink_ifaces[i];
         d->downlink_t_g[i].iface.connected = false;
         init_interface_objects(&d->downlink_t_g[i].iface);
     }
 
-    for (uint8_t i = 0; i < num_up_link_ifaces; i++) {
+    for (uint8_t i = 0; i < d->cfg->num_uplink_ifaces; i++) {
         d->uplink_t_g[i].iface.id = iface_id++;
         d->uplink_t_g[i].iface.cfg = &d->cfg->uplink_ifaces[i];
         d->uplink_t_g[i].iface.connected = false;
@@ -287,8 +281,8 @@ static void init_interfaces(cipher_daemon_t *d) {
     }
 
     // Initialize all interfaces
-    initialize_interface_group(d, d->downlink_t_g, num_down_link_ifaces);
-    initialize_interface_group(d, d->uplink_t_g, num_up_link_ifaces);
+    initialize_interface_group(d, d->downlink_t_g, d->cfg->num_downlink_ifaces);
+    initialize_interface_group(d, d->uplink_t_g, d->cfg->num_uplink_ifaces);
 }
 
 /**

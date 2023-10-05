@@ -9,8 +9,8 @@
 // Cipher includes
 #include "config/default.h"
 #include "daemon/daemon.h"
-#include "daemon/registry.h"
 #include "daemon/fifo.h"
+#include "daemon/registry.h"
 #include "protocol/protocol.h"
 #include "protocol/serdes.h"
 #include "transport/transport.h"
@@ -109,7 +109,7 @@ static void recv_ingress_packet(cipher_daemon_t *d, cipher_iface_t *iface, uint8
         handle_iface_error(d, iface, IFACE_ERROR_SERDES, &err, sizeof(err));
     }
 
-    // cipher_print_header(&header); // Uncommnet to see raw header
+    cipher_print_header(&header);  // Uncommnet to see raw header
 
     if (header.payload_len == (bytes_recv - sizeof(header))) {
         process_complete_packet(d, iface, &header, recv_buffer, bytes_recv);

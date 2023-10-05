@@ -61,7 +61,7 @@ void handle_local_request(cipher_daemon_t* d) {
     // Find remote service with RPC
     cipher_iface_t* rpc_iface = cipher_get_iface_by_device_id(d, info->device_id);
     if (!rpc_iface) {
-        *info->error = CIPHER_RPC_ERR_NOT_FOUND;
+        info->error = CIPHER_RPC_ERR_NOT_FOUND;
         k_sem_give(&entry->await_sem);
         return;
     }

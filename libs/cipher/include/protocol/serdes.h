@@ -13,7 +13,9 @@
  */
 typedef enum {
     SERDES_ERROR_OK,
-    SERDES_ERROR_INVALID_HEADER,
+    SERDES_ERROR_INVALID_PARAMETER,
+    SERDES_ERROR_BUFFER_TOO_SMALL,
+    SERDES_ERROR_ENCODING,
 
     SERDES_ERROR_MAX
 } serdes_error_t;
@@ -92,5 +94,25 @@ serdes_error_t cipher_print_header(const cipher_header_t *header);
  * @return serdes_error_t SERDES_ERROR_OK if no errors
  */
 serdes_error_t cipher_print_packet(const cipher_header_t *header, const void *payload, const size_t payload_len);
+
+/*-----------------------------------------------------------------------------------------------------
+ *                                                                                             Encoding
+ *---------------------------------------------------------------------------------------------------*/
+bool serdes_put_uint8(uint8_t *buffer, uint16_t size, uint16_t *position, uint8_t value);
+bool serdes_put_uint16(uint8_t *buffer, uint16_t size, uint16_t *position, uint16_t value);
+bool serdes_put_uint32(uint8_t *buffer, uint16_t size, uint16_t *position, uint32_t value);
+bool serdes_put_uint64(uint8_t *buffer, uint16_t size, uint16_t *position, uint64_t value);
+bool serdes_put_float(uint8_t *buffer, uint16_t size, uint16_t *position, float value);
+bool serdes_put_double(uint8_t *buffer, uint16_t size, uint16_t *position, double value);
+
+/*-----------------------------------------------------------------------------------------------------
+ *                                                                                             Decoding
+ *---------------------------------------------------------------------------------------------------*/
+uint8_t serdes_get_uint8(const uint8_t *buffer, uint16_t size, uint16_t *position);
+uint16_t serdes_get_uint16(const uint8_t *buffer, uint16_t size, uint16_t *position);
+uint32_t serdes_get_uint32(const uint8_t *buffer, uint16_t size, uint16_t *position);
+uint64_t serdes_get_uint64(const uint8_t *buffer, uint16_t size, uint16_t *position);
+float serdes_get_float(const uint8_t *buffer, uint16_t size, uint16_t *position);
+double serdes_get_double(const uint8_t *buffer, uint16_t size, uint16_t *position);
 
 #endif  // SERDES_H

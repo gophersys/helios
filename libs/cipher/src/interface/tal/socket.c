@@ -29,8 +29,12 @@ LOG_MODULE_DECLARE(tal);
  *                                                                            Socket TAL Implementation
  *---------------------------------------------------------------------------------------------------*/
 bool socket_create(tal_config_t *cfg) {
-    __ASSERT(cfg->host, "Interface host cannot be NULL");
+    __ASSERT(cfg, "Interface cannnot be NULL");
     __ASSERT(cfg->port != 0, "Interface port cannot be zero");
+
+    if (cfg->link == TAL_LINK_TYPE_UPLINK) {
+        __ASSERT(cfg->host, "Interface host cannot be NULL");
+    }
 
     cfg->socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (cfg->socket < 0) {

@@ -33,6 +33,17 @@ void send_service_payload(cipher_daemon_t *d, cipher_iface_t *iface, cipher_payl
 
     cipher_packet_t *packet = &fifo_item->packet;
 
+    // Populate header
+    packet->header.source_id = d->device_id;
+    packet->header.destination_id = 0xFFFF;  // TODO: some common sense broadcast ID
+    packet->header.service_id = 0;
+    packet->header.operation_id = 0;
+    packet->header.payload_len = sizeof(cipher_payload_sd_t);
+    packet->header.sequence_num = 0;
+    packet->header.type = CIPHER_PACKET_TYPE_SD;
+    packet->header.hop_count = 0;
+    // CIPHER_SET_FLAG(packet->header.flags, packet_flag);
+
     // Set payload values
     cipher_payload_sd_t *payload = (cipher_payload_sd_t *)packet->payload;
     payload->alive = sd_payload->alive;
@@ -44,7 +55,7 @@ void send_service_payload(cipher_daemon_t *d, cipher_iface_t *iface, cipher_payl
     DBG("Sending SD payload, service %d, device %d, name %s to iface %d",
         payload->service_id, payload->device_id, payload->name, iface->id);
 
-    k_fifo_put(&iface->decoded_packets_queue, packet);
+    k_fifo_put(&iface->decoded_packets_queue, fifo_item);
 }
 
 /*-----------------------------------------------------------------------------------------------------

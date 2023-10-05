@@ -36,7 +36,7 @@ void handle_iface_error(cipher_daemon_t *d, cipher_iface_t *iface, iface_error_t
  *---------------------------------------------------------------------------------------------------*/
 void handle_iface_timeout(cipher_daemon_t *d, cipher_iface_t *iface, const char *func) {
     // TODO: What do we actually do about timeouts
-    ERROR("%s: Timeout while trying to send on iface %d, daemon %d", func, iface->id, d->id);
+    ERROR("%s: Timeout on iface %d, daemon %d", func, iface->id, d->id);
 }
 
 void handle_iface_disconnect(cipher_daemon_t *d, cipher_iface_t *iface, const char *func) {

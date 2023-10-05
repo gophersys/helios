@@ -78,9 +78,9 @@ void cipher_interface_conn_thread(void *arg0, void *arg1, void *arg2) {
  *---------------------------------------------------------------------------------------------------*/
 static void await_connect(cipher_daemon_t *d, cipher_iface_t *iface) {
     get_connection(d, iface);
-    set_send_recv_timeouts(d, iface, HANDSHAKE_TIMEOUT_MS, HANDSHAKE_TIMEOUT_MS);
+    // set_send_recv_timeouts(d, iface, HANDSHAKE_TIMEOUT_MS, HANDSHAKE_TIMEOUT_MS);
     do_handshake(d, iface);
-    set_send_recv_timeouts(d, iface, NORMAL_TIMEOUT_MS, NORMAL_TIMEOUT_MS);
+    // set_send_recv_timeouts(d, iface, NORMAL_TIMEOUT_MS, NORMAL_TIMEOUT_MS); //TODO: timeouts
 
     // Signal main daemon controller of an interface connection
     ctrl_event_opt_iface_conn_t options = {
