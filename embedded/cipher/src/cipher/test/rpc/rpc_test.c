@@ -18,6 +18,7 @@ LOG_MODULE_REGISTER(rpc_test, DAEMON_LOG_LEVEL);
 
 #define SERVICE_ID 25
 #define DEVICE_ID 255
+#define RAND_OP_ID 1
 
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                                Types
@@ -38,26 +39,26 @@ static uint32_t intentional_tiemout_ms = 0;
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                       Remote RPC API
  *---------------------------------------------------------------------------------------------------*/
+
 rand_response_t rand_rpc(cipher_daemon_t* d, cipher_rpc_user_info_t* info, rand_request_t request) {
 
-    // Alloc and set fifo item
-    cipher_local_rpc_request_fifo_item_t* fifo_item = alloc_local_rpc_request_fifo_item(d, sizeof(rand_request_t), sizeof(rand_response_t));
-    CHECK_MALLOC(fifo_item);
-
-    // TODO: POPULATE SERVICE ID
-
-    k_sem_init(&fifo_item->entry.await_sem, 0, 1);
-    fifo_item->entry.user_info = info;
-
-    // Add request to thread
-    k_fifo_put(&d->localhost_rpc_queue, fifo_item);
-
-    // Async wait
-    k_sem_take(&fifo_item->entry.await_sem, K_FOREVER);  // Timeout is handled internally in thread
-
-    free_local_rpc_request_fifo_item(d, fifo_item);
-
+    // Response buffer
     rand_response_t response = {0};
+
+    // RPC entry info
+    cipher_rpc_entry_t rpc_entry = {
+        .service_id = SERVICE_ID,
+        .op_id = RAND_OP_ID,
+        .request = &request,
+        .request_size = sizeof(request),
+        .response = &response,
+        .response_size = sizeof(response),
+        .user_info = info,
+    };
+    sys_rand_get(&rpc_entry.id, sizeof(rpc_entry.id));
+
+    // Call general purpose RPC handler
+    cipher_remote_rpc_handler(d, &rpc_entry);
 
     return response;
 }
@@ -103,7 +104,7 @@ cipher_rpc_err_t rand_prv_handler(void* request, void* response) {
  *---------------------------------------------------------------------------------------------------*/
 cipher_ops_entry_t ops[] = {
     {
-        .id = 1,
+        .id = RAND_OP_ID,
         .type = CIPHER_OPS_TYPE_RPC,
         .name = "Rand",
         .op = {
@@ -164,7 +165,7 @@ void cipher_test_rpc(void) {
     // Register a test local service
     cipher_register_local_services(&d, services, ARRAY_SIZE(services));
 
-    // Test 1: Test that the RPC just works
+    // Test 1: Test that a remote RPC will work
     intentional_timeout_active = true;
     intentional_tiemout_ms = 500;
 

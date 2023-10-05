@@ -28,7 +28,7 @@ typedef struct {
 
 typedef struct {
     uintptr_t __k_reserved;
-    cipher_rpc_entry_t entry;
+    cipher_rpc_entry_t *entry;
 } cipher_local_rpc_request_fifo_item_t;
 
 cipher_packet_fifo_item_t *alloc_packet_fifo_item(cipher_daemon_t *d, size_t payload_size);

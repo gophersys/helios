@@ -1,5 +1,8 @@
 #include "autogen.h"
 
+// Zephyr includes
+#include <zephyr/random/rand32.h>
+
 // Cipher includes
 #include "daemon/api.h"
 #include "daemon/daemon.h"
@@ -9,27 +12,33 @@
 
 LOG_MODULE_REGISTER(user, LOG_LEVEL_DBG);
 
+#define SERVICE_ID 6969
+#define RAND_OP_ID 1
+
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                          Remote RPCs
  *---------------------------------------------------------------------------------------------------*/
 MotionResponse_t accel_command_motion_rpc(cipher_daemon_t* d, cipher_rpc_user_info_t* info, MotionRequest_t request) {
 
-    // Alloc and set fifo item
-    cipher_local_rpc_request_fifo_item_t* fifo_item = alloc_local_rpc_request_fifo_item(d, sizeof(MotionRequest_t), sizeof(MotionResponse_t));
-    CHECK_MALLOC(fifo_item);
+    // Response buffer
+    MotionResponse_t response = {0};
 
-    // TODO: POPULATE SERVICE ID
+    // RPC entry info
+    cipher_rpc_entry_t rpc_entry = {
+        .service_id = SERVICE_ID,
+        .op_id = RAND_OP_ID,
+        .request = &request,
+        .request_size = sizeof(request),
+        .response = &response,
+        .response_size = sizeof(response),
+        .user_info = info,
+    };
+    sys_rand_get(&rpc_entry.id, sizeof(rpc_entry.id));
 
-    k_sem_init(&fifo_item->entry.await_sem, 0, 1);
+    // Call general purpose RPC handler
+    cipher_remote_rpc_handler(d, &rpc_entry);
 
-    // Add request to thread
-    k_fifo_put(&d->localhost_rpc_queue, fifo_item);
-
-    // Async wait
-    k_sem_take(&fifo_item->entry.await_sem, K_FOREVER);  // Timeout is handled internally in thread
-
-    // TODO: sem destroy
-    free_local_rpc_request_fifo_item(d, fifo_item);
+    return response;
 }
 
 /*-----------------------------------------------------------------------------------------------------
@@ -68,7 +77,7 @@ cipher_rpc_err_t accel_command_motion_prv_handler(void* request, void* response)
 
 static cipher_ops_entry_t local_ops[] = {
     {
-        .id = 1,
+        .id = RAND_OP_ID,
         .type = CIPHER_OPS_TYPE_RPC,
         .name = "CommandMotion",
         .op = {
@@ -91,7 +100,7 @@ static cipher_service_entry_t local_services[] = {
         .iface = NULL,
         .service = {
             .name = "AccelerometerBench",
-            .service_id = 6969,
+            .service_id = SERVICE_ID,
             .device_id = THIS_DEVICE_ID,
             .num_ops = 2,
             .allowed_hops = 1,

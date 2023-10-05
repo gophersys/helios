@@ -177,49 +177,25 @@ bool cipher_rpc_exists(cipher_daemon_t *d, cipher_rpc_entry_t *entry) {
     return false;
 }
 
-bool cipher_rpc_register(cipher_daemon_t *d, cipher_rpc_entry_t *entry) {
-    if (!verify_rpc_entry(d, entry)) {
-        return false;
-    }
-
+bool cipher_rpc_entry_register(cipher_daemon_t *d, cipher_rpc_entry_t *entry) {
     for (size_t i = 0; i < ARRAY_SIZE(d->rpc_registry.entries); i++) {
-
-        cipher_rpc_entry_t *current_entry = &d->rpc_registry.entries[i];
-
-        if (current_entry->_used == true) {
-            continue;
+        if (d->rpc_registry.entries[i] != NULL) {
+            if (d->rpc_registry.entries[i]->_used) {
+                continue;
+            }
         }
 
-        memcpy(current_entry, entry, sizeof(cipher_rpc_entry_t));
-        current_entry->_used = true;
-
+        d->rpc_registry.entries[i] = entry;
+        d->rpc_registry.entries[i]->_used = true;
         return true;
     }
 
-    WARN("Daemon %d rpc registry is full, number of entries: %d!", d->id, ARRAY_SIZE(d->rpc_registry.entries));
+    WARN("RPC registry full");
     return false;
 }
 
-bool cipher_rpc_unregister(cipher_daemon_t *d, cipher_rpc_entry_t *entry) {
-
-    if (!cipher_rpc_exists(d, entry)) {
-        return false;
-    }
-
-    for (size_t i = 0; i < ARRAY_SIZE(d->rpc_registry.entries); i++) {
-
-        cipher_rpc_entry_t *current_entry = &d->service_registry.entries[i];
-
-        if (current_entry->id != entry->id) {
-            continue;
-        }
-
-        memset(current_entry, 0, sizeof(cipher_rpc_entry_t));
-
-        return true;
-    }
-
-    return false;
+bool cipher_rpc_entry_unregister(cipher_daemon_t *d, cipher_rpc_entry_t *entry) {
+    ERROR("%s: not implemented");
 }
 
 /*-----------------------------------------------------------------------------------------------------

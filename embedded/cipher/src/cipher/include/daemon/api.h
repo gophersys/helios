@@ -24,5 +24,6 @@ void cipher_register_local_services(cipher_daemon_t *d, cipher_service_entry_t *
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                                  RPC
  *---------------------------------------------------------------------------------------------------*/
+void cipher_remote_rpc_handler(cipher_daemon_t *d, cipher_rpc_entry_t *entry);
 
 #endif  // API_H

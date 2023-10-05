@@ -6,6 +6,7 @@
 #include "config/default.h"
 #include "daemon/daemon.h"
 #include "daemon/fifo.h"
+#include "daemon/registry.h"
 #include "utils/err.h"
 
 // Private includes
@@ -85,10 +86,6 @@ void send_rpc_cancel_request(cipher_daemon_t *d, cipher_rpc_entry_t *entry) {
     // Send on interface if connected
 }
 
-void cipher_rpc_entry_unregister(cipher_daemon_t *d, cipher_rpc_entry_t *entry) {
-    // TODO: me
-}
-
 void signal_rpc_caller(cipher_daemon_t *d, cipher_rpc_entry_t *entry) {
     cipher_rpc_user_info_t *info = entry->user_info;
     *info->error = CIPHER_RPC_ERR_TIMEOUT;
@@ -102,5 +99,8 @@ static void handle_timer_expired(cipher_daemon_t *d, rpc_event_t *event) {
 
     send_rpc_cancel_request(d, entry);
     signal_rpc_caller(d, entry);
-    cipher_rpc_entry_unregister(d, entry);
+
+    if (!cipher_rpc_entry_unregister(d, entry)) {
+        ERROR("could not unregister");
+    }
 }

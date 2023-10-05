@@ -35,6 +35,28 @@ LOG_MODULE_REGISTER(rpc, RPC_LOG_LEVEL);
 #define RPC_PACKET 2
 
 /*-----------------------------------------------------------------------------------------------------
+ *                                                                          General Purpose RPC handler
+ *---------------------------------------------------------------------------------------------------*/
+void cipher_remote_rpc_handler(cipher_daemon_t *d, cipher_rpc_entry_t *entry) {
+    // Alloc and set fifo item
+    cipher_local_rpc_request_fifo_item_t *fifo_item = alloc_local_rpc_request_fifo_item(d, entry->request_size, entry->response_size);
+    CHECK_MALLOC(fifo_item);
+
+    fifo_item->entry = entry;
+
+    // Assign & Init fifo items
+    k_sem_init(&fifo_item->entry->await_sem, 0, 1);
+
+    // Add request to thread
+    k_fifo_put(&d->localhost_rpc_queue, fifo_item);
+
+    // Async wait
+    k_sem_take(&fifo_item->entry->await_sem, K_FOREVER);  // Timeout is handled internally in thread
+
+    free_local_rpc_request_fifo_item(d, fifo_item);
+}
+
+/*-----------------------------------------------------------------------------------------------------
  *                                                                                           Public API
  *---------------------------------------------------------------------------------------------------*/
 void cipher_rpc_add_event(cipher_daemon_t *d, rpc_event_t *event) {
