@@ -73,9 +73,9 @@ rand_response_t rand_handler(rand_request_t request) {
 
     rand_response_t response = {0};
     if (request._64bit) {
-        sys_rand_get(response.rand64, sizeof(uint64_t));
+        sys_rand_get(&response.rand64, sizeof(uint64_t));
     } else {
-        sys_rand_get(response.rand32, sizeof(uint32_t));
+        sys_rand_get(&response.rand32, sizeof(uint32_t));
     }
 
     if (intentional_timeout_active) {
@@ -183,6 +183,8 @@ void cipher_test_rpc(void) {
     if (info.error != CIPHER_RPC_ERR_OK) {
         ERROR("This error shouldve returned OK");
     }
+
+    (void)response;
 
     // Test 2: Test a remote RPC executing on this host
     // cipher_packet_fifo_item_t* fifo_item = alloc_packet_fifo_item(&d, sizeof(rand_request_t));

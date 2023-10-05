@@ -52,7 +52,7 @@ void cipher_init_daemon(cipher_daemon_config_t *cfg, cipher_daemon_t *d) {
     setup_daemon_id(d);
     init_objects(d);
     init_registries(d);
-    // init_interfaces(d);
+    init_interfaces(d);
     init_threads(d);
 
     DBG("Daemon instance %d, initialized OK, device id: %d", d->id, d->device_id);

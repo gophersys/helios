@@ -39,8 +39,6 @@ LOG_MODULE_REGISTER(registry, REGISTRY_LOG_LEVEL);
  */
 static bool verify_service_entry(cipher_daemon_t *d, cipher_service_entry_t *entry);
 
-static bool verify_rpc_entry(cipher_daemon_t *d, cipher_service_entry_t *entry);
-
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                   API Implementation
  *---------------------------------------------------------------------------------------------------*/
@@ -165,7 +163,7 @@ bool cipher_rpc_exists(cipher_daemon_t *d, cipher_rpc_entry_t *entry) {
     // If the device if, service id and name match, service is present
     for (size_t i = 0; i < ARRAY_SIZE(d->rpc_registry.entries); i++) {
 
-        cipher_rpc_entry_t *current_entry = &d->rpc_registry.entries[i];
+        cipher_rpc_entry_t *current_entry = d->rpc_registry.entries[i];
 
         if (current_entry->id == entry->id) {
             continue;
@@ -195,7 +193,7 @@ bool cipher_rpc_entry_register(cipher_daemon_t *d, cipher_rpc_entry_t *entry) {
 }
 
 bool cipher_rpc_entry_unregister(cipher_daemon_t *d, cipher_rpc_entry_t *entry) {
-    ERROR("%s: not implemented");
+    ERROR("%s: not implemented", __func__);
 }
 
 /*-----------------------------------------------------------------------------------------------------

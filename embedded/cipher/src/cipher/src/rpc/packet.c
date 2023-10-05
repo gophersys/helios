@@ -155,4 +155,6 @@ cipher_ops_entry_t *find_op_in_registry(cipher_daemon_t *d, cipher_packet_t *pac
             return op;
         }
     }
+
+    return NULL;
 }
