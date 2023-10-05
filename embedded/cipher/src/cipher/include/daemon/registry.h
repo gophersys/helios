@@ -53,5 +53,6 @@ cipher_iface_t *cipher_get_iface_by_device_id(cipher_daemon_t *d, uint16_t devic
 bool cipher_rpc_exists(cipher_daemon_t *d, cipher_rpc_entry_t *entry);
 bool cipher_rpc_entry_register(cipher_daemon_t *d, cipher_rpc_entry_t *entry);
 bool cipher_rpc_entry_unregister(cipher_daemon_t *d, cipher_rpc_entry_t *entry);
+cipher_ops_entry_t *find_op_in_registry(cipher_daemon_t *d, cipher_packet_t *packet);
 
 #endif

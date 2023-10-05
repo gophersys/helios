@@ -35,64 +35,6 @@ LOG_MODULE_REGISTER(rpc, RPC_LOG_LEVEL);
 #define RPC_PACKET 2
 
 /*-----------------------------------------------------------------------------------------------------
- *                                                                          General Purpose RPC handler
- *---------------------------------------------------------------------------------------------------*/
-void cipher_remote_rpc_handler(cipher_daemon_t *d, cipher_rpc_entry_t *entry) {
-    // Alloc and set fifo item
-    cipher_local_rpc_request_fifo_item_t *fifo_item = alloc_local_rpc_request_fifo_item(d, entry->request_size, entry->response_size);
-    CHECK_MALLOC(fifo_item);
-
-    fifo_item->entry = entry;
-
-    // Assign & Init fifo items
-    k_sem_init(&fifo_item->entry->await_sem, 0, 1);
-
-    // Add request to thread
-    k_fifo_put(&d->localhost_rpc_queue, fifo_item);
-
-    // Async wait
-    k_sem_take(&fifo_item->entry->await_sem, K_FOREVER);  // Timeout is handled internally in thread
-
-    free_local_rpc_request_fifo_item(d, fifo_item);
-}
-
-/*-----------------------------------------------------------------------------------------------------
- *                                                                                           Public API
- *---------------------------------------------------------------------------------------------------*/
-void cipher_rpc_add_event(cipher_daemon_t *d, rpc_event_t *event) {
-    __ASSERT(d, "null daemon pointer");
-    __ASSERT(event, "null event pointer");
-
-    // Get the option size of the event
-    size_t option_size = 0;
-    switch (event->type) {
-        case RPC_EVENT_TYPE_IFACE_DISCONNECTED:
-            option_size = sizeof(rpc_event_opt_iface_disconn_t);
-            break;
-
-        case RPC_EVENT_TYPE_TIMER_EXPIRED:
-            option_size = sizeof(rpc_event_opt_timer_expired_t);
-            break;
-        default:
-            ERROR("Unknown event type %d", event->type);
-            break;
-    }
-
-    // Allocate memory for the event & its options
-    rpc_event_t *local_event = k_heap_aligned_alloc(&d->rpc_heap, 8, sizeof(rpc_event_t), K_NO_WAIT);
-    CHECK_MALLOC(local_event);
-    local_event->options = k_heap_aligned_alloc(&d->rpc_heap, 8, option_size, K_NO_WAIT);
-    CHECK_MALLOC(local_event->options);
-
-    // Copy user's event
-    local_event->type = event->type;
-    memcpy(local_event->options, event->options, option_size);
-    sys_rand_get(&local_event->id, sizeof(local_event->id));
-
-    k_fifo_put(&d->rpc_event_queue, local_event);
-}
-
-/*-----------------------------------------------------------------------------------------------------
  *                                                                                    Private Functions
  *---------------------------------------------------------------------------------------------------*/
 
@@ -113,20 +55,27 @@ void setup_thread_events(cipher_daemon_t *d, struct k_poll_event *events) {
                       &d->rpc_packet_queue);
 }
 
-void handle_rpc_packet(cipher_daemon_t *d) {
-    cipher_packet_fifo_item_t *fifo_item = k_fifo_get(&d->rpc_packet_queue, K_FOREVER);
-    __ASSERT(fifo_item, "Null item on rpc_packet_queue, daemon %d", d->id);
 
-    cipher_packet_t *packet = &fifo_item->packet;
+void handle_rpc_event(cipher_daemon_t *d) {
+    rpc_event_t *event = k_fifo_get(&d->rpc_event_queue, K_NO_WAIT);
+    if (event == NULL)
+        ERROR("Null item on rpc_event_queue, daemon %d", d->id);
 
-    if (CIPHER_IS_FLAG_SET(packet->header.flags, CIPHER_FLAG_RPC_REQUEST)) {
-        handle_rpc_request_packet(d, fifo_item);
-    } else if (CIPHER_IS_FLAG_SET(packet->header.flags, CIPHER_FLAG_RPC_RESPONSE) ||
-               CIPHER_IS_FLAG_SET(packet->header.flags, CIPHER_FLAG_RPC_ERR)) {
-        handle_rpc_response_packet(d, fifo_item);
-    } else {
-        ERROR("Expected at least 1 flag to be set in RPC packet");
+    switch (event->type) {
+        case RPC_EVENT_TYPE_IFACE_DISCONNECTED:
+            handle_iface_disconnected(d, event);
+            break;
+
+        case RPC_EVENT_TYPE_TIMER_EXPIRED:
+            handle_timer_expired(d, event);
+            break;
+
+        default:
+            break;
     }
+
+    k_heap_free(&d->rpc_heap, event->options);
+    k_heap_free(&d->rpc_heap, event);
 }
 
 /*-----------------------------------------------------------------------------------------------------

@@ -1,10 +1,13 @@
 #ifndef RPC_H
 #define RPC_H
 
+#include "controller.h"
 #include "daemon/daemon.h"
 
-void handle_rpc_request_packet(cipher_daemon_t *d, cipher_packet_fifo_item_t *fifo_item);
-void handle_rpc_response_packet(cipher_daemon_t *d, cipher_packet_fifo_item_t *fifo_item);
+void handle_rpc_packet(cipher_daemon_t *d);
+
+void handle_iface_disconnected(cipher_daemon_t *d, rpc_event_t *event);
+void handle_timer_expired(cipher_daemon_t *d, rpc_event_t *event);
 
 /**
  * @brief Handle a local host request to execute a RPC in a remote host
@@ -12,6 +15,5 @@ void handle_rpc_response_packet(cipher_daemon_t *d, cipher_packet_fifo_item_t *f
  * @param d The daemom
  */
 void handle_local_request(cipher_daemon_t *d);
-void handle_rpc_event(cipher_daemon_t *d);
 
 #endif

@@ -14,7 +14,6 @@ LOG_MODULE_REGISTER(app);
 #include "autogen/autogen.h"
 
 int main(void) {
-
     LOG_RAW("\n\n%s\n", "********** Cipher Protocol App **********");
     cipher_test_rpc();
 }

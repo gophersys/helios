@@ -20,43 +20,13 @@ LOG_MODULE_DECLARE(rpc);
  *                                                                                    Private Functions
  *---------------------------------------------------------------------------------------------------*/
 
-static void handle_iface_disconnected(cipher_daemon_t *d, rpc_event_t *event);
-static void handle_timer_expired(cipher_daemon_t *d, rpc_event_t *event);
-
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                        Event Handler
  *---------------------------------------------------------------------------------------------------*/
 
-void handle_rpc_event(cipher_daemon_t *d) {
-    rpc_event_t *event = k_fifo_get(&d->rpc_event_queue, K_NO_WAIT);
-    if (event == NULL)
-        ERROR("Null item on rpc_event_queue, daemon %d", d->id);
-
-    switch (event->type) {
-        case RPC_EVENT_TYPE_IFACE_DISCONNECTED:
-            handle_iface_disconnected(d, event);
-            break;
-
-        case RPC_EVENT_TYPE_TIMER_EXPIRED:
-            handle_timer_expired(d, event);
-            break;
-
-        default:
-            break;
-    }
-
-    k_heap_free(&d->rpc_heap, event->options);
-    k_heap_free(&d->rpc_heap, event);
-}
-
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                   Iface Disconnected
  *---------------------------------------------------------------------------------------------------*/
-static void handle_iface_disconnected(cipher_daemon_t *d, rpc_event_t *event) {
-    // Unblock the semaphore of the waiting function and chekc that it was taken to unallocate packet
-    // Remove this rpc request from the active list
-}
-
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                        Timer Expired
  *---------------------------------------------------------------------------------------------------*/
@@ -92,7 +62,7 @@ void signal_rpc_caller(cipher_daemon_t *d, cipher_rpc_entry_t *entry) {
     k_sem_give(&entry->await_sem);
 }
 
-static void handle_timer_expired(cipher_daemon_t *d, rpc_event_t *event) {
+void handle_timer_expired(cipher_daemon_t *d, rpc_event_t *event) {
     rpc_event_opt_timer_expired_t *opts = (rpc_event_opt_timer_expired_t *)event->options;
     cipher_rpc_entry_t *entry = cipher_rpc_get_entry_from_timer(d, opts->timer);
     __ASSERT(entry, "No entry available for timer %p", opts->timer);

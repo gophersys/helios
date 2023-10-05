@@ -28,13 +28,30 @@ LOG_MODULE_DECLARE(rpc);
  *---------------------------------------------------------------------------------------------------*/
 
 void assert_packet(cipher_daemon_t *d, cipher_packet_t *packet);
-cipher_ops_entry_t *find_op_in_registry(cipher_daemon_t *d, cipher_packet_t *packet);
+
+static void handle_rpc_response_packet(cipher_daemon_t *d, cipher_packet_fifo_item_t *fifo_item);
+static void handle_rpc_request_packet(cipher_daemon_t *d, cipher_packet_fifo_item_t *fifo_item);
 
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                        Event Handler
  *---------------------------------------------------------------------------------------------------*/
+void handle_rpc_packet(cipher_daemon_t *d) {
+    cipher_packet_fifo_item_t *fifo_item = k_fifo_get(&d->rpc_packet_queue, K_FOREVER);
+    __ASSERT(fifo_item, "Null item on rpc_packet_queue, daemon %d", d->id);
 
-void handle_rpc_request_packet(cipher_daemon_t *d, cipher_packet_fifo_item_t *fifo_item) {
+    cipher_packet_t *packet = &fifo_item->packet;
+
+    if (CIPHER_IS_FLAG_SET(packet->header.flags, CIPHER_FLAG_RPC_REQUEST)) {
+        handle_rpc_request_packet(d, fifo_item);
+    } else if (CIPHER_IS_FLAG_SET(packet->header.flags, CIPHER_FLAG_RPC_RESPONSE) ||
+               CIPHER_IS_FLAG_SET(packet->header.flags, CIPHER_FLAG_RPC_ERR)) {
+        handle_rpc_response_packet(d, fifo_item);
+    } else {
+        ERROR("Expected at least 1 flag to be set in RPC packet");
+    }
+}
+
+static void handle_rpc_request_packet(cipher_daemon_t *d, cipher_packet_fifo_item_t *fifo_item) {
     cipher_packet_t *packet = &fifo_item->packet;
 
     // Find the localhost operation
@@ -100,7 +117,7 @@ void handle_rpc_request_packet(cipher_daemon_t *d, cipher_packet_fifo_item_t *fi
     k_fifo_put(&iface->decoded_packets_queue, resp_fifo_item);
 }
 
-void handle_rpc_response_packet(cipher_daemon_t *d, cipher_packet_fifo_item_t *fifo_item) {
+static void handle_rpc_response_packet(cipher_daemon_t *d, cipher_packet_fifo_item_t *fifo_item) {
     // Find the RPC entry
     // Stop the timeout timer
     // Signal semaphore
@@ -116,45 +133,4 @@ void assert_packet(cipher_daemon_t *d, cipher_packet_t *packet) {
 
     __ASSERT(packet->header.destination_id == d->device_id, "Expected destination id %d to match localhost %d, daemon %d",
              packet->header.destination_id, d->device_id, d->id);
-}
-
-/*-----------------------------------------------------------------------------------------------------
- *                                                                                               Helper
- *---------------------------------------------------------------------------------------------------*/
-cipher_ops_entry_t *find_op_in_registry(cipher_daemon_t *d, cipher_packet_t *packet) {
-
-    // First find the service
-    cipher_service_entry_t *entry = NULL;
-    for (size_t i = 0; i < ARRAY_SIZE(d->service_registry.entries); i++) {
-
-        cipher_service_entry_t *e = &d->service_registry.entries[i];
-
-        // Ensure its a local service
-        if (!e->local) {
-            continue;
-        }
-
-        // Find the matching service id
-        if (e->service.service_id == packet->header.service_id) {
-            entry = e;
-            break;
-        }
-    }
-
-    // Then find the op in the service
-    if (entry) {
-
-        for (size_t i = 0; i < entry->service.num_ops; i++) {
-
-            cipher_ops_entry_t *op = &entry->service.ops[i];
-
-            if (op->id != packet->header.operation_id) {
-                continue;
-            }
-
-            return op;
-        }
-    }
-
-    return NULL;
 }

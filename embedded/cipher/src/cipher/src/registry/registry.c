@@ -196,6 +196,44 @@ bool cipher_rpc_entry_unregister(cipher_daemon_t *d, cipher_rpc_entry_t *entry) 
     ERROR("%s: not implemented", __func__);
 }
 
+cipher_ops_entry_t *find_op_in_registry(cipher_daemon_t *d, cipher_packet_t *packet) {
+
+    // First find the service
+    cipher_service_entry_t *entry = NULL;
+    for (size_t i = 0; i < ARRAY_SIZE(d->service_registry.entries); i++) {
+
+        cipher_service_entry_t *e = &d->service_registry.entries[i];
+
+        // Ensure its a local service
+        if (!e->local) {
+            continue;
+        }
+
+        // Find the matching service id
+        if (e->service.service_id == packet->header.service_id) {
+            entry = e;
+            break;
+        }
+    }
+
+    // Then find the op in the service
+    if (entry) {
+
+        for (size_t i = 0; i < entry->service.num_ops; i++) {
+
+            cipher_ops_entry_t *op = &entry->service.ops[i];
+
+            if (op->id != packet->header.operation_id) {
+                continue;
+            }
+
+            return op;
+        }
+    }
+
+    return NULL;
+}
+
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                         Verify Entry
  *---------------------------------------------------------------------------------------------------*/
