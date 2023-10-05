@@ -1,0 +1,33 @@
+package accel_test_bench;
+
+service AccelerometerBench {
+
+    // RPC to command the motion bed
+    rpc CommandMotion(MotionRequest) returns (MotionResponse);
+
+    // Event for periodic updates of accelerometer readings
+    event AccelerometerUpdate(AccelerometerData);
+}
+
+message MotionRequest {
+    enum Direction {
+        X = 0;
+        Y = 1;
+        Z = 2;
+    }
+    Direction direction = 1;
+    float force = 2;      // Newton (N)
+    float interval = 3;   // Seconds (s)
+}
+
+message MotionResponse {
+    bool success = 1;      // Whether the motion command was successfully started
+    string message = 2;   // Additional details or error message
+}
+
+message AccelerometerData {
+    float x = 1;  // Acceleration or position in X-axis
+    float y = 2;  // Acceleration or position in Y-axis
+    float z = 3;  // Acceleration or position in Z-axis
+    uint64 timestamp = 4;  // Timestamp of the reading
+}

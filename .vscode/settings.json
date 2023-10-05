@@ -1,0 +1,6 @@
+{
+    "files.associations": {
+        "motion-bed.h": "c",
+        "cipher_tests.h": "c"
+    }
+}
