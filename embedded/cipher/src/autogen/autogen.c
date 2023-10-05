@@ -20,13 +20,13 @@ MotionResponse_t accel_command_motion_rpc(cipher_daemon_t* d, cipher_rpc_user_in
 
     // TODO: POPULATE SERVICE ID
 
-    k_sem_init(&fifo_item->entry->await_sem, 0, 1);
+    k_sem_init(&fifo_item->entry.await_sem, 0, 1);
 
     // Add request to thread
     k_fifo_put(&d->localhost_rpc_queue, fifo_item);
 
     // Async wait
-    k_sem_take(&fifo_item->entry->await_sem, K_FOREVER);  // Timeout is handled internally in thread
+    k_sem_take(&fifo_item->entry.await_sem, K_FOREVER);  // Timeout is handled internally in thread
 
     // TODO: sem destroy
     free_local_rpc_request_fifo_item(d, fifo_item);

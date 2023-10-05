@@ -51,9 +51,9 @@ void handle_rpc_request_packet(cipher_daemon_t *d, cipher_packet_fifo_item_t *fi
         WARN("Parallelism is not yet supported by RPC thread, executing serialized");
     }
 
-    void *request_memory = k_heap_alloc(&d->rpc_events_heap, entry->op.rpc.request_size, K_FOREVER);
+    void *request_memory = k_heap_alloc(&d->rpc_heap, entry->op.rpc.request_size, K_FOREVER);
     CHECK_MALLOC(request_memory);
-    void *response_memory = k_heap_alloc(&d->rpc_events_heap, entry->op.rpc.response_size, K_FOREVER);
+    void *response_memory = k_heap_alloc(&d->rpc_heap, entry->op.rpc.response_size, K_FOREVER);
     CHECK_MALLOC(response_memory);
 
     // Call the handler

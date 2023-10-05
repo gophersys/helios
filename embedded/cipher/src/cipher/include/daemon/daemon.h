@@ -88,6 +88,7 @@ typedef struct {
 
     // RPC
     struct k_fifo rpc_packet_queue;
+    struct k_fifo rpc_event_queue;
     struct k_fifo localhost_rpc_queue;
 
     // Events
@@ -109,8 +110,8 @@ typedef struct {
     /**
      * @brief Heap pool to send events to daemon controller thread
      */
-    struct k_heap rpc_events_heap;
-    uint8_t __aligned(8) rpc_events_heap_mem[CONFIG_RPC_EVENTS_HEAP_SIZE];
+    struct k_heap rpc_heap;
+    uint8_t __aligned(8) rpc_heap_mem[CONFIG_RPC_EVENTS_HEAP_SIZE];
 
     /**
      * @brief Heap pool to receive and send network packets using send() and recv()

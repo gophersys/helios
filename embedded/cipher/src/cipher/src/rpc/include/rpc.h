@@ -11,6 +11,7 @@ void handle_rpc_response_packet(cipher_daemon_t *d, cipher_packet_fifo_item_t *f
  *
  * @param d The daemom
  */
-void handle_local_rpc_request_event(cipher_daemon_t *d);
+void handle_local_request(cipher_daemon_t *d);
+void handle_rpc_event(cipher_daemon_t *d);
 
 #endif

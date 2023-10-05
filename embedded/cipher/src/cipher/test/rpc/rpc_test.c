@@ -46,16 +46,15 @@ rand_response_t rand_rpc(cipher_daemon_t* d, cipher_rpc_user_info_t* info, rand_
 
     // TODO: POPULATE SERVICE ID
 
-    k_sem_init(&fifo_item->entry->await_sem, 0, 1);
-    fifo_item->entry->user_info = info;
+    k_sem_init(&fifo_item->entry.await_sem, 0, 1);
+    fifo_item->entry.user_info = info;
 
     // Add request to thread
     k_fifo_put(&d->localhost_rpc_queue, fifo_item);
 
     // Async wait
-    k_sem_take(&fifo_item->entry->await_sem, K_FOREVER);  // Timeout is handled internally in thread
+    k_sem_take(&fifo_item->entry.await_sem, K_FOREVER);  // Timeout is handled internally in thread
 
-    // TODO: sem destroy
     free_local_rpc_request_fifo_item(d, fifo_item);
 
     rand_response_t response = {0};
@@ -166,22 +165,23 @@ void cipher_test_rpc(void) {
     cipher_register_local_services(&d, services, ARRAY_SIZE(services));
 
     // Test 1: Test that the RPC just works
-    // intentional_timeout_active = false;
+    intentional_timeout_active = true;
+    intentional_tiemout_ms = 500;
 
-    // cipher_rpc_err_t err = CIPHER_RPC_ERR_OK;
-    // cipher_rpc_user_info_t info = {
-    //     .device_id = DEVICE_ID,
-    //     .error = &err,
-    //     .timeout_ms = 100,
-    // };
-    // rand_request_t request = {
-    //     ._64bit = true,
-    // };
+    cipher_rpc_err_t err = CIPHER_RPC_ERR_OK;
+    cipher_rpc_user_info_t info = {
+        .device_id = DEVICE_ID,
+        .error = &err,
+        .timeout_ms = 100,
+    };
+    rand_request_t request = {
+        ._64bit = true,
+    };
 
-    // rand_response_t response = rand_rpc(&d, &info, request);
-    // if (info.error != CIPHER_RPC_ERR_OK) {
-    //     ERROR("This error shouldve returned OK");
-    // }
+    rand_response_t response = rand_rpc(&d, &info, request);
+    if (info.error != CIPHER_RPC_ERR_OK) {
+        ERROR("This error shouldve returned OK");
+    }
 
     // Test 2: Test a remote RPC executing on this host
     // cipher_packet_fifo_item_t* fifo_item = alloc_packet_fifo_item(&d, sizeof(rand_request_t));

@@ -17,6 +17,7 @@
 #include "utils/err.h"
 
 // Private include
+#include "controller.h"
 #include "interface.h"
 #include "rpc.h"
 #include "threads.h"
@@ -24,21 +25,63 @@
 LOG_MODULE_DECLARE(rpc);
 
 /*-----------------------------------------------------------------------------------------------------
+ *                                                                                    Private Functions
+ *---------------------------------------------------------------------------------------------------*/
+
+/*-----------------------------------------------------------------------------------------------------
  *                                                                                               Assert
  *---------------------------------------------------------------------------------------------------*/
-void handle_rpc_timeout_event(struct k_timer* timer_id) {
-    // If timer expires we have to:
-    // Signal the remote host to cancel the RPC
-    // Unblock the semaphore of the waiting function and chekc that it was taken to unallocate packet
-    // Remove this rpc request from the active list
+void handle_rpc_timeout_event(struct k_timer* timer) {
+
+    cipher_daemon_t* d = k_timer_user_data_get(timer);
+
+    rpc_event_opt_timer_expired_t timer_expired_opts = {
+        .timer = timer,
+    };
+
+    rpc_event_t event = {
+        .type = RPC_EVENT_TYPE_TIMER_EXPIRED,
+        .options = &timer_expired_opts,
+    };
+
+    cipher_rpc_add_event(d, &event);
 }
 
-void handle_local_rpc_request_event(cipher_daemon_t* d) {
+bool cipher_rpc_entry_register(cipher_daemon_t* d, cipher_rpc_entry_t* entry) {
+
+    for (size_t i = 0; i < ARRAY_SIZE(d->rpc_registry.entries); i++) {
+        if (d->rpc_registry.entries[i] != NULL) {
+            if (d->rpc_registry.entries[i]->_used) {
+                continue;
+            }
+        }
+
+        d->rpc_registry.entries[i] = entry;
+        d->rpc_registry.entries[i]->_used = true;
+        return true;
+    }
+
+    WARN("RPC registry full");
+    return false;
+}
+
+void handle_local_request(cipher_daemon_t* d) {
     cipher_local_rpc_request_fifo_item_t* fifo_item = k_fifo_get(&d->localhost_rpc_queue, K_NO_WAIT);
     __ASSERT(fifo_item, "Null item on localhost_rpc_queue, daemon %d", d->id);
 
-    cipher_rpc_entry_t* entry = fifo_item->entry;
+    cipher_rpc_entry_t* entry = &fifo_item->entry;
     cipher_rpc_user_info_t* info = entry->user_info;
+
+    if (!cipher_rpc_entry_register(d, entry)) {
+        ERROR("Unable to register RPC with daemon");
+    }
+
+    // Set a timeout event for this RPC
+    k_timer_init(&entry->timer, handle_rpc_timeout_event, NULL);
+    k_timer_user_data_set(&entry->timer, d);
+    k_timer_start(&entry->timer, K_MSEC(info->timeout_ms), K_NO_WAIT);
+
+    return;  // TODO: remove me
 
     // Find remote service with RPC
     cipher_iface_t* rpc_iface = cipher_get_iface_by_device_id(d, info->device_id);
@@ -46,16 +89,6 @@ void handle_local_rpc_request_event(cipher_daemon_t* d) {
         info->error = CIPHER_RPC_ERR_NOT_FOUND;
         k_sem_give(&entry->await_sem);
         return;
-    }
-
-    // Add entry to the RPC registry
-    for (size_t i = 0; i < ARRAY_SIZE(d->rpc_registry.entries); i++) {
-        entry = d->rpc_registry.entries[i];
-
-        if (entry->_used) {
-            continue;
-        }
-        // TODO: Add entry to the list of RPC entries
     }
 
     // Allocate a fifo packet
@@ -80,5 +113,6 @@ void handle_local_rpc_request_event(cipher_daemon_t* d) {
 
     // Set a timeout event for this RPC
     k_timer_init(&entry->timer, handle_rpc_timeout_event, NULL);
+    k_timer_user_data_set(&entry->timer, d);
     k_timer_start(&entry->timer, K_MSEC(info->timeout_ms), K_NO_WAIT);
 }
