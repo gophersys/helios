@@ -160,7 +160,7 @@ static cipher_daemon_config_t config = {
 void cipher_test_rpc(void) {
 
     // Initialize the daemon
-    cipher_init_daemon(&config, &d);
+    cipher_daemon_init(&config, &d);
 
     // Register a test local service
     cipher_register_local_services(&d, services, ARRAY_SIZE(services));

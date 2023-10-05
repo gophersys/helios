@@ -32,6 +32,7 @@ static void init_interfaces(cipher_daemon_t *d);
 static void init_threads(cipher_daemon_t *d);
 
 static void initialize_interface_group(cipher_daemon_t *d, cipher_iface_thread_group_t *t_group, size_t num);
+static void start_interface_group(cipher_daemon_t *d, cipher_iface_thread_group_t *t_group, size_t num);
 
 char *cipher_t_name(const char *prefix, uint8_t d_id, char *buffer, size_t buflen);
 char *iface_t_name(const char *prefix, uint8_t d_id, uint8_t iface_id, char *buffer, size_t buflen);
@@ -39,7 +40,7 @@ char *iface_t_name(const char *prefix, uint8_t d_id, uint8_t iface_id, char *buf
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                           Public API
  *---------------------------------------------------------------------------------------------------*/
-void cipher_init_daemon(cipher_daemon_config_t *cfg, cipher_daemon_t *d) {
+void cipher_daemon_init(cipher_daemon_config_t *cfg, cipher_daemon_t *d) {
     __ASSERT(cfg != NULL, "Daemon cfg pointer must not be NULL");
     __ASSERT(d != NULL, "Daemon struct pointer must not be NULL");
 
@@ -56,6 +57,23 @@ void cipher_init_daemon(cipher_daemon_config_t *cfg, cipher_daemon_t *d) {
     init_threads(d);
 
     DBG("Daemon instance %d, initialized OK, device id: %d", d->id, d->device_id);
+}
+
+void cipher_daemon_start(cipher_daemon_t *d) {
+
+    // Init Daemon threads
+    k_thread_start(d->ctrl_t_id);
+    k_thread_start(d->sd_t_id);
+    k_thread_start(d->rpc_t_id);
+    k_thread_start(d->event_t_id);
+    k_thread_start(d->stream_t_id);
+
+    uint8_t num_down_link_ifaces = CONFIG_UP_LINK_IFACE_COUNT;
+    uint8_t num_up_link_ifaces = CONFIG_UP_LINK_IFACE_COUNT;
+
+    // Init interface threads
+    start_interface_group(d, d->downlink_t_g, num_down_link_ifaces);
+    start_interface_group(d, d->uplink_t_g, num_up_link_ifaces);
 }
 
 void cipher_register_local_services(cipher_daemon_t *d, cipher_service_entry_t *entries, size_t num_entries) {
@@ -225,12 +243,6 @@ static void init_threads(cipher_daemon_t *d) {
                                      0,
                                      K_FOREVER);
     k_thread_name_set(d->event_t_id, cipher_t_name("cipher_stream", d->device_id, name_buf, sizeof(name_buf)));
-
-    k_thread_start(d->ctrl_t_id);
-    k_thread_start(d->sd_t_id);
-    k_thread_start(d->rpc_t_id);
-    k_thread_start(d->event_t_id);
-    k_thread_start(d->stream_t_id);
 }
 
 /*-----------------------------------------------------------------------------------------------------
@@ -274,7 +286,7 @@ static void init_interfaces(cipher_daemon_t *d) {
         init_interface_objects(&d->uplink_t_g[i].iface);
     }
 
-    // Initialize & Start all interfaces
+    // Initialize all interfaces
     initialize_interface_group(d, d->downlink_t_g, num_down_link_ifaces);
     initialize_interface_group(d, d->uplink_t_g, num_up_link_ifaces);
 }
@@ -326,7 +338,14 @@ static void initialize_interface_group(cipher_daemon_t *d, cipher_iface_thread_g
                                      0,
                                      K_FOREVER);
         k_thread_name_set(recv_t->id, iface_t_name("iface_recv", d->id, t_group[i].iface.id, name_buf, sizeof(name_buf)));
+    }
+}
 
+static void start_interface_group(cipher_daemon_t *d, cipher_iface_thread_group_t *t_group, size_t num) {
+    for (uint8_t i = 0; i < num; i++) {
+        cipher_iface_thread_info_t *conn_t = &t_group[i].connection_t;
+        cipher_iface_thread_info_t *send_t = &t_group[i].send_t;
+        cipher_iface_thread_info_t *recv_t = &t_group[i].recv_t;
         k_thread_start(conn_t->id);
         k_thread_start(send_t->id);
         k_thread_start(recv_t->id);

@@ -16,9 +16,25 @@ LOG_MODULE_REGISTER(app);
 #include "utils/err.h"
 
 // App includes
+#include "config.h"
 #include "motion-bed.h"
 
 int main(void) {
-    LOG_RAW("\n\n%s\n", "********** Cipher Protocol App **********");
-    cipher_test_rpc();
+    LOG_RAW("\n\n%s\n", "********** Motion Bed App **********");
+
+    // Create protocol daemon
+    cipher_daemon_init(&cfg, &d);
+
+    // Register services
+    size_t num_services = 0;
+    cipher_service_entry_t* services = accel_fixture_get_services(&num_services);
+    cipher_register_local_services(&d, services, num_services);
+
+    // Start application daemon
+    cipher_daemon_start(&d);
+}
+
+motion_response_t accel_bench_rpc_command_motion_handler(motion_request_t request) {
+    motion_response_t response = {0};
+    return response;
 }

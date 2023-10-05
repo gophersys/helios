@@ -16,9 +16,12 @@ LOG_MODULE_REGISTER(app);
 #include "utils/err.h"
 
 // App includes
-#include "autogen/autogen.h"
+#include "config.h"
+#include "motion-bed.h"
 
 int main(void) {
-    LOG_RAW("\n\n%s\n", "********** Cipher Protocol App **********");
-    cipher_test_rpc();
+    LOG_RAW("\n\n%s\n", "********** Accel Drv App **********");
+
+    cipher_daemon_init(&cfg, &d);
+    cipher_daemon_start(&d);
 }

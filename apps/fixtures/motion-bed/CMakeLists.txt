@@ -15,5 +15,6 @@ add_subdirectory(${MONOREPO_ROOT}/libs/cipher ${CMAKE_CURRENT_BINARY_DIR}/_libs/
 
 # Services
 zephyr_include_directories(${MONOREPO_ROOT}/services/fixtures/motion-bed/c)
+add_subdirectory(${MONOREPO_ROOT}/services/fixtures/motion-bed/c ${CMAKE_CURRENT_BINARY_DIR}/_services/motion-bed)
 
 target_sources(app PRIVATE src/main.c)

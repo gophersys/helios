@@ -1,4 +1,4 @@
-#include "autogen.h"
+#include "motion-bed.h"
 
 // Zephyr includes
 #include <zephyr/random/rand32.h>
@@ -16,14 +16,38 @@ LOG_MODULE_REGISTER(user, LOG_LEVEL_DBG);
 #define RAND_OP_ID 1
 
 /*-----------------------------------------------------------------------------------------------------
- *                                                                                          Remote RPCs
+ *                                                                                   Local RPC Handlers
  *---------------------------------------------------------------------------------------------------*/
-MotionResponse_t accel_command_motion_rpc(cipher_daemon_t* d, cipher_rpc_user_info_t* info, MotionRequest_t request) {
 
-    // Response buffer
-    MotionResponse_t response = {0};
+static bool accel_command_motion_handler_implemented = true;
+__attribute__((weak)) motion_response_t accel_bench_rpc_command_motion_handler(motion_request_t request) {
+    WARN("no implementation for %s provided", __func__);
+    accel_command_motion_handler_implemented = false;
+    motion_response_t resp = {0};
+    return resp;
+}
 
-    // RPC entry info
+cipher_rpc_err_t accel_command_motion_prv_handler(void* request, void* response) {
+
+    motion_request_t* typed_request = (motion_request_t*)request;
+    motion_response_t* typed_response = (motion_response_t*)response;
+
+    *typed_response = accel_bench_rpc_command_motion_handler(*typed_request);
+
+    if (!accel_command_motion_handler_implemented) {
+        return CIPHER_RPC_ERR_NOT_IMPLEMENTED;
+    }
+
+    return CIPHER_RPC_ERR_OK;
+}
+
+/*-----------------------------------------------------------------------------------------------------
+ *                                                                   Remote RPC Request Implementations
+ *---------------------------------------------------------------------------------------------------*/
+motion_response_t accel_bench_rpc_command_motion(cipher_daemon_t* d, cipher_rpc_user_info_t* info, motion_request_t request) {
+
+    motion_response_t response = {0};
+
     cipher_rpc_entry_t rpc_entry = {
         .service_id = SERVICE_ID,
         .op_id = RAND_OP_ID,
@@ -35,84 +59,53 @@ MotionResponse_t accel_command_motion_rpc(cipher_daemon_t* d, cipher_rpc_user_in
     };
     sys_rand_get(&rpc_entry.id, sizeof(rpc_entry.id));
 
-    // Call general purpose RPC handler
     cipher_remote_rpc_handler(d, &rpc_entry);
 
     return response;
 }
 
 /*-----------------------------------------------------------------------------------------------------
- *                                                                                      Weak Local RPCs
+ *                                                                                                  Ops
  *---------------------------------------------------------------------------------------------------*/
 
-static bool accel_command_motion_handler_implemented = true;
-__attribute__((weak)) MotionResponse_t accel_command_motion_handler(MotionRequest_t request) {
-    WARN("no implementation for %s provided", __func__);
-    accel_command_motion_handler_implemented = false;
-    MotionResponse_t resp = {0};
-    return resp;
-}
+typedef enum {
+    OP_ID_RPC_COMMAND_MOTION,
+} accel_bench_service_op_id_t;
 
-/*-----------------------------------------------------------------------------------------------------
- *                                                                               Private Local Handlers
- *---------------------------------------------------------------------------------------------------*/
-
-cipher_rpc_err_t accel_command_motion_prv_handler(void* request, void* response) {
-
-    MotionRequest_t* typed_request = (MotionRequest_t*)request;
-    MotionResponse_t* typed_response = (MotionResponse_t*)response;
-
-    *typed_response = accel_command_motion_handler(*typed_request);
-
-    if (!accel_command_motion_handler_implemented) {
-        return CIPHER_RPC_ERR_NOT_IMPLEMENTED;
-    }
-
-    return CIPHER_RPC_ERR_OK;
-}
-
-/*-----------------------------------------------------------------------------------------------------
- *                                                                                          Service Ops
- *---------------------------------------------------------------------------------------------------*/
-
-static cipher_ops_entry_t local_ops[] = {
+static cipher_ops_entry_t accel_bench_service_ops[] = {
     {
-        .id = RAND_OP_ID,
+        .id = OP_ID_RPC_COMMAND_MOTION,
         .type = CIPHER_OPS_TYPE_RPC,
         .name = "CommandMotion",
         .op = {
             .rpc = {
-                .request_size = sizeof(MotionRequest_t),
-                .response_size = sizeof(MotionResponse_t),
+                .request_size = sizeof(motion_request_t),
+                .response_size = sizeof(motion_response_t),
                 .handler = accel_command_motion_prv_handler,
             },
         },
     },
-    // Add more operations as needed...
 };
 
 /*-----------------------------------------------------------------------------------------------------
- *                                                                                              Service
+ *                                                                                             Services
  *---------------------------------------------------------------------------------------------------*/
-static cipher_service_entry_t local_services[] = {
+static cipher_service_entry_t services[] = {
     {
         .local = true,
         .iface = NULL,
         .service = {
-            .name = "AccelerometerBench",
+            .name = "AccelBench",
             .service_id = SERVICE_ID,
-            .device_id = THIS_DEVICE_ID,
+            .device_id = 0,   //TODO: This is assigned when the service is registered with the daemon
             .num_ops = 2,
             .allowed_hops = 1,
-            .ops = local_ops,
+            .ops = accel_bench_service_ops,
         },
     },
 };
 
-/*-----------------------------------------------------------------------------------------------------
- *                                                                                                  API
- *---------------------------------------------------------------------------------------------------*/
-cipher_service_entry_t* cipher_get_local_services(size_t* num_services) {
-    *num_services = ARRAY_SIZE(local_services);
-    return local_services;
+cipher_service_entry_t* accel_fixture_get_services(size_t* num_services) {
+    *num_services = ARRAY_SIZE(services);
+    return services;
 }

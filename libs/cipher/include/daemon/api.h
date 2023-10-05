@@ -14,7 +14,9 @@
  *                                                                                                  API
  *---------------------------------------------------------------------------------------------------*/
 
-void cipher_init_daemon(cipher_daemon_config_t *cfg, cipher_daemon_t *d);
+void cipher_daemon_init(cipher_daemon_config_t *cfg, cipher_daemon_t *d);
+
+void cipher_daemon_start(cipher_daemon_t *d);
 
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                             Services
