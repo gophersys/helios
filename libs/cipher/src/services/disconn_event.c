@@ -9,8 +9,8 @@
 // Cipher includes
 #include "config/default.h"
 #include "daemon/daemon.h"
-#include "daemon/registry.h"
 #include "daemon/fifo.h"
+#include "daemon/registry.h"
 #include "protocol/protocol.h"
 #include "protocol/serdes.h"
 #include "transport/transport.h"
@@ -72,9 +72,9 @@ static void update_affected_interfaces(cipher_daemon_t *d, cipher_iface_t *disco
         cipher_service_entry_t *entry = &d->service_registry.entries[i];
 
         // Skip entry if it does NOT belong to the disconnected interface
-        if (entry->iface->id != disconn_iface->id) {
-            continue;
-        }
+        // if (entry->iface->id != disconn_iface->id) {
+        //     continue;
+        // } //TODO: fix me
 
         // Skip entry if it cannot be routed to other devices
         if (entry->service.allowed_hops < 1) {
@@ -95,11 +95,11 @@ static void update_registry(cipher_daemon_t *d, cipher_iface_t *disconn_iface) {
         cipher_service_entry_t *entry = &d->service_registry.entries[i];
 
         // Skip entry if it does NOT belong to the disconnected interface
-        if (entry->iface->id != disconn_iface->id) {
-            continue;
-        }
+        // if (entry->iface->id != disconn_iface->id) {
+        //     continue;
+        // } // fix me
 
-        if (!cipher_service_unregister(d, entry)) {
+        if (!registry_service_remove(d, entry)) {
             ERROR("Service should have been in registry");
         }
     }

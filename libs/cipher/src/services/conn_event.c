@@ -41,9 +41,9 @@ void handle_iface_conn_event(cipher_daemon_t *d) {
         cipher_service_entry_t *entry = &d->service_registry.entries[i];
 
         // Skip entry if it belongs to this same interface
-        if (entry->iface->id == conn_iface->id) {
-            continue;
-        }
+        // if (entry->iface->id == conn_iface->id) { // fix me
+        //     continue;
+        // }
 
         // Skip entry if it cannot be routed to other devices
         if (entry->service.allowed_hops < 1) {
@@ -51,10 +51,10 @@ void handle_iface_conn_event(cipher_daemon_t *d) {
         }
 
         // Create payload and send it on the newly connected interface
-        cipher_payload_sd_t payload = {
+        cipher_payload_sd_broadcast_t payload = {
             .alive = true,
-            .service_id = entry->service.service_id,
-            .device_id = entry->service.device_id,
+            // .service_id = entry->service.service_id, //TODO: fix me
+            // .device_id = entry->service.device_id,
             .num_ops = entry->service.num_ops,
             .allowed_hops = entry->service.allowed_hops,
         };

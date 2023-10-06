@@ -11,7 +11,6 @@
 
 // Cipher includes
 #include "config/default.h"
-#include "daemon/ops.h"
 #include "transport/transport.h"
 #include "utils/err.h"
 
@@ -81,9 +80,12 @@ typedef struct {
  *                                                                                                Flags
  *---------------------------------------------------------------------------------------------------*/
 typedef enum {
+
     CIPHER_FLAG_RPC_REQUEST = (1 << 0),
     CIPHER_FLAG_RPC_RESPONSE = (1 << 1),
     CIPHER_FLAG_RPC_ERR = (1 << 2),
+
+    CIPHER_FLAG_SD_BROADCAST = (1 << 3),
 } cipher_flags_e;
 
 // Macro to set a flag
@@ -99,21 +101,21 @@ typedef enum {
  *                                                                           Service Discovery Payloads
  *---------------------------------------------------------------------------------------------------*/
 
-typedef struct {
+typedef struct __attribute__((packed)) {
     bool alive;
     char name[CONFIG_CIPHER_NAME_LEN];
     uint16_t service_id;
     uint16_t device_id;
     uint8_t num_ops;
     uint8_t allowed_hops;
-} cipher_payload_sd_t;
+} cipher_payload_sd_broadcast_t;
 
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                         RPC Payloads
  *---------------------------------------------------------------------------------------------------*/
 
 typedef struct {
-    cipher_rpc_err_t err;
+    uint8_t err;  // TODO: make the right type cipher_rpc_err_t
 } cipher_payload_rpc_err_t;
 
 #endif  // PROTOCOL_H

@@ -22,10 +22,18 @@ LOG_MODULE_REGISTER(app);
 int main(void) {
     LOG_RAW("\n\n%s\n", "********** Accel Drv App **********");
 
+    // Create a new daemon instance
     cipher_daemon_init(&cfg, &d);
+
+    // Register all services for this device
+    size_t num_services = 0;
+    cipher_service_entry_t* services = accel_fixture_get_services(&num_services);
+    cipher_register_remote_services(&d, services, num_services);
+
+    // Let it rip
     cipher_daemon_start(&d);
 
-    k_msleep(1000);
+    k_msleep(2000);
 
     while (true) {
 

@@ -9,8 +9,7 @@
  * @brief Service definition
  */
 typedef struct {
-    uint16_t device_id;                /*!< The device where the service is located. Localhost is valid */
-    uint16_t service_id;               /*!< ID of the service */
+    uint16_t id;                       /*!< ID of the service */
     char name[CONFIG_CIPHER_NAME_LEN]; /*!< Name of the service */
     uint8_t allowed_hops;              /*!< How many hosts the request can jump through */
     cipher_ops_entry_t *ops;           /*!< List of ops, only needed for local services */
@@ -19,8 +18,14 @@ typedef struct {
 
 typedef struct {
     bool _used;
-    bool local;
+    uint16_t device_id; /*!< The device where the service is located. Localhost is valid */
     cipher_iface_t *iface;
+} cipher_service_end_point_t;
+
+typedef struct {
+    bool _used;
+    bool local;
+    cipher_service_end_point_t end_points[CONFIG_MAX_END_POINTS_PER_SERVICE];
     cipher_service_t service;
 } cipher_service_entry_t;
 

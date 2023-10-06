@@ -15,7 +15,7 @@
  * @retval true If found
  * @retval false If not found
  */
-bool cipher_service_exists(cipher_daemon_t *d, cipher_service_entry_t *entry);
+bool registry_service_exists(cipher_daemon_t *d, cipher_service_entry_t *entry);
 
 /**
  * @brief Add an entry to the daemon's service registry
@@ -29,7 +29,11 @@ bool cipher_service_exists(cipher_daemon_t *d, cipher_service_entry_t *entry);
  * @retval true If the entry was added succesfully, or it already exists
  * @retval false If there's not enough space in the registry
  */
-bool cipher_service_register(cipher_daemon_t *d, cipher_service_entry_t *entry);
+bool registry_service_add(cipher_daemon_t *d, cipher_service_entry_t *entry);
+
+bool registry_add_end_point_to_service(cipher_daemon_t *d, cipher_service_entry_t *entry, cipher_service_end_point_t *end_point);
+
+bool registry_remove_end_point_from_service(cipher_daemon_t *d, cipher_service_entry_t *entry, cipher_service_end_point_t *end_point);
 
 /**
  * @brief Remove an entry from the daemon's service registry
@@ -39,7 +43,7 @@ bool cipher_service_register(cipher_daemon_t *d, cipher_service_entry_t *entry);
  * @retval true If the entry was removed succesfully
  * @retval false If the entry wasn't found in the registry
  */
-bool cipher_service_unregister(cipher_daemon_t *d, cipher_service_entry_t *entry);
+bool registry_service_remove(cipher_daemon_t *d, cipher_service_entry_t *entry);
 
 /**
  * @brief Get the interface where a destination device is located
@@ -53,6 +57,6 @@ cipher_iface_t *cipher_get_iface_by_device_id(cipher_daemon_t *d, uint16_t devic
 bool cipher_rpc_exists(cipher_daemon_t *d, cipher_rpc_entry_t *entry);
 bool cipher_rpc_entry_register(cipher_daemon_t *d, cipher_rpc_entry_t *entry);
 bool cipher_rpc_entry_unregister(cipher_daemon_t *d, cipher_rpc_entry_t *entry);
-cipher_ops_entry_t *find_op_in_registry(cipher_daemon_t *d, cipher_packet_t *packet);
+cipher_ops_entry_t *find_op_in_registry(cipher_daemon_t *d, cipher_header_t *header);
 
 #endif

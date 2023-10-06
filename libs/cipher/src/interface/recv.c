@@ -125,29 +125,36 @@ static void process_complete_packet(cipher_daemon_t *d, cipher_iface_t *iface, c
                                     uint8_t *recv_buffer, uint16_t bytes_recv) {
 
     // Route packet if its not for local host
-    if (header->destination_id != d->device_id) {
+    // TODO: Make broadcast id general
+    if (header->destination_id != 0xFFFF && header->destination_id != d->device_id) {
         process_routing_packet(d, header, recv_buffer, bytes_recv);
         return;
     }
 
     // Allocate buffer for a local packet
-    cipher_packet_fifo_item_t *fifo_item = alloc_packet_fifo_item(d, bytes_recv);
+    size_t payload_size = bytes_recv - sizeof(cipher_header_t);
+    cipher_packet_fifo_item_t *fifo_item = alloc_packet_fifo_item(d, payload_size);
     CHECK_MALLOC(fifo_item);
 
     // Decode packet
     serdes_decode_args_t args = {
         .header = header,
-        .raw_payload = recv_buffer,
-        .raw_payload_size = bytes_recv,
+        .raw_packet = recv_buffer,
+        .raw_packet_size = bytes_recv,
         .decoded_payload = fifo_item->packet.payload,
+        .decoded_payload_size = payload_size,
     };
 
-    serdes_error_t err = serdes_decode_packet(args);
+    serdes_error_t err = serdes_decode_packet(d, &args);
     if (err != SERDES_ERROR_OK)
         handle_iface_error(d, iface, IFACE_ERROR_SERDES, &err, sizeof(err));
 
     // We no longer need the network buffer
     k_heap_free(&d->net_packets_heap, recv_buffer);
+
+    // Copy all fields of fifo item
+    fifo_item->iface = iface;
+    fifo_item->packet.header = *header;
 
     // Send packet to the right handler
     switch (header->type) {

@@ -160,17 +160,15 @@ static void handle_decoded_packet_event(cipher_daemon_t *d, cipher_iface_t *ifac
     // Encode raw payload
     serdes_encode_args_t args = {
         .header = &decoded_packet->header,
-        .raw_payload = decoded_packet,
-        .raw_payload_size = packet_len,
-        .encoded_payload = send_buffer,
+        .raw_payload = decoded_packet->payload,
+        .raw_payload_size = decoded_packet->header.payload_len,
+        .encoded_packet = send_buffer,
+        .encoded_packet_size = packet_len,
     };
-    serdes_error_t err = serdes_encode_packet(args);
+    serdes_error_t err = serdes_encode_packet(d, &args);
     if (err != SERDES_ERROR_OK) {
         ERROR("Could not encode encoded_packet, err: %d. iface %d, daemon %d", err, iface->id, d->id);
     }
-
-    // After encoding we don't need the original buffer anymore
-    free_packet_fifo_item(d, fifo_item);
 
     // Send the encoded encoded_packet on the interface
     uint16_t bytes_sent = 0;

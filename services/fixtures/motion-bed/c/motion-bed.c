@@ -7,6 +7,7 @@
 #include "daemon/api.h"
 #include "daemon/daemon.h"
 #include "daemon/fifo.h"
+#include "protocol/serdes.h"
 #include "daemon/registry.h"
 #include "utils/err.h"
 
@@ -65,6 +66,66 @@ motion_response_t accel_bench_rpc_command_motion(cipher_daemon_t* d, cipher_rpc_
 }
 
 /*-----------------------------------------------------------------------------------------------------
+ *                                                                                               Serdes
+ *---------------------------------------------------------------------------------------------------*/
+serdes_error_t motion_request_t_encode(serdes_encode_args_t *args) {
+    motion_request_t *payload = (motion_request_t *)args->raw_payload;
+    uint16_t position = sizeof(cipher_header_t); // Start right after the header
+
+    if (!serdes_put_uint8(args->encoded_packet, args->encoded_packet_size, &position, (uint8_t)payload->direction)) {
+        return SERDES_ERROR_PUT_HELPER;
+    }
+
+    if (!serdes_put_float(args->encoded_packet, args->encoded_packet_size, &position, payload->force)) {
+        return SERDES_ERROR_PUT_HELPER;
+    }
+
+    if (!serdes_put_float(args->encoded_packet, args->encoded_packet_size, &position, payload->interval)) {
+        return SERDES_ERROR_PUT_HELPER;
+    }
+
+    return SERDES_ERROR_OK;
+}
+
+serdes_error_t motion_request_t_decode(serdes_decode_args_t *args) {
+    motion_request_t *payload = (motion_request_t *)args->decoded_payload;
+    uint16_t position = sizeof(cipher_header_t); // Start right after the header
+
+    payload->direction = serdes_get_uint8(args->raw_packet, args->raw_packet_size, &position);
+    payload->force = serdes_get_float(args->raw_packet, args->raw_packet_size, &position);
+    payload->interval = serdes_get_float(args->raw_packet, args->raw_packet_size, &position);
+
+    return SERDES_ERROR_OK;
+}
+
+serdes_error_t motion_response_t_encode(serdes_encode_args_t *args) {
+
+    motion_response_t *payload = (motion_response_t *)args->raw_payload;
+    uint16_t position = sizeof(cipher_header_t); // Start right after the header
+
+    if (!serdes_put_uint8(args->encoded_packet, args->encoded_packet_size, &position, (uint8_t)payload->error_code)) {
+        return SERDES_ERROR_PUT_HELPER;
+    }
+
+    uint8_t success_flag = payload->success ? 1 : 0;
+    if (!serdes_put_uint8(args->encoded_packet, args->encoded_packet_size, &position, success_flag)) {
+        return SERDES_ERROR_PUT_HELPER;
+    }
+    
+    return SERDES_ERROR_OK;
+}
+
+serdes_error_t motion_response_t_decode(serdes_decode_args_t *args) {
+    motion_response_t *payload = (motion_response_t *)args->decoded_payload;
+    uint16_t position = sizeof(cipher_header_t); // Start right after the header
+
+    payload->error_code = serdes_get_uint8(args->raw_packet, args->raw_packet_size, &position);
+    payload->success = serdes_get_uint8(args->raw_packet, args->raw_packet_size, &position) == 1 ? true : false;
+
+    return SERDES_ERROR_OK;
+}
+
+/*-----------------------------------------------------------------------------------------------------
  *                                                                                                  Ops
  *---------------------------------------------------------------------------------------------------*/
 
@@ -79,7 +140,15 @@ static cipher_ops_entry_t accel_bench_service_ops[] = {
         .name = "CommandMotion",
         .op = {
             .rpc = {
+                .request_serdes = {
+                    .encode = motion_request_t_encode,
+                    .decode = motion_request_t_decode,
+                },
                 .request_size = sizeof(motion_request_t),
+                .response_serdes = {
+                    .encode = motion_response_t_encode,
+                    .decode = motion_response_t_decode,
+                },
                 .response_size = sizeof(motion_response_t),
                 .handler = accel_command_motion_prv_handler,
             },

@@ -6,8 +6,6 @@
 #include "config/default.h"
 #include "daemon/iface.h"
 #include "daemon/service.h"
-#include "protocol/protocol.h"
-#include "transport/transport.h"
 
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                               Deamon
@@ -142,6 +140,7 @@ typedef struct {
      *---------------------------------------------*/
     cipher_service_registry_t service_registry;
     cipher_rpc_registry_t rpc_registry;
+
 } cipher_daemon_t;
 
 #endif  // DAEMON_CONFIG_H

@@ -84,7 +84,7 @@ void handle_local_request(cipher_daemon_t* d) {
 
     // Send decoded packet to the right interface
     cipher_iface_t* iface = cipher_get_iface_by_device_id(d, req_packet->header.destination_id);
-    k_fifo_put(&iface->decoded_packets_queue, fifo_item);
+    k_fifo_put(&iface->decoded_packets_queue, packet_fifo_item);
 
     // Set a timeout event for this RPC
     k_timer_init(&entry->timer, handle_rpc_timeout_event, NULL);

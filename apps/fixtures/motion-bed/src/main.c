@@ -22,20 +22,20 @@ LOG_MODULE_REGISTER(app);
 int main(void) {
     LOG_RAW("\n\n%s\n", "********** Motion Bed App **********");
 
-    // Create protocol daemon
+    // Create a new daemon instance
     cipher_daemon_init(&cfg, &d);
 
-    // Register services
+    // Register all services for this device
     size_t num_services = 0;
     cipher_service_entry_t* services = accel_fixture_get_services(&num_services);
     cipher_register_local_services(&d, services, num_services);
 
-    // Start application daemon
+    // Let it rip
     cipher_daemon_start(&d);
 }
 
 motion_response_t accel_bench_rpc_command_motion_handler(motion_request_t request) {
-
+    // TODO: Implement the application specific
     motion_response_t response = {0};
     return response;
 }

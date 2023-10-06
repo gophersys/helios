@@ -34,7 +34,7 @@ void handle_iface_disconn_event(cipher_daemon_t *d);
  * @param iface The interface that will send the packet
  * @param sd_payload The desired payload to put in the packet
  */
-void send_service_payload(cipher_daemon_t *d, cipher_iface_t *iface, cipher_payload_sd_t *sd_payload);
+void send_service_payload(cipher_daemon_t *d, cipher_iface_t *iface, cipher_payload_sd_broadcast_t *sd_payload);
 
 /**
  * @brief Send a service update to all connected interfaces.

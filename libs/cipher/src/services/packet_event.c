@@ -8,8 +8,8 @@
 
 // Cipher includes
 #include "config/default.h"
-#include "daemon/fifo.h"
 #include "daemon/daemon.h"
+#include "daemon/fifo.h"
 #include "daemon/registry.h"
 #include "protocol/protocol.h"
 #include "protocol/serdes.h"
@@ -48,36 +48,36 @@ void handle_sd_packet_event(cipher_daemon_t *d) {
     __ASSERT(fifo_item, "Null item on sd_packet_queue, daemon %d", d->id);
 
     cipher_packet_t *packet = (cipher_packet_t *)&fifo_item->packet;
-    cipher_payload_sd_t *sd_payload = (cipher_payload_sd_t *)packet->payload;
+    cipher_payload_sd_broadcast_t *sd_payload = (cipher_payload_sd_broadcast_t *)packet->payload;
 
     // Crate a potential entry to enter to our registry
     cipher_service_entry_t potential_entry = {
-        .local = false,
-        .iface = fifo_item->iface,
-        .service = {
-            .service_id = sd_payload->service_id,
-            .device_id = sd_payload->device_id,
-            .num_ops = sd_payload->num_ops,
-            .allowed_hops = sd_payload->allowed_hops,
-        },
+        // .local = false,
+        // .iface = fifo_item->iface,
+        // .service = {
+        //     .service_id = sd_payload->service_id,
+        //     .device_id = sd_payload->device_id,
+        //     .num_ops = sd_payload->num_ops,
+        //     .allowed_hops = sd_payload->allowed_hops,
+        // }, //TODO: fix me
     };
     strcpy(potential_entry.service.name, sd_payload->name);
 
     // Update registry
-    if (!cipher_service_exists(d, &potential_entry)) {
+    if (!registry_service_exists(d, &potential_entry)) {
 
         // If the service is alive, register and update
         if (sd_payload->alive) {
 
-            if (!cipher_service_register(d, &potential_entry)) {
-                ERROR("Unable to register service %d, for daemon %d", potential_entry.service.service_id, d->id);
+            if (!registry_service_add(d, &potential_entry)) {
+                ERROR("Unable to register service %d, for daemon %d", potential_entry.service.id, d->id);
             }
 
             notify_interfaces(d, &potential_entry, fifo_item->iface);
 
         } else {
-            if (!cipher_service_unregister(d, &potential_entry)) {
-                ERROR("Unable to register service %d, for daemon %d", potential_entry.service.service_id, d->id);
+            if (!registry_service_remove(d, &potential_entry)) {
+                ERROR("Unable to register service %d, for daemon %d", potential_entry.service.id, d->id);
             }
         }
     }
@@ -92,8 +92,9 @@ void handle_sd_packet_event(cipher_daemon_t *d) {
 void notify_interfaces(cipher_daemon_t *d, cipher_service_entry_t *entry, cipher_iface_t *omit_iface) {
 
     if (entry->service.allowed_hops < 1) {
-        DBG("Service %d, device %d, on iface %d, daemon %d num_hops is 0, omitting advertisement",
-            entry->service.service_id, entry->service.device_id, omit_iface->id, d->id);
+        // DBG("Service %d, device %d, on iface %d, daemon %d num_hops is 0, omitting advertisement",
+        //     entry->service.id, entry->service.device_id, omit_iface->id, d->id);
+        // TODO: fix me
         return;
     }
 

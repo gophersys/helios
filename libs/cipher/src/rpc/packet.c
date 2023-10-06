@@ -55,7 +55,7 @@ static void handle_rpc_request_packet(cipher_daemon_t *d, cipher_packet_fifo_ite
     cipher_packet_t *packet = &fifo_item->packet;
 
     // Find the localhost operation
-    cipher_ops_entry_t *entry = find_op_in_registry(d, packet);
+    cipher_ops_entry_t *entry = find_op_in_registry(d, &packet->header);
     if (!entry) {
         WARN("Host %d requested local RPC %d, for service %d, but entry was not found locally",
              packet->header.source_id, packet->header.operation_id, packet->header.service_id);
