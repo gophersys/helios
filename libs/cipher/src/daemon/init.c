@@ -75,6 +75,7 @@ void cipher_daemon_start(cipher_daemon_t *d) {
 
 void cipher_register_local_services(cipher_daemon_t *d, cipher_service_entry_t *entries, size_t num_entries) {
     for (size_t i = 0; i < num_entries; i++) {
+        entries[i].local = true;
         if (!registry_service_add(d, &entries[i])) {
             ERROR("Unable to register local service %d, for daemon %d", entries[i].service.id, d->id);
         }
@@ -84,7 +85,7 @@ void cipher_register_local_services(cipher_daemon_t *d, cipher_service_entry_t *
             .iface = NULL,
         };
 
-        if (!registry_add_end_point_to_service(d, &entries[i], &localhost)) {
+        if (!registry_end_point_add_to_service(d, &entries[i], &localhost)) {
             ERROR("Unable to register localhost end point for service %d, for daemon %d", entries[i].service.id, d->id);
         }
     }
@@ -92,6 +93,7 @@ void cipher_register_local_services(cipher_daemon_t *d, cipher_service_entry_t *
 
 void cipher_register_remote_services(cipher_daemon_t *d, cipher_service_entry_t *entries, size_t num_entries) {
     for (size_t i = 0; i < num_entries; i++) {
+        entries[i].local = false;
         if (!registry_service_add(d, &entries[i])) {
             ERROR("Unable to register remote service %d, for daemon %d", entries[i].service.id, d->id);
         }

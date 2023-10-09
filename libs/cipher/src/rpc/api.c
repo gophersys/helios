@@ -69,7 +69,8 @@ void cipher_rpc_add_event(cipher_daemon_t *d, rpc_event_t *event) {
     // Copy user's event
     local_event->type = event->type;
     memcpy(local_event->options, event->options, option_size);
-    sys_rand_get(&local_event->id, sizeof(local_event->id));
+    static uint16_t event_id = 0;
+    local_event->id = event_id++;
 
     k_fifo_put(&d->rpc_event_queue, local_event);
 }

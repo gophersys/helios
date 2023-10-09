@@ -34,11 +34,17 @@ typedef struct {
     K_THREAD_STACK_MEMBER(stack, TRANSPORT_THREAD_STACK_SIZE);
 } cipher_iface_thread_info_t;
 
+typedef struct {
+    bool _used;
+    uint16_t device_id;
+} cipher_iface_device_entry_t;
+
 /**
  * @brief Each interface has 3 threads, and their info is grouped here
  */
 typedef struct {
-    cipher_iface_t iface;                    /*!< The iface that corresponds to this group */
+    cipher_iface_t iface; /*!< The iface that corresponds to this group */
+    cipher_iface_device_entry_t device_entries[CONFIG_MAX_NUM_DEVICES_PER_IFACE];
     cipher_iface_thread_info_t connection_t; /*!< Manages connection/disconnection & cleanup */
     cipher_iface_thread_info_t send_t;       /*!< Sends encoded/decoded packages on iface */
     cipher_iface_thread_info_t recv_t;       /*!< Recvs encoded packages on iface */

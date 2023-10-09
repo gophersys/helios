@@ -113,15 +113,28 @@ static void handle_rpc_request_packet(cipher_daemon_t *d, cipher_packet_fifo_ite
     CIPHER_SET_FLAG(resp_packet->header.flags, resp_packet_flag);
 
     // Send decoded packet to the right interface
-    cipher_iface_t *iface = cipher_get_iface_by_device_id(d, resp_packet->header.destination_id);
+    cipher_iface_t *iface = registry_get_iface(d, resp_packet->header.destination_id);
     k_fifo_put(&iface->decoded_packets_queue, resp_fifo_item);
 }
 
 static void handle_rpc_response_packet(cipher_daemon_t *d, cipher_packet_fifo_item_t *fifo_item) {
     // Find the RPC entry
+    cipher_rpc_entry_t *entry = cipher_rpc_get_entry(d, fifo_item->packet.header.service_id, fifo_item->packet.header.operation_id);
+    if (!entry) {
+        WARN("Unknown RPC response message");
+        return;
+    }
+
     // Stop the timeout timer
-    // Signal semaphore
+    k_timer_stop(&entry->timer);
+
+    // Find remote service with RPC
+    cipher_rpc_user_info_t *info = entry->user_info;
+    info->error = CIPHER_RPC_ERR_OK;
+    k_sem_give(&entry->await_sem);
+
     // Remove RPC entry
+    cipher_rpc_entry_unregister(d, entry);
 }
 
 /*-----------------------------------------------------------------------------------------------------

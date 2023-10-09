@@ -109,7 +109,11 @@ static void recv_ingress_packet(cipher_daemon_t *d, cipher_iface_t *iface, uint8
         handle_iface_error(d, iface, IFACE_ERROR_SERDES, &err, sizeof(err));
     }
 
-    cipher_print_header(&header);  // Uncommnet to see raw header
+    // cipher_print_header(&header);  // Uncommnet to see raw header
+
+    if (!registry_add_device_to_iface(d, iface, header.source_id)) {
+        ERROR("Could not add device entry to iface");
+    }
 
     if (header.payload_len == (bytes_recv - sizeof(header))) {
         process_complete_packet(d, iface, &header, recv_buffer, bytes_recv);
@@ -195,7 +199,7 @@ static void process_routing_packet(cipher_daemon_t *d, cipher_header_t *header, 
     k_heap_free(&d->net_packets_heap, recv_buffer);
 
     // Look up the destination interface
-    cipher_iface_t *dest_iface = cipher_get_iface_by_device_id(d, header->destination_id);
+    cipher_iface_t *dest_iface = registry_get_iface(d, header->destination_id);
     if (dest_iface != NULL) {
         k_fifo_put(&dest_iface->encoded_packets_queue, fifo_item);
     } else {

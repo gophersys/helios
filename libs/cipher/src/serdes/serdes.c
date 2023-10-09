@@ -46,7 +46,7 @@ serdes_error_t serdes_encode_packet(cipher_daemon_t *d, serdes_encode_args_t *ar
         }
     }
 
-    return serdes_encode_header(args->encoded_packet, args->raw_payload_size, args->header);
+    return serdes_encode_header(args->encoded_packet, args->encoded_packet_size, args->header);
 }
 
 serdes_error_t serdes_decode_packet(cipher_daemon_t *d, serdes_decode_args_t *args) {

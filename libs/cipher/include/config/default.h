@@ -8,7 +8,7 @@
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                            Debugging
  *---------------------------------------------------------------------------------------------------*/
-#define REGISTRY_LOG_LEVEL LOG_LEVEL_INF
+#define REGISTRY_LOG_LEVEL LOG_LEVEL_DBG
 #define ROUTER_LOG_LEVEL LOG_LEVEL_WRN
 #define SD_LOG_LEVEL LOG_LEVEL_INF
 #define EVENT_LOG_LEVEL LOG_LEVEL_WRN
@@ -25,11 +25,14 @@
 #define CONFIG_MAX_NUM_SERVICES 10
 
 #define CONFIG_MAX_END_POINTS_PER_SERVICE 5
+
 #define CONFIG_CIPHER_LOCAL_ADDR 0x0000
-#define CONFIG_CIPHER_ANY_ADDR 0x0000
+#define CONFIG_CIPHER_ANY_ADDR 0xFFFF
 
 #define CONFIG_MAX_NUM_OPS_PER_SERVICE 15
 #define CONFIG_CIPHER_NAME_LEN 24
+
+#define CONFIG_MAX_NUM_DEVICES_PER_IFACE 5
 
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                           Interfaces

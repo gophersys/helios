@@ -22,6 +22,7 @@ void cipher_daemon_start(cipher_daemon_t *d);
  *                                                                                             Services
  *---------------------------------------------------------------------------------------------------*/
 void cipher_register_local_services(cipher_daemon_t *d, cipher_service_entry_t *entries, size_t num_entries);
+void cipher_register_remote_services(cipher_daemon_t *d, cipher_service_entry_t *entries, size_t num_entries);
 
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                                  RPC

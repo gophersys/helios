@@ -70,7 +70,5 @@ void handle_timer_expired(cipher_daemon_t *d, rpc_event_t *event) {
     send_rpc_cancel_request(d, entry);
     signal_rpc_caller(d, entry);
 
-    if (!cipher_rpc_entry_unregister(d, entry)) {
-        ERROR("could not unregister");
-    }
+    cipher_rpc_entry_unregister(d, entry);
 }

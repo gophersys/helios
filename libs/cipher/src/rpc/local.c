@@ -59,7 +59,7 @@ void handle_local_request(cipher_daemon_t* d) {
     }
 
     // Find remote service with RPC
-    cipher_iface_t* rpc_iface = cipher_get_iface_by_device_id(d, info->device_id);
+    cipher_iface_t* rpc_iface = registry_get_iface(d, info->device_id);
     if (!rpc_iface) {
         info->error = CIPHER_RPC_ERR_NOT_FOUND;
         k_sem_give(&entry->await_sem);
@@ -83,8 +83,7 @@ void handle_local_request(cipher_daemon_t* d) {
     CIPHER_SET_FLAG(req_packet->header.flags, CIPHER_FLAG_RPC_REQUEST);
 
     // Send decoded packet to the right interface
-    cipher_iface_t* iface = cipher_get_iface_by_device_id(d, req_packet->header.destination_id);
-    k_fifo_put(&iface->decoded_packets_queue, packet_fifo_item);
+    k_fifo_put(&rpc_iface->decoded_packets_queue, packet_fifo_item);
 
     // Set a timeout event for this RPC
     k_timer_init(&entry->timer, handle_rpc_timeout_event, NULL);

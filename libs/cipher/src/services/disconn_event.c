@@ -99,8 +99,6 @@ static void update_registry(cipher_daemon_t *d, cipher_iface_t *disconn_iface) {
         //     continue;
         // } // fix me
 
-        if (!registry_service_remove(d, entry)) {
-            ERROR("Service should have been in registry");
-        }
+        registry_service_remove(d, entry);
     }
 }

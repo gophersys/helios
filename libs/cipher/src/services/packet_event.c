@@ -50,36 +50,29 @@ void handle_sd_packet_event(cipher_daemon_t *d) {
     cipher_packet_t *packet = (cipher_packet_t *)&fifo_item->packet;
     cipher_payload_sd_broadcast_t *sd_payload = (cipher_payload_sd_broadcast_t *)packet->payload;
 
-    // Crate a potential entry to enter to our registry
-    cipher_service_entry_t potential_entry = {
-        // .local = false,
-        // .iface = fifo_item->iface,
-        // .service = {
-        //     .service_id = sd_payload->service_id,
-        //     .device_id = sd_payload->device_id,
-        //     .num_ops = sd_payload->num_ops,
-        //     .allowed_hops = sd_payload->allowed_hops,
-        // }, //TODO: fix me
+    cipher_service_entry_t service = {
+        .local = false,
+        .service = {
+            .id = sd_payload->service_id,
+            .allowed_hops = sd_payload->allowed_hops,
+            .num_ops = sd_payload->num_ops,
+        },
     };
-    strcpy(potential_entry.service.name, sd_payload->name);
+    strcpy(service.service.name, sd_payload->name);
 
-    // Update registry
-    if (!registry_service_exists(d, &potential_entry)) {
+    cipher_service_end_point_t entry = {
+        .device_id = packet->header.source_id,
+        .iface = fifo_item->iface,
+    };
 
-        // If the service is alive, register and update
-        if (sd_payload->alive) {
-
-            if (!registry_service_add(d, &potential_entry)) {
-                ERROR("Unable to register service %d, for daemon %d", potential_entry.service.id, d->id);
-            }
-
-            notify_interfaces(d, &potential_entry, fifo_item->iface);
-
-        } else {
-            if (!registry_service_remove(d, &potential_entry)) {
-                ERROR("Unable to register service %d, for daemon %d", potential_entry.service.id, d->id);
-            }
+    if (sd_payload->alive) {
+        if (!registry_end_point_add_to_service(d, &service, &entry)) {
+            ERROR("Unable to add end point to service for daemon %d", d->id);
         }
+
+        // notify_interfaces(d, &service, fifo_item->iface);
+    } else {
+        registry_end_point_rm_from_service(d, &service, &entry);
     }
 
     free_packet_fifo_item(d, fifo_item);
