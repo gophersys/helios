@@ -42,6 +42,7 @@ void send_service_payload(cipher_daemon_t *d, cipher_iface_t *iface, cipher_payl
     packet->header.sequence_num = 0;
     packet->header.type = CIPHER_PACKET_TYPE_SD;
     packet->header.hop_count = 0;
+    memset(&packet->header.flags, 0, sizeof(packet->header.flags));
     CIPHER_SET_FLAG(packet->header.flags, CIPHER_FLAG_SD_BROADCAST);
 
     // Set payload values

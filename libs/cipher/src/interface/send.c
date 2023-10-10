@@ -143,7 +143,7 @@ static void handle_encoded_packet_event(cipher_daemon_t *d, cipher_iface_t *ifac
  *---------------------------------------------------------------------------------------------------*/
 static void handle_decoded_packet_event(cipher_daemon_t *d, cipher_iface_t *iface) {
     __ASSERT(iface->connected, "Received an encoded_packet to be sent on a disconnected interface");
-    DBG("Send thread for iface %d, daemon %d, received decoded packet", iface->id, d->id);
+    // DBG("Send thread for iface %d, daemon %d, received decoded packet", iface->id, d->id);
 
     // Receive fifo item
     cipher_packet_fifo_item_t *fifo_item = k_fifo_get(&iface->decoded_packets_queue, K_NO_WAIT);
@@ -192,6 +192,6 @@ static void handle_decoded_packet_event(cipher_daemon_t *d, cipher_iface_t *ifac
         ERROR("Expected to send %d bytes, sent %d", packet_len, bytes_sent);  // TODO: Implement retry functionality
 
     k_heap_free(&d->net_packets_heap, send_buffer);
-
-    DBG("Encoded encoded_packet sent succesfully on iface %d, daemon %d", iface->id, d->id);
+    free_packet_fifo_item(d, fifo_item);
+    // DBG("Encoded encoded_packet sent succesfully on iface %d, daemon %d", iface->id, d->id);
 }

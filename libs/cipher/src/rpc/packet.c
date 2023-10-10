@@ -49,6 +49,8 @@ void handle_rpc_packet(cipher_daemon_t *d) {
     } else {
         ERROR("Expected at least 1 flag to be set in RPC packet");
     }
+
+    free_packet_fifo_item(d, fifo_item);
 }
 
 static void handle_rpc_request_packet(cipher_daemon_t *d, cipher_packet_fifo_item_t *fifo_item) {
@@ -59,8 +61,6 @@ static void handle_rpc_request_packet(cipher_daemon_t *d, cipher_packet_fifo_ite
     if (!entry) {
         WARN("Host %d requested local RPC %d, for service %d, but entry was not found locally",
              packet->header.source_id, packet->header.operation_id, packet->header.service_id);
-
-        free_packet_fifo_item(d, fifo_item);
         return;
     }
 
@@ -68,9 +68,9 @@ static void handle_rpc_request_packet(cipher_daemon_t *d, cipher_packet_fifo_ite
         WARN("Parallelism is not yet supported by RPC thread, executing serialized");
     }
 
-    void *request_memory = k_heap_alloc(&d->rpc_heap, entry->op.rpc.request_size, K_FOREVER);
+    void *request_memory = k_heap_aligned_alloc(&d->rpc_heap, 8, entry->op.rpc.request_size, K_FOREVER);
     CHECK_MALLOC(request_memory);
-    void *response_memory = k_heap_alloc(&d->rpc_heap, entry->op.rpc.response_size, K_FOREVER);
+    void *response_memory = k_heap_aligned_alloc(&d->rpc_heap, 8, entry->op.rpc.response_size, K_FOREVER);
     CHECK_MALLOC(response_memory);
 
     // Call the handler
@@ -79,6 +79,10 @@ static void handle_rpc_request_packet(cipher_daemon_t *d, cipher_packet_fifo_ite
     void *payload = NULL;
     size_t payload_len = 0;
     cipher_flags_e resp_packet_flag = CIPHER_FLAG_RPC_RESPONSE;
+
+    // Allocate response packet
+    cipher_packet_fifo_item_t *resp_fifo_item = alloc_packet_fifo_item(d, entry->op.rpc.response_size);
+    CHECK_MALLOC(resp_fifo_item);
 
     // Create the payload based on the RPC result
     if (err != CIPHER_RPC_ERR_OK) {
@@ -89,16 +93,12 @@ static void handle_rpc_request_packet(cipher_daemon_t *d, cipher_packet_fifo_ite
         payload = &err_payload;
         payload_len = sizeof(err_payload);
     } else {
-        memcpy(&fifo_item->packet.payload, response_memory, entry->op.rpc.response_size);
+        memcpy(resp_fifo_item->packet.payload, response_memory, entry->op.rpc.response_size);
         payload_len = sizeof(entry->op.rpc.response_size);
     }
 
-    k_heap_free(&d->ctrl_events_heap, request_memory);
-    k_heap_free(&d->ctrl_events_heap, response_memory);
-
-    // Allocate response packet
-    cipher_packet_fifo_item_t *resp_fifo_item = alloc_packet_fifo_item(d, entry->op.rpc.response_size);
-    CHECK_MALLOC(fifo_item);
+    k_heap_free(&d->rpc_heap, request_memory);
+    k_heap_free(&d->rpc_heap, response_memory);
 
     // Populate header
     cipher_packet_t *resp_packet = &resp_fifo_item->packet;
@@ -110,6 +110,7 @@ static void handle_rpc_request_packet(cipher_daemon_t *d, cipher_packet_fifo_ite
     resp_packet->header.sequence_num = 0;
     resp_packet->header.type = CIPHER_PACKET_TYPE_RPC;
     resp_packet->header.hop_count = 0;
+    memset(&resp_packet->header.flags, 0, sizeof(resp_packet->header.flags));
     CIPHER_SET_FLAG(resp_packet->header.flags, resp_packet_flag);
 
     // Send decoded packet to the right interface

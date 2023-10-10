@@ -80,6 +80,7 @@ void handle_local_request(cipher_daemon_t* d) {
     req_packet->header.sequence_num = 0;
     req_packet->header.type = CIPHER_PACKET_TYPE_RPC;
     req_packet->header.hop_count = 0;
+    memset(&req_packet->header.flags, 0, sizeof(req_packet->header.flags));
     CIPHER_SET_FLAG(req_packet->header.flags, CIPHER_FLAG_RPC_REQUEST);
 
     // Send decoded packet to the right interface

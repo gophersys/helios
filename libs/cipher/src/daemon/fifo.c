@@ -63,9 +63,9 @@ inline cipher_router_packet_fifo_item_t *alloc_router_packet_fifo_item(cipher_da
 inline void free_router_packet_fifo_item(cipher_daemon_t *d, cipher_router_packet_fifo_item_t *fifo_item) {
     if (fifo_item) {
         if (fifo_item->raw_packet) {
-            k_heap_free(&d->local_packets_heap, fifo_item->raw_packet);
+            k_heap_free(&d->unrouted_packets_heap, fifo_item->raw_packet);
         }
-        k_heap_free(&d->local_packets_heap, fifo_item);
+        k_heap_free(&d->unrouted_packets_heap, fifo_item);
     }
 }
 

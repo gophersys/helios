@@ -15,7 +15,7 @@
 #define RPC_LOG_LEVEL LOG_LEVEL_WRN
 #define STREAM_LOG_LEVEL LOG_LEVEL_INF
 #define DAEMON_LOG_LEVEL LOG_LEVEL_INF
-#define IFACE_LOG_LEVEL LOG_LEVEL_INF
+#define IFACE_LOG_LEVEL LOG_LEVEL_WRN
 #define TAL_LOG_LEVEL LOG_LEVEL_WRN
 
 /*-----------------------------------------------------------------------------------------------------
@@ -79,7 +79,7 @@
 #define CONFIG_CTRL_EVENTS_HEAP_SIZE 256
 
 // RPC events heap
-#define CONFIG_RPC_EVENTS_HEAP_SIZE 512
+#define CONFIG_RPC_EVENTS_HEAP_SIZE 1024
 
 // Network Heap
 #define CONFIG_NET_PACKETS_COUNT 4
