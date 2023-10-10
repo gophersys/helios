@@ -9,7 +9,6 @@
 LOG_MODULE_REGISTER(app);
 
 // Cipher includes
-#include "cipher_tests.h"
 #include "daemon/api.h"
 #include "daemon/fifo.h"
 #include "daemon/registry.h"
@@ -33,9 +32,8 @@ int main(void) {
     // Let it rip
     cipher_daemon_start(&d);
 
-    k_msleep(2000);
-
     while (true) {
+        k_msleep(500);
 
         motion_request_t request = {
             .direction = DIRECTION_X,
@@ -53,6 +51,6 @@ int main(void) {
             ERROR("RPC error: %d", info.error);
         }
 
-        LOG("Success: %d, ErrCode: %d", response.success, response.error_code);
+        LOG("Success: %s, ErrCode: %d", response.success ? "true" : "false", response.error_code);
     }
 }

@@ -9,7 +9,6 @@
 LOG_MODULE_REGISTER(app);
 
 // Cipher includes
-#include "cipher_tests.h"
 #include "daemon/api.h"
 #include "daemon/fifo.h"
 #include "daemon/registry.h"
@@ -32,10 +31,15 @@ int main(void) {
 
     // Let it rip
     cipher_daemon_start(&d);
+
+    while (true) {
+        k_msleep(1000);
+    }
 }
 
 motion_response_t accel_bench_rpc_command_motion_handler(motion_request_t request) {
-    // TODO: Implement the application specific
+    static int count = 0;
     motion_response_t response = {0};
+    LOG("Calling RPC %d", count++);
     return response;
 }
