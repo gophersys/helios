@@ -23,3 +23,14 @@ message MotionResponse {
     ErrorCode err = 1;   
     bool success = 2;      
 }
+
+
+service AltDriverFwTest {
+    rpc StartTest(TestParams) returns (TestResults) {};
+}
+
+message TestParams{
+
+}
+
+message TestResults {}
