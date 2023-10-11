@@ -1,0 +1,3 @@
+[submodule "apps/tests/alt-drv/alt_drv"]
+	path = apps/tests/alt-drv/alt_drv
+	url = git@bitbucket.org:corekinect/alt_drv.git
