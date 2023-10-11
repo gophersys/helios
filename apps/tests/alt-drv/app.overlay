@@ -1,0 +1,11 @@
+&usart3 {
+    current-speed = <0xe1000>;
+};
+
+&i2c1 {
+    bmp388_i2c: bmp388_i2c@1 {
+        compatible = "bosch,bmp388-i2c";
+        reg = <0>;
+        int-gpios = <&gpioc 6 GPIO_ACTIVE_HIGH>;
+    };
+};

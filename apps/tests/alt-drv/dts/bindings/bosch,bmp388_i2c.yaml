@@ -1,0 +1,11 @@
+description: Bosch BMP388 Altimeter (I2C)
+
+compatible: "bosch,bmp388-i2c"
+
+include: base.yaml
+on-bus: i2c
+
+properties:
+    int-gpios:
+      type: phandle-array
+      required: true
