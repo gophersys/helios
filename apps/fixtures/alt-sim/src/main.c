@@ -13,7 +13,7 @@
 LOG_MODULE_REGISTER(app);
 
 int main(void) {
-    LOG_RAW("\n\n%s\n", "********** Altimeter Sim App **********");
+    LOG_RAW("\n\n%s\n", "********** Alt Simulator App **********");
 
     // Create a new daemon instance
     cipher_daemon_config_t* cfg = get_app_config();
