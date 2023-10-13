@@ -83,7 +83,19 @@ cipher_rpc_entry_t *cipher_rpc_get_entry(cipher_daemon_t *d, uint16_t service_id
 }
 
 void cipher_rpc_entry_unregister(cipher_daemon_t *d, cipher_rpc_entry_t *entry) {
-    WARN("%s: not implemented", __func__);
+    // Iterate through the registry entries
+    for (size_t i = 0; i < ARRAY_SIZE(d->rpc_registry.entries); i++) {
+        // Check if the current entry is not NULL and matches the entry to be unregistered
+        if (d->rpc_registry.entries[i] != NULL && d->rpc_registry.entries[i]->id == entry->id) {
+            // Set the entry to NULL and mark it as unused
+            d->rpc_registry.entries[i]->_used = false;
+            d->rpc_registry.entries[i] = NULL;
+            return;  // Exit once the entry is found and unregistered
+        }
+    }
+
+    // If we get here, it means the entry was not found in the registry
+    WARN("RPC entry to unregister not found");
 }
 
 cipher_ops_entry_t *find_op_in_registry(cipher_daemon_t *d, cipher_header_t *header) {
