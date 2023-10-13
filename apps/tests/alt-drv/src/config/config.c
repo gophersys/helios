@@ -2,6 +2,7 @@
 
 #define REMOTE_HOST_IP "192.168.0.70"
 #define UPLINK_SOCKET 5000  // Client connects to this port
+#define RUNNER_SOCKET 5001
 
 static cipher_daemon_config_t cfg = {
     .device_id = THIS_DEVICE_ID,
@@ -12,7 +13,13 @@ static cipher_daemon_config_t cfg = {
         .port = UPLINK_SOCKET,
     },
     .num_uplink_ifaces = 1,
-    .num_downlink_ifaces = 0,
+    .downlink_ifaces[0] = {
+        .type = TAL_INTERFACE_TYPE_SOCKET,
+        .link = TAL_LINK_TYPE_DOWNLINK,
+        .host = NULL,
+        .port = RUNNER_SOCKET,
+    },
+    .num_downlink_ifaces = 1,
 };
 
 static cipher_daemon_t daemon = {0};
