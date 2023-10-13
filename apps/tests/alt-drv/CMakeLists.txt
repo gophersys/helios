@@ -5,11 +5,10 @@ list(APPEND ZEPHYR_EXTRA_MODULES
   ${CMAKE_CURRENT_SOURCE_DIR}/alt_drv   
   )
 
-
 find_package(Zephyr)
 set(DTS_ROOT  ${CMAKE_CURRENT_SOURCE_DIR})
 
-project(accel-drv)
+project(alt-drv)
 
 # Hardcoded root path
 set(MONOREPO_ROOT "/workspaces/concord")

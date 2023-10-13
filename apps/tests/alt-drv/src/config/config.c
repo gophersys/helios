@@ -1,6 +1,6 @@
 #include "config.h"
 
-#define REMOTE_HOST_IP "192.168.0.10"
+#define REMOTE_HOST_IP "192.168.0.70"
 #define UPLINK_SOCKET 5000  // Client connects to this port
 
 static cipher_daemon_config_t cfg = {

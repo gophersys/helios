@@ -16,6 +16,8 @@
                 "target/stm32h7x.cfg",
             ],
             "openOCDLaunchCommands": [
+                // "adapter serial 0036001B3438510C34313939", // Fixture App
+                "adapter serial 004000433532510131333430", // Test App
                 "init",
                 "reset init",
             ],

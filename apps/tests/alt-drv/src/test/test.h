@@ -14,7 +14,7 @@ typedef struct {
     struct k_thread t_data;
     K_THREAD_STACK_MEMBER(t_stack, APP_THREAD_STACK_SIZE);
 
-    // Local vars
+    // Readings
     double pressure;
     double temperature;
     double altitude;

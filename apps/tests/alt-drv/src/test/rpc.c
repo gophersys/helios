@@ -49,8 +49,8 @@ static bool set_desired_altitude(double altitude_ft) {
     };
 
     cipher_rpc_user_info_t info = {
-        .device_id = CONFIG_CIPHER_ANY_ADDR,  // Ask any device that offers this service
-        .timeout_ms = 20000,                  // 20 seconds
+        .device_id = 124,     // Ask any device that offers this service
+        .timeout_ms = 20000,  // 20 seconds
     };
 
     uint32_t start_time = k_uptime_get_32();
@@ -59,6 +59,8 @@ static bool set_desired_altitude(double altitude_ft) {
         WARN("RPC internal error: %d", info.error);
         return false;
     }
+
+    LOG("RPC alt_sim_rpc_set_altitude succeeded! (%dms)", k_uptime_get_32() - start_time);
 
     if (!response.success) {
         WARN("RPC host error: %d", response.err);
@@ -72,37 +74,53 @@ static bool set_desired_altitude(double altitude_ft) {
 }
 
 static bool compare_readings(void) {
-    readings_request_t request = {0};
 
+    // Consume the altimeter bench service
+    readings_request_t request;
     cipher_rpc_user_info_t info = {
-        .device_id = CONFIG_CIPHER_ANY_ADDR,  // Ask any device that offers this service
-        .timeout_ms = 200,                    // Readings is a fast operation
+        .device_id = 124,    // Ask any device that offers this service
+        .timeout_ms = 1000,  // Readings is a fast operation
     };
 
     uint32_t start_time = k_uptime_get_32();
-    readings_response_t response = alt_sim_rpc_get_readings(get_app_daemon(), &info, request);
+    cipher_daemon_t* d = get_app_daemon();
+    readings_response_t response = alt_sim_rpc_get_readings(d, &info, request);  // auto-gen rpc
     if (info.error != CIPHER_RPC_ERR_OK) {
-        WARN("RPC %s internal error: %d", info.error);
+        WARN("RPC internal error: %s:%d", __func__, info.error);
         return false;
     }
+    LOG("RPC alt_sim_rpc_get_readings succeeded! (%dms)", k_uptime_get_32() - start_time);
 
-    test_app_info_t* app_info = get_app_info();
+    // For now, just print both readings
+    test_app_info_t* app = get_app_info();
     LOG("Local readings:");
-    print_readings(&app_info->temperature, &app_info->pressure, &app_info->altitude);
-    LOG("Remote readings:");
-    print_readings(&response.temperature_c, &response.pressure_inhg, &response.altitude_m);
+    print_readings(&app->temperature, &app->pressure, &app->altitude);
 
-    return true;  // TODO: Do an actually reasonable comparison
+    LOG("Remote readings:");
+    double temp_local = response.temperature_c;  // save to local vars due to __attribute__((packed))
+    double pressure_local = response.pressure_inhg;
+    double altitude_local = response.altitude_m;
+    print_readings(&temp_local, &pressure_local, &altitude_local);
+
+    return true;
 }
 
 #ifdef LOCAL_TEST_ENABLED
 void run_manual_test(void) {
-    if (!set_desired_altitude(3000)) {
-        WARN("Could not set desired altitude");
-    }
 
-    if (!compare_readings()) {
-        WARN("Results comparison not succesful");
+    k_msleep(1000);  // TODO: Await for succesful service discovery
+
+    while (true) {
+        k_msleep(500);
+
+        if (!set_desired_altitude(3000)) {
+            WARN("Could not set desired altitude");
+            return;
+        }
+
+        if (!compare_readings()) {
+            WARN("Results comparison not succesful");
+        }
     }
 }
 #endif

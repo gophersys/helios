@@ -44,11 +44,31 @@
             "type": "shell",
             "command": "west",
             "args": [
-                "flash"
+                "flash",
+                "-r",
+                "openocd",
+                "--cmd-pre-init",
+                // "adapter serial 0036001B3438510C34313939", // Fixture App
+                "adapter serial 004000433532510131333430", // Test App
             ],
             "problemMatcher": [
                 "$gcc"
             ]
+        },
+        {
+            "label": "Open Screen",
+            "type": "shell",
+            "command": "gnome-terminal",
+            "args": [
+                "--",
+                "screen",
+                "/dev/ttyACM0",
+                "921600"
+            ],
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always"
+            }
         }
     ],
     "inputs": [
