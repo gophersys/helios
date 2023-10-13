@@ -1,0 +1,54 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        // {
+        //     "name": "Launch",
+        //     "device": "cortex-m7",
+        //     "cwd": "${workspaceFolder}",
+        //     "executable": "build/zephyr/zephyr.elf",
+        //     "request": "launch",
+        //     "type": "cortex-debug",
+        //     "runToEntryPoint": "main",
+        //     "servertype": "jlink",
+        //     "gdbPath": "/usr/home/zephyr-sdk-0.16.1/arm-zephyr-eabi/bin/arm-zephyr-eabi-gdb",
+        //     "preLaunchTask": "West Flash",
+        //     "rtos": "Zephyr"
+        // },
+        {
+            "name": "Launch",
+            "device": "cortex-m7",
+            "cwd": "${workspaceRoot}",
+            "executable": "build/zephyr/zephyr.elf",
+            "request": "launch",
+            "type": "cortex-debug",
+            "runToEntryPoint": "main",
+            "servertype": "openocd",
+            "gdbPath": "/usr/home/zephyr-sdk-0.16.1/arm-zephyr-eabi/bin/arm-zephyr-eabi-gdb",
+            "configFiles": [
+                "interface/stlink.cfg",
+                "target/stm32h7x.cfg",
+            ],
+            "openOCDLaunchCommands": [
+                "adapter serial 0036001B3438510C34313939",
+                // "adapter serial 004000433532510131333430",
+                "init",
+                "reset init",
+            ],
+            "rtos": "Zephyr",
+            "preLaunchTask": "West Flash",
+            "svdFile": "./.vscode/STM32H750x.svd",
+            "showDevDebugOutput": "raw"
+        },
+        {
+            "name": "Attach",
+            "device": "mimxrt1050_evk",
+            "cwd": "${workspaceFolder}",
+            "executable": "build/zephyr/zephyr.elf",
+            "request": "attach",
+            "type": "cortex-debug",
+            "runToEntryPoint": "main",
+            "servertype": "jlink",
+            "gdbPath": "/usr/home/zephyr-sdk-0.16.1/arm-zephyr-eabi/bin/arm-zephyr-eabi-gdb"
+        },
+    ]
+}
