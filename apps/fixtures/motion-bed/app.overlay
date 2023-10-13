@@ -1,3 +1,0 @@
-&lpuart1 {
-    current-speed = <0xe1000>;
-};
