@@ -14,7 +14,7 @@
 LOG_MODULE_REGISTER(app);
 
 int main(void) {
-    LOG_RAW("%s", "********** Accel Drv Test App **********");
+    LOG_RAW("%s", "********** Alt Drv Test App **********");
 
     // Create a new daemon instance
     cipher_daemon_config_t* cfg = get_app_config();
