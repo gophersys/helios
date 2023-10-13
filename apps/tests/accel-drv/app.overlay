@@ -1,3 +1,0 @@
-&usart3 {
-    current-speed = <0xe1000>;
-};
