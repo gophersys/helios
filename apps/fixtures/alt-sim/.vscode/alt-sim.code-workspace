@@ -19,6 +19,9 @@
 		{
 			"name": "alt-drv-test-srvc",
 			"path": "../../../../services/tests/alt-drv-test-srvc"
+		},
+		{
+			"path": "../../../runners/alt-runner"
 		}
 	],
 	"settings": {
