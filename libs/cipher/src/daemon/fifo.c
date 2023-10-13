@@ -26,10 +26,12 @@ inline cipher_packet_fifo_item_t *alloc_packet_fifo_item(cipher_daemon_t *d, siz
         return NULL;
     }
 
-    fifo_item->packet.payload = k_heap_aligned_alloc(&d->local_packets_heap, 8, payload_size, K_FOREVER);
-    if (!fifo_item->packet.payload) {
-        k_heap_free(&d->local_packets_heap, fifo_item);
-        return NULL;
+    if (payload_size != 0) {
+        fifo_item->packet.payload = k_heap_aligned_alloc(&d->local_packets_heap, 8, payload_size, K_FOREVER);
+        if (!fifo_item->packet.payload) {
+            k_heap_free(&d->local_packets_heap, fifo_item);
+            return NULL;
+        }
     }
 
     return fifo_item;
@@ -37,7 +39,7 @@ inline cipher_packet_fifo_item_t *alloc_packet_fifo_item(cipher_daemon_t *d, siz
 
 inline void free_packet_fifo_item(cipher_daemon_t *d, cipher_packet_fifo_item_t *fifo_item) {
     if (fifo_item) {
-        if (fifo_item->packet.payload) {
+        if (fifo_item->packet.payload && fifo_item->packet.header.payload_len > 0) {
             k_heap_free(&d->local_packets_heap, fifo_item->packet.payload);
         }
         k_heap_free(&d->local_packets_heap, fifo_item);
@@ -75,13 +77,13 @@ inline cipher_local_rpc_request_fifo_item_t *alloc_local_rpc_request_fifo_item(c
         return NULL;
     }
 
-    // fifo_item->entry.request = k_heap_aligned_alloc(&d->rpc_heap, 8, req_size, K_FOREVER);
-    // if (!fifo_item->entry.request) {
+    // fifo_item->entry->request = k_heap_aligned_alloc(&d->rpc_heap, 8, req_size, K_FOREVER);
+    // if (!fifo_item->entry->request) {
     //     k_heap_free(&d->rpc_heap, fifo_item);
     //     return NULL;
     // }
 
-    // fifo_item->entry.response = k_heap_aligned_alloc(&d->rpc_heap, 8, rep_size, K_FOREVER);
+    // fifo_item->entry->response = k_heap_aligned_alloc(&d->rpc_heap, 8, rep_size, K_FOREVER);
     // if (!fifo_item->entry.response) {
     //     k_heap_free(&d->rpc_heap, fifo_item->entry.request);
     //     k_heap_free(&d->rpc_heap, fifo_item);
