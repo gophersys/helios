@@ -188,17 +188,19 @@ ENV LC_ALL=en_US.UTF-8
 # -----------------------------------------------------------------------------------------------------
 #                                                                                           Other tools
 # ---------------------------------------------------------------------------------------------------*/
-
 WORKDIR /
 
-# Serial terminal
-RUN apt update && apt install -y minicom
+# Update and install all necessary tools in one layer
+RUN apt-get install -y \
+    minicom \
+    screen \
+    stlink-tools \
+    net-tools \
+    iputils-ping \
+    && rm -rf /var/lib/apt/lists/*  # Clean up
 
 # Go tools
 RUN go install -v golang.org/x/tools/gopls@latest
-
-# Net tools
-RUN apt install -y net-tools iputils-ping
 
 # Add OpenOCD binaries to the PATH
 ENV PATH="/usr/home/zephyr-sdk-0.16.1/sysroots/x86_64-pokysdk-linux/usr/bin:${PATH}"
@@ -208,5 +210,6 @@ ENV PATH="/usr/home/zephyr-sdk-0.16.1/sysroots/x86_64-pokysdk-linux/usr/bin:${PA
 # ---------------------------------------------------------------------------------------------------*/
 # Source the environment
 RUN echo 'source /ncs/zephyr/zephyr-env.sh' >> ~/.zshrc
-RUN echo "alias serial='minicom -D /dev/ttyACM0 -b 921600'" >> ~/.zshrc
+RUN echo "alias serial0='screen /dev/ttyACM0 921600'" >> ~/.zshrc
+RUN echo "alias serial1='screen /dev/ttyACM1 921600'" >> ~/.zshrc
 CMD ["tail", "-f", "/dev/null"]
