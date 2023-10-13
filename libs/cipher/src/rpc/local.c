@@ -44,12 +44,12 @@ void handle_rpc_timeout_event(struct k_timer* timer) {
         .options = &timer_expired_opts,
     };
 
-    cipher_rpc_add_event(d, &event);
+    cipher_rpc_thread_add_event(d, &event);
 }
 
-void handle_local_request(cipher_daemon_t* d) {
-    cipher_local_rpc_request_fifo_item_t* fifo_item = k_fifo_get(&d->localhost_rpc_queue, K_NO_WAIT);
-    __ASSERT(fifo_item, "Null item on localhost_rpc_queue, daemon %d", d->id);
+void handle_local_request_event(cipher_daemon_t* d) {
+    cipher_local_rpc_request_fifo_item_t* fifo_item = k_fifo_get(&d->rpc.rpc_local_request_event_queue, K_NO_WAIT);
+    __ASSERT(fifo_item, "Null item on rpc_local_request_event_queue, daemon %d", d->id);
 
     cipher_rpc_entry_t* entry = fifo_item->entry;
     cipher_rpc_user_info_t* info = entry->user_info;

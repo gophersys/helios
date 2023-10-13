@@ -52,7 +52,7 @@ static void update_registry(cipher_daemon_t *d, cipher_iface_t *disconn_iface);
 
 void handle_iface_disconn_event(cipher_daemon_t *d) {
 
-    cipher_iface_t *disconn_iface = k_fifo_get(&d->sd_iface_disconn_queue, K_FOREVER);
+    cipher_iface_t *disconn_iface = k_fifo_get(&d->sd.sd_iface_disconn_queue, K_FOREVER);
     __ASSERT(disconn_iface, "Null item on sd_iface_disconn_queue, daemon %d", d->id);
     __ASSERT(!disconn_iface->connected, "Expected iface %d for daemon %d to be disconencted", disconn_iface->id, d->id);
 

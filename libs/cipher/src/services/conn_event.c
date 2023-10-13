@@ -29,7 +29,7 @@ LOG_MODULE_DECLARE(sd, SD_LOG_LEVEL);
 
 void handle_iface_conn_event(cipher_daemon_t *d) {
 
-    cipher_iface_t *conn_iface = k_fifo_get(&d->sd_iface_conn_queue, K_NO_WAIT);
+    cipher_iface_t *conn_iface = k_fifo_get(&d->sd.sd_iface_conn_queue, K_NO_WAIT);
     __ASSERT(conn_iface, "Null item on sd_iface_conn_queue, daemon %d", d->id);
     __ASSERT(conn_iface->connected, "Expected iface %d for daemon %d to be conencted", conn_iface->id, d->id);
 

@@ -16,32 +16,7 @@
 
 LOG_MODULE_DECLARE(rpc);
 
-/*-----------------------------------------------------------------------------------------------------
- *                                                                          General Purpose RPC handler
- *---------------------------------------------------------------------------------------------------*/
-void cipher_remote_rpc_handler(cipher_daemon_t *d, cipher_rpc_entry_t *entry) {
-    // Alloc and set fifo item
-    cipher_local_rpc_request_fifo_item_t *fifo_item = alloc_local_rpc_request_fifo_item(d, entry->request_size, entry->response_size);
-    CHECK_MALLOC(fifo_item);
-
-    fifo_item->entry = entry;
-
-    // Assign & Init fifo items
-    k_sem_init(&fifo_item->entry->await_sem, 0, 1);
-
-    // Add request to thread
-    k_fifo_put(&d->localhost_rpc_queue, fifo_item);
-
-    // Async wait
-    k_sem_take(&fifo_item->entry->await_sem, K_FOREVER);  // Timeout is handled internally in thread
-
-    free_local_rpc_request_fifo_item(d, fifo_item);
-}
-
-/*-----------------------------------------------------------------------------------------------------
- *                                                                                           Public API
- *---------------------------------------------------------------------------------------------------*/
-void cipher_rpc_add_event(cipher_daemon_t *d, rpc_event_t *event) {
+void cipher_rpc_thread_add_event(cipher_daemon_t *d, rpc_event_t *event) {
     __ASSERT(d, "null daemon pointer");
     __ASSERT(event, "null event pointer");
 
@@ -61,9 +36,9 @@ void cipher_rpc_add_event(cipher_daemon_t *d, rpc_event_t *event) {
     }
 
     // Allocate memory for the event & its options
-    rpc_event_t *local_event = k_heap_aligned_alloc(&d->rpc_heap, 8, sizeof(rpc_event_t), K_NO_WAIT);
+    rpc_event_t *local_event = k_heap_aligned_alloc(&d->rpc.rpc_heap, 8, sizeof(rpc_event_t), K_NO_WAIT);
     CHECK_MALLOC(local_event);
-    local_event->options = k_heap_aligned_alloc(&d->rpc_heap, 8, option_size, K_NO_WAIT);
+    local_event->options = k_heap_aligned_alloc(&d->rpc.rpc_heap, 8, option_size, K_NO_WAIT);
     CHECK_MALLOC(local_event->options);
 
     // Copy user's event
@@ -72,5 +47,22 @@ void cipher_rpc_add_event(cipher_daemon_t *d, rpc_event_t *event) {
     static uint16_t event_id = 0;
     local_event->id = event_id++;
 
-    k_fifo_put(&d->rpc_event_queue, local_event);
+    k_fifo_put(&d->rpc.rpc_ctrl_event_queue, local_event);
+}
+
+void cipher_remote_rpc_handler(cipher_daemon_t *d, cipher_rpc_entry_t *entry) {
+
+    cipher_local_rpc_request_fifo_item_t *fifo_item = alloc_local_rpc_request_fifo_item(d, entry->request_size, entry->response_size);
+    CHECK_MALLOC(fifo_item);
+
+    fifo_item->entry = entry;
+
+    k_sem_init(&fifo_item->entry->await_sem, 0, 1);
+
+    k_fifo_put(&d->rpc.rpc_local_request_event_queue, fifo_item);
+
+    // Async wait
+    k_sem_take(&fifo_item->entry->await_sem, K_FOREVER);  // Timeout is handled internally in thread
+
+    free_local_rpc_request_fifo_item(d, fifo_item);
 }

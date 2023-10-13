@@ -83,7 +83,7 @@ static bool handshake_uplink(cipher_daemon_t *d, tal_config_t *cfg) {
 
     uint16_t bytes_recv = 0;
     const size_t recv_buffer_size = CONFIG_MAX_PAYLOAD_SIZE;
-    uint8_t *recv_buffer = k_heap_alloc(&d->net_packets_heap, recv_buffer_size, K_FOREVER);
+    uint8_t *recv_buffer = k_heap_alloc(&d->net_buffers_heap, recv_buffer_size, K_FOREVER);
     CHECK_MALLOC(recv_buffer);
 
     if (!tal_recv(cfg, recv_buffer, recv_buffer_size, &bytes_recv, &conn_closed, &timeout)) {
@@ -94,19 +94,19 @@ static bool handshake_uplink(cipher_daemon_t *d, tal_config_t *cfg) {
         else
             WARN("Interface recv error");
 
-        k_heap_free(&d->net_packets_heap, recv_buffer);
+        k_heap_free(&d->net_buffers_heap, recv_buffer);
         return false;
     }
 
     if (bytes_recv != sizeof(bool)) {
         WARN("Expected to recv %d bytes but recv %d", sizeof(bool), bytes_recv);
 
-        k_heap_free(&d->net_packets_heap, recv_buffer);
+        k_heap_free(&d->net_buffers_heap, recv_buffer);
         return false;
     }
 
     bool supported = recv_buffer[0];
-    k_heap_free(&d->net_packets_heap, recv_buffer);
+    k_heap_free(&d->net_buffers_heap, recv_buffer);
 
     if (!supported) {
         WARN("Local node protocol version %d does not match server's", CIPHER_CONFIG_PROTOCOL_VERSION);
@@ -137,7 +137,7 @@ static bool handshake_downlink(cipher_daemon_t *d, tal_config_t *cfg) {
     bool conn_closed = false;
     bool timeout = false;
     const size_t recv_buffer_size = CONFIG_MAX_PAYLOAD_SIZE;
-    uint8_t *recv_buffer = k_heap_alloc(&d->net_packets_heap, recv_buffer_size, K_FOREVER);
+    uint8_t *recv_buffer = k_heap_alloc(&d->net_buffers_heap, recv_buffer_size, K_FOREVER);
     CHECK_MALLOC(recv_buffer);
 
     if (!tal_recv(cfg, recv_buffer, recv_buffer_size, &bytes_recv, &conn_closed, &timeout)) {
@@ -148,19 +148,19 @@ static bool handshake_downlink(cipher_daemon_t *d, tal_config_t *cfg) {
         else
             WARN("Interface recv error");
 
-        k_heap_free(&d->net_packets_heap, recv_buffer);
+        k_heap_free(&d->net_buffers_heap, recv_buffer);
         return false;
     }
 
     if (bytes_recv != sizeof(uint16_t)) {
         WARN("Expected to recv %d bytes but recv %d", sizeof(uint16_t), bytes_recv);
 
-        k_heap_free(&d->net_packets_heap, recv_buffer);
+        k_heap_free(&d->net_buffers_heap, recv_buffer);
         return false;
     }
 
     uint16_t rmt_node_version = ntohs(*(uint16_t *)recv_buffer);
-    k_heap_free(&d->net_packets_heap, recv_buffer);
+    k_heap_free(&d->net_buffers_heap, recv_buffer);
 
     bool supported = (rmt_node_version == CIPHER_CONFIG_PROTOCOL_VERSION) ? true : false;
 

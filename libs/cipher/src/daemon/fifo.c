@@ -72,7 +72,7 @@ inline void free_router_packet_fifo_item(cipher_daemon_t *d, cipher_router_packe
 }
 
 inline cipher_local_rpc_request_fifo_item_t *alloc_local_rpc_request_fifo_item(cipher_daemon_t *d, size_t req_size, size_t rep_size) {
-    cipher_local_rpc_request_fifo_item_t *fifo_item = k_heap_aligned_alloc(&d->rpc_heap, 8, sizeof(cipher_local_rpc_request_fifo_item_t), K_FOREVER);
+    cipher_local_rpc_request_fifo_item_t *fifo_item = k_heap_aligned_alloc(&d->rpc.rpc_heap, 8, sizeof(cipher_local_rpc_request_fifo_item_t), K_FOREVER);
     if (!fifo_item) {
         return NULL;
     }
@@ -101,6 +101,6 @@ inline void free_local_rpc_request_fifo_item(cipher_daemon_t *d, cipher_local_rp
         // if (fifo_item->entry.response) {
         //     k_heap_free(&d->rpc_heap, fifo_item->entry.response);
         // }
-        k_heap_free(&d->rpc_heap, fifo_item);
+        k_heap_free(&d->rpc.rpc_heap, fifo_item);
     }
 }

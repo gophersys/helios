@@ -35,9 +35,9 @@ static void handle_rpc_request_packet(cipher_daemon_t *d, cipher_packet_fifo_ite
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                        Event Handler
  *---------------------------------------------------------------------------------------------------*/
-void handle_rpc_packet(cipher_daemon_t *d) {
-    cipher_packet_fifo_item_t *fifo_item = k_fifo_get(&d->rpc_packet_queue, K_FOREVER);
-    __ASSERT(fifo_item, "Null item on rpc_packet_queue, daemon %d", d->id);
+void handle_net_packet_event(cipher_daemon_t *d) {
+    cipher_packet_fifo_item_t *fifo_item = k_fifo_get(&d->rpc.rpc_packet_event_queue, K_FOREVER);
+    __ASSERT(fifo_item, "Null item on rpc_packet_event_queue, daemon %d", d->id);
 
     cipher_packet_t *packet = &fifo_item->packet;
 
@@ -71,13 +71,13 @@ static void handle_rpc_request_packet(cipher_daemon_t *d, cipher_packet_fifo_ite
     void *request_memory = NULL;
     void *response_memory = NULL;
     if (entry->op.rpc.request_size > 0) {
-        request_memory = k_heap_aligned_alloc(&d->rpc_heap, 8, entry->op.rpc.request_size, K_FOREVER);
+        request_memory = k_heap_aligned_alloc(&d->rpc.rpc_heap, 8, entry->op.rpc.request_size, K_FOREVER);
         CHECK_MALLOC(request_memory);
         memcpy(request_memory, fifo_item->packet.payload, fifo_item->packet.header.payload_len);
     }
 
     if (entry->op.rpc.response_size > 0) {
-        response_memory = k_heap_aligned_alloc(&d->rpc_heap, 8, entry->op.rpc.response_size, K_FOREVER);
+        response_memory = k_heap_aligned_alloc(&d->rpc.rpc_heap, 8, entry->op.rpc.response_size, K_FOREVER);
         CHECK_MALLOC(response_memory);
     }
 
@@ -106,8 +106,8 @@ static void handle_rpc_request_packet(cipher_daemon_t *d, cipher_packet_fifo_ite
         payload_len = entry->op.rpc.response_size;
     }
 
-    k_heap_free(&d->rpc_heap, request_memory);
-    k_heap_free(&d->rpc_heap, response_memory);
+    k_heap_free(&d->rpc.rpc_heap, request_memory);
+    k_heap_free(&d->rpc.rpc_heap, response_memory);
 
     // Populate header
     cipher_packet_t *resp_packet = &resp_fifo_item->packet;

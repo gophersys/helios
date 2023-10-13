@@ -40,8 +40,8 @@ void cipher_stream_thread(void *arg0, void *arg1, void *arg2) {
     cipher_daemon_t *d = (cipher_daemon_t *)arg0;
 
     while (true) {
-        cipher_packet_fifo_item_t *fifo_item = k_fifo_get(&d->stream_packet_queue, K_FOREVER);
-        __ASSERT(fifo_item, "Null item on stream_packet_queue, daemon %d", d->id);
+        cipher_packet_fifo_item_t *fifo_item = k_fifo_get(&d->stream_packet_event_queue, K_FOREVER);
+        __ASSERT(fifo_item, "Null item on stream_packet_event_queue, daemon %d", d->id);
         free_packet_fifo_item(d, fifo_item);
     }
 }

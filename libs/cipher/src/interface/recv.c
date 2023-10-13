@@ -67,13 +67,13 @@ void cipher_interface_recv_thread(void *arg0, void *arg1, void *arg2) {
             bool conn_closed = false;
             const size_t buffer_size = CONFIG_MAX_PAYLOAD_SIZE;
             uint16_t bytes_recv = 0;
-            uint8_t *recv_buffer = k_heap_alloc(&d->net_packets_heap, CONFIG_MAX_PAYLOAD_SIZE, K_FOREVER);
+            uint8_t *recv_buffer = k_heap_alloc(&d->net_buffers_heap, CONFIG_MAX_PAYLOAD_SIZE, K_FOREVER);
             CHECK_MALLOC(recv_buffer);
 
             if (!tal_recv(interface_cfg, recv_buffer, buffer_size, &bytes_recv, &conn_closed, &timeout)) {
 
                 // We don't need the network buffer anymore
-                k_heap_free(&d->net_packets_heap, recv_buffer);
+                k_heap_free(&d->net_buffers_heap, recv_buffer);
 
                 if (timeout) {
                     handle_iface_timeout(d, iface, __func__);
@@ -109,8 +109,8 @@ static void recv_ingress_packet(cipher_daemon_t *d, cipher_iface_t *iface, uint8
         handle_iface_error(d, iface, IFACE_ERROR_SERDES, &err, sizeof(err));
     }
 
-    // LOG("Ingress Packet:");
-    // cipher_print_header(&header);  // Uncommnet to see raw header
+    LOG("Ingress Packet:");
+    cipher_print_header(&header);  // Uncommnet to see raw header
 
     if (!registry_add_device_to_iface(d, iface, header.source_id)) {
         ERROR("Could not add device entry to iface");
@@ -155,7 +155,7 @@ static void process_complete_packet(cipher_daemon_t *d, cipher_iface_t *iface, c
         handle_iface_error(d, iface, IFACE_ERROR_SERDES, &err, sizeof(err));
 
     // We no longer need the network buffer
-    k_heap_free(&d->net_packets_heap, recv_buffer);
+    k_heap_free(&d->net_buffers_heap, recv_buffer);
 
     // Copy all fields of fifo item
     fifo_item->iface = iface;
@@ -167,16 +167,16 @@ static void process_complete_packet(cipher_daemon_t *d, cipher_iface_t *iface, c
             k_fifo_put(&d->admin_packet_queue, fifo_item);
             break;
         case CIPHER_PACKET_TYPE_RPC:
-            k_fifo_put(&d->rpc_packet_queue, fifo_item);
+            k_fifo_put(&d->rpc.rpc_packet_event_queue, fifo_item);
             break;
         case CIPHER_PACKET_TYPE_EVENT:
-            k_fifo_put(&d->event_packet_queue, fifo_item);
+            k_fifo_put(&d->events_packet_event_queue, fifo_item);
             break;
         case CIPHER_PACKET_TYPE_SD:
-            k_fifo_put(&d->sd_packet_queue, fifo_item);
+            k_fifo_put(&d->sd.sd_packet_queue, fifo_item);
             break;
         case CIPHER_PACKET_TYPE_STREAM:
-            k_fifo_put(&d->stream_packet_queue, fifo_item);
+            k_fifo_put(&d->stream_packet_event_queue, fifo_item);
             break;
         default:
             WARN("Unknow header type: %d", header->type);  // TODO: Prevent spam of wrong header types
@@ -197,7 +197,7 @@ static void process_routing_packet(cipher_daemon_t *d, cipher_header_t *header, 
     // TODO: We must unpack the header, increase the hop count, and pack it up again
 
     // We no longer need the network buffer
-    k_heap_free(&d->net_packets_heap, recv_buffer);
+    k_heap_free(&d->net_buffers_heap, recv_buffer);
 
     // Look up the destination interface
     cipher_iface_t *dest_iface = registry_get_iface(d, header->destination_id);
@@ -215,7 +215,7 @@ static void process_routing_packet(cipher_daemon_t *d, cipher_header_t *header, 
 static void process_incomplete_packet(cipher_daemon_t *d, cipher_iface_t *iface, cipher_header_t *header,
                                       uint8_t *recv_buffer, uint16_t bytes_recv) {
     WARN("Received incomplete packet, functionality not yet implemented, dropping packet");
-    // Implements d->net_partial_packets_heap
-    k_heap_free(&d->net_packets_heap, recv_buffer);
+    // Implements d->partial_packets_heap
+    k_heap_free(&d->net_buffers_heap, recv_buffer);
     // TODO: COuld receive less OR more bytes so account for this
 }

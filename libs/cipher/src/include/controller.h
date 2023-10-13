@@ -59,6 +59,6 @@ typedef struct {
     void *options;
 } rpc_event_t;
 
-void cipher_rpc_add_event(cipher_daemon_t *d, rpc_event_t *event);
+void cipher_rpc_thread_add_event(cipher_daemon_t *d, rpc_event_t *event);
 
 #endif

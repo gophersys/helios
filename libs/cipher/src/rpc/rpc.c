@@ -14,99 +14,80 @@
 #include "rpc.h"
 #include "threads.h"
 
-/*-----------------------------------------------------------------------------------------------------
- *                                                                                            Dev Notes
- *---------------------------------------------------------------------------------------------------*/
-
-/**
- * [ ] Implement Local Events
- *
- */
-
-/*-----------------------------------------------------------------------------------------------------
- *                                                                                        Configuration
- *---------------------------------------------------------------------------------------------------*/
-
 LOG_MODULE_REGISTER(rpc, RPC_LOG_LEVEL);
 
-#define EVENT_NUM 3
-#define RPC_EVENT 0
-#define LOCAL_REQUEST 1
-#define RPC_PACKET 2
-
 /*-----------------------------------------------------------------------------------------------------
- *                                                                                    Private Functions
+ *                                                                                        Thread Events
  *---------------------------------------------------------------------------------------------------*/
 
+#define EVENT_NUM 3
+#define DAEMON_EVENT 0         // Iface status changes, timers expired, etc
+#define NET_PACKET_EVENT 1     // Any RPC network packet
+#define LOCAL_REQUEST_EVENT 2  // Localhost app RPC request
+
+/**
+ * @brief Set the up thread events object
+ *
+ * @param d The daemon
+ * @param events The events object
+ */
 void setup_thread_events(cipher_daemon_t *d, struct k_poll_event *events) {
-    k_poll_event_init(&events[RPC_EVENT],
+    k_poll_event_init(&events[DAEMON_EVENT],
                       K_POLL_TYPE_FIFO_DATA_AVAILABLE,
                       K_POLL_MODE_NOTIFY_ONLY,
-                      &d->rpc_event_queue);
+                      &d->rpc.rpc_ctrl_event_queue);
 
-    k_poll_event_init(&events[LOCAL_REQUEST],
+    k_poll_event_init(&events[LOCAL_REQUEST_EVENT],
                       K_POLL_TYPE_FIFO_DATA_AVAILABLE,
                       K_POLL_MODE_NOTIFY_ONLY,
-                      &d->localhost_rpc_queue);
+                      &d->rpc.rpc_local_request_event_queue);
 
-    k_poll_event_init(&events[RPC_PACKET],
+    k_poll_event_init(&events[NET_PACKET_EVENT],
                       K_POLL_TYPE_FIFO_DATA_AVAILABLE,
                       K_POLL_MODE_NOTIFY_ONLY,
-                      &d->rpc_packet_queue);
-}
-
-
-void handle_rpc_event(cipher_daemon_t *d) {
-    rpc_event_t *event = k_fifo_get(&d->rpc_event_queue, K_NO_WAIT);
-    if (event == NULL)
-        ERROR("Null item on rpc_event_queue, daemon %d", d->id);
-
-    switch (event->type) {
-        case RPC_EVENT_TYPE_IFACE_DISCONNECTED:
-            handle_iface_disconnected(d, event);
-            break;
-
-        case RPC_EVENT_TYPE_TIMER_EXPIRED:
-            handle_timer_expired(d, event);
-            break;
-
-        default:
-            break;
-    }
-
-    k_heap_free(&d->rpc_heap, event->options);
-    k_heap_free(&d->rpc_heap, event);
+                      &d->rpc.rpc_packet_event_queue);
 }
 
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                               Thread
  *---------------------------------------------------------------------------------------------------*/
-void cipher_rpc_thread(void *arg0, void *arg1, void *arg2) {
-    cipher_daemon_t *d = (cipher_daemon_t *)arg0;
 
+/**
+ * @brief The RPC thread will poll on 3 queues, 1 for each event type.
+ *
+ * Depending on the event, this thread will do the work, or offload work to one of the daemon's worker-
+ * thread members.
+ *
+ * @param arg0 (cipher_daemon_t*) A pointer to the daemon this thread belongs to
+ */
+void cipher_rpc_thread(void *arg0, void *arg1, void *arg2) {
+
+    cipher_daemon_t *d = (cipher_daemon_t *)arg0;
     __ASSERT(d != NULL, "null daemon passed to thread");
 
-    struct k_poll_event rpc_events[EVENT_NUM];
+    struct k_poll_event rpc_events[EVENT_NUM] = {0};
     setup_thread_events(d, rpc_events);
 
     while (true) {
         int event = k_poll(rpc_events, EVENT_NUM, K_FOREVER);
         if (event == 0) {
-            if (rpc_events[RPC_EVENT].state == K_POLL_STATE_FIFO_DATA_AVAILABLE) {
-                handle_rpc_event(d);
-            } else if (rpc_events[LOCAL_REQUEST].state == K_POLL_STATE_FIFO_DATA_AVAILABLE) {
-                handle_local_request(d);
-            } else if (rpc_events[RPC_PACKET].state == K_POLL_STATE_FIFO_DATA_AVAILABLE) {
-                handle_rpc_packet(d);
+            if (rpc_events[DAEMON_EVENT].state == K_POLL_STATE_FIFO_DATA_AVAILABLE) {
+                handle_ctrl_event(d);
+            } else if (rpc_events[NET_PACKET_EVENT].state == K_POLL_STATE_FIFO_DATA_AVAILABLE) {
+                handle_net_packet_event(d);
+            } else if (rpc_events[LOCAL_REQUEST_EVENT].state == K_POLL_STATE_FIFO_DATA_AVAILABLE) {
+                handle_local_request_event(d);
             } else {
                 ERROR("Unknown poll condition: %d, daemon %d", event, d->id);
             }
 
-            // reset events
-            for (uint8_t i = 0; i < EVENT_NUM; i++)
-                rpc_events[i].state = K_POLL_STATE_NOT_READY;
+            for (uint8_t i = 0; i < EVENT_NUM; i++) {
+                rpc_events[i].state = K_POLL_STATE_NOT_READY;  // reset events
+            }
+
         } else {
-            ERROR("Unexpected timeout on k_poll: %d, daemon %d", event, d->id);
+            ERROR("Unexpected timeout on k_poll: %d, thread %s daemon %d",
+                  event, k_thread_name_get(d->rpc.rpc_t_id), d->id);
         }
     }
 }

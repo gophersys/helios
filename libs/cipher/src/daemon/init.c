@@ -63,8 +63,8 @@ void cipher_daemon_start(cipher_daemon_t *d) {
 
     // Init Daemon threads
     k_thread_start(d->ctrl_t_id);
-    k_thread_start(d->sd_t_id);
-    k_thread_start(d->rpc_t_id);
+    k_thread_start(d->sd.sd_t_id);
+    k_thread_start(d->rpc.rpc_t_id);
     k_thread_start(d->event_t_id);
     k_thread_start(d->stream_t_id);
 
@@ -170,20 +170,20 @@ static void init_objects(cipher_daemon_t *d) {
     k_fifo_init(&d->admin_packet_queue);
     k_fifo_init(&d->ctrl_event_queue);
 
-    k_fifo_init(&d->sd_packet_queue);
-    k_fifo_init(&d->sd_iface_conn_queue);
-    k_fifo_init(&d->sd_iface_disconn_queue);
+    k_fifo_init(&d->sd.sd_packet_queue);
+    k_fifo_init(&d->sd.sd_iface_conn_queue);
+    k_fifo_init(&d->sd.sd_iface_disconn_queue);
 
-    k_fifo_init(&d->rpc_packet_queue);
-    k_fifo_init(&d->rpc_event_queue);
-    k_fifo_init(&d->localhost_rpc_queue);
+    k_fifo_init(&d->rpc.rpc_packet_event_queue);
+    k_fifo_init(&d->rpc.rpc_ctrl_event_queue);
+    k_fifo_init(&d->rpc.rpc_local_request_event_queue);
 
-    k_fifo_init(&d->event_packet_queue);
+    k_fifo_init(&d->events_packet_event_queue);
 
     k_heap_init(&d->ctrl_events_heap, d->ctrl_events_heap_mem, sizeof(d->ctrl_events_heap_mem));
-    k_heap_init(&d->rpc_heap, d->rpc_heap_mem, sizeof(d->rpc_heap_mem));
-    k_heap_init(&d->net_packets_heap, d->net_packets_heap_mem, sizeof(d->net_packets_heap_mem));
-    k_heap_init(&d->net_partial_packets_heap, d->net_partial_packets_heap_mem, sizeof(d->net_partial_packets_heap_mem));
+    k_heap_init(&d->rpc.rpc_heap, d->rpc.rpc_heap_mem, sizeof(d->rpc.rpc_heap_mem));
+    k_heap_init(&d->net_buffers_heap, d->net_buffers_heap_mem, sizeof(d->net_buffers_heap_mem));
+    k_heap_init(&d->partial_packets_heap, d->net_partial_packets_heap_mem, sizeof(d->net_partial_packets_heap_mem));
     k_heap_init(&d->unrouted_packets_heap, d->unrouted_packets_heap_mem, sizeof(d->unrouted_packets_heap_mem));
     k_heap_init(&d->local_packets_heap, d->local_packets_heap_mem, sizeof(d->local_packets_heap_mem));
 }
@@ -222,25 +222,25 @@ static void init_threads(cipher_daemon_t *d) {
                                    K_FOREVER);
     k_thread_name_set(d->ctrl_t_id, cipher_t_name("cipher_controller", d->id, name_buf, sizeof(name_buf)));
 
-    d->sd_t_id = k_thread_create(&d->sd_t_data,
-                                 d->sd_t_stack,
-                                 K_THREAD_STACK_SIZEOF(d->sd_t_stack),
-                                 cipher_sd_thread,
-                                 (void *)d, NULL, NULL,
-                                 SD_THREAD_PRIORITY,
-                                 0,
-                                 K_FOREVER);
-    k_thread_name_set(d->sd_t_id, cipher_t_name("cipher_sd", d->device_id, name_buf, sizeof(name_buf)));
+    d->sd.sd_t_id = k_thread_create(&d->sd.sd_t_data,
+                                    d->sd.sd_t_stack,
+                                    K_THREAD_STACK_SIZEOF(d->sd.sd_t_stack),
+                                    cipher_sd_thread,
+                                    (void *)d, NULL, NULL,
+                                    SD_THREAD_PRIORITY,
+                                    0,
+                                    K_FOREVER);
+    k_thread_name_set(d->sd.sd_t_id, cipher_t_name("cipher_sd", d->device_id, name_buf, sizeof(name_buf)));
 
-    d->rpc_t_id = k_thread_create(&d->rpc_t_data,
-                                  d->rpc_t_stack,
-                                  K_THREAD_STACK_SIZEOF(d->rpc_t_stack),
-                                  cipher_rpc_thread,
-                                  (void *)d, NULL, NULL,
-                                  RPC_THREAD_PRIORITY,
-                                  0,
-                                  K_FOREVER);
-    k_thread_name_set(d->rpc_t_id, cipher_t_name("cipher_rpc", d->device_id, name_buf, sizeof(name_buf)));
+    d->rpc.rpc_t_id = k_thread_create(&d->rpc.rpc_t_data,
+                                      d->rpc.rpc_t_stack,
+                                      K_THREAD_STACK_SIZEOF(d->rpc.rpc_t_stack),
+                                      cipher_rpc_thread,
+                                      (void *)d, NULL, NULL,
+                                      RPC_THREAD_PRIORITY,
+                                      0,
+                                      K_FOREVER);
+    k_thread_name_set(d->rpc.rpc_t_id, cipher_t_name("cipher_rpc", d->device_id, name_buf, sizeof(name_buf)));
 
     d->event_t_id = k_thread_create(&d->event_t_data,
                                     d->event_t_stack,
