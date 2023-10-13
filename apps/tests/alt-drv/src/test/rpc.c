@@ -21,6 +21,7 @@ static bool set_desired_altitude(double altitude_ft);
 static bool compare_readings(void);
 
 test_response_t alt_drv_test_rpc_begin_test_handler(test_request_t request) {
+    uint32_t start_time = k_uptime_get_32();
 
     test_response_t response = {0};
 
@@ -37,6 +38,8 @@ test_response_t alt_drv_test_rpc_begin_test_handler(test_request_t request) {
         response.err = ALT_TEST_ERR_RESULTS;
         return response;
     }
+
+    LOG("RPC %s called, total execution time: %d", __func__, k_uptime_get_32() - start_time);
 
     return response;
 }
