@@ -212,4 +212,5 @@ ENV PATH="/usr/home/zephyr-sdk-0.16.1/sysroots/x86_64-pokysdk-linux/usr/bin:${PA
 RUN echo 'source /ncs/zephyr/zephyr-env.sh' >> ~/.zshrc
 RUN echo "alias serial0='screen /dev/ttyACM0 921600'" >> ~/.zshrc
 RUN echo "alias serial1='screen /dev/ttyACM1 921600'" >> ~/.zshrc
+RUN echo "alias serial2='screen /dev/ttyACM2 921600'" >> ~/.zshrc
 CMD ["tail", "-f", "/dev/null"]
