@@ -13,7 +13,7 @@
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                        Message Types
  *---------------------------------------------------------------------------------------------------*/
-typedef struct {
+typedef struct __attribute__((packed)) {
     enum {
         DIRECTION_X = 0,
         DIRECTION_Y = 1,
@@ -23,7 +23,7 @@ typedef struct {
     float interval;
 } motion_request_t;
 
-typedef struct {
+typedef struct  __attribute__((packed)) {
     enum {
         ERR_MOTOR = 0,
         ERR_UNKNOWN = 1
