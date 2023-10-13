@@ -109,6 +109,7 @@ static void recv_ingress_packet(cipher_daemon_t *d, cipher_iface_t *iface, uint8
         handle_iface_error(d, iface, IFACE_ERROR_SERDES, &err, sizeof(err));
     }
 
+    // LOG("Ingress Packet:");
     // cipher_print_header(&header);  // Uncommnet to see raw header
 
     if (!registry_add_device_to_iface(d, iface, header.source_id)) {
