@@ -83,6 +83,9 @@ void handle_local_request(cipher_daemon_t* d) {
     memset(&req_packet->header.flags, 0, sizeof(req_packet->header.flags));
     CIPHER_SET_FLAG(req_packet->header.flags, CIPHER_FLAG_RPC_REQUEST);
 
+    // Set payload values
+    memcpy(req_packet->payload, entry->request, entry->request_size);
+
     // Send decoded packet to the right interface
     k_fifo_put(&rpc_iface->decoded_packets_queue, packet_fifo_item);
 

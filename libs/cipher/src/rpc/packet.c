@@ -68,10 +68,18 @@ static void handle_rpc_request_packet(cipher_daemon_t *d, cipher_packet_fifo_ite
         WARN("Parallelism is not yet supported by RPC thread, executing serialized");
     }
 
-    void *request_memory = k_heap_aligned_alloc(&d->rpc_heap, 8, entry->op.rpc.request_size, K_FOREVER);
-    CHECK_MALLOC(request_memory);
-    void *response_memory = k_heap_aligned_alloc(&d->rpc_heap, 8, entry->op.rpc.response_size, K_FOREVER);
-    CHECK_MALLOC(response_memory);
+    void *request_memory = NULL;
+    void *response_memory = NULL;
+    if (entry->op.rpc.request_size > 0) {
+        request_memory = k_heap_aligned_alloc(&d->rpc_heap, 8, entry->op.rpc.request_size, K_FOREVER);
+        CHECK_MALLOC(request_memory);
+        memcpy(request_memory, fifo_item->packet.payload, fifo_item->packet.header.payload_len);
+    }
+
+    if (entry->op.rpc.response_size > 0) {
+        response_memory = k_heap_aligned_alloc(&d->rpc_heap, 8, entry->op.rpc.response_size, K_FOREVER);
+        CHECK_MALLOC(response_memory);
+    }
 
     // Call the handler
     cipher_rpc_err_t err = entry->op.rpc.handler(request_memory, response_memory);
@@ -93,8 +101,9 @@ static void handle_rpc_request_packet(cipher_daemon_t *d, cipher_packet_fifo_ite
         payload = &err_payload;
         payload_len = sizeof(err_payload);
     } else {
+        resp_packet_flag = CIPHER_FLAG_RPC_RESPONSE;
         memcpy(resp_fifo_item->packet.payload, response_memory, entry->op.rpc.response_size);
-        payload_len = sizeof(entry->op.rpc.response_size);
+        payload_len = entry->op.rpc.response_size;
     }
 
     k_heap_free(&d->rpc_heap, request_memory);
@@ -128,6 +137,9 @@ static void handle_rpc_response_packet(cipher_daemon_t *d, cipher_packet_fifo_it
 
     // Stop the timeout timer
     k_timer_stop(&entry->timer);
+
+    // Copy the payload
+    memcpy(entry->response, fifo_item->packet.payload, entry->response_size);
 
     // Find remote service with RPC
     cipher_rpc_user_info_t *info = entry->user_info;
