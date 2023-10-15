@@ -37,15 +37,17 @@ int main(void) {
 
         test_request_t request = {};
 
+        uint32_t start_time = k_uptime_get_32();
         test_response_t response = alt_drv_test_rpc_begin_test(d, &info, request);
         if (info.error != CIPHER_RPC_ERR_OK) {
             ERROR("Could not execute test RPC: %d", info.error);
         }
+        LOG("RPC alt_drv_test_rpc_begin_test succeeded! (%dms)", k_uptime_get_32() - start_time);
 
         if (response.success) {
             LOG("Test Passed!");
         }
 
-        k_msleep(1000);
+        k_msleep(500);
     }
 }
