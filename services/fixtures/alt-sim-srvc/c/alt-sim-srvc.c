@@ -88,7 +88,7 @@ alt_setting_response_t alt_sim_rpc_set_altitude(cipher_daemon_t *d, cipher_rpc_u
     };
     sys_rand_get(&rpc_entry.id, sizeof(rpc_entry.id));
 
-    cipher_remote_rpc_handler(d, &rpc_entry);
+    cipher_rpc_handler(d, &rpc_entry);
 
     return response;
 }
@@ -108,7 +108,7 @@ readings_response_t alt_sim_rpc_get_readings(cipher_daemon_t *d, cipher_rpc_user
     };
     sys_rand_get(&rpc_entry.id, sizeof(rpc_entry.id));
 
-    cipher_remote_rpc_handler(d, &rpc_entry);
+    cipher_rpc_handler(d, &rpc_entry);
 
     return response;
 }

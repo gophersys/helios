@@ -65,7 +65,7 @@ test_response_t alt_drv_test_rpc_begin_test(cipher_daemon_t *d, cipher_rpc_user_
     };
     sys_rand_get(&rpc_entry.id, sizeof(rpc_entry.id));
 
-    cipher_remote_rpc_handler(d, &rpc_entry);
+    cipher_rpc_handler(d, &rpc_entry);
 
     return response;
 }
