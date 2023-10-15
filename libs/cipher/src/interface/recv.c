@@ -109,8 +109,8 @@ static void recv_ingress_packet(cipher_daemon_t *d, cipher_iface_t *iface, uint8
         handle_iface_error(d, iface, IFACE_ERROR_SERDES, &err, sizeof(err));
     }
 
-    LOG("Ingress Packet:");
-    cipher_print_header(&header);  // Uncommnet to see raw header
+    // LOG("Ingress Packet:");
+    // cipher_print_header(&header);  // Uncommnet to see raw header
 
     if (!registry_add_device_to_iface(d, iface, header.source_id)) {
         ERROR("Could not add device entry to iface");
@@ -167,13 +167,13 @@ static void process_complete_packet(cipher_daemon_t *d, cipher_iface_t *iface, c
             k_fifo_put(&d->admin_packet_queue, fifo_item);
             break;
         case CIPHER_PACKET_TYPE_RPC:
-            k_fifo_put(&d->rpc.rpc_packet_event_queue, fifo_item);
+            k_fifo_put(&d->rpc.packets_event_queue, fifo_item);
             break;
         case CIPHER_PACKET_TYPE_EVENT:
             k_fifo_put(&d->events_packet_event_queue, fifo_item);
             break;
         case CIPHER_PACKET_TYPE_SD:
-            k_fifo_put(&d->sd.sd_packet_queue, fifo_item);
+            k_fifo_put(&d->sd.packets_event_queue, fifo_item);
             break;
         case CIPHER_PACKET_TYPE_STREAM:
             k_fifo_put(&d->stream_packet_event_queue, fifo_item);

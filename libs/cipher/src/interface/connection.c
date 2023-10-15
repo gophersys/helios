@@ -13,7 +13,7 @@
 #include "utils/err.h"
 
 // Private include
-#include "controller.h"
+#include "events.h"
 #include "interface.h"
 #include "threads.h"
 

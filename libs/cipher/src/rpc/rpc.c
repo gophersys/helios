@@ -10,7 +10,7 @@
 #include "utils/err.h"
 
 // Private includes
-#include "controller.h"
+#include "events.h"
 #include "rpc.h"
 #include "threads.h"
 
@@ -35,17 +35,17 @@ void setup_thread_events(cipher_daemon_t *d, struct k_poll_event *events) {
     k_poll_event_init(&events[DAEMON_EVENT],
                       K_POLL_TYPE_FIFO_DATA_AVAILABLE,
                       K_POLL_MODE_NOTIFY_ONLY,
-                      &d->rpc.rpc_ctrl_event_queue);
+                      &d->rpc.ctrl_event_queue);
 
     k_poll_event_init(&events[LOCAL_REQUEST_EVENT],
                       K_POLL_TYPE_FIFO_DATA_AVAILABLE,
                       K_POLL_MODE_NOTIFY_ONLY,
-                      &d->rpc.rpc_local_request_event_queue);
+                      &d->rpc.local_request_event_queue);
 
     k_poll_event_init(&events[NET_PACKET_EVENT],
                       K_POLL_TYPE_FIFO_DATA_AVAILABLE,
                       K_POLL_MODE_NOTIFY_ONLY,
-                      &d->rpc.rpc_packet_event_queue);
+                      &d->rpc.packets_event_queue);
 }
 
 /*-----------------------------------------------------------------------------------------------------
@@ -87,7 +87,7 @@ void cipher_rpc_thread(void *arg0, void *arg1, void *arg2) {
 
         } else {
             ERROR("Unexpected timeout on k_poll: %d, thread %s daemon %d",
-                  event, k_thread_name_get(d->rpc.rpc_t_id), d->id);
+                  event, k_thread_name_get(d->rpc.t_id), d->id);
         }
     }
 }

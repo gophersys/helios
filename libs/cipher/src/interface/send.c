@@ -155,8 +155,8 @@ static void handle_decoded_packet_event(cipher_daemon_t *d, cipher_iface_t *ifac
     uint8_t *send_buffer = k_heap_alloc(&d->net_buffers_heap, packet_len, K_FOREVER);
     CHECK_MALLOC(send_buffer);
 
-    LOG("Egress Packet:");
-    cipher_print_header(&decoded_packet->header);  // Uncommnet to see raw header
+    // LOG("Egress Packet:");
+    // cipher_print_header(&decoded_packet->header);  // Uncommnet to see raw header
 
     // Encode raw payload
     serdes_encode_args_t args = {

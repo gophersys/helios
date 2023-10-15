@@ -25,9 +25,9 @@ static void handle_timer_expired(cipher_daemon_t *d, rpc_event_t *event);
  * @param d The daemon
  */
 void handle_ctrl_event(cipher_daemon_t *d) {
-    rpc_event_t *event = k_fifo_get(&d->rpc.rpc_ctrl_event_queue, K_NO_WAIT);
+    rpc_event_t *event = k_fifo_get(&d->rpc.ctrl_event_queue, K_NO_WAIT);
     if (event == NULL)
-        ERROR("Null item on rpc_ctrl_event_queue, daemon %d", d->id);
+        ERROR("Null item on ctrl_event_queue, daemon %d", d->id);
 
     switch (event->type) {
         case RPC_EVENT_TYPE_IFACE_DISCONNECTED:
@@ -42,8 +42,8 @@ void handle_ctrl_event(cipher_daemon_t *d) {
             break;
     }
 
-    k_heap_free(&d->rpc.rpc_heap, event->options);
-    k_heap_free(&d->rpc.rpc_heap, event);
+    k_heap_free(&d->rpc.heap, event->options);
+    k_heap_free(&d->rpc.heap, event);
 }
 
 /*-----------------------------------------------------------------------------------------------------

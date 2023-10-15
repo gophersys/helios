@@ -37,17 +37,17 @@ static void setup_thread_events(cipher_daemon_t *d, struct k_poll_event *events)
     k_poll_event_init(&events[SD_PACKET_EVENT],
                       K_POLL_TYPE_FIFO_DATA_AVAILABLE,
                       K_POLL_MODE_NOTIFY_ONLY,
-                      &d->sd.sd_packet_queue);
+                      &d->sd.packets_event_queue);
 
     k_poll_event_init(&events[IFACE_CONN_EVENT],
                       K_POLL_TYPE_FIFO_DATA_AVAILABLE,
                       K_POLL_MODE_NOTIFY_ONLY,
-                      &d->sd.sd_iface_conn_queue);
+                      &d->sd.iface_conn_queue);
 
     k_poll_event_init(&events[IFACE_DISCONN_EVENT],
                       K_POLL_TYPE_FIFO_DATA_AVAILABLE,
                       K_POLL_MODE_NOTIFY_ONLY,
-                      &d->sd.sd_iface_disconn_queue);
+                      &d->sd.iface_disconn_queue);
 }
 
 /*-----------------------------------------------------------------------------------------------------

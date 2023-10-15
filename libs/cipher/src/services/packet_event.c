@@ -44,8 +44,8 @@ void notify_interfaces(cipher_daemon_t *d, cipher_service_entry_t *entry, cipher
  *---------------------------------------------------------------------------------------------------*/
 void handle_sd_packet_event(cipher_daemon_t *d) {
 
-    cipher_packet_fifo_item_t *fifo_item = k_fifo_get(&d->sd.sd_packet_queue, K_FOREVER);
-    __ASSERT(fifo_item, "Null item on sd_packet_queue, daemon %d", d->id);
+    cipher_packet_fifo_item_t *fifo_item = k_fifo_get(&d->sd.packets_event_queue, K_FOREVER);
+    __ASSERT(fifo_item, "Null item on packets_event_queue, daemon %d", d->id);
 
     cipher_packet_t *packet = (cipher_packet_t *)&fifo_item->packet;
     cipher_payload_sd_broadcast_t *sd_payload = (cipher_payload_sd_broadcast_t *)packet->payload;

@@ -15,7 +15,7 @@
 #include "utils/err.h"
 
 // Private include
-#include "controller.h"
+#include "events.h"
 #include "threads.h"
 
 /*-----------------------------------------------------------------------------------------------------
@@ -145,20 +145,20 @@ static void handle_local_event(cipher_daemon_t *d) {
             DBG("CTRL_EVENT_TYPE_IFACE_CONNECTED received");
             ctrl_event_opt_iface_conn_t *iface_options = (ctrl_event_opt_iface_conn_t *)event->options;
             cipher_iface_t *iface = iface_options->iface;
-            k_fifo_put(&d->sd.sd_iface_conn_queue, iface);
+            k_fifo_put(&d->sd.iface_conn_queue, iface);
         } break;
 
         case CTRL_EVENT_TYPE_IFACE_DISCONNECTED: {
             DBG("CTRL_EVENT_TYPE_IFACE_DISCONNECTED received");
             ctrl_event_opt_iface_conn_t *iface_options = (ctrl_event_opt_iface_conn_t *)event->options;
             cipher_iface_t *iface = iface_options->iface;
-            k_fifo_put(&d->sd.sd_iface_disconn_queue, iface);
+            k_fifo_put(&d->sd.iface_disconn_queue, iface);
         } break;
 
         case CTRL_EVENT_TYPE_EXIT: {
             DBG("Ending dameon instance...");
 
-            k_thread_abort(d->sd.sd_t_id);
+            k_thread_abort(d->sd.t_id);
 
             // tal_close(&daemon->uplink_cfg);
 

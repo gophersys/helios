@@ -1,6 +1,8 @@
 zephyr_include_directories(include)
-target_sources(app PRIVATE rpc.c
+target_sources(app PRIVATE api.c
+                           init.c
+                           rpc.c
                            local.c
-                           api.c
                            packet.c
-                           ctrl.c)
+                           ctrl.c
+                           worker.c)

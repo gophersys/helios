@@ -28,7 +28,6 @@ LOG_MODULE_DECLARE(rpc);
  *---------------------------------------------------------------------------------------------------*/
 
 void assert_packet(cipher_daemon_t *d, cipher_packet_t *packet);
-
 static void handle_rpc_response_packet(cipher_daemon_t *d, cipher_packet_fifo_item_t *fifo_item);
 static void handle_rpc_request_packet(cipher_daemon_t *d, cipher_packet_fifo_item_t *fifo_item);
 
@@ -36,8 +35,8 @@ static void handle_rpc_request_packet(cipher_daemon_t *d, cipher_packet_fifo_ite
  *                                                                                        Event Handler
  *---------------------------------------------------------------------------------------------------*/
 void handle_net_packet_event(cipher_daemon_t *d) {
-    cipher_packet_fifo_item_t *fifo_item = k_fifo_get(&d->rpc.rpc_packet_event_queue, K_FOREVER);
-    __ASSERT(fifo_item, "Null item on rpc_packet_event_queue, daemon %d", d->id);
+    cipher_packet_fifo_item_t *fifo_item = k_fifo_get(&d->rpc.packets_event_queue, K_FOREVER);
+    __ASSERT(fifo_item, "Null item on packets_event_queue, daemon %d", d->id);
 
     cipher_packet_t *packet = &fifo_item->packet;
 
@@ -49,84 +48,37 @@ void handle_net_packet_event(cipher_daemon_t *d) {
     } else {
         ERROR("Expected at least 1 flag to be set in RPC packet");
     }
-
-    free_packet_fifo_item(d, fifo_item);
 }
+
+/*-----------------------------------------------------------------------------------------------------
+ *                                                                                              Request
+ *---------------------------------------------------------------------------------------------------*/
 
 static void handle_rpc_request_packet(cipher_daemon_t *d, cipher_packet_fifo_item_t *fifo_item) {
-    cipher_packet_t *packet = &fifo_item->packet;
 
-    // Find the localhost operation
-    cipher_ops_entry_t *entry = find_op_in_registry(d, &packet->header);
-    if (!entry) {
-        WARN("Host %d requested local RPC %d, for service %d, but entry was not found locally",
-             packet->header.source_id, packet->header.operation_id, packet->header.service_id);
-        return;
+    bool work_assigned = false;
+    for (size_t i = 0; i < ARRAY_SIZE(d->rpc.workers); i++) {
+        cipher_rpc_worker_thread_t *worker = &d->rpc.workers[i];
+
+        if (worker->in_use) {
+            continue;
+        }
+
+        LOG("Assigning RPC work to worker thread %d", i);
+        k_fifo_put(&worker->packets_event_queue, fifo_item);
+
+        work_assigned = true;
+        break;
     }
 
-    if (entry->op.rpc.supports_parallelism) {
-        WARN("Parallelism is not yet supported by RPC thread, executing serialized");
+    if (!work_assigned) {
+        ERROR("No worker threads available for RPC");
     }
-
-    void *request_memory = NULL;
-    void *response_memory = NULL;
-    if (entry->op.rpc.request_size > 0) {
-        request_memory = k_heap_aligned_alloc(&d->rpc.rpc_heap, 8, entry->op.rpc.request_size, K_FOREVER);
-        CHECK_MALLOC(request_memory);
-        memcpy(request_memory, fifo_item->packet.payload, fifo_item->packet.header.payload_len);
-    }
-
-    if (entry->op.rpc.response_size > 0) {
-        response_memory = k_heap_aligned_alloc(&d->rpc.rpc_heap, 8, entry->op.rpc.response_size, K_FOREVER);
-        CHECK_MALLOC(response_memory);
-    }
-
-    // Call the handler
-    cipher_rpc_err_t err = entry->op.rpc.handler(request_memory, response_memory);
-
-    void *payload = NULL;
-    size_t payload_len = 0;
-    cipher_flags_e resp_packet_flag = CIPHER_FLAG_RPC_RESPONSE;
-
-    // Allocate response packet
-    cipher_packet_fifo_item_t *resp_fifo_item = alloc_packet_fifo_item(d, entry->op.rpc.response_size);
-    CHECK_MALLOC(resp_fifo_item);
-
-    // Create the payload based on the RPC result
-    if (err != CIPHER_RPC_ERR_OK) {
-        resp_packet_flag = CIPHER_FLAG_RPC_ERR;
-        cipher_payload_rpc_err_t err_payload = {
-            .err = err,
-        };
-        payload = &err_payload;
-        payload_len = sizeof(err_payload);
-    } else {
-        resp_packet_flag = CIPHER_FLAG_RPC_RESPONSE;
-        memcpy(resp_fifo_item->packet.payload, response_memory, entry->op.rpc.response_size);
-        payload_len = entry->op.rpc.response_size;
-    }
-
-    k_heap_free(&d->rpc.rpc_heap, request_memory);
-    k_heap_free(&d->rpc.rpc_heap, response_memory);
-
-    // Populate header
-    cipher_packet_t *resp_packet = &resp_fifo_item->packet;
-    resp_packet->header.source_id = d->device_id;
-    resp_packet->header.destination_id = packet->header.source_id;
-    resp_packet->header.service_id = packet->header.service_id;
-    resp_packet->header.operation_id = packet->header.operation_id;
-    resp_packet->header.payload_len = payload_len;
-    resp_packet->header.sequence_num = 0;
-    resp_packet->header.type = CIPHER_PACKET_TYPE_RPC;
-    resp_packet->header.hop_count = 0;
-    memset(&resp_packet->header.flags, 0, sizeof(resp_packet->header.flags));
-    CIPHER_SET_FLAG(resp_packet->header.flags, resp_packet_flag);
-
-    // Send decoded packet to the right interface
-    cipher_iface_t *iface = registry_get_iface(d, resp_packet->header.destination_id);
-    k_fifo_put(&iface->decoded_packets_queue, resp_fifo_item);
 }
 
+/*-----------------------------------------------------------------------------------------------------
+ *                                                                                             Response
+ *---------------------------------------------------------------------------------------------------*/
 static void handle_rpc_response_packet(cipher_daemon_t *d, cipher_packet_fifo_item_t *fifo_item) {
     // Find the RPC entry
     cipher_rpc_entry_t *entry = cipher_rpc_get_entry(d, fifo_item->packet.header.service_id, fifo_item->packet.header.operation_id);
@@ -148,6 +100,8 @@ static void handle_rpc_response_packet(cipher_daemon_t *d, cipher_packet_fifo_it
 
     // Remove RPC entry
     cipher_rpc_entry_unregister(d, entry);
+
+    free_packet_fifo_item(d, fifo_item);
 }
 
 /*-----------------------------------------------------------------------------------------------------

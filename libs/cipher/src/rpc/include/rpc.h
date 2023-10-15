@@ -1,7 +1,7 @@
 #ifndef RPC_H
 #define RPC_H
 
-#include "controller.h"
+#include "events.h"
 #include "daemon/daemon.h"
 
 void handle_ctrl_event(cipher_daemon_t *d);

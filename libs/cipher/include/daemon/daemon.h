@@ -11,44 +11,60 @@
  *                                                                                               Deamon
  *---------------------------------------------------------------------------------------------------*/
 
+/**
+ * @brief Object to encapsulate all service discovery functionality
+ */
 typedef struct {
-    k_tid_t sd_t_id;
-    struct k_thread sd_t_data;
-    K_THREAD_STACK_MEMBER(sd_t_stack, SD_THREAD_STACK_SIZE);
+    k_tid_t t_id;
+    struct k_thread t_data;
+    K_THREAD_STACK_MEMBER(t_stack, SD_THREAD_STACK_SIZE);
 
-    struct k_fifo sd_packet_queue;
+    struct k_fifo packets_event_queue;
 
-    struct k_fifo sd_iface_conn_queue;  ///< Queue used by the service discovery thread to
-                                        ///< receive connected interface updates
+    // TODO: Consolidate both queues below into a single event queue
+    struct k_fifo iface_conn_queue;  ///< Queue used by the service discovery thread to
+                                     ///< receive connected interface updates
+                                     ///< @param cipher_iface_t *
+                                     ///< @heap No heap, passing pointer
+
+    struct k_fifo iface_disconn_queue;  ///< Queue used by the service discovery thread to
+                                        ///< receive disconnected interface updates
                                         ///< @param cipher_iface_t *
                                         ///< @heap No heap, passing pointer
-
-    struct k_fifo sd_iface_disconn_queue;  ///< Queue used by the service discovery thread to
-                                           ///< receive disconnected interface updates
-                                           ///< @param cipher_iface_t *
-                                           ///< @heap No heap, passing pointer
 
 } cipher_daemon_sd_info_t;
 
 typedef struct {
-    // Thread info
-    k_tid_t rpc_t_id;
-    struct k_thread rpc_t_data;
-    K_THREAD_STACK_MEMBER(rpc_t_stack, RPC_THREAD_STACK_SIZE);
+    k_tid_t t_id;
+    struct k_thread t_data;
+    K_THREAD_STACK_MEMBER(t_stack, RPC_THREAD_STACK_SIZE);
 
-    // RPC
-    struct k_fifo rpc_packet_event_queue;
-    struct k_fifo rpc_ctrl_event_queue;
-    struct k_fifo rpc_local_request_event_queue;
+    bool in_use;
+    struct k_fifo packets_event_queue;
 
-    /**
-     * @brief Heap pool to send events to daemon controller thread
-     */
-    struct k_heap rpc_heap;
-    uint8_t __aligned(8) rpc_heap_mem[CONFIG_RPC_EVENTS_HEAP_SIZE];
+} cipher_rpc_worker_thread_t;
 
+/**
+ * @brief Object to encapsulate all remote procedure calls (RPC) functionality
+ */
+typedef struct {
+    k_tid_t t_id;
+    struct k_thread t_data;
+    K_THREAD_STACK_MEMBER(t_stack, RPC_THREAD_STACK_SIZE);
+
+    struct k_fifo packets_event_queue;
+    struct k_fifo ctrl_event_queue;
+    struct k_fifo local_request_event_queue;
+
+    cipher_rpc_worker_thread_t workers[2];
+
+    struct k_heap heap;
+    uint8_t __aligned(8) heap_mem[CONFIG_RPC_EVENTS_HEAP_SIZE];
 } cipher_daemon_rpc_info_t;
 
+/**
+ * @brief Object to encapsulate the Cipher application daemon
+ */
 typedef struct {
     // user config
     cipher_daemon_config_t *cfg;
