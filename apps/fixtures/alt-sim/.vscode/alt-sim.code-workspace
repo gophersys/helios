@@ -1,27 +1,28 @@
 {
 	"folders": [
 		{
-			"name": "alt-drv",
-			"path": "../../../tests/alt-drv"
-		},
-		{
-			"name": "alt-sim",
-			"path": ".."
-		},
-		{
-			"name": "cipher",
-			"path": "../../../../libs/cipher"
+			"name": "alt-drv-test-srvc",
+			"path": "../../../../services/tests/alt-drv-test-srvc"
 		},
 		{
 			"name": "alt-sim-srvc",
 			"path": "../../../../services/fixtures/alt-sim-srvc"
 		},
 		{
-			"name": "alt-drv-test-srvc",
-			"path": "../../../../services/tests/alt-drv-test-srvc"
+			"name": "cipher",
+			"path": "../../../../libs/cipher"
 		},
 		{
+			"name": "alt-runner",
 			"path": "../../../runners/alt-runner"
+		},
+		{
+			"name": "alt-test",
+			"path": "../../../tests/alt-test"
+		},
+		{
+			"name": "alt-sim",
+			"path": ".."
 		}
 	],
 	"settings": {
@@ -68,7 +69,8 @@
 			"alt_drv.h": "c",
 			"alt-drv-test-srvc.h": "c",
 			"limits": "c",
-			"new": "c"
+			"new": "c",
+			"fifo.h": "c"
 		},
 		"mcu-debug.rtos-views.showRTOS": false
 	}
