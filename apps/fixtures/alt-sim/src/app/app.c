@@ -95,7 +95,7 @@ bool set_altitude(test_app_info_t* app, double ft, uint8_t sec) {
 
     int alt_int = (int)ft;
     int alt_frac = (int)((ft - alt_int) * 1000);  // 3 decimal places
-    LOG("App's altitude set to %d:%d ft", alt_int, alt_frac);
+    // LOG("App's altitude set to %d:%d ft", alt_int, alt_frac);
 
     // TODO: Set GPIO for LEDs
 

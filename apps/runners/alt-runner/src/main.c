@@ -31,7 +31,7 @@ int main(void) {
     while (true) {
 
         cipher_rpc_user_info_t info = {
-            .device_id = 123,
+            .device_id = 124,  // TODO: This should actually be 124 but ok
             .timeout_ms = 5000,
         };
 

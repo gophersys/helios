@@ -24,5 +24,7 @@ zephyr_include_directories(${MONOREPO_ROOT}/services/fixtures/alt-sim-srvc/c)
 add_subdirectory(${MONOREPO_ROOT}/services/fixtures/alt-sim-srvc/c ${CMAKE_CURRENT_BINARY_DIR}/_services/alt-sim-srvc)
 
 # Remote Services
+zephyr_include_directories(${MONOREPO_ROOT}/services/tests/alt-drv-test-srvc/c)
+add_subdirectory(${MONOREPO_ROOT}/services/tests/alt-drv-test-srvc/c ${CMAKE_CURRENT_BINARY_DIR}/_services/alt-drv-test-srvc)
 
 target_sources(app PRIVATE src/main.c src/config/config.c src/app/app.c src/app/rpc.c)
