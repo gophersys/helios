@@ -58,13 +58,12 @@ static void handle_rpc_request_packet(cipher_daemon_t *d, cipher_packet_fifo_ite
 
     bool work_assigned = false;
     for (size_t i = 0; i < ARRAY_SIZE(d->rpc.workers); i++) {
-        cipher_rpc_worker_thread_t *worker = &d->rpc.workers[i];
 
+        cipher_rpc_worker_thread_t *worker = &d->rpc.workers[i];
         if (worker->in_use) {
             continue;
         }
 
-        LOG("Assigning RPC work to worker thread %d", i);
         k_fifo_put(&worker->packets_event_queue, fifo_item);
 
         work_assigned = true;

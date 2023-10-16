@@ -96,10 +96,10 @@ typedef struct {
      *---------------------------------------------*/
 
     // Uplink thread groups
-    cipher_iface_thread_group_t uplink_t_g[CONFIG_UP_LINK_IFACE_COUNT];
+    cipher_iface_thread_group_t uplink_t_g[CONFIG_CLIENT_IFACE_COUNT];
 
     // Downlink thread groups
-    cipher_iface_thread_group_t downlink_t_g[CONFIG_DOWN_LINK_IFACE_COUNT];
+    cipher_iface_thread_group_t downlink_t_g[CONFIG_SERVER_IFACE_COUNT];
 
     /*-----------------------------------------------
      *                                         Queues

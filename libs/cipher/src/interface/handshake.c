@@ -31,10 +31,10 @@ bool interface_handshake(cipher_daemon_t *d, cipher_iface_t *iface) {
     bool status = false;
 
     switch (iface->cfg->link) {
-        case TAL_LINK_TYPE_UPLINK:
+        case TAL_LINK_TYPE_CLIENT:
             status = handshake_uplink(d, iface->cfg);
             break;
-        case TAL_LINK_TYPE_DOWNLINK:
+        case TAL_LINK_TYPE_SERVER:
             status = handshake_downlink(d, iface->cfg);
             break;
         default:

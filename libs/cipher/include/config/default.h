@@ -2,8 +2,8 @@
 #define DEFAULT_H
 
 // Number of interfaces
-#define CONFIG_UP_LINK_IFACE_COUNT 1
-#define CONFIG_DOWN_LINK_IFACE_COUNT 1
+#define CONFIG_CLIENT_IFACE_COUNT 2
+#define CONFIG_SERVER_IFACE_COUNT 2
 
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                            Debugging

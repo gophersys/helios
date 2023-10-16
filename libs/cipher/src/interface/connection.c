@@ -106,7 +106,7 @@ static void get_connection(cipher_daemon_t *d, cipher_iface_t *iface) {
     while (!iface->connected)  // TODO: Zephyr's sockets dont yet support a connect() timeout
     {
         switch (iface->cfg->link) {
-            case TAL_LINK_TYPE_UPLINK:
+            case TAL_LINK_TYPE_CLIENT:
 
                 if (tal_connect(iface->cfg, &conn_timeout)) {
                     iface->connected = true;
@@ -116,7 +116,7 @@ static void get_connection(cipher_daemon_t *d, cipher_iface_t *iface) {
                 }
                 break;
 
-            case TAL_LINK_TYPE_DOWNLINK:
+            case TAL_LINK_TYPE_SERVER:
                 if (tal_accept(iface->cfg, &conn_timeout)) {
                     iface->connected = true;
                 } else {

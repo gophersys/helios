@@ -45,9 +45,10 @@ void handle_iface_conn_event(cipher_daemon_t *d) {
             continue;
         }
 
-        if (!current_entry->local) {
-            continue;
-        }
+        // TODO: If we only check for local then how do we advertise remote?
+        // if (!current_entry->local) {
+        //     continue;
+        // }
 
         // Create payload and send it on the newly connected interface
         cipher_payload_sd_broadcast_t payload = {

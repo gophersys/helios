@@ -248,7 +248,7 @@ void registry_end_point_rm_from_service(cipher_daemon_t *d, cipher_service_entry
 }
 
 bool registry_add_device_to_iface(cipher_daemon_t *d, cipher_iface_t *iface, uint16_t device_id) {
-    for (size_t i = 0; i < d->cfg->num_downlink_ifaces; i++) {
+    for (size_t i = 0; i < d->cfg->num_server_ifaces; i++) {
         if (&d->downlink_t_g[i].iface != iface) {
             continue;
         }
@@ -270,7 +270,7 @@ bool registry_add_device_to_iface(cipher_daemon_t *d, cipher_iface_t *iface, uin
         }
     }
 
-    for (size_t i = 0; i < d->cfg->num_uplink_ifaces; i++) {
+    for (size_t i = 0; i < d->cfg->num_client_ifaces; i++) {
         if (&d->uplink_t_g[i].iface != iface) {
             continue;
         }
@@ -297,7 +297,7 @@ bool registry_add_device_to_iface(cipher_daemon_t *d, cipher_iface_t *iface, uin
 
 cipher_iface_t *registry_get_iface(cipher_daemon_t *d, uint16_t device_id) {
 
-    for (size_t i = 0; i < d->cfg->num_downlink_ifaces; i++) {
+    for (size_t i = 0; i < d->cfg->num_server_ifaces; i++) {
         if (d->downlink_t_g[i].device_entries[i].device_id != device_id) {
             continue;
         }
@@ -305,7 +305,7 @@ cipher_iface_t *registry_get_iface(cipher_daemon_t *d, uint16_t device_id) {
         return &d->downlink_t_g->iface;
     }
 
-    for (size_t i = 0; i < d->cfg->num_uplink_ifaces; i++) {
+    for (size_t i = 0; i < d->cfg->num_client_ifaces; i++) {
         if (d->uplink_t_g[i].device_entries[i].device_id != device_id) {
             continue;
         }

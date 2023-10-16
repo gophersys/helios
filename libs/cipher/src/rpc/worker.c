@@ -42,8 +42,6 @@ void cipher_rpc_worker_thread(void *arg0, void *arg1, void *arg2) {
         cipher_packet_fifo_item_t *fifo_item = k_fifo_get(&worker_info->packets_event_queue, K_FOREVER);
         worker_info->in_use = true;
 
-        LOG("RPC thread received work");
-
         cipher_packet_t *packet = &fifo_item->packet;
 
         // Find op in localhost

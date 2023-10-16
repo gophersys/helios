@@ -13,10 +13,10 @@
 
 typedef struct {
     uint16_t device_id;
-    tal_config_t uplink_ifaces[CONFIG_UP_LINK_IFACE_COUNT];
-    size_t num_uplink_ifaces;
-    tal_config_t downlink_ifaces[CONFIG_DOWN_LINK_IFACE_COUNT];
-    size_t num_downlink_ifaces;
+    tal_config_t client_ifaces[CONFIG_CLIENT_IFACE_COUNT];
+    size_t num_client_ifaces;
+    tal_config_t server_ifaces[CONFIG_SERVER_IFACE_COUNT];
+    size_t num_server_ifaces;
 } cipher_daemon_config_t;
 
 #endif  // CONFIG_DAEMON_H

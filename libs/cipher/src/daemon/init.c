@@ -54,9 +54,10 @@ void cipher_daemon_init(cipher_daemon_config_t *cfg, cipher_daemon_t *d) {
     init_objects(d);
     init_registries(d);
     init_interfaces(d);
-    init_threads(d);
 
     cipher_rpc_init(d);
+
+    init_threads(d);
 
     DBG("Daemon instance %d, initialized OK, device id: %d", d->id, d->device_id);
 }
@@ -71,8 +72,8 @@ void cipher_daemon_start(cipher_daemon_t *d) {
     k_thread_start(d->stream_t_id);
 
     // Init interface threads
-    start_interface_group(d, d->downlink_t_g, d->cfg->num_downlink_ifaces);
-    start_interface_group(d, d->uplink_t_g, d->cfg->num_uplink_ifaces);
+    start_interface_group(d, d->downlink_t_g, d->cfg->num_server_ifaces);
+    start_interface_group(d, d->uplink_t_g, d->cfg->num_client_ifaces);
 }
 
 void cipher_register_local_services(cipher_daemon_t *d, cipher_service_entry_t *entries, size_t num_entries) {
@@ -275,23 +276,23 @@ static void init_interface_objects(cipher_iface_t *iface) {
 static void init_interfaces(cipher_daemon_t *d) {
     // Assign an interface to each thread group
     uint8_t iface_id = 0;
-    for (uint8_t i = 0; i < d->cfg->num_downlink_ifaces; i++) {
+    for (uint8_t i = 0; i < d->cfg->num_server_ifaces; i++) {
         d->downlink_t_g[i].iface.id = iface_id++;
-        d->downlink_t_g[i].iface.cfg = &d->cfg->downlink_ifaces[i];
+        d->downlink_t_g[i].iface.cfg = &d->cfg->server_ifaces[i];
         d->downlink_t_g[i].iface.connected = false;
         init_interface_objects(&d->downlink_t_g[i].iface);
     }
 
-    for (uint8_t i = 0; i < d->cfg->num_uplink_ifaces; i++) {
+    for (uint8_t i = 0; i < d->cfg->num_client_ifaces; i++) {
         d->uplink_t_g[i].iface.id = iface_id++;
-        d->uplink_t_g[i].iface.cfg = &d->cfg->uplink_ifaces[i];
+        d->uplink_t_g[i].iface.cfg = &d->cfg->client_ifaces[i];
         d->uplink_t_g[i].iface.connected = false;
         init_interface_objects(&d->uplink_t_g[i].iface);
     }
 
     // Initialize all interfaces
-    initialize_interface_group(d, d->downlink_t_g, d->cfg->num_downlink_ifaces);
-    initialize_interface_group(d, d->uplink_t_g, d->cfg->num_uplink_ifaces);
+    initialize_interface_group(d, d->downlink_t_g, d->cfg->num_server_ifaces);
+    initialize_interface_group(d, d->uplink_t_g, d->cfg->num_client_ifaces);
 }
 
 /**

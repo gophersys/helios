@@ -32,7 +32,7 @@ bool socket_create(tal_config_t *cfg) {
     __ASSERT(cfg, "Interface cannnot be NULL");
     __ASSERT(cfg->port != 0, "Interface port cannot be zero");
 
-    if (cfg->link == TAL_LINK_TYPE_UPLINK) {
+    if (cfg->link == TAL_LINK_TYPE_CLIENT) {
         __ASSERT(cfg->host, "Interface host cannot be NULL");
     }
 
@@ -44,7 +44,7 @@ bool socket_create(tal_config_t *cfg) {
 
     // If the interface is set to DOWNLINK, we'll bind the socket to the provided port.
     // This prepares the socket to accept incoming connections.
-    if (cfg->link == TAL_LINK_TYPE_DOWNLINK) {
+    if (cfg->link == TAL_LINK_TYPE_SERVER) {
         struct sockaddr_in local_addr = {0};
         local_addr.sin_family = AF_INET;
         local_addr.sin_port = htons(cfg->port);

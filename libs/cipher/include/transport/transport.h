@@ -29,8 +29,8 @@ typedef enum {
  * @brief The kind of connection to the remote end
  */
 typedef enum {
-    TAL_LINK_TYPE_UPLINK,    // Interface is the client
-    TAL_LINK_TYPE_DOWNLINK,  // Interface is the server
+    TAL_LINK_TYPE_CLIENT,    // Interface is the client
+    TAL_LINK_TYPE_SERVER,  // Interface is the server
 
     TAL_LINK_TYPE_MAX,
 } tal_link_type_t;
