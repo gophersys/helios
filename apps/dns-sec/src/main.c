@@ -35,8 +35,13 @@ int main(void) {
     if (st != 0) {
         LOG_ERR("Unable to resolve address, quitting\n");
     }
-    dump_addrinfo(res);
-    freeaddrinfo(res);
+    // dump_addrinfo(res);
+    // freeaddrinfo(res);
+
+    while (true) {
+        k_msleep(1000);
+        LOG_INF("In Loop");
+    }
 
     return 0;
 }

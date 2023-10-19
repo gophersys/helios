@@ -62,15 +62,19 @@ typedef struct __attribute__((packed)) {
     uint16_t add_count;  /**< Specifies the number of resource records in the additional records section. */
 } dns_header_t;
 
+// Define OPT RR (with extended space for DNS cookie)
 typedef struct __attribute__((packed)) {
-    uint16_t name;              // Must be 0 (root domain)
-    uint16_t type;              // For OPT, this should be 41
-    uint16_t udp_payload_size;  // Recommended 4096 for DNSSEC (or at least as large as your network allows)
-    uint8_t extended_rcode;     // Extended RCODE (usually 0)
-    uint8_t edns0_version;      // EDNS0 version (usually 0)
-    uint16_t z;                 // Lower 15 bits are reserved for future use, the highest bit is the DO bit
-    uint16_t data_length;       // The length of the RDATA (should be 0; no RDATA for DNSSEC)
-} opt_rr_t;
+    uint8_t name;   // Root domain (always 0)
+    uint16_t type;  // Type OPT (41)
+    uint16_t udp_payload_size;
+    uint8_t extended_rcode;
+    uint8_t version;
+    uint16_t z;                   // Flags for EDNS0
+    uint16_t data_length;         // Length of option data
+    uint16_t option_code;         // Option: COOKIE
+    uint16_t option_data_length;  // Length of the cookie data
+    uint8_t cookie[8];            // 8-byte cookie value (example, can be modified)
+} extended_opt_rr_t;
 
 typedef enum {
     DNS_A_RECORD = 1,        // a host address
@@ -278,7 +282,7 @@ static int construct_dns_query(uint8_t *buffer, size_t buffer_size, const char *
     size_t domain_length = strlen(dns_formatted_domain) + 1;  // Include space for the null terminator
 
     // Additional space for EDNS0 OPT pseudo-RR
-    size_t total_query_size = sizeof(header) + domain_length + 4 + sizeof(opt_rr_t);
+    size_t total_query_size = sizeof(header) + domain_length + 4 + sizeof(extended_opt_rr_t);
     if (buffer_size < total_query_size) {
         return -ENOMEM;  // Insufficient buffer size
     }
@@ -288,19 +292,6 @@ static int construct_dns_query(uint8_t *buffer, size_t buffer_size, const char *
     uint16_t qclass = htons(1);  // 1 is for Internet address (IN)
     memcpy(buffer + sizeof(header) + domain_length, &qtype, sizeof(qtype));
     memcpy(buffer + sizeof(header) + domain_length + sizeof(qtype), &qclass, sizeof(qclass));
-
-    // Define OPT RR (with extended space for DNS cookie)
-    typedef struct {
-        uint16_t name;  // Root domain (always 0)
-        uint16_t type;  // Type OPT (41)
-        uint16_t udp_payload_size;
-        uint16_t extended_rcode_and_version;
-        uint16_t z;                   // Flags for EDNS0
-        uint16_t data_length;         // Length of option data
-        uint16_t option_code;         // Option: COOKIE
-        uint16_t option_data_length;  // Length of the cookie data
-        uint8_t cookie[8];            // 8-byte cookie value (example, can be modified)
-    } __attribute__((packed)) extended_opt_rr_t;
 
     // Define the OPT RR for the DNSSEC cookie
     extended_opt_rr_t opt_rr;
@@ -366,49 +357,17 @@ static void format_domain_name(char *dns_formatted, const char *domain) {
  *                                                                                           Send Query
  *---------------------------------------------------------------------------------------------------*/
 
-// Function to receive a DNS response from a socket
-static uint8_t wireshark_query[] = {
-    0xc6, 0x68, 0x01, 0x20, 0x00, 0x01, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x01, 0x03, 0x77, 0x77, 0x77,
-    0x0b, 0x6d, 0x61, 0x74, 0x65, 0x6f, 0x73, 0x65,
-    0x67, 0x75, 0x72, 0x61, 0x03, 0x63, 0x6f, 0x6d,
-    0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x29,
-    0x04, 0xd0, 0x00, 0x00, 0x80, 0x00, 0x00, 0x0c,
-    0x00, 0x0a, 0x00, 0x08, 0xb0, 0xe2, 0x82, 0x29,
-    0x9b, 0x4f, 0x4c, 0xb8};
-
-static uint8_t generated_query[] = {
-    0xf4, 0xcf, 0x01, 0x20, 0x00, 0x01, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x01, 0x03, 0x77, 0x77, 0x77,
-    0x0b, 0x6d, 0x61, 0x74, 0x65, 0x6f, 0x73, 0x65,
-    0x67, 0x75, 0x72, 0x61, 0x03, 0x63, 0x6f, 0x6d,
-    0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x29,
-    0x04, 0xd0, 0x00, 0x00, 0x00, 0x00, 0x80, 0x00,
-    0x00, 0x0c, 0x00, 0x0a, 0x00, 0x08, 0xb0, 0xe2,
-    0x82, 0x29, 0x9b, 0x4f, 0x4c, 0xb8};
-
-// static uint8_t generated_query[] = {
-//     0xf4, 0xcf, 0x01, 0x20, 0x00, 0x01, 0x00, 0x00,
-//     0x00, 0x00, 0x00, 0x01, 0x03, 0x77, 0x77, 0x77,
-//     0x0b, 0x6d, 0x61, 0x74, 0x65, 0x6f, 0x73, 0x65,
-//     0x67, 0x75, 0x72, 0x61, 0x03, 0x63, 0x6f, 0x6d,
-//     0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x29,
-//     0x04, 0xd0, 0x00, 0x00, 0x80, 0x00, 0x00, 0x08,
-//     0x00, 0x0a, 0xb0, 0xe2, 0x82, 0x29,  // TODO: these 2 bytes are missing?
-//     0x9b, 0x4f, 0x4c, 0xb8};
-
 // Function to send a DNS query over a socket
 static dns_sec_error_t send_dns_query(int sock, const uint8_t *query, size_t query_size, const struct sockaddr_in *dns_addr) {
-    LOG_HEXDUMP_INF(query, query_size, "Query: ");
+    // LOG_HEXDUMP_INF(query, query_size, "Query: ");
 
     ssize_t bytes_sent = sendto(sock, query, query_size, 0, (struct sockaddr *)dns_addr, sizeof(*dns_addr));
-    // ssize_t bytes_sent = sendto(sock, wireshark_query, sizeof(wireshark_query), 0, (struct sockaddr *)dns_addr, sizeof(*dns_addr));
     if (bytes_sent < 0) {
         return DNS_SEC_SEND_ERR;  // Error code for failing to send
+    } else if (bytes_sent != query_size) {
+        return DNS_SEC_SEND_SIZE_ERR;  // Error code for mismatch in expected size
     }
-    // } else if (bytes_sent != query_size) {
-    //     return DNS_SEC_SEND_SIZE_ERR;  // Error code for mismatch in expected size
-    // }
+
     return DNS_SEC_SUCCESS;
 }
 
@@ -950,8 +909,8 @@ void print_dns_query_packet(const uint8_t *packet, size_t packet_len) {
     }
 
     // If we have additional records, it might be the OPT RR for EDNS0
-    if (header.add_count > 0 && (size_t)(cursor - packet) + sizeof(opt_rr_t) <= packet_len) {
-        opt_rr_t opt_rr;
+    if (header.add_count > 0 && (size_t)(cursor - packet) + sizeof(extended_opt_rr_t) <= packet_len) {
+        extended_opt_rr_t opt_rr;
         memcpy(&opt_rr, cursor, sizeof(opt_rr));
 
         // Convert relevant fields from network byte order
@@ -963,7 +922,7 @@ void print_dns_query_packet(const uint8_t *packet, size_t packet_len) {
         LOG_RAW("\t\t\tType: %u (OPT)\n", opt_rr.type);
         LOG_RAW("\t\t\tUDP payload size: %u\n", opt_rr.udp_payload_size);
         LOG_RAW("\t\t\tExtended RCODE: %u\n", opt_rr.extended_rcode);
-        LOG_RAW("\t\t\tEDNS0 version: %u\n", opt_rr.edns0_version);
+        LOG_RAW("\t\t\tEDNS0 version: %u\n", opt_rr.version);
         LOG_RAW("\t\t\tZ: 0x%04X\n", opt_rr.z);
         LOG_RAW("\t\t\tDO bit: %s\n", (opt_rr.z & 0x8000) ? "Set" : "Not set");
     }
@@ -1192,6 +1151,9 @@ void print_dns_response_packet(const uint8_t *packet, size_t packet_len) {
                     break;
                 case DNS_DNSKEY_RECORD:
                     parse_dnskey_record(cursor, rr_header.data_len);
+                    break;
+                case DNS_RRSIG_RECORD:
+                    parse_rrsig_record(cursor, rr_header.data_len);
                     break;
                 case DNS_CNAME_RECORD:
                     parse_cname_record(cursor, rr_header.data_len);
