@@ -48,7 +48,8 @@
         "dnssec.h": "c",
         "net_core.h": "c",
         "net_config.h": "c",
-        "dns_resolve.h": "c"
+        "dns_resolve.h": "c",
+        "rand32.h": "c"
     },
     // Editor actions
     "editor.codeActionsOnSave": {

@@ -1,5 +1,7 @@
 #include "dnssec.h"
 
+// https://dnssec-debugger.verisignlabs.com/
+
 // Zephyr includes
 #include <errno.h>
 #include <inttypes.h>
@@ -14,12 +16,13 @@
 #include <zephyr/net/net_if.h>
 #include <zephyr/net/net_mgmt.h>
 #include <zephyr/net/socket.h>
+#include <zephyr/random/rand32.h>
 
 LOG_MODULE_REGISTER(dnssec, LOG_LEVEL_DBG);
 
 #define DNS_DEFAULT_PORT 53
 #define DNS_NAME_MAX_LEN 255  // Maximum length of a domain name in DNS
-#define DNS_QUERY_SIZE 512
+#define DNS_QUERY_SIZE 1500
 
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                                Types
@@ -250,11 +253,11 @@ static int construct_dns_query(uint8_t *buffer, size_t buffer_size, const char *
      * - This includes setting various fields in the DNS header and question section
      * - For DNSSEC, set the appropriate flags, such as DNSSEC OK (DO) bit, and handle EDNS0
      */
-    dns_header_t header;
-    memset(&header, 0, sizeof(header));
+    dns_header_t header = {0};
 
     // Set up various fields in the DNS message header
-    header.id = htons((uint16_t)rand());
+    sys_rand_get(&header.id, sizeof(uint16_t));
+    header.id = htons(header.id);
     header.qr = 0;              // This is a query
     header.opcode = 0;          // Standard query
     header.aa = 0;              // Not Authoritative
@@ -262,7 +265,7 @@ static int construct_dns_query(uint8_t *buffer, size_t buffer_size, const char *
     header.rd = 1;              // Recursion Desired: the client wants recursive resolution
     header.ra = 0;              // Recursion not available (set by the server)
     header.z = 0;               // Reserved
-    header.ad = 0;              // Not authenticated (set by the server)
+    header.ad = 1;              // Not authenticated (set by the server)
     header.cd = 0;              // No signature checking
     header.q_count = htons(1);  // We have only one question
 
@@ -280,32 +283,55 @@ static int construct_dns_query(uint8_t *buffer, size_t buffer_size, const char *
         return -ENOMEM;  // Insufficient buffer size
     }
 
-    // Construct the actual DNS query message in binary format
-    memcpy(buffer, &header, sizeof(header));                               // Copy the header
-    memcpy(buffer + sizeof(header), dns_formatted_domain, domain_length);  // Copy the formatted domain name
-
     // Append QTYPE and QCLASS after the domain name
-    // TODO: improve this to be a bit more dynamic
     uint16_t qtype = htons(1);   // For example, 1 is for A records (host addresses)
     uint16_t qclass = htons(1);  // 1 is for Internet address (IN)
     memcpy(buffer + sizeof(header) + domain_length, &qtype, sizeof(qtype));
     memcpy(buffer + sizeof(header) + domain_length + sizeof(qtype), &qclass, sizeof(qclass));
 
-    // Add the EDNS0 OPT record after the standard query to indicate DNSSEC support
-    opt_rr_t opt_rr;
+    // Define OPT RR (with extended space for DNS cookie)
+    typedef struct {
+        uint16_t name;  // Root domain (always 0)
+        uint16_t type;  // Type OPT (41)
+        uint16_t udp_payload_size;
+        uint16_t extended_rcode_and_version;
+        uint16_t z;                   // Flags for EDNS0
+        uint16_t data_length;         // Length of option data
+        uint16_t option_code;         // Option: COOKIE
+        uint16_t option_data_length;  // Length of the cookie data
+        uint8_t cookie[8];            // 8-byte cookie value (example, can be modified)
+    } __attribute__((packed)) extended_opt_rr_t;
+
+    // Define the OPT RR for the DNSSEC cookie
+    extended_opt_rr_t opt_rr;
     memset(&opt_rr, 0, sizeof(opt_rr));
-    opt_rr.type = htons(41);                // Type OPT
-    opt_rr.udp_payload_size = htons(4096);  // Suggesting a larger buffer size to accommodate DNSSEC data
-    opt_rr.z = htons(0x8000);               // Set the DO bit (DNSSEC OK)
+    opt_rr.type = htons(41);  // OPT
+    opt_rr.udp_payload_size = htons(1232);
+    opt_rr.z = htons(0x8000);              // DNSSEC OK (DO) bit set
+    opt_rr.data_length = htons(12);        // 2 bytes option code + 2 bytes option data length + 8 bytes cookie
+    opt_rr.option_code = htons(10);        // COOKIE
+    opt_rr.option_data_length = htons(8);  // Length of the cookie data
+    memcpy(opt_rr.cookie, "\xb0\xe2\x82\x29\x9b\x4f\x4c\xb8", 8);
 
-    // Copy OPT RR to buffer
-    memcpy(buffer + sizeof(header) + domain_length + 4, &opt_rr, sizeof(opt_rr));  // 4 bytes for QTYPE and QCLASS
+    // Calculate total query size
+    total_query_size = sizeof(header) + domain_length + 4 + sizeof(extended_opt_rr_t);
 
-    // Adjust the additional count to indicate the presence of the OPT RR
-    header.add_count = htons(1);              // One additional record (the OPT RR)
-    memcpy(buffer, &header, sizeof(header));  // Copy the modified header back to the buffer
+    if (buffer_size < total_query_size) {
+        return -ENOMEM;  // Insufficient buffer size
+    }
 
-    return total_query_size;  // Return the size of the constructed message
+    // Construct the query
+    memcpy(buffer, &header, sizeof(header));
+    memcpy(buffer + sizeof(header), dns_formatted_domain, domain_length);
+    memcpy(buffer + sizeof(header) + domain_length, &qtype, sizeof(qtype));
+    memcpy(buffer + sizeof(header) + domain_length + sizeof(qtype), &qclass, sizeof(qclass));
+    memcpy(buffer + sizeof(header) + domain_length + 4, &opt_rr, sizeof(extended_opt_rr_t));
+
+    // Adjust the additional count and copy the modified header back to the buffer
+    header.add_count = htons(1);
+    memcpy(buffer, &header, sizeof(header));
+
+    return total_query_size;
 }
 
 static void format_domain_name(char *dns_formatted, const char *domain) {
@@ -339,21 +365,57 @@ static void format_domain_name(char *dns_formatted, const char *domain) {
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                           Send Query
  *---------------------------------------------------------------------------------------------------*/
+
+// Function to receive a DNS response from a socket
+static uint8_t wireshark_query[] = {
+    0xc6, 0x68, 0x01, 0x20, 0x00, 0x01, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x01, 0x03, 0x77, 0x77, 0x77,
+    0x0b, 0x6d, 0x61, 0x74, 0x65, 0x6f, 0x73, 0x65,
+    0x67, 0x75, 0x72, 0x61, 0x03, 0x63, 0x6f, 0x6d,
+    0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x29,
+    0x04, 0xd0, 0x00, 0x00, 0x80, 0x00, 0x00, 0x0c,
+    0x00, 0x0a, 0x00, 0x08, 0xb0, 0xe2, 0x82, 0x29,
+    0x9b, 0x4f, 0x4c, 0xb8};
+
+static uint8_t generated_query[] = {
+    0xf4, 0xcf, 0x01, 0x20, 0x00, 0x01, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x01, 0x03, 0x77, 0x77, 0x77,
+    0x0b, 0x6d, 0x61, 0x74, 0x65, 0x6f, 0x73, 0x65,
+    0x67, 0x75, 0x72, 0x61, 0x03, 0x63, 0x6f, 0x6d,
+    0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x29,
+    0x04, 0xd0, 0x00, 0x00, 0x00, 0x00, 0x80, 0x00,
+    0x00, 0x0c, 0x00, 0x0a, 0x00, 0x08, 0xb0, 0xe2,
+    0x82, 0x29, 0x9b, 0x4f, 0x4c, 0xb8};
+
+// static uint8_t generated_query[] = {
+//     0xf4, 0xcf, 0x01, 0x20, 0x00, 0x01, 0x00, 0x00,
+//     0x00, 0x00, 0x00, 0x01, 0x03, 0x77, 0x77, 0x77,
+//     0x0b, 0x6d, 0x61, 0x74, 0x65, 0x6f, 0x73, 0x65,
+//     0x67, 0x75, 0x72, 0x61, 0x03, 0x63, 0x6f, 0x6d,
+//     0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x29,
+//     0x04, 0xd0, 0x00, 0x00, 0x80, 0x00, 0x00, 0x08,
+//     0x00, 0x0a, 0xb0, 0xe2, 0x82, 0x29,  // TODO: these 2 bytes are missing?
+//     0x9b, 0x4f, 0x4c, 0xb8};
+
 // Function to send a DNS query over a socket
 static dns_sec_error_t send_dns_query(int sock, const uint8_t *query, size_t query_size, const struct sockaddr_in *dns_addr) {
+    LOG_HEXDUMP_INF(query, query_size, "Query: ");
+
     ssize_t bytes_sent = sendto(sock, query, query_size, 0, (struct sockaddr *)dns_addr, sizeof(*dns_addr));
+    // ssize_t bytes_sent = sendto(sock, wireshark_query, sizeof(wireshark_query), 0, (struct sockaddr *)dns_addr, sizeof(*dns_addr));
     if (bytes_sent < 0) {
         return DNS_SEC_SEND_ERR;  // Error code for failing to send
-    } else if (bytes_sent != query_size) {
-        return DNS_SEC_SEND_SIZE_ERR;  // Error code for mismatch in expected size
     }
+    // } else if (bytes_sent != query_size) {
+    //     return DNS_SEC_SEND_SIZE_ERR;  // Error code for mismatch in expected size
+    // }
     return DNS_SEC_SUCCESS;
 }
 
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                           Recv Query
  *---------------------------------------------------------------------------------------------------*/
-// Function to receive a DNS response from a socket
+
 static dns_sec_error_t receive_dns_response(int sock, uint8_t *response_buffer, size_t buffer_size, struct sockaddr_in *sender_address, ssize_t *response_size) {
     socklen_t sender_address_len = sizeof(*sender_address);
     *response_size = recvfrom(sock, response_buffer, buffer_size, 0, (struct sockaddr *)sender_address, &sender_address_len);
@@ -935,6 +997,10 @@ void parse_aaaa_record(const uint8_t *record, size_t record_len) {
     LOG_INF("AAAA Record: IPv6 address %s", ip_str);
 }
 
+void parse_cname_record(const uint8_t *record_data, size_t record_len) {
+    LOG_ERR("CNAME not yet supported");
+}
+
 void parse_rrsig_record(const uint8_t *record, size_t record_len) {
     // Simplified: You'd need to parse various fields in the RRSIG record, including
     // the type covered, algorithm, labels, original TTL, expiration, inception,
@@ -960,8 +1026,6 @@ const uint8_t *skip_name_field(const uint8_t *cursor, const uint8_t *packet_star
         LOG_ERR("Error: Invalid parameters, cursor or packet boundaries are incorrect");
         return NULL;
     }
-
-    bool is_compressed = false;  // Flag to keep track if compression was used.
 
     // Loop through the bytes to construct the domain name or skip over it.
     while (cursor < packet_end) {
@@ -1038,22 +1102,46 @@ void print_dns_response_packet(const uint8_t *packet, size_t packet_len) {
     LOG_RAW("\t\t\tAnsCount: %u\n", header.ans_count);
     LOG_RAW("\t\t\tAuthCount: %u\n", header.auth_count);
 
-    // Move past the header to the question section
     const uint8_t *cursor = packet + sizeof(header);
     const uint8_t *packet_end = packet + packet_len;  // Calculate the end of the packet data.
 
-    if (header.ans_count > 0) {
-        LOG_INF("Answer Section:");
-
-        for (int i = 0; i < header.ans_count; ++i) {
+    // Question Section
+    if (header.q_count > 0) {
+        for (int i = 0; i < header.q_count; ++i) {
             // Attempt to skip the name field and point to the RR header.
-            LOG_DBG("Pre-name skip, position: %d", cursor - packet);
             cursor = skip_name_field(cursor, packet, packet_end);
             if (!cursor) {
                 LOG_DBG("Error: Malformed record name or end of packet reached unexpectedly");
                 return;  // End the entire function because the packet is malformed
             }
-            LOG_DBG("Post-name skip, position: %d", cursor - packet);
+
+            uint16_t qtype, qclass;
+
+            memcpy(&qtype, cursor, sizeof(qtype));
+            cursor += sizeof(qtype);
+            memcpy(&qclass, cursor, sizeof(qclass));
+            cursor += sizeof(qclass);
+
+            // Convert from network byte order to host byte order
+            qtype = ntohs(qtype);
+            qclass = ntohs(qclass);
+
+            LOG_RAW("\t\t\tQTYPE: %u\n", qtype);
+            LOG_RAW("\t\t\tQCLASS: %u\n", qclass);
+        }
+    }
+
+    if (header.ans_count > 0) {
+        LOG_INF("Answer Section:");
+
+        for (int i = 0; i < header.ans_count; ++i) {
+
+            // Skip the name field in the answer section, accounting for possible name compression.
+            cursor = skip_name_field(cursor, packet, packet_end);
+            if (!cursor) {
+                LOG_DBG("Error: Malformed record name or end of packet reached unexpectedly");
+                return;  // End the entire function because the packet is malformed
+            }
 
             // Here, 'cursor' points to the beginning of a resource record header.
             // You need to ensure there's enough remaining length for a resource record header.
@@ -1062,9 +1150,8 @@ void print_dns_response_packet(const uint8_t *packet, size_t packet_len) {
                 return;  // End the entire function because the packet is truncated
             }
 
-            cursor += sizeof(uint16_t);  // TODO: pointer to domain name of question?
-            cursor += sizeof(uint16_t);  // TODO: pointer to domain name of question?
-            cursor += sizeof(uint16_t);  // TODO: pointer to domain name of question?
+            // Account for compression pointer
+            // cursor += sizeof(uint16_t);
 
             // Directly parse the RR header since we are already at the correct position after using skip_name_field.
             dns_rr_header_t rr_header;
@@ -1105,6 +1192,9 @@ void print_dns_response_packet(const uint8_t *packet, size_t packet_len) {
                     break;
                 case DNS_DNSKEY_RECORD:
                     parse_dnskey_record(cursor, rr_header.data_len);
+                    break;
+                case DNS_CNAME_RECORD:
+                    parse_cname_record(cursor, rr_header.data_len);
                     break;
                 default:
                     LOG_ERR("Unknown or unsupported record type: %u", rr_header.type);

@@ -31,7 +31,7 @@ int main(void) {
     static struct addrinfo hints;
     struct addrinfo *res;
     // int st = getaddrinfo("mateosegura.com", NULL, &hints, &res);
-    int st = getsecaddrinfo("www.google.com", NULL, &hints, &res);
+    int st = getsecaddrinfo("www.mateosegura.com", NULL, &hints, &res);
     if (st != 0) {
         LOG_ERR("Unable to resolve address, quitting\n");
     }
