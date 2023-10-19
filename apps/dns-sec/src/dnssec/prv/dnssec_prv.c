@@ -27,17 +27,14 @@ LOG_MODULE_DECLARE(dnssec);
 #define DNS_NAME_MAX_LEN 255  // Maximum length of a domain name in DNS
 #define DNS_QUERY_SIZE 1500
 
+K_HEAP_DEFINE(dns_heap, 1024);
 static char dns_formatted_domain[DNS_NAME_MAX_LEN];
+
+// TODO: Set socket timeout
 
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                        Create Socket
  *---------------------------------------------------------------------------------------------------*/
-/**
- * @brief Create a UDP socket and attempt a connection to the resolver address
- *
- * @param dns_resolver_addr The IP addr of the DNS resolver of choice
- * @return int errno, from socket calls
- */
 dns_sec_error_t create_connected_socket(const char *dns_resolver_addr, int *sock) {
     struct sockaddr_in server;  // For IPv4
     int ret;
@@ -70,14 +67,6 @@ static void format_domain_name(char *dns_formatted, const char *domain);
 static void create_opt_request_record(dns_edns_opt_record_t *opt_rr);
 static dns_sec_error_t net_pack_dns_sec_query(uint8_t *buffer, size_t buffer_size, uint16_t *query_size, dns_sec_query_t *query);
 
-/**
- * @brief Create a DNS query with the right fields setup in the header and payload for DNSSEC
- *
- * @param buffer The network buffer to store the created query
- * @param buffer_size The size of the network buffer
- * @param domain The domain to put in the query's question
- * @return dns_sec_error_t The corresponding error for any one step. a WRN will also be printed
- */
 dns_sec_error_t construct_dns_query(uint8_t *buffer, size_t buffer_size, uint16_t *query_size, const char *domain, dns_sec_query_t *query) {
 
     create_query_header(&query->header);
@@ -199,8 +188,6 @@ static dns_sec_error_t net_pack_dns_sec_query(uint8_t *buffer, size_t buffer_siz
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                           Send Query
  *---------------------------------------------------------------------------------------------------*/
-
-// Function to send a DNS query over a socket
 dns_sec_error_t send_dns_query(int sock, const uint8_t *query, size_t query_size, const struct sockaddr_in *dns_addr) {
     // LOG_HEXDUMP_INF(query, query_size, "Query: ");
 
@@ -217,12 +204,11 @@ dns_sec_error_t send_dns_query(int sock, const uint8_t *query, size_t query_size
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                           Recv Query
  *---------------------------------------------------------------------------------------------------*/
-
-dns_sec_error_t receive_dns_response(int sock, uint8_t *response_buffer, size_t buffer_size, struct sockaddr_in *sender_address, ssize_t *response_size) {
-    socklen_t sender_address_len = sizeof(*sender_address);
-    *response_size = recvfrom(sock, response_buffer, buffer_size, 0, (struct sockaddr *)sender_address, &sender_address_len);
+dns_sec_error_t receive_dns_response(int sock, uint8_t *response_buffer, size_t buffer_size, struct sockaddr_in *dns_addr, size_t *response_size) {
+    socklen_t sender_address_len = sizeof(*dns_addr);
+    *response_size = recvfrom(sock, response_buffer, buffer_size, 0, (struct sockaddr *)dns_addr, &sender_address_len);
     if (*response_size < 0) {
-        return DNS_SEC_RECV_ERR;  // Error code for failing to receive
+        return DNS_SEC_RECV_ERR;
     }
     return DNS_SEC_SUCCESS;
 }
@@ -231,410 +217,476 @@ dns_sec_error_t receive_dns_response(int sock, uint8_t *response_buffer, size_t 
  *                                                                                    Validate Response
  *---------------------------------------------------------------------------------------------------*/
 
-/**
- * @brief Parses the DNS message header and checks for errors.
- *
- * This function inspects the header fields of a DNS message to ensure the integrity
- * and correctness of the response received.
- *
- * @param dns_header Pointer to the DNS header structure.
- * @return DNS security error code indicating the status of the operation.
- */
-static dns_sec_error_t parse_dns_header(const dns_header_t *dns_header) {
-    // Verify that the response is a DNS reply
-    if (dns_header->qr == 0) {  // In a response, this should be set to 1
-        return DNS_SEC_INVALID_RESPONSE;
-    }
+// Helpers
+static dns_sec_error_t parse_header(uint8_t *response_buffer, size_t buffer_size, dns_header_t *header);
+static uint8_t *skip_name_field(uint8_t *cursor, const uint8_t *packet_start, const uint8_t *packet_end);
 
-    // Check for a valid response code (e.g., No error condition)
-    if (dns_header->rcode != 0) {
-        return DNS_SEC_SERVER_FAILURE;  // You might want more specific error codes based on rcode
-    }
+// Record parsers
+static dns_sec_error_t parse_a_record(const uint8_t *data, uint16_t data_len, struct addrinfo *res);
+static dns_sec_error_t parse_ns_record(const uint8_t *data, uint16_t data_len, struct addrinfo *res);
+static dns_sec_error_t parse_cname_record(const uint8_t *data, uint16_t data_len, struct addrinfo *res);
+static dns_sec_error_t parse_soa_record(const uint8_t *data, uint16_t data_len, struct addrinfo *res);
+static dns_sec_error_t parse_ptr_record(const uint8_t *data, uint16_t data_len, struct addrinfo *res);
+static dns_sec_error_t parse_mx_record(const uint8_t *data, uint16_t data_len, struct addrinfo *res);
+static dns_sec_error_t parse_txt_record(const uint8_t *data, uint16_t data_len, struct addrinfo *res);
+static dns_sec_error_t parse_aaaa_record(const uint8_t *data, uint16_t data_len, struct addrinfo *res);
+static dns_sec_error_t parse_rrsig_record(const uint8_t *data, uint16_t data_len, struct addrinfo *res);
+static dns_sec_error_t parse_dnskey_record(const uint8_t *data, uint16_t data_len, struct addrinfo *res);
 
-    // Additional checks can be added here (e.g., validating the transaction ID matches the request)
+dns_sec_error_t validate_dns_response(uint8_t *response, ssize_t response_size, dns_sec_query_t *query, struct addrinfo **res) {
 
-    return DNS_SEC_SUCCESS;
-}
-
-dns_sec_error_t validate_dns_response(const uint8_t *response, ssize_t response_size, struct addrinfo **res) {
-    if (response_size < sizeof(dns_header_t)) {
-        return DNS_SEC_PARSE_ERR;  // The response size is smaller than the header size
-    }
-
-    const dns_header_t *dns_header = (const dns_header_t *)response;
-
-    // Parse the header and check for errors
-    dns_sec_error_t status = parse_dns_header(dns_header);
+    dns_header_t response_header = {0};
+    dns_sec_error_t status = parse_header(response, response_size, &response_header);
     if (status != DNS_SEC_SUCCESS) {
         return status;
     }
 
-    // // Check the number of answers (simplified, actual check might require more validation)
-    // uint16_t answer_count = ntohs(dns_header->ans_count);
-    // if (answer_count == 0) {
-    //     return DNS_SEC_NO_RECORDS;  // No records found
-    // }
+    if (response_header.id != query->header.id) {
+        LOG_WRN("DNS esponse ID %d does not match query's ID %d", response_header.id, query->header.id);
+        return DNS_SEC_INVALID_RESPONSE;
+    }
 
-    // // Skip the question section, the function now needs the start of the buffer to handle possible name compression.
-    // const uint8_t *current_position = skip_question_section(response, response + sizeof(dns_header_t), dns_header);
-    // if (current_position == NULL) {
-    //     return DNS_SEC_PARSE_ERR;  // Error skipping question section
-    // }
+    uint8_t *cursor = response + sizeof(response_header);
+    uint8_t *packet_end = response + response_size;
 
-    // // Process the answer section, also passing the start of the response to handle name compression.
-    // return process_answer_section(response, current_position, answer_count, res);
+    // Skip query Section
+    if (response_header.q_count > 0) {
+        for (int i = 0; i < response_header.q_count; ++i) {
+            cursor = skip_name_field(cursor, response, packet_end);
+            if (!cursor) {
+                LOG_ERR("Malformed record name or end of packet reached unexpectedly");
+                return DNS_SEC_PARSE_ERR;
+            }
+
+            uint16_t qtype, qclass;
+
+            memcpy(&qtype, cursor, sizeof(qtype));
+            cursor += sizeof(qtype);
+            memcpy(&qclass, cursor, sizeof(qclass));
+            cursor += sizeof(qclass);
+
+            qtype = ntohs(qtype);
+            qclass = ntohs(qclass);
+        }
+    }
+
+    *res = NULL;
+    struct addrinfo *last_info = NULL;
+
+    // Parse answer question
+    if (response_header.ans_count > 0) {
+        for (int i = 0; i < response_header.ans_count; ++i) {
+
+            // Skip the name field in the answer section, accounting for possible name compression.
+            cursor = skip_name_field(cursor, response, packet_end);
+            if (!cursor) {
+                LOG_DBG("Malformed record name or end of packet reached unexpectedly");
+                return DNS_SEC_PARSE_ERR;
+            }
+
+            // Here, 'cursor' points to the beginning of a resource record header.
+            if ((size_t)(packet_end - cursor) < sizeof(dns_resource_record_header_t)) {
+                LOG_DBG("Packet too short for resource record header");
+                return DNS_SEC_PARSE_ERR;
+            }
+
+            // Directly parse the RR header since we are already at the correct position after using skip_name_field.
+            dns_resource_record_header_t rr_header;
+            rr_header.type = ntohs(*(uint16_t *)(cursor));
+            cursor += sizeof(uint16_t);
+
+            rr_header.class = ntohs(*(uint16_t *)(cursor));
+            cursor += sizeof(uint16_t);
+
+            rr_header.ttl = ntohl(*(uint32_t *)(cursor));
+            cursor += sizeof(uint32_t);
+
+            rr_header.data_len = ntohs(*(uint16_t *)(cursor));
+            cursor += sizeof(uint16_t);
+
+            // Validate that we have the full data as specified in the record's data length
+            if (cursor + rr_header.data_len > packet_end) {
+                LOG_WRN("Record data exceeds packet boundary");
+                return DNS_SEC_PARSE_ERR;
+            }
+
+            // Allocate a new addrinfo structure from the heap.
+            struct addrinfo *ai = k_heap_alloc(&dns_heap, sizeof(struct addrinfo), K_NO_WAIT);
+            if (!ai) {
+                LOG_WRN("Memory allocation failed");
+                return DNS_SEC_MEMORY_ERROR;  // Or appropriate error handling.
+            }
+
+            memset(ai, 0, sizeof(struct addrinfo));
+
+            // Handle the record based on its type.
+            dns_sec_error_t parse_result = DNS_SEC_SUCCESS;
+            switch (rr_header.type) {
+                case DNS_A_RECORD:
+                    parse_result = parse_a_record(cursor, rr_header.data_len, ai);
+                    break;
+                case DNS_NS_RECORD:
+                    parse_result = parse_ns_record(cursor, rr_header.data_len, ai);
+                    break;
+                case DNS_CNAME_RECORD:
+                    parse_result = parse_cname_record(cursor, rr_header.data_len, ai);
+                    break;
+                case DNS_SOA_RECORD:
+                    parse_result = parse_soa_record(cursor, rr_header.data_len, ai);
+                    break;
+                case DNS_PTR_RECORD:
+                    parse_result = parse_ptr_record(cursor, rr_header.data_len, ai);
+                    break;
+                case DNS_MX_RECORD:
+                    parse_result = parse_mx_record(cursor, rr_header.data_len, ai);
+                    break;
+                case DNS_TXT_RECORD:
+                    parse_result = parse_txt_record(cursor, rr_header.data_len, ai);
+                    break;
+                case DNS_AAAA_RECORD:
+                    parse_result = parse_aaaa_record(cursor, rr_header.data_len, ai);
+                    break;
+                case DNS_RRSIG_RECORD:
+                    parse_result = parse_rrsig_record(cursor, rr_header.data_len, ai);
+                    break;
+                case DNS_DNSKEY_RECORD:
+                    parse_result = parse_dnskey_record(cursor, rr_header.data_len, ai);
+                    break;
+                default:
+                    LOG_ERR("Unknown or unsupported record type: %u", rr_header.type);
+                    return DNS_SEC_UNSUPPORTED_RECORD_TYPE;
+            }
+
+            if (parse_result != DNS_SEC_SUCCESS) {
+                k_heap_free(&dns_heap, ai);
+            } else {
+                // Parsing was successful, link the new addrinfo to the list.
+                if (last_info) {
+                    last_info->ai_next = ai;
+                } else {
+                    *res = ai;
+                }
+                last_info = ai;
+            }
+
+            // Whether parsing is successful or not, advance the cursor past the record data for the next iteration.
+            cursor += rr_header.data_len;
+
+            // Check if the cursor doesn't exceed the packet boundary.
+            if (cursor > packet_end) {
+                LOG_ERR("Cursor has exceeded packet boundary");
+                return DNS_SEC_PARSE_ERR;
+            }
+        }
+    }
+
+    return DNS_SEC_SUCCESS;
 }
 
-// /**
-//  * @brief Skips over the question section of the DNS message.
-//  *
-//  * Given that the question section's length can vary, this function correctly advances
-//  * the pointer to the start of the answer section. It also handles the compression of names.
-//  *
-//  * @param response_start Pointer to the start of the DNS message.
-//  * @param current_position Pointer to the current position in the DNS message, right at the start of the question section.
-//  * @param dns_header Pointer to the DNS header to understand the structure of the message.
-//  * @return A pointer to the new position in the DNS message, right after the question section, or NULL if an error occurs.
-//  */
-// static const uint8_t *skip_question_section(const uint8_t *response_start, const uint8_t *current_position, const dns_header_t *dns_header) {
-//     // Assume the DNS question follows the format: [qname][qtype][qclass]
-//     // We need to skip over these fields for each question.
+static dns_sec_error_t parse_header(uint8_t *response_buffer, size_t buffer_size, dns_header_t *header) {
+    if (buffer_size < sizeof(dns_header_t)) {
+        LOG_WRN("Packet too short to contain DNS header");
+        return DNS_SEC_PARSE_ERR;
+    }
 
-//     for (int i = 0; i < ntohs(dns_header->q_count); ++i) {
-//         // The function "decode_dns_name" should return the number of bytes traversed in the original message
-//         // to decode the compressed name, or -1 in case of an error. It handles the parsing of a possibly compressed qname.
-//         int name_field_length = decode_dns_name(response_start, current_position);
-//         if (name_field_length < 0) {
-//             return NULL;  // Error in parsing the compressed name field
-//         }
+    memcpy(header, response_buffer, sizeof(dns_header_t));
 
-//         current_position += name_field_length;  // Advance the position by the length of the qname field.
+    header->id = ntohs(header->id);
+    header->q_count = ntohs(header->q_count);
+    header->ans_count = ntohs(header->ans_count);
+    header->auth_count = ntohs(header->auth_count);
+    header->add_count = ntohs(header->add_count);
 
-//         // Skip the qtype and qclass fields. These are always 2 bytes each.
-//         current_position += 4;  // 2 bytes for qtype and 2 bytes for qclass
-//     }
+    return DNS_SEC_SUCCESS;
+}
 
-//     // At this point, current_position should be at the start of the answer section.
-//     return current_position;
-// }
+static uint8_t *skip_name_field(uint8_t *cursor, const uint8_t *packet_start, const uint8_t *packet_end) {
+    if (!cursor || !packet_start || !packet_end || cursor < packet_start || cursor >= packet_end) {
+        // Basic sanity check to ensure our pointers are valid and within bounds.
+        LOG_ERR("Error: Invalid parameters, cursor or packet boundaries are incorrect");
+        return NULL;
+    }
 
-// /**
-//  * Helper function to parse a potentially compressed domain name from a DNS message.
-//  *
-//  * @param[in] msg_start The start of the DNS message (for handling pointers in compression).
-//  * @param[in] current_position The current position within the DNS message.
-//  * @param[out] output The buffer where the domain name should be written.
-//  * @return The number of bytes processed in the current_position to read the name, or -1 on error.
-//  */
-// int parse_dns_name(const uint8_t *msg_start, const uint8_t *current_position, char *output) {
-//     const uint8_t *cursor = current_position;
-//     char *output_cursor = output;
-//     const uint8_t *output_end = output + DNS_NAME_MAX_LEN - 1;  // Leave room for the null terminator
-//     int total_bytes_processed = 0;
-//     int was_compressed = 0;  // Flag to check if the message was compressed
+    // Loop through the bytes to construct the domain name or skip over it.
+    while (cursor < packet_end) {
+        uint8_t length_or_pointer = *cursor;
 
-//     while (*cursor) {           // Continue until we reach the zero length octet
-//         if (*cursor >= 0xC0) {  // Check for compression (top two bits are set)
-//             if (was_compressed) {
-//                 // We've already jumped due to compression, but have hit another pointer.
-//                 // This shouldn't happen with a well-formed message and suggests a loop.
-//                 return -1;
-//             }
-//             was_compressed = 1;
+        if (length_or_pointer == 0) {
+            // Zero byte indicates the end of this domain name.
+            cursor++;  // Move past this null byte.
+            break;     // Exit the loop as the name field has ended.
+        } else if ((length_or_pointer & 0xC0) == 0xC0) {
+            // This is a compression pointer.
+            cursor += 2;  // Move past these two bytes, as they represent the pointer.
 
-//             // Calculate the offset from the start of the message
-//             uint16_t offset = ((*cursor) << 8 | *(cursor + 1)) & 0x3FFF;  // Offset is lower 14 bits
-//             cursor = msg_start + offset;
+            // Regardless of whether we encountered previous pointers, we should always end the name field here.
+            // There should not be multiple pointers or any bytes after a pointer in a well-formed packet.
+            break;
+        } else {
+            // This is a length value indicating a label follows.
+            size_t label_length = (size_t)length_or_pointer;
 
-//             // If we haven't moved (i.e., offset was zero), there's a problem
-//             if (cursor == current_position) {
-//                 return -1;
-//             }
+            if (cursor + 1 + label_length >= packet_end) {
+                // Ensure we don't exceed the packet boundary.
+                LOG_ERR("Error: Malformed packet, label exceeds packet boundary");
+                return NULL;
+            }
 
-//             total_bytes_processed += 2;  // Adjust for the two-byte jump
-//         } else {
-//             uint8_t label_len = *cursor;
-//             cursor++;  // Move past the length octet
+            // Move past the length byte and the label itself.
+            cursor += 1 + label_length;
+        }
+    }
 
-//             // Check for potential buffer overflow in the output
-//             if (output_cursor + label_len >= output_end) {
-//                 return -1;
-//             }
+    // One last check after processing the loop.
+    if (cursor > packet_end) {
+        // The cursor went beyond the allowed boundary. The packet is malformed.
+        LOG_ERR("Error: Malformed packet, cursor moved past packet end");
+        return NULL;
+    }
 
-//             // Copy the label to the output buffer
-//             for (int i = 0; i < label_len; i++) {
-//                 *output_cursor = *cursor;
-//                 output_cursor++;
-//                 cursor++;
-//             }
+    // Return the updated cursor position after completely skipping the name field.
+    // We've handled all scenarios: normal labels, a terminating zero, and a pointer.
+    return cursor;
+}
 
-//             *output_cursor = '.';  // Labels are separated by dots in the output
-//             output_cursor++;
+/*-----------------------------------------------------------------------------------------------------
+ *                                                                                       Record Parsers
+ *---------------------------------------------------------------------------------------------------*/
 
-//             // Adjust the total length processed if we weren't compressed
-//             if (!was_compressed) {
-//                 total_bytes_processed += label_len + 1;  // The label plus the length octet
-//             }
-//         }
-//     }
+static dns_sec_error_t parse_a_record(const uint8_t *data, uint16_t data_len, struct addrinfo *ai) {
+    if (!data || !ai) {
+        LOG_WRN("Invalid parameters passed to %s", __func__);
+        return DNS_SEC_INVALID_PARAM_ERR;
+    }
 
-//     if (!was_compressed) {
-//         total_bytes_processed++;  // Account for the zero length octet at the end
-//     }
+    if (data_len < sizeof(uint32_t)) {
+        LOG_ERR("Invalid A record. Data length is less than expected.");
+        return DNS_SEC_INVALID_RESPONSE;
+    }
 
-//     *output_cursor = '\0';  // Null terminate the string
+    // Allocate memory for the sockaddr structure.
+    struct sockaddr_in *addr = k_heap_alloc(&dns_heap, sizeof(struct sockaddr_in), K_NO_WAIT);
+    if (!addr) {
+        LOG_ERR("Memory allocation for sockaddr_in failed");
+        return DNS_SEC_MEMORY_ERROR;
+    }
 
-//     return total_bytes_processed;
-// }
+    // Clear the structure and set its values.
+    memset(addr, 0, sizeof(struct sockaddr_in));
+    addr->sin_family = AF_INET;
+    memcpy(&(addr->sin_addr.s_addr), data, sizeof(uint32_t));  // Copy the IPv4 address.
 
-// /**
-//  * @brief Parses a single resource record from the DNS response.
-//  *
-//  * This function reads and interprets a resource record from the current position in the DNS message.
-//  * It handles specifics such as DNS message compression and byte order differences.
-//  *
-//  * @param current_position Pointer to the current position in the DNS message.
-//  * @param record Pointer to a dns_resource_record_t structure where the parsed record data will be stored.
-//  * @return DNS security error code indicating the status of the operation.
-//  */
-// static dns_sec_error_t parse_resource_record(const uint8_t *msg_start, const uint8_t *current_position, dns_resource_record_t *record) {
-//     // The parsing logic, including decompressing the DNS name and reading values, goes here.
-//     // We'll need to carefully manage the pointer within the response packet, adjust for network byte order, and handle the DNS message compression.
-//     // This example assumes a simplistic scenario and might not cover all edge cases.
+    // Populate the addrinfo structure 'ai' given by the caller.
+    ai->ai_family = AF_INET;
+    ai->ai_socktype = SOCK_STREAM;  // Use hints or context to determine actual socktype.
+    ai->ai_protocol = IPPROTO_TCP;  // Use hints or context to determine actual protocol.
+    ai->ai_addrlen = sizeof(struct sockaddr_in);
+    ai->ai_addr = (struct sockaddr *)addr;
 
-//     // Parse the NAME field (which may be compressed).
-//     int name_len = parse_dns_name(msg_start, current_position, record->name);  // This function should handle DNS name compression.
-//     if (name_len < 0) {
-//         // An error occurred during parsing the name.
-//         // Handle the error appropriately, such as logging it or returning an error code.
-//         return DNS_SEC_PARSE_ERR;  // This is a hypothetical error code. You should use what's appropriate for your system.
-//     }
-//     current_position += name_len;
+    char ip_str[INET_ADDRSTRLEN];
+    inet_ntop(AF_INET, data, ip_str, sizeof(ip_str));
+    LOG_DBG("Parsed A record successfully, IP: %s", ip_str);
 
-//     // Parse TYPE, CLASS, TTL, and RDLENGTH (considering network byte order for each 16/32-bit value).
-//     record->type = ntohs(*((uint16_t *)current_position));
-//     current_position += 2;
+    return DNS_SEC_SUCCESS;
+}
 
-//     record->class = ntohs(*((uint16_t *)current_position));
-//     current_position += 2;
+static dns_sec_error_t parse_ns_record(const uint8_t *data, uint16_t data_len, struct addrinfo *res) {
+    LOG_WRN("%s not implemented, cant't parse response", __func__);
+    return DNS_SEC_NOT_IMPLEMENTED;
+}
 
-//     record->ttl = ntohl(*((uint32_t *)current_position));
-//     current_position += 4;
+static dns_sec_error_t parse_cname_record(const uint8_t *data, uint16_t data_len, struct addrinfo *res) {
+    LOG_WRN("%s not implemented, cant't parse response", __func__);
+    return DNS_SEC_NOT_IMPLEMENTED;
+}
 
-//     record->rd_length = ntohs(*((uint16_t *)current_position));
-//     current_position += 2;
+static dns_sec_error_t parse_soa_record(const uint8_t *data, uint16_t data_len, struct addrinfo *res) {
+    LOG_WRN("%s not implemented, cant't parse response", __func__);
+    return DNS_SEC_NOT_IMPLEMENTED;
+}
 
-//     // The RDATA field needs to be processed based on the record type.
-//     switch (record->type) {
-//         case DNS_A_RECORD:
-//             // Parse the IPv4 address.
-//             memcpy(&(record->rdata.ipv4_address), current_position, sizeof(record->rdata.ipv4_address));
-//             break;
-//         case DNS_AAAA_RECORD:
-//             // Parse the IPv6 address.
-//             memcpy(&(record->rdata.ipv6_address), current_position, sizeof(record->rdata.ipv6_address));
-//             break;
-//             // Other cases for various DNS record types can be added here.
-//     }
+static dns_sec_error_t parse_ptr_record(const uint8_t *data, uint16_t data_len, struct addrinfo *res) {
+    LOG_WRN("%s not implemented, cant't parse response", __func__);
+    return DNS_SEC_NOT_IMPLEMENTED;
+}
 
-//     return DNS_SEC_SUCCESS;  // Or appropriate error code, if any part of the parsing fails.
-// }
+static dns_sec_error_t parse_mx_record(const uint8_t *data, uint16_t data_len, struct addrinfo *res) {
+    LOG_WRN("%s not implemented, cant't parse response", __func__);
+    return DNS_SEC_NOT_IMPLEMENTED;
+}
 
-// /**
-//  * @brief Construct an addrinfo structure from a DNS resource record.
-//  *
-//  * This function translates the information contained in a DNS resource record into
-//  * an addrinfo structure, which is commonly used for network operations in C.
-//  * Depending on the record type (A or AAAA), this function populates the addrinfo
-//  * structure with the appropriate IP address, and sets up other relevant information
-//  * such as the socket type and protocol. This constructed addrinfo can then be used
-//  * directly in creating sockets, establishing connections, and other network operations.
-//  *
-//  * @param record A pointer to the dns_resource_record_t structure which contains
-//  *               the DNS record details retrieved from the DNS response. It should
-//  *               be of type A (IPv4) or AAAA (IPv6), as these types contain the IP
-//  *               address information necessary for the addrinfo structure.
-//  * @param res    A double pointer to the addrinfo structure to be constructed. This
-//  *               function will allocate memory for the addrinfo and its associated
-//  *               structures, and the caller is responsible for freeing this memory
-//  *               using freeaddrinfo() when it is no longer needed.
-//  * @return       Returns DNS_SEC_SUCCESS if the addrinfo structure was successfully
-//  *               constructed, or an appropriate error code if the function encountered
-//  *               an error. The error code is a member of the dns_sec_error_t enumeration,
-//  *               informing the caller about the nature of the error, whether it be a
-//  *               memory allocation failure, unsupported record type, or any other issue
-//  *               that prevents successful execution.
-//  */
-// static dns_sec_error_t construct_addrinfo(const dns_resource_record_t *record, struct addrinfo **res) {
-//     // Create a new addrinfo structure.
-//     struct addrinfo *ai = (struct addrinfo *)calloc(1, sizeof(struct addrinfo));
-//     if (!ai) {
-//         return DNS_SEC_MEMORY_ERROR;  // Memory allocation failure.
-//     }
+static dns_sec_error_t parse_txt_record(const uint8_t *data, uint16_t data_len, struct addrinfo *res) {
+    LOG_WRN("%s not implemented, cant't parse response", __func__);
+    return DNS_SEC_NOT_IMPLEMENTED;
+}
 
-//     // Fill in the appropriate fields based on the DNS record type.
-//     ai->ai_socktype = SOCK_STREAM;  // Or SOCK_DGRAM depending on use case.
-//     ai->ai_protocol = IPPROTO_TCP;  // Or IPPROTO_UDP, consistent with socktype.
+static dns_sec_error_t parse_aaaa_record(const uint8_t *data, uint16_t data_len, struct addrinfo *ai) {
+    if (!data || !ai) {
+        LOG_WRN("Invalid parameters passed to %s", __func__);
+        return DNS_SEC_INVALID_PARAM_ERR;
+    }
 
-//     // Handle different record types (A or AAAA records).
-//     if (record->type == DNS_A_RECORD) {
-//         ai->ai_family = AF_INET;
-//         struct sockaddr_in *addr = (struct sockaddr_in *)calloc(1, sizeof(struct sockaddr_in));
-//         if (!addr) {
-//             free(ai);  // Don't forget to free previously allocated memory to avoid leaks.
-//             return DNS_SEC_MEMORY_ERROR;
-//         }
+    // Check that the AAAA record length is correct, it should be 16 bytes for IPv6 address.
+    if (data_len < 16) {
+        LOG_ERR("Invalid AAAA record. Data length is less than expected.");
+        return DNS_SEC_INVALID_RESPONSE;
+    }
 
-//         addr->sin_family = AF_INET;
-//         addr->sin_port = 0;  // You might set this later, based on the service you're working with.
-//         memcpy(&(addr->sin_addr), &(record->rdata.ipv4_address), sizeof(record->rdata.ipv4_address));
+    // Allocate memory for the sockaddr structure.
+    struct sockaddr_in6 *addr = k_heap_alloc(&dns_heap, sizeof(struct sockaddr_in6), K_NO_WAIT);
+    if (!addr) {
+        LOG_ERR("Memory allocation for sockaddr_in6 failed");
+        return DNS_SEC_MEMORY_ERROR;
+    }
 
-//         ai->ai_addr = (struct sockaddr *)addr;
-//         ai->ai_addrlen = sizeof(struct sockaddr_in);
-//     } else if (record->type == DNS_AAAA_RECORD) {
-//         ai->ai_family = AF_INET6;
-//         struct sockaddr_in6 *addr = (struct sockaddr_in6 *)calloc(1, sizeof(struct sockaddr_in6));
-//         if (!addr) {
-//             free(ai);  // Don't forget to free previously allocated memory to avoid leaks.
-//             return DNS_SEC_MEMORY_ERROR;
-//         }
+    // Clear the structure and set its values.
+    memset(addr, 0, sizeof(struct sockaddr_in6));
+    addr->sin6_family = AF_INET6;
+    memcpy(&(addr->sin6_addr.s6_addr), data, 16);  // Copy the IPv6 address.
 
-//         addr->sin6_family = AF_INET6;
-//         addr->sin6_port = 0;  // You might set this later, based on the service you're working with.
-//         memcpy(&(addr->sin6_addr), &(record->rdata.ipv6_address), sizeof(record->rdata.ipv6_address));
+    // Populate the addrinfo structure 'ai' given by the caller.
+    ai->ai_family = AF_INET6;       // IPv6
+    ai->ai_socktype = SOCK_STREAM;  // Default, this could be parameterized based on hints.
+    ai->ai_protocol = IPPROTO_TCP;  // Default, this could be parameterized based on hints.
+    ai->ai_addrlen = sizeof(struct sockaddr_in6);
+    ai->ai_addr = (struct sockaddr *)addr;
 
-//         ai->ai_addr = (struct sockaddr *)addr;
-//         ai->ai_addrlen = sizeof(struct sockaddr_in6);
-//     } else {
-//         // Unsupported record type.
-//         free(ai);
-//         return DNS_SEC_UNSUPPORTED_RECORD_TYPE;
-//     }
+    char ip_str[INET6_ADDRSTRLEN];
+    inet_ntop(AF_INET6, &(addr->sin6_addr), ip_str, sizeof(ip_str));
+    LOG_DBG("Parsed AAAA record successfully, IP: %s", ip_str);
 
-//     // If you have multiple records, you may link them in a list. Here we assume res points to a valid object.
-//     ai->ai_next = *res;
-//     *res = ai;
+    return DNS_SEC_SUCCESS;
+}
 
-//     return DNS_SEC_SUCCESS;
-// }
+static dns_sec_error_t parse_dnskey_record(const uint8_t *data, uint16_t data_len, struct addrinfo *res) {
+    LOG_WRN("%s not implemented, cant't parse response", __func__);
+    return DNS_SEC_NOT_IMPLEMENTED;
+}
 
-// /**
-//  * @brief Processes the answer section of the DNS response.
-//  *
-//  * This function iterates through each resource record in the answer section, parses each one, and performs
-//  * the necessary processing based on the record type.
-//  *
-//  * @param current_position Pointer to the current position in the DNS message (start of the answer section).
-//  * @param answer_count The number of records in the answer section.
-//  * @param res Pointer to a linked list of addrinfo structures to be filled with the relevant records.
-//  * @return DNS security error code indicating the status of the operation.
-//  */
-// static dns_sec_error_t process_answer_section(const uint8_t *msg_start, const uint8_t *current_position, uint16_t answer_count, struct addrinfo **res) {
-//     for (uint16_t i = 0; i < answer_count; ++i) {
-//         dns_resource_record_t record;
+/*-----------------------------------------------------------------------------------------------------
+ *                                                                                DNS SEC Record Parser
+ *---------------------------------------------------------------------------------------------------*/
 
-//         // Parse the current resource record.
-//         dns_sec_error_t err = parse_resource_record(msg_start, current_position, &record);
-//         if (err != DNS_SEC_SUCCESS) {
-//             return err;  // Stop processing if the record parsing fails.
-//         }
+// Assuming 2 bytes for type_covered, 1 byte each for algorithm and labels,
+// 4 bytes each for original_ttl, signature_expiration, and signature_inception,
+// and 2 bytes for key_tag, the minimum length is 18 bytes.
+// The actual record will be longer due to the variable-length signer_name and signature.
+#define RRSIG_RECORD_MINIMUM_LENGTH 18
 
-//         // Process the record based on its type.
-//         err = construct_addrinfo(&record, res);
-//         if (err != DNS_SEC_SUCCESS) {
-//             return err;  // Stop processing if the construction of addrinfo fails.
-//         }
+typedef struct {
+    uint16_t type_covered;
+    uint8_t algorithm;
+    uint8_t labels;
+    uint32_t original_ttl;
+    uint32_t signature_expiration;
+    uint32_t signature_inception;
+    uint16_t key_tag;
+    uint8_t *signer_name;       // This field might require dynamic memory allocation.
+    uint8_t *signature;         // This field might require dynamic memory allocation.
+    uint16_t signature_length;  // This field is necessary to know the signature length.
+} rrsig_record_t;
 
-//         // Calculate the total length of the record, including the RDATA.
-//         // It includes the length of the NAME, TYPE, CLASS, TTL, RDLENGTH, and RDATA itself.
-//         size_t name_length = strlen(record.name) + 1;                      // Considering a non-compressed name. Adjust if needed for actual length.
-//         size_t total_record_length = name_length + 10 + record.rd_length;  // 10 bytes for TYPE, CLASS, TTL, and RDLENGTH.
-//         current_position += total_record_length;
+static dns_sec_error_t extract_rrsig_fields(const uint8_t *data, uint16_t data_len, rrsig_record_t *rrsig_record);
+static dns_sec_error_t validate_rrsig_signature(const rrsig_record_t *rrsig_record, const uint8_t *data, uint16_t data_len);
 
-//         // Here, you would need to ensure that the length calculation is accurate, especially when dealing with compressed names.
-//         // The actual length of the NAME field may be different due to compression, and you may need to adjust your logic to handle this.
-//     }
+// The main function to parse and validate the RRSIG record.
+static dns_sec_error_t parse_rrsig_record(const uint8_t *data, uint16_t data_len, struct addrinfo *res) {
+    if (!data || data_len < RRSIG_RECORD_MINIMUM_LENGTH) {  // Make sure to define the appropriate length based on the DNSSEC standard.
+        LOG_WRN("Invalid RRSIG record data");
+        return DNS_SEC_INVALID_PARAM_ERR;
+    }
 
-//     return DNS_SEC_SUCCESS;
-// }
+    dns_sec_error_t err;
+    rrsig_record_t rrsig_record;  // You might need to handle dynamic memory allocation for some fields within this struct.
 
-// /**
-//  * @brief Extract DNSSEC-related records from the DNS response.
-//  *
-//  * This function parses the DNS response to identify and extract records
-//  * related to DNS Security Extensions (DNSSEC), including but not limited
-//  * to RRSIG (signatures), DNSKEY (public keys), NSEC/NSEC3 (authenticated
-//  * denial of existence), etc. These records are essential for the subsequent
-//  * validation of the response to ensure its authenticity and integrity.
-//  *
-//  * @param dns_response Pointer to the buffer containing the DNS response.
-//  * @param response_size Size of the DNS response in bytes.
-//  * @return dns_sec_error_t Returns DNS_SEC_SUCCESS on successful extraction,
-//  *                         or a specific error code representing the failure
-//  *                         encountered during the process.
-//  */
-// dns_sec_error_t extract_dnssec_records(const uint8_t *dns_response, ssize_t response_size) {
-//     // Check if the response pointer is valid
-//     if (!dns_response) {
-//         return DNS_SEC_INVALID_PARAM;  // Or the appropriate error code for invalid parameters
-//     }
+    // Extract RRSIG fields into the struct.
+    err = extract_rrsig_fields(data, data_len, &rrsig_record);
+    if (err != DNS_SEC_SUCCESS) {
+        // Handle error, free memory if allocated.
+        return err;
+    }
 
-//     // TODO: Implement this bitch
+    // Perform cryptographic validation using the filled struct.
+    err = validate_rrsig_signature(&rrsig_record, data, data_len);
+    if (err != DNS_SEC_SUCCESS) {
+        // Handle error, free memory if allocated.
+        return err;
+    }
 
-//     // Here, you would parse the DNS response, typically starting from the DNS header
-//     // and then proceeding through the different sections (Answer, Authority, Additional).
+    // Clean up, specifically ensure any dynamically allocated memory is properly released.
+    // For example, if you allocated memory for 'signer_name' or 'signature', you should free it here.
+    // ...
 
-//     // Placeholder for actual parsing. The specific steps you take might vary depending
-//     // on the format of a DNS message and how you handle DNS records.
-//     // You would look for specific record types related to DNSSEC.
+    LOG_DBG("RRSIG record parsed and validated successfully");
 
-//     // For example:
-//     // 1. Parse the DNS header to get information like the total number of records.
-//     // 2. Iterate through the Answer section to find and extract RRSIG, DNSKEY records.
-//     // 3. Depending on your DNSSEC strategy, you might need to check the Authority section for NSEC/NSEC3 records.
-//     // 4. Validate the consistency and correctness of the records (e.g., matching signature with the corresponding RRSIG).
+    return DNS_SEC_SUCCESS;
+}
 
-//     // This is a non-trivial process and involves understanding the DNS protocol and DNSSEC extension deeply,
-//     // especially under different scenarios and response types.
+// Implementing the field extraction function.
+static dns_sec_error_t extract_rrsig_fields(const uint8_t *data, uint16_t data_len, rrsig_record_t *rrsig_record) {
 
-//     // If extraction is successful, return success status
-//     return DNS_SEC_SUCCESS;
-// }
+    const uint8_t *current_position = data;
 
-// // dns_sec_error_t validate_dnssec_information(const uint8_t *dns_response, ssize_t response_size, const struct addrinfo *hints) {
-// //     dns_sec_error_t validation_status;
+    // Extract fixed-size fields with direct memcpy, converting byte order as necessary.
+    memcpy(&(rrsig_record->type_covered), current_position, sizeof(rrsig_record->type_covered));
+    rrsig_record->type_covered = ntohs(rrsig_record->type_covered);
+    current_position += sizeof(rrsig_record->type_covered);
 
-// //     // Step 7.1: Extract DNSSEC records
-// //     // This step involves parsing the response to extract RRSIG, DNSKEY, NSEC, or NSEC3 records necessary for validation.
-// //     validation_status = extract_dnssec_records(dns_response, response_size);
-// //     if (validation_status != DNS_SEC_SUCCESS) {
-// //         // Handle error in extracting DNSSEC records
-// //         return validation_status;
-// //     }
+    memcpy(&(rrsig_record->algorithm), current_position, sizeof(rrsig_record->algorithm));
+    current_position += sizeof(rrsig_record->algorithm);
 
-// //     // Step 7.2: Verify DNSSEC signatures
-// //     // Use the cryptographic library to verify the signatures in the RRSIG records against the corresponding DNSKEY records.
-// //     validation_status = verify_dnssec_signatures();
-// //     if (validation_status != DNS_SEC_SUCCESS) {
-// //         // Handle error in verifying signatures
-// //         return validation_status;
-// //     }
+    memcpy(&(rrsig_record->labels), current_position, sizeof(rrsig_record->labels));
+    current_position += sizeof(rrsig_record->labels);
 
-// //     // Step 7.3: Check for authenticated denial of existence
-// //     // This involves using NSEC or NSEC3 records to securely indicate that certain records do not exist.
-// //     validation_status = check_authenticated_denial_of_existence();
-// //     if (validation_status != DNS_SEC_SUCCESS) {
-// //         // Handle error in authenticated denial of existence
-// //         return validation_status;
-// //     }
+    memcpy(&(rrsig_record->original_ttl), current_position, sizeof(rrsig_record->original_ttl));
+    rrsig_record->original_ttl = ntohl(rrsig_record->original_ttl);
+    current_position += sizeof(rrsig_record->original_ttl);
 
-// //     // Step 7.4: Finalize DNSSEC validation
-// //     // Consider any additional steps or checks that your application requires upon successful DNSSEC validation.
-// //     validation_status = finalize_dnssec_validation();
-// //     if (validation_status != DNS_SEC_SUCCESS) {
-// //         // Handle error in finalizing DNSSEC validation
-// //         return validation_status;
-// //     }
+    memcpy(&(rrsig_record->signature_expiration), current_position, sizeof(rrsig_record->signature_expiration));
+    rrsig_record->signature_expiration = ntohl(rrsig_record->signature_expiration);
+    current_position += sizeof(rrsig_record->signature_expiration);
 
-// //     return DNS_SEC_SUCCESS;
-// // }
+    memcpy(&(rrsig_record->signature_inception), current_position, sizeof(rrsig_record->signature_inception));
+    rrsig_record->signature_inception = ntohl(rrsig_record->signature_inception);
+    current_position += sizeof(rrsig_record->signature_inception);
+
+    memcpy(&(rrsig_record->key_tag), current_position, sizeof(rrsig_record->key_tag));
+    rrsig_record->key_tag = ntohs(rrsig_record->key_tag);
+    current_position += sizeof(rrsig_record->key_tag);
+
+    // Skip the signer's name field. We're not extracting it, just moving the cursor position past this field.
+    uint8_t *new_position = skip_name_field((uint8_t *)current_position, (uint8_t *)data, (uint8_t *)(data + data_len));
+    if (new_position == NULL) {
+        return DNS_SEC_PARSE_ERR;
+    }
+
+    current_position = new_position;
+
+    // Now, you need to handle the signature. Since the signature is variable length and the last field,
+    // you calculate the length by subtracting the current position from the end of the buffer.
+    rrsig_record->signature_length = data_len - (current_position - data);
+
+    if (rrsig_record->signature_length == 0) {
+        LOG_WRN("Record signature length is 0");
+        return DNS_SEC_INVALID_RESPONSE;
+    }
+
+    // Allocate memory for the signature and copy it from the buffer.
+    rrsig_record->signature = k_heap_alloc(&dns_heap, rrsig_record->signature_length, K_NO_WAIT);  // TODO: free this cunt
+    if (!rrsig_record->signature) {
+        LOG_WRN("Malloc failed");
+        return DNS_SEC_MEMORY_ERROR;
+    }
+    memcpy(rrsig_record->signature, current_position, rrsig_record->signature_length);
+
+    return DNS_SEC_SUCCESS;
+}
+
+// Stub for the cryptographic validation function.
+static dns_sec_error_t validate_rrsig_signature(const rrsig_record_t *rrsig_record, const uint8_t *data, uint16_t data_len) {
+    // Here, you would perform the actual DNSSEC cryptographic validation using the information
+    // in the 'rrsig_record' structure. This process involves various cryptographic operations
+    // and possibly network operations to fetch the necessary DNSKEY records.
+
+    return DNS_SEC_SUCCESS;  // Or appropriate error code.
+}

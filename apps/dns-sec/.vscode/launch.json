@@ -9,6 +9,7 @@
             "request": "launch",
             "type": "cortex-debug",
             "runToEntryPoint": "main",
+            // "runToEntryPoint": "__start",
             "servertype": "openocd",
             "gdbPath": "/usr/home/zephyr-sdk-0.16.1/arm-zephyr-eabi/bin/arm-zephyr-eabi-gdb",
             "configFiles": [

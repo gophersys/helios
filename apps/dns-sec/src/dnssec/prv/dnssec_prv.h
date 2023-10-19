@@ -16,6 +16,9 @@
 #include <zephyr/kernel.h>
 #include <zephyr/net/socket.h>
 
+/*-----------------------------------------------------------------------------------------------------
+ *                                                                                                Types
+ *---------------------------------------------------------------------------------------------------*/
 /**
  * @struct dns_header_t
  * @brief A structure to represent the DNS message header.
@@ -99,21 +102,49 @@ typedef struct __attribute__((packed)) {
                                       It's a client-selected value that the server must include in its response. */
 } dns_edns_opt_record_t;
 
+/**
+ * @struct dns_sec_query_t
+ * @brief A structure to represent the DNS SEC query
+ *
+ * This structure encapsulates fields specific to the query that a client makes to a DNS resolver
+ * to have the server get a secure resolution
+ */
 typedef struct {
-    dns_header_t header;
-    char *domain;
-    size_t domain_length;
-    uint16_t qtype;
-    uint16_t qclass;
-    dns_edns_opt_record_t opt_record;
+    dns_header_t header;              /**< DNS protocol header. */
+    char *domain;                     /**< Formatted desired domain. */
+    size_t domain_length;             /**< Length of formatted domain. */
+    uint16_t qtype;                   /**< Question type. */
+    uint16_t qclass;                  /**< Question class. */
+    dns_edns_opt_record_t opt_record; /**< EDNS extension record. */
 } dns_sec_query_t;
 
+/*-----------------------------------------------------------------------------------------------------
+ *                                                                                                  API
+ *---------------------------------------------------------------------------------------------------*/
+
+/**
+ * @brief Create a UDP socket and attempt a connection to the resolver address
+ *
+ * @param dns_resolver_addr The IP addr of the DNS resolver of choice
+ * @return int errno, from socket calls
+ */
 dns_sec_error_t create_connected_socket(const char *dns_resolver_addr, int *sock);
+
+/**
+ * @brief Create a DNS query with the right fields setup in the header and payload for DNSSEC
+ *
+ * @param buffer The network buffer to store the created query
+ * @param buffer_size The size of the network buffer
+ * @param domain The domain to put in the query's question
+ * @return dns_sec_error_t The corresponding error for any one step. a WRN will also be printed
+ */
 dns_sec_error_t construct_dns_query(uint8_t *buffer, size_t buffer_size, uint16_t *query_size, const char *domain, dns_sec_query_t *query);
+
 dns_sec_error_t send_dns_query(int sock, const uint8_t *query, size_t query_size, const struct sockaddr_in *dns_addr);
-dns_sec_error_t receive_dns_response(int sock, uint8_t *response_buffer, size_t buffer_size, struct sockaddr_in *sender_address,
-                                     ssize_t *response_size);
-dns_sec_error_t validate_dns_response(const uint8_t *response, ssize_t response_size, struct addrinfo **res);
+
+dns_sec_error_t receive_dns_response(int sock, uint8_t *response_buffer, size_t buffer_size, struct sockaddr_in *dns_addr, size_t *response_size);
+
+dns_sec_error_t validate_dns_response(uint8_t *response, ssize_t response_size, dns_sec_query_t *query, struct addrinfo **res);
 
 void print_dns_query_packet(const uint8_t *packet, size_t packet_len);
 void print_dns_response_packet(const uint8_t *packet, size_t packet_len);

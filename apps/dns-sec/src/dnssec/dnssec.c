@@ -24,13 +24,13 @@ LOG_MODULE_REGISTER(dnssec, LOG_LEVEL_DBG);
 
 static uint8_t dns_net_buffer[DNS_QUERY_SIZE] = {0};
 
+// TODO: Cycle through default DNS if not reach out to known dns
+
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                                Types
  *---------------------------------------------------------------------------------------------------*/
 
-dns_sec_error_t getsecaddrinfo(const char *host, const char *service, const struct addrinfo *hints, struct addrinfo **res) {
-
-    // TODO: Cycle through default DNS if not reach out to known dns
+dns_sec_error_t getsecaddrinfo(const char *host, const char *service, const struct addrinfo *hints, struct addrinfo **response) {
 
     // Step 1: Get the DNS resolver address
     const struct dns_resolve_context *ctx = dns_resolve_get_default();
@@ -75,35 +75,14 @@ dns_sec_error_t getsecaddrinfo(const char *host, const char *service, const stru
         return status;  // Propagate the error code
     }
     LOG_DBG("Succesfully received DNS query response, length %d", response_size);
+    // print_dns_response_packet(dns_net_buffer, response_size);
 
-    print_dns_response_packet(dns_net_buffer, response_size);
-
-    // Step 6: Parse the DNS response
-    status = validate_dns_response(dns_net_buffer, response_size, res);
+    // Step 6: Parse and validate response
+    status = validate_dns_response(dns_net_buffer, response_size, &query, response);
     if (status != DNS_SEC_SUCCESS) {
         close(dns_server_sock);
-        return status;  // Propagate the error code
+        return status;
     }
 
-    /* Step 7: Validate the DNSSEC information
-     * - If DNSSEC information is included in the response, perform necessary validation
-     * - This could involve verifying digital signatures, checking the authenticity of records, etc.
-     * - Handle the possible outcomes of the validation (success, failure, non-authentic data, etc.)
-     */
-
-    // dns_sec_error_t dnssec_status = validate_dnssec_information(dns_response_buffer, response_size, hints);
-    // if (dnssec_status != DNS_SEC_SUCCESS) {
-    //     close(sock);
-    //     return dnssec_status;  // Propagate the error code from the DNSSEC validation
-    // }
-
-    /* Step 8: Handle the results
-     * - Based on the received and validated information, perform the necessary next steps
-     * - This could be returning the obtained information, logging results, triggering other functions, etc.
-     * - Clean up resources such as closing the socket and freeing allocated memory
-     */
-
-    // Result handling and resource cleanup code here
-
-    return DNS_SEC_SUCCESS;  // Simplified success indicator; actual implementation should return meaningful status codes
+    return DNS_SEC_SUCCESS;
 }
