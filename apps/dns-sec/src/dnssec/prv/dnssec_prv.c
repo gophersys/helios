@@ -9,6 +9,7 @@
 #include <inttypes.h>
 #include <stdio.h>
 #include <string.h>
+#include <zephyr/crypto/crypto.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/net/dns_resolve.h>
@@ -58,7 +59,6 @@ typedef struct {
     uint8_t algorithm;
     uint8_t *public_key;  // Dynamically allocated.
     size_t key_length;    // Length of the public key data
-    // ... any other fields you might need.
 } dnskey_record_t;
 
 /*-----------------------------------------------------------------------------------------------------
@@ -94,9 +94,11 @@ dns_sec_error_t create_connected_socket(const char *dns_resolver_addr, int *sock
 static void create_query_header(dns_header_t *header);
 static void format_domain_name(char *dns_formatted, const char *domain);
 static void create_opt_request_record(dns_edns_opt_record_t *opt_rr);
-static dns_sec_error_t net_pack_dns_sec_query(uint8_t *buffer, size_t buffer_size, uint16_t *query_size, dns_sec_query_t *query);
+static dns_sec_error_t net_pack_dns_sec_query(uint8_t *buffer, size_t buffer_size, uint16_t *query_size,
+                                              dns_sec_query_t *query);
 
-dns_sec_error_t construct_dns_query(uint8_t *buffer, size_t buffer_size, uint16_t *query_size, const char *domain, dns_sec_query_t *query) {
+dns_sec_error_t construct_dns_query(uint8_t *buffer, size_t buffer_size, uint16_t *query_size,
+                                    const char *domain, dns_sec_query_t *query) {
 
     create_query_header(&query->header);
 
@@ -177,7 +179,8 @@ static void create_opt_request_record(dns_edns_opt_record_t *opt_rr) {
     }
 }
 
-static dns_sec_error_t net_pack_dns_sec_query(uint8_t *buffer, size_t buffer_size, uint16_t *query_size, dns_sec_query_t *query) {
+static dns_sec_error_t net_pack_dns_sec_query(uint8_t *buffer, size_t buffer_size, uint16_t *query_size,
+                                              dns_sec_query_t *query) {
 
     *query_size = sizeof(query->header) + query->domain_length + sizeof(query->qtype) + sizeof(query->qclass) + sizeof(query->opt_record);
     if (buffer_size < *query_size) {
@@ -217,7 +220,8 @@ static dns_sec_error_t net_pack_dns_sec_query(uint8_t *buffer, size_t buffer_siz
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                           Send Query
  *---------------------------------------------------------------------------------------------------*/
-dns_sec_error_t send_dns_query(int sock, const uint8_t *query, size_t query_size, const struct sockaddr_in *dns_addr) {
+dns_sec_error_t send_dns_query(int sock, const uint8_t *query, size_t query_size,
+                               const struct sockaddr_in *dns_addr) {
     // LOG_HEXDUMP_INF(query, query_size, "Query: ");
 
     ssize_t bytes_sent = sendto(sock, query, query_size, 0, (struct sockaddr *)dns_addr, sizeof(*dns_addr));
@@ -233,7 +237,8 @@ dns_sec_error_t send_dns_query(int sock, const uint8_t *query, size_t query_size
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                           Recv Query
  *---------------------------------------------------------------------------------------------------*/
-dns_sec_error_t receive_dns_response(int sock, uint8_t *response_buffer, size_t buffer_size, struct sockaddr_in *dns_addr, size_t *response_size) {
+dns_sec_error_t receive_dns_response(int sock, uint8_t *response_buffer, size_t buffer_size,
+                                     struct sockaddr_in *dns_addr, size_t *response_size) {
     socklen_t sender_address_len = sizeof(*dns_addr);
     *response_size = recvfrom(sock, response_buffer, buffer_size, 0, (struct sockaddr *)dns_addr, &sender_address_len);
     if (*response_size < 0) {
@@ -262,7 +267,8 @@ static dns_sec_error_t parse_aaaa_record(const uint8_t *data, uint16_t data_len,
 static dns_sec_error_t parse_rrsig_record(const uint8_t *data, uint16_t data_len, struct addrinfo *res);
 static dns_sec_error_t parse_dnskey_record(const uint8_t *data, uint16_t data_len, dnskey_record_t *res);
 
-dns_sec_error_t validate_dns_response(uint8_t *response, ssize_t response_size, dns_sec_query_t *query, struct addrinfo **res) {
+dns_sec_error_t validate_dns_response(uint8_t *response, ssize_t response_size,
+                                      dns_sec_query_t *query, struct addrinfo **res) {
 
     dns_header_t response_header = {0};
     dns_sec_error_t status = parse_header(response, response_size, &response_header);
@@ -631,7 +637,8 @@ static dns_sec_error_t parse_dnskey_record(const uint8_t *data, uint16_t data_le
  *---------------------------------------------------------------------------------------------------*/
 
 static dns_sec_error_t extract_rrsig_fields(const uint8_t *data, uint16_t data_len, rrsig_record_t *rrsig_record);
-dns_sec_error_t validate_rrsig_record(const rrsig_record_t *rrsig, const uint8_t *original_record_data, size_t original_data_length);
+dns_sec_error_t validate_rrsig_record(const rrsig_record_t *rrsig, const uint8_t *original_record_data,
+                                      size_t original_data_length);
 
 // The main function to parse and validate the RRSIG record.
 static dns_sec_error_t parse_rrsig_record(const uint8_t *data, uint16_t data_len, struct addrinfo *res) {
@@ -827,8 +834,8 @@ static void create_dns_query_header(dns_header_t *header) {
     header->add_count = 1;  // Indicates you have additional records, like OPT for EDNS0
 }
 
-dns_sec_error_t construct_dnskey_query(uint8_t *buffer, size_t buffer_size, uint16_t *query_size, const char *domain,
-                                       dns_sec_query_t *query) {
+dns_sec_error_t construct_dnskey_query(uint8_t *buffer, size_t buffer_size, uint16_t *query_size,
+                                       const char *domain, dns_sec_query_t *query) {
     create_dns_query_header(&query->header);
 
     // Assure the domain is formatted correctly for DNS.
@@ -959,31 +966,52 @@ dns_sec_error_t get_dns_keys_from_response(uint8_t *response, ssize_t response_s
  *                                                                            Verify RRSIG with DNS Key
  *---------------------------------------------------------------------------------------------------*/
 
+#ifdef CONFIG_CRYPTO_TINYCRYPT_SHIM
+#define CRYPTO_DRV_NAME CONFIG_CRYPTO_TINYCRYPT_SHIM_DRV_NAME
+#elif CONFIG_CRYPTO_MBEDTLS_SHIM
+#define CRYPTO_DRV_NAME CONFIG_CRYPTO_MBEDTLS_SHIM_DRV_NAME
+#elif DT_HAS_COMPAT_STATUS_OKAY(st_stm32_cryp)
+#define CRYPTO_DEV_COMPAT st_stm32_cryp
+#elif DT_HAS_COMPAT_STATUS_OKAY(st_stm32_aes)
+#define CRYPTO_DEV_COMPAT st_stm32_aes
+#elif CONFIG_CRYPTO_NRF_ECB
+#define CRYPTO_DEV_COMPAT nordic_nrf_ecb
+#else
+#error "You need to enable one crypto device"
+#endif
+
 // Function to verify the RRSIG using the DNSKEY.
 dns_sec_error_t verify_rrsig_with_dnskey(const rrsig_record_t *rrsig, const dnskey_record_t *dnskey) {
     if (!rrsig || !dnskey) {
         return DNS_SEC_INVALID_PARAM_ERR;
     }
 
-    // Validate the algorithm.
     if (rrsig->algorithm != dnskey->algorithm) {
         LOG_WRN("Algorithm mismatch error");
         return DNS_SEC_ALGORITHM_MISMATCH_ERR;
     }
 
-    // Here you would set up your cryptographic library and prepare it for verification.
-    // This involves loading the public key, setting up the signature, and preparing any
-    // other cryptographic parameters based on the 'algorithm' field.
+    const struct device *dev = device_get_binding(CRYPTO_DRV_NAME);
+    if (!dev) {
+        LOG_ERR("Failed to get binding for crypto device");
+        return DNS_SEC_CRYPTO_SETUP_ERR;  // Or similar error code.
+    }
 
-    // Pseudo-code for setting up the cryptographic context.
-    // crypto_context_t context;
-    // if (!crypto_context_init(&context, dnskey->algorithm, dnskey->public_key, dnskey->key_length)) {
-    //     return DNS_SEC_CRYPTO_SETUP_ERR;  // Or similar error code.
-    // }/
+    struct cipher_ctx ctx = {
+        .keylen = dnskey->key_length,
+        .key.bit_stream = dnskey->public_key,  // Assuming public_key is the byte stream.
+        .flags = CRYPTO_CIPHER_ALGO_AES        // As per your use case, might need adjustment.
+    };
 
-    // Next, you'd prepare the data that was signed. This is usually the original record data
-    // and some additional metadata, all formatted according to the DNSSEC specifications.
-    // The exact preparation method will depend on those specifications and your cryptographic library.
+    struct cipher_pkt decrypt_pkt = {
+        .in_buf = rrsig->signature,  // The signature to be verified.
+        .in_len = rrsig->signature_length,
+    };
+
+    if (cipher_begin_session(dev, &ctx, CRYPTO_CIPHER_ALGO_AES, CRYPTO_CIPHER_MODE_ECB, CRYPTO_CIPHER_OP_DECRYPT)) {
+        LOG_ERR("Failed to begin cipher session");
+        return DNS_SEC_CRYPTO_SETUP_ERR;
+    }
 
     // Pseudo-code for preparing the signed data.
     // uint8_t *signed_data;
