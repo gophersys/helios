@@ -39,6 +39,8 @@ test_response_t alt_drv_test_rpc_begin_test_handler(test_request_t request) {
         return response;
     }
 
+    response.success = true;
+
     LOG("RPC %s called, total execution time: %d", __func__, k_uptime_get_32() - start_time);
 
     return response;
@@ -63,15 +65,15 @@ static bool set_desired_altitude(double altitude_ft) {
         return false;
     }
 
-    // LOG("RPC alt_sim_rpc_set_altitude succeeded! (%dms)", k_uptime_get_32() - start_time);
+    LOG("RPC alt_sim_rpc_set_altitude succeeded! (%dms)", k_uptime_get_32() - start_time);
 
     if (!response.success) {
         WARN("RPC host error: %d", response.err);
         return false;
     }
 
-    int alt_int = (int)altitude_ft;
-    int alt_frac = (int)((altitude_ft - alt_int) * 1000);  // 3 decimal places
+    // int alt_int = (int)altitude_ft;
+    // int alt_frac = (int)((altitude_ft - alt_int) * 1000);  // 3 decimal places
     // LOG("Altitude set to %d:%d in %d ms", alt_int, alt_frac, k_uptime_get_32() - start_time);
     return true;
 }
@@ -92,18 +94,18 @@ static bool compare_readings(void) {
         WARN("RPC internal error: %s:%d", __func__, info.error);
         return false;
     }
-    // LOG("RPC alt_sim_rpc_get_readings succeeded! (%dms)", k_uptime_get_32() - start_time);
+    LOG("RPC alt_sim_rpc_get_readings succeeded! (%dms)", k_uptime_get_32() - start_time);
 
     // For now, just print both readings
     test_app_info_t* app = get_app_info();
-    // LOG("Local readings:");
-    // print_readings(&app->temperature, &app->pressure, &app->altitude);
+    LOG("Local readings:");
+    print_readings(&app->temperature, &app->pressure, &app->altitude);
 
-    // LOG("Remote readings:");
+    LOG("Remote readings:");
     double temp_local = response.temperature_c;  // save to local vars due to __attribute__((packed))
     double pressure_local = response.pressure_inhg;
     double altitude_local = response.altitude_m;
-    // print_readings(&temp_local, &pressure_local, &altitude_local);
+    print_readings(&temp_local, &pressure_local, &altitude_local);
 
     return true;
 }

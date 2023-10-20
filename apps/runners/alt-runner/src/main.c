@@ -26,12 +26,12 @@ int main(void) {
     // Start
     cipher_daemon_start(d);
 
-    k_msleep(1000);  // Await for service discovery
+    k_msleep(2000);  // Await for service discovery
 
     while (true) {
 
         cipher_rpc_user_info_t info = {
-            .device_id = 124,  // TODO: This should actually be 124 but ok
+            .device_id = 123,
             .timeout_ms = 5000,
         };
 
@@ -48,6 +48,6 @@ int main(void) {
             LOG("Test Passed!");
         }
 
-        k_msleep(500);
+        k_msleep(1000);
     }
 }
