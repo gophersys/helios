@@ -4,5 +4,6 @@ find_package(Zephyr)
 
 project(dns-sec)
 
-add_subdirectory(src/dnssec)
+#add_subdirectory(src/dnssec)
+add_subdirectory(src/dns_sec)
 target_sources(app PRIVATE src/main.c)

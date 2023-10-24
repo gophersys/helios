@@ -13,7 +13,8 @@
 #include <zephyr/net/net_mgmt.h>
 #include <zephyr/net/socket.h>
 
-#include "dnssec/dnssec.h"
+#include "dns_sec/include/dns_sec.h"
+// #include "dnssec/dnssec.h"
 
 LOG_MODULE_REGISTER(app);
 

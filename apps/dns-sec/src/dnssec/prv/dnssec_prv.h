@@ -118,6 +118,21 @@ typedef struct {
     dns_edns_opt_record_t opt_record; /**< EDNS extension record. */
 } dns_sec_query_t;
 
+
+typedef struct {
+    uint16_t type_covered;   // Type of the DNS record the RRSIG vouches for
+    uint8_t  algorithm;      // Algorithm number
+    uint8_t  labels;         // Number of labels
+    uint32_t original_ttl;   // Original TTL
+    uint32_t signature_expiration; // Signature expiration time
+    uint32_t signature_inception;  // Signature inception time
+    uint16_t key_tag;        // Key tag
+    char*    signer_name;    // Signer's name
+    uint8_t* signature;      // Signature
+    size_t   signature_length; // Length of the signature
+} rrsig_record_data_t;
+
+
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                                  API
  *---------------------------------------------------------------------------------------------------*/

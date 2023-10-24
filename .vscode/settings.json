@@ -3,6 +3,7 @@
         "motion-bed.h": "c",
         "cipher_tests.h": "c",
         "*.cipher": "proto",
-        "*.overlay": "dts"
+        "*.overlay": "dts",
+        "err.h": "c"
     }
 }

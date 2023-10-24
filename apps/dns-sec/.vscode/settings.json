@@ -50,7 +50,14 @@
         "net_config.h": "c",
         "dns_resolve.h": "c",
         "rand32.h": "c",
-        "dnssec_err.h": "c"
+        "dnssec_err.h": "c",
+        "dns_sec_err.h": "c",
+        "dns_sec.h": "c",
+        "typeinfo": "c",
+        "constants.h": "c",
+        "ecc.h": "c",
+        "ecc_dsa.h": "c",
+        "sha256.h": "c"
     },
     // Editor actions
     "editor.codeActionsOnSave": {
