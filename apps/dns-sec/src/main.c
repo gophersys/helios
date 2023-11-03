@@ -19,11 +19,12 @@
 LOG_MODULE_REGISTER(app);
 
 static void print_addresses(void);
-void dump_addrinfo(const struct addrinfo *ai);
+static void dump_addrinfo(const struct addrinfo *ai);
 
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                               Public
  *---------------------------------------------------------------------------------------------------*/
+
 int main(void) {
     LOG_RAW("\n\n%s\n", "********** DNS Sec App **********");
 
@@ -32,16 +33,32 @@ int main(void) {
     static struct addrinfo hints;
     struct addrinfo *res;
     // int st = getaddrinfo("mateosegura.com", NULL, &hints, &res);
-    int st = getsecaddrinfo("mateosegura.com", NULL, &hints, &res);
-    if (st != 0) {
-        LOG_ERR("Unable to resolve address, quitting\n");
-    }
-    // dump_addrinfo(res);
-    // freeaddrinfo(res);
+    // int st = getsecaddrinfo("mateosegura.com", NULL, &hints, &res);
 
+    int i = 0;
     while (true) {
-        k_msleep(1000);
-        LOG_INF("In Loop");
+
+        int st = getsecaddrinfo("sigma.blackohm.cloud", NULL, &hints, &res);
+        if (st != 0) {
+            LOG_ERR("Unable to resolve address, quitting\n");
+        } else {
+            // dump_addrinfo(res);
+
+            // freeaddrinfo(res);
+            freesecaddrinfo(res);
+        }
+
+        // st = getsecaddrinfo("mateosegura.com", NULL, &hints, &res);
+        // if (st != 0) {
+        //     LOG_ERR("Unable to resolve address, quitting");
+        // } else {
+        //     // dump_addrinfo(res);
+
+        //     // freeaddrinfo(res);
+        //     freesecaddrinfo(res);
+        // }
+        k_msleep(16000);
+        LOG_INF("Count %d", i++);
     }
 
     return 0;

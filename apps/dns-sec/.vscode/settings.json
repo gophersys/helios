@@ -57,7 +57,9 @@
         "constants.h": "c",
         "ecc.h": "c",
         "ecc_dsa.h": "c",
-        "sha256.h": "c"
+        "sha256.h": "c",
+        "inttypes.h": "c",
+        "dns_sec_prv.h": "c"
     },
     // Editor actions
     "editor.codeActionsOnSave": {
