@@ -1,0 +1,14 @@
+--style=allman
+--mode=c
+--indent=spaces=4
+--attach-closing-while
+--indent-switches
+--indent-preproc-block
+--indent-preproc-define
+--min-conditional-indent=0
+--pad-oper
+--pad-header
+--align-pointer=name
+--add-braces
+--convert-tabs
+--unpad-paren
