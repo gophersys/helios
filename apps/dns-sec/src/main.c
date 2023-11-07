@@ -1,8 +1,15 @@
 // Zephyr includes
+#ifdef CONFIG_DNS_SEC_LIB
+    #include <dns_sec.h>
+#endif
 
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
+#include <tinycrypt/constants.h>
+#include <tinycrypt/ecc.h>
+#include <tinycrypt/ecc_dsa.h>
+#include <tinycrypt/sha256.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/net/dns_resolve.h>
@@ -13,53 +20,120 @@
 #include <zephyr/net/net_mgmt.h>
 #include <zephyr/net/socket.h>
 
-#include "dns_sec/include/dns_sec.h"
-// #include "dnssec/dnssec.h"
+// With
+// FLASH:      188404 B         2 MB      8.98%
+//  RAM:       52864 B       512 KB     10.08%
+
+// Without
+// FLASH:      127972 B         2 MB      6.10%
+//   RAM:       41832 B       512 KB      7.98%
 
 LOG_MODULE_REGISTER(app);
 
 static void print_addresses(void);
 static void dump_addrinfo(const struct addrinfo *ai);
 
+bool hash(uint8_t *hash, const uint8_t *data, size_t data_size)
+{
+    __ASSERT(data, "NULL data pointer passed");
+    __ASSERT(hash, "NULL hash pointer passed");
+
+    struct tc_sha256_state_struct sha256_ctx;
+
+    if (tc_sha256_init(&sha256_ctx) == TC_CRYPTO_FAIL)
+    {
+        LOG_WRN("Could not initialize tinycrypt library");
+        return false;
+    }
+
+    if (tc_sha256_update(&sha256_ctx, data, data_size) == TC_CRYPTO_FAIL)
+    {
+        LOG_WRN("Could not update tinycrypt context");
+        return false;
+    }
+
+    if (tc_sha256_final(hash, &sha256_ctx) == TC_CRYPTO_FAIL)
+    {
+        LOG_WRN("Could not hash data");
+        return false;
+    }
+
+    return true;
+}
+
+#ifdef CONFIG_DNS_SEC_LIB
+bool verify(const uint8_t *public_key, const uint8_t *message_hash, size_t hash_size,
+            const uint8_t *signature, dnssec_curve_type curve_type)
+{
+    if (curve_type != DNSSEC_CURVE_SECP256R1)
+    {
+        // Handle unsupported curve type or add support for other types
+        return false;
+    }
+
+    uECC_Curve curve = uECC_secp256r1();
+    return uECC_verify(public_key, message_hash, hash_size, signature, curve) == TC_CRYPTO_SUCCESS;
+}
+
+static dnssec_crypto_functions_t custom_crypto_funcs =
+{
+    .hash_function = hash,
+    .verify_function = verify,
+};
+#endif
+
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                               Public
  *---------------------------------------------------------------------------------------------------*/
 
-int main(void) {
+int main(void)
+{
     LOG_RAW("\n\n%s\n", "********** DNS Sec App **********");
 
     print_addresses();
 
     static struct addrinfo hints;
     struct addrinfo *res;
-    // int st = getaddrinfo("mateosegura.com", NULL, &hints, &res);
-    // int st = getsecaddrinfo("mateosegura.com", NULL, &hints, &res);
 
     int i = 0;
-    while (true) {
 
-        int st = getsecaddrinfo("sigma.blackohm.cloud", NULL, &hints, &res);
-        if (st != 0) {
-            LOG_ERR("Unable to resolve address, quitting\n");
-        } else {
-            // dump_addrinfo(res);
+#ifdef CONFIG_DNS_SEC_LIB
+    dnssec_init_crypto_functions(&custom_crypto_funcs);
 
-            // freeaddrinfo(res);
+    while (true)
+    {
+
+        bool addr_resolved = false;
+        dns_sec_error_t err = getsecaddrinfo(&res, "sigma.blackohm.cloud", NULL, &hints);
+        if (err != DNS_SEC_SUCCESS)
+        {
+            if (err == DNS_ERR_NO_DNSSEC_RECORDS_FOUND)
+            {
+                LOG_WRN("Address was resolved without DNSSEC");
+                addr_resolved = true;
+            }
+            else
+            {
+                LOG_WRN("Unable to resolve address using DNSSEC, err: %s", dnssec_err_str(err));
+            }
+        }
+
+        if (addr_resolved)
+        {
+            dump_addrinfo(res);
             freesecaddrinfo(res);
         }
 
-        // st = getsecaddrinfo("mateosegura.com", NULL, &hints, &res);
-        // if (st != 0) {
-        //     LOG_ERR("Unable to resolve address, quitting");
-        // } else {
-        //     // dump_addrinfo(res);
-
-        //     // freeaddrinfo(res);
-        //     freesecaddrinfo(res);
-        // }
         k_msleep(16000);
         LOG_INF("Count %d", i++);
     }
+#else
+    while (true)
+    {
+        k_msleep(16000);
+        LOG_INF("Count %d", i++);
+    }
+#endif
 
     return 0;
 }
@@ -68,12 +142,14 @@ int main(void) {
  *                                                                                              Helpers
  *---------------------------------------------------------------------------------------------------*/
 
-static void print_addresses(void) {
+static void print_addresses(void)
+{
     struct net_if *iface;
     iface = net_if_get_default();
     char buf[NET_IPV4_ADDR_LEN];
 
-    for (size_t i = 0; i < NET_IF_MAX_IPV4_ADDR; i++) {
+    for (size_t i = 0; i < NET_IF_MAX_IPV4_ADDR; i++)
+    {
 
         LOG_INF("IP Addr: %s",
                 net_addr_ntop(AF_INET,
@@ -92,8 +168,10 @@ static void print_addresses(void) {
 
     const struct dns_resolve_context *ctx = dns_resolve_get_default();
 
-    for (int i = 0; ctx->servers[i].dns_server.sa_family != AF_UNSPEC; ++i) {
-        if (ctx->servers[i].dns_server.sa_family == AF_INET) {
+    for (int i = 0; ctx->servers[i].dns_server.sa_family != AF_UNSPEC; ++i)
+    {
+        if (ctx->servers[i].dns_server.sa_family == AF_INET)
+        {
             // If the address is IPV4, then print it
             struct sockaddr_in *dns_addr = (struct sockaddr_in *)&ctx->servers[i].dns_server;
 
@@ -103,7 +181,8 @@ static void print_addresses(void) {
     }
 }
 
-void dump_addrinfo(const struct addrinfo *ai) {
+void dump_addrinfo(const struct addrinfo *ai)
+{
     LOG_INF(
         "addrinfo @%p: ai_family=%d, ai_socktype=%d, ai_protocol=%d, "
         "sa_family=%d, sin_port=%x\n",
@@ -114,7 +193,5 @@ void dump_addrinfo(const struct addrinfo *ai) {
     char buf[NET_IPV4_ADDR_LEN];
 
     LOG_INF("IP Addr: %s",
-            net_addr_ntop(AF_INET,
-                          &ai->ai_addr,
-                          buf, sizeof(buf)));
+            net_addr_ntop(AF_INET, &((struct sockaddr_in *)ai->ai_addr)->sin_addr, buf, sizeof(buf)));
 }
