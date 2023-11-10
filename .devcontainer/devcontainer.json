@@ -3,11 +3,11 @@
   "image": "ccr01.corekinect.local:5556/concord-dev:1.0",
   // Pass all USB devices
   "runArgs": [
-    "--device=/dev/bus/usb",
-    "--device=/dev/ttyACM0", // Sigma
+    // "--device=/dev/bus/usb",
+    // "--device=/dev/ttyACM0", // Sigma
     // "--device=/dev/ttyACM1", // Fixture
     // "--device=/dev/ttyACM2", // Runner
-    "--network=host",
+    "--network=host"
     // "--volume=/root/.ssh:/root/.ssh"
   ],
   // Vs Code Customizations
@@ -25,6 +25,7 @@
       // Add the IDs of extensions you want installed when the container is created.
       "extensions": [
         "ms-azuretools.vscode-docker",
+        "zxh404.vscode-proto3",
         "nrwl.angular-console",
         "golang.go",
         "ms-vscode.cpptools-extension-pack",
