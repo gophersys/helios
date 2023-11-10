@@ -14,7 +14,8 @@
     "--device=/dev/ttyACM0", // Sigma
     // "--device=/dev/ttyACM1", // Fixture
     // "--device=/dev/ttyACM2", // Runner
-    "--network=host"
+    "--network=host",
+    "--volume=~/.ssh:/root/.ssh"
   ],
   // Vs Code Customizations
   "customizations": {
@@ -38,6 +39,8 @@
         "marus25.cortex-debug",
         "mcu-debug.peripheral-viewer",
         "ms-vscode.vscode-serial-monitor",
+        "twxs.cmake",
+        "luveti.kconfig",
         "plorefice.devicetree",
         "cschlosser.doxdocgen",
         "hediet.vscode-drawio"

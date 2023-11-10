@@ -1,7 +1,7 @@
 FROM ubuntu:22.04
 
 # Update System
-RUN apt update && apt upgrade 
+RUN apt update && apt upgrade -y 
 
 # Install global dependencies needed for downloading, installing & building software
 RUN apt install -y curl git libc6-dev
@@ -79,18 +79,7 @@ WORKDIR /ncs
 RUN west init -m https://github.com/nrfconnect/sdk-nrf --mr v2.4.1 && \ 
     west update
     
-# Modify the west.yml using the awk command to add espressif & nxp support
-#
-# Here's what the awk command does:
-#   - /name-allowlist:/: Matches lines containing name-allowlist:.
-#     getline: Fetches the next line.
-#   - The inner while loop prints lines while they're less than " - hal_nxp" 
-#     (since "hal_nxp" is the last entry alphabetically).
-#   - Once we reach a line that is greater alphabetically than " - hal_nxp"
-#     or an empty line (end of list), we print "hal_espressif" and "hal_nxp".
-#   - > nrf/temp.yml: Writes the output to a temporary file.
-#   - mv nrf/temp.yml nrf/west.yml: Replaces the original west.yml with our modified temporary file.
-#
+# Modify the west.yml using the awk command to add espressif, nxp & stm32 support
 RUN awk '/name-allowlist:/{ \
         print; \
         getline; \
@@ -109,6 +98,9 @@ RUN awk '/name-allowlist:/{ \
 # Perform west update and zephyr-export
 RUN west update && \
     west zephyr-export
+
+# Modify the anytree version in requirements-extras.txt
+RUN sed -i 's/anytree=.*/anytree==2.8.0/' /zephyr/scripts/requirements-extras.txt
 
 # Install additional Python dependencies 
 RUN pip3 install --user -r zephyr/scripts/requirements.txt
@@ -167,18 +159,13 @@ RUN apt clean && \
 # -----------------------------------------------------------------------------------------------------
 #                                                                                     Fix Locales Issue
 # ---------------------------------------------------------------------------------------------------*/
-
-#TODO: document me
-# 1. Install necessary packages
-# - locales: This package is required to set up and generate locales in Debian/Ubuntu.
+# This package is required to set up and generate locales in Debian/Ubuntu.
 RUN apt update && apt install -y locales
 
-# 2. Generate the desired locale (en_US.UTF-8 in this example)
 # The locale-gen command reads the /etc/locale.gen file to determine which locales to generate.
 # Uncommenting a specific locale in this file and then running locale-gen will generate that locale.
 RUN sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && locale-gen
 
-# 3. Set the locale environment variables for the container
 # Setting these environment variables will ensure that processes run in the container use the desired locale.
 # This can prevent issues with software that expects specific locales.
 ENV LANG=en_US.UTF-8  
@@ -197,6 +184,7 @@ RUN apt-get install -y \
     stlink-tools \
     net-tools \
     iputils-ping \
+    astyle \
     && rm -rf /var/lib/apt/lists/*  # Clean up
 
 # Go tools
@@ -213,4 +201,4 @@ RUN echo 'source /ncs/zephyr/zephyr-env.sh' >> ~/.zshrc
 RUN echo "alias serial0='screen /dev/ttyACM0 921600'" >> ~/.zshrc
 RUN echo "alias serial1='screen /dev/ttyACM1 921600'" >> ~/.zshrc
 RUN echo "alias serial2='screen /dev/ttyACM2 921600'" >> ~/.zshrc
-CMD ["tail", "-f", "/dev/null"]
+
