@@ -100,7 +100,7 @@ RUN west update && \
     west zephyr-export
 
 # Modify the anytree version in requirements-extras.txt
-RUN sed -i 's/anytree=.*/anytree==2.8.0/' /zephyr/scripts/requirements-extras.txt
+RUN sed -i 's/anytree*/anytree==2.8.0/' /ncs/zephyr/scripts/requirements-extras.txt
 
 # Install additional Python dependencies 
 RUN pip3 install --user -r zephyr/scripts/requirements.txt
