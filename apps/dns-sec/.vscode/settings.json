@@ -59,7 +59,16 @@
         "ecc_dsa.h": "c",
         "sha256.h": "c",
         "inttypes.h": "c",
-        "dns_sec_prv.h": "c"
+        "dns_sec_prv.h": "c",
+        "dns_sec_types.h": "c",
+        "response.h": "c",
+        "header.h": "c",
+        "question.h": "c",
+        "a_record.h": "c",
+        "opt_record.h": "c",
+        "stdint.h": "c",
+        "stddef.h": "c",
+        "validate.h": "c"
     },
     // Editor actions
     "editor.codeActionsOnSave": {

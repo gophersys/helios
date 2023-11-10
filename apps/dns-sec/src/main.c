@@ -1,7 +1,6 @@
 // Zephyr includes
-#ifdef CONFIG_DNS_SEC_LIB
-    #include <dns_sec.h>
-#endif
+#include <dns_sec.h>
+
 
 #include <errno.h>
 #include <stdio.h>
@@ -20,23 +19,22 @@
 #include <zephyr/net/net_mgmt.h>
 #include <zephyr/net/socket.h>
 
-// With
-// FLASH:      188404 B         2 MB      8.98%
-//  RAM:       52864 B       512 KB     10.08%
-
-// Without
-// FLASH:      127972 B         2 MB      6.10%
-//   RAM:       41832 B       512 KB      7.98%
-
 LOG_MODULE_REGISTER(app);
 
 static void print_addresses(void);
 static void dump_addrinfo(const struct addrinfo *ai);
 
-bool hash(uint8_t *hash, const uint8_t *data, size_t data_size)
+bool hash(uint8_t *hash, const uint8_t *data, size_t data_size, dnssec_hash_algo_t hash_algo)
 {
     __ASSERT(data, "NULL data pointer passed");
     __ASSERT(hash, "NULL hash pointer passed");
+
+    if (hash_algo != DNSSEC_HASH_SHA256)
+    {
+        // Handle unsupported hash algorithm or add support for other types
+        LOG_WRN("Unsupported hash algorithm");
+        return false;
+    }
 
     struct tc_sha256_state_struct sha256_ctx;
 
@@ -61,9 +59,8 @@ bool hash(uint8_t *hash, const uint8_t *data, size_t data_size)
     return true;
 }
 
-#ifdef CONFIG_DNS_SEC_LIB
 bool verify(const uint8_t *public_key, const uint8_t *message_hash, size_t hash_size,
-            const uint8_t *signature, dnssec_curve_type curve_type)
+            const uint8_t *signature, dnssec_curve_type_t curve_type)
 {
     if (curve_type != DNSSEC_CURVE_SECP256R1)
     {
@@ -80,7 +77,6 @@ static dnssec_crypto_functions_t custom_crypto_funcs =
     .hash_function = hash,
     .verify_function = verify,
 };
-#endif
 
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                               Public
@@ -97,7 +93,6 @@ int main(void)
 
     int i = 0;
 
-#ifdef CONFIG_DNS_SEC_LIB
     dnssec_init_crypto_functions(&custom_crypto_funcs);
 
     while (true)
@@ -127,13 +122,6 @@ int main(void)
         k_msleep(16000);
         LOG_INF("Count %d", i++);
     }
-#else
-    while (true)
-    {
-        k_msleep(16000);
-        LOG_INF("Count %d", i++);
-    }
-#endif
 
     return 0;
 }
