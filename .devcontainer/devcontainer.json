@@ -1,13 +1,6 @@
 {
   "name": "Concord Dev",
-  // Build from a Dockerfile for now
-  "build": {
-    "dockerfile": "Dockerfile",
-    "context": ".",
-    "args": {
-      // None for now
-    }
-  },
+  "image": "ccr01.corekinect.local:5556/concord-dev:1.0",
   // Pass all USB devices
   "runArgs": [
     "--device=/dev/bus/usb",
@@ -15,7 +8,7 @@
     // "--device=/dev/ttyACM1", // Fixture
     // "--device=/dev/ttyACM2", // Runner
     "--network=host",
-    "--volume=~/.ssh:/root/.ssh"
+    // "--volume=/root/.ssh:/root/.ssh"
   ],
   // Vs Code Customizations
   "customizations": {
