@@ -47,14 +47,35 @@
                 "flash",
                 "-r",
                 "openocd",
-                "--cmd-pre-init",
-                "adapter serial 0036001B3438510C34313939", // Fixture App
+                // "--cmd-pre-init",
+                // "adapter serial 0036001B3438510C34313939", // Fixture App
                 // "adapter serial 004000433532510131333430", // Test App
             ],
             "problemMatcher": [
                 "$gcc"
             ]
+        },
+        {
+            "label": "West Clean Build",
+            "type": "shell",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "command": "west",
+            "args": [
+                "build",
+                "-p",
+                "always",
+                "-b",
+                // "mimxrt1050_evk"
+                "nucleo_h743zi"
+            ],
+            "problemMatcher": [
+                "$gcc"
+            ],
         }
+
     ],
     "inputs": [
         {

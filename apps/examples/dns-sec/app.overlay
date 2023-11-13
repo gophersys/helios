@@ -1,3 +1,13 @@
 &usart3 {
     current-speed = <0xe1000>;
 };
+
+/ {
+    toggles {
+        compatible = "gpio-leds";
+        toggle1: toggle_1 {
+                gpios = <&gpiod 11  GPIO_ACTIVE_HIGH>;
+                label = "LD1";
+            };
+    };
+};

@@ -18,9 +18,22 @@
 #include <zephyr/net/net_if.h>
 #include <zephyr/net/net_mgmt.h>
 #include <zephyr/net/socket.h>
+#include <zephyr/devicetree.h>
+#include <zephyr/drivers/gpio.h>
+
+#include "dns_sec/include/dns_sec.h"
+// #include "dnssec/dnssec.h"
 
 LOG_MODULE_REGISTER(app);
 
+#define GPIO_LABEL green_led
+#define GPIO_NODE DT_NODELABEL(GPIO_LABEL)
+
+const struct device *gpio_dev;
+static const struct gpio_dt_spec gpiod = GPIO_DT_SPEC_GET(GPIO_NODE, gpios);
+
+// static void print_addresses(void);
+// void dump_addrinfo(const struct addrinfo *ai);
 static void print_addresses(void);
 static void dump_addrinfo(const struct addrinfo *ai);
 
@@ -81,47 +94,25 @@ static dnssec_crypto_functions_t custom_crypto_funcs =
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                               Public
  *---------------------------------------------------------------------------------------------------*/
+int main(void) {
 
-int main(void)
-{
-    LOG_RAW("\n\n%s\n", "********** DNS Sec App **********");
-
-    print_addresses();
-
-    static struct addrinfo hints;
-    struct addrinfo *res;
-
-    int i = 0;
-
-    dnssec_init_crypto_functions(&custom_crypto_funcs);
-
-    while (true)
+    int ret;
+     if (!gpio_is_ready_dt(&gpiod))
     {
-
-        bool addr_resolved = false;
-        dns_sec_error_t err = getsecaddrinfo(&res, "sigma.blackohm.cloud", NULL, &hints);
-        if (err != DNS_SEC_SUCCESS)
-        {
-            if (err == DNS_ERR_NO_DNSSEC_RECORDS_FOUND)
-            {
-                LOG_WRN("Address was resolved without DNSSEC");
-                addr_resolved = true;
-            }
-            else
-            {
-                LOG_WRN("Unable to resolve address using DNSSEC, err: %s", dnssec_err_str(err));
-            }
-        }
-
-        if (addr_resolved)
-        {
-            dump_addrinfo(res);
-            freesecaddrinfo(res);
-        }
-
-        k_msleep(16000);
-        LOG_INF("Count %d", i++);
+        LOG_ERR("GPIO port isn't ready");
+        return -3;
     }
+    ret = gpio_pin_configure_dt(&gpiod, GPIO_OUTPUT_ACTIVE);
+	if (ret < 0) {
+		return 0;
+	}
+
+    while(1)
+    {
+        gpio_pin_toggle(gpiod.port, gpiod.pin);
+        k_msleep(1000);
+    }
+    
 
     return 0;
 }
@@ -130,56 +121,53 @@ int main(void)
  *                                                                                              Helpers
  *---------------------------------------------------------------------------------------------------*/
 
-static void print_addresses(void)
-{
-    struct net_if *iface;
-    iface = net_if_get_default();
-    char buf[NET_IPV4_ADDR_LEN];
+// static void print_addresses(void) {
+//     struct net_if *iface;
+//     iface = net_if_get_default();
+//     char buf[NET_IPV4_ADDR_LEN];
 
-    for (size_t i = 0; i < NET_IF_MAX_IPV4_ADDR; i++)
-    {
+//     for (size_t i = 0; i < NET_IF_MAX_IPV4_ADDR; i++) {
 
-        LOG_INF("IP Addr: %s",
-                net_addr_ntop(AF_INET,
-                              &iface->config.ip.ipv4->unicast[i].address.in_addr,
-                              buf, sizeof(buf)));
+//         LOG_INF("IP Addr: %s",
+//                 net_addr_ntop(AF_INET,
+//                               &iface->config.ip.ipv4->unicast[i].address.in_addr,
+//                               buf, sizeof(buf)));
 
-        LOG_INF("Subnet: %s",
-                net_addr_ntop(AF_INET,
-                              &iface->config.ip.ipv4->netmask,
-                              buf, sizeof(buf)));
-        LOG_INF("Router: %s",
-                net_addr_ntop(AF_INET,
-                              &iface->config.ip.ipv4->gw,
-                              buf, sizeof(buf)));
-    }
+//         LOG_INF("Subnet: %s",
+//                 net_addr_ntop(AF_INET,
+//                               &iface->config.ip.ipv4->netmask,
+//                               buf, sizeof(buf)));
+//         LOG_INF("Router: %s",
+//                 net_addr_ntop(AF_INET,
+//                               &iface->config.ip.ipv4->gw,
+//                               buf, sizeof(buf)));
+//     }
 
-    const struct dns_resolve_context *ctx = dns_resolve_get_default();
+//     const struct dns_resolve_context *ctx = dns_resolve_get_default();
 
-    for (int i = 0; ctx->servers[i].dns_server.sa_family != AF_UNSPEC; ++i)
-    {
-        if (ctx->servers[i].dns_server.sa_family == AF_INET)
-        {
-            // If the address is IPV4, then print it
-            struct sockaddr_in *dns_addr = (struct sockaddr_in *)&ctx->servers[i].dns_server;
+//     for (int i = 0; ctx->servers[i].dns_server.sa_family != AF_UNSPEC; ++i) {
+//         if (ctx->servers[i].dns_server.sa_family == AF_INET) {
+//             // If the address is IPV4, then print it
+//             struct sockaddr_in *dns_addr = (struct sockaddr_in *)&ctx->servers[i].dns_server;
 
-            LOG_INF("Resolver [%d]: %s", i,
-                    net_addr_ntop(AF_INET, &dns_addr->sin_addr, buf, sizeof(buf)));
-        }
-    }
-}
+//             LOG_INF("Resolver [%d]: %s", i,
+//                     net_addr_ntop(AF_INET, &dns_addr->sin_addr, buf, sizeof(buf)));
+//         }
+//     }
+// }
 
-void dump_addrinfo(const struct addrinfo *ai)
-{
-    LOG_INF(
-        "addrinfo @%p: ai_family=%d, ai_socktype=%d, ai_protocol=%d, "
-        "sa_family=%d, sin_port=%x\n",
-        ai, ai->ai_family, ai->ai_socktype, ai->ai_protocol,
-        ai->ai_addr->sa_family,
-        ((struct sockaddr_in *)ai->ai_addr)->sin_port);
+// void dump_addrinfo(const struct addrinfo *ai) {
+//     LOG_INF(
+//         "addrinfo @%p: ai_family=%d, ai_socktype=%d, ai_protocol=%d, "
+//         "sa_family=%d, sin_port=%x\n",
+//         ai, ai->ai_family, ai->ai_socktype, ai->ai_protocol,
+//         ai->ai_addr->sa_family,
+//         ((struct sockaddr_in *)ai->ai_addr)->sin_port);
 
-    char buf[NET_IPV4_ADDR_LEN];
+//     char buf[NET_IPV4_ADDR_LEN];
 
-    LOG_INF("IP Addr: %s",
-            net_addr_ntop(AF_INET, &((struct sockaddr_in *)ai->ai_addr)->sin_addr, buf, sizeof(buf)));
-}
+//     LOG_INF("IP Addr: %s",
+//             net_addr_ntop(AF_INET,
+//                           &ai->ai_addr,
+//                           buf, sizeof(buf)));
+// }
