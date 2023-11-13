@@ -1,0 +1,17 @@
+{
+	"folders": [
+		{
+			"name": "mtib-zephyr",
+			"path": "../apps/fixtures/mtib-zephyr/"
+		},
+		{
+			"name": "cipher",
+			"path": "../libs/cipher"
+		},
+	],
+	"settings": {
+		"files.associations": {
+			
+		},
+	}
+}
