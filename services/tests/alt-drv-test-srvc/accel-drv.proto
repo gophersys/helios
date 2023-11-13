@@ -1,0 +1,13 @@
+package alt_sim_test;
+
+service AltimeterTest {
+    rpc BeginTest(TestRequest) returns (TestResult);
+    
+}
+
+message TestRequest {
+}
+
+message TestResponseA {
+    bool success = 1;               
+}

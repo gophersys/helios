@@ -1,0 +1,77 @@
+{
+	"folders": [
+		{
+			"name": "alt-drv-test-srvc",
+			"path": "../../../../services/tests/alt-drv-test-srvc"
+		},
+		{
+			"name": "alt-sim-srvc",
+			"path": "../../../../services/fixtures/alt-sim-srvc"
+		},
+		{
+			"name": "cipher",
+			"path": "../../../../libs/cipher"
+		},
+		{
+			"name": "alt-runner",
+			"path": "../../../runners/alt-runner"
+		},
+		{
+			"name": "alt-test",
+			"path": "../../../tests/alt-test"
+		},
+		{
+			"name": "alt-sim",
+			"path": ".."
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"socket.h": "c",
+			"stdio.h": "c",
+			"stdlib.h": "c",
+			"errno.h": "c",
+			"string.h": "c",
+			"tal.h": "c",
+			"kernel.h": "c",
+			"log.h": "c",
+			"cipher.h": "c",
+			"utils.h": "c",
+			"cstddef": "c",
+			"config.h": "c",
+			"array": "c",
+			"string": "c",
+			"string_view": "c",
+			"stdbool.h": "c",
+			"interface_prv.h": "c",
+			"user.h": "c",
+			"api.h": "c",
+			"daemon.h": "c",
+			"default.h": "c",
+			"threads.h": "c",
+			"socket_tal.h": "c",
+			"interface.h": "c",
+			"transport.h": "c",
+			"protocol.h": "c",
+			"serdes.h": "c",
+			"err.h": "c",
+			"compare": "c",
+			"registry.h": "c",
+			"controller.h": "c",
+			"in.h": "c",
+			"log_ctrl.h": "c",
+			"cipher_tests.h": "c",
+			"motion-bed.h": "c",
+			"serdes_args.h": "c",
+			"kconfig": "cpp",
+			"service.h": "c",
+			"alt-sim-srvc.h": "c",
+			"alt_drv.h": "c",
+			"alt-drv-test-srvc.h": "c",
+			"limits": "c",
+			"new": "c",
+			"fifo.h": "c"
+		},
+		"mcu-debug.rtos-views.showRTOS": false
+	}
+}

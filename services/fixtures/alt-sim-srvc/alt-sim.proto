@@ -1,0 +1,33 @@
+package alt_sim_fixture;
+
+service AltSim {
+    rpc SetAltitude(AltSettingRequest) returns (AltSettingResponse) {}
+    rpc GetReadings(ReadingsRequest) returns (ReadingsResponse) {}
+}
+
+message AltSettingRequest {
+    enum FeetPerSec {
+        _1000_FT_PER_5_SEC = 0;
+        _1000_FT_PER_10_SEC = 1;
+    }
+    
+    FeetPerSec Setting = 1;
+    double DesiredAltitudeFt = 2;
+}
+
+message AltSettingResponse {
+    enum Error {
+        ERR_NOT_VALID_REQUEST = 0;
+        ERR_FATAL = 1;
+    }
+    Error Err = 1;
+    bool Success = 2; 
+}
+
+message ReadingsRequest {
+}
+
+message ReadingsResponse {  
+    double PressureInHg = 1;
+    double TemperatureC = 2;
+}

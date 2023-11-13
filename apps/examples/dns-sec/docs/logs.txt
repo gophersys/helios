@@ -1,0 +1,107 @@
+[00:01:03.881,000] <inf> dns_sec: Signature verified successfully.
+
+[00:02:03.884,000] <inf> app: Count 1
+[00:02:04.022,000] <inf> dns_sec: A Record
+                                  74 77 00 24 01 00 01 00  2c 01 00 00 04 00 00 00 |tw.$.... ,.......
+                                  34 78 00 24 3c 78 00 24                          |4x.$<x.$         
+[00:02:04.025,000] <inf> dns_sec: DNSKEY
+                                  00 01 03 0d 9c 7a 00 24  40 00 00 00 32 48 00 00 |.....z.$ @...2H..
+[00:02:04.026,000] <inf> dns_sec: RRSIG
+                                  01 00 0d 03 2c 01 00 00  ef 4e 45 65 a3 31 45 65 |....,... .NEe.1Ee
+[00:02:04.217,000] <inf> dns_sec: Signature verified successfully.
+
+[00:03:04.218,000] <inf> app: Count 2
+[00:03:04.365,000] <inf> dns_sec: A Record
+                                  7c 7c 00 24 01 00 01 00  2c 01 00 00 04 00 00 00 |||.$.... ,.......
+                                  3c 7d 00 24 44 7d 00 24                          |<}.$D}.$         
+[00:03:04.368,000] <inf> dns_sec: DNSKEY
+                                  00 01 03 0d a4 7f 00 24  40 00 00 00 32 48 00 00 |.......$ @...2H..
+[00:03:04.370,000] <inf> dns_sec: RRSIG
+                                  01 00 0d 03 2c 01 00 00  2c 4f 45 65 e0 31 45 65 |....,... ,OEe.1Ee
+[00:03:04.567,000] <inf> dns_sec: Signature verified successfully.
+
+[00:04:04.568,000] <inf> app: Count 3
+[00:04:04.623,000] <inf> dns_sec: A Record
+                                  84 81 00 24 01 00 01 00  f0 00 00 00 04 00 00 00 |...$.... ........
+                                  44 82 00 24 4c 82 00 24                          |D..$L..$         
+[00:04:04.626,000] <inf> dns_sec: DNSKEY
+                                  00 01 03 0d ac 84 00 24  40 00 00 00 32 48 00 00 |.......$ @...2H..
+[00:04:04.627,000] <inf> dns_sec: RRSIG
+                                  01 00 0d 03 2c 01 00 00  2c 4f 45 65 e0 31 45 65 |....,... ,OEe.1Ee
+[00:04:04.820,000] <wrn> dns_sec: Signature verification failed.
+
+[00:04:04.821,000] <err> dns_sec: DNSKEY signature validation failed.
+
+[00:04:04.821,000] <err> app: Unable to resolve address, quitting
+
+[00:05:04.822,000] <inf> app: Count 4
+[00:05:04.905,000] <inf> dns_sec: A Record
+                                  8c 86 00 24 01 00 01 00  2c 01 00 00 04 00 00 00 |...$.... ,.......
+                                  4c 87 00 24 54 87 00 24                          |L..$T..$         
+[00:05:04.908,000] <inf> dns_sec: DNSKEY
+                                  00 01 03 0d b4 89 00 24  40 00 00 00 32 48 00 00 |.......$ @...2H..
+[00:05:04.910,000] <inf> dns_sec: RRSIG
+                                  01 00 0d 03 2c 01 00 00  c6 4f 45 65 7a 32 45 65 |....,... .OEez2Ee
+[00:05:05.092,000] <inf> dns_sec: Signature verified successfully.
+
+[00:06:05.093,000] <inf> app: Count 5
+[00:06:05.143,000] <inf> dns_sec: A Record
+                                  94 8b 00 24 01 00 01 00  56 00 00 00 04 00 00 00 |...$.... V.......
+                                  54 8c 00 24 5c 8c 00 24                          |T..$\..$         
+[00:06:05.146,000] <inf> dns_sec: DNSKEY
+                                  00 01 03 0d bc 8e 00 24  40 00 00 00 32 48 00 00 |.......$ @...2H..
+[00:06:05.147,000] <inf> dns_sec: RRSIG
+                                  01 00 0d 03 2c 01 00 00  2c 4f 45 65 e0 31 45 65 |....,... ,OEe.1Ee
+[00:06:05.344,000] <wrn> dns_sec: Signature verification failed.
+
+[00:06:05.345,000] <err> dns_sec: DNSKEY signature validation failed.
+
+[00:06:05.346,000] <err> app: Unable to resolve address, quitting
+
+[00:07:05.347,000] <inf> app: Count 6
+[00:07:05.414,000] <inf> dns_sec: A Record
+                                  9c 90 00 24 01 00 01 00  2c 01 00 00 04 00 00 00 |...$.... ,.......
+                                  5c 91 00 24 64 91 00 24                          |\..$d..$         
+[00:07:05.417,000] <inf> dns_sec: DNSKEY
+                                  00 01 03 0d c4 93 00 24  40 00 00 00 32 48 00 00 |.......$ @...2H..
+[00:07:05.419,000] <inf> dns_sec: RRSIG
+                                  01 00 0d 03 2c 01 00 00  40 50 45 65 f4 32 45 65 |....,... @PEe.2Ee
+[00:07:05.612,000] <inf> dns_sec: Signature verified successfully.
+
+[00:08:05.613,000] <inf> app: Count 7
+[00:08:05.662,000] <inf> dns_sec: A Record
+                                  a4 95 00 24 01 00 01 00  77 00 00 00 04 00 00 00 |...$.... w.......
+                                  64 96 00 24 6c 96 00 24                          |d..$l..$         
+[00:08:05.665,000] <inf> dns_sec: DNSKEY
+                                  00 01 03 0d cc 98 00 24  40 00 00 00 32 48 00 00 |.......$ @...2H..
+[00:08:05.666,000] <inf> dns_sec: RRSIG
+                                  01 00 0d 03 2c 01 00 00  c6 4f 45 65 7a 32 45 65 |....,... .OEez2Ee
+[00:08:05.858,000] <wrn> dns_sec: Signature verification failed.
+
+[00:08:05.858,000] <err> dns_sec: DNSKEY signature validation failed.
+
+[00:08:05.859,000] <err> app: Unable to resolve address, quitting
+
+[00:09:05.860,000] <inf> app: Count 8
+[00:09:05.861,000] <wrn> dns_sec: Could not connect: No such file or directory
+[00:09:05.862,000] <err> app: Unable to resolve address, quitting
+
+[00:10:05.863,000] <inf> app: Count 9
+[00:10:05.864,000] <wrn> dns_sec: Could not connect: No such file or directory
+[00:10:05.865,000] <err> app: Unable to resolve address, quitting
+
+
+
+********** DNS Sec App **********
+[00:00:08.508,000] <inf> app: IP Addr: 10.4.2.222
+[00:00:08.508,000] <inf> app: Subnet: 255.255.255.0
+[00:00:08.509,000] <inf> app: Router: 10.4.2.1
+[00:00:08.510,000] <inf> app: Resolver [0]: 10.4.3.21
+[00:00:08.614,000] <inf> dns_sec: A Record
+                                  64 6d 00 24 01 00 01 00  2c 01 00 00 04 00 00 00 |dm.$.... ,.......
+                                  24 6e 00 24 2c 6e 00 24                          |$n.$,n.$         
+[00:00:08.617,000] <inf> dns_sec: DNSKEY
+                                  00 01 03 0d 8c 70 00 24  40 00 00 00 32 48 00 00 |.....p.$ @...2H..
+[00:00:08.619,000] <inf> dns_sec: RRSIG
+                                  01 00 0d 03 2c 01 00 00  04 51 45 65 b8 33 45 65 |....,... .QEe.3Ee
+[00:00:08.804,000] <inf> dns_sec: Signature verified successfully.

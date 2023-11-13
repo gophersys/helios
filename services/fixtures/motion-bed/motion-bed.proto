@@ -1,0 +1,36 @@
+package accel_fixture;
+
+service AccelBench {
+    rpc CommandMotion(MotionRequest) returns (MotionResponse);
+}
+
+message MotionRequest {
+    enum Direction {
+        X = 0;
+        Y = 1;
+        Z = 2;
+    }
+    Direction direction = 1;
+    float force = 2;      // Newton (N)
+    float interval = 3;   // Seconds (s)
+}
+
+message MotionResponse {
+    enum ErrorCode {
+        ERR_MOTOR = 0;
+        ERR_UNKNOWN = 1;
+    }
+    ErrorCode err = 1;   
+    bool success = 2;      
+}
+
+
+service AltDriverFwTest {
+    rpc StartTest(TestParams) returns (TestResults) {};
+}
+
+message TestParams{
+
+}
+
+message TestResults {}
