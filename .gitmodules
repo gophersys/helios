@@ -1,6 +1,6 @@
 [submodule "apps/fixtures/alt-sim/alt_drv"]
 	path = apps/fixtures/alt-sim/alt_drv
 	url = git@bitbucket.org:corekinect/alt_drv.git
-[submodule "apps/dns-sec/dns_sec"]
-	path = apps/dns-sec/dns_sec
+[submodule "apps/examples/dns-sec/dns_sec"]
+	path = apps/examples/dns-sec/dns_sec
 	url = git@bitbucket.org:corekinect/dns_sec.git
