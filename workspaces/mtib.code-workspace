@@ -10,12 +10,14 @@
 		},
 		{
 			"name": "cipher",
-			"path": "../libs/cipher/zephyr"
+			"path": "../libs/cipher"
 		},
 	],
 	"settings": {
 		"files.associations": {
-			"protocol.h": "c"
+			"protocol.h": "c",
+			"string.h": "c",
+			"log.h": "c"
 		},
 	}
 }
