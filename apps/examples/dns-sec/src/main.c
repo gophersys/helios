@@ -21,7 +21,6 @@
 #include <zephyr/devicetree.h>
 #include <zephyr/drivers/gpio.h>
 
-#include "dns_sec/include/dns_sec.h"
 // #include "dnssec/dnssec.h"
 
 LOG_MODULE_REGISTER(app);
