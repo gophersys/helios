@@ -9,6 +9,7 @@
 
 // Cipher includes
 #include "daemon/api.h"
+#include "app/app.h"
 
 LOG_MODULE_REGISTER(app);
 

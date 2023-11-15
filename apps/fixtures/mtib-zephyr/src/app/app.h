@@ -8,13 +8,10 @@
 
 #define APP_THREAD_PRIORITY 10
 #define APP_THREAD_STACK_SIZE 1024
+#define EVENTS_HEAP_SIZE 1024
+
 
 typedef struct {
-    // Thread info
-    k_tid_t t_id;
-    struct k_thread t_data;
-    K_THREAD_STACK_MEMBER(t_stack, APP_THREAD_STACK_SIZE);
-
     // Readings
     double pressure;
     double temperature;
@@ -22,14 +19,13 @@ typedef struct {
 
     // Current altitude
     double fixture_altitude_ft;
+
+    // Semaphore for syncronization
+    struct k_sem await_sem;
+
 } bmp390_info_t;
 
 typedef struct {
-    // Thread info
-    k_tid_t t_id;
-    struct k_thread t_data;
-    K_THREAD_STACK_MEMBER(t_stack, APP_THREAD_STACK_SIZE);
-
     // I2C device pointer
     const struct device *lis2de12_device;
 
@@ -39,17 +35,12 @@ typedef struct {
     double acc_y;
     double acc_z;
 
-    // Mutex for thread safety
-    struct k_mutex mutex;
+    // Semaphore for syncronization
+    struct k_sem await_sem;
 
 } lis2de12_info_t;
 
 typedef struct {
-    // Thread information
-    k_tid_t t_id;
-    struct k_thread t_data;
-    K_THREAD_STACK_MEMBER(t_stack, APP_THREAD_STACK_SIZE);
-
     // I2C device pointer
     const struct device *ina219_device;
 
@@ -63,19 +54,12 @@ typedef struct {
     // You can add fields for specific configuration settings like voltage range,
     // gain, bus and shunt ADC resolution, etc.
 
-    // Mutex for thread safety
-    struct k_mutex mutex;
+    // Semaphore for syncronization
+    struct k_sem await_sem;
 
-    // Other relevant information or settings
-    // ...
 } ina219_info_t;
 
 typedef struct {
-    // Thread information for handling asynchronous operations, if needed
-    k_tid_t t_id;
-    struct k_thread t_data;
-    K_THREAD_STACK_MEMBER(t_stack, APP_THREAD_STACK_SIZE);
-
     // I2C device pointer for communication with the EEPROM
     const struct device *m24c08_device;
 
@@ -83,18 +67,12 @@ typedef struct {
     uint16_t eeprom_address;
     uint16_t page_size;
 
-    // Mutex for thread safety
-    struct k_mutex mutex;
+    // Semaphore for syncronization
+    struct k_sem await_sem;
 
-    // Additional fields for state, configuration, etc.
-    // ...
 } m24c08_info_t;
 
 typedef struct {
-    // Thread information for asynchronous operations, if needed
-    k_tid_t t_id;
-    struct k_thread t_data;
-    K_THREAD_STACK_MEMBER(t_stack, APP_THREAD_STACK_SIZE);
 
     // I2C device pointer for communication
     const struct device *i2c_device;
@@ -102,11 +80,9 @@ typedef struct {
     // MCP4017 specific information
     uint8_t potentiometer_value;  // Current value of the potentiometer (0-127)
 
-    // Mutex for thread safety
-    struct k_mutex mutex;
+    // Semaphore for syncronization
+    struct k_sem await_sem;
 
-    // Additional configuration or state information
-    // ...
 } mcp4017_info_t;
 
 typedef enum {
@@ -121,12 +97,88 @@ typedef enum {
     MAX_NUM_CHANNELS
 } mux_channel_t;
 
+
+
+// creating the command type for the even loop 
+typedef enum
+{
+    EVENT_CMD_READ = 0, 
+    EVENT_CMD_WRITE
+} command_t;
+
+typedef enum {
+    DEVICE_TYPE_BMP390 = 0,
+    DEVICE_TYPE_LIS2DE12,
+    DEVICE_TYPE_INA219,
+    DEVICE_TYPE_MC24C08,
+    DEVICE_TYPE_MCP4017
+} device_Type_t;
+
+typedef struct {
+
+    /*-----------------------------------------------
+     *                                   device types
+     *---------------------------------------------*/
+    device_Type_t type;
+    /*-----------------------------------------------
+     *                                 device structs
+     *---------------------------------------------*/
+    bmp390_info_t bmp390_dev;
+    lis2de12_info_t lis2de12_dev;
+    ina219_info_t ina219_dev;
+    m24c08_info_t m24c08_dev;
+    mcp4017_info_t mcp4017_dev;
+    
+} device_t;
+
+// create an event handler type
+typedef struct
+{
+    void *fifo_reserved; // used internally by k_fifo
+    command_t command;
+    device_t *device;
+}Event_t;
+
+
+typedef struct 
+{
+    /*-----------------------------------------------
+     *                                        Threads
+     *---------------------------------------------*/
+    k_tid_t t_id;
+    struct k_thread t_data;
+
+    /*-----------------------------------------------
+     *                                         Queues
+     *---------------------------------------------*/
+    struct k_fifo command_event_queue;
+
+    /*-----------------------------------------------
+     *                                          Heaps
+     *---------------------------------------------*/
+
+    /**
+     * @brief Heap pool to send events to thread
+     */
+    struct k_heap app_events_heap;
+    uint8_t __aligned(8) app_events_heap_mem[EVENTS_HEAP_SIZE];
+
+}app_info_t;
+
+
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                Application Functions
  *---------------------------------------------------------------------------------------------------*/
-void app_sim_start(void);
+void app_sim_start(app_info_t *app);
 void app_init_devices(void);
-void app_init_threads(void);
+void app_init_threads(app_info_t *app);
+void app_process_event(Event_t *event);
+void app_heap_init(app_info_t *app);
+
+/*-----------------------------------------------------------------------------------------------------
+ *                                                                                       FIFO Functions
+ *---------------------------------------------------------------------------------------------------*/
+void app_add_event_to_fifo(app_info_t *app, device_t *device,  command_t command);
 
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                   lis2de12 Functions
@@ -168,7 +220,7 @@ void app_read_from_eeprom(const struct device *dev, uint16_t address);
 mcp4017_info_t *app_get_mcp4017_info(void);
 void app_print_mcp4017_data(uint8_t *value);
 void app_set_mcp4017_voltage_output(uint32_t voltage);
-uint32_t app_read_mcp4017_voltage(const struct *dev);
+uint32_t app_read_mcp4017_voltage(const struct device *dev);
 
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                    mux Functions

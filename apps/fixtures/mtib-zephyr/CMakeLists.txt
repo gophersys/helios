@@ -4,6 +4,7 @@ find_package(Zephyr)
 project(dns-sec)
 
 target_sources(app PRIVATE src/main.c)
+add_subdirectory(src/app)
 
 # Hardcoded root path
 set(MONOREPO_ROOT "/workspaces/concord")
