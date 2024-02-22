@@ -1,0 +1,17 @@
+{
+	"folders": [
+		{
+			"path": "../../libs/zephyr/dns_sec"
+		},
+		{
+			"path": "../../libs/zephyr/dns_sec/samples/resolver"
+		},
+	],
+	"settings": {
+		"files.associations": {
+			".env": "env",
+			"*.overlay": "dts",
+			".env.example": "env",
+		},
+	}
+}

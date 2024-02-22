@@ -1,0 +1,11 @@
+{
+	"folders": [
+		{
+			"path": "../../libs/python/iface-posix"
+		},
+	],
+	"settings": {
+		"files.associations": {
+		},
+	}
+}

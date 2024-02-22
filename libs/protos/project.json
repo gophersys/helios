@@ -1,0 +1,26 @@
+{
+  "name": "protos",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "",
+  "projectType": "application",
+  "targets": {
+    "create": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          "chmod +x ./libs/protos/generator.sh && ./libs/protos/generator.sh generate"
+        ],
+        "cwd": "{workspaceRoot}"
+      }
+    },
+    "clean": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          "chmod +x ./libs/protos/generator.sh && ./libs/protos/generator.sh clean"
+        ],
+        "cwd": "{workspaceRoot}"
+      }
+    }
+  }
+}

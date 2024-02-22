@@ -1,0 +1,31 @@
+{
+	"folders": [
+		{
+			"path": "../../libs/zephyr/iface"
+		},
+		{
+			"path": "../../libs/zephyr/cipher"
+		},
+		{
+			"path": "../../libs/protos"
+		},
+		{
+			"path": "../../libs/zephyr/cipher/samples/scratchpad"
+		},
+		{
+			"path": "../../libs/zephyr/cipher/samples/nanopb"
+		},
+	],
+	"settings": {
+		"files.associations": {
+			".env": "env",
+			"*.overlay": "dts",
+			".env.example": "env",
+			"gpio.h": "c",
+			"math.cipher.h": "c",
+			"math.pb.h": "c",
+			"calculator.cipher.h": "c",
+			"mtib-pi-stm.cipher.h": "c"
+		},
+	}
+}

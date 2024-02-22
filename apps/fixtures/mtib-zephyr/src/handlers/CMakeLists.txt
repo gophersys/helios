@@ -1,0 +1,2 @@
+file(GLOB HANDLERS_SOURCES "*.c")
+target_sources(app PRIVATE ${HANDLERS_SOURCES})

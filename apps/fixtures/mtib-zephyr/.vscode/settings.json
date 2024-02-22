@@ -68,14 +68,28 @@
         "opt_record.h": "c",
         "stdint.h": "c",
         "stddef.h": "c",
-        "validate.h": "c"
+        "validate.h": "c",
+        "alt_drv.h": "c",
+        "alt_drv_priv.h": "c",
+        "sensor.h": "c",
+        "eeprom.h": "c",
+        "digital_pot_mcp4017_drv.h": "c",
+        "sn74lv4051a_drv.h": "c",
+        "i2c.h": "c",
+        "adc.h": "c",
+        "eeprom_m24c08_drv.h": "c",
+        "alt_drv_defs.h": "c",
+        "kernel_includes.h": "c",
+        "init.h": "c",
+        "gpio.h": "c",
+        "dut_gpio_config_drv.h": "c"
     },
     // Editor actions
     "editor.codeActionsOnSave": {
-        "source.fixAll": true,
-        // "C_Cpp.ResetDatabase": true
+        "source.fixAll": "explicit"
     },
     "editor.formatOnSave": true,
     // Update and auto-format on save
-    "mcu-debug.rtos-views.showRTOS": false
+    "mcu-debug.rtos-views.showRTOS": false,
+    "C_Cpp.errorSquiggles": "disabled"
 }

@@ -1,0 +1,8 @@
+PyInquirer
+grpcio
+grpcio-tools
+pynrfjprog
+pyserial
+python-dotenv
+rich
+typer[all]

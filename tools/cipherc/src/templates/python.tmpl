@@ -1,0 +1,65 @@
+# python_service_template.tmpl
+from enum import Enum
+from protos.{{ .ProtoFileName | replaceHyphens }}.{{ .ProtoFileName | replaceHyphens }}_pb2 import * 
+from cipher import *
+
+# -----------------------------------------------------------------------------------------------------
+#                                                                                                 Types
+# -----------------------------------------------------------------------------------------------------
+{{ .ServiceName | ToUpper }}_SERVICE_ID = {{ .ServiceID }}
+
+class {{ .ServiceName }}Rpc(Enum):
+{{- range .RPCs }}
+    {{ .Name }} = {{ .ID }}
+{{- end }}
+    
+class {{ .ServiceName }}:
+    def __init__(self, daemon:Cipher):
+        self.daemon: Cipher = daemon
+        
+{{- range .RPCs }}
+    # Server side handlers
+    def {{ .Name }}Handler(self, request:{{ .RequestType }}) -> Tuple[{{ .ReturnsType }}, CipherRpcErr]:
+        print("Default {{ .Name }} handler called")
+        response: {{ .ReturnsType }} = {{ .ReturnsType }}()
+        return response, CipherRpcErr.NOT_IMPLEMENTED
+        
+    # Client side 
+    def {{ .Name }}Rpc(self, info:CipherUnaryRpcUserInfo, request:{{ .RequestType }}) -> Tuple[Optional[{{ .ReturnsType }}], CipherRpcErr]:
+        response: {{ .ReturnsType }} = {{ .ReturnsType }}()
+        context: CipherDaemonRpcContext = CipherDaemonRpcContext(
+            local=True,
+            user_info=info,
+            service_id={{ .ServiceName | ToUpper }}_SERVICE_ID,
+            rpc_id={{ .ServiceName }}Rpc.{{ .Name }}.value,
+            request_struct=request,
+            response_struct=response,            
+        )
+        
+        self.daemon.execute_remote_rpc(context)
+        
+        return context.response_struct, context.user_info.error
+{{- end }}
+
+# {{ .ServiceName }} RPCs
+{{ .ServiceName | ToLower }}_service_rpcs = [
+{{- range .RPCs }}
+    CipherRpcInfo(
+        id={{ .ServiceName }}Rpc.{{ .Name }}.value,
+        type=CipherRpcType.UNARY,
+        name="{{ .Name }}",
+        handler={{ .ServiceName }}.{{ .Name }}Handler,
+        request_info=CipherMessageInfo({{ .RequestType }}),
+        response_info=CipherMessageInfo({{ .ReturnsType }}),
+        supports_parallelism=True
+    ),
+{{- end }}
+]
+
+# {{ .ServiceName }} Service Definition
+{{ .ServiceName | ToLower }}_service_info = CipherServiceInfo(
+    id={{ .ServiceName | ToUpper }}_SERVICE_ID,
+    name="{{ .ServiceName }}",
+    num_allowed_hops=1,
+    rpcs={{ .ServiceName | ToLower }}_service_rpcs
+)

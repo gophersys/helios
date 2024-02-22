@@ -40,3 +40,34 @@ Thumbs.db
 
 # Build outputs
 build
+
+# Python
+.pyenv
+__pycache__
+*.pyc
+*.egg-info
+venv/
+.venv/
+.env
+
+# # Ignore generated files in the protos directory
+# *.pb.h
+# *.pb.c
+# *.cipher.h
+# *.cipher.c
+# *_grpc.py
+# *_cipher.py
+# *_pb2.py
+
+# # Ignore all files and directories except the protos directory itself
+# /*
+# !/protos/
+
+# # Ignore files matching the specified patterns within the protos directory
+# /protos/*.pb.h
+# /protos/*.pb.c
+# /protos/*.cipher.h
+# /protos/*.cipher.c
+# /protos/*_grpc.py
+# /protos/*_cipher.py
+# /protos/*_pb2.py

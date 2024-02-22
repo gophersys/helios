@@ -1,0 +1,235 @@
+syntax = "proto3";
+
+service MtibPiStm {
+  // Gpio
+  rpc GpioConfigurePin(GpioConfigurePinRequest) returns (GpioConfigurePinResponse) {}
+  rpc GpioSetPin(GpioSetPinRequest) returns (GpioSetPinResponse) {}
+  rpc GpioReadPin(GpioReadPinRequest) returns (GpioReadPinResponse) {}
+
+  // Adc
+  rpc AdcReadChannel(AdcReadChannelRequest) returns (AdcReadChannelResponse) {}
+  rpc AdcReadAllChannels(AdcReadAllChannelsRequest) returns (AdcReadAllChannelsResponse) {}
+  
+  // Power
+  rpc DutEnablePower(DutEnablePowerRequest) returns (DutEnablePowerResponse) {}
+  rpc DutEnableCharger(DutEnableChargerRequest) returns (DutEnableChargerResponse) {}
+  rpc DutSetOutputVoltage(DutSetOutputVoltageRequest) returns (DutSetOutputVoltageResponse) {}
+
+  // Power Monitor
+  rpc Ina219ReadCurrent(Ina219ReadCurrentRequest) returns (Ina219ReadCurrentResponse);
+  rpc Ina219ReadVoltage(Ina219ReadVoltageRequest) returns (Ina219ReadVoltageResponse);
+  rpc Ina219ReadPower(Ina219ReadPowerRequest) returns (Ina219ReadPowerResponse);
+
+  // Altimeter 
+  rpc Bmp390ReadValues(Bmp390ReadValuesRequest) returns (Bmp390ReadValuesResponse) {}
+
+  // Accelerometer
+  rpc Lis2de12ReadValues(Lis2de12ReadValuesRequest) returns (Lis2de12ReadValuesResponse) {}
+  rpc Lis2de12ReadMaxForce(Lis2de12ReadMaxForceRequest) returns (Lis2de12ReadMaxForceResponse) {}
+
+  // Memory
+  rpc EepromReadFromMem(EepromReadFromMemRequest) returns (EepromReadFromMemResponse) {}
+  rpc EepromWriteToMem(EepromWriteToMemRequest) returns (EepromWriteToMemResponse) {}
+
+  // DUT -> Orange Pi
+  rpc SigmaToPiMessage(UartMessageRequest) returns (UartMessageResponse) {} 
+
+  // Orange Pi -> Sigma
+  rpc PiToSigmaMessage(UartMessageRequest) returns (UartMessageResponse) {} 
+}
+
+// Gpio
+enum GpioDirection {
+  INPUT = 0;
+  OUTPUT = 1;
+}
+
+enum GpioValue {
+  LOW = 0;
+  HIGH = 1;
+}
+
+message GpioConfigurePinRequest {
+  int32 pin_number = 1;
+  GpioDirection direction = 2;
+}
+
+message GpioConfigurePinResponse {
+  bool success = 1;
+  string error = 2;
+}
+
+message GpioSetPinRequest {
+  int32 pin_number = 1;
+  GpioValue value = 2;
+}
+
+message GpioSetPinResponse {
+  bool success = 1;
+  string error = 2;
+}
+
+message GpioReadPinRequest {
+  int32 pin_number = 1;
+}
+
+message GpioReadPinResponse {
+  bool success = 1;
+  string error = 2;
+  GpioValue value = 3;
+}
+
+// Adc
+enum ChannelNumber {
+  CHANNEL_0 = 0;
+  CHANNEL_1 = 1;
+  CHANNEL_2 = 2;
+  CHANNEL_3 = 3;
+  CHANNEL_4 = 4;
+  CHANNEL_5 = 5;
+  CHANNEL_6 = 6;
+}
+
+message AdcReadChannelRequest {
+  ChannelNumber channel_number = 1;
+  int32 delay_ms = 2;
+}
+
+message AdcReadChannelResponse {
+  bool success = 1;
+  string error = 2; 
+
+  double voltage = 3;
+}
+
+message AdcReadAllChannelsRequest { 
+  int32 delay_ms = 1;
+}
+
+message AdcReadAllChannelsResponse {
+  bool success = 1;
+  string error = 2;
+
+  repeated double voltage = 3;
+}
+
+// Altimeter
+message Bmp390ReadValuesRequest {}
+
+message Bmp390ReadValuesResponse {
+  bool success = 1;
+  string error = 2; 
+
+  double temperature_f = 3;
+  double pressure_hg = 4;
+  double altitude_ft = 5;
+}
+
+// Accelerometer
+message Lis2de12ReadValuesRequest {}
+
+message Lis2de12ReadValuesResponse {
+  bool success = 1;
+  string error = 2; 
+
+  double x_value = 3;
+  double y_value = 4;
+  double z_value = 5;
+}
+
+message Lis2de12ReadMaxForceRequest {}
+
+message Lis2de12ReadMaxForceResponse {
+  bool success = 1;
+  string error = 2; 
+
+  double max_force = 3;
+}
+
+// EEPROM
+message EepromWriteToMemRequest {
+  int32 address = 1;
+  bytes data = 2;
+  int32 len = 3;
+}
+
+message EepromWriteToMemResponse {
+  bool success = 1;
+  string error = 2;
+}
+
+message EepromReadFromMemRequest {
+  int32 address = 1;
+  int32 len = 2;
+}
+
+message EepromReadFromMemResponse {
+  bool success = 1;
+  string error = 2;
+  bytes data = 3;
+}
+
+// Power Monitor
+message Ina219ReadCurrentRequest {}
+message Ina219ReadCurrentResponse {
+  bool success = 1;
+  string error = 2;
+
+  int32 current_value_ma = 3;
+}
+
+message Ina219ReadVoltageRequest {}
+message Ina219ReadVoltageResponse {
+  bool success = 1;
+  string error = 2;
+
+  uint32 voltage_value_mv = 3;
+}
+
+message Ina219ReadPowerRequest {}
+message Ina219ReadPowerResponse {
+  bool success = 1;
+  string error = 2;
+
+  int32 power_value_mw = 3;
+}
+
+// Uart Messages 
+message UartMessageRequest {
+  uint32 uart_port = 1;
+  bytes data = 2;
+  uint32 len = 3;
+}
+
+message UartMessageResponse { 
+  bool success = 1;
+  string error = 2; 
+}
+
+// DUT Power
+message DutEnablePowerRequest { 
+  bool enable = 1;
+}
+
+message DutEnablePowerResponse {
+  bool success = 1;
+  string error = 2;
+}
+
+message DutEnableChargerRequest {
+  bool enable = 1;
+}
+
+message DutEnableChargerResponse {
+  bool success = 1;
+  string error = 2;
+}
+
+message DutSetOutputVoltageRequest {
+  uint32 voltage_mv = 1;
+}
+
+message DutSetOutputVoltageResponse {
+  bool success = 1;
+  string error = 2;
+}

@@ -1,0 +1,33 @@
+{
+	"folders": [
+		{
+			"path": "../../libs/protos"
+		},
+		{
+			"path": "../../libs/zephyr/iface"
+		},
+		{
+			"path": "../../libs/zephyr/cipher"
+		},
+		{
+			"path": "../../apps/fixtures/mtib-zephyr"
+		}
+	],
+	"settings": {
+		"files.associations": {
+			".env": "env",
+			"*.overlay": "dts",
+			".env.example": "env",
+			"cipher.h": "c",
+			"mtib-pi-stm.cipher.h": "c",
+			"kernel.h": "c",
+			"system_error": "c",
+			"array": "c",
+			"functional": "c",
+			"tuple": "c",
+			"type_traits": "c",
+			"utility": "c",
+			"ratio": "c"
+		},
+	}
+}

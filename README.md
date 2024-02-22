@@ -64,8 +64,25 @@ https://github.com/alfredodeza/devcontainer-python-template/blob/main/.devcontai
 https://github.com/dorssel/usbipd-win
 
 # TODO:
+### monorepo
+- [ ] Do we need the editorconfig file?
+- [ ] Install go tools
+
+### devcontainer
+- [ ] Create NCS versioned image
+
+### libs/
+- [ ] 
+
+
+
+
+
+
+# Depricated TODO
 Add info on networkin: https://jwstanly.com/blog/article/Port+Forwarding+WSL+2+to+Your+LAN/
 [ ] Update /zephyr/scripts/requirements-extras.txt line 4 anytree to version anytree==2.8.0
     - This is needed to run ram and rom analysis 
 [ ] Install astyle in docker file (apt) and vscode extension
 [ ] Install appoverlay and kconfig extensions
+

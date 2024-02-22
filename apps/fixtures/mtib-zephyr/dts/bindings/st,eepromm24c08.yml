@@ -1,0 +1,11 @@
+description: "STMicroelectronics M24C08 EEPROM"
+
+compatible: "st,eepromm24c08"
+
+include: [ "eeprom-base.yaml" ]
+
+properties:
+  size:
+    type: int
+    required: false
+    description: Size of the EEPROM in bytes.

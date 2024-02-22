@@ -1,2 +1,0 @@
-target_sources(app PRIVATE tal.c 
-                           socket.c)

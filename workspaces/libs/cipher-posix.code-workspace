@@ -1,0 +1,14 @@
+{
+	"folders": [
+		{
+			"path": "../../libs/python/iface-posix"
+		},
+		{
+			"path": "../../libs/python/cipher-posix"
+		}
+	],
+	"settings": {
+		"files.associations": {
+		},
+	}
+}

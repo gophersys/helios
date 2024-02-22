@@ -1,0 +1,16 @@
+{
+	"folders": [
+		{
+			"path": "../../apps/fixtures/icle-meter"
+		}
+	],
+	"settings": {
+		"files.associations": {
+			".env": "env",
+			"*.overlay": "dts",
+			".env.example": "env",
+			"wifi_mgmt.h": "c",
+			"net_if.h": "c"
+		},
+	}
+}

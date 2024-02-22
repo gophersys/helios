@@ -2,7 +2,9 @@
     "version": "2.0.0",
     "options": {
         "env": {
-            "APP_BOARD": "nucleo_h743zi"
+            // "APP_BOARD": "nucleo_h743zi"
+            // "APP_BOARD": "stm32f412g_disco"
+            "APP_BOARD": "nucleo_f412zg"
         }
     },
     "tasks": [
@@ -49,7 +51,10 @@
             "type": "shell",
             "command": "west",
             "args": [
+                "-v",
                 "flash",
+                "--runner",
+                "jlink"
             ],
             "problemMatcher": [
                 "$gcc"

@@ -1,0 +1,10 @@
+description: "TI 8-channel mux"
+
+compatible: "ti,sn74lv4051ad"
+
+include: base.yaml
+
+properties:
+    select-gpios:
+      type: phandle-array
+      required: true

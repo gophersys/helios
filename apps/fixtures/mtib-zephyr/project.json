@@ -1,5 +1,5 @@
 {
-  "name": "motion-bed",
+  "name": "mtib-zephyr",
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "",
   "projectType": "application",
@@ -8,27 +8,9 @@
       "executor": "nx:run-commands",
       "options": {
         "commands": [
-          "west build -p always -b {args.board} ."
+          "west build -p always -b nucleo_f412zg ."
         ],
-        "cwd": "embedded/cipher"
-      }
-    },
-    "flash": {
-      "executor": "nx:run-commands",
-      "options": {
-        "commands": [
-          "west flash"
-        ],
-        "cwd": "embedded/cipher"
-      }
-    },
-    "monitor": {
-      "executor": "nx:run-commands",
-      "options": {
-        "commands": [
-          "minicom -D {args.dev} -b 115200"
-        ],
-        "cwd": "embedded/cipher"
+        "cwd": "{projectRoot}"
       }
     }
   }

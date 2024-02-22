@@ -1,0 +1,20 @@
+{
+	"folders": [
+		{
+			"path": "../../libs/protos"
+		},
+		{
+			"path": "../../libs/python/iface-posix"
+		},
+		{
+			"path": "../../libs/python/cipher-posix"
+		},
+		{
+			"path": "../../apps/fixtures/mtib-posix"
+		}
+	],
+	"settings": {
+		"files.associations": {
+		},
+	}
+}
