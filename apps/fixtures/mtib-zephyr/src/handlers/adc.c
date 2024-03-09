@@ -40,9 +40,12 @@ AdcReadChannelResponse MtibPiStm_AdcReadChannelHandler(AdcReadChannelRequest req
         }
         else
         {
+            // There's a voltage divider so multiply by 2
+            adc_value  *= 2;
+
             // Populate the response
             response.success = true;
-            response.voltage = (adc_value / 1000);
+            response.voltage = ((double)adc_value / 1000); // at least one arguement has to be "double"
 
             LOG_INF("ADC[%d] value: %dmv", request.channel_number, adc_value);
         }
@@ -66,7 +69,8 @@ AdcReadAllChannelsResponse MtibPiStm_AdcReadAllChannelsHandler(AdcReadAllChannel
     for (uint8_t i = 0; i < ARRAY_SIZE(readings); i++)
     {
         response.voltage_count++;
-        response.voltage[i] = readings[i] / 1000;
+        response.voltage[i] = (double)readings[i] / 1000;
+        response.voltage[i] *= 2;
         LOG_INF("ADC[%d] value: %dmv", i, readings[i]);
     }
 

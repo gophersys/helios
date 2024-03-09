@@ -7,7 +7,7 @@ docker run -it --privileged \
 -v /dev/bus/usb:/dev/bus/usb \
 -v /tmp/fw_files:/tmp \
 -p 50051:50051 \
-server:1.1 \
+localhost/mtib-posix:1.0 \
 /bin/bash
 ```
 
@@ -38,11 +38,11 @@ Instructions for installing cipher, including any prerequisites.
     ```
 4. **Create a virtual environment**: 
     ```bash
-    python3 -m venv venv
+    python3 -m venv .venv
     ```
 5. **Activate the virtual environment**: 
     ```bash
-    source venv/bin/activate
+    source .venv/bin/activate
     ```
 6. **Install the package in editable mode for development**: 
     ```bash

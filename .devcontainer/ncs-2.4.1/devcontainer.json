@@ -1,6 +1,6 @@
 {
   "name": "NCS 2.4.1 Dev",
-  "image": "ccr01.ad.corekinect.com/concord-dev-ncs-2.4.1:1.0",
+  "image": "ccr01.ad.corekinect.com/concord-dev-ncs-2.4.1:1.1",
   "postCreateCommand": "npm install && npm fund",
   "runArgs": [
     "--privileged",

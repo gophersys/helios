@@ -6,6 +6,9 @@
     "C_Cpp.default.compileCommands": "${workspaceFolder}/build/compile_commands.json",
     // File Associations
     "files.associations": {
+        ".env": "env",
+        "*.overlay": "dts",
+        ".env.example": "env",
         "socket.h": "c",
         "stdio.h": "c",
         "stdlib.h": "c",
@@ -82,7 +85,8 @@
         "kernel_includes.h": "c",
         "init.h": "c",
         "gpio.h": "c",
-        "dut_gpio_config_drv.h": "c"
+        "dut_gpio_config_drv.h": "c",
+        "iface.h": "c"
     },
     // Editor actions
     "editor.codeActionsOnSave": {

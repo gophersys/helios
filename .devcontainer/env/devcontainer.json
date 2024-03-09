@@ -1,6 +1,6 @@
 {
   "name": "Python Dev",
-  "image": "ccr01.ad.corekinect.com/concord-dev-env:1.5",
+  "image": "ccr01.ad.corekinect.com/concord-dev-env:1.6",
   "postCreateCommand": "npm install && npm fund",
   "runArgs": [
     "--privileged",

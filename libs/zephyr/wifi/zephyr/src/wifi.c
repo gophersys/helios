@@ -109,9 +109,7 @@ bool wifi_connect(struct wifi_connect_req_params *conn_params)
         return false;
     }
 
-    // We're connected, boot our networking stack
-    LOG_INF("Connected to %s, starting networking stacks", usr_conn_params->ssid);
-
+    // Init net stack
     int err = net_config_init_by_iface(iface, "WiFi Station", 0, 5000);
     if (err != 0)
     {

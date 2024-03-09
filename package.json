@@ -5,6 +5,7 @@
   "scripts": {},
   "private": true,
   "devDependencies": {
+    "@nx-tools/nx-container": "^5.2.0",
     "@nx/js": "16.8.1",
     "@nx/workspace": "16.8.1",
     "nx": "16.8.1",

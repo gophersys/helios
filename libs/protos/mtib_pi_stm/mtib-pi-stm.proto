@@ -49,9 +49,15 @@ enum GpioValue {
   HIGH = 1;
 }
 
+enum GpioConfigureResistorConfig{
+  RESISTOR_PULL_UP = 0;
+  RESISTOR_PULL_DOWN = 1;
+}
+
 message GpioConfigurePinRequest {
   int32 pin_number = 1;
   GpioDirection direction = 2;
+  GpioConfigureResistorConfig resistor = 3;
 }
 
 message GpioConfigurePinResponse {
@@ -88,6 +94,7 @@ enum ChannelNumber {
   CHANNEL_4 = 4;
   CHANNEL_5 = 5;
   CHANNEL_6 = 6;
+  CHANNEL_7 = 7;
 }
 
 message AdcReadChannelRequest {
@@ -198,7 +205,6 @@ message Ina219ReadPowerResponse {
 message UartMessageRequest {
   uint32 uart_port = 1;
   bytes data = 2;
-  uint32 len = 3;
 }
 
 message UartMessageResponse { 

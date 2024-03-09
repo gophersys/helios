@@ -202,12 +202,25 @@ static void set_desired_volatge(uint32_t desired_voltage)
 *---------------------------------------------------------------------------*/
 static void power_on(void)
 {
-    gpio_pin_set(_dut_power_enable.port, _dut_power_enable.pin, ON);
+    // int state = gpio_pin_get(_dut_power_enable.port, _dut_power_enable.pin);
+    // LOG_WRN("current state of the pin: %d", state);
+    int ret = gpio_pin_set(_dut_power_enable.port, _dut_power_enable.pin, ON);
+    if (ret != 0)
+    {
+        LOG_ERR("could not set the power enable pin ERROR number: %d", ret);
+    }
+    // LOG_WRN("ret after setting pin: %d", ret);
+    // state = gpio_pin_get(_dut_power_enable.port, _dut_power_enable.pin);
+    // LOG_WRN("after state of the pin: %d", state);
 }
 
 static void power_off(void)
 {
-    gpio_pin_set(_dut_power_enable.port, _dut_power_enable.pin, OFF);
+    int ret = gpio_pin_set(_dut_power_enable.port, _dut_power_enable.pin, OFF);
+    if (ret != 0)
+    {
+        LOG_ERR("could not set the power enable pin ERROR number: %d", ret);
+    }
 }
 
 static void charge_on(void)
@@ -267,7 +280,7 @@ static bool dut_power_enable(uint8_t enable)
             power_on();
             break;
         case OFF:
-            power_on();
+            power_off();
         default:
             return false;
             break;
@@ -445,11 +458,11 @@ void app_process_event(const event_t *event, app_info_t *app)
             break;
         case EVENT_GPIO_SET:
             event_opt_gpio_t *gpio_set_opt = (event_opt_gpio_t *)event->options;
-            set_pin_state(gpio_set_opt->pin, gpio_set_opt->state);
+            set_pin_state(gpio_set_opt->pin, *gpio_set_opt->state);
             break;
         case EVENT_GPIO_READ:
             event_opt_gpio_t *gpio_read_opt = (event_opt_gpio_t *)event->options;
-            get_pin_state(gpio_read_opt->pin, &gpio_read_opt->state);
+            get_pin_state(gpio_read_opt->pin, gpio_read_opt->state);
             break;
         default:
             LOG_INF("Event: %d",  event->type);
@@ -509,9 +522,25 @@ void app_mtib_init(app_info_t *app)
     {
         LOG_ERR("COMM_EN GPIO device not ready");
     }
-    if (gpio_pin_configure(comm_en.port, comm_en.pin, GPIO_OUTPUT_LOW))
+    if (!gpio_is_ready_dt(&_dut_power_enable))
+    {
+        LOG_ERR("Power enable pin not defined in device tree");
+    }
+    if (!gpio_is_ready_dt(&_dut_charge_enable))
+    {
+        LOG_ERR("charger enable pin not defined in device tree");
+    }
+    if (gpio_pin_configure(comm_en.port, comm_en.pin, GPIO_OUTPUT_HIGH))
     {
         LOG_ERR("COMM_EN GPIO pin configure failed");
+    }
+    if (gpio_pin_configure(_dut_power_enable.port, _dut_power_enable.pin, GPIO_OUTPUT_LOW))
+    {
+        LOG_ERR("PWR_EN pin configuration failed");
+    }
+    if (gpio_pin_configure(_dut_charge_enable.port, _dut_charge_enable.pin, GPIO_OUTPUT_LOW))
+    {
+        LOG_ERR("CHRGER_EN pin configuration failed");
     }
 
     gpio_pin_set(comm_en.port, comm_en.pin, 1);
@@ -871,7 +900,7 @@ void init_ina290(app_info_t *app)
     ina219_dev = DEVICE_DT_GET_ONE(ti_ina219);
     if (device_is_ready(ina219_dev))
     {
-        LOG_INF("INA290 Dev Ready To use");
+        LOG_INF("INA219 Dev Ready To use");
     }
 
     // initlalize the ina219 mutex
@@ -888,6 +917,20 @@ void init_ina290(app_info_t *app)
  */
 void app_print_ina219_data(app_info_t *app)
 {
+    k_sem_take(&app->ina219_dev.ina219_sem, K_FOREVER);
+    rc = sensor_sample_fetch(ina219_dev);
+    if (rc)
+    {
+        LOG_ERR("Could not fetch sensor data.\n");
+    }
+    else
+    {
+        sensor_channel_get(ina219_dev, SENSOR_CHAN_VOLTAGE, &app->ina219_dev.bus_voltage);
+        sensor_channel_get(ina219_dev, SENSOR_CHAN_CURRENT, &app->ina219_dev.current);
+        sensor_channel_get(ina219_dev, SENSOR_CHAN_POWER, &app->ina219_dev.power);
+    }
+    k_sem_give(&app->ina219_dev.ina219_sem);
+
     double value = (double)app->ina219_dev.bus_voltage.val1 + (double)app->ina219_dev.bus_voltage.val2 / 1000000;
     int int_part = (int)value;
     int frac_part = (int)((value - int_part) * 1000);
@@ -1123,7 +1166,7 @@ void app_read_sn74lv4051a_all_channels(app_info_t *app, int32_t *adc_values, uin
 {
     event_opt_mux_data_t opt =
     {
-        .adc_array = NULL,
+        .adc_array = adc_values,
         .mux_adc_value = NULL,
         .mux_channel = CHANNEL_MAX,
         .delay_ms = delay_ms
@@ -1224,7 +1267,7 @@ bool app_gpio_set(app_info_t *the_app, uint8_t pin, uint8_t value)
     event_opt_gpio_t opt =
     {
         .pin = pin,
-        .state = value,
+        .state = &value,
         .flag = 0x00 // does not matter here
     };
 
@@ -1239,18 +1282,25 @@ bool app_gpio_set(app_info_t *the_app, uint8_t pin, uint8_t value)
 
 bool app_gpio_read(app_info_t *the_app, uint8_t pin)
 {
+    uint8_t reading = 0;
+
     event_opt_gpio_t opt =
     {
         .pin = pin,
-        .state = 0x00, // does not matter here
+        .state = &reading, // does not matter here
         .flag = 0x00 // does not matter here
     };
 
     if (!create_event_entry(the_app, EVENT_GPIO_READ, (void *)&opt, sizeof(opt)))
     {
         LOG_ERR("could not create EVENT_GPIO_READ event");
-        return false;
+        return false; // False but function failedl
     }
 
-    return true;
+    if (reading > 0)
+    {
+        return true;
+    }
+
+    return false; // This is false but fucntion success
 }

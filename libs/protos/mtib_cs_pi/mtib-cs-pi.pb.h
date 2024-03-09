@@ -33,13 +33,14 @@ typedef enum _GpioResistorConfig {
 
 /* Adc */
 typedef enum _AdcChannel {
-    AdcChannel_ADC_CHANNEL_1 = 0,
-    AdcChannel_ADC_CHANNEL_2 = 1,
-    AdcChannel_ADC_CHANNEL_3 = 2,
-    AdcChannel_ADC_CHANNEL_4 = 3,
-    AdcChannel_ADC_CHANNEL_5 = 4,
-    AdcChannel_ADC_CHANNEL_6 = 5,
-    AdcChannel_ADC_CHANNEL_7 = 6
+    AdcChannel_ADC_CHANNEL_0 = 0,
+    AdcChannel_ADC_CHANNEL_1 = 1,
+    AdcChannel_ADC_CHANNEL_2 = 2,
+    AdcChannel_ADC_CHANNEL_3 = 3,
+    AdcChannel_ADC_CHANNEL_4 = 4,
+    AdcChannel_ADC_CHANNEL_5 = 5,
+    AdcChannel_ADC_CHANNEL_6 = 6,
+    AdcChannel_ADC_CHANNEL_7 = 7
 } AdcChannel;
 
 /* Uart */
@@ -318,7 +319,7 @@ extern "C" {
 #define _GpioResistorConfig_MAX GpioResistorConfig_GPIO_RESISTOR_PULL_DOWN
 #define _GpioResistorConfig_ARRAYSIZE ((GpioResistorConfig)(GpioResistorConfig_GPIO_RESISTOR_PULL_DOWN+1))
 
-#define _AdcChannel_MIN AdcChannel_ADC_CHANNEL_1
+#define _AdcChannel_MIN AdcChannel_ADC_CHANNEL_0
 #define _AdcChannel_MAX AdcChannel_ADC_CHANNEL_7
 #define _AdcChannel_ARRAYSIZE ((AdcChannel)(AdcChannel_ADC_CHANNEL_7+1))
 

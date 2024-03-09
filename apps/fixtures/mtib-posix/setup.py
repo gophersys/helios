@@ -11,7 +11,7 @@ setup(
                       'typer[all]',
                       'PyInquirer',
                       'rich',
-                      'pynrfjprog',
+                      'pynrfjprog==10.19.0',
                       'pyserial'
     ],
 )

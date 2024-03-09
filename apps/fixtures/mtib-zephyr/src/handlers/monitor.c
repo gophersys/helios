@@ -25,7 +25,8 @@ Ina219ReadCurrentResponse MtibPiStm_Ina219ReadCurrentHandler(Ina219ReadCurrentRe
 
     app_info_t *app = app_get_ptr();
     app_print_ina219_data(app);
-    response.current_value_ma = app->ina219_dev.current.val1;
+    double value = (double)app->ina219_dev.current.val1 + (double)app->ina219_dev.current.val2 / 1000000;
+    response.current_value_ma = value * 1000;
 
     LOG_INF("%s executed in %ums", __func__, k_uptime_get_32() - start_time);
     return response;
@@ -41,7 +42,8 @@ Ina219ReadVoltageResponse MtibPiStm_Ina219ReadVoltageHandler(Ina219ReadVoltageRe
 
     app_info_t *app = app_get_ptr();
     app_print_ina219_data(app);
-    response.voltage_value_mv = app->ina219_dev.bus_voltage.val1;
+    double value = (double)app->ina219_dev.bus_voltage.val1 + (double)app->ina219_dev.bus_voltage.val2 / 1000000;
+    response.voltage_value_mv = value * 1000;
 
     LOG_INF("%s executed in %ums", __func__, k_uptime_get_32() - start_time);
     return response;

@@ -2,6 +2,9 @@
 	"folders": [
 		{
 			"path": "../../apps/fixtures/icle-meter"
+		},
+		{
+			"path": "../../libs/zephyr/wifi"
 		}
 	],
 	"settings": {
@@ -10,7 +13,13 @@
 			"*.overlay": "dts",
 			".env.example": "env",
 			"wifi_mgmt.h": "c",
-			"net_if.h": "c"
+			"net_if.h": "c",
+			"log.h": "c",
+			"device.h": "c",
+			"array": "c",
+			"string": "c",
+			"string_view": "c",
+			"client.h": "c"
 		},
 	}
 }

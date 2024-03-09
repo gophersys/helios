@@ -25,6 +25,8 @@ class Config:
     FW_FILE_STORAGE_DIR: str
     MCU_9160_USB_BUS: str
     MCU_52840_USB_BUS: str
+    SERVER_RESET_ENABLED: bool
+    SERVER_RESET_GPIO: int
 
     def __new__(cls: Type['Config']) -> 'Config':
         """
@@ -67,6 +69,8 @@ class Config:
         self.FW_FILE_STORAGE_DIR = self._get_env_var('FW_FILE_STORAGE_DIR', str)
         self.MCU_9160_USB_BUS = self._get_env_var('MCU_9160_USB_BUS', str)
         self.MCU_52840_USB_BUS = self._get_env_var('MCU_52840_USB_BUS', str)
+        self.SERVER_RESET_ENABLED = self._get_env_var('SERVER_RESET_ENABLED', bool)
+        self.SERVER_RESET_GPIO = self._get_env_var('SERVER_RESET_GPIO', int)
 
     def _get_env_var(self,
                      var_name: str,

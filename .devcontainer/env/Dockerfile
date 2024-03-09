@@ -177,6 +177,36 @@ ENV PYTHONPATH="/workspaces/concord/libs/python/cipher-posix:${PYTHONPATH}"
 ENV PYTHONPATH="/workspaces/concord/libs:${PYTHONPATH}"
 
 # -----------------------------------------------------------------------------------------------------
+#                                                                                               Kubectl
+# ---------------------------------------------------------------------------------------------------*/
+RUN ARCH="$(uname -m)" && \
+    case "${ARCH}" in \
+        aarch64) KUBECTL_ARCH="arm64" ;; \
+        x86_64) KUBECTL_ARCH="amd64" ;; \
+        *) echo "Unsupported architecture: ${ARCH}" && exit 1 ;; \
+    esac && \
+    KUBECTL_VERSION=$(curl -L -s https://dl.k8s.io/release/stable.txt) && \
+    curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/arm64/kubectl" && \
+    chmod +x kubectl && \
+    mv kubectl /usr/local/bin/kubectl
+
+# -----------------------------------------------------------------------------------------------------
+#                                                                                                   K9s
+# ---------------------------------------------------------------------------------------------------*/
+RUN ARCH="$(uname -m)" && \
+    case "${ARCH}" in \
+        aarch64) K9S_ARCH="arm64" ;; \
+        x86_64) K9S_ARCH="amd64" ;; \
+        *) echo "Unsupported architecture: ${ARCH}" && exit 1 ;; \
+    esac && \
+    K9S_VERSION=$(curl -s https://api.github.com/repos/derailed/k9s/releases/latest | grep 'tag_name' | cut -d '"' -f 4) && \
+    curl -LO "https://github.com/derailed/k9s/releases/download/${K9S_VERSION}/k9s_Linux_${K9S_ARCH}.tar.gz" && \
+    tar -xzf "k9s_Linux_${K9S_ARCH}.tar.gz" k9s && \
+    chmod +x k9s && \
+    mv k9s /usr/local/bin/k9s && \
+    rm "k9s_Linux_${K9S_ARCH}.tar.gz"
+
+# -----------------------------------------------------------------------------------------------------
 #                                                                                                   End
 # ---------------------------------------------------------------------------------------------------*/
 

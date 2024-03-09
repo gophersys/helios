@@ -27,7 +27,16 @@
 			"tuple": "c",
 			"type_traits": "c",
 			"utility": "c",
-			"ratio": "c"
+			"ratio": "c",
+			"config.h": "c",
+			"typeinfo": "c",
+			"log.h": "c",
+			"log_ctrl.h": "c",
+			"accel_drv.h": "c",
+			"alt_drv.h": "c",
+			"stdint.h": "c",
+			"alt_drv_priv.h": "c",
+			"app.h": "c"
 		},
 	}
 }

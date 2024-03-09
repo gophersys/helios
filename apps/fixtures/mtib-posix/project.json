@@ -1,16 +1,25 @@
 {
     "name": "mtib-posix",
-    "$schema": "../../node_modules/nx/schemas/project-schema.json",
-    "sourceRoot": "",
+    "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+    "sourceRoot": "apps/fixtures/mtib-posix",
     "projectType": "application",
     "targets": {
-      "build": {
-        "executor": "nx:run-commands",
+      "build":{
+        "command": "nx run mtib-posix:containerize",
+        "cwd": "{workspaceRoot}"
+      },
+      "containerize": {
+        "executor": "@nx-tools/nx-container:build",
+        "cwd": "{workspaceRoot}",
         "options": {
-          "commands": [
-            "docker build ."
-          ],
-          "cwd": "{projectRoot}"
+          "context": "{workspaceRoot}",
+          "file": "apps/fixtures/mtib-posix/deploy/Dockerfile",
+          "platforms": [],
+          "load": false,
+          "push": true,
+          "tags": [
+            "slot-6:5000/mtib-posix:1.25"
+          ]
         }
       }
     }

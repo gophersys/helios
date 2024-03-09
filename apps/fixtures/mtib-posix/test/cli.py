@@ -43,7 +43,7 @@ app = typer.Typer()
 # -------------------------------------------------------------------------------------------------
 #                                                                                     Configuration
 # -----------------------------------------------------------------------------------------------*/
-SERVER_ADDRESS = 'localhost:50051' 
+SERVER_ADDRESS = 'slot-3:12345' 
 
 def get_server_instance():
     """Create a gRPC client stub"""
@@ -312,7 +312,7 @@ def flash_hex_file(filename: str, serial_number: str, is_modem_fw: Optional[bool
 
         # Prepare the JLinkInfo and request
         jlink_info = JLinkInfo(serialNumber=serial_number, usbPort=0)  # Assuming usbPort is not used
-        request = FlashHexFileRequest(fileName=filename, jlink=jlink_info, isModemFw=is_modem_fw)
+        request = FlashHexFileRequest(fileName=filename, jlink=jlink_info, isModemFw=False)
 
         # Execute RPC with timing
         start_time = time.time()

@@ -267,12 +267,12 @@ typedef struct
  * @struct event_opt_gpio_t
  * @brief Structure for GPIO event options.
  */
-typedef struct 
+typedef struct
 {
-   gpio_flags_t flag; /**< GPIO flag to configure the GPIO  */
-   uint8_t pin; /**< GPIO pin */
-   uint8_t state; /**< GPIO state */
-}event_opt_gpio_t;
+    gpio_flags_t flag; /**< GPIO flag to configure the GPIO  */
+    uint8_t pin; /**< GPIO pin */
+    uint8_t *state; /**< GPIO state */
+} event_opt_gpio_t;
 
 
 /**
@@ -524,11 +524,11 @@ void app_read_mcp4017_voltage(app_info_t *app);
 * @param app pointer to app_info_t struct
 * @param adc_values pointer to ADC values
 * @param delay_ms delay in milliseconds
-* 
+*
 * @return true if successful
 * @return false if unsuccessful
 */
-void app_read_sn74lv4051a_all_channels(app_info_t *app, int32_t *adc_values , uint32_t delay_ms);
+void app_read_sn74lv4051a_all_channels(app_info_t *app, int32_t *adc_values, uint32_t delay_ms);
 
 /**
  * @brief reads a single channel of the SN74LV4051A multiplexer
@@ -537,7 +537,7 @@ void app_read_sn74lv4051a_all_channels(app_info_t *app, int32_t *adc_values , ui
  * @param channel channel to read
  * @param adc_value pointer to ADC value
  * @param delay_ms delay in milliseconds
- * 
+ *
  * @return true if successful
  * @return false if unsuccessful
  */
@@ -568,12 +568,12 @@ bool app_charger_enable(app_info_t *app, uint8_t enable);
 
 /**
  * @brief Configures a GPIO pin.
- * 
+ *
  * @param app pointer to app_info_t struct
  * @param pin  GPIO pin
- * @param state  GPIO state 
- * 
- * @return true if successful 
+ * @param state  GPIO state
+ *
+ * @return true if successful
  * @return false if unsuccessful
  */
 bool app_gpio_configure(app_info_t *app, uint8_t pin, gpio_flags_t direction);

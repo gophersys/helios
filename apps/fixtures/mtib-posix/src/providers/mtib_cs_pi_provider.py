@@ -55,6 +55,7 @@ class MtibCsPiServicerProvider(MtibCsPiServicer):
         stm_request:GpioConfigurePinRequest = GpioConfigurePinRequest()
         stm_request.pin_number = request.gpio
         stm_request.direction = request.type
+        stm_request.resistor = request.resistor
 
         # Execute the request
         start_time = time.time()
@@ -158,7 +159,7 @@ class MtibCsPiServicerProvider(MtibCsPiServicer):
             
             if stm_response.success is not True:
                 rpc_response.success = False
-                rpc_response.error = stm_response.error
+                rpc_response.error = stm_response.errorf
             else:
                 rpc_response.voltage = stm_response.voltage
             
@@ -339,9 +340,31 @@ class MtibCsPiServicerProvider(MtibCsPiServicer):
         return rpc_response
     
     def DutVoltageSet(self, request:DutVoltageSetRequest, context):
-        status = False
-        error = "Not implemented"
-        return DutVoltageSetResponse(success=status,error=error)
+        rpc_response: DutVoltageSetResponse = DutVoltageSetResponse()
+            
+        # Create a request
+        stm_request:DutSetOutputVoltageRequest = DutSetOutputVoltageRequest()
+        stm_request.voltage_mv = int(round(request.voltage * 1000)) # Convert from V to mV
+
+        # Execute the request
+        start_time = time.time()
+        stm_response, err = self.stm32.DutSetOutputVoltageRpc(self.rpc_info, stm_request)
+        duration_ms = (time.time() - start_time) * 1000
+        
+        # Parse the response
+        if err is not CipherRpcErr.OK:
+            rpc_response.success = False
+            rpc_response.error = str(err)
+        else:
+            rpc_response.success = True
+            
+            if stm_response.success is not True:
+                rpc_response.success = False
+                rpc_response.error = stm_response.error
+            
+            logging.info(f"RPC DutVoltageSet executed successfully in {duration_ms:.3f} ms")
+            
+        return rpc_response
     
     def DutCurrentRead(self, request:DutCurrentReadRequest, context):
         rpc_response: DutCurrentReadResponse = DutCurrentReadResponse()

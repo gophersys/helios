@@ -116,7 +116,6 @@ GpioReadPinResponse MtibPiStm_GpioReadPinHandler(GpioReadPinRequest request)
     }
     else
     {
-        LOG_INF("Reading pin %d", request.pin_number);
         if (!app_gpio_read(app_get_ptr(), request.pin_number))
         {
             response.value = GpioValue_LOW;
@@ -125,6 +124,8 @@ GpioReadPinResponse MtibPiStm_GpioReadPinHandler(GpioReadPinRequest request)
         {
             response.value = GpioValue_HIGH;
         }
+
+        LOG_INF("Read pin %d, value: %d", request.pin_number, response.value);
 
         response.success = true;
     }
@@ -157,6 +158,21 @@ bool _check_configure_inputs(GpioConfigurePinRequest *p_request, GpioConfigurePi
     else
     {
         snprintf(p_response->error, sizeof(p_response->error), "Invalid pin direction in request: %d", p_request->direction);
+        return false;
+    }
+
+    // Check the resistor
+    if (p_request->resistor == GpioConfigureResistorConfig_RESISTOR_PULL_UP)
+    {
+        *p_flag_buf |= GPIO_PULL_UP;
+    }
+    else if (p_request->resistor == GpioConfigureResistorConfig_RESISTOR_PULL_DOWN)
+    {
+        *p_flag_buf |= GPIO_PULL_DOWN;
+    }
+    else
+    {
+        snprintf(p_response->error, sizeof(p_response->error), "Invalid resistor config in request: %d", p_request->resistor);
         return false;
     }
 

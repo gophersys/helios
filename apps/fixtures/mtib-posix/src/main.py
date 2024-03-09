@@ -3,6 +3,7 @@ from concurrent import futures
 from typing import Tuple, Optional
 import grpc
 import logging
+import wiringpi
 
 # Corekinect includes
 from cipher import *
@@ -17,6 +18,29 @@ from src.providers.mtib_pi_stm_provider import *
 from protos.mtib_cs_pi.mtib_cs_pi_pb2_cipher import *
 from protos.mtib_cs_pi.mtib_cs_pi_pb2_grpc import add_MtibCsPiServicer_to_server
 from protos.mtib_pi_stm.mtib_pi_stm_pb2_cipher import *
+
+# -------------------------------------------------------------------------------------------------
+#                                                                       Cipher STM32 Server Helpers
+# -----------------------------------------------------------------------------------------------*/
+def reset_server():
+    # Initialize wiringPi and set the mode to OUTPUT
+    wiringpi.wiringPiSetup()
+    wiringpi.pinMode(conf.SERVER_RESET_GPIO, wiringpi.GPIO.OUTPUT)
+    
+    # Drive the pin low
+    wiringpi.digitalWrite(conf.SERVER_RESET_GPIO, wiringpi.GPIO.LOW)
+    logging.debug(f"GPIO {conf.SERVER_RESET_GPIO} set to LOW.")
+
+    time.sleep(1)
+
+    # Drive the pin high
+    wiringpi.digitalWrite(conf.SERVER_RESET_GPIO, wiringpi.GPIO.HIGH)
+    logging.debug(f"GPIO {conf.SERVER_RESET_GPIO} set to HIGH.")
+    
+    logging.debug("Testing updated 4")
+
+    # Give it some time to start
+    time.sleep(2)
 
 # -------------------------------------------------------------------------------------------------
 #                                                                                             Setup
@@ -74,6 +98,11 @@ def setup_grpc_server(daemon:Cipher) -> Tuple[bool, Optional[grpc.Server]]:
 # -----------------------------------------------------------------------------------------------*/
 if __name__ == '__main__':
     print(conf)
+
+    # Reset the server
+    if conf.SERVER_RESET_ENABLED is True:
+        reset_server()
+
     # Setup Cipher Daemon
     success, daemon = setup_cipher_daemon()
     if not success:

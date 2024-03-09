@@ -21,6 +21,11 @@ typedef enum _GpioValue {
     GpioValue_HIGH = 1
 } GpioValue;
 
+typedef enum _GpioConfigureResistorConfig {
+    GpioConfigureResistorConfig_RESISTOR_PULL_UP = 0,
+    GpioConfigureResistorConfig_RESISTOR_PULL_DOWN = 1
+} GpioConfigureResistorConfig;
+
 /* Adc */
 typedef enum _ChannelNumber {
     ChannelNumber_CHANNEL_0 = 0,
@@ -29,13 +34,15 @@ typedef enum _ChannelNumber {
     ChannelNumber_CHANNEL_3 = 3,
     ChannelNumber_CHANNEL_4 = 4,
     ChannelNumber_CHANNEL_5 = 5,
-    ChannelNumber_CHANNEL_6 = 6
+    ChannelNumber_CHANNEL_6 = 6,
+    ChannelNumber_CHANNEL_7 = 7
 } ChannelNumber;
 
 /* Struct definitions */
 typedef struct _GpioConfigurePinRequest {
     int32_t pin_number;
     GpioDirection direction;
+    GpioConfigureResistorConfig resistor;
 } GpioConfigurePinRequest;
 
 typedef struct _GpioConfigurePinResponse {
@@ -182,7 +189,6 @@ typedef PB_BYTES_ARRAY_T(128) UartMessageRequest_data_t;
 typedef struct _UartMessageRequest {
     uint32_t uart_port;
     UartMessageRequest_data_t data;
-    uint32_t len;
 } UartMessageRequest;
 
 typedef struct _UartMessageResponse {
@@ -232,11 +238,16 @@ extern "C" {
 #define _GpioValue_MAX GpioValue_HIGH
 #define _GpioValue_ARRAYSIZE ((GpioValue)(GpioValue_HIGH+1))
 
+#define _GpioConfigureResistorConfig_MIN GpioConfigureResistorConfig_RESISTOR_PULL_UP
+#define _GpioConfigureResistorConfig_MAX GpioConfigureResistorConfig_RESISTOR_PULL_DOWN
+#define _GpioConfigureResistorConfig_ARRAYSIZE ((GpioConfigureResistorConfig)(GpioConfigureResistorConfig_RESISTOR_PULL_DOWN+1))
+
 #define _ChannelNumber_MIN ChannelNumber_CHANNEL_0
-#define _ChannelNumber_MAX ChannelNumber_CHANNEL_6
-#define _ChannelNumber_ARRAYSIZE ((ChannelNumber)(ChannelNumber_CHANNEL_6+1))
+#define _ChannelNumber_MAX ChannelNumber_CHANNEL_7
+#define _ChannelNumber_ARRAYSIZE ((ChannelNumber)(ChannelNumber_CHANNEL_7+1))
 
 #define GpioConfigurePinRequest_direction_ENUMTYPE GpioDirection
+#define GpioConfigurePinRequest_resistor_ENUMTYPE GpioConfigureResistorConfig
 
 
 #define GpioSetPinRequest_value_ENUMTYPE GpioValue
@@ -276,7 +287,7 @@ extern "C" {
 
 
 /* Initializer values for message structs */
-#define GpioConfigurePinRequest_init_default     {0, _GpioDirection_MIN}
+#define GpioConfigurePinRequest_init_default     {0, _GpioDirection_MIN, _GpioConfigureResistorConfig_MIN}
 #define GpioConfigurePinResponse_init_default    {0, ""}
 #define GpioSetPinRequest_init_default           {0, _GpioValue_MIN}
 #define GpioSetPinResponse_init_default          {0, ""}
@@ -302,7 +313,7 @@ extern "C" {
 #define Ina219ReadVoltageResponse_init_default   {0, "", 0}
 #define Ina219ReadPowerRequest_init_default      {0}
 #define Ina219ReadPowerResponse_init_default     {0, "", 0}
-#define UartMessageRequest_init_default          {0, {0, {0}}, 0}
+#define UartMessageRequest_init_default          {0, {0, {0}}}
 #define UartMessageResponse_init_default         {0, ""}
 #define DutEnablePowerRequest_init_default       {0}
 #define DutEnablePowerResponse_init_default      {0, ""}
@@ -310,7 +321,7 @@ extern "C" {
 #define DutEnableChargerResponse_init_default    {0, ""}
 #define DutSetOutputVoltageRequest_init_default  {0}
 #define DutSetOutputVoltageResponse_init_default {0, ""}
-#define GpioConfigurePinRequest_init_zero        {0, _GpioDirection_MIN}
+#define GpioConfigurePinRequest_init_zero        {0, _GpioDirection_MIN, _GpioConfigureResistorConfig_MIN}
 #define GpioConfigurePinResponse_init_zero       {0, ""}
 #define GpioSetPinRequest_init_zero              {0, _GpioValue_MIN}
 #define GpioSetPinResponse_init_zero             {0, ""}
@@ -336,7 +347,7 @@ extern "C" {
 #define Ina219ReadVoltageResponse_init_zero      {0, "", 0}
 #define Ina219ReadPowerRequest_init_zero         {0}
 #define Ina219ReadPowerResponse_init_zero        {0, "", 0}
-#define UartMessageRequest_init_zero             {0, {0, {0}}, 0}
+#define UartMessageRequest_init_zero             {0, {0, {0}}}
 #define UartMessageResponse_init_zero            {0, ""}
 #define DutEnablePowerRequest_init_zero          {0}
 #define DutEnablePowerResponse_init_zero         {0, ""}
@@ -348,6 +359,7 @@ extern "C" {
 /* Field tags (for use in manual encoding/decoding) */
 #define GpioConfigurePinRequest_pin_number_tag   1
 #define GpioConfigurePinRequest_direction_tag    2
+#define GpioConfigurePinRequest_resistor_tag     3
 #define GpioConfigurePinResponse_success_tag     1
 #define GpioConfigurePinResponse_error_tag       2
 #define GpioSetPinRequest_pin_number_tag         1
@@ -401,7 +413,6 @@ extern "C" {
 #define Ina219ReadPowerResponse_power_value_mw_tag 3
 #define UartMessageRequest_uart_port_tag         1
 #define UartMessageRequest_data_tag              2
-#define UartMessageRequest_len_tag               3
 #define UartMessageResponse_success_tag          1
 #define UartMessageResponse_error_tag            2
 #define DutEnablePowerRequest_enable_tag         1
@@ -417,7 +428,8 @@ extern "C" {
 /* Struct field encoding specification for nanopb */
 #define GpioConfigurePinRequest_FIELDLIST(X, a) \
 X(a, STATIC,   SINGULAR, INT32,    pin_number,        1) \
-X(a, STATIC,   SINGULAR, UENUM,    direction,         2)
+X(a, STATIC,   SINGULAR, UENUM,    direction,         2) \
+X(a, STATIC,   SINGULAR, UENUM,    resistor,          3)
 #define GpioConfigurePinRequest_CALLBACK NULL
 #define GpioConfigurePinRequest_DEFAULT NULL
 
@@ -580,8 +592,7 @@ X(a, STATIC,   SINGULAR, INT32,    power_value_mw,    3)
 
 #define UartMessageRequest_FIELDLIST(X, a) \
 X(a, STATIC,   SINGULAR, UINT32,   uart_port,         1) \
-X(a, STATIC,   SINGULAR, BYTES,    data,              2) \
-X(a, STATIC,   SINGULAR, UINT32,   len,               3)
+X(a, STATIC,   SINGULAR, BYTES,    data,              2)
 #define UartMessageRequest_CALLBACK NULL
 #define UartMessageRequest_DEFAULT NULL
 
@@ -712,7 +723,7 @@ extern const pb_msgdesc_t DutSetOutputVoltageResponse_msg;
 #define EepromReadFromMemResponse_size           264
 #define EepromWriteToMemRequest_size             153
 #define EepromWriteToMemResponse_size            133
-#define GpioConfigurePinRequest_size             13
+#define GpioConfigurePinRequest_size             15
 #define GpioConfigurePinResponse_size            133
 #define GpioReadPinRequest_size                  11
 #define GpioReadPinResponse_size                 135
@@ -728,7 +739,7 @@ extern const pb_msgdesc_t DutSetOutputVoltageResponse_msg;
 #define Lis2de12ReadMaxForceResponse_size        142
 #define Lis2de12ReadValuesRequest_size           0
 #define Lis2de12ReadValuesResponse_size          160
-#define UartMessageRequest_size                  143
+#define UartMessageRequest_size                  137
 #define UartMessageResponse_size                 133
 
 #ifdef __cplusplus

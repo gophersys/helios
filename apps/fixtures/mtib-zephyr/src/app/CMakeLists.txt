@@ -1,1 +1,1 @@
-target_sources(app PRIVATE app.c)
+target_sources(app PRIVATE app.c uart.c)

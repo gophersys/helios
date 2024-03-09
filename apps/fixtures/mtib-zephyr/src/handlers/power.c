@@ -62,3 +62,18 @@ DutEnableChargerResponse MtibPiStm_DutEnableChargerHandler(DutEnableChargerReque
     LOG_INF("%s executed in %ums", __func__, k_uptime_get_32() - start_time);
     return response;
 }
+
+DutSetOutputVoltageResponse MtibPiStm_DutSetOutputVoltageHandler(DutSetOutputVoltageRequest request)
+{
+    uint32_t start_time = k_uptime_get_32();
+
+    DutSetOutputVoltageResponse response =
+    {
+        .success = true,
+    };
+
+    app_set_mcp4017_voltage_output(app_get_ptr(), request.voltage_mv);
+
+    LOG_INF("%s executed in %ums", __func__, k_uptime_get_32() - start_time);
+    return response;
+}
