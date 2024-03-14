@@ -43,7 +43,7 @@ app = typer.Typer()
 # -------------------------------------------------------------------------------------------------
 #                                                                                     Configuration
 # -----------------------------------------------------------------------------------------------*/
-SERVER_ADDRESS = 'slot-3:12345' 
+SERVER_ADDRESS = 'control-plane:12345' 
 
 def get_server_instance():
     """Create a gRPC client stub"""
@@ -281,7 +281,36 @@ def delete_fw_file(filename: str):
 # -------------------------------------------------------------------------------------------------
 #                                                                                            J-Link
 # -----------------------------------------------------------------------------------------------*/
-        
+
+def enable_power(server: mtib_grpc.MtibCsPiStub) -> bool:
+    response:DutPowerEnableResponse = server.DutPowerEnable(DutPowerEnableRequest(enable=True))
+    if not response.success:
+        rprint(f"[red]DutChargePowerEnable Error: {response.error}:[/red]")
+        return False    
+    
+    return True
+
+def disable_power(server: mtib_grpc.MtibCsPiStub) -> bool:
+    response:DutPowerEnableResponse = server.DutPowerEnable(DutPowerEnableRequest(enable=False))
+    if not response.success:
+        rprint(f"[red]DutPowerEnable Error: {response.error}:[/red]")
+        return False    
+    
+    return True
+
+def set_vbat(server:  mtib_grpc.MtibCsPiStub, voltage: float) -> bool:
+    disable_power(server)
+
+    # Set the power
+    response:DutVoltageSetResponse = server.DutVoltageSet(DutVoltageSetRequest(voltage=voltage))
+    if not response.success:
+        rprint(f"[red]DutVoltageSet Error: {response.error}:[/red]")
+        return False
+    
+    enable_power(server)  
+
+    return True
+
 # python3 test/client.py list-jlinks
 @app.command()
 def list_jlinks():
@@ -307,17 +336,23 @@ def list_jlinks():
 @app.command()
 def flash_hex_file(filename: str, serial_number: str, is_modem_fw: Optional[bool] = typer.Option(False, help="Specify if the firmware is for the modem")):
     """Flashes a HEX file to a J-Link device."""
+
     try:
         server = get_server_instance()
 
+        # Enable power
+        set_vbat(server, 4.5)
+
         # Prepare the JLinkInfo and request
         jlink_info = JLinkInfo(serialNumber=serial_number, usbPort=0)  # Assuming usbPort is not used
-        request = FlashHexFileRequest(fileName=filename, jlink=jlink_info, isModemFw=False)
+        request = FlashHexFileRequest(fileName=filename, jlink=jlink_info, isModemFw=is_modem_fw)
 
         # Execute RPC with timing
         start_time = time.time()
         response = server.FlashHexFile(request)
         duration_ms = (time.time() - start_time) * 1000
+
+        disable_power(server)
 
         if response.success:
             rprint(f"[green]Flash successful! ({duration_ms:.2f}ms)[/green]")
@@ -325,6 +360,7 @@ def flash_hex_file(filename: str, serial_number: str, is_modem_fw: Optional[bool
         else:
             rprint(f"[red]Flash failed:[/red] {response.error}")
     except Exception as e:
+        disable_power(server)
         rpc_error(e)
 
 # -------------------------------------------------------------------------------------------------

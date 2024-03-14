@@ -35,7 +35,7 @@ spec:
                 - "slot-5"
       containers:
       - name: mtib-posix
-        image: control-plane:5000/mtib-posix:1.0
+        image: control-plane:5000/mtib-posix:1.24
         securityContext:
           privileged: true
         ports:

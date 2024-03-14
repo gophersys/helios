@@ -4,7 +4,7 @@ import re
 import subprocess
 from config import config
 import time
-from pynrfjprog import HighLevel
+import logging
 
 class Jlink:
     def get_jlink_serial_numbers(self) -> dict:
@@ -26,94 +26,57 @@ class Jlink:
                     bus_number = int(bus_dir.split('/')[-1])
                     bus_to_serial[bus_number] = serial_number
 
-                    # Print the detected J-Link device
-                    print(f"Detected J-Link on Bus {bus_number}: Serial Number {serial_number}")
+                    # logging.info the detected J-Link device
+                    logging.info(f"Detected J-Link on Bus {bus_number}: Serial Number {serial_number}")
 
-        # Print final mapping
+        # logging.info final mapping
         for bus, serial in bus_to_serial.items():
-            print(f"Bus {bus}: Serial Number {serial}")
+            logging.info(f"Bus {bus}: Serial Number {serial}")
 
         return bus_to_serial
 
-    def program_app(self, serial_number, firmware_file):
+    def _run_nrfjprog(self, serial_number, firmware_file_path, modem):
+        # Construct the nrfjprog command
+        nrfjprog_command = [
+            'nrfjprog',
+            '-s', str(serial_number),
+            '--program', firmware_file_path,
+            '--verify'
+        ]
+    
         try:
-            # Construct path
-            file_path = os.path.join(config.conf.FW_FILE_STORAGE_DIR, firmware_file)
-            
-            # Convert serial number to integer
-            serial_number_int = int(serial_number)
-
             # Start the programming process
             start = time.time()
-            with HighLevel.API() as api:
-                print("Establishing board connection")
-                with HighLevel.IPCDFUProbe(api, serial_number_int, HighLevel.CoProcessor.CP_APPLICATION, None, True, None, 8000) as probe:
-                    program_options = HighLevel.ProgramOptions(
-                        erase_action=HighLevel.EraseAction.ERASE_SECTOR,
-                        reset=HighLevel.ResetAction.RESET_SYSTEM,
-                        verify=HighLevel.VerifyAction.VERIFY_READ
-                    )
-                    print(f"Programming '{firmware_file}' to board {serial_number}")
-                    probe.program(file_path, program_options)
-                    print("Programming complete")
+            logging.info(f"Programming '{firmware_file_path}' to board on programmer {serial_number}")
 
-                    # Verification step
-                    print("Verifying")
-                    probe.verify(file_path)
-                    print("Verification complete")
+            # Run the nrfjprog command
+            result = subprocess.run(nrfjprog_command, capture_output=True, text=True, check=True)
+            
+            # logging.info the output from nrfjprog
+            logging.info(result.stdout)
+            
+            logging.info(f"Programming complete in {time.time() - start} seconds")
+            return True
 
-                print(f"Completed in {time.time() - start} seconds")
-                return True
-
-        except Exception as e:
-            error_message = str(e)
+        except subprocess.CalledProcessError as e:
+            error_message = e.stderr
             if "LOW_VOLTAGE" in error_message:
-                print("Error: Low voltage detected on the target device. Please check the device's power supply.")
+                logging.error("Error: Low voltage detected on the target device. Please check the device's power supply.")
             elif "Could not connect to debug probe" in error_message:
-                print("Error: Could not connect to debug probe. Please check the connection and serial number.")
+                logging.info("Error: Could not connect to debug probe. Please check the connection and serial number.")
             else:
-                print(f"Failed due to {error_message}")
+                logging.info(f"Failed due to {error_message}")
             return False
+
+    def program_app(self, serial_number, firmware_file):
+        # Construct path to firmware file
+        firmware_file_path = os.path.join(config.conf.FW_FILE_STORAGE_DIR, firmware_file)
+        return self._run_nrfjprog(serial_number, firmware_file_path, modem=False)
 
     def program_modem(self, serial_number, firmware_file):
-        try:
-            # Construct path
-            file_path = os.path.join(config.conf.FW_FILE_STORAGE_DIR, firmware_file)
-            
-            # Convert serial number to integer
-            serial_number_int = int(serial_number)
-
-            # Start the programming process
-            start = time.time()
-            with HighLevel.API() as api:
-                print("Establishing board connection")
-                with HighLevel.IPCDFUProbe(api, serial_number_int, HighLevel.CoProcessor.CP_APPLICATION, None, True, None, 8000) as probe:
-                    program_options = HighLevel.ProgramOptions(
-                        erase_action=HighLevel.EraseAction.ERASE_ALL,
-                        reset=HighLevel.ResetAction.RESET_SYSTEM,
-                        verify=HighLevel.VerifyAction.VERIFY_NONE
-                    )
-                    print(f"Programming '{firmware_file}' to board {serial_number}")
-                    probe.program(file_path, program_options)
-                    print("Programming complete")
-
-                    # Verification step
-                    print("Verifying")
-                    probe.verify(file_path)
-                    print("Verification complete")
-
-                print(f"Completed in {time.time() - start} seconds")
-                return True
-
-        except Exception as e:
-            error_message = str(e)
-            if "LOW_VOLTAGE" in error_message:
-                print("Error: Low voltage detected on the target device. Please check the device's power supply.")
-            elif "Could not connect to debug probe" in error_message:
-                print("Error: Could not connect to debug probe. Please check the connection and serial number.")
-            else:
-                print(f"Failed due to {error_message}")
-            return False
+        # Construct path to firmware file
+        firmware_file_path = os.path.join(config.conf.FW_FILE_STORAGE_DIR, firmware_file)
+        return self._run_nrfjprog(serial_number, firmware_file_path, modem=True)
 
     def _extract_serial_number(self, device_path):
         # Use lsusb or other command to extract the serial number
@@ -123,5 +86,5 @@ class Jlink:
             if serial_match:
                 return serial_match.group(1)
         except subprocess.CalledProcessError as e:
-            print(f"Error reading device info: {e}")
+            logging.info(f"Error reading device info: {e}")
         return None

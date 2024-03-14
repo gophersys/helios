@@ -8,17 +8,27 @@
         "command": "nx run mtib-posix:containerize",
         "cwd": "{workspaceRoot}"
       },
+      "deploy":{
+        "command": "kubectl apply -f deploy/deployment.yaml",
+        "cwd": "{projectRoot}"
+      },
+      "teardown":{
+        "command": "kubectl delete deployment mtib-posix",
+        "cwd": "{projectRoot}"
+      },
       "containerize": {
         "executor": "@nx-tools/nx-container:build",
         "cwd": "{workspaceRoot}",
         "options": {
           "context": "{workspaceRoot}",
           "file": "apps/fixtures/mtib-posix/deploy/Dockerfile",
-          "platforms": [],
-          "load": false,
-          "push": true,
+          "platforms": [
+            "linux/arm64"
+          ],
+          "load": true,
+          "push": false,
           "tags": [
-            "slot-6:5000/mtib-posix:1.25"
+            "control-plane:5000/mtib-posix:1.24"
           ]
         }
       }

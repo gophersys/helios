@@ -29,18 +29,16 @@ def reset_server():
     
     # Drive the pin low
     wiringpi.digitalWrite(conf.SERVER_RESET_GPIO, wiringpi.GPIO.LOW)
-    logging.debug(f"GPIO {conf.SERVER_RESET_GPIO} set to LOW.")
 
     time.sleep(1)
 
     # Drive the pin high
     wiringpi.digitalWrite(conf.SERVER_RESET_GPIO, wiringpi.GPIO.HIGH)
-    logging.debug(f"GPIO {conf.SERVER_RESET_GPIO} set to HIGH.")
-    
-    logging.debug("Testing updated 4")
 
     # Give it some time to start
     time.sleep(2)
+
+    logging.info("Zephyr server has been reset")
 
 # -------------------------------------------------------------------------------------------------
 #                                                                                             Setup

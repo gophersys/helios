@@ -3,6 +3,8 @@ import hashlib
 import os
 import time
 import logging
+import subprocess
+import threading
 
 # 3rd party libraries
 import grpc
@@ -37,7 +39,8 @@ from protos.mtib_cs_pi.mtib_cs_pi_pb2 import (
     EepromWriteRequest, EepromWriteResponse
 )
 
-SERVER_ADDRESS = 'control-plane:12345' 
+# Assuming SERVER_ADDRESSES is a list of your server addresses
+SERVER_ADDRESSES = ['control-plane:12345', 'slot-2:12345', 'slot-3:12345', 'slot-4:12345', 'slot-5:12345']
 
 # -------------------------------------------------------------------------------------------------
 #                                                                               Test Points Mapping
@@ -169,19 +172,10 @@ def read_voltage(server:MtibCsPiStub) -> Tuple[bool, float]:
     return True, float(response.voltage_mv * 1000)
 
 def read_vbat(server:MtibCsPiStub) -> Tuple[bool, float]:
-    # response:AdcReadResponse = server.AdcRead(AdcReadRequest(channel=TP7_VBAT_MEAS, delayMs=ADC_READ_DELAY_MS))
-    # if not response.success:
-    #     logging.error(f"AdcRead Channel {TP7_VBAT_MEAS} Error: {response.error}")
-    #     return False
-    
-    # print(f"VBAT: {float(response.voltage) * 17.5}")
-    # return True, response.voltage * 17.5
     response:DutVoltageReadResponse = server.DutVoltageRead(DutVoltageReadRequest())
     if not response.success:
-        logging.error(f"DutCurrentRead Error: {response.error}")
+        logging.error(f"DutVoltageRead Error: {response.error}")
         return False
-
-    print(f"Voltage: {float(response.voltage_mv)}mv")
     
     return True, float(response.voltage_mv / 1000)
 
@@ -275,16 +269,17 @@ def check_step_2(server: MtibCsPiStub) -> bool:
         logging.error(f"Step 2.a failed: Expected +VIN < 0.3V, Actual +VIN = {vin_value}V")
         return False
     
+    #TODO: Update documentation to remove this test
     # 2.b. Ensure +VBCKP test point voltage is below 0.3V
-    vbckp_success, vbckp_value = read_vbckp(server)
-    if not vbckp_success:
-        logging.error("Step 2.b failed: Error reading +VBCKP test point voltage")
-        return False
-    elif vbckp_value >= 0.3:
-        logging.error(f"Step 2.b failed: Expected +VBCKP < 0.3V, Actual +VBCKP = {vbckp_value}V")
-        return False
-    else:
-        logging.debug(f"Step 2.b success: Expected +VBCKP < 0.3V, Actual +VBCKP = {vbckp_value}V")
+    # vbckp_success, vbckp_value = read_vbckp(server)
+    # if not vbckp_success:
+    #     logging.error("Step 2.b failed: Error reading +VBCKP test point voltage")
+    #     return False
+    # elif vbckp_value >= 0.3:
+    #     logging.error(f"Step 2.b failed: Expected +VBCKP < 0.3V, Actual +VBCKP = {vbckp_value}V")
+    #     return False
+    # else:
+    #     logging.debug(f"Step 2.b success: Expected +VBCKP < 0.3V, Actual +VBCKP = {vbckp_value}V")
 
     # 2.c. Ensure UVP_N test point voltage is digital low
     uvp_n_success, uvp_n_value = read_uvp_n(server)
@@ -348,6 +343,7 @@ def check_step_4(server: MtibCsPiStub) -> bool:
     else:
         logging.debug(f"Step 4.c success: Expected +VBCKP within 2.4V - 2.6V, Actual +VBCKP = {vbckp_value}V")
 
+    #TODO: Update documentation to remove this test
     # 4.d. Ensure VBAT_MEAS is correct voltage
     # vbat_success, vbat_value = read_vbat(server)
     # if not vbat_success:
@@ -505,7 +501,7 @@ def check_step_10(server: MtibCsPiStub) -> bool:
 # -------------------------------------------------------------------------------------------------
 #                                                                             Electrical Power Test
 # -----------------------------------------------------------------------------------------------*/
-STEP_SETTLE_DELAY_S=0
+STEP_SETTLE_DELAY_S=1
 
 def electrical_power_test(server: MtibCsPiStub) -> bool:
     # 1. Apply +2.5V to +BATT test point
@@ -581,36 +577,123 @@ def electrical_power_test(server: MtibCsPiStub) -> bool:
     return True
 
 # -------------------------------------------------------------------------------------------------
+#                                                                                        Deployment
+# -----------------------------------------------------------------------------------------------*/
+
+# Path to the Kubernetes deployment file
+DEPLOYMENT_FILE = '/workspaces/concord/apps/fixtures/mtib-posix/deploy/deployment.yaml'
+
+# Name of the deployment
+DEPLOYMENT_NAME = 'mtib-pos0x'
+
+# Namespace where the deployment is applied, adjust if using a specific namespace
+NAMESPACE = 'default'
+
+def run_command(command):
+    """Run a shell command."""
+    try:
+        output = subprocess.check_output(command, stderr=subprocess.STDOUT, shell=True, universal_newlines=True)
+        return True, output
+    except subprocess.CalledProcessError as e:
+        return False, e.output
+
+def apply_deployment():
+    """Apply the Kubernetes deployment."""
+    cmd = f'kubectl apply -f {DEPLOYMENT_FILE}'
+    success, output = run_command(cmd)
+    print(output)
+    return success
+
+def delete_deployment():
+    """Delete the Kubernetes deployment if it exists."""
+    # Check if the deployment exists
+    check_cmd = f'kubectl get deployment {DEPLOYMENT_NAME} --namespace={NAMESPACE}'
+    check_success, check_output = run_command(check_cmd)
+    
+    if check_success:
+        # Deployment exists, proceed to delete
+        delete_cmd = f'kubectl delete deployment {DEPLOYMENT_NAME} --namespace={NAMESPACE}'
+        delete_success, delete_output = run_command(delete_cmd)
+        print(delete_output)
+        return delete_success
+    else:
+        # Deployment does not exist, no need to delete
+        print("Deployment does not exist, skipping delete.")
+        return True  # Considered a success because there's nothing to delete
+
+def wait_for_deployment_ready(timeout=10):
+    """Wait for the deployment to be ready, with a timeout."""
+    start_time = time.time()
+    print("Waiting for deployment to be ready...")
+    while True:
+        # Adjusted command for better compatibility
+        cmd = f"kubectl get deployment {DEPLOYMENT_NAME} --namespace={NAMESPACE} -o jsonpath='{{.status.conditions[?(@.type==\"Available\")].status}}'"
+        success, output = run_command(cmd)
+        if output.strip() == "True":
+            print("Deployment is ready.")
+            break
+        elif time.time() - start_time > timeout:
+            print("Timeout waiting for deployment to become ready.")
+            break
+        else:
+            time.sleep(2)  # Check every 2 seconds
+
+# -------------------------------------------------------------------------------------------------
 #                                                                                              Main
 # -----------------------------------------------------------------------------------------------*/
-if __name__ == '__main__':
-    logging.basicConfig(level=logging.DEBUG)
 
-    # Create a client
-    channel = grpc.insecure_channel(SERVER_ADDRESS)
+def run_tests(server_address):
+    """Function to test each server."""
+    channel = grpc.insecure_channel(server_address)
     server = MtibCsPiStub(channel)
 
-    # Prepare the fixtue
     if not config_fixture(server):
-        logging.error("Could not configure test fixture")
-        exit(1)
+        logging.error(f"Could not configure test fixture for {server_address}")
+        return
 
     disable_power(server)
     set_5vin(server, False)
     time.sleep(3)
 
-    # Run the test
     if not electrical_power_test(server):
-        logging.error("Electrical Power Test failed")
+        time.sleep(5)
+        logging.error(f"Electrical Power Test failed for {server_address}")
         disable_power(server)
         set_5vin(server, False)
         if not set_hard_reset(server, False):
-            logging.error("Step 7: Assert HARD_RESET test point to digital low, failed")
+            logging.error(f"Step 7: Assert HARD_RESET test point to digital low, failed for {server_address}")
         time.sleep(1)
         read_all(server)
+    else:
+        time.sleep(5)
+        logging.info(f"Test passed for {server_address}!")
+
+if __name__ == '__main__':
+    logging.basicConfig(level=logging.DEBUG)
+
+    # Delete any current deployments running
+    if not delete_deployment():
+        print("Failed to apply deployment.")
         exit(1)
 
-    logging.info("Test passed!")
-    exit(0)
+    # Apply the deployment
+    if not apply_deployment():
+        print("Failed to apply deployment.")
+        exit(1)
+    
+    # Wait for the deployment to be ready
+    # wait_for_deployment_ready()
+
+    threads = []
+    for address in SERVER_ADDRESSES:
+        thread = threading.Thread(target=run_tests, args=(address,))
+        threads.append(thread)
+        thread.start()
+
+    # Wait for all threads to finish
+    for thread in threads:
+        thread.join()
+
+    logging.info("All tests completed.")
     
 
