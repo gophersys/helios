@@ -30,7 +30,8 @@ AdcReadChannelResponse MtibPiStm_AdcReadChannelHandler(AdcReadChannelRequest req
     else
     {
         uint32_t adc_value = 0;
-        if (!app_read_sn74lv4051a_channel(app_get_ptr(), (mux_channel_t)request.channel_number, &adc_value, request.delay_ms))
+        int32_t status = 0;
+        if (!app_read_sn74lv4051a_channel(app_get_ptr(), (mux_channel_t)request.channel_number, &adc_value, request.delay_ms, &status))
         {
             char err[] = "Unable to read ADC channel";
             LOG_ERR("%s", err);
@@ -63,7 +64,8 @@ AdcReadAllChannelsResponse MtibPiStm_AdcReadAllChannelsHandler(AdcReadAllChannel
 
     // Read all channels
     uint32_t readings[CHANNEL_MAX] = {0};
-    app_read_sn74lv4051a_all_channels(app_get_ptr(), readings, request.delay_ms);
+    int32_t status = 0;
+    app_read_sn74lv4051a_all_channels(app_get_ptr(), readings, request.delay_ms, &status);
 
     // Copy values into response
     for (uint8_t i = 0; i < ARRAY_SIZE(readings); i++)

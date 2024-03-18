@@ -203,13 +203,13 @@ static void _uart_thread(void *arg0, void *arg1, void *arg2)
                             if (info.error != CIPHER_RPC_ERR_OK)
                             {
                                 LOG_ERR("Could not send uart data to orange pi, cipher err: %d", info.error);
-                                continue;
+                                k_fatal_halt(0);
                             }
 
                             if (!response.success)
                             {
                                 LOG_ERR("RPC executed with an error: %s", response.error);
-                                continue;
+                                k_fatal_halt(0);
                             }
                         }
                         else

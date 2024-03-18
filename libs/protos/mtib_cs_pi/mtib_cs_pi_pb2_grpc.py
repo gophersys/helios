@@ -109,11 +109,6 @@ class MtibCsPiStub(object):
                 request_serializer=mtib__cs__pi__pb2.DeleteFwFileRequest.SerializeToString,
                 response_deserializer=mtib__cs__pi__pb2.DeleteFwFileResponse.FromString,
                 )
-        self.ListJlinks = channel.unary_unary(
-                '/MtibCsPi/ListJlinks',
-                request_serializer=mtib__cs__pi__pb2.ListJLinksRequest.SerializeToString,
-                response_deserializer=mtib__cs__pi__pb2.ListJLinksResponse.FromString,
-                )
         self.FlashHexFile = channel.unary_unary(
                 '/MtibCsPi/FlashHexFile',
                 request_serializer=mtib__cs__pi__pb2.FlashHexFileRequest.SerializeToString,
@@ -244,15 +239,9 @@ class MtibCsPiServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def ListJlinks(self, request, context):
+    def FlashHexFile(self, request, context):
         """J-Link
         """
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
-    def FlashHexFile(self, request, context):
-        """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
@@ -354,11 +343,6 @@ def add_MtibCsPiServicer_to_server(servicer, server):
                     servicer.DeleteFwFile,
                     request_deserializer=mtib__cs__pi__pb2.DeleteFwFileRequest.FromString,
                     response_serializer=mtib__cs__pi__pb2.DeleteFwFileResponse.SerializeToString,
-            ),
-            'ListJlinks': grpc.unary_unary_rpc_method_handler(
-                    servicer.ListJlinks,
-                    request_deserializer=mtib__cs__pi__pb2.ListJLinksRequest.FromString,
-                    response_serializer=mtib__cs__pi__pb2.ListJLinksResponse.SerializeToString,
             ),
             'FlashHexFile': grpc.unary_unary_rpc_method_handler(
                     servicer.FlashHexFile,
@@ -695,23 +679,6 @@ class MtibCsPi(object):
         return grpc.experimental.unary_unary(request, target, '/MtibCsPi/DeleteFwFile',
             mtib__cs__pi__pb2.DeleteFwFileRequest.SerializeToString,
             mtib__cs__pi__pb2.DeleteFwFileResponse.FromString,
-            options, channel_credentials,
-            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
-
-    @staticmethod
-    def ListJlinks(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/MtibCsPi/ListJlinks',
-            mtib__cs__pi__pb2.ListJLinksRequest.SerializeToString,
-            mtib__cs__pi__pb2.ListJLinksResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 

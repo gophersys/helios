@@ -23,8 +23,7 @@ from protos.mtib_cs_pi.mtib_cs_pi_pb2 import (
     AdcChannel, AdcReadRequest, AdcReadResponse,
     AdcReadAllRequest, AdcReadAllResponse, 
     AltimeterReadRequest, AltimeterReadResponse,
-    JLinkInfo, ListJLinksRequest, ListJLinksResponse,
-    FlashHexFileRequest, FlashHexFileResponse,
+    FlashHexFileRequest, FlashHexFileResponse, DeviceType,
     ListFwFilesRequest, ListFwFilesResponse, FwFileInfo,
     UploadFwFileRequest, UploadFwFileResponse,
     DeleteFwFileRequest, DeleteFwFileResponse,
@@ -41,6 +40,9 @@ from protos.mtib_cs_pi.mtib_cs_pi_pb2 import (
 
 # Assuming SERVER_ADDRESSES is a list of your server addresses
 SERVER_ADDRESSES = ['control-plane:12345', 'slot-2:12345', 'slot-3:12345', 'slot-4:12345', 'slot-5:12345']
+
+# SERVER_ADDRESSES = ['slot-5:12345']
+
 
 # -------------------------------------------------------------------------------------------------
 #                                                                               Test Points Mapping
@@ -74,7 +76,7 @@ def config_gpio(server: MtibCsPiStub, gpio:Gpio, type:GpioType, resistor:GpioRes
     response = server.GpioConfig(GpioConfigRequest(gpio=gpio, type=type, resistor=resistor))
     
     if response.success:
-        logging.info(f"GPIO configuration successful for GPIO {gpio}, type: {type}")
+        logging.debug(f"GPIO configuration successful for GPIO {gpio}, type: {type}")
     else:
         logging.error(f"Error: {response.error}, for GPIO {gpio}, type: {type}")
         return False
@@ -145,11 +147,11 @@ def set_hard_reset(server: MtibCsPiStub, state: bool) -> bool:
 
     return True
 
-def read_vin(server:MtibCsPiStub) -> Tuple[bool, float]:
-    response:AdcReadResponse = server.AdcRead(AdcReadRequest(channel=TP52_VIN, delayMs=ADC_READ_DELAY_MS))
+def read_vin(server: MtibCsPiStub) -> Tuple[bool, float]:
+    response = server.AdcRead(AdcReadRequest(channel=TP52_VIN, delayMs=ADC_READ_DELAY_MS))
     if not response.success:
         logging.error(f"AdcRead Channel {TP52_VIN} Error: {response.error}")
-        return False
+        return False, 0.0  # Return a tuple with False and a default voltage value, e.g., 0.0
     
     return True, response.voltage
 
@@ -166,8 +168,6 @@ def read_voltage(server:MtibCsPiStub) -> Tuple[bool, float]:
     if not response.success:
         logging.error(f"DutCurrentRead Error: {response.error}")
         return False
-
-    print(f"Voltage: {float(response.voltage_mv)}mv")
     
     return True, float(response.voltage_mv * 1000)
 
@@ -185,7 +185,6 @@ def read_vbckp(server:MtibCsPiStub) -> Tuple[bool, float]:
         logging.error(f"AdcRead Channel {TP30_VBCKP} Error: {response.error}")
         return False
     
-    print(f"VBACKUP: {float(response.voltage)}")
     return True, response.voltage
 
 def read_uvp_n(server:MtibCsPiStub) -> Tuple[bool, bool]:
@@ -201,8 +200,6 @@ def read_current(server:MtibCsPiStub) -> Tuple[bool, float]:
     if not response.success:
         logging.error(f"DutCurrentRead Error: {response.error}")
         return False
-
-    print(f"current: {float(response.current_ma)}mv")
     
     return True, float(response.current_ma / 1000)
 
@@ -501,7 +498,7 @@ def check_step_10(server: MtibCsPiStub) -> bool:
 # -------------------------------------------------------------------------------------------------
 #                                                                             Electrical Power Test
 # -----------------------------------------------------------------------------------------------*/
-STEP_SETTLE_DELAY_S=1
+STEP_SETTLE_DELAY_S=2
 
 def electrical_power_test(server: MtibCsPiStub) -> bool:
     # 1. Apply +2.5V to +BATT test point
@@ -639,7 +636,64 @@ def wait_for_deployment_ready(timeout=10):
             time.sleep(2)  # Check every 2 seconds
 
 # -------------------------------------------------------------------------------------------------
-#                                                                                              Main
+#                                                                                 Firmware flashing
+# -----------------------------------------------------------------------------------------------*/
+
+NRF9160_MODEM_FIRMWARE_FILE = "mfw_nrf9160_1.3.5.zip"
+NRF9160_FIRMWARE_FILE = "Sigma5_9160_Eng_SSv0p9_1_Mfg.hex"
+NRF82840_FIRMWARE_FILE = "Sigma5_52840_Eng_1.hex"
+NRF9160_BUS_NUMBER = 2
+NRF82840_BUS_NUMBER = 3
+
+def flash_device(server, server_address: str,  firmware_file: str, device: DeviceType, is_modem_fw: Optional[bool]) -> bool:
+    """Utility function to flash a firmware file to a specific device."""
+    try:
+        logging.info(f"Flashing {firmware_file} on {server_address}")
+
+        # Prepare the device information and flash request
+        request = FlashHexFileRequest(fileName=firmware_file, device=device, isModemFw=is_modem_fw)
+
+        # Measure the flashing process time
+        start_time = time.time()
+        response = server.FlashHexFile(request)
+        duration_seconds = time.time() - start_time
+
+        if response.success:
+            logging.info(f"Flash successful for {firmware_file}. Time taken: {duration_seconds:.2f} seconds")
+            return True
+        else:
+            logging.error(f"Flash failed for {device}: {response.error}")
+            return False
+    except Exception as e:
+        logging.error(f"Exception while flashing {device}: {e}")
+        return False
+
+def firmware_flashing(server: MtibCsPiStub, server_address: str) -> bool:
+    """Flashes firmware to specified devices."""
+    try:
+        # Flash nRF9160 modem firmware
+        if not flash_device(server, server_address, NRF9160_MODEM_FIRMWARE_FILE, DeviceType.DEVICE_NRF9160, True):
+            logging.error("Failed to flash nRF9160 modem firmware.")
+            return False
+        
+         # Flash nRF9160 firmware
+        if not flash_device(server, server_address, NRF9160_FIRMWARE_FILE, DeviceType.DEVICE_NRF9160, False):
+            logging.error("Failed to flash nRF9160 firmware.")
+            return False
+
+        # Flash nRF82840 firmware
+        if not flash_device(server, server_address, NRF82840_FIRMWARE_FILE, DeviceType.DEVICE_NRF82840, False):
+            logging.error("Failed to flash nRF82840 firmware.")
+            return False
+
+        logging.info("Firmware flashing successful for both devices.")
+        return True
+    except Exception as e:
+        logging.error(f"Unexpected error during firmware flashing: {e}")
+        return False
+
+# -------------------------------------------------------------------------------------------------
+#                                                                                             Tests
 # -----------------------------------------------------------------------------------------------*/
 
 def run_tests(server_address):
@@ -653,7 +707,9 @@ def run_tests(server_address):
 
     disable_power(server)
     set_5vin(server, False)
-    time.sleep(3)
+    time.sleep(1)
+
+    logging.info(f"Starting test for {server_address}")
 
     if not electrical_power_test(server):
         time.sleep(5)
@@ -661,15 +717,22 @@ def run_tests(server_address):
         disable_power(server)
         set_5vin(server, False)
         if not set_hard_reset(server, False):
-            logging.error(f"Step 7: Assert HARD_RESET test point to digital low, failed for {server_address}")
-        time.sleep(1)
-        read_all(server)
+            logging.error(f"Assert HARD_RESET test point to digital low, failed for {server_address}")
     else:
-        time.sleep(5)
-        logging.info(f"Test passed for {server_address}!")
+        logging.info(f"Test passed for {server_address}!, Flashing firmware")
+        
+        # Run the flashing process
+        if not firmware_flashing(server, server_address):
+            logging.error(f"Error flashing firmware to {server_address}")
+            return 0
 
+        logging.info(f"All tests passed and firmware flashed to boards for {server_address}")
+
+# -------------------------------------------------------------------------------------------------
+#                                                                                              Main
+# -----------------------------------------------------------------------------------------------*/
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(level=logging.INFO)
 
     # Delete any current deployments running
     if not delete_deployment():
@@ -681,9 +744,6 @@ if __name__ == '__main__':
         print("Failed to apply deployment.")
         exit(1)
     
-    # Wait for the deployment to be ready
-    # wait_for_deployment_ready()
-
     threads = []
     for address in SERVER_ADDRESSES:
         thread = threading.Thread(target=run_tests, args=(address,))

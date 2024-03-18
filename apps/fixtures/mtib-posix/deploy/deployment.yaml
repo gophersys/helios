@@ -35,7 +35,7 @@ spec:
                 - "slot-5"
       containers:
       - name: mtib-posix
-        image: control-plane:5000/mtib-posix:1.24
+        image: control-plane:5000/mtib-posix:1.40
         securityContext:
           privileged: true
         ports:
@@ -63,7 +63,7 @@ spec:
           path: /dev/bus/usb
       - name: tmp-fw-files
         hostPath:
-          path: /tmp/fw_files
+          path: /var/lib/fw_files
       - name: cipher-uart
         hostPath:
           path: /dev/ttyS5

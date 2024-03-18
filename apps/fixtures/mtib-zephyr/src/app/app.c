@@ -179,12 +179,12 @@ static void read_calibrated_pot_values(void)
     }
 }
 
-static void set_desired_volatge(uint32_t desired_voltage)
+static int32_t set_desired_volatge(uint32_t desired_voltage)
 {
     if (desired_voltage > 5000 || desired_voltage < 1800)
     {
         LOG_ERR("desired voltage is too high or too low, must be between 1800mV and 5000mV");
-        return;
+        return -ERROR;
     }
     uint8_t wiper_value = 0;
     for (size_t i = 0; i < 33; i++)
@@ -195,42 +195,45 @@ static void set_desired_volatge(uint32_t desired_voltage)
             break;
         }
     }
-    digital_pot_set_resitance(wiper_value);
+
+    return digital_pot_set_resitance(wiper_value);
 }
 /*---------------------------------------------------------------------------
 *                                               * power management functions
 *---------------------------------------------------------------------------*/
-static void power_on(void)
+static bool power_on(void)
 {
-    // int state = gpio_pin_get(_dut_power_enable.port, _dut_power_enable.pin);
-    // LOG_WRN("current state of the pin: %d", state);
     int ret = gpio_pin_set(_dut_power_enable.port, _dut_power_enable.pin, ON);
     if (ret != 0)
     {
         LOG_ERR("could not set the power enable pin ERROR number: %d", ret);
+        return false;
     }
-    // LOG_WRN("ret after setting pin: %d", ret);
-    // state = gpio_pin_get(_dut_power_enable.port, _dut_power_enable.pin);
-    // LOG_WRN("after state of the pin: %d", state);
+
+    return true;
+    
 }
 
-static void power_off(void)
+static bool power_off(void)
 {
     int ret = gpio_pin_set(_dut_power_enable.port, _dut_power_enable.pin, OFF);
     if (ret != 0)
     {
         LOG_ERR("could not set the power enable pin ERROR number: %d", ret);
+        return false;
     }
+
+    return true;
 }
 
-static void charge_on(void)
+static int charge_on(void)
 {
-    gpio_pin_set(_dut_charge_enable.port, _dut_charge_enable.pin, ON);
+    return gpio_pin_set(_dut_charge_enable.port, _dut_charge_enable.pin, ON);
 }
 
-static void charge_off(void)
+static int charge_off(void)
 {
-    gpio_pin_set(_dut_charge_enable.port, _dut_charge_enable.pin, OFF);
+    return gpio_pin_set(_dut_charge_enable.port, _dut_charge_enable.pin, OFF);
 }
 
 static bool is_correct_voltage(app_info_t *app, uint32_t desired_voltage)
@@ -256,37 +259,39 @@ static bool is_correct_voltage(app_info_t *app, uint32_t desired_voltage)
     return false;
 }
 
-static void turn_on_mtib(app_info_t *app, uint32_t desired_voltage)
-{
-    if (is_correct_voltage(app, desired_voltage))
-    {
-        LOG_WRN("Voltage is correct, turning on MTIB");
-        power_on();
-        // charge_on();
-    }
-    else
-    {
-        LOG_ERR("Voltage is not correct, cannot turn on MTIB");
-        power_off();
-        // charge_off();
-    }
-}
-
 static bool dut_power_enable(uint8_t enable)
 {
+    bool ret = false;
     switch (enable)
     {
         case ON:
-            power_on();
+            ret  = power_on();
             break;
         case OFF:
-            power_off();
+            ret = power_off();
         default:
             return false;
             break;
     }
 
-    return true;
+    return ret;
+}
+
+static bool turn_on_mtib(app_info_t *app, uint32_t desired_voltage)
+{
+    bool ret = false;
+    if (is_correct_voltage(app, desired_voltage))
+    {
+        LOG_INF("Voltage is correct, turning on MTIB");
+        ret = dut_power_enable(ON);
+    }
+    else
+    {
+        LOG_ERR("Voltage is not correct, cannot turn on MTIB");
+        ret = dut_power_enable(OFF);
+    }
+
+    return ret;
 }
 
 static bool dut_charger_enable(uint8_t enable)
@@ -421,48 +426,49 @@ void app_process_event(const event_t *event, app_info_t *app)
             break;
         case EVENT_MUX_READ_ALL_CHANNELS:
             event_opt_mux_data_t *mux_multi_channel_opt = (event_opt_mux_data_t *)event->options;
-            for (size_t i = 0; i < mux_multi_channel_opt->mux_channel; i++)
+            for (size_t i = 0; (i < mux_multi_channel_opt->mux_channel) && (*mux_multi_channel_opt->status == 0); i++)
             {
-                set_mux_channel(i, mux_multi_channel_opt->delay_ms);
-                mux_multi_channel_opt->adc_array[i] = read_mux_data();
+                set_mux_channel(i, mux_multi_channel_opt->delay_ms, mux_multi_channel_opt->status);
+                mux_multi_channel_opt->adc_array[i] = read_mux_data(mux_multi_channel_opt->status);
             }
             break;
         case EVENT_MUX_READ_CHANNEL:
             event_opt_mux_data_t *mux_single_channel_opt = (event_opt_mux_data_t *)event->options;
-            set_mux_channel(mux_single_channel_opt->mux_channel, mux_single_channel_opt->delay_ms);
-            *(mux_single_channel_opt->mux_adc_value) = read_mux_data();
+            set_mux_channel(mux_single_channel_opt->mux_channel, mux_single_channel_opt->delay_ms, mux_single_channel_opt->status);
+            *(mux_single_channel_opt->mux_adc_value) = read_mux_data(mux_single_channel_opt->status);
             break;
         case EVENT_POWER_RAIL_READ_VOLTAGE:
-            app->mcp4017_dev.voltage_value = digital_pot_read_feedback_voltage();
+            event_opt_digital_pot_data_t *digital_pot_read_opt = (event_opt_digital_pot_data_t *)event->options;
+            *digital_pot_read_opt->status = digital_pot_read_feedback_voltage(digital_pot_read_opt->desired_voltage);
             break;
         case EVENT_POWER_RAIL_SET_VOLTAGE:
-            event_opt_digital_pot_set_voltage_t *digital_pot_opts = (event_opt_digital_pot_set_voltage_t *)event->options;
-            set_desired_volatge(digital_pot_opts->desired_voltage);
+            event_opt_digital_pot_data_t *digital_pot_opts = (event_opt_digital_pot_data_t *)event->options;
+            *digital_pot_opts->status = set_desired_volatge(*digital_pot_opts->desired_voltage);
             app->mcp4017_dev.potentiometer_value = digital_pot_get_current_resitance();
-            app->mcp4017_dev.voltage_value = digital_pot_read_feedback_voltage();
+            *digital_pot_opts->status = digital_pot_read_feedback_voltage(digital_pot_opts->desired_voltage);
             break;
         case EVENT_POWER_RAIL_PRINT_DATA:
             LOG_INF("power rail voltage: %.2f", app->mcp4017_dev.voltage_value);
             break;
         case EVENT_DUT_POWER_ENABLE:
             event_opt_power_en_t *p_en_opt = (event_opt_power_en_t *)event->options;
-            dut_power_enable(p_en_opt->enable);
+            *p_en_opt->status = dut_power_enable(p_en_opt->enable);
             break;
         case EVENT_DUT_CHARGE_ENABLE:
             event_opt_charger_en_t *ch_en_opt = (event_opt_charger_en_t *)event->options;
-            dut_charger_enable(ch_en_opt->enable);
+            *ch_en_opt->status =  dut_charger_enable(ch_en_opt->enable);
             break;
         case EVENT_GPIO_CONFIGURE:
             event_opt_gpio_t *gpio_config_opt = (event_opt_gpio_t *)event->options;
-            configure_dut_gpio(gpio_config_opt->pin, gpio_config_opt->flag);
+            *gpio_config_opt->status = configure_dut_gpio(gpio_config_opt->pin, gpio_config_opt->flag);
             break;
         case EVENT_GPIO_SET:
             event_opt_gpio_t *gpio_set_opt = (event_opt_gpio_t *)event->options;
-            set_pin_state(gpio_set_opt->pin, *gpio_set_opt->state);
+            *gpio_set_opt->status = set_pin_state(gpio_set_opt->pin, *gpio_set_opt->state);
             break;
         case EVENT_GPIO_READ:
             event_opt_gpio_t *gpio_read_opt = (event_opt_gpio_t *)event->options;
-            get_pin_state(gpio_read_opt->pin, gpio_read_opt->state);
+            *gpio_read_opt->status = get_pin_state(gpio_read_opt->pin, gpio_read_opt->state);
             break;
         default:
             LOG_INF("Event: %d",  event->type);
@@ -670,12 +676,12 @@ static bool create_event_entry(app_info_t *app, event_type_t type, void *option,
         case EVENT_MUX_READ_CHANNEL:
             actual_opt_size = sizeof(event_opt_mux_data_t);
             break;
-        case EVENT_POWER_RAIL_READ_VOLTAGE:
         case EVENT_POWER_RAIL_PRINT_DATA:
             actual_opt_size = 0;
             break;
         case EVENT_POWER_RAIL_SET_VOLTAGE:
-            actual_opt_size = sizeof(event_opt_digital_pot_set_voltage_t);
+        case EVENT_POWER_RAIL_READ_VOLTAGE:
+            actual_opt_size = sizeof(event_opt_digital_pot_data_t);
             break;
         case EVENT_DUT_POWER_ENABLE:
             actual_opt_size = sizeof(event_opt_power_en_t);
@@ -1120,34 +1126,53 @@ void app_print_mcp4017_data(app_info_t *app)
  *
  * @param app Pointer to the application's information and state.
  * @param voltage The desired voltage setting.
+ * @param status Pointer to a variable where the status of the operation will be stored.
+ * 
+ * @return bool True if the setting was successful, false otherwise.
  *
  * This function creates an event to set the voltage output of the MCP4017 digital potentiometer.
  */
-void app_set_mcp4017_voltage_output(app_info_t *app, uint32_t voltage)
+bool app_set_mcp4017_voltage_output(app_info_t *app, uint32_t *voltage, int32_t *status)
 {
-    event_opt_digital_pot_set_voltage_t opt =
+    event_opt_digital_pot_data_t opt =
     {
-        .desired_voltage = voltage
+        .desired_voltage = voltage,
+        .status = status
     };
     if (!create_event_entry(app, EVENT_POWER_RAIL_SET_VOLTAGE, (void *)&opt, sizeof(opt)))
     {
         LOG_ERR("could to process EVENT_POWER_RAIL_SET_VOLTAGE event");
+        return false;
     }
+
+    return true;
 }
 
 /**
  * @brief Requests the voltage value from the MCP4017 digital potentiometer.
  *
  * @param app Pointer to the application's information and state.
+ * @param status Pointer to a variable where the status of the operation will be stored.
+ * 
+ * @return bool True if the read operation was successful, false otherwise.
  *
  * This function creates an event to read the voltage value of the MCP4017 digital potentiometer.
  */
-void app_read_mcp4017_voltage(app_info_t *app)
+bool app_read_mcp4017_voltage(app_info_t *app, int32_t *status)
 {
-    if (!create_event_entry(app, EVENT_POWER_RAIL_READ_VOLTAGE, NULL, 0))
+    event_opt_digital_pot_data_t opt =
+    {
+        .desired_voltage = 0,
+        .status = status
+    };
+
+    if (!create_event_entry(app, EVENT_POWER_RAIL_READ_VOLTAGE, (void *)&opt, sizeof(opt)))
     {
         LOG_ERR("could to process EVENT_POWER_RAIL_READ_VOLTAGE event");
+        return false;
     }
+
+    return true;
 }
 
 /*-----------------------------------------------------------------------------------------------------
@@ -1162,20 +1187,24 @@ void app_read_mcp4017_voltage(app_info_t *app)
  *
  * This function creates an event to read all channels of the SN74LV4051A multiplexer and store the ADC values.
  */
-void app_read_sn74lv4051a_all_channels(app_info_t *app, int32_t *adc_values, uint32_t delay_ms)
+bool app_read_sn74lv4051a_all_channels(app_info_t *app, int32_t *adc_values, uint32_t delay_ms, int32_t *status)
 {
     event_opt_mux_data_t opt =
     {
         .adc_array = adc_values,
         .mux_adc_value = NULL,
         .mux_channel = CHANNEL_MAX,
-        .delay_ms = delay_ms
+        .delay_ms = delay_ms,
+        .status = status
     };
 
     if (!create_event_entry(app, EVENT_MUX_READ_ALL_CHANNELS, (void *)&opt, sizeof(opt)))
     {
         LOG_ERR("could to process EVENT_MUX_READ_ALL_CHANNELS event");
+        return false;
     }
+
+    return true;
 }
 
 /**
@@ -1183,18 +1212,23 @@ void app_read_sn74lv4051a_all_channels(app_info_t *app, int32_t *adc_values, uin
  *
  * @param app Pointer to the application's information and state.
  * @param mux_channel The channel to be read.
+ * @param adc_value Pointer to a variable where the ADC value will be stored.
+ * @param delay_ms The delay in milliseconds before reading the ADC value.
+ * @param status Pointer to a variable where the status of the operation will be stored.
+ * 
  * @return bool True if the read operation was successful, false otherwise.
  *
  * This function creates an event to read a specific channel of the SN74LV4051A multiplexer.
  */
-bool app_read_sn74lv4051a_channel(app_info_t *app, mux_channel_t mux_channel, int32_t *adc_value, uint32_t delay_ms)
+bool app_read_sn74lv4051a_channel(app_info_t *app, mux_channel_t mux_channel, int32_t *adc_value, uint32_t delay_ms, int32_t *status)
 {
     event_opt_mux_data_t opt =
     {
         .adc_array = NULL,
         .mux_adc_value = adc_value,
         .mux_channel = mux_channel,
-        .delay_ms = delay_ms
+        .delay_ms = delay_ms,
+        .status = status
     };
 
     if (!create_event_entry(app, EVENT_MUX_READ_CHANNEL, (void *)&opt, sizeof(opt)))
@@ -1244,13 +1278,14 @@ bool app_charger_enable(app_info_t *app, uint8_t enable)
  *                                                                                       GPIO Functions
  *---------------------------------------------------------------------------------------------------*/
 
-bool app_gpio_configure(app_info_t *the_app, uint8_t pin, gpio_flags_t direction)
+bool app_gpio_configure(app_info_t *the_app, uint8_t pin, gpio_flags_t direction, int32_t *status)
 {
     event_opt_gpio_t opt =
     {
         .pin = pin,
         .state = 0x00, // does not matter here
-        .flag = direction
+        .flag = direction,
+        .status = status
     };
 
     if (!create_event_entry(the_app, EVENT_GPIO_CONFIGURE, (void *)&opt, sizeof(opt)))
@@ -1262,13 +1297,14 @@ bool app_gpio_configure(app_info_t *the_app, uint8_t pin, gpio_flags_t direction
     return true;
 }
 
-bool app_gpio_set(app_info_t *the_app, uint8_t pin, uint8_t value)
+bool app_gpio_set(app_info_t *the_app, uint8_t pin, uint8_t value, int32_t *status)
 {
     event_opt_gpio_t opt =
     {
         .pin = pin,
         .state = &value,
-        .flag = 0x00 // does not matter here
+        .flag = 0x00, // does not matter here
+        .status = status
     };
 
     if (!create_event_entry(the_app, EVENT_GPIO_SET, (void *)&opt, sizeof(opt)))
@@ -1280,7 +1316,7 @@ bool app_gpio_set(app_info_t *the_app, uint8_t pin, uint8_t value)
     return true;
 }
 
-bool app_gpio_read(app_info_t *the_app, uint8_t pin)
+bool app_gpio_read(app_info_t *the_app, uint8_t pin, int32_t *status)
 {
     uint8_t reading = 0;
 
@@ -1288,7 +1324,8 @@ bool app_gpio_read(app_info_t *the_app, uint8_t pin)
     {
         .pin = pin,
         .state = &reading, // does not matter here
-        .flag = 0x00 // does not matter here
+        .flag = 0x00, // does not matter here
+        .status = status
     };
 
     if (!create_event_entry(the_app, EVENT_GPIO_READ, (void *)&opt, sizeof(opt)))
@@ -1304,3 +1341,4 @@ bool app_gpio_read(app_info_t *the_app, uint8_t pin)
 
     return false; // This is false but fucntion success
 }
+

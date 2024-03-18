@@ -27,6 +27,7 @@ class Config:
     MCU_52840_USB_BUS: str
     SERVER_RESET_ENABLED: bool
     SERVER_RESET_GPIO: int
+    USB_ENABLE_GPIO: int
 
     def __new__(cls: Type['Config']) -> 'Config':
         """
@@ -71,6 +72,7 @@ class Config:
         self.MCU_52840_USB_BUS = self._get_env_var('MCU_52840_USB_BUS', str)
         self.SERVER_RESET_ENABLED = self._get_env_var('SERVER_RESET_ENABLED', bool)
         self.SERVER_RESET_GPIO = self._get_env_var('SERVER_RESET_GPIO', int)
+        self.USB_ENABLE_GPIO = self._get_env_var('USB_ENABLE_GPIO', int)
 
     def _get_env_var(self,
                      var_name: str,

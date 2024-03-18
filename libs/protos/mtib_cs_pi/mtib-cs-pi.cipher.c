@@ -36,8 +36,7 @@ typedef enum
     rpc_ListFwFiles = 17,
     rpc_UploadFwFile = 18,
     rpc_DeleteFwFile = 19,
-    rpc_ListJlinks = 20,
-    rpc_FlashHexFile = 21,
+    rpc_FlashHexFile = 20,
 } MtibCsPi_rpc;
 
 // Server side
@@ -361,23 +360,6 @@ cipher_rpc_err_t DeleteFwFileRpcPrvHandler(void *request, void *response)
     // Call the actual handler function
     *((DeleteFwFileResponse *)response ) = MtibCsPi_DeleteFwFileHandler(*((DeleteFwFileRequest *)request));
     return MtibCsPi_DeleteFwFileHandlerImplemented ? CIPHER_RPC_ERR_OK : CIPHER_RPC_ERR_NOT_IMPLEMENTED;
-}
-
-// Server side
-static bool MtibCsPi_ListJlinksHandlerImplemented = true;
-__attribute__((weak)) ListJLinksResponse MtibCsPi_ListJlinksHandler(ListJLinksRequest request)
-{
-    LOG_WRN("%s default implementation called", __func__);
-    MtibCsPi_ListJlinksHandlerImplemented = false;
-    ListJLinksResponse response  = {0};
-    return response ;
-}
-
-cipher_rpc_err_t ListJlinksRpcPrvHandler(void *request, void *response)
-{
-    // Call the actual handler function
-    *((ListJLinksResponse *)response ) = MtibCsPi_ListJlinksHandler(*((ListJLinksRequest *)request));
-    return MtibCsPi_ListJlinksHandlerImplemented ? CIPHER_RPC_ERR_OK : CIPHER_RPC_ERR_NOT_IMPLEMENTED;
 }
 
 // Server side
@@ -759,25 +741,6 @@ DeleteFwFileResponse MtibCsPi_DeleteFwFileRpc(cipher_unary_rpc_user_info_t *info
     cipher_daemon_execute_remote_rpc(&context);
     return response;
 }
-ListJLinksResponse MtibCsPi_ListJlinksRpc(cipher_unary_rpc_user_info_t *info, ListJLinksRequest request)
-{
-    ListJLinksResponse response  = {0};
-
-    cipher_daemon_rpc_context_t context =
-    {
-        .local = true,
-        .user_info = info,
-        .service_id = MTIBCSPI_SERVICE_ID,
-        .rpc_id = rpc_ListJlinks,
-        .request_struct = &request,
-        .request_struct_size = sizeof(request),
-        .response_struct = &response ,
-        .response_struct_size = sizeof(response)
-    };
-
-    cipher_daemon_execute_remote_rpc(&context);
-    return response;
-}
 FlashHexFileResponse MtibCsPi_FlashHexFileRpc(cipher_unary_rpc_user_info_t *info, FlashHexFileRequest request)
 {
     FlashHexFileResponse response  = {0};
@@ -1120,23 +1083,6 @@ static cipher_rpc_info_t mtibcspi_rpcs[] =
             .fields = DeleteFwFileResponse_fields,
             .encoded_size = DeleteFwFileResponse_size,
             .decoded_size = sizeof(DeleteFwFileResponse)
-        },
-        .supports_parallelism = true,
-    },
-    {
-        .id = rpc_ListJlinks,
-        .type = CIPHER_RPC_TYPE_UNARY,
-        .name = "ListJlinks",
-        .handler = ListJlinksRpcPrvHandler,
-        .request_info = {
-            .fields = ListJLinksRequest_fields,
-            .encoded_size = ListJLinksRequest_size,
-            .decoded_size = sizeof(ListJLinksRequest)
-        },
-        .response_info = {
-            .fields = ListJLinksResponse_fields,
-            .encoded_size = ListJLinksResponse_size,
-            .decoded_size = sizeof(ListJLinksResponse)
         },
         .supports_parallelism = true,
     },

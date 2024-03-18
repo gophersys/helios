@@ -28,7 +28,7 @@
           "load": true,
           "push": false,
           "tags": [
-            "control-plane:5000/mtib-posix:1.24"
+            "control-plane:5000/mtib-posix:1.40"
           ]
         }
       }

@@ -50,6 +50,10 @@ venv/
 .venv/
 .env
 
+# Firmware files 
+*.hex
+*.zip
+
 # # Ignore generated files in the protos directory
 # *.pb.h
 # *.pb.c

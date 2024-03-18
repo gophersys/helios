@@ -28,8 +28,7 @@ class MtibCsPiRpc(Enum):
     ListFwFiles = 17
     UploadFwFile = 18
     DeleteFwFile = 19
-    ListJlinks = 20
-    FlashHexFile = 21
+    FlashHexFile = 20
     
 class MtibCsPi:
     def __init__(self, daemon:Cipher):
@@ -434,27 +433,6 @@ class MtibCsPi:
         
         return context.response_struct, context.user_info.error
     # Server side handlers
-    def ListJlinksHandler(self, request:ListJLinksRequest) -> Tuple[ListJLinksResponse, CipherRpcErr]:
-        print("Default ListJlinks handler called")
-        response: ListJLinksResponse = ListJLinksResponse()
-        return response, CipherRpcErr.NOT_IMPLEMENTED
-        
-    # Client side 
-    def ListJlinksRpc(self, info:CipherUnaryRpcUserInfo, request:ListJLinksRequest) -> Tuple[Optional[ListJLinksResponse], CipherRpcErr]:
-        response: ListJLinksResponse = ListJLinksResponse()
-        context: CipherDaemonRpcContext = CipherDaemonRpcContext(
-            local=True,
-            user_info=info,
-            service_id=MTIBCSPI_SERVICE_ID,
-            rpc_id=MtibCsPiRpc.ListJlinks.value,
-            request_struct=request,
-            response_struct=response,            
-        )
-        
-        self.daemon.execute_remote_rpc(context)
-        
-        return context.response_struct, context.user_info.error
-    # Server side handlers
     def FlashHexFileHandler(self, request:FlashHexFileRequest) -> Tuple[FlashHexFileResponse, CipherRpcErr]:
         print("Default FlashHexFile handler called")
         response: FlashHexFileResponse = FlashHexFileResponse()
@@ -647,15 +625,6 @@ mtibcspi_service_rpcs = [
         handler=MtibCsPi.DeleteFwFileHandler,
         request_info=CipherMessageInfo(DeleteFwFileRequest),
         response_info=CipherMessageInfo(DeleteFwFileResponse),
-        supports_parallelism=True
-    ),
-    CipherRpcInfo(
-        id=MtibCsPiRpc.ListJlinks.value,
-        type=CipherRpcType.UNARY,
-        name="ListJlinks",
-        handler=MtibCsPi.ListJlinksHandler,
-        request_info=CipherMessageInfo(ListJLinksRequest),
-        response_info=CipherMessageInfo(ListJLinksResponse),
         supports_parallelism=True
     ),
     CipherRpcInfo(

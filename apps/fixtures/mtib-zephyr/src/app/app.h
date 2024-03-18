@@ -205,13 +205,14 @@ typedef struct
 } event_opt_ina219_set_power_t;
 
 /**
- * @struct event_opt_digital_pot_set_voltage_t
+ * @struct event_opt_digital_pot_data_t
  * @brief Structure for digital potentiometer set voltage event options.
  */
 typedef struct
 {
-    uint32_t desired_voltage;      /**< Desired voltage value in mV */
-} event_opt_digital_pot_set_voltage_t;
+    uint32_t *desired_voltage;      /**< Desired voltage value in mV */
+    int32_t *status;               /**< Status of the operation */
+} event_opt_digital_pot_data_t;
 
 /**
  * @struct event_opt_mux_data_t
@@ -223,6 +224,7 @@ typedef struct
     int32_t *mux_adc_value;       /**< MUX ADC value */
     mux_channel_t mux_channel;   /**< MUX channel */
     uint32_t delay_ms;           /**< Delay in milliseconds */
+    int32_t *status;             /**< Status of the operation */
 } event_opt_mux_data_t;
 
 /**
@@ -252,6 +254,7 @@ typedef struct
 typedef struct
 {
     bool enable; /**< Flag to enable or disable power */
+    bool *status; /**< Status of the operation */
 } event_opt_power_en_t;
 
 /**
@@ -261,6 +264,7 @@ typedef struct
 typedef struct
 {
     bool enable; /**< Flag to enable or disable charger */
+    bool *status; /**< Status of the operation */
 } event_opt_charger_en_t;
 
 /**
@@ -272,6 +276,7 @@ typedef struct
     gpio_flags_t flag; /**< GPIO flag to configure the GPIO  */
     uint8_t pin; /**< GPIO pin */
     uint8_t *state; /**< GPIO state */
+    int32_t *status; /**< Status of the operation */
 } event_opt_gpio_t;
 
 
@@ -504,15 +509,22 @@ void app_print_mcp4017_data(app_info_t *app);
  *
  * @param app  pointer to app_info_t struct
  * @param voltage  voltage value to set
+ * @param status  pointer to status
+ * 
+ * @return true if successful
  */
-void app_set_mcp4017_voltage_output(app_info_t *app, uint32_t voltage);
+bool app_set_mcp4017_voltage_output(app_info_t *app, uint32_t *voltage, int32_t *status);
 
 /**
  * @brief reads the voltage output of the MCP4017 digital potentiometer
  *
  * @param app  pointer to app_info_t struct
+ * @param status  pointer to status
+ * 
+ * @return true if successful, false if unsuccessful
+ * 
  */
-void app_read_mcp4017_voltage(app_info_t *app);
+bool app_read_mcp4017_voltage(app_info_t *app, int32_t *status);
 
 /*-----------------------------------------------------------------------------------------------------
  *                                                                   multiplexer sn74lv4051a Functions
@@ -524,11 +536,12 @@ void app_read_mcp4017_voltage(app_info_t *app);
 * @param app pointer to app_info_t struct
 * @param adc_values pointer to ADC values
 * @param delay_ms delay in milliseconds
+* @param status pointer to status
 *
 * @return true if successful
 * @return false if unsuccessful
 */
-void app_read_sn74lv4051a_all_channels(app_info_t *app, int32_t *adc_values, uint32_t delay_ms);
+bool app_read_sn74lv4051a_all_channels(app_info_t *app, int32_t *adc_values, uint32_t delay_ms, int32_t *status);
 
 /**
  * @brief reads a single channel of the SN74LV4051A multiplexer
@@ -537,11 +550,12 @@ void app_read_sn74lv4051a_all_channels(app_info_t *app, int32_t *adc_values, uin
  * @param channel channel to read
  * @param adc_value pointer to ADC value
  * @param delay_ms delay in milliseconds
+ * @param status pointer to status
  *
  * @return true if successful
  * @return false if unsuccessful
  */
-bool app_read_sn74lv4051a_channel(app_info_t *app, mux_channel_t channel, int32_t *adc_value, uint32_t delay_ms);
+bool app_read_sn74lv4051a_channel(app_info_t *app, mux_channel_t channel, int32_t *adc_value, uint32_t delay_ms, int32_t *status);
 
 /*-----------------------------------------------------------------------------------------------------
  *                                                                       MTIB power managment Functions
@@ -572,11 +586,12 @@ bool app_charger_enable(app_info_t *app, uint8_t enable);
  * @param app pointer to app_info_t struct
  * @param pin  GPIO pin
  * @param state  GPIO state
+ * @param status  pointer to status
  *
  * @return true if successful
  * @return false if unsuccessful
  */
-bool app_gpio_configure(app_info_t *app, uint8_t pin, gpio_flags_t direction);
+bool app_gpio_configure(app_info_t *app, uint8_t pin, gpio_flags_t direction, int32_t *status);
 
 /**
  * @brief Sets the state of a GPIO pin.
@@ -584,21 +599,23 @@ bool app_gpio_configure(app_info_t *app, uint8_t pin, gpio_flags_t direction);
  * @param app Pointer to app_info_t struct providing context for the operation.
  * @param pin The pin number to set the state of.
  * @param state The state to set the pin to.
+ * @param status Pointer to status
  *
  * @return true if successful
  * @return false if unsuccessful
  */
-bool app_gpio_set(app_info_t *app, uint8_t pin, uint8_t state);
+bool app_gpio_set(app_info_t *app, uint8_t pin, uint8_t state, int32_t *status);
 
 /**
  * @brief Reads the state of a GPIO pin.
  *
  * @param app Pointer to app_info_t struct providing context for the operation.
  * @param pin The pin number to read the state of.
+ * @param status Pointer to status
  *
  * @return true if the pin is high
  * @return false if the pin is low
  */
-bool app_gpio_read(app_info_t *app, uint8_t pin);
+bool app_gpio_read(app_info_t *app, uint8_t pin, int32_t *status);
 
 #endif /* MTIB_ZEPHYR_APP_H */

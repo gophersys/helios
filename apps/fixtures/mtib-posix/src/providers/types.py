@@ -30,8 +30,7 @@ from protos.mtib_cs_pi.mtib_cs_pi_pb2 import ( # Types for C# client to Orange P
     DeleteFwFileRequest, DeleteFwFileResponse, 
 
     # J-Link
-    JLinkInfo, ListJLinksRequest, ListJLinksResponse,
-    FlashHexFileRequest, FlashHexFileResponse, 
+    FlashHexFileRequest, FlashHexFileResponse, DeviceType
 )
 
 from protos.mtib_pi_stm.mtib_pi_stm_pb2_cipher import ( # Types for Orange Pi to STM32

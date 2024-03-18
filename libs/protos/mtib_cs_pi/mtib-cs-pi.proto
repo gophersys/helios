@@ -33,7 +33,6 @@ service MtibCsPi {
   rpc DeleteFwFile(DeleteFwFileRequest) returns (DeleteFwFileResponse) {}
 
   // J-Link
-  rpc ListJlinks(ListJLinksRequest) returns (ListJLinksResponse) {}
   rpc FlashHexFile(FlashHexFileRequest) returns (FlashHexFileResponse) {}
 }
 
@@ -189,24 +188,15 @@ message DeleteFwFileResponse {
   string error = 2;
 }
 
-// J Links
-message ListJLinksRequest {}
-
-message JLinkInfo {
-  string serialNumber = 1;  
-  int32 usbPort = 2;
-}
-
-message ListJLinksResponse {
-  bool success = 1;
-  string error = 2;
-  repeated JLinkInfo jlink = 3;
+enum DeviceType {
+  DEVICE_NRF9160 = 0;
+  DEVICE_NRF82840 = 1;
 }
 
 // Flash HEX files
 message FlashHexFileRequest {
   string fileName = 1;
-  JLinkInfo jlink = 2;
+  DeviceType device = 2;
   bool isModemFw = 3;
 }
 

@@ -122,12 +122,6 @@ DeleteFwFileResponse MtibCsPi_DeleteFwFileHandler(DeleteFwFileRequest request);
 DeleteFwFileResponse MtibCsPi_DeleteFwFileRpc(cipher_unary_rpc_user_info_t *info, DeleteFwFileRequest request);
 
 // Server side handler
-ListJLinksResponse MtibCsPi_ListJlinksHandler(ListJLinksRequest request);
-
-// Client side call
-ListJLinksResponse MtibCsPi_ListJlinksRpc(cipher_unary_rpc_user_info_t *info, ListJLinksRequest request);
-
-// Server side handler
 FlashHexFileResponse MtibCsPi_FlashHexFileHandler(FlashHexFileRequest request);
 
 // Client side call

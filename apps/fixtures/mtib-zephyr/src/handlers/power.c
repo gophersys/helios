@@ -72,7 +72,8 @@ DutSetOutputVoltageResponse MtibPiStm_DutSetOutputVoltageHandler(DutSetOutputVol
         .success = true,
     };
 
-    app_set_mcp4017_voltage_output(app_get_ptr(), request.voltage_mv);
+    int32_t status = 0;
+    app_set_mcp4017_voltage_output(app_get_ptr(), &request.voltage_mv, &status);
 
     LOG_INF("%s executed in %ums", __func__, k_uptime_get_32() - start_time);
     return response;

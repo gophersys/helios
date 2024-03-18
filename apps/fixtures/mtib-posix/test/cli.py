@@ -19,7 +19,6 @@ from protos.mtib_cs_pi.mtib_cs_pi_pb2 import (
     AdcChannel, AdcReadRequest, AdcReadResponse,
     AdcReadAllRequest, AdcReadAllResponse, 
     AltimeterReadRequest, AltimeterReadResponse,
-    JLinkInfo, ListJLinksRequest, ListJLinksResponse,
     FlashHexFileRequest, FlashHexFileResponse,
     ListFwFilesRequest, ListFwFilesResponse, FwFileInfo,
     UploadFwFileRequest, UploadFwFileResponse,
@@ -43,7 +42,7 @@ app = typer.Typer()
 # -------------------------------------------------------------------------------------------------
 #                                                                                     Configuration
 # -----------------------------------------------------------------------------------------------*/
-SERVER_ADDRESS = 'control-plane:12345' 
+SERVER_ADDRESS = 'slot-5:12345' 
 
 def get_server_instance():
     """Create a gRPC client stub"""

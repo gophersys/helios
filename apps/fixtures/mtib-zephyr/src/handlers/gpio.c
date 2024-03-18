@@ -40,6 +40,7 @@ GpioConfigurePinResponse MtibPiStm_GpioConfigurePinHandler(GpioConfigurePinReque
     };
 
     gpio_flags_t flag = 0;
+    int32_t success = 0;
     if (!_check_configure_inputs(&request, &response, &flag))
     {
         LOG_WRN("%s", response.error);
@@ -47,7 +48,7 @@ GpioConfigurePinResponse MtibPiStm_GpioConfigurePinHandler(GpioConfigurePinReque
     else
     {
         LOG_INF("Configuring pin %d as %s", request.pin_number, request.direction == GpioDirection_INPUT ? "input" : "output");
-        if (!app_gpio_configure(app_get_ptr(), request.pin_number, flag))
+        if (!app_gpio_configure(app_get_ptr(), request.pin_number, flag, &success))
         {
             char err[] = "Could not configure pin, internal error";
             memcpy(response.error, err, sizeof(response.error));
@@ -75,6 +76,7 @@ GpioSetPinResponse MtibPiStm_GpioSetPinHandler(GpioSetPinRequest request)
         .success = false,
     };
 
+    int32_t success = 0;
     if (!_check_set_inputs(&request, &response))
     {
         LOG_WRN("%s", response.error);
@@ -82,7 +84,7 @@ GpioSetPinResponse MtibPiStm_GpioSetPinHandler(GpioSetPinRequest request)
     else
     {
         LOG_INF("Writting pin %d to %s", request.pin_number, request.value == GpioValue_HIGH ? "HIGH" : "LOW");
-        if (!app_gpio_set(app_get_ptr(), request.pin_number, request.value))
+        if (!app_gpio_set(app_get_ptr(), request.pin_number, request.value, &success))
         {
             char err[] = "Could not set pin value, internal error";
             memcpy(response.error, err, sizeof(response.error));
@@ -110,13 +112,14 @@ GpioReadPinResponse MtibPiStm_GpioReadPinHandler(GpioReadPinRequest request)
         .success = false,
     };
 
+    int32_t success = 0;
     if (!_check_read_inputs(&request, &response))
     {
         LOG_WRN("%s", response.error);
     }
     else
     {
-        if (!app_gpio_read(app_get_ptr(), request.pin_number))
+        if (!app_gpio_read(app_get_ptr(), request.pin_number, &success))
         {
             response.value = GpioValue_LOW;
         }

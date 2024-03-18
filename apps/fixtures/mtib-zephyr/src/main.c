@@ -8,9 +8,9 @@
 #include <corekinect/cipher/cipher.h>
 
 // App includes
-#include "config/config.h"
 #include "app/app.h"
 #include "app/uart.h"
+#include "config/config.h"
 
 // Protocol includes
 #include "protos/mtib_pi_stm/mtib-pi-stm.cipher.h"
@@ -37,12 +37,15 @@ void init_daemon()
 // Entry
 int main(void)
 {
+    // Application
     static app_info_t app = {0};
     app_mtib_init(&app);
-    if (!app_uart_forwarder_init())
-    {
-        LOG_ERR("%s", "Could not initialize UART port forwarder");
-    }
+
+    // UART traffic forwarder
+    // if (!app_uart_forwarder_init())
+    // {
+    //     LOG_ERR("%s", "Could not initialize UART port forwarder");
+    // }
 
     init_daemon();
 
@@ -57,7 +60,8 @@ void arch_system_halt(unsigned int reason)
 
     LOG_PANIC();
 
-    k_msleep(1000);
+    (void)arch_irq_lock();
 
+    k_msleep(2000);
     sys_reboot(SYS_REBOOT_COLD);
 }

@@ -260,25 +260,16 @@ class MtibCsPiServicerProvider(MtibCsPiServicer):
     # -------------------------------------------------------------------------------------------------
     #                                                                                             JLink
     # -----------------------------------------------------------------------------------------------*/
-    def ListJlinks(self, request, context):
-        jlink = self.jlink_manager
-        try:
-            jlink_serial_numbers = jlink.get_jlink_serial_numbers()
-            jlinksInfo = [JLinkInfo(serialNumber=serial, usbPort=bus) 
-                          for bus, serial in jlink_serial_numbers.items()]
-            return ListJLinksResponse(success=True, error="", jlink=jlinksInfo)
-        except Exception as e:
-            return ListJLinksResponse(success=False, error=str(e), jlink=[])
-    
     def FlashHexFile(self, request, context):
         jlink = self.jlink_manager
         try:
+            success = False
             if request.isModemFw:
-                jlink.program_modem(request.jlink.serialNumber, request.fileName)
+                success, error = jlink.program_modem(request.device, request.fileName)
             else:
-                jlink.program_app(request.jlink.serialNumber, request.fileName)
+                success, error = jlink.program_app(request.device, request.fileName)
                 
-            return FlashHexFileResponse(success=True, error="", timeMs=0)
+            return FlashHexFileResponse(success=success, error=error, timeMs=0)
         except Exception as e:
             return FlashHexFileResponse(success=False, error=str(e), timeMs=0)
     
