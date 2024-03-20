@@ -1,5 +1,5 @@
 {
-  "name": "mtib-zephyr",
+  "name": "mtib_zephyr",
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "",
   "projectType": "application",

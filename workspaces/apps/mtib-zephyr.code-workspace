@@ -10,7 +10,7 @@
 			"path": "../../libs/zephyr/cipher"
 		},
 		{
-			"path": "../../apps/fixtures/mtib-zephyr"
+			"path": "../../apps/fixtures/mtib_zephyr"
 		}
 	],
 	"settings": {

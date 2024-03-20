@@ -10,7 +10,7 @@
 			"path": "../../libs/python/cipher-posix"
 		},
 		{
-			"path": "../../apps/fixtures/mtib-posix"
+			"path": "../../apps/fixtures/mtib_posix"
 		}
 	],
 	"settings": {

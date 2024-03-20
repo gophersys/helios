@@ -1,5 +1,5 @@
 {
-    "name": "mtib-posix",
+    "name": "mtib_posix",
     "$schema": "../../../node_modules/nx/schemas/project-schema.json",
     "sourceRoot": "apps/fixtures/mtib-posix",
     "projectType": "application",
