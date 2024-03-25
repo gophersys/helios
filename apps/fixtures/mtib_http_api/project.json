@@ -1,0 +1,28 @@
+{
+    "name": "mtib_http_api",
+    "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+    "sourceRoot": "apps/fixtures/mtib_http_api",
+    "projectType": "application",
+    "targets": {
+      "build":{
+        "command": "nx run mtib_http_api:containerize",
+        "cwd": "{workspaceRoot}"
+      },
+      "containerize": {
+        "executor": "@nx-tools/nx-container:build",
+        "cwd": "{workspaceRoot}",
+        "options": {
+          "context": "{workspaceRoot}",
+          "file": "apps/fixtures/mtib_http_api/deploy/Dockerfile",
+          "platforms": [
+            "linux/amd64"
+          ],
+          "load": true,
+          "push": false,
+          "tags": [
+            "ccr01.ad.corekinect.com/mtib-http-api:1.0"
+          ]
+        }
+      }
+    }
+  }
