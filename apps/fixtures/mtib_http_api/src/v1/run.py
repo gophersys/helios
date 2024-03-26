@@ -57,13 +57,18 @@ def run_test_on_slots(test_instance, slots_info):
             slot_id, step_idx = task_name_parts[0], int(task_name_parts[1])
             result = task.result()
             if result:  # If the task was executed and returned a result
-                slot_index = int(slot_id.split('-')[1]) - 1
-                enhanced_result = {
-                    "stepIndex": step_idx,
-                    "stepDescription": step_description,
-                    **result["result"]  # Merge the original result dict with the step metadata
-                }
-                results["panel"][slot_index].append(enhanced_result)
+                # Check if slot_id format is correct before attempting to access the index
+                if '-' in slot_id:
+                    slot_index = int(slot_id.split('-')[1]) - 1
+                    enhanced_result = {
+                        "stepIndex": step_idx,
+                        "stepDescription": step_description,
+                        **result["result"]  # Merge the original result dict with the step metadata
+                    }
+                    results["panel"][slot_index].append(enhanced_result)
+                else:
+                    print(f"Error: slot_id '{slot_id}' does not follow expected format 'slot-X'.")
 
     loop.close()
     return results
+
