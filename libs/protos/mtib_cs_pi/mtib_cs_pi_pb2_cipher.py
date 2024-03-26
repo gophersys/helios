@@ -9,30 +9,52 @@ from cipher import *
 MTIBCSPI_SERVICE_ID = 1
 
 class MtibCsPiRpc(Enum):
-    GpioConfig = 1
-    GpioWrite = 2
-    GpioRead = 3
-    AdcRead = 4
-    AdcReadAll = 5
-    DutPowerEnable = 6
-    DutChargePowerEnable = 7
-    DutVoltageSet = 8
-    DutCurrentRead = 9
-    DutVoltageRead = 10
-    DutPowerRead = 11
-    AltimeterRead = 12
-    AccelRead = 13
-    AccelReadMaxForce = 14
-    EepromRead = 15
-    EepromWrite = 16
-    ListFwFiles = 17
-    UploadFwFile = 18
-    DeleteFwFile = 19
-    FlashHexFile = 20
+    HealthCheck = 1
+    GpioConfig = 2
+    GpioWrite = 3
+    GpioRead = 4
+    AdcRead = 5
+    AdcReadAll = 6
+    DutPowerEnable = 7
+    DutChargePowerEnable = 8
+    DutVoltageSet = 9
+    DutCurrentRead = 10
+    DutVoltageRead = 11
+    DutPowerRead = 12
+    AltimeterRead = 13
+    AccelRead = 14
+    AccelReadMaxForce = 15
+    EepromRead = 16
+    EepromWrite = 17
+    ListFwFiles = 18
+    UploadFwFile = 19
+    DeleteFwFile = 20
+    FlashHexFile = 21
     
 class MtibCsPi:
     def __init__(self, daemon:Cipher):
         self.daemon: Cipher = daemon
+    # Server side handlers
+    def HealthCheckHandler(self, request:HealthCheckRequest) -> Tuple[HealthCheckResponse, CipherRpcErr]:
+        print("Default HealthCheck handler called")
+        response: HealthCheckResponse = HealthCheckResponse()
+        return response, CipherRpcErr.NOT_IMPLEMENTED
+        
+    # Client side 
+    def HealthCheckRpc(self, info:CipherUnaryRpcUserInfo, request:HealthCheckRequest) -> Tuple[Optional[HealthCheckResponse], CipherRpcErr]:
+        response: HealthCheckResponse = HealthCheckResponse()
+        context: CipherDaemonRpcContext = CipherDaemonRpcContext(
+            local=True,
+            user_info=info,
+            service_id=MTIBCSPI_SERVICE_ID,
+            rpc_id=MtibCsPiRpc.HealthCheck.value,
+            request_struct=request,
+            response_struct=response,            
+        )
+        
+        self.daemon.execute_remote_rpc(context)
+        
+        return context.response_struct, context.user_info.error
     # Server side handlers
     def GpioConfigHandler(self, request:GpioConfigRequest) -> Tuple[GpioConfigResponse, CipherRpcErr]:
         print("Default GpioConfig handler called")
@@ -456,6 +478,15 @@ class MtibCsPi:
 
 # MtibCsPi RPCs
 mtibcspi_service_rpcs = [
+    CipherRpcInfo(
+        id=MtibCsPiRpc.HealthCheck.value,
+        type=CipherRpcType.UNARY,
+        name="HealthCheck",
+        handler=MtibCsPi.HealthCheckHandler,
+        request_info=CipherMessageInfo(HealthCheckRequest),
+        response_info=CipherMessageInfo(HealthCheckResponse),
+        supports_parallelism=True
+    ),
     CipherRpcInfo(
         id=MtibCsPiRpc.GpioConfig.value,
         type=CipherRpcType.UNARY,

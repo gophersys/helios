@@ -8,6 +8,12 @@
 cipher_service_info_t *get_mtibcspiservice_info(void);
 
 // Server side handler
+HealthCheckResponse MtibCsPi_HealthCheckHandler(HealthCheckRequest request);
+
+// Client side call
+HealthCheckResponse MtibCsPi_HealthCheckRpc(cipher_unary_rpc_user_info_t *info, HealthCheckRequest request);
+
+// Server side handler
 GpioConfigResponse MtibCsPi_GpioConfigHandler(GpioConfigRequest request);
 
 // Client side call

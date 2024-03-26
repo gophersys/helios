@@ -14,6 +14,11 @@ class MtibCsPiStub(object):
         Args:
             channel: A grpc.Channel.
         """
+        self.HealthCheck = channel.unary_unary(
+                '/MtibCsPi/HealthCheck',
+                request_serializer=mtib__cs__pi__pb2.HealthCheckRequest.SerializeToString,
+                response_deserializer=mtib__cs__pi__pb2.HealthCheckResponse.FromString,
+                )
         self.GpioConfig = channel.unary_unary(
                 '/MtibCsPi/GpioConfig',
                 request_serializer=mtib__cs__pi__pb2.GpioConfigRequest.SerializeToString,
@@ -118,6 +123,13 @@ class MtibCsPiStub(object):
 
 class MtibCsPiServicer(object):
     """Missing associated documentation comment in .proto file."""
+
+    def HealthCheck(self, request, context):
+        """HealthCheck
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
 
     def GpioConfig(self, request, context):
         """Gpio
@@ -249,6 +261,11 @@ class MtibCsPiServicer(object):
 
 def add_MtibCsPiServicer_to_server(servicer, server):
     rpc_method_handlers = {
+            'HealthCheck': grpc.unary_unary_rpc_method_handler(
+                    servicer.HealthCheck,
+                    request_deserializer=mtib__cs__pi__pb2.HealthCheckRequest.FromString,
+                    response_serializer=mtib__cs__pi__pb2.HealthCheckResponse.SerializeToString,
+            ),
             'GpioConfig': grpc.unary_unary_rpc_method_handler(
                     servicer.GpioConfig,
                     request_deserializer=mtib__cs__pi__pb2.GpioConfigRequest.FromString,
@@ -358,6 +375,23 @@ def add_MtibCsPiServicer_to_server(servicer, server):
  # This class is part of an EXPERIMENTAL API.
 class MtibCsPi(object):
     """Missing associated documentation comment in .proto file."""
+
+    @staticmethod
+    def HealthCheck(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/MtibCsPi/HealthCheck',
+            mtib__cs__pi__pb2.HealthCheckRequest.SerializeToString,
+            mtib__cs__pi__pb2.HealthCheckResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
     @staticmethod
     def GpioConfig(request,

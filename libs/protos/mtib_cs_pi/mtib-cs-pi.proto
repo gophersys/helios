@@ -1,6 +1,9 @@
 syntax = "proto3";
 
 service MtibCsPi {
+  // HealthCheck
+  rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse) {}
+
   // Gpio
   rpc GpioConfig(GpioConfigRequest) returns (GpioConfigResponse) {}
   rpc GpioWrite(GpioWriteRequest) returns (GpioWriteResponse) {}
@@ -34,6 +37,13 @@ service MtibCsPi {
 
   // J-Link
   rpc FlashHexFile(FlashHexFileRequest) returns (FlashHexFileResponse) {}
+}
+
+// Health Check
+message HealthCheckRequest {}
+
+message HealthCheckResponse {
+  bool ok = 1;
 }
 
 // Gpio

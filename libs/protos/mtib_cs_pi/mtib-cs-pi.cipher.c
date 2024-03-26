@@ -17,27 +17,45 @@ LOG_MODULE_REGISTER(mtibcspi);
 
 typedef enum
 {
-    rpc_GpioConfig = 1,
-    rpc_GpioWrite = 2,
-    rpc_GpioRead = 3,
-    rpc_AdcRead = 4,
-    rpc_AdcReadAll = 5,
-    rpc_DutPowerEnable = 6,
-    rpc_DutChargePowerEnable = 7,
-    rpc_DutVoltageSet = 8,
-    rpc_DutCurrentRead = 9,
-    rpc_DutVoltageRead = 10,
-    rpc_DutPowerRead = 11,
-    rpc_AltimeterRead = 12,
-    rpc_AccelRead = 13,
-    rpc_AccelReadMaxForce = 14,
-    rpc_EepromRead = 15,
-    rpc_EepromWrite = 16,
-    rpc_ListFwFiles = 17,
-    rpc_UploadFwFile = 18,
-    rpc_DeleteFwFile = 19,
-    rpc_FlashHexFile = 20,
+    rpc_HealthCheck = 1,
+    rpc_GpioConfig = 2,
+    rpc_GpioWrite = 3,
+    rpc_GpioRead = 4,
+    rpc_AdcRead = 5,
+    rpc_AdcReadAll = 6,
+    rpc_DutPowerEnable = 7,
+    rpc_DutChargePowerEnable = 8,
+    rpc_DutVoltageSet = 9,
+    rpc_DutCurrentRead = 10,
+    rpc_DutVoltageRead = 11,
+    rpc_DutPowerRead = 12,
+    rpc_AltimeterRead = 13,
+    rpc_AccelRead = 14,
+    rpc_AccelReadMaxForce = 15,
+    rpc_EepromRead = 16,
+    rpc_EepromWrite = 17,
+    rpc_ListFwFiles = 18,
+    rpc_UploadFwFile = 19,
+    rpc_DeleteFwFile = 20,
+    rpc_FlashHexFile = 21,
 } MtibCsPi_rpc;
+
+// Server side
+static bool MtibCsPi_HealthCheckHandlerImplemented = true;
+__attribute__((weak)) HealthCheckResponse MtibCsPi_HealthCheckHandler(HealthCheckRequest request)
+{
+    LOG_WRN("%s default implementation called", __func__);
+    MtibCsPi_HealthCheckHandlerImplemented = false;
+    HealthCheckResponse response  = {0};
+    return response ;
+}
+
+cipher_rpc_err_t HealthCheckRpcPrvHandler(void *request, void *response)
+{
+    // Call the actual handler function
+    *((HealthCheckResponse *)response ) = MtibCsPi_HealthCheckHandler(*((HealthCheckRequest *)request));
+    return MtibCsPi_HealthCheckHandlerImplemented ? CIPHER_RPC_ERR_OK : CIPHER_RPC_ERR_NOT_IMPLEMENTED;
+}
 
 // Server side
 static bool MtibCsPi_GpioConfigHandlerImplemented = true;
@@ -380,6 +398,25 @@ cipher_rpc_err_t FlashHexFileRpcPrvHandler(void *request, void *response)
 }
 
 // Client side
+HealthCheckResponse MtibCsPi_HealthCheckRpc(cipher_unary_rpc_user_info_t *info, HealthCheckRequest request)
+{
+    HealthCheckResponse response  = {0};
+
+    cipher_daemon_rpc_context_t context =
+    {
+        .local = true,
+        .user_info = info,
+        .service_id = MTIBCSPI_SERVICE_ID,
+        .rpc_id = rpc_HealthCheck,
+        .request_struct = &request,
+        .request_struct_size = sizeof(request),
+        .response_struct = &response ,
+        .response_struct_size = sizeof(response)
+    };
+
+    cipher_daemon_execute_remote_rpc(&context);
+    return response;
+}
 GpioConfigResponse MtibCsPi_GpioConfigRpc(cipher_unary_rpc_user_info_t *info, GpioConfigRequest request)
 {
     GpioConfigResponse response  = {0};
@@ -763,6 +800,23 @@ FlashHexFileResponse MtibCsPi_FlashHexFileRpc(cipher_unary_rpc_user_info_t *info
 
 static cipher_rpc_info_t mtibcspi_rpcs[] =
 {
+    {
+        .id = rpc_HealthCheck,
+        .type = CIPHER_RPC_TYPE_UNARY,
+        .name = "HealthCheck",
+        .handler = HealthCheckRpcPrvHandler,
+        .request_info = {
+            .fields = HealthCheckRequest_fields,
+            .encoded_size = HealthCheckRequest_size,
+            .decoded_size = sizeof(HealthCheckRequest)
+        },
+        .response_info = {
+            .fields = HealthCheckResponse_fields,
+            .encoded_size = HealthCheckResponse_size,
+            .decoded_size = sizeof(HealthCheckResponse)
+        },
+        .supports_parallelism = true,
+    },
     {
         .id = rpc_GpioConfig,
         .type = CIPHER_RPC_TYPE_UNARY,
