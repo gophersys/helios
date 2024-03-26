@@ -44,7 +44,13 @@ class MtibCsPiServicerProvider(MtibCsPiServicer):
     def SetInternalDaemon(self, daemon:Cipher):
         self.daemon:Cipher = daemon
         self.stm32 = MtibPiStm(self.daemon)
-        
+
+    # -------------------------------------------------------------------------------------------------
+    #                                                                                       HealthCheck
+    # -----------------------------------------------------------------------------------------------*/
+    def HealthCheck(self, request, context):
+        return HealthCheckResponse(ok=True)
+
     # -------------------------------------------------------------------------------------------------
     #                                                                                              Gpio
     # -----------------------------------------------------------------------------------------------*/

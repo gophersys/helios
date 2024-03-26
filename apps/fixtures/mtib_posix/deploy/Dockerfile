@@ -72,7 +72,7 @@ RUN apt-get update && \
 # By installing these first you save a lot of time when making changes to the source code
 # and rebuilding the application
 WORKDIR /app
-COPY apps/fixtures/mtib-posix/setup.py setup.py
+COPY apps/fixtures/mtib_posix/setup.py setup.py
 RUN pip install -e . && \
     pip cache purge
 
@@ -126,9 +126,9 @@ ENV PYTHONPATH="/libs/python/iface-posix:${PYTHONPATH}"
 ENV PYTHONPATH="/libs/python/cipher-posix:${PYTHONPATH}"
 
 # Copy the app itself
-COPY apps/fixtures/mtib-posix/config config
-COPY apps/fixtures/mtib-posix/src src
-COPY apps/fixtures/mtib-posix/.env .env
+COPY apps/fixtures/mtib_posix/config config
+COPY apps/fixtures/mtib_posix/src src
+COPY apps/fixtures/mtib_posix/.env .env
 
 # Image size up to here is ~/875MB
 

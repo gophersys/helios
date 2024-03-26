@@ -578,7 +578,7 @@ def electrical_power_test(server: MtibCsPiStub) -> bool:
 # -----------------------------------------------------------------------------------------------*/
 
 # Path to the Kubernetes deployment file
-DEPLOYMENT_FILE = '/workspaces/concord/apps/fixtures/mtib-posix/deploy/deployment.yaml'
+DEPLOYMENT_FILE = '/workspaces/concord/apps/fixtures/mtib_posix/deploy/deployment.yaml'
 
 # Name of the deployment
 DEPLOYMENT_NAME = 'mtib-pos0x'

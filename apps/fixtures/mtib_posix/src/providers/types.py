@@ -1,4 +1,7 @@
 from protos.mtib_cs_pi.mtib_cs_pi_pb2 import ( # Types for C# client to Orange Pi gRPC server
+    # Health Check
+    HealthCheckResponse,
+    
     # Gpio
     GpioConfigRequest, GpioConfigResponse,
     GpioWriteRequest, GpioWriteResponse,

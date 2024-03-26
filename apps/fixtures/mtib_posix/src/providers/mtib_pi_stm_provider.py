@@ -17,7 +17,7 @@ class MtibPiStmProvider(MtibPiStm):
         self.daemon = daemon
     
     def SigmaToPiMessageHandler(self, request) -> Tuple['UartMessageResponse', Optional['CipherRpcErr']]:
-        log_file_path = "/workspaces/concord/apps/fixtures/mtib-posix/logs/log.txt"
+        log_file_path = "/workspaces/concord/apps/fixtures/mtib_posix/logs/log.txt"
 
         # Ensure the directory exists before attempting to open the file
         os.makedirs(os.path.dirname(log_file_path), exist_ok=True)
