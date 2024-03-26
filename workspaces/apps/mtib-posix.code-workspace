@@ -11,6 +11,9 @@
 		},
 		{
 			"path": "../../apps/fixtures/mtib_posix"
+		},
+		{
+			"path": "../../apps/fixtures/mtib_http_api"
 		}
 	],
 	"settings": {
