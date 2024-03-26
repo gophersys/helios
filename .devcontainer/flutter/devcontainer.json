@@ -1,6 +1,6 @@
 {
   "name": "Flutter Dev",
-  "image": "ccr01.ad.corekinect.com/concord-flutter:1.0",
+  "image": "ccr01.ad.corekinect.com/concord-flutter:1.2",
   "postCreateCommand": "npm install && npm fund",
   "runArgs": [
     "--privileged",

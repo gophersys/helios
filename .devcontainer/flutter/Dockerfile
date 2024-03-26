@@ -65,6 +65,12 @@ RUN flutter config --enable-linux-desktop
 # Configure git to consider the Flutter directory as safe
 RUN git config --global --add safe.directory /tmp/flutter
 
+# Enabled gRPC + Protobufs plugin
+RUN export PATH="HOME/.pub-cache/bin"
+RUN dart pub global activate protoc_plugin
+# RUN dart pub global activate protoc_plugin 20.0.1
+RUN echo 'export PATH="$PATH:$HOME/.pub-cache/bin"' >> /root/.bashrc
+RUN echo 'export PATH="$PATH:$HOME/.pub-cache/bin"' >> /root/.zshrc
 
 # -----------------------------------------------------------------------------------------------------
 #                                                                                                   End
