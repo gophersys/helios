@@ -1,4 +1,4 @@
-from protos.mtib_cs_pi.mtib_cs_pi_pb2 import ( # Types for C# client to Orange Pi gRPC server
+from protos.mtib_posix.mtib_posix_pb2 import ( # Types for C# client to Orange Pi gRPC server
     # Health Check
     HealthCheckResponse,
     
@@ -36,7 +36,7 @@ from protos.mtib_cs_pi.mtib_cs_pi_pb2 import ( # Types for C# client to Orange P
     FlashHexFileRequest, FlashHexFileResponse, DeviceType
 )
 
-from protos.mtib_pi_stm.mtib_pi_stm_pb2_cipher import ( # Types for Orange Pi to STM32
+from protos.mtib_zephyr.mtib_zephyr_pb2_cipher import ( # Types for Orange Pi to STM32
     # Gpio
     GpioDirection, GpioValue,
     GpioConfigurePinRequest, GpioConfigurePinResponse,

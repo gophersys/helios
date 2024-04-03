@@ -11,13 +11,13 @@ from iface import *
 
 # App includes
 from config import conf
-from src.providers.mtib_cs_pi_provider import *
-from src.providers.mtib_pi_stm_provider import *
+from src.providers.mtib_posix_provider import *
+from src.providers.mtib_zephyr_provider import *
 
 # Protocol includes
-from protos.mtib_cs_pi.mtib_cs_pi_pb2_cipher import *
-from protos.mtib_cs_pi.mtib_cs_pi_pb2_grpc import add_MtibCsPiServicer_to_server
-from protos.mtib_pi_stm.mtib_pi_stm_pb2_cipher import *
+from protos.mtib_posix.mtib_posix_pb2 import *
+from protos.mtib_posix.mtib_posix_pb2_grpc import add_MtibPosixServicer_to_server
+from protos.mtib_zephyr.mtib_zephyr_pb2_cipher import *
 
 # -------------------------------------------------------------------------------------------------
 #                                                                       Cipher STM32 Server Helpers
@@ -62,11 +62,11 @@ def setup_cipher_daemon() -> Tuple[bool, Optional[Cipher]]:
     logging.info("Daemon initialized OK")
     
     # Register services
-    daemon.register_service(service=mtibpistm_service_info, local=True)       
+    daemon.register_service(service=mtibzephyr_service_info, local=True)       
 
     # Register service provider
-    mtib_service_provider = MtibPiStmProvider(daemon)
-    daemon.register_service_provider(mtib_service_provider, mtibpistm_service_info)
+    mtib_service_provider = MtibZephyrProvider(daemon)
+    daemon.register_service_provider(mtib_service_provider, mtibzephyr_service_info)
     
     logging.info(f"Cipher started") 
     
@@ -77,8 +77,8 @@ def setup_grpc_server(daemon:Cipher) -> Tuple[bool, Optional[grpc.Server]]:
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     
     # Register the MTIB service
-    provider = MtibCsPiServicerProvider()
-    add_MtibCsPiServicer_to_server(provider, server)
+    provider = MtibPosixServicerProvider()
+    add_MtibPosixServicer_to_server(provider, server)
 
     # Pass the cipher daemon to the service provider
     provider.SetInternalDaemon(daemon)

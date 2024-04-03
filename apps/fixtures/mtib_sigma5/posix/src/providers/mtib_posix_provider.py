@@ -16,17 +16,17 @@ from src.fw_files import *
 from src.jlink.jlink import *
 
 # Protocol includes
-from protos.mtib_pi_stm.mtib_pi_stm_pb2_cipher import MtibPiStm
-from protos.mtib_cs_pi.mtib_cs_pi_pb2_grpc import MtibCsPiServicer
+from protos.mtib_zephyr.mtib_zephyr_pb2_cipher import MtibZephyr
+from protos.mtib_posix.mtib_posix_pb2_grpc import MtibPosixServicer
 from .types import * # All types are declared externally for readability of this file
 
-class MtibCsPiServicerProvider(MtibCsPiServicer):
+class MtibPosixServicerProvider(MtibPosixServicer):
     def __init__(self):
         # Application daemon instance
         self.daemon:Cipher = None
         
         # STM32 (MTIB) fixture service
-        self.stm32:MtibPiStm = None
+        self.stm32:MtibZephyr = None
         
         # General RPC info 
         self.rpc_info:CipherUnaryRpcUserInfo = CipherUnaryRpcUserInfo(
@@ -43,7 +43,7 @@ class MtibCsPiServicerProvider(MtibCsPiServicer):
     # -----------------------------------------------------------------------------------------------*/
     def SetInternalDaemon(self, daemon:Cipher):
         self.daemon:Cipher = daemon
-        self.stm32 = MtibPiStm(self.daemon)
+        self.stm32 = MtibZephyr(self.daemon)
 
     # -------------------------------------------------------------------------------------------------
     #                                                                                       HealthCheck

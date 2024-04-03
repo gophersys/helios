@@ -10,9 +10,9 @@ from cipher import Cipher, CipherRpcErr
 
 # Protocol includes
 from .types import *
-from protos.mtib_pi_stm.mtib_pi_stm_pb2_cipher import MtibPiStm
+from protos.mtib_zephyr.mtib_zephyr_pb2_cipher import MtibZephyr
 
-class MtibPiStmProvider(MtibPiStm):
+class MtibZephyrProvider(MtibZephyr):
     def __init__(self,daemon:Cipher):
         self.daemon = daemon
     
