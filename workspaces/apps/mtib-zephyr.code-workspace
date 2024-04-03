@@ -10,7 +10,7 @@
 			"path": "../../libs/zephyr/cipher"
 		},
 		{
-			"path": "../../apps/fixtures/mtib_zephyr"
+			"path": "../../apps/fixtures/mtib_sigma5/zephyr"
 		}
 	],
 	"settings": {
@@ -18,25 +18,9 @@
 			".env": "env",
 			"*.overlay": "dts",
 			".env.example": "env",
-			"cipher.h": "c",
-			"mtib-pi-stm.cipher.h": "c",
-			"kernel.h": "c",
-			"system_error": "c",
-			"array": "c",
-			"functional": "c",
-			"tuple": "c",
-			"type_traits": "c",
-			"utility": "c",
-			"ratio": "c",
-			"config.h": "c",
-			"typeinfo": "c",
-			"log.h": "c",
-			"log_ctrl.h": "c",
-			"accel_drv.h": "c",
-			"alt_drv.h": "c",
-			"stdint.h": "c",
-			"alt_drv_priv.h": "c",
-			"app.h": "c"
+			"mtib_zephyr.cipher.h": "c",
+			"app.h": "c",
+			"cipher.h": "c"
 		},
 	}
 }

@@ -1,19 +1,24 @@
 {
 	"folders": [
 		{
+			"name": "docs",
+			"path": "../../apps/fixtures/mtib_sigma5/docs"
+		},
+		{
+			"name": "protos",
 			"path": "../../libs/protos"
 		},
 		{
-			"path": "../../libs/python/iface-posix"
+			"name": "posix",
+			"path": "../../apps/fixtures/mtib_sigma5/posix"
 		},
 		{
-			"path": "../../libs/python/cipher-posix"
+			"name": "controller",
+			"path": "../../apps/fixtures/mtib_sigma5/controller"
 		},
 		{
-			"path": "../../apps/fixtures/mtib_posix"
-		},
-		{
-			"path": "../../apps/fixtures/mtib_http_api"
+			"name": "proxy",
+			"path": "../../apps/fixtures/mtib_sigma5/proxy"
 		}
 	],
 	"settings": {
