@@ -15,7 +15,7 @@
 #include <corekinect/cipher/cipher.h>
 
 // Protocol includes
-#include "protos/mtib_pi_stm/mtib-pi-stm.cipher.h"
+#include "protos/mtib_zephyr/mtib_zephyr.cipher.h"
 
 LOG_MODULE_DECLARE(app);
 
@@ -199,7 +199,7 @@ static void _uart_thread(void *arg0, void *arg1, void *arg2)
                             total_sent += request.data.size;
 
                             // Perform RPC with the data from the ring buffer
-                            UartMessageResponse response = MtibPiStm_SigmaToPiMessageRpc(&info, request);
+                            UartMessageResponse response = MtibZephyr_SigmaToPiMessageRpc(&info, request);
                             if (info.error != CIPHER_RPC_ERR_OK)
                             {
                                 LOG_ERR("Could not send uart data to orange pi, cipher err: %d", info.error);

@@ -8,14 +8,14 @@
 #include <corekinect/cipher/cipher.h>
 
 // Protocol includes
-#include "protos/mtib_pi_stm/mtib-pi-stm.cipher.h"
+#include "protos/mtib_zephyr/mtib_zephyr.cipher.h"
 
 // App includes
 #include "app/app.h"
 
 LOG_MODULE_DECLARE(handlers);
 
-Ina219ReadCurrentResponse MtibPiStm_Ina219ReadCurrentHandler(Ina219ReadCurrentRequest request)
+Ina219ReadCurrentResponse MtibZephyr_Ina219ReadCurrentHandler(Ina219ReadCurrentRequest request)
 {
     uint32_t start_time = k_uptime_get_32();
     Ina219ReadCurrentResponse response =
@@ -32,7 +32,7 @@ Ina219ReadCurrentResponse MtibPiStm_Ina219ReadCurrentHandler(Ina219ReadCurrentRe
     return response;
 }
 
-Ina219ReadVoltageResponse MtibPiStm_Ina219ReadVoltageHandler(Ina219ReadVoltageRequest request)
+Ina219ReadVoltageResponse MtibZephyr_Ina219ReadVoltageHandler(Ina219ReadVoltageRequest request)
 {
     uint32_t start_time = k_uptime_get_32();
     Ina219ReadVoltageResponse response =
@@ -49,7 +49,7 @@ Ina219ReadVoltageResponse MtibPiStm_Ina219ReadVoltageHandler(Ina219ReadVoltageRe
     return response;
 }
 
-Ina219ReadPowerResponse MtibPiStm_Ina219ReadPowerHandler(Ina219ReadPowerRequest request)
+Ina219ReadPowerResponse MtibZephyr_Ina219ReadPowerHandler(Ina219ReadPowerRequest request)
 {
     uint32_t start_time = k_uptime_get_32();
     Ina219ReadPowerResponse response =

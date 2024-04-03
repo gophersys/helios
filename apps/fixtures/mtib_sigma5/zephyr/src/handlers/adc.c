@@ -11,11 +11,11 @@
 #include "app/app.h"
 
 // Protocol includes
-#include "protos/mtib_pi_stm/mtib-pi-stm.cipher.h"
+#include "protos/mtib_zephyr/mtib_zephyr.cipher.h"
 
 LOG_MODULE_REGISTER(handlers, LOG_LEVEL_DBG);
 
-AdcReadChannelResponse MtibPiStm_AdcReadChannelHandler(AdcReadChannelRequest request)
+AdcReadChannelResponse MtibZephyr_AdcReadChannelHandler(AdcReadChannelRequest request)
 {
     AdcReadChannelResponse response = {0};
     uint32_t start_time = k_uptime_get_32();
@@ -57,7 +57,7 @@ AdcReadChannelResponse MtibPiStm_AdcReadChannelHandler(AdcReadChannelRequest req
     return response;
 }
 
-AdcReadAllChannelsResponse MtibPiStm_AdcReadAllChannelsHandler(AdcReadAllChannelsRequest request)
+AdcReadAllChannelsResponse MtibZephyr_AdcReadAllChannelsHandler(AdcReadAllChannelsRequest request)
 {
     AdcReadAllChannelsResponse response = {0};
     uint32_t start_time = k_uptime_get_32();

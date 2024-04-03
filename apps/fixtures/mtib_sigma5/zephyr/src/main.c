@@ -13,7 +13,7 @@
 #include "config/config.h"
 
 // Protocol includes
-#include "protos/mtib_pi_stm/mtib-pi-stm.cipher.h"
+#include "protos/mtib_zephyr/mtib_zephyr.cipher.h"
 
 LOG_MODULE_REGISTER(app, LOG_LEVEL_DBG);
 
@@ -27,7 +27,7 @@ void init_daemon()
     }
 
     // Register services
-    if (!cipher_register_service(get_mtibpistmservice_info(), true))
+    if (!cipher_register_service(get_mtibzephyrservice_info(), true))
     {
         LOG_ERR("Could not register local services with daemon");
         k_fatal_halt(0);

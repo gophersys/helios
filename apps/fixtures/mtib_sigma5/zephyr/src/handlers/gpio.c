@@ -10,7 +10,7 @@
 #include <dut_gpio_config_drv.h>
 
 // Protocol includes
-#include "protos/mtib_pi_stm/mtib-pi-stm.cipher.h"
+#include "protos/mtib_zephyr/mtib_zephyr.cipher.h"
 
 // App includes
 #include "app/app.h"
@@ -30,7 +30,7 @@ bool _check_read_inputs(GpioReadPinRequest *p_request, GpioReadPinResponse *p_re
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                            Configure
  *---------------------------------------------------------------------------------------------------*/
-GpioConfigurePinResponse MtibPiStm_GpioConfigurePinHandler(GpioConfigurePinRequest request)
+GpioConfigurePinResponse MtibZephyr_GpioConfigurePinHandler(GpioConfigurePinRequest request)
 {
     uint32_t start_time = k_uptime_get_32();
 
@@ -67,7 +67,7 @@ GpioConfigurePinResponse MtibPiStm_GpioConfigurePinHandler(GpioConfigurePinReque
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                                  Set
  *---------------------------------------------------------------------------------------------------*/
-GpioSetPinResponse MtibPiStm_GpioSetPinHandler(GpioSetPinRequest request)
+GpioSetPinResponse MtibZephyr_GpioSetPinHandler(GpioSetPinRequest request)
 {
     uint32_t start_time = k_uptime_get_32();
 
@@ -103,7 +103,7 @@ GpioSetPinResponse MtibPiStm_GpioSetPinHandler(GpioSetPinRequest request)
 /*-----------------------------------------------------------------------------------------------------
  *                                                                                                 Read
  *---------------------------------------------------------------------------------------------------*/
-GpioReadPinResponse MtibPiStm_GpioReadPinHandler(GpioReadPinRequest request)
+GpioReadPinResponse MtibZephyr_GpioReadPinHandler(GpioReadPinRequest request)
 {
     uint32_t start_time = k_uptime_get_32();
 

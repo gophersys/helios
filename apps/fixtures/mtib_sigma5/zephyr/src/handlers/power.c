@@ -8,14 +8,14 @@
 #include <corekinect/cipher/cipher.h>
 
 // Protocol includes
-#include "protos/mtib_pi_stm/mtib-pi-stm.cipher.h"
+#include "protos/mtib_zephyr/mtib_zephyr.cipher.h"
 
 // App includes
 #include "app/app.h"
 
 LOG_MODULE_DECLARE(handlers);
 
-DutEnablePowerResponse MtibPiStm_DutEnablePowerHandler(DutEnablePowerRequest request)
+DutEnablePowerResponse MtibZephyr_DutEnablePowerHandler(DutEnablePowerRequest request)
 {
     uint32_t start_time = k_uptime_get_32();
 
@@ -39,7 +39,7 @@ DutEnablePowerResponse MtibPiStm_DutEnablePowerHandler(DutEnablePowerRequest req
     return response;
 }
 
-DutEnableChargerResponse MtibPiStm_DutEnableChargerHandler(DutEnableChargerRequest request)
+DutEnableChargerResponse MtibZephyr_DutEnableChargerHandler(DutEnableChargerRequest request)
 {
     uint32_t start_time = k_uptime_get_32();
 
@@ -63,7 +63,7 @@ DutEnableChargerResponse MtibPiStm_DutEnableChargerHandler(DutEnableChargerReque
     return response;
 }
 
-DutSetOutputVoltageResponse MtibPiStm_DutSetOutputVoltageHandler(DutSetOutputVoltageRequest request)
+DutSetOutputVoltageResponse MtibZephyr_DutSetOutputVoltageHandler(DutSetOutputVoltageRequest request)
 {
     uint32_t start_time = k_uptime_get_32();
 

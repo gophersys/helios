@@ -8,14 +8,14 @@
 #include <corekinect/cipher/cipher.h>
 
 // Protocol includes
-#include "protos/mtib_pi_stm/mtib-pi-stm.cipher.h"
+#include "protos/mtib_zephyr/mtib_zephyr.cipher.h"
 
 // App includes
 #include "app/app.h"
 
 LOG_MODULE_DECLARE(handlers);
 
-EepromReadFromMemResponse MtibPiStm_EepromReadFromMemHandler(EepromReadFromMemRequest request)
+EepromReadFromMemResponse MtibZephyr_EepromReadFromMemHandler(EepromReadFromMemRequest request)
 {
     uint32_t start_time = k_uptime_get_32();
 
@@ -34,7 +34,7 @@ EepromReadFromMemResponse MtibPiStm_EepromReadFromMemHandler(EepromReadFromMemRe
     return response;
 }
 
-EepromWriteToMemResponse MtibPiStm_EepromWriteToMemHandler(EepromWriteToMemRequest request)
+EepromWriteToMemResponse MtibZephyr_EepromWriteToMemHandler(EepromWriteToMemRequest request)
 {
     uint32_t start_time = k_uptime_get_32();
 

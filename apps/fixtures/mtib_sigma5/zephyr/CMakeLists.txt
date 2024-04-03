@@ -17,7 +17,7 @@ set(DRIVERS
 
 # Protocols
 set(PROTOS 
-    "mtib_pi_stm"
+    "mtib_zephyr"
 )
 
 # Set Monorepo root
@@ -26,7 +26,7 @@ set(MONOREPO_ROOT ${MONOREPO_ROOT} CACHE INTERNAL "Monorepo root directory")
 
 # Append drivers
 foreach(DRIVER IN LISTS DRIVERS)
-    list(APPEND ZEPHYR_EXTRA_MODULES "${CMAKE_CURRENT_SOURCE_DIR}/../../../libs/zephyr/${DRIVER}")
+    list(APPEND ZEPHYR_EXTRA_MODULES "${MONOREPO_ROOT}/libs/zephyr/${DRIVER}")
 endforeach()
 
 # Find Zephyr, this also pulls in project() which defines 'app' target
@@ -36,10 +36,7 @@ project(cipher-scratchpad)
 # Include the base directory for protocol buffers.
 target_include_directories(app PRIVATE "${MONOREPO_ROOT}/libs")
 
-# Specify directories within 'protos' to include, if needed
-set(PROTO_SUBDIRS "mtib_pi_stm")
-
-foreach(subdir IN LISTS PROTO_SUBDIRS)
+foreach(subdir IN LISTS PROTOS)
     # Automatically include all .c files from the specified Protobuf directories
     file(GLOB_RECURSE subdir_proto_sources "${MONOREPO_ROOT}/libs/protos/${subdir}/*.c")
 

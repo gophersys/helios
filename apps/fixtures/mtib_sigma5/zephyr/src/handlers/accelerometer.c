@@ -8,14 +8,14 @@
 #include <corekinect/cipher/cipher.h>
 
 // Protocol includes
-#include "protos/mtib_pi_stm/mtib-pi-stm.cipher.h"
+#include "protos/mtib_zephyr/mtib_zephyr.cipher.h"
 
 // App includes
 #include "app/app.h"
 
 LOG_MODULE_DECLARE(handlers);
 
-Lis2de12ReadValuesResponse MtibPiStm_Lis2de12ReadValuesHandler(Lis2de12ReadValuesRequest request)
+Lis2de12ReadValuesResponse MtibZephyr_Lis2de12ReadValuesHandler(Lis2de12ReadValuesRequest request)
 {
     uint32_t start_time = k_uptime_get_32();
     Lis2de12ReadValuesResponse response =
@@ -36,7 +36,7 @@ Lis2de12ReadValuesResponse MtibPiStm_Lis2de12ReadValuesHandler(Lis2de12ReadValue
     return response;
 }
 
-Lis2de12ReadMaxForceResponse MtibPiStm_Lis2de12ReadMaxForceHandler(Lis2de12ReadMaxForceRequest request)
+Lis2de12ReadMaxForceResponse MtibZephyr_Lis2de12ReadMaxForceHandler(Lis2de12ReadMaxForceRequest request)
 {
     uint32_t start_time = k_uptime_get_32();
     Lis2de12ReadMaxForceResponse response =

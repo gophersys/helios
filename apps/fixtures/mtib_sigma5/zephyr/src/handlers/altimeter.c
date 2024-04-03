@@ -8,14 +8,14 @@
 #include <corekinect/cipher/cipher.h>
 
 // Protocol includes
-#include "protos/mtib_pi_stm/mtib-pi-stm.cipher.h"
+#include "protos/mtib_zephyr/mtib_zephyr.cipher.h"
 
 // App includes
 #include "app/app.h"
 
 LOG_MODULE_DECLARE(handlers);
 
-Bmp390ReadValuesResponse MtibPiStm_Bmp390ReadValuesHandler(Bmp390ReadValuesRequest request)
+Bmp390ReadValuesResponse MtibZephyr_Bmp390ReadValuesHandler(Bmp390ReadValuesRequest request)
 {
     uint32_t start_time = k_uptime_get_32();
     Bmp390ReadValuesResponse response =
