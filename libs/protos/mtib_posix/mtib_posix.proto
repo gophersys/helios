@@ -1,0 +1,312 @@
+syntax = "proto3";
+
+service MtibPosix {
+  // HealthCheck
+  rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse) {}
+
+  // Gpio
+  rpc GpioConfig(GpioConfigRequest) returns (GpioConfigResponse) {}
+  rpc GpioWrite(GpioWriteRequest) returns (GpioWriteResponse) {}
+  rpc GpioRead(GpioReadRequest) returns (GpioReadResponse) {}
+
+  // Adc
+  rpc AdcRead(AdcReadRequest) returns (AdcReadResponse) {}
+  rpc AdcReadAll(AdcReadAllRequest) returns (AdcReadAllResponse) {}
+
+  // Power
+  rpc DutPowerEnable(DutPowerEnableRequest) returns (DutPowerEnableResponse){}
+  rpc DutChargePowerEnable(DutPowerEnableRequest) returns (DutPowerEnableResponse){}
+  rpc DutVoltageSet(DutVoltageSetRequest) returns (DutVoltageSetResponse){}
+
+  // Power Monitor
+  rpc DutCurrentRead(DutCurrentReadRequest) returns (DutCurrentReadResponse){}
+  rpc DutVoltageRead(DutVoltageReadRequest) returns (DutVoltageReadResponse){}
+  rpc DutPowerRead(DutPowerReadRequest) returns (DutPowerReadResponse) {}
+
+  // Sensors
+  rpc AltimeterRead(AltimeterReadRequest) returns (AltimeterReadResponse) {}
+  rpc AccelRead(AccelReadRequest) returns (AccelReadResponse) {}
+  rpc AccelReadMaxForce(AccelReadMaxRequest) returns (AccelReadMaxResponse){}
+  rpc EepromRead(EepromReadRequest) returns (EepromReadResponse){}
+  rpc EepromWrite(EepromWriteRequest) returns (EepromWriteResponse){}
+
+  // Firmware Files
+  rpc ListFwFiles(ListFwFilesRequest) returns (ListFwFilesResponse) {}
+  rpc UploadFwFile(stream UploadFwFileRequest) returns (UploadFwFileResponse) {}
+  rpc DeleteFwFile(DeleteFwFileRequest) returns (DeleteFwFileResponse) {}
+
+  // J-Link
+  rpc FlashHexFile(FlashHexFileRequest) returns (FlashHexFileResponse) {}
+}
+
+// Health Check
+message HealthCheckRequest {}
+
+message HealthCheckResponse {
+  bool ok = 1;
+}
+
+// Gpio
+enum Gpio {
+  GPIO_0 = 0;
+  GPIO_1 = 1;
+  GPIO_2 = 2;
+  GPIO_3 = 3;
+  GPIO_4 = 4;
+  GPIO_5 = 5;
+  GPIO_6 = 6;
+}
+
+enum GpioType {
+  GPIO_INPUT = 0;
+  GPIO_OUTPUT = 1;
+}
+
+enum GpioResistorConfig {
+  GPIO_RESISTOR_PULL_UP = 0;
+  GPIO_RESISTOR_PULL_DOWN = 1;
+}
+
+message GpioConfigRequest {
+  Gpio gpio = 1;
+  GpioType type = 2;
+  GpioResistorConfig resistor = 3;
+}
+
+message GpioConfigResponse {
+  bool success = 1;
+  string error = 2;
+}
+
+message GpioWriteRequest {
+  Gpio gpio = 1;
+  bool state = 2;
+}
+
+message GpioWriteResponse {
+  bool success = 1;
+  string error = 2;
+}
+
+message GpioReadRequest {
+  Gpio gpio = 1;
+}
+
+message GpioReadResponse {
+  bool success = 1;
+  string error = 2;
+  bool state = 3;
+}
+
+// Adc
+enum AdcChannel {
+  ADC_CHANNEL_0 = 0;
+  ADC_CHANNEL_1 = 1;
+  ADC_CHANNEL_2 = 2;
+  ADC_CHANNEL_3 = 3;
+  ADC_CHANNEL_4 = 4;
+  ADC_CHANNEL_5 = 5;
+  ADC_CHANNEL_6 = 6;
+  ADC_CHANNEL_7 = 7;
+}
+
+message AdcReadRequest{
+  AdcChannel channel = 1;
+  int32 delayMs = 2;
+}
+
+message AdcReadResponse{
+  bool success = 1;
+  string error = 2;
+  double voltage = 3;
+}
+
+message AdcReadAllRequest{
+  int32 delayMs = 1;
+}
+
+message AdcReadAllResponse{
+  bool success = 1;
+  string error = 2;
+  repeated double voltage = 3;
+}
+
+// Uart
+enum UartPort {
+  UART_PORT_0 = 0;
+  UART_PORT_1 = 1;
+}
+
+enum UartBaudRate {
+  UART_BAUDRATE_9600 = 0;   
+  UART_BAUDRATE_115200 = 1;
+  UART_BAUDRATE_576000 = 2;     
+  UART_BAUDRATE_921600 = 3; 
+}
+
+message UartConfigRequest {
+  UartPort port = 1;
+  UartBaudRate baud = 2;
+  bool enable = 3;
+}
+
+message UartConfigResponse {
+  bool success = 1;
+  string error = 2;
+}
+
+message UartStreamRequest {
+  bytes data = 1;
+}
+
+message UartStreamResponse {
+  bytes data = 1; 
+  bool success = 2; // Indicates if the read was successful
+  string error = 3;
+}
+
+// Firmware Update
+message ListFwFilesRequest {}
+
+message FwFileInfo {
+  string name = 1;
+  int64 size_kb = 2;
+  string sha256_digest = 3;
+}
+
+message ListFwFilesResponse {
+  repeated FwFileInfo files = 1;
+}
+
+message UploadFwFileRequest {
+  string filename = 1;
+  bytes content = 2;
+}
+
+message UploadFwFileResponse {
+  bool success = 1;
+  string error = 2;
+  string sha256_digest = 3;
+}
+
+message DeleteFwFileRequest {
+  string filename = 1;
+}
+
+message DeleteFwFileResponse {
+  bool success = 1;
+  string error = 2;
+}
+
+enum DeviceType {
+  DEVICE_NRF9160 = 0;
+  DEVICE_NRF82840 = 1;
+}
+
+// Flash HEX files
+message FlashHexFileRequest {
+  string fileName = 1;
+  DeviceType device = 2;
+  bool isModemFw = 3;
+}
+
+message FlashHexFileResponse {
+  bool success = 1;
+  string error = 2;
+  int32 timeMs = 3;
+}
+
+// Dut
+message DutPowerEnableRequest {
+  bool enable = 1;
+}
+
+message DutPowerEnableResponse {
+  bool success = 1;
+  string error = 2;
+}
+
+message DutVoltageSetRequest {
+  double voltage = 1;
+}
+
+message DutVoltageSetResponse {
+  bool success = 1;
+  string error = 2;
+}
+
+message DutCurrentReadRequest{} 
+
+message DutCurrentReadResponse {
+  bool success = 1;
+  string error = 2;
+  int32 current_ma = 3;
+}
+
+message DutVoltageReadRequest{}
+
+message DutVoltageReadResponse{
+  bool success = 1;
+  string error = 2;
+  int32 voltage_mv = 3;
+}
+
+message DutPowerReadRequest {}
+
+message DutPowerReadResponse {
+  bool success = 1;
+  string error = 2;
+  int32 power_mw = 3;
+}
+
+// Sensors
+message AltimeterReadRequest {}
+
+message AltimeterReadResponse {
+  bool success = 1;
+  string error = 2;
+
+  double temperature_f = 3; 
+  double pressure_hg = 4;
+  double altitude_ft = 5;
+}
+
+message AccelReadRequest {}
+
+message AccelReadResponse {
+  bool success = 1;
+  string error = 2;
+  double x = 3;
+  double y = 4;
+  double z = 5;
+}
+
+message AccelReadMaxRequest{}
+
+message AccelReadMaxResponse {
+  bool success = 1;
+  string error = 2;
+  double max = 3;
+}
+
+message EepromReadRequest{
+  int32 address = 2;
+  int32 len = 3;
+}
+
+message EepromReadResponse {
+  bool success = 1;
+  string error = 2;
+  bytes data = 3;
+}
+
+message EepromWriteRequest {
+  bytes buffer = 1;
+  int32 address = 2;
+  int32 len = 3;
+}
+
+message EepromWriteResponse {
+  bool success = 1;
+  string error = 2;
+}

@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+service MtibController {
+  // HealthCheck
+  rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse) {}
+}
+
+// Health Check
+message HealthCheckRequest {}
+
+message HealthCheckResponse {
+  bool ok = 1;
+}
