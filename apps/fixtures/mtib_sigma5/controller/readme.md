@@ -4,12 +4,24 @@ The application can be launched using the following command:
 
 ```bash
 docker run -it --privileged \
--p 6969:6969 \
-ccr01.ad.corekinect.com/mtib-http-api:latest
+-v /dev/bus/usb:/dev/bus/usb \
+-v /tmp/fw_files:/tmp \
+-p 50051:50051 \
+localhost/mtib-posix:1.0 \
+/bin/bash
 ```
+
+# cipher
+
+A brief description of what cipher does and its purpose.
+
+## Todo
+
+[ ] Set the right branch in the setup.py for iface once iface is done
+
 ## Installation
 
-Instructions for installing the application, including any prerequisites.
+Instructions for installing cipher, including any prerequisites.
 
 ### Development Setup
 1. **Install python venv dependencies**
@@ -22,7 +34,7 @@ Instructions for installing the application, including any prerequisites.
     ```
 3. **Navigate to the directory**: 
     ```bash
-    cd cipher-
+    cd cipher-posix
     ```
 4. **Create a virtual environment**: 
     ```bash

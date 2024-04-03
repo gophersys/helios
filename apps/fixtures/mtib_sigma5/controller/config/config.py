@@ -19,8 +19,7 @@ class Config:
     _instance = None
 
     DEBUG_LEVEL: int
-    SERVER_PORT: int
-    KUBECONFIG_PATH: str
+    GRPC_SERVER_PORT: int
 
     def __new__(cls: Type['Config']) -> 'Config':
         """
@@ -57,8 +56,7 @@ class Config:
 
         # Load 
         self.DEBUG_LEVEL = self._get_env_var('DEBUG_LEVEL', int)
-        self.SERVER_PORT = self._get_env_var('SERVER_PORT', int)
-        self.KUBECONFIG_PATH = self._get_env_var('KUBECONFIG_PATH', str)
+        self.GRPC_SERVER_PORT = self._get_env_var('GRPC_SERVER_PORT', int)
 
     def _get_env_var(self,
                      var_name: str,

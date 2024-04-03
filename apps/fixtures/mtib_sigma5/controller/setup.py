@@ -8,8 +8,5 @@ setup(
                       'grpcio',
                       'grpcio-tools',
                       'python-dotenv',
-                      'flask',
-                      'flask-socketio',
-                      'requests'
     ],
 )
