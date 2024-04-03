@@ -29,60 +29,37 @@ class APITestClient:
                 formatted_error = response.text
             print(f"HealthCheck Failed with status {response.status_code}: {formatted_error}")
 
-    def test_list_tests(self):
-        """Test the /v1/Tests route for listing tests."""
-        response = requests.get(f"{self.base_url}/v1/Tests")
+    def test_register_cluster(self):
+        """Test the /v1/cluster/register route."""
+        payload = {
+            "cluster_id": "test-cluster-001",
+            "ip": "192.168.1.1",
+            # Include additional metadata as needed
+        }
+        response = requests.post(f"{self.base_url}/v1/cluster/register", json=payload)
         if response.status_code == 200:
             response_data = response.json()
-            # Basic validation of the response structure
-            if "tests" in response_data and isinstance(response_data["tests"], list):
-                print("ListTests Passed:", json.dumps(response_data, indent=4))
-                return
-        # Handle failure cases
-        print("ListTests Failed:", json.dumps(response.json(), indent=4))
-
-    def run_single_test(self, test_id, slots_info):
-        """Run a specific test by test_id on designated slots."""
-        url = f"{self.base_url}/v1/tests/{test_id}/run"
-        headers = {'Content-Type': 'application/json'}
-        payload = json.dumps(slots_info)
-        
-        response = requests.post(url, headers=headers, data=payload)
-        if response.status_code == 200:
-            print(f"Test {test_id} execution result:", json.dumps(response.json(), indent=4))
+            if response_data.get('status') == 'Registered' and response_data.get('cluster_id') == payload['cluster_id']:
+                print("RegisterCluster Passed", json.dumps(response_data, indent=4))
+            else:
+                print("RegisterCluster Failed", json.dumps(response_data, indent=4))
         else:
-            print(f"Test {test_id} execution failed with status {response.status_code}:", response.text)
+            try:
+                error_data = response.json()
+                formatted_error = json.dumps(error_data, indent=4)
+            except ValueError:
+                formatted_error = response.text
+            print(f"RegisterCluster Failed with status {response.status_code}: {formatted_error}")
 
     def run_tests(self):
         """Run all tests."""
-        # print("Testing HealthCheck...")
-        # self.test_health_check()
-        print("Testing ListTests...")
-        self.test_list_tests()
 
-        response = requests.get(f"{self.base_url}/v1/Tests")
-        if response.status_code == 200:
-            tests = response.json().get('tests', [])
-            if not tests:
-                print("No tests to run.")
-                return
+        print("Testing HealthCheck...")
+        self.test_health_check()
 
-            # Define slots information based on your criteria
-            slots_info = {
-                "single": False,
-                "slot-1": True,
-                "slot-2": False,
-                "slot-3": True,
-                "slot-4": False,
-                "slot-5": True,
-            }
+        print("Testing RegisterCluster...")
+        self.test_register_cluster()
 
-            for test in tests:
-                test_id = test.get('id')
-                print(f"Running test: {test['name']} (ID: {test_id})")
-                self.run_single_test(test_id, slots_info)
-        else:
-            print("Failed to retrieve list of tests:", response.text)
 
 if __name__ == "__main__":
     client = APITestClient()

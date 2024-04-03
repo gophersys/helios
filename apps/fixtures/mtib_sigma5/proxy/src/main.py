@@ -1,34 +1,24 @@
 # Standard includes
-from concurrent import futures
-from typing import Tuple, Optional
 import logging
 
 # Library includes
-import grpc
 from flask import Flask
 
 # App includes
 from config import conf
 
 # Routes
-from v1.healthcheck import healthcheck_bp
-from v1.tests import tests_bp
-from v1.run import run_bp
-
-# Tests
-import tests.electrical
-
-# Protocol includes
-from protos.mtib_cs_pi.mtib_cs_pi_pb2_grpc import MtibCsPiStub
+from v1.health.healthcheck import healthcheck_bp
+from v1.cluster.register.register import cluster_register_bp
 
 # -------------------------------------------------------------------------------------------------
 #                                                                                       HTTP Server
 # -----------------------------------------------------------------------------------------------*/
 app = Flask(__name__)
 
+# Route Blue Prints
 app.register_blueprint(healthcheck_bp)
-app.register_blueprint(tests_bp)
-app.register_blueprint(run_bp)
+app.register_blueprint(cluster_register_bp)
 
 # -------------------------------------------------------------------------------------------------
 #                                                                                              Main
