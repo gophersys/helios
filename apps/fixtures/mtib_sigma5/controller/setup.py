@@ -8,5 +8,6 @@ setup(
                       'grpcio',
                       'grpcio-tools',
                       'python-dotenv',
+                      'requests'
     ],
 )

@@ -3,6 +3,9 @@ from concurrent import futures
 from typing import Tuple, Optional
 import grpc
 import logging
+import threading
+import time
+import requests
 
 # App includes
 from config import conf
@@ -32,6 +35,30 @@ def setup_grpc_server() -> Tuple[bool, Optional[grpc.Server]]:
     return True, server
 
 # -------------------------------------------------------------------------------------------------
+#                                                                                        Keep Alive
+# -----------------------------------------------------------------------------------------------*/
+def keep_alive():
+    proxy_url = "http://localhost:6969/v1/cluster/register"  
+    cluster_data = {
+        "cluster_id": "your_cluster_id",
+        "cluster_info": {
+            # Fill in the cluster information required by your proxy server
+        }
+    }
+
+    while True:
+        try:
+            response = requests.post(proxy_url, json=cluster_data)
+            if response.status_code == 200:
+                pass
+            else:
+                logging.error(f"Failed to register cluster. Status code: {response.status_code}")
+        except Exception as e:
+            logging.error(f"Error during cluster registration: {str(e)}")
+
+        time.sleep(1)  # Wait for 1 second before the next registration attempt
+
+# -------------------------------------------------------------------------------------------------
 #                                                                                              Main
 # -----------------------------------------------------------------------------------------------*/
 if __name__ == '__main__':
@@ -42,6 +69,10 @@ if __name__ == '__main__':
     if not success:
         raise ValueError("Error setting up GRPC server")
     
+    # Create a new thread to start for the keep alive in the server
+    keep_alive_thread = threading.Thread(target=keep_alive, daemon=True)
+    keep_alive_thread.start()
+
     # Await for kill signal
     try:
         server.wait_for_termination()

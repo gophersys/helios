@@ -3,6 +3,9 @@ syntax = "proto3";
 service MtibController {
   // HealthCheck
   rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse) {}
+  
+  // List available tests in cluster
+  rpc ListTests(ListTestsRequest) returns (ListTestsResponse) {}
 }
 
 // Health Check
@@ -10,4 +13,17 @@ message HealthCheckRequest {}
 
 message HealthCheckResponse {
   bool ok = 1;
+}
+
+// Test metadata
+message TestInfo {
+  string name = 1;
+  int32 steps = 2; 
+}
+
+// List 
+message ListTestsRequest {}
+
+message ListTestsResponse {
+  repeated TestInfo tests = 1;
 }
