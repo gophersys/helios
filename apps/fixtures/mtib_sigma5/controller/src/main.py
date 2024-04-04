@@ -6,10 +6,14 @@ import logging
 import threading
 import time
 import requests
+import socket
+import sys
 
 # App includes
 from config import conf
 from src.providers.mtib_controller_provider import MtibControllerServicerProvider
+from src.clusters.sigma5 import Sigma5TestCluster
+from src.app.controller import ControllerServer
 
 # Protocol includes
 from protos.mtib_controller.mtib_controller_pb2 import *
@@ -37,26 +41,35 @@ def setup_grpc_server() -> Tuple[bool, Optional[grpc.Server]]:
 # -------------------------------------------------------------------------------------------------
 #                                                                                        Keep Alive
 # -----------------------------------------------------------------------------------------------*/
-def keep_alive():
-    proxy_url = "http://localhost:6969/v1/cluster/register"  
-    cluster_data = {
-        "cluster_id": "your_cluster_id",
-        "cluster_info": {
-            # Fill in the cluster information required by your proxy server
-        }
+def cluster_registration():
+    """ Runs a periodic registration query to the proxy server """
+
+    # Create the URL the proxy should use to connect to this server (us)
+    hostname = socket.gethostname()  
+    grpc_port = conf.GRPC_SERVER_PORT 
+    url = f"{hostname}:{grpc_port}"
+
+    # Populate the request payload with the hostname of the device and the port we're serving gRPC on
+    registration_payload = {
+        "url": url,
     }
 
+    # Send the request to connect periodically 
     while True:
         try:
-            response = requests.post(proxy_url, json=cluster_data)
+            registration_endpoint = f"{conf.PROXY_SERVER_URL}/v1/cluster/register"  
+            response = requests.post(registration_endpoint, json=registration_payload)
             if response.status_code == 200:
-                pass
+                logging.debug(f"Successfully registered cluster with proxy at {conf.PROXY_SERVER_URL}")
+            elif response.status_code == 503:
+                logging.error(f"Proxy server was unable to find our URL {url}")
             else:
-                logging.error(f"Failed to register cluster. Status code: {response.status_code}")
+                logging.error(f"Error response from proxy, status code: {response.status_code}, response: {response.content}")
         except Exception as e:
-            logging.error(f"Error during cluster registration: {str(e)}")
+            logging.error(f"Exception occurred during cluster registration: {str(e)}")
+            sys.exit(1)
 
-        time.sleep(1)  # Wait for 1 second before the next registration attempt
+        time.sleep(5) 
 
 # -------------------------------------------------------------------------------------------------
 #                                                                                              Main
@@ -64,23 +77,27 @@ def keep_alive():
 if __name__ == '__main__':
     print(conf)
 
+    # Setup the cluster
+    cluster = Sigma5TestCluster(kubeconfig_path=conf.KUBECONFIG_PATH, deployment_path=conf.DEPLOYMENT_PATH)
+    success, error = cluster.setup()
+    if not success:
+        logging.error(f"Unable to setup cluster: {error}")
+        ControllerServer().set_internal_error(error)
+
     # Setup gRPC server
     success, server = setup_grpc_server()
     if not success:
         raise ValueError("Error setting up GRPC server")
     
-    # Create a new thread to start for the keep alive in the server
-    keep_alive_thread = threading.Thread(target=keep_alive, daemon=True)
-    keep_alive_thread.start()
+    # Create a new thread to start registration
+    registration_thread = threading.Thread(target=cluster_registration, daemon=True)
+    registration_thread.start()
 
     # Await for kill signal
     try:
         server.wait_for_termination()
     except KeyboardInterrupt:
-        print("\n")
         logging.warning("Kill signal detected, stopping server...")
         server.stop(0)
-        # daemon.stop()
         logging.info("Server stopped.")
-    
-    
+        sys.exit(1)

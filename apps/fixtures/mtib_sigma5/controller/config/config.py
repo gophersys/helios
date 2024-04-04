@@ -8,18 +8,15 @@ class Config:
     A singleton class for application configuration.
 
     Attributes:
-        DEBUG_ENABLED (int): Debug level for the logging library (4:DBG), (3:INF), (2:WRN), (1:ERR)
-        MTIB_SERIAL_PORT (str): File descriptor for serial port connection with MTIB board.
-        GRPC_SERVER_PORT (int): Port number for the GRPC server.
-        FW_FILE_STORAGE_DIR (str): Host directory used to save/delete firmware files.
-        MCU_9160_USB_BUS (str): USB bus were the JLink connected to the nrf9160 is connected
-        MCU_52840_USB_BUS (str): USB bus were the JLink connected to the nrf52840 is connected
     """
 
     _instance = None
 
     DEBUG_LEVEL: int
     GRPC_SERVER_PORT: int
+    PROXY_SERVER_URL: str
+    KUBECONFIG_PATH: str
+    DEPLOYMENT_PATH: str
 
     def __new__(cls: Type['Config']) -> 'Config':
         """
@@ -57,6 +54,9 @@ class Config:
         # Load 
         self.DEBUG_LEVEL = self._get_env_var('DEBUG_LEVEL', int)
         self.GRPC_SERVER_PORT = self._get_env_var('GRPC_SERVER_PORT', int)
+        self.PROXY_SERVER_URL = self._get_env_var('PROXY_SERVER_URL', str)
+        self.KUBECONFIG_PATH = self._get_env_var('KUBECONFIG_PATH', str)
+        self.DEPLOYMENT_PATH = self._get_env_var('DEPLOYMENT_PATH', str)
 
     def _get_env_var(self,
                      var_name: str,
