@@ -14,17 +14,47 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x15mtib_controller.proto\"\x14\n\x12HealthCheckRequest\"!\n\x13HealthCheckResponse\x12\n\n\x02ok\x18\x01 \x01(\x08\x32L\n\x0eMtibController\x12:\n\x0bHealthCheck\x12\x13.HealthCheckRequest\x1a\x14.HealthCheckResponse\"\x00\x62\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x15mtib_controller.proto\x12\x04mtib\"\x0e\n\x0cResetRequest\"\x0f\n\rResetResponse\"\x14\n\x12HealthCheckRequest\"0\n\x13HealthCheckResponse\x12\n\n\x02ok\x18\x01 \x01(\x08\x12\r\n\x05\x65rror\x18\x02 \x01(\t\"?\n\x08StepInfo\x12\x10\n\x08sequence\x18\x01 \x01(\x05\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\x13\n\x0b\x64\x65scription\x18\x03 \x01(\t\"L\n\x08TestInfo\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x13\n\x0b\x64\x65scription\x18\x03 \x01(\t\x12\x1d\n\x05steps\x18\x02 \x03(\x0b\x32\x0e.mtib.StepInfo\"\x12\n\x10ListTestsRequest\"2\n\x11ListTestsResponse\x12\x1d\n\x05tests\x18\x01 \x03(\x0b\x32\x0e.mtib.TestInfo\"=\n\x17\x45xecuteBoardTestRequest\x12\x10\n\x08testName\x18\x01 \x01(\t\x12\x10\n\x08runnerId\x18\x02 \x01(\x05\"\xc4\x01\n\x18\x45xecuteBoardTestResponse\x12\x10\n\x08runnerId\x18\x01 \x01(\x05\x12\x10\n\x08stepName\x18\x02 \x01(\t\x12\x14\n\x0cstepSequence\x18\x03 \x01(\x05\x12\x13\n\x0bstepSuccess\x18\x04 \x01(\x08\x12\x12\n\nstepStatus\x18\x05 \x01(\t\x12\x16\n\x0e\x64\x65tailedResult\x18\x06 \x01(\t\x12\x1a\n\x12progressPercentage\x18\x07 \x01(\x05\x12\x11\n\ttimestamp\x18\x08 \x01(\t\"=\n\x17\x45xecutePanelTestRequest\x12\x10\n\x08testName\x18\x01 \x01(\t\x12\x10\n\x08\x62oardIds\x18\x02 \x03(\x05\"\x8e\x01\n\x18\x45xecutePanelTestResponse\x12\x0f\n\x07\x62oardId\x18\x01 \x01(\x05\x12\x10\n\x08stepName\x18\x02 \x01(\t\x12\x12\n\nstepNumber\x18\x03 \x01(\x05\x12\x12\n\nstepUpdate\x18\x04 \x01(\t\x12\x13\n\x0bstepSuccess\x18\x05 \x01(\x08\x12\x12\n\nstepStatus\x18\x06 \x01(\t\"M\n\x0cSoftwareInfo\x12\x14\n\x0csoftwareType\x18\x01 \x01(\t\x12\x16\n\x0e\x65xecutableName\x18\x02 \x01(\t\x12\x0f\n\x07version\x18\x03 \x01(\t\"\xaf\x01\n\nRunnerInfo\x12\n\n\x02id\x18\x01 \x01(\x05\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\x10\n\x08hostname\x18\x03 \x01(\t\x12\x12\n\nserverPort\x18\x04 \x01(\x05\x12\x0e\n\x06ipAddr\x18\x05 \x01(\t\x12\x11\n\tisInPanel\x18\x06 \x01(\x08\x12\x0f\n\x07panelId\x18\x07 \x01(\x05\x12-\n\x11supportedSoftware\x18\x08 \x03(\x0b\x32\x12.mtib.SoftwareInfo\".\n\x0cHardwareInfo\x12\r\n\x05model\x18\x01 \x01(\t\x12\x0f\n\x07version\x18\x02 \x01(\t\"\x1b\n\x19GetClusterMetadataRequest\"n\n\x1aGetClusterMetadataResponse\x12!\n\x07runners\x18\x01 \x03(\x0b\x32\x10.mtib.RunnerInfo\x12-\n\x11supportedHardware\x18\x02 \x01(\x0b\x32\x12.mtib.HardwareInfo2\xd3\x03\n\x0eMtibController\x12\x32\n\x05Reset\x12\x12.mtib.ResetRequest\x1a\x13.mtib.ResetResponse\"\x00\x12\x44\n\x0bHealthCheck\x12\x18.mtib.HealthCheckRequest\x1a\x19.mtib.HealthCheckResponse\"\x00\x12Y\n\x12GetClusterMetadata\x12\x1f.mtib.GetClusterMetadataRequest\x1a .mtib.GetClusterMetadataResponse\"\x00\x12>\n\tListTests\x12\x16.mtib.ListTestsRequest\x1a\x17.mtib.ListTestsResponse\"\x00\x12U\n\x10\x45xecuteBoardTest\x12\x1d.mtib.ExecuteBoardTestRequest\x1a\x1e.mtib.ExecuteBoardTestResponse\"\x00\x30\x01\x12U\n\x10\x45xecutePanelTest\x12\x1d.mtib.ExecutePanelTestRequest\x1a\x1e.mtib.ExecutePanelTestResponse\"\x00\x30\x01\x62\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
 _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'mtib_controller_pb2', _globals)
 if _descriptor._USE_C_DESCRIPTORS == False:
   DESCRIPTOR._options = None
-  _globals['_HEALTHCHECKREQUEST']._serialized_start=25
-  _globals['_HEALTHCHECKREQUEST']._serialized_end=45
-  _globals['_HEALTHCHECKRESPONSE']._serialized_start=47
-  _globals['_HEALTHCHECKRESPONSE']._serialized_end=80
-  _globals['_MTIBCONTROLLER']._serialized_start=82
-  _globals['_MTIBCONTROLLER']._serialized_end=158
+  _globals['_RESETREQUEST']._serialized_start=31
+  _globals['_RESETREQUEST']._serialized_end=45
+  _globals['_RESETRESPONSE']._serialized_start=47
+  _globals['_RESETRESPONSE']._serialized_end=62
+  _globals['_HEALTHCHECKREQUEST']._serialized_start=64
+  _globals['_HEALTHCHECKREQUEST']._serialized_end=84
+  _globals['_HEALTHCHECKRESPONSE']._serialized_start=86
+  _globals['_HEALTHCHECKRESPONSE']._serialized_end=134
+  _globals['_STEPINFO']._serialized_start=136
+  _globals['_STEPINFO']._serialized_end=199
+  _globals['_TESTINFO']._serialized_start=201
+  _globals['_TESTINFO']._serialized_end=277
+  _globals['_LISTTESTSREQUEST']._serialized_start=279
+  _globals['_LISTTESTSREQUEST']._serialized_end=297
+  _globals['_LISTTESTSRESPONSE']._serialized_start=299
+  _globals['_LISTTESTSRESPONSE']._serialized_end=349
+  _globals['_EXECUTEBOARDTESTREQUEST']._serialized_start=351
+  _globals['_EXECUTEBOARDTESTREQUEST']._serialized_end=412
+  _globals['_EXECUTEBOARDTESTRESPONSE']._serialized_start=415
+  _globals['_EXECUTEBOARDTESTRESPONSE']._serialized_end=611
+  _globals['_EXECUTEPANELTESTREQUEST']._serialized_start=613
+  _globals['_EXECUTEPANELTESTREQUEST']._serialized_end=674
+  _globals['_EXECUTEPANELTESTRESPONSE']._serialized_start=677
+  _globals['_EXECUTEPANELTESTRESPONSE']._serialized_end=819
+  _globals['_SOFTWAREINFO']._serialized_start=821
+  _globals['_SOFTWAREINFO']._serialized_end=898
+  _globals['_RUNNERINFO']._serialized_start=901
+  _globals['_RUNNERINFO']._serialized_end=1076
+  _globals['_HARDWAREINFO']._serialized_start=1078
+  _globals['_HARDWAREINFO']._serialized_end=1124
+  _globals['_GETCLUSTERMETADATAREQUEST']._serialized_start=1126
+  _globals['_GETCLUSTERMETADATAREQUEST']._serialized_end=1153
+  _globals['_GETCLUSTERMETADATARESPONSE']._serialized_start=1155
+  _globals['_GETCLUSTERMETADATARESPONSE']._serialized_end=1265
+  _globals['_MTIBCONTROLLER']._serialized_start=1268
+  _globals['_MTIBCONTROLLER']._serialized_end=1735
 # @@protoc_insertion_point(module_scope)

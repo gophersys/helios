@@ -17,8 +17,30 @@ LOG_MODULE_REGISTER(mtibcontroller);
 
 typedef enum
 {
-    rpc_HealthCheck = 1,
+    rpc_Reset = 1,
+    rpc_HealthCheck = 2,
+    rpc_GetClusterMetadata = 3,
+    rpc_ListTests = 4,
+    rpc_ExecuteBoardTest = 5,
+    rpc_ExecutePanelTest = 6,
 } MtibController_rpc;
+
+// Server side
+static bool MtibController_ResetHandlerImplemented = true;
+__attribute__((weak)) ResetResponse MtibController_ResetHandler(ResetRequest request)
+{
+    LOG_WRN("%s default implementation called", __func__);
+    MtibController_ResetHandlerImplemented = false;
+    ResetResponse response  = {0};
+    return response ;
+}
+
+cipher_rpc_err_t ResetRpcPrvHandler(void *request, void *response)
+{
+    // Call the actual handler function
+    *((ResetResponse *)response ) = MtibController_ResetHandler(*((ResetRequest *)request));
+    return MtibController_ResetHandlerImplemented ? CIPHER_RPC_ERR_OK : CIPHER_RPC_ERR_NOT_IMPLEMENTED;
+}
 
 // Server side
 static bool MtibController_HealthCheckHandlerImplemented = true;
@@ -37,7 +59,94 @@ cipher_rpc_err_t HealthCheckRpcPrvHandler(void *request, void *response)
     return MtibController_HealthCheckHandlerImplemented ? CIPHER_RPC_ERR_OK : CIPHER_RPC_ERR_NOT_IMPLEMENTED;
 }
 
+// Server side
+static bool MtibController_GetClusterMetadataHandlerImplemented = true;
+__attribute__((weak)) GetClusterMetadataResponse MtibController_GetClusterMetadataHandler(GetClusterMetadataRequest request)
+{
+    LOG_WRN("%s default implementation called", __func__);
+    MtibController_GetClusterMetadataHandlerImplemented = false;
+    GetClusterMetadataResponse response  = {0};
+    return response ;
+}
+
+cipher_rpc_err_t GetClusterMetadataRpcPrvHandler(void *request, void *response)
+{
+    // Call the actual handler function
+    *((GetClusterMetadataResponse *)response ) = MtibController_GetClusterMetadataHandler(*((GetClusterMetadataRequest *)request));
+    return MtibController_GetClusterMetadataHandlerImplemented ? CIPHER_RPC_ERR_OK : CIPHER_RPC_ERR_NOT_IMPLEMENTED;
+}
+
+// Server side
+static bool MtibController_ListTestsHandlerImplemented = true;
+__attribute__((weak)) ListTestsResponse MtibController_ListTestsHandler(ListTestsRequest request)
+{
+    LOG_WRN("%s default implementation called", __func__);
+    MtibController_ListTestsHandlerImplemented = false;
+    ListTestsResponse response  = {0};
+    return response ;
+}
+
+cipher_rpc_err_t ListTestsRpcPrvHandler(void *request, void *response)
+{
+    // Call the actual handler function
+    *((ListTestsResponse *)response ) = MtibController_ListTestsHandler(*((ListTestsRequest *)request));
+    return MtibController_ListTestsHandlerImplemented ? CIPHER_RPC_ERR_OK : CIPHER_RPC_ERR_NOT_IMPLEMENTED;
+}
+
+// Server side
+static bool MtibController_ExecuteBoardTestHandlerImplemented = true;
+__attribute__((weak)) ExecuteBoardTestResponse MtibController_ExecuteBoardTestHandler(ExecuteBoardTestRequest request)
+{
+    LOG_WRN("%s default implementation called", __func__);
+    MtibController_ExecuteBoardTestHandlerImplemented = false;
+    ExecuteBoardTestResponse response  = {0};
+    return response ;
+}
+
+cipher_rpc_err_t ExecuteBoardTestRpcPrvHandler(void *request, void *response)
+{
+    // Call the actual handler function
+    *((ExecuteBoardTestResponse *)response ) = MtibController_ExecuteBoardTestHandler(*((ExecuteBoardTestRequest *)request));
+    return MtibController_ExecuteBoardTestHandlerImplemented ? CIPHER_RPC_ERR_OK : CIPHER_RPC_ERR_NOT_IMPLEMENTED;
+}
+
+// Server side
+static bool MtibController_ExecutePanelTestHandlerImplemented = true;
+__attribute__((weak)) ExecutePanelTestResponse MtibController_ExecutePanelTestHandler(ExecutePanelTestRequest request)
+{
+    LOG_WRN("%s default implementation called", __func__);
+    MtibController_ExecutePanelTestHandlerImplemented = false;
+    ExecutePanelTestResponse response  = {0};
+    return response ;
+}
+
+cipher_rpc_err_t ExecutePanelTestRpcPrvHandler(void *request, void *response)
+{
+    // Call the actual handler function
+    *((ExecutePanelTestResponse *)response ) = MtibController_ExecutePanelTestHandler(*((ExecutePanelTestRequest *)request));
+    return MtibController_ExecutePanelTestHandlerImplemented ? CIPHER_RPC_ERR_OK : CIPHER_RPC_ERR_NOT_IMPLEMENTED;
+}
+
 // Client side
+ResetResponse MtibController_ResetRpc(cipher_unary_rpc_user_info_t *info, ResetRequest request)
+{
+    ResetResponse response  = {0};
+
+    cipher_daemon_rpc_context_t context =
+    {
+        .local = true,
+        .user_info = info,
+        .service_id = MTIBCONTROLLER_SERVICE_ID,
+        .rpc_id = rpc_Reset,
+        .request_struct = &request,
+        .request_struct_size = sizeof(request),
+        .response_struct = &response ,
+        .response_struct_size = sizeof(response)
+    };
+
+    cipher_daemon_execute_remote_rpc(&context);
+    return response;
+}
 HealthCheckResponse MtibController_HealthCheckRpc(cipher_unary_rpc_user_info_t *info, HealthCheckRequest request)
 {
     HealthCheckResponse response  = {0};
@@ -57,9 +166,102 @@ HealthCheckResponse MtibController_HealthCheckRpc(cipher_unary_rpc_user_info_t *
     cipher_daemon_execute_remote_rpc(&context);
     return response;
 }
+GetClusterMetadataResponse MtibController_GetClusterMetadataRpc(cipher_unary_rpc_user_info_t *info, GetClusterMetadataRequest request)
+{
+    GetClusterMetadataResponse response  = {0};
+
+    cipher_daemon_rpc_context_t context =
+    {
+        .local = true,
+        .user_info = info,
+        .service_id = MTIBCONTROLLER_SERVICE_ID,
+        .rpc_id = rpc_GetClusterMetadata,
+        .request_struct = &request,
+        .request_struct_size = sizeof(request),
+        .response_struct = &response ,
+        .response_struct_size = sizeof(response)
+    };
+
+    cipher_daemon_execute_remote_rpc(&context);
+    return response;
+}
+ListTestsResponse MtibController_ListTestsRpc(cipher_unary_rpc_user_info_t *info, ListTestsRequest request)
+{
+    ListTestsResponse response  = {0};
+
+    cipher_daemon_rpc_context_t context =
+    {
+        .local = true,
+        .user_info = info,
+        .service_id = MTIBCONTROLLER_SERVICE_ID,
+        .rpc_id = rpc_ListTests,
+        .request_struct = &request,
+        .request_struct_size = sizeof(request),
+        .response_struct = &response ,
+        .response_struct_size = sizeof(response)
+    };
+
+    cipher_daemon_execute_remote_rpc(&context);
+    return response;
+}
+ExecuteBoardTestResponse MtibController_ExecuteBoardTestRpc(cipher_unary_rpc_user_info_t *info, ExecuteBoardTestRequest request)
+{
+    ExecuteBoardTestResponse response  = {0};
+
+    cipher_daemon_rpc_context_t context =
+    {
+        .local = true,
+        .user_info = info,
+        .service_id = MTIBCONTROLLER_SERVICE_ID,
+        .rpc_id = rpc_ExecuteBoardTest,
+        .request_struct = &request,
+        .request_struct_size = sizeof(request),
+        .response_struct = &response ,
+        .response_struct_size = sizeof(response)
+    };
+
+    cipher_daemon_execute_remote_rpc(&context);
+    return response;
+}
+ExecutePanelTestResponse MtibController_ExecutePanelTestRpc(cipher_unary_rpc_user_info_t *info, ExecutePanelTestRequest request)
+{
+    ExecutePanelTestResponse response  = {0};
+
+    cipher_daemon_rpc_context_t context =
+    {
+        .local = true,
+        .user_info = info,
+        .service_id = MTIBCONTROLLER_SERVICE_ID,
+        .rpc_id = rpc_ExecutePanelTest,
+        .request_struct = &request,
+        .request_struct_size = sizeof(request),
+        .response_struct = &response ,
+        .response_struct_size = sizeof(response)
+    };
+
+    cipher_daemon_execute_remote_rpc(&context);
+    return response;
+}
 
 static cipher_rpc_info_t mtibcontroller_rpcs[] =
 {
+    {
+        .id = rpc_Reset,
+        .type = CIPHER_RPC_TYPE_UNARY,
+        .name = "Reset",
+        .handler = ResetRpcPrvHandler,
+        .request_info = {
+            .fields = ResetRequest_fields,
+            .encoded_size = ResetRequest_size,
+            .decoded_size = sizeof(ResetRequest)
+        },
+        .response_info = {
+            .fields = ResetResponse_fields,
+            .encoded_size = ResetResponse_size,
+            .decoded_size = sizeof(ResetResponse)
+        },
+        .supports_parallelism = true,
+    },
     {
         .id = rpc_HealthCheck,
         .type = CIPHER_RPC_TYPE_UNARY,
@@ -74,6 +276,74 @@ static cipher_rpc_info_t mtibcontroller_rpcs[] =
             .fields = HealthCheckResponse_fields,
             .encoded_size = HealthCheckResponse_size,
             .decoded_size = sizeof(HealthCheckResponse)
+        },
+        .supports_parallelism = true,
+    },
+    {
+        .id = rpc_GetClusterMetadata,
+        .type = CIPHER_RPC_TYPE_UNARY,
+        .name = "GetClusterMetadata",
+        .handler = GetClusterMetadataRpcPrvHandler,
+        .request_info = {
+            .fields = GetClusterMetadataRequest_fields,
+            .encoded_size = GetClusterMetadataRequest_size,
+            .decoded_size = sizeof(GetClusterMetadataRequest)
+        },
+        .response_info = {
+            .fields = GetClusterMetadataResponse_fields,
+            .encoded_size = GetClusterMetadataResponse_size,
+            .decoded_size = sizeof(GetClusterMetadataResponse)
+        },
+        .supports_parallelism = true,
+    },
+    {
+        .id = rpc_ListTests,
+        .type = CIPHER_RPC_TYPE_UNARY,
+        .name = "ListTests",
+        .handler = ListTestsRpcPrvHandler,
+        .request_info = {
+            .fields = ListTestsRequest_fields,
+            .encoded_size = ListTestsRequest_size,
+            .decoded_size = sizeof(ListTestsRequest)
+        },
+        .response_info = {
+            .fields = ListTestsResponse_fields,
+            .encoded_size = ListTestsResponse_size,
+            .decoded_size = sizeof(ListTestsResponse)
+        },
+        .supports_parallelism = true,
+    },
+    {
+        .id = rpc_ExecuteBoardTest,
+        .type = CIPHER_RPC_TYPE_UNARY,
+        .name = "ExecuteBoardTest",
+        .handler = ExecuteBoardTestRpcPrvHandler,
+        .request_info = {
+            .fields = ExecuteBoardTestRequest_fields,
+            .encoded_size = ExecuteBoardTestRequest_size,
+            .decoded_size = sizeof(ExecuteBoardTestRequest)
+        },
+        .response_info = {
+            .fields = ExecuteBoardTestResponse_fields,
+            .encoded_size = ExecuteBoardTestResponse_size,
+            .decoded_size = sizeof(ExecuteBoardTestResponse)
+        },
+        .supports_parallelism = true,
+    },
+    {
+        .id = rpc_ExecutePanelTest,
+        .type = CIPHER_RPC_TYPE_UNARY,
+        .name = "ExecutePanelTest",
+        .handler = ExecutePanelTestRpcPrvHandler,
+        .request_info = {
+            .fields = ExecutePanelTestRequest_fields,
+            .encoded_size = ExecutePanelTestRequest_size,
+            .decoded_size = sizeof(ExecutePanelTestRequest)
+        },
+        .response_info = {
+            .fields = ExecutePanelTestResponse_fields,
+            .encoded_size = ExecutePanelTestResponse_size,
+            .decoded_size = sizeof(ExecutePanelTestResponse)
         },
         .supports_parallelism = true,
     },

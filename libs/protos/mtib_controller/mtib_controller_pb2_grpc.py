@@ -14,18 +14,77 @@ class MtibControllerStub(object):
         Args:
             channel: A grpc.Channel.
         """
+        self.Reset = channel.unary_unary(
+                '/mtib.MtibController/Reset',
+                request_serializer=mtib__controller__pb2.ResetRequest.SerializeToString,
+                response_deserializer=mtib__controller__pb2.ResetResponse.FromString,
+                )
         self.HealthCheck = channel.unary_unary(
-                '/MtibController/HealthCheck',
+                '/mtib.MtibController/HealthCheck',
                 request_serializer=mtib__controller__pb2.HealthCheckRequest.SerializeToString,
                 response_deserializer=mtib__controller__pb2.HealthCheckResponse.FromString,
+                )
+        self.GetClusterMetadata = channel.unary_unary(
+                '/mtib.MtibController/GetClusterMetadata',
+                request_serializer=mtib__controller__pb2.GetClusterMetadataRequest.SerializeToString,
+                response_deserializer=mtib__controller__pb2.GetClusterMetadataResponse.FromString,
+                )
+        self.ListTests = channel.unary_unary(
+                '/mtib.MtibController/ListTests',
+                request_serializer=mtib__controller__pb2.ListTestsRequest.SerializeToString,
+                response_deserializer=mtib__controller__pb2.ListTestsResponse.FromString,
+                )
+        self.ExecuteBoardTest = channel.unary_stream(
+                '/mtib.MtibController/ExecuteBoardTest',
+                request_serializer=mtib__controller__pb2.ExecuteBoardTestRequest.SerializeToString,
+                response_deserializer=mtib__controller__pb2.ExecuteBoardTestResponse.FromString,
+                )
+        self.ExecutePanelTest = channel.unary_stream(
+                '/mtib.MtibController/ExecutePanelTest',
+                request_serializer=mtib__controller__pb2.ExecutePanelTestRequest.SerializeToString,
+                response_deserializer=mtib__controller__pb2.ExecutePanelTestResponse.FromString,
                 )
 
 
 class MtibControllerServicer(object):
     """Missing associated documentation comment in .proto file."""
 
+    def Reset(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
     def HealthCheck(self, request, context):
-        """HealthCheck
+        """Performs a health check to ensure the cluster is operational.
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def GetClusterMetadata(self, request, context):
+        """Fetches comprehensive metadata about the test cluster, including runners and supported hardware.
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def ListTests(self, request, context):
+        """Lists available tests in the cluster.
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def ExecuteBoardTest(self, request, context):
+        """Executes a test on a standalone board.
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def ExecutePanelTest(self, request, context):
+        """Executes tests on all boards or a specific board in the panel.
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -34,20 +93,62 @@ class MtibControllerServicer(object):
 
 def add_MtibControllerServicer_to_server(servicer, server):
     rpc_method_handlers = {
+            'Reset': grpc.unary_unary_rpc_method_handler(
+                    servicer.Reset,
+                    request_deserializer=mtib__controller__pb2.ResetRequest.FromString,
+                    response_serializer=mtib__controller__pb2.ResetResponse.SerializeToString,
+            ),
             'HealthCheck': grpc.unary_unary_rpc_method_handler(
                     servicer.HealthCheck,
                     request_deserializer=mtib__controller__pb2.HealthCheckRequest.FromString,
                     response_serializer=mtib__controller__pb2.HealthCheckResponse.SerializeToString,
             ),
+            'GetClusterMetadata': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetClusterMetadata,
+                    request_deserializer=mtib__controller__pb2.GetClusterMetadataRequest.FromString,
+                    response_serializer=mtib__controller__pb2.GetClusterMetadataResponse.SerializeToString,
+            ),
+            'ListTests': grpc.unary_unary_rpc_method_handler(
+                    servicer.ListTests,
+                    request_deserializer=mtib__controller__pb2.ListTestsRequest.FromString,
+                    response_serializer=mtib__controller__pb2.ListTestsResponse.SerializeToString,
+            ),
+            'ExecuteBoardTest': grpc.unary_stream_rpc_method_handler(
+                    servicer.ExecuteBoardTest,
+                    request_deserializer=mtib__controller__pb2.ExecuteBoardTestRequest.FromString,
+                    response_serializer=mtib__controller__pb2.ExecuteBoardTestResponse.SerializeToString,
+            ),
+            'ExecutePanelTest': grpc.unary_stream_rpc_method_handler(
+                    servicer.ExecutePanelTest,
+                    request_deserializer=mtib__controller__pb2.ExecutePanelTestRequest.FromString,
+                    response_serializer=mtib__controller__pb2.ExecutePanelTestResponse.SerializeToString,
+            ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
-            'MtibController', rpc_method_handlers)
+            'mtib.MtibController', rpc_method_handlers)
     server.add_generic_rpc_handlers((generic_handler,))
 
 
  # This class is part of an EXPERIMENTAL API.
 class MtibController(object):
     """Missing associated documentation comment in .proto file."""
+
+    @staticmethod
+    def Reset(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/mtib.MtibController/Reset',
+            mtib__controller__pb2.ResetRequest.SerializeToString,
+            mtib__controller__pb2.ResetResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
     @staticmethod
     def HealthCheck(request,
@@ -60,8 +161,76 @@ class MtibController(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/MtibController/HealthCheck',
+        return grpc.experimental.unary_unary(request, target, '/mtib.MtibController/HealthCheck',
             mtib__controller__pb2.HealthCheckRequest.SerializeToString,
             mtib__controller__pb2.HealthCheckResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def GetClusterMetadata(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/mtib.MtibController/GetClusterMetadata',
+            mtib__controller__pb2.GetClusterMetadataRequest.SerializeToString,
+            mtib__controller__pb2.GetClusterMetadataResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def ListTests(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/mtib.MtibController/ListTests',
+            mtib__controller__pb2.ListTestsRequest.SerializeToString,
+            mtib__controller__pb2.ListTestsResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def ExecuteBoardTest(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_stream(request, target, '/mtib.MtibController/ExecuteBoardTest',
+            mtib__controller__pb2.ExecuteBoardTestRequest.SerializeToString,
+            mtib__controller__pb2.ExecuteBoardTestResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def ExecutePanelTest(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_stream(request, target, '/mtib.MtibController/ExecutePanelTest',
+            mtib__controller__pb2.ExecutePanelTestRequest.SerializeToString,
+            mtib__controller__pb2.ExecutePanelTestResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)

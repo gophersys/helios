@@ -1,29 +1,121 @@
 syntax = "proto3";
 
+package mtib;
+
 service MtibController {
-  // HealthCheck
+  rpc Reset(ResetRequest) returns (ResetResponse) {}
+
+  // Performs a health check to ensure the cluster is operational.
   rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse) {}
-  
-  // List available tests in cluster
+
+  // Fetches comprehensive metadata about the test cluster, including runners and supported hardware.
+  rpc GetClusterMetadata(GetClusterMetadataRequest) returns (GetClusterMetadataResponse) {}
+
+  // Lists available tests in the cluster.
   rpc ListTests(ListTestsRequest) returns (ListTestsResponse) {}
+
+  // Executes a test on a standalone board.
+  rpc ExecuteBoardTest(ExecuteBoardTestRequest) returns (stream ExecuteBoardTestResponse) {}
+
+  // Executes tests on all boards or a specific board in the panel.
+  rpc ExecutePanelTest(ExecutePanelTestRequest) returns (stream ExecutePanelTestResponse) {}
 }
 
-// Health Check
-message HealthCheckRequest {}
+// Reset
+message ResetRequest{}
+message ResetResponse{}
 
+// HealthCheck messages
+message HealthCheckRequest {}
 message HealthCheckResponse {
   bool ok = 1;
+  string error = 2;
 }
 
-// Test metadata
+// Test metadata, now with additional information
+message StepInfo {
+  int32 sequence = 1;
+  string name = 2;
+  string description = 3;
+}
+
 message TestInfo {
   string name = 1;
-  int32 steps = 2; 
+  string description = 3;
+  repeated StepInfo steps = 2;
 }
 
-// List 
+// ListTests messages
 message ListTestsRequest {}
-
 message ListTestsResponse {
   repeated TestInfo tests = 1;
+}
+
+// Messages for executing tests on a standalone board
+message ExecuteBoardTestRequest {
+  string testName = 1;
+  int32 runnerId = 2; // Specifies which runner (board) to use for the test
+}
+
+message ExecuteBoardTestResponse {
+  int32 runnerId = 1;
+  string stepName = 2;
+  int32 stepSequence = 3;
+  bool stepSuccess = 4;
+  string stepStatus = 5; 
+  string detailedResult = 6; // Optionally include detailed logs or results of the step.
+  int32 progressPercentage = 7; // Progress of the test execution as a whole.
+  string timestamp = 8; // Timestamp of the update, useful for logs and tracking.
+}
+
+// Messages for executing tests on panel boards
+message ExecutePanelTestRequest {
+  string testName = 1;
+  repeated int32 boardIds = 2; // Specifies which boards in the panel to test. Empty means test all.
+}
+
+message ExecutePanelTestResponse {
+  int32 boardId = 1;    // Identifies the board this response relates to
+  string stepName = 2;
+  int32 stepNumber = 3;
+  string stepUpdate = 4;
+  bool stepSuccess = 5;
+  string stepStatus = 6; // Detailed status of the test step
+}
+
+// Information about software components or capabilities
+message SoftwareInfo {
+  string softwareType = 1; // E.g., "Firmware", "Test Suite Version"
+  string executableName = 2;
+  string version = 3; 
+}
+
+// Runner information, now explicitly linked to boards and panels
+message RunnerInfo {
+  int32 id = 1;        // Unique identifier for the runner
+  string name = 2;     // Human-readable name or identifier
+  string hostname = 3;
+  int32 serverPort = 4;
+  string ipAddr = 5;   
+  bool isInPanel = 6;     // Indicates if the runner is part of a panel
+  int32 panelId = 7;      // Panel identifier, if applicable
+  repeated SoftwareInfo supportedSoftware = 8;
+}
+
+// Describes supported hardware within the cluster
+message HardwareInfo {
+  string model = 1; 
+  string version = 2;
+}
+
+// Requests for fetching cluster metadata
+message GetClusterMetadataRequest {}
+
+// Response containing comprehensive information about the cluster
+message GetClusterMetadataResponse {
+  // Embedded runners information
+  repeated RunnerInfo runners = 1;
+
+  // Supported hardware and capabilities
+  HardwareInfo supportedHardware = 2;
 }
