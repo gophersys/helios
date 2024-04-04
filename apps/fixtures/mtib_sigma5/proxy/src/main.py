@@ -9,7 +9,7 @@ from config import conf
 
 # Routes
 from v1.health.healthcheck import healthcheck_bp
-from v1.cluster.register.register import cluster_register_bp
+from v1.cluster.register import cluster_register_bp
 
 # -------------------------------------------------------------------------------------------------
 #                                                                                       HTTP Server
