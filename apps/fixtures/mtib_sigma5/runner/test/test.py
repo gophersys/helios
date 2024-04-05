@@ -14,8 +14,8 @@ from rich import print as rprint
 from rich.progress import Progress
 
 # Protocol includes
-from protos.mtib_posix.mtib_posix_pb2_grpc import MtibPosixStub
-from protos.mtib_posix.mtib_posix_pb2 import (
+from protos.mtib_runner.mtib_runner_pb2_grpc import MtibRunnerStub
+from protos.mtib_runner.mtib_runner_pb2 import (
     Gpio, GpioType, GpioResistorConfig,
     GpioWriteRequest, GpioWriteResponse,
     GpioConfigRequest, GpioConfigResponse,
@@ -71,7 +71,7 @@ TP1_3V3_PSM=Gpio.GPIO_3
 #                                                                             Fixture Configuration
 # -----------------------------------------------------------------------------------------------*/
 
-def config_gpio(server: MtibPosixStub, gpio:Gpio, type:GpioType, resistor:GpioResistorConfig) -> bool:
+def config_gpio(server: MtibRunnerStub, gpio:Gpio, type:GpioType, resistor:GpioResistorConfig) -> bool:
     # Execute RPC with provided channel and delay
     response = server.GpioConfig(GpioConfigRequest(gpio=gpio, type=type, resistor=resistor))
     
@@ -83,7 +83,7 @@ def config_gpio(server: MtibPosixStub, gpio:Gpio, type:GpioType, resistor:GpioRe
     
     return True
 
-def config_fixture(server: MtibPosixStub) -> bool:
+def config_fixture(server: MtibRunnerStub) -> bool:
     # Configure all our GPIOs needed
     if not config_gpio(server, TP50_HARD_RESET, GpioType.GPIO_OUTPUT, GpioResistorConfig.GPIO_RESISTOR_PULL_UP):
         return False
@@ -102,7 +102,7 @@ def config_fixture(server: MtibPosixStub) -> bool:
 # -------------------------------------------------------------------------------------------------
 #                                                                                       RPC Helpers
 # -----------------------------------------------------------------------------------------------*/
-def enable_power(server: MtibPosixStub) -> bool:
+def enable_power(server: MtibRunnerStub) -> bool:
     response:DutPowerEnableResponse = server.DutPowerEnable(DutPowerEnableRequest(enable=True))
     if not response.success:
         logging.error(f"DutChargePowerEnable Error: {response.error}")
@@ -110,7 +110,7 @@ def enable_power(server: MtibPosixStub) -> bool:
     
     return True
 
-def disable_power(server: MtibPosixStub) -> bool:
+def disable_power(server: MtibRunnerStub) -> bool:
     response:DutPowerEnableResponse = server.DutPowerEnable(DutPowerEnableRequest(enable=False))
     if not response.success:
         logging.error(f"DutChargePowerEnable Error: {response.error}")
@@ -118,7 +118,7 @@ def disable_power(server: MtibPosixStub) -> bool:
     
     return True
     
-def set_vbat(server: MtibPosixStub, voltage: float) -> bool:
+def set_vbat(server: MtibRunnerStub, voltage: float) -> bool:
     disable_power(server)
 
     # Set the power
@@ -131,7 +131,7 @@ def set_vbat(server: MtibPosixStub, voltage: float) -> bool:
 
     return True
 
-def set_5vin(server: MtibPosixStub, state: bool) -> bool:
+def set_5vin(server: MtibRunnerStub, state: bool) -> bool:
     response:DutPowerEnableResponse = server.DutChargePowerEnable(DutPowerEnableRequest(enable=state))
     if not response.success:
         logging.error(f"DutPowerEnable Error: {response.error}")
@@ -139,7 +139,7 @@ def set_5vin(server: MtibPosixStub, state: bool) -> bool:
     
     return True
 
-def set_hard_reset(server: MtibPosixStub, state: bool) -> bool:
+def set_hard_reset(server: MtibRunnerStub, state: bool) -> bool:
     response:GpioWriteResponse = server.GpioWrite(GpioWriteRequest(gpio=TP50_HARD_RESET, state=state))
     if not response.success:
         logging.error(f"GpioWrite for {TP50_HARD_RESET} Error: {response.error}")
@@ -147,7 +147,7 @@ def set_hard_reset(server: MtibPosixStub, state: bool) -> bool:
 
     return True
 
-def read_vin(server: MtibPosixStub) -> Tuple[bool, float]:
+def read_vin(server: MtibRunnerStub) -> Tuple[bool, float]:
     response = server.AdcRead(AdcReadRequest(channel=TP52_VIN, delayMs=ADC_READ_DELAY_MS))
     if not response.success:
         logging.error(f"AdcRead Channel {TP52_VIN} Error: {response.error}")
@@ -155,7 +155,7 @@ def read_vin(server: MtibPosixStub) -> Tuple[bool, float]:
     
     return True, response.voltage
 
-def read_3v3(server:MtibPosixStub) -> Tuple[bool, float]:
+def read_3v3(server:MtibRunnerStub) -> Tuple[bool, float]:
     response:AdcReadResponse = server.AdcRead(AdcReadRequest(channel=TP11_3V3, delayMs=ADC_READ_DELAY_MS))
     if not response.success:
         logging.error(f"AdcRead Channel {TP11_3V3} Error: {response.error}")
@@ -163,7 +163,7 @@ def read_3v3(server:MtibPosixStub) -> Tuple[bool, float]:
     
     return True, response.voltage
 
-def read_voltage(server:MtibPosixStub) -> Tuple[bool, float]:
+def read_voltage(server:MtibRunnerStub) -> Tuple[bool, float]:
     response:DutVoltageReadResponse = server.DutVoltageRead(DutVoltageReadRequest())
     if not response.success:
         logging.error(f"DutCurrentRead Error: {response.error}")
@@ -171,7 +171,7 @@ def read_voltage(server:MtibPosixStub) -> Tuple[bool, float]:
     
     return True, float(response.voltage_mv * 1000)
 
-def read_vbat(server:MtibPosixStub) -> Tuple[bool, float]:
+def read_vbat(server:MtibRunnerStub) -> Tuple[bool, float]:
     response:DutVoltageReadResponse = server.DutVoltageRead(DutVoltageReadRequest())
     if not response.success:
         logging.error(f"DutVoltageRead Error: {response.error}")
@@ -179,7 +179,7 @@ def read_vbat(server:MtibPosixStub) -> Tuple[bool, float]:
     
     return True, float(response.voltage_mv / 1000)
 
-def read_vbckp(server:MtibPosixStub) -> Tuple[bool, float]:
+def read_vbckp(server:MtibRunnerStub) -> Tuple[bool, float]:
     response:AdcReadResponse = server.AdcRead(AdcReadRequest(channel=TP30_VBCKP, delayMs=ADC_READ_DELAY_MS))
     if not response.success:
         logging.error(f"AdcRead Channel {TP30_VBCKP} Error: {response.error}")
@@ -187,7 +187,7 @@ def read_vbckp(server:MtibPosixStub) -> Tuple[bool, float]:
     
     return True, response.voltage
 
-def read_uvp_n(server:MtibPosixStub) -> Tuple[bool, bool]:
+def read_uvp_n(server:MtibRunnerStub) -> Tuple[bool, bool]:
     response:GpioReadResponse = server.GpioRead(GpioReadRequest(gpio=TP12_UVP_N))
     if not response.success:
         logging.error(f"GpioRead for {TP12_UVP_N} Error: {response.error}")
@@ -195,7 +195,7 @@ def read_uvp_n(server:MtibPosixStub) -> Tuple[bool, bool]:
     
     return True, response.state
 
-def read_current(server:MtibPosixStub) -> Tuple[bool, float]:
+def read_current(server:MtibRunnerStub) -> Tuple[bool, float]:
     response:DutCurrentReadResponse = server.DutCurrentRead(DutCurrentReadRequest())
     if not response.success:
         logging.error(f"DutCurrentRead Error: {response.error}")
@@ -203,7 +203,7 @@ def read_current(server:MtibPosixStub) -> Tuple[bool, float]:
     
     return True, float(response.current_ma / 1000)
 
-def read_chrg_det(server: MtibPosixStub) -> Tuple[bool, float]:
+def read_chrg_det(server: MtibRunnerStub) -> Tuple[bool, float]:
     response:GpioReadResponse = server.GpioRead(GpioReadRequest(gpio=TP49_CHRG_DET))
     if not response.success:
         logging.error(f"GpioRead for {TP49_CHRG_DET} Error: {response.error}")
@@ -211,7 +211,7 @@ def read_chrg_det(server: MtibPosixStub) -> Tuple[bool, float]:
     
     return True, response.state
 
-def read_all(server: MtibPosixStub) -> bool:
+def read_all(server: MtibRunnerStub) -> bool:
     response:AdcReadAllResponse = server.AdcReadAll(AdcReadAllRequest(delayMs=ADC_READ_DELAY_MS))
     if not response.success:
         logging.error(f"AdcReadAll Error: {response.error}")
@@ -239,7 +239,7 @@ EXPECTED_CURRENT_MAX_MA=100
 # Number of seconds to wait for VIN to settle
 VIN_ITERATIONS=15
 
-def check_step_2(server: MtibPosixStub) -> bool:
+def check_step_2(server: MtibRunnerStub) -> bool:
      # 2.d. Ensure near-zero current consumption
     voltage_success, voltage_value = read_voltage(server)
     if not voltage_success:
@@ -302,7 +302,7 @@ def check_step_2(server: MtibPosixStub) -> bool:
 
     return True
 
-def check_step_4(server: MtibPosixStub) -> bool:
+def check_step_4(server: MtibRunnerStub) -> bool:
     # Assuming VBAT_MEAS should match the last set VBAT value, for this example, let's say it was 3.2V.
     expected_vbat_value = 3.2
 
@@ -380,7 +380,7 @@ def check_step_4(server: MtibPosixStub) -> bool:
 
     return True
 
-def check_step_6(server: MtibPosixStub) -> bool:
+def check_step_6(server: MtibRunnerStub) -> bool:
     # 6.a. Ensure +VIN test point voltage is the same as +BATT
     vin_success, vin_value = read_vin(server)
     vbat_success, vbat_value = read_vbat(server)
@@ -394,7 +394,7 @@ def check_step_6(server: MtibPosixStub) -> bool:
         logging.debug(f"Step 6.a success: +VIN = +VBAT as expected, Actual +VIN = {vin_value}V, +VBAT = {vbat_value}V")
     return True
 
-def check_step_8(server: MtibPosixStub) -> bool:
+def check_step_8(server: MtibRunnerStub) -> bool:
     # 8.a. Ensure +VIN test point voltage is below 0.3V
     iteration = 0
     success = False
@@ -427,7 +427,7 @@ def check_step_8(server: MtibPosixStub) -> bool:
         logging.debug(f"Step 8.b success: UVP_N is digital low as expected, Actual UVP_N = {uvp_n_value}V")
     return True
 
-def check_step_10(server: MtibPosixStub) -> bool:
+def check_step_10(server: MtibRunnerStub) -> bool:
     # 10.a. Ensure +VIN test point voltage is 5V.
     iteration = 0
     success = False
@@ -500,7 +500,7 @@ def check_step_10(server: MtibPosixStub) -> bool:
 # -----------------------------------------------------------------------------------------------*/
 STEP_SETTLE_DELAY_S=2
 
-def electrical_power_test(server: MtibPosixStub) -> bool:
+def electrical_power_test(server: MtibRunnerStub) -> bool:
     # 1. Apply +2.5V to +BATT test point
     if not set_vbat(server, 2.5):
         logging.error("Step 1: Apply +2.5V to +BATT test point, failed")
@@ -578,7 +578,7 @@ def electrical_power_test(server: MtibPosixStub) -> bool:
 # -----------------------------------------------------------------------------------------------*/
 
 # Path to the Kubernetes deployment file
-DEPLOYMENT_FILE = '/workspaces/concord/apps/fixtures/mtib_posix/deploy/deployment.yaml'
+DEPLOYMENT_FILE = '/workspaces/concord/apps/fixtures/mtib_runner/deploy/deployment.yaml'
 
 # Name of the deployment
 DEPLOYMENT_NAME = 'mtib-pos0x'
@@ -668,7 +668,7 @@ def flash_device(server, server_address: str,  firmware_file: str, device: Devic
         logging.error(f"Exception while flashing {device}: {e}")
         return False
 
-def firmware_flashing(server: MtibPosixStub, server_address: str) -> bool:
+def firmware_flashing(server: MtibRunnerStub, server_address: str) -> bool:
     """Flashes firmware to specified devices."""
     try:
         # Flash nRF9160 modem firmware
@@ -699,7 +699,7 @@ def firmware_flashing(server: MtibPosixStub, server_address: str) -> bool:
 def run_tests(server_address):
     """Function to test each server."""
     channel = grpc.insecure_channel(server_address)
-    server = MtibPosixStub(channel)
+    server = MtibRunnerStub(channel)
 
     if not config_fixture(server):
         logging.error(f"Could not configure test fixture for {server_address}")

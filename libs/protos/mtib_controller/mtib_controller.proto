@@ -92,19 +92,21 @@ message ExecutePanelTestResponse {
 // Information about software components or capabilities
 message SoftwareInfo {
   string softwareType = 1; // E.g., "Firmware", "Test Suite Version"
-  string executableName = 2;
-  string version = 3; 
+  string fileName = 2;
 }
 
 // Runner information, now explicitly linked to boards and panels
 message RunnerInfo {
-  int32 id = 1;        // Unique identifier for the runner
-  string name = 2;     // Human-readable name or identifier
-  string hostname = 3;
-  int32 serverPort = 4;
-  string ipAddr = 5;   
-  bool isInPanel = 6;     // Indicates if the runner is part of a panel
-  int32 panelId = 7;      // Panel identifier, if applicable
+  // Static fields (configured by developer)
+  int32 id = 1;          // Unique identifier for the runner
+  string name = 2;       // Human-readable name or identifier
+  string hostname = 3;   // Network hostname
+  int32 serverPort = 4;  // Port for the application
+  bool isInPanel = 5;    // Indicates if the runner is part of a panel
+  int32 panelId = 6;     // Panel identifier, if applicable
+
+  // Dynamic fields (set at run time)
+  string ipAddr = 7;   
   repeated SoftwareInfo supportedSoftware = 8;
 }
 

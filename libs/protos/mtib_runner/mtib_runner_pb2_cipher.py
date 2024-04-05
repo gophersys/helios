@@ -1,37 +1,38 @@
 # python_service_template.tmpl
 from enum import Enum
-from protos.mtib_posix.mtib_posix_pb2 import * 
+from protos.mtib_runner.mtib_runner_pb2 import * 
 from cipher import *
 
 # -----------------------------------------------------------------------------------------------------
 #                                                                                                 Types
 # -----------------------------------------------------------------------------------------------------
-MTIBPOSIX_SERVICE_ID = 1
+MTIBRUNNER_SERVICE_ID = 1
 
-class MtibPosixRpc(Enum):
+class MtibRunnerRpc(Enum):
     HealthCheck = 1
-    GpioConfig = 2
-    GpioWrite = 3
-    GpioRead = 4
-    AdcRead = 5
-    AdcReadAll = 6
-    DutPowerEnable = 7
-    DutChargePowerEnable = 8
-    DutVoltageSet = 9
-    DutCurrentRead = 10
-    DutVoltageRead = 11
-    DutPowerRead = 12
-    AltimeterRead = 13
-    AccelRead = 14
-    AccelReadMaxForce = 15
-    EepromRead = 16
-    EepromWrite = 17
-    ListFwFiles = 18
-    UploadFwFile = 19
-    DeleteFwFile = 20
-    FlashHexFile = 21
+    GetRunnerInfo = 2
+    GpioConfig = 3
+    GpioWrite = 4
+    GpioRead = 5
+    AdcRead = 6
+    AdcReadAll = 7
+    DutPowerEnable = 8
+    DutChargePowerEnable = 9
+    DutVoltageSet = 10
+    DutCurrentRead = 11
+    DutVoltageRead = 12
+    DutPowerRead = 13
+    AltimeterRead = 14
+    AccelRead = 15
+    AccelReadMaxForce = 16
+    EepromRead = 17
+    EepromWrite = 18
+    ListFwFiles = 19
+    UploadFwFile = 20
+    DeleteFwFile = 21
+    FlashHexFile = 22
     
-class MtibPosix:
+class MtibRunner:
     def __init__(self, daemon:Cipher):
         self.daemon: Cipher = daemon
     # Server side handlers
@@ -46,8 +47,29 @@ class MtibPosix:
         context: CipherDaemonRpcContext = CipherDaemonRpcContext(
             local=True,
             user_info=info,
-            service_id=MTIBPOSIX_SERVICE_ID,
-            rpc_id=MtibPosixRpc.HealthCheck.value,
+            service_id=MTIBRUNNER_SERVICE_ID,
+            rpc_id=MtibRunnerRpc.HealthCheck.value,
+            request_struct=request,
+            response_struct=response,            
+        )
+        
+        self.daemon.execute_remote_rpc(context)
+        
+        return context.response_struct, context.user_info.error
+    # Server side handlers
+    def GetRunnerInfoHandler(self, request:GetRunnerInfoRequest) -> Tuple[GetRunnerInfoResponse, CipherRpcErr]:
+        print("Default GetRunnerInfo handler called")
+        response: GetRunnerInfoResponse = GetRunnerInfoResponse()
+        return response, CipherRpcErr.NOT_IMPLEMENTED
+        
+    # Client side 
+    def GetRunnerInfoRpc(self, info:CipherUnaryRpcUserInfo, request:GetRunnerInfoRequest) -> Tuple[Optional[GetRunnerInfoResponse], CipherRpcErr]:
+        response: GetRunnerInfoResponse = GetRunnerInfoResponse()
+        context: CipherDaemonRpcContext = CipherDaemonRpcContext(
+            local=True,
+            user_info=info,
+            service_id=MTIBRUNNER_SERVICE_ID,
+            rpc_id=MtibRunnerRpc.GetRunnerInfo.value,
             request_struct=request,
             response_struct=response,            
         )
@@ -67,8 +89,8 @@ class MtibPosix:
         context: CipherDaemonRpcContext = CipherDaemonRpcContext(
             local=True,
             user_info=info,
-            service_id=MTIBPOSIX_SERVICE_ID,
-            rpc_id=MtibPosixRpc.GpioConfig.value,
+            service_id=MTIBRUNNER_SERVICE_ID,
+            rpc_id=MtibRunnerRpc.GpioConfig.value,
             request_struct=request,
             response_struct=response,            
         )
@@ -88,8 +110,8 @@ class MtibPosix:
         context: CipherDaemonRpcContext = CipherDaemonRpcContext(
             local=True,
             user_info=info,
-            service_id=MTIBPOSIX_SERVICE_ID,
-            rpc_id=MtibPosixRpc.GpioWrite.value,
+            service_id=MTIBRUNNER_SERVICE_ID,
+            rpc_id=MtibRunnerRpc.GpioWrite.value,
             request_struct=request,
             response_struct=response,            
         )
@@ -109,8 +131,8 @@ class MtibPosix:
         context: CipherDaemonRpcContext = CipherDaemonRpcContext(
             local=True,
             user_info=info,
-            service_id=MTIBPOSIX_SERVICE_ID,
-            rpc_id=MtibPosixRpc.GpioRead.value,
+            service_id=MTIBRUNNER_SERVICE_ID,
+            rpc_id=MtibRunnerRpc.GpioRead.value,
             request_struct=request,
             response_struct=response,            
         )
@@ -130,8 +152,8 @@ class MtibPosix:
         context: CipherDaemonRpcContext = CipherDaemonRpcContext(
             local=True,
             user_info=info,
-            service_id=MTIBPOSIX_SERVICE_ID,
-            rpc_id=MtibPosixRpc.AdcRead.value,
+            service_id=MTIBRUNNER_SERVICE_ID,
+            rpc_id=MtibRunnerRpc.AdcRead.value,
             request_struct=request,
             response_struct=response,            
         )
@@ -151,8 +173,8 @@ class MtibPosix:
         context: CipherDaemonRpcContext = CipherDaemonRpcContext(
             local=True,
             user_info=info,
-            service_id=MTIBPOSIX_SERVICE_ID,
-            rpc_id=MtibPosixRpc.AdcReadAll.value,
+            service_id=MTIBRUNNER_SERVICE_ID,
+            rpc_id=MtibRunnerRpc.AdcReadAll.value,
             request_struct=request,
             response_struct=response,            
         )
@@ -172,8 +194,8 @@ class MtibPosix:
         context: CipherDaemonRpcContext = CipherDaemonRpcContext(
             local=True,
             user_info=info,
-            service_id=MTIBPOSIX_SERVICE_ID,
-            rpc_id=MtibPosixRpc.DutPowerEnable.value,
+            service_id=MTIBRUNNER_SERVICE_ID,
+            rpc_id=MtibRunnerRpc.DutPowerEnable.value,
             request_struct=request,
             response_struct=response,            
         )
@@ -193,8 +215,8 @@ class MtibPosix:
         context: CipherDaemonRpcContext = CipherDaemonRpcContext(
             local=True,
             user_info=info,
-            service_id=MTIBPOSIX_SERVICE_ID,
-            rpc_id=MtibPosixRpc.DutChargePowerEnable.value,
+            service_id=MTIBRUNNER_SERVICE_ID,
+            rpc_id=MtibRunnerRpc.DutChargePowerEnable.value,
             request_struct=request,
             response_struct=response,            
         )
@@ -214,8 +236,8 @@ class MtibPosix:
         context: CipherDaemonRpcContext = CipherDaemonRpcContext(
             local=True,
             user_info=info,
-            service_id=MTIBPOSIX_SERVICE_ID,
-            rpc_id=MtibPosixRpc.DutVoltageSet.value,
+            service_id=MTIBRUNNER_SERVICE_ID,
+            rpc_id=MtibRunnerRpc.DutVoltageSet.value,
             request_struct=request,
             response_struct=response,            
         )
@@ -235,8 +257,8 @@ class MtibPosix:
         context: CipherDaemonRpcContext = CipherDaemonRpcContext(
             local=True,
             user_info=info,
-            service_id=MTIBPOSIX_SERVICE_ID,
-            rpc_id=MtibPosixRpc.DutCurrentRead.value,
+            service_id=MTIBRUNNER_SERVICE_ID,
+            rpc_id=MtibRunnerRpc.DutCurrentRead.value,
             request_struct=request,
             response_struct=response,            
         )
@@ -256,8 +278,8 @@ class MtibPosix:
         context: CipherDaemonRpcContext = CipherDaemonRpcContext(
             local=True,
             user_info=info,
-            service_id=MTIBPOSIX_SERVICE_ID,
-            rpc_id=MtibPosixRpc.DutVoltageRead.value,
+            service_id=MTIBRUNNER_SERVICE_ID,
+            rpc_id=MtibRunnerRpc.DutVoltageRead.value,
             request_struct=request,
             response_struct=response,            
         )
@@ -277,8 +299,8 @@ class MtibPosix:
         context: CipherDaemonRpcContext = CipherDaemonRpcContext(
             local=True,
             user_info=info,
-            service_id=MTIBPOSIX_SERVICE_ID,
-            rpc_id=MtibPosixRpc.DutPowerRead.value,
+            service_id=MTIBRUNNER_SERVICE_ID,
+            rpc_id=MtibRunnerRpc.DutPowerRead.value,
             request_struct=request,
             response_struct=response,            
         )
@@ -298,8 +320,8 @@ class MtibPosix:
         context: CipherDaemonRpcContext = CipherDaemonRpcContext(
             local=True,
             user_info=info,
-            service_id=MTIBPOSIX_SERVICE_ID,
-            rpc_id=MtibPosixRpc.AltimeterRead.value,
+            service_id=MTIBRUNNER_SERVICE_ID,
+            rpc_id=MtibRunnerRpc.AltimeterRead.value,
             request_struct=request,
             response_struct=response,            
         )
@@ -319,8 +341,8 @@ class MtibPosix:
         context: CipherDaemonRpcContext = CipherDaemonRpcContext(
             local=True,
             user_info=info,
-            service_id=MTIBPOSIX_SERVICE_ID,
-            rpc_id=MtibPosixRpc.AccelRead.value,
+            service_id=MTIBRUNNER_SERVICE_ID,
+            rpc_id=MtibRunnerRpc.AccelRead.value,
             request_struct=request,
             response_struct=response,            
         )
@@ -340,8 +362,8 @@ class MtibPosix:
         context: CipherDaemonRpcContext = CipherDaemonRpcContext(
             local=True,
             user_info=info,
-            service_id=MTIBPOSIX_SERVICE_ID,
-            rpc_id=MtibPosixRpc.AccelReadMaxForce.value,
+            service_id=MTIBRUNNER_SERVICE_ID,
+            rpc_id=MtibRunnerRpc.AccelReadMaxForce.value,
             request_struct=request,
             response_struct=response,            
         )
@@ -361,8 +383,8 @@ class MtibPosix:
         context: CipherDaemonRpcContext = CipherDaemonRpcContext(
             local=True,
             user_info=info,
-            service_id=MTIBPOSIX_SERVICE_ID,
-            rpc_id=MtibPosixRpc.EepromRead.value,
+            service_id=MTIBRUNNER_SERVICE_ID,
+            rpc_id=MtibRunnerRpc.EepromRead.value,
             request_struct=request,
             response_struct=response,            
         )
@@ -382,8 +404,8 @@ class MtibPosix:
         context: CipherDaemonRpcContext = CipherDaemonRpcContext(
             local=True,
             user_info=info,
-            service_id=MTIBPOSIX_SERVICE_ID,
-            rpc_id=MtibPosixRpc.EepromWrite.value,
+            service_id=MTIBRUNNER_SERVICE_ID,
+            rpc_id=MtibRunnerRpc.EepromWrite.value,
             request_struct=request,
             response_struct=response,            
         )
@@ -403,8 +425,8 @@ class MtibPosix:
         context: CipherDaemonRpcContext = CipherDaemonRpcContext(
             local=True,
             user_info=info,
-            service_id=MTIBPOSIX_SERVICE_ID,
-            rpc_id=MtibPosixRpc.ListFwFiles.value,
+            service_id=MTIBRUNNER_SERVICE_ID,
+            rpc_id=MtibRunnerRpc.ListFwFiles.value,
             request_struct=request,
             response_struct=response,            
         )
@@ -424,8 +446,8 @@ class MtibPosix:
         context: CipherDaemonRpcContext = CipherDaemonRpcContext(
             local=True,
             user_info=info,
-            service_id=MTIBPOSIX_SERVICE_ID,
-            rpc_id=MtibPosixRpc.UploadFwFile.value,
+            service_id=MTIBRUNNER_SERVICE_ID,
+            rpc_id=MtibRunnerRpc.UploadFwFile.value,
             request_struct=request,
             response_struct=response,            
         )
@@ -445,8 +467,8 @@ class MtibPosix:
         context: CipherDaemonRpcContext = CipherDaemonRpcContext(
             local=True,
             user_info=info,
-            service_id=MTIBPOSIX_SERVICE_ID,
-            rpc_id=MtibPosixRpc.DeleteFwFile.value,
+            service_id=MTIBRUNNER_SERVICE_ID,
+            rpc_id=MtibRunnerRpc.DeleteFwFile.value,
             request_struct=request,
             response_struct=response,            
         )
@@ -466,8 +488,8 @@ class MtibPosix:
         context: CipherDaemonRpcContext = CipherDaemonRpcContext(
             local=True,
             user_info=info,
-            service_id=MTIBPOSIX_SERVICE_ID,
-            rpc_id=MtibPosixRpc.FlashHexFile.value,
+            service_id=MTIBRUNNER_SERVICE_ID,
+            rpc_id=MtibRunnerRpc.FlashHexFile.value,
             request_struct=request,
             response_struct=response,            
         )
@@ -476,203 +498,212 @@ class MtibPosix:
         
         return context.response_struct, context.user_info.error
 
-# MtibPosix RPCs
-mtibposix_service_rpcs = [
+# MtibRunner RPCs
+mtibrunner_service_rpcs = [
     CipherRpcInfo(
-        id=MtibPosixRpc.HealthCheck.value,
+        id=MtibRunnerRpc.HealthCheck.value,
         type=CipherRpcType.UNARY,
         name="HealthCheck",
-        handler=MtibPosix.HealthCheckHandler,
+        handler=MtibRunner.HealthCheckHandler,
         request_info=CipherMessageInfo(HealthCheckRequest),
         response_info=CipherMessageInfo(HealthCheckResponse),
         supports_parallelism=True
     ),
     CipherRpcInfo(
-        id=MtibPosixRpc.GpioConfig.value,
+        id=MtibRunnerRpc.GetRunnerInfo.value,
+        type=CipherRpcType.UNARY,
+        name="GetRunnerInfo",
+        handler=MtibRunner.GetRunnerInfoHandler,
+        request_info=CipherMessageInfo(GetRunnerInfoRequest),
+        response_info=CipherMessageInfo(GetRunnerInfoResponse),
+        supports_parallelism=True
+    ),
+    CipherRpcInfo(
+        id=MtibRunnerRpc.GpioConfig.value,
         type=CipherRpcType.UNARY,
         name="GpioConfig",
-        handler=MtibPosix.GpioConfigHandler,
+        handler=MtibRunner.GpioConfigHandler,
         request_info=CipherMessageInfo(GpioConfigRequest),
         response_info=CipherMessageInfo(GpioConfigResponse),
         supports_parallelism=True
     ),
     CipherRpcInfo(
-        id=MtibPosixRpc.GpioWrite.value,
+        id=MtibRunnerRpc.GpioWrite.value,
         type=CipherRpcType.UNARY,
         name="GpioWrite",
-        handler=MtibPosix.GpioWriteHandler,
+        handler=MtibRunner.GpioWriteHandler,
         request_info=CipherMessageInfo(GpioWriteRequest),
         response_info=CipherMessageInfo(GpioWriteResponse),
         supports_parallelism=True
     ),
     CipherRpcInfo(
-        id=MtibPosixRpc.GpioRead.value,
+        id=MtibRunnerRpc.GpioRead.value,
         type=CipherRpcType.UNARY,
         name="GpioRead",
-        handler=MtibPosix.GpioReadHandler,
+        handler=MtibRunner.GpioReadHandler,
         request_info=CipherMessageInfo(GpioReadRequest),
         response_info=CipherMessageInfo(GpioReadResponse),
         supports_parallelism=True
     ),
     CipherRpcInfo(
-        id=MtibPosixRpc.AdcRead.value,
+        id=MtibRunnerRpc.AdcRead.value,
         type=CipherRpcType.UNARY,
         name="AdcRead",
-        handler=MtibPosix.AdcReadHandler,
+        handler=MtibRunner.AdcReadHandler,
         request_info=CipherMessageInfo(AdcReadRequest),
         response_info=CipherMessageInfo(AdcReadResponse),
         supports_parallelism=True
     ),
     CipherRpcInfo(
-        id=MtibPosixRpc.AdcReadAll.value,
+        id=MtibRunnerRpc.AdcReadAll.value,
         type=CipherRpcType.UNARY,
         name="AdcReadAll",
-        handler=MtibPosix.AdcReadAllHandler,
+        handler=MtibRunner.AdcReadAllHandler,
         request_info=CipherMessageInfo(AdcReadAllRequest),
         response_info=CipherMessageInfo(AdcReadAllResponse),
         supports_parallelism=True
     ),
     CipherRpcInfo(
-        id=MtibPosixRpc.DutPowerEnable.value,
+        id=MtibRunnerRpc.DutPowerEnable.value,
         type=CipherRpcType.UNARY,
         name="DutPowerEnable",
-        handler=MtibPosix.DutPowerEnableHandler,
+        handler=MtibRunner.DutPowerEnableHandler,
         request_info=CipherMessageInfo(DutPowerEnableRequest),
         response_info=CipherMessageInfo(DutPowerEnableResponse),
         supports_parallelism=True
     ),
     CipherRpcInfo(
-        id=MtibPosixRpc.DutChargePowerEnable.value,
+        id=MtibRunnerRpc.DutChargePowerEnable.value,
         type=CipherRpcType.UNARY,
         name="DutChargePowerEnable",
-        handler=MtibPosix.DutChargePowerEnableHandler,
+        handler=MtibRunner.DutChargePowerEnableHandler,
         request_info=CipherMessageInfo(DutPowerEnableRequest),
         response_info=CipherMessageInfo(DutPowerEnableResponse),
         supports_parallelism=True
     ),
     CipherRpcInfo(
-        id=MtibPosixRpc.DutVoltageSet.value,
+        id=MtibRunnerRpc.DutVoltageSet.value,
         type=CipherRpcType.UNARY,
         name="DutVoltageSet",
-        handler=MtibPosix.DutVoltageSetHandler,
+        handler=MtibRunner.DutVoltageSetHandler,
         request_info=CipherMessageInfo(DutVoltageSetRequest),
         response_info=CipherMessageInfo(DutVoltageSetResponse),
         supports_parallelism=True
     ),
     CipherRpcInfo(
-        id=MtibPosixRpc.DutCurrentRead.value,
+        id=MtibRunnerRpc.DutCurrentRead.value,
         type=CipherRpcType.UNARY,
         name="DutCurrentRead",
-        handler=MtibPosix.DutCurrentReadHandler,
+        handler=MtibRunner.DutCurrentReadHandler,
         request_info=CipherMessageInfo(DutCurrentReadRequest),
         response_info=CipherMessageInfo(DutCurrentReadResponse),
         supports_parallelism=True
     ),
     CipherRpcInfo(
-        id=MtibPosixRpc.DutVoltageRead.value,
+        id=MtibRunnerRpc.DutVoltageRead.value,
         type=CipherRpcType.UNARY,
         name="DutVoltageRead",
-        handler=MtibPosix.DutVoltageReadHandler,
+        handler=MtibRunner.DutVoltageReadHandler,
         request_info=CipherMessageInfo(DutVoltageReadRequest),
         response_info=CipherMessageInfo(DutVoltageReadResponse),
         supports_parallelism=True
     ),
     CipherRpcInfo(
-        id=MtibPosixRpc.DutPowerRead.value,
+        id=MtibRunnerRpc.DutPowerRead.value,
         type=CipherRpcType.UNARY,
         name="DutPowerRead",
-        handler=MtibPosix.DutPowerReadHandler,
+        handler=MtibRunner.DutPowerReadHandler,
         request_info=CipherMessageInfo(DutPowerReadRequest),
         response_info=CipherMessageInfo(DutPowerReadResponse),
         supports_parallelism=True
     ),
     CipherRpcInfo(
-        id=MtibPosixRpc.AltimeterRead.value,
+        id=MtibRunnerRpc.AltimeterRead.value,
         type=CipherRpcType.UNARY,
         name="AltimeterRead",
-        handler=MtibPosix.AltimeterReadHandler,
+        handler=MtibRunner.AltimeterReadHandler,
         request_info=CipherMessageInfo(AltimeterReadRequest),
         response_info=CipherMessageInfo(AltimeterReadResponse),
         supports_parallelism=True
     ),
     CipherRpcInfo(
-        id=MtibPosixRpc.AccelRead.value,
+        id=MtibRunnerRpc.AccelRead.value,
         type=CipherRpcType.UNARY,
         name="AccelRead",
-        handler=MtibPosix.AccelReadHandler,
+        handler=MtibRunner.AccelReadHandler,
         request_info=CipherMessageInfo(AccelReadRequest),
         response_info=CipherMessageInfo(AccelReadResponse),
         supports_parallelism=True
     ),
     CipherRpcInfo(
-        id=MtibPosixRpc.AccelReadMaxForce.value,
+        id=MtibRunnerRpc.AccelReadMaxForce.value,
         type=CipherRpcType.UNARY,
         name="AccelReadMaxForce",
-        handler=MtibPosix.AccelReadMaxForceHandler,
+        handler=MtibRunner.AccelReadMaxForceHandler,
         request_info=CipherMessageInfo(AccelReadMaxRequest),
         response_info=CipherMessageInfo(AccelReadMaxResponse),
         supports_parallelism=True
     ),
     CipherRpcInfo(
-        id=MtibPosixRpc.EepromRead.value,
+        id=MtibRunnerRpc.EepromRead.value,
         type=CipherRpcType.UNARY,
         name="EepromRead",
-        handler=MtibPosix.EepromReadHandler,
+        handler=MtibRunner.EepromReadHandler,
         request_info=CipherMessageInfo(EepromReadRequest),
         response_info=CipherMessageInfo(EepromReadResponse),
         supports_parallelism=True
     ),
     CipherRpcInfo(
-        id=MtibPosixRpc.EepromWrite.value,
+        id=MtibRunnerRpc.EepromWrite.value,
         type=CipherRpcType.UNARY,
         name="EepromWrite",
-        handler=MtibPosix.EepromWriteHandler,
+        handler=MtibRunner.EepromWriteHandler,
         request_info=CipherMessageInfo(EepromWriteRequest),
         response_info=CipherMessageInfo(EepromWriteResponse),
         supports_parallelism=True
     ),
     CipherRpcInfo(
-        id=MtibPosixRpc.ListFwFiles.value,
+        id=MtibRunnerRpc.ListFwFiles.value,
         type=CipherRpcType.UNARY,
         name="ListFwFiles",
-        handler=MtibPosix.ListFwFilesHandler,
+        handler=MtibRunner.ListFwFilesHandler,
         request_info=CipherMessageInfo(ListFwFilesRequest),
         response_info=CipherMessageInfo(ListFwFilesResponse),
         supports_parallelism=True
     ),
     CipherRpcInfo(
-        id=MtibPosixRpc.UploadFwFile.value,
+        id=MtibRunnerRpc.UploadFwFile.value,
         type=CipherRpcType.UNARY,
         name="UploadFwFile",
-        handler=MtibPosix.UploadFwFileHandler,
+        handler=MtibRunner.UploadFwFileHandler,
         request_info=CipherMessageInfo(UploadFwFileRequest),
         response_info=CipherMessageInfo(UploadFwFileResponse),
         supports_parallelism=True
     ),
     CipherRpcInfo(
-        id=MtibPosixRpc.DeleteFwFile.value,
+        id=MtibRunnerRpc.DeleteFwFile.value,
         type=CipherRpcType.UNARY,
         name="DeleteFwFile",
-        handler=MtibPosix.DeleteFwFileHandler,
+        handler=MtibRunner.DeleteFwFileHandler,
         request_info=CipherMessageInfo(DeleteFwFileRequest),
         response_info=CipherMessageInfo(DeleteFwFileResponse),
         supports_parallelism=True
     ),
     CipherRpcInfo(
-        id=MtibPosixRpc.FlashHexFile.value,
+        id=MtibRunnerRpc.FlashHexFile.value,
         type=CipherRpcType.UNARY,
         name="FlashHexFile",
-        handler=MtibPosix.FlashHexFileHandler,
+        handler=MtibRunner.FlashHexFileHandler,
         request_info=CipherMessageInfo(FlashHexFileRequest),
         response_info=CipherMessageInfo(FlashHexFileResponse),
         supports_parallelism=True
     ),
 ]
 
-# MtibPosix Service Definition
-mtibposix_service_info = CipherServiceInfo(
-    id=MTIBPOSIX_SERVICE_ID,
-    name="MtibPosix",
+# MtibRunner Service Definition
+mtibrunner_service_info = CipherServiceInfo(
+    id=MTIBRUNNER_SERVICE_ID,
+    name="MtibRunner",
     num_allowed_hops=1,
-    rpcs=mtibposix_service_rpcs
+    rpcs=mtibrunner_service_rpcs
 )

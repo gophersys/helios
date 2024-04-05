@@ -1,14 +1,14 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: mtib-posix
+  name: mtib-runner
   labels:
-    app: mtib-posix
+    app: mtib-runner
 spec:
   replicas: 6
   selector:
     matchLabels:
-      app: mtib-posix
+      app: mtib-runner
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -17,7 +17,7 @@ spec:
   template:
     metadata:
       labels:
-        app: mtib-posix
+        app: mtib-runner
     spec:
       terminationGracePeriodSeconds: 1
       affinity:
@@ -35,8 +35,8 @@ spec:
                 - "slot-4"
                 - "slot-5"
       containers:
-      - name: mtib-posix
-        image: control-plane:5000/mtib-posix:1.43
+      - name: mtib-runner
+        image: control-plane:5000/mtib-runner:1.0
         securityContext:
           privileged: true
         ports:

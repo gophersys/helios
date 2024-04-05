@@ -20,7 +20,7 @@
           "load": true,
           "push": false,
           "tags": [
-            "control-plane:5000/mtib-posix:1.42"
+            "control-plane:5000/mtib-controller:1.0"
           ]
         }
       }

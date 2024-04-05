@@ -46,8 +46,9 @@ class ProxyServer:
                         logging.error(f"Health check failed for cluster at {cluster.url},status: {response.status} error: {response.error}")
                 except grpc.RpcError as e:
                     logging.error(f"Failed to perform health check on cluster at {cluster.url}. Error: {e}")
+                    self.remove_cluster(cluster.uuid)
 
-            time.sleep(5)
+            time.sleep(1)
 
     # -------------------------------------------------------------------------------------------------
     #                                                                                  Register Cluster
@@ -116,6 +117,8 @@ class ProxyServer:
     # -----------------------------------------------------------------------------------------------*/
     def remove_cluster(self, cluster_id):
         """Remove a cluster from the list by ID."""
-        if cluster_id in self.clusters:
-            del self.clusters[cluster_id]
-            logging.info(f"Cluster with ID {cluster_id} removed.")
+        for cluster in self.clusters:
+            if cluster.uuid == cluster_id:
+                self.clusters.remove(cluster)
+                logging.info(f"Cluster with ID {cluster_id} removed.")
+                return

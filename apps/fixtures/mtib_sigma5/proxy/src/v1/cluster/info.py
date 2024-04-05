@@ -32,14 +32,13 @@ def cluster_info(cluster_uuid):
                 "name": runner.name,
                 "hostname": runner.hostname,
                 "serverPort": runner.serverPort,
-                "ipAddr": runner.ipAddr,
                 "isInPanel": runner.isInPanel,
                 "panelId": runner.panelId,
+                "ipAddr": runner.ipAddr,
                 "supportedSoftware": [
                     {
                         "softwareType": software.softwareType,
-                        "executableName": software.executableName,
-                        "version": software.version,
+                        "fileName": software.fileName,
                     }
                     for software in runner.supportedSoftware  # Iterating over repeated SoftwareInfo
                 ],

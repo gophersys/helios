@@ -9,8 +9,8 @@
 			"path": "../../libs/protos"
 		},
 		{
-			"name": "posix",
-			"path": "../../apps/fixtures/mtib_sigma5/posix"
+			"name": "runner",
+			"path": "../../apps/fixtures/mtib_sigma5/runner"
 		},
 		{
 			"name": "controller",

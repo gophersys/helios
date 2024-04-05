@@ -1,8 +1,11 @@
 syntax = "proto3";
 
-service MtibPosix {
+service MtibRunner {
   // HealthCheck
   rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse) {}
+
+  // Info
+  rpc GetRunnerInfo(GetRunnerInfoRequest) returns (GetRunnerInfoResponse) {}
 
   // Gpio
   rpc GpioConfig(GpioConfigRequest) returns (GpioConfigResponse) {}
@@ -44,6 +47,16 @@ message HealthCheckRequest {}
 
 message HealthCheckResponse {
   bool ok = 1;
+}
+
+// Info
+message TestRunnerInfo {
+
+}
+
+message GetRunnerInfoRequest {}
+message GetRunnerInfoResponse {
+  TestRunnerInfo info = 1;
 }
 
 // Gpio

@@ -1,17 +1,4 @@
-## Configuration
 
-The application can be launched using the following command:
-
-```bash
-docker run -it --privileged \
--v /dev/bus/usb:/dev/bus/usb \
--v /tmp/fw_files:/tmp \
--p 50051:50051 \
-localhost/mtib-posix:1.0 \
-/bin/bash
-```
-
-# cipher
 
 A brief description of what cipher does and its purpose.
 

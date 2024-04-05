@@ -17,10 +17,10 @@ from src.jlink.jlink import *
 
 # Protocol includes
 from protos.mtib_zephyr.mtib_zephyr_pb2_cipher import MtibZephyr
-from protos.mtib_posix.mtib_posix_pb2_grpc import MtibPosixServicer
+from protos.mtib_runner.mtib_runner_pb2_grpc import MtibRunnerServicer
 from .types import * # All types are declared externally for readability of this file
 
-class MtibPosixServicerProvider(MtibPosixServicer):
+class MtibRunnerServicerProvider(MtibRunnerServicer):
     def __init__(self):
         # Application daemon instance
         self.daemon:Cipher = None

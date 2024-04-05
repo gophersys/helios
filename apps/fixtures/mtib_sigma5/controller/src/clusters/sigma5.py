@@ -8,6 +8,13 @@ from typing import Tuple, List
 
 # 3rd party includes
 from kubernetes import client, config,  utils
+import grpc
+
+# Protocol includes
+from protos.mtib_controller.mtib_controller_pb2 import (
+    HealthCheckRequest, HealthCheckResponse
+)
+from protos.mtib_controller.mtib_controller_pb2_grpc import MtibControllerStub 
 
 # Private includes
 from .base import *
@@ -40,7 +47,6 @@ runners = [
                 name="Control Plane",
                 hostname="control-plane",
                 serverPort=RUNNNER_SERVER_PORT,
-                ipAddr="",
                 isInPanel=False,
                 panelId=0
             ),
@@ -50,7 +56,6 @@ runners = [
                 name="Panel Slot 1",
                 hostname="slot-1",
                 serverPort=RUNNNER_SERVER_PORT,
-                ipAddr="",
                 isInPanel=True,
                 panelId=1
             ),
@@ -58,7 +63,6 @@ runners = [
                 name="Panel Slot 2",
                 hostname="slot-2",
                 serverPort=RUNNNER_SERVER_PORT,
-                ipAddr="",
                 isInPanel=True,
                 panelId=2
             ),
@@ -66,7 +70,6 @@ runners = [
                 name="Panel Slot 3",
                 hostname="slot-3",
                 serverPort=RUNNNER_SERVER_PORT,
-                ipAddr="",
                 isInPanel=True,
                 panelId=3
             ),
@@ -74,7 +77,6 @@ runners = [
                 name="Panel Slot 4",
                 hostname="slot-4",
                 serverPort=RUNNNER_SERVER_PORT,
-                ipAddr="",
                 isInPanel=True,
                 panelId=4
             ),
@@ -82,7 +84,6 @@ runners = [
                 name="Panel Slot 5",
                 hostname="slot-5",
                 serverPort=RUNNNER_SERVER_PORT,
-                ipAddr="",
                 isInPanel=True,
                 panelId=5
             ),
@@ -91,7 +92,14 @@ runners = [
 # -------------------------------------------------------------------------------------------------
 #                                                                                      Test Cluster
 # -----------------------------------------------------------------------------------------------*/
+class Sigma5TestClusterRunnerItem:
+    def __init__(self, info:RunnerInfo, stub:MtibControllerStub):
+        self.info:RunnerInfo = info
+        self.stub:MtibControllerStub = stub
+
 class Sigma5TestCluster(BaseTestCluster):
+    runnerItems:List[Sigma5TestClusterRunnerItem] = []
+
     def __init__(self, kubeconfig_path: str, deployment_path: str):
         self.kubeconfig_path:str = kubeconfig_path
         self.deployment_path:str = deployment_path
@@ -103,31 +111,36 @@ class Sigma5TestCluster(BaseTestCluster):
         logging.info("Starting setup of Sigma5TestCluster.")
         
         # Attempt to connect to all the hosts in the cluster
-        # success, err = self.__await_for_hosts(runners, HOST_STARTUP_TIMEOUT_S)
-        # if not success:
-        #     return False, f"Could not connect to cluster hosts: {err}. Is the cluster powered on and all hosts connected?"
+        success, err = self.__await_for_hosts(runners, HOST_STARTUP_TIMEOUT_S)
+        if not success:
+            return False, f"Could not connect to cluster hosts: {err}. Is the cluster powered on and all hosts connected?"
 
-        # logging.info("All hosts are reachable. Proceeding with Kubernetes nodes check.")
+        logging.info("All hosts are reachable. Proceeding with Kubernetes nodes check.")
 
-        # # Set the k8s logger to only INFO so we don't spam the server logs
-        # logging.getLogger('kubernetes').setLevel(logging.INFO)
+        # Set the k8s logger to only INFO so we don't spam the server logs
+        logging.getLogger('kubernetes').setLevel(logging.INFO)
 
-        # # Await for Kubernetes to be fully setup on all the nodes
-        # success, err = self.__await_for_k8s_nodes(self.kubeconfig_path, K8S_STARTUP_TIMEOUT_S)
-        # if not success:
-        #     return False, f"Kubernetes nodes failed to initialize: {err}"
+        # Await for Kubernetes to be fully setup on all the nodes
+        success, err = self.__await_for_k8s_nodes(self.kubeconfig_path, K8S_STARTUP_TIMEOUT_S)
+        if not success:
+            return False, f"Kubernetes nodes failed to initialize: {err}"
         
-        # logging.info("All nodes are ready. Proceeding deployments.")
+        logging.info("All nodes are ready. Proceeding deployments.")
         
-        # # Delete any deployments present in the host
-        # success, err = self.__delete_k8s_deployments(self.kubeconfig_path, K8S_STARTUP_TIMEOUT_S)
-        # if not success:
-        #     return False, f"Failed to delete kubernetes deployment: {err}"
+        # Delete any deployments present in the host
+        success, err = self.__delete_k8s_deployments(self.kubeconfig_path, K8S_STARTUP_TIMEOUT_S)
+        if not success:
+            return False, f"Failed to delete kubernetes deployment: {err}"
         
-        # # Apply the latest deployment to the cluster
-        # success, err = self.__apply_k8s_deployment(self.kubeconfig_path, self.deployment_path)
-        # if not success:
-        #     return False, f"Failed to apply kubernetes deployment to cluster: {err}"
+        # Apply the latest deployment to the cluster
+        success, err = self.__apply_k8s_deployment(self.kubeconfig_path, self.deployment_path)
+        if not success:
+            return False, f"Failed to apply kubernetes deployment to cluster: {err}"
+
+        # Connect to all the runners over gRPC and get their info
+        success, err = self.__connect_to_runners()
+        if not success:
+            return False, f"Failed to apply kubernetes deployment to cluster: {err}"
 
         logging.info("Sigma 5 test cluster was setup correctly")
         return True, ""
@@ -272,6 +285,40 @@ class Sigma5TestCluster(BaseTestCluster):
 
         return False, "Timeout reached. Not all pods are ready."
 
+    def __connect_to_runners(self) -> Tuple[bool, str]:
+        for runner in runners:
+            # Connect a new channel and creat a stub to the runner 
+            try:            
+                # Create the connection string
+                runner_url = f"{runner.hostname}:{runner.serverPort}"
+
+                # Create a gRPC channel
+                channel = grpc.insecure_channel(runner_url)
+
+                # Create a stub using the insecure channel
+                stub = MtibControllerStub(channel)
+
+                # Get cluster metadata
+                try:
+                    #TODO: Populate the IP and the file info in the runner
+
+                    # We are ready to add this runner to our list succesfully
+                    new_runner_item:Sigma5TestClusterRunnerItem = Sigma5TestClusterRunnerItem(
+                        info=runner,
+                        stub=stub
+                    )
+
+                    self.runnerItems.append(new_runner_item)
+
+                except grpc.RpcError as e:
+                    return False, f"Unable to register cluster at {runner_url}: {e}"
+
+                logging.info(f"Successfully registered runner at {runner_url}!")
+            except grpc.RpcError as e:
+                return False, f"Failed to connect to cluster at {runner_url}. Error: {e}"
+
+        return True, ""
+    
     # --------------------------------------------------------------------------------------------
     #                                                                             Get Cluster Data
     # ------------------------------------------------------------------------------------------*/

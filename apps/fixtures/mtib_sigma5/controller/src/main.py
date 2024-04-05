@@ -54,11 +54,14 @@ def cluster_registration():
         "url": url,
     }
 
+    # Allow some time for the network and server to be setup
+    time.sleep(5) 
+
     # Send the request to connect periodically 
     while True:
         try:
             registration_endpoint = f"{conf.PROXY_SERVER_URL}/v1/cluster/register"  
-            response = requests.post(registration_endpoint, json=registration_payload)
+            response = requests.post(registration_endpoint, json=registration_payload, timeout=100)
             if response.status_code == 200:
                 logging.debug(f"Successfully registered cluster with proxy at {conf.PROXY_SERVER_URL}")
             elif response.status_code == 503:
