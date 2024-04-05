@@ -1,0 +1,216 @@
+2024-04-05 10:52:34,542 - root - INFO - Starting setup of Sigma5TestCluster.
+2024-04-05 10:52:34,542 - root - INFO - Attempting to reach all hosts in the runners list.
+2024-04-05 10:52:34,542 - root - INFO - Pinging host control-plane.
+2024-04-05 10:52:36,572 - root - INFO - Successfully pinged control-plane.
+2024-04-05 10:52:36,572 - root - INFO - Pinging host slot-1.
+2024-04-05 10:52:38,625 - root - INFO - Successfully pinged slot-1.
+2024-04-05 10:52:38,625 - root - INFO - Pinging host slot-2.
+2024-04-05 10:52:40,658 - root - INFO - Successfully pinged slot-2.
+2024-04-05 10:52:40,658 - root - INFO - Pinging host slot-3.
+2024-04-05 10:52:42,677 - root - INFO - Successfully pinged slot-3.
+2024-04-05 10:52:42,678 - root - INFO - Pinging host slot-4.
+2024-04-05 10:52:44,706 - root - INFO - Successfully pinged slot-4.
+2024-04-05 10:52:44,706 - root - INFO - Pinging host slot-5.
+2024-04-05 10:52:46,729 - root - INFO - Successfully pinged slot-5.
+2024-04-05 10:52:47,731 - root - INFO - All hosts are reachable. Proceeding with Kubernetes nodes check.
+2024-04-05 10:52:47,732 - root - INFO - Checking readiness of Kubernetes nodes.
+2024-04-05 10:52:47,816 - root - INFO - All nodes in cluster are ready, time taken: 0.07759499549865723
+2024-04-05 10:52:47,816 - root - INFO - All nodes are ready. Proceeding deployments.
+2024-04-05 10:52:47,817 - root - INFO - Deleting all Kubernetes deployments in the default namespace.
+2024-04-05 10:52:47,969 - root - DEBUG - Waiting for 6 pods to be deleted...
+2024-04-05 10:52:49,002 - root - DEBUG - Waiting for 6 pods to be deleted...
+2024-04-05 10:52:50,035 - root - DEBUG - Waiting for 6 pods to be deleted...
+2024-04-05 10:52:51,112 - root - DEBUG - Waiting for 6 pods to be deleted...
+2024-04-05 10:52:52,161 - root - DEBUG - Waiting for 5 pods to be deleted...
+2024-04-05 10:52:53,189 - root - INFO - Applying Kubernetes deployment from: /workspaces/concord/apps/fixtures/mtib_sigma5/posix/deploy/deployment.yaml
+2024-04-05 10:52:53,279 - root - INFO - Deployment applied successfully. Waiting for pods to become ready.
+2024-04-05 10:52:54,597 - root - DEBUG - Event for mtib-posix-74565cbc8-9rjsn: Successfully assigned default/mtib-posix-74565cbc8-9rjsn to slot-2
+2024-04-05 10:52:54,681 - root - DEBUG - Event for mtib-posix-74565cbc8-cjbsm: Successfully assigned default/mtib-posix-74565cbc8-cjbsm to slot-3
+2024-04-05 10:52:54,740 - root - DEBUG - Event for mtib-posix-74565cbc8-cw5r8: Successfully assigned default/mtib-posix-74565cbc8-cw5r8 to control-plane
+2024-04-05 10:52:54,790 - root - DEBUG - Event for mtib-posix-74565cbc8-dmg74: Successfully assigned default/mtib-posix-74565cbc8-dmg74 to slot-1
+2024-04-05 10:52:54,838 - root - DEBUG - Event for mtib-posix-74565cbc8-qgpql: Successfully assigned default/mtib-posix-74565cbc8-qgpql to slot-5
+2024-04-05 10:52:54,937 - root - DEBUG - Event for mtib-posix-74565cbc8-vsk8l: Successfully assigned default/mtib-posix-74565cbc8-vsk8l to slot-4
+2024-04-05 10:52:56,043 - root - DEBUG - Event for mtib-posix-74565cbc8-9rjsn: Successfully assigned default/mtib-posix-74565cbc8-9rjsn to slot-2
+2024-04-05 10:52:56,043 - root - DEBUG - Event for mtib-posix-74565cbc8-9rjsn: Container image "control-plane:5000/mtib-posix:1.42" already present on machine
+2024-04-05 10:52:56,043 - root - DEBUG - Event for mtib-posix-74565cbc8-9rjsn: Created container mtib-posix
+2024-04-05 10:52:56,087 - root - DEBUG - Event for mtib-posix-74565cbc8-cjbsm: Successfully assigned default/mtib-posix-74565cbc8-cjbsm to slot-3
+2024-04-05 10:52:56,087 - root - DEBUG - Event for mtib-posix-74565cbc8-cjbsm: Container image "control-plane:5000/mtib-posix:1.42" already present on machine
+2024-04-05 10:52:56,127 - root - DEBUG - Event for mtib-posix-74565cbc8-cw5r8: Successfully assigned default/mtib-posix-74565cbc8-cw5r8 to control-plane
+2024-04-05 10:52:56,127 - root - DEBUG - Event for mtib-posix-74565cbc8-cw5r8: Container image "control-plane:5000/mtib-posix:1.42" already present on machine
+2024-04-05 10:52:56,170 - root - DEBUG - Event for mtib-posix-74565cbc8-dmg74: Container image "control-plane:5000/mtib-posix:1.42" already present on machine
+2024-04-05 10:52:56,170 - root - DEBUG - Event for mtib-posix-74565cbc8-dmg74: Created container mtib-posix
+2024-04-05 10:52:56,170 - root - DEBUG - Event for mtib-posix-74565cbc8-dmg74: Started container mtib-posix
+2024-04-05 10:52:56,170 - root - DEBUG - Event for mtib-posix-74565cbc8-dmg74: Successfully assigned default/mtib-posix-74565cbc8-dmg74 to slot-1
+2024-04-05 10:52:56,220 - root - DEBUG - Event for mtib-posix-74565cbc8-qgpql: Successfully assigned default/mtib-posix-74565cbc8-qgpql to slot-5
+2024-04-05 10:52:56,220 - root - DEBUG - Event for mtib-posix-74565cbc8-qgpql: Container image "control-plane:5000/mtib-posix:1.42" already present on machine
+2024-04-05 10:52:56,220 - root - DEBUG - Event for mtib-posix-74565cbc8-qgpql: Created container mtib-posix
+2024-04-05 10:52:56,220 - root - DEBUG - Event for mtib-posix-74565cbc8-qgpql: Started container mtib-posix
+2024-04-05 10:52:56,261 - root - DEBUG - Event for mtib-posix-74565cbc8-vsk8l: Successfully assigned default/mtib-posix-74565cbc8-vsk8l to slot-4
+2024-04-05 10:52:56,262 - root - DEBUG - Event for mtib-posix-74565cbc8-vsk8l: Container image "control-plane:5000/mtib-posix:1.42" already present on machine
+2024-04-05 10:52:56,262 - root - DEBUG - Event for mtib-posix-74565cbc8-vsk8l: Created container mtib-posix
+2024-04-05 10:52:56,262 - root - DEBUG - Event for mtib-posix-74565cbc8-vsk8l: Started container mtib-posix
+2024-04-05 10:52:57,282 - root - INFO - All pods for deployment mtib-posix are ready.
+2024-04-05 10:52:57,284 - root - INFO - Sigma 5 test cluster was setup correctly
+2024-04-05 10:52:57,292 - root - INFO - Server started, listening on port 50051.
+2024-04-05 10:52:57,298 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:52:57,632 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:53:02,304 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:53:02,639 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:53:07,313 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:53:07,643 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:53:12,316 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:53:12,649 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:53:17,325 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:53:17,657 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:53:22,333 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:53:22,664 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:53:27,343 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:53:27,673 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:53:32,353 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:53:32,682 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:53:37,361 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:53:37,690 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:53:42,368 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:53:42,693 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:53:47,375 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:53:47,700 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:53:52,386 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:53:52,706 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:53:57,397 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:53:57,713 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:54:02,408 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:54:02,720 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:54:07,418 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:54:07,726 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:54:12,429 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:54:12,733 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:54:17,437 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:54:17,740 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:54:22,446 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:54:22,743 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:54:27,458 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:54:27,749 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:54:32,466 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:54:32,753 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:54:37,477 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:54:37,761 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:54:42,485 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:54:42,769 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:54:47,497 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:54:47,776 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:54:52,509 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:54:52,783 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:54:57,520 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:54:57,790 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:55:02,526 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:55:02,793 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:55:07,534 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:55:07,800 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:55:12,542 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:55:12,803 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:55:17,551 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:55:17,809 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:55:22,555 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:55:22,817 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:55:27,566 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:55:27,823 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:55:32,575 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:55:32,831 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:55:37,585 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:55:37,840 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:55:42,594 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:55:42,843 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:55:47,602 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:55:47,851 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:55:52,613 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:55:52,860 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:55:57,625 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:55:57,863 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:56:02,633 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:56:02,869 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:56:07,645 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:56:07,875 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:56:12,657 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:56:12,884 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:56:17,670 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:56:17,892 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:56:22,678 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:56:22,900 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:56:27,686 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:56:27,904 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:56:32,694 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:56:32,911 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:56:37,701 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:56:37,920 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:56:42,710 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:56:42,927 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:56:47,717 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:56:47,933 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:56:52,724 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:56:52,940 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:56:57,733 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:56:57,942 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:57:02,742 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:57:02,949 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:57:07,749 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:57:07,953 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:57:12,754 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:57:12,959 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:57:17,764 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:57:17,966 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:57:22,772 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:57:22,969 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:57:27,779 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:57:27,975 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:57:32,788 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:57:32,982 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:57:37,794 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:57:37,989 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:57:42,803 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:57:42,996 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:57:47,812 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:57:48,003 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:57:52,824 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:57:53,009 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:57:57,833 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:57:58,016 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:58:02,841 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:58:03,023 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:58:07,849 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:58:08,030 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:58:12,858 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:58:13,036 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:58:17,869 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:58:18,043 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:58:22,880 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:58:23,052 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:58:27,888 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:58:28,061 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:58:32,898 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:58:33,069 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:58:37,906 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:58:38,076 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:58:42,914 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:58:43,083 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:58:47,922 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:58:48,089 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:58:52,931 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:58:53,094 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:58:57,936 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:58:58,101 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:59:02,945 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:59:03,107 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:59:07,953 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:59:08,115 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:59:12,963 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:59:13,122 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:59:17,971 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:59:18,129 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:59:22,974 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:59:23,133 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:59:27,983 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:59:28,139 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:59:32,999 - root - DEBUG - Successfully registered cluster with proxy at http://localhost:6969
+2024-04-05 10:59:33,146 - root - DEBUG - HealthCheck RPC Called
+2024-04-05 10:59:35,585 - root - WARNING - Kill signal detected, stopping server...
+2024-04-05 10:59:35,585 - root - INFO - Server stopped.

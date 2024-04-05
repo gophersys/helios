@@ -9,6 +9,7 @@ setup(
                       'grpcio-tools',
                       'python-dotenv',
                       'requests',
-                      'kubernetes'
+                      'kubernetes',
+                      'termcolor'
     ],
 )

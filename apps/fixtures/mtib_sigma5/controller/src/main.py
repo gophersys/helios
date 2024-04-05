@@ -12,7 +12,7 @@ import sys
 # App includes
 from config import conf
 from src.providers.mtib_controller_provider import MtibControllerServicerProvider
-from src.clusters.sigma5 import Sigma5TestCluster
+from src.clusters.sigma5 import Sigma5TestCluster, BaseTestCluster
 from src.app.controller import ControllerServer
 
 # Protocol includes
@@ -22,12 +22,12 @@ from protos.mtib_controller.mtib_controller_pb2_grpc import add_MtibControllerSe
 # -------------------------------------------------------------------------------------------------
 #                                                                                             Setup
 # -----------------------------------------------------------------------------------------------*/
-def setup_grpc_server() -> Tuple[bool, Optional[grpc.Server]]:
+def setup_grpc_server(cluster:BaseTestCluster) -> Tuple[bool, Optional[grpc.Server]]:
     # Create gRPC server
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     
     # Register the MTIB service
-    provider = MtibControllerServicerProvider()
+    provider = MtibControllerServicerProvider(cluster=cluster)
     add_MtibControllerServicer_to_server(provider, server)
         
     # Serve
@@ -66,8 +66,7 @@ def cluster_registration():
             else:
                 logging.error(f"Error response from proxy, status code: {response.status_code}, response: {response.content}")
         except Exception as e:
-            logging.error(f"Exception occurred during cluster registration: {str(e)}")
-            sys.exit(1)
+            logging.warning(f"Exception occurred during cluster registration: {str(e)}")
 
         time.sleep(5) 
 
@@ -75,7 +74,7 @@ def cluster_registration():
 #                                                                                              Main
 # -----------------------------------------------------------------------------------------------*/
 if __name__ == '__main__':
-    print(conf)
+    logging.debug(f"App configuration: \n{conf}")
 
     # Setup the cluster
     cluster = Sigma5TestCluster(kubeconfig_path=conf.KUBECONFIG_PATH, deployment_path=conf.DEPLOYMENT_PATH)
@@ -85,7 +84,7 @@ if __name__ == '__main__':
         ControllerServer().set_internal_error(error)
 
     # Setup gRPC server
-    success, server = setup_grpc_server()
+    success, server = setup_grpc_server(cluster)
     if not success:
         raise ValueError("Error setting up GRPC server")
     

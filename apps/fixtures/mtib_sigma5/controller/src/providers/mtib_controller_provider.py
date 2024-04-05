@@ -8,14 +8,24 @@ from concurrent import futures
 # App includes
 from config import conf
 from src.app.controller import ControllerServer
+from src.clusters.base import BaseTestCluster
 
 # Protocol includes
 from protos.mtib_controller.mtib_controller_pb2_grpc import MtibControllerServicer
 from .types import * # All types are declared externally for readability of this file
 
 class MtibControllerServicerProvider(MtibControllerServicer):
-    def __init__(self):
-        pass
+
+    cluster:BaseTestCluster = None
+
+    def __init__(self, cluster:BaseTestCluster):
+        self.cluster = cluster
+    
+    # -------------------------------------------------------------------------------------------------
+    #                                                                                 Pass Test Cluster
+    # -----------------------------------------------------------------------------------------------*/
+    def set_test_cluster(self, cluster:BaseTestCluster):
+        self.cluster = cluster
 
     # -------------------------------------------------------------------------------------------------
     #                                                                                       HealthCheck
@@ -23,13 +33,14 @@ class MtibControllerServicerProvider(MtibControllerServicer):
     def HealthCheck(self, request:HealthCheckRequest, context):
         logging.debug("HealthCheck RPC Called")
         if ControllerServer().error != "":
-            return HealthCheckResponse(ok=False, error=ControllerServer().error)
+            return HealthCheckResponse(status=ClusterStatus.Errored, error=ControllerServer().error)
         
-        return HealthCheckResponse(ok=True)
+        return HealthCheckResponse(status=ClusterStatus.Ready)
     
     # -------------------------------------------------------------------------------------------------
     #                                                                                  Cluster Metadata
     # -----------------------------------------------------------------------------------------------*/
-    def GetClusterMetadata(self, request:GetClusterMetadataRequest, context):
-        logging.debug("GetClusterMetadata RPC Called")
-        return GetClusterMetadataResponse()
+    def GetClusterInfo(self, request:GetClusterInfoRequest, context):
+        return GetClusterInfoResponse(
+            info = self.cluster.get_cluster_metadata()
+        )

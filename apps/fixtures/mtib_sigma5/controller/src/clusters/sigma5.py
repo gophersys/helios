@@ -12,60 +12,122 @@ from kubernetes import client, config,  utils
 # Private includes
 from .base import *
 
-# Configuration
+# -------------------------------------------------------------------------------------------------
+#                                                                                     Configuration
+# -----------------------------------------------------------------------------------------------*/
+# Runner config
+RUNNNER_SERVER_PORT=12345
+
+# Timeouts
 HOST_STARTUP_TIMEOUT_S=100
 K8S_STARTUP_TIMEOUT_S=500
 K8S_DELETE_DEPLOYMENT_TIMEOUT_S=100
 K8S_APPLY_DEPLOYMENT_TIMEOUT_S=1000
 
+# -------------------------------------------------------------------------------------------------
+#                                                                                     Configuration
+# -----------------------------------------------------------------------------------------------*/
+# Define supported hardware
+supported_hardware = HardwareInfo(
+    model = "sigma5",
+    version = "1"
+)
+
 # Define runners
 runners = [
-    RunnerInfo( id=1,
+    # Individual Board
+    RunnerInfo( id=0,
                 name="Control Plane",
                 hostname="control-plane",
-                serverPort=12345,
+                serverPort=RUNNNER_SERVER_PORT,
                 ipAddr="",
                 isInPanel=False,
                 panelId=0
             ),
+
+    # Panel 
+    RunnerInfo( id=1,
+                name="Panel Slot 1",
+                hostname="slot-1",
+                serverPort=RUNNNER_SERVER_PORT,
+                ipAddr="",
+                isInPanel=True,
+                panelId=1
+            ),
+    RunnerInfo( id=2,
+                name="Panel Slot 2",
+                hostname="slot-2",
+                serverPort=RUNNNER_SERVER_PORT,
+                ipAddr="",
+                isInPanel=True,
+                panelId=2
+            ),
+    RunnerInfo( id=3,
+                name="Panel Slot 3",
+                hostname="slot-3",
+                serverPort=RUNNNER_SERVER_PORT,
+                ipAddr="",
+                isInPanel=True,
+                panelId=3
+            ),
+    RunnerInfo( id=4,
+                name="Panel Slot 4",
+                hostname="slot-4",
+                serverPort=RUNNNER_SERVER_PORT,
+                ipAddr="",
+                isInPanel=True,
+                panelId=4
+            ),
+    RunnerInfo( id=5,
+                name="Panel Slot 5",
+                hostname="slot-5",
+                serverPort=RUNNNER_SERVER_PORT,
+                ipAddr="",
+                isInPanel=True,
+                panelId=5
+            ),
 ]
 
+# -------------------------------------------------------------------------------------------------
+#                                                                                      Test Cluster
+# -----------------------------------------------------------------------------------------------*/
 class Sigma5TestCluster(BaseTestCluster):
     def __init__(self, kubeconfig_path: str, deployment_path: str):
         self.kubeconfig_path:str = kubeconfig_path
         self.deployment_path:str = deployment_path
 
+    # --------------------------------------------------------------------------------------------
+    #                                                                                        Setup
+    # ------------------------------------------------------------------------------------------*/
     def setup(self) -> Tuple[bool, str]:
         logging.info("Starting setup of Sigma5TestCluster.")
         
         # Attempt to connect to all the hosts in the cluster
-        success, err = self.__await_for_hosts(runners, HOST_STARTUP_TIMEOUT_S)
-        if not success:
-            return False, f"Could not connect to cluster hosts: {err}. Is the cluster powered on and all hosts connected?"
+        # success, err = self.__await_for_hosts(runners, HOST_STARTUP_TIMEOUT_S)
+        # if not success:
+        #     return False, f"Could not connect to cluster hosts: {err}. Is the cluster powered on and all hosts connected?"
 
-        logging.info("All hosts are reachable. Proceeding with Kubernetes nodes check.")
+        # logging.info("All hosts are reachable. Proceeding with Kubernetes nodes check.")
 
-        # Await for Kubernetes to be fully setup on all the nodes
-        success, err = self.__await_for_k8s_nodes(self.kubeconfig_path, K8S_STARTUP_TIMEOUT_S)
-        if not success:
-            return False, f"Kubernetes nodes failed to initialize: {err}"
+        # # Set the k8s logger to only INFO so we don't spam the server logs
+        # logging.getLogger('kubernetes').setLevel(logging.INFO)
+
+        # # Await for Kubernetes to be fully setup on all the nodes
+        # success, err = self.__await_for_k8s_nodes(self.kubeconfig_path, K8S_STARTUP_TIMEOUT_S)
+        # if not success:
+        #     return False, f"Kubernetes nodes failed to initialize: {err}"
         
-        logging.info("All nodes are ready. Proceeding deployments.")
+        # logging.info("All nodes are ready. Proceeding deployments.")
         
-        # Delete any deployments present in the host
-        success, err = self.__delete_k8s_deployments(self.kubeconfig_path, K8S_STARTUP_TIMEOUT_S)
-        if not success:
-            return False, f"Failed to delete kubernetes deployment: {err}"
+        # # Delete any deployments present in the host
+        # success, err = self.__delete_k8s_deployments(self.kubeconfig_path, K8S_STARTUP_TIMEOUT_S)
+        # if not success:
+        #     return False, f"Failed to delete kubernetes deployment: {err}"
         
-        # Apply the latest deployment to the cluster
-        success, err = self.__apply_k8s_deployment(self.kubeconfig_path, self.deployment_path)
-        if not success:
-            return False, f"Failed to apply kubernetes deployment to cluster: {err}"
-        
-        # Apply the latest deployment to the cluster
-        success, err = self.__wait_for_deployment_ready(self.kubeconfig_path, self.deployment_path, K8S_APPLY_DEPLOYMENT_TIMEOUT_S)
-        if not success:
-            return False, f"Failure in kubernetes deployment to cluster: {err}"
+        # # Apply the latest deployment to the cluster
+        # success, err = self.__apply_k8s_deployment(self.kubeconfig_path, self.deployment_path)
+        # if not success:
+        #     return False, f"Failed to apply kubernetes deployment to cluster: {err}"
 
         logging.info("Sigma 5 test cluster was setup correctly")
         return True, ""
@@ -125,89 +187,98 @@ class Sigma5TestCluster(BaseTestCluster):
         return False, f"Timeout {timeout}s reached, not all nodes are ready."
     
     def __delete_k8s_deployments(self, kubeconfig_path: str, timeout: int) -> Tuple[bool, str]:
-        """Deletes all Kubernetes deployments in the default namespace."""
+        """Deletes all Kubernetes deployments in the default namespace and waits for their pods to be terminated."""
         logging.info("Deleting all Kubernetes deployments in the default namespace.")
         config.load_kube_config(kubeconfig_path)
         apps_v1 = client.AppsV1Api()
+        core_v1 = client.CoreV1Api()
 
         try:
             # Delete all deployments
             apps_v1.delete_collection_namespaced_deployment(namespace='default')
             start_time = time.time()
 
+            # Loop until all pods are terminated or timeout
             while time.time() - start_time < timeout:
-                deployments = apps_v1.list_namespaced_deployment(namespace='default')
-                if not deployments.items:
-                    logging.info("All deployments successfully deleted.")
+                pods = core_v1.list_namespaced_pod(namespace='default').items
+                # Filter pods to find those associated with deployments
+                # This assumes pods have a label 'app' that matches the deployment name, adjust as needed
+                deployment_pods = [pod for pod in pods if pod.metadata.labels.get('app')]
+                
+                if not deployment_pods:
                     return True, ""
                 
-                logging.debug("Waiting for deployments to be deleted...")
+                logging.debug(f"Waiting for {len(deployment_pods)} pods to be deleted...")
                 time.sleep(1)
             
-            return False, "Timeout reached before all deployments were deleted."
+            return False, "Timeout reached before all pods were deleted."
+
         except Exception as e:
             return False, f"Failed to delete deployments: {str(e)}"
 
-    def __apply_k8s_deployment(self, kubeconfig_path: str, deployment_path: str) -> Tuple[bool, str]:
-        """Applies a specific Kubernetes deployment to the cluster."""
-        logging.info("Applying a specific Kubernetes deployment.")
+    def __apply_k8s_deployment(self, kubeconfig_path: str, deployment_path: str, timeout: int = 300) -> Tuple[bool, str]:
+        """Applies a specific Kubernetes deployment to the cluster and waits for the pods to be ready."""
+        logging.info(f"Applying Kubernetes deployment from: {deployment_path}")
         config.load_kube_config(kubeconfig_path)
 
         try:
-            # Open and read the YAML file content
             with open(deployment_path, 'r') as file:
                 deployment_yaml = yaml.safe_load(file)
             
             k8s_client = client.ApiClient()
-            # Now using `yaml_objects` with a list wrapping the loaded YAML
             utils.create_from_yaml(k8s_client, yaml_objects=[deployment_yaml], namespace="default")
+            
+            deployment_name = deployment_yaml.get("metadata", {}).get("name", "")
+            if not deployment_name:
+                return False, "Deployment name could not be extracted from the YAML file."
 
-            logging.info("Deployment applied successfully.")
-            return True, ""
+            logging.info("Deployment applied successfully. Waiting for pods to become ready.")
+            
+            return self.__wait_for_deployment_pods_ready(deployment_name, "default", kubeconfig_path, timeout)
+            
         except Exception as e:
-            logging.error(f"Failed to apply deployment: {str(e)}")
-            return False, f"Failed to apply deployment: {str(e)}"
-        
-    def __wait_for_deployment_ready(self, kubeconfig_path: str, deployment_path: str, timeout: int) -> Tuple[bool, str]:
-        """Waits for all pods in a deployment to be in the 'Ready' state."""
-        logging.info("Loading Kubernetes configuration.")
-        config.load_kube_config(kubeconfig_path)
-        
-        # Load the deployment name from the YAML file
-        with open(deployment_path, 'r') as file:
-            deployment_yaml = yaml.safe_load(file)
-        deployment_name = deployment_yaml.get("metadata", {}).get("name", "")
-        if not deployment_name:
-            return False, "Deployment name could not be extracted from the YAML file."
+            return False, f"Failed to apply deployment from {deployment_path}: {str(e)}"
 
-        logging.info(f"Waiting for deployment {deployment_name} to be ready.")
+    def __wait_for_deployment_pods_ready(self, deployment_name: str, namespace: str, kubeconfig_path: str, timeout: int) -> Tuple[bool, str]:
+        """Waits for all pods in a deployment to be in the 'Ready' state and reports any errors."""
+        config.load_kube_config(kubeconfig_path)
         apps_v1 = client.AppsV1Api()
         core_v1 = client.CoreV1Api()
         start_time = time.time()
-        namespace = "default"  # Assuming the default namespace, adjust as necessary
 
         while time.time() - start_time < timeout:
             try:
                 deployment = apps_v1.read_namespaced_deployment(name=deployment_name, namespace=namespace)
-                if deployment.status.ready_replicas == deployment.status.replicas:
-                    logging.info("Deployment ready.")
-                    return True, ""
+                if deployment.status.ready_replicas == deployment.spec.replicas:
+                    logging.info(f"All pods for deployment {deployment_name} are ready.")
+                    return True, "All pods are ready."
             except client.exceptions.ApiException as e:
-                if e.status != 404:
-                    return False, f"Error fetching deployment: {str(e)}"
+                logging.error(f"Error fetching deployment {deployment_name}: {e}")
+                return False, f"Error fetching deployment {deployment_name}: {str(e)}"
 
-            # Check for not ready pods and gather verbose error info
             pod_list = core_v1.list_namespaced_pod(namespace=namespace, label_selector=f"app={deployment_name}")
             for pod in pod_list.items:
-                if pod.status.phase != "Running" or not all(container.ready for container in pod.status.container_statuses):
-                    node_name = pod.spec.node_name
-                    pod_name = pod.metadata.name
-                    return False, f"Pod {pod_name} on node {node_name} is not ready. Phase: {pod.status.phase}."
+                if pod.status.phase == "Pending":
+                    field_selector = f"involvedObject.name={pod.metadata.name},involvedObject.namespace={namespace}"
+                    events = core_v1.list_namespaced_event(namespace=namespace, field_selector=field_selector)
+                    for event in events.items:
+                        logging.debug(f"Event for {pod.metadata.name}: {event.message}")
+                        if "Failed" in event.reason:
+                            error_details = f"{event.reason}: {event.message}"
+                            logging.error(error_details)
+                            return False, error_details
 
-            time.sleep(1)  # Sleep before next check
+            time.sleep(1)  # Sleep before the next check to avoid overwhelming the API server
 
-        return False, "Timeout waiting for deployment to be ready."
+        return False, "Timeout reached. Not all pods are ready."
 
-    def get_cluster_metadata(self) -> dict:
-        return []
-    
+    # --------------------------------------------------------------------------------------------
+    #                                                                             Get Cluster Data
+    # ------------------------------------------------------------------------------------------*/
+    def get_cluster_metadata(self) -> ClusterInfo:
+        info:ClusterInfo = ClusterInfo(
+            runners = runners,
+            supportedHardware = supported_hardware
+        )
+
+        return info

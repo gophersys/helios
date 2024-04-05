@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Tuple
 from protos.mtib_controller.mtib_controller_pb2 import (
     HealthCheckRequest, HealthCheckResponse,
-    GetClusterMetadataRequest, GetClusterMetadataResponse,
+    ClusterInfo, GetClusterInfoRequest, GetClusterInfoResponse,
     RunnerInfo, HardwareInfo, SoftwareInfo
 )
 
@@ -16,7 +16,7 @@ class BaseTestCluster(ABC):
         pass
 
     @abstractmethod
-    def get_cluster_metadata(self) -> dict:
+    def get_cluster_metadata(self) -> ClusterInfo:
         """
         Fetches metadata about the test cluster.
         Returns a dictionary containing metadata such as runners, supported hardware, etc.
