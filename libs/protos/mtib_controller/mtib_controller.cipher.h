@@ -20,10 +20,10 @@ HealthCheckResponse MtibController_HealthCheckHandler(HealthCheckRequest request
 HealthCheckResponse MtibController_HealthCheckRpc(cipher_unary_rpc_user_info_t *info, HealthCheckRequest request);
 
 // Server side handler
-GetClusterMetadataResponse MtibController_GetClusterMetadataHandler(GetClusterMetadataRequest request);
+GetClusterInfoResponse MtibController_GetClusterInfoHandler(GetClusterInfoRequest request);
 
 // Client side call
-GetClusterMetadataResponse MtibController_GetClusterMetadataRpc(cipher_unary_rpc_user_info_t *info, GetClusterMetadataRequest request);
+GetClusterInfoResponse MtibController_GetClusterInfoRpc(cipher_unary_rpc_user_info_t *info, GetClusterInfoRequest request);
 
 // Server side handler
 ListTestsResponse MtibController_ListTestsHandler(ListTestsRequest request);

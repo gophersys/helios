@@ -8,8 +8,8 @@ service MtibController {
   // Performs a health check to ensure the cluster is operational.
   rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse) {}
 
-  // Fetches comprehensive metadata about the test cluster, including runners and supported hardware.
-  rpc GetClusterMetadata(GetClusterMetadataRequest) returns (GetClusterMetadataResponse) {}
+  // Fetches comprehensive Info about the test cluster, including runners and supported hardware.
+  rpc GetClusterInfo(GetClusterInfoRequest) returns (GetClusterInfoResponse) {}
 
   // Lists available tests in the cluster.
   rpc ListTests(ListTestsRequest) returns (ListTestsResponse) {}
@@ -25,14 +25,20 @@ service MtibController {
 message ResetRequest{}
 message ResetResponse{}
 
+enum ClusterStatus {
+  Ready = 0;
+  NotReady = 1;
+  Errored = 2;
+}
+
 // HealthCheck messages
 message HealthCheckRequest {}
 message HealthCheckResponse {
-  bool ok = 1;
+  ClusterStatus status = 1;
   string error = 2;
 }
 
-// Test metadata, now with additional information
+// Test Info, now with additional information
 message StepInfo {
   int32 sequence = 1;
   string name = 2;
@@ -108,14 +114,20 @@ message HardwareInfo {
   string version = 2;
 }
 
-// Requests for fetching cluster metadata
-message GetClusterMetadataRequest {}
+message ClusterInfo {
+  string name = 1;
 
-// Response containing comprehensive information about the cluster
-message GetClusterMetadataResponse {
   // Embedded runners information
-  repeated RunnerInfo runners = 1;
+  repeated RunnerInfo runners = 2;
 
   // Supported hardware and capabilities
-  HardwareInfo supportedHardware = 2;
+  HardwareInfo supportedHardware = 3;
+}
+
+// Requests for fetching cluster Info
+message GetClusterInfoRequest {}
+
+// Response containing comprehensive information about the cluster
+message GetClusterInfoResponse {
+  ClusterInfo info = 1;
 }

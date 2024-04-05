@@ -19,7 +19,7 @@ typedef enum
 {
     rpc_Reset = 1,
     rpc_HealthCheck = 2,
-    rpc_GetClusterMetadata = 3,
+    rpc_GetClusterInfo = 3,
     rpc_ListTests = 4,
     rpc_ExecuteBoardTest = 5,
     rpc_ExecutePanelTest = 6,
@@ -60,20 +60,20 @@ cipher_rpc_err_t HealthCheckRpcPrvHandler(void *request, void *response)
 }
 
 // Server side
-static bool MtibController_GetClusterMetadataHandlerImplemented = true;
-__attribute__((weak)) GetClusterMetadataResponse MtibController_GetClusterMetadataHandler(GetClusterMetadataRequest request)
+static bool MtibController_GetClusterInfoHandlerImplemented = true;
+__attribute__((weak)) GetClusterInfoResponse MtibController_GetClusterInfoHandler(GetClusterInfoRequest request)
 {
     LOG_WRN("%s default implementation called", __func__);
-    MtibController_GetClusterMetadataHandlerImplemented = false;
-    GetClusterMetadataResponse response  = {0};
+    MtibController_GetClusterInfoHandlerImplemented = false;
+    GetClusterInfoResponse response  = {0};
     return response ;
 }
 
-cipher_rpc_err_t GetClusterMetadataRpcPrvHandler(void *request, void *response)
+cipher_rpc_err_t GetClusterInfoRpcPrvHandler(void *request, void *response)
 {
     // Call the actual handler function
-    *((GetClusterMetadataResponse *)response ) = MtibController_GetClusterMetadataHandler(*((GetClusterMetadataRequest *)request));
-    return MtibController_GetClusterMetadataHandlerImplemented ? CIPHER_RPC_ERR_OK : CIPHER_RPC_ERR_NOT_IMPLEMENTED;
+    *((GetClusterInfoResponse *)response ) = MtibController_GetClusterInfoHandler(*((GetClusterInfoRequest *)request));
+    return MtibController_GetClusterInfoHandlerImplemented ? CIPHER_RPC_ERR_OK : CIPHER_RPC_ERR_NOT_IMPLEMENTED;
 }
 
 // Server side
@@ -166,16 +166,16 @@ HealthCheckResponse MtibController_HealthCheckRpc(cipher_unary_rpc_user_info_t *
     cipher_daemon_execute_remote_rpc(&context);
     return response;
 }
-GetClusterMetadataResponse MtibController_GetClusterMetadataRpc(cipher_unary_rpc_user_info_t *info, GetClusterMetadataRequest request)
+GetClusterInfoResponse MtibController_GetClusterInfoRpc(cipher_unary_rpc_user_info_t *info, GetClusterInfoRequest request)
 {
-    GetClusterMetadataResponse response  = {0};
+    GetClusterInfoResponse response  = {0};
 
     cipher_daemon_rpc_context_t context =
     {
         .local = true,
         .user_info = info,
         .service_id = MTIBCONTROLLER_SERVICE_ID,
-        .rpc_id = rpc_GetClusterMetadata,
+        .rpc_id = rpc_GetClusterInfo,
         .request_struct = &request,
         .request_struct_size = sizeof(request),
         .response_struct = &response ,
@@ -280,19 +280,19 @@ static cipher_rpc_info_t mtibcontroller_rpcs[] =
         .supports_parallelism = true,
     },
     {
-        .id = rpc_GetClusterMetadata,
+        .id = rpc_GetClusterInfo,
         .type = CIPHER_RPC_TYPE_UNARY,
-        .name = "GetClusterMetadata",
-        .handler = GetClusterMetadataRpcPrvHandler,
+        .name = "GetClusterInfo",
+        .handler = GetClusterInfoRpcPrvHandler,
         .request_info = {
-            .fields = GetClusterMetadataRequest_fields,
-            .encoded_size = GetClusterMetadataRequest_size,
-            .decoded_size = sizeof(GetClusterMetadataRequest)
+            .fields = GetClusterInfoRequest_fields,
+            .encoded_size = GetClusterInfoRequest_size,
+            .decoded_size = sizeof(GetClusterInfoRequest)
         },
         .response_info = {
-            .fields = GetClusterMetadataResponse_fields,
-            .encoded_size = GetClusterMetadataResponse_size,
-            .decoded_size = sizeof(GetClusterMetadataResponse)
+            .fields = GetClusterInfoResponse_fields,
+            .encoded_size = GetClusterInfoResponse_size,
+            .decoded_size = sizeof(GetClusterInfoResponse)
         },
         .supports_parallelism = true,
     },

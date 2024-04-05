@@ -11,7 +11,7 @@ MTIBCONTROLLER_SERVICE_ID = 1
 class MtibControllerRpc(Enum):
     Reset = 1
     HealthCheck = 2
-    GetClusterMetadata = 3
+    GetClusterInfo = 3
     ListTests = 4
     ExecuteBoardTest = 5
     ExecutePanelTest = 6
@@ -62,19 +62,19 @@ class MtibController:
         
         return context.response_struct, context.user_info.error
     # Server side handlers
-    def GetClusterMetadataHandler(self, request:GetClusterMetadataRequest) -> Tuple[GetClusterMetadataResponse, CipherRpcErr]:
-        print("Default GetClusterMetadata handler called")
-        response: GetClusterMetadataResponse = GetClusterMetadataResponse()
+    def GetClusterInfoHandler(self, request:GetClusterInfoRequest) -> Tuple[GetClusterInfoResponse, CipherRpcErr]:
+        print("Default GetClusterInfo handler called")
+        response: GetClusterInfoResponse = GetClusterInfoResponse()
         return response, CipherRpcErr.NOT_IMPLEMENTED
         
     # Client side 
-    def GetClusterMetadataRpc(self, info:CipherUnaryRpcUserInfo, request:GetClusterMetadataRequest) -> Tuple[Optional[GetClusterMetadataResponse], CipherRpcErr]:
-        response: GetClusterMetadataResponse = GetClusterMetadataResponse()
+    def GetClusterInfoRpc(self, info:CipherUnaryRpcUserInfo, request:GetClusterInfoRequest) -> Tuple[Optional[GetClusterInfoResponse], CipherRpcErr]:
+        response: GetClusterInfoResponse = GetClusterInfoResponse()
         context: CipherDaemonRpcContext = CipherDaemonRpcContext(
             local=True,
             user_info=info,
             service_id=MTIBCONTROLLER_SERVICE_ID,
-            rpc_id=MtibControllerRpc.GetClusterMetadata.value,
+            rpc_id=MtibControllerRpc.GetClusterInfo.value,
             request_struct=request,
             response_struct=response,            
         )
@@ -167,12 +167,12 @@ mtibcontroller_service_rpcs = [
         supports_parallelism=True
     ),
     CipherRpcInfo(
-        id=MtibControllerRpc.GetClusterMetadata.value,
+        id=MtibControllerRpc.GetClusterInfo.value,
         type=CipherRpcType.UNARY,
-        name="GetClusterMetadata",
-        handler=MtibController.GetClusterMetadataHandler,
-        request_info=CipherMessageInfo(GetClusterMetadataRequest),
-        response_info=CipherMessageInfo(GetClusterMetadataResponse),
+        name="GetClusterInfo",
+        handler=MtibController.GetClusterInfoHandler,
+        request_info=CipherMessageInfo(GetClusterInfoRequest),
+        response_info=CipherMessageInfo(GetClusterInfoResponse),
         supports_parallelism=True
     ),
     CipherRpcInfo(

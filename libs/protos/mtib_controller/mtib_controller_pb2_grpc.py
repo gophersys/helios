@@ -24,10 +24,10 @@ class MtibControllerStub(object):
                 request_serializer=mtib__controller__pb2.HealthCheckRequest.SerializeToString,
                 response_deserializer=mtib__controller__pb2.HealthCheckResponse.FromString,
                 )
-        self.GetClusterMetadata = channel.unary_unary(
-                '/mtib.MtibController/GetClusterMetadata',
-                request_serializer=mtib__controller__pb2.GetClusterMetadataRequest.SerializeToString,
-                response_deserializer=mtib__controller__pb2.GetClusterMetadataResponse.FromString,
+        self.GetClusterInfo = channel.unary_unary(
+                '/mtib.MtibController/GetClusterInfo',
+                request_serializer=mtib__controller__pb2.GetClusterInfoRequest.SerializeToString,
+                response_deserializer=mtib__controller__pb2.GetClusterInfoResponse.FromString,
                 )
         self.ListTests = channel.unary_unary(
                 '/mtib.MtibController/ListTests',
@@ -62,8 +62,8 @@ class MtibControllerServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def GetClusterMetadata(self, request, context):
-        """Fetches comprehensive metadata about the test cluster, including runners and supported hardware.
+    def GetClusterInfo(self, request, context):
+        """Fetches comprehensive Info about the test cluster, including runners and supported hardware.
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -103,10 +103,10 @@ def add_MtibControllerServicer_to_server(servicer, server):
                     request_deserializer=mtib__controller__pb2.HealthCheckRequest.FromString,
                     response_serializer=mtib__controller__pb2.HealthCheckResponse.SerializeToString,
             ),
-            'GetClusterMetadata': grpc.unary_unary_rpc_method_handler(
-                    servicer.GetClusterMetadata,
-                    request_deserializer=mtib__controller__pb2.GetClusterMetadataRequest.FromString,
-                    response_serializer=mtib__controller__pb2.GetClusterMetadataResponse.SerializeToString,
+            'GetClusterInfo': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetClusterInfo,
+                    request_deserializer=mtib__controller__pb2.GetClusterInfoRequest.FromString,
+                    response_serializer=mtib__controller__pb2.GetClusterInfoResponse.SerializeToString,
             ),
             'ListTests': grpc.unary_unary_rpc_method_handler(
                     servicer.ListTests,
@@ -168,7 +168,7 @@ class MtibController(object):
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
     @staticmethod
-    def GetClusterMetadata(request,
+    def GetClusterInfo(request,
             target,
             options=(),
             channel_credentials=None,
@@ -178,9 +178,9 @@ class MtibController(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/mtib.MtibController/GetClusterMetadata',
-            mtib__controller__pb2.GetClusterMetadataRequest.SerializeToString,
-            mtib__controller__pb2.GetClusterMetadataResponse.FromString,
+        return grpc.experimental.unary_unary(request, target, '/mtib.MtibController/GetClusterInfo',
+            mtib__controller__pb2.GetClusterInfoRequest.SerializeToString,
+            mtib__controller__pb2.GetClusterInfoResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
