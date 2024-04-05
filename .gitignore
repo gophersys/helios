@@ -41,6 +41,9 @@ Thumbs.db
 # Build outputs
 build
 
+# logs
+logs
+
 # Python
 .pyenv
 __pycache__
