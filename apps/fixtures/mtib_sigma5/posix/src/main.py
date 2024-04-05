@@ -95,8 +95,8 @@ def setup_grpc_server(daemon:Cipher) -> Tuple[bool, Optional[grpc.Server]]:
 #                                                                                              Main
 # -----------------------------------------------------------------------------------------------*/
 if __name__ == '__main__':
-    print(conf)
-
+    logging.debug(f"App configuration: \n{conf}")
+    
     # Reset the server
     if conf.SERVER_RESET_ENABLED is True:
         reset_server()

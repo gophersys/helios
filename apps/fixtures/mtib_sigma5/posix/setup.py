@@ -11,6 +11,7 @@ setup(
                       'typer[all]',
                       'PyInquirer',
                       'rich',
-                      'pyserial'
+                      'pyserial',
+                      'termcolor'
     ],
 )

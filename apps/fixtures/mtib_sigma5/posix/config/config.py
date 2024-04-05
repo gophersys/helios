@@ -2,6 +2,7 @@ import os, builtins
 import logging
 from dotenv import load_dotenv
 from typing import Optional, Any, Type
+from .log import setup_logging
 
 class Config:
     """
@@ -18,7 +19,8 @@ class Config:
 
     _instance = None
 
-    DEBUG_LEVEL: int
+    LOG_LEVEL: int
+    LOG_PATH: str
     MTIB_SERIAL_PORT: str
     MTIB_SERIAL_BAUD: int
     GRPC_SERVER_PORT: int
@@ -63,7 +65,8 @@ class Config:
             raise EnvironmentError("No configuration file found.")
 
         # Load 
-        self.DEBUG_LEVEL = self._get_env_var('DEBUG_LEVEL', int)
+        self.LOG_LEVEL = self._get_env_var('LOG_LEVEL', int)
+        self.LOG_PATH = self._get_env_var('LOG_PATH', str)
         self.MTIB_SERIAL_PORT = self._get_env_var('MTIB_SERIAL_PORT', str)
         self.MTIB_SERIAL_BAUD = self._get_env_var('MTIB_SERIAL_BAUD', int)
         self.GRPC_SERVER_PORT = self._get_env_var('GRPC_SERVER_PORT', int)
@@ -128,14 +131,5 @@ class Config:
 # Load env vars at startup
 conf = Config()
 
-# Set the global debug level for the application
-if conf.DEBUG_LEVEL == 4:
-    logging.basicConfig(level=logging.DEBUG)
-elif conf.DEBUG_LEVEL == 3:
-    logging.basicConfig(level=logging.INFO)
-elif conf.DEBUG_LEVEL == 2:
-    logging.basicConfig(level=logging.WARN)
-elif conf.DEBUG_LEVEL == 1:
-    logging.basicConfig(level=logging.ERROR)
-else:
-    raise ValueError(f"Invalid debug level {conf.DEBUG_LEVEL}. Valid values 0-4")
+# Setup global logging
+setup_logging(conf)
