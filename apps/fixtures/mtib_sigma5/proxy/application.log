@@ -1,0 +1,204 @@
+2024-04-05 10:46:07,461 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:6969
+2024-04-05 10:46:07,461 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2024-04-05 10:46:07,462 - werkzeug - INFO -  * Restarting with stat
+2024-04-05 10:46:07,566 - werkzeug - WARNING -  * Debugger is active!
+2024-04-05 10:46:07,567 - werkzeug - INFO -  * Debugger PIN: 369-155-673
+2024-04-05 10:47:07,194 - root - INFO - Connecting to cluster at mateo-windows:50051...
+2024-04-05 10:47:07,198 - root - INFO - Successfully connected to the cluster with ID b9e4ef60-877b-4d52-8743-728184a58091!
+2024-04-05 10:47:07,199 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:47:07] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:47:12,207 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:47:12] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:47:17,215 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:47:17] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:47:22,223 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:47:22] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:47:27,231 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:47:27] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:47:32,239 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:47:32] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:47:37,247 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:47:37] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:47:42,254 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:47:42] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:47:47,262 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:47:47] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:47:52,270 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:47:52] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:47:57,278 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:47:57] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:48:02,285 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:48:02] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:48:07,293 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:48:07] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:48:12,300 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:48:12] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:48:17,308 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:48:17] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:48:22,316 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:48:22] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:48:27,323 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:48:27] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:48:32,332 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:48:32] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:48:37,313 - root - ERROR - Failed to perform health check on cluster b9e4ef60-877b-4d52-8743-728184a58091. Error: <_InactiveRpcError of RPC that terminated with:
+	status = StatusCode.UNAVAILABLE
+	details = "failed to connect to all addresses; last error: UNKNOWN: ipv4:127.0.1.1:50051: Failed to connect to remote host: Connection refused"
+	debug_error_string = "UNKNOWN:Error received from peer  {grpc_message:"failed to connect to all addresses; last error: UNKNOWN: ipv4:127.0.1.1:50051: Failed to connect to remote host: Connection refused", grpc_status:14, created_time:"2024-04-05T10:48:37.313095256-06:00"}"
+>
+2024-04-05 10:48:37,313 - root - INFO - Cluster with ID b9e4ef60-877b-4d52-8743-728184a58091 removed.
+2024-04-05 10:49:32,435 - root - INFO - Connecting to cluster at mateo-windows:50051...
+2024-04-05 10:49:32,435 - root - INFO - Successfully connected to the cluster with ID a3798cab-dfb3-480c-952d-8dc28a96903a!
+2024-04-05 10:49:32,435 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:49:32] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:49:37,443 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:49:37] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:49:42,452 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:49:42] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:49:47,393 - root - ERROR - Failed to perform health check on cluster a3798cab-dfb3-480c-952d-8dc28a96903a. Error: <_InactiveRpcError of RPC that terminated with:
+	status = StatusCode.UNAVAILABLE
+	details = "failed to connect to all addresses; last error: UNKNOWN: ipv4:127.0.1.1:50051: Failed to connect to remote host: Connection refused"
+	debug_error_string = "UNKNOWN:Error received from peer  {grpc_message:"failed to connect to all addresses; last error: UNKNOWN: ipv4:127.0.1.1:50051: Failed to connect to remote host: Connection refused", grpc_status:14, created_time:"2024-04-05T10:49:47.393472728-06:00"}"
+>
+2024-04-05 10:49:47,394 - root - INFO - Cluster with ID a3798cab-dfb3-480c-952d-8dc28a96903a removed.
+2024-04-05 10:50:07,736 - root - INFO - Connecting to cluster at mateo-windows:50051...
+2024-04-05 10:50:07,736 - root - INFO - Successfully connected to the cluster with ID 5e80010e-ac0d-484d-b704-4536454634ca!
+2024-04-05 10:50:07,736 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:50:07] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:50:12,744 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:50:12] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:50:17,752 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:50:17] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:50:22,761 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:50:22] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:50:27,768 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:50:27] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:50:32,776 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:50:32] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:50:37,785 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:50:37] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:50:42,789 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:50:42] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:50:47,798 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:50:47] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:50:52,804 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:50:52] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:50:57,812 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:50:57] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:51:02,821 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:51:02] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:51:07,829 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:51:07] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:51:12,837 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:51:12] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:51:17,846 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:51:17] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:51:22,856 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:51:22] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:51:27,866 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:51:27] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:51:32,876 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:51:32] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:51:37,884 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:51:37] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:51:42,892 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:51:42] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:51:47,899 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:51:47] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:51:52,907 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:51:52] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:51:57,915 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:51:57] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:52:02,923 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:52:02] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:52:07,932 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:52:07] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:52:12,942 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:52:12] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:52:17,955 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:52:17] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:52:22,964 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:52:22] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:52:27,971 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:52:27] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:52:32,979 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:52:32] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:52:37,616 - root - ERROR - Failed to perform health check on cluster 5e80010e-ac0d-484d-b704-4536454634ca. Error: <_InactiveRpcError of RPC that terminated with:
+	status = StatusCode.UNAVAILABLE
+	details = "failed to connect to all addresses; last error: UNKNOWN: ipv4:127.0.1.1:50051: Failed to connect to remote host: Connection refused"
+	debug_error_string = "UNKNOWN:Error received from peer  {created_time:"2024-04-05T10:52:37.615942398-06:00", grpc_status:14, grpc_message:"failed to connect to all addresses; last error: UNKNOWN: ipv4:127.0.1.1:50051: Failed to connect to remote host: Connection refused"}"
+>
+2024-04-05 10:52:37,616 - root - INFO - Cluster with ID 5e80010e-ac0d-484d-b704-4536454634ca removed.
+2024-04-05 10:52:57,296 - root - INFO - Connecting to cluster at mateo-windows:50051...
+2024-04-05 10:52:57,297 - root - INFO - Successfully connected to the cluster with ID 750ce67a-ba97-4a72-a4b4-97e3a36a98be!
+2024-04-05 10:52:57,297 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:52:57] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:53:02,302 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:53:02] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:53:07,312 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:53:07] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:53:12,315 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:53:12] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:53:17,324 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:53:17] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:53:22,332 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:53:22] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:53:27,342 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:53:27] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:53:32,352 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:53:32] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:53:37,360 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:53:37] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:53:42,368 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:53:42] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:53:47,374 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:53:47] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:53:52,385 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:53:52] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:53:57,396 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:53:57] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:54:02,407 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:54:02] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:54:07,417 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:54:07] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:54:12,428 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:54:12] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:54:17,436 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:54:17] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:54:22,445 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:54:22] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:54:27,457 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:54:27] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:54:32,465 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:54:32] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:54:37,476 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:54:37] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:54:42,484 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:54:42] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:54:47,495 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:54:47] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:54:52,508 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:54:52] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:54:57,519 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:54:57] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:55:02,525 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:55:02] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:55:07,534 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:55:07] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:55:12,541 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:55:12] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:55:17,550 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:55:17] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:55:22,554 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:55:22] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:55:27,564 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:55:27] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:55:32,574 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:55:32] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:55:37,584 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:55:37] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:55:42,593 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:55:42] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:55:47,600 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:55:47] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:55:52,612 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:55:52] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:55:57,624 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:55:57] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:56:02,632 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:56:02] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:56:07,644 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:56:07] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:56:12,655 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:56:12] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:56:17,668 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:56:17] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:56:22,678 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:56:22] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:56:27,686 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:56:27] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:56:32,693 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:56:32] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:56:37,701 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:56:37] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:56:42,709 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:56:42] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:56:47,715 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:56:47] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:56:52,724 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:56:52] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:56:57,731 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:56:57] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:57:02,740 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:57:02] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:57:07,749 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:57:07] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:57:12,753 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:57:12] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:57:17,763 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:57:17] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:57:22,771 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:57:22] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:57:27,779 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:57:27] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:57:32,787 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:57:32] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:57:37,794 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:57:37] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:57:42,802 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:57:42] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:57:47,811 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:57:47] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:57:52,823 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:57:52] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:57:57,832 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:57:57] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:58:02,840 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:58:02] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:58:07,848 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:58:07] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:58:12,857 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:58:12] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:58:17,868 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:58:17] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:58:22,879 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:58:22] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:58:27,887 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:58:27] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:58:32,897 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:58:32] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:58:37,905 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:58:37] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:58:42,913 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:58:42] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:58:47,921 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:58:47] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:58:52,929 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:58:52] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:58:57,935 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:58:57] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:59:02,944 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:59:02] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:59:07,952 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:59:07] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:59:12,962 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:59:12] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:59:17,970 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:59:17] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:59:22,974 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:59:22] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:59:27,982 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:59:27] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:59:32,997 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 10:59:32] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 10:59:38,153 - root - ERROR - Failed to perform health check on cluster 750ce67a-ba97-4a72-a4b4-97e3a36a98be. Error: <_InactiveRpcError of RPC that terminated with:
+	status = StatusCode.UNAVAILABLE
+	details = "failed to connect to all addresses; last error: UNKNOWN: ipv4:127.0.1.1:50051: Failed to connect to remote host: Connection refused"
+	debug_error_string = "UNKNOWN:Error received from peer  {created_time:"2024-04-05T10:59:38.15298318-06:00", grpc_status:14, grpc_message:"failed to connect to all addresses; last error: UNKNOWN: ipv4:127.0.1.1:50051: Failed to connect to remote host: Connection refused"}"
+>
+2024-04-05 10:59:38,153 - root - INFO - Cluster with ID 750ce67a-ba97-4a72-a4b4-97e3a36a98be removed.
+2024-04-05 11:00:13,062 - root - INFO - Connecting to cluster at mateo-windows:50051...
+2024-04-05 11:00:13,063 - root - INFO - Successfully connected to the cluster with ID ac676c49-3c4e-4fa9-a809-e517b34d0403!
+2024-04-05 11:00:13,063 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 11:00:13] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 11:00:18,071 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 11:00:18] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 11:00:23,203 - root - ERROR - Failed to perform health check on cluster ac676c49-3c4e-4fa9-a809-e517b34d0403. Error: <_InactiveRpcError of RPC that terminated with:
+	status = StatusCode.UNAVAILABLE
+	details = "failed to connect to all addresses; last error: UNKNOWN: ipv4:127.0.1.1:50051: Failed to connect to remote host: Connection refused"
+	debug_error_string = "UNKNOWN:Error received from peer  {grpc_message:"failed to connect to all addresses; last error: UNKNOWN: ipv4:127.0.1.1:50051: Failed to connect to remote host: Connection refused", grpc_status:14, created_time:"2024-04-05T11:00:23.203317207-06:00"}"
+>
+2024-04-05 11:00:23,203 - root - INFO - Cluster with ID ac676c49-3c4e-4fa9-a809-e517b34d0403 removed.
+2024-04-05 11:00:43,245 - root - INFO - Connecting to cluster at mateo-windows:50051...
+2024-04-05 11:00:43,246 - root - INFO - Successfully connected to the cluster with ID bd74cf21-cfae-4449-866e-8def41744f1a!
+2024-04-05 11:00:43,246 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 11:00:43] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 11:00:48,254 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 11:00:48] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 11:00:53,261 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 11:00:53] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 11:00:58,269 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 11:00:58] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 11:01:03,277 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 11:01:03] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 11:01:08,287 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 11:01:08] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 11:01:13,296 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 11:01:13] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 11:01:18,303 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 11:01:18] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 11:01:23,311 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 11:01:23] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 11:01:28,316 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 11:01:28] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 11:01:33,324 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 11:01:33] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 11:01:38,331 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 11:01:38] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 11:01:43,339 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 11:01:43] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 11:01:48,348 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 11:01:48] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 11:01:53,356 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 11:01:53] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 11:01:58,365 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 11:01:58] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 11:02:03,371 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 11:02:03] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 11:02:08,378 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 11:02:08] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 11:02:13,383 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 11:02:13] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 11:02:18,391 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 11:02:18] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 11:02:23,395 - werkzeug - INFO - 127.0.0.1 - - [05/Apr/2024 11:02:23] "POST /v1/cluster/register HTTP/1.1" 200 -
+2024-04-05 11:02:23,957 - werkzeug - INFO -  * Detected change in '/workspaces/concord/apps/fixtures/mtib_sigma5/proxy/config/log.py', reloading
+2024-04-05 11:02:23,996 - werkzeug - INFO -  * Restarting with stat

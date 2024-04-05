@@ -10,6 +10,7 @@ setup(
                       'python-dotenv',
                       'flask',
                       'flask-socketio',
-                      'requests'
+                      'requests',
+                      'termcolor'
     ],
 )

@@ -23,7 +23,7 @@ def cluster_register():
     cluster_url = data['url']
     
     # Register the cluster with the server
-    if not ProxyServer().add_cluster(cluster_url):
+    if not ProxyServer().register_cluster(cluster_url):
         return "", 503
     
     # If everything is fine, return success status

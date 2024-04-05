@@ -29,37 +29,52 @@ class APITestClient:
                 formatted_error = response.text
             print(f"HealthCheck Failed with status {response.status_code}: {formatted_error}")
 
-    def test_register_cluster(self):
-        """Test the /v1/cluster/register route."""
-        payload = {
-            "cluster_id": "test-cluster-001",
-            "ip": "192.168.1.1",
-            # Include additional metadata as needed
-        }
-        response = requests.post(f"{self.base_url}/v1/cluster/register", json=payload)
+    def test_cluster_list(self):
+        """Test the /v1/cluster/list route."""
+        response = requests.get(f"{self.base_url}/v1/cluster/list")
         if response.status_code == 200:
             response_data = response.json()
-            if response_data.get('status') == 'Registered' and response_data.get('cluster_id') == payload['cluster_id']:
-                print("RegisterCluster Passed", json.dumps(response_data, indent=4))
+            if 'clusters' in response_data:
+                print("ClusterList Passed", json.dumps(response_data, indent=4))
+                return response_data['clusters']  # Return the list of clusters for further testing
             else:
-                print("RegisterCluster Failed", json.dumps(response_data, indent=4))
+                print("ClusterList Failed", json.dumps(response_data, indent=4))
+                return None
         else:
             try:
                 error_data = response.json()
                 formatted_error = json.dumps(error_data, indent=4)
             except ValueError:
                 formatted_error = response.text
-            print(f"RegisterCluster Failed with status {response.status_code}: {formatted_error}")
+            print(f"ClusterList Failed with status {response.status_code}: {formatted_error}")
+            return None
+
+    def test_cluster_info(self, cluster_ids):
+        """Test the /v1/cluster/{clusterId}/info route for each cluster ID."""
+        for cluster in cluster_ids:
+            response = requests.get(f"{self.base_url}/v1/cluster/{cluster['uuid']}/info")
+            if response.status_code == 200:
+                response_data = response.json()
+                print(f"ClusterInfo Passed for {cluster['uuid']}", json.dumps(response_data, indent=4))
+            else:
+                try:
+                    error_data = response.json()
+                    formatted_error = json.dumps(error_data, indent=4)
+                except ValueError:
+                    formatted_error = response.text
+                print(f"ClusterInfo Failed for {cluster['uuid']} with status {response.status_code}: {formatted_error}")
 
     def run_tests(self):
         """Run all tests."""
-
         print("Testing HealthCheck...")
         self.test_health_check()
 
-        print("Testing RegisterCluster...")
-        self.test_register_cluster()
+        print("Testing ClusterList...")
+        cluster_ids = self.test_cluster_list()
 
+        if cluster_ids:
+            print("Testing ClusterInfo for each cluster...")
+            self.test_cluster_info(cluster_ids)
 
 if __name__ == "__main__":
     client = APITestClient()

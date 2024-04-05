@@ -10,6 +10,8 @@ from config import conf
 # Routes
 from v1.health.healthcheck import healthcheck_bp
 from v1.cluster.register import cluster_register_bp
+from v1.cluster.list import cluster_list_bp
+from v1.cluster.info import cluster_info_bp
 
 # -------------------------------------------------------------------------------------------------
 #                                                                                       HTTP Server
@@ -19,11 +21,13 @@ app = Flask(__name__)
 # Route Blue Prints
 app.register_blueprint(healthcheck_bp)
 app.register_blueprint(cluster_register_bp)
+app.register_blueprint(cluster_list_bp)
+app.register_blueprint(cluster_info_bp)
 
 # -------------------------------------------------------------------------------------------------
 #                                                                                              Main
 # -----------------------------------------------------------------------------------------------*/
 if __name__ == '__main__':
-    print(conf)
+    logging.debug(f"App configuration: \n{conf}")
     app.run(port=conf.SERVER_PORT,debug=True)
     
