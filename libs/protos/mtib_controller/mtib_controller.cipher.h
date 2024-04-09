@@ -8,12 +8,6 @@
 cipher_service_info_t *get_mtibcontrollerservice_info(void);
 
 // Server side handler
-ResetResponse MtibController_ResetHandler(ResetRequest request);
-
-// Client side call
-ResetResponse MtibController_ResetRpc(cipher_unary_rpc_user_info_t *info, ResetRequest request);
-
-// Server side handler
 HealthCheckResponse MtibController_HealthCheckHandler(HealthCheckRequest request);
 
 // Client side call
@@ -26,21 +20,21 @@ GetClusterInfoResponse MtibController_GetClusterInfoHandler(GetClusterInfoReques
 GetClusterInfoResponse MtibController_GetClusterInfoRpc(cipher_unary_rpc_user_info_t *info, GetClusterInfoRequest request);
 
 // Server side handler
+ResetResponse MtibController_ResetHandler(ResetRequest request);
+
+// Client side call
+ResetResponse MtibController_ResetRpc(cipher_unary_rpc_user_info_t *info, ResetRequest request);
+
+// Server side handler
 ListTestsResponse MtibController_ListTestsHandler(ListTestsRequest request);
 
 // Client side call
 ListTestsResponse MtibController_ListTestsRpc(cipher_unary_rpc_user_info_t *info, ListTestsRequest request);
 
 // Server side handler
-ExecuteBoardTestResponse MtibController_ExecuteBoardTestHandler(ExecuteBoardTestRequest request);
+ExecuteTestResponse MtibController_ExecuteTestHandler(ExecuteTestRequest request);
 
 // Client side call
-ExecuteBoardTestResponse MtibController_ExecuteBoardTestRpc(cipher_unary_rpc_user_info_t *info, ExecuteBoardTestRequest request);
-
-// Server side handler
-ExecutePanelTestResponse MtibController_ExecutePanelTestHandler(ExecutePanelTestRequest request);
-
-// Client side call
-ExecutePanelTestResponse MtibController_ExecutePanelTestRpc(cipher_unary_rpc_user_info_t *info, ExecutePanelTestRequest request);
+ExecuteTestResponse MtibController_ExecuteTestRpc(cipher_unary_rpc_user_info_t *info, ExecuteTestRequest request);
 
 #endif // MTIB_CONTROLLER_CIPHER_H

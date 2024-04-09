@@ -10,107 +10,93 @@ NANOPB_PLUGIN_PATH="/ncs/modules/lib/nanopb/generator/protoc-gen-nanopb"  # Adju
 
 operation="$1" # The first command-line argument determines the script's operation mode.
 
+# Function to generate a space-separated list of all proto files
+gather_all_proto_files() {
+    find libs/protos -name '*.proto'
+}
+
 generate_nanopb() {
-    local protofile="$1"
-    local dir=$(dirname "$protofile")
+    local proto_files=("$@")
+    local proto_dirs=$(printf "%s\n" "${proto_files[@]}" | xargs -n1 dirname | sort -u | xargs -n1 echo -I | tr '\n' ' ')
 
     if [ -x "$NANOPB_PLUGIN_PATH" ]; then
-        protoc --plugin=protoc-gen-nanopb="$NANOPB_PLUGIN_PATH" --nanopb_opt=-I"$dir" --nanopb_out="$dir" -I "$dir" "$protofile"
-        echo "Generated nanopb code for $protofile"
+        for protofile in "${proto_files[@]}"; do
+            local dir=$(dirname "$protofile")
+
+            # Generate nanopb code, including all directories containing .proto files for imports
+            protoc --plugin=protoc-gen-nanopb="$NANOPB_PLUGIN_PATH" \
+                   --nanopb_out="$dir" \
+                   $proto_dirs \
+                   "$protofile"
+            echo "Generated nanopb code for $protofile"
+        done
     else
         echo "Warning: nanopb plugin not found. Skipping nanopb generation."
     fi
 }
 
 generate_python() {
-    local protofile="$1"
-    local dir=$(dirname "$protofile")
-    local file=$(basename "$protofile")
-    
-    # Normalize the proto filename to match Python's naming conventions (replace '-' with '_').
-    local modname=$(echo "$file" | sed 's/.proto$//' | sed 's/-/_/g')
-  
-    # Further transform module name by replacing single underscores with double underscores for gRPC files.
-    local modname_double_underscore=$(echo "$modname" | sed 's/_/__/g')
-  
-    if python3 -c "import grpc_tools.protoc" &> /dev/null; then
-        protoc --python_out="$dir" --proto_path="$dir" "$protofile"
-        python3 -m grpc_tools.protoc --grpc_python_out="$dir" --proto_path="$dir" "$protofile"
-        echo "Generated Python protobuf and gRPC code for $protofile"
+    local root_dir="libs/protos"
+    local proto_files=("$@")
+    local proto_dirs=$(printf "%s\n" "${proto_files[@]}" | xargs -n1 dirname | sort -u | xargs -n1 echo -I | tr '\n' ' ')
 
-        # Modify import statements in all generated *_grpc.py files to match the expected format.
-        local grpcfiles=$(find "$dir" -type f -name "${modname}_pb2_grpc.py")
-        for grpcfile in $grpcfiles; do
-          # Replace import statements using sed to match the new naming convention.
-          sed -i'' -e "s/import ${modname}_pb2 as.*/import protos.${modname}.${modname}_pb2 as ${modname_double_underscore}__pb2/g" "$grpcfile" || echo "Failed to modify $grpcfile"
+    if python3 -c "import grpc_tools.protoc" &> /dev/null; then
+        for protofile in "${proto_files[@]}"; do
+            local dir=$(dirname "$protofile")
+            local relative_dir=${dir#$root_dir/} # Remove the root_dir from dir to get the relative path
+            local file=$(basename "$protofile")
+            
+            # Generate Python protobuf and gRPC code
+            protoc --python_out="$dir" --proto_path="$dir" $proto_dirs "$protofile"
+            python3 -m grpc_tools.protoc --grpc_python_out="$dir" --proto_path="$dir" $proto_dirs "$protofile" -I"$dir"
+            echo "Generated Python protobuf and gRPC code for $protofile"
+
+            # Modify import statements in all generated *_pb2.py and *_pb2_grpc.py files
+            local generated_files=$(find "$dir" -type f -name "${file%.proto}_pb2*.py")
+            for genfile in $generated_files; do
+                # Extract package name from proto file
+                local package_name=$(grep "^package " "$protofile" | sed -e "s/^package //" -e "s/;//" -e "s/\./_/g")
+                # Update import statements to include the full nested package structure, assuming the package name mirrors directory structure.
+                if [[ ! -z "$package_name" ]]; then
+                    sed -i'' -e "s/import \([^ ]*\)_pb2 as \([^ ]*\)/import protos.${package_name}.\1_pb2 as \2/g" "$genfile" || echo "Failed to modify $genfile"
+                    sed -i'' -e "s/from \([^ ]*\) import \([^ ]*\)_pb2 as \([^ ]*\)/from protos.${package_name}.\1 import \2_pb2 as \3/g" "$genfile" || echo "Failed to modify $genfile"
+                fi
+                echo "Modified import statements in $genfile"
+            done
         done
     else
         echo "Warning: grpc_tools.protoc module not found. Skipping Python gRPC generation."
     fi
 }
 
-generate_dart() {
-  local protofile="$1"
-  local dir=$(dirname "$protofile")
-  local file=$(basename "$protofile")
-  local dart_out_dir="${dir}/lib" # Specify the output directory for Dart files within the lib folder
-  
-  # Normalize the proto filename to create a Dart-friendly package name (lowercase and underscores)
-  local pkgname=$(echo "$file" | sed 's/.proto$//' | tr '-' '_' | tr '[:upper:]' '[:lower:]')
-  
-  # Check if Dart gRPC plugin exists before generating Dart code.
-  if command -v protoc-gen-dart >/dev/null; then
-      mkdir -p "$dart_out_dir"
-      protoc --dart_out=grpc:"$dart_out_dir" --proto_path="$dir" "$protofile"
-      echo "Dart gRPC and protobuf code generated for $pkgname in $dart_out_dir"
-  else
-      echo "Warning: Dart gRPC plugin not found. Skipping Dart/Flutter generation."
-      return
-  fi
-
-  # Check if pubspec.yaml already exists, only generate if it does not
-  if [ ! -f "$dir/pubspec.yaml" ]; then
-      # Generate pubspec.yaml for the Dart package using the normalized package name
-      cat > "$dir/pubspec.yaml" <<EOF
-name: ${pkgname}_protos
-description: A Dart package for protobuf-generated files for ${pkgname}.
-version: 0.1.0
-environment:
-  sdk: '>=2.12.0 <3.0.0'
-
-dependencies:
-  protobuf: ^2.0.0
-  grpc: ^3.0.0
-EOF
-
-      echo "Created pubspec.yaml in $dir for package ${pkgname}_protos"
-  else
-      echo "pubspec.yaml already exists in $dir, skipping creation."
-  fi
-}
 
 generate_cipher() {
-    local protofile="$1"
-    local dir=$(dirname "$protofile")
+    local proto_files=("$@")
+    
+    for protofile in "${proto_files[@]}"; do
+        local dir=$(dirname "$protofile")
 
-    # Generate python cipher code using Golang generator
-    go run tools/cipherc/main.go -language=python -proto="$protofile" -out="$dir/"
-    echo "Generated Python cipher code for $protofile"
+        # Generate cipher code in Python using the custom Go tool
+        go run tools/cipherc/main.go -language=python -proto="$protofile" -out="$dir/"
+        echo "Generated Python cipher code for $protofile"
 
-    # Generate C cipher code using Golang generator
-    go run tools/cipherc/main.go -language=c -proto="$protofile" -out="$dir/"
-    echo "Generated C cipher code for $protofile"
+        # Generate cipher code in C using the custom Go tool
+        go run tools/cipherc/main.go -language=c -proto="$protofile" -out="$dir/"
+        echo "Generated C cipher code for $protofile"
+    done
 }
+
+proto_files=$(gather_all_proto_files)
 
 case $operation in
   generate)
     find libs/protos -name '*.proto' | while read protofile; do
       echo "Processing $protofile..."
 
-      generate_nanopb "$protofile"
-      generate_python "$protofile"
-      generate_dart "$protofile"
-      generate_cipher "$protofile"
+      echo "Generating code..."
+      generate_nanopb $proto_files
+      generate_python $proto_files
+      generate_cipher $proto_files
     done
     ;;
 

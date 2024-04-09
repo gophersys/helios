@@ -20,6 +20,12 @@ GetRunnerInfoResponse MtibRunner_GetRunnerInfoHandler(GetRunnerInfoRequest reque
 GetRunnerInfoResponse MtibRunner_GetRunnerInfoRpc(cipher_unary_rpc_user_info_t *info, GetRunnerInfoRequest request);
 
 // Server side handler
+ResetResponse MtibRunner_ResetHandler(ResetRequest request);
+
+// Client side call
+ResetResponse MtibRunner_ResetRpc(cipher_unary_rpc_user_info_t *info, ResetRequest request);
+
+// Server side handler
 GpioConfigResponse MtibRunner_GpioConfigHandler(GpioConfigRequest request);
 
 // Client side call

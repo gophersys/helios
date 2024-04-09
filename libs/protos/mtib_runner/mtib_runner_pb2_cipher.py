@@ -11,26 +11,27 @@ MTIBRUNNER_SERVICE_ID = 1
 class MtibRunnerRpc(Enum):
     HealthCheck = 1
     GetRunnerInfo = 2
-    GpioConfig = 3
-    GpioWrite = 4
-    GpioRead = 5
-    AdcRead = 6
-    AdcReadAll = 7
-    DutPowerEnable = 8
-    DutChargePowerEnable = 9
-    DutVoltageSet = 10
-    DutCurrentRead = 11
-    DutVoltageRead = 12
-    DutPowerRead = 13
-    AltimeterRead = 14
-    AccelRead = 15
-    AccelReadMaxForce = 16
-    EepromRead = 17
-    EepromWrite = 18
-    ListFwFiles = 19
-    UploadFwFile = 20
-    DeleteFwFile = 21
-    FlashHexFile = 22
+    Reset = 3
+    GpioConfig = 4
+    GpioWrite = 5
+    GpioRead = 6
+    AdcRead = 7
+    AdcReadAll = 8
+    DutPowerEnable = 9
+    DutChargePowerEnable = 10
+    DutVoltageSet = 11
+    DutCurrentRead = 12
+    DutVoltageRead = 13
+    DutPowerRead = 14
+    AltimeterRead = 15
+    AccelRead = 16
+    AccelReadMaxForce = 17
+    EepromRead = 18
+    EepromWrite = 19
+    ListFwFiles = 20
+    UploadFwFile = 21
+    DeleteFwFile = 22
+    FlashHexFile = 23
     
 class MtibRunner:
     def __init__(self, daemon:Cipher):
@@ -70,6 +71,27 @@ class MtibRunner:
             user_info=info,
             service_id=MTIBRUNNER_SERVICE_ID,
             rpc_id=MtibRunnerRpc.GetRunnerInfo.value,
+            request_struct=request,
+            response_struct=response,            
+        )
+        
+        self.daemon.execute_remote_rpc(context)
+        
+        return context.response_struct, context.user_info.error
+    # Server side handlers
+    def ResetHandler(self, request:ResetRequest) -> Tuple[ResetResponse, CipherRpcErr]:
+        print("Default Reset handler called")
+        response: ResetResponse = ResetResponse()
+        return response, CipherRpcErr.NOT_IMPLEMENTED
+        
+    # Client side 
+    def ResetRpc(self, info:CipherUnaryRpcUserInfo, request:ResetRequest) -> Tuple[Optional[ResetResponse], CipherRpcErr]:
+        response: ResetResponse = ResetResponse()
+        context: CipherDaemonRpcContext = CipherDaemonRpcContext(
+            local=True,
+            user_info=info,
+            service_id=MTIBRUNNER_SERVICE_ID,
+            rpc_id=MtibRunnerRpc.Reset.value,
             request_struct=request,
             response_struct=response,            
         )
@@ -516,6 +538,15 @@ mtibrunner_service_rpcs = [
         handler=MtibRunner.GetRunnerInfoHandler,
         request_info=CipherMessageInfo(GetRunnerInfoRequest),
         response_info=CipherMessageInfo(GetRunnerInfoResponse),
+        supports_parallelism=True
+    ),
+    CipherRpcInfo(
+        id=MtibRunnerRpc.Reset.value,
+        type=CipherRpcType.UNARY,
+        name="Reset",
+        handler=MtibRunner.ResetHandler,
+        request_info=CipherMessageInfo(ResetRequest),
+        response_info=CipherMessageInfo(ResetResponse),
         supports_parallelism=True
     ),
     CipherRpcInfo(

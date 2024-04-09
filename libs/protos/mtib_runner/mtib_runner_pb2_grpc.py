@@ -15,112 +15,117 @@ class MtibRunnerStub(object):
             channel: A grpc.Channel.
         """
         self.HealthCheck = channel.unary_unary(
-                '/MtibRunner/HealthCheck',
+                '/mtib_runner.MtibRunner/HealthCheck',
                 request_serializer=mtib__runner__pb2.HealthCheckRequest.SerializeToString,
                 response_deserializer=mtib__runner__pb2.HealthCheckResponse.FromString,
                 )
         self.GetRunnerInfo = channel.unary_unary(
-                '/MtibRunner/GetRunnerInfo',
+                '/mtib_runner.MtibRunner/GetRunnerInfo',
                 request_serializer=mtib__runner__pb2.GetRunnerInfoRequest.SerializeToString,
                 response_deserializer=mtib__runner__pb2.GetRunnerInfoResponse.FromString,
                 )
+        self.Reset = channel.unary_unary(
+                '/mtib_runner.MtibRunner/Reset',
+                request_serializer=mtib__runner__pb2.ResetRequest.SerializeToString,
+                response_deserializer=mtib__runner__pb2.ResetResponse.FromString,
+                )
         self.GpioConfig = channel.unary_unary(
-                '/MtibRunner/GpioConfig',
+                '/mtib_runner.MtibRunner/GpioConfig',
                 request_serializer=mtib__runner__pb2.GpioConfigRequest.SerializeToString,
                 response_deserializer=mtib__runner__pb2.GpioConfigResponse.FromString,
                 )
         self.GpioWrite = channel.unary_unary(
-                '/MtibRunner/GpioWrite',
+                '/mtib_runner.MtibRunner/GpioWrite',
                 request_serializer=mtib__runner__pb2.GpioWriteRequest.SerializeToString,
                 response_deserializer=mtib__runner__pb2.GpioWriteResponse.FromString,
                 )
         self.GpioRead = channel.unary_unary(
-                '/MtibRunner/GpioRead',
+                '/mtib_runner.MtibRunner/GpioRead',
                 request_serializer=mtib__runner__pb2.GpioReadRequest.SerializeToString,
                 response_deserializer=mtib__runner__pb2.GpioReadResponse.FromString,
                 )
         self.AdcRead = channel.unary_unary(
-                '/MtibRunner/AdcRead',
+                '/mtib_runner.MtibRunner/AdcRead',
                 request_serializer=mtib__runner__pb2.AdcReadRequest.SerializeToString,
                 response_deserializer=mtib__runner__pb2.AdcReadResponse.FromString,
                 )
         self.AdcReadAll = channel.unary_unary(
-                '/MtibRunner/AdcReadAll',
+                '/mtib_runner.MtibRunner/AdcReadAll',
                 request_serializer=mtib__runner__pb2.AdcReadAllRequest.SerializeToString,
                 response_deserializer=mtib__runner__pb2.AdcReadAllResponse.FromString,
                 )
         self.DutPowerEnable = channel.unary_unary(
-                '/MtibRunner/DutPowerEnable',
+                '/mtib_runner.MtibRunner/DutPowerEnable',
                 request_serializer=mtib__runner__pb2.DutPowerEnableRequest.SerializeToString,
                 response_deserializer=mtib__runner__pb2.DutPowerEnableResponse.FromString,
                 )
         self.DutChargePowerEnable = channel.unary_unary(
-                '/MtibRunner/DutChargePowerEnable',
+                '/mtib_runner.MtibRunner/DutChargePowerEnable',
                 request_serializer=mtib__runner__pb2.DutPowerEnableRequest.SerializeToString,
                 response_deserializer=mtib__runner__pb2.DutPowerEnableResponse.FromString,
                 )
         self.DutVoltageSet = channel.unary_unary(
-                '/MtibRunner/DutVoltageSet',
+                '/mtib_runner.MtibRunner/DutVoltageSet',
                 request_serializer=mtib__runner__pb2.DutVoltageSetRequest.SerializeToString,
                 response_deserializer=mtib__runner__pb2.DutVoltageSetResponse.FromString,
                 )
         self.DutCurrentRead = channel.unary_unary(
-                '/MtibRunner/DutCurrentRead',
+                '/mtib_runner.MtibRunner/DutCurrentRead',
                 request_serializer=mtib__runner__pb2.DutCurrentReadRequest.SerializeToString,
                 response_deserializer=mtib__runner__pb2.DutCurrentReadResponse.FromString,
                 )
         self.DutVoltageRead = channel.unary_unary(
-                '/MtibRunner/DutVoltageRead',
+                '/mtib_runner.MtibRunner/DutVoltageRead',
                 request_serializer=mtib__runner__pb2.DutVoltageReadRequest.SerializeToString,
                 response_deserializer=mtib__runner__pb2.DutVoltageReadResponse.FromString,
                 )
         self.DutPowerRead = channel.unary_unary(
-                '/MtibRunner/DutPowerRead',
+                '/mtib_runner.MtibRunner/DutPowerRead',
                 request_serializer=mtib__runner__pb2.DutPowerReadRequest.SerializeToString,
                 response_deserializer=mtib__runner__pb2.DutPowerReadResponse.FromString,
                 )
         self.AltimeterRead = channel.unary_unary(
-                '/MtibRunner/AltimeterRead',
+                '/mtib_runner.MtibRunner/AltimeterRead',
                 request_serializer=mtib__runner__pb2.AltimeterReadRequest.SerializeToString,
                 response_deserializer=mtib__runner__pb2.AltimeterReadResponse.FromString,
                 )
         self.AccelRead = channel.unary_unary(
-                '/MtibRunner/AccelRead',
+                '/mtib_runner.MtibRunner/AccelRead',
                 request_serializer=mtib__runner__pb2.AccelReadRequest.SerializeToString,
                 response_deserializer=mtib__runner__pb2.AccelReadResponse.FromString,
                 )
         self.AccelReadMaxForce = channel.unary_unary(
-                '/MtibRunner/AccelReadMaxForce',
+                '/mtib_runner.MtibRunner/AccelReadMaxForce',
                 request_serializer=mtib__runner__pb2.AccelReadMaxRequest.SerializeToString,
                 response_deserializer=mtib__runner__pb2.AccelReadMaxResponse.FromString,
                 )
         self.EepromRead = channel.unary_unary(
-                '/MtibRunner/EepromRead',
+                '/mtib_runner.MtibRunner/EepromRead',
                 request_serializer=mtib__runner__pb2.EepromReadRequest.SerializeToString,
                 response_deserializer=mtib__runner__pb2.EepromReadResponse.FromString,
                 )
         self.EepromWrite = channel.unary_unary(
-                '/MtibRunner/EepromWrite',
+                '/mtib_runner.MtibRunner/EepromWrite',
                 request_serializer=mtib__runner__pb2.EepromWriteRequest.SerializeToString,
                 response_deserializer=mtib__runner__pb2.EepromWriteResponse.FromString,
                 )
         self.ListFwFiles = channel.unary_unary(
-                '/MtibRunner/ListFwFiles',
+                '/mtib_runner.MtibRunner/ListFwFiles',
                 request_serializer=mtib__runner__pb2.ListFwFilesRequest.SerializeToString,
                 response_deserializer=mtib__runner__pb2.ListFwFilesResponse.FromString,
                 )
         self.UploadFwFile = channel.stream_unary(
-                '/MtibRunner/UploadFwFile',
+                '/mtib_runner.MtibRunner/UploadFwFile',
                 request_serializer=mtib__runner__pb2.UploadFwFileRequest.SerializeToString,
                 response_deserializer=mtib__runner__pb2.UploadFwFileResponse.FromString,
                 )
         self.DeleteFwFile = channel.unary_unary(
-                '/MtibRunner/DeleteFwFile',
+                '/mtib_runner.MtibRunner/DeleteFwFile',
                 request_serializer=mtib__runner__pb2.DeleteFwFileRequest.SerializeToString,
                 response_deserializer=mtib__runner__pb2.DeleteFwFileResponse.FromString,
                 )
         self.FlashHexFile = channel.unary_unary(
-                '/MtibRunner/FlashHexFile',
+                '/mtib_runner.MtibRunner/FlashHexFile',
                 request_serializer=mtib__runner__pb2.FlashHexFileRequest.SerializeToString,
                 response_deserializer=mtib__runner__pb2.FlashHexFileResponse.FromString,
                 )
@@ -137,7 +142,14 @@ class MtibRunnerServicer(object):
         raise NotImplementedError('Method not implemented!')
 
     def GetRunnerInfo(self, request, context):
-        """Info
+        """Hardware/System reset
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def Reset(self, request, context):
+        """Hardware/System reset
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -283,6 +295,11 @@ def add_MtibRunnerServicer_to_server(servicer, server):
                     request_deserializer=mtib__runner__pb2.GetRunnerInfoRequest.FromString,
                     response_serializer=mtib__runner__pb2.GetRunnerInfoResponse.SerializeToString,
             ),
+            'Reset': grpc.unary_unary_rpc_method_handler(
+                    servicer.Reset,
+                    request_deserializer=mtib__runner__pb2.ResetRequest.FromString,
+                    response_serializer=mtib__runner__pb2.ResetResponse.SerializeToString,
+            ),
             'GpioConfig': grpc.unary_unary_rpc_method_handler(
                     servicer.GpioConfig,
                     request_deserializer=mtib__runner__pb2.GpioConfigRequest.FromString,
@@ -385,7 +402,7 @@ def add_MtibRunnerServicer_to_server(servicer, server):
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
-            'MtibRunner', rpc_method_handlers)
+            'mtib_runner.MtibRunner', rpc_method_handlers)
     server.add_generic_rpc_handlers((generic_handler,))
 
 
@@ -404,7 +421,7 @@ class MtibRunner(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/MtibRunner/HealthCheck',
+        return grpc.experimental.unary_unary(request, target, '/mtib_runner.MtibRunner/HealthCheck',
             mtib__runner__pb2.HealthCheckRequest.SerializeToString,
             mtib__runner__pb2.HealthCheckResponse.FromString,
             options, channel_credentials,
@@ -421,9 +438,26 @@ class MtibRunner(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/MtibRunner/GetRunnerInfo',
+        return grpc.experimental.unary_unary(request, target, '/mtib_runner.MtibRunner/GetRunnerInfo',
             mtib__runner__pb2.GetRunnerInfoRequest.SerializeToString,
             mtib__runner__pb2.GetRunnerInfoResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def Reset(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/mtib_runner.MtibRunner/Reset',
+            mtib__runner__pb2.ResetRequest.SerializeToString,
+            mtib__runner__pb2.ResetResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
@@ -438,7 +472,7 @@ class MtibRunner(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/MtibRunner/GpioConfig',
+        return grpc.experimental.unary_unary(request, target, '/mtib_runner.MtibRunner/GpioConfig',
             mtib__runner__pb2.GpioConfigRequest.SerializeToString,
             mtib__runner__pb2.GpioConfigResponse.FromString,
             options, channel_credentials,
@@ -455,7 +489,7 @@ class MtibRunner(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/MtibRunner/GpioWrite',
+        return grpc.experimental.unary_unary(request, target, '/mtib_runner.MtibRunner/GpioWrite',
             mtib__runner__pb2.GpioWriteRequest.SerializeToString,
             mtib__runner__pb2.GpioWriteResponse.FromString,
             options, channel_credentials,
@@ -472,7 +506,7 @@ class MtibRunner(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/MtibRunner/GpioRead',
+        return grpc.experimental.unary_unary(request, target, '/mtib_runner.MtibRunner/GpioRead',
             mtib__runner__pb2.GpioReadRequest.SerializeToString,
             mtib__runner__pb2.GpioReadResponse.FromString,
             options, channel_credentials,
@@ -489,7 +523,7 @@ class MtibRunner(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/MtibRunner/AdcRead',
+        return grpc.experimental.unary_unary(request, target, '/mtib_runner.MtibRunner/AdcRead',
             mtib__runner__pb2.AdcReadRequest.SerializeToString,
             mtib__runner__pb2.AdcReadResponse.FromString,
             options, channel_credentials,
@@ -506,7 +540,7 @@ class MtibRunner(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/MtibRunner/AdcReadAll',
+        return grpc.experimental.unary_unary(request, target, '/mtib_runner.MtibRunner/AdcReadAll',
             mtib__runner__pb2.AdcReadAllRequest.SerializeToString,
             mtib__runner__pb2.AdcReadAllResponse.FromString,
             options, channel_credentials,
@@ -523,7 +557,7 @@ class MtibRunner(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/MtibRunner/DutPowerEnable',
+        return grpc.experimental.unary_unary(request, target, '/mtib_runner.MtibRunner/DutPowerEnable',
             mtib__runner__pb2.DutPowerEnableRequest.SerializeToString,
             mtib__runner__pb2.DutPowerEnableResponse.FromString,
             options, channel_credentials,
@@ -540,7 +574,7 @@ class MtibRunner(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/MtibRunner/DutChargePowerEnable',
+        return grpc.experimental.unary_unary(request, target, '/mtib_runner.MtibRunner/DutChargePowerEnable',
             mtib__runner__pb2.DutPowerEnableRequest.SerializeToString,
             mtib__runner__pb2.DutPowerEnableResponse.FromString,
             options, channel_credentials,
@@ -557,7 +591,7 @@ class MtibRunner(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/MtibRunner/DutVoltageSet',
+        return grpc.experimental.unary_unary(request, target, '/mtib_runner.MtibRunner/DutVoltageSet',
             mtib__runner__pb2.DutVoltageSetRequest.SerializeToString,
             mtib__runner__pb2.DutVoltageSetResponse.FromString,
             options, channel_credentials,
@@ -574,7 +608,7 @@ class MtibRunner(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/MtibRunner/DutCurrentRead',
+        return grpc.experimental.unary_unary(request, target, '/mtib_runner.MtibRunner/DutCurrentRead',
             mtib__runner__pb2.DutCurrentReadRequest.SerializeToString,
             mtib__runner__pb2.DutCurrentReadResponse.FromString,
             options, channel_credentials,
@@ -591,7 +625,7 @@ class MtibRunner(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/MtibRunner/DutVoltageRead',
+        return grpc.experimental.unary_unary(request, target, '/mtib_runner.MtibRunner/DutVoltageRead',
             mtib__runner__pb2.DutVoltageReadRequest.SerializeToString,
             mtib__runner__pb2.DutVoltageReadResponse.FromString,
             options, channel_credentials,
@@ -608,7 +642,7 @@ class MtibRunner(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/MtibRunner/DutPowerRead',
+        return grpc.experimental.unary_unary(request, target, '/mtib_runner.MtibRunner/DutPowerRead',
             mtib__runner__pb2.DutPowerReadRequest.SerializeToString,
             mtib__runner__pb2.DutPowerReadResponse.FromString,
             options, channel_credentials,
@@ -625,7 +659,7 @@ class MtibRunner(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/MtibRunner/AltimeterRead',
+        return grpc.experimental.unary_unary(request, target, '/mtib_runner.MtibRunner/AltimeterRead',
             mtib__runner__pb2.AltimeterReadRequest.SerializeToString,
             mtib__runner__pb2.AltimeterReadResponse.FromString,
             options, channel_credentials,
@@ -642,7 +676,7 @@ class MtibRunner(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/MtibRunner/AccelRead',
+        return grpc.experimental.unary_unary(request, target, '/mtib_runner.MtibRunner/AccelRead',
             mtib__runner__pb2.AccelReadRequest.SerializeToString,
             mtib__runner__pb2.AccelReadResponse.FromString,
             options, channel_credentials,
@@ -659,7 +693,7 @@ class MtibRunner(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/MtibRunner/AccelReadMaxForce',
+        return grpc.experimental.unary_unary(request, target, '/mtib_runner.MtibRunner/AccelReadMaxForce',
             mtib__runner__pb2.AccelReadMaxRequest.SerializeToString,
             mtib__runner__pb2.AccelReadMaxResponse.FromString,
             options, channel_credentials,
@@ -676,7 +710,7 @@ class MtibRunner(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/MtibRunner/EepromRead',
+        return grpc.experimental.unary_unary(request, target, '/mtib_runner.MtibRunner/EepromRead',
             mtib__runner__pb2.EepromReadRequest.SerializeToString,
             mtib__runner__pb2.EepromReadResponse.FromString,
             options, channel_credentials,
@@ -693,7 +727,7 @@ class MtibRunner(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/MtibRunner/EepromWrite',
+        return grpc.experimental.unary_unary(request, target, '/mtib_runner.MtibRunner/EepromWrite',
             mtib__runner__pb2.EepromWriteRequest.SerializeToString,
             mtib__runner__pb2.EepromWriteResponse.FromString,
             options, channel_credentials,
@@ -710,7 +744,7 @@ class MtibRunner(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/MtibRunner/ListFwFiles',
+        return grpc.experimental.unary_unary(request, target, '/mtib_runner.MtibRunner/ListFwFiles',
             mtib__runner__pb2.ListFwFilesRequest.SerializeToString,
             mtib__runner__pb2.ListFwFilesResponse.FromString,
             options, channel_credentials,
@@ -727,7 +761,7 @@ class MtibRunner(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.stream_unary(request_iterator, target, '/MtibRunner/UploadFwFile',
+        return grpc.experimental.stream_unary(request_iterator, target, '/mtib_runner.MtibRunner/UploadFwFile',
             mtib__runner__pb2.UploadFwFileRequest.SerializeToString,
             mtib__runner__pb2.UploadFwFileResponse.FromString,
             options, channel_credentials,
@@ -744,7 +778,7 @@ class MtibRunner(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/MtibRunner/DeleteFwFile',
+        return grpc.experimental.unary_unary(request, target, '/mtib_runner.MtibRunner/DeleteFwFile',
             mtib__runner__pb2.DeleteFwFileRequest.SerializeToString,
             mtib__runner__pb2.DeleteFwFileResponse.FromString,
             options, channel_credentials,
@@ -761,7 +795,7 @@ class MtibRunner(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/MtibRunner/FlashHexFile',
+        return grpc.experimental.unary_unary(request, target, '/mtib_runner.MtibRunner/FlashHexFile',
             mtib__runner__pb2.FlashHexFileRequest.SerializeToString,
             mtib__runner__pb2.FlashHexFileResponse.FromString,
             options, channel_credentials,

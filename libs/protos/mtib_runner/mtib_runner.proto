@@ -1,11 +1,16 @@
 syntax = "proto3";
 
+package mtib_runner;
+
 service MtibRunner {
   // HealthCheck
   rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse) {}
 
-  // Info
+  // Hardware/System reset
   rpc GetRunnerInfo(GetRunnerInfoRequest) returns (GetRunnerInfoResponse) {}
+
+  // Hardware/System reset
+  rpc Reset(ResetRequest) returns (ResetResponse) {}
 
   // Gpio
   rpc GpioConfig(GpioConfigRequest) returns (GpioConfigResponse) {}
@@ -42,6 +47,33 @@ service MtibRunner {
   rpc FlashHexFile(FlashHexFileRequest) returns (FlashHexFileResponse) {}
 }
 
+// NOTE: must match the FwFileInfo type in mtib_controller.proto
+// Information about software components or capabilities
+message FwFileInfo {
+  string name = 1;
+  int64 sizeKb = 2;
+  string sha256Digest = 3;
+}
+
+// NOTE: must match the RunnerInfo type in mtib_controller.proto
+// Runner information, now explicitly linked to boards and panels
+message RunnerInfo {
+  // Static fields (configured by developer)
+  int32 id = 1;          // Unique identifier for the runner
+  string name = 2;       // Human-readable name or identifier
+  string hostname = 3;   // Network hostname
+  int32 serverPort = 4;  // Port for the application
+  bool isInPanel = 5;    // Indicates if the runner is part of a panel
+  int32 panelId = 6;     // Panel identifier, if applicable
+
+  // Dynamic fields (set at run time)
+  repeated FwFileInfo supportedFirmware = 7;
+}
+
+// Reset
+message ResetRequest{}
+message ResetResponse{}
+
 // Health Check
 message HealthCheckRequest {}
 
@@ -49,14 +81,9 @@ message HealthCheckResponse {
   bool ok = 1;
 }
 
-// Info
-message TestRunnerInfo {
-
-}
-
 message GetRunnerInfoRequest {}
 message GetRunnerInfoResponse {
-  TestRunnerInfo info = 1;
+  RunnerInfo info = 1;
 }
 
 // Gpio
@@ -181,12 +208,6 @@ message UartStreamResponse {
 // Firmware Update
 message ListFwFilesRequest {}
 
-message FwFileInfo {
-  string name = 1;
-  int64 size_kb = 2;
-  string sha256_digest = 3;
-}
-
 message ListFwFilesResponse {
   repeated FwFileInfo files = 1;
 }
@@ -199,7 +220,7 @@ message UploadFwFileRequest {
 message UploadFwFileResponse {
   bool success = 1;
   string error = 2;
-  string sha256_digest = 3;
+  string sha256Digest = 3;
 }
 
 message DeleteFwFileRequest {

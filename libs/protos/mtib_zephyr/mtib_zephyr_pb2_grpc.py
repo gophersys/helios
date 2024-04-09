@@ -2,7 +2,7 @@
 """Client and server classes corresponding to protobuf-defined services."""
 import grpc
 
-import protos.mtib_zephyr.mtib_zephyr_pb2 as mtib__zephyr__pb2
+import mtib_zephyr_pb2 as mtib__zephyr__pb2
 
 
 class MtibZephyrStub(object):

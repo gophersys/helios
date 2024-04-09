@@ -19,26 +19,27 @@ typedef enum
 {
     rpc_HealthCheck = 1,
     rpc_GetRunnerInfo = 2,
-    rpc_GpioConfig = 3,
-    rpc_GpioWrite = 4,
-    rpc_GpioRead = 5,
-    rpc_AdcRead = 6,
-    rpc_AdcReadAll = 7,
-    rpc_DutPowerEnable = 8,
-    rpc_DutChargePowerEnable = 9,
-    rpc_DutVoltageSet = 10,
-    rpc_DutCurrentRead = 11,
-    rpc_DutVoltageRead = 12,
-    rpc_DutPowerRead = 13,
-    rpc_AltimeterRead = 14,
-    rpc_AccelRead = 15,
-    rpc_AccelReadMaxForce = 16,
-    rpc_EepromRead = 17,
-    rpc_EepromWrite = 18,
-    rpc_ListFwFiles = 19,
-    rpc_UploadFwFile = 20,
-    rpc_DeleteFwFile = 21,
-    rpc_FlashHexFile = 22,
+    rpc_Reset = 3,
+    rpc_GpioConfig = 4,
+    rpc_GpioWrite = 5,
+    rpc_GpioRead = 6,
+    rpc_AdcRead = 7,
+    rpc_AdcReadAll = 8,
+    rpc_DutPowerEnable = 9,
+    rpc_DutChargePowerEnable = 10,
+    rpc_DutVoltageSet = 11,
+    rpc_DutCurrentRead = 12,
+    rpc_DutVoltageRead = 13,
+    rpc_DutPowerRead = 14,
+    rpc_AltimeterRead = 15,
+    rpc_AccelRead = 16,
+    rpc_AccelReadMaxForce = 17,
+    rpc_EepromRead = 18,
+    rpc_EepromWrite = 19,
+    rpc_ListFwFiles = 20,
+    rpc_UploadFwFile = 21,
+    rpc_DeleteFwFile = 22,
+    rpc_FlashHexFile = 23,
 } MtibRunner_rpc;
 
 // Server side
@@ -73,6 +74,23 @@ cipher_rpc_err_t GetRunnerInfoRpcPrvHandler(void *request, void *response)
     // Call the actual handler function
     *((GetRunnerInfoResponse *)response ) = MtibRunner_GetRunnerInfoHandler(*((GetRunnerInfoRequest *)request));
     return MtibRunner_GetRunnerInfoHandlerImplemented ? CIPHER_RPC_ERR_OK : CIPHER_RPC_ERR_NOT_IMPLEMENTED;
+}
+
+// Server side
+static bool MtibRunner_ResetHandlerImplemented = true;
+__attribute__((weak)) ResetResponse MtibRunner_ResetHandler(ResetRequest request)
+{
+    LOG_WRN("%s default implementation called", __func__);
+    MtibRunner_ResetHandlerImplemented = false;
+    ResetResponse response  = {0};
+    return response ;
+}
+
+cipher_rpc_err_t ResetRpcPrvHandler(void *request, void *response)
+{
+    // Call the actual handler function
+    *((ResetResponse *)response ) = MtibRunner_ResetHandler(*((ResetRequest *)request));
+    return MtibRunner_ResetHandlerImplemented ? CIPHER_RPC_ERR_OK : CIPHER_RPC_ERR_NOT_IMPLEMENTED;
 }
 
 // Server side
@@ -445,6 +463,25 @@ GetRunnerInfoResponse MtibRunner_GetRunnerInfoRpc(cipher_unary_rpc_user_info_t *
         .user_info = info,
         .service_id = MTIBRUNNER_SERVICE_ID,
         .rpc_id = rpc_GetRunnerInfo,
+        .request_struct = &request,
+        .request_struct_size = sizeof(request),
+        .response_struct = &response ,
+        .response_struct_size = sizeof(response)
+    };
+
+    cipher_daemon_execute_remote_rpc(&context);
+    return response;
+}
+ResetResponse MtibRunner_ResetRpc(cipher_unary_rpc_user_info_t *info, ResetRequest request)
+{
+    ResetResponse response  = {0};
+
+    cipher_daemon_rpc_context_t context =
+    {
+        .local = true,
+        .user_info = info,
+        .service_id = MTIBRUNNER_SERVICE_ID,
+        .rpc_id = rpc_Reset,
         .request_struct = &request,
         .request_struct_size = sizeof(request),
         .response_struct = &response ,
@@ -868,6 +905,23 @@ static cipher_rpc_info_t mtibrunner_rpcs[] =
             .fields = GetRunnerInfoResponse_fields,
             .encoded_size = GetRunnerInfoResponse_size,
             .decoded_size = sizeof(GetRunnerInfoResponse)
+        },
+        .supports_parallelism = true,
+    },
+    {
+        .id = rpc_Reset,
+        .type = CIPHER_RPC_TYPE_UNARY,
+        .name = "Reset",
+        .handler = ResetRpcPrvHandler,
+        .request_info = {
+            .fields = ResetRequest_fields,
+            .encoded_size = ResetRequest_size,
+            .decoded_size = sizeof(ResetRequest)
+        },
+        .response_info = {
+            .fields = ResetResponse_fields,
+            .encoded_size = ResetResponse_size,
+            .decoded_size = sizeof(ResetResponse)
         },
         .supports_parallelism = true,
     },

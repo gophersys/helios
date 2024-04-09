@@ -9,37 +9,15 @@ from cipher import *
 MTIBCONTROLLER_SERVICE_ID = 1
 
 class MtibControllerRpc(Enum):
-    Reset = 1
-    HealthCheck = 2
-    GetClusterInfo = 3
+    HealthCheck = 1
+    GetClusterInfo = 2
+    Reset = 3
     ListTests = 4
-    ExecuteBoardTest = 5
-    ExecutePanelTest = 6
+    ExecuteTest = 5
     
 class MtibController:
     def __init__(self, daemon:Cipher):
         self.daemon: Cipher = daemon
-    # Server side handlers
-    def ResetHandler(self, request:ResetRequest) -> Tuple[ResetResponse, CipherRpcErr]:
-        print("Default Reset handler called")
-        response: ResetResponse = ResetResponse()
-        return response, CipherRpcErr.NOT_IMPLEMENTED
-        
-    # Client side 
-    def ResetRpc(self, info:CipherUnaryRpcUserInfo, request:ResetRequest) -> Tuple[Optional[ResetResponse], CipherRpcErr]:
-        response: ResetResponse = ResetResponse()
-        context: CipherDaemonRpcContext = CipherDaemonRpcContext(
-            local=True,
-            user_info=info,
-            service_id=MTIBCONTROLLER_SERVICE_ID,
-            rpc_id=MtibControllerRpc.Reset.value,
-            request_struct=request,
-            response_struct=response,            
-        )
-        
-        self.daemon.execute_remote_rpc(context)
-        
-        return context.response_struct, context.user_info.error
     # Server side handlers
     def HealthCheckHandler(self, request:HealthCheckRequest) -> Tuple[HealthCheckResponse, CipherRpcErr]:
         print("Default HealthCheck handler called")
@@ -83,6 +61,27 @@ class MtibController:
         
         return context.response_struct, context.user_info.error
     # Server side handlers
+    def ResetHandler(self, request:ResetRequest) -> Tuple[ResetResponse, CipherRpcErr]:
+        print("Default Reset handler called")
+        response: ResetResponse = ResetResponse()
+        return response, CipherRpcErr.NOT_IMPLEMENTED
+        
+    # Client side 
+    def ResetRpc(self, info:CipherUnaryRpcUserInfo, request:ResetRequest) -> Tuple[Optional[ResetResponse], CipherRpcErr]:
+        response: ResetResponse = ResetResponse()
+        context: CipherDaemonRpcContext = CipherDaemonRpcContext(
+            local=True,
+            user_info=info,
+            service_id=MTIBCONTROLLER_SERVICE_ID,
+            rpc_id=MtibControllerRpc.Reset.value,
+            request_struct=request,
+            response_struct=response,            
+        )
+        
+        self.daemon.execute_remote_rpc(context)
+        
+        return context.response_struct, context.user_info.error
+    # Server side handlers
     def ListTestsHandler(self, request:ListTestsRequest) -> Tuple[ListTestsResponse, CipherRpcErr]:
         print("Default ListTests handler called")
         response: ListTestsResponse = ListTestsResponse()
@@ -104,40 +103,19 @@ class MtibController:
         
         return context.response_struct, context.user_info.error
     # Server side handlers
-    def ExecuteBoardTestHandler(self, request:ExecuteBoardTestRequest) -> Tuple[ExecuteBoardTestResponse, CipherRpcErr]:
-        print("Default ExecuteBoardTest handler called")
-        response: ExecuteBoardTestResponse = ExecuteBoardTestResponse()
+    def ExecuteTestHandler(self, request:ExecuteTestRequest) -> Tuple[ExecuteTestResponse, CipherRpcErr]:
+        print("Default ExecuteTest handler called")
+        response: ExecuteTestResponse = ExecuteTestResponse()
         return response, CipherRpcErr.NOT_IMPLEMENTED
         
     # Client side 
-    def ExecuteBoardTestRpc(self, info:CipherUnaryRpcUserInfo, request:ExecuteBoardTestRequest) -> Tuple[Optional[ExecuteBoardTestResponse], CipherRpcErr]:
-        response: ExecuteBoardTestResponse = ExecuteBoardTestResponse()
+    def ExecuteTestRpc(self, info:CipherUnaryRpcUserInfo, request:ExecuteTestRequest) -> Tuple[Optional[ExecuteTestResponse], CipherRpcErr]:
+        response: ExecuteTestResponse = ExecuteTestResponse()
         context: CipherDaemonRpcContext = CipherDaemonRpcContext(
             local=True,
             user_info=info,
             service_id=MTIBCONTROLLER_SERVICE_ID,
-            rpc_id=MtibControllerRpc.ExecuteBoardTest.value,
-            request_struct=request,
-            response_struct=response,            
-        )
-        
-        self.daemon.execute_remote_rpc(context)
-        
-        return context.response_struct, context.user_info.error
-    # Server side handlers
-    def ExecutePanelTestHandler(self, request:ExecutePanelTestRequest) -> Tuple[ExecutePanelTestResponse, CipherRpcErr]:
-        print("Default ExecutePanelTest handler called")
-        response: ExecutePanelTestResponse = ExecutePanelTestResponse()
-        return response, CipherRpcErr.NOT_IMPLEMENTED
-        
-    # Client side 
-    def ExecutePanelTestRpc(self, info:CipherUnaryRpcUserInfo, request:ExecutePanelTestRequest) -> Tuple[Optional[ExecutePanelTestResponse], CipherRpcErr]:
-        response: ExecutePanelTestResponse = ExecutePanelTestResponse()
-        context: CipherDaemonRpcContext = CipherDaemonRpcContext(
-            local=True,
-            user_info=info,
-            service_id=MTIBCONTROLLER_SERVICE_ID,
-            rpc_id=MtibControllerRpc.ExecutePanelTest.value,
+            rpc_id=MtibControllerRpc.ExecuteTest.value,
             request_struct=request,
             response_struct=response,            
         )
@@ -148,15 +126,6 @@ class MtibController:
 
 # MtibController RPCs
 mtibcontroller_service_rpcs = [
-    CipherRpcInfo(
-        id=MtibControllerRpc.Reset.value,
-        type=CipherRpcType.UNARY,
-        name="Reset",
-        handler=MtibController.ResetHandler,
-        request_info=CipherMessageInfo(ResetRequest),
-        response_info=CipherMessageInfo(ResetResponse),
-        supports_parallelism=True
-    ),
     CipherRpcInfo(
         id=MtibControllerRpc.HealthCheck.value,
         type=CipherRpcType.UNARY,
@@ -176,6 +145,15 @@ mtibcontroller_service_rpcs = [
         supports_parallelism=True
     ),
     CipherRpcInfo(
+        id=MtibControllerRpc.Reset.value,
+        type=CipherRpcType.UNARY,
+        name="Reset",
+        handler=MtibController.ResetHandler,
+        request_info=CipherMessageInfo(ResetRequest),
+        response_info=CipherMessageInfo(ResetResponse),
+        supports_parallelism=True
+    ),
+    CipherRpcInfo(
         id=MtibControllerRpc.ListTests.value,
         type=CipherRpcType.UNARY,
         name="ListTests",
@@ -185,21 +163,12 @@ mtibcontroller_service_rpcs = [
         supports_parallelism=True
     ),
     CipherRpcInfo(
-        id=MtibControllerRpc.ExecuteBoardTest.value,
+        id=MtibControllerRpc.ExecuteTest.value,
         type=CipherRpcType.UNARY,
-        name="ExecuteBoardTest",
-        handler=MtibController.ExecuteBoardTestHandler,
-        request_info=CipherMessageInfo(ExecuteBoardTestRequest),
-        response_info=CipherMessageInfo(ExecuteBoardTestResponse),
-        supports_parallelism=True
-    ),
-    CipherRpcInfo(
-        id=MtibControllerRpc.ExecutePanelTest.value,
-        type=CipherRpcType.UNARY,
-        name="ExecutePanelTest",
-        handler=MtibController.ExecutePanelTestHandler,
-        request_info=CipherMessageInfo(ExecutePanelTestRequest),
-        response_info=CipherMessageInfo(ExecutePanelTestResponse),
+        name="ExecuteTest",
+        handler=MtibController.ExecuteTestHandler,
+        request_info=CipherMessageInfo(ExecuteTestRequest),
+        response_info=CipherMessageInfo(ExecuteTestResponse),
         supports_parallelism=True
     ),
 ]
