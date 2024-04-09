@@ -64,6 +64,37 @@ class APITestClient:
                     formatted_error = response.text
                 print(f"ClusterInfo Failed for {cluster['uuid']} with status {response.status_code}: {formatted_error}")
 
+    def test_cluster_list_tests(self, cluster_ids):
+        """Test the /v1/cluster/{clusterId}/tests route for each cluster ID."""
+        for cluster in cluster_ids:
+            response = requests.get(f"{self.base_url}/v1/cluster/{cluster['uuid']}/tests")
+            if response.status_code == 200:
+                response_data = response.json()
+                print(f"ClusterTests Passed for {cluster['uuid']}", json.dumps(response_data, indent=4))
+            else:
+                try:
+                    error_data = response.json()
+                    formatted_error = json.dumps(error_data, indent=4)
+                except ValueError:
+                    formatted_error = response.text
+                print(f"ClusterTest Failed for {cluster['uuid']} with status {response.status_code}: {formatted_error}")
+
+    def test_execute_test(self, cluster_ids):
+        """Test the /v1/cluster/{clusterId}/tests/{testId}/execute route."""
+        for cluster in cluster_ids:
+            test_id = "d23d0e5b-1123-4219-8ba7-0a6539bb613f"  # Adjust based on your test setup
+            response = requests.post(f"{self.base_url}/v1/cluster/{cluster['uuid']}/tests/{test_id}/execute")
+            
+            if response.status_code == 200:
+                print(f"Test execution started for cluster {cluster} and test {test_id}.")
+            else:
+                try:
+                    error_data = response.json()
+                    formatted_error = json.dumps(error_data, indent=4)
+                except ValueError:
+                    formatted_error = response.text
+                print(f"Test execution failed for cluster {cluster} with status {response.status_code}: {formatted_error}")
+
     def run_tests(self):
         """Run all tests."""
         print("Testing HealthCheck...")
@@ -75,6 +106,12 @@ class APITestClient:
         if cluster_ids:
             print("Testing ClusterInfo for each cluster...")
             self.test_cluster_info(cluster_ids)
+
+            print("Testing ClusterTests for each cluster...")
+            self.test_cluster_list_tests(cluster_ids)
+
+            print("Testing ExecuteTest for each cluster...")
+            self.test_execute_test(cluster_ids)
 
 if __name__ == "__main__":
     client = APITestClient()

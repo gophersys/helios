@@ -36,7 +36,7 @@ spec:
                 - "slot-5"
       containers:
       - name: mtib-runner
-        image: control-plane:5000/mtib-runner:1.0
+        image: control-plane:5000/mtib-runner:1.2
         securityContext:
           privileged: true
         ports:

@@ -6,7 +6,7 @@ from typing import List
 from flask import Blueprint, jsonify, request 
 
 # Application server
-from src.server.proxy import ProxyServer, ClusterItem, ClusterStatus
+from src.proxy import ProxyServer, TestCluster, ClusterStatus
 
 # Route blue print
 cluster_list_bp = Blueprint('cluster_list', __name__)
@@ -17,7 +17,7 @@ def cluster_register():
     # Route has no input
     
     # Register the cluster with the server
-    clusters:List[ClusterItem] = ProxyServer().get_clusters()
+    clusters:List[TestCluster] = ProxyServer().get_clusters()
 
     # Construct a response list of clusters
     clusters_response = []

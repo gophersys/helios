@@ -4,6 +4,7 @@ import logging
 import sys
 import os
 import time
+import uuid
 from typing import List
 from concurrent import futures
 
@@ -50,6 +51,25 @@ class MtibRunnerServicerProvider(MtibRunnerServicer):
     # -----------------------------------------------------------------------------------------------*/
     def HealthCheck(self, request, context):
         return HealthCheckResponse(ok=True)
+    
+    # -------------------------------------------------------------------------------------------------
+    #                                                                                       HealthCheck
+    # -----------------------------------------------------------------------------------------------*/
+    def GetRunnerInfo(self, request, context):
+         # Fetch the list of FileInfo objects
+        filesInfo: List[FileInfo] = self.fw_file_manager.list_files()
+
+        # Prepare the ListFwFilesResponse message
+        response = GetRunnerInfoResponse()
+        for fileInfo in filesInfo:
+            file = FwFileInfo(
+                name=fileInfo.name,
+                sizeKb=fileInfo.size_kb,  
+                sha256Digest=fileInfo.sha256_digest,
+            )
+            response.info.supportedFirmware.append(file)  # Append the FwFileInfo object to the response list
+
+        return response
 
     # -------------------------------------------------------------------------------------------------
     #                                                                                              Gpio
@@ -220,8 +240,8 @@ class MtibRunnerServicerProvider(MtibRunnerServicer):
         for fileInfo in filesInfo:
             file = FwFileInfo(
                 name=fileInfo.name,
-                size_kb=fileInfo.size_kb,  
-                sha256_digest=fileInfo.sha256_digest 
+                sizeKb=fileInfo.size_kb,  
+                sha256Digest=fileInfo.sha256_digest,
             )
             response.files.append(file)  # Append the FwFileInfo object to the response list
 

@@ -5,7 +5,7 @@ import logging
 from flask import Blueprint, jsonify, request 
 
 # Application server
-from src.server.proxy import ProxyServer
+from src.proxy import ProxyServer
 
 # Route blue print
 cluster_register_bp = Blueprint('cluster_register', __name__)

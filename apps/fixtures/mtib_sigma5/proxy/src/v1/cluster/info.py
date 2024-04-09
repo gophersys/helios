@@ -5,7 +5,7 @@ import logging
 from flask import Blueprint, jsonify, request 
 
 # Application server
-from src.server.proxy import ProxyServer
+from src.proxy import ProxyServer
 
 # Route blueprint
 cluster_info_bp = Blueprint('cluster_info', __name__)
@@ -26,6 +26,7 @@ def cluster_info(cluster_uuid):
     # Convert ClusterInfo into a JSON-serializable dict
     cluster_response = {
         "name": cluster_info.name,
+        # Convert RunnerInfo into a JSON-serializable dict
         "runners": [
             {
                 "id": runner.id,
@@ -34,21 +35,24 @@ def cluster_info(cluster_uuid):
                 "serverPort": runner.serverPort,
                 "isInPanel": runner.isInPanel,
                 "panelId": runner.panelId,
-                "ipAddr": runner.ipAddr,
-                "supportedSoftware": [
+                "supportedFirmware": [
                     {
-                        "softwareType": software.softwareType,
-                        "fileName": software.fileName,
+                        "fileName": software.name,
+                        "fileSizeKb": software.sizeKb,
+                        "sha256Digest": software.sha256Digest,
                     }
-                    for software in runner.supportedSoftware  # Iterating over repeated SoftwareInfo
+                    for software in runner.supportedFirmware  # Iterating over repeated FwFileInfo
                 ],
             }
             for runner in cluster_info.runners  # Iterating over repeated RunnerInfo
         ],
-        "supportedHardware": {
-            "model": cluster_info.supportedHardware.model,
-            "version": cluster_info.supportedHardware.version,
-        }
+        "supportedHardware": [
+            {
+                "model": hardware.model,
+                "version": hardware.version,
+            }
+            for hardware in cluster_info.supportedHardware
+        ]
     }
 
     # Return success status with the cluster's info

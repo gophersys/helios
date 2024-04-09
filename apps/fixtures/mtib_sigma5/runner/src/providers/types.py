@@ -1,6 +1,8 @@
 from protos.mtib_runner.mtib_runner_pb2 import ( # Types for C# client to Orange Pi gRPC server
     # Health Check
     HealthCheckResponse,
+
+    RunnerInfo, GetRunnerInfoRequest, GetRunnerInfoResponse,
     
     # Gpio
     GpioConfigRequest, GpioConfigResponse,
