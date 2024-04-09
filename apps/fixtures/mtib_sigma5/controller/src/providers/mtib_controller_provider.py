@@ -76,9 +76,13 @@ class MtibControllerServicerProvider(MtibControllerServicer):
     # -----------------------------------------------------------------------------------------------*/
 
     def ExecuteTest(self, request, context):
+        # Create a unique test identifier for this test instance
         test_id = str(uuid.uuid4())
+
+        # We use a queue to communicate the execute callback and the response stream of this RPC
         results_queue = Queue()
 
+        # This gets called every time a new step completes in the execution cycle
         def callback(complete: bool, error: str, sequence:int, results: Optional[List[TestStepResult]] = None):
             if error:
                 results_queue.put(('error', error))

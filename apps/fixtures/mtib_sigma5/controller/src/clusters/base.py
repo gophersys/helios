@@ -40,7 +40,7 @@ class ClusterTestStep:
             
             for future in as_completed(future_to_runner):
                 try:
-                    result: TestStepResult = future.result()
+                    result:TestStepResult = future.result()
                     results.append(result)
                 except Exception as e:
                     return False, f"Error executing handler for step: {e}", None

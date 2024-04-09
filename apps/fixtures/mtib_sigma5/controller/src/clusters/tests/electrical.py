@@ -21,7 +21,7 @@ def step_3_handler(runner:ClusterRunner) -> TestStepResult:
     time.sleep(1)
 
     return TestStepResult(
-        runnerId = runner.info.id,
+        runnerId = runner.info.id, # This is clumsy i dont like it
         execOk = True,
         error = "",
         success = True,
