@@ -45,3 +45,6 @@ Examples of how to use `cipher` module.
 ## Contributing
 
 Guidelines for how to report issues, propose changes, or submit Pull Requests.
+
+## Improvements for V2
+- How do we do updates of runner software smoothly

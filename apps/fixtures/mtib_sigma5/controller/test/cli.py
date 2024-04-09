@@ -213,7 +213,7 @@ def list_fw_files():
         # Print all the file info to the terminal
         if len(response.files) > 0:
             for file in response.files:
-                rprint(f"Filename: [green]{file.name}[/green], size: [blue]{file.size_kb} Kb[/blue], SHA256: {file.sha256_digest}")
+                rprint(f"Filename: [green]{file.name}[/green], size: [blue]{file.sizeKb} Kb[/blue], SHA256: {file.sha256Digest}")
         else:
             rprint(f"No files found in server")
 
@@ -250,7 +250,7 @@ def upload_fw_file(file_path: str):
         
         if response.success:
             rprint(f"[green]Upload successful! ({duration_ms} ms)[/green]")
-            rprint(f"Server-side SHA-256 Digest: {response.sha256_digest}")
+            rprint(f"Server-side SHA-256 Digest: {response.sha256Digest}")
         else:
             rprint(f"[red]Upload failed:[/red] {response.error}")
     except Exception as e:
