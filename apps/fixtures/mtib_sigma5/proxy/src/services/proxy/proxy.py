@@ -21,7 +21,7 @@ from protos.mtib_controller.mtib_controller_pb2 import (
 from protos.mtib_controller.mtib_controller_pb2_grpc import MtibControllerStub
 
 # Private includes
-from .db import ProxyServerDatabase
+from .db import ProxyServerDatabase, ClusterEntry
 
 class TestCluster:
     def __init__(self,
@@ -170,12 +170,9 @@ class ProxyServer:
     # -------------------------------------------------------------------------------------------------
     #                                                                                  Get Cluster Info
     # -----------------------------------------------------------------------------------------------*/
-    def get_cluster_info(self, cluster_uuid: str) -> Tuple[bool, Optional[ClusterInfo]]:
+    def get_cluster_info(self, cluster_uuid: str) -> Tuple[str, Optional[dict]]:
         """Get a cluster's information by UUID."""
-        for cluster in self.connected_clusters:
-            if cluster.uuid == cluster_uuid:
-                return True, cluster.info
-        return False, None
+        return self.db.get_cluster_info(cluster_uuid)
 
     # -------------------------------------------------------------------------------------------------
     #                                                                                      Get Clusters
@@ -216,12 +213,8 @@ class ProxyServer:
     # -------------------------------------------------------------------------------------------------
     #                                                                                      Get Clusters
     # -----------------------------------------------------------------------------------------------*/
-    def remove_cluster(self, cluster_id):
+    def delete_cluster(self, cluster_uuid:str) -> str:
         """Remove a cluster from the list by ID."""
-        for cluster in self.connected_clusters:
-            if cluster.uuid == cluster_id:
-                self.connected_clusters.remove(cluster)
-                logging.info(f"Cluster with ID {cluster_id} removed.")
-                return
+        return self.db.delete_cluster(cluster_uuid)
             
 proxy_server:ProxyServer = ProxyServer(conf.DB_PATH) 

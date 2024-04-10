@@ -17,7 +17,10 @@ class DeploymentUpdate:
     deployment_file: str
 
     def to_dict(self):
-        return asdict(self)
+        return {
+            "timestamp": self.timestamp,
+            "deployment_file": self.deployment_file   
+        }
 
 @dataclass
 class ClusterEntry:
@@ -29,15 +32,23 @@ class ClusterEntry:
     deployment_updates: List[DeploymentUpdate] = field(default_factory=list)
 
     def to_dict(self):
-        # Convert the ClusterEntry instance to a dictionary, including nested objects
+        deployment_updates_dicts = []
+        for update in self.deployment_updates:
+            if isinstance(update, DeploymentUpdate):
+                deployment_updates_dicts.append(update.to_dict())
+            elif isinstance(update, dict):
+                deployment_updates_dicts.append(update)  # Already a dict, no conversion needed
+            else:
+                logging.error(f"Unexpected type in deployment_updates: {type(update)}")
         return {
             "name": self.name,
             "uuid": self.uuid,
             "created_at": self.created_at,
             "last_updated_at": self.last_updated_at,
             "current_deployment": self.current_deployment,
-            "deployment_updates": [update.to_dict() for update in self.deployment_updates],
+            "deployment_updates": deployment_updates_dicts,
         }
+
 
 class ProxyServerDatabase:
     def __init__(self, database_path: str):
@@ -144,12 +155,12 @@ class ProxyServerDatabase:
         """Deletes a cluster folder and all its deployments from the database."""
         cluster_dir = os.path.join(self.path, 'clusters', cluster_uuid)
         try:
-            if cluster_uuid in self.cluster_uuids:
-                shutil.rmtree(cluster_dir)
-                self.cluster_uuids.remove(cluster_uuid)
-            else:
-                return f"Cluster with UUID {cluster_uuid} not found in the database."
-            return ""
+            for cluster in self.clusters:
+                if cluster.uuid == cluster_uuid:
+                    shutil.rmtree(cluster_dir)
+                    self.clusters.remove(cluster)
+                    return ""
+            return f"Cluster with UUID {cluster_uuid} not found in the database."
         except Exception as e:
             return str(e)
 
@@ -180,6 +191,22 @@ class ProxyServerDatabase:
             return ""
         except Exception as e:
             return str(e)
+
+    def get_cluster_info(self, cluster_uuid: str) -> Tuple[str, Optional[dict]]:
+        """Retrieves information about a specific cluster identified by its UUID."""
+        try:
+            for cluster in self.clusters:
+                if cluster.uuid == cluster_uuid:
+                    # Ensure 'cluster' is an instance of ClusterEntry before calling to_dict
+                    if isinstance(cluster, ClusterEntry):
+                        logging.warning("Yep indeed its the right type")
+                        return "", cluster.to_dict() 
+                    else:
+                        # Log or handle the unexpected type
+                        return f"Unexpected type for cluster object. Expected ClusterEntry, got {type(cluster)}", None
+            return f"Cluster with UUID {cluster_uuid} not found in the database", None
+        except Exception as e:
+            return str(e), None
 
     def get_latest_deployment(self, cluster_uuid: str) -> str:
         """
