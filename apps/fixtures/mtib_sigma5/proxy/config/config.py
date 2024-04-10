@@ -21,6 +21,7 @@ class Config:
 
     LOG_LEVEL: int
     LOG_PATH: str
+    DB_PATH: str
     SERVER_PORT: int
     KUBECONFIG_PATH: str
 
@@ -60,6 +61,7 @@ class Config:
         # Load 
         self.LOG_LEVEL = self._get_env_var('LOG_LEVEL', int)
         self.LOG_PATH = self._get_env_var('LOG_PATH', str)
+        self.DB_PATH = self._get_env_var('DB_PATH', str)
         self.SERVER_PORT = self._get_env_var('SERVER_PORT', int)
         self.KUBECONFIG_PATH = self._get_env_var('KUBECONFIG_PATH', str)
 

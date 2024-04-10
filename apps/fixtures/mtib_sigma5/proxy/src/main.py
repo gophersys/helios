@@ -8,12 +8,14 @@ from flask import Flask
 from config import conf
 
 # Routes
-from v1.health.healthcheck import healthcheck_bp
-from v1.cluster.register import cluster_register_bp
-from v1.cluster.list import cluster_list_bp
-from v1.cluster.info import cluster_info_bp
-from v1.cluster.tests.list import tests_list_bp
-from v1.cluster.tests.exec import test_execute_bp
+# from api.v1.health.healthcheck import healthcheck_bp
+from api.v1.cluster.create import cluster_create_bp
+
+# from api.v1.cluster.register import cluster_register_bp
+# from api.v1.cluster.list import cluster_list_bp
+# from api.v1.cluster.get import cluster_info_bp
+# from api.v1.cluster.tests.list import tests_list_bp
+# from api.v1.cluster.tests.exec import test_execute_bp
 
 # -------------------------------------------------------------------------------------------------
 #                                                                                       HTTP Server
@@ -21,12 +23,13 @@ from v1.cluster.tests.exec import test_execute_bp
 app = Flask(__name__)
 
 # Route Blue Prints
-app.register_blueprint(healthcheck_bp)
-app.register_blueprint(cluster_register_bp)
-app.register_blueprint(cluster_list_bp)
-app.register_blueprint(cluster_info_bp)
-app.register_blueprint(tests_list_bp)
-app.register_blueprint(test_execute_bp)
+app.register_blueprint(cluster_create_bp)
+# app.register_blueprint(healthcheck_bp)
+# app.register_blueprint(cluster_register_bp)
+# app.register_blueprint(cluster_list_bp)
+# app.register_blueprint(cluster_info_bp)
+# app.register_blueprint(tests_list_bp)
+# app.register_blueprint(test_execute_bp)
 
 
 # -------------------------------------------------------------------------------------------------

@@ -1,10 +1,15 @@
 import logging
 import grpc
 import uuid
+import shutil
+import os
 import time
+import json
 from datetime import datetime
 import threading
 from typing import List, Tuple, Optional
+
+from config import conf
 
 # Assuming protos are already correctly imported
 from protos.mtib_controller.mtib_controller_pb2 import (
@@ -14,6 +19,9 @@ from protos.mtib_controller.mtib_controller_pb2 import (
     ExecuteTestRequest
 )
 from protos.mtib_controller.mtib_controller_pb2_grpc import MtibControllerStub
+
+# Private includes
+from .db import ProxyServerDatabase
 
 class TestCluster:
     def __init__(self,
@@ -30,18 +38,22 @@ class TestCluster:
         self.error:str = ""
         self.connected_at:str = ""
 
+# -----------------------------------------------------------------------------------------------------
+#                                                                                          Proxy Server 
+# ---------------------------------------------------------------------------------------------------*/
 class ProxyServer:
-    _instance = None
+    def __init__(self, database_path:str):
+        self.connected_clusters:List[TestCluster] = []
 
-    def __new__(cls, *args, **kwargs):
-        if not cls._instance:
-            cls._instance = super(ProxyServer, cls).__new__(cls, *args, **kwargs)
-            cls.clusters:List[TestCluster] = []
+        # Read the current file system
+        self.db:ProxyServerDatabase = ProxyServerDatabase(database_path)
+        err = self.db.init()
+        if err:
+            raise ValueError("Unable to initiate database")
 
-            # Start the health check thread
-            health_check_thread = threading.Thread(target=cls._instance.__perform_health_checks, daemon=True)
-            health_check_thread.start()
-        return cls._instance
+        # Start the health check thread
+        health_check_thread = threading.Thread(target=self.__perform_health_checks, daemon=True)
+        health_check_thread.start()
 
     # -------------------------------------------------------------------------------------------------
     #                                                                             Cluster Health Checks
@@ -49,7 +61,7 @@ class ProxyServer:
     def __perform_health_checks(self):
         """Periodically check the health of each cluster."""
         while True:
-            for cluster in self.clusters:
+            for cluster in self.connected_clusters:
                 try:
                     response: HealthCheckResponse = cluster.stub.HealthCheck(HealthCheckRequest())
                     cluster.status = response.status
@@ -62,18 +74,53 @@ class ProxyServer:
             time.sleep(1)
 
     # -------------------------------------------------------------------------------------------------
+    #                                                                                    Create Cluster
+    # -----------------------------------------------------------------------------------------------*/
+    def create_cluster(self, name:str, deployment:str) -> Tuple[str, Optional[str]]:
+        """
+        Create a new cluster in the server's database. If there's a cluster with the same name already
+        registered, function will return false
+        """
+        return self.db.create_cluster(name, deployment)
+
+    # -------------------------------------------------------------------------------------------------
     #                                                                                  Register Cluster
     # -----------------------------------------------------------------------------------------------*/
-    def register_cluster(self, cluster_url:str) -> bool:
-        """Register a new cluster to the server"""
+    def register_cluster(self, cluster_uuid, cluster_url:str) -> str:
+        """
+        Register a new cluster to the server
+        """
+
+        # Check if the cluster has already been created
+        cluster_created:bool = False
+        for uuid in self.db.get_cluster_uuids():
+            if uuid == cluster_uuid:
+                cluster_created = True
+                logging.debug("cluster")
+                break
+        
+        if not cluster_created:
+            return f"Cluster {cluster_uuid} at {cluster_url} was not found in server"
 
         # Check if the cluster is already connected
-        for cluster in self.clusters:
+        for cluster in self.connected_clusters:
             if cluster.url == cluster_url:
                 return True
-            
-        logging.info(f"Connecting to cluster at {cluster_url}...")
-
+        
+        # Get initial metadata
+        success, error, cluster = self.__get_cluster_info(cluster_url)
+        if not success:
+            return False, f"Unable to get cluster info: {error}. Did you "
+        
+        # Check if we have a deployment for this cluster
+        success, error, found, deployment_path = self.__find_cluster_deployment()
+        if not success:
+            return False, f"An error ocurred trying to find a deployment for cluster: {error}"
+        
+        if not found:
+            return False, f"No deployment was found for cluster {cluster.uuid} at {cluster.url}"
+    
+    def __get_cluster_info(self, cluster_url:str) -> Tuple[bool, str, Optional[TestCluster]]:
         try:            
             # Create a gRPC channel
             channel = grpc.insecure_channel(cluster_url)
@@ -95,7 +142,7 @@ class ProxyServer:
                         info=response.info,
                         connected_at=datetime.now().isoformat()
                     )
-                    self.clusters.append(new_cluster)
+                    self.connected_clusters.append(new_cluster)
 
             except grpc.RpcError as e:
                 logging.error(f"Unable to register cluster at {cluster_url}: {e}")
@@ -107,20 +154,25 @@ class ProxyServer:
         except grpc.RpcError as e:
             logging.error(f"Failed to connect to cluster at {cluster_url}. Error: {e}")
             return False
+        
+    def __find_cluster_deployment(self, cluster:TestCluster) -> Tuple[bool, str, bool, str]:
+        """This function is going to look through a  """
 
+        pass
+        
     # -------------------------------------------------------------------------------------------------
     #                                                                                      Get Clusters
     # -----------------------------------------------------------------------------------------------*/
     def get_clusters(self) -> List[TestCluster]:
         """Get a cluster's information by ID."""
-        return self.clusters
+        return self.connected_clusters
     
     # -------------------------------------------------------------------------------------------------
     #                                                                                  Get Cluster Info
     # -----------------------------------------------------------------------------------------------*/
     def get_cluster_info(self, cluster_uuid: str) -> Tuple[bool, Optional[ClusterInfo]]:
         """Get a cluster's information by UUID."""
-        for cluster in self.clusters:
+        for cluster in self.connected_clusters:
             if cluster.uuid == cluster_uuid:
                 return True, cluster.info
         return False, None
@@ -130,7 +182,7 @@ class ProxyServer:
     # -----------------------------------------------------------------------------------------------*/
     def get_cluster_tests(self, cluster_uuid: str) -> Tuple[bool, str, Optional[List[TestInfo]]]:
         """Get a cluster's information by UUID."""
-        for cluster in self.clusters:
+        for cluster in self.connected_clusters:
             if cluster.uuid == cluster_uuid:
                 try:
                     response:ListTestsResponse = cluster.stub.ListTests(ListTestsRequest())
@@ -144,7 +196,7 @@ class ProxyServer:
     #                                                                                         Exec Test
     # -----------------------------------------------------------------------------------------------*/
     def exec_cluster_test(self, cluster_uuid: str, test_uuid: str, runner_ids: List[int]) -> Tuple[bool, str]:
-        for cluster in self.clusters:
+        for cluster in self.connected_clusters:
             if cluster.uuid == cluster_uuid:
                 logging.warning(f"found cluster {cluster_uuid}")
                 try:
@@ -166,8 +218,10 @@ class ProxyServer:
     # -----------------------------------------------------------------------------------------------*/
     def remove_cluster(self, cluster_id):
         """Remove a cluster from the list by ID."""
-        for cluster in self.clusters:
+        for cluster in self.connected_clusters:
             if cluster.uuid == cluster_id:
-                self.clusters.remove(cluster)
+                self.connected_clusters.remove(cluster)
                 logging.info(f"Cluster with ID {cluster_id} removed.")
                 return
+            
+proxy_server:ProxyServer = ProxyServer(conf.DB_PATH) 
