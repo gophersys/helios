@@ -12,7 +12,8 @@ import sys
 # App includes
 from config import conf
 from src.providers.mtib_controller_provider import MtibControllerServicerProvider
-from src.clusters.sigma5 import Sigma5TestCluster, BaseTestCluster
+from python.clusters.cluster import TestCluster, TestClusterConfig
+from python.clusters.mtib_sigma5 import sigma5_test_cluster_config
 from src.app.controller import ControllerServer
 
 # Protocol includes
@@ -20,9 +21,20 @@ from protos.mtib_controller.mtib_controller_pb2 import *
 from protos.mtib_controller.mtib_controller_pb2_grpc import add_MtibControllerServicer_to_server
 
 # -------------------------------------------------------------------------------------------------
-#                                                                                             Setup
+#                                                                                     Cluster Setup
 # -----------------------------------------------------------------------------------------------*/
-def setup_grpc_server(cluster:BaseTestCluster) -> Tuple[bool, Optional[grpc.Server]]:
+def new_cluster(config:TestClusterConfig) -> Tuple[bool, str, Optional[TestCluster]]:
+    try:
+        cluster:TestCluster = TestCluster(config)
+    except Exception as e:
+        return False, f"Fatal error trying to instantiate cluster: {e}", None
+
+    return True, "", cluster
+
+# -------------------------------------------------------------------------------------------------
+#                                                                                       gRPC Server
+# -----------------------------------------------------------------------------------------------*/
+def setup_grpc_server(cluster:TestCluster) -> Tuple[bool, Optional[grpc.Server]]:
     # Create gRPC server
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     
@@ -79,18 +91,23 @@ def cluster_registration():
 if __name__ == '__main__':
     logging.debug(f"App configuration: \n{conf}")
 
-    # Setup the cluster
-    cluster = Sigma5TestCluster(kubeconfig_path=conf.KUBECONFIG_PATH, deployment_path=conf.DEPLOYMENT_PATH)
-    success, error = cluster.setup()
+    # Instantiate a new cluster
+    success, error, cluster = new_cluster(sigma5_test_cluster_config)
     if not success:
-        logging.error(f"Unable to setup cluster: {error}")
-        ControllerServer().set_internal_error(error)
+        logging.error(f"Could not create cluster instance: {error}")
+        sys.exit(1)
 
     # Setup gRPC server
     success, server = setup_grpc_server(cluster)
     if not success:
         raise ValueError("Error setting up GRPC server")
-    
+
+    # Setup the cluster
+    success, error = cluster.setup()
+    if not success:
+        logging.error(f"Unable to setup cluster: {error}")
+        ControllerServer().set_internal_error(error)
+
     # Create a new thread to start registration
     registration_thread = threading.Thread(target=cluster_registration, daemon=True)
     registration_thread.start()

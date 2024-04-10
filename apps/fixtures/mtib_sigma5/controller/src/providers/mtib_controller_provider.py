@@ -11,7 +11,7 @@ import uuid
 # App includes
 from config import conf
 from src.app.controller import ControllerServer
-from src.clusters.base import BaseTestCluster
+from python.clusters.cluster import TestCluster
 
 # Protocol includes
 from protos.mtib_controller.mtib_controller_pb2 import (
@@ -28,13 +28,13 @@ class MtibControllerServicerProvider(MtibControllerServicer):
     # -------------------------------------------------------------------------------------------------
     #                                                                                 Pass Test Cluster
     # -----------------------------------------------------------------------------------------------*/
-    def __init__(self, cluster:BaseTestCluster):
-        self.cluster:BaseTestCluster = cluster
+    def __init__(self, cluster:TestCluster):
+        self.cluster:TestCluster = cluster
     
     # -------------------------------------------------------------------------------------------------
     #                                                                                 Pass Test Cluster
     # -----------------------------------------------------------------------------------------------*/
-    def set_test_cluster(self, cluster:BaseTestCluster):
+    def set_test_cluster(self, cluster:TestCluster):
         self.cluster = cluster
 
     # -------------------------------------------------------------------------------------------------
