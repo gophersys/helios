@@ -9,6 +9,14 @@
 			"path": "../../libs/protos"
 		},
 		{
+			"name": "clusters",
+			"path": "../../libs/python/clusters"
+		},
+		{
+			"name": "cipher_posix",
+			"path": "../../libs/python"
+		},
+		{
 			"name": "runner",
 			"path": "../../apps/fixtures/mtib_sigma5/runner"
 		},

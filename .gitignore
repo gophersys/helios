@@ -44,6 +44,9 @@ build
 # logs
 logs
 
+# Filesystem database
+db
+
 # Python
 .pyenv
 __pycache__
