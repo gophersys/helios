@@ -4,6 +4,7 @@ import logging
 import uuid
 import json
 from json.decoder import JSONDecodeError
+from abc import abstractmethod
 
 from typing import Tuple, Optional
 import shutil
@@ -30,6 +31,17 @@ class ClusterEntry:
     last_updated_at: str
     current_deployment: str
     deployment_updates: List[DeploymentUpdate] = field(default_factory=list)
+
+    @abstractmethod
+    def from_dict(data):
+        return ClusterEntry(
+            name=data['name'],
+            uuid=data['uuid'],
+            created_at=data['created_at'],
+            last_updated_at=data['last_updated_at'],
+            current_deployment=data['current_deployment'],
+            deployment_updates=[DeploymentUpdate(**update) for update in data['deployment_updates']]
+        )
 
     def to_dict(self):
         deployment_updates_dicts = []
@@ -85,6 +97,9 @@ class ProxyServerDatabase:
         if not os.path.exists(clusters_dir):
             logging.debug("No clusters present in database")
             return ""
+        
+        # Empty the cache always
+        self.clusters:List[ClusterEntry] = []
 
         for cluster_uuid in os.listdir(clusters_dir):
             logging.debug(f"Found cluster {cluster_uuid}")
@@ -108,7 +123,11 @@ class ProxyServerDatabase:
         """
         Returns a list of all cluster UUIDs currently stored in the database.
         """
-        return self.cluster_uuids
+        cluster_uuids:List[str] = []
+        for cluster in self.clusters:
+            cluster_uuids.append(cluster.uuid)
+
+        return cluster_uuids
 
     def create_cluster(self, cluster_name: str, deployment: str) -> Tuple[str, Optional[str]]:
         """Create a new cluster entry in the file system"""
@@ -125,13 +144,14 @@ class ProxyServerDatabase:
             os.makedirs(deployments_dir, exist_ok=True)
             os.makedirs(logs_dir, exist_ok=True)
 
+            now = datetime.now().isoformat()
+
             deployment_uuid = str(uuid.uuid4())  # Unique identifier for the deployment
-            deployment_filename = f"{deployment_uuid}.yaml"  # Unique deployment file name
+            deployment_filename = f"{now}_{deployment_uuid[:8]}.yaml" # Unique deployment file name
 
             deployment_path = os.path.join(deployments_dir, deployment_filename)
             shutil.copy(deployment, deployment_path)
 
-            now = datetime.now().isoformat()
             cluster_info = ClusterEntry(
                 name=cluster_name,
                 uuid=cluster_uuid,
@@ -164,24 +184,24 @@ class ProxyServerDatabase:
         except Exception as e:
             return str(e)
 
-    def update_cluster_deployment(self, cluster_uuid: str, new_deployment: str) -> str:
+    def update_cluster_deployment(self, cluster_uuid: str, deployment_path: str) -> str:
         """Updates an existing cluster entry in the file system"""
         cluster_dir = os.path.join(self.path, 'clusters', cluster_uuid)
         deployments_dir = os.path.join(cluster_dir, 'deployments')
         info_path = os.path.join(deployments_dir, 'info.json')
 
         try:
-            if cluster_uuid not in self.cluster_uuids:
+            if cluster_uuid not in self.get_cluster_uuids():
                 return f"Cluster with UUID {cluster_uuid} not found in the database."
 
             cluster_info = self._load_cluster_info(info_path)
 
             update_uuid = str(uuid.uuid4())[:8]  # Short identifier for the update
-            now = datetime.now().isoformat(timespec='seconds').replace(':', '-')  # More filesystem-friendly
-            new_deployment_filename = f"deployment_{now}_{update_uuid}.yaml"  # Unique filename
+            now = datetime.now().isoformat()
+            new_deployment_filename = f"{now}_{update_uuid}.yaml"  # Unique filename
 
             new_deployment_path = os.path.join(deployments_dir, new_deployment_filename)
-            shutil.copy(new_deployment, new_deployment_path)
+            shutil.copy(deployment_path, new_deployment_path)
 
             cluster_info.last_updated_at = now
             cluster_info.current_deployment = new_deployment_path
@@ -199,7 +219,6 @@ class ProxyServerDatabase:
                 if cluster.uuid == cluster_uuid:
                     # Ensure 'cluster' is an instance of ClusterEntry before calling to_dict
                     if isinstance(cluster, ClusterEntry):
-                        logging.warning("Yep indeed its the right type")
                         return "", cluster.to_dict() 
                     else:
                         # Log or handle the unexpected type
@@ -214,7 +233,8 @@ class ProxyServerDatabase:
         If the cluster UUID is not found or there are no deployments available,
         it returns an empty string.
         """
-        cluster_dir = os.path.join(self.path, 'clusters', cluster_uuid)
+        clusters_dir = os.path.join(self.path, 'clusters', cluster_uuid)
+        cluster_dir = os.path.join(clusters_dir, cluster_uuid)
         deployments_dir = os.path.join(cluster_dir, 'deployments')
         info_path = os.path.join(deployments_dir, 'info.json')
 
@@ -232,17 +252,12 @@ class ProxyServerDatabase:
         """Load cluster information from the info.json file"""
         with open(info_path, 'r') as f:
             data = json.load(f)
-        return ClusterEntry(
-            uuid=data['uuid'],
-            created_at=data['created_at'],
-            last_updated_at=data['last_updated_at'],
-            current_deployment=data['current_deployment'],
-            deployment_updates=[DeploymentUpdate(**update) for update in data['deployment_updates']]
-        )
+        return ClusterEntry.from_dict(data)
 
     def _save_cluster_info(self, cluster_info: ClusterEntry, info_path: str):
         """Save cluster information to the info.json file"""
         data = {
+            'name': cluster_info.name,
             'uuid': cluster_info.uuid,
             'created_at': cluster_info.created_at,
             'last_updated_at': cluster_info.last_updated_at,

@@ -21,8 +21,8 @@
 			"path": "../../apps/fixtures/mtib_sigma5/runner"
 		},
 		{
-			"name": "controller",
-			"path": "../../apps/fixtures/mtib_sigma5/controller"
+			"name": "operator",
+			"path": "../../apps/fixtures/mtib_sigma5/operator"
 		},
 		{
 			"name": "proxy",

@@ -118,7 +118,7 @@ COPY libs/python/cipher-posix /libs/python/cipher-posix
 
 # Copy the protocols used by the app
 COPY libs/protos/mtib_zephyr /libs/protos/mtib_zephyr
-COPY libs/protos/mtib_runner /libs/protos/mtib_runner
+COPY libs/protos/cluster_runner /libs/protos/cluster_runner
 
 # Import the paths to the python path
 ENV PYTHONPATH="/libs:${PYTHONPATH}"

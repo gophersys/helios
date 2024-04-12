@@ -4,10 +4,10 @@ from typing import List
 # 3rd party includes
 
 # Protocol includes
-from protos.mtib_runner.mtib_runner_pb2 import (
+from protos.cluster_runner.cluster_runner_pb2 import (
     RunnerInfo
 )
-from protos.mtib_controller.mtib_controller_pb2 import (
+from protos.cluster_controller.cluster_controller_pb2 import (
     HardwareInfo, ClusterInfo
 )
 
@@ -317,7 +317,7 @@ sigma5_test_cluster_config:TestClusterConfig = TestClusterConfig(
 #                 channel = grpc.insecure_channel(runner_url)
 
 #                 # Create a stub using the insecure channel
-#                 stub = MtibRunnerStub(channel)
+#                 stub = ClusterRunnerStub(channel)
 
 #                 # Get the missing runner metadata
 #                 try:

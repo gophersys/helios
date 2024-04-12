@@ -1,0 +1,81 @@
+syntax = "proto3";
+
+import "cluster_test.proto";
+
+package cluster_operator;
+
+service ClusterOperator {
+  // Performs a health check to ensure the operator is at least running.
+  rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse) {}
+
+  // Fetches Operator Information
+  rpc GetOperatorInfo(GetOperatorInfoRequest) returns (GetOperatorInfoResponse) {}
+
+  // Fetches Current Deployment Information
+  rpc GetDeploymentInfo(GetDeploymentInfoRequest) returns (GetDeploymentInfoResponse) {}
+
+  // Used by test runners to register themselves with the operator 
+  rpc RegisterTest(RegisterTestRequest) returns (RegisterTestResponse) {}
+  
+  // Lists available tests in the cluster.
+  rpc ListTests(ListTestsRequest) returns (ListTestsResponse) {}
+
+  // Executes a test on a standalone board.
+  rpc ExecuteTest(cluster_test.ExecuteTestRequest) returns (stream cluster_test.ExecuteTestResponse) {}
+}
+
+// HealthCheck
+message HealthCheckRequest {}
+message HealthCheckResponse {
+  bool healthy = 1;
+  string error = 2;
+}
+
+// Operator Info
+enum OperatorStatus {
+  NOT_READY = 0;
+  READY = 1;
+  CONNECTED = 2;
+  ERRORED = 3;
+}
+
+message OperatorInfo {
+  string image = 1;
+  OperatorStatus status = 2;
+}
+
+message GetOperatorInfoRequest {}
+
+message GetOperatorInfoResponse {
+  OperatorInfo info = 1;
+}
+
+// Deployment Info
+enum DeploymentStatus {
+  NONE = 0;
+  INSTALLING = 1;
+  UPDATING = 2;
+  RUNNING = 3;
+}
+
+message GetDeploymentInfoRequest {}
+message GetDeploymentInfoResponse {
+  string name = 1;
+  DeploymentStatus status = 2;
+}
+
+// Test Registration
+message RegisterTestRequest {
+  cluster_test.TestInfo info = 1;
+}
+
+message RegisterTestResponse {
+  bool success = 1;
+  string error = 2;
+}
+
+// ListTests messages
+message ListTestsRequest {}
+message ListTestsResponse {
+  repeated cluster_test.TestInfo tests = 1;
+}

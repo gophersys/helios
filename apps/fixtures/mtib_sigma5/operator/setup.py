@@ -8,11 +8,9 @@ setup(
                       'grpcio',
                       'grpcio-tools',
                       'python-dotenv',
-                      'flask',
-                      'flask-socketio',
                       'requests',
-                      'termcolor',
+                      'kubernetes',
                       'docker',
-                      'pyyaml'
+                      'termcolor'
     ],
 )

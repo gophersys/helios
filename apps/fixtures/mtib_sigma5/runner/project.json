@@ -20,7 +20,7 @@
           "load": true,
           "push": false,
           "tags": [
-            "control-plane:5000/mtib-runner:1.2"
+            "ccr01.ad.corekinect.com/mtib-runner:1.3"
           ]
         }
       }

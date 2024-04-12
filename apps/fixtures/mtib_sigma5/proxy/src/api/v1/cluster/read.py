@@ -7,7 +7,7 @@ from src.services.proxy import proxy_server
 # Define the Blueprint for the route
 cluster_read_bp = Blueprint('cluster_read', __name__)
 
-@cluster_read_bp.route('/v1/clusters/<uuid>', methods=['GET'])  # Corrected the route parameter syntax
+@cluster_read_bp.route('/v1/cluster/<uuid>', methods=['GET'])  # Corrected the route parameter syntax
 def read_cluster(uuid):
     """
     Reads a cluster's metadata based on the UUID provided in the URL path.

@@ -11,12 +11,12 @@ from iface import *
 
 # App includes
 from config import conf
-from src.providers.mtib_runner_provider import *
+from providers.cluster_runner_provider import *
 from src.providers.mtib_zephyr_provider import *
 
 # Protocol includes
-from protos.mtib_runner.mtib_runner_pb2 import *
-from protos.mtib_runner.mtib_runner_pb2_grpc import add_MtibRunnerServicer_to_server
+from protos.cluster_runner.cluster_runner_pb2 import *
+from protos.cluster_runner.cluster_runner_pb2_grpc import add_ClusterRunnerServicer_to_server
 from protos.mtib_zephyr.mtib_zephyr_pb2_cipher import *
 
 # -------------------------------------------------------------------------------------------------
@@ -77,8 +77,8 @@ def setup_grpc_server(daemon:Cipher) -> Tuple[bool, Optional[grpc.Server]]:
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     
     # Register the MTIB service
-    provider = MtibRunnerServicerProvider()
-    add_MtibRunnerServicer_to_server(provider, server)
+    provider = ClusterRunnerServicerProvider()
+    add_ClusterRunnerServicer_to_server(provider, server)
 
     # Pass the cipher daemon to the service provider
     provider.SetInternalDaemon(daemon)

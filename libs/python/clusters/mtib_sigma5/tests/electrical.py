@@ -8,7 +8,7 @@ from typing import Tuple, Optional
 from python.clusters.cluster import *
 
 # Protocol includes
-from protos.mtib_controller.mtib_controller_pb2 import (
+from protos.cluster_controller.cluster_controller_pb2 import (
     TestStepResult
 )
 
