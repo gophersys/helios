@@ -2,9 +2,9 @@
     "configurations": [
         {
             "name": "Python",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
-            "program": "${file}",
+            "program": "src/main.py",
             "console": "integratedTerminal",
             "justMyCode": false
         }

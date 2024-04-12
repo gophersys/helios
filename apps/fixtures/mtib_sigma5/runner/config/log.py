@@ -35,7 +35,7 @@ def setup_logging(conf):
     # Generate log file name with current timestamp and a random suffix
     current_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     random_suffix = ''.join(random.choices(string.ascii_lowercase + string.digits, k=4))
-    log_file_name = f"controller_{current_time}_{random_suffix}.log"
+    log_file_name = f"runner_{current_time}_{random_suffix}.log"
     log_file_path = os.path.join(conf.LOG_PATH, log_file_name)
 
     # Ensure the logs directory exists

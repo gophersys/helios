@@ -1,11 +1,11 @@
 {
-    "name": "mtib_proxy",
+    "name": "proxy",
     "$schema": "../../../node_modules/nx/schemas/project-schema.json",
     "sourceRoot": "apps/fixtures/mtib_sigma5/proxy",
     "projectType": "application",
     "targets": {
       "build":{
-        "command": "nx run mtib_proxy:containerize",
+        "command": "nx run proxy:containerize",
         "cwd": "{workspaceRoot}"
       },
       "containerize": {
@@ -20,7 +20,7 @@
           "load": true,
           "push": false,
           "tags": [
-            "ccr01.ad.corekinect.com/mtib-proxy:1.0"
+            "ccr01.ad.corekinect.com/proxy"
           ]
         }
       }

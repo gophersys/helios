@@ -8,7 +8,7 @@ import sys
 
 # App includes
 from config import conf
-from providers.cluster_controller_provider import ClusterOperatorServicerProvider
+from apps.fixtures.mtib_sigma5.operator.src.providers.cluster_operator_provider import ClusterOperatorServicerProvider
 from src.services.operator import ClusterOperator, ClusterOperatorConfig
 
 # Protocol includes

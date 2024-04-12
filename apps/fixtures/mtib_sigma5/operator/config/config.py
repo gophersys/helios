@@ -16,11 +16,10 @@ class Config:
     LOG_LEVEL: int
     LOG_PATH: str
     CLUSTER_UUID: str
-    GRPC_SERVER_PORT: int
     PROXY_SERVER_URL: str
+    GRPC_SERVER_PORT: int
     LOCAL_REGISTRY_PORT: int
     KUBECONFIG_PATH: str
-    DEPLOYMENT_PATH: str
 
     def __new__(cls: Type['Config']) -> 'Config':
         """
@@ -59,11 +58,10 @@ class Config:
         self.LOG_LEVEL = self._get_env_var('LOG_LEVEL', int)
         self.LOG_PATH = self._get_env_var('LOG_PATH', str)
         self.CLUSTER_UUID = self._get_env_var('CLUSTER_UUID', str)
-        self.GRPC_SERVER_PORT = self._get_env_var('GRPC_SERVER_PORT', int)
         self.PROXY_SERVER_URL = self._get_env_var('PROXY_SERVER_URL', str)
+        self.GRPC_SERVER_PORT = self._get_env_var('GRPC_SERVER_PORT', int)
         self.LOCAL_REGISTRY_PORT = self._get_env_var('LOCAL_REGISTRY_PORT', int)
         self.KUBECONFIG_PATH = self._get_env_var('KUBECONFIG_PATH', str)
-        self.DEPLOYMENT_PATH = self._get_env_var('DEPLOYMENT_PATH', str)
 
     def _get_env_var(self,
                      var_name: str,
