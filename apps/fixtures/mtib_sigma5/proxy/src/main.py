@@ -13,8 +13,8 @@ from api.v1.cluster.create import cluster_create_bp
 from api.v1.cluster.read import cluster_read_bp
 from api.v1.cluster.update import cluster_update_bp
 from api.v1.cluster.delete import cluster_delete_bp
-from api.v1.cluster.deployment.get import cluster_get_deployment_bp
 from api.v1.cluster.register import cluster_register_bp
+from api.v1.cluster.deployment.get import cluster_get_deployment_bp
 
 # from api.v1.cluster.register import cluster_register_bp
 # from api.v1.cluster.list import cluster_list_bp
