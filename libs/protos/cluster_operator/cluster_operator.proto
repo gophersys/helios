@@ -58,15 +58,20 @@ enum DeploymentStatus {
   RUNNING = 3;
 }
 
-message GetDeploymentInfoRequest {}
-message GetDeploymentInfoResponse {
+message DeploymentInfo {
   string name = 1;
   DeploymentStatus status = 2;
 }
 
+message GetDeploymentInfoRequest {}
+message GetDeploymentInfoResponse {
+  DeploymentInfo info = 1;
+}
+
 // Test Registration
 message RegisterTestRequest {
-  cluster_test.TestInfo info = 1;
+  int32 port = 1;                     // What port we're serving 
+  cluster_test.TestInfo info = 2;     // Metadata about the test
 }
 
 message RegisterTestResponse {

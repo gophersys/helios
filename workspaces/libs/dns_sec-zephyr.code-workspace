@@ -6,12 +6,18 @@
 		{
 			"path": "../../libs/zephyr/dns_sec/samples/resolver"
 		},
+		{
+			"path": "../../libs/zephyr/dns_sec/samples/dnspy"
+		},
 	],
 	"settings": {
 		"files.associations": {
 			".env": "env",
 			"*.overlay": "dts",
 			".env.example": "env",
+			"extract.h": "c",
+			"algorithm": "c",
+			"kernel.h": "c"
 		},
 	}
 }

@@ -3,7 +3,7 @@
 import grpc
 
 import protos.cluster_operator.cluster_operator_pb2 as cluster__operator__pb2
-import protos.cluster_operator.cluster_test_pb2 as cluster__test__pb2
+import protos.cluster_test.cluster_test_pb2 as cluster__test__pb2
 
 
 class ClusterOperatorStub(object):
