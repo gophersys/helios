@@ -31,11 +31,14 @@ message TestInfo {
 }
 
 message TestStepResult {
-  int32 runnerId = 1; 
-  bool execOk = 2;
-  string error = 3;
-  bool success = 4; 
-  string detailedResult = 5;    // Optionally include detailed logs or results of the step.
+  // User populated fields
+  bool execOk = 1;
+  string error = 2;
+  bool success = 3; 
+  string detailedResult = 4;    // Optionally include detailed logs or results of the step.
+  
+  // Application populated fields
+  int32 runnerId = 5; 
   int32 progressPercentage = 6; // Progress of the test execution as a whole.
   string timestamp = 7;         // Timestamp of the update, useful for logs and tracking.
 }

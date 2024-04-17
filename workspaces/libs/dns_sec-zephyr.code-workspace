@@ -15,9 +15,11 @@
 			".env": "env",
 			"*.overlay": "dts",
 			".env.example": "env",
+			"*.conf": "kconfig",
 			"extract.h": "c",
 			"algorithm": "c",
-			"kernel.h": "c"
+			"kernel.h": "c",
+			"stdbool.h": "c"
 		},
 	}
 }
