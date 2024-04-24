@@ -66,6 +66,7 @@ class TestStep:
 # sequence
 # results
 TestCallbackType = Callable[[bool, str, int, Optional[List[TestStepResult]]], None]
+
 class Test:
     def __init__(self,
                  info:TestInfo,
@@ -86,7 +87,7 @@ class Test:
             
             success:bool = False
             error:str = ""
-            results:List[TestStepResult] = []
+            results:List[TestStepResult] = []   
 
             # Execute in all active runners in parallel
             success, error, results = step.exec(active_runners)
