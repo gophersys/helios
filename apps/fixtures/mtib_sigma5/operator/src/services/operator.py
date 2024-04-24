@@ -4,7 +4,7 @@ import uuid
 import time
 import socket
 import threading
-from typing import Tuple, Any, List
+from typing import Tuple, Any, List, Optional
 import re
 import subprocess
 import yaml
@@ -12,16 +12,25 @@ import os
 from urllib.parse import urlparse
 from enum import Enum
 import requests
+import sys
 
 # 3rd Party includes
 import docker
 import kubernetes
 
 # Protocol includes
+from protos.cluster_test.cluster_test_pb2 import (
+    TestInfo, HealthCheckRequest, HealthCheckResponse
+)
+from protos.cluster_test.cluster_test_pb2_grpc import ClusterTestStub
+
 from protos.cluster_operator.cluster_operator_pb2 import (
     OperatorStatus
 )
 
+# -------------------------------------------------------------------------------------------------
+#                                                                                       Deployments
+# -----------------------------------------------------------------------------------------------*/
 class ClusterDeploymentStatus(Enum):
     NO_DEPLOYMENT = 1
     DEPLOYMENT_ACTIVE = 2
@@ -35,6 +44,9 @@ class ClusterDeploymentInfo:
         self.path:str = path
         self.status:ClusterDeploymentStatus = status
 
+# -------------------------------------------------------------------------------------------------
+#                                                                                            Config
+# -----------------------------------------------------------------------------------------------*/
 class ClusterOperatorConfig:
     def __init__(self,
                  uuid:str,
@@ -50,56 +62,187 @@ class ClusterOperatorConfig:
         self.runners_hostnames:List[str] = runners_hostnames
         self.kubeconfig_path:str = kubeconfig_path
 
+# -------------------------------------------------------------------------------------------------
+#                                                                                        Test Entry
+# -----------------------------------------------------------------------------------------------*/
+class ClusterOperatorTestEntry:
+    def __init__(self,
+                 info:TestInfo,
+                 port:int,
+                 channel:grpc.Channel,
+                 stub:ClusterTestStub):
+        self.info:TestInfo = info
+        self.port:int = port
+        self.channel:grpc.Channel = channel
+        self.stub:ClusterTestStub = stub
+    
+# -------------------------------------------------------------------------------------------------
+#                                                                                          Operator
+# -----------------------------------------------------------------------------------------------*/
+class ClusterOperatorStatus(Enum):
+    STARTING = 1
+    CLUSTER_READY = 2
+    
 class ClusterOperator:
+    # Timeoutes
     HOST_STARTUP_TIMEOUT_S=120              # Linux kernel up and running
     K8S_AWAIT_NODES_TIMEOUT_S=120           # Docker & k8s
     K8S_DELETE_DEPLOYMENT_TIMEOUT_S=120     # Delete deployment
     K8S_APPLY_DEPLOYMENT_TIMEOUT_S=240      # Apply deployment, a new image could take a while!
-
+    PROXY_REGISTRATION_RETRY_TIMEOUT_S=5    # How often to retry registering ourselves with the cluster
+    
     def __init__(self, config:ClusterOperatorConfig):
+        # Set the internal configuration
         self.config:ClusterOperatorConfig = config
-        self.error:str = ""
-        self.status:OperatorStatus = OperatorStatus.NOT_READY
-
-        # Initiate a thread that registers this cluster with the proxy
         
-        # We use a docker and kubernetes client for a lot of our operations so just instantiate them now
-        logger = logging.getLogger('kubernetes')
-        logger.setLevel(logging.INFO)
-
+        # Set the global object error
+        self.error:str = ""
+        
+        # Set the initial global object state
+        self.status:OperatorStatus = OperatorStatus.STARTING
+        
+        # Docker info
         logger = logging.getLogger('docker')
         logger.setLevel(logging.INFO)
         self.docker_client = docker.from_env()
 
         # Kubernetes info
-        self.deployment_namespace = "default"  
+        logger = logging.getLogger('kubernetes')
+        logger.setLevel(logging.INFO)
         self.kubernets_client = kubernetes.client
+        self.deployment_namespace = "default"  
         self.deployment_info:ClusterDeploymentInfo = ClusterDeploymentInfo()
 
-    def init(self) -> str:
+        # Tests 
+        self.tests:List[ClusterOperatorTestEntry] = []
+        
+        self.stop_event = threading.Event()
+        
+        # Start the object thread
+        self._thread = threading.Thread(target=self._main_thread, daemon=True)
+        self._thread.start()
+        
+        self._health_thread = threading.Thread(target=self._tests_health_check_thread, daemon=False)
+        self._health_thread.start()
+        
+        self._proxy_thread = threading.Thread(target=self._proxy_health_check_thread, daemon=False)
+        self._proxy_thread.start()
+    
+    def stop(self):
+        self.stop_event.set()
+        self._thread.join(timeout=1)
+        self._health_thread.join(timeout=1)
+        self._proxy_thread.join(timeout=1)
+    
+    def get_status(self) -> Tuple[Any, str]:
+        return self.status, self.error
+    
+    def register_test(self, port:int, info:TestInfo) -> str:
+        # Make sure that a test isn't trying to register on a same port
+        for test in self.tests:
+            if test.port == port:
+                return f"Operator already has test \"{test.info.name}\" registered at port {port}"
+            
+        # Build the test URL
+        test_url = f"localhost:{port}"
+        
+        # Attempt to connect to the test over gRPC
+        try:
+            # Create a gRPC channel
+            channel = grpc.insecure_channel(test_url)
+
+            # Create a stub using the insecure channel
+            stub = ClusterTestStub(channel)
+            
+            # Do a quick health check
+            try:
+                stub.HealthCheck(HealthCheckRequest())
+            except grpc.RpcError as e:
+                return f"Health check failed for test at {test_url}: {e}"
+            
+            test_entry:ClusterOperatorTestEntry = ClusterOperatorTestEntry(
+                info=info,
+                port=port,
+                channel=channel,
+                stub=stub
+            )
+            
+            self.tests.append(test_entry)
+            logging.info(f"Registered test \"{info.name}\" at {test_url}")
+            return ""
+            
+        except grpc.RpcError as e:
+            return f"Failed to connect to operator at {test_url} over gRPC. Error: {e}"
+        
+    def list_tests(self) -> List[TestInfo]:
+        tests_info:List[TestInfo] = []
+        for test in self.tests:
+            tests_info.append(test.info)
+            
+        return tests_info
+        
+    def _main_thread(self):
         # Create registry if not already present
         error = self._setup_local_registry()
         if error:
             return f"Could not setup local container registry: {error}"
         
+        # Await for all the nodes in this cluster to be ready
         error = self._await_for_cluster_readiness()
         if error:
             return f"Cluster was not ready before timeout: {error}"
-        
-        # We are ready to let the proxy know we're in the network
+
+        # We are now ready for tests to be registered, as well as ready for connection 
+        # to the proxy
         self.status = OperatorStatus.READY
+        
+        # Now we just attempt to register until the end of times or until we're actually registerde
+        self._register_with_proxy()
+        
+        # Main loop
+        while not self.stop_event.is_set():
+            if self.status == OperatorStatus.READY:
+                # Proxy was disconnected, try to register
+                self._register_with_proxy()
+                
+            time.sleep(1)
 
-        # Create a thread to manage our connection to the proxy server
-        registration_thread = threading.Thread(target=self._cluster_registration_thread, daemon=True)
-        registration_thread.start()
+    def _proxy_health_check_thread(self):
+        while not self.stop_event.is_set():
+            if self.status == OperatorStatus.CONNECTED:
+                try:
+                    # Do an HTTP request to the proxy for registration
+                    endpoint = f"{self.config.proxy_url}/v1/healthcheck"
 
-        # Create a thread to manage deployment updates
-        deployment_thread = threading.Thread(target=self._cluster_deployments_thread, daemon=True)
-        deployment_thread.start()
+                    response = requests.get(endpoint, timeout=1)
+                    if response.status_code != 200:
+                        self.status = OperatorStatus.READY
+                        logging.error(f"Proxy healthcheck failed. Is the proxy down? Status code for GET {endpoint}: {response.status_code}")
 
-        logging.info("Operator initialized OK")
-        return ""
+                except Exception as e:
+                    self.status = OperatorStatus.READY
+                    logging.warning(f"Network error: could not GET healthcheck in proxy server {str(e)}")
 
+            time.sleep(1)
+            
+    def _tests_health_check_thread(self):
+        """Periodically check the health of each cluster."""
+        while not self.stop_event.is_set():
+            tests = self.tests
+            for test in tests:
+                try:
+                    # Perform a periodic health check to ensure we're still connected and alive
+                    test.stub.HealthCheck(HealthCheckRequest())
+                    
+                except grpc.RpcError as e:
+                    logging.error(f"Failed to perform health check on test at {test.port}. Unregistering from operator")
+                    test.channel.close()
+                    self.tests.remove(test)
+                    
+                time.sleep(1)
+
+            time.sleep(1)
+            
     def _await_for_cluster_readiness(self) -> str:
         # First check that the k8s deployment passed is valid
         try:
@@ -112,16 +255,22 @@ class ClusterOperator:
         if error:
             return f"Could not ping all hosts in cluster: {error}"
         
+        logging.info("All hosts were found in the network, proceeding to check kubernetes cluster readiness...")
+        
         # Readiness check for all the nodes in the cluster
         error = self.__await_for_k8s_nodes()
         if error:
             return f"Nodes readiness probe did not pass: {error}"
+        
+        logging.info("Kubernetes cluster is ready, deleting all deployments...")
         
         # Wipe the cluster of any deployments
         error = self.__delete_k8s_deployments()
         if error:
             return f"Could not clear cluster of running deployments: {error}"
         
+        logging.info("All deployments have been removed, cluster is ready for operation!")
+
         return ""
     
     def __await_for_hosts_ping(self) -> str:
@@ -217,12 +366,6 @@ class ClusterOperator:
         except Exception as e:
             return f"Failed to delete deployments: {str(e)}"
         
-    def get_status(self) -> Tuple[Any, str]:
-        return self.status, self.error
-    
-    def set_error(self, error:str):
-        self.error = error
-
     def _setup_local_registry(self) -> str:
         logging.debug(f"Setting up local registry at port {self.config.registry_port}...")
         client = docker.from_env()
@@ -252,40 +395,34 @@ class ClusterOperator:
         logging.info(f"Local registry at port {self.config.registry_port} setup OK")
         return ""
 
-    def _cluster_registration_thread(self):
-        """Runs a periodic registration query to the proxy server."""
-        retry_counter = 0
+    def _register_with_proxy(self):
+        retry_counter:int = 0
         while True:
-            time.sleep(5)  # Delay between retries
-
-            if self.status != OperatorStatus.READY:
-                continue  # Skip trying to register if not ready
-
             try:
+                # Do an HTTP request to the proxy for registration
                 endpoint = f"{self.config.proxy_url}/v1/clusters/{self.config.uuid}/register"
                 payload = {
-                    "url": self.config.grpc_server_url
+                    "url": self.config.grpc_server_url # Us
                 }
 
                 response = requests.post(endpoint, json=payload, timeout=100)
                 if response.status_code == 200:
-                    logging.debug(f"Successfully registered cluster with proxy at {endpoint}")
+                    logging.info(f"Successfully registered cluster with proxy at {endpoint}!")
                     self.status = OperatorStatus.CONNECTED
-                    continue  # Once connected, skip further registration until status is READY again
+                
+                    return
                 elif response.status_code == 503:
-                    logging.error(f"Proxy server was unable to find our URL {self.config.grpc_server_url}")
+                    logging.error(f"Network error: proxy server was unable to find our URL {self.config.grpc_server_url} in the network")
                 else:
-                    logging.warning(f"Error response from proxy, status code: {response.status_code}, response: {response.content}")
+                    logging.error(f"Error response from proxy, status code: {response.status_code}, response: {response.content}")
 
             except Exception as e:
                 retry_counter += 1
-                if retry_counter % 5 == 0:  # Log every 5th retry attempt
+                if retry_counter % 10 == 0:  # Log every 10th retry attempt
                     logging.warning(f"Exception occurred during cluster registration after {retry_counter} attempts: {str(e)}")
-
-            if self.status == OperatorStatus.CONNECTED:
-                retry_counter = 0  # Reset counter after successful connection
-                while self.status == OperatorStatus.CONNECTED:
-                    time.sleep(5)  # Keep thread alive but inactive, waiting for status to change back to READY
+                    
+            # Give some time to the proxy to not flood the network
+            time.sleep(1)
     
     def _cluster_deployments_thread(self):
         """

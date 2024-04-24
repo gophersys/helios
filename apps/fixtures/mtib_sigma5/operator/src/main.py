@@ -40,7 +40,7 @@ def start_server(operator:ClusterOperator) -> Tuple[str, Optional[grpc.Server]]:
 if __name__ == '__main__':
     logging.debug(f"Operator app environment configuration: \n{conf}")
 
-    # Instantiate an operator service instance
+    # Create the operator configuration
     config:ClusterOperatorConfig = ClusterOperatorConfig(
         uuid=conf.CLUSTER_UUID,
         proxy_url=conf.PROXY_SERVER_URL,
@@ -56,13 +56,10 @@ if __name__ == '__main__':
         ],
         kubeconfig_path=conf.KUBECONFIG_PATH
     )
-
+    
+    # Instantiate an operator object instance to be used by this server
     operator:ClusterOperator = ClusterOperator(config)
-
-    error = operator.init()
-    if error:
-        logging.error(f"Could not create operator: {error}")
-
+    
     # Setup gRPC server (we serve as an operator)
     error, server = start_server(operator)
     if error:
@@ -71,8 +68,10 @@ if __name__ == '__main__':
     # Await for kill signal
     try:
         server.wait_for_termination()
+        operator.stop()
     except KeyboardInterrupt:
         logging.warning("Kill signal detected, stopping server...")
-        server.stop(0)
+        server.stop(None)
+        operator.stop()
         logging.info("Operator server stopped.")
         sys.exit(1)

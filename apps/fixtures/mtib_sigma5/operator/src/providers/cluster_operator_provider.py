@@ -16,7 +16,9 @@ from src.services.operator import ClusterOperator
 # Protocol includes
 from protos.cluster_operator.cluster_operator_pb2 import (
     HealthCheckRequest, HealthCheckResponse,
-    OperatorStatus, OperatorInfo, GetOperatorInfoRequest, GetOperatorInfoResponse
+    OperatorStatus, OperatorInfo, GetOperatorInfoRequest, GetOperatorInfoResponse,
+    RegisterTestRequest, RegisterTestResponse,
+    ListTestsRequest, ListTestsResponse
 )
 from protos.cluster_operator.cluster_operator_pb2_grpc import ClusterOperatorServicer
 
@@ -31,45 +33,57 @@ class ClusterOperatorServicerProvider(ClusterOperatorServicer):
     #                                                                                       HealthCheck
     # -----------------------------------------------------------------------------------------------*/
     def HealthCheck(self, request:HealthCheckRequest, context):
-        # Create a response
-        response:HealthCheckResponse = HealthCheckResponse()
-        response.healthy = False # Assume worst case scenario by default
-
-        # Get the status from the operator service
-        error = self.operator.get_error()
-        if error:
-            response.error = error 
-        else:
-            response.healthy = True
+        return HealthCheckResponse()
+    
+    # -------------------------------------------------------------------------------------------------
+    #                                                                                   GetOperatorInfo
+    # -----------------------------------------------------------------------------------------------*/
+    def GetOperatorInfo(self, request:GetOperatorInfoRequest, context):
+        logging.debug("GetOperatorInfo handler called")
         
+        # Get the status from the object
+        status, error = self.operator.get_status()
+        
+        # Populate the info object
+        info:OperatorInfo = OperatorInfo(
+            status=status,
+            error=error
+        )
+        
+        return GetOperatorInfoResponse(
+            info = info
+        )
+        
+    # -------------------------------------------------------------------------------------------------
+    #                                                                                     Register Test
+    # -----------------------------------------------------------------------------------------------*/
+    def RegisterTest(self, request:RegisterTestRequest, context):
+        logging.debug("RegisterTest handler called")
+        
+        response:RegisterTestResponse = RegisterTestResponse(
+            success=True
+        )
+        
+        # Call the object method
+        error = self.operator.register_test(request.port, request.info)
+        if error:
+            logging.error(error)
+            response.success = False
+            response.error = error
+            
         return response
     
-    # # -------------------------------------------------------------------------------------------------
-    # #                                                                                    GetClusterInfo
-    # # -----------------------------------------------------------------------------------------------*/
-    # def GetClusterInfo(self, request:GetClusterInfoRequest, context):
-    #     return GetClusterInfoResponse(
-    #         info = self.cluster.get_cluster_info()
-    #     )
-    
-    # # -------------------------------------------------------------------------------------------------
-    # #                                                                         Update Cluster Deployment
-    # # -----------------------------------------------------------------------------------------------*/
-    # def UpdateClusterDeployment(self, request:UpdateDeploymentRequest, context):
-    #     deployment_file = request.deployment_file
-    #     filename = request.filename
-
-    #     # Save the deployment file to the filesystem
-    #     filepath = os.path.join('/var/lib', filename)
-    #     with open(filepath, 'wb') as f:
-    #         f.write(deployment_file)
-
-    #     # Updating cluster deployment
-    #     logging.info("Deployment updated succesfully to cluster")
-
-    #     # self.cluster.setup()
+    # -------------------------------------------------------------------------------------------------
+    #                                                                                         ListTests
+    # -----------------------------------------------------------------------------------------------*/
+    def ListTests(self, request:ListTestsRequest, context):
+        logging.debug("ListTests handler called")
         
-    #     return UpdateDeploymentResponse(success=True, message="Deployment updated successfully.")
+        response:ListTestsResponse = ListTestsResponse(
+            tests = self.operator.list_tests()
+        )
+        
+        return response
     
     # # -------------------------------------------------------------------------------------------------
     # #                                                                                             Reset
