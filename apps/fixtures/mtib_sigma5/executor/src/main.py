@@ -4,13 +4,14 @@ from typing import Tuple, Optional
 import grpc
 import logging
 import socket
+import time
 import sys
 
 # App includes
 from config import conf
 from src.providers.cluster_test_provider import ClusterTestServicerProvider
 from src.tests.core import Test
-from src.tests.electrical import electrical_test
+from tests.electrical.test import electrical_test
 
 # Protocol includes
 from protos.cluster_test.cluster_test_pb2 import (
@@ -18,6 +19,7 @@ from protos.cluster_test.cluster_test_pb2 import (
 )
 from protos.cluster_test.cluster_test_pb2_grpc import add_ClusterTestServicer_to_server
 from protos.cluster_operator.cluster_operator_pb2 import (
+    OperatorStatus, GetOperatorInfoRequest, GetOperatorInfoResponse,
     RegisterTestRequest, RegisterTestResponse
 )
 from protos.cluster_operator.cluster_operator_pb2_grpc import ClusterOperatorStub
@@ -25,7 +27,7 @@ from protos.cluster_operator.cluster_operator_pb2_grpc import ClusterOperatorStu
 # -------------------------------------------------------------------------------------------------
 #                                                                                     Test Register
 # -----------------------------------------------------------------------------------------------*/
-def register_test(test_info:TestInfo) -> str:
+def register_test_with_operator(test_info:TestInfo) -> str:
     operator_url:str = f"localhost:{conf.OPERATOR_SERVER_PORT}"
 
     # Instantiate an operator stub and give it our info
@@ -36,25 +38,49 @@ def register_test(test_info:TestInfo) -> str:
         # Create a stub using the insecure channel
         stub = ClusterOperatorStub(channel)
 
-        # Register with operator
+        logging.info("Awaiting for operator readiness...")
+        
+        # Await infinately for the operator to be in the READY state
+        ready:bool = False
+        while not ready:
+            try:
+                # Get the operator info
+                request:GetOperatorInfoRequest = GetOperatorInfoRequest()
+                response:GetOperatorInfoResponse = stub.GetOperatorInfo(request)
+                if response.info.status == OperatorStatus.READY or response.info.status == OperatorStatus.CONNECTED:
+                    ready = True
+                else:
+                    time.sleep(1)# Operator is not yet ready give it some time
+
+            except grpc.RpcError as e:
+                return f"Unable to get operator at {operator_url} info over gRPC method GetOperatorInfo(): {e}"
+    
+        logging.info("Operator is in READY state!")
+    
+        # Now that the operator is ready, we can register our test with it so that it can be served
+        # to the proxy 
+        logging.info(f"Registering test \"{test_info.name}\" with operator at {operator_url}...")
+        
         try:
             # Populate the registration request
             request:RegisterTestRequest = RegisterTestRequest(
-                port = conf.TEST_SERVER_PORT,
-                info = test_info
+                port = conf.TEST_SERVER_PORT,    # Where the operator is going to call us 
+                info = test_info                 # The metadata of the test we're serving
             )
 
             # Call the operator RPC to register
             response:RegisterTestResponse = stub.RegisterTest(request)
+            if not response.success:
+                return f"Operator was not able to register test: {response.error} "
 
         except grpc.RpcError as e:
-            return f"Unable to register test with operator at {operator_url}: {e}"
+            return f"Unable to register test with operator at {operator_url} over gRPC method RegisterTest(): {e}"
 
-        logging.info(f"Successfully registered test with operator at {operator_url}!")
+        logging.info(f"Successfully registered test with operator!")
         return ""
 
     except grpc.RpcError as e:
-        return f"Failed to connect to operator at {operator_url}. Error: {e}"
+        return f"Failed to connect to operator at {operator_url} over gRPC. Error: {e}"
 
 # -------------------------------------------------------------------------------------------------
 #                                                                                      Server Start
@@ -81,16 +107,17 @@ def start_server(test:Test) -> Tuple[str, Optional[grpc.Server]]:
 if __name__ == '__main__':
     logging.debug(f"Test app environment configuration: \n{conf}")
 
-    # Register with the operator
-    error = register_test(electrical_test.info)
-    if error:
-        logging.error(f"Could not register test with operator: {error}")
-        sys.exit(1)
-
     # Setup gRPC server (we serve as a test)
     error, server = start_server(electrical_test)
     if error:
         logging.error(f"Could not start gRPC server: {error}")
+        sys.exit(1)
+        
+    # Register with the operator
+    error = register_test_with_operator(electrical_test.info)
+    if error:
+        logging.fatal(error)
+        sys.exit(1)
 
     # Await for kill signal
     try:

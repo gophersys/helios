@@ -21,22 +21,15 @@ class ClusterTestServicerProvider(ClusterOperatorServicer):
     # -------------------------------------------------------------------------------------------------
     #                                                                                       HealthCheck
     # -----------------------------------------------------------------------------------------------*/
-    def HealthCheck(self, request:HealthCheckRequest, context):
-        # Create a response
-        response:HealthCheckResponse = HealthCheckResponse()
-        response.healthy = False # Assume worst case scenario by default
-
-        # Get the status from the operator service
-        error = self.operator.get_error()
-        if error:
-            response.error = error 
-        else:
-            response.healthy = True
-        
-        return response
+    def HealthCheck(self, request:HealthCheckRequest, context):        
+        return HealthCheckResponse()
     
     # -------------------------------------------------------------------------------------------------
     #                                                                                    GetClusterInfo
     # -----------------------------------------------------------------------------------------------*/
     def ExecuteTest(self, request:ExecuteTestRequest, context):
-        pass
+        # First we confirm that the requested test Id matches the test we're serving
+        if request.testId != self.test.info.id:
+            pass 
+        
+        
