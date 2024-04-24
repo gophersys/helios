@@ -17,9 +17,14 @@ from pathlib import Path
 from config import conf
 
 # Assuming protos are already correctly imported
+from protos.cluster_test.cluster_test_pb2 import (
+    TestInfo
+)
+
 from protos.cluster_operator.cluster_operator_pb2 import (
     HealthCheckRequest, HealthCheckResponse,
     OperatorStatus, GetOperatorInfoRequest, GetOperatorInfoResponse,
+    ListTestsRequest, ListTestsResponse,
 )
 from protos.cluster_operator.cluster_operator_pb2_grpc import ClusterOperatorStub
 
@@ -33,7 +38,7 @@ from .cluster import TestCluster
 # ---------------------------------------------------------------------------------------------------*/
 class ProxyServer:
     def __init__(self, database_path:str):
-        self.connected_clusters:List[TestCluster] = []
+        self.registered_clusters:List[TestCluster] = []
 
         # Read the current file system
         self.db:ProxyServerDatabase = ProxyServerDatabase(database_path)
@@ -55,15 +60,16 @@ class ProxyServer:
     def __perform_health_checks(self):
         """Periodically check the health of each cluster."""
         while True:
-            for cluster in self.connected_clusters:
+            clusters = self.registered_clusters# Snapshot 
+            for cluster in clusters:
                 try:
-                    response: HealthCheckResponse = cluster.stub.HealthCheck(HealthCheckRequest())
-                    cluster.status = response.status
-                    if response.status is not ClusterStatus.Ready:
-                        logging.error(f"Health check failed for cluster at {cluster.url},status: {response.status} error: {response.error}")
+                    # Perform a periodic health check to ensure we're still connected and alive
+                    cluster.stub.HealthCheck(HealthCheckRequest())
+                    
                 except grpc.RpcError as e:
-                    logging.error(f"Failed to perform health check on cluster at {cluster.url}. Error: {e}")
-                    self.remove_cluster(cluster.uuid)
+                    logging.error(f"Failed to perform health check on cluster at {cluster.url}. Unregistering from cluster")
+                    cluster.channel.close()
+                    self.registered_clusters.remove(cluster)
 
             time.sleep(1)
 
@@ -206,13 +212,29 @@ class ProxyServer:
         return ""
     
     # -------------------------------------------------------------------------------------------------
-    #                                                                                    Cluster Update
+    #                                                                                 Get Cluster Tests
     # -----------------------------------------------------------------------------------------------*/
-
+    def get_cluster_tests(self, cluster_uuid:str) -> Tuple[str, Optional[List[TestInfo]]]:
+        # Check if the cluster is already connected
+        cluster:TestCluster = None
+        for c in self.registered_clusters:
+            if c.uuid == cluster_uuid:
+                cluster = c
+            
+        if cluster is None:
+            return f"Cluster {cluster_uuid} is not registered with the proxy", None
+        
+         # List the tests over gRPC
+        try:
+            response:ListTestsResponse = cluster.stub.ListTests(ListTestsRequest())
+            return "", response.tests
+        except grpc.RpcError as e:
+            return f"Unable to get tests for cluster at {cluster.url} info over gRPC method ListTests(): {e}", None
+    
     # -------------------------------------------------------------------------------------------------
     #                                                                                  Register Cluster
     # -----------------------------------------------------------------------------------------------*/
-    def register_cluster(self, cluster_uuid, cluster_url:str) -> str:
+    def register_cluster(self, cluster_uuid:str, cluster_url:str) -> str:
         """
         Register a new cluster to the server. This involves this proxy 
         connecting to the cluster at hand
@@ -226,64 +248,50 @@ class ProxyServer:
                 break
         
         if not cluster_created:
-            return f"Cluster {cluster_uuid} at {cluster_url} was not found in server"
+            return f"Cluster {cluster_uuid} at {cluster_url} was not found in server database. You must create a new cluster first"
 
         # Check if the cluster is already connected
-        for cluster in self.connected_clusters:
+        for cluster in self.registered_clusters:
             if cluster.url == cluster_url:
                 return ""
         
         # Get initial metadata
-        error = self.__get_cluster_info(cluster_url)
+        error = self.__connect_to_cluster(cluster_uuid, cluster_url)
         if error:
             return f"Unable to get cluster info: {error}. Did you "
         
         return ""
     
-    def __get_cluster_info(self, cluster_url:str) -> str:
+    def __connect_to_cluster(self, cluster_uuid:str, cluster_url:str) -> str:
         try:            
             # Create a gRPC channel
             channel = grpc.insecure_channel(cluster_url)
 
             # Create a stub using the insecure channel
             stub = ClusterOperatorStub(channel)
+            
+            # Append a new cluster to our in memory cache
+            connected_cluster:TestCluster = TestCluster(
+                uuid=cluster_uuid,
+                url=cluster_url,
+                channel=channel,
+                stub=stub
+            )
+            
+            self.registered_clusters.append(connected_cluster)
 
-            # Get cluster metadata over the gRPC connection
-            # try:
-            #     response:GetClusterInfoResponse = stub.GetClusterInfo(request=GetClusterInfoRequest())
-            #     if response.info is not None:
-
-            #         # Register the cluster with the proxy server (us), with enough information
-            #         # to execute actions on it
-            #         new_cluster = TestCluster(
-            #             uuid=str(uuid.uuid4()),
-            #             url=cluster_url,
-            #             stub = stub,
-            #             info=response.info,
-            #             connected_at=datetime.now().isoformat()
-            #         )
-            #         self.connected_clusters.append(new_cluster)
-
-            # except grpc.RpcError as e:
-            #     return f"Unable to register cluster at {cluster_url}: {e}"
-
-            logging.info(f"Successfully registered cluster at {clusterp_url}!")
+            logging.info(f"Successfully connected to cluster at {cluster_url}!")
             return ""
 
         except grpc.RpcError as e:
             return f"Failed to connect to cluster at {cluster_url}. Error: {e}"
-        
-    def __find_cluster_deployment(self, cluster:TestCluster) -> Tuple[bool, str, bool, str]:
-        """This function is going to look through a  """
-
-        pass
         
     # -------------------------------------------------------------------------------------------------
     #                                                                                      Get Clusters
     # -----------------------------------------------------------------------------------------------*/
     def get_clusters(self) -> List[TestCluster]:
         """Get a cluster's information by ID."""
-        return self.connected_clusters
+        return self.registered_clusters
     
     # -------------------------------------------------------------------------------------------------
     #                                                                                  Get Cluster Info

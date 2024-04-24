@@ -13,10 +13,11 @@ from typing import List, Tuple, Optional
 import docker
 from pathlib import Path
 
+import grpc
 
 from config import conf
 
-# # Assuming protos are already correctly imported
+# Assuming protos are already correctly imported
 # from protos.cluster_controller.cluster_controller_pb2 import (
 #     ClusterStatus, HealthCheckRequest, HealthCheckResponse,
 #     UpdateDeploymentRequest, UpdateDeploymentResponse,
@@ -24,7 +25,7 @@ from config import conf
 #     TestInfo, ListTestsRequest, ListTestsResponse,
 #     ExecuteTestRequest
 # )
-# from protos.cluster_controller.cluster_controller_pb2_grpc import ClusterControllerStub
+from protos.cluster_operator.cluster_operator_pb2_grpc import ClusterOperatorStub
 
 
 class TestCluster:
@@ -42,7 +43,11 @@ class TestCluster:
         error (str): String to capture any errors related to the cluster operations, initially empty.
         connected_at (str): Timestamp representing when the cluster was first connected or registered with the proxy server.
     """
-    def __init__(self):
+    def __init__(self,
+                 uuid:str,
+                 url:str,
+                 channel:grpc.Channel,
+                 stub:ClusterOperatorStub):
         """
         Instantiates a new class:
 
@@ -53,14 +58,10 @@ class TestCluster:
             info (ClusterInfo): Metadata and other important information about the cluster.
             connected_at (str): The date and time at which the cluster was connected to the proxy.
         """
-        pass
-    #     self.uuid:str = uuid
-    #     self.url:str = url
-    #     self.stub:ClusterControllerStub = stub
-    #     self.info:ClusterInfo = info
-    #     self.status:ClusterStatus = ClusterStatus.NotReady
-    #     self.error:str = ""
-    #     self.connected_at:str = ""
+        self.uuid:str = uuid
+        self.url:str = url
+        self.channel:grpc.Channel = channel
+        self.stub:ClusterOperatorStub = stub
 
     # def to_json(self) -> str:
     #     pass
