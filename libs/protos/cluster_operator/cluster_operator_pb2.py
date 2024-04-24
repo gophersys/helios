@@ -15,41 +15,41 @@ _sym_db = _symbol_database.Default()
 import protos.cluster_test.cluster_test_pb2 as cluster__test__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x16\x63luster_operator.proto\x12\x10\x63luster_operator\x1a\x12\x63luster_test.proto\"\x14\n\x12HealthCheckRequest\"5\n\x13HealthCheckResponse\x12\x0f\n\x07healthy\x18\x01 \x01(\x08\x12\r\n\x05\x65rror\x18\x02 \x01(\t\"O\n\x0cOperatorInfo\x12\r\n\x05image\x18\x01 \x01(\t\x12\x30\n\x06status\x18\x02 \x01(\x0e\x32 .cluster_operator.OperatorStatus\"\x18\n\x16GetOperatorInfoRequest\"G\n\x17GetOperatorInfoResponse\x12,\n\x04info\x18\x01 \x01(\x0b\x32\x1e.cluster_operator.OperatorInfo\"R\n\x0e\x44\x65ploymentInfo\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x32\n\x06status\x18\x02 \x01(\x0e\x32\".cluster_operator.DeploymentStatus\"\x1a\n\x18GetDeploymentInfoRequest\"K\n\x19GetDeploymentInfoResponse\x12.\n\x04info\x18\x01 \x01(\x0b\x32 .cluster_operator.DeploymentInfo\"I\n\x13RegisterTestRequest\x12\x0c\n\x04port\x18\x01 \x01(\x05\x12$\n\x04info\x18\x02 \x01(\x0b\x32\x16.cluster_test.TestInfo\"6\n\x14RegisterTestResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\r\n\x05\x65rror\x18\x02 \x01(\t\"\x12\n\x10ListTestsRequest\":\n\x11ListTestsResponse\x12%\n\x05tests\x18\x01 \x03(\x0b\x32\x16.cluster_test.TestInfo*F\n\x0eOperatorStatus\x12\r\n\tNOT_READY\x10\x00\x12\t\n\x05READY\x10\x01\x12\r\n\tCONNECTED\x10\x02\x12\x0b\n\x07\x45RRORED\x10\x03*G\n\x10\x44\x65ploymentStatus\x12\x08\n\x04NONE\x10\x00\x12\x0e\n\nINSTALLING\x10\x01\x12\x0c\n\x08UPDATING\x10\x02\x12\x0b\n\x07RUNNING\x10\x03\x32\xda\x04\n\x0f\x43lusterOperator\x12\\\n\x0bHealthCheck\x12$.cluster_operator.HealthCheckRequest\x1a%.cluster_operator.HealthCheckResponse\"\x00\x12h\n\x0fGetOperatorInfo\x12(.cluster_operator.GetOperatorInfoRequest\x1a).cluster_operator.GetOperatorInfoResponse\"\x00\x12n\n\x11GetDeploymentInfo\x12*.cluster_operator.GetDeploymentInfoRequest\x1a+.cluster_operator.GetDeploymentInfoResponse\"\x00\x12_\n\x0cRegisterTest\x12%.cluster_operator.RegisterTestRequest\x1a&.cluster_operator.RegisterTestResponse\"\x00\x12V\n\tListTests\x12\".cluster_operator.ListTestsRequest\x1a#.cluster_operator.ListTestsResponse\"\x00\x12V\n\x0b\x45xecuteTest\x12 .cluster_test.ExecuteTestRequest\x1a!.cluster_test.ExecuteTestResponse\"\x00\x30\x01\x62\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x16\x63luster_operator.proto\x12\x10\x63luster_operator\x1a\x12\x63luster_test.proto\"\x14\n\x12HealthCheckRequest\"\x15\n\x13HealthCheckResponse\"^\n\x0cOperatorInfo\x12\r\n\x05image\x18\x01 \x01(\t\x12\x30\n\x06status\x18\x02 \x01(\x0e\x32 .cluster_operator.OperatorStatus\x12\r\n\x05\x65rror\x18\x03 \x01(\t\"\x18\n\x16GetOperatorInfoRequest\"G\n\x17GetOperatorInfoResponse\x12,\n\x04info\x18\x01 \x01(\x0b\x32\x1e.cluster_operator.OperatorInfo\"R\n\x0e\x44\x65ploymentInfo\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x32\n\x06status\x18\x02 \x01(\x0e\x32\".cluster_operator.DeploymentStatus\"\x1a\n\x18GetDeploymentInfoRequest\"K\n\x19GetDeploymentInfoResponse\x12.\n\x04info\x18\x01 \x01(\x0b\x32 .cluster_operator.DeploymentInfo\"I\n\x13RegisterTestRequest\x12\x0c\n\x04port\x18\x01 \x01(\x05\x12$\n\x04info\x18\x02 \x01(\x0b\x32\x16.cluster_test.TestInfo\"6\n\x14RegisterTestResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\r\n\x05\x65rror\x18\x02 \x01(\t\"\x12\n\x10ListTestsRequest\":\n\x11ListTestsResponse\x12%\n\x05tests\x18\x01 \x03(\x0b\x32\x16.cluster_test.TestInfo*E\n\x0eOperatorStatus\x12\x0c\n\x08STARTING\x10\x00\x12\t\n\x05READY\x10\x01\x12\r\n\tCONNECTED\x10\x02\x12\x0b\n\x07\x45RRORED\x10\x03*G\n\x10\x44\x65ploymentStatus\x12\x08\n\x04NONE\x10\x00\x12\x0e\n\nINSTALLING\x10\x01\x12\x0c\n\x08UPDATING\x10\x02\x12\x0b\n\x07RUNNING\x10\x03\x32\xda\x04\n\x0f\x43lusterOperator\x12\\\n\x0bHealthCheck\x12$.cluster_operator.HealthCheckRequest\x1a%.cluster_operator.HealthCheckResponse\"\x00\x12h\n\x0fGetOperatorInfo\x12(.cluster_operator.GetOperatorInfoRequest\x1a).cluster_operator.GetOperatorInfoResponse\"\x00\x12n\n\x11GetDeploymentInfo\x12*.cluster_operator.GetDeploymentInfoRequest\x1a+.cluster_operator.GetDeploymentInfoResponse\"\x00\x12_\n\x0cRegisterTest\x12%.cluster_operator.RegisterTestRequest\x1a&.cluster_operator.RegisterTestResponse\"\x00\x12V\n\tListTests\x12\".cluster_operator.ListTestsRequest\x1a#.cluster_operator.ListTestsResponse\"\x00\x12V\n\x0b\x45xecuteTest\x12 .cluster_test.ExecuteTestRequest\x1a!.cluster_test.ExecuteTestResponse\"\x00\x30\x01\x62\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
 _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'cluster_operator_pb2', _globals)
 if _descriptor._USE_C_DESCRIPTORS == False:
   DESCRIPTOR._options = None
-  _globals['_OPERATORSTATUS']._serialized_start=721
-  _globals['_OPERATORSTATUS']._serialized_end=791
-  _globals['_DEPLOYMENTSTATUS']._serialized_start=793
-  _globals['_DEPLOYMENTSTATUS']._serialized_end=864
+  _globals['_OPERATORSTATUS']._serialized_start=704
+  _globals['_OPERATORSTATUS']._serialized_end=773
+  _globals['_DEPLOYMENTSTATUS']._serialized_start=775
+  _globals['_DEPLOYMENTSTATUS']._serialized_end=846
   _globals['_HEALTHCHECKREQUEST']._serialized_start=64
   _globals['_HEALTHCHECKREQUEST']._serialized_end=84
   _globals['_HEALTHCHECKRESPONSE']._serialized_start=86
-  _globals['_HEALTHCHECKRESPONSE']._serialized_end=139
-  _globals['_OPERATORINFO']._serialized_start=141
-  _globals['_OPERATORINFO']._serialized_end=220
-  _globals['_GETOPERATORINFOREQUEST']._serialized_start=222
-  _globals['_GETOPERATORINFOREQUEST']._serialized_end=246
-  _globals['_GETOPERATORINFORESPONSE']._serialized_start=248
-  _globals['_GETOPERATORINFORESPONSE']._serialized_end=319
-  _globals['_DEPLOYMENTINFO']._serialized_start=321
-  _globals['_DEPLOYMENTINFO']._serialized_end=403
-  _globals['_GETDEPLOYMENTINFOREQUEST']._serialized_start=405
-  _globals['_GETDEPLOYMENTINFOREQUEST']._serialized_end=431
-  _globals['_GETDEPLOYMENTINFORESPONSE']._serialized_start=433
-  _globals['_GETDEPLOYMENTINFORESPONSE']._serialized_end=508
-  _globals['_REGISTERTESTREQUEST']._serialized_start=510
-  _globals['_REGISTERTESTREQUEST']._serialized_end=583
-  _globals['_REGISTERTESTRESPONSE']._serialized_start=585
-  _globals['_REGISTERTESTRESPONSE']._serialized_end=639
-  _globals['_LISTTESTSREQUEST']._serialized_start=641
-  _globals['_LISTTESTSREQUEST']._serialized_end=659
-  _globals['_LISTTESTSRESPONSE']._serialized_start=661
-  _globals['_LISTTESTSRESPONSE']._serialized_end=719
-  _globals['_CLUSTEROPERATOR']._serialized_start=867
-  _globals['_CLUSTEROPERATOR']._serialized_end=1469
+  _globals['_HEALTHCHECKRESPONSE']._serialized_end=107
+  _globals['_OPERATORINFO']._serialized_start=109
+  _globals['_OPERATORINFO']._serialized_end=203
+  _globals['_GETOPERATORINFOREQUEST']._serialized_start=205
+  _globals['_GETOPERATORINFOREQUEST']._serialized_end=229
+  _globals['_GETOPERATORINFORESPONSE']._serialized_start=231
+  _globals['_GETOPERATORINFORESPONSE']._serialized_end=302
+  _globals['_DEPLOYMENTINFO']._serialized_start=304
+  _globals['_DEPLOYMENTINFO']._serialized_end=386
+  _globals['_GETDEPLOYMENTINFOREQUEST']._serialized_start=388
+  _globals['_GETDEPLOYMENTINFOREQUEST']._serialized_end=414
+  _globals['_GETDEPLOYMENTINFORESPONSE']._serialized_start=416
+  _globals['_GETDEPLOYMENTINFORESPONSE']._serialized_end=491
+  _globals['_REGISTERTESTREQUEST']._serialized_start=493
+  _globals['_REGISTERTESTREQUEST']._serialized_end=566
+  _globals['_REGISTERTESTRESPONSE']._serialized_start=568
+  _globals['_REGISTERTESTRESPONSE']._serialized_end=622
+  _globals['_LISTTESTSREQUEST']._serialized_start=624
+  _globals['_LISTTESTSREQUEST']._serialized_end=642
+  _globals['_LISTTESTSRESPONSE']._serialized_start=644
+  _globals['_LISTTESTSRESPONSE']._serialized_end=702
+  _globals['_CLUSTEROPERATOR']._serialized_start=849
+  _globals['_CLUSTEROPERATOR']._serialized_end=1451
 # @@protoc_insertion_point(module_scope)

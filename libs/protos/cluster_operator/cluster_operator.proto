@@ -26,22 +26,29 @@ service ClusterOperator {
 
 // HealthCheck
 message HealthCheckRequest {}
-message HealthCheckResponse {
-  bool healthy = 1;
-  string error = 2;
-}
+message HealthCheckResponse {}
 
 // Operator Info
 enum OperatorStatus {
-  NOT_READY = 0;
+  // Starting means that the operator is awaiting for the cluster to ready, and registered with 
+  // the proxy
+  STARTING = 0;
+
+  // Ready means the operator has succesfully connected to the cluster, and all the nodes are healthy.
+  // At this point, the cluster is ready to be registered with the proxy, and also ready for test runners
+  // to register themselves with the cluster
   READY = 1;
+
+  // Connected means the 
   CONNECTED = 2;
+  
   ERRORED = 3;
 }
 
 message OperatorInfo {
   string image = 1;
   OperatorStatus status = 2;
+  string error = 3;
 }
 
 message GetOperatorInfoRequest {}

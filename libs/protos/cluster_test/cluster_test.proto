@@ -12,10 +12,7 @@ service ClusterTest {
 
 // HealthCheck
 message HealthCheckRequest {}
-message HealthCheckResponse {
-  bool healthy = 1;
-  string error = 2;
-}
+message HealthCheckResponse {}
 
 message StepInfo {
   int32 sequence = 1;
