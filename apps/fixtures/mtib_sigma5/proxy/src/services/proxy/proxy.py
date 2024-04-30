@@ -29,8 +29,8 @@ from protos.cluster_operator.cluster_operator_pb2 import (
 from protos.cluster_operator.cluster_operator_pb2_grpc import ClusterOperatorStub
 
 # Private includes
-from .db import ProxyServerDatabase, ClusterEntry
-from .cluster import TestCluster
+from ..db.core import ProxyServerDatabase, ClusterSchema
+from .cluster import TestCluster, TestClusterStatus
 
 
 # -----------------------------------------------------------------------------------------------------
@@ -38,7 +38,7 @@ from .cluster import TestCluster
 # ---------------------------------------------------------------------------------------------------*/
 class ProxyServer:
     def __init__(self, database_path:str):
-        self.registered_clusters:List[TestCluster] = []
+        self.clusters:List[TestCluster] = []
 
         # Read the current file system
         self.db:ProxyServerDatabase = ProxyServerDatabase(database_path)
@@ -49,47 +49,169 @@ class ProxyServer:
         self.registries_url:List[str] = [
             "ccr01.ad.corekinect.com"
         ]
+        
+        # Initialize all the clusters in the system
+        clusters_info = self.db.get_clusters_info()
+        for info in clusters_info:
+            cluster = TestCluster(
+                name=info.name,
+                type=info.type,
+                uuid=info.uuid,
+                registered=False,
+                status=TestClusterStatus.DISCONNECTED,
+                url=None,
+                channel=None,
+                stub=None
+            )
+            self.clusters.append(cluster)
 
         # Start the health check thread
-        health_check_thread = threading.Thread(target=self.__perform_health_checks, daemon=True)
+        health_check_thread = threading.Thread(target=self._cluster_healthchecks_thread, daemon=True)
         health_check_thread.start()
 
     # -------------------------------------------------------------------------------------------------
-    #                                                                             Cluster Health Checks
+    #                                                                       Cluster HealthChecks Thread
     # -----------------------------------------------------------------------------------------------*/
-    def __perform_health_checks(self):
-        """Periodically check the health of each cluster."""
+    def _cluster_healthchecks_thread(self):
         while True:
-            clusters = self.registered_clusters# Snapshot 
+            clusters = self.clusters 
             for cluster in clusters:
-                try:
-                    # Perform a periodic health check to ensure we're still connected and alive
-                    cluster.stub.HealthCheck(HealthCheckRequest())
-                    
-                except grpc.RpcError as e:
-                    logging.error(f"Failed to perform health check on cluster at {cluster.url}. Unregistering from cluster")
-                    cluster.channel.close()
-                    self.registered_clusters.remove(cluster)
+                if cluster.registered and cluster.status == TestClusterStatus.CONNECTED:
+                    try:
+                        # Perform a periodic health check to ensure we're still connected and alive
+                        cluster.stub.HealthCheck(HealthCheckRequest())
+                        
+                    except grpc.RpcError as e:
+                        logging.error(f"Failed to perform health check on cluster at {cluster.url}. Unregistering from cluster")
+                        cluster.channel.close()
+                        self.clusters.remove(cluster)
 
-            time.sleep(1)
-
+            time.sleep(1)    
+    
     # -------------------------------------------------------------------------------------------------
     #                                                                                    Create Cluster
     # -----------------------------------------------------------------------------------------------*/
-    def create_cluster(self, name:str, deployment_path:str) -> Tuple[str, Optional[str]]:
+    def create_cluster(self, name:str, type:str) -> Tuple[str, Optional[str]]:
         """
         Create a new cluster in the server's database. If there's a cluster with the same name already
         registered, function will return false
         """
-        # Let's verify that the deployment is valid
-        error = self.__verify_cluster_deployment(deployment_path)
-        if error: 
-            return f"Invalid deployment: {error}", None
+        # Add a new database entry
+        error, uuid = self.db.create_cluster(name, type)
+        if error:
+            return error, None
         
-        logging.info(f"Deployment passed is valid")
-
-        return self.db.create_cluster(name, deployment_path)
+        # Get the newly added info
+        error, info = self.db.get_cluster_info(uuid)
+        if error:
+            return error, None
+        
+        # Add an entry to the local server cache
+        cluster = TestCluster(
+            name=info.name,
+            type=info.type,
+            uuid=info.uuid,
+            registered=False,
+            status=TestClusterStatus.DISCONNECTED,
+            url=None,
+            channel=None,
+            stub=None
+        )
+        self.clusters.append(cluster)
+            
+        return "", info.uuid
     
+    # -------------------------------------------------------------------------------------------------
+    #                                                                                 List Cluster Info
+    # -----------------------------------------------------------------------------------------------*/
+    def list_clusters(self) -> List[TestCluster]:
+        return self.clusters
+    
+    # -------------------------------------------------------------------------------------------------
+    #                                                                               Delete All Clusters
+    # -----------------------------------------------------------------------------------------------*/
+    def delete_clusters(self) -> str:
+        clusters_to_remove = [cluster for cluster in self.clusters if cluster.status != TestClusterStatus.CONNECTED]
+        
+        for cluster in clusters_to_remove:
+            logging.info(f"Removing cluster {cluster.name} with ID {cluster.uuid}")
+            error = self.db.delete_cluster(cluster.uuid)
+            if error:
+                return error
+            self.clusters.remove(cluster)
+
+        # Log warning for clusters not removed
+        for cluster in self.clusters:
+            if cluster.status == TestClusterStatus.CONNECTED:
+                logging.warning(f"Cannot remove cluster {cluster.name} with ID {cluster.uuid} while it's connected")
+        
+        return ""
+    
+    # -------------------------------------------------------------------------------------------------
+    #                                                                                Delete One Cluster
+    # -----------------------------------------------------------------------------------------------*/
+    def delete_cluster(self, cluster_uuid: str) -> str:
+        # Iterate over a copy of the list to safely remove items while iterating
+        for cluster in list(self.clusters):
+            if cluster.uuid == cluster_uuid:
+                if cluster.status == TestClusterStatus.CONNECTED:
+                    logging.warning(f"Cannot remove cluster {cluster.name} with ID {cluster.uuid} while it's connected")
+                    return f"Cluster {cluster.name} with UUID {cluster_uuid} is currently connected and cannot be removed."
+
+                # Attempt to remove the cluster from the database
+                error = self.db.delete_cluster(cluster.uuid)
+                if error:
+                    return error
+
+                # Remove the cluster from the server's cache
+                self.clusters.remove(cluster)
+                logging.info(f"Removed cluster {cluster.name} with ID {cluster.uuid}")
+                return ""
+
+        return f"Cluster with UUID {cluster_uuid} not found in server."
+    
+    # -------------------------------------------------------------------------------------------------
+    #                                                                                  Register Cluster
+    # -----------------------------------------------------------------------------------------------*/
+    def register_cluster(self, cluster_uuid:str, cluster_url:str) -> str:
+        # Check if the cluster is even created yet
+        cluster:TestCluster = None
+        for c in self.clusters:
+            if c.uuid == cluster_uuid:
+                cluster = c
+                break
+        
+        if cluster is None:
+            return f"Cluster {cluster_uuid} at {cluster_url} was not found in server database. You must create a new cluster first"
+
+        # Check if the cluster is already connected
+        if cluster.registered and cluster.status == TestClusterStatus.CONNECTED:
+            logging.warning(f"Cluster {cluster.name} at {cluster.url} is trying to register while in the connected state. Possible operator software bug?")
+            return ""
+        
+        # Get initial metadata
+        try:            
+            # Create a gRPC channel
+            channel = grpc.insecure_channel(cluster_url)
+
+            # Create a stub using the insecure channel
+            stub = ClusterOperatorStub(channel)
+            
+            # Populate missing fields from entry
+            cluster.url = cluster_url
+            cluster.channel = channel
+            cluster.stub = stub
+            cluster.status = TestClusterStatus.CONNECTED
+            logging.info(f"Cluster {cluster.name} with UUID {cluster.uuid} has been successfully registered and connected.")
+            
+            return ""
+            
+        except grpc.RpcError as e:
+            return f"Failed to connect to cluster at {cluster_url}. Error: {e}"
+        
+    # -------------------------------------------------------------------------------------------------
+    #                                                                                    Create Cluster
+    # -----------------------------------------------------------------------------------------------*/
     def __verify_cluster_deployment(self, deployment_path) -> str:
         # This is a k8s deployment, so what we want to do is
         # 1. guarantee that it's a pod, and
@@ -217,7 +339,7 @@ class ProxyServer:
     def get_cluster_tests(self, cluster_uuid:str) -> Tuple[str, Optional[List[TestInfo]]]:
         # Check if the cluster is already connected
         cluster:TestCluster = None
-        for c in self.registered_clusters:
+        for c in self.clusters:
             if c.uuid == cluster_uuid:
                 cluster = c
             
@@ -231,67 +353,12 @@ class ProxyServer:
         except grpc.RpcError as e:
             return f"Unable to get tests for cluster at {cluster.url} info over gRPC method ListTests(): {e}", None
     
-    # -------------------------------------------------------------------------------------------------
-    #                                                                                  Register Cluster
-    # -----------------------------------------------------------------------------------------------*/
-    def register_cluster(self, cluster_uuid:str, cluster_url:str) -> str:
-        """
-        Register a new cluster to the server. This involves this proxy 
-        connecting to the cluster at hand
-        """
-
-        # Check if the cluster is even created yet
-        cluster_created:bool = False
-        for uuid in self.db.get_cluster_uuids():
-            if uuid == cluster_uuid:
-                cluster_created = True
-                break
-        
-        if not cluster_created:
-            return f"Cluster {cluster_uuid} at {cluster_url} was not found in server database. You must create a new cluster first"
-
-        # Check if the cluster is already connected
-        for cluster in self.registered_clusters:
-            if cluster.url == cluster_url:
-                return ""
-        
-        # Get initial metadata
-        error = self.__connect_to_cluster(cluster_uuid, cluster_url)
-        if error:
-            return f"Unable to get cluster info: {error}. Did you "
-        
-        return ""
     
-    def __connect_to_cluster(self, cluster_uuid:str, cluster_url:str) -> str:
-        try:            
-            # Create a gRPC channel
-            channel = grpc.insecure_channel(cluster_url)
-
-            # Create a stub using the insecure channel
-            stub = ClusterOperatorStub(channel)
-            
-            # Append a new cluster to our in memory cache
-            connected_cluster:TestCluster = TestCluster(
-                uuid=cluster_uuid,
-                url=cluster_url,
-                channel=channel,
-                stub=stub
-            )
-            
-            self.registered_clusters.append(connected_cluster)
-
-            logging.info(f"Successfully connected to cluster at {cluster_url}!")
-            return ""
-
-        except grpc.RpcError as e:
-            return f"Failed to connect to cluster at {cluster_url}. Error: {e}"
         
     # -------------------------------------------------------------------------------------------------
     #                                                                                      Get Clusters
     # -----------------------------------------------------------------------------------------------*/
-    def get_clusters(self) -> List[TestCluster]:
-        """Get a cluster's information by ID."""
-        return self.registered_clusters
+    
     
     # -------------------------------------------------------------------------------------------------
     #                                                                                  Get Cluster Info
@@ -339,9 +406,6 @@ class ProxyServer:
     # -------------------------------------------------------------------------------------------------
     #                                                                                    Cluster Delete
     # -----------------------------------------------------------------------------------------------*/
-    def delete_cluster(self, cluster_uuid:str) -> str:
-        """Remove a cluster from the list by ID."""
-        return self.db.delete_cluster(cluster_uuid)
     
     
 
