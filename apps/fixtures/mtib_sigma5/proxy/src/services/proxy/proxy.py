@@ -3,6 +3,7 @@ import grpc
 import uuid
 import shutil
 import yaml
+import sys
 import os
 import time
 import json
@@ -28,55 +29,101 @@ from protos.cluster_operator.cluster_operator_pb2 import (
 )
 from protos.cluster_operator.cluster_operator_pb2_grpc import ClusterOperatorStub
 
-# Private includes
-from ..db.core import ProxyServerDatabase, ClusterSchema
-from .cluster import TestCluster, TestClusterStatus
+# App includes
+from services.db import Database, DatabaseConfiguration
+from services.proxy.types import Cluster, ClusterType, ClusterStatus
 
-
-# -----------------------------------------------------------------------------------------------------
-#                                                                                          Proxy Server 
-# ---------------------------------------------------------------------------------------------------*/
+# ----------------------------------------------------------------------------------
+#                                                                      Configuration
+# --------------------------------------------------------------------------------*/
+class ProxyServerConfiguration:
+    """
+    Attributes:
+        db_storage_path (str): File system path for the internal database.
+        supported_registries (List[str]): Where developers will store deployment images.
+    """
+    def __init__(self,
+                db_storage_path:str,
+                db_storage_limit_gb:int, 
+                supported_registries:List[str]
+                ):
+        self.db_storage_path:str = db_storage_path
+        self.db_storage_limit_gb:str = db_storage_limit_gb
+        self.supported_registries:List[str] = supported_registries
+    
+# ----------------------------------------------------------------------------------
+#                                                                         Main Class
+# --------------------------------------------------------------------------------*/
 class ProxyServer:
-    def __init__(self, database_path:str):
-        self.clusters:List[TestCluster] = []
-
-        # Read the current file system
-        self.db:ProxyServerDatabase = ProxyServerDatabase(database_path)
-        err = self.db.init()
-        if err:
-            raise ValueError("Unable to initiate database")
-
-        self.registries_url:List[str] = [
-            "ccr01.ad.corekinect.com"
-        ]
+    ###
+    # @TODO:
+    # - Documentation for class
+    ###
+    
+    # -----------------------------------------------------------------------------
+    #                                                                          Init
+    #  --------------------------------------------------------------------------*/
+    def __init__(self):
+        self.initialized = False
+        self.config:ProxyServerConfiguration = None
         
-        # Initialize all the clusters in the system
+        # Objects we manage
+        self.clusters:List[Cluster] = []
+
+    def init(self, config:ProxyServerConfiguration) -> str:
+        if self.initialized:
+            return "Do not initialize class again."
+        
+        self.config = config
+        
+        # Initialize the server's database
+        db_config:DatabaseConfiguration = DatabaseConfiguration(
+            db_storage_path=self.config.db_storage_path,
+            storage_limit_gb=self.config.db_storage_limit_gb,
+            storage_full_cb=self._db_storage_full_cb
+        )
+        self.db:Database = Database()
+        
+        error = self.db.init(db_config)
+        if error:
+            return f"Proxy server could not initialize database: {error}"
+        
+        # Populate our own objects based on the database info
         clusters_info = self.db.get_clusters_info()
         for info in clusters_info:
-            cluster = TestCluster(
+            cluster = Cluster(
                 name=info.name,
                 type=info.type,
                 uuid=info.uuid,
                 registered=False,
-                status=TestClusterStatus.DISCONNECTED,
+                status=ClusterStatus.DISCONNECTED,
                 url=None,
                 channel=None,
                 stub=None
             )
             self.clusters.append(cluster)
 
-        # Start the health check thread
-        health_check_thread = threading.Thread(target=self._cluster_healthchecks_thread, daemon=True)
-        health_check_thread.start()
-
-    # -------------------------------------------------------------------------------------------------
-    #                                                                       Cluster HealthChecks Thread
-    # -----------------------------------------------------------------------------------------------*/
+        logging.info(f"{len(self.clusters)} clusters are being managed by the server")
+        
+        # Start server threads
+        self.health_check_thread = threading.Thread(target=self._cluster_healthchecks_thread, daemon=True)
+        self.health_check_thread.start()
+    
+    # -----------------------------------------------------------------------------
+    #                                                                     Callbacks
+    #  --------------------------------------------------------------------------*/
+    def _db_storage_full_cb(self, error):
+        logging.error(f"Server ran out of storage :( , database error: {error}")
+        sys.exit(1)
+        
+    # -----------------------------------------------------------------------------
+    #                                                                       Threads
+    #  --------------------------------------------------------------------------*/
     def _cluster_healthchecks_thread(self):
         while True:
             clusters = self.clusters 
             for cluster in clusters:
-                if cluster.registered and cluster.status == TestClusterStatus.CONNECTED:
+                if cluster.registered and cluster.status == ClusterStatus.CONNECTED:
                     try:
                         # Perform a periodic health check to ensure we're still connected and alive
                         cluster.stub.HealthCheck(HealthCheckRequest())
@@ -88,78 +135,73 @@ class ProxyServer:
 
             time.sleep(1)    
     
-    # -------------------------------------------------------------------------------------------------
-    #                                                                                    Create Cluster
-    # -----------------------------------------------------------------------------------------------*/
-    def create_cluster(self, name:str, type:str) -> Tuple[str, Optional[str]]:
+    # -----------------------------------------------------------------------------
+    #                                                               Cluster Methods
+    #  --------------------------------------------------------------------------*/
+    def clusters_create(self, name:str, type:str) -> Tuple[str, Optional[str]]:
         """
         Create a new cluster in the server's database. If there's a cluster with the same name already
         registered, function will return false
         """
+        # Check that we support the type
+        if not ClusterType.is_valid_type(type):
+            return f"Unsupported cluster type '{type}'.", None
+        
         # Add a new database entry
-        error, uuid = self.db.create_cluster(name, type)
+        error, uuid = self.db.cluster_create(name, type)
         if error:
             return error, None
         
         # Get the newly added info
-        error, info = self.db.get_cluster_info(uuid)
+        error, info = self.db.cluster_get_info(uuid)
         if error:
             return error, None
         
         # Add an entry to the local server cache
-        cluster = TestCluster(
+        cluster = Cluster(
             name=info.name,
             type=info.type,
             uuid=info.uuid,
             registered=False,
-            status=TestClusterStatus.DISCONNECTED,
+            status=ClusterStatus.DISCONNECTED,
             url=None,
             channel=None,
             stub=None
         )
         self.clusters.append(cluster)
-            
-        return "", info.uuid
+        
+        logging.info(f"Created proxy {cluster.name} with ID {cluster.uuid} succesfully")
+        return "", uuid
     
-    # -------------------------------------------------------------------------------------------------
-    #                                                                                 List Cluster Info
-    # -----------------------------------------------------------------------------------------------*/
-    def list_clusters(self) -> List[TestCluster]:
+    def clusters_get(self) -> List[Cluster]:
         return self.clusters
     
-    # -------------------------------------------------------------------------------------------------
-    #                                                                               Delete All Clusters
-    # -----------------------------------------------------------------------------------------------*/
-    def delete_clusters(self) -> str:
-        clusters_to_remove = [cluster for cluster in self.clusters if cluster.status != TestClusterStatus.CONNECTED]
+    def clusters_delete_all(self) -> str:
+        clusters_to_remove = [cluster for cluster in self.clusters if cluster.status != ClusterStatus.CONNECTED]
         
         for cluster in clusters_to_remove:
             logging.info(f"Removing cluster {cluster.name} with ID {cluster.uuid}")
-            error = self.db.delete_cluster(cluster.uuid)
+            error = self.db.cluster_delete(cluster.uuid)
             if error:
                 return error
             self.clusters.remove(cluster)
 
         # Log warning for clusters not removed
         for cluster in self.clusters:
-            if cluster.status == TestClusterStatus.CONNECTED:
+            if cluster.status == ClusterStatus.CONNECTED:
                 logging.warning(f"Cannot remove cluster {cluster.name} with ID {cluster.uuid} while it's connected")
         
         return ""
     
-    # -------------------------------------------------------------------------------------------------
-    #                                                                                Delete One Cluster
-    # -----------------------------------------------------------------------------------------------*/
-    def delete_cluster(self, cluster_uuid: str) -> str:
+    def clusters_delete_one(self, cluster_uuid: str) -> str:
         # Iterate over a copy of the list to safely remove items while iterating
         for cluster in list(self.clusters):
             if cluster.uuid == cluster_uuid:
-                if cluster.status == TestClusterStatus.CONNECTED:
-                    logging.warning(f"Cannot remove cluster {cluster.name} with ID {cluster.uuid} while it's connected")
+                if cluster.status == ClusterStatus.CONNECTED:
                     return f"Cluster {cluster.name} with UUID {cluster_uuid} is currently connected and cannot be removed."
 
-                # Attempt to remove the cluster from the database
-                error = self.db.delete_cluster(cluster.uuid)
+                # Update database
+                error = self.db.cluster_delete(cluster.uuid)
                 if error:
                     return error
 
@@ -170,12 +212,9 @@ class ProxyServer:
 
         return f"Cluster with UUID {cluster_uuid} not found in server."
     
-    # -------------------------------------------------------------------------------------------------
-    #                                                                                  Register Cluster
-    # -----------------------------------------------------------------------------------------------*/
-    def register_cluster(self, cluster_uuid:str, cluster_url:str) -> str:
+    def clusters_register(self, cluster_uuid:str, cluster_url:str) -> str:
         # Check if the cluster is even created yet
-        cluster:TestCluster = None
+        cluster:Cluster = None
         for c in self.clusters:
             if c.uuid == cluster_uuid:
                 cluster = c
@@ -185,7 +224,7 @@ class ProxyServer:
             return f"Cluster {cluster_uuid} at {cluster_url} was not found in server database. You must create a new cluster first"
 
         # Check if the cluster is already connected
-        if cluster.registered and cluster.status == TestClusterStatus.CONNECTED:
+        if cluster.registered and cluster.status == ClusterStatus.CONNECTED:
             logging.warning(f"Cluster {cluster.name} at {cluster.url} is trying to register while in the connected state. Possible operator software bug?")
             return ""
         
@@ -201,14 +240,14 @@ class ProxyServer:
             cluster.url = cluster_url
             cluster.channel = channel
             cluster.stub = stub
-            cluster.status = TestClusterStatus.CONNECTED
+            cluster.status = ClusterStatus.CONNECTED
             logging.info(f"Cluster {cluster.name} with UUID {cluster.uuid} has been successfully registered and connected.")
             
             return ""
             
         except grpc.RpcError as e:
             return f"Failed to connect to cluster at {cluster_url}. Error: {e}"
-        
+             
     # -------------------------------------------------------------------------------------------------
     #                                                                                    Create Cluster
     # -----------------------------------------------------------------------------------------------*/
@@ -243,19 +282,19 @@ class ProxyServer:
             # Check if the registry URL of the container image is in the list of known registry URLs
             image_registry_url = urlparse(container_image).netloc
             if image_registry_url:
-                if image_registry_url not in self.registries_url:
+                if image_registry_url not in self.supported_registries:
                     return f"Container image '{container_image}' is from an unknown registry: {image_registry_url}"
             else:
                 # If no registry URL is specified in the container image, assume it's from one of the known registries
-                if not any(registry_url in container_image for registry_url in self.registries_url):
-                    return f"Container image '{container_image}' is from an unknown registry, valid options: {self.registries_url}"
+                if not any(registry_url in container_image for registry_url in self.supported_registries):
+                    return f"Container image '{container_image}' is from an unknown registry, valid options: {self.supported_registries}"
 
         # Check if all container images exist in the registries
         client = docker.from_env()
         logging.debug(f"Images {container_images}")
         for image in container_images:
             found = False
-            for registry_url in self.registries_url:
+            for registry_url in self.supported_registries:
                 try:
                     # Connect to the registry and check if the image exists
                     client.images.get_registry_data(image, registry_url)
@@ -338,7 +377,7 @@ class ProxyServer:
     # -----------------------------------------------------------------------------------------------*/
     def get_cluster_tests(self, cluster_uuid:str) -> Tuple[str, Optional[List[TestInfo]]]:
         # Check if the cluster is already connected
-        cluster:TestCluster = None
+        cluster:Cluster = None
         for c in self.clusters:
             if c.uuid == cluster_uuid:
                 cluster = c
@@ -365,7 +404,7 @@ class ProxyServer:
     # -----------------------------------------------------------------------------------------------*/
     def get_cluster_info(self, cluster_uuid: str) -> Tuple[str, Optional[dict]]:
         """Get a cluster's information by UUID."""
-        return self.db.get_cluster_info(cluster_uuid)
+        return self.db.cluster_get_info(cluster_uuid)
 
     # -------------------------------------------------------------------------------------------------
     #                                                                                      Get Clusters
@@ -406,8 +445,6 @@ class ProxyServer:
     # -------------------------------------------------------------------------------------------------
     #                                                                                    Cluster Delete
     # -----------------------------------------------------------------------------------------------*/
-    
-    
 
 # Class Singleton                
-proxy_server:ProxyServer = ProxyServer(conf.DB_PATH) 
+appProxyServer:ProxyServer = ProxyServer() 
