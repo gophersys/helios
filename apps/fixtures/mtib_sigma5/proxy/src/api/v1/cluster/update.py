@@ -10,7 +10,7 @@ from werkzeug.utils import secure_filename
 from flask import Blueprint, jsonify, request, Request, Response
 
 # Server services
-from src.services.proxy import proxy_server
+from src.services.proxy import appProxyServer
 
 # Route blue print
 cluster_update_bp = Blueprint('cluster_update', __name__)
@@ -33,7 +33,7 @@ def update_cluster(uuid):
         temp_file_path = os.path.join(temp_dir, unique_filename)
         deployment_file.save(temp_file_path)
 
-        error = proxy_server.update_cluster(uuid, temp_file_path)
+        error = appProxyServer.update_cluster(uuid, temp_file_path)
         if error:
             return jsonify({"error": error}), 400
         else:

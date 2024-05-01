@@ -6,7 +6,7 @@ from typing import List
 from flask import Blueprint, jsonify, request 
 
 # Application server
-from src.services.proxy import proxy_server, TestInfo
+from src.services.proxy import appProxyServer, TestInfo
 
 # Route blue print
 cluster_tests_list_bp = Blueprint('tests_list', __name__)
@@ -18,7 +18,7 @@ def tests_list(cluster_uuid):
     
     # Register the cluster with the server
     tests:List[TestInfo] 
-    error, tests = proxy_server.get_cluster_tests(cluster_uuid)
+    error, tests = appProxyServer.get_cluster_tests(cluster_uuid)
     if error:
         return jsonify({"error": f"Unable to read tests from cluster: {error}"}), 404
 

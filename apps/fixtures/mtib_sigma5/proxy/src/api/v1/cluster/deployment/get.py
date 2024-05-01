@@ -3,7 +3,7 @@ import logging
 import os
 
 # Assuming proxy_server is already imported and initialized
-from src.services.proxy import proxy_server
+from src.services.proxy import appProxyServer
 
 # Define the Blueprint for the route
 cluster_get_deployment_bp = Blueprint('cluster_get_deployment', __name__)
@@ -15,7 +15,7 @@ def read_cluster_deployment(uuid, deployment):
     """
     try:
         # Retrieve cluster information from proxy server
-        error, cluster_info = proxy_server.get_cluster_info(uuid)
+        error, cluster_info = appProxyServer.get_cluster_info(uuid)
         if error:
             return jsonify({"error": error}), 400
 
