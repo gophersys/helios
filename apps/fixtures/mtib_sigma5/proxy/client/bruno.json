@@ -1,0 +1,9 @@
+{
+  "version": "1",
+  "name": "Concord Proxy Client",
+  "type": "collection",
+  "ignore": [
+    "node_modules",
+    ".git"
+  ]
+}
