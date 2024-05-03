@@ -46,14 +46,7 @@ if __name__ == '__main__':
         proxy_url=conf.PROXY_SERVER_URL,
         registry_port=conf.LOCAL_REGISTRY_PORT,
         grpc_server_url=f"{socket.gethostname()}:{conf.GRPC_SERVER_PORT}",
-        runners_hostnames=[
-            "control-plane",
-            "slot-1",
-            "slot-2",
-            "slot-3",
-            "slot-4",
-            "slot-5"
-        ],
+        nodes_hostnames=conf.NODES_HOSTNAMES,
         kubeconfig_path=conf.KUBECONFIG_PATH
     )
     

@@ -53,13 +53,13 @@ class ClusterOperatorConfig:
                  proxy_url:str,
                  registry_port:int,
                  grpc_server_url:str,
-                 runners_hostnames:List[str],
+                 nodes_hostnames:List[str],
                  kubeconfig_path:str):
         self.uuid:str = uuid
         self.proxy_url:str = proxy_url
         self.registry_port:int = registry_port
         self.grpc_server_url:str = grpc_server_url
-        self.runners_hostnames:List[str] = runners_hostnames
+        self.nodes_hostnames:List[str] = nodes_hostnames
         self.kubeconfig_path:str = kubeconfig_path
 
 # -------------------------------------------------------------------------------------------------
@@ -278,7 +278,7 @@ class ClusterOperator:
 
         start_time = time.time()
         timeout = self.HOST_STARTUP_TIMEOUT_S
-        unreachable_runners = self.config.runners_hostnames.copy()
+        unreachable_nodes = self.config.nodes_hostnames.copy()
 
         # Function to ping a single host
         def ping_host(hostname):
@@ -286,8 +286,8 @@ class ClusterOperator:
                 response = subprocess.run(["ping", "-c", "1", "-W", "1", hostname], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                 if response.returncode == 0:
                     logging.debug(f"Successfully pinged {hostname}.")
-                    if hostname in unreachable_runners:
-                        unreachable_runners.remove(hostname)
+                    if hostname in unreachable_nodes:
+                        unreachable_nodes.remove(hostname)
                 else:
                     logging.debug(f"Host {hostname} not yet reachable.")
             except Exception as e:
@@ -297,8 +297,8 @@ class ClusterOperator:
         threads = []
 
         # Keep pinging until all hosts are reachable or timeout occurs
-        while time.time() - start_time < timeout and unreachable_runners:
-            for hostname in unreachable_runners[:]:
+        while time.time() - start_time < timeout and unreachable_nodes:
+            for hostname in unreachable_nodes[:]:
                 thread = threading.Thread(target=ping_host, args=(hostname,))
                 threads.append(thread)
                 thread.start()
@@ -309,10 +309,10 @@ class ClusterOperator:
 
             time.sleep(0.2)  # Sleep to prevent too many rapid pings
 
-        if not unreachable_runners:
+        if not unreachable_nodes:
             return ""
         else:
-            unreachable_hosts = ', '.join(unreachable_runners)
+            unreachable_hosts = ', '.join(unreachable_nodes)
             return f"Timeout reached. Could not verify hosts: {unreachable_hosts}"
         
     def __await_for_k8s_nodes(self) -> str:

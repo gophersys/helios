@@ -1,7 +1,7 @@
 import os, builtins
 import logging
 from dotenv import load_dotenv
-from typing import Optional, Any, Type
+from typing import Optional, Any, Type, List
 from .log import setup_logging
 
 class Config:
@@ -20,6 +20,7 @@ class Config:
     GRPC_SERVER_PORT: int
     LOCAL_REGISTRY_PORT: int
     KUBECONFIG_PATH: str
+    NODES_HOSTNAMES: List[str]
 
     def __new__(cls: Type['Config']) -> 'Config':
         """
@@ -62,6 +63,7 @@ class Config:
         self.GRPC_SERVER_PORT = self._get_env_var('GRPC_SERVER_PORT', int)
         self.LOCAL_REGISTRY_PORT = self._get_env_var('LOCAL_REGISTRY_PORT', int)
         self.KUBECONFIG_PATH = self._get_env_var('KUBECONFIG_PATH', str)
+        self.NODES_HOSTNAMES = self._get_env_var_list('NODES_HOSTNAMES', str, delimiter=',')
 
     def _get_env_var(self,
                      var_name: str,
@@ -99,7 +101,37 @@ class Config:
         except ValueError:
             received_type = type(value_str).__name__
             raise TypeError(f"Environment variable '{var_name}' should be of type '{expected_type.__name__}', but got value '{value_str}' of type '{received_type}'.")
+        
+    def _get_env_var_list(self, var_name: str, expected_type: type, delimiter: str = ',', default: Optional[List[Any]] = None) -> List:
+        """
+        Retrieves an environment variable intended to be a list and converts it to the expected type.
 
+        Args:
+            var_name (str): The name of the environment variable.
+            expected_type (Type[T]): The type to which each list item is expected to be converted.
+            delimiter (str): The delimiter used to split the environment variable string into a list.
+            default (Optional[List[Any]], optional): The default value to use if the environment variable is not found.
+
+        Returns:
+            List[T]: The list of values, each converted to the expected type.
+
+        Raises:
+            EnvironmentError: If the environment variable is not found and no default is provided.
+            ValueError, TypeError: If conversion to the expected type fails.
+        """
+        value_str = os.getenv(var_name)
+        if value_str is None:
+            if default is not None:
+                return default
+            else:
+                raise EnvironmentError(f"Environment variable '{var_name}' not found.")
+
+        items = value_str.split(delimiter)
+        try:
+            return [expected_type(item.strip()) for item in items]
+        except ValueError:
+            raise ValueError(f"Conversion error for one or more items in '{var_name}'.")
+        
     def __str__(self) -> str:
         """
         Provides a string representation of all the configuration attributes.
