@@ -1,4 +1,5 @@
 import logging
+import docker.errors
 import grpc
 import uuid
 import shutil
@@ -13,7 +14,6 @@ import threading
 from typing import List, Tuple, Optional
 import docker
 from pathlib import Path
-
 
 from config import conf
 
@@ -69,6 +69,11 @@ class ProxyServer:
         
         # Objects we manage
         self.clusters:List[Cluster] = []
+        
+        # Docker info
+        logger = logging.getLogger('docker')
+        logger.setLevel(logging.INFO)
+        self.docker_client:docker.DockerClient = None
 
     def init(self, config:ProxyServerConfiguration) -> str:
         if self.initialized:
@@ -93,7 +98,7 @@ class ProxyServer:
         for info in clusters_info:
             cluster = Cluster(
                 name=info.name,
-                type=info.type,
+                type=ClusterType.from_string(info.type),
                 uuid=info.uuid,
                 registered=False,
                 status=ClusterStatus.DISCONNECTED,
@@ -104,6 +109,9 @@ class ProxyServer:
             self.clusters.append(cluster)
 
         logging.info(f"{len(self.clusters)} clusters are being managed by the server")
+        
+        # Services we use
+        self.docker_client = docker.from_env()
         
         # Start server threads
         self.health_check_thread = threading.Thread(target=self._cluster_healthchecks_thread, daemon=True)
@@ -160,7 +168,7 @@ class ProxyServer:
         # Add an entry to the local server cache
         cluster = Cluster(
             name=info.name,
-            type=info.type,
+            type=ClusterType.from_string(info.type),
             uuid=info.uuid,
             registered=False,
             status=ClusterStatus.DISCONNECTED,
@@ -240,6 +248,7 @@ class ProxyServer:
             cluster.url = cluster_url
             cluster.channel = channel
             cluster.stub = stub
+            cluster.registered = True
             cluster.status = ClusterStatus.CONNECTED
             logging.info(f"Cluster {cluster.name} with UUID {cluster.uuid} has been successfully registered and connected.")
             
@@ -247,21 +256,56 @@ class ProxyServer:
             
         except grpc.RpcError as e:
             return f"Failed to connect to cluster at {cluster_url}. Error: {e}"
-             
-    # -------------------------------------------------------------------------------------------------
-    #                                                                                    Create Cluster
-    # -----------------------------------------------------------------------------------------------*/
-    def __verify_cluster_deployment(self, deployment_path) -> str:
-        # This is a k8s deployment, so what we want to do is
-        # 1. guarantee that it's a pod, and
-        # 2. search for all the container images in the registries we have access to
+    
+    # -----------------------------------------------------------------------------
+    #                                                   Cluster Deployments Methods
+    #  --------------------------------------------------------------------------*/ 
+    def deployment_create(self, cluster_uuid:str, deployment_file_path:str) -> Tuple[str, Optional[str]]:
+        # Make sure the contents of the file make sense
+        error = self._deployment_verify(deployment_file_path)
+        if error:
+            return f"Deployment is not valid: {error}", None
+        
+        # Create a new entry in the database
+        error, deployment_uuid = self.db.cluster_deployment_create(cluster_uuid, deployment_file_path)
+        if error:
+            return f"Unable to save new deployment to database: {error}"
+        
+        logging.info(f"New deployment created for cluster {cluster_uuid}")
+        return "", deployment_uuid
+    
+    def deployment_delete_one(self, cluster_uuid:str, deployment_uuid:str) -> str:
+        # First find the cluster
+        cluster:Cluster = None
+        for c in list(self.clusters):
+            if c.uuid == cluster_uuid:
+                cluster = c
+                
+        if cluster is None:
+            return f"Cluster with UUID {cluster_uuid} not found in server."
+        
+        # Delete from the database
+        error = self.db.cluster_deployment_delete(cluster_uuid, deployment_uuid)
+        if error:
+            return f"Unable to save new deployment to database: {error}"
+        
+        logging.info(f"Removed deployment {deployment_uuid} for cluster {cluster_uuid}")
+        return ""
+    
+    # -----------------------------------------------------------------------------
+    #                                                             Deployment Verify
+    #  --------------------------------------------------------------------------*/ 
+    def _deployment_verify(self, deployment_file_path) -> str:
+        """
+        
+        """
 
         # Read the deployment file content
         try:
-            with open(deployment_path, 'r') as f:
+            with open(deployment_file_path, 'r') as f:
                 deployment = f.read()
         except FileNotFoundError:
-            return f"Deployment file '{deployment_path}' not found"
+            return f"Deployment file '{deployment_file_path}' not found"
 
         # Parse the deployment as YAML
         try:
@@ -272,7 +316,7 @@ class ProxyServer:
         # Check if the deployment is a Pod or Deployment
         if deployment_yaml['kind'] != 'Deployment':
             return "File is not a Kubernetes Deployment type"
-
+        
         # Find all container images in the deployment
         container_images = []
         for container in deployment_yaml['spec']['template']['spec']['containers']:
@@ -282,30 +326,39 @@ class ProxyServer:
             # Check if the registry URL of the container image is in the list of known registry URLs
             image_registry_url = urlparse(container_image).netloc
             if image_registry_url:
-                if image_registry_url not in self.supported_registries:
+                if image_registry_url not in self.config.supported_registries:
                     return f"Container image '{container_image}' is from an unknown registry: {image_registry_url}"
             else:
                 # If no registry URL is specified in the container image, assume it's from one of the known registries
-                if not any(registry_url in container_image for registry_url in self.supported_registries):
-                    return f"Container image '{container_image}' is from an unknown registry, valid options: {self.supported_registries}"
+                if not any(registry_url in container_image for registry_url in self.config.supported_registries):
+                    return f"Container image '{container_image}' is from an unknown registry, valid options: {self.config.supported_registries}"
 
-        # Check if all container images exist in the registries
-        client = docker.from_env()
-        logging.debug(f"Images {container_images}")
+       # Check if all container images exist in the registries and support arm64 architecture
         for image in container_images:
             found = False
-            for registry_url in self.supported_registries:
+            arm64_supported = False
+            for registry_url in self.config.supported_registries:
                 try:
                     # Connect to the registry and check if the image exists
-                    client.images.get_registry_data(image, registry_url)
+                    image_data = self.docker_client.images.get_registry_data(image, registry_url)
                     found = True
-                    logging.info(f"Image {image} found!")
-                    break
+                    # Check for arm64 support using the has_platform method
+                    if image_data.has_platform('linux/arm64'):
+                        arm64_supported = True
+                        logging.info(f"Image {image} with arm64 support found!")
+                        break
                 except docker.errors.NotFound:
                     pass
+                except docker.errors.APIError as e:
+                    logging.error(f"API error while fetching image data: {e}")
+                    return f"API error while checking image '{image}'"
+
             if not found:
                 return f"Container image '{image}' not found in known registries"
+            if not arm64_supported:
+                return f"Container image '{image}' does not support arm64 architecture"
 
+        logging.info("All images in deployment found with arm64 support in the registries")
         return ""
     
     # -------------------------------------------------------------------------------------------------
@@ -315,7 +368,7 @@ class ProxyServer:
         """Remove a cluster from the list by ID."""
 
         # Let's verify that the deployment is valid
-        error = self.__verify_cluster_deployment(deployment_path)
+        error = self._deployment_verify(deployment_path)
         if error: 
             return f"Invalid deployment: {error}", None
         

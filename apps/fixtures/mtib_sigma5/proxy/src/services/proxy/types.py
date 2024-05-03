@@ -33,6 +33,13 @@ class ClusterType(Enum):
             return True
         except KeyError:
             return False
+    
+    @staticmethod
+    def from_string(type_str:str):
+        if type_str == "Manufacturing":
+            return ClusterType.MANUFACTURING
+        else:
+            return None
         
     def to_string(self):
         if self == ClusterType.MANUFACTURING:
