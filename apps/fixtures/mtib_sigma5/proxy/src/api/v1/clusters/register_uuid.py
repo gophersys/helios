@@ -8,9 +8,9 @@ from flask import Blueprint, request, jsonify
 from src.services.proxy import appProxyServer
 
 # Flask Route
-clusters_register_uuid_bp = Blueprint('clusters_register', __name__)
+clusters_register_uuid_bp = Blueprint('clusters_register_uuid', __name__)
 @clusters_register_uuid_bp.route('/v1/clusters/<uuid>/register', methods=['POST'])
-def register_cluster(uuid):
+def clusters_register_uuid_cluster(uuid):
     try:
         # Validate url fields
         if not uuid:

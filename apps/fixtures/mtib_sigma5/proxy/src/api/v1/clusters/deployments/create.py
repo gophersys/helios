@@ -19,6 +19,13 @@ def clusters_deployments_create_handler(uuid):
         if not uuid:
             return jsonify({"error": "Bad request, malformed url."}), 400
 
+        # Access the cluster name from the request
+        name = request.form.get('name')  # For form data
+        if not name:
+            name = request.json.get('name')  # For JSON data
+            if not name:
+                return jsonify({"error": "Bad request, 'name' field is required."}), 400
+
         # Access JSON data from the request
         file = request.files.get('file')
         if not file:
@@ -30,7 +37,7 @@ def clusters_deployments_create_handler(uuid):
         file.save(temp_file_path)
         
         # Call App
-        error, cluster_uuid = appProxyServer.deployment_create(uuid, temp_file_path)
+        error, cluster_uuid = appProxyServer.cluster_deployments_create(uuid, name, temp_file_path)
         
         os.remove(temp_file_path) # Delete the temporary file created regardless of request success
         

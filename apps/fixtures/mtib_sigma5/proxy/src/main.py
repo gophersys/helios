@@ -14,7 +14,7 @@ server = Flask(__name__)
 # ----------------------------------------------------------------------------------
 #                                                                             Routes
 # --------------------------------------------------------------------------------*/
-from api.v1.health.healthcheck import (                                                 
+from api.v1.healthcheck import (                                                 
     healthcheck_bp,                                                                     # POST /v1/healthcheck
     HealthLogFilter
     )
@@ -23,6 +23,9 @@ server.register_blueprint(healthcheck_bp)
 # Clusters
 from api.v1.clusters.create import clusters_create_bp                                   # POST /v1/clusters
 server.register_blueprint(clusters_create_bp)
+
+from api.v1.clusters.get_uuid import clusters_get_uuid_bp                               # GET /v1/clusters/<uuid>
+server.register_blueprint(clusters_get_uuid_bp)
 
 from api.v1.clusters.list import clusters_list_bp                                       # GET /v1/clusters
 server.register_blueprint(clusters_list_bp)
@@ -40,8 +43,20 @@ server.register_blueprint(clusters_register_uuid_bp)
 from api.v1.clusters.deployments.create import clusters_deployments_create_bp           # POST /v1/clusters/<uuid>/deployments
 server.register_blueprint(clusters_deployments_create_bp)
 
+from api.v1.clusters.deployments.get_uuid import clusters_deployments_get_uuid_bp       # GET /v1/clusters/<uuid>/deployments/<uuid>
+server.register_blueprint(clusters_deployments_get_uuid_bp)
+
+from api.v1.clusters.deployments.list import clusters_deployments_list_bp               # GET /v1/clusters/<uuid>/deployments
+server.register_blueprint(clusters_deployments_list_bp)
+
+from api.v1.clusters.deployments.delete_all import clusters_deployments_delete_all_bp   # DELETE /v1/clusters/<uuid>/deployments
+server.register_blueprint(clusters_deployments_delete_all_bp)
+
 from api.v1.clusters.deployments.delete_uuid import clusters_deployments_delete_uuid_bp # DELETE /v1/clusters/<uuid>/deployments/<uuid>
 server.register_blueprint(clusters_deployments_delete_uuid_bp)
+
+from api.v1.clusters.deployments.apply_uuid import clusters_deployments_apply_uuid_bp   # POST /v1/clusters/<uuid>/deployments/<uuid>/apply
+server.register_blueprint(clusters_deployments_apply_uuid_bp)
 
 # ----------------------------------------------------------------------------------
 #                                                                              Entry 

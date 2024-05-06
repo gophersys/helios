@@ -15,18 +15,20 @@ def clusters_list_handler():
     try:
         # Route has no input
         
+        # Call app
         clusters:List[Cluster] = appProxyServer.clusters_get()
 
         # Construct a response list of clusters
         clusters_response = []
         for cluster in clusters:
             cluster_dict = {
-                "name": cluster.name,
-                "type": ClusterType.to_string(cluster.type),
-                "uuid": cluster.uuid,
-                "registered": cluster.registered,
+                "name": cluster.info.name,
+                "type": ClusterType.to_string(cluster.info.type),
+                "uuid": cluster.info.uuid,
+                "registered": cluster.info.registered,
+                "current_deployment": cluster.info.current_deployment,
                 "status": ClusterStatus.to_string(cluster.status),
-                "url": cluster.url
+                "url": cluster.url,
             }
             clusters_response.append(cluster_dict)
 

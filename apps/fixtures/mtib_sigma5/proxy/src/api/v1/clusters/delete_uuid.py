@@ -8,7 +8,7 @@ from flask import Blueprint, jsonify
 from src.services.proxy import appProxyServer
 
 # Flask Route
-clusters_delete_uuid_bp = Blueprint('clusters_uuid_delete', __name__)
+clusters_delete_uuid_bp = Blueprint('clusters_delete_uuid', __name__)
 @clusters_delete_uuid_bp.route('/v1/clusters/<uuid>', methods=['DELETE'])
 def clusters_delete_uuid_handler(uuid):
     try:
