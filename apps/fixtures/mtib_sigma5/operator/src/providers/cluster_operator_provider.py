@@ -33,7 +33,8 @@ class ClusterOperatorServicerProvider(ClusterOperatorServicer):
     #                                                                                       HealthCheck
     # -----------------------------------------------------------------------------------------------*/
     def HealthCheck(self, request:HealthCheckRequest, context):
-        return HealthCheckResponse()
+        status, error = self.operator.get_status()
+        return HealthCheckResponse(status=status, error=error)
     
     # -------------------------------------------------------------------------------------------------
     #                                                                                   GetOperatorInfo
@@ -41,13 +42,9 @@ class ClusterOperatorServicerProvider(ClusterOperatorServicer):
     def GetOperatorInfo(self, request:GetOperatorInfoRequest, context):
         logging.debug("GetOperatorInfo handler called")
         
-        # Get the status from the object
-        status, error = self.operator.get_status()
-        
         # Populate the info object
         info:OperatorInfo = OperatorInfo(
-            status=status,
-            error=error
+            image="No image field has been populated"
         )
         
         return GetOperatorInfoResponse(

@@ -37,10 +37,10 @@ class ClusterDeploymentStatus(Enum):
 
 class ClusterDeploymentInfo:
     def __init__(self,
-                name:str = "",
+                uuid:str = "",
                 path:str = "",
                 status:ClusterDeploymentStatus = ClusterDeploymentStatus.NO_DEPLOYMENT):
-        self.name:str = name
+        self.uuid:str = uuid
         self.path:str = path
         self.status:ClusterDeploymentStatus = status
 
@@ -54,13 +54,15 @@ class ClusterOperatorConfig:
                  registry_port:int,
                  grpc_server_url:str,
                  nodes_hostnames:List[str],
-                 kubeconfig_path:str):
+                 kubeconfig_path:str,
+                 deployments_path:str):
         self.uuid:str = uuid
         self.proxy_url:str = proxy_url
         self.registry_port:int = registry_port
         self.grpc_server_url:str = grpc_server_url
         self.nodes_hostnames:List[str] = nodes_hostnames
         self.kubeconfig_path:str = kubeconfig_path
+        self.deployments_path:str = deployments_path
 
 # -------------------------------------------------------------------------------------------------
 #                                                                                        Test Entry
@@ -84,7 +86,7 @@ class ClusterOperatorStatus(Enum):
     CLUSTER_READY = 2
     
 class ClusterOperator:
-    # Timeoutes
+    # Timeouts
     HOST_STARTUP_TIMEOUT_S=120              # Linux kernel up and running
     K8S_AWAIT_NODES_TIMEOUT_S=120           # Docker & k8s
     K8S_DELETE_DEPLOYMENT_TIMEOUT_S=120     # Delete deployment
@@ -109,7 +111,7 @@ class ClusterOperator:
         # Kubernetes info
         logger = logging.getLogger('kubernetes')
         logger.setLevel(logging.INFO)
-        self.kubernets_client = kubernetes.client
+        self.kubernetes_client = kubernetes.client
         self.deployment_namespace = "default"  
         self.deployment_info:ClusterDeploymentInfo = ClusterDeploymentInfo()
 
@@ -121,12 +123,6 @@ class ClusterOperator:
         # Start the object thread
         self._thread = threading.Thread(target=self._main_thread, daemon=True)
         self._thread.start()
-        
-        self._health_thread = threading.Thread(target=self._tests_health_check_thread, daemon=False)
-        self._health_thread.start()
-        
-        self._proxy_thread = threading.Thread(target=self._proxy_health_check_thread, daemon=False)
-        self._proxy_thread.start()
     
     def stop(self):
         self.stop_event.set()
@@ -196,6 +192,16 @@ class ClusterOperator:
         # to the proxy
         self.status = OperatorStatus.READY
         
+        # Start all other threads
+        self._health_thread = threading.Thread(target=self._tests_health_check_thread, daemon=False)
+        self._health_thread.start()
+        
+        self._deployment_thread = threading.Thread(target=self._cluster_deployments_thread, daemon=False)
+        self._deployment_thread.start()
+        
+        self._proxy_thread = threading.Thread(target=self._proxy_health_check_thread, daemon=False)
+        self._proxy_thread.start()
+        
         # Now we just attempt to register until the end of times or until we're actually registerde
         self._register_with_proxy()
         
@@ -203,8 +209,9 @@ class ClusterOperator:
         while not self.stop_event.is_set():
             if self.status == OperatorStatus.READY:
                 # Proxy was disconnected, try to register
-                self._register_with_proxy()
-                
+                logging.info("Cluster state changed from CONNECTED to READY, attempting cluster registration with proxy...")
+                self._register_with_proxy()    
+    
             time.sleep(1)
 
     def _proxy_health_check_thread(self):
@@ -221,7 +228,7 @@ class ClusterOperator:
 
                 except Exception as e:
                     self.status = OperatorStatus.READY
-                    logging.warning(f"Network error: could not GET healthcheck in proxy server {str(e)}")
+                    logging.warning(f"Network error: could not GET healthcheck in proxy server {str(e)}. Operator state set to READY")
 
             time.sleep(1)
             
@@ -320,7 +327,7 @@ class ClusterOperator:
 
         timeout:int = self.K8S_AWAIT_NODES_TIMEOUT_S
         
-        v1 = self.kubernets_client.CoreV1Api()
+        v1 = self.kubernetes_client.CoreV1Api()
         start_time = time.time()
         
         while time.time() - start_time < timeout:
@@ -341,8 +348,8 @@ class ClusterOperator:
 
         timeout:int = self.K8S_DELETE_DEPLOYMENT_TIMEOUT_S
 
-        apps_v1 = self.kubernets_client.AppsV1Api()
-        core_v1 = self.kubernets_client.CoreV1Api()
+        apps_v1 = self.kubernetes_client.AppsV1Api()
+        core_v1 = self.kubernetes_client.CoreV1Api()
 
         try:
             # Delete all deployments
@@ -407,7 +414,7 @@ class ClusterOperator:
 
                 response = requests.post(endpoint, json=payload, timeout=100)
                 if response.status_code == 200:
-                    logging.info(f"Successfully registered cluster with proxy at {endpoint}!")
+                    logging.info(f"Successfully registered cluster with proxy at {endpoint}")
                     self.status = OperatorStatus.CONNECTED
                 
                     return
@@ -432,20 +439,22 @@ class ClusterOperator:
         logging.info("Started cluster deployment monitor thread")
         while True:
             # First we ensure we are connected to the proxy
-            if self.status != OperatorStatus.CONNECTED:
-                time.sleep(5)  
+            if self.status == OperatorStatus.READY:
+                time.sleep(1)  
                 continue  # Skip trying to register if not connected to proxy
-                    
-            error = self.__fetch_current_deployment()
-            if error:
-                self.status = OperatorStatus.ERRORED
-                self.error = error
             
-            time.sleep(5)  # Periodic delay between checks
+            if self.status != OperatorStatus.RUNNING_TEST or self.status is OperatorStatus.ERRORED:        
+                error = self.__fetch_current_deployment()
+                if error:
+                    logging.error(error)
+                    self.status = OperatorStatus.ERRORED
+                    self.error = error
+            
+            time.sleep(1)  # Periodic delay between checks
     
     def __fetch_current_deployment(self) -> str:
         # Fetch basic cluster information to get the current deployment name
-        url = f"{self.config.proxy_url}/v1/cluster/{self.config.uuid}"
+        url = f"{self.config.proxy_url}/v1/clusters/{self.config.uuid}"
         response = requests.get(url)
         if response.status_code != 200:
             return f"Could not fetch the cluster information from proxy at {self.config.proxy_url}, status code: {response.status_code}, response: {json_response}"
@@ -457,54 +466,58 @@ class ClusterOperator:
             return f"Error: Invalid response from server: {response.status_code}"
 
         # Extract the current deployment file name from the path
-        current_deployment_path = json_response.get('current_deployment')
-        if not current_deployment_path:
-            return f"Invalid server response for {url}: field 'current_deployment' was not present"
+        info = json_response.get('info')
+        new_deployment_uuid = info['current_deployment']
+        if new_deployment_uuid is None:
+            if self.deployment_info.uuid is None:    
+                return "" # No deployment is currently set for this cluster, skip
+            else:
+                self.deployment_info.uuid = None
+                
+                # User deleted this deployment
+                error = self.__delete_k8s_deployments()
+                if error:
+                    return f"Could not delete deployment: {error}"
+                
+                logging.info("Deployment for cluster was deleted succesfully")
+                return ""
 
-        current_deployment_name = os.path.basename(current_deployment_path)
-        if not current_deployment_name:
-            return f"No valid deployment file name found in the current_deployment path."
+        if new_deployment_uuid == self.deployment_info.uuid:
+            return "" # Deployment hasn't changed
 
         # First time we fetch the deployment we assign it to the objects deployment name
-        if self.deployment_info.name == "":
-            self.deployment_info.name = current_deployment_name
+        if self.deployment_info.uuid is None:
+            logging.info(f"Applying first cluster deployment: {new_deployment_uuid}")
         else:
-            if self.deployment_info.name == current_deployment_name:
-                # No new deployments were detected for this cluster
-                return ""
-            else:
-                logging.debug(f"New deployment detected: {current_deployment_name}, updating over: {self.deployment_info.name}")
-                self.deployment_info.name = current_deployment_name
+            logging.info(f"New deployment detected: {new_deployment_uuid}, updating over: {self.deployment_info.uuid}")
             
         # We have an update, delete all deployments and install the latest deployment
         error = self.__delete_k8s_deployments()
         if error:
             return f"Could not delete deployments in cluster before updating to new deployment: {error}"
 
-        # Fetch the latest Kubernetes deployment from the proxy
-        logging.info(f"Fetching deployment: {current_deployment_name} from proxy")
-        url = f"{self.config.proxy_url}/v1/cluster/{self.config.uuid}/deployment/{current_deployment_name}"
-        response = requests.get(url)
-        if response.status_code != 200:
-            return f"Could not fetch the cluster deployment from proxy at {self.config.proxy_url}, status code: {response.status_code}, response: {response.json()}"
-
+        # Set the operator info
+        self.deployment_info.uuid = new_deployment_uuid
+        
         # Extract the deployment file content from the response
         try:
-            deployment_info = response.json()
-            deployment_file_contents = deployment_info['deployment_file_contents']
-            deployment_file_path = f"/var/lib/deployments/{current_deployment_name}"
+            # Fetch the deployment file from your Flask route
+            logging.info(f"Fetching deployment: {new_deployment_uuid} from proxy")
+            url = f"{self.config.proxy_url}/v1/clusters/{self.config.uuid}/deployments/{new_deployment_uuid}"
+            response = requests.get(url)
+            if response.status_code != 200:
+                return f"Could not fetch the cluster deployment from proxy at {self.config.proxy_url}, status code: {response.status_code}, response: {response.json()}"
 
-            # Save the deployment file contents to the filesystem
-            os.makedirs(os.path.dirname(deployment_file_path), exist_ok=True)
-            with open(deployment_file_path, 'w') as f:
-                f.write(deployment_file_contents)
-            
-            self.deployment_path = deployment_file_path
-
+            # Save the deployment file to the filesystem
+            deployment_file_path = os.path.join(self.config.deployments_path, f"{new_deployment_uuid}.yaml")
+            with open(deployment_file_path, 'wb') as f:
+                f.write(response.content)
+                
+            self.deployment_info.path = deployment_file_path
             logging.info(f"Successfully saved deployment file: {deployment_file_path}")
 
             # Download all the images from the deployment
-            logging.info(f"Fetching images in deployment {current_deployment_name} from registries")
+            logging.info(f"Fetching images in deployment {new_deployment_uuid} from registries")
             error = self.__download_and_update_deployment_images()
             if error:
                 return f"Could not fetch all the deployment images: {error}"
@@ -520,7 +533,6 @@ class ClusterOperator:
                 return f"Failed to apply kubernetes deployment to cluster: {error}"
             
             # Update the state 
-
             logging.info("Deployments is running and ready")
             return ""
     
@@ -531,61 +543,68 @@ class ClusterOperator:
 
     def __download_and_update_deployment_images(self) -> str:
         """
-        Searches through a Kubernetes deployment for any images present, downloads them from
+        Searches through Kubernetes deployment documents for any images present, downloads them from
         that registry to the registry of the cluster, and once all images have been successfully
         downloaded, it will rename them so that the runners inside the network can download them
-        without internet access. It also updates the image names in the deployment file.
+        without internet access. It also updates the image names in the deployment documents.
         """
 
         # Read the deployment file content
-        deployment_path = self.deployment_path
+        deployment_path = self.deployment_info.path
         try:
             with open(deployment_path, 'r') as file:
-                deployment_content = file.read()
+                deployment_contents = file.read()
         except FileNotFoundError:
             return f"Deployment file '{deployment_path}' not found"
 
         # Parse the deployment as YAML
         try:
-            deployment_yaml = yaml.safe_load(deployment_content)
+            documents = list(yaml.safe_load_all(deployment_contents))
         except yaml.YAMLError as e:
             return f"Error parsing deployment file: {e}"
 
-        # Find and process all container images in the deployment
-        try:
-            containers = deployment_yaml['spec']['template']['spec']['containers']
-        except KeyError as e:
-            return f"Error extracting containers from deployment: {e}"
-
-        image_updates = {}
-        for container in containers:
-            original_image = container['image']
-            image_name = os.path.basename(urlparse(original_image).path)
-            new_image_name = f"control-plane:{self.config.registry_port}/{image_name}" #TODO: Change to local registry
-            image_updates[original_image] = new_image_name
-
-            logging.info(f"Fetching image {original_image}...")
-
-            # Pull and tag new images
+        updated_documents = []
+        for deployment_yaml in documents:
+            if not deployment_yaml:  # Skip empty documents
+                continue
+            
+            # Find and process all container images in the deployment
             try:
-                local_image = self.docker_client.images.pull(original_image)
-                local_image.tag(new_image_name)
-                self.docker_client.images.push(new_image_name)
-                logging.info(f"Image {original_image} downloaded and tagged as {new_image_name}")
-            except docker.errors.APIError as e:
-                return f"Failed to download or tag image {original_image}: {e}"
-            except docker.errors.NotFound:
-                return f"Image {original_image} not found in the registry"
+                containers = deployment_yaml['spec']['template']['spec']['containers']
+            except KeyError as e:
+                return f"Error extracting containers from deployment: {e}"
 
-        # Update the image names in the deployment manifest
-        for container in containers:
-            original_image = container['image']
-            container['image'] = image_updates[original_image]
+            image_updates = {}
+            for container in containers:
+                original_image = container['image']
+                image_name = os.path.basename(urlparse(original_image).path)
+                new_image_name = f"control-plane:{self.config.registry_port}/{image_name}"  # Update to local registry
+                image_updates[original_image] = new_image_name
+
+                logging.info(f"Fetching image {original_image}...")
+
+                # Pull and tag new images
+                try:
+                    local_image = self.docker_client.images.pull(original_image)
+                    local_image.tag(new_image_name)
+                    self.docker_client.images.push(new_image_name)
+                    logging.info(f"Image {original_image} downloaded and tagged as {new_image_name}")
+                except docker.errors.APIError as e:
+                    return f"Failed to download or tag image {original_image}: {e}"
+                except docker.errors.NotFound:
+                    return f"Image {original_image} not found in the registry"
+
+            # Update the image names in the deployment manifest
+            for container in containers:
+                original_image = container['image']
+                container['image'] = image_updates[original_image]
+
+            updated_documents.append(deployment_yaml)
 
         # Save the updated deployment back to the filesystem
         try:
             with open(deployment_path, 'w') as file:
-                yaml.safe_dump(deployment_yaml, file)
+                yaml.safe_dump_all(updated_documents, file)
             logging.info(f"Updated deployment file saved successfully: {deployment_path}")
         except IOError as e:
             return f"Failed to save updated deployment file: {e}"
@@ -593,55 +612,120 @@ class ClusterOperator:
         return ""
         
     def __apply_k8s_deployment(self) -> str:
-        """Applies a specific Kubernetes deployment to the cluster and waits for the pods to be ready."""
-        logging.info(f"Applying Kubernetes deployment from: {self.deployment_path}")
+        """Applies Kubernetes deployments to the cluster and waits for the pods to be ready for each."""
+        logging.info(f"Applying Kubernetes deployments from: {self.deployment_info.path}")
 
         try:
-            with open(self.deployment_path, 'r') as file:
-                deployment_yaml = yaml.safe_load(file)
-            
+            with open(self.deployment_info.path, 'r') as file:
+                deployment_docs = list(yaml.safe_load_all(file))
+
+            if not deployment_docs:
+                return "No deployment found in the file."
+
             k8s_client = kubernetes.client.ApiClient()
-            kubernetes.utils.create_from_yaml(k8s_client, yaml_objects=[deployment_yaml], namespace="default")
-            
-            self.deployment_name = deployment_yaml.get("metadata", {}).get("name", "")
-            if not self.deployment_name:
-                return "Deployment name could not be extracted from the YAML file."
-            
+
+            # Apply each deployment document
+            applied_deployments = []
+            for deployment_yaml in deployment_docs:
+                if not deployment_yaml or 'kind' not in deployment_yaml or deployment_yaml['kind'] != 'Deployment':
+                    logging.warning("Skipping non-Deployment or malformed YAML document.")
+                    continue
+
+                try:
+                    kubernetes.utils.create_from_yaml(k8s_client, yaml_objects=[deployment_yaml], namespace="default")
+                    deployment_name = deployment_yaml.get("metadata", {}).get("name", "")
+                    if deployment_name:
+                        applied_deployments.append(deployment_name)
+                    else:
+                        logging.warning("Deployment name could not be extracted from a YAML document.")
+                except kubernetes.client.rest.ApiException as e:
+                    return f"Failed to apply deployment: {str(e)}"
+
+            if not applied_deployments:
+                return "No valid deployments were applied."
+
+            # Assuming you want to wait for each deployment to be ready after applying
+            for deployment_name in applied_deployments:
+                error_message = self.__wait_for_deployment_pods_ready()
+                if error_message:
+                    return f"Failed to wait for deployment '{deployment_name}' to be ready: {error_message}"
+
             return ""
-            
+
         except Exception as e:
-            return f"Failed to apply deployment from {self.deployment_path}: {str(e)}"
-           
+            return f"Failed to apply deployment from {self.deployment_info.path}: {str(e)}"
+
     def __wait_for_deployment_pods_ready(self) -> str:
-        """Waits for all pods in a deployment to be in the 'Ready' state and reports any errors."""
+        """Waits for all pods in a deployment to be in the 'Ready' state and monitors them for a period to catch any failures that occur shortly after becoming ready."""
 
-        timeout:int = self.K8S_APPLY_DEPLOYMENT_TIMEOUT_S
-
-        apps_v1 = kubernetes.client.AppsV1Api()
-        core_v1 = kubernetes.client.CoreV1Api()
-        start_time = time.time()
+        timeout = self.K8S_APPLY_DEPLOYMENT_TIMEOUT_S
+        initial_check_delay = 5  # Seconds to delay before first readiness check
+        post_check_delay = 5  # Seconds to wait after a successful readiness check to ensure stability
         
+        time.sleep(initial_check_delay)  # Delay before starting the checks
+        
+        core_v1 = self.kubernetes_client.CoreV1Api()
+        start_time = time.time()
+
         while time.time() - start_time < timeout:
-            try:
-                deployment = apps_v1.read_namespaced_deployment(name=self.deployment_name, namespace=self.deployment_namespace)
-                if deployment.status.ready_replicas == deployment.spec.replicas:
-                    logging.info(f"All pods for deployment {self.deployment_name} are ready.")
-                    return ""
-            except kubernetes.client.exceptions.ApiException as e:
-                return f"Error fetching deployment {self.deployment_name}: {str(e)}"
+            pod_list = core_v1.list_namespaced_pod(namespace="default")
+            all_pods_ready = True
+            error_message = ""
 
-            pod_list = core_v1.list_namespaced_pod(namespace=self.deployment_namespace, label_selector=f"app={self.deployment_name}")
             for pod in pod_list.items:
-                if pod.status.phase == "Pending":
-                    field_selector = f"involvedObject.name={pod.metadata.name},involvedObject.namespace={self.deployment_namespace}"
-                    events = core_v1.list_namespaced_event(namespace=self.deployment_namespace, field_selector=field_selector)
-                    for event in events.items:
-                        logging.debug(f"Event for {pod.metadata.name}: {event.message}")
-                        if "Failed" in event.reason:
-                            error_details = f"{event.reason}: {event.message}"
-                            return error_details
+                pod_ready = False
+                if pod.status.conditions:
+                    pod_ready = any(condition.type == "Ready" and condition.status == "True" for condition in pod.status.conditions)
+                if not pod_ready:
+                    all_pods_ready = False
+                    error_message = self.__get_pod_error_details(pod, core_v1)
+                    break
+            
+            if all_pods_ready:
+                logging.info("Initial readiness check passed. Monitoring for stability...")
+                time.sleep(post_check_delay)  # Wait to ensure pods remain stable
 
-            time.sleep(1)  # Sleep before the next check to avoid overwhelming the API server
+                # Recheck readiness after the delay
+                if self.__are_all_pods_still_ready(core_v1)[0]:
+                    logging.info("All pods for deployment are confirmed stable after monitoring.")
+                    return ""
+                else:
+                    error_message = "Pods failed after initial readiness check."
+
+            if error_message:
+                return error_message
+
+            time.sleep(5)  # Sleep before the next check to avoid overwhelming the API server
 
         return "Timeout reached. Not all pods are ready."
+
+    def __are_all_pods_still_ready(self, core_v1):
+        """Checks all pods to ensure they are still in the 'Ready' state and returns detailed error information if not."""
+        pod_list = core_v1.list_namespaced_pod(namespace="default")
+        for pod in pod_list.items:
+            if pod.status.conditions:
+                pod_ready = any(condition.type == "Ready" and condition.status == "True" for condition in pod.status.conditions)
+                if not pod_ready:
+                    error_details = self.__get_pod_error_details(pod, core_v1)
+                    return (False, error_details)
+            else:
+                error_message = f"Pod {pod.metadata.name} has no conditions available to check readiness."
+                return (False, error_message)
+        return (True, "")  # All pods are ready
+
+    def __get_pod_error_details(self, pod, core_v1):
+        """Extracts and returns error details from a pod's conditions, and fetches related events."""
+        error_messages = [f"{condition.type} is not met: {condition.message}" for condition in pod.status.conditions if condition.status == "False"]
+        events = core_v1.list_namespaced_event(namespace="default", field_selector=f"involvedObject.name={pod.metadata.name}")
+        event_info = ' | '.join([f"{event.reason}: {event.message}" for event in events.items])
+
+        error_details = ' | '.join(error_messages) if error_messages else "No specific error conditions found."
+        return f"{error_details} | Events: {event_info}"
+
+
+
+
+
+
+
             

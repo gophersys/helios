@@ -47,7 +47,8 @@ if __name__ == '__main__':
         registry_port=conf.LOCAL_REGISTRY_PORT,
         grpc_server_url=f"{socket.gethostname()}:{conf.GRPC_SERVER_PORT}",
         nodes_hostnames=conf.NODES_HOSTNAMES,
-        kubeconfig_path=conf.KUBECONFIG_PATH
+        kubeconfig_path=conf.KUBECONFIG_PATH,
+        deployments_path="/var/lib/deployments"
     )
     
     # Instantiate an operator object instance to be used by this server
