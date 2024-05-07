@@ -15,8 +15,8 @@ from src.services.operator import ClusterOperator
 
 # Protocol includes
 from protos.cluster_operator.cluster_operator_pb2 import (
-    HealthCheckRequest, HealthCheckResponse,
-    OperatorStatus, OperatorInfo, GetOperatorInfoRequest, GetOperatorInfoResponse,
+    ClusterStatus, HealthCheckRequest, HealthCheckResponse,
+    NodeInfo, GetClusterInfoRequest, GetClusterInfoResponse,
     RegisterTestRequest, RegisterTestResponse,
     ListTestsRequest, ListTestsResponse
 )
@@ -39,17 +39,13 @@ class ClusterOperatorServicerProvider(ClusterOperatorServicer):
     # -------------------------------------------------------------------------------------------------
     #                                                                                   GetOperatorInfo
     # -----------------------------------------------------------------------------------------------*/
-    def GetOperatorInfo(self, request:GetOperatorInfoRequest, context):
-        logging.debug("GetOperatorInfo handler called")
-        
-        # Populate the info object
-        info:OperatorInfo = OperatorInfo(
-            image="No image field has been populated"
+    def GetClusterInfo(self, request:GetClusterInfoRequest, context):
+        # Call app to get info
+        response:GetClusterInfoResponse = GetClusterInfoResponse(
+            nodes_info=self.operator.get_nodes_info()
         )
         
-        return GetOperatorInfoResponse(
-            info = info
-        )
+        return response
         
     # -------------------------------------------------------------------------------------------------
     #                                                                                     Register Test

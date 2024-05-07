@@ -52,12 +52,17 @@ if __name__ == '__main__':
     )
     
     # Instantiate an operator object instance to be used by this server
-    operator:ClusterOperator = ClusterOperator(config)
-    
+    operator:ClusterOperator = ClusterOperator()
+    error = operator.init(config)
+    if error: 
+        logging.error(f"Could not start operator: {error}")
+        sys.exit(1)
+        
     # Setup gRPC server (we serve as an operator)
     error, server = start_server(operator)
     if error:
         logging.error(f"Could not start gRPC server: {error}")
+        sys.exit(1)
 
     # Await for kill signal
     try:
