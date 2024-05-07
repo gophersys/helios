@@ -6,7 +6,7 @@ from typing import List
 from flask import Blueprint, jsonify
 
 # App includes
-from src.services.proxy import appProxyServer, Cluster, ClusterStatus, ClusterType
+from src.services.proxy import appProxyServer, Cluster
 
 # Flask Route
 clusters_deployments_list_bp = Blueprint('clusters_deployments_list', __name__)
@@ -29,12 +29,17 @@ def clusters_deployments_list_handler(cluster_uuid):
             return jsonify({"error": f"Cluster {cluster_uuid} not found."}), 400
 
         # Construct a response list of deployments
-        deployments_response = []
+        deployments_info = []
         for deployment in cluster.info.deployments:
-            deployments_response.append(deployment.marshal())
+            deployments_info.append(deployment.marshal())
 
+        deployments_response = {
+            "current_deployment": cluster.info.current_deployment,
+            "deployments": deployments_info
+        }
+        
         # If everything is fine, return success status with deployments info
-        return jsonify({"deployments": deployments_response}), 200
+        return jsonify(deployments_response), 200
     
     except Exception as e:
         logging.error(f"An error occurred: {str(e)}")

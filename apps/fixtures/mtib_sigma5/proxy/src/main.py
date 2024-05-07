@@ -14,10 +14,11 @@ server = Flask(__name__)
 # ----------------------------------------------------------------------------------
 #                                                                             Routes
 # --------------------------------------------------------------------------------*/
-from api.v1.healthcheck import (                                                 
-    healthcheck_bp,                                                                     # POST /v1/healthcheck
-    HealthLogFilter
-    )
+# Log filter
+from api.v1.log_filter import LogFilter
+
+# Healthcheck
+from api.v1.healthcheck import (healthcheck_bp)                                        # GET /v1/healthcheck                                                    
 server.register_blueprint(healthcheck_bp)
 
 # Clusters
@@ -66,7 +67,7 @@ if __name__ == '__main__':
     
     # Remove healthcheck route hits from logs
     logger = logging.getLogger('werkzeug')
-    logger.addFilter(HealthLogFilter()) # <- More info here
+    logger.addFilter(LogFilter()) # <- More info here
     
     # Instantiate server with desired configuration
     app_config:ProxyServerConfiguration = ProxyServerConfiguration(

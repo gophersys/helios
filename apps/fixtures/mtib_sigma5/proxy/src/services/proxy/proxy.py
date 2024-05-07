@@ -23,15 +23,15 @@ from protos.cluster_test.cluster_test_pb2 import (
 )
 
 from protos.cluster_operator.cluster_operator_pb2 import (
-    HealthCheckRequest, HealthCheckResponse,
-    OperatorStatus, GetOperatorInfoRequest, GetOperatorInfoResponse,
+    HealthCheckRequest, NodeInfo,
+    GetClusterInfoRequest, GetClusterInfoResponse,
     ListTestsRequest, ListTestsResponse,
 )
 from protos.cluster_operator.cluster_operator_pb2_grpc import ClusterOperatorStub
 
 # App includes
 from services.db import Database, DatabaseConfiguration
-from services.db.schema import Cluster, ClusterType, ClusterStatus
+from services.db.schema import Cluster, ClusterType
 
 # ----------------------------------------------------------------------------------
 #                                                                      Configuration
@@ -99,7 +99,7 @@ class ProxyServer:
             cluster = Cluster(
                 info=info,
                 error=None,
-                status=ClusterStatus.DISCONNECTED,
+                status=None,
                 url=None,
                 channel=None,
                 stub=None
@@ -114,6 +114,8 @@ class ProxyServer:
         # Start server threads
         self.health_check_thread = threading.Thread(target=self._cluster_healthchecks_thread, daemon=True)
         self.health_check_thread.start()
+        
+        return ""
     
     # -----------------------------------------------------------------------------
     #                                                                     Callbacks
@@ -129,16 +131,17 @@ class ProxyServer:
         while True:
             clusters = self.clusters 
             for cluster in clusters:
-                if cluster.info.registered and cluster.status == ClusterStatus.CONNECTED:
+                if cluster.info.registered and cluster.status is not None:
                     try:
                         # Perform a periodic health check to ensure we're still connected and alive
                         response = cluster.stub.HealthCheck(HealthCheckRequest())
+                        cluster.status = response.status
                         cluster.error = response.error
                         
                     except grpc.RpcError as e:
-                        error:str = f"Failed to perform health check on cluster at {cluster.url}. Unregistering from cluster"
+                        error:str = f"Failed to perform health check on cluster at {cluster.url}. Disconnecting from cluster"
                         logging.error(error)
-                        cluster.status = ClusterStatus.DISCONNECTED
+                        cluster.status = None
                         cluster.error = error
                         cluster.channel.close()
 
@@ -169,7 +172,7 @@ class ProxyServer:
         # Add an entry to the local server cache
         cluster = Cluster(
             info=info,
-            status=ClusterStatus.DISCONNECTED,
+            status=None,
             error=None,
             url=None,
             channel=None,
@@ -183,8 +186,33 @@ class ProxyServer:
     def clusters_get(self) -> List[Cluster]:
         return self.clusters
     
+    def clusters_get_nodes_info(self, cluster_uuid:str) -> List[NodeInfo]:
+        # First find the cluster
+        cluster:Cluster = None
+        for c in list(self.clusters):
+            if c.info.uuid == cluster_uuid:
+                cluster = c
+                
+        if cluster is None:
+            return f"Cluster with UUID {cluster_uuid} not found in server."
+        
+        if cluster.status is not None:
+            try:
+                # Perform a periodic health check to ensure we're still connected and alive
+                response:GetClusterInfoResponse = cluster.stub.GetClusterInfo(GetClusterInfoRequest())
+                return response.nodes_info
+                
+            except grpc.RpcError as e:
+                error:str = f"Failed to get GetClusterInfo on cluster at {cluster.url}. Disconnecting from cluster"
+                logging.error(error)
+                cluster.status = None
+                cluster.error = error
+                cluster.channel.close()
+        else:
+            return []
+    
     def clusters_delete_all(self) -> str:
-        clusters_to_remove = [cluster for cluster in self.clusters if cluster.status != ClusterStatus.CONNECTED]
+        clusters_to_remove = [cluster for cluster in self.clusters if cluster.status is None]
         
         for cluster in clusters_to_remove:
             logging.info(f"Removing cluster {cluster.info.name} with ID {cluster.info.uuid}")
@@ -195,7 +223,7 @@ class ProxyServer:
 
         # Log warning for clusters not removed
         for cluster in self.clusters:
-            if cluster.status == ClusterStatus.CONNECTED:
+            if cluster.status is not None:
                 logging.warning(f"Cannot remove cluster {cluster.info.name} with ID {cluster.info.uuid} while it's connected")
         
         return ""
@@ -204,7 +232,7 @@ class ProxyServer:
         # Iterate over a copy of the list to safely remove items while iterating
         for cluster in list(self.clusters):
             if cluster.info.uuid == cluster_uuid:
-                if cluster.status == ClusterStatus.CONNECTED:
+                if cluster.status is not None:
                     return f"Cluster {cluster.info.name} with UUID {cluster_uuid} is currently connected and cannot be removed."
 
                 # Update database
@@ -231,7 +259,7 @@ class ProxyServer:
             return f"Cluster {cluster_uuid} at {cluster_url} was not found in server database. You must create a new cluster first"
 
         # Check if the cluster is already connected
-        if cluster.info.registered and cluster.status == ClusterStatus.CONNECTED:
+        if cluster.info.registered and cluster.status is not None:
             logging.warning(f"Cluster {cluster.info.name} at {cluster.url} is trying to register while in the connected state. Possible operator software bug?")
             return ""
         
@@ -248,11 +276,15 @@ class ProxyServer:
             if error:
                 return f"Database error while trying to register: {error}"
             
+            # Do an initial health check to get status
+            response = stub.HealthCheck(HealthCheckRequest())
+                        
             # Populate missing fields from entry
+            cluster.status = response.status
+            cluster.error = response.error
             cluster.url = cluster_url
             cluster.channel = channel
             cluster.stub = stub
-            cluster.status = ClusterStatus.CONNECTED
             
             logging.info(f"Cluster {cluster.info.name} with UUID {cluster.info.uuid} has been successfully registered and connected.")
             return ""

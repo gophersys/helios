@@ -5,8 +5,13 @@ from typing import List
 # 3rd party includes
 from flask import Blueprint, jsonify
 
+# Protocol includes
+from protos.cluster_operator.cluster_operator_pb2 import (
+    ClusterStatus
+)
+
 # App includes
-from src.services.proxy import appProxyServer, Cluster, ClusterStatus, ClusterType
+from src.services.proxy import appProxyServer, Cluster, ClusterType
 
 # Flask Route
 clusters_list_bp = Blueprint('clusters_list', __name__)
@@ -21,13 +26,18 @@ def clusters_list_handler():
         # Construct a response list of clusters
         clusters_response = []
         for cluster in clusters:
+            # Set the status accordingly
+            cluster_status:str = None
+            if cluster.status is not None:
+                cluster_status = ClusterStatus.Name(cluster.status)
+                
             cluster_dict = {
                 "name": cluster.info.name,
                 "type": ClusterType.to_string(cluster.info.type),
                 "uuid": cluster.info.uuid,
                 "registered": cluster.info.registered,
                 "current_deployment": cluster.info.current_deployment,
-                "status": ClusterStatus.to_string(cluster.status),
+                "status": cluster_status,
                 "url": cluster.url,
             }
             clusters_response.append(cluster_dict)
