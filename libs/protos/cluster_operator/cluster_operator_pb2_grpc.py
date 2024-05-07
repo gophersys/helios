@@ -20,10 +20,10 @@ class ClusterOperatorStub(object):
                 request_serializer=cluster__operator__pb2.HealthCheckRequest.SerializeToString,
                 response_deserializer=cluster__operator__pb2.HealthCheckResponse.FromString,
                 )
-        self.GetOperatorInfo = channel.unary_unary(
-                '/cluster_operator.ClusterOperator/GetOperatorInfo',
-                request_serializer=cluster__operator__pb2.GetOperatorInfoRequest.SerializeToString,
-                response_deserializer=cluster__operator__pb2.GetOperatorInfoResponse.FromString,
+        self.GetClusterInfo = channel.unary_unary(
+                '/cluster_operator.ClusterOperator/GetClusterInfo',
+                request_serializer=cluster__operator__pb2.GetClusterInfoRequest.SerializeToString,
+                response_deserializer=cluster__operator__pb2.GetClusterInfoResponse.FromString,
                 )
         self.GetDeploymentInfo = channel.unary_unary(
                 '/cluster_operator.ClusterOperator/GetDeploymentInfo',
@@ -40,8 +40,8 @@ class ClusterOperatorStub(object):
                 request_serializer=cluster__operator__pb2.ListTestsRequest.SerializeToString,
                 response_deserializer=cluster__operator__pb2.ListTestsResponse.FromString,
                 )
-        self.ExecuteTest = channel.unary_stream(
-                '/cluster_operator.ClusterOperator/ExecuteTest',
+        self.ExecuteManufacturingTest = channel.unary_stream(
+                '/cluster_operator.ClusterOperator/ExecuteManufacturingTest',
                 request_serializer=cluster__test__pb2.ExecuteTestRequest.SerializeToString,
                 response_deserializer=cluster__test__pb2.ExecuteTestResponse.FromString,
                 )
@@ -57,8 +57,8 @@ class ClusterOperatorServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def GetOperatorInfo(self, request, context):
-        """Fetches Operator Information
+    def GetClusterInfo(self, request, context):
+        """Fetches Cluster Information
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -85,7 +85,7 @@ class ClusterOperatorServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def ExecuteTest(self, request, context):
+    def ExecuteManufacturingTest(self, request, context):
         """Executes a test on a standalone board.
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
@@ -100,10 +100,10 @@ def add_ClusterOperatorServicer_to_server(servicer, server):
                     request_deserializer=cluster__operator__pb2.HealthCheckRequest.FromString,
                     response_serializer=cluster__operator__pb2.HealthCheckResponse.SerializeToString,
             ),
-            'GetOperatorInfo': grpc.unary_unary_rpc_method_handler(
-                    servicer.GetOperatorInfo,
-                    request_deserializer=cluster__operator__pb2.GetOperatorInfoRequest.FromString,
-                    response_serializer=cluster__operator__pb2.GetOperatorInfoResponse.SerializeToString,
+            'GetClusterInfo': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetClusterInfo,
+                    request_deserializer=cluster__operator__pb2.GetClusterInfoRequest.FromString,
+                    response_serializer=cluster__operator__pb2.GetClusterInfoResponse.SerializeToString,
             ),
             'GetDeploymentInfo': grpc.unary_unary_rpc_method_handler(
                     servicer.GetDeploymentInfo,
@@ -120,8 +120,8 @@ def add_ClusterOperatorServicer_to_server(servicer, server):
                     request_deserializer=cluster__operator__pb2.ListTestsRequest.FromString,
                     response_serializer=cluster__operator__pb2.ListTestsResponse.SerializeToString,
             ),
-            'ExecuteTest': grpc.unary_stream_rpc_method_handler(
-                    servicer.ExecuteTest,
+            'ExecuteManufacturingTest': grpc.unary_stream_rpc_method_handler(
+                    servicer.ExecuteManufacturingTest,
                     request_deserializer=cluster__test__pb2.ExecuteTestRequest.FromString,
                     response_serializer=cluster__test__pb2.ExecuteTestResponse.SerializeToString,
             ),
@@ -153,7 +153,7 @@ class ClusterOperator(object):
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
     @staticmethod
-    def GetOperatorInfo(request,
+    def GetClusterInfo(request,
             target,
             options=(),
             channel_credentials=None,
@@ -163,9 +163,9 @@ class ClusterOperator(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/cluster_operator.ClusterOperator/GetOperatorInfo',
-            cluster__operator__pb2.GetOperatorInfoRequest.SerializeToString,
-            cluster__operator__pb2.GetOperatorInfoResponse.FromString,
+        return grpc.experimental.unary_unary(request, target, '/cluster_operator.ClusterOperator/GetClusterInfo',
+            cluster__operator__pb2.GetClusterInfoRequest.SerializeToString,
+            cluster__operator__pb2.GetClusterInfoResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
@@ -221,7 +221,7 @@ class ClusterOperator(object):
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
     @staticmethod
-    def ExecuteTest(request,
+    def ExecuteManufacturingTest(request,
             target,
             options=(),
             channel_credentials=None,
@@ -231,7 +231,7 @@ class ClusterOperator(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_stream(request, target, '/cluster_operator.ClusterOperator/ExecuteTest',
+        return grpc.experimental.unary_stream(request, target, '/cluster_operator.ClusterOperator/ExecuteManufacturingTest',
             cluster__test__pb2.ExecuteTestRequest.SerializeToString,
             cluster__test__pb2.ExecuteTestResponse.FromString,
             options, channel_credentials,

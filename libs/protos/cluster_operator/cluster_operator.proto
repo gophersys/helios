@@ -8,8 +8,8 @@ service ClusterOperator {
   // Performs a health check to ensure the operator is at least running.
   rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse) {}
 
-  // Fetches Operator Information
-  rpc GetOperatorInfo(GetOperatorInfoRequest) returns (GetOperatorInfoResponse) {}
+  // Fetches Cluster Information
+  rpc GetClusterInfo(GetClusterInfoRequest) returns (GetClusterInfoResponse) {}
 
   // Fetches Current Deployment Information
   rpc GetDeploymentInfo(GetDeploymentInfoRequest) returns (GetDeploymentInfoResponse) {}
@@ -21,53 +21,61 @@ service ClusterOperator {
   rpc ListTests(ListTestsRequest) returns (ListTestsResponse) {}
 
   // Executes a test on a standalone board.
-  rpc ExecuteTest(cluster_test.ExecuteTestRequest) returns (stream cluster_test.ExecuteTestResponse) {}
+  rpc ExecuteManufacturingTest(cluster_test.ExecuteTestRequest) returns (stream cluster_test.ExecuteTestResponse) {}
+}
+
+// Operator Info
+enum ClusterStatus {
+  // The operator is awaiting for the cluster to ready
+  STARTING = 0;
+
+  // Ready means the operator has succesfully connected to the k8s cluster, and all the nodes are healthy.
+  // At this point, the cluster is ready for work
+  READY = 1;
+
+  // The operator has been given a new deployment and is in the process of applying it to the cluster
+  UPDATING = 2;
+
+  // A deployment is running in the cluster and it's ready for the proxy to send it commands
+  IDLE = 3;
+
+  // A request to run a test has been received and it's currently executing in the cluster
+  RUNNING = 4;
+  
+  // An error with the deployment or the operator itself has occurred 
+  ERRORED = 5;
 }
 
 // HealthCheck
 message HealthCheckRequest {}
-message HealthCheckResponse {}
-
-// Operator Info
-enum OperatorStatus {
-  // Starting means that the operator is awaiting for the cluster to ready, and registered with 
-  // the proxy
-  STARTING = 0;
-
-  // Ready means the operator has succesfully connected to the cluster, and all the nodes are healthy.
-  // At this point, the cluster is ready to be registered with the proxy, and also ready for test runners
-  // to register themselves with the cluster
-  READY = 1;
-
-  // Connected means the 
-  CONNECTED = 2;
-  
-  ERRORED = 3;
+message HealthCheckResponse {
+  ClusterStatus status = 1;
+  string error = 2;
 }
 
-message OperatorInfo {
-  string image = 1;
-  OperatorStatus status = 2;
-  string error = 3;
+// Node Info message definition
+message NodeInfo {
+  string name = 1;                  // Node name
+  string hostname = 2;              // Node hostname
+  string os_image = 3;              // Operating system image used by the node
+  string kernel_version = 4;        // Kernel version running on the node
+  int64 cpu_cores = 5;              // CPU cores
+  int64 memory_used_bytes = 6;  // Memory capacity of the node in bytes
+  int64 memory_capacity_bytes = 7;  // Memory capacity of the node in bytes
+  int64 storage_used_bytes = 8; // Storage capacity of the node in bytes
+  int64 storage_capacity_bytes = 9; // Storage capacity of the node in bytes
 }
 
-message GetOperatorInfoRequest {}
+// Cluster Info
+message GetClusterInfoRequest {}
 
-message GetOperatorInfoResponse {
-  OperatorInfo info = 1;
+message GetClusterInfoResponse {
+  repeated NodeInfo nodes_info = 1;
 }
 
 // Deployment Info
-enum DeploymentStatus {
-  NONE = 0;
-  INSTALLING = 1;
-  UPDATING = 2;
-  RUNNING = 3;
-}
-
 message DeploymentInfo {
   string name = 1;
-  DeploymentStatus status = 2;
 }
 
 message GetDeploymentInfoRequest {}

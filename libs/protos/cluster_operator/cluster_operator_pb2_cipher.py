@@ -10,11 +10,11 @@ CLUSTEROPERATOR_SERVICE_ID = 1
 
 class ClusterOperatorRpc(Enum):
     HealthCheck = 1
-    GetOperatorInfo = 2
+    GetClusterInfo = 2
     GetDeploymentInfo = 3
     RegisterTest = 4
     ListTests = 5
-    ExecuteTest = 6
+    ExecuteManufacturingTest = 6
     
 class ClusterOperator:
     def __init__(self, daemon:Cipher):
@@ -41,19 +41,19 @@ class ClusterOperator:
         
         return context.response_struct, context.user_info.error
     # Server side handlers
-    def GetOperatorInfoHandler(self, request:GetOperatorInfoRequest) -> Tuple[GetOperatorInfoResponse, CipherRpcErr]:
-        print("Default GetOperatorInfo handler called")
-        response: GetOperatorInfoResponse = GetOperatorInfoResponse()
+    def GetClusterInfoHandler(self, request:GetClusterInfoRequest) -> Tuple[GetClusterInfoResponse, CipherRpcErr]:
+        print("Default GetClusterInfo handler called")
+        response: GetClusterInfoResponse = GetClusterInfoResponse()
         return response, CipherRpcErr.NOT_IMPLEMENTED
         
     # Client side 
-    def GetOperatorInfoRpc(self, info:CipherUnaryRpcUserInfo, request:GetOperatorInfoRequest) -> Tuple[Optional[GetOperatorInfoResponse], CipherRpcErr]:
-        response: GetOperatorInfoResponse = GetOperatorInfoResponse()
+    def GetClusterInfoRpc(self, info:CipherUnaryRpcUserInfo, request:GetClusterInfoRequest) -> Tuple[Optional[GetClusterInfoResponse], CipherRpcErr]:
+        response: GetClusterInfoResponse = GetClusterInfoResponse()
         context: CipherDaemonRpcContext = CipherDaemonRpcContext(
             local=True,
             user_info=info,
             service_id=CLUSTEROPERATOR_SERVICE_ID,
-            rpc_id=ClusterOperatorRpc.GetOperatorInfo.value,
+            rpc_id=ClusterOperatorRpc.GetClusterInfo.value,
             request_struct=request,
             response_struct=response,            
         )
@@ -125,19 +125,19 @@ class ClusterOperator:
         
         return context.response_struct, context.user_info.error
     # Server side handlers
-    def ExecuteTestHandler(self, request:cluster_test.ExecuteTestRequest) -> Tuple[cluster_test.ExecuteTestResponse, CipherRpcErr]:
-        print("Default ExecuteTest handler called")
+    def ExecuteManufacturingTestHandler(self, request:cluster_test.ExecuteTestRequest) -> Tuple[cluster_test.ExecuteTestResponse, CipherRpcErr]:
+        print("Default ExecuteManufacturingTest handler called")
         response: cluster_test.ExecuteTestResponse = cluster_test.ExecuteTestResponse()
         return response, CipherRpcErr.NOT_IMPLEMENTED
         
     # Client side 
-    def ExecuteTestRpc(self, info:CipherUnaryRpcUserInfo, request:cluster_test.ExecuteTestRequest) -> Tuple[Optional[cluster_test.ExecuteTestResponse], CipherRpcErr]:
+    def ExecuteManufacturingTestRpc(self, info:CipherUnaryRpcUserInfo, request:cluster_test.ExecuteTestRequest) -> Tuple[Optional[cluster_test.ExecuteTestResponse], CipherRpcErr]:
         response: cluster_test.ExecuteTestResponse = cluster_test.ExecuteTestResponse()
         context: CipherDaemonRpcContext = CipherDaemonRpcContext(
             local=True,
             user_info=info,
             service_id=CLUSTEROPERATOR_SERVICE_ID,
-            rpc_id=ClusterOperatorRpc.ExecuteTest.value,
+            rpc_id=ClusterOperatorRpc.ExecuteManufacturingTest.value,
             request_struct=request,
             response_struct=response,            
         )
@@ -158,12 +158,12 @@ clusteroperator_service_rpcs = [
         supports_parallelism=True
     ),
     CipherRpcInfo(
-        id=ClusterOperatorRpc.GetOperatorInfo.value,
+        id=ClusterOperatorRpc.GetClusterInfo.value,
         type=CipherRpcType.UNARY,
-        name="GetOperatorInfo",
-        handler=ClusterOperator.GetOperatorInfoHandler,
-        request_info=CipherMessageInfo(GetOperatorInfoRequest),
-        response_info=CipherMessageInfo(GetOperatorInfoResponse),
+        name="GetClusterInfo",
+        handler=ClusterOperator.GetClusterInfoHandler,
+        request_info=CipherMessageInfo(GetClusterInfoRequest),
+        response_info=CipherMessageInfo(GetClusterInfoResponse),
         supports_parallelism=True
     ),
     CipherRpcInfo(
@@ -194,10 +194,10 @@ clusteroperator_service_rpcs = [
         supports_parallelism=True
     ),
     CipherRpcInfo(
-        id=ClusterOperatorRpc.ExecuteTest.value,
+        id=ClusterOperatorRpc.ExecuteManufacturingTest.value,
         type=CipherRpcType.UNARY,
-        name="ExecuteTest",
-        handler=ClusterOperator.ExecuteTestHandler,
+        name="ExecuteManufacturingTest",
+        handler=ClusterOperator.ExecuteManufacturingTestHandler,
         request_info=CipherMessageInfo(cluster_test.ExecuteTestRequest),
         response_info=CipherMessageInfo(cluster_test.ExecuteTestResponse),
         supports_parallelism=True

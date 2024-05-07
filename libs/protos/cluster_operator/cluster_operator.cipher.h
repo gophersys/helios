@@ -14,10 +14,10 @@ HealthCheckResponse ClusterOperator_HealthCheckHandler(HealthCheckRequest reques
 HealthCheckResponse ClusterOperator_HealthCheckRpc(cipher_unary_rpc_user_info_t *info, HealthCheckRequest request);
 
 // Server side handler
-GetOperatorInfoResponse ClusterOperator_GetOperatorInfoHandler(GetOperatorInfoRequest request);
+GetClusterInfoResponse ClusterOperator_GetClusterInfoHandler(GetClusterInfoRequest request);
 
 // Client side call
-GetOperatorInfoResponse ClusterOperator_GetOperatorInfoRpc(cipher_unary_rpc_user_info_t *info, GetOperatorInfoRequest request);
+GetClusterInfoResponse ClusterOperator_GetClusterInfoRpc(cipher_unary_rpc_user_info_t *info, GetClusterInfoRequest request);
 
 // Server side handler
 GetDeploymentInfoResponse ClusterOperator_GetDeploymentInfoHandler(GetDeploymentInfoRequest request);
@@ -38,9 +38,9 @@ ListTestsResponse ClusterOperator_ListTestsHandler(ListTestsRequest request);
 ListTestsResponse ClusterOperator_ListTestsRpc(cipher_unary_rpc_user_info_t *info, ListTestsRequest request);
 
 // Server side handler
-cluster_test.ExecuteTestResponse ClusterOperator_ExecuteTestHandler(cluster_test.ExecuteTestRequest request);
+cluster_test.ExecuteTestResponse ClusterOperator_ExecuteManufacturingTestHandler(cluster_test.ExecuteTestRequest request);
 
 // Client side call
-cluster_test.ExecuteTestResponse ClusterOperator_ExecuteTestRpc(cipher_unary_rpc_user_info_t *info, cluster_test.ExecuteTestRequest request);
+cluster_test.ExecuteTestResponse ClusterOperator_ExecuteManufacturingTestRpc(cipher_unary_rpc_user_info_t *info, cluster_test.ExecuteTestRequest request);
 
 #endif // CLUSTER_OPERATOR_CIPHER_H
