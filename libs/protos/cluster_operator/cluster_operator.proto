@@ -74,13 +74,24 @@ message GetClusterInfoResponse {
 }
 
 // Deployment Info
+message PodInfo {
+  string name = 1;
+  string image = 2;
+  string node = 3;
+  string status = 4;
+  int32 restarts = 5;
+  bool ready = 6; 
+}
+
 message DeploymentInfo {
   string name = 1;
+  string uuid = 2;
+  repeated PodInfo pods_info = 3;
 }
 
 message GetDeploymentInfoRequest {}
 message GetDeploymentInfoResponse {
-  DeploymentInfo info = 1;
+  repeated DeploymentInfo deployment_info = 1;
 }
 
 // Test Registration
