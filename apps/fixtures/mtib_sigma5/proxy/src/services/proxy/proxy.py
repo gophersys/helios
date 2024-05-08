@@ -14,6 +14,7 @@ import threading
 from typing import List, Tuple, Optional
 import docker
 from pathlib import Path
+from flask_socketio import SocketIO
 
 from config import conf
 
@@ -46,11 +47,13 @@ class ProxyServerConfiguration:
     def __init__(self,
                 db_storage_path:str,
                 db_storage_limit_gb:int, 
-                supported_registries:List[str]
+                supported_registries:List[str],
+                socketio:SocketIO,
                 ):
         self.db_storage_path:str = db_storage_path
         self.db_storage_limit_gb:str = db_storage_limit_gb
         self.supported_registries:List[str] = supported_registries
+        self.socketio:SocketIO = socketio
     
 # ----------------------------------------------------------------------------------
 #                                                                         Main Class
@@ -485,5 +488,31 @@ class ProxyServer:
             cluster.error = error
             return error, None
 
+    def clusters_test_exec(self, cluster_uuid:str, test_uuid:str, results_cb, session_id:str) -> str:
+        def run_test_simulation():
+            for i in range(5):  # Send 5 updates
+                time.sleep(1)  # Wait for a second between updates
+                results_cb({
+                    'test_uuid': test_uuid,
+                    'update': f"Update {i+1}",
+                    'done': False
+                },
+                session_id)
+            
+            # Send the final message indicating the test is done
+            time.sleep(1)
+            results_cb({
+                'test_uuid': test_uuid,
+                'update': "Final result",
+                'done': True
+            },
+                session_id)
+        
+        # Start the thread to simulate test execution
+        test_thread = threading.Thread(target=run_test_simulation)
+        test_thread.start()
+    
+        return "Test execution started"
+    
 # Class Singleton                
 appProxyServer:ProxyServer = ProxyServer() 

@@ -10,6 +10,7 @@ setup(
                       'python-dotenv',
                       'flask',
                       'flask-socketio',
+                      'eventlet',
                       'requests',
                       'termcolor',
                       'docker',

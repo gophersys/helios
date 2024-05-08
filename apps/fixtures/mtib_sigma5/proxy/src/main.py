@@ -2,7 +2,9 @@
 import logging
 
 # Library includes
-from flask import Flask
+from flask import Flask, request
+from flask_socketio import SocketIO, join_room, emit
+import eventlet.wsgi
 
 # App includes
 from config import conf
@@ -10,7 +12,8 @@ from src.services.proxy import appProxyServer, ProxyServerConfiguration
 
 # Server
 server = Flask(__name__) 
-
+socketio = SocketIO(server,debug=True,cors_allowed_origins='*',async_mode='eventlet')
+    
 # ----------------------------------------------------------------------------------
 #                                                                             Routes
 # --------------------------------------------------------------------------------*/
@@ -70,25 +73,37 @@ server.register_blueprint(clusters_tests_get_uuid_bp)
 from api.v1.clusters.tests.list import clusters_tests_list_bp                           # GET /v1/clusters/<uuid>/tests
 server.register_blueprint(clusters_tests_list_bp)
 
+from api.v1.clusters.tests.exec_uuid import clusters_tests_exec_uuid_bp                # POST /v1/clusters/<uuid>/tests/<uuid>/exec
+server.register_blueprint(clusters_tests_exec_uuid_bp)
 
+from api.v1.clusters.tests.exec_uuid import clusters_tests_exec_uuid_socketio_handler  # ws://<url>/exec_test
+@socketio.on('exec_test')
+def handle_ws_event_exec_test(data):
+    clusters_tests_exec_uuid_socketio_handler(data, socketio)
+        
 # ----------------------------------------------------------------------------------
 #                                                                              Entry 
 # --------------------------------------------------------------------------------*/
 if __name__ == '__main__':
     logging.debug(f"App configuration: \n{conf}")
     
-    # Remove healthcheck route hits from logs
-    logger = logging.getLogger('werkzeug')
-    logger.addFilter(LogFilter()) # <- More info here
+    # Add a log filter to avoid spamming the logs with commonly hit routes
+    logging.getLogger().addFilter(LogFilter())
     
     # Instantiate server with desired configuration
     app_config:ProxyServerConfiguration = ProxyServerConfiguration(
         db_storage_path=conf.DB_STORAGE_PATH,
         db_storage_limit_gb=conf.DB_STORAGE_LIMIT_GB,
         supported_registries=conf.SUPPORTED_REGISTRIES,
+        socketio=socketio
     )
     appProxyServer.init(app_config)
     
     # Start the server
-    server.run(host='0.0.0.0', port=conf.SERVER_PORT, debug=False)
+    socketio.run(app=server,
+                 host='0.0.0.0',
+                 port=conf.SERVER_PORT,
+                 debug=False,
+                 log_output=True,
+                 log=logging.getLogger())
     
