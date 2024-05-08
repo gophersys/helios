@@ -18,7 +18,7 @@ server = Flask(__name__)
 from api.v1.log_filter import LogFilter
 
 # Healthcheck
-from api.v1.healthcheck import (healthcheck_bp)                                        # GET /v1/healthcheck                                                    
+from api.v1.healthcheck import (healthcheck_bp)                                         # GET /v1/healthcheck                                                    
 server.register_blueprint(healthcheck_bp)
 
 # Clusters
@@ -47,6 +47,9 @@ server.register_blueprint(clusters_deployments_create_bp)
 from api.v1.clusters.deployments.get_uuid import clusters_deployments_get_uuid_bp       # GET /v1/clusters/<uuid>/deployments/<uuid>
 server.register_blueprint(clusters_deployments_get_uuid_bp)
 
+from api.v1.clusters.deployments.status_uuid import clusters_deployments_status_uuid_bp # GET /v1/clusters/<uuid>/deployments/<uuid>/status
+server.register_blueprint(clusters_deployments_status_uuid_bp)
+
 from api.v1.clusters.deployments.list import clusters_deployments_list_bp               # GET /v1/clusters/<uuid>/deployments
 server.register_blueprint(clusters_deployments_list_bp)
 
@@ -58,6 +61,15 @@ server.register_blueprint(clusters_deployments_delete_uuid_bp)
 
 from api.v1.clusters.deployments.apply_uuid import clusters_deployments_apply_uuid_bp   # POST /v1/clusters/<uuid>/deployments/<uuid>/apply
 server.register_blueprint(clusters_deployments_apply_uuid_bp)
+
+# Cluster Tests
+
+from api.v1.clusters.tests.get_uuid import clusters_tests_get_uuid_bp                   # GET /v1/clusters/<uuid>/tests/<uuid>
+server.register_blueprint(clusters_tests_get_uuid_bp)
+
+from api.v1.clusters.tests.list import clusters_tests_list_bp                           # GET /v1/clusters/<uuid>/tests
+server.register_blueprint(clusters_tests_list_bp)
+
 
 # ----------------------------------------------------------------------------------
 #                                                                              Entry 

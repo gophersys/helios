@@ -26,6 +26,7 @@ from protos.cluster_operator.cluster_operator_pb2 import (
     HealthCheckRequest, NodeInfo,
     GetClusterInfoRequest, GetClusterInfoResponse,
     ListTestsRequest, ListTestsResponse,
+    DeploymentInfo,GetDeploymentInfoResponse, GetDeploymentInfoRequest
 )
 from protos.cluster_operator.cluster_operator_pb2_grpc import ClusterOperatorStub
 
@@ -309,6 +310,27 @@ class ProxyServer:
         logging.info(f"New deployment created for cluster {cluster_uuid}")
         return "", deployment_uuid
     
+    def cluster_deployments_get_info(self, cluster_uuid:str) -> Tuple[str, Optional[List[DeploymentInfo]]]:
+        # First find the cluster
+        cluster:Cluster = None
+        for c in list(self.clusters):
+            if c.info.uuid == cluster_uuid:
+                cluster = c
+                
+        if cluster is None:
+            return f"Cluster with UUID {cluster_uuid} not found in server.", None
+        
+        if cluster.status is not None:
+            try:
+                # Perform a periodic health check to ensure we're still connected and alive
+                response:GetDeploymentInfoResponse = cluster.stub.GetDeploymentInfo(GetDeploymentInfoRequest())
+                return "", response.deployment_info
+                
+            except grpc.RpcError as e:
+                return f"Failed to get GetClusterInfo on cluster at {cluster.url}: {str(e)}", None
+        else:
+            return f"Cluster {cluster_uuid} is not connected", None
+        
     def cluster_deployments_get_path(self, cluster_uuid:str, deployment_uuid:str) -> Tuple[str, Optional[str]]:
         return self.db.cluster_deployment_get_path(cluster_uuid, deployment_uuid)
     
@@ -439,81 +461,29 @@ class ProxyServer:
 
         return ""
 
-    # -------------------------------------------------------------------------------------------------
-    #                                                                                    Cluster Update
-    # -----------------------------------------------------------------------------------------------*/
-    
-    # -------------------------------------------------------------------------------------------------
-    #                                                                                 Get Cluster Tests
-    # -----------------------------------------------------------------------------------------------*/
-    def get_cluster_tests(self, cluster_uuid:str) -> Tuple[str, Optional[List[TestInfo]]]:
-        # Check if the cluster is already connected
+    # -----------------------------------------------------------------------------
+    #                                                         Cluster Tests Methods
+    #  --------------------------------------------------------------------------*/ 
+    def clusters_tests_get(self, cluster_uuid:str) -> Tuple[str, Optional[List[TestInfo]]]:
+        # First find the cluster
         cluster:Cluster = None
-        for c in self.clusters:
-            if c.uuid == cluster_uuid:
+        for c in list(self.clusters):
+            if c.info.uuid == cluster_uuid:
                 cluster = c
-            
+                
         if cluster is None:
-            return f"Cluster {cluster_uuid} is not registered with the proxy", None
+            return f"Cluster with UUID {cluster_uuid} not found in server."
         
-         # List the tests over gRPC
+        # Use gRPC to get a list of the tests currently present in the cluster
         try:
+            # Perform a periodic health check to ensure we're still connected and alive
             response:ListTestsResponse = cluster.stub.ListTests(ListTestsRequest())
             return "", response.tests
+            
         except grpc.RpcError as e:
-            return f"Unable to get tests for cluster at {cluster.url} info over gRPC method ListTests(): {e}", None
-    
-    # -------------------------------------------------------------------------------------------------
-    #                                                                                      Get Clusters
-    # -----------------------------------------------------------------------------------------------*/
-    
-    
-    # -------------------------------------------------------------------------------------------------
-    #                                                                                  Get Cluster Info
-    # -----------------------------------------------------------------------------------------------*/
-    def get_cluster_info(self, cluster_uuid: str) -> Tuple[str, Optional[dict]]:
-        """Get a cluster's information by UUID."""
-        return self.db.cluster_get_info(cluster_uuid)
-
-    # -------------------------------------------------------------------------------------------------
-    #                                                                                      Get Clusters
-    # -----------------------------------------------------------------------------------------------*/
-    # def get_cluster_tests(self, cluster_uuid: str) -> Tuple[bool, str, Optional[List[TestInfo]]]:
-    #     """Get a cluster's information by UUID."""
-    #     for cluster in self.connected_clusters:
-    #         if cluster.info.uuid == cluster_uuid:
-    #             try:
-    #                 response:ListTestsResponse = cluster.stub.ListTests(ListTestsRequest())
-    #                 return True, "", response.tests
-    #             except grpc.RpcError as e:
-    #                 return False, f"Unable to get cluster tests at {cluster.url}: {e}", None
-
-    #     return False, f"Cluster {cluster_uuid} was not found in proxy", None
-    
-    # -------------------------------------------------------------------------------------------------
-    #                                                                                         Exec Test
-    # -----------------------------------------------------------------------------------------------*/
-    # def exec_cluster_test(self, cluster_uuid: str, test_uuid: str, runner_ids: List[int]) -> Tuple[bool, str]:
-    #     for cluster in self.connected_clusters:
-    #         if cluster.info.uuid == cluster_uuid:
-    #             logging.warning(f"found cluster {cluster_uuid}")
-    #             try:
-    #                 logging.warning("executing request")
-    #                 # Create the request object properly
-    #                 request = ExecuteTestRequest(testId=test_uuid, runnerIds=runner_ids)
-    #                 # Call the ExecuteTest method with the request
-    #                 response_stream = cluster.stub.ExecuteTest(request)
-    #                 logging.warning("Before entering response_stream loop")
-    #                 for response in response_stream:
-    #                     logging.warning(f"Received response: {response}")
-    #                 return True, ""
-    #             except grpc.RpcError as e:
-    #                 logging.error(f"RPC Error: {e}")
-    #                 return False, str(e)
-
-    # -------------------------------------------------------------------------------------------------
-    #                                                                                    Cluster Delete
-    # -----------------------------------------------------------------------------------------------*/
+            error = f"Unable to get tests for cluster at {cluster.url} info over gRPC method ListTests(): {e}"
+            cluster.error = error
+            return error, None
 
 # Class Singleton                
 appProxyServer:ProxyServer = ProxyServer() 
