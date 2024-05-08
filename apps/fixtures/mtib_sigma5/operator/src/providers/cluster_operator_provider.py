@@ -18,7 +18,8 @@ from protos.cluster_operator.cluster_operator_pb2 import (
     ClusterStatus, HealthCheckRequest, HealthCheckResponse,
     NodeInfo, GetClusterInfoRequest, GetClusterInfoResponse,
     RegisterTestRequest, RegisterTestResponse,
-    ListTestsRequest, ListTestsResponse
+    ListTestsRequest, ListTestsResponse,
+    GetDeploymentInfoRequest, GetDeploymentInfoResponse
 )
 from protos.cluster_operator.cluster_operator_pb2_grpc import ClusterOperatorServicer
 
@@ -37,7 +38,7 @@ class ClusterOperatorServicerProvider(ClusterOperatorServicer):
         return HealthCheckResponse(status=status, error=error)
     
     # -------------------------------------------------------------------------------------------------
-    #                                                                                   GetOperatorInfo
+    #                                                                                    GetClusterInfo
     # -----------------------------------------------------------------------------------------------*/
     def GetClusterInfo(self, request:GetClusterInfoRequest, context):
         # Call app to get info
@@ -46,7 +47,18 @@ class ClusterOperatorServicerProvider(ClusterOperatorServicer):
         )
         
         return response
+    
+    # -------------------------------------------------------------------------------------------------
+    #                                                                                 GetDeploymentInfo
+    # -----------------------------------------------------------------------------------------------*/
+    def GetDeploymentInfo(self, request:GetDeploymentInfoRequest, context):
+        # Call app to get info
+        response:GetDeploymentInfoResponse = GetDeploymentInfoResponse(
+            deployment_info=self.operator.get_deployment_info()
+        )
         
+        return response
+    
     # -------------------------------------------------------------------------------------------------
     #                                                                                     Register Test
     # -----------------------------------------------------------------------------------------------*/

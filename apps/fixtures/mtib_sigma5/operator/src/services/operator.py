@@ -25,7 +25,7 @@ from protos.cluster_test.cluster_test_pb2 import (
 from protos.cluster_test.cluster_test_pb2_grpc import ClusterTestStub
 
 from protos.cluster_operator.cluster_operator_pb2 import (
-    ClusterStatus, NodeInfo
+    ClusterStatus, NodeInfo, PodInfo, DeploymentInfo
 )
 
 # -------------------------------------------------------------------------------------------------
@@ -44,9 +44,9 @@ class ClusterDeploymentInfo:
         self.path:str = path
         self.status:ClusterDeploymentStatus = status
 
-# -------------------------------------------------------------------------------------------------
-#                                                                                        Test Entry
-# -----------------------------------------------------------------------------------------------*/
+# ----------------------------------------------------------------------------------
+#                                                                         Test Entry
+# --------------------------------------------------------------------------------*/
 class ClusterOperatorTestEntry:
     def __init__(self,
                  info:TestInfo,
@@ -126,14 +126,22 @@ class ClusterOperator:
         self.docker_client:docker.DockerClient = docker.from_env()
         self.kubernetes_client:kubernetes.client = kubernetes.client
         
+        # Ensure the deployments directory exists
+        if not os.path.exists(self.config.deployments_path):
+            os.makedirs(self.config.deployments_path)
+            
         # We return immediately on initialize so that if any errors occur during setup
         # the proxy is able to see it
-        self._thread = threading.Thread(target=self._main_thread, daemon=True)
-        self._thread.start()
+        self._main_thread_handle = threading.Thread(target=self._main_thread, daemon=True)
+        self._main_thread_handle.start()
         
         # We attempt to register so that proxy has immediate visibility of us
-        self._proxy_thread = threading.Thread(target=self._proxy_management_thread, daemon=True)
-        self._proxy_thread.start()
+        self._proxy_thread_handle = threading.Thread(target=self._proxy_management_thread, daemon=True)
+        self._proxy_thread_handle.start()
+        
+        # Simple health check to keep tracks of what tests are active
+        self._tests_thread_handle = threading.Thread(target=self._tests_management_thread, daemon=True)
+        self._tests_thread_handle.start()
         
         return ""
     
@@ -147,10 +155,9 @@ class ClusterOperator:
     #                                                                          Stop
     #  --------------------------------------------------------------------------*/
     def stop(self):
-        self.stop_event.set()
-        self._thread.join(timeout=1)
-        self._health_thread.join(timeout=1)
-        self._proxy_thread.join(timeout=1)
+        self._main_thread_handle.join(timeout=1)
+        self._proxy_thread_handle.join(timeout=1)
+        self._tests_thread_handle.join(timeout=1)
     
     def get_status(self) -> Tuple[Any, str]:
         return self.status, self.error
@@ -188,6 +195,59 @@ class ClusterOperator:
 
         return nodes_info
     
+    def get_deployment_info(self) -> List[DeploymentInfo]:
+        """Fetches deployment information from the Kubernetes cluster."""
+        
+        apps_v1 = self.kubernetes_client.AppsV1Api()
+        core_v1 = self.kubernetes_client.CoreV1Api()
+        
+        try:
+            deployments = apps_v1.list_namespaced_deployment(namespace="default")
+            deployment_infos = []
+
+            for deployment in deployments.items:
+                pods_info = self.__get_pods_info(deployment.metadata.name, deployment.metadata.namespace)
+                deployment_info = DeploymentInfo(
+                    name=deployment.metadata.name,
+                    uuid=deployment.metadata.uid,
+                    pods_info=pods_info
+                )
+                deployment_infos.append(deployment_info)
+
+            return deployment_infos
+        except kubernetes.client.rest.ApiException as e:
+            logging.error(f"An error occurred while fetching deployments: {e}")
+            return []
+
+    def __get_pods_info(self, deployment_name: str, namespace: str) -> List[PodInfo]:
+        """Helper method to fetch pod information for a given deployment."""
+        core_v1_api = kubernetes.client.CoreV1Api()
+        pods = core_v1_api.list_namespaced_pod(namespace, label_selector=f"app={deployment_name}")
+        pods_info = []
+
+        for pod in pods.items:
+            if pod.status.container_statuses:  # Check if container_statuses is not None
+                pod_info = PodInfo(
+                    name=pod.metadata.name,
+                    image=[container.image for container in pod.spec.containers][0],  # Assuming single container per pod
+                    node=pod.spec.node_name,
+                    status=pod.status.phase,
+                    restarts=sum(container.restart_count for container in pod.status.container_statuses),
+                    ready=all(cs.ready for cs in pod.status.container_statuses)
+                )
+            else:
+                pod_info = PodInfo(
+                    name=pod.metadata.name,
+                    image=[container.image for container in pod.spec.containers][0] if pod.spec.containers else None,  # Handle case with no containers
+                    node=pod.spec.node_name,
+                    status=pod.status.phase,
+                    restarts=0,
+                    ready=False
+                )
+            pods_info.append(pod_info)
+
+        return pods_info
+    
     def _parse_node_mem_capacity(self, value):
         """Parse capacity string with units to bytes."""
         if value.endswith('Ki'):
@@ -203,6 +263,9 @@ class ClusterOperator:
         else:
             return int(value)  # Assume the value is in bytes if no unit suffix is present
 
+    # -----------------------------------------------------------------------------
+    #                                                                         Tests
+    #  --------------------------------------------------------------------------*/
     def register_test(self, port:int, info:TestInfo) -> str:
         # Make sure that a test isn't trying to register on a same port
         for test in self.tests:
@@ -210,7 +273,7 @@ class ClusterOperator:
                 return f"Operator already has test \"{test.info.name}\" registered at port {port}"
             
         # Build the test URL
-        test_url = f"localhost:{port}"
+        test_url = f"control-plane:{port}"  #TODO: Change back to localhost once the operator is running inside the same machine
         
         # Attempt to connect to the test over gRPC
         try:
@@ -437,33 +500,8 @@ class ClusterOperator:
                     self.error = error
                     self.status = ClusterStatus.ERRORED         
             
-            time.sleep(1)  # Periodic delay between checks
+            time.sleep(1)
             
-        # We are now ready for tests to be registered, as well as ready for connection 
-        # to the proxy
-        self.status = OperatorStatus.READY
-        
-        # # Start all other threads
-        # self._health_thread = threading.Thread(target=self._tests_health_check_thread, daemon=False)
-        # self._health_thread.start()
-        
-        # self._deployment_thread = threading.Thread(target=self._cluster_deployments_thread, daemon=False)
-        # self._deployment_thread.start()
-        
-        
-        
-        # # Now we just attempt to register until the end of times or until we're actually registerde
-        # self._register_with_proxy()
-        
-        # # Main loop
-        # while not self.stop_event.is_set():
-        #     if self.status == OperatorStatus.READY:
-        #         # Proxy was disconnected, try to register
-        #         logging.info("Cluster state changed from CONNECTED to READY, attempting cluster registration with proxy...")
-        #         self._register_with_proxy()    
-    
-        #     time.sleep(1)
-
     # -----------------------------------------------------------------------------
     #                                                       Proxy Management Thread
     #  --------------------------------------------------------------------------*/
@@ -514,13 +552,12 @@ class ClusterOperator:
                     logging.warning(f"Network error: could not GET healthcheck in proxy server {str(e)}")
     
     # -----------------------------------------------------------------------------
-    #                                                                          Main
+    #                                                             Tests Healthcheck
     #  --------------------------------------------------------------------------*/
-    def _tests_health_check_thread(self):
+    def _tests_management_thread(self):
         """Periodically check the health of each cluster."""
-        while not self.stop_event.is_set():
-            tests = self.tests
-            for test in tests:
+        while True:
+            for test in list(self.tests):
                 try:
                     # Perform a periodic health check to ensure we're still connected and alive
                     test.stub.HealthCheck(HealthCheckRequest())
@@ -529,11 +566,12 @@ class ClusterOperator:
                     logging.error(f"Failed to perform health check on test at {test.port}. Unregistering from operator")
                     test.channel.close()
                     self.tests.remove(test)
-                    
-                time.sleep(1)
 
             time.sleep(1) 
     
+    # -----------------------------------------------------------------------------
+    #                                                            Deployment Helpers
+    #  --------------------------------------------------------------------------*/
     def __fetch_current_deployment(self) -> str:
         # Fetch basic cluster information to get the current deployment name
         url = f"{self.config.proxy_url}/v1/clusters/{self.config.uuid}/deployments"
@@ -560,8 +598,12 @@ class ClusterOperator:
                 if error:
                     return f"Could not delete deployment: {error}"
                 
+                # Update the status
                 self.status = ClusterStatus.READY
                 self.error = None
+                
+                # Clear all the tests we have
+                self.tests.clear()
             
                 logging.info("Deployment for cluster was deleted succesfully")
                 return ""
@@ -615,11 +657,6 @@ class ClusterOperator:
             if error:
                 return f"Could not apply new deployment to cluster: {error}"
 
-            # Await for all the pods to be ready
-            error = self.__wait_for_deployment_pods_ready()
-            if error:
-                return f"Failed to apply kubernetes deployment to cluster: {error}"
-            
             # Update the state 
             self.status = ClusterStatus.IDLE
             self.error = None
@@ -736,7 +773,7 @@ class ClusterOperator:
 
             # Assuming you want to wait for each deployment to be ready after applying
             for deployment_name in applied_deployments:
-                error_message = self.__wait_for_deployment_pods_ready()
+                error_message = self.__wait_for_deployment_pods_ready(deployment_name)
                 if error_message:
                     return f"Failed to wait for deployment '{deployment_name}' to be ready: {error_message}"
 
@@ -745,64 +782,72 @@ class ClusterOperator:
         except Exception as e:
             return f"Failed to apply deployment from {self.deployment_info.path}: {str(e)}"
 
-    def __wait_for_deployment_pods_ready(self) -> str:
-        """Waits for all pods in a deployment to be in the 'Ready' state and monitors them for a period to catch any failures that occur shortly after becoming ready."""
+    def __wait_for_deployment_pods_ready(self, deployment_name: str) -> str:
+        """Waits for all pods in a specific deployment to be in the 'Ready' state, allowing for delays due to image downloads or other setup processes."""
 
-        timeout = self.K8S_APPLY_DEPLOYMENT_TIMEOUT_S
         initial_check_delay = 5  # Seconds to delay before first readiness check
         post_check_delay = 5  # Seconds to wait after a successful readiness check to ensure stability
-        
-        time.sleep(initial_check_delay)  # Delay before starting the checks
-        
-        core_v1 = self.kubernetes_client.CoreV1Api()
-        start_time = time.time()
 
-        while time.time() - start_time < timeout:
-            pod_list = core_v1.list_namespaced_pod(namespace="default")
+        time.sleep(initial_check_delay)  # Delay before starting the checks
+
+        core_v1 = self.kubernetes_client.CoreV1Api()
+
+        while True:
+            # Fetch all pods with a label selector to filter by deployment name
+            pod_list = core_v1.list_namespaced_pod(namespace="default", label_selector=f"app={deployment_name}")
             all_pods_ready = True
+            transitional_states = ["ContainerCreating", "Pending"]
             error_message = ""
 
             for pod in pod_list.items:
-                pod_ready = False
-                if pod.status.conditions:
-                    pod_ready = any(condition.type == "Ready" and condition.status == "True" for condition in pod.status.conditions)
-                if not pod_ready:
+                pod_status = self.__get_pod_status(pod)
+                if pod_status == "Ready":
+                    continue
+                elif pod_status in transitional_states:
                     all_pods_ready = False
-                    error_message = self.__get_pod_error_details(pod, core_v1)
-                    break
-            
+                    break  # Exit the current iteration and allow more time for transition
+                else:
+                    all_pods_ready = False
+                    pod_in_error, logs = self.__find_error_pod_and_logs(core_v1, pod_list)
+                    return f"Pods failed after initial readiness check. Error in pod {pod_in_error}: {logs}"
+
             if all_pods_ready:
                 logging.info("Initial readiness check passed. Monitoring for stability...")
                 time.sleep(post_check_delay)  # Wait to ensure pods remain stable
 
                 # Recheck readiness after the delay
-                if self.__are_all_pods_still_ready(core_v1)[0]:
-                    logging.info("All pods for deployment are confirmed stable after monitoring.")
+                if self.__are_all_pods_still_ready(core_v1, deployment_name)[0]:
+                    logging.info(f"All pods for deployment {deployment_name} are confirmed stable after monitoring.")
                     return ""
                 else:
-                    error_message = "Pods failed after initial readiness check."
-
-            if error_message:
-                return error_message
+                    logging.info("Rechecking pods for stability after failure.")
+                    pod_in_error, logs = self.__find_error_pod_and_logs(core_v1, pod_list)
+                    return f"Pods failed after initial readiness check. Error in pod {pod_in_error}: {logs}"
 
             time.sleep(5)  # Sleep before the next check to avoid overwhelming the API server
 
-        return "Timeout reached. Not all pods are ready."
+    def __get_pod_status(self, pod):
+        """Utility function to determine the current status of a pod."""
+        if pod.status.conditions:
+            return "Ready" if any(condition.type == "Ready" and condition.status == "True" for condition in pod.status.conditions) else "Not Ready"
+        return "Unknown"
 
-    def __are_all_pods_still_ready(self, core_v1):
-        """Checks all pods to ensure they are still in the 'Ready' state and returns detailed error information if not."""
-        pod_list = core_v1.list_namespaced_pod(namespace="default")
+    def __are_all_pods_still_ready(self, core_v1, deployment_name):
+        """Checks if all pods are still in 'Ready' state."""
+        pod_list = core_v1.list_namespaced_pod(namespace="default", label_selector=f"app={deployment_name}")
+        return all(
+            any(condition.type == "Ready" and condition.status == "True" for condition in pod.status.conditions)
+            for pod in pod_list.items
+        ), pod_list
+
+    def __find_error_pod_and_logs(self, core_v1, pod_list):
+        """Identifies which pod is in error state and fetches its logs."""
         for pod in pod_list.items:
-            if pod.status.conditions:
-                pod_ready = any(condition.type == "Ready" and condition.status == "True" for condition in pod.status.conditions)
-                if not pod_ready:
-                    error_details = self.__get_pod_error_details(pod, core_v1)
-                    return (False, error_details)
-            else:
-                error_message = f"Pod {pod.metadata.name} has no conditions available to check readiness."
-                return (False, error_message)
-        return (True, "")  # All pods are ready
-
+            if not self.__get_pod_status(pod) == "Ready":
+                logs = core_v1.read_namespaced_pod_log(name=pod.metadata.name, namespace=pod.metadata.namespace)
+                return pod.metadata.name, logs
+        return "No error pod found", "No logs available"
+        
     def __get_pod_error_details(self, pod, core_v1):
         """Extracts and returns error details from a pod's conditions, and fetches related events."""
         error_messages = [f"{condition.type} is not met: {condition.message}" for condition in pod.status.conditions if condition.status == "False"]
