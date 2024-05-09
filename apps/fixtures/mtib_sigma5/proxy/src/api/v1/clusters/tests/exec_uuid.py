@@ -8,7 +8,7 @@ import queue
 
 # 3rd party includes
 from flask import Blueprint, jsonify
-from flask_socketio import SocketIO, join_room
+from flask_socketio import SocketIO, join_room, emit, close_room, disconnect
 
 # Protocol includes
 from protos.cluster_test.cluster_test_pb2 import TestInfo
@@ -31,16 +31,15 @@ def test_result_callback(data: Any, session_id: str):
 def clusters_tests_exec_uuid_socketio_handler(data: Any, socketio:SocketIO):
     session_id = data['session_id']
     join_room(session_id)
-    while True:
-        session_id, data = message_queue.get()
-        if 'action' in data and data['action'] == 'close':
-            socketio.emit('test_complete', {'message': data['message']}, room=session_id)
-            socketio.close_room(session_id)
-            return
-        else:
-            socketio.emit('server', {'data': data['update']}, room=session_id)
-            time.sleep(0.1)
-
+    for x in range(5):
+        logging.info("Sending message")
+        emit('server', {'data': "some data"}, room=session_id)
+        time.sleep(1)
+    logging.info("Sending last message")
+    emit('test_complete', {'data': "Test complete"}, room=session_id)
+    disconnect(sid=session_id)
+    close_room(session_id)
+    
 # Flask Route
 clusters_tests_exec_uuid_bp = Blueprint('clusters_tests_exec_uuid', __name__)
 

@@ -21,8 +21,12 @@ def connect():
 
 @sio.event
 def server(data):
-    print("Received data:", data)
-    logging.info("Received data:", data)
+    print("Received data:", data, flush=True)
+
+@sio.event
+def test_complete(data):
+    print("Test complete:", data)
+    sio.disconnect()  # Client triggers disconnect on receiving the final event
 
 @sio.event
 def disconnect():
@@ -40,7 +44,7 @@ if __name__ == "__main__":
             # Connect to the server and join the room with the session_id
             sio.connect('http://127.0.0.1:6969')  # Update with your actual server address and port
             sio.emit('exec_test', {'session_id': session_id})
-            time.sleep(100)
+            sio.wait()
         else:
             print("Unable to obtain session_id and start the test.")
     except Exception as e:

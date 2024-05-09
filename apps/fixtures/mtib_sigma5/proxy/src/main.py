@@ -1,10 +1,12 @@
+import eventlet
+eventlet.monkey_patch(socket=True, select=True, time=True, os=True, thread=False)
+
 # Standard includes
 import logging
 
 # Library includes
 from flask import Flask, request
 from flask_socketio import SocketIO, join_room, emit
-import eventlet.wsgi
 
 # App includes
 from config import conf
