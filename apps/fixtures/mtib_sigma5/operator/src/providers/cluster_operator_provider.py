@@ -14,12 +14,17 @@ from config import conf
 from src.services.operator import ClusterOperator
 
 # Protocol includes
+from protos.cluster_test.cluster_test_pb2 import (
+    TestStepResult, ExecuteResponse
+)
+
 from protos.cluster_operator.cluster_operator_pb2 import (
     ClusterStatus, HealthCheckRequest, HealthCheckResponse,
     NodeInfo, GetClusterInfoRequest, GetClusterInfoResponse,
     RegisterTestRequest, RegisterTestResponse,
     ListTestsRequest, ListTestsResponse,
-    GetDeploymentInfoRequest, GetDeploymentInfoResponse
+    GetDeploymentInfoRequest, GetDeploymentInfoResponse,
+    ExecuteTestResponse
 )
 from protos.cluster_operator.cluster_operator_pb2_grpc import ClusterOperatorServicer
 
@@ -106,50 +111,34 @@ class ClusterOperatorServicerProvider(ClusterOperatorServicer):
     #         tests = self.cluster.get_tests()
     #     )
     
-    # # -------------------------------------------------------------------------------------------------
-    # #                                                                                  ExecuteTest
-    # # -----------------------------------------------------------------------------------------------*/
+    # -------------------------------------------------------------------------------------------------
+    #                                                                                  ExecuteTest
+    # -----------------------------------------------------------------------------------------------*/
+    def ExecuteTest(self, request, context):
+        logging.warning(request)
+        
+        # Simulate the execution of several test steps
+        test_steps = [
+            {"execError": "", "success": True, "detailedResult": "Initialization complete.", "progressPercentage": 20, "timestamp": str(time.time())},
+            {"execError": "", "success": True, "detailedResult": "Loading modules.", "progressPercentage": 40, "timestamp": str(time.time())},
+            {"execError": "Error loading module", "success": False, "detailedResult": "Module failed to load.", "progressPercentage": 60, "timestamp": str(time.time())},
+            {"execError": "", "success": True, "detailedResult": "Cleanup and finalizing.", "progressPercentage": 80, "timestamp": str(time.time())},
+            {"execError": "", "success": True, "detailedResult": "Test completed successfully.", "progressPercentage": 100, "timestamp": str(time.time())}
+        ]
+        
+        for step in test_steps:
+            # Create a TestStepResult message
+            test_step_result = TestStepResult(
+                execError=step["execError"],
+                success=step["success"],
+                detailedResult=step["detailedResult"],
+                progressPercentage=step["progressPercentage"],
+                timestamp=step["timestamp"]
+            )
 
-    # def ExecuteTest(self, request, context):
-    #     # Create a unique test identifier for this test instance
-    #     test_id = str(uuid.uuid4())
-
-    #     # We use a queue to communicate the execute callback and the response stream of this RPC
-    #     results_queue = Queue()
-
-    #     # This gets called every time a new step completes in the execution cycle
-    #     def callback(complete: bool, error: str, sequence:int, results: Optional[List[TestStepResult]] = None):
-    #         if error:
-    #             results_queue.put(('error', error))
-    #         elif not results:
-    #             results_queue.put(('error', "Empty results array"))
-    #         else:
-    #             results_queue.put(('results', results))
-            
-    #         if complete:
-    #             results_queue.put(('complete', None))
-
-    #     # Execute the test in a separate thread to avoid blocking gRPC thread
-    #     executor = ThreadPoolExecutor(max_workers=1)
-    #     executor.submit(self.cluster.execute_test, request.testId, request.runnerIds, callback)
-
-    #     while True:
-    #         # Block until a message is available in the queue
-    #         message_type, message = results_queue.get()
-
-    #         if message_type == 'error':
-    #             logging.error(f"Test execution error: {message}")
-    #             context.abort(grpc.StatusCode.INTERNAL, str(message))
-    #             break
-
-    #         elif message_type == 'results':
-    #             yield ExecuteTestResponse(instance=test_id,
-    #                                       sequence=1, # How do we add the sequence cleanly in here
-    #                                       results=message)
-
-    #         elif message_type == 'complete':
-    #             logging.info("Last result was received, returning on RPC")
-    #             break
-
-    #     # Shutdown the executor
-    #     executor.shutdown(wait=True)
+            # Wrap the result in an ExecuteResponse and then in an ExecuteTestResponse
+            response = ExecuteTestResponse(
+                results=[ExecuteResponse(results=[test_step_result])]
+            )
+            yield response
+            time.sleep(1)  # Simulate time delay between steps        

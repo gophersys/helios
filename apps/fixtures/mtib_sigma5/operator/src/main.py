@@ -44,6 +44,7 @@ if __name__ == '__main__':
     config:ClusterOperatorConfig = ClusterOperatorConfig(
         uuid=conf.CLUSTER_UUID,
         proxy_url=conf.PROXY_SERVER_URL,
+        registry_host="control-plane",
         registry_port=conf.LOCAL_REGISTRY_PORT,
         grpc_server_url=f"{socket.gethostname()}:{conf.GRPC_SERVER_PORT}",
         nodes_hostnames=conf.NODES_HOSTNAMES,

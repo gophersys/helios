@@ -65,6 +65,7 @@ class ClusterOperatorConfig:
     def __init__(self,
                  uuid:str,
                  proxy_url:str,
+                 registry_host:str,
                  registry_port:int,
                  grpc_server_url:str,
                  nodes_hostnames:List[str],
@@ -72,6 +73,7 @@ class ClusterOperatorConfig:
                  deployments_path:str):
         self.uuid:str = uuid
         self.proxy_url:str = proxy_url
+        self.registry_host:int = registry_host
         self.registry_port:int = registry_port
         self.grpc_server_url:str = grpc_server_url
         self.nodes_hostnames:List[str] = nodes_hostnames
@@ -222,29 +224,36 @@ class ClusterOperator:
     def __get_pods_info(self, deployment_name: str, namespace: str) -> List[PodInfo]:
         """Helper method to fetch pod information for a given deployment."""
         core_v1_api = kubernetes.client.CoreV1Api()
-        pods = core_v1_api.list_namespaced_pod(namespace, label_selector=f"app={deployment_name}")
-        pods_info = []
+        
+        try:
+            # Get deployment to fetch its unique selector
+            apps_v1_api = kubernetes.client.AppsV1Api()
+            deployment = apps_v1_api.read_namespaced_deployment(deployment_name, namespace)
+            match_labels = deployment.spec.selector.match_labels
+            label_selector = ','.join(f"{k}={v}" for k, v in match_labels.items())
+            
+            # Now use the specific selector tied to the deployment's own specification
+            pods = core_v1_api.list_namespaced_pod(namespace, label_selector=label_selector)
+            pods_info = []
 
-        for pod in pods.items:
-            if pod.status.container_statuses:  # Check if container_statuses is not None
+            for pod in pods.items:
+                container_statuses = pod.status.container_statuses or []
                 pod_info = PodInfo(
                     name=pod.metadata.name,
-                    image=[container.image for container in pod.spec.containers][0],  # Assuming single container per pod
+                    image=[container.image for container in pod.spec.containers][0] if pod.spec.containers else None,
                     node=pod.spec.node_name,
                     status=pod.status.phase,
-                    restarts=sum(container.restart_count for container in pod.status.container_statuses),
-                    ready=all(cs.ready for cs in pod.status.container_statuses)
+                    restarts=sum(cs.restart_count for cs in container_statuses),
+                    ready=all(cs.ready for cs in container_statuses)
                 )
-            else:
-                pod_info = PodInfo(
-                    name=pod.metadata.name,
-                    image=[container.image for container in pod.spec.containers][0] if pod.spec.containers else None,  # Handle case with no containers
-                    node=pod.spec.node_name,
-                    status=pod.status.phase,
-                    restarts=0,
-                    ready=False
-                )
-            pods_info.append(pod_info)
+                pods_info.append(pod_info)
+
+        except kubernetes.client.exceptions.ApiException as e:
+            logging.error(f"API error retrieving pods for deployment {deployment_name}: {e}")
+            return []
+        except Exception as e:
+            logging.error(f"Unexpected error in retrieving pods: {e}")
+            return []
 
         return pods_info
     
@@ -333,30 +342,30 @@ class ClusterOperator:
         return ""
     
     def __setup_local_container_registry(self) -> str:
-        logging.debug(f"Setting up local registry at port {self.config.registry_port}...")
-        client = docker.from_env()
+        # logging.debug(f"Setting up local registry at port {self.config.registry_port}...")
+        # client = docker.from_env()
 
-        try:
-            # Check if a registry is running on that port
-            all_containers = client.containers.list(all=True)
-            registry_running = False
-            for container in all_containers:
-                container_ports = container.attrs['HostConfig']['PortBindings'] or {}
-                for port, bindings in container_ports.items():
-                    if port.split('/')[0] == str(self.config.registry_port) and bindings:
-                        registry_running = True
-                        break
+        # try:
+        #     # Check if a registry is running on that port
+        #     all_containers = client.containers.list(all=True)
+        #     registry_running = False
+        #     for container in all_containers:
+        #         container_ports = container.attrs['HostConfig']['PortBindings'] or {}
+        #         for port, bindings in container_ports.items():
+        #             if port.split('/')[0] == str(self.config.registry_port) and bindings:
+        #                 registry_running = True
+        #                 break
 
-            if not registry_running:
-                logging.info("No local registry found. Creating one...")
-                client.containers.run("registry:2", ports={f'{self.config.registry_port}/tcp': self.config.registry_port}, detach=True)
-            else:
-                logging.info("Local registry already running.")
+        #     if not registry_running:
+        #         logging.info("No local registry found. Creating one...")
+        #         client.containers.run("registry:2", ports={f'{self.config.registry_port}/tcp': self.config.registry_port}, detach=True)
+        #     else:
+        #         logging.info("Local registry already running.")
 
-        except docker.errors.APIError as e:
-            error_message = f"Failed to check or create local registry: {str(e)}"
-            logging.error(error_message)
-            return error_message
+        # except docker.errors.APIError as e:
+        #     error_message = f"Failed to check or create local registry: {str(e)}"
+        #     logging.error(error_message)
+        #     return error_message
 
         logging.info(f"Local registry at port {self.config.registry_port} setup OK")
         return ""
@@ -573,18 +582,22 @@ class ClusterOperator:
     #                                                            Deployment Helpers
     #  --------------------------------------------------------------------------*/
     def __fetch_current_deployment(self) -> str:
-        # Fetch basic cluster information to get the current deployment name
-        url = f"{self.config.proxy_url}/v1/clusters/{self.config.uuid}/deployments"
-        response = requests.get(url)
-        if response.status_code != 200:
-            return f"Could not fetch the cluster information from proxy at {self.config.proxy_url}, status code: {response.status_code}, response: {json_response}"
-        
-        # Check and parse the response
+        # Try to fetch the latest deployment info from the proxy
         try:
-            json_response = response.json()
-        except requests.exceptions.JSONDecodeError:
-            return f"Error: Invalid response from server: {response.status_code}"
-
+            # Fetch basic cluster information to get the current deployment name
+            url = f"{self.config.proxy_url}/v1/clusters/{self.config.uuid}/deployments"
+            response = requests.get(url)
+            if response.status_code != 200:
+                return f"Could not fetch the cluster information from proxy at {self.config.proxy_url}, status code: {response.status_code}, response: {json_response}"
+            
+            # Check and parse the response
+            try:
+                json_response = response.json()
+            except requests.exceptions.JSONDecodeError:
+                return f"Error: Invalid response from server: {response.status_code}"
+        except Exception as e:
+            logging.warning(f"Exception occurred fetching deployment: {str(e)}")
+                        
         # Extract the current deployment file name from the path
         new_deployment_uuid = json_response.get('current_deployment')
         if new_deployment_uuid is None:
@@ -668,15 +681,41 @@ class ClusterOperator:
         except requests.exceptions.JSONDecodeError:
             return f"Error: Invalid deployment response from server: {response.status_code}"
 
-    def __download_and_update_deployment_images(self) -> str:
-        """
-        Searches through Kubernetes deployment documents for any images present, downloads them from
-        that registry to the registry of the cluster, and once all images have been successfully
-        downloaded, it will rename them so that the runners inside the network can download them
-        without internet access. It also updates the image names in the deployment documents.
-        """
+    def _image_exists_and_matches(self, control_plane_image, original_image):
+        """Check if the image exists in the control plane registry and matches the original image digest."""
+        try:
+            # Get the digest from the control plane registry
+            control_plane_data = self.docker_client.images.get_registry_data(control_plane_image)
+            control_plane_digest = control_plane_data.attrs['Descriptor']['digest']
+            
+            # Get the digest from the original image
+            original_data = self.docker_client.images.get_registry_data(original_image)
+            original_digest = original_data.attrs['Descriptor']['digest']
+            
+            matches = control_plane_digest == original_digest
+            logging.info(f"Comparing digests for {control_plane_image} with {original_image}: match: {matches}")
+            return matches
+        except (docker.errors.ImageNotFound, docker.errors.NotFound):
+            logging.info(f"Image {control_plane_image} not found in registry, fetching...")
+            return False
+        except Exception as e:
+            logging.error(f"Error checking image in registry: {e}")
+            return False
 
-        # Read the deployment file content
+    def _retry_upload_image(self, image_name):
+        """Attempt to upload the image to the registry, retrying if necessary."""
+        retries = 3
+        for attempt in range(1, retries + 1):
+            try:
+                self.docker_client.images.push(image_name)
+                logging.info(f"Successfully uploaded image: {image_name}")
+                return True
+            except docker.errors.APIError as e:
+                logging.info(f"Attempt {attempt} failed to upload image {image_name}: {e}")
+                if attempt == retries:
+                    return False
+
+    def __download_and_update_deployment_images(self):
         deployment_path = self.deployment_info.path
         try:
             with open(deployment_path, 'r') as file:
@@ -684,103 +723,144 @@ class ClusterOperator:
         except FileNotFoundError:
             return f"Deployment file '{deployment_path}' not found"
 
-        # Parse the deployment as YAML
         try:
             documents = list(yaml.safe_load_all(deployment_contents))
         except yaml.YAMLError as e:
             return f"Error parsing deployment file: {e}"
 
-        updated_documents = []
+        updated_documents = []  # To store the modified documents
+
         for deployment_yaml in documents:
-            if not deployment_yaml:  # Skip empty documents
+            if not deployment_yaml:
                 continue
-            
-            # Find and process all container images in the deployment
+
             try:
                 containers = deployment_yaml['spec']['template']['spec']['containers']
             except KeyError as e:
                 return f"Error extracting containers from deployment: {e}"
 
+            # Prepare a dictionary to track image updates
             image_updates = {}
+
             for container in containers:
                 original_image = container['image']
-                image_name = os.path.basename(urlparse(original_image).path)
-                new_image_name = f"control-plane:{self.config.registry_port}/{image_name}"  # Update to local registry
-                image_updates[original_image] = new_image_name
+                new_image_name = f"{self.config.registry_host}:{self.config.registry_port}/{os.path.basename(urlparse(original_image).path)}"
 
-                logging.info(f"Fetching image {original_image}...")
+                logging.info(f"Checking image {original_image}...")
 
-                # Pull and tag new images
-                try:
+                # Check if the new image name exists and matches; if not, update and re-upload
+                if not self._image_exists_and_matches(new_image_name, original_image):
+                    logging.info(f"Pulling image {original_image}...")
                     local_image = self.docker_client.images.pull(original_image)
                     local_image.tag(new_image_name)
-                    self.docker_client.images.push(new_image_name)
-                    logging.info(f"Image {original_image} downloaded and tagged as {new_image_name}")
-                except docker.errors.APIError as e:
-                    return f"Failed to download or tag image {original_image}: {e}"
-                except docker.errors.NotFound:
-                    return f"Image {original_image} not found in the registry"
+                    if self._retry_upload_image(new_image_name):
+                        image_updates[original_image] = new_image_name  # Store the new image name
+                        logging.info(f"Image pulled, retagged and uploaded succesuful for: {original_image} ({new_image_name})...")
+                    else:
+                        image_updates[original_image] = original_image  # Upload failed, keep the original
+                else:
+                    image_updates[original_image] = new_image_name  # Image already matches, use the new name
 
-            # Update the image names in the deployment manifest
+            # Update the image names in the deployment YAML
             for container in containers:
                 original_image = container['image']
-                container['image'] = image_updates[original_image]
+                container['image'] = image_updates.get(original_image, original_image)  # Ensure all images are updated
 
-            updated_documents.append(deployment_yaml)
+            updated_documents.append(deployment_yaml)  # Add the updated YAML to the list
 
-        # Save the updated deployment back to the filesystem
+        # Save the updated documents to the YAML file
         try:
             with open(deployment_path, 'w') as file:
                 yaml.safe_dump_all(updated_documents, file)
-            logging.info(f"Updated deployment file saved successfully: {deployment_path}")
+            logging.info("Updated deployment file saved successfully.")
         except IOError as e:
             return f"Failed to save updated deployment file: {e}"
 
         return ""
-        
+
     def __apply_k8s_deployment(self) -> str:
-        """Applies Kubernetes deployments to the cluster and waits for the pods to be ready for each."""
+        """Applies Kubernetes deployments to the cluster and waits for the pods and images to be ready."""
         logging.info(f"Applying Kubernetes deployments from: {self.deployment_info.path}")
 
-        try:
-            with open(self.deployment_info.path, 'r') as file:
-                deployment_docs = list(yaml.safe_load_all(file))
+        # try:
+        with open(self.deployment_info.path, 'r') as file:
+            deployment_docs = list(yaml.safe_load_all(file))
 
-            if not deployment_docs:
-                return "No deployment found in the file."
+        if not deployment_docs:
+            return "No deployment found in the file."
 
-            k8s_client = kubernetes.client.ApiClient()
+        k8s_client = kubernetes.client.ApiClient()
 
-            # Apply each deployment document
-            applied_deployments = []
-            for deployment_yaml in deployment_docs:
-                if not deployment_yaml or 'kind' not in deployment_yaml or deployment_yaml['kind'] != 'Deployment':
-                    logging.warning("Skipping non-Deployment or malformed YAML document.")
-                    continue
+        # Apply each deployment document
+        applied_deployments = []
+        for deployment_yaml in deployment_docs:
+            if not deployment_yaml or 'kind' not in deployment_yaml or deployment_yaml['kind'] != 'Deployment':
+                logging.warning("Skipping non-Deployment or malformed YAML document.")
+                continue
 
-                try:
-                    kubernetes.utils.create_from_yaml(k8s_client, yaml_objects=[deployment_yaml], namespace="default")
-                    deployment_name = deployment_yaml.get("metadata", {}).get("name", "")
-                    if deployment_name:
-                        applied_deployments.append(deployment_name)
-                    else:
-                        logging.warning("Deployment name could not be extracted from a YAML document.")
-                except kubernetes.client.rest.ApiException as e:
-                    return f"Failed to apply deployment: {str(e)}"
+            try:
+                kubernetes.utils.create_from_yaml(k8s_client, yaml_objects=[deployment_yaml], namespace="default")
+                deployment_name = deployment_yaml.get("metadata", {}).get("name", "")
+                if deployment_name:
+                    applied_deployments.append(deployment_name)
+                else:
+                    logging.warning("Deployment name could not be extracted from a YAML document.")
+            except kubernetes.client.rest.ApiException as e:
+                return f"Failed to apply deployment: {str(e)}"
 
-            if not applied_deployments:
-                return "No valid deployments were applied."
+        if not applied_deployments:
+            return "No valid deployments were applied."
 
-            # Assuming you want to wait for each deployment to be ready after applying
-            for deployment_name in applied_deployments:
-                error_message = self.__wait_for_deployment_pods_ready(deployment_name)
-                if error_message:
-                    return f"Failed to wait for deployment '{deployment_name}' to be ready: {error_message}"
+        # Wait for image downloads and pod readiness
+        for deployment_name in applied_deployments:
+            for _ in range(3):  # Retry logic
+                error_message = self.__wait_for_deployment_images_ready(deployment_name)
+                if not error_message:
+                    break
+                time.sleep(10)  # Wait a bit before retrying
+            else:
+                return f"Images for deployment '{deployment_name}' are not ready after retries."
 
-            return ""
+            error_message = self.__wait_for_deployment_pods_ready(deployment_name)
+            if error_message:
+                return f"Failed to wait for deployment '{deployment_name}' to be ready: {error_message}"
 
-        except Exception as e:
-            return f"Failed to apply deployment from {self.deployment_info.path}: {str(e)}"
+        return ""
+
+        # except Exception as e:
+        #     return f"Failed to apply deployment from {self.deployment_info.path}: {str(e)}"
+
+    def __wait_for_deployment_images_ready(self, deployment_name: str) -> str:
+        """Wait for all images in the deployment to be ready."""
+        core_v1 = self.kubernetes_client.CoreV1Api()
+        retry_limit = 3
+        attempt = 0
+
+        while attempt < retry_limit:
+            attempt += 1
+            pod_list = core_v1.list_namespaced_pod(namespace="default", label_selector=f"app={deployment_name}")
+            all_images_ready = True
+            transitional_states = ["ContainerCreating", "Pending", "ImagePullBackOff", "ErrImagePull"]
+
+            for pod in pod_list.items:
+                if pod.status.container_statuses:
+                    for container_status in pod.status.container_statuses:
+                        if container_status.state.waiting and container_status.state.waiting.reason in transitional_states:
+                            logging.info(f"Image for container {container_status.name} in pod {pod.metadata.name} is not ready. Reason: {container_status.state.waiting.reason}")
+                            all_images_ready = False
+                            break  # Break out of the container loop, check the next pod
+                else:
+                    logging.info(f"No container statuses available for pod {pod.metadata.name}. Waiting for update...")
+                    all_images_ready = False  # Set this as False to ensure it retries
+
+            if all_images_ready:
+                logging.info(f"All images for deployment {deployment_name} are ready on attempt {attempt}.")
+                return ""
+
+            logging.info(f"Not all images are ready on attempt {attempt}. Retrying after delay...")
+            time.sleep(10)  # Sleep to provide time for images to be ready
+
+        return f"Not all images were ready after {retry_limit} attempts for deployment {deployment_name}."
 
     def __wait_for_deployment_pods_ready(self, deployment_name: str) -> str:
         """Waits for all pods in a specific deployment to be in the 'Ready' state, allowing for delays due to image downloads or other setup processes."""
@@ -790,11 +870,19 @@ class ClusterOperator:
 
         time.sleep(initial_check_delay)  # Delay before starting the checks
 
+        apps_v1 = self.kubernetes_client.AppsV1Api()
         core_v1 = self.kubernetes_client.CoreV1Api()
 
+        try:
+            # Get the deployment object to access the selector
+            deployment = apps_v1.read_namespaced_deployment(name=deployment_name, namespace="default")
+            selector = ','.join([f"{k}={v}" for k, v in deployment.spec.selector.match_labels.items()])
+        except kubernetes.client.rest.ApiException as e:
+            return f"Failed to get deployment {deployment_name}: {str(e)}"
+
         while True:
-            # Fetch all pods with a label selector to filter by deployment name
-            pod_list = core_v1.list_namespaced_pod(namespace="default", label_selector=f"app={deployment_name}")
+            # Fetch all pods using the deployment selector
+            pod_list = core_v1.list_namespaced_pod(namespace="default", label_selector=selector)
             all_pods_ready = True
             transitional_states = ["ContainerCreating", "Pending"]
             error_message = ""
@@ -816,7 +904,7 @@ class ClusterOperator:
                 time.sleep(post_check_delay)  # Wait to ensure pods remain stable
 
                 # Recheck readiness after the delay
-                if self.__are_all_pods_still_ready(core_v1, deployment_name)[0]:
+                if self.__are_all_pods_still_ready(core_v1, deployment_name, selector)[0]:
                     logging.info(f"All pods for deployment {deployment_name} are confirmed stable after monitoring.")
                     return ""
                 else:
@@ -832,20 +920,27 @@ class ClusterOperator:
             return "Ready" if any(condition.type == "Ready" and condition.status == "True" for condition in pod.status.conditions) else "Not Ready"
         return "Unknown"
 
-    def __are_all_pods_still_ready(self, core_v1, deployment_name):
+    def __are_all_pods_still_ready(self, core_v1, deployment_name, selector):
         """Checks if all pods are still in 'Ready' state."""
-        pod_list = core_v1.list_namespaced_pod(namespace="default", label_selector=f"app={deployment_name}")
+        pod_list = core_v1.list_namespaced_pod(namespace="default", label_selector=selector)
         return all(
             any(condition.type == "Ready" and condition.status == "True" for condition in pod.status.conditions)
             for pod in pod_list.items
         ), pod_list
 
     def __find_error_pod_and_logs(self, core_v1, pod_list):
-        """Identifies which pod is in error state and fetches its logs."""
+        """Identifies which pod is in error state and fetches its logs if available."""
         for pod in pod_list.items:
-            if not self.__get_pod_status(pod) == "Ready":
-                logs = core_v1.read_namespaced_pod_log(name=pod.metadata.name, namespace=pod.metadata.namespace)
-                return pod.metadata.name, logs
+            pod_status = self.__get_pod_status(pod)
+            if pod_status not in ["Ready", "Running"]:  # Only attempt to fetch logs if pod is not in a running or ready state
+                try:
+                    if pod_status not in ["ContainerCreating", "Pending"]:  # Avoid fetching logs if the container isn't fully created yet
+                        logs = core_v1.read_namespaced_pod_log(name=pod.metadata.name, namespace=pod.metadata.namespace)
+                        return pod.metadata.name, logs
+                    else:
+                        return pod.metadata.name, f"Pod is still in {pod_status} state; logs not available yet."
+                except kubernetes.client.exceptions.ApiException as e:
+                    return pod.metadata.name, f"Failed to fetch logs: {e.status} {e.reason}"
         return "No error pod found", "No logs available"
         
     def __get_pod_error_details(self, pod, core_v1):
