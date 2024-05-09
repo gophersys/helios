@@ -19,7 +19,7 @@ from protos.cluster_test.cluster_test_pb2 import (
 )
 from protos.cluster_test.cluster_test_pb2_grpc import add_ClusterTestServicer_to_server
 from protos.cluster_operator.cluster_operator_pb2 import (
-    OperatorStatus, GetOperatorInfoRequest, GetOperatorInfoResponse,
+    ClusterStatus, HealthCheckRequest, HealthCheckResponse,
     RegisterTestRequest, RegisterTestResponse
 )
 from protos.cluster_operator.cluster_operator_pb2_grpc import ClusterOperatorStub
@@ -28,7 +28,7 @@ from protos.cluster_operator.cluster_operator_pb2_grpc import ClusterOperatorStu
 #                                                                                     Test Register
 # -----------------------------------------------------------------------------------------------*/
 def register_test_with_operator(test_info:TestInfo) -> str:
-    operator_url:str = f"localhost:{conf.OPERATOR_SERVER_PORT}"
+    operator_url:str = f"mateo-windows:{conf.OPERATOR_SERVER_PORT}"
 
     # Instantiate an operator stub and give it our info
     try:            
@@ -45,17 +45,16 @@ def register_test_with_operator(test_info:TestInfo) -> str:
         while not ready:
             try:
                 # Get the operator info
-                request:GetOperatorInfoRequest = GetOperatorInfoRequest()
-                response:GetOperatorInfoResponse = stub.GetOperatorInfo(request)
-                if response.info.status == OperatorStatus.READY or response.info.status == OperatorStatus.CONNECTED:
+                response:HealthCheckResponse = stub.HealthCheck(HealthCheckRequest())
+                if response.status != ClusterStatus.STARTING:
                     ready = True
                 else:
-                    time.sleep(1)# Operator is not yet ready give it some time
+                    time.sleep(1) # Operator is not yet ready give it some time
 
             except grpc.RpcError as e:
                 return f"Unable to get operator at {operator_url} info over gRPC method GetOperatorInfo(): {e}"
     
-        logging.info("Operator is in READY state!")
+        logging.info("Operator is ready for test to be registerd!")
     
         # Now that the operator is ready, we can register our test with it so that it can be served
         # to the proxy 

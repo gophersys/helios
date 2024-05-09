@@ -66,6 +66,9 @@ def electrical_test_step_1_handler(runner:TestRunner) -> TestStepResult:
         return TestStepResult(execOk=True,
                               error=f"Step 2.d failed: Expected near-zero current consumption, Actual current = {current_value}A")
     
+    # Succeeded
+    result.success = True
+    
     return result
 
 # -------------------------------------------------------------------------------------------------

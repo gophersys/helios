@@ -12,7 +12,7 @@ from .step_1 import electrical_test_step_1
 # -----------------------------------------------------------------------------------------------*/
 electrical_test:Test = Test(
     info=TestInfo(
-        id=str(uuid.uuid4()),
+        uuid="fce7ab74-b225-433d-b27d-629d346548d9",
         name="Electrical Test",
         description="This test is a test designed to test the electrical state of a newly manufactured panel",
     ),

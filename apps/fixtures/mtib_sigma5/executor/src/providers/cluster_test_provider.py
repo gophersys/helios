@@ -7,7 +7,7 @@ from src.tests.core import Test
 # Protocol includes
 from protos.cluster_test.cluster_test_pb2 import (
     HealthCheckRequest, HealthCheckResponse,
-    ExecuteTestRequest, ExecuteTestResponse
+    ExecuteRequest
 )
 from protos.cluster_operator.cluster_operator_pb2_grpc import ClusterOperatorServicer
 
@@ -27,7 +27,7 @@ class ClusterTestServicerProvider(ClusterOperatorServicer):
     # -------------------------------------------------------------------------------------------------
     #                                                                                    GetClusterInfo
     # -----------------------------------------------------------------------------------------------*/
-    def ExecuteTest(self, request:ExecuteTestRequest, context):
+    def Execute(self, request:ExecuteRequest, context):
         # First we confirm that the requested test Id matches the test we're serving
         if request.testId != self.test.info.id:
             pass 

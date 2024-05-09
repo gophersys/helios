@@ -5,7 +5,7 @@
     "projectType": "application",
     "targets": {
       "build":{
-        "command": "nx run operator:containerize",
+        "command": "nx run executor:containerize",
         "cwd": "{workspaceRoot}"
       },
       "containerize": {
@@ -13,14 +13,14 @@
         "cwd": "{workspaceRoot}",
         "options": {
           "context": "{workspaceRoot}",
-          "file": "apps/fixtures/mtib_sigma5/operator/deploy/Dockerfile",
+          "file": "apps/fixtures/mtib_sigma5/executor/deploy/Dockerfile",
           "platforms": [
             "linux/arm64"
           ],
           "load": true,
           "push": false,
           "tags": [
-            "control-plane:5000/executor:1.0"
+            "ccr01.ad.corekinect.com/sigma5_executor:1.2"
           ]
         }
       }
