@@ -10,7 +10,7 @@ CLUSTERTEST_SERVICE_ID = 1
 
 class ClusterTestRpc(Enum):
     HealthCheck = 1
-    ExecuteTest = 2
+    Execute = 2
     
 class ClusterTest:
     def __init__(self, daemon:Cipher):
@@ -37,19 +37,19 @@ class ClusterTest:
         
         return context.response_struct, context.user_info.error
     # Server side handlers
-    def ExecuteTestHandler(self, request:ExecuteTestRequest) -> Tuple[ExecuteTestResponse, CipherRpcErr]:
-        print("Default ExecuteTest handler called")
-        response: ExecuteTestResponse = ExecuteTestResponse()
+    def ExecuteHandler(self, request:ExecuteRequest) -> Tuple[ExecuteResponse, CipherRpcErr]:
+        print("Default Execute handler called")
+        response: ExecuteResponse = ExecuteResponse()
         return response, CipherRpcErr.NOT_IMPLEMENTED
         
     # Client side 
-    def ExecuteTestRpc(self, info:CipherUnaryRpcUserInfo, request:ExecuteTestRequest) -> Tuple[Optional[ExecuteTestResponse], CipherRpcErr]:
-        response: ExecuteTestResponse = ExecuteTestResponse()
+    def ExecuteRpc(self, info:CipherUnaryRpcUserInfo, request:ExecuteRequest) -> Tuple[Optional[ExecuteResponse], CipherRpcErr]:
+        response: ExecuteResponse = ExecuteResponse()
         context: CipherDaemonRpcContext = CipherDaemonRpcContext(
             local=True,
             user_info=info,
             service_id=CLUSTERTEST_SERVICE_ID,
-            rpc_id=ClusterTestRpc.ExecuteTest.value,
+            rpc_id=ClusterTestRpc.Execute.value,
             request_struct=request,
             response_struct=response,            
         )
@@ -70,12 +70,12 @@ clustertest_service_rpcs = [
         supports_parallelism=True
     ),
     CipherRpcInfo(
-        id=ClusterTestRpc.ExecuteTest.value,
+        id=ClusterTestRpc.Execute.value,
         type=CipherRpcType.UNARY,
-        name="ExecuteTest",
-        handler=ClusterTest.ExecuteTestHandler,
-        request_info=CipherMessageInfo(ExecuteTestRequest),
-        response_info=CipherMessageInfo(ExecuteTestResponse),
+        name="Execute",
+        handler=ClusterTest.ExecuteHandler,
+        request_info=CipherMessageInfo(ExecuteRequest),
+        response_info=CipherMessageInfo(ExecuteResponse),
         supports_parallelism=True
     ),
 ]

@@ -14,9 +14,9 @@ HealthCheckResponse ClusterTest_HealthCheckHandler(HealthCheckRequest request);
 HealthCheckResponse ClusterTest_HealthCheckRpc(cipher_unary_rpc_user_info_t *info, HealthCheckRequest request);
 
 // Server side handler
-ExecuteTestResponse ClusterTest_ExecuteTestHandler(ExecuteTestRequest request);
+ExecuteResponse ClusterTest_ExecuteHandler(ExecuteRequest request);
 
 // Client side call
-ExecuteTestResponse ClusterTest_ExecuteTestRpc(cipher_unary_rpc_user_info_t *info, ExecuteTestRequest request);
+ExecuteResponse ClusterTest_ExecuteRpc(cipher_unary_rpc_user_info_t *info, ExecuteRequest request);
 
 #endif // CLUSTER_TEST_CIPHER_H

@@ -19,10 +19,10 @@ class ClusterTestStub(object):
                 request_serializer=cluster__test__pb2.HealthCheckRequest.SerializeToString,
                 response_deserializer=cluster__test__pb2.HealthCheckResponse.FromString,
                 )
-        self.ExecuteTest = channel.unary_stream(
-                '/cluster_test.ClusterTest/ExecuteTest',
-                request_serializer=cluster__test__pb2.ExecuteTestRequest.SerializeToString,
-                response_deserializer=cluster__test__pb2.ExecuteTestResponse.FromString,
+        self.Execute = channel.unary_stream(
+                '/cluster_test.ClusterTest/Execute',
+                request_serializer=cluster__test__pb2.ExecuteRequest.SerializeToString,
+                response_deserializer=cluster__test__pb2.ExecuteResponse.FromString,
                 )
 
 
@@ -36,7 +36,7 @@ class ClusterTestServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def ExecuteTest(self, request, context):
+    def Execute(self, request, context):
         """Executes a test on a standalone board.
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
@@ -51,10 +51,10 @@ def add_ClusterTestServicer_to_server(servicer, server):
                     request_deserializer=cluster__test__pb2.HealthCheckRequest.FromString,
                     response_serializer=cluster__test__pb2.HealthCheckResponse.SerializeToString,
             ),
-            'ExecuteTest': grpc.unary_stream_rpc_method_handler(
-                    servicer.ExecuteTest,
-                    request_deserializer=cluster__test__pb2.ExecuteTestRequest.FromString,
-                    response_serializer=cluster__test__pb2.ExecuteTestResponse.SerializeToString,
+            'Execute': grpc.unary_stream_rpc_method_handler(
+                    servicer.Execute,
+                    request_deserializer=cluster__test__pb2.ExecuteRequest.FromString,
+                    response_serializer=cluster__test__pb2.ExecuteResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -84,7 +84,7 @@ class ClusterTest(object):
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
     @staticmethod
-    def ExecuteTest(request,
+    def Execute(request,
             target,
             options=(),
             channel_credentials=None,
@@ -94,8 +94,8 @@ class ClusterTest(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_stream(request, target, '/cluster_test.ClusterTest/ExecuteTest',
-            cluster__test__pb2.ExecuteTestRequest.SerializeToString,
-            cluster__test__pb2.ExecuteTestResponse.FromString,
+        return grpc.experimental.unary_stream(request, target, '/cluster_test.ClusterTest/Execute',
+            cluster__test__pb2.ExecuteRequest.SerializeToString,
+            cluster__test__pb2.ExecuteResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)

@@ -22,7 +22,7 @@ typedef enum
     rpc_GetDeploymentInfo = 3,
     rpc_RegisterTest = 4,
     rpc_ListTests = 5,
-    rpc_ExecuteManufacturingTest = 6,
+    rpc_ExecuteTest = 6,
 } ClusterOperator_rpc;
 
 // Server side
@@ -111,20 +111,20 @@ cipher_rpc_err_t ListTestsRpcPrvHandler(void *request, void *response)
 }
 
 // Server side
-static bool ClusterOperator_ExecuteManufacturingTestHandlerImplemented = true;
-__attribute__((weak)) cluster_test.ExecuteTestResponse ClusterOperator_ExecuteManufacturingTestHandler(cluster_test.ExecuteTestRequest request)
+static bool ClusterOperator_ExecuteTestHandlerImplemented = true;
+__attribute__((weak)) ExecuteTestResponse ClusterOperator_ExecuteTestHandler(ExecuteTestRequest request)
 {
     LOG_WRN("%s default implementation called", __func__);
-    ClusterOperator_ExecuteManufacturingTestHandlerImplemented = false;
-    cluster_test.ExecuteTestResponse response  = {0};
+    ClusterOperator_ExecuteTestHandlerImplemented = false;
+    ExecuteTestResponse response  = {0};
     return response ;
 }
 
-cipher_rpc_err_t ExecuteManufacturingTestRpcPrvHandler(void *request, void *response)
+cipher_rpc_err_t ExecuteTestRpcPrvHandler(void *request, void *response)
 {
     // Call the actual handler function
-    *((cluster_test.ExecuteTestResponse *)response ) = ClusterOperator_ExecuteManufacturingTestHandler(*((cluster_test.ExecuteTestRequest *)request));
-    return ClusterOperator_ExecuteManufacturingTestHandlerImplemented ? CIPHER_RPC_ERR_OK : CIPHER_RPC_ERR_NOT_IMPLEMENTED;
+    *((ExecuteTestResponse *)response ) = ClusterOperator_ExecuteTestHandler(*((ExecuteTestRequest *)request));
+    return ClusterOperator_ExecuteTestHandlerImplemented ? CIPHER_RPC_ERR_OK : CIPHER_RPC_ERR_NOT_IMPLEMENTED;
 }
 
 // Client side
@@ -223,16 +223,16 @@ ListTestsResponse ClusterOperator_ListTestsRpc(cipher_unary_rpc_user_info_t *inf
     cipher_daemon_execute_remote_rpc(&context);
     return response;
 }
-cluster_test.ExecuteTestResponse ClusterOperator_ExecuteManufacturingTestRpc(cipher_unary_rpc_user_info_t *info, cluster_test.ExecuteTestRequest request)
+ExecuteTestResponse ClusterOperator_ExecuteTestRpc(cipher_unary_rpc_user_info_t *info, ExecuteTestRequest request)
 {
-    cluster_test.ExecuteTestResponse response  = {0};
+    ExecuteTestResponse response  = {0};
 
     cipher_daemon_rpc_context_t context =
     {
         .local = true,
         .user_info = info,
         .service_id = CLUSTEROPERATOR_SERVICE_ID,
-        .rpc_id = rpc_ExecuteManufacturingTest,
+        .rpc_id = rpc_ExecuteTest,
         .request_struct = &request,
         .request_struct_size = sizeof(request),
         .response_struct = &response ,
@@ -331,19 +331,19 @@ static cipher_rpc_info_t clusteroperator_rpcs[] =
         .supports_parallelism = true,
     },
     {
-        .id = rpc_ExecuteManufacturingTest,
+        .id = rpc_ExecuteTest,
         .type = CIPHER_RPC_TYPE_UNARY,
-        .name = "ExecuteManufacturingTest",
-        .handler = ExecuteManufacturingTestRpcPrvHandler,
+        .name = "ExecuteTest",
+        .handler = ExecuteTestRpcPrvHandler,
         .request_info = {
-            .fields = cluster_test.ExecuteTestRequest_fields,
-            .encoded_size = cluster_test.ExecuteTestRequest_size,
-            .decoded_size = sizeof(cluster_test.ExecuteTestRequest)
+            .fields = ExecuteTestRequest_fields,
+            .encoded_size = ExecuteTestRequest_size,
+            .decoded_size = sizeof(ExecuteTestRequest)
         },
         .response_info = {
-            .fields = cluster_test.ExecuteTestResponse_fields,
-            .encoded_size = cluster_test.ExecuteTestResponse_size,
-            .decoded_size = sizeof(cluster_test.ExecuteTestResponse)
+            .fields = ExecuteTestResponse_fields,
+            .encoded_size = ExecuteTestResponse_size,
+            .decoded_size = sizeof(ExecuteTestResponse)
         },
         .supports_parallelism = true,
     },

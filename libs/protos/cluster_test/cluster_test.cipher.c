@@ -18,7 +18,7 @@ LOG_MODULE_REGISTER(clustertest);
 typedef enum
 {
     rpc_HealthCheck = 1,
-    rpc_ExecuteTest = 2,
+    rpc_Execute = 2,
 } ClusterTest_rpc;
 
 // Server side
@@ -39,20 +39,20 @@ cipher_rpc_err_t HealthCheckRpcPrvHandler(void *request, void *response)
 }
 
 // Server side
-static bool ClusterTest_ExecuteTestHandlerImplemented = true;
-__attribute__((weak)) ExecuteTestResponse ClusterTest_ExecuteTestHandler(ExecuteTestRequest request)
+static bool ClusterTest_ExecuteHandlerImplemented = true;
+__attribute__((weak)) ExecuteResponse ClusterTest_ExecuteHandler(ExecuteRequest request)
 {
     LOG_WRN("%s default implementation called", __func__);
-    ClusterTest_ExecuteTestHandlerImplemented = false;
-    ExecuteTestResponse response  = {0};
+    ClusterTest_ExecuteHandlerImplemented = false;
+    ExecuteResponse response  = {0};
     return response ;
 }
 
-cipher_rpc_err_t ExecuteTestRpcPrvHandler(void *request, void *response)
+cipher_rpc_err_t ExecuteRpcPrvHandler(void *request, void *response)
 {
     // Call the actual handler function
-    *((ExecuteTestResponse *)response ) = ClusterTest_ExecuteTestHandler(*((ExecuteTestRequest *)request));
-    return ClusterTest_ExecuteTestHandlerImplemented ? CIPHER_RPC_ERR_OK : CIPHER_RPC_ERR_NOT_IMPLEMENTED;
+    *((ExecuteResponse *)response ) = ClusterTest_ExecuteHandler(*((ExecuteRequest *)request));
+    return ClusterTest_ExecuteHandlerImplemented ? CIPHER_RPC_ERR_OK : CIPHER_RPC_ERR_NOT_IMPLEMENTED;
 }
 
 // Client side
@@ -75,16 +75,16 @@ HealthCheckResponse ClusterTest_HealthCheckRpc(cipher_unary_rpc_user_info_t *inf
     cipher_daemon_execute_remote_rpc(&context);
     return response;
 }
-ExecuteTestResponse ClusterTest_ExecuteTestRpc(cipher_unary_rpc_user_info_t *info, ExecuteTestRequest request)
+ExecuteResponse ClusterTest_ExecuteRpc(cipher_unary_rpc_user_info_t *info, ExecuteRequest request)
 {
-    ExecuteTestResponse response  = {0};
+    ExecuteResponse response  = {0};
 
     cipher_daemon_rpc_context_t context =
     {
         .local = true,
         .user_info = info,
         .service_id = CLUSTERTEST_SERVICE_ID,
-        .rpc_id = rpc_ExecuteTest,
+        .rpc_id = rpc_Execute,
         .request_struct = &request,
         .request_struct_size = sizeof(request),
         .response_struct = &response ,
@@ -115,19 +115,19 @@ static cipher_rpc_info_t clustertest_rpcs[] =
         .supports_parallelism = true,
     },
     {
-        .id = rpc_ExecuteTest,
+        .id = rpc_Execute,
         .type = CIPHER_RPC_TYPE_UNARY,
-        .name = "ExecuteTest",
-        .handler = ExecuteTestRpcPrvHandler,
+        .name = "Execute",
+        .handler = ExecuteRpcPrvHandler,
         .request_info = {
-            .fields = ExecuteTestRequest_fields,
-            .encoded_size = ExecuteTestRequest_size,
-            .decoded_size = sizeof(ExecuteTestRequest)
+            .fields = ExecuteRequest_fields,
+            .encoded_size = ExecuteRequest_size,
+            .decoded_size = sizeof(ExecuteRequest)
         },
         .response_info = {
-            .fields = ExecuteTestResponse_fields,
-            .encoded_size = ExecuteTestResponse_size,
-            .decoded_size = sizeof(ExecuteTestResponse)
+            .fields = ExecuteResponse_fields,
+            .encoded_size = ExecuteResponse_size,
+            .decoded_size = sizeof(ExecuteResponse)
         },
         .supports_parallelism = true,
     },

@@ -14,14 +14,14 @@ service ClusterOperator {
   // Fetches Current Deployment Information
   rpc GetDeploymentInfo(GetDeploymentInfoRequest) returns (GetDeploymentInfoResponse) {}
 
-  // Used by test runners to register themselves with the operator 
-  rpc RegisterTest(RegisterTestRequest) returns (RegisterTestResponse) {}
-  
   // Lists available tests in the cluster.
   rpc ListTests(ListTestsRequest) returns (ListTestsResponse) {}
 
   // Executes a test on a standalone board.
-  rpc ExecuteManufacturingTest(cluster_test.ExecuteTestRequest) returns (stream cluster_test.ExecuteTestResponse) {}
+  rpc ExecuteTest(ExecuteTestRequest) returns (stream ExecuteTestResponse) {}
+
+  // Used by test runners to register themselves with the operator 
+  rpc RegisterTest(RegisterTestRequest) returns (RegisterTestResponse) {}  
 }
 
 // Operator Info
@@ -94,6 +94,22 @@ message GetDeploymentInfoResponse {
   repeated DeploymentInfo deployment_info = 1;
 }
 
+// ListTests messages
+message ListTestsRequest {}
+message ListTestsResponse {
+  repeated cluster_test.TestInfo tests = 1;
+}
+
+// Execute messages
+message ExecuteTestRequest {
+  string uuid = 1;            // Which test we wanna run
+  string config = 2;          // The configuration for the specific test
+}
+
+message ExecuteTestResponse {
+  repeated cluster_test.ExecuteResponse results = 1;
+}
+
 // Test Registration
 message RegisterTestRequest {
   int32 port = 1;                     // What port we're serving 
@@ -103,10 +119,4 @@ message RegisterTestRequest {
 message RegisterTestResponse {
   bool success = 1;
   string error = 2;
-}
-
-// ListTests messages
-message ListTestsRequest {}
-message ListTestsResponse {
-  repeated cluster_test.TestInfo tests = 1;
 }

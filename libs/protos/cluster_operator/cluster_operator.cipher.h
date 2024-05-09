@@ -38,9 +38,9 @@ ListTestsResponse ClusterOperator_ListTestsHandler(ListTestsRequest request);
 ListTestsResponse ClusterOperator_ListTestsRpc(cipher_unary_rpc_user_info_t *info, ListTestsRequest request);
 
 // Server side handler
-cluster_test.ExecuteTestResponse ClusterOperator_ExecuteManufacturingTestHandler(cluster_test.ExecuteTestRequest request);
+ExecuteTestResponse ClusterOperator_ExecuteTestHandler(ExecuteTestRequest request);
 
 // Client side call
-cluster_test.ExecuteTestResponse ClusterOperator_ExecuteManufacturingTestRpc(cipher_unary_rpc_user_info_t *info, cluster_test.ExecuteTestRequest request);
+ExecuteTestResponse ClusterOperator_ExecuteTestRpc(cipher_unary_rpc_user_info_t *info, ExecuteTestRequest request);
 
 #endif // CLUSTER_OPERATOR_CIPHER_H

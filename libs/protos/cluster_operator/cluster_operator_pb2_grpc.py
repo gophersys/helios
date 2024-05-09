@@ -3,7 +3,6 @@
 import grpc
 
 import protos.cluster_operator.cluster_operator_pb2 as cluster__operator__pb2
-import protos.cluster_test.cluster_test_pb2 as cluster__test__pb2
 
 
 class ClusterOperatorStub(object):
@@ -40,10 +39,10 @@ class ClusterOperatorStub(object):
                 request_serializer=cluster__operator__pb2.ListTestsRequest.SerializeToString,
                 response_deserializer=cluster__operator__pb2.ListTestsResponse.FromString,
                 )
-        self.ExecuteManufacturingTest = channel.unary_stream(
-                '/cluster_operator.ClusterOperator/ExecuteManufacturingTest',
-                request_serializer=cluster__test__pb2.ExecuteTestRequest.SerializeToString,
-                response_deserializer=cluster__test__pb2.ExecuteTestResponse.FromString,
+        self.ExecuteTest = channel.unary_stream(
+                '/cluster_operator.ClusterOperator/ExecuteTest',
+                request_serializer=cluster__operator__pb2.ExecuteTestRequest.SerializeToString,
+                response_deserializer=cluster__operator__pb2.ExecuteTestResponse.FromString,
                 )
 
 
@@ -85,7 +84,7 @@ class ClusterOperatorServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def ExecuteManufacturingTest(self, request, context):
+    def ExecuteTest(self, request, context):
         """Executes a test on a standalone board.
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
@@ -120,10 +119,10 @@ def add_ClusterOperatorServicer_to_server(servicer, server):
                     request_deserializer=cluster__operator__pb2.ListTestsRequest.FromString,
                     response_serializer=cluster__operator__pb2.ListTestsResponse.SerializeToString,
             ),
-            'ExecuteManufacturingTest': grpc.unary_stream_rpc_method_handler(
-                    servicer.ExecuteManufacturingTest,
-                    request_deserializer=cluster__test__pb2.ExecuteTestRequest.FromString,
-                    response_serializer=cluster__test__pb2.ExecuteTestResponse.SerializeToString,
+            'ExecuteTest': grpc.unary_stream_rpc_method_handler(
+                    servicer.ExecuteTest,
+                    request_deserializer=cluster__operator__pb2.ExecuteTestRequest.FromString,
+                    response_serializer=cluster__operator__pb2.ExecuteTestResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -221,7 +220,7 @@ class ClusterOperator(object):
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
     @staticmethod
-    def ExecuteManufacturingTest(request,
+    def ExecuteTest(request,
             target,
             options=(),
             channel_credentials=None,
@@ -231,8 +230,8 @@ class ClusterOperator(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_stream(request, target, '/cluster_operator.ClusterOperator/ExecuteManufacturingTest',
-            cluster__test__pb2.ExecuteTestRequest.SerializeToString,
-            cluster__test__pb2.ExecuteTestResponse.FromString,
+        return grpc.experimental.unary_stream(request, target, '/cluster_operator.ClusterOperator/ExecuteTest',
+            cluster__operator__pb2.ExecuteTestRequest.SerializeToString,
+            cluster__operator__pb2.ExecuteTestResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
