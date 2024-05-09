@@ -30,8 +30,10 @@ def clusters_get_uuid_handler(uuid):
             return jsonify({"error": f"Cluster {uuid} not found in server."}), 404
 
         # Get nodes information
-        nodes_info = appProxyServer.clusters_get_nodes_info(cluster.info.uuid)
-
+        error, nodes_info = appProxyServer.clusters_get_nodes_info(cluster.info.uuid)
+        if error:
+            return jsonify({"error": f"{error}"}), 400
+    
         # Set the status
         cluster_status = ClusterStatus.Name(cluster.status) if cluster.status else None
 

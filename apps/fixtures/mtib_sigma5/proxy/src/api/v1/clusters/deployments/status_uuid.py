@@ -18,7 +18,7 @@ def clusters_deployments_status_uuid_handler(cluster_uuid, deployment_uuid):
             return jsonify({"error": "Bad request, malformed url."}), 400
         
         # Call app
-        error, deployments_info = appProxyServer.cluster_deployments_get_info(cluster_uuid)
+        error, deployments_info = appProxyServer.cluster_deployments_get_status(cluster_uuid)
         if error:
             logging.error(error)
             return jsonify({"error": f"{error}"}), 400

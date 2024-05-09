@@ -1,5 +1,5 @@
 import eventlet
-eventlet.monkey_patch(socket=True, select=True, time=True, os=True, thread=False)
+eventlet.monkey_patch(socket=True, select=False, time=False, os=False, thread=False)
 
 # Standard includes
 import logging

@@ -27,13 +27,18 @@ from protos.cluster_operator.cluster_operator_pb2 import (
     HealthCheckRequest, NodeInfo,
     GetClusterInfoRequest, GetClusterInfoResponse,
     ListTestsRequest, ListTestsResponse,
-    DeploymentInfo,GetDeploymentInfoResponse, GetDeploymentInfoRequest
+    DeploymentInfo,GetDeploymentInfoResponse, GetDeploymentInfoRequest,
+    ExecuteTestRequest, ExecuteTestResponse
 )
 from protos.cluster_operator.cluster_operator_pb2_grpc import ClusterOperatorStub
 
 # App includes
 from services.db import Database, DatabaseConfiguration
 from services.db.schema import Cluster, ClusterType
+
+# ----------------------------------------------------------------------------------
+#                                                                        Event Types
+# --------------------------------------------------------------------------------*/
 
 # ----------------------------------------------------------------------------------
 #                                                                      Configuration
@@ -59,10 +64,9 @@ class ProxyServerConfiguration:
 #                                                                         Main Class
 # --------------------------------------------------------------------------------*/
 class ProxyServer:
-    ###
-    # @TODO:
-    # - Documentation for class
-    ###
+    # TODO:
+    # 
+    # What happens when a gRPC cluster to a cluster fails in a function call?
     
     # -----------------------------------------------------------------------------
     #                                                                          Init
@@ -190,30 +194,21 @@ class ProxyServer:
     def clusters_get(self) -> List[Cluster]:
         return self.clusters
     
-    def clusters_get_nodes_info(self, cluster_uuid:str) -> List[NodeInfo]:
-        # First find the cluster
-        cluster:Cluster = None
-        for c in list(self.clusters):
-            if c.info.uuid == cluster_uuid:
-                cluster = c
-                
+    def clusters_get_nodes_info(self, cluster_uuid:str) -> Tuple[str, Optional[List[NodeInfo]]]:
+        cluster:Cluster = self._find_cluster_by_uuid(cluster_uuid)
         if cluster is None:
-            return f"Cluster with UUID {cluster_uuid} not found in server."
+            return f"Cluster with UUID {cluster_uuid} not found in server.", None
         
-        if cluster.status is not None:
+        if cluster.status is None:
+            return "", [] # We can only return a list of nodes info if it's connected
+        else:
             try:
                 # Perform a periodic health check to ensure we're still connected and alive
                 response:GetClusterInfoResponse = cluster.stub.GetClusterInfo(GetClusterInfoRequest())
-                return response.nodes_info
+                return "", response.nodes_info
                 
             except grpc.RpcError as e:
-                error:str = f"Failed to get GetClusterInfo on cluster at {cluster.url}. Disconnecting from cluster"
-                logging.error(error)
-                cluster.status = None
-                cluster.error = error
-                cluster.channel.close()
-        else:
-            return []
+                return f"gRPC error for GetClusterInfo() on cluster at {cluster.url}: {str(e)}", None
     
     def clusters_delete_all(self) -> str:
         clusters_to_remove = [cluster for cluster in self.clusters if cluster.status is None]
@@ -232,7 +227,11 @@ class ProxyServer:
         
         return ""
     
-    def clusters_delete_one(self, cluster_uuid: str) -> str:
+    def clusters_delete_one(self, cluster_uuid:str) -> str:
+        cluster:Cluster = self._find_cluster_by_uuid(cluster_uuid)
+        if cluster is None:
+            return f"Cluster with UUID {cluster_uuid} not found in server."
+        
         # Iterate over a copy of the list to safely remove items while iterating
         for cluster in list(self.clusters):
             if cluster.info.uuid == cluster_uuid:
@@ -248,19 +247,12 @@ class ProxyServer:
                 self.clusters.remove(cluster)
                 logging.info(f"Removed cluster {cluster.info.name} with ID {cluster.info.uuid}")
                 return ""
-
-        return f"Cluster with UUID {cluster_uuid} not found in server."
     
     def clusters_register(self, cluster_uuid:str, cluster_url:str) -> str:
         # Check if the cluster is even created yet
-        cluster:Cluster = None
-        for c in self.clusters:
-            if c.info.uuid == cluster_uuid:
-                cluster = c
-                break
-        
+        cluster:Cluster = self._find_cluster_by_uuid(cluster_uuid)
         if cluster is None:
-            return f"Cluster {cluster_uuid} at {cluster_url} was not found in server database. You must create a new cluster first"
+            return f"Cluster {cluster_uuid} at {cluster_url} was not found in server database. You must create a new cluster first!"
 
         # Check if the cluster is already connected
         if cluster.info.registered and cluster.status is not None:
@@ -300,6 +292,10 @@ class ProxyServer:
     #                                                   Cluster Deployments Methods
     #  --------------------------------------------------------------------------*/ 
     def cluster_deployments_create(self, cluster_uuid:str, deployment_name:str, deployment_file_path:str) -> Tuple[str, Optional[str]]:
+        cluster:Cluster = self._find_cluster_by_uuid(cluster_uuid)
+        if cluster is None:
+            return f"Cluster with UUID {cluster_uuid} not found in server.", None
+        
         # Make sure the contents of the file make sense
         error = self._deployment_verify(deployment_file_path)
         if error:
@@ -310,22 +306,24 @@ class ProxyServer:
         if error:
             return f"Unable to save new deployment to database: {error}", None
         
+        # Relaod the cluster info
+        error, info = self.db.cluster_get_info(cluster_uuid)
+        if error:
+            return error, None
+        
+        cluster.info = info
+        
         logging.info(f"New deployment created for cluster {cluster_uuid}")
         return "", deployment_uuid
     
-    def cluster_deployments_get_info(self, cluster_uuid:str) -> Tuple[str, Optional[List[DeploymentInfo]]]:
-        # First find the cluster
-        cluster:Cluster = None
-        for c in list(self.clusters):
-            if c.info.uuid == cluster_uuid:
-                cluster = c
-                
+    def cluster_deployments_get_status(self, cluster_uuid:str) -> Tuple[str, Optional[List[DeploymentInfo]]]:
+        cluster:Cluster = self._find_cluster_by_uuid(cluster_uuid)
         if cluster is None:
             return f"Cluster with UUID {cluster_uuid} not found in server.", None
         
         if cluster.status is not None:
             try:
-                # Perform a periodic health check to ensure we're still connected and alive
+                # Get the most up to date information about the deployment
                 response:GetDeploymentInfoResponse = cluster.stub.GetDeploymentInfo(GetDeploymentInfoRequest())
                 return "", response.deployment_info
                 
@@ -338,12 +336,7 @@ class ProxyServer:
         return self.db.cluster_deployment_get_path(cluster_uuid, deployment_uuid)
     
     def cluster_deployments_delete_all(self, cluster_uuid:str) -> str:
-        # First find the cluster
-        cluster:Cluster = None
-        for c in list(self.clusters):
-            if c.info.uuid == cluster_uuid:
-                cluster = c
-                
+        cluster:Cluster = self._find_cluster_by_uuid(cluster_uuid)
         if cluster is None:
             return f"Cluster with UUID {cluster_uuid} not found in server."
         
@@ -356,7 +349,7 @@ class ProxyServer:
         # Relaod the cluster info
         error, info = self.db.cluster_get_info(cluster_uuid)
         if error:
-            return error, None
+            return error
         
         cluster.info = info
         
@@ -364,12 +357,7 @@ class ProxyServer:
         return ""
     
     def cluster_deployments_delete_one(self, cluster_uuid:str, deployment_uuid:str) -> str:
-        # First find the cluster
-        cluster:Cluster = None
-        for c in list(self.clusters):
-            if c.info.uuid == cluster_uuid:
-                cluster = c
-                
+        cluster:Cluster = self._find_cluster_by_uuid(cluster_uuid)
         if cluster is None:
             return f"Cluster with UUID {cluster_uuid} not found in server."
         
@@ -378,91 +366,97 @@ class ProxyServer:
         if error:
             return f"Unable to delete deployment from database: {error}"
         
+        # Relaod the cluster info
+        error, info = self.db.cluster_get_info(cluster_uuid)
+        if error:
+            return error
+        
+        cluster.info = info
+        
         logging.info(f"Removed deployment {deployment_uuid} for cluster {cluster_uuid}")
         return ""
     
     def clusters_deployments_apply(self, cluster_uuid:str, deployment_uuid:str) -> str:
+        cluster:Cluster = self._find_cluster_by_uuid(cluster_uuid)
+        if cluster is None:
+            return f"Cluster with UUID {cluster_uuid} not found in server."
+        
         # Set the deployment so that the cluster will fetch it next time it's ready for an update
         error = self.db.cluster_deployment_set(cluster_uuid, deployment_uuid)
         if error:
-            return f"Could not set cluster deployment {deployment_uuid} for cluster {cluster_uuid}"
+            return f"Could not apply deployment: {error}"
 
         logging.info(f"Cluster {cluster_uuid} deployment was updated to {deployment_uuid}")
         return ""
     
     def _deployment_verify(self, deployment_file_path) -> str:
-        # Read the deployment file content
+        # Load the deployment file contents
         try:
             with open(deployment_file_path, 'r') as f:
                 deployment_contents = f.read()
         except FileNotFoundError:
             return f"Deployment file '{deployment_file_path}' not found"
 
+        # There may be more than 1 yaml document inside the same file, so parse them
         try:
             documents = list(yaml.safe_load_all(deployment_contents))
         except yaml.YAMLError as e:
             return f"Error parsing deployment file: {e}"
 
         if not documents:
-            return "No valid Kubernetes deployment found in the file"
+            return "Did you upload an empty file?"
 
-        for deployment_yaml in documents:
-            if not deployment_yaml or 'kind' not in deployment_yaml:
+        # Check each document
+        for document in documents:
+            if not document or 'kind' not in document:
                 continue  # Skip empty or malformed documents
 
             # Check if the deployment is a Pod or Deployment
-            if deployment_yaml['kind'] != 'Deployment':
+            if document['kind'] != 'Deployment':
                 return "File is not a Kubernetes Deployment type"
 
             # Find all container images in the deployment
             try:
-                containers = deployment_yaml['spec']['template']['spec']['containers']
+                containers = document['spec']['template']['spec']['containers']
             except KeyError as e:
                 return f"Error extracting containers from deployment: {e}"
 
-            container_images = []
-            for container in containers:
-                container_image = container['image']
-                container_images.append(container_image)
+            container_images = [container['image'] for container in containers]
 
-                # Check if the registry URL of the container image is in the list of known registry URLs
+            # Check container images against supported registries and architecture
+            for container_image in container_images:
                 image_registry_url = urlparse(container_image).netloc
-                if image_registry_url:
-                    if image_registry_url not in self.config.supported_registries:
-                        return f"Container image '{container_image}' is from an unknown registry: {image_registry_url}"
-                else:
-                    # If no registry URL is specified in the container image, assume it's from one of the known registries
-                    if not any(registry_url in container_image for registry_url in self.config.supported_registries):
-                        return f"Container image '{container_image}' is from an unknown registry, valid options: {self.config.supported_registries}"
+                if image_registry_url and image_registry_url not in self.config.supported_registries:
+                    return f"Container image '{container_image}' is from an unknown registry: {image_registry_url}"
 
-            # Check if all container images exist in the registries and support arm64 architecture
-            for image in container_images:
-                found = False
-                arm64_supported = False
-                for registry_url in self.config.supported_registries:
-                    try:
-                        # Connect to the registry and check if the image exists
-                        image_data = self.docker_client.images.get_registry_data(image, registry_url)
-                        found = True
-                        # Check for arm64 support using the has_platform method
-                        if image_data.has_platform('linux/arm64'):
-                            arm64_supported = True
-                            logging.info(f"Image {image} with arm64 support found!")
-                            break
-                    except docker.errors.NotFound:
-                        pass
-                    except docker.errors.APIError as e:
-                        logging.error(f"API error while fetching image data: {e}")
-                        return f"API error while checking image '{image}'"
+                if not image_registry_url and not any(
+                        registry_url in container_image for registry_url in self.config.supported_registries):
+                    return f"Container image '{container_image}' is from an unknown registry"
 
-                if not found:
-                    return f"Container image '{image}' not found in known registries"
-                if not arm64_supported:
-                    return f"Container image '{image}' does not support arm64 architecture"
+                # Checking ARM64 support
+                if not self._check_arm64_support(container_image):
+                    return f"Container image '{container_image}' does not support arm64 architecture"
 
-            logging.info("All images in deployment found with arm64 support in the registries")
-
+        logging.info("All images in deployment found with arm64 support in the registries")
         return ""
+    
+    def _check_arm64_support(self, image):
+        """Check if the specified image supports ARM64 architecture."""
+        try:
+            image_data = self.docker_client.images.get(image)  # This retrieves the image data
+            architecture = image_data.attrs.get('Architecture')
+            if architecture == 'arm64':
+                logging.info(f"Image {image} supports arm64.")
+                return True
+            else:
+                logging.info(f"Image {image} does not support arm64; it supports {architecture}.")
+                return False
+        except docker.errors.NotFound:
+            logging.error(f"Image {image} not found.")
+            return False
+        except Exception as e:
+            logging.error(f"Error retrieving image data for {image}: {str(e)}")
+            return False
 
     # -----------------------------------------------------------------------------
     #                                                         Cluster Tests Methods
@@ -488,31 +482,54 @@ class ProxyServer:
             cluster.error = error
             return error, None
 
-    def clusters_test_exec(self, cluster_uuid:str, test_uuid:str, results_cb, session_id:str) -> str:
-        def run_test_simulation():
-            for i in range(5):  # Send 5 updates
-                time.sleep(1)  # Wait for a second between updates
-                results_cb({
-                    'test_uuid': test_uuid,
-                    'update': f"Update {i+1}",
-                    'done': False
-                },
-                session_id)
+    def clusters_test_exec(self, cluster_uuid:str, test_uuid:str, test_config:str, results_cb, session_id:str) -> str:
+        cluster:Cluster = self._find_cluster_by_uuid(cluster_uuid)
+        if cluster is None:
+            return f"Cluster with {cluster_uuid} not found in server."
+        
+        error, test_info = self._find_test_in_cluster_by_uuid(cluster, test_uuid)
+        if error:
+            return error
+        
+        # Run the test in a new thread
+        def run_test_execution():
+            request = ExecuteTestRequest(
+                uuid=test_uuid,
+                config=str(test_config),
+            )
             
-            # Send the final message indicating the test is done
-            time.sleep(1)
-            results_cb({
-                'test_uuid': test_uuid,
-                'update': "Final result",
-                'done': True
-            },
-                session_id)
+            # Handle the stream responses
+            try:
+                for response in cluster.stub.ExecuteTest(request):
+                    logging.warning(f"Received response: {response}")
+                    
+            except grpc.RpcError as e:
+                return f"gRPC error: {e}"
         
         # Start the thread to simulate test execution
-        test_thread = threading.Thread(target=run_test_simulation)
+        test_thread = threading.Thread(target=run_test_execution, daemon=True)
         test_thread.start()
     
-        return "Test execution started"
+        return ""
+    
+    # -----------------------------------------------------------------------------
+    #                                                               General Helpers
+    #  --------------------------------------------------------------------------*/
+    def _find_cluster_by_uuid(self, cluster_uuid:str) -> Cluster:
+        for cluster in list(self.clusters):
+            if cluster.info.uuid == cluster_uuid:
+                return cluster
+    
+    def _find_test_in_cluster_by_uuid(self, cluster:Cluster, test_uuid) -> Tuple[str, Optional[TestInfo]]:
+        error, tests_info = self.clusters_tests_get(cluster.info.uuid)
+        if error:
+            return error, None
+        
+        for info in tests_info:
+            if info.uuid == test_uuid:
+                return None, info
+        
+        return f"Test {test_uuid} was not found", None
     
 # Class Singleton                
 appProxyServer:ProxyServer = ProxyServer() 
