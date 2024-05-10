@@ -15,7 +15,7 @@ from src.services.operator import ClusterOperator
 
 # Protocol includes
 from protos.cluster_test.cluster_test_pb2 import (
-    TestStepResult, ExecuteResponse
+    TestStepResult, ExecuteResponse, ExecuteRequest
 )
 
 from protos.cluster_operator.cluster_operator_pb2 import (
@@ -24,7 +24,7 @@ from protos.cluster_operator.cluster_operator_pb2 import (
     RegisterTestRequest, RegisterTestResponse,
     ListTestsRequest, ListTestsResponse,
     GetDeploymentInfoRequest, GetDeploymentInfoResponse,
-    ExecuteTestResponse
+    ExecuteTestResponse, 
 )
 from protos.cluster_operator.cluster_operator_pb2_grpc import ClusterOperatorServicer
 
@@ -95,50 +95,52 @@ class ClusterOperatorServicerProvider(ClusterOperatorServicer):
         
         return response
     
-    # # -------------------------------------------------------------------------------------------------
-    # #                                                                                             Reset
-    # # -----------------------------------------------------------------------------------------------*/
-    # def Reset(self, request:ResetRequest, context):
-    #     response:ResetResponse = ResetResponse()
-    #     return response
-    
-    # # -------------------------------------------------------------------------------------------------
-    # #                                                                                         ListTests
-    # # -----------------------------------------------------------------------------------------------*/
-    # def ListTests(self, request:ListTestsRequest, context):
-    #     """Gets all the test available in the cluster"""
-    #     return ListTestsResponse(
-    #         tests = self.cluster.get_tests()
-    #     )
-    
     # -------------------------------------------------------------------------------------------------
     #                                                                                  ExecuteTest
     # -----------------------------------------------------------------------------------------------*/
+
     def ExecuteTest(self, request, context):
+        logging.debug("ExecuteTest handler called")
         logging.warning(request)
         
-        # Simulate the execution of several test steps
-        test_steps = [
-            {"execError": "", "success": True, "detailedResult": "Initialization complete.", "progressPercentage": 20, "timestamp": str(time.time())},
-            {"execError": "", "success": True, "detailedResult": "Loading modules.", "progressPercentage": 40, "timestamp": str(time.time())},
-            {"execError": "Error loading module", "success": False, "detailedResult": "Module failed to load.", "progressPercentage": 60, "timestamp": str(time.time())},
-            {"execError": "", "success": True, "detailedResult": "Cleanup and finalizing.", "progressPercentage": 80, "timestamp": str(time.time())},
-            {"execError": "", "success": True, "detailedResult": "Test completed successfully.", "progressPercentage": 100, "timestamp": str(time.time())}
-        ]
+        # Create and send a request to the test service
+        request_to_test_service = ExecuteRequest(
+            config=request.config,
+            nodes=request.nodes
+        )
         
-        for step in test_steps:
-            # Create a TestStepResult message
-            test_step_result = TestStepResult(
-                execError=step["execError"],
-                success=step["success"],
-                detailedResult=step["detailedResult"],
-                progressPercentage=step["progressPercentage"],
-                timestamp=step["timestamp"]
-            )
-
-            # Wrap the result in an ExecuteResponse and then in an ExecuteTestResponse
-            response = ExecuteTestResponse(
-                results=[ExecuteResponse(results=[test_step_result])]
-            )
-            yield response
-            time.sleep(1)  # Simulate time delay between steps        
+        test = self.operator.get_test_entry(request.uuid)
+        
+        # Communicate with the test service
+        try:
+            for response in test.stub.Execute(request_to_test_service):
+                logging.info(f"Received response from test service: {response}")
+                test_response = ExecuteTestResponse(
+                    results=response.results
+                )
+                yield test_response
+        except grpc.RpcError as e:
+            logging.error(f"Error in communication with the test service: {str(e)}")
+            context.abort(grpc.StatusCode.ABORTED, "Test execution failed due to an RPC error.")
+        
+        # # Call the test in a new thread, and send the responses back to the main RPC
+        # def results_cb(results):
+        #     logging.error(f"Callback: {results}")
+        #     if results is None:
+        #         yield
+                
+        #     response = ExecuteTestResponse(
+        #         results=results
+        #     )
+            
+        #     logging.warning(f"Received response: {response}")
+        #     yield response
+        
+        # # Call the operator 
+        # error = self.operator.execute_test(request.uuid, request.config, request.nodes, results_cb)
+        # if error:
+        #     logging.error(f"Could not start test execution: {error}")
+        #     context.abort(grpc.StatusCode.ABORTED, f"Test execution failed: {error}")
+        
+        # logging.info(f"Test {request.uuid} executed succesfully")
+        # yield

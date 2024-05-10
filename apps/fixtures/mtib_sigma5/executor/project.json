@@ -20,7 +20,7 @@
           "load": true,
           "push": false,
           "tags": [
-            "ccr01.ad.corekinect.com/sigma5_executor:1.2"
+            "ccr01.ad.corekinect.com/sigma5_executor:latest"
           ]
         }
       }

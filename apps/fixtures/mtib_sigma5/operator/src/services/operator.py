@@ -4,7 +4,7 @@ import uuid
 import time
 import socket
 import threading
-from typing import Tuple, Any, List, Optional
+from typing import Tuple, Any, List, Optional, Callable
 import re
 import subprocess
 import yaml
@@ -20,7 +20,8 @@ import kubernetes
 
 # Protocol includes
 from protos.cluster_test.cluster_test_pb2 import (
-    TestInfo, HealthCheckRequest, HealthCheckResponse
+    TestInfo, HealthCheckRequest, HealthCheckResponse,
+    ExecuteRequest,TestStepResult
 )
 from protos.cluster_test.cluster_test_pb2_grpc import ClusterTestStub
 
@@ -57,7 +58,9 @@ class ClusterOperatorTestEntry:
         self.port:int = port
         self.channel:grpc.Channel = channel
         self.stub:ClusterTestStub = stub
-        
+
+TestResultsCallbackType = Callable[[Optional[List[TestStepResult]]],None]
+
 # ----------------------------------------------------------------------------------
 #                                                                      Configuration
 # --------------------------------------------------------------------------------*/
@@ -184,7 +187,7 @@ class ClusterOperator:
 
             node_info = {
                 "name": node.metadata.name,
-                "hostname": next((addr.address for addr in node.status.addresses if addr.type == "Hostname"), None),
+                "host": next((addr.address for addr in node.status.addresses if addr.type == "Hostname"), None),
                 "os_image": node.status.node_info.os_image,
                 "kernel_version": node.status.node_info.kernel_version,
                 "cpu_cores": int(node.status.capacity["cpu"].replace('m', '')),  # CPU capacity is assumed to be in millicores
@@ -311,7 +314,61 @@ class ClusterOperator:
             
         except grpc.RpcError as e:
             return f"Failed to connect to operator at {test_url} over gRPC. Error: {e}"
+    
+    def get_test_entry(self, test_uuid:str) -> ClusterOperatorTestEntry:
+        # Find the test in our list
+        for t in self.tests:
+            if t.info.uuid == test_uuid:
+                return t
+            
+    def execute_test(self, test_uuid:str, test_config:str, test_nodes:List[str], results_cb:TestResultsCallbackType) -> str:
+        # Ensure we aren't running a test
+        if self.status is ClusterStatus.RUNNING:
+            return f"Cannot execute a new test while cluster is in the RUNNING state"
         
+        self.status = ClusterStatus.RUNNING
+        
+        # Find the test in our list
+        test:ClusterOperatorTestEntry = None
+        for t in self.tests:
+            if t.info.uuid == test_uuid:
+                test = t
+                break
+        
+        if test is None:
+            return f"Test {test_uuid} is not registered with operator"
+        
+        # Call the test in a new thread, and send the responses back to the main RPC
+        request = ExecuteRequest(
+            config=test_config,
+            nodes=test_nodes
+        )
+        
+        finished_event = threading.Event()
+            
+        def handle_test_execution():
+            try:
+                for response in test.stub.Execute(request):
+                    logging.warning(f"Thread response: {response}")
+                    results_cb(response.results)
+
+            except grpc.RpcError as e:
+                logging.error(f"Error calling Execute on test {test_uuid}: {str(e)}")
+                self.status = ClusterStatus.ERROR  # Set status to ERROR on RPC error
+                results_cb(None)  # Signal the callback that an error occurred
+            
+            finally:
+                self.status = ClusterStatus.IDLE
+                results_cb(None)  # Signal the end of the test to the callback
+                finished_event.set()  # Signal that the test is complete
+                
+        test_thread = threading.Thread(target=handle_test_execution)
+        test_thread.start()
+        
+        finished_event.wait()
+        
+        return ""
+    
     def list_tests(self) -> List[TestInfo]:
         tests_info:List[TestInfo] = []
         for test in self.tests:
@@ -897,7 +954,7 @@ class ClusterOperator:
                 else:
                     all_pods_ready = False
                     pod_in_error, logs = self.__find_error_pod_and_logs(core_v1, pod_list)
-                    return f"Pods failed after initial readiness check. Error in pod {pod_in_error}: {logs}"
+                    return f"Pods failed after initial readiness check. Error in pod {pod_in_error}: \n{logs}"
 
             if all_pods_ready:
                 logging.info("Initial readiness check passed. Monitoring for stability...")

@@ -6,33 +6,18 @@ from typing import Tuple, List, Callable, Optional
 from concurrent.futures import as_completed
 
 # Protocol includes
-from protos.cluster_runner.cluster_runner_pb2 import (
-    RunnerInfo
-)
-from protos.cluster_runner.cluster_runner_pb2_grpc import ClusterRunnerStub
-
 from protos.cluster_test.cluster_test_pb2 import (
     TestInfo, StepInfo, TestStepResult
 )
 
 # -------------------------------------------------------------------------------------------------
-#                                                                                     Runner Object
-# -----------------------------------------------------------------------------------------------*/
-class TestRunner:
-    def __init__(self, info:RunnerInfo, stub:ClusterRunnerStub):
-        self.info:RunnerInfo = info
-        self.stub:ClusterRunnerStub = stub
-
-test_step_1:StepInfo = StepInfo(
-    sequence=1,
-    name="Electrical Test",
-
-)
-
-# -------------------------------------------------------------------------------------------------
 #                                                                                       Step Object
 # -----------------------------------------------------------------------------------------------*/
-TestHandlerType = Callable[[TestRunner], TestStepResult]
+"""
+A test step handler will be passed 2 arguements:
+1. A list of nodes hostnames it's being requested to execute on
+"""
+TestHandlerType = Callable[[List[str], str], TestStepResult]
 class TestStep:
     def __init__(self,
                 info:StepInfo,
@@ -41,7 +26,7 @@ class TestStep:
         self.info:StepInfo = info
         self.handler:TestHandlerType = handler
 
-    def exec(self, runners: List[TestRunner]) -> Tuple[bool, str, Optional[List[TestStepResult]]]:
+    def exec(self, runners: List[str]) -> Tuple[bool, str, Optional[List[TestStepResult]]]:
         results: List[TestStepResult] = []
 
         with threading.ThreadPoolExecutor(max_workers=len(runners)) as executor:
@@ -79,8 +64,8 @@ class Test:
         for step in self.steps:
             self.info.steps.append(step.info)
 
-    def exec(self, runners:List[TestRunner], callback:TestCallbackType):
-        active_runners:List[TestRunner] = runners
+    def exec(self, nodes:List[str], callback:TestCallbackType):
+        active_runners:List[str] = nodes
 
         # For each step in the test
         for index, step in enumerate(self.steps):
@@ -102,14 +87,6 @@ class Test:
                     callback(True, f"Unknown error occurred executing step", step.info.sequence, None) 
                 return
             else:
-                # Process the step results
-                for result in results:
-                    if not result.execOk:
-                        # Find and remove the runners in which we didn't succeed
-                        for runner in active_runners:
-                            if runner.info.id == result.runnerId:
-                                active_runners.remove(runner)
-
                 logging.info("exec for test executed correctly")
 
                 # Populate the common fields

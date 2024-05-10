@@ -111,33 +111,10 @@ spec:
                 - "control-plane"
       containers:
       - name: test-executor
-        image: ccr01.ad.corekinect.com/sigma5_executor:1.2
+        image: ccr01.ad.corekinect.com/sigma5_executor:latest
         imagePullPolicy: Always
         securityContext:
           privileged: true
         ports:
         - containerPort: 50052
           hostPort: 50052
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: ubuntu
-  labels:
-    app: ubuntu
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: ubuntu
-  template:
-    metadata:
-      labels:
-        app: ubuntu  # This must be the same than the deployment name or it wont work!
-    spec:
-      containers:
-      - name: dev-env
-        image: ccr01.ad.corekinect.com/ubuntu:22.04
-        command: ["sleep"]
-        args: ["infinity"]
-        imagePullPolicy: Always

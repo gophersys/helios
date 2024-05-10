@@ -11,6 +11,7 @@ from flask import Blueprint, jsonify, request
 from flask_socketio import SocketIO, join_room, emit, close_room, disconnect
 
 # Protocol includes
+from protos.cluster_operator.cluster_operator_pb2 import  ClusterStatus
 from protos.cluster_test.cluster_test_pb2 import TestInfo
 
 # App includes
@@ -36,9 +37,6 @@ def clusters_tests_exec_uuid_socketio_handler(data: Any, socketio:SocketIO):
         # logging.info("Sending message")
         # emit('server', {'data': "some data"}, room=session_id)
         time.sleep(1)
-    # logging.info("Sending last message")
-    # emit('test_complete', {'data': "Test complete"}, room=session_id)
-    # disconnect(sid=session_id)
     close_room(session_id)
     
 # Flask Route
@@ -51,12 +49,16 @@ def clusters_tests_exec_uuid_handler(cluster_uuid, test_uuid):
             return jsonify({"error": "Bad request, malformed url."}), 400
         
         # Access JSON data from the request
-        data = request.get_json()
+        data = request.get_json(silent=True)  # Use silent=True to avoid parsing errors
+        if not data:
+            return jsonify({"error": "Bad request, no JSON payload."}), 400
         
         # Validate request fields
-        test_config = data.get('config')
-        if not test_config:
-            return jsonify({"error": "Bad request, 'config' field is required."}), 400
+        test_config = data.get('config')  # No error if 'config' is not provided
+
+        requested_nodes = data.get('nodes', [])  # Default to empty list if 'nodes' is not provided
+        if len(requested_nodes) == 0:
+            return jsonify({"error": "Bad request, 'nodes' field is required and must contain at least one node."}), 400
         
         # Find the specific cluster
         cluster: Cluster = None
@@ -69,13 +71,34 @@ def clusters_tests_exec_uuid_handler(cluster_uuid, test_uuid):
         if cluster is None:
             return jsonify({"error": f"Cluster {cluster_uuid} not found."}), 400
         
+        # Check that the cluster is connected
+        if cluster.status is None:
+            return jsonify({"error": f"Cluster {cluster_uuid} is not connected, cannot execute test"}), 400
+        elif cluster.status is ClusterStatus.RUNNING:
+            return jsonify({"error": f"Cluster {cluster_uuid} is already running a test"}), 400
+        
+        # Get nodes information
+        error, nodes_info = appProxyServer.clusters_get_nodes_info(cluster.info.uuid)
+        if error:
+            return jsonify({"error": f"{error}"}), 400
+        
+        # Check that the nodes in the request are present in the nodes_info
+        available_hosts = {node.host for node in nodes_info}  # Assuming each node info has a 'host' attribute
+        missing_nodes = [node for node in requested_nodes if node not in available_hosts]
+        if missing_nodes:
+            return jsonify({"error": f"Requested nodes not found: {', '.join(missing_nodes)}"}), 400
+        
         # Generate a unique session ID for this test execution
         session_id = str(uuid.uuid4())
-        appProxyServer.clusters_test_exec(cluster_uuid, test_uuid, test_config, test_result_callback, session_id)
+        error = appProxyServer.clusters_test_exec(cluster_uuid, test_uuid, test_config, requested_nodes, test_result_callback, session_id)
+        if error:
+            return jsonify({"error": f"{error}"}), 400
+        
         return jsonify({"message": "Test execution started", "session_id": session_id}), 202
     
     except Exception as e:
         logging.error(f"An error occurred: {str(e)}")
         return jsonify({"error": f"Internal server error: {str(e)}"}), 500
+    
 
 # Ensure to pass socketio instance when registering the blueprint in main.py

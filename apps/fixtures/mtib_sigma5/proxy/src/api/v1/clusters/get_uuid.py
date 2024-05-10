@@ -55,7 +55,7 @@ def clusters_get_uuid_handler(uuid):
             "nodes": [
                 {
                     "name": node.name,
-                    "hostname": node.hostname,
+                    "host": node.host,
                     "os_image": node.os_image,
                     "kernel_version": node.kernel_version,
                     "cpu_cores": node.cpu_cores,

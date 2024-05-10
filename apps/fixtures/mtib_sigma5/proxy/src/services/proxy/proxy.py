@@ -482,7 +482,7 @@ class ProxyServer:
             cluster.error = error
             return error, None
 
-    def clusters_test_exec(self, cluster_uuid:str, test_uuid:str, test_config:str, results_cb, session_id:str) -> str:
+    def clusters_test_exec(self, cluster_uuid:str, test_uuid:str, test_config:str, test_nodes:List[str], results_cb, session_id:str) -> str:
         cluster:Cluster = self._find_cluster_by_uuid(cluster_uuid)
         if cluster is None:
             return f"Cluster with {cluster_uuid} not found in server."
@@ -493,16 +493,20 @@ class ProxyServer:
         
         # Run the test in a new thread
         def run_test_execution():
+            logging.info("about to call the RPC for execute test")
             request = ExecuteTestRequest(
                 uuid=test_uuid,
                 config=str(test_config),
+                nodes=test_nodes
             )
             
             # Handle the stream responses
             try:
                 for response in cluster.stub.ExecuteTest(request):
                     logging.warning(f"Received response: {response}")
-                    
+                
+                logging.warning(f"Test finish")
+                
             except grpc.RpcError as e:
                 return f"gRPC error: {e}"
         
