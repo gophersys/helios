@@ -262,7 +262,7 @@ class Test:
         self.nodes = []
         
         # Finally set the state
-        self.running = False     
+        self.status = TestStatus.IDLE
     
     def _validate_config_type(self):
         # Check for the existence of marshall and unmarshall methods
