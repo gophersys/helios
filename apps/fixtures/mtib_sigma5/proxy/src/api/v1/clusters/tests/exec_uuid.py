@@ -91,7 +91,7 @@ def clusters_tests_exec_uuid_handler(cluster_uuid, test_uuid):
             return jsonify({"error": f"Requested nodes not found: {', '.join(missing_nodes)}"}), 400
         
         # Generate a unique session ID for this test execution
-        error, session_id = appProxyServer.clusters_test_exec(cluster_uuid, test_uuid, test_config, requested_nodes, test_result_callback, session_id)
+        error, session_id = appProxyServer.clusters_test_exec(cluster_uuid, test_uuid, test_config, requested_nodes, test_result_callback)
         if error:
             return jsonify({"error": f"{error}"}), 400
         

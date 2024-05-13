@@ -48,7 +48,7 @@ class ClusterTestServicerProvider(ClusterOperatorServicer):
             result = results_queue.get()
             if result is None:
                 break  # Completion signal received
-            response = ExecuteResponse(results=[result])
+            response = ExecuteResponse(results=result)
             yield response
             
         # Clean up

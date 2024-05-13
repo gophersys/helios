@@ -205,7 +205,12 @@ class Test:
                 success=step["success"],
                 detailedResult=step["detailedResult"],
             )
-            self.results_queue.put(test_step_result)
+            
+            test_step_results = [
+                test_step_result,test_step_result,test_step_result,test_step_result,test_step_result,test_step_result
+            ]
+            
+            self.results_queue.put(test_step_results)
             time.sleep(1)  # Simulate delay between steps
 
         self.results_queue.put(None)  # Signal completion

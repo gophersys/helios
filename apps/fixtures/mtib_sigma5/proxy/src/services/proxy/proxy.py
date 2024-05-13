@@ -482,14 +482,14 @@ class ProxyServer:
             cluster.error = error
             return error, None
 
-    def clusters_test_exec(self, cluster_uuid:str, test_uuid:str, test_config:str, test_nodes:List[str], results_cb, session_id:str) -> Tuple[str, Optional[str]]:
+    def clusters_test_exec(self, cluster_uuid:str, test_uuid:str, test_config:str, test_nodes:List[str], results_cb) -> Tuple[str, Optional[str]]:
         cluster:Cluster = self._find_cluster_by_uuid(cluster_uuid)
         if cluster is None:
-            return f"Cluster with {cluster_uuid} not found in server."
+            return f"Cluster with {cluster_uuid} not found in server.", None
         
         error, test_info = self._find_test_in_cluster_by_uuid(cluster, test_uuid)
         if error:
-            return error
+            return error, None
         
         # Create an execution entry in our database
         error, execution_uuid = self.db.cluster_test_execution_create(
@@ -500,7 +500,7 @@ class ProxyServer:
             test_nodes
         )
         if error:
-            return error
+            return error, None
                 
         # Run the test in a new thread
         def run_test_execution():
@@ -518,7 +518,7 @@ class ProxyServer:
                     if error: 
                         logging.error(f"Could not append result to entry in database: f{error}")
                         
-                    results_cb(response, session_id)
+                    results_cb(response, execution_uuid)
                 
                 logging.info(f"Test finish")
                 
@@ -534,7 +534,7 @@ class ProxyServer:
         test_thread = threading.Thread(target=run_test_execution, daemon=True)
         test_thread.start()
     
-        return ""
+        return "", execution_uuid
     
     # -----------------------------------------------------------------------------
     #                                                               General Helpers

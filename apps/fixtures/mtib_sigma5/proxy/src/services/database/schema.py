@@ -118,7 +118,7 @@ class TestExecution:
     finished_at: str
     error:str
     stopped: bool
-    results: List[TestStepResult]
+    results: List[List[TestStepResult]]
 
     def marshal(self) -> dict:
         """ Serialize the TestExecution object to a dictionary, handling Protobuf types. """
@@ -130,7 +130,7 @@ class TestExecution:
             "finished_at": self.finished_at,
             "error": self.error,
             "stopped": self.stopped,
-            "results": [MessageToDict(result, including_default_value_fields=True) for result in self.results]  # Serialize each TestStepResult to a JSON string
+            "results": [[MessageToDict(step, including_default_value_fields=True) for step in result_group] for result_group in self.results] # Serialize the Protobuf TestInfo object to a JSON string
         }
 
     @classmethod
@@ -139,9 +139,12 @@ class TestExecution:
         test_info = TestInfo()
         ParseDict(data["test_info"], test_info)  # Deserialize the dictionary back to a TestInfo object
 
-        results = [TestStepResult() for _ in data["results"]]
-        for result_dict, result_obj in zip(data["results"], results):
-            ParseDict(result_dict, result_obj)  # Deserialize each result back to a TestStepResult object
+        results = []
+        for result_group in data["results"]:
+            group = [TestStepResult() for _ in result_group]
+            for result_dict, result_obj in zip(result_group, group):
+                ParseDict(result_dict, result_obj)
+            results.append(group)
 
         return cls(
             test_info=test_info,
@@ -159,12 +162,14 @@ class TestExecution:
 class TestExecutionInfo:
     test_name:str 
     uuid: str                  # Unique identifier for this execution entry
+    error: str
     created_at: str            # When this entry was initially added to the file system
 
     def marshal(self) -> dict:
         return {
             "test_name": self.test_name,
             "uuid": self.uuid,
+            "error": self.error,
             "created_at": self.created_at,
         }
 
@@ -173,6 +178,7 @@ class TestExecutionInfo:
         return cls(
             test_name=data["test_name"],
             uuid=data["uuid"],
+            error=data["error"],
             created_at=data["created_at"],
         )
     

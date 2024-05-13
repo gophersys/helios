@@ -654,7 +654,8 @@ class ClusterOperator:
                 return f"Error: Invalid response from server: {response.status_code}"
         except Exception as e:
             logging.warning(f"Exception occurred fetching deployment: {str(e)}")
-                        
+            return ""
+                 
         # Extract the current deployment file name from the path
         new_deployment_uuid = json_response.get('current_deployment')
         if new_deployment_uuid is None:

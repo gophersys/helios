@@ -489,6 +489,7 @@ class Database:
             cluster_info.executions.append(TestExecutionInfo(
                 test_name=test_info.name,
                 uuid=execution_uuid,
+                error="",
                 created_at=now
             ))
 
@@ -542,7 +543,8 @@ class Database:
             with open(execution_instance_file, 'w') as file:
                 json.dump(current_execution.marshal(), file, indent=4)
 
-            # Update last updated timestamp in the cache
+            # Update the error in the high level entry
+            execution_info.error = error
             self._cluster_save_info(cluster_uuid)
             return ""
         except Exception as e:
@@ -575,21 +577,23 @@ class Database:
         execution_instance_file = os.path.join(executions_dir, f"{execution_uuid}.json")
         
         try:
-            # Read existing data
+            # Read and update the execution data
             with open(execution_instance_file, 'r') as file:
                 data = json.load(file)
                 current_execution = TestExecution.unmarshal(data)
 
-            # Update results and stopped status
-            current_execution.results.extend(results)
-            current_execution.finished_at = datetime.now().isoformat()
-            current_execution.stopped = stopped
+            # Append the new results as a single group in the list of lists
+            current_execution.results.append(results)
+            if stopped:
+                current_execution.stopped = True
+                current_execution.finished_at = datetime.now().isoformat()
 
-            # Write updated data back to file
+            # Write the updated data back to the file
             with open(execution_instance_file, 'w') as file:
                 json.dump(current_execution.marshal(), file, indent=4)
 
-            # Update last updated timestamp
+            # Update the last updated timestamp and save changes
+            execution_info.last_updated_at = datetime.now().isoformat()
             self._cluster_save_info(cluster_uuid)
             return ""
         except Exception as e:
@@ -621,10 +625,6 @@ class Database:
 
         return cluster_uuids
 
-    
-        
-    
-
     def update_cluster_deployment(self, cluster_uuid: str, deployment_path: str) -> str:
         """Updates an existing cluster entry in the file system"""
         cluster_dir = os.path.join(self.path, 'clusters', cluster_uuid)
@@ -652,8 +652,6 @@ class Database:
         except Exception as e:
             return str(e)
 
-    
-    
     def get_clusters_info(self) -> List[ClusterInfo]:
         return self.cluster_entries
 
