@@ -67,8 +67,6 @@ class ClusterOperatorServicerProvider(ClusterOperatorServicer):
         return response
     
     def ListTests(self, request:ListTestsRequest, context):
-        logging.debug("ListTests handler called")
-        
         response:ListTestsResponse = ListTestsResponse(
             tests = self.operator.list_tests()
         )
@@ -87,7 +85,6 @@ class ClusterOperatorServicerProvider(ClusterOperatorServicer):
         # Communicate with the test service
         try:
             for response in test.stub.Execute(request_to_test_service):
-                logging.info(f"Received response from test service: {response}")
                 test_response = ExecuteTestResponse(
                     results=response.results
                 )

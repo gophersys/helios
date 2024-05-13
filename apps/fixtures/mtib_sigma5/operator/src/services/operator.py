@@ -916,8 +916,8 @@ class ClusterOperator:
                 return ""
 
             logging.info(f"Not all images are ready on attempt {attempt}. Retrying after delay...")
-            time.sleep(10)  # Sleep to provide time for images to be ready
-
+            time.sleep(1)
+            
         return f"Not all images were ready after {retry_limit} attempts for deployment {deployment_name}."
 
     def __wait_for_deployment_pods_ready(self, deployment_name: str) -> str:
@@ -970,7 +970,7 @@ class ClusterOperator:
                     pod_in_error, logs = self.__find_error_pod_and_logs(core_v1, pod_list)
                     return f"Pods failed after initial readiness check. Error in pod {pod_in_error}: {logs}"
 
-            time.sleep(5)  # Sleep before the next check to avoid overwhelming the API server
+            time.sleep(1)  # Sleep before the next check to avoid overwhelming the API server
 
     def __get_pod_status(self, pod):
         """Utility function to determine the current status of a pod."""
