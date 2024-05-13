@@ -9,10 +9,6 @@
 			"path": "../../libs/protos"
 		},
 		{
-			"name": "clusters",
-			"path": "../../libs/python/clusters"
-		},
-		{
 			"name": "runner",
 			"path": "../../apps/fixtures/mtib_sigma5/runner"
 		},
