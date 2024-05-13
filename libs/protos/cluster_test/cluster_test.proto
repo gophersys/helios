@@ -37,7 +37,7 @@ message TestStepResult {
   string detailedResult = 3;        // Optionally include detailed logs or results of the step.
   
   // Application populated fields
-  int32 node = 4;                    // Which host this step used
+  string node = 4;                    // Which host this step used
 }
 
 // Messages for executing tests on panel boards
