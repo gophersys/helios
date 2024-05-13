@@ -33,8 +33,8 @@ from protos.cluster_operator.cluster_operator_pb2 import (
 from protos.cluster_operator.cluster_operator_pb2_grpc import ClusterOperatorStub
 
 # App includes
-from services.db import Database, DatabaseConfiguration
-from services.db.schema import Cluster, ClusterType
+from src.services.database import Database, DatabaseConfiguration
+from src.services.database.schema import Cluster, ClusterType
 
 # ----------------------------------------------------------------------------------
 #                                                                        Event Types

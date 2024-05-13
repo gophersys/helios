@@ -23,7 +23,7 @@ message_queue = queue.Queue()
 
 # Server callback
 def test_result_callback(data: Any, session_id: str):
-    logging.error(f"session_id: {data}, Received response: {data}")
+    logging.info(f"session_id: {session_id}, Received response")
     # Put the test update and session_id into the queue
     # emit('server', {'data': "some data"}, room=session_id)
     # message_queue.put((session_id, data))
