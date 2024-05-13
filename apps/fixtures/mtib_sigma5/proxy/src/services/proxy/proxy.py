@@ -482,7 +482,7 @@ class ProxyServer:
             cluster.error = error
             return error, None
 
-    def clusters_test_exec(self, cluster_uuid:str, test_uuid:str, test_config:str, test_nodes:List[str], results_cb, session_id:str) -> str:
+    def clusters_test_exec(self, cluster_uuid:str, test_uuid:str, test_config:str, test_nodes:List[str], results_cb, session_id:str) -> Tuple[str, Optional[str]]:
         cluster:Cluster = self._find_cluster_by_uuid(cluster_uuid)
         if cluster is None:
             return f"Cluster with {cluster_uuid} not found in server."
@@ -491,24 +491,44 @@ class ProxyServer:
         if error:
             return error
         
+        # Create an execution entry in our database
+        error, execution_uuid = self.db.cluster_test_execution_create(
+            cluster_uuid,
+            test_uuid,
+            test_info,
+            test_config,
+            test_nodes
+        )
+        if error:
+            return error
+                
         # Run the test in a new thread
         def run_test_execution():
-            logging.info("about to call the RPC for execute test")
+            # Create a request for the RPC with the relevant fields
             request = ExecuteTestRequest(
                 uuid=test_uuid,
-                config=str(test_config),
+                config=test_config,
                 nodes=test_nodes
             )
-            
-            # Handle the stream responses
+
             try:
+                # Call the RPC, which will return an array of stre
                 for response in cluster.stub.ExecuteTest(request):
-                    logging.warning(f"Received response: {response}")
+                    error = self.db.cluster_test_execution_append_result(cluster_uuid,execution_uuid, response.results, False)
+                    if error: 
+                        logging.error(f"Could not append result to entry in database: f{error}")
+                        
+                    results_cb(response, session_id)
                 
-                logging.warning(f"Test finish")
+                logging.info(f"Test finish")
                 
             except grpc.RpcError as e:
-                return f"gRPC error: {e}"
+                logging.error(e.details())
+                error = self.db.cluster_test_execution_set_error(cluster_uuid, execution_uuid, e.details())
+                if error:
+                    logging.error(f"Could not set error in execution entry in database: f{error}")
+                    
+                # Add result to the communication queue 
         
         # Start the thread to simulate test execution
         test_thread = threading.Thread(target=run_test_execution, daemon=True)

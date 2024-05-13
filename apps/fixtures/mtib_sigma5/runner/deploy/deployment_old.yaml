@@ -77,44 +77,44 @@ spec:
       - name: gpio
         hostPath:
           path: /sys/class/gpio
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: test-executor
-  labels:
-    app: test-executor
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: test-executor
-  strategy:
-    type: RollingUpdate
-    rollingUpdate:
-      maxSurge: 1
-      maxUnavailable: 1
-  template:
-    metadata:
-      labels:
-        app: test-executor
-    spec:
-      terminationGracePeriodSeconds: 1
-      affinity:
-        nodeAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            nodeSelectorTerms:
-            - matchExpressions:
-              - key: "kubernetes.io/hostname"
-                operator: In
-                values:
-                - "control-plane"
-      containers:
-      - name: test-executor
-        image: ccr01.ad.corekinect.com/sigma5_executor:latest
-        imagePullPolicy: Always
-        securityContext:
-          privileged: true
-        ports:
-        - containerPort: 50052
-          hostPort: 50052
+# ---
+# apiVersion: apps/v1
+# kind: Deployment
+# metadata:
+#   name: test-executor
+#   labels:
+#     app: test-executor
+# spec:
+#   replicas: 1
+#   selector:
+#     matchLabels:
+#       app: test-executor
+#   strategy:
+#     type: RollingUpdate
+#     rollingUpdate:
+#       maxSurge: 1
+#       maxUnavailable: 1
+#   template:
+#     metadata:
+#       labels:
+#         app: test-executor
+#     spec:
+#       terminationGracePeriodSeconds: 1
+#       affinity:
+#         nodeAffinity:
+#           requiredDuringSchedulingIgnoredDuringExecution:
+#             nodeSelectorTerms:
+#             - matchExpressions:
+#               - key: "kubernetes.io/hostname"
+#                 operator: In
+#                 values:
+#                 - "control-plane"
+#       containers:
+#       - name: test-executor
+#         image: ccr01.ad.corekinect.com/sigma5_executor:latest
+#         imagePullPolicy: Always
+#         securityContext:
+#           privileged: true
+#         ports:
+#         - containerPort: 50052
+#           hostPort: 50052

@@ -11,6 +11,7 @@ CLUSTERTEST_SERVICE_ID = 1
 class ClusterTestRpc(Enum):
     HealthCheck = 1
     Execute = 2
+    Stop = 3
     
 class ClusterTest:
     def __init__(self, daemon:Cipher):
@@ -57,6 +58,27 @@ class ClusterTest:
         self.daemon.execute_remote_rpc(context)
         
         return context.response_struct, context.user_info.error
+    # Server side handlers
+    def StopHandler(self, request:StopRequest) -> Tuple[StopResponse, CipherRpcErr]:
+        print("Default Stop handler called")
+        response: StopResponse = StopResponse()
+        return response, CipherRpcErr.NOT_IMPLEMENTED
+        
+    # Client side 
+    def StopRpc(self, info:CipherUnaryRpcUserInfo, request:StopRequest) -> Tuple[Optional[StopResponse], CipherRpcErr]:
+        response: StopResponse = StopResponse()
+        context: CipherDaemonRpcContext = CipherDaemonRpcContext(
+            local=True,
+            user_info=info,
+            service_id=CLUSTERTEST_SERVICE_ID,
+            rpc_id=ClusterTestRpc.Stop.value,
+            request_struct=request,
+            response_struct=response,            
+        )
+        
+        self.daemon.execute_remote_rpc(context)
+        
+        return context.response_struct, context.user_info.error
 
 # ClusterTest RPCs
 clustertest_service_rpcs = [
@@ -76,6 +98,15 @@ clustertest_service_rpcs = [
         handler=ClusterTest.ExecuteHandler,
         request_info=CipherMessageInfo(ExecuteRequest),
         response_info=CipherMessageInfo(ExecuteResponse),
+        supports_parallelism=True
+    ),
+    CipherRpcInfo(
+        id=ClusterTestRpc.Stop.value,
+        type=CipherRpcType.UNARY,
+        name="Stop",
+        handler=ClusterTest.StopHandler,
+        request_info=CipherMessageInfo(StopRequest),
+        response_info=CipherMessageInfo(StopResponse),
         supports_parallelism=True
     ),
 ]

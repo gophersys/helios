@@ -15,7 +15,7 @@ from src.services.operator import ClusterOperator
 
 # Protocol includes
 from protos.cluster_test.cluster_test_pb2 import (
-    TestStepResult, ExecuteResponse, ExecuteRequest
+    TestStepResult, ExecuteResponse, ExecuteRequest, StopRequest, StopResponse
 )
 
 from protos.cluster_operator.cluster_operator_pb2 import (
@@ -24,27 +24,18 @@ from protos.cluster_operator.cluster_operator_pb2 import (
     RegisterTestRequest, RegisterTestResponse,
     ListTestsRequest, ListTestsResponse,
     GetDeploymentInfoRequest, GetDeploymentInfoResponse,
-    ExecuteTestResponse, 
+    ExecuteTestResponse, StopTestResponse
 )
 from protos.cluster_operator.cluster_operator_pb2_grpc import ClusterOperatorServicer
 
 class ClusterOperatorServicerProvider(ClusterOperatorServicer):
-    # -------------------------------------------------------------------------------------------------
-    #                                                                                 Pass Test Cluster
-    # -----------------------------------------------------------------------------------------------*/
     def __init__(self, operator:ClusterOperator):
         self.operator:ClusterOperator = operator
 
-    # -------------------------------------------------------------------------------------------------
-    #                                                                                       HealthCheck
-    # -----------------------------------------------------------------------------------------------*/
     def HealthCheck(self, request:HealthCheckRequest, context):
         status, error = self.operator.get_status()
         return HealthCheckResponse(status=status, error=error)
     
-    # -------------------------------------------------------------------------------------------------
-    #                                                                                    GetClusterInfo
-    # -----------------------------------------------------------------------------------------------*/
     def GetClusterInfo(self, request:GetClusterInfoRequest, context):
         # Call app to get info
         response:GetClusterInfoResponse = GetClusterInfoResponse(
@@ -53,9 +44,6 @@ class ClusterOperatorServicerProvider(ClusterOperatorServicer):
         
         return response
     
-    # -------------------------------------------------------------------------------------------------
-    #                                                                                 GetDeploymentInfo
-    # -----------------------------------------------------------------------------------------------*/
     def GetDeploymentInfo(self, request:GetDeploymentInfoRequest, context):
         # Call app to get info
         response:GetDeploymentInfoResponse = GetDeploymentInfoResponse(
@@ -64,12 +52,7 @@ class ClusterOperatorServicerProvider(ClusterOperatorServicer):
         
         return response
     
-    # -------------------------------------------------------------------------------------------------
-    #                                                                                     Register Test
-    # -----------------------------------------------------------------------------------------------*/
     def RegisterTest(self, request:RegisterTestRequest, context):
-        logging.debug("RegisterTest handler called")
-        
         response:RegisterTestResponse = RegisterTestResponse(
             success=True
         )
@@ -83,9 +66,6 @@ class ClusterOperatorServicerProvider(ClusterOperatorServicer):
             
         return response
     
-    # -------------------------------------------------------------------------------------------------
-    #                                                                                         ListTests
-    # -----------------------------------------------------------------------------------------------*/
     def ListTests(self, request:ListTestsRequest, context):
         logging.debug("ListTests handler called")
         
@@ -95,14 +75,7 @@ class ClusterOperatorServicerProvider(ClusterOperatorServicer):
         
         return response
     
-    # -------------------------------------------------------------------------------------------------
-    #                                                                                  ExecuteTest
-    # -----------------------------------------------------------------------------------------------*/
-
     def ExecuteTest(self, request, context):
-        logging.debug("ExecuteTest handler called")
-        logging.warning(request)
-        
         # Create and send a request to the test service
         request_to_test_service = ExecuteRequest(
             config=request.config,
@@ -120,27 +93,18 @@ class ClusterOperatorServicerProvider(ClusterOperatorServicer):
                 )
                 yield test_response
         except grpc.RpcError as e:
-            logging.error(f"Error in communication with the test service: {str(e)}")
-            context.abort(grpc.StatusCode.ABORTED, "Test execution failed due to an RPC error.")
+            context.abort(grpc.StatusCode.ABORTED, f"{e.details()}")
         
-        # # Call the test in a new thread, and send the responses back to the main RPC
-        # def results_cb(results):
-        #     logging.error(f"Callback: {results}")
-        #     if results is None:
-        #         yield
-                
-        #     response = ExecuteTestResponse(
-        #         results=results
-        #     )
-            
-        #     logging.warning(f"Received response: {response}")
-        #     yield response
+    def StopTest(self, request, context):
+        # Find the test
+        test = self.operator.get_test_entry(request.uuid)
         
-        # # Call the operator 
-        # error = self.operator.execute_test(request.uuid, request.config, request.nodes, results_cb)
-        # if error:
-        #     logging.error(f"Could not start test execution: {error}")
-        #     context.abort(grpc.StatusCode.ABORTED, f"Test execution failed: {error}")
-        
-        # logging.info(f"Test {request.uuid} executed succesfully")
-        # yield
+        # Communicate with the test service
+        try:
+            response:StopResponse = test.stub.Stop(StopRequest())
+            return StopTestResponse(
+                error=response.error
+            )
+        except grpc.RpcError as e:
+            context.abort(grpc.StatusCode.ABORTED, f"An error ocurred trying to stop test: {e.details()}")
+

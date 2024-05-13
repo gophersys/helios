@@ -8,6 +8,9 @@ service ClusterTest {
 
   // Executes a test on a standalone board.
   rpc Execute(ExecuteRequest) returns (stream ExecuteResponse) {}
+
+  // Stops a test that is currently executing.
+  rpc Stop(StopRequest) returns (stream StopResponse) {}
 }
 
 // HealthCheck
@@ -29,21 +32,29 @@ message TestInfo {
 
 message TestStepResult {
   // User populated fields
-  string execError = 2;             // Exec error 
-  bool success = 3; 
-  string detailedResult = 4;    // Optionally include detailed logs or results of the step.
+  string error = 1;                 // Error in execution 
+  bool success = 2;                 // Step outcome (PASS/FAIL)
+  string detailedResult = 3;        // Optionally include detailed logs or results of the step.
   
   // Application populated fields
-  int32 runnerId = 5; 
-  int32 progressPercentage = 6; // Progress of the test execution as a whole.
-  string timestamp = 7;         // Timestamp of the update, useful for logs and tracking.
+  int32 node = 4;                    // Which host this step used
 }
 
 // Messages for executing tests on panel boards
 message ExecuteRequest {
   string config = 1;            // The UUID of the test we want to run in this cluster
+  repeated string nodes = 2;
 }
 
 message ExecuteResponse {
-  repeated TestStepResult results = 3;
+  bool stopped = 1;
+  int32 sequence = 2;                   // Progress of the test execution as a whole.
+  repeated TestStepResult results = 3;  // Array of results, one for each node executing the test.
+}
+
+// Messages for stopping a currently running test
+message StopRequest {}
+
+message StopResponse {
+  string error = 1;
 }

@@ -49,7 +49,7 @@ def clusters_get_uuid_handler(uuid):
             "current_deployment": cluster.info.current_deployment,
             "deployments": cluster.info.deployments,
             "logs": cluster.info.logs,
-            "results": cluster.info.results,
+            "results": cluster.info.executions,
             "error": cluster.error,
             "url": cluster.url,
             "nodes": [

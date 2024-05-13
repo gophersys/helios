@@ -285,7 +285,7 @@ class ClusterOperator:
                 return f"Operator already has test \"{test.info.name}\" registered at port {port}"
             
         # Build the test URL
-        test_url = f"control-plane:{port}"  #TODO: Change back to localhost once the operator is running inside the same machine
+        test_url = f"localhost:{port}"  #TODO: Change back to localhost once the operator is running inside the same machine
         
         # Attempt to connect to the test over gRPC
         try:

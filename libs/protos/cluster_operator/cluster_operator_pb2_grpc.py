@@ -6,7 +6,8 @@ import protos.cluster_operator.cluster_operator_pb2 as cluster__operator__pb2
 
 
 class ClusterOperatorStub(object):
-    """Missing associated documentation comment in .proto file."""
+    """Service definition
+    """
 
     def __init__(self, channel):
         """Constructor.
@@ -29,11 +30,6 @@ class ClusterOperatorStub(object):
                 request_serializer=cluster__operator__pb2.GetDeploymentInfoRequest.SerializeToString,
                 response_deserializer=cluster__operator__pb2.GetDeploymentInfoResponse.FromString,
                 )
-        self.RegisterTest = channel.unary_unary(
-                '/cluster_operator.ClusterOperator/RegisterTest',
-                request_serializer=cluster__operator__pb2.RegisterTestRequest.SerializeToString,
-                response_deserializer=cluster__operator__pb2.RegisterTestResponse.FromString,
-                )
         self.ListTests = channel.unary_unary(
                 '/cluster_operator.ClusterOperator/ListTests',
                 request_serializer=cluster__operator__pb2.ListTestsRequest.SerializeToString,
@@ -44,10 +40,21 @@ class ClusterOperatorStub(object):
                 request_serializer=cluster__operator__pb2.ExecuteTestRequest.SerializeToString,
                 response_deserializer=cluster__operator__pb2.ExecuteTestResponse.FromString,
                 )
+        self.StopTest = channel.unary_unary(
+                '/cluster_operator.ClusterOperator/StopTest',
+                request_serializer=cluster__operator__pb2.StopTestRequest.SerializeToString,
+                response_deserializer=cluster__operator__pb2.StopTestResponse.FromString,
+                )
+        self.RegisterTest = channel.unary_unary(
+                '/cluster_operator.ClusterOperator/RegisterTest',
+                request_serializer=cluster__operator__pb2.RegisterTestRequest.SerializeToString,
+                response_deserializer=cluster__operator__pb2.RegisterTestResponse.FromString,
+                )
 
 
 class ClusterOperatorServicer(object):
-    """Missing associated documentation comment in .proto file."""
+    """Service definition
+    """
 
     def HealthCheck(self, request, context):
         """Performs a health check to ensure the operator is at least running.
@@ -70,13 +77,6 @@ class ClusterOperatorServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def RegisterTest(self, request, context):
-        """Used by test runners to register themselves with the operator 
-        """
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
     def ListTests(self, request, context):
         """Lists available tests in the cluster.
         """
@@ -85,7 +85,21 @@ class ClusterOperatorServicer(object):
         raise NotImplementedError('Method not implemented!')
 
     def ExecuteTest(self, request, context):
-        """Executes a test on a standalone board.
+        """Executes a test.
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def StopTest(self, request, context):
+        """Stops an executing test.
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def RegisterTest(self, request, context):
+        """Used by test runners to register themselves with the operator 
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -109,11 +123,6 @@ def add_ClusterOperatorServicer_to_server(servicer, server):
                     request_deserializer=cluster__operator__pb2.GetDeploymentInfoRequest.FromString,
                     response_serializer=cluster__operator__pb2.GetDeploymentInfoResponse.SerializeToString,
             ),
-            'RegisterTest': grpc.unary_unary_rpc_method_handler(
-                    servicer.RegisterTest,
-                    request_deserializer=cluster__operator__pb2.RegisterTestRequest.FromString,
-                    response_serializer=cluster__operator__pb2.RegisterTestResponse.SerializeToString,
-            ),
             'ListTests': grpc.unary_unary_rpc_method_handler(
                     servicer.ListTests,
                     request_deserializer=cluster__operator__pb2.ListTestsRequest.FromString,
@@ -124,6 +133,16 @@ def add_ClusterOperatorServicer_to_server(servicer, server):
                     request_deserializer=cluster__operator__pb2.ExecuteTestRequest.FromString,
                     response_serializer=cluster__operator__pb2.ExecuteTestResponse.SerializeToString,
             ),
+            'StopTest': grpc.unary_unary_rpc_method_handler(
+                    servicer.StopTest,
+                    request_deserializer=cluster__operator__pb2.StopTestRequest.FromString,
+                    response_serializer=cluster__operator__pb2.StopTestResponse.SerializeToString,
+            ),
+            'RegisterTest': grpc.unary_unary_rpc_method_handler(
+                    servicer.RegisterTest,
+                    request_deserializer=cluster__operator__pb2.RegisterTestRequest.FromString,
+                    response_serializer=cluster__operator__pb2.RegisterTestResponse.SerializeToString,
+            ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
             'cluster_operator.ClusterOperator', rpc_method_handlers)
@@ -132,7 +151,8 @@ def add_ClusterOperatorServicer_to_server(servicer, server):
 
  # This class is part of an EXPERIMENTAL API.
 class ClusterOperator(object):
-    """Missing associated documentation comment in .proto file."""
+    """Service definition
+    """
 
     @staticmethod
     def HealthCheck(request,
@@ -186,23 +206,6 @@ class ClusterOperator(object):
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
     @staticmethod
-    def RegisterTest(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/cluster_operator.ClusterOperator/RegisterTest',
-            cluster__operator__pb2.RegisterTestRequest.SerializeToString,
-            cluster__operator__pb2.RegisterTestResponse.FromString,
-            options, channel_credentials,
-            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
-
-    @staticmethod
     def ListTests(request,
             target,
             options=(),
@@ -233,5 +236,39 @@ class ClusterOperator(object):
         return grpc.experimental.unary_stream(request, target, '/cluster_operator.ClusterOperator/ExecuteTest',
             cluster__operator__pb2.ExecuteTestRequest.SerializeToString,
             cluster__operator__pb2.ExecuteTestResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def StopTest(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/cluster_operator.ClusterOperator/StopTest',
+            cluster__operator__pb2.StopTestRequest.SerializeToString,
+            cluster__operator__pb2.StopTestResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def RegisterTest(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/cluster_operator.ClusterOperator/RegisterTest',
+            cluster__operator__pb2.RegisterTestRequest.SerializeToString,
+            cluster__operator__pb2.RegisterTestResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)

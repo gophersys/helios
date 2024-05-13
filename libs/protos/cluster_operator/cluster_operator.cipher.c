@@ -20,9 +20,10 @@ typedef enum
     rpc_HealthCheck = 1,
     rpc_GetClusterInfo = 2,
     rpc_GetDeploymentInfo = 3,
-    rpc_RegisterTest = 4,
-    rpc_ListTests = 5,
-    rpc_ExecuteTest = 6,
+    rpc_ListTests = 4,
+    rpc_ExecuteTest = 5,
+    rpc_StopTest = 6,
+    rpc_RegisterTest = 7,
 } ClusterOperator_rpc;
 
 // Server side
@@ -77,23 +78,6 @@ cipher_rpc_err_t GetDeploymentInfoRpcPrvHandler(void *request, void *response)
 }
 
 // Server side
-static bool ClusterOperator_RegisterTestHandlerImplemented = true;
-__attribute__((weak)) RegisterTestResponse ClusterOperator_RegisterTestHandler(RegisterTestRequest request)
-{
-    LOG_WRN("%s default implementation called", __func__);
-    ClusterOperator_RegisterTestHandlerImplemented = false;
-    RegisterTestResponse response  = {0};
-    return response ;
-}
-
-cipher_rpc_err_t RegisterTestRpcPrvHandler(void *request, void *response)
-{
-    // Call the actual handler function
-    *((RegisterTestResponse *)response ) = ClusterOperator_RegisterTestHandler(*((RegisterTestRequest *)request));
-    return ClusterOperator_RegisterTestHandlerImplemented ? CIPHER_RPC_ERR_OK : CIPHER_RPC_ERR_NOT_IMPLEMENTED;
-}
-
-// Server side
 static bool ClusterOperator_ListTestsHandlerImplemented = true;
 __attribute__((weak)) ListTestsResponse ClusterOperator_ListTestsHandler(ListTestsRequest request)
 {
@@ -125,6 +109,40 @@ cipher_rpc_err_t ExecuteTestRpcPrvHandler(void *request, void *response)
     // Call the actual handler function
     *((ExecuteTestResponse *)response ) = ClusterOperator_ExecuteTestHandler(*((ExecuteTestRequest *)request));
     return ClusterOperator_ExecuteTestHandlerImplemented ? CIPHER_RPC_ERR_OK : CIPHER_RPC_ERR_NOT_IMPLEMENTED;
+}
+
+// Server side
+static bool ClusterOperator_StopTestHandlerImplemented = true;
+__attribute__((weak)) StopTestResponse ClusterOperator_StopTestHandler(StopTestRequest request)
+{
+    LOG_WRN("%s default implementation called", __func__);
+    ClusterOperator_StopTestHandlerImplemented = false;
+    StopTestResponse response  = {0};
+    return response ;
+}
+
+cipher_rpc_err_t StopTestRpcPrvHandler(void *request, void *response)
+{
+    // Call the actual handler function
+    *((StopTestResponse *)response ) = ClusterOperator_StopTestHandler(*((StopTestRequest *)request));
+    return ClusterOperator_StopTestHandlerImplemented ? CIPHER_RPC_ERR_OK : CIPHER_RPC_ERR_NOT_IMPLEMENTED;
+}
+
+// Server side
+static bool ClusterOperator_RegisterTestHandlerImplemented = true;
+__attribute__((weak)) RegisterTestResponse ClusterOperator_RegisterTestHandler(RegisterTestRequest request)
+{
+    LOG_WRN("%s default implementation called", __func__);
+    ClusterOperator_RegisterTestHandlerImplemented = false;
+    RegisterTestResponse response  = {0};
+    return response ;
+}
+
+cipher_rpc_err_t RegisterTestRpcPrvHandler(void *request, void *response)
+{
+    // Call the actual handler function
+    *((RegisterTestResponse *)response ) = ClusterOperator_RegisterTestHandler(*((RegisterTestRequest *)request));
+    return ClusterOperator_RegisterTestHandlerImplemented ? CIPHER_RPC_ERR_OK : CIPHER_RPC_ERR_NOT_IMPLEMENTED;
 }
 
 // Client side
@@ -185,25 +203,6 @@ GetDeploymentInfoResponse ClusterOperator_GetDeploymentInfoRpc(cipher_unary_rpc_
     cipher_daemon_execute_remote_rpc(&context);
     return response;
 }
-RegisterTestResponse ClusterOperator_RegisterTestRpc(cipher_unary_rpc_user_info_t *info, RegisterTestRequest request)
-{
-    RegisterTestResponse response  = {0};
-
-    cipher_daemon_rpc_context_t context =
-    {
-        .local = true,
-        .user_info = info,
-        .service_id = CLUSTEROPERATOR_SERVICE_ID,
-        .rpc_id = rpc_RegisterTest,
-        .request_struct = &request,
-        .request_struct_size = sizeof(request),
-        .response_struct = &response ,
-        .response_struct_size = sizeof(response)
-    };
-
-    cipher_daemon_execute_remote_rpc(&context);
-    return response;
-}
 ListTestsResponse ClusterOperator_ListTestsRpc(cipher_unary_rpc_user_info_t *info, ListTestsRequest request)
 {
     ListTestsResponse response  = {0};
@@ -233,6 +232,44 @@ ExecuteTestResponse ClusterOperator_ExecuteTestRpc(cipher_unary_rpc_user_info_t 
         .user_info = info,
         .service_id = CLUSTEROPERATOR_SERVICE_ID,
         .rpc_id = rpc_ExecuteTest,
+        .request_struct = &request,
+        .request_struct_size = sizeof(request),
+        .response_struct = &response ,
+        .response_struct_size = sizeof(response)
+    };
+
+    cipher_daemon_execute_remote_rpc(&context);
+    return response;
+}
+StopTestResponse ClusterOperator_StopTestRpc(cipher_unary_rpc_user_info_t *info, StopTestRequest request)
+{
+    StopTestResponse response  = {0};
+
+    cipher_daemon_rpc_context_t context =
+    {
+        .local = true,
+        .user_info = info,
+        .service_id = CLUSTEROPERATOR_SERVICE_ID,
+        .rpc_id = rpc_StopTest,
+        .request_struct = &request,
+        .request_struct_size = sizeof(request),
+        .response_struct = &response ,
+        .response_struct_size = sizeof(response)
+    };
+
+    cipher_daemon_execute_remote_rpc(&context);
+    return response;
+}
+RegisterTestResponse ClusterOperator_RegisterTestRpc(cipher_unary_rpc_user_info_t *info, RegisterTestRequest request)
+{
+    RegisterTestResponse response  = {0};
+
+    cipher_daemon_rpc_context_t context =
+    {
+        .local = true,
+        .user_info = info,
+        .service_id = CLUSTEROPERATOR_SERVICE_ID,
+        .rpc_id = rpc_RegisterTest,
         .request_struct = &request,
         .request_struct_size = sizeof(request),
         .response_struct = &response ,
@@ -297,23 +334,6 @@ static cipher_rpc_info_t clusteroperator_rpcs[] =
         .supports_parallelism = true,
     },
     {
-        .id = rpc_RegisterTest,
-        .type = CIPHER_RPC_TYPE_UNARY,
-        .name = "RegisterTest",
-        .handler = RegisterTestRpcPrvHandler,
-        .request_info = {
-            .fields = RegisterTestRequest_fields,
-            .encoded_size = RegisterTestRequest_size,
-            .decoded_size = sizeof(RegisterTestRequest)
-        },
-        .response_info = {
-            .fields = RegisterTestResponse_fields,
-            .encoded_size = RegisterTestResponse_size,
-            .decoded_size = sizeof(RegisterTestResponse)
-        },
-        .supports_parallelism = true,
-    },
-    {
         .id = rpc_ListTests,
         .type = CIPHER_RPC_TYPE_UNARY,
         .name = "ListTests",
@@ -344,6 +364,40 @@ static cipher_rpc_info_t clusteroperator_rpcs[] =
             .fields = ExecuteTestResponse_fields,
             .encoded_size = ExecuteTestResponse_size,
             .decoded_size = sizeof(ExecuteTestResponse)
+        },
+        .supports_parallelism = true,
+    },
+    {
+        .id = rpc_StopTest,
+        .type = CIPHER_RPC_TYPE_UNARY,
+        .name = "StopTest",
+        .handler = StopTestRpcPrvHandler,
+        .request_info = {
+            .fields = StopTestRequest_fields,
+            .encoded_size = StopTestRequest_size,
+            .decoded_size = sizeof(StopTestRequest)
+        },
+        .response_info = {
+            .fields = StopTestResponse_fields,
+            .encoded_size = StopTestResponse_size,
+            .decoded_size = sizeof(StopTestResponse)
+        },
+        .supports_parallelism = true,
+    },
+    {
+        .id = rpc_RegisterTest,
+        .type = CIPHER_RPC_TYPE_UNARY,
+        .name = "RegisterTest",
+        .handler = RegisterTestRpcPrvHandler,
+        .request_info = {
+            .fields = RegisterTestRequest_fields,
+            .encoded_size = RegisterTestRequest_size,
+            .decoded_size = sizeof(RegisterTestRequest)
+        },
+        .response_info = {
+            .fields = RegisterTestResponse_fields,
+            .encoded_size = RegisterTestResponse_size,
+            .decoded_size = sizeof(RegisterTestResponse)
         },
         .supports_parallelism = true,
     },

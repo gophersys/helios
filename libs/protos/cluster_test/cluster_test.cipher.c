@@ -19,6 +19,7 @@ typedef enum
 {
     rpc_HealthCheck = 1,
     rpc_Execute = 2,
+    rpc_Stop = 3,
 } ClusterTest_rpc;
 
 // Server side
@@ -55,6 +56,23 @@ cipher_rpc_err_t ExecuteRpcPrvHandler(void *request, void *response)
     return ClusterTest_ExecuteHandlerImplemented ? CIPHER_RPC_ERR_OK : CIPHER_RPC_ERR_NOT_IMPLEMENTED;
 }
 
+// Server side
+static bool ClusterTest_StopHandlerImplemented = true;
+__attribute__((weak)) StopResponse ClusterTest_StopHandler(StopRequest request)
+{
+    LOG_WRN("%s default implementation called", __func__);
+    ClusterTest_StopHandlerImplemented = false;
+    StopResponse response  = {0};
+    return response ;
+}
+
+cipher_rpc_err_t StopRpcPrvHandler(void *request, void *response)
+{
+    // Call the actual handler function
+    *((StopResponse *)response ) = ClusterTest_StopHandler(*((StopRequest *)request));
+    return ClusterTest_StopHandlerImplemented ? CIPHER_RPC_ERR_OK : CIPHER_RPC_ERR_NOT_IMPLEMENTED;
+}
+
 // Client side
 HealthCheckResponse ClusterTest_HealthCheckRpc(cipher_unary_rpc_user_info_t *info, HealthCheckRequest request)
 {
@@ -85,6 +103,25 @@ ExecuteResponse ClusterTest_ExecuteRpc(cipher_unary_rpc_user_info_t *info, Execu
         .user_info = info,
         .service_id = CLUSTERTEST_SERVICE_ID,
         .rpc_id = rpc_Execute,
+        .request_struct = &request,
+        .request_struct_size = sizeof(request),
+        .response_struct = &response ,
+        .response_struct_size = sizeof(response)
+    };
+
+    cipher_daemon_execute_remote_rpc(&context);
+    return response;
+}
+StopResponse ClusterTest_StopRpc(cipher_unary_rpc_user_info_t *info, StopRequest request)
+{
+    StopResponse response  = {0};
+
+    cipher_daemon_rpc_context_t context =
+    {
+        .local = true,
+        .user_info = info,
+        .service_id = CLUSTERTEST_SERVICE_ID,
+        .rpc_id = rpc_Stop,
         .request_struct = &request,
         .request_struct_size = sizeof(request),
         .response_struct = &response ,
@@ -128,6 +165,23 @@ static cipher_rpc_info_t clustertest_rpcs[] =
             .fields = ExecuteResponse_fields,
             .encoded_size = ExecuteResponse_size,
             .decoded_size = sizeof(ExecuteResponse)
+        },
+        .supports_parallelism = true,
+    },
+    {
+        .id = rpc_Stop,
+        .type = CIPHER_RPC_TYPE_UNARY,
+        .name = "Stop",
+        .handler = StopRpcPrvHandler,
+        .request_info = {
+            .fields = StopRequest_fields,
+            .encoded_size = StopRequest_size,
+            .decoded_size = sizeof(StopRequest)
+        },
+        .response_info = {
+            .fields = StopResponse_fields,
+            .encoded_size = StopResponse_size,
+            .decoded_size = sizeof(StopResponse)
         },
         .supports_parallelism = true,
     },

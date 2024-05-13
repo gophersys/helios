@@ -1,9 +1,11 @@
 syntax = "proto3";
 
-import "cluster_test.proto";
-
 package cluster_operator;
 
+// Protocol imports
+import "cluster_test.proto";
+
+// Service definition
 service ClusterOperator {
   // Performs a health check to ensure the operator is at least running.
   rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse) {}
@@ -17,8 +19,11 @@ service ClusterOperator {
   // Lists available tests in the cluster.
   rpc ListTests(ListTestsRequest) returns (ListTestsResponse) {}
 
-  // Executes a test on a standalone board.
+  // Executes a test.
   rpc ExecuteTest(ExecuteTestRequest) returns (stream ExecuteTestResponse) {}
+
+  // Stops an executing test.
+  rpc StopTest(StopTestRequest) returns (StopTestResponse) {}
 
   // Used by test runners to register themselves with the operator 
   rpc RegisterTest(RegisterTestRequest) returns (RegisterTestResponse) {}  
@@ -56,13 +61,13 @@ message HealthCheckResponse {
 // Node Info message definition
 message NodeInfo {
   string name = 1;                  // Node name
-  string hostname = 2;              // Node hostname
+  string host = 2;                  // Node hostname
   string os_image = 3;              // Operating system image used by the node
   string kernel_version = 4;        // Kernel version running on the node
   int64 cpu_cores = 5;              // CPU cores
-  int64 memory_used_bytes = 6;  // Memory capacity of the node in bytes
+  int64 memory_used_bytes = 6;      // Memory capacity of the node in bytes
   int64 memory_capacity_bytes = 7;  // Memory capacity of the node in bytes
-  int64 storage_used_bytes = 8; // Storage capacity of the node in bytes
+  int64 storage_used_bytes = 8;     // Storage capacity of the node in bytes
   int64 storage_capacity_bytes = 9; // Storage capacity of the node in bytes
 }
 
@@ -104,10 +109,20 @@ message ListTestsResponse {
 message ExecuteTestRequest {
   string uuid = 1;            // Which test we wanna run
   string config = 2;          // The configuration for the specific test
+  repeated string nodes = 3;
 }
 
 message ExecuteTestResponse {
-  repeated cluster_test.ExecuteResponse results = 1;
+  repeated cluster_test.TestStepResult results = 1;
+}
+
+// Stop messages
+message StopTestRequest {
+  string uuid = 1;
+}
+
+message StopTestResponse {
+  string error = 2;
 }
 
 // Test Registration

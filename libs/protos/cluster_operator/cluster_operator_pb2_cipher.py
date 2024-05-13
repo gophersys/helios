@@ -12,9 +12,10 @@ class ClusterOperatorRpc(Enum):
     HealthCheck = 1
     GetClusterInfo = 2
     GetDeploymentInfo = 3
-    RegisterTest = 4
-    ListTests = 5
-    ExecuteTest = 6
+    ListTests = 4
+    ExecuteTest = 5
+    StopTest = 6
+    RegisterTest = 7
     
 class ClusterOperator:
     def __init__(self, daemon:Cipher):
@@ -83,27 +84,6 @@ class ClusterOperator:
         
         return context.response_struct, context.user_info.error
     # Server side handlers
-    def RegisterTestHandler(self, request:RegisterTestRequest) -> Tuple[RegisterTestResponse, CipherRpcErr]:
-        print("Default RegisterTest handler called")
-        response: RegisterTestResponse = RegisterTestResponse()
-        return response, CipherRpcErr.NOT_IMPLEMENTED
-        
-    # Client side 
-    def RegisterTestRpc(self, info:CipherUnaryRpcUserInfo, request:RegisterTestRequest) -> Tuple[Optional[RegisterTestResponse], CipherRpcErr]:
-        response: RegisterTestResponse = RegisterTestResponse()
-        context: CipherDaemonRpcContext = CipherDaemonRpcContext(
-            local=True,
-            user_info=info,
-            service_id=CLUSTEROPERATOR_SERVICE_ID,
-            rpc_id=ClusterOperatorRpc.RegisterTest.value,
-            request_struct=request,
-            response_struct=response,            
-        )
-        
-        self.daemon.execute_remote_rpc(context)
-        
-        return context.response_struct, context.user_info.error
-    # Server side handlers
     def ListTestsHandler(self, request:ListTestsRequest) -> Tuple[ListTestsResponse, CipherRpcErr]:
         print("Default ListTests handler called")
         response: ListTestsResponse = ListTestsResponse()
@@ -145,6 +125,48 @@ class ClusterOperator:
         self.daemon.execute_remote_rpc(context)
         
         return context.response_struct, context.user_info.error
+    # Server side handlers
+    def StopTestHandler(self, request:StopTestRequest) -> Tuple[StopTestResponse, CipherRpcErr]:
+        print("Default StopTest handler called")
+        response: StopTestResponse = StopTestResponse()
+        return response, CipherRpcErr.NOT_IMPLEMENTED
+        
+    # Client side 
+    def StopTestRpc(self, info:CipherUnaryRpcUserInfo, request:StopTestRequest) -> Tuple[Optional[StopTestResponse], CipherRpcErr]:
+        response: StopTestResponse = StopTestResponse()
+        context: CipherDaemonRpcContext = CipherDaemonRpcContext(
+            local=True,
+            user_info=info,
+            service_id=CLUSTEROPERATOR_SERVICE_ID,
+            rpc_id=ClusterOperatorRpc.StopTest.value,
+            request_struct=request,
+            response_struct=response,            
+        )
+        
+        self.daemon.execute_remote_rpc(context)
+        
+        return context.response_struct, context.user_info.error
+    # Server side handlers
+    def RegisterTestHandler(self, request:RegisterTestRequest) -> Tuple[RegisterTestResponse, CipherRpcErr]:
+        print("Default RegisterTest handler called")
+        response: RegisterTestResponse = RegisterTestResponse()
+        return response, CipherRpcErr.NOT_IMPLEMENTED
+        
+    # Client side 
+    def RegisterTestRpc(self, info:CipherUnaryRpcUserInfo, request:RegisterTestRequest) -> Tuple[Optional[RegisterTestResponse], CipherRpcErr]:
+        response: RegisterTestResponse = RegisterTestResponse()
+        context: CipherDaemonRpcContext = CipherDaemonRpcContext(
+            local=True,
+            user_info=info,
+            service_id=CLUSTEROPERATOR_SERVICE_ID,
+            rpc_id=ClusterOperatorRpc.RegisterTest.value,
+            request_struct=request,
+            response_struct=response,            
+        )
+        
+        self.daemon.execute_remote_rpc(context)
+        
+        return context.response_struct, context.user_info.error
 
 # ClusterOperator RPCs
 clusteroperator_service_rpcs = [
@@ -176,15 +198,6 @@ clusteroperator_service_rpcs = [
         supports_parallelism=True
     ),
     CipherRpcInfo(
-        id=ClusterOperatorRpc.RegisterTest.value,
-        type=CipherRpcType.UNARY,
-        name="RegisterTest",
-        handler=ClusterOperator.RegisterTestHandler,
-        request_info=CipherMessageInfo(RegisterTestRequest),
-        response_info=CipherMessageInfo(RegisterTestResponse),
-        supports_parallelism=True
-    ),
-    CipherRpcInfo(
         id=ClusterOperatorRpc.ListTests.value,
         type=CipherRpcType.UNARY,
         name="ListTests",
@@ -200,6 +213,24 @@ clusteroperator_service_rpcs = [
         handler=ClusterOperator.ExecuteTestHandler,
         request_info=CipherMessageInfo(ExecuteTestRequest),
         response_info=CipherMessageInfo(ExecuteTestResponse),
+        supports_parallelism=True
+    ),
+    CipherRpcInfo(
+        id=ClusterOperatorRpc.StopTest.value,
+        type=CipherRpcType.UNARY,
+        name="StopTest",
+        handler=ClusterOperator.StopTestHandler,
+        request_info=CipherMessageInfo(StopTestRequest),
+        response_info=CipherMessageInfo(StopTestResponse),
+        supports_parallelism=True
+    ),
+    CipherRpcInfo(
+        id=ClusterOperatorRpc.RegisterTest.value,
+        type=CipherRpcType.UNARY,
+        name="RegisterTest",
+        handler=ClusterOperator.RegisterTestHandler,
+        request_info=CipherMessageInfo(RegisterTestRequest),
+        response_info=CipherMessageInfo(RegisterTestResponse),
         supports_parallelism=True
     ),
 ]

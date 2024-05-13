@@ -24,6 +24,11 @@ class ClusterTestStub(object):
                 request_serializer=cluster__test__pb2.ExecuteRequest.SerializeToString,
                 response_deserializer=cluster__test__pb2.ExecuteResponse.FromString,
                 )
+        self.Stop = channel.unary_stream(
+                '/cluster_test.ClusterTest/Stop',
+                request_serializer=cluster__test__pb2.StopRequest.SerializeToString,
+                response_deserializer=cluster__test__pb2.StopResponse.FromString,
+                )
 
 
 class ClusterTestServicer(object):
@@ -43,6 +48,13 @@ class ClusterTestServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def Stop(self, request, context):
+        """Stops a test that is currently executing.
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_ClusterTestServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -55,6 +67,11 @@ def add_ClusterTestServicer_to_server(servicer, server):
                     servicer.Execute,
                     request_deserializer=cluster__test__pb2.ExecuteRequest.FromString,
                     response_serializer=cluster__test__pb2.ExecuteResponse.SerializeToString,
+            ),
+            'Stop': grpc.unary_stream_rpc_method_handler(
+                    servicer.Stop,
+                    request_deserializer=cluster__test__pb2.StopRequest.FromString,
+                    response_serializer=cluster__test__pb2.StopResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -97,5 +114,22 @@ class ClusterTest(object):
         return grpc.experimental.unary_stream(request, target, '/cluster_test.ClusterTest/Execute',
             cluster__test__pb2.ExecuteRequest.SerializeToString,
             cluster__test__pb2.ExecuteResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def Stop(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_stream(request, target, '/cluster_test.ClusterTest/Stop',
+            cluster__test__pb2.StopRequest.SerializeToString,
+            cluster__test__pb2.StopResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)

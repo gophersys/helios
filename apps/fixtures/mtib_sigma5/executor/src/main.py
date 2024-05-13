@@ -28,7 +28,7 @@ from protos.cluster_operator.cluster_operator_pb2_grpc import ClusterOperatorStu
 #                                                                                     Test Register
 # -----------------------------------------------------------------------------------------------*/
 def register_test_with_operator(test_info:TestInfo) -> str:
-    operator_url:str = f"mateo-windows:{conf.OPERATOR_SERVER_PORT}"
+    operator_url:str = f"localhost:{conf.OPERATOR_SERVER_PORT}"
 
     # Instantiate an operator stub and give it our info
     try:            

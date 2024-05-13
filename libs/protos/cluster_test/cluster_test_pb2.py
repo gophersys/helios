@@ -14,7 +14,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x12\x63luster_test.proto\x12\x0c\x63luster_test\"\x14\n\x12HealthCheckRequest\"\x15\n\x13HealthCheckResponse\"?\n\x08StepInfo\x12\x10\n\x08sequence\x18\x01 \x01(\x05\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\x13\n\x0b\x64\x65scription\x18\x03 \x01(\t\"b\n\x08TestInfo\x12\x0c\n\x04uuid\x18\x01 \x01(\t\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\x13\n\x0b\x64\x65scription\x18\x03 \x01(\t\x12%\n\x05steps\x18\x04 \x03(\x0b\x32\x16.cluster_test.StepInfo\"\x8d\x01\n\x0eTestStepResult\x12\x11\n\texecError\x18\x02 \x01(\t\x12\x0f\n\x07success\x18\x03 \x01(\x08\x12\x16\n\x0e\x64\x65tailedResult\x18\x04 \x01(\t\x12\x10\n\x08runnerId\x18\x05 \x01(\x05\x12\x1a\n\x12progressPercentage\x18\x06 \x01(\x05\x12\x11\n\ttimestamp\x18\x07 \x01(\t\" \n\x0e\x45xecuteRequest\x12\x0e\n\x06\x63onfig\x18\x01 \x01(\t\"@\n\x0f\x45xecuteResponse\x12-\n\x07results\x18\x03 \x03(\x0b\x32\x1c.cluster_test.TestStepResult2\xaf\x01\n\x0b\x43lusterTest\x12T\n\x0bHealthCheck\x12 .cluster_test.HealthCheckRequest\x1a!.cluster_test.HealthCheckResponse\"\x00\x12J\n\x07\x45xecute\x12\x1c.cluster_test.ExecuteRequest\x1a\x1d.cluster_test.ExecuteResponse\"\x00\x30\x01\x62\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x12\x63luster_test.proto\x12\x0c\x63luster_test\"\x14\n\x12HealthCheckRequest\"\x15\n\x13HealthCheckResponse\"?\n\x08StepInfo\x12\x10\n\x08sequence\x18\x01 \x01(\x05\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\x13\n\x0b\x64\x65scription\x18\x03 \x01(\t\"b\n\x08TestInfo\x12\x0c\n\x04uuid\x18\x01 \x01(\t\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\x13\n\x0b\x64\x65scription\x18\x03 \x01(\t\x12%\n\x05steps\x18\x04 \x03(\x0b\x32\x16.cluster_test.StepInfo\"V\n\x0eTestStepResult\x12\r\n\x05\x65rror\x18\x01 \x01(\t\x12\x0f\n\x07success\x18\x02 \x01(\x08\x12\x16\n\x0e\x64\x65tailedResult\x18\x03 \x01(\t\x12\x0c\n\x04node\x18\x04 \x01(\x05\"/\n\x0e\x45xecuteRequest\x12\x0e\n\x06\x63onfig\x18\x01 \x01(\t\x12\r\n\x05nodes\x18\x02 \x03(\t\"c\n\x0f\x45xecuteResponse\x12\x0f\n\x07stopped\x18\x01 \x01(\x08\x12\x10\n\x08sequence\x18\x02 \x01(\x05\x12-\n\x07results\x18\x03 \x03(\x0b\x32\x1c.cluster_test.TestStepResult\"\r\n\x0bStopRequest\"\x1d\n\x0cStopResponse\x12\r\n\x05\x65rror\x18\x01 \x01(\t2\xf2\x01\n\x0b\x43lusterTest\x12T\n\x0bHealthCheck\x12 .cluster_test.HealthCheckRequest\x1a!.cluster_test.HealthCheckResponse\"\x00\x12J\n\x07\x45xecute\x12\x1c.cluster_test.ExecuteRequest\x1a\x1d.cluster_test.ExecuteResponse\"\x00\x30\x01\x12\x41\n\x04Stop\x12\x19.cluster_test.StopRequest\x1a\x1a.cluster_test.StopResponse\"\x00\x30\x01\x62\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -29,12 +29,16 @@ if _descriptor._USE_C_DESCRIPTORS == False:
   _globals['_STEPINFO']._serialized_end=144
   _globals['_TESTINFO']._serialized_start=146
   _globals['_TESTINFO']._serialized_end=244
-  _globals['_TESTSTEPRESULT']._serialized_start=247
-  _globals['_TESTSTEPRESULT']._serialized_end=388
-  _globals['_EXECUTEREQUEST']._serialized_start=390
-  _globals['_EXECUTEREQUEST']._serialized_end=422
-  _globals['_EXECUTERESPONSE']._serialized_start=424
-  _globals['_EXECUTERESPONSE']._serialized_end=488
-  _globals['_CLUSTERTEST']._serialized_start=491
-  _globals['_CLUSTERTEST']._serialized_end=666
+  _globals['_TESTSTEPRESULT']._serialized_start=246
+  _globals['_TESTSTEPRESULT']._serialized_end=332
+  _globals['_EXECUTEREQUEST']._serialized_start=334
+  _globals['_EXECUTEREQUEST']._serialized_end=381
+  _globals['_EXECUTERESPONSE']._serialized_start=383
+  _globals['_EXECUTERESPONSE']._serialized_end=482
+  _globals['_STOPREQUEST']._serialized_start=484
+  _globals['_STOPREQUEST']._serialized_end=497
+  _globals['_STOPRESPONSE']._serialized_start=499
+  _globals['_STOPRESPONSE']._serialized_end=528
+  _globals['_CLUSTERTEST']._serialized_start=531
+  _globals['_CLUSTERTEST']._serialized_end=773
 # @@protoc_insertion_point(module_scope)

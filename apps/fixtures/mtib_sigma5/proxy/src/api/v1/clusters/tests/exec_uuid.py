@@ -4,6 +4,7 @@ from typing import List, Any
 import uuid
 import threading
 import time
+import json
 import queue
 
 # 3rd party includes
@@ -22,12 +23,13 @@ message_queue = queue.Queue()
 
 # Server callback
 def test_result_callback(data: Any, session_id: str):
+    logging.error(f"session_id: {data}, Received response: {data}")
     # Put the test update and session_id into the queue
-    emit('server', {'data': "some data"}, room=session_id)
-    message_queue.put((session_id, data))
-    if data['done']:
-        # Also enqueue a message to close the room after the test is complete
-        message_queue.put((session_id, {'message': 'Test completed', 'action': 'close'}))
+    # emit('server', {'data': "some data"}, room=session_id)
+    # message_queue.put((session_id, data))
+    # if data['done']:
+    #     # Also enqueue a message to close the room after the test is complete
+    #     message_queue.put((session_id, {'message': 'Test completed', 'action': 'close'}))
 
 # SocketIO event handler
 def clusters_tests_exec_uuid_socketio_handler(data: Any, socketio:SocketIO):
@@ -54,7 +56,7 @@ def clusters_tests_exec_uuid_handler(cluster_uuid, test_uuid):
             return jsonify({"error": "Bad request, no JSON payload."}), 400
         
         # Validate request fields
-        test_config = data.get('config')  # No error if 'config' is not provided
+        test_config = json.dumps(data.get('config', {}))
 
         requested_nodes = data.get('nodes', [])  # Default to empty list if 'nodes' is not provided
         if len(requested_nodes) == 0:
@@ -89,8 +91,7 @@ def clusters_tests_exec_uuid_handler(cluster_uuid, test_uuid):
             return jsonify({"error": f"Requested nodes not found: {', '.join(missing_nodes)}"}), 400
         
         # Generate a unique session ID for this test execution
-        session_id = str(uuid.uuid4())
-        error = appProxyServer.clusters_test_exec(cluster_uuid, test_uuid, test_config, requested_nodes, test_result_callback, session_id)
+        error, session_id = appProxyServer.clusters_test_exec(cluster_uuid, test_uuid, test_config, requested_nodes, test_result_callback, session_id)
         if error:
             return jsonify({"error": f"{error}"}), 400
         
