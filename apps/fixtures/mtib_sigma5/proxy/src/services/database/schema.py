@@ -112,6 +112,7 @@ class LogInfo:
 @dataclass
 class TestExecution:
     test_info: TestInfo
+    deployment_uuid: str
     test_config: str
     test_nodes: List[str]  # Assuming test_nodes should be a list of node identifiers
     started_at: str
@@ -124,6 +125,7 @@ class TestExecution:
         """ Serialize the TestExecution object to a dictionary, handling Protobuf types. """
         return {
             "test_info": MessageToDict(self.test_info, including_default_value_fields=True),  # Serialize the Protobuf TestInfo object to a JSON string
+            "deployment_uuid": self.deployment_uuid,
             "test_config": self.test_config,
             "test_nodes": self.test_nodes,
             "started_at": self.started_at,
@@ -148,6 +150,7 @@ class TestExecution:
 
         return cls(
             test_info=test_info,
+            deployment_uuid=data["deployment_uuid"],
             test_config=data["test_config"],
             test_nodes=data["test_nodes"],
             started_at=data["started_at"],

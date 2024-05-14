@@ -34,7 +34,7 @@ from protos.cluster_operator.cluster_operator_pb2_grpc import ClusterOperatorStu
 
 # App includes
 from src.services.database import Database, DatabaseConfiguration
-from src.services.database.schema import Cluster, ClusterType
+from src.services.database.schema import Cluster, ClusterType, TestExecution
 
 # ----------------------------------------------------------------------------------
 #                                                                        Event Types
@@ -535,6 +535,9 @@ class ProxyServer:
         test_thread.start()
     
         return "", execution_uuid
+    
+    def clusters_test_execution_get(self, cluster_uuid:str, execution_uuid:str) -> Tuple[str, Optional[TestExecution]]:
+        return self.db.cluster_test_execution_get(cluster_uuid, execution_uuid)
     
     # -----------------------------------------------------------------------------
     #                                                               General Helpers

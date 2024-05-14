@@ -68,21 +68,27 @@ from api.v1.clusters.deployments.apply_uuid import clusters_deployments_apply_uu
 server.register_blueprint(clusters_deployments_apply_uuid_bp)
 
 # Cluster Tests
-
 from api.v1.clusters.tests.get_uuid import clusters_tests_get_uuid_bp                   # GET /v1/clusters/<uuid>/tests/<uuid>
 server.register_blueprint(clusters_tests_get_uuid_bp)
 
 from api.v1.clusters.tests.list import clusters_tests_list_bp                           # GET /v1/clusters/<uuid>/tests
 server.register_blueprint(clusters_tests_list_bp)
 
-from api.v1.clusters.tests.exec_uuid import clusters_tests_exec_uuid_bp                # POST /v1/clusters/<uuid>/tests/<uuid>/exec
+from api.v1.clusters.tests.exec_uuid import clusters_tests_exec_uuid_bp                 # POST /v1/clusters/<uuid>/tests/<uuid>/exec
 server.register_blueprint(clusters_tests_exec_uuid_bp)
 
-from api.v1.clusters.tests.exec_uuid import clusters_tests_exec_uuid_socketio_handler  # ws://<url>/exec_test
+from api.v1.clusters.tests.exec_uuid import clusters_tests_exec_uuid_socketio_handler   # ws://<url>/exec_test
 @socketio.on('exec_test')
 def handle_ws_event_exec_test(data):
     clusters_tests_exec_uuid_socketio_handler(data, socketio)
-        
+
+# Cluster executions
+from api.v1.clusters.executions.list import clusters_executions_list_bp                 # GET /v1/clusters/<uuid>/executions
+server.register_blueprint(clusters_executions_list_bp)
+
+from api.v1.clusters.executions.get_uuid import clusters_executions_get_uuid_bp         # GET /v1/clusters/<uuid>/executions/<uuid>
+server.register_blueprint(clusters_executions_get_uuid_bp)
+
 # ----------------------------------------------------------------------------------
 #                                                                              Entry 
 # --------------------------------------------------------------------------------*/

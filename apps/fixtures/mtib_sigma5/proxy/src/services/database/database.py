@@ -471,6 +471,7 @@ class Database:
             # Create the initial file contents
             contents:TestExecution = TestExecution(
                 test_info=test_info,
+                deployment_uuid=cluster_info.current_deployment,
                 test_config=test_config,
                 test_nodes=test_nodes,
                 started_at=now,
@@ -569,7 +570,7 @@ class Database:
                 break
             
         if execution_info is None:
-            return f"Test execution with UUID {execution_info} not found cluster {cluster_uuid}."
+            return f"Test execution with UUID {execution_uuid} not found in cluster {cluster_uuid}."
         
         # Set the correct paths
         cluster_dir = os.path.join(self.config.storage_path, 'clusters', cluster_uuid)
@@ -599,6 +600,42 @@ class Database:
         except Exception as e:
             return f"An error occurred while updating the test execution: {str(e)}"
     
+    def cluster_test_execution_get(self, cluster_uuid:str, execution_uuid:str) -> Tuple[str, Optional[TestExecution]]:
+        # Check that the cluster exists
+        cluster_info:ClusterInfo = None
+        for cluster in self.cluster_entries:
+            if cluster.uuid == cluster_uuid:
+                cluster_info = cluster
+                break
+                
+        if cluster_info is None:
+            return f"Cluster with UUID {cluster_uuid} not found in the database.", None
+        
+        # Check that the execution instance exists
+        execution_info:TestExecutionInfo = None
+        for exec in cluster_info.executions:
+            if exec.uuid == execution_uuid:
+                execution_info = exec
+                break
+            
+        if execution_info is None:
+            return f"Test execution with UUID {execution_uuid} not found in cluster {cluster_uuid}.", None
+        
+        # Set the correct paths
+        cluster_dir = os.path.join(self.config.storage_path, 'clusters', cluster_uuid)
+        executions_dir = os.path.join(cluster_dir, 'executions')
+        execution_instance_file = os.path.join(executions_dir, f"{execution_uuid}.json")
+        
+        try:
+            # Read and update the execution data
+            with open(execution_instance_file, 'r') as file:
+                data = json.load(file)
+                current_execution = TestExecution.unmarshal(data)
+
+            return "", current_execution
+        except Exception as e:
+            return f"An error occurred while updating the test execution: {str(e)}", None
+        
     # ---------------------------------------------------------------------------------------------
     #                                                                            Cluster Delete All
     # -------------------------------------------------------------------------------------------*/
