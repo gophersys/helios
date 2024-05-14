@@ -37,5 +37,6 @@ electrical_test_step_2:TestStep = TestStep(
         name = "Second step",
         description = "Delays for 1 second and succeeds"
     ),
+    timeout_ms=2000,
     handler=electrical_test_step_2_handler
 )

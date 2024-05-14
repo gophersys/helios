@@ -80,5 +80,6 @@ electrical_test_step_1:TestStep = TestStep(
         name = "First step",
         description = "Returns immediately"
     ),
+    timeout_ms=2000,
     handler=electrical_test_step_1_handler
 )

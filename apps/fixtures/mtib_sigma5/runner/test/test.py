@@ -38,11 +38,12 @@ from protos.cluster_runner.cluster_runner_pb2 import (
     EepromWriteRequest, EepromWriteResponse
 )
 
+NRF9160_MODEM_FIRMWARE_FILE = "mfw_nrf9160_1.3.5.zip"
+NRF9160_FIRMWARE_FILE = "Sigma5_9160_Eng_SSv0p9_308_Mfg.hex"
+NRF82840_FIRMWARE_FILE = "Sigma5_52840_Eng_308.hex"
+
 # Assuming SERVER_ADDRESSES is a list of your server addresses
-# SERVER_ADDRESSES = ['control-plane:12345', 'slot-2:12345', 'slot-3:12345', 'slot-4:12345', 'slot-5:12345']
-
-SERVER_ADDRESSES = ['slot-5:12345']
-
+SERVER_ADDRESSES = ['slot-1:12345', 'slot-2:12345', 'slot-3:12345', 'slot-4:12345', 'slot-5:12345']
 
 # -------------------------------------------------------------------------------------------------
 #                                                                               Test Points Mapping
@@ -638,10 +639,6 @@ def wait_for_deployment_ready(timeout=10):
 # -------------------------------------------------------------------------------------------------
 #                                                                                 Firmware flashing
 # -----------------------------------------------------------------------------------------------*/
-
-NRF9160_MODEM_FIRMWARE_FILE = "mfw_nrf9160_1.3.5.zip"
-NRF9160_FIRMWARE_FILE = "Sigma5_9160_Eng_SSv0p9_1_Mfg.hex"
-NRF82840_FIRMWARE_FILE = "Sigma5_52840_Eng_1.hex"
 NRF9160_BUS_NUMBER = 2
 NRF82840_BUS_NUMBER = 3
 

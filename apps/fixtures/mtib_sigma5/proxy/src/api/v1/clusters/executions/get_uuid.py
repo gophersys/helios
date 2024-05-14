@@ -24,7 +24,7 @@ def clusters_executions_get_uuid_handler(cluster_uuid, executions_uuid):
             return jsonify({"error": error}), 400
         
         # Send the file as the response
-        return jsonify(execution.marshal()), 400
+        return jsonify(execution.marshal()), 200
     
     except Exception as e:
         logging.error(f"An error occurred: {str(e)}")

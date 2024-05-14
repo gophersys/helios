@@ -27,10 +27,12 @@ TestHandlerType = Callable[[str, str], TestStepResult]
 class TestStep:
     def __init__(self,
                 info:StepInfo,
+                timeout_ms:int,
                 handler:TestHandlerType):
         
         self.info:StepInfo = info
         self.handler:TestHandlerType = handler
+        self.timeout_ms:int = timeout_ms
 
     def exec(self, runners: List[str]) -> Tuple[bool, str, Optional[List[TestStepResult]]]:
         results: List[TestStepResult] = []
@@ -147,18 +149,21 @@ class Test:
             if self.status is not TestStatus.IDLE: 
                 return f"Test is already running. Cannot reinitialize. Status: {self.status}"
 
-            # Attempt to unmarshall the configuration if applicable
-            if self.config_type is not None:
-                if config is None:
-                    return "Test requires a configuration object, but none were passed"
-                try:
-                    self.config_obj = self.config_type.unmarshall(config)
-                except Exception as e:
-                    return f"Failed to parse config: {str(e)}"
-        
+            # Check that the nodes list passed makes sense
             if len(nodes) == 0:
                 return "List of nodes passed has 0 items, test needs at least 1 node to execute on"
             
+            # Attempt to unmarshall the configuration if applicable
+            if self.config_type is not None:
+                if config is None:
+                    logging.debug("Running test with default configuration")
+                else:
+                    try:
+                        self.config_obj = self.config_type.unmarshall(config)
+                    except Exception as e:
+                        return f"Failed to parse config: {str(e)}"
+            
+            # Call the initialize function for the test
             if self.init_func:
                 try:
                     error = self.init_func(self.config_obj, nodes)

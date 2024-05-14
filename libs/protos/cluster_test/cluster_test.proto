@@ -38,6 +38,9 @@ message TestStepResult {
   
   // Application populated fields
   string node = 4;                    // Which host this step used
+  bool timeout = 5;                   // If the run time had to cancel this node
+  string startTime = 6;               // When this step started running
+  string endTime = 7;                 // When this step stopped running
 }
 
 // Messages for executing tests on panel boards

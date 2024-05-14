@@ -102,7 +102,7 @@ class ProxyServer:
             return f"Proxy server could not initialize database: {error}"
         
         # Populate our own objects based on the database info
-        clusters_info = self.db.get_clusters_info()
+        clusters_info = self.db.clusters_get_info()
         for info in clusters_info:
             cluster = Cluster(
                 info=info,
@@ -124,6 +124,14 @@ class ProxyServer:
         self.health_check_thread.start()
         
         return ""
+    
+    def get_database_usage(self) -> Tuple[str,str]:
+        """
+        Returns:
+            - (int): Storage used in bytes
+            - (int): Total storage in bytes
+        """
+        return self.db.get_storage_use()
     
     # -----------------------------------------------------------------------------
     #                                                                     Callbacks

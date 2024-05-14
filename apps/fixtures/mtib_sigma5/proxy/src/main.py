@@ -26,6 +26,10 @@ from api.v1.log_filter import LogFilter
 from api.v1.healthcheck import (healthcheck_bp)                                         # GET /v1/healthcheck                                                    
 server.register_blueprint(healthcheck_bp)
 
+# Storage
+from api.v1.storage import (storage_bp)                                                 # GET /v1/storage                                                 
+server.register_blueprint(storage_bp)
+
 # Clusters
 from api.v1.clusters.create import clusters_create_bp                                   # POST /v1/clusters
 server.register_blueprint(clusters_create_bp)

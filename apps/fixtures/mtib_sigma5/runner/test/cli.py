@@ -11,7 +11,7 @@ from rich import print as rprint
 from rich.progress import Progress
 
 # Protocol includes
-from protos.mtib_cs_pi.mtib_cs_pi_pb2 import (
+from protos.cluster_runner.cluster_runner_pb2  import (
     Gpio, GpioType, GpioResistorConfig,
     GpioWriteRequest, GpioWriteResponse,
     GpioConfigRequest, GpioConfigResponse,
@@ -34,20 +34,20 @@ from protos.mtib_cs_pi.mtib_cs_pi_pb2 import (
     EepromWriteRequest, EepromWriteResponse
 )
 
-import protos.mtib_cs_pi.mtib_cs_pi_pb2 as mtib
-import protos.mtib_cs_pi.mtib_cs_pi_pb2_grpc as mtib_grpc
+import protos.cluster_runner.cluster_runner_pb2  as mtib
+import protos.cluster_runner.cluster_runner_pb2_grpc  as mtib_grpc
 
 app = typer.Typer()
 
 # -------------------------------------------------------------------------------------------------
 #                                                                                     Configuration
 # -----------------------------------------------------------------------------------------------*/
-SERVER_ADDRESS = 'slot-5:12345' 
+SERVER_ADDRESS = 'slot-6:12345' 
 
 def get_server_instance():
     """Create a gRPC client stub"""
     channel = grpc.insecure_channel(SERVER_ADDRESS)
-    stub = mtib_grpc.MtibCsPiStub(channel)
+    stub = mtib_grpc.ClusterRunnerStub(channel)
     return stub
 
 def rpc_error(err:str):
@@ -213,7 +213,7 @@ def list_fw_files():
         # Print all the file info to the terminal
         if len(response.files) > 0:
             for file in response.files:
-                rprint(f"Filename: [green]{file.name}[/green], size: [blue]{file.size_kb} Kb[/blue], SHA256: {file.sha256_digest}")
+                rprint(f"Filename: [green]{file.name}[/green], size: [blue]{file.sizeKb} Kb[/blue], SHA256: {file.sha256Digest}")
         else:
             rprint(f"No files found in server")
 
@@ -250,7 +250,7 @@ def upload_fw_file(file_path: str):
         
         if response.success:
             rprint(f"[green]Upload successful! ({duration_ms} ms)[/green]")
-            rprint(f"Server-side SHA-256 Digest: {response.sha256_digest}")
+            rprint(f"Server-side SHA-256 Digest: {response.sha256Digest}")
         else:
             rprint(f"[red]Upload failed:[/red] {response.error}")
     except Exception as e:
@@ -281,7 +281,7 @@ def delete_fw_file(filename: str):
 #                                                                                            J-Link
 # -----------------------------------------------------------------------------------------------*/
 
-def enable_power(server: mtib_grpc.MtibCsPiStub) -> bool:
+def enable_power(server: mtib_grpc.ClusterRunnerStub) -> bool:
     response:DutPowerEnableResponse = server.DutPowerEnable(DutPowerEnableRequest(enable=True))
     if not response.success:
         rprint(f"[red]DutChargePowerEnable Error: {response.error}:[/red]")
@@ -289,7 +289,7 @@ def enable_power(server: mtib_grpc.MtibCsPiStub) -> bool:
     
     return True
 
-def disable_power(server: mtib_grpc.MtibCsPiStub) -> bool:
+def disable_power(server: mtib_grpc.ClusterRunnerStub) -> bool:
     response:DutPowerEnableResponse = server.DutPowerEnable(DutPowerEnableRequest(enable=False))
     if not response.success:
         rprint(f"[red]DutPowerEnable Error: {response.error}:[/red]")
@@ -297,7 +297,7 @@ def disable_power(server: mtib_grpc.MtibCsPiStub) -> bool:
     
     return True
 
-def set_vbat(server:  mtib_grpc.MtibCsPiStub, voltage: float) -> bool:
+def set_vbat(server:  mtib_grpc.ClusterRunnerStub, voltage: float) -> bool:
     disable_power(server)
 
     # Set the power
