@@ -1,0 +1,16 @@
+{
+    "folders": [
+        {
+            "path": "../../libs/zephyr/dns_sec"
+        },
+        {
+            "path": "../../libs/zephyr/mlx90632_drv"
+        },
+        {
+            "path": "../../libs/zephyr/mlx90632_drv/tests/simple"
+        }
+    ],
+    "settings": {
+        "files.associations": {},
+    }
+}
