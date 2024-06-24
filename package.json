@@ -5,10 +5,10 @@
   "scripts": {},
   "private": true,
   "devDependencies": {
-    "@nx-tools/nx-container": "^5.2.0",
-    "@nx/js": "16.8.1",
-    "@nx/workspace": "16.8.1",
-    "nx": "16.8.1",
-    "nx-cloud": "^16.0.4"
+    "@nx-tools/nx-container": "^6.0.0",
+    "@nx/js": "19.0.5",
+    "@nx/workspace": "19.0.5",
+    "nx": "19.0.5",
+    "nx-cloud": "^19.0.0"
   }
 }

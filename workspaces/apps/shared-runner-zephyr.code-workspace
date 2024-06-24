@@ -1,0 +1,39 @@
+{
+	"folders": [
+		{
+			"name": "docs",
+			"path": "../../docs"
+		},
+		{
+			"name": "protos",
+			"path": "../../libs/protos"
+		},
+		{
+			"name": "iface",
+			"path": "../../libs/zephyr/iface"
+		},
+		{
+			"name": "cipher",
+			"path": "../../libs/zephyr/cipher"
+		},
+		{
+			"name": "zephyr-runner",
+			"path": "../../apps/shared/runner/zephyr"
+		},
+		{
+			"name": "libs",
+			"path": "../../libs/zephyr"
+		},
+	],
+	"settings": {
+		"files.associations": {
+			".env": "env",
+			"*.overlay": "dts",
+			".env.example": "env",
+			"*.conf": "kconfig",
+			"reboot.h": "c",
+			"app.h": "c",
+			"cluster_runner_zephyr.cipher.h": "c"
+		},
+	}
+}

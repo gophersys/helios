@@ -1,23 +1,42 @@
 {
   "name": "Python Dev",
-  "image": "ccr01.ad.corekinect.com/concord-dev-env:1.6",
-  "postCreateCommand": "npm install && npm fund",
+  "image": "ccr01.ad.corekinect.com/concord-dev-env:1.8",
+  "postCreateCommand": "npm install && npm fund && NX_NO_CLOUD=true",
   "runArgs": [
     "--privileged",
     "--network=host"
   ],
   "mounts": [
     "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind",
-    "source=/dev,target=/dev,type=bind"
+    "source=/dev,target=/dev,type=bind",
+    // Uncomment the following volume when developing in the OrangePi, to enable GPIO control from within the container
+    // "source=/sys/class/gpio,target=/sys/class/gpio,type=bind"
   ],
   // Vs Code Customizations
   "customizations": {
     // Configure properties specific to VS Code.
     "vscode": {
       "settings": {
-        "terminal.integrated.shell.linux": "/usr/bin/zsh"
+        "terminal.integrated.shell.linux": "/usr/bin/zsh",
+        "[python]": {
+          "editor.codeActionsOnSave": {
+            "source.organizeImports": "explicit"
+          },
+          "editor.rulers": [
+            119
+          ],
+          "editor.defaultFormatter": "ms-python.black-formatter",
+          "editor.formatOnSave": true
+        },
+        "black-formatter.args": [
+          "--line-length",
+          "119"
+        ],
+        "isort.args":["--profile", "black"]
       },
       "extensions": [
+        "ms-python.isort",
+        "ms-python.black-formatter",
         "ms-azuretools.vscode-docker",
         "ms-python.python",
         "zxh404.vscode-proto3",

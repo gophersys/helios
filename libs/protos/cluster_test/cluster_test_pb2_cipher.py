@@ -1,7 +1,7 @@
 # python_service_template.tmpl
 from enum import Enum
 from protos.cluster_test.cluster_test_pb2 import * 
-from cipher import *
+from corekinect.cipher.cipher import *
 
 # -----------------------------------------------------------------------------------------------------
 #                                                                                                 Types

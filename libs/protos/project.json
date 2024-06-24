@@ -8,7 +8,7 @@
       "executor": "nx:run-commands",
       "options": {
         "commands": [
-          "chmod +x ./libs/protos/generator.sh && ./libs/protos/generator.sh generate"
+          "chmod +x ./libs/protos/ctl.sh && ./libs/protos/ctl.sh generate"
         ],
         "cwd": "{workspaceRoot}"
       }
@@ -17,7 +17,7 @@
       "executor": "nx:run-commands",
       "options": {
         "commands": [
-          "chmod +x ./libs/protos/generator.sh && ./libs/protos/generator.sh clean"
+          "chmod +x ./libs/protos/ctl.sh && ./libs/protos/ctl.sh clean"
         ],
         "cwd": "{workspaceRoot}"
       }

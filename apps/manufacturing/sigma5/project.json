@@ -1,0 +1,47 @@
+{
+    "name": "executor",
+    "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+    "sourceRoot": "apps/manufacturing/sigma5",
+    "projectType": "application",
+    "targets": {
+      "build":{
+        "command": "nx run executor:containerize",
+        "cwd": "{workspaceRoot}"
+      },
+      "containerize": {
+        "executor": "@nx-tools/nx-container:build",
+        "cwd": "{workspaceRoot}",
+        "options": {
+          "context": "{workspaceRoot}",
+          "file": "apps/manufacturing/sigma5/Dockerfile",
+          "platforms": [
+            "linux/arm64"
+          ],
+          "load": true,
+          "push": false,
+          "tags": [
+            "ccr01.ad.corekinect.com/manufacturing-sigma5:latest"
+          ]
+        }
+      },
+      "setup": {
+        "executor": "nx:run-commands",
+        "cwd": "{projectRoot}",
+        "options": {
+          "cwd": "{projectRoot}",
+          "commands": [
+            {
+              "command": "python3 -m venv .venv"
+            },
+            {
+              "command": "bash -c 'source .venv/bin/activate && pip install -e .'"
+            },
+            {
+              "command": "cp .env.example .env"
+            }
+          ],
+          "parallel": false
+        }
+      }
+    }
+  }

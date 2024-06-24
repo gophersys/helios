@@ -1,0 +1,46 @@
+{
+    "name": "operator",
+    "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+    "sourceRoot": "apps/backend/operator",
+    "projectType": "application",
+    "targets": {
+      "build":{
+        "command": "nx run operator:containerize",
+        "cwd": "{workspaceRoot}"
+      },
+      "containerize": {
+        "executor": "@nx-tools/nx-container:build",
+        "cwd": "{workspaceRoot}",
+        "options": {
+          "context": "{workspaceRoot}",
+          "file": "apps/backend/operator/Dockerfile",
+          "platforms": [
+            "linux/arm64"
+          ],
+          "push": false,
+          "tags": [
+            "ccr01.ad.corekinect.com/concord-operator:1.0"
+          ]
+        }
+      },
+      "setup": {
+        "executor": "nx:run-commands",
+        "cwd": "{projectRoot}",
+        "options": {
+          "cwd": "{projectRoot}",
+          "commands": [
+            {
+              "command": "python3 -m venv .venv"
+            },
+            {
+              "command": "bash -c 'source .venv/bin/activate && pip install -e .'"
+            },
+            {
+              "command": "cp .env.example .env"
+            }
+          ],
+          "parallel": false
+        }
+      }
+    }
+  }

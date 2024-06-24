@@ -1,0 +1,28 @@
+{
+	"folders": [
+		{
+			"name": "docs",
+			"path": "../../docs"
+		},
+		{
+			"name": "protos",
+			"path": "../../libs/protos"
+		},
+		{
+			"name": "iface",
+			"path": "../../libs/python/corekinect/iface"
+		},
+		{
+			"name": "cipher",
+			"path": "../../libs/python/corekinect/cipher"
+		},
+		{
+			"name": "runner",
+			"path": "../../apps/shared/runner"
+		},
+	],
+	"settings": {
+		"files.associations": {
+		},
+	}
+}

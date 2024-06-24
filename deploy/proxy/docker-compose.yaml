@@ -1,0 +1,20 @@
+services:
+  # HTTP-API
+  proxy:
+    image: ccr01.ad.corekinect.com/concord-proxy:1.0
+    ports:
+      - "6969:6969"  # HTTP
+    environment:
+      - DELETE_ALL_KEY=${DELETE_ALL_KEY}
+      - LOG_LEVEL=${LOG_LEVEL}
+      - LOG_PATH=${LOG_PATH}
+      - SERVER_PORT=${SERVER_PORT}
+      - DB_STORAGE_PATH=${DB_STORAGE_PATH}
+      - DB_STORAGE_LIMIT_GB=${DB_STORAGE_LIMIT_GB}
+      - SUPPORTED_REGISTRIES=${SUPPORTED_REGISTRIES}
+    volumes:
+      # Docker socket, needed by application
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Logs & database location (must match environment file)
+      - /var/proxy:/var/proxy
+

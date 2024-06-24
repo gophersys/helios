@@ -1,11 +1,13 @@
 {
 	"folders": [
 		{
-			"path": "../../libs/python/iface-posix"
+			"name": "iface",
+			"path": "../../libs/python/corekinect/iface"
 		},
 		{
-			"path": "../../libs/python/cipher-posix"
-		}
+			"name": "cipher",
+			"path": "../../libs/python/corekinect/cipher"
+		},
 	],
 	"settings": {
 		"files.associations": {

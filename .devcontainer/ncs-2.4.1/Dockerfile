@@ -1,4 +1,4 @@
-FROM ccr01.ad.corekinect.com/concord-dev-env:1.6
+FROM ccr01.ad.corekinect.com/concord-dev-env:1.8
 
 # -----------------------------------------------------------------------------------------------------
 #                                                                                         Zephyr &  NCS

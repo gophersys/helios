@@ -5,7 +5,11 @@ package cluster_operator;
 // Protocol imports
 import "cluster_test.proto";
 
-// Service definition
+// This is the main interface used to access all the functionality in 
+// a test cluster.
+// 
+// This service gets served at port 50052
+//
 service ClusterOperator {
   // Performs a health check to ensure the operator is at least running.
   rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse) {}
@@ -113,7 +117,9 @@ message ExecuteTestRequest {
 }
 
 message ExecuteTestResponse {
-  repeated cluster_test.TestStepResult results = 1;
+  bool stopped = 1;
+  int32 sequence = 2;                   
+  repeated cluster_test.TestStepResult results = 3;
 }
 
 // Stop messages

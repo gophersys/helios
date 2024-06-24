@@ -1,0 +1,235 @@
+# All the applications we want to run on a single MTIB hardware instance
+# are defined here
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mtib-runner
+  labels:
+    app: mtib-runner
+spec:
+  replicas: 6  # <- 1 replica per MTIB host in the cluster
+  selector:
+    matchLabels:
+      app: mtib-runner
+  strategy:
+    # When we update the deployment we want to terminate the current
+    # instance of this container in a host, and then start the new one
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        app: mtib-runner
+    spec:
+      # Allow the app 1 second to end "gracefully", and then force terminate
+      terminationGracePeriodSeconds: 1
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              # This allows us to deploy exactly 1 container in each host
+              # in the cluster, as we've setup the hostnames of each host
+              # to match the physical slot where they're located
+              - key: "kubernetes.io/hostname"
+                operator: In
+                values:
+                - "slot-1"
+                - "slot-2"
+                - "slot-3"
+                - "slot-4"
+                - "slot-5"
+                - "slot-6"
+      containers:
+        # MTIB Runner Application
+      - name: mtib-runner
+        image: ccr01.ad.corekinect.com/mtib-runner:1.0  # <- The image we want to deploy
+        imagePullPolicy: Always                         # Guarantees a fresh 'docker pull' every time
+
+        # The container makes use of a lot of hardware on the host,
+        # so we set it to priviledged to prevent permission issues
+        securityContext:
+          privileged: true
+
+        # The port in which we serve the MtibRunner gRPC service, as
+        # defined in the .proto file for this service
+        ports:
+        - containerPort: 50051
+          hostPort: 50051
+
+        # Application configuration
+        env:
+        - name: LOG_LEVEL             # Log level of the stdout logs. 4 = DEBUG, 1 = ERROR
+          value: "4"
+        - name: LOG_PATH              # Path where the service will store its logs
+          value: "/var/log"
+        - name: MTIB_SERIAL_PORT      # JLink connected to the Orange Pi
+          value: "/dev/ttyS5"
+        - name: MTIB_SERIAL_BAUD
+          value: "115200"
+        - name: GRPC_SERVER_PORT      # Port that this app uses to serve the MtibRunner service
+          value: "50051"
+        - name: FW_FILE_STORAGE_DIR   # Path where this app will store uploaded firmware files
+          value: "/var/fw_files/"
+        - name: MCU_9160_USB_BUS      # JLink ports for each microcontroller
+          value: "/dev/bus/usb/002"
+        - name: MCU_52840_USB_BUS
+          value: "/dev/bus/usb/003"
+        - name: SERVER_RESET_ENABLED  # Flag to reset zephyr app at boot
+          value: "true"
+        - name: SERVER_RESET_GPIO     
+          value: "9"
+        - name: USB_ENABLE_GPIO       # Pin used to enable second JLink
+          value: "17"
+
+        # What volumes we mount from the pod onto this container
+        volumeMounts:
+        - name: dev-bus-usb
+          mountPath: /dev/bus/usb
+        - name: logs
+          mountPath: /var/log/runner
+        - name: fw-files
+          mountPath: /var/fw_files/
+        - name: cipher-uart
+          mountPath: /dev/ttyS5
+        - name: gpio
+          mountPath: /sys/class/gpio
+
+        # The resource definition below is telling k8s 'hey please
+        # give me at least what I've `requested` and let me consume
+        # up to the `limit`' "
+        resources:
+          requests:
+            cpu: "1000m"
+            memory: "1000Mi"
+          limits:
+            cpu: "2000m"
+            memory: "2000Mi"
+            
+      # We mount volumes from the host onto a pod. Since a pod can have more than 1
+      # container in it, each container will have to mount the specific containers 
+      # needed onto itself
+      volumes:
+      - name: dev-bus-usb
+        hostPath:
+          path: /dev/bus/usb
+      - name: logs
+        hostPath:
+          path: /var/log/runner
+      - name: fw-files
+        hostPath:
+          path: /var/fw_files/
+      - name: cipher-uart
+        hostPath:
+          path: /dev/ttyS5
+      - name: gpio
+        hostPath:
+          path: /sys/class/gpio
+---
+# All the applications we want to run on a single MTIB hardware instance
+# are defined here
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sigma5-manufacturing
+  labels:
+    app: sigma5-manufacturing
+spec:
+  replicas: 1  # <- 1 replica per cluster
+  selector:
+    matchLabels:
+      app: sigma5-manufacturing
+  strategy:
+    # When we update the deployment we want to terminate the current
+    # instance of this container in a host, and then start the new one
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        app: sigma5-manufacturing
+    spec:
+      # Allow the app 1 second to end "gracefully", and then force terminate
+      terminationGracePeriodSeconds: 1
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              # This allows us to deploy exactly 1 container in each host
+              # in the cluster, as we've setup the hostnames of each host
+              # to match the physical slot where they're located
+              - key: "kubernetes.io/hostname"
+                operator: In
+                values:
+                - "control-plane"
+      containers:
+        # Sigma5 Manufacturing Tests Runner Application
+      - name: sigma5-manufacturing
+        image: ccr01.ad.corekinect.com/manufacturing-sigma5:latest  # <- The image we want to deploy
+        imagePullPolicy: Always                                     # Guarantees a fresh 'docker pull' every time
+
+        # The container makes use of a lot of hardware on the host,
+        # so we set it to priviledged to prevent permission issues
+        securityContext:
+          privileged: true
+
+        # The ports for each test
+        ports:
+        - containerPort: 50060     # Electrical test
+          hostPort: 50060
+        - containerPort: 50061     # Fw Flash test
+          hostPort: 50061
+        - containerPort: 50062     # POST test
+          hostPort: 50062
+
+        # Application configuration
+        env:
+        - name: LOG_LEVEL             # Log level of the stdout logs. 4 = DEBUG, 1 = ERROR
+          value: "4"
+        - name: LOG_PATH              # Path where the service will store its logs
+          value: "/var/log"
+        - name: OPERATOR_URL          # The operator resides in the same machine
+          value: "control-plane:50050"
+        - name: PROXY_SERVER_URL     
+          value: "https://concordproxy.ad.corekinect.com"
+        - name: ELECTRICAL_TEST_PORT
+          value: "50060"
+        - name: ELECTRICAL_TEST_UUID     
+          value: "fce7ab74-b225-433d-b27d-629d346548d9"
+        - name: FW_FLASH_TEST_PORT
+          value: "50061"
+        - name: FW_FLASH_TEST_UUID     
+          value: "81e846df-28f3-467a-96fd-655b45bbd8a5"
+        - name: POST_TEST_PORT
+          value: "50062"
+        - name: POST_TEST_UUID     
+          value: "ac2aad43-1737-46de-af93-dfc49ede99da"
+
+        # What volumes we mount from the pod onto this container
+        volumeMounts:
+        - name: logs
+          mountPath: /var/log/runner
+
+        # The resource definition below is telling k8s 'hey please
+        # give me at least what I've `requested` and let me consume
+        # up to the `limit`' "
+        resources:
+          requests:
+            cpu: "250m"
+            memory: "200Mi"
+          limits:
+            cpu: "2000m"
+            memory: "2000Mi"
+            
+      # We mount volumes from the host onto a pod. Since a pod can have more than 1
+      # container in it, each container will have to mount the specific containers 
+      # needed onto itself
+      volumes:
+      - name: logs
+        hostPath:
+          path: /var/log/tests

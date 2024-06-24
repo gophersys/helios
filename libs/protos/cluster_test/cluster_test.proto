@@ -10,7 +10,7 @@ service ClusterTest {
   rpc Execute(ExecuteRequest) returns (stream ExecuteResponse) {}
 
   // Stops a test that is currently executing.
-  rpc Stop(StopRequest) returns (stream StopResponse) {}
+  rpc Stop(StopRequest) returns (StopResponse) {}
 }
 
 // HealthCheck
@@ -21,26 +21,31 @@ message StepInfo {
   int32 sequence = 1;
   string name = 2;
   string description = 3;
+  bool noPassIsFatal = 4;
 }
   
 message TestInfo {
   string uuid = 1;
   string name = 2;
-  string description = 3;
-  repeated StepInfo steps = 4;
+  string defaultConfig = 3;        // Default configuration for the test
+  string description = 4;
+  repeated StepInfo steps = 5;
 }
 
 message TestStepResult {
   // User populated fields
   string error = 1;                 // Error in execution 
   bool success = 2;                 // Step outcome (PASS/FAIL)
-  string detailedResult = 3;        // Optionally include detailed logs or results of the step.
+  string reason = 3;                // Human readable string of why step didn't pass
+  string details = 4;               // Optional details, ideally in JSON format so they can be parsed later
   
   // Application populated fields
-  string node = 4;                    // Which host this step used
-  bool timeout = 5;                   // If the run time had to cancel this node
-  string startTime = 6;               // When this step started running
-  string endTime = 7;                 // When this step stopped running
+  string node = 5;                    // Which host this step used
+  bool timeout = 6;                   // If the run time had to cancel this node
+  int32 sequence = 7;
+  string startTime = 8;               // When this step started running
+  string endTime = 9;                 // When this step stopped running
+  bool noPassIsFatal = 10;            // If the step fails, will the rest of the test continue?
 }
 
 // Messages for executing tests on panel boards
@@ -51,7 +56,7 @@ message ExecuteRequest {
 
 message ExecuteResponse {
   bool stopped = 1;
-  int32 sequence = 2;                   // Progress of the test execution as a whole.
+  int32 sequence = 2;
   repeated TestStepResult results = 3;  // Array of results, one for each node executing the test.
 }
 

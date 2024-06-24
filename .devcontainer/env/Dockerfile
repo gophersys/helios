@@ -162,7 +162,7 @@ RUN ARCH="$(uname -m)" && \
     rm -f ${JLINK_DEB}
 
 # Setup config folder to avoid "Terms of Use" pop up window of JLink on every board flash
-COPY ../assets/segger /root/.config/SEGGER
+COPY assets/segger /root/.config/SEGGER
 
 # Remove udev mock
 RUN rm /usr/bin/udevadm
@@ -172,9 +172,11 @@ RUN rm /usr/bin/udevadm
 # ---------------------------------------------------------------------------------------------------*/
 
 # Set the PYTHONPATH to include the libs directory
-ENV PYTHONPATH="/workspaces/concord/libs/python/iface-posix:${PYTHONPATH}"
-ENV PYTHONPATH="/workspaces/concord/libs/python/cipher-posix:${PYTHONPATH}"
 ENV PYTHONPATH="/workspaces/concord/libs:${PYTHONPATH}"
+ENV PYTHONPATH="/workspaces/concord/libs/python/:${PYTHONPATH}"
+
+# Install grpcio-tools
+RUN pip3 install grpcio-tools==1.64.0
 
 # -----------------------------------------------------------------------------------------------------
 #                                                                                               Kubectl

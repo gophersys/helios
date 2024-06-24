@@ -1,0 +1,36 @@
+{
+	"folders": [
+		{
+			"name": "docs",
+			"path": "../../docs"
+		},
+		{
+			"name": "protos",
+			"path": "../../libs/protos"
+		},
+		{
+			"name": "deploy",
+			"path": "../../deploy"
+		},
+		{
+			"name": "runner",
+			"path": "../../apps/shared/runner"
+		},
+		{
+			"name": "operator",
+			"path": "../../apps/backend/operator"
+		},
+		{
+			"name": "proxy",
+			"path": "../../apps/backend/proxy"
+		},
+		{
+			"name": "sigma5_manufacturing",
+			"path": "../../apps/manufacturing/sigma5"
+		}
+	],
+	"settings": {
+		"files.associations": {
+		},
+	}
+}

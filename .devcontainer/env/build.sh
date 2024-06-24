@@ -24,16 +24,7 @@ VERSION=$1
 docker buildx create --use --use --name concord-env-builder || true
 
 # Now, proceed with the docker buildx build command using the provided version and Go version
-docker buildx build . \
-    --platform linux/amd64,linux/arm64 \
+docker build \
     --tag ccr01.ad.corekinect.com/concord-dev-env:$VERSION \
     --build-arg GO_VERSION=$GO_VERSION \
-    --push
-
-# Check if docker buildx build command succeeded
-if [ $? -eq 0 ]; then
-    echo "Docker buildx build successful."
-else
-    echo "Docker buildx build failed."
-    exit 1
-fi
+    .
