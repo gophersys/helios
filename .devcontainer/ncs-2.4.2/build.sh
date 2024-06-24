@@ -19,7 +19,7 @@ fi
 VERSION=$1
 
 # Now, proceed with the docker build command using the provided version
-docker build . -t ccr01.ad.corekinect.com/concord-dev-ncs-2.4.1:$VERSION
+docker build . -t ccr01.ad.corekinect.com/concord-dev-ncs-2.4.2:$VERSION
 
 # Check if docker build command succeeded
 if [ $? -eq 0 ]; then
