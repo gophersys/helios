@@ -1,6 +1,6 @@
 {
-  "name": "NCS 2.4.1 Dev",
-  "image": "ccr01.ad.corekinect.com/concord-dev-ncs-2.4.1:1.2",
+  "name": "NCS 2.4.2 Dev",
+  "image": "ccr01.ad.corekinect.com/concord-dev-ncs-2.4.2:1.0",
   "postCreateCommand": "npm install && npm fund",
   "runArgs": [
     "--privileged",
@@ -32,7 +32,10 @@
           "--line-length",
           "119"
         ],
-        "isort.args":["--profile", "black"]
+        "isort.args": [
+          "--profile",
+          "black"
+        ]
       },
       "extensions": [
         "ms-python.isort",

@@ -15,7 +15,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git cmake ninja-build gperf \
     ccache dfu-util device-tree-compiler wget \
     python3-dev python3-pip python3-setuptools python3-tk python3-wheel xz-utils file \
-    make gcc gcc-multilib g++-multilib libsdl2-dev \
+    make gcc gcc-multilib g++-multilib libsdl2-dev expect \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -29,37 +29,61 @@ ENV PATH="${PATH}:/root/.local/bin"
 
 # Install the Zephyr SDK
 WORKDIR /usr/home
-RUN wget https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v0.16.1/zephyr-sdk-0.16.1_linux-x86_64.tar.xz
+RUN wget https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v0.16.1/zephyr-sdk-0.16.1_linux-x86_64_minimal.tar.xz
 RUN wget -O - https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v0.16.1/sha256.sum | shasum --check --ignore-missing
-RUN tar xf zephyr-sdk-0.16.1_linux-x86_64.tar.xz > /dev/null
-RUN rm -rf zephyr-sdk-0.16.1_linux-x86_64.tar.xz
+RUN tar xf zephyr-sdk-0.16.1_linux-x86_64_minimal.tar.xz > /dev/null
+RUN rm -rf zephyr-sdk-0.16.1_linux-x86_64_minimal.tar.xz
+RUN ls -la
 
-# Run the Zephyr SDK bundle setup script
-# The setup script asks for user input twice, so we use printf to send multiple y responses
+# Run the Zephyr SDK bundle setup script using expect
 WORKDIR /usr/home/zephyr-sdk-0.16.1
-RUN printf "y\ny\n" | ./setup.sh
+RUN expect -c ' \
+    spawn ./setup.sh; \
+    expect "Install toolchains for all targets"; send "n\r"; \
+    expect "Install '\''aarch64-zephyr-elf'\'' toolchain"; send "n\r"; \
+    expect "Install '\''arc64-zephyr-elf'\'' toolchain"; send "n\r"; \
+    expect "Install '\''arc-zephyr-elf'\'' toolchain"; send "n\r"; \
+    expect "Install '\''arm-zephyr-eabi'\'' toolchain"; send "y\r"; \
+    expect "Install '\''microblazeel-zephyr-elf'\'' toolchain"; send "n\r"; \
+    expect "Install '\''mips-zephyr-elf'\'' toolchain"; send "n\r"; \
+    expect "Install '\''nios2-zephyr-elf'\'' toolchain"; send "n\r"; \
+    expect "Install '\''riscv64-zephyr-elf'\'' toolchain"; send "n\r"; \
+    expect "Install '\''sparc-zephyr-elf'\'' toolchain"; send "n\r"; \
+    expect "Install '\''x86_64-zephyr-elf'\'' toolchain"; send "n\r"; \
+    expect "Install '\''xtensa-espressif_esp32_zephyr-elf'\'' toolchain"; send "y\r"; \
+    expect "Install '\''xtensa-espressif_esp32s2_zephyr-elf'\'' toolchain"; send "y\r"; \
+    expect "Install '\''xtensa-espressif_esp32s3_zephyr-elf'\'' toolchain"; send "y\r"; \
+    expect "Install '\''xtensa-intel_ace15_mtpm_zephyr-elf'\'' toolchain"; send "n\r"; \
+    expect "Install '\''xtensa-intel_tgl_adsp_zephyr-elf'\'' toolchain"; send "n\r"; \
+    expect "Install '\''xtensa-nxp_imx_adsp_zephyr-elf'\'' toolchain"; send "n\r"; \
+    expect "Install '\''xtensa-nxp_imx8m_adsp_zephyr-elf'\'' toolchain"; send "n\r"; \
+    expect "Install '\''xtensa-sample_controller_zephyr-elf'\'' toolchain"; send "n\r"; \
+    expect "Install host tools"; send "y\r"; \
+    expect "Register Zephyr SDK CMake package"; send "y\r"; \
+    expect eof; \
+    '
 
 # Create the ncs directory and set it as the working directory
 RUN mkdir ncs
 WORKDIR /ncs
 
 # Perform the west init, this will be cached as a separate layer
-RUN west init -m https://github.com/nrfconnect/sdk-nrf --mr v2.4.1 && \ 
+RUN west init -m https://github.com/nrfconnect/sdk-nrf --mr v2.4.2 && \ 
     west update
-    
+
 # Modify the west.yml using the awk command to add espressif, nxp & stm32 support
 RUN awk '/name-allowlist:/{ \
-        print; \
-        getline; \
-        while ($0 < "          - hal_nxp" && $1 != "") { \
-            print; \
-            getline; \
-        }; \
-        print "          - hal_espressif # Added by CoreKinect"; \
-        print "          - hal_nxp # Added by CoreKinect"; \
-        print "          - hal_stm32 # Added by CoreKinect"; \
-        print; \
-        next \
+    print; \
+    getline; \
+    while ($0 < "          - hal_nxp" && $1 != "") { \
+    print; \
+    getline; \
+    }; \
+    print "          - hal_espressif # Added by CoreKinect"; \
+    print "          - hal_nxp # Added by CoreKinect"; \
+    print "          - hal_stm32 # Added by CoreKinect"; \
+    print; \
+    next \
     }1' nrf/west.yml > nrf/temp.yml && \
     mv nrf/temp.yml nrf/west.yml
 
@@ -106,8 +130,3 @@ RUN git config --global --add safe.directory /workspaces
 
 # Set Zephyr environment
 RUN echo 'source /ncs/zephyr/zephyr-env.sh' >> ~/.zshrc
-
-# Serial terminal aliases
-RUN echo "alias serial0='screen /dev/ttyACM0 921600'" >> ~/.zshrc
-RUN echo "alias serial1='screen /dev/ttyACM1 921600'" >> ~/.zshrc
-RUN echo "alias serial2='screen /dev/ttyACM2 921600'" >> ~/.zshrc
