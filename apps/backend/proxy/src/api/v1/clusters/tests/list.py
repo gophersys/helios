@@ -32,6 +32,10 @@ def clusters_tests_list_handler(cluster_uuid):
         if cluster is None:
             return jsonify({"error": f"Cluster {cluster_uuid} not found."}), 400
 
+        # Check the state of the cluster before we do anything
+        if cluster.status is None:
+            return jsonify({"error": f"Cluster {cluster_uuid} is not connected."}), 400
+
         # Get the list of tests from the cluster
         error, tests = appProxyServer.clusters_tests_get(cluster_uuid)
         if error:

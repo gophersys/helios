@@ -130,7 +130,7 @@ class AuthMiddleware:
                     "apiKey": self.config.server_api_key,
                     "authorizationHeader": access_token,
                     "requiresPrivilegedAccess": requires_privileged_access,
-                    "permissionKeys": required_permissions,
+                    "requiredPermissions": required_permissions,
                 }
 
                 # Hit the auth server to check permissions
