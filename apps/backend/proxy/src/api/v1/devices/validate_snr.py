@@ -36,7 +36,7 @@ def devices_snr_validate_handler():
         snr_references = [None] * 5
         try:
             search_board_srn_url = f"{conf.MANU_SERVER_URL}/boards/panels/Search?boardSerialNumber={snr}"
-            response = requests.get(search_board_srn_url, verify=None)
+            response = requests.get(search_board_srn_url, verify=None, timeout=5)
 
             if response.status_code == 200:
                 response_data = response.json()

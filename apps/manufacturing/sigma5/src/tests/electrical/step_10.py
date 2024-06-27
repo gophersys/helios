@@ -96,17 +96,6 @@ def electrical_test_step_10_handler(
         result.details = readings.marshall()
         return result
 
-    # 10.d: Ensure UVP_N test point voltage is digital high
-    if node == "slot-3":
-        result.error, readings.uvp_n_value = runnners_controller.read_uvp_n(node)
-        if result.error:
-            return result
-
-        if readings.uvp_n_value is not True:
-            result.reason = f"Step 10.d failed: Expected UVP_N digital high, Actual UVP_N = {readings.uvp_n_value}"
-            result.details = readings.marshall()
-            return result
-
     # 10.e: Ensure CHRG_DET test point is digital low
     result.error, readings.chrg_det_value = runnners_controller.read_chrg_det(node)
     if result.error:

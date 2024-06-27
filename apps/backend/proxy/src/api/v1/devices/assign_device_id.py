@@ -31,7 +31,7 @@ def devices_assign_id_handler():
         device_id: str = None
         try:
             assign_device_id_to_board_url = f"{conf.MANU_SERVER_URL}/devices/ids/assign?boardSerialNumber={snr}"
-            response = requests.post(assign_device_id_to_board_url, verify=None)
+            response = requests.post(assign_device_id_to_board_url, verify=None, timeout=5)
 
             if response.status_code == 200:
                 response_data = response.json()

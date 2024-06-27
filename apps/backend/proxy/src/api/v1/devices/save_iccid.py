@@ -46,11 +46,17 @@ def devices_save_iccid_handler():
 
             # Do request
             save_iccid_url = f"{conf.MANU_SERVER_URL}/iccids/save"
-            response = requests.post(save_iccid_url, json=body, verify=None)
+            response = requests.post(save_iccid_url, json=body, verify=None, timeout=5)
 
             if response.status_code == 200:
-                logging.warning(response.content)
+                logging.info(response.content)
+                return "", 200
             else:
+                if response.status_code == 400:
+                    response_data = response.json()
+                    if response_data.get("code") == "Iccids.AlreadyExists":
+                        logging.info(response.content)
+                        return "", 200
                 return (
                     jsonify(
                         {
@@ -65,8 +71,6 @@ def devices_save_iccid_handler():
                 jsonify({"error": f"An exception occurred saving ICCID info to manufacturing server: {str(e)}"}),
                 500,
             )
-
-        return "", 200
 
     except Exception as e:
         logging.error(f"An error occurred: {str(e)}")

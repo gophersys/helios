@@ -33,7 +33,6 @@ RUN wget https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v0.16.1/
 RUN wget -O - https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v0.16.1/sha256.sum | shasum --check --ignore-missing
 RUN tar xf zephyr-sdk-0.16.1_linux-x86_64_minimal.tar.xz > /dev/null
 RUN rm -rf zephyr-sdk-0.16.1_linux-x86_64_minimal.tar.xz
-RUN ls -la
 
 # Run the Zephyr SDK bundle setup script using expect
 WORKDIR /usr/home/zephyr-sdk-0.16.1

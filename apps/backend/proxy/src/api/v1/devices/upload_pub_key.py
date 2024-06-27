@@ -38,7 +38,7 @@ def devices_save_pub_key_handler():
 
             # Do request
             save_public_key_url = f"{conf.MANU_SERVER_URL}/devices/publickeys/save"
-            response = requests.post(save_public_key_url, json=body, verify=None)
+            response = requests.post(save_public_key_url, json=body, verify=None, timeout=5)
 
             if response.status_code == 200:
                 return "", 200
