@@ -157,6 +157,16 @@ from api.v1.clusters.executions.delete_all import clusters_executions_delete_all
 
 server.register_blueprint(clusters_executions_delete_all_bp)  # DELETE /v1/clusters/<uuid>/executions
 
+# Observability
+from api.v1.observability.memory.start import observability_memory_start_bp
+
+server.register_blueprint(observability_memory_start_bp)  # POST /v1/observability/memory/start
+
+from api.v1.observability.memory.record import observability_memory_measurement_bp
+
+server.register_blueprint(observability_memory_measurement_bp)  # POST /v1/observability/memory/measurement
+
+
 # ----------------------------------------------------------------------------------
 #                                                                              Entry
 # --------------------------------------------------------------------------------*/

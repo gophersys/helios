@@ -10,6 +10,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Callable, List, Optional, Tuple
 from urllib.parse import urlparse
+from influxdb import InfluxDBClient
 
 import docker
 import docker.errors
@@ -110,6 +111,9 @@ class ProxyServer:
         logger.setLevel(logging.INFO)
         self.docker_client: docker.DockerClient = None
 
+        # Database info
+        self.influxdb_client: InfluxDBClient = None
+
     def init(self, config: ProxyServerConfiguration) -> str:
         if self.initialized:
             return "Do not initialize class again."
@@ -138,6 +142,15 @@ class ProxyServer:
 
         # Services we use
         self.docker_client = docker.from_env()
+        # self.influxdb_client = InfluxDBClient(
+        #     host="localhost",
+        #     port=8086,
+        #     username="admin",
+        #     password="HjIlYeof3or_5EvTMShBSYQ-jKP4s34ZX67kB-YQiSZtpIjiZba-AhWja7rw21Bx0JzprIrnU86FamjM_oYV0A==",
+        #     database="observability",
+        # )
+        # self.influxdb_client.switch_database("observability")
+        # self.influxdb_client.query("SHOW DATABASES")  # To verify connection
 
         # Start server threads
         self.health_check_thread = threading.Thread(target=self._cluster_healthchecks_thread, daemon=True)
@@ -170,7 +183,7 @@ class ProxyServer:
                 if cluster.info.registered and cluster.status is not None:
                     try:
                         # Perform a periodic health check to ensure we're still connected and alive
-                        response = cluster.stub.HealthCheck(HealthCheckRequest(), timeout=1)
+                        response = cluster.stub.HealthCheck(HealthCheckRequest(), timeout=10)
                         cluster.status = response.status
                         cluster.error = response.error
 

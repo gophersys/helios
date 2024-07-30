@@ -1,16 +1,58 @@
 {
     "folders": [
         {
-            "path": "../../libs/zephyr/dns_sec"
-        },
-        {
             "path": "../../libs/zephyr/mlx90632_drv"
         },
         {
+            "name": "ir_sensor_app",
             "path": "../../libs/zephyr/mlx90632_drv/tests/simple"
-        }
+        },
+        {
+            "path": "../../libs/zephyr/nand_flash_drv"
+        },
+        {
+            "name": "nand_flash_app",
+            "path": "../../libs/zephyr/nand_flash_drv/tests/simple"
+        },
     ],
     "settings": {
-        "files.associations": {},
+        "files.associations": {
+            ".env": "env",
+            "*.overlay": "dts",
+            ".env.example": "env",
+            "*.conf": "kconfig",
+            "init.h": "c",
+            "flash.h": "c",
+            "flash_map.h": "c",
+            "littlefs.h": "c",
+            "lfs.h": "c",
+            "nand.h": "c",
+            "spi.h": "c",
+            "log.h": "c",
+            "string.h": "c",
+            "spi_nand_diskio.h": "c",
+            "array": "c",
+            "string_view": "c",
+            "initializer_list": "c",
+            "utility": "c",
+            "kernel.h": "c",
+            "device.h": "c",
+            "spi_nand.h": "c",
+            "feature.h": "c",
+            "stdint.h": "c",
+            "condition_variable": "c",
+            "read_id.h": "c",
+            "reset.h": "c",
+            "utils.h": "c",
+            "validate.h": "c",
+            "raw.h": "c",
+            "read.h": "c",
+            "configure.h": "c",
+            "obsv.h": "c",
+            "map": "c",
+            "string": "c",
+            "stdio.h": "c",
+            "log_ctrl.h": "c"
+        },
     }
 }

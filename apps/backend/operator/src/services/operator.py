@@ -722,7 +722,7 @@ class ClusterOperator:
                     # Do an HTTP request to the proxy for registration
                     endpoint = f"{self.config.proxy_url}/v1/healthcheck"
 
-                    response = requests.get(endpoint, timeout=1, verify=False)
+                    response = requests.get(endpoint, timeout=10, verify=False)
                     if response.status_code != 200:
                         self.proxy_connected = False
                         logging.error(

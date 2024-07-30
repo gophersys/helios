@@ -32,9 +32,9 @@ RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.5/install.sh | b
 ARG GO_VERSION=1.20.5
 RUN ARCH="" && \
     case "$(uname -m)" in \
-        x86_64) ARCH="amd64" ;; \
-        aarch64) ARCH="arm64" ;; \
-        *) echo "Unsupported architecture" && exit 1 ;; \
+    x86_64) ARCH="amd64" ;; \
+    aarch64) ARCH="arm64" ;; \
+    *) echo "Unsupported architecture" && exit 1 ;; \
     esac && \
     curl -LO "https://golang.org/dl/go${GO_VERSION}.linux-${ARCH}.tar.gz" \
     && tar -C /usr/local -xzf go${GO_VERSION}.linux-${ARCH}.tar.gz \
@@ -94,9 +94,9 @@ RUN apt-get update && \
 # Determine architecture and download the appropriate version of protoc
 RUN ARCH="$(uname -m)" && \
     case "${ARCH}" in \
-        aarch64) PROTOC_ZIP="protoc-25.2-linux-aarch_64.zip" ;; \
-        x86_64) PROTOC_ZIP="protoc-25.2-linux-x86_64.zip" ;; \
-        *) echo "Unsupported architecture: ${ARCH}" && exit 1 ;; \
+    aarch64) PROTOC_ZIP="protoc-25.2-linux-aarch_64.zip" ;; \
+    x86_64) PROTOC_ZIP="protoc-25.2-linux-x86_64.zip" ;; \
+    *) echo "Unsupported architecture: ${ARCH}" && exit 1 ;; \
     esac && \
     curl -LO "https://github.com/protocolbuffers/protobuf/releases/download/v25.2/${PROTOC_ZIP}" && \
     unzip -o ${PROTOC_ZIP} -d /usr/local && \
@@ -111,11 +111,15 @@ ENV PATH="/usr/local/bin:${PATH}"
 # Get .deb package and install based on architecture
 RUN ARCH="$(uname -m)" && \
     case "${ARCH}" in \
-        aarch64) NRF_CLI_DEB="nrf-command-line-tools_10.23.0_arm64.deb" ;; \
-        x86_64) NRF_CLI_DEB="nrf-command-line-tools_10.23.0_amd64.deb" ;; \
-        *) echo "Unsupported architecture: ${ARCH}" && exit 1 ;; \
+    aarch64) \
+    NRF_CLI_DEB="nrf-command-line-tools_10.24.2_arm64.deb" \
+    ;; \
+    x86_64) \
+    NRF_CLI_DEB="nrf-command-line-tools_10.24.2_amd64.deb" \
+    ;; \
+    *) echo "Unsupported architecture: ${ARCH}" && exit 1 ;; \
     esac && \
-    curl -o nrf-cli-tools.deb "https://nsscprodmedia.blob.core.windows.net/prod/software-and-other-downloads/desktop-software/nrf-command-line-tools/sw/versions-10-x-x/10-23-0/${NRF_CLI_DEB}" && \
+    curl -o nrf-cli-tools.deb "https://nsscprodmedia.blob.core.windows.net/prod/software-and-other-downloads/desktop-software/nrf-command-line-tools/sw/versions-10-x-x/10-24-2/${NRF_CLI_DEB}" && \
     dpkg -i nrf-cli-tools.deb || true && \
     apt-get install -f -y && \
     rm nrf-cli-tools.deb
@@ -130,29 +134,29 @@ RUN apt-get update && \
     apt-get upgrade -y && \
     apt-get install -y x11-common && \
     apt-get install -y \
-        libxcb-icccm4 \
-        libxcb-image0 \
-        libxcb-keysyms1 \
-        libxcb-render-util0 \
-        libxcb-render0 \
-        libxcb-shape0 \
-        libxkbcommon-x11-0 \
-        curl \
-        udev \
-        libice6 || apt-get --fix-broken install -y && \
+    libxcb-icccm4 \
+    libxcb-image0 \
+    libxcb-keysyms1 \
+    libxcb-render-util0 \
+    libxcb-render0 \
+    libxcb-shape0 \
+    libxkbcommon-x11-0 \
+    curl \
+    udev \
+    libice6 || apt-get --fix-broken install -y && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
 # Download and install JLink package based on architecture, resolving any missing dependencies
 RUN ARCH="$(uname -m)" && \
     case "${ARCH}" in \
-        aarch64) \
-            JLINK_DEB="JLink_Linux_arm64.deb" \
-            ;; \
-        x86_64) \
-            JLINK_DEB="JLink_Linux_x86_64.deb" \
-            ;; \
-        *) echo "Unsupported architecture: ${ARCH}" && exit 1 ;; \
+    aarch64) \
+    JLINK_DEB="JLink_Linux_V796j_arm64.deb" \
+    ;; \
+    x86_64) \
+    JLINK_DEB="JLink_Linux_V796j_x86_64.deb" \
+    ;; \
+    *) echo "Unsupported architecture: ${ARCH}" && exit 1 ;; \
     esac && \
     echo '#!/bin/sh\nexit 0' > /usr/bin/udevadm && \
     chmod +x /usr/bin/udevadm && \
@@ -183,9 +187,9 @@ RUN pip3 install grpcio-tools==1.64.0
 # ---------------------------------------------------------------------------------------------------*/
 RUN ARCH="$(uname -m)" && \
     case "${ARCH}" in \
-        aarch64) KUBECTL_ARCH="arm64" ;; \
-        x86_64) KUBECTL_ARCH="amd64" ;; \
-        *) echo "Unsupported architecture: ${ARCH}" && exit 1 ;; \
+    aarch64) KUBECTL_ARCH="arm64" ;; \
+    x86_64) KUBECTL_ARCH="amd64" ;; \
+    *) echo "Unsupported architecture: ${ARCH}" && exit 1 ;; \
     esac && \
     KUBECTL_VERSION=$(curl -L -s https://dl.k8s.io/release/stable.txt) && \
     curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/arm64/kubectl" && \
@@ -197,9 +201,9 @@ RUN ARCH="$(uname -m)" && \
 # ---------------------------------------------------------------------------------------------------*/
 RUN ARCH="$(uname -m)" && \
     case "${ARCH}" in \
-        aarch64) K9S_ARCH="arm64" ;; \
-        x86_64) K9S_ARCH="amd64" ;; \
-        *) echo "Unsupported architecture: ${ARCH}" && exit 1 ;; \
+    aarch64) K9S_ARCH="arm64" ;; \
+    x86_64) K9S_ARCH="amd64" ;; \
+    *) echo "Unsupported architecture: ${ARCH}" && exit 1 ;; \
     esac && \
     K9S_VERSION=$(curl -s https://api.github.com/repos/derailed/k9s/releases/latest | grep 'tag_name' | cut -d '"' -f 4) && \
     curl -LO "https://github.com/derailed/k9s/releases/download/${K9S_VERSION}/k9s_Linux_${K9S_ARCH}.tar.gz" && \

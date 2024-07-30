@@ -1,4 +1,4 @@
-FROM ccr01.ad.corekinect.com/concord-dev-env:1.8
+FROM ccr01.ad.corekinect.com/concord-dev-env:1.9
 
 # -----------------------------------------------------------------------------------------------------
 #                                                                                         Zephyr &  NCS
@@ -37,28 +37,29 @@ RUN rm -rf zephyr-sdk-0.16.1_linux-x86_64_minimal.tar.xz
 # Run the Zephyr SDK bundle setup script using expect
 WORKDIR /usr/home/zephyr-sdk-0.16.1
 RUN expect -c ' \
+    log_user 1; \
     spawn ./setup.sh; \
-    expect "Install toolchains for all targets"; send "n\r"; \
-    expect "Install '\''aarch64-zephyr-elf'\'' toolchain"; send "n\r"; \
-    expect "Install '\''arc64-zephyr-elf'\'' toolchain"; send "n\r"; \
-    expect "Install '\''arc-zephyr-elf'\'' toolchain"; send "n\r"; \
-    expect "Install '\''arm-zephyr-eabi'\'' toolchain"; send "y\r"; \
-    expect "Install '\''microblazeel-zephyr-elf'\'' toolchain"; send "n\r"; \
-    expect "Install '\''mips-zephyr-elf'\'' toolchain"; send "n\r"; \
-    expect "Install '\''nios2-zephyr-elf'\'' toolchain"; send "n\r"; \
-    expect "Install '\''riscv64-zephyr-elf'\'' toolchain"; send "n\r"; \
-    expect "Install '\''sparc-zephyr-elf'\'' toolchain"; send "n\r"; \
-    expect "Install '\''x86_64-zephyr-elf'\'' toolchain"; send "n\r"; \
-    expect "Install '\''xtensa-espressif_esp32_zephyr-elf'\'' toolchain"; send "y\r"; \
-    expect "Install '\''xtensa-espressif_esp32s2_zephyr-elf'\'' toolchain"; send "y\r"; \
-    expect "Install '\''xtensa-espressif_esp32s3_zephyr-elf'\'' toolchain"; send "y\r"; \
-    expect "Install '\''xtensa-intel_ace15_mtpm_zephyr-elf'\'' toolchain"; send "n\r"; \
-    expect "Install '\''xtensa-intel_tgl_adsp_zephyr-elf'\'' toolchain"; send "n\r"; \
-    expect "Install '\''xtensa-nxp_imx_adsp_zephyr-elf'\'' toolchain"; send "n\r"; \
-    expect "Install '\''xtensa-nxp_imx8m_adsp_zephyr-elf'\'' toolchain"; send "n\r"; \
-    expect "Install '\''xtensa-sample_controller_zephyr-elf'\'' toolchain"; send "n\r"; \
-    expect "Install host tools"; send "y\r"; \
-    expect "Register Zephyr SDK CMake package"; send "y\r"; \
+    expect "Install toolchains for all targets" { send "n\r" }; \
+    expect "Install '\''aarch64-zephyr-elf'\'' toolchain" { send "n\r" }; \
+    expect "Install '\''arc64-zephyr-elf'\'' toolchain" { send "n\r" }; \
+    expect "Install '\''arc-zephyr-elf'\'' toolchain" { send "n\r" }; \
+    expect "Install '\''arm-zephyr-eabi'\'' toolchain" { send "y\r" }; \
+    expect "Install '\''microblazeel-zephyr-elf'\'' toolchain" { send "n\r" }; \
+    expect "Install '\''mips-zephyr-elf'\'' toolchain" { send "n\r" }; \
+    expect "Install '\''nios2-zephyr-elf'\'' toolchain" { send "n\r" }; \
+    expect "Install '\''riscv64-zephyr-elf'\'' toolchain" { send "n\r" }; \
+    expect "Install '\''sparc-zephyr-elf'\'' toolchain" { send "n\r" }; \
+    expect "Install '\''x86_64-zephyr-elf'\'' toolchain" { send "n\r" }; \
+    expect "Install '\''xtensa-espressif_esp32_zephyr-elf'\'' toolchain" { send "n\r" }; \
+    expect "Install '\''xtensa-espressif_esp32s2_zephyr-elf'\'' toolchain" { send "n\r" }; \
+    expect "Install '\''xtensa-espressif_esp32s3_zephyr-elf'\'' toolchain" { send "n\r" }; \
+    expect "Install '\''xtensa-intel_ace15_mtpm_zephyr-elf'\'' toolchain" { send "n\r" }; \
+    expect "Install '\''xtensa-intel_tgl_adsp_zephyr-elf'\'' toolchain" { send "n\r" }; \
+    expect "Install '\''xtensa-nxp_imx_adsp_zephyr-elf'\'' toolchain" { send "n\r" }; \
+    expect "Install '\''xtensa-nxp_imx8m_adsp_zephyr-elf'\'' toolchain" { send "n\r" }; \
+    expect "Install '\''xtensa-sample_controller_zephyr-elf'\'' toolchain" { send "n\r" }; \
+    expect "Install host tools" { send "y\r" }; \
+    expect "Register Zephyr SDK CMake package" { send "y\r" }; \
     expect eof; \
     '
 

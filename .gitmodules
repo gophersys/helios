@@ -37,3 +37,6 @@
 [submodule "libs/zephyr/mlx90632_drv"]
 	path = libs/zephyr/mlx90632_drv
 	url = git@bitbucket.org:corekinect/mlx90632_drv.git
+[submodule "libs/zephyr/nand_flash_drv"]
+	path = libs/zephyr/nand_flash_drv
+	url = git@bitbucket.org:corekinect/nand_flash_drv.git

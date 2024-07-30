@@ -1,0 +1,53 @@
+{
+  "name": "theta_man",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/manufacturing/theta",
+  "projectType": "application",
+  "targets": {
+    "build": {
+      "command": "nx run theta_man:containerize",
+      "cwd": "{workspaceRoot}"
+    },
+    "push": {
+      "dependsOn": [
+        "build"
+      ],
+      "command": "docker push ccr01.ad.corekinect.com/manufacturing-theta:latest"
+    },
+    "containerize": {
+      "executor": "@nx-tools/nx-container:build",
+      "cwd": "{workspaceRoot}",
+      "options": {
+        "context": "{workspaceRoot}",
+        "file": "apps/manufacturing/theta/Dockerfile",
+        "platforms": [
+          "linux/arm64"
+        ],
+        "load": true,
+        "push": false,
+        "tags": [
+          "ccr01.ad.corekinect.com/manufacturing-theta:latest"
+        ]
+      }
+    },
+    "setup": {
+      "executor": "nx:run-commands",
+      "cwd": "{projectRoot}",
+      "options": {
+        "cwd": "{projectRoot}",
+        "commands": [
+          {
+            "command": "python3 -m venv .venv"
+          },
+          {
+            "command": "bash -c 'source .venv/bin/activate && pip install -e .'"
+          },
+          {
+            "command": "cp .env.example .env"
+          }
+        ],
+        "parallel": false
+      }
+    }
+  }
+}

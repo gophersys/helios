@@ -23,6 +23,7 @@ class Config:
     DB_STORAGE_PATH: str
     DB_STORAGE_LIMIT_GB: int
     SUPPORTED_REGISTRIES: List[str]
+    AUTH_ENABLED: bool
     AUTH_SERVER_URL: str
     AUTH_SERVER_API_KEY: str
     AUTH_SERVER_CREDENTIALS_USER: str
@@ -94,6 +95,7 @@ class Config:
         self.DB_STORAGE_LIMIT_GB = self._get_env_var("DB_STORAGE_LIMIT_GB", int)
         self.SERVER_PORT = self._get_env_var("SERVER_PORT", int)
         self.SUPPORTED_REGISTRIES = self._get_env_var_list("SUPPORTED_REGISTRIES", str, delimiter=",")
+        self.AUTH_ENABLED = self._get_env_var("AUTH_ENABLED", bool)
         self.AUTH_SERVER_URL = self._get_env_var("AUTH_SERVER_URL", str)
         self.AUTH_SERVER_API_KEY = self._get_env_var("AUTH_SERVER_API_KEY", str)
         self.AUTH_SERVER_CREDENTIALS_USER = self._get_env_var("AUTH_SERVER_CREDENTIALS_USER", str)

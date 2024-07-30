@@ -1,0 +1,32 @@
+{
+    "folders": [
+        {
+            "name": "proxy",
+            "path": "../../apps/backend/proxy"
+        },
+        {
+            "path": "../../libs/zephyr/nand_flash_drv"
+        },
+        {
+            "name": "nand_flash_app",
+            "path": "../../libs/zephyr/nand_flash_drv/tests/simple"
+        },
+    ],
+    "settings": {
+        "files.associations": {
+            ".env": "env",
+            "*.overlay": "dts",
+            ".env.example": "env",
+            "*.conf": "kconfig",
+            "device.h": "c",
+            "json.h": "c",
+            "log.h": "c",
+            "utils.h": "c",
+            "array": "c",
+            "string_view": "c",
+            "initializer_list": "c",
+            "utility": "c",
+            "obsv.h": "c"
+        },
+    }
+}
