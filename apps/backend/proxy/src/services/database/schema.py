@@ -5,14 +5,14 @@ from typing import List, Optional
 
 # 3rd party includes
 import grpc
+
 # App includes
 from config import conf
-from google.protobuf.json_format import (MessageToDict, MessageToJson, Parse,
-                                         ParseDict)
+from google.protobuf.json_format import MessageToDict, MessageToJson, Parse, ParseDict
+
 # Protocol includes
 from protos.cluster_operator.cluster_operator_pb2 import ClusterStatus
-from protos.cluster_operator.cluster_operator_pb2_grpc import \
-    ClusterOperatorStub
+from protos.cluster_operator.cluster_operator_pb2_grpc import ClusterOperatorStub
 from protos.cluster_test.cluster_test_pb2 import TestInfo, TestStepResult
 
 
@@ -93,6 +93,107 @@ class LogInfo:
             created_at=data["createdAt"],
             logs_folder=data["logsFolder"],
             last_updated_at=data["lastUpdatedAt"],
+        )
+
+
+# -------------------------------------------------------------------------------------------------
+#                                                                                     Observability
+# -----------------------------------------------------------------------------------------------*/
+
+
+@dataclass
+class ObservabilityMemEntry:
+    time: int
+    operation: str
+    address: int
+    size: int
+    time_taken: int
+
+    def marshal(self) -> dict:
+        return {
+            "time": self.time,
+            "operation": self.operation,
+            "address": self.address,
+            "size": self.size,
+            "timeTaken": self.time_taken,
+        }
+
+    @classmethod
+    def unmarshal(cls, data: dict) -> "DeploymentInfo":
+        return cls(
+            time=data["time"],
+            operation=data["operation"],
+            address=data["address"],
+            size=data["size"],
+            time_taken=data["timeTaken"],
+        )
+
+
+# Must match C type obsv_spi_nand_onfi_table_t
+@dataclass
+class ObservabilityMemMetadata:
+    data_bytes_per_page: str
+    spare_bytes_per_page: str
+    pages_per_block: str
+    blocks_per_lu: str
+    num_lus: str
+
+    def marshal(self) -> dict:
+        return {
+            "dataBytesPerPage": self.data_bytes_per_page,
+            "spareBytesPerPage": self.spare_bytes_per_page,
+            "pagesPerBlock": self.pages_per_block,
+            "blocksPerLu": self.blocks_per_lu,
+            "numLus": self.num_lus,
+        }
+
+    @classmethod
+    def unmarshal(cls, data: dict) -> "ObservabilityMemMetadata":
+        return cls(
+            data_bytes_per_page=data["dataBytesPerPage"],
+            spare_bytes_per_page=data["spareBytesPerPage"],
+            pages_per_block=data["pagesPerBlock"],
+            blocks_per_lu=data["blocksPerLu"],
+            num_lus=data["numLus"],
+        )
+
+
+@dataclass
+class ObservabilityMemInfo:
+    uuid: str
+    created_at: str
+    operation_count: int
+    read_count: int
+    write_count: int
+    erase_count: int
+    metadata: ObservabilityMemMetadata
+    operation_entries: List[ObservabilityMemEntry]
+
+    def marshal(self) -> dict:
+        return {
+            "uuid": self.uuid,
+            "createdAt": self.created_at,
+            "metadata": self.metadata.marshal(),
+            "operationCount": self.operation_count,
+            "readCount": self.read_count,
+            "writeCount": self.write_count,
+            "eraseCount": self.erase_count,
+            "operationEntries": [entry.marshal() for entry in self.operation_entries],
+        }
+
+    @classmethod
+    def unmarshal(cls, data: dict) -> "ObservabilityMemInfo":
+        entries = [ObservabilityMemEntry.unmarshal(entry) for entry in data.get("operationEntries", [])]
+        metadata = ObservabilityMemMetadata.unmarshal(data["metadata"])
+        return cls(
+            uuid=data["uuid"],
+            created_at=data["createdAt"],
+            metadata=metadata,
+            operation_count=data["operationCount"],
+            read_count=data.get("readCount", 0),
+            write_count=data.get("writeCount", 0),
+            erase_count=data.get("eraseCount", 0),
+            operation_entries=entries,
         )
 
 

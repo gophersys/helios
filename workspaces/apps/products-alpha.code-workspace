@@ -1,0 +1,16 @@
+{
+    "folders": [
+        {
+            "path": "../../libs/boards"
+        },
+        {
+            "path": "../../apps/products/alpha"
+        },
+        {
+            "path": "../../libs/zephyr"
+        }
+    ],
+    "settings": {
+        "files.associations": {},
+    }
+}

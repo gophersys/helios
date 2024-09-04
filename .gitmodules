@@ -40,3 +40,6 @@
 [submodule "libs/zephyr/nand_flash_drv"]
 	path = libs/zephyr/nand_flash_drv
 	url = git@bitbucket.org:corekinect/nand_flash_drv.git
+[submodule "libs/zephyr/max32644_drv"]
+	path = libs/zephyr/max32644_drv
+	url = git@bitbucket.org:corekinect/max32644_drv.git

@@ -1,0 +1,3 @@
+config BOARD_ALPHA
+	bool "Alpha NRF52840"
+	select SOC_NRF52840_QIAA

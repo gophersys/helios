@@ -18,6 +18,5 @@ setup(
         "dnspython==2.1.0",
         "websocket-client==1.8.0",
         "python-dateutil==2.9.0",
-        "influxdb==5.3.2",
     ],
 )

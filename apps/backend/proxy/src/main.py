@@ -61,6 +61,10 @@ from api.v1.devices.upload_pub_key import devices_save_pub_key_bp
 
 server.register_blueprint(devices_save_pub_key_bp)  # POST /v1/devices/keys/upload
 
+from api.v1.devices.alpha.get_algo_update import devices_alpha_algo_update_bp
+
+server.register_blueprint(devices_alpha_algo_update_bp)  # POST /v1/devices/alpha/algo/update
+
 # Clusters
 from api.v1.clusters.create import clusters_create_bp
 
@@ -164,7 +168,9 @@ server.register_blueprint(observability_memory_start_bp)  # POST /v1/observabili
 
 from api.v1.observability.memory.record import observability_memory_measurement_bp
 
-server.register_blueprint(observability_memory_measurement_bp)  # POST /v1/observability/memory/measurement
+server.register_blueprint(
+    observability_memory_measurement_bp
+)  # POST /v1/observability/memory/<session_id>/measurement
 
 
 # ----------------------------------------------------------------------------------

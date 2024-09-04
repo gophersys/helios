@@ -5,6 +5,7 @@ import shutil
 import threading
 import time
 import uuid
+import concurrent
 from abc import abstractmethod
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
@@ -14,8 +15,16 @@ from typing import Callable, List, Optional, Tuple
 # Protocol includes
 from protos.cluster_test.cluster_test_pb2 import TestInfo, TestStepResult
 
-from .schema import (ClusterInfo, ClusterType, DeploymentInfo, TestExecution,
-                     TestExecutionInfo)
+from .schema import (
+    ClusterInfo,
+    ClusterType,
+    DeploymentInfo,
+    TestExecution,
+    TestExecutionInfo,
+    ObservabilityMemMetadata,
+    ObservabilityMemInfo,
+    ObservabilityMemEntry,
+)
 
 # -------------------------------------------------------------------------------------------------
 #                                                                                          Database
@@ -87,8 +96,16 @@ class Database:
 
         # Tables we manage
         self.cluster_entries: List[ClusterInfo] = []
+        self.obsv_mem_entries: List[ObservabilityMemInfo] = []
 
         self.lock = threading.Lock()
+        self.write_lock = threading.Lock()
+        self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+        self.obsv_mem_entries = []
+        self.batch_buffer = []
+        self.batch_size = 10  # Number of entries to batch before writing
+        self.batch_interval = 5  # Time in seconds to batch before writing
+        self.last_flush_time = time.time()
 
     def init(self, config: DatabaseConfiguration) -> str:
         """
@@ -103,9 +120,11 @@ class Database:
 
             self.config = config
 
-            # Check if there exists a clusters folder, which indicates a virgin file system or not
+            # Check if there exists a clusters folder
             clusters_dir = os.path.join(self.config.storage_path, "clusters")
-            if not os.path.exists(clusters_dir):
+            observability_dir = os.path.join(self.config.storage_path, "observability")
+
+            if not os.path.exists(clusters_dir) and not os.path.exists(observability_dir):
                 logging.warning(
                     f"No data detected in storage path: {self.config.storage_path}, server will start with no data!"
                 )
@@ -113,33 +132,68 @@ class Database:
                 return ""
 
             # Empty the cache always
-            logging.info("Initializaing database, reading from storage...")
+            logging.info("Initializing database, reading from storage...")
 
-            for cluster_uuid in os.listdir(clusters_dir):
-                logging.debug(f"Uploading cluster {cluster_uuid}")
-                info_path = os.path.join(clusters_dir, cluster_uuid, "info.json")
+            # Load cluster entries if the clusters directory exists
+            if os.path.exists(clusters_dir):
+                for cluster_uuid in os.listdir(clusters_dir):
+                    logging.debug(f"Uploading cluster {cluster_uuid}")
+                    info_path = os.path.join(clusters_dir, cluster_uuid, "info.json")
 
-                if os.path.exists(info_path):
+                    if os.path.exists(info_path):
+                        try:
+                            with open(info_path, "r") as file:
+                                entry_json = json.load(file)  # Open the JSON file
+                                entry = ClusterInfo.unmarshal(entry_json)  # Unmarshal it into a struct
+                                self.cluster_entries.append(entry)  # Add it to the server's cache
+
+                                logging.debug(f"Loaded cluster entry {entry.name} OK")
+
+                        except JSONDecodeError as e:
+                            logging.warning(f"Invalid JSON in {info_path}: {e}. Skipping cluster database entry.")
+                        except Exception as e:  # Any other errors.
+                            return f"An unexpected error occurred while processing {info_path}: {e}"
+                    else:
+                        logging.warning(f"No info.json found for cluster {cluster_uuid}. Skipping cluster.")
+
+            # Load observability entries
+            self._load_observability_entries(observability_dir, "memory", self.obsv_mem_entries, ObservabilityMemInfo)
+
+            self.initialized = True
+            logging.info("Database initialized OK")
+
+            return ""
+
+    def _load_observability_entries(self, observability_dir, obsv_type, entries_list, entry_class):
+        """
+        Load observability entries from a specific type directory.
+
+        Args:
+            observability_dir (str): The base directory for observability data.
+            obsv_type (str): The specific type of observability data to load.
+            entries_list (list): The list to store the loaded entries.
+            entry_class (class): The class to unmarshal the JSON data into.
+        """
+        obsv_type_dir = os.path.join(observability_dir, obsv_type)
+        if os.path.exists(obsv_type_dir) and os.path.isdir(obsv_type_dir):
+            for obsv_uuid in os.listdir(obsv_type_dir):
+                info_path = os.path.join(obsv_type_dir, obsv_uuid)
+                if os.path.isfile(info_path):
                     try:
                         with open(info_path, "r") as file:
                             entry_json = json.load(file)  # Open the JSON file
-                            # TODO: Check that the entry below isnt nil
-                            entry = ClusterInfo.unmarshal(entry_json)  # Unmarshal it into a struct
-                            self.cluster_entries.append(entry)  # Add it to the server's cache
+                            entry = entry_class.unmarshal(entry_json)  # Unmarshal it into a struct
+                            entries_list.append(entry)  # Add it to the server's cache
 
-                            logging.debug(f"Loaded cluster entry {entry.name} OK")
+                            logging.debug(f"Loaded {obsv_type} entry {entry.uuid} OK")
 
                     except JSONDecodeError as e:
-                        logging.warning(f"Invalid JSON in {info_path}: {e}. Skipping cluster database entry.")
+                        logging.warning(f"Invalid JSON in {info_path}: {e}. Skipping {obsv_type} database entry.")
                     except Exception as e:  # Any other errors.
-                        return f"An unexpected error occurred while processing {info_path}: {e}"
+                        logging.error(f"An unexpected error occurred while processing {info_path}: {e}")
+                        return
                 else:
-                    logging.warning(f"No info.json found for cluster {cluster_uuid}. Skipping cluster.")
-
-            self.initialized = True
-            logging.info(f"Database initialized OK")
-
-            return ""
+                    logging.warning(f"No valid JSON file found for {obsv_type} entry {obsv_uuid}. Skipping entry.")
 
     # -----------------------------------------------------------------------------
     #                                                                        Health
@@ -762,3 +816,107 @@ class Database:
 
             except Exception as e:
                 return str(e)
+
+    # -----------------------------------------------------------------------------
+    #                                                                 Observability
+    #  --------------------------------------------------------------------------*/
+    def obsv_mem_session_create(self, session_uuid: str, metadata: ObservabilityMemMetadata) -> str:
+        with self.lock:
+            # Check that the entry doesn't already exist
+            for entry in self.obsv_mem_entries:
+                if entry.uuid == session_uuid:
+                    return f"Obsv Mem entry with UUID {session_uuid} already exists in the database."
+
+            # Set the correct paths
+            observability_dir = os.path.join(self.config.storage_path, "observability", "memory")
+
+            # Create the directory if it does not exist
+            if not os.path.exists(observability_dir):
+                os.makedirs(observability_dir)
+
+            now = datetime.now().isoformat()
+
+            # Create the new entry
+            entry = ObservabilityMemInfo(
+                uuid=session_uuid,
+                created_at=now,
+                metadata=metadata,
+                operation_count=0,
+                read_count=0,
+                write_count=0,
+                erase_count=0,
+                operation_entries=[],
+            )
+
+            # Write the file
+            new_entry_path = os.path.join(observability_dir, f"{session_uuid}.json")
+            try:
+                with open(new_entry_path, "w") as file:
+                    json.dump(entry.marshal(), file, indent=4)
+
+                # Update the cache
+                self.obsv_mem_entries.append(entry)
+
+                logging.debug(f"Created new observability memory session {session_uuid} OK")
+
+                return ""
+            except Exception as e:
+                return f"An error occurred while trying to create an observability memory session: {str(e)}"
+
+    def obsv_mem_session_add_measurement(self, session_uuid: str, measurement: ObservabilityMemEntry) -> str:
+        with self.lock:
+            # Find the session by UUID
+            session = None
+            for entry in self.obsv_mem_entries:
+                if entry.uuid == session_uuid:
+                    session = entry
+                    break
+
+            if not session:
+                return f"Session with UUID {session_uuid} not found in the database."
+
+            # Append the new measurement entry
+            session.operation_entries.append(measurement)
+            session.operation_count += 1
+
+            # Update the read/write/erase counts
+            if measurement.operation == "read":
+                session.read_count += 1
+            elif measurement.operation == "write":
+                session.write_count += 1
+            elif measurement.operation == "erase":
+                session.erase_count += 1
+
+            # Initialize session's tracking variables if not present
+            if not hasattr(session, "samples_since_last_save"):
+                session.samples_since_last_save = 0
+            if not hasattr(session, "last_save_time"):
+                session.last_save_time = time.time()
+
+            # Increment the sample count
+            session.samples_since_last_save += 1
+
+            # Determine if we should save based on the conditions
+            current_time = time.time()
+            save_condition = session.samples_since_last_save >= 64 or current_time - session.last_save_time > 1.0
+
+            if save_condition:
+                # Save the updated session info to file in a separate thread
+                def write_to_file(session_data):
+                    try:
+                        observability_dir = os.path.join(self.config.storage_path, "observability", "memory")
+                        session_path = os.path.join(observability_dir, f"{session_uuid}.json")
+                        with self.write_lock:
+                            with open(session_path, "w") as file:
+                                json.dump(session_data.marshal(), file, indent=4)
+                    except Exception as e:
+                        logging.error(f"An error occurred while updating the session: {str(e)}")
+
+                # Submit the file write operation to the executor
+                self.executor.submit(write_to_file, session)
+
+                # Reset the tracking variables after save
+                session.samples_since_last_save = 0
+                session.last_save_time = current_time
+
+        return ""

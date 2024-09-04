@@ -3,6 +3,9 @@ import logging
 import requests
 from typing import List
 import uuid
+import json
+import datetime
+import struct
 
 # 3rd party includes
 from flask import Blueprint, jsonify, request
@@ -11,60 +14,59 @@ from flask import Blueprint, jsonify, request
 from config import conf
 from src.middleware.permissions import authMiddleware
 from src.services.proxy import appProxyServer
+from src.services.database.schema import ObservabilityMemEntry
 
 # Flask Route
 observability_memory_measurement_bp = Blueprint("observability_memory_measurement", __name__)
 
-read_count = 0
-write_count = 0
-erase_count = 0
 
-
-@observability_memory_measurement_bp.route("/v1/observability/memory/measurement", methods=["POST"])
-def observability_memory_measurement_handler():
+@observability_memory_measurement_bp.route("/v1/observability/memory/<session_uuid>/measurement", methods=["POST"])
+def observability_memory_measurement_handler(session_uuid):
     global read_count, write_count, erase_count
 
     try:
-        logging.warn(request)
-        data = request.get_json()
-        session_id = data.get("session_id")
+        data = request.get_data()
+        if len(data) < 2:
+            return jsonify({"error": "Invalid payload"}), 400
 
-        if not session_id:
-            return jsonify({"error": "Session ID is required"}), 400
+        event_count = struct.unpack("<H", data[:2])[0]
+        events_data = data[2:]
 
-        measurements = data.get("measurements", [])
+        # Correct struct format string for 32-bit platform (24 bytes)
+        format_string = "<8sIIIB3x"
+        expected_size = event_count * struct.calcsize(format_string)
+        if len(events_data) != expected_size:
+            logging.error(f"Payload size does not match event count. Expected {expected_size}, got {len(events_data)}")
+            return jsonify({"error": "Payload size does not match event count"}), 400
 
-        if not measurements:
-            return jsonify({"error": "Measurements are required"}), 400
-
-        json_body = []
-        for measurement in measurements:
-            operation = measurement.get("operation")
-            if operation == "read":
-                read_count += 1
-            elif operation == "write":
-                write_count += 1
-            elif operation == "erase":
-                erase_count += 1
-
-            json_body.append(
+        measurements = []
+        for i in range(event_count):
+            offset = i * struct.calcsize(format_string)
+            event = struct.unpack_from(format_string, events_data, offset)
+            measurements.append(
                 {
-                    "measurement": "memory_operations",
-                    "tags": {"session_id": session_id, "operation": operation},
-                    "fields": {
-                        "address": measurement.get("address"),
-                        "size": measurement.get("size"),
-                        "time_taken": measurement.get("time_taken"),
-                    },
+                    "operation": event[0].decode("utf-8").strip("\x00"),
+                    "time": event[1],
+                    "address": event[2],
+                    "size": event[3],
+                    "time_taken": event[4],
                 }
             )
 
-        appProxyServer.influxdb_client.write_points(json_body)
+        # logging.warning(f"Received {event_count} measurements, length {len(data)} bytes")
 
-        logging.info(f"Batch of measurements recorded for session {session_id}")
-        logging.info(f"Read operations count: {read_count}")
-        logging.info(f"Write operations count: {write_count}")
-        logging.info(f"Erase operations count: {erase_count}")
+        for measurement in measurements:
+            entry = ObservabilityMemEntry(
+                time=measurement["time"],
+                operation=measurement["operation"],
+                address=measurement["address"],
+                size=measurement["size"],
+                time_taken=measurement["time_taken"],
+            )
+
+            error = appProxyServer.db.obsv_mem_session_add_measurement(session_uuid, entry)
+            if error:
+                return jsonify({"error": error}), 500
 
         return "", 200
 

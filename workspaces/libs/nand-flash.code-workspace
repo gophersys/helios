@@ -26,7 +26,21 @@
             "string_view": "c",
             "initializer_list": "c",
             "utility": "c",
-            "obsv.h": "c"
+            "obsv.h": "c",
+            "atomic": "cpp",
+            "*.tcc": "cpp",
+            "chrono": "cpp",
+            "deque": "cpp",
+            "vector": "cpp",
+            "memory_resource": "cpp",
+            "random": "cpp",
+            "functional": "cpp",
+            "istream": "cpp",
+            "type_traits": "cpp",
+            "tuple": "cpp",
+            "configure.h": "c",
+            "defs.h": "c",
+            "flash.h": "c"
         },
     }
 }

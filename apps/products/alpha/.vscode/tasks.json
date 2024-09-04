@@ -1,0 +1,73 @@
+{
+    "version": "2.0.0",
+    "options": {
+        "env": {
+            // "APP_BOARD": "nucleo_h743zi"
+            // "APP_BOARD": "stm32f412g_disco"
+            // "APP_BOARD": "nucleo_f412zg"
+            "APP_BOARD": "alpha"
+        }
+    },
+    "tasks": [
+        {
+            "label": "West Build",
+            "type": "shell",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "command": "west",
+            "args": [
+                "build",
+                "-p",
+                "auto",
+                // "-t",
+                // "merge_hex",
+                "-b",
+                "${APP_BOARD}",
+                // "--",
+                // "-DBOARD_ROOT=/workspaces/concord/libs",
+            ],
+            "problemMatcher": [
+                "$gcc"
+            ],
+        },
+        {
+            "label": "West Clean Build",
+            "type": "shell",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "command": "west",
+            "args": [
+                "build",
+                "-p",
+                "always",
+                "-t",
+                "merge_hex",
+                "-b",
+                "${APP_BOARD}",
+                // "--",
+                // "-DBOARD_ROOT=/workspaces/concord/libs"
+            ],
+            "problemMatcher": [
+                "$gcc"
+            ],
+        },
+        {
+            "label": "West Flash",
+            "type": "shell",
+            "command": "west",
+            "args": [
+                "-v",
+                "flash",
+                "--runner",
+                "jlink"
+            ],
+            "problemMatcher": [
+                "$gcc"
+            ]
+        },
+    ],
+}

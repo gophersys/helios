@@ -8,12 +8,6 @@
       "command": "nx run runner:containerize",
       "cwd": "{workspaceRoot}"
     },
-    "push": {
-      "dependsOn": [
-        "build"
-      ],
-      "command": "docker push ccr01.ad.corekinect.com/mtib-runner:1.0"
-    },
     "containerize": {
       "executor": "@nx-tools/nx-container:build",
       "cwd": "{workspaceRoot}",
@@ -26,7 +20,7 @@
         "load": true,
         "push": false,
         "tags": [
-          "ccr01.ad.corekinect.com/mtib-runner:1.0"
+          "ccr01.ad.corekinect.com/mtib-runner:log"
         ]
       }
     },

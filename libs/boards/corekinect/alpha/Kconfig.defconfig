@@ -1,0 +1,6 @@
+if BOARD_ALPHA
+
+config BT_CTLR
+	default BT
+
+endif # BOARD_COREKINECT_ALPHA
