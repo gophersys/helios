@@ -11,32 +11,27 @@
 
 LOG_MODULE_REGISTER(app, 4);
 
-const char *get_psp_error_string(PSP_ERROR err);
+const char *psp_error_string(PSP_ERROR err);
 
-int main(void)
-{
-    while (true)
-    {
+int main(void) {
+    while (true) {
         // The library will tell us how much memory it needs to use
         static PSP_INST_PARAMS inst_params = {0};
         PSP_ERROR err = PSP_GetDefaultParams(&inst_params);
-        if (err != PSP_ERROR_NONE)
-        {
-            LOG_ERR("Could not get the default parameters for Phillips library: %s", get_psp_error_string(err));
+        if (err != PSP_ERROR_NONE) {
+            LOG_ERR("Could not get the default parameters for Phillips library: %s", psp_error_string(err));
             k_fatal_halt(0);
         }
 
         // Allocate memory to call the library
         inst_params.pMem = k_malloc(inst_params.memorySize);
-        if (inst_params.pMem == NULL)
-        {
+        if (inst_params.pMem == NULL) {
             LOG_ERR("Could not allocated %d bytes of memory for instance needed by Phillips library", inst_params.memorySize);
             k_fatal_halt(0);
         }
 
         inst_params.pSourceID = k_malloc(inst_params.sourceIDSize);
-        if (inst_params.pMem == NULL)
-        {
+        if (inst_params.pMem == NULL) {
             LOG_ERR("Could not allocated %d bytes of memory for source ID needed by Phillips library", inst_params.sourceIDSize);
             k_fatal_halt(0);
         }
@@ -44,9 +39,8 @@ int main(void)
         // Create a new library instance
         static PPSP_INST inst = {0};
         err = PSP_Initialise(&inst_params, &inst);
-        if (err != PSP_ERROR_NONE)
-        {
-            LOG_ERR("Could not initialize Phillips library: %s", get_psp_error_string(err));
+        if (err != PSP_ERROR_NONE) {
+            LOG_ERR("Could not initialize Phillips library: %s", psp_error_string(err));
             k_fatal_halt(0);
         }
 
@@ -57,10 +51,8 @@ int main(void)
     return 0;
 }
 
-const char *get_psp_error_string(PSP_ERROR err)
-{
-    switch (err)
-    {
+const char *psp_error_string(PSP_ERROR err) {
+    switch (err) {
         case PSP_ERROR_NONE:
             return "No error";
         case PSP_ERROR_NOT_ENOUGH_MEMORY:

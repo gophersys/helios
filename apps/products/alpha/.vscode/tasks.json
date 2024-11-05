@@ -3,9 +3,7 @@
     "options": {
         "env": {
             // "APP_BOARD": "nucleo_h743zi"
-            // "APP_BOARD": "stm32f412g_disco"
-            // "APP_BOARD": "nucleo_f412zg"
-            "APP_BOARD": "alpha"
+            "APP_BOARD": "nrf5340dk/nrf5340/cpuapp"
         }
     },
     "tasks": [
@@ -21,12 +19,8 @@
                 "build",
                 "-p",
                 "auto",
-                // "-t",
-                // "merge_hex",
                 "-b",
-                "${APP_BOARD}",
-                // "--",
-                // "-DBOARD_ROOT=/workspaces/concord/libs",
+                "${APP_BOARD}"
             ],
             "problemMatcher": [
                 "$gcc"
@@ -44,12 +38,8 @@
                 "build",
                 "-p",
                 "always",
-                "-t",
-                "merge_hex",
                 "-b",
-                "${APP_BOARD}",
-                // "--",
-                // "-DBOARD_ROOT=/workspaces/concord/libs"
+                "${APP_BOARD}"
             ],
             "problemMatcher": [
                 "$gcc"
@@ -60,10 +50,7 @@
             "type": "shell",
             "command": "west",
             "args": [
-                "-v",
                 "flash",
-                "--runner",
-                "jlink"
             ],
             "problemMatcher": [
                 "$gcc"

@@ -1,0 +1,57 @@
+&uart0 {
+    status = "okay";
+    current-speed = <115200>;
+};
+
+&i2c1 {
+    compatible = "nordic,nrf-twim";
+    status = "okay";
+    pinctrl-0 = <&i2c2_default>;
+    pinctrl-1 = <&i2c2_sleep>;
+    pinctrl-names = "default", "sleep";
+    clock-frequency = <I2C_BITRATE_FAST>;
+
+    pah8151: pah8151@15 {
+        compatible = "pixart,pah8151";
+        reg = <0x15>;
+        irq-gpios = <&gpio0 6 GPIO_ACTIVE_HIGH>;
+        int-pin = <1>;
+        led-current-ir = <255>;
+        led-current-red = <255>;
+        led-current-green = <255>;
+    };
+
+     lsm6dso0: lsm6dso@6b {
+        status = "okay";
+		compatible = "st,lsm6dso";
+        reg = <0x6b>;
+        int-pin = <1>;	
+        irq-gpios =  <&gpio0 7 GPIO_ACTIVE_HIGH>;
+        accel-pm = <1>;      // 1 # LSM6DSO_DT_XL_LP_NORMAL_MODE
+        accel-range = <0>;   // 2 # LSM6DSO_DT_XL_FS_2G
+        accel-odr = <2>;     // 3 # LSM6DSO_DT_XL_ODR_26HZ
+        gyro-pm = <1>;       // 1 # LSM6DSO_DT_GY_NORMAL_MODE
+        gyro-range = <0>;    // 2 # LSM6DSO_DT_GY_FS_2000DPS
+        gyro-odr = <2>;      // 3 # LSM6DSO_DT_GY_ODR_26HZ
+        drdy-pulsed;
+	};
+};
+
+&pinctrl {
+    i2c2_default: i2c2_default {
+        group1 {
+            psels = <NRF_PSEL(TWIM_SCL, 0, 4)>,
+                    <NRF_PSEL(TWIM_SDA, 0, 5)>;
+            bias-pull-up;
+            nordic,drive-mode = <NRF_DRIVE_H0S1>;
+        };
+    };
+ 
+    i2c2_sleep: i2c2_sleep {
+        group1 {
+            psels = <NRF_PSEL(TWIM_SCL, 0, 4)>,
+                    <NRF_PSEL(TWIM_SDA, 0, 5)>;
+            low-power-enable;
+        };
+    };
+};
