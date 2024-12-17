@@ -6,17 +6,17 @@
 #include <corekinect/sensor/pah8151.h>
 #include <zephyr/device.h>
 #include <zephyr/drivers/sensor.h>
-#include <zephyr/kernel.h>
+#include <zephyr/kernel.h>       `
 #include <zephyr/logging/log.h>
 
 // Application includes
+#include "threads/bluetooth/thread.h"
 #include "threads/vitals/thread.h"
 
-// PSP library includes
-#include "../lib/inc/fx_datatypes.h"
-#include "../lib/inc/psp.h"
+// Add after other includes
+#include <zephyr/kernel.h>
 
-LOG_MODULE_REGISTER(app, 4);
+LOG_MODULE_REGISTER(alpha, 4);
 
 int main(void) {
     // Configure vitals thread
@@ -31,6 +31,21 @@ int main(void) {
     // Initialize vitals thread
     if (!vitals_thread_init(&vitals_config, &vitals_thread)) {
         LOG_ERR("Failed to initialize vitals thread");
+        return -1;
+    }
+
+    // Configure bluetooth thread
+    static const bluetooth_thread_config_t bluetooth_config = {
+        .ppg_data_enabled = false,
+        .accel_data_enabled = false,
+    };
+
+    // Allocate bluetooth thread
+    static bluetooth_thread_t bluetooth_thread = {0};
+
+    // Initialize bluetooth thread
+    if (!bluetooth_thread_init(&bluetooth_config, &bluetooth_thread)) {
+        LOG_ERR("Failed to initialize bluetooth thread");
         return -1;
     }
 

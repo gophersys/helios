@@ -2,7 +2,7 @@
 
 // Private thread includes
 #include "types.h"
-#include "utils.h"
+#include "utils/api.h"
 
 // Standard includes
 #include <stdbool.h>
@@ -18,11 +18,11 @@
 // Corekinect includes
 #include <corekinect/sensor/pah8151.h>
 
-// Phillips Biosensing Platform Library includes
-#include "../../../lib/inc/fx_datatypes.h"
-#include "../../../lib/inc/psp.h"
+// App includes
+#include "../bluetooth/thread.h"
+#include "../bluetooth/types.h"
 
-LOG_MODULE_REGISTER(vitals, LOG_LEVEL_DBG);
+LOG_MODULE_REGISTER(vitals_t, LOG_LEVEL_INF);
 
 /*----------------------------------------------------------------------------------------
  *                                                                            Configuration
@@ -98,7 +98,7 @@ bool vitals_thread_init(const vitals_thread_config_t *p_config, vitals_thread_t 
                                     p_thread,
                                     NULL,
                                     NULL,
-                                    K_PRIO_COOP(120),
+                                    CONFIG_VITALS_THREAD_PRIORITY,
                                     0,
                                     K_NO_WAIT);
 
@@ -250,26 +250,31 @@ static void _ppg_touch_handler(const struct device *p_dev, const struct sensor_t
 static void _imu_acc_trig_handler(const struct device *dev, const struct sensor_trigger *trig) {
     sensor_sample_fetch_chan(dev, SENSOR_CHAN_ACCEL_XYZ);
     vitals_thread_t *p_thread = _get_thread_from_dev(dev);
-    if (p_thread == NULL) {
+    if (p_thread == NULL || !p_thread->is_touched) {
         return;
     }
 
     struct sensor_value accel_samples[3];
     sensor_channel_get(dev, SENSOR_CHAN_ACCEL_XYZ, accel_samples);
 
+    int64_t current_time = k_uptime_get();
+
     accel_interrupt_sample_t sample = {
-        .timestamp = k_uptime_get(),
+        .timestamp = current_time,
         .x = sensor_value_to_float(&accel_samples[0]),
         .y = sensor_value_to_float(&accel_samples[1]),
         .z = sensor_value_to_float(&accel_samples[2])};
 
-    // If buffer is full, remove oldest sample
-    if (ring_buf_space_get(&p_thread->accel_interrupt_samples_buf) < sizeof(sample)) {
-        uint8_t dummy[sizeof(sample)];
-        ring_buf_get(&p_thread->accel_interrupt_samples_buf, dummy, sizeof(sample));
+    k_spinlock_key_t key = k_spin_lock(&p_thread->accel_buf_lock);
+
+    // Only add if we have space and buffer isn't being processed
+    if (ring_buf_space_get(&p_thread->accel_interrupt_samples_buf) >= sizeof(sample)) {
+        ring_buf_put(&p_thread->accel_interrupt_samples_buf, (uint8_t *)&sample, sizeof(sample));
+    } else {
+        LOG_WRN("Accelerometer buffer is full, dropping sample");
     }
 
-    ring_buf_put(&p_thread->accel_interrupt_samples_buf, (uint8_t *)&sample, sizeof(sample));
+    k_spin_unlock(&p_thread->accel_buf_lock, key);
 }
 
 static void _imu_gyro_trig_handler(const struct device *dev, const struct sensor_trigger *trig) {
@@ -308,18 +313,72 @@ static void _vitals_thread_entry(void *p_arg0, void *p_arg1, void *p_arg2) {
             if (p_thread->events[VITALS_THREAD_EVENT_PPG_DATA_READY].state == K_POLL_STATE_SEM_AVAILABLE) {
                 k_sem_take(&p_thread->ppg_data_ready_sem, K_NO_WAIT);
 
-                // Interpolate the PPG samples with the accelerometer samples (25Hz)
-                _interpolate_sensor_samples(p_thread);
+                // Add retry logic with timeout
+                uint32_t start_time = k_uptime_get_32();
+                bool samples_acquired = false;
 
-                // Print all the latest combined samples
-                _print_sensor_samples(p_thread);
+                while ((k_uptime_get_32() - start_time) < 100) {  // 100ms timeout
+                    // Take spinlock before accessing ring buffer
+                    k_spinlock_key_t key = k_spin_lock(&p_thread->accel_buf_lock);
 
-                // Update the PSP algorithm input metrics
-                _psp_update_input_metrics(p_thread);
+                    uint32_t accel_samples = ring_buf_size_get(&p_thread->accel_interrupt_samples_buf) /
+                                             sizeof(accel_interrupt_sample_t);
 
-                // Process the PPG data with PSP algorithm
-                if (!_psp_process(p_thread)) {
-                    LOG_ERR("Failed to process PPG data with PSP algorithm");
+                    if (accel_samples >= CONFIG_ACCEL_RING_BUF_COUNT) {
+                        // Create a temporary buffer to ensure proper memory alignment
+                        accel_interrupt_sample_t temp_samples[CONFIG_ACCEL_RING_BUF_COUNT];
+                        memset(temp_samples, 0, sizeof(temp_samples));
+
+                        uint32_t bytes_read = ring_buf_get(&p_thread->accel_interrupt_samples_buf,
+                                                           (uint8_t *)temp_samples,
+                                                           sizeof(accel_interrupt_sample_t) * CONFIG_ACCEL_RING_BUF_COUNT);
+
+                        if (bytes_read == sizeof(accel_interrupt_sample_t) * CONFIG_ACCEL_RING_BUF_COUNT) {
+                            // Copy verified samples to thread structure
+                            memcpy(p_thread->accel_interrupt_samples, temp_samples, sizeof(accel_interrupt_sample_t) * CONFIG_ACCEL_RING_BUF_COUNT);
+
+                            // Clear the buffer
+                            ring_buf_reset(&p_thread->accel_interrupt_samples_buf);
+                            k_spin_unlock(&p_thread->accel_buf_lock, key);
+
+                            // Process the data
+                            _prepare_sensor_samples(p_thread);
+
+                            _send_ble_sensor_samples(p_thread);
+
+                            // Call the PSP algorithm
+                            if (!_psp_update_input_metrics(p_thread)) {
+                                LOG_ERR("Failed to update input metrics");
+                            }
+
+                            if (!_psp_process(p_thread)) {
+                                LOG_ERR("Failed to process PPG data with PSP algorithm");
+                            }
+
+                            if (!_psp_get_output_metrics(p_thread)) {
+                                LOG_ERR("Failed to get output metrics");
+                            }
+
+                            samples_acquired = true;
+                            break;  // Exit the retry loop
+                        } else {
+                            LOG_ERR("Failed to read correct number of samples: got %d bytes, expected %d",
+                                    bytes_read, sizeof(accel_interrupt_sample_t) * CONFIG_ACCEL_RING_BUF_COUNT);
+                            ring_buf_reset(&p_thread->accel_interrupt_samples_buf);
+                            k_spin_unlock(&p_thread->accel_buf_lock, key);
+                        }
+                    } else {
+                        k_spin_unlock(&p_thread->accel_buf_lock, key);
+                        LOG_DBG("Waiting for samples: %d/%d", accel_samples, CONFIG_ACCEL_RING_BUF_COUNT);
+                        k_sleep(K_MSEC(10));  // Wait 10ms before next attempt
+                        continue;
+                    }
+                }
+
+                if (!samples_acquired) {
+                    LOG_WRN("Timeout waiting for accelerometer samples after 100ms: %d/%d",
+                            ring_buf_size_get(&p_thread->accel_interrupt_samples_buf) / sizeof(accel_interrupt_sample_t),
+                            CONFIG_ACCEL_RING_BUF_COUNT);
                 }
             }
             if (p_thread->events[VITALS_THREAD_EVENT_PPG_TOUCH].state == K_POLL_STATE_SEM_AVAILABLE) {

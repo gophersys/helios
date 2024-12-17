@@ -16,10 +16,15 @@
 #include "../../../lib/inc/psp.h"
 
 /**
+ * @brief The priority for the vitals thread
+ */
+#define CONFIG_VITALS_THREAD_PRIORITY 119
+
+/**
  * @brief Configuration constants for the vitals thread
  *
  */
-#define CONFIG_VITALS_THREAD_STACK_SIZE 4096
+#define CONFIG_VITALS_THREAD_STACK_SIZE 4096 * 2
 
 /**
  * @brief The size of the PSP algorithm heap
@@ -47,9 +52,14 @@
 #define CONFIG_PSP_ALGORITHM_SAMPLES_PER_SECOND 32
 
 /**
- * @brief The maximum number of metrics for the PSP algorithm
+ * @brief The maximum number of input metrics for the PSP algorithm
  */
-#define CONFIG_PSP_MAX_METRICS 15
+#define CONFIG_PSP_NUM_INPUT_METRICS 15
+
+/**
+ * @brief The maximum number of output metrics for the PSP algorithm
+ */
+#define CONFIG_PSP_NUM_OUTPUT_METRICS 24
 
 /**
  * @brief The events for the vitals thread
@@ -129,17 +139,21 @@ typedef struct {
 
     // Buffer for accelerometer samples
     // This buffer is used to store the accelerometer samples until the PPG samples are ready
+    accel_interrupt_sample_t accel_interrupt_samples[CONFIG_ACCEL_RING_BUF_COUNT];
     struct ring_buf accel_interrupt_samples_buf;
-    uint8_t accel_interrupt_buf_data[CONFIG_ACCEL_RING_BUF_COUNT * sizeof(accel_interrupt_sample_t)];
+    uint8_t accel_interrupt_buf_data[CONFIG_ACCEL_RING_BUF_COUNT * sizeof(accel_interrupt_sample_t) * 2];
 
     // Buffer for PPG samples
     pah8151_ppg_sample_t ppg_interrupt_samples[CONFIG_PPG_SAMPLES_PER_BATCH];
 
     // Combined samples buffer for raw sensor data interpolated at 25Hz
-    sensors_sample_t combined_samples[CONFIG_PPG_SAMPLES_PER_BATCH];
+    sensors_sample_t raw_samples_25Hz[CONFIG_PPG_SAMPLES_PER_BATCH];
+
+    // Combined samples buffer for raw sensor data interpolated at 32Hz
+    sensors_sample_t raw_samples_32Hz[CONFIG_PSP_ALGORITHM_SAMPLES_PER_SECOND];
 
     // PSP algorithm input metrics
-    psp_algorithm_input_metrics_t psp_input_metrics[CONFIG_PSP_ALGORITHM_SAMPLES_PER_SECOND];
+    psp_algorithm_input_metrics_t psp_input_samples_32Hz[CONFIG_PSP_ALGORITHM_SAMPLES_PER_SECOND];
 
     // Touch state
     bool is_touched;
@@ -147,10 +161,16 @@ typedef struct {
     // PSP algorithm
     PPSP_INST psp_inst;
     PSP_INST_PARAMS psp_inst_params;
-    PSP_METRIC_ID psp_required_metrics[CONFIG_PSP_MAX_METRICS];
+    PSP_METRIC_ID psp_required_metrics[CONFIG_PSP_NUM_INPUT_METRICS];
     uint8_t psp_required_metrics_count;
     struct k_heap psp_heap;
     uint8_t __aligned(8) psp_heap_mem[CONFIG_PSP_MEMORY_SIZE];
+    struct k_spinlock accel_buf_lock;
+    uint32_t sequence_number;
+
+    // Flags for data
+    bool calibration_complete;
+    bool data_ready_for_psp;
 } vitals_thread_t;
 
 #endif  // THREADS_VITALS_TYPES_H_

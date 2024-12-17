@@ -3,7 +3,8 @@
     "options": {
         "env": {
             // "APP_BOARD": "nucleo_h743zi"
-            "APP_BOARD": "nrf5340dk/nrf5340/cpuapp"
+            // "APP_BOARD": "nrf5340dk/nrf5340/cpuapp"
+            "APP_BOARD": "theta_a0/nrf52840"
         }
     },
     "tasks": [

@@ -1,5 +1,3 @@
 target_sources(app PRIVATE
     thread.c
 )
-
-add_subdirectory(utils)

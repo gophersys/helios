@@ -43,3 +43,9 @@
 [submodule "libs/zephyr/max32644_drv"]
 	path = libs/zephyr/max32644_drv
 	url = git@bitbucket.org:corekinect/max32644_drv.git
+[submodule "libs/zephyr/pah8151_drv"]
+	path = libs/zephyr/pah8151_drv
+	url = git@bitbucket.org:corekinect/pah8151_drv.git
+[submodule "libs/zephyr/ck_boards"]
+	path = libs/zephyr/ck_boards
+	url = git@bitbucket.org:corekinect/ck_boards.git

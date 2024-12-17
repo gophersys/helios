@@ -1,16 +1,54 @@
 {
     "folders": [
         {
-            "path": "../../libs/boards"
-        },
-        {
+            "name": "alpha",
             "path": "../../apps/products/alpha"
         },
         {
-            "path": "../../libs/zephyr"
+            "name": "lsm6dso",
+            "path": "../../../../ncs/zephyr/drivers/sensor/st/lsm6dso"
+        },
+        {
+            "path": "../../libs/zephyr/pah8151_drv"
+        },
+        {
+            "path": "../../libs/zephyr/ck_boards"
         }
     ],
     "settings": {
-        "files.associations": {},
+        "files.associations": {
+            ".env": "env",
+            "*.overlay": "dts",
+            ".env.example": "env",
+            "*.conf": "kconfig",
+            "mlx90632.h": "c",
+            "pah8151.h": "c",
+            "compare": "cpp",
+            "pah_815x_comm.h": "c",
+            "string_view": "cpp",
+            "i2c.h": "c",
+            "pah8151_reg.h": "c",
+            "gpio.h": "c",
+            "kernel.h": "c",
+            "device.h": "c",
+            "sensor.h": "c",
+            "log.h": "c",
+            "spinlock.h": "c",
+            "vitals.h": "c",
+            "fx_datatypes.h": "c",
+            "stdbool.h": "c",
+            "psp.h": "c",
+            "utils.h": "c",
+            "bit": "c",
+            "condition_variable": "c",
+            "cstddef": "c",
+            "string": "c",
+            "limits": "c",
+            "memory": "c",
+            "mutex": "c",
+            "new": "c",
+            "functional": "c",
+            "conn.h": "c"
+        },
     }
 }

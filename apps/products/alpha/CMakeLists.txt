@@ -1,17 +1,18 @@
 cmake_minimum_required(VERSION 3.20.0)
 
-# set(DTS_ROOT ${CMAKE_CURRENT_LIST_DIR}/../../../libs)
-# set(BOARD_ROOT ${CMAKE_CURRENT_LIST_DIR}/../../../libs)
-# set(BOARD corekinect_alpha)
-
 # Drivers
 set(DRIVERS
-    new_pah8151_drv
+    pah8151_drv
 )
 
 # Set Monorepo root
 set(MONOREPO_ROOT "/workspaces/concord")
 set(MONOREPO_ROOT ${MONOREPO_ROOT} CACHE INTERNAL "Monorepo root directory")
+
+# Set the paths to the DTS and BOARD
+set(DTS_ROOT ${MONOREPO_ROOT}/libs/zephyr/ck_boards/current)
+set(BOARD_ROOT ${MONOREPO_ROOT}/libs/zephyr/ck_boards/current)
+set(BOARD theta_a0/nrf52840)
 
 # Append drivers
 foreach(DRIVER IN LISTS DRIVERS)
@@ -48,7 +49,6 @@ if(EXISTS ${LIBRARY_HEX_PATH})
 else()
     message(WARNING "Library hex file not found. Ensure the correct path is provided.")
 endif()
-
 
 target_sources(app PRIVATE src/main.c lib/inc/psp.c)
 

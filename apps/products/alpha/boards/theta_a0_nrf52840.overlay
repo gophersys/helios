@@ -9,7 +9,7 @@
     pinctrl-0 = <&i2c2_default>;
     pinctrl-1 = <&i2c2_sleep>;
     pinctrl-names = "default", "sleep";
-    clock-frequency = <I2C_BITRATE_FAST_PLUS>;
+    clock-frequency = <I2C_BITRATE_FAST>;
 
     pah8151: pah8151@15 {
         compatible = "pixart,pah8151";
