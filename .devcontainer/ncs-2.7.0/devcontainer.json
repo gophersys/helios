@@ -2,6 +2,7 @@
   "name": "NCS 2.7.0 Dev",
   "image": "containers.ad.corekinect.com/concord-ncs-2.7.0:latest",
   "postCreateCommand": "npm install && npm fund && npm audit fix && NX_NO_CLOUD=true",
+  "postStartCommand": "chmod +x .devcontainer/start.sh && ./.devcontainer/start.sh",
   "runArgs": [
     "--privileged",
     "--network=host"

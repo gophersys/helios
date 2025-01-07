@@ -1,9 +1,0 @@
-{
-    "files.associations": {
-        ".env": "env",
-        "*.overlay": "dts",
-        ".env.example": "env",
-        "*.conf": "kconfig",
-        "dns_sec_types.h": "c"
-    }
-}
