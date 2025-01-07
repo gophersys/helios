@@ -1,7 +1,7 @@
 {
-  "name": "Python Dev",
-  "image": "ccr01.ad.corekinect.com/concord-dev-env:1.8",
-  "postCreateCommand": "npm install && npm fund && NX_NO_CLOUD=true",
+  "name": "Base Dev Environment",
+  "image": "containers.ad.corekinect.com/concord-base:latest",
+  "postCreateCommand": "npm install && npm fund && npm audit fix && NX_NO_CLOUD=true",
   "runArgs": [
     "--privileged",
     "--network=host"
@@ -9,8 +9,9 @@
   "mounts": [
     "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind",
     "source=/dev,target=/dev,type=bind",
-    // Uncomment the following volume when developing in the OrangePi, to enable GPIO control from within the container
-    // "source=/sys/class/gpio,target=/sys/class/gpio,type=bind"
+    "source=${localEnv:HOME}/.ssh-devcontainer,target=/root/.ssh,type=bind,readonly",
+    "source=${localEnv:HOME}/.oh-my-zsh/custom/themes,target=/root/.oh-my-zsh/custom/themes,type=bind,readonly",
+    "source=${localEnv:HOME}/.zshrc,target=/root/.zshrc,type=bind,readonly"
   ],
   // Vs Code Customizations
   "customizations": {
@@ -32,9 +33,13 @@
           "--line-length",
           "119"
         ],
-        "isort.args":["--profile", "black"]
+        "isort.args": [
+          "--profile",
+          "black"
+        ]
       },
       "extensions": [
+        "mutantdino.resourcemonitor",
         "ms-python.isort",
         "ms-python.black-formatter",
         "ms-azuretools.vscode-docker",

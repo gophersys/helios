@@ -1,4 +1,4 @@
-FROM ccr01.ad.corekinect.com/concord-dev-env:1.8
+FROM containers.ad.corekinect.com/concord-base:latest
 
 # -----------------------------------------------------------------------------------------------------
 #                                                                                                Zephyr

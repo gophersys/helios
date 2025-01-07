@@ -1,14 +1,17 @@
 FROM ubuntu:22.04
 
-# Update System
-RUN apt update && apt upgrade -y 
-
 # Install global dependencies needed for downloading, installing & building software
-RUN apt install -y curl git libc6-dev
+RUN apt update && \
+    apt install -y \
+    curl \
+    git \
+    libc6-dev \
+    zsh \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
-# Setup shell
-RUN apt install -y zsh
-RUN sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
+# Down oh my zsh and set it as default shell
+RUN sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/2056aeeeaddd977eb205619c6f236b94dac896be/tools/install.sh)"
 RUN chsh -s $(which zsh)
 
 # Switch to zsh for all subsequent RUN commands
@@ -18,18 +21,31 @@ SHELL ["/usr/bin/zsh", "-c"]
 #                                                                                                    Nx
 # ---------------------------------------------------------------------------------------------------*/
 
-# Install Node Version Manager and latest LTS release of Node.js
-RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.5/install.sh | bash && \
-    source ~/.zshrc && \
-    nvm install v18.17.1 && \
-    npm install -g npm@10.0.0 && \
+# Install Node Version Manager and Node.js
+RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash && \
+    echo 'export NVM_DIR="/root/.nvm"' >> /root/.profile && \
+    echo '[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"' >> /root/.profile && \
+    echo 'export NVM_DIR="/root/.nvm"' >> /root/.bashrc && \
+    echo '[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"' >> /root/.bashrc && \
+    . /root/.nvm/nvm.sh && \
+    nvm install v22.12.0 && \
+    nvm alias default v22.12.0 && \
+    npm install -g npm@11.0.0 && \
     npm install -g nx
+
+# Create symbolic links for node and npm in /usr/local/bin with full paths
+RUN ln -sf "/root/.nvm/versions/node/v22.12.0/bin/node" "/usr/local/bin/node" && \
+    ln -sf "/root/.nvm/versions/node/v22.12.0/bin/npm" "/usr/local/bin/npm" && \
+    ln -sf "/root/.nvm/versions/node/v22.12.0/bin/nx" "/usr/local/bin/nx"
+
+# Verify the installation
+RUN node --version && npm --version && nx --version
 
 # -----------------------------------------------------------------------------------------------------
 #                                                                                                    Go
 # ---------------------------------------------------------------------------------------------------*/
 
-ARG GO_VERSION=1.20.5
+ARG GO_VERSION=1.23.4
 RUN ARCH="" && \
     case "$(uname -m)" in \
     x86_64) ARCH="amd64" ;; \
@@ -83,7 +99,7 @@ RUN apt-get update && \
     astyle \
     unzip \
     protobuf-compiler \
-    python3.10-venv \
+    python3-venv \
     && apt-get clean \ 
     && rm -rf /var/lib/apt/lists/* 
 
@@ -94,11 +110,11 @@ RUN apt-get update && \
 # Determine architecture and download the appropriate version of protoc
 RUN ARCH="$(uname -m)" && \
     case "${ARCH}" in \
-    aarch64) PROTOC_ZIP="protoc-25.2-linux-aarch_64.zip" ;; \
-    x86_64) PROTOC_ZIP="protoc-25.2-linux-x86_64.zip" ;; \
+    aarch64) PROTOC_ZIP="protoc-29.1-linux-aarch_64.zip" ;; \
+    x86_64) PROTOC_ZIP="protoc-29.1-linux-x86_64.zip" ;; \
     *) echo "Unsupported architecture: ${ARCH}" && exit 1 ;; \
     esac && \
-    curl -LO "https://github.com/protocolbuffers/protobuf/releases/download/v25.2/${PROTOC_ZIP}" && \
+    curl -LO "https://github.com/protocolbuffers/protobuf/releases/download/v29.1/${PROTOC_ZIP}" && \
     unzip -o ${PROTOC_ZIP} -d /usr/local && \
     rm ${PROTOC_ZIP}
 
@@ -151,10 +167,10 @@ RUN apt-get update && \
 RUN ARCH="$(uname -m)" && \
     case "${ARCH}" in \
     aarch64) \
-    JLINK_DEB="JLink_Linux_V796j_arm64.deb" \
+    JLINK_DEB="JLink_Linux_V810i_arm64.deb" \
     ;; \
     x86_64) \
-    JLINK_DEB="JLink_Linux_V796j_x86_64.deb" \
+    JLINK_DEB="JLink_Linux_V810i_x86_64.deb" \
     ;; \
     *) echo "Unsupported architecture: ${ARCH}" && exit 1 ;; \
     esac && \
@@ -180,7 +196,7 @@ ENV PYTHONPATH="/workspaces/concord/libs:${PYTHONPATH}"
 ENV PYTHONPATH="/workspaces/concord/libs/python/:${PYTHONPATH}"
 
 # Install grpcio-tools
-RUN pip3 install grpcio-tools==1.64.0
+RUN pip3 install grpcio-tools==1.68.1
 
 # -----------------------------------------------------------------------------------------------------
 #                                                                                               Kubectl
@@ -211,13 +227,3 @@ RUN ARCH="$(uname -m)" && \
     chmod +x k9s && \
     mv k9s /usr/local/bin/k9s && \
     rm "k9s_Linux_${K9S_ARCH}.tar.gz"
-
-# -----------------------------------------------------------------------------------------------------
-#                                                                                                   End
-# ---------------------------------------------------------------------------------------------------*/
-
-# Fix git issues
-RUN git config --global --add safe.directory /workspaces
-
-# Alias cipherc
-RUN echo "alias cipherc='go run /workspaces/concord/tools/cipherc/main.go'" >> ~/.zshrc

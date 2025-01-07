@@ -1,0 +1,35 @@
+{
+    "name": "devcontainers",
+    "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+    "sourceRoot": ".devcontainer",
+    "projectType": "application",
+    "targets": {
+        "build-all": {
+            "executor": "nx:run-commands",
+            "dependsOn": [
+                "devcontainer-base:build"
+            ],
+            "options": {
+                "commands": [
+                    "nx run devcontainer-ncs-2.4.2:build",
+                    "nx run devcontainer-ncs-2.7.0:build",
+                    "nx run devcontainer-zephyr-6.0.0:build"
+                ]
+            }
+        },
+        "push-all": {
+            "executor": "nx:run-commands",
+            "dependsOn": [
+                "devcontainers:build-all"
+            ],
+            "options": {
+                "commands": [
+                    "nx run devcontainer-base:push",
+                    "nx run devcontainer-ncs-2.4.2:push",
+                    "nx run devcontainer-ncs-2.7.0:push",
+                    "nx run devcontainer-zephyr-6.0.0:push"
+                ]
+            }
+        }
+    }
+}
