@@ -59,6 +59,9 @@ venv/
 .venv/
 .env
 
+# Pytest
+.pytest_cache/
+
 # Firmware files 
 *.hex
 *.zip

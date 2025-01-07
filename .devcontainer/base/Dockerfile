@@ -158,6 +158,7 @@ RUN apt-get update && \
     libxcb-shape0 \
     libxkbcommon-x11-0 \
     curl \
+    libudev-dev \
     udev \
     libice6 || apt-get --fix-broken install -y && \
     apt-get clean && \

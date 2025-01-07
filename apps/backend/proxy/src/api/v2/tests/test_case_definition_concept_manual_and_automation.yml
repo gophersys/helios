@@ -1,0 +1,132 @@
+name: HIPS over-rides BLE Beacon Scanning
+prdLink: https://corekinect.atlassian.net/wiki/spaces/EN/pages/2219802625/SIGMA+PRD#HIPS-configuration-must-take-precedence-over-BLE-Beacon
+objective: "Verify that the HIPS configuration takes precedence over BLE Beacon scanning."
+notes: "This test will no-longer be valid after Sigma5 2.0 release. as both BleBS and HIPS are expected to work at the same time."
+passCriteria:
+  - "Enabling HIPS when in BleBS causes BleBS to be disabled and HIPS to be enabled."
+  - "Enabling BleBS when HIPS is enabled results in HIPS saying enabled and BleBS to not get enabled"
+status: Active
+testEquipment: # Manual testing
+  - MotionTable
+tags:
+  - HIPS
+  - BLE
+  - BleBS
+  - Beacon
+  - Scanning
+  - JumpTrack
+  - Sigma5_A3
+  - Sigma5_B0
+  - Sigma5_B1
+  - SocketServer_0.9
+smartBearID: JUMP-T195
+tuskerId: Sigma5-195
+
+config:
+  - dut_id: "some value"
+
+manualTestSteps:
+  neededScripts:
+    - "Sigma5/SQL/socket_server_0.9/restore_default_configs.sql"
+    - "Sigma5/SQL/socket_server_0.9/verify_default_configs.sql"
+    - "Sigma5/SQL/socket_server_0.9/enable_ble_beacon_scanning.sql"
+    - "Sigma5/SQL/socket_server_0.9/verify_ble_beacon_scanning.sql"
+    - "Sigma5/SQL/socket_server_0.9/query_jumptrack_beacon_checkin_table.sql"
+    - "Sigma5/SQL/socket_server_0.9/query_jumptrack_hips_sensor_data_table.sql"
+    - "Sigma5/SQL/socket_server_0.9/verify_message_naked.sql"
+    
+  steps:
+    - testStep:
+      - description: "Configure DUT for default settings."
+      - expectedResult: "DUT should be reset to its default configuration."
+
+    - testStep:
+      - description: "Device 0x70B3D584C020027D should be configured as a BLE beacon."
+      - expectedResult: "Device should be configured as a BLE beacon."
+
+    - testStep:
+      - description: "Configure another device (not the DUT) as a BLE Beacon if needed."
+      - expectedResult: "Another device should be successfully configured as a BLE beacon."
+      
+automationTestSteps:
+  includes:
+    - "config_message.restore_default_configs"
+    - "config_message.verify_message_naked"
+    - "ble_beacon.scan_for_ble_beacon"
+    - "ble_beacon.enable_ble_beacon_scanning"
+    - "ble_beacon.verify_connected_to_ble_beacon"
+    - "hips.enable_hips"
+    - "hips.verify_hips_data"
+    - "ble_beacon.verify_not_connected_to_ble_beacon"
+    - "ble_beacon.verify_ble_beacon_scanning_disabled"
+
+  add-ons:
+    - "uart_capture"
+    - "jouselscope"
+    - "GPS ublox"
+    - "Temperature chamber"
+    - "Pressure chamber"
+    
+  steps:
+    - testStep:
+      - name: "Restore DUT to Default Settings"
+      - description: "Restore DUT back to its default configuration settings before the test."
+      - handler: "StepGpsSomething"
+      - livenessProbe:
+      - stopOnFailure: true
+
+    - testStep:
+      - name: "Scan for BLE Beacon"
+      - description: "Initiate the scanning process for BLE Beacons to detect any available beacons in the vicinity."
+      - handler: "ble_beacon.scan_for_ble_beacon"
+      - livenessProbe: true
+      - stopOnFailure: true
+
+    - testStep:
+      - name: "Enable BLE Beacon Scanning"
+      - description: "Enable the BLE Beacon scanning mode on the DUT to begin actively scanning for BLE signals."
+      - handler: "ble_beacon.enable_ble_beacon_scanning"
+      - noPassIsFatal: false
+      - livenessProbe: true
+      - stopOnFailure: true
+
+---
+apiVersion: concord/v1
+kind: AutomationTest
+metadata:
+  name: prints-hello-world
+  labels:
+    platform: Sigma5
+    hwVersion: B0
+    fwVersion: C0
+    hosts: nrf9160, nrf52840
+    socketServerVersion: 1.0
+    socketServerMessages:
+      - 0x20
+      - 0x10
+  tags:
+    - ble
+    - gps
+    - 
+spec:
+  runner:
+    - hostname: "Some host name"
+
+  dependencies:
+    - uart:
+
+  steps:
+    - name: "Hello world printout"
+      handler: HelloWorldStep
+      config:
+        number_field: 1
+      timeoutS: 10
+      noPassIsFatal: true
+
+    - name: "Some other step"
+      handler: SomeOtherStep
+      config:
+      timeoutS: 10
+      noPassIsFatal: true
+
+

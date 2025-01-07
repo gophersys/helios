@@ -35,8 +35,20 @@ def devices_snr_validate_handler():
         snr_is_valid = False
         snr_references = [None] * 5
         try:
-            search_board_srn_url = f"{conf.MANU_SERVER_URL}/boards/panels/Search?boardSerialNumber={snr}"
-            response = requests.get(search_board_srn_url, verify=None, timeout=5)
+            # Create auth headers
+            token_error, server_token = authMiddleware.get_server_token()
+            if token_error:
+                logging.error(f"A server error ocurred whilst getting access token: {token_error}")
+                return jsonify({"error": f"{token_error}"}), 503
+
+            # Prepare headers for the auth server request
+            headers = {
+                "X-API-KEY": authMiddleware.config.server_api_key,
+                "Authorization": f"Bearer {server_token}",
+            }
+
+            search_board_srn_url = f"{conf.MANU_SERVER_URL}/boards/assemblies/Search?boardSerialNumber={snr}"
+            response = requests.get(search_board_srn_url, headers=headers, timeout=5)
 
             if response.status_code == 200:
                 response_data = response.json()
@@ -74,7 +86,8 @@ def devices_snr_validate_handler():
 
         # Form response
         if singleton and snr_is_valid:
-            return "", 200
+            response = {"snrs": {"slot-6": snr}}
+            return jsonify(response), 200
 
         if not snr_is_valid:
             return jsonify({"error": "Invalid serial number."}), 400

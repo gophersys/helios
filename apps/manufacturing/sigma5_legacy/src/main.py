@@ -28,14 +28,14 @@ if __name__ == "__main__":
     logging.debug(f"Test app environment configuration: \n{conf}")
 
     # Run test
-    # nodes = ["slot-1", "slot-2", "slot-3", "slot-4", "slot-5"]
+    # nodes = ["slot-1.lan", "slot-3.lan", "slot-5.lan"]
     # nodes = ["slot-6.lan"]
 
-    # # if error := fw_flash_test.run(nodes):
-    # #     logging.error(f"Could not run firmware flash test: {error}")
-    # #     sys.exit(1)
+    # # # if error := fw_flash_test.run(nodes):
+    # # #     logging.error(f"Could not run firmware flash test: {error}")
+    # # #     sys.exit(1)
 
-    # if error := post_test.run(nodes):
+    # if error := electrical_test.run(nodes):
     #     logging.error(f"Could not run POST test: {error}")
     #     sys.exit(1)
 

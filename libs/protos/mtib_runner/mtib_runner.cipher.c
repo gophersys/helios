@@ -11,45 +11,44 @@
 // Protobuf includes
 #include "mtib_runner.pb.h"
 
-LOG_MODULE_REGISTER(mtibrunner);
+LOG_MODULE_REGISTER(mtibrunnerv1);
 
-#define MTIBRUNNER_SERVICE_ID 1
+#define MTIBRUNNERV1_SERVICE_ID 1
 
 typedef enum
 {
     rpc_HealthCheck = 1,
     rpc_GetRunnerInfo = 2,
-    rpc_Reset = 3,
-    rpc_GpioConfig = 4,
-    rpc_GpioWrite = 5,
-    rpc_GpioRead = 6,
-    rpc_AdcRead = 7,
-    rpc_AdcReadAll = 8,
-    rpc_DutPowerEnable = 9,
+    rpc_GpioConfig = 3,
+    rpc_GpioWrite = 4,
+    rpc_GpioRead = 5,
+    rpc_AdcRead = 6,
+    rpc_AdcReadAll = 7,
+    rpc_DutPowerEnable = 8,
+    rpc_DutPowerDisable = 9,
     rpc_DutChargePowerEnable = 10,
-    rpc_DutVoltageSet = 11,
-    rpc_DutCurrentRead = 12,
-    rpc_DutVoltageRead = 13,
-    rpc_DutPowerRead = 14,
-    rpc_AltimeterRead = 15,
-    rpc_AccelRead = 16,
-    rpc_AccelReadMaxForce = 17,
-    rpc_EepromRead = 18,
-    rpc_EepromWrite = 19,
+    rpc_DutChargePowerDisable = 11,
+    rpc_DutPowerRead = 12,
+    rpc_AltimeterRead = 13,
+    rpc_AccelRead = 14,
+    rpc_GetMotionStatus = 15,
+    rpc_MotionHome = 16,
+    rpc_MotionTrigger = 17,
+    rpc_MotionContinuous = 18,
+    rpc_MotionStop = 19,
     rpc_ListFwFiles = 20,
     rpc_UploadFwFile = 21,
     rpc_DeleteFwFile = 22,
-    rpc_FlashHexFile = 23,
-    rpc_nrf9160UartStream = 24,
-    rpc_nrf52840UartStream = 25,
-} MtibRunner_rpc;
+    rpc_FlashFwFile = 23,
+    rpc_UartStream = 24,
+} MtibRunnerV1_rpc;
 
 // Server side
-static bool MtibRunner_HealthCheckHandlerImplemented = true;
-__attribute__((weak)) HealthCheckResponse MtibRunner_HealthCheckHandler(HealthCheckRequest request)
+static bool MtibRunnerV1_HealthCheckHandlerImplemented = true;
+__attribute__((weak)) HealthCheckResponse MtibRunnerV1_HealthCheckHandler(Empty request)
 {
     LOG_WRN("%s default implementation called", __func__);
-    MtibRunner_HealthCheckHandlerImplemented = false;
+    MtibRunnerV1_HealthCheckHandlerImplemented = false;
     HealthCheckResponse response  = {0};
     return response ;
 }
@@ -57,16 +56,16 @@ __attribute__((weak)) HealthCheckResponse MtibRunner_HealthCheckHandler(HealthCh
 cipher_rpc_err_t HealthCheckRpcPrvHandler(void *request, void *response)
 {
     // Call the actual handler function
-    *((HealthCheckResponse *)response ) = MtibRunner_HealthCheckHandler(*((HealthCheckRequest *)request));
-    return MtibRunner_HealthCheckHandlerImplemented ? CIPHER_RPC_ERR_OK : CIPHER_RPC_ERR_NOT_IMPLEMENTED;
+    *((HealthCheckResponse *)response ) = MtibRunnerV1_HealthCheckHandler(*((Empty *)request));
+    return MtibRunnerV1_HealthCheckHandlerImplemented ? CIPHER_RPC_ERR_OK : CIPHER_RPC_ERR_NOT_IMPLEMENTED;
 }
 
 // Server side
-static bool MtibRunner_GetRunnerInfoHandlerImplemented = true;
-__attribute__((weak)) GetRunnerInfoResponse MtibRunner_GetRunnerInfoHandler(GetRunnerInfoRequest request)
+static bool MtibRunnerV1_GetRunnerInfoHandlerImplemented = true;
+__attribute__((weak)) GetRunnerInfoResponse MtibRunnerV1_GetRunnerInfoHandler(Empty request)
 {
     LOG_WRN("%s default implementation called", __func__);
-    MtibRunner_GetRunnerInfoHandlerImplemented = false;
+    MtibRunnerV1_GetRunnerInfoHandlerImplemented = false;
     GetRunnerInfoResponse response  = {0};
     return response ;
 }
@@ -74,33 +73,16 @@ __attribute__((weak)) GetRunnerInfoResponse MtibRunner_GetRunnerInfoHandler(GetR
 cipher_rpc_err_t GetRunnerInfoRpcPrvHandler(void *request, void *response)
 {
     // Call the actual handler function
-    *((GetRunnerInfoResponse *)response ) = MtibRunner_GetRunnerInfoHandler(*((GetRunnerInfoRequest *)request));
-    return MtibRunner_GetRunnerInfoHandlerImplemented ? CIPHER_RPC_ERR_OK : CIPHER_RPC_ERR_NOT_IMPLEMENTED;
+    *((GetRunnerInfoResponse *)response ) = MtibRunnerV1_GetRunnerInfoHandler(*((Empty *)request));
+    return MtibRunnerV1_GetRunnerInfoHandlerImplemented ? CIPHER_RPC_ERR_OK : CIPHER_RPC_ERR_NOT_IMPLEMENTED;
 }
 
 // Server side
-static bool MtibRunner_ResetHandlerImplemented = true;
-__attribute__((weak)) ResetResponse MtibRunner_ResetHandler(ResetRequest request)
+static bool MtibRunnerV1_GpioConfigHandlerImplemented = true;
+__attribute__((weak)) GpioConfigResponse MtibRunnerV1_GpioConfigHandler(GpioConfigRequest request)
 {
     LOG_WRN("%s default implementation called", __func__);
-    MtibRunner_ResetHandlerImplemented = false;
-    ResetResponse response  = {0};
-    return response ;
-}
-
-cipher_rpc_err_t ResetRpcPrvHandler(void *request, void *response)
-{
-    // Call the actual handler function
-    *((ResetResponse *)response ) = MtibRunner_ResetHandler(*((ResetRequest *)request));
-    return MtibRunner_ResetHandlerImplemented ? CIPHER_RPC_ERR_OK : CIPHER_RPC_ERR_NOT_IMPLEMENTED;
-}
-
-// Server side
-static bool MtibRunner_GpioConfigHandlerImplemented = true;
-__attribute__((weak)) GpioConfigResponse MtibRunner_GpioConfigHandler(GpioConfigRequest request)
-{
-    LOG_WRN("%s default implementation called", __func__);
-    MtibRunner_GpioConfigHandlerImplemented = false;
+    MtibRunnerV1_GpioConfigHandlerImplemented = false;
     GpioConfigResponse response  = {0};
     return response ;
 }
@@ -108,16 +90,16 @@ __attribute__((weak)) GpioConfigResponse MtibRunner_GpioConfigHandler(GpioConfig
 cipher_rpc_err_t GpioConfigRpcPrvHandler(void *request, void *response)
 {
     // Call the actual handler function
-    *((GpioConfigResponse *)response ) = MtibRunner_GpioConfigHandler(*((GpioConfigRequest *)request));
-    return MtibRunner_GpioConfigHandlerImplemented ? CIPHER_RPC_ERR_OK : CIPHER_RPC_ERR_NOT_IMPLEMENTED;
+    *((GpioConfigResponse *)response ) = MtibRunnerV1_GpioConfigHandler(*((GpioConfigRequest *)request));
+    return MtibRunnerV1_GpioConfigHandlerImplemented ? CIPHER_RPC_ERR_OK : CIPHER_RPC_ERR_NOT_IMPLEMENTED;
 }
 
 // Server side
-static bool MtibRunner_GpioWriteHandlerImplemented = true;
-__attribute__((weak)) GpioWriteResponse MtibRunner_GpioWriteHandler(GpioWriteRequest request)
+static bool MtibRunnerV1_GpioWriteHandlerImplemented = true;
+__attribute__((weak)) GpioWriteResponse MtibRunnerV1_GpioWriteHandler(GpioWriteRequest request)
 {
     LOG_WRN("%s default implementation called", __func__);
-    MtibRunner_GpioWriteHandlerImplemented = false;
+    MtibRunnerV1_GpioWriteHandlerImplemented = false;
     GpioWriteResponse response  = {0};
     return response ;
 }
@@ -125,16 +107,16 @@ __attribute__((weak)) GpioWriteResponse MtibRunner_GpioWriteHandler(GpioWriteReq
 cipher_rpc_err_t GpioWriteRpcPrvHandler(void *request, void *response)
 {
     // Call the actual handler function
-    *((GpioWriteResponse *)response ) = MtibRunner_GpioWriteHandler(*((GpioWriteRequest *)request));
-    return MtibRunner_GpioWriteHandlerImplemented ? CIPHER_RPC_ERR_OK : CIPHER_RPC_ERR_NOT_IMPLEMENTED;
+    *((GpioWriteResponse *)response ) = MtibRunnerV1_GpioWriteHandler(*((GpioWriteRequest *)request));
+    return MtibRunnerV1_GpioWriteHandlerImplemented ? CIPHER_RPC_ERR_OK : CIPHER_RPC_ERR_NOT_IMPLEMENTED;
 }
 
 // Server side
-static bool MtibRunner_GpioReadHandlerImplemented = true;
-__attribute__((weak)) GpioReadResponse MtibRunner_GpioReadHandler(GpioReadRequest request)
+static bool MtibRunnerV1_GpioReadHandlerImplemented = true;
+__attribute__((weak)) GpioReadResponse MtibRunnerV1_GpioReadHandler(GpioReadRequest request)
 {
     LOG_WRN("%s default implementation called", __func__);
-    MtibRunner_GpioReadHandlerImplemented = false;
+    MtibRunnerV1_GpioReadHandlerImplemented = false;
     GpioReadResponse response  = {0};
     return response ;
 }
@@ -142,16 +124,16 @@ __attribute__((weak)) GpioReadResponse MtibRunner_GpioReadHandler(GpioReadReques
 cipher_rpc_err_t GpioReadRpcPrvHandler(void *request, void *response)
 {
     // Call the actual handler function
-    *((GpioReadResponse *)response ) = MtibRunner_GpioReadHandler(*((GpioReadRequest *)request));
-    return MtibRunner_GpioReadHandlerImplemented ? CIPHER_RPC_ERR_OK : CIPHER_RPC_ERR_NOT_IMPLEMENTED;
+    *((GpioReadResponse *)response ) = MtibRunnerV1_GpioReadHandler(*((GpioReadRequest *)request));
+    return MtibRunnerV1_GpioReadHandlerImplemented ? CIPHER_RPC_ERR_OK : CIPHER_RPC_ERR_NOT_IMPLEMENTED;
 }
 
 // Server side
-static bool MtibRunner_AdcReadHandlerImplemented = true;
-__attribute__((weak)) AdcReadResponse MtibRunner_AdcReadHandler(AdcReadRequest request)
+static bool MtibRunnerV1_AdcReadHandlerImplemented = true;
+__attribute__((weak)) AdcReadResponse MtibRunnerV1_AdcReadHandler(AdcReadRequest request)
 {
     LOG_WRN("%s default implementation called", __func__);
-    MtibRunner_AdcReadHandlerImplemented = false;
+    MtibRunnerV1_AdcReadHandlerImplemented = false;
     AdcReadResponse response  = {0};
     return response ;
 }
@@ -159,16 +141,16 @@ __attribute__((weak)) AdcReadResponse MtibRunner_AdcReadHandler(AdcReadRequest r
 cipher_rpc_err_t AdcReadRpcPrvHandler(void *request, void *response)
 {
     // Call the actual handler function
-    *((AdcReadResponse *)response ) = MtibRunner_AdcReadHandler(*((AdcReadRequest *)request));
-    return MtibRunner_AdcReadHandlerImplemented ? CIPHER_RPC_ERR_OK : CIPHER_RPC_ERR_NOT_IMPLEMENTED;
+    *((AdcReadResponse *)response ) = MtibRunnerV1_AdcReadHandler(*((AdcReadRequest *)request));
+    return MtibRunnerV1_AdcReadHandlerImplemented ? CIPHER_RPC_ERR_OK : CIPHER_RPC_ERR_NOT_IMPLEMENTED;
 }
 
 // Server side
-static bool MtibRunner_AdcReadAllHandlerImplemented = true;
-__attribute__((weak)) AdcReadAllResponse MtibRunner_AdcReadAllHandler(AdcReadAllRequest request)
+static bool MtibRunnerV1_AdcReadAllHandlerImplemented = true;
+__attribute__((weak)) AdcReadAllResponse MtibRunnerV1_AdcReadAllHandler(AdcReadAllRequest request)
 {
     LOG_WRN("%s default implementation called", __func__);
-    MtibRunner_AdcReadAllHandlerImplemented = false;
+    MtibRunnerV1_AdcReadAllHandlerImplemented = false;
     AdcReadAllResponse response  = {0};
     return response ;
 }
@@ -176,101 +158,84 @@ __attribute__((weak)) AdcReadAllResponse MtibRunner_AdcReadAllHandler(AdcReadAll
 cipher_rpc_err_t AdcReadAllRpcPrvHandler(void *request, void *response)
 {
     // Call the actual handler function
-    *((AdcReadAllResponse *)response ) = MtibRunner_AdcReadAllHandler(*((AdcReadAllRequest *)request));
-    return MtibRunner_AdcReadAllHandlerImplemented ? CIPHER_RPC_ERR_OK : CIPHER_RPC_ERR_NOT_IMPLEMENTED;
+    *((AdcReadAllResponse *)response ) = MtibRunnerV1_AdcReadAllHandler(*((AdcReadAllRequest *)request));
+    return MtibRunnerV1_AdcReadAllHandlerImplemented ? CIPHER_RPC_ERR_OK : CIPHER_RPC_ERR_NOT_IMPLEMENTED;
 }
 
 // Server side
-static bool MtibRunner_DutPowerEnableHandlerImplemented = true;
-__attribute__((weak)) DutPowerEnableResponse MtibRunner_DutPowerEnableHandler(DutPowerEnableRequest request)
+static bool MtibRunnerV1_DutPowerEnableHandlerImplemented = true;
+__attribute__((weak)) DutPowerResponse MtibRunnerV1_DutPowerEnableHandler(DutPowerRequest request)
 {
     LOG_WRN("%s default implementation called", __func__);
-    MtibRunner_DutPowerEnableHandlerImplemented = false;
-    DutPowerEnableResponse response  = {0};
+    MtibRunnerV1_DutPowerEnableHandlerImplemented = false;
+    DutPowerResponse response  = {0};
     return response ;
 }
 
 cipher_rpc_err_t DutPowerEnableRpcPrvHandler(void *request, void *response)
 {
     // Call the actual handler function
-    *((DutPowerEnableResponse *)response ) = MtibRunner_DutPowerEnableHandler(*((DutPowerEnableRequest *)request));
-    return MtibRunner_DutPowerEnableHandlerImplemented ? CIPHER_RPC_ERR_OK : CIPHER_RPC_ERR_NOT_IMPLEMENTED;
+    *((DutPowerResponse *)response ) = MtibRunnerV1_DutPowerEnableHandler(*((DutPowerRequest *)request));
+    return MtibRunnerV1_DutPowerEnableHandlerImplemented ? CIPHER_RPC_ERR_OK : CIPHER_RPC_ERR_NOT_IMPLEMENTED;
 }
 
 // Server side
-static bool MtibRunner_DutChargePowerEnableHandlerImplemented = true;
-__attribute__((weak)) DutPowerEnableResponse MtibRunner_DutChargePowerEnableHandler(DutPowerEnableRequest request)
+static bool MtibRunnerV1_DutPowerDisableHandlerImplemented = true;
+__attribute__((weak)) DutPowerResponse MtibRunnerV1_DutPowerDisableHandler(Empty request)
 {
     LOG_WRN("%s default implementation called", __func__);
-    MtibRunner_DutChargePowerEnableHandlerImplemented = false;
-    DutPowerEnableResponse response  = {0};
+    MtibRunnerV1_DutPowerDisableHandlerImplemented = false;
+    DutPowerResponse response  = {0};
+    return response ;
+}
+
+cipher_rpc_err_t DutPowerDisableRpcPrvHandler(void *request, void *response)
+{
+    // Call the actual handler function
+    *((DutPowerResponse *)response ) = MtibRunnerV1_DutPowerDisableHandler(*((Empty *)request));
+    return MtibRunnerV1_DutPowerDisableHandlerImplemented ? CIPHER_RPC_ERR_OK : CIPHER_RPC_ERR_NOT_IMPLEMENTED;
+}
+
+// Server side
+static bool MtibRunnerV1_DutChargePowerEnableHandlerImplemented = true;
+__attribute__((weak)) DutPowerResponse MtibRunnerV1_DutChargePowerEnableHandler(DutPowerRequest request)
+{
+    LOG_WRN("%s default implementation called", __func__);
+    MtibRunnerV1_DutChargePowerEnableHandlerImplemented = false;
+    DutPowerResponse response  = {0};
     return response ;
 }
 
 cipher_rpc_err_t DutChargePowerEnableRpcPrvHandler(void *request, void *response)
 {
     // Call the actual handler function
-    *((DutPowerEnableResponse *)response ) = MtibRunner_DutChargePowerEnableHandler(*((DutPowerEnableRequest *)request));
-    return MtibRunner_DutChargePowerEnableHandlerImplemented ? CIPHER_RPC_ERR_OK : CIPHER_RPC_ERR_NOT_IMPLEMENTED;
+    *((DutPowerResponse *)response ) = MtibRunnerV1_DutChargePowerEnableHandler(*((DutPowerRequest *)request));
+    return MtibRunnerV1_DutChargePowerEnableHandlerImplemented ? CIPHER_RPC_ERR_OK : CIPHER_RPC_ERR_NOT_IMPLEMENTED;
 }
 
 // Server side
-static bool MtibRunner_DutVoltageSetHandlerImplemented = true;
-__attribute__((weak)) DutVoltageSetResponse MtibRunner_DutVoltageSetHandler(DutVoltageSetRequest request)
+static bool MtibRunnerV1_DutChargePowerDisableHandlerImplemented = true;
+__attribute__((weak)) DutPowerResponse MtibRunnerV1_DutChargePowerDisableHandler(Empty request)
 {
     LOG_WRN("%s default implementation called", __func__);
-    MtibRunner_DutVoltageSetHandlerImplemented = false;
-    DutVoltageSetResponse response  = {0};
+    MtibRunnerV1_DutChargePowerDisableHandlerImplemented = false;
+    DutPowerResponse response  = {0};
     return response ;
 }
 
-cipher_rpc_err_t DutVoltageSetRpcPrvHandler(void *request, void *response)
+cipher_rpc_err_t DutChargePowerDisableRpcPrvHandler(void *request, void *response)
 {
     // Call the actual handler function
-    *((DutVoltageSetResponse *)response ) = MtibRunner_DutVoltageSetHandler(*((DutVoltageSetRequest *)request));
-    return MtibRunner_DutVoltageSetHandlerImplemented ? CIPHER_RPC_ERR_OK : CIPHER_RPC_ERR_NOT_IMPLEMENTED;
+    *((DutPowerResponse *)response ) = MtibRunnerV1_DutChargePowerDisableHandler(*((Empty *)request));
+    return MtibRunnerV1_DutChargePowerDisableHandlerImplemented ? CIPHER_RPC_ERR_OK : CIPHER_RPC_ERR_NOT_IMPLEMENTED;
 }
 
 // Server side
-static bool MtibRunner_DutCurrentReadHandlerImplemented = true;
-__attribute__((weak)) DutCurrentReadResponse MtibRunner_DutCurrentReadHandler(DutCurrentReadRequest request)
+static bool MtibRunnerV1_DutPowerReadHandlerImplemented = true;
+__attribute__((weak)) DutPowerReadResponse MtibRunnerV1_DutPowerReadHandler(Empty request)
 {
     LOG_WRN("%s default implementation called", __func__);
-    MtibRunner_DutCurrentReadHandlerImplemented = false;
-    DutCurrentReadResponse response  = {0};
-    return response ;
-}
-
-cipher_rpc_err_t DutCurrentReadRpcPrvHandler(void *request, void *response)
-{
-    // Call the actual handler function
-    *((DutCurrentReadResponse *)response ) = MtibRunner_DutCurrentReadHandler(*((DutCurrentReadRequest *)request));
-    return MtibRunner_DutCurrentReadHandlerImplemented ? CIPHER_RPC_ERR_OK : CIPHER_RPC_ERR_NOT_IMPLEMENTED;
-}
-
-// Server side
-static bool MtibRunner_DutVoltageReadHandlerImplemented = true;
-__attribute__((weak)) DutVoltageReadResponse MtibRunner_DutVoltageReadHandler(DutVoltageReadRequest request)
-{
-    LOG_WRN("%s default implementation called", __func__);
-    MtibRunner_DutVoltageReadHandlerImplemented = false;
-    DutVoltageReadResponse response  = {0};
-    return response ;
-}
-
-cipher_rpc_err_t DutVoltageReadRpcPrvHandler(void *request, void *response)
-{
-    // Call the actual handler function
-    *((DutVoltageReadResponse *)response ) = MtibRunner_DutVoltageReadHandler(*((DutVoltageReadRequest *)request));
-    return MtibRunner_DutVoltageReadHandlerImplemented ? CIPHER_RPC_ERR_OK : CIPHER_RPC_ERR_NOT_IMPLEMENTED;
-}
-
-// Server side
-static bool MtibRunner_DutPowerReadHandlerImplemented = true;
-__attribute__((weak)) DutPowerReadResponse MtibRunner_DutPowerReadHandler(DutPowerReadRequest request)
-{
-    LOG_WRN("%s default implementation called", __func__);
-    MtibRunner_DutPowerReadHandlerImplemented = false;
+    MtibRunnerV1_DutPowerReadHandlerImplemented = false;
     DutPowerReadResponse response  = {0};
     return response ;
 }
@@ -278,16 +243,16 @@ __attribute__((weak)) DutPowerReadResponse MtibRunner_DutPowerReadHandler(DutPow
 cipher_rpc_err_t DutPowerReadRpcPrvHandler(void *request, void *response)
 {
     // Call the actual handler function
-    *((DutPowerReadResponse *)response ) = MtibRunner_DutPowerReadHandler(*((DutPowerReadRequest *)request));
-    return MtibRunner_DutPowerReadHandlerImplemented ? CIPHER_RPC_ERR_OK : CIPHER_RPC_ERR_NOT_IMPLEMENTED;
+    *((DutPowerReadResponse *)response ) = MtibRunnerV1_DutPowerReadHandler(*((Empty *)request));
+    return MtibRunnerV1_DutPowerReadHandlerImplemented ? CIPHER_RPC_ERR_OK : CIPHER_RPC_ERR_NOT_IMPLEMENTED;
 }
 
 // Server side
-static bool MtibRunner_AltimeterReadHandlerImplemented = true;
-__attribute__((weak)) AltimeterReadResponse MtibRunner_AltimeterReadHandler(AltimeterReadRequest request)
+static bool MtibRunnerV1_AltimeterReadHandlerImplemented = true;
+__attribute__((weak)) AltimeterReadResponse MtibRunnerV1_AltimeterReadHandler(Empty request)
 {
     LOG_WRN("%s default implementation called", __func__);
-    MtibRunner_AltimeterReadHandlerImplemented = false;
+    MtibRunnerV1_AltimeterReadHandlerImplemented = false;
     AltimeterReadResponse response  = {0};
     return response ;
 }
@@ -295,16 +260,16 @@ __attribute__((weak)) AltimeterReadResponse MtibRunner_AltimeterReadHandler(Alti
 cipher_rpc_err_t AltimeterReadRpcPrvHandler(void *request, void *response)
 {
     // Call the actual handler function
-    *((AltimeterReadResponse *)response ) = MtibRunner_AltimeterReadHandler(*((AltimeterReadRequest *)request));
-    return MtibRunner_AltimeterReadHandlerImplemented ? CIPHER_RPC_ERR_OK : CIPHER_RPC_ERR_NOT_IMPLEMENTED;
+    *((AltimeterReadResponse *)response ) = MtibRunnerV1_AltimeterReadHandler(*((Empty *)request));
+    return MtibRunnerV1_AltimeterReadHandlerImplemented ? CIPHER_RPC_ERR_OK : CIPHER_RPC_ERR_NOT_IMPLEMENTED;
 }
 
 // Server side
-static bool MtibRunner_AccelReadHandlerImplemented = true;
-__attribute__((weak)) AccelReadResponse MtibRunner_AccelReadHandler(AccelReadRequest request)
+static bool MtibRunnerV1_AccelReadHandlerImplemented = true;
+__attribute__((weak)) AccelReadResponse MtibRunnerV1_AccelReadHandler(Empty request)
 {
     LOG_WRN("%s default implementation called", __func__);
-    MtibRunner_AccelReadHandlerImplemented = false;
+    MtibRunnerV1_AccelReadHandlerImplemented = false;
     AccelReadResponse response  = {0};
     return response ;
 }
@@ -312,67 +277,101 @@ __attribute__((weak)) AccelReadResponse MtibRunner_AccelReadHandler(AccelReadReq
 cipher_rpc_err_t AccelReadRpcPrvHandler(void *request, void *response)
 {
     // Call the actual handler function
-    *((AccelReadResponse *)response ) = MtibRunner_AccelReadHandler(*((AccelReadRequest *)request));
-    return MtibRunner_AccelReadHandlerImplemented ? CIPHER_RPC_ERR_OK : CIPHER_RPC_ERR_NOT_IMPLEMENTED;
+    *((AccelReadResponse *)response ) = MtibRunnerV1_AccelReadHandler(*((Empty *)request));
+    return MtibRunnerV1_AccelReadHandlerImplemented ? CIPHER_RPC_ERR_OK : CIPHER_RPC_ERR_NOT_IMPLEMENTED;
 }
 
 // Server side
-static bool MtibRunner_AccelReadMaxForceHandlerImplemented = true;
-__attribute__((weak)) AccelReadMaxResponse MtibRunner_AccelReadMaxForceHandler(AccelReadMaxRequest request)
+static bool MtibRunnerV1_GetMotionStatusHandlerImplemented = true;
+__attribute__((weak)) GetMotionStatusResponse MtibRunnerV1_GetMotionStatusHandler(Empty request)
 {
     LOG_WRN("%s default implementation called", __func__);
-    MtibRunner_AccelReadMaxForceHandlerImplemented = false;
-    AccelReadMaxResponse response  = {0};
+    MtibRunnerV1_GetMotionStatusHandlerImplemented = false;
+    GetMotionStatusResponse response  = {0};
     return response ;
 }
 
-cipher_rpc_err_t AccelReadMaxForceRpcPrvHandler(void *request, void *response)
+cipher_rpc_err_t GetMotionStatusRpcPrvHandler(void *request, void *response)
 {
     // Call the actual handler function
-    *((AccelReadMaxResponse *)response ) = MtibRunner_AccelReadMaxForceHandler(*((AccelReadMaxRequest *)request));
-    return MtibRunner_AccelReadMaxForceHandlerImplemented ? CIPHER_RPC_ERR_OK : CIPHER_RPC_ERR_NOT_IMPLEMENTED;
+    *((GetMotionStatusResponse *)response ) = MtibRunnerV1_GetMotionStatusHandler(*((Empty *)request));
+    return MtibRunnerV1_GetMotionStatusHandlerImplemented ? CIPHER_RPC_ERR_OK : CIPHER_RPC_ERR_NOT_IMPLEMENTED;
 }
 
 // Server side
-static bool MtibRunner_EepromReadHandlerImplemented = true;
-__attribute__((weak)) EepromReadResponse MtibRunner_EepromReadHandler(EepromReadRequest request)
+static bool MtibRunnerV1_MotionHomeHandlerImplemented = true;
+__attribute__((weak)) MotionHomeResponse MtibRunnerV1_MotionHomeHandler(Empty request)
 {
     LOG_WRN("%s default implementation called", __func__);
-    MtibRunner_EepromReadHandlerImplemented = false;
-    EepromReadResponse response  = {0};
+    MtibRunnerV1_MotionHomeHandlerImplemented = false;
+    MotionHomeResponse response  = {0};
     return response ;
 }
 
-cipher_rpc_err_t EepromReadRpcPrvHandler(void *request, void *response)
+cipher_rpc_err_t MotionHomeRpcPrvHandler(void *request, void *response)
 {
     // Call the actual handler function
-    *((EepromReadResponse *)response ) = MtibRunner_EepromReadHandler(*((EepromReadRequest *)request));
-    return MtibRunner_EepromReadHandlerImplemented ? CIPHER_RPC_ERR_OK : CIPHER_RPC_ERR_NOT_IMPLEMENTED;
+    *((MotionHomeResponse *)response ) = MtibRunnerV1_MotionHomeHandler(*((Empty *)request));
+    return MtibRunnerV1_MotionHomeHandlerImplemented ? CIPHER_RPC_ERR_OK : CIPHER_RPC_ERR_NOT_IMPLEMENTED;
 }
 
 // Server side
-static bool MtibRunner_EepromWriteHandlerImplemented = true;
-__attribute__((weak)) EepromWriteResponse MtibRunner_EepromWriteHandler(EepromWriteRequest request)
+static bool MtibRunnerV1_MotionTriggerHandlerImplemented = true;
+__attribute__((weak)) MotionTriggerResponse MtibRunnerV1_MotionTriggerHandler(MotionTriggerRequest request)
 {
     LOG_WRN("%s default implementation called", __func__);
-    MtibRunner_EepromWriteHandlerImplemented = false;
-    EepromWriteResponse response  = {0};
+    MtibRunnerV1_MotionTriggerHandlerImplemented = false;
+    MotionTriggerResponse response  = {0};
     return response ;
 }
 
-cipher_rpc_err_t EepromWriteRpcPrvHandler(void *request, void *response)
+cipher_rpc_err_t MotionTriggerRpcPrvHandler(void *request, void *response)
 {
     // Call the actual handler function
-    *((EepromWriteResponse *)response ) = MtibRunner_EepromWriteHandler(*((EepromWriteRequest *)request));
-    return MtibRunner_EepromWriteHandlerImplemented ? CIPHER_RPC_ERR_OK : CIPHER_RPC_ERR_NOT_IMPLEMENTED;
+    *((MotionTriggerResponse *)response ) = MtibRunnerV1_MotionTriggerHandler(*((MotionTriggerRequest *)request));
+    return MtibRunnerV1_MotionTriggerHandlerImplemented ? CIPHER_RPC_ERR_OK : CIPHER_RPC_ERR_NOT_IMPLEMENTED;
 }
 
 // Server side
-static bool MtibRunner_ListFwFilesHandlerImplemented = true;
-__attribute__((weak)) ListFwFilesResponse MtibRunner_ListFwFilesHandler(ListFwFilesRequest request)
+static bool MtibRunnerV1_MotionContinuousHandlerImplemented = true;
+__attribute__((weak)) MotionContinuousResponse MtibRunnerV1_MotionContinuousHandler(MotionContinuousRequest request)
 {
     LOG_WRN("%s default implementation called", __func__);
-    MtibRunner_ListFwFilesHandlerImplemented = false;
+    MtibRunnerV1_MotionContinuousHandlerImplemented = false;
+    MotionContinuousResponse response  = {0};
+    return response ;
+}
+
+cipher_rpc_err_t MotionContinuousRpcPrvHandler(void *request, void *response)
+{
+    // Call the actual handler function
+    *((MotionContinuousResponse *)response ) = MtibRunnerV1_MotionContinuousHandler(*((MotionContinuousRequest *)request));
+    return MtibRunnerV1_MotionContinuousHandlerImplemented ? CIPHER_RPC_ERR_OK : CIPHER_RPC_ERR_NOT_IMPLEMENTED;
+}
+
+// Server side
+static bool MtibRunnerV1_MotionStopHandlerImplemented = true;
+__attribute__((weak)) MotionStopResponse MtibRunnerV1_MotionStopHandler(Empty request)
+{
+    LOG_WRN("%s default implementation called", __func__);
+    MtibRunnerV1_MotionStopHandlerImplemented = false;
+    MotionStopResponse response  = {0};
+    return response ;
+}
+
+cipher_rpc_err_t MotionStopRpcPrvHandler(void *request, void *response)
+{
+    // Call the actual handler function
+    *((MotionStopResponse *)response ) = MtibRunnerV1_MotionStopHandler(*((Empty *)request));
+    return MtibRunnerV1_MotionStopHandlerImplemented ? CIPHER_RPC_ERR_OK : CIPHER_RPC_ERR_NOT_IMPLEMENTED;
+}
+
+// Server side
+static bool MtibRunnerV1_ListFwFilesHandlerImplemented = true;
+__attribute__((weak)) ListFwFilesResponse MtibRunnerV1_ListFwFilesHandler(Empty request)
+{
+    LOG_WRN("%s default implementation called", __func__);
+    MtibRunnerV1_ListFwFilesHandlerImplemented = false;
     ListFwFilesResponse response  = {0};
     return response ;
 }
@@ -380,16 +379,16 @@ __attribute__((weak)) ListFwFilesResponse MtibRunner_ListFwFilesHandler(ListFwFi
 cipher_rpc_err_t ListFwFilesRpcPrvHandler(void *request, void *response)
 {
     // Call the actual handler function
-    *((ListFwFilesResponse *)response ) = MtibRunner_ListFwFilesHandler(*((ListFwFilesRequest *)request));
-    return MtibRunner_ListFwFilesHandlerImplemented ? CIPHER_RPC_ERR_OK : CIPHER_RPC_ERR_NOT_IMPLEMENTED;
+    *((ListFwFilesResponse *)response ) = MtibRunnerV1_ListFwFilesHandler(*((Empty *)request));
+    return MtibRunnerV1_ListFwFilesHandlerImplemented ? CIPHER_RPC_ERR_OK : CIPHER_RPC_ERR_NOT_IMPLEMENTED;
 }
 
 // Server side
-static bool MtibRunner_UploadFwFileHandlerImplemented = true;
-__attribute__((weak)) UploadFwFileResponse MtibRunner_UploadFwFileHandler(UploadFwFileRequest request)
+static bool MtibRunnerV1_UploadFwFileHandlerImplemented = true;
+__attribute__((weak)) UploadFwFileResponse MtibRunnerV1_UploadFwFileHandler(UploadFwFileRequest request)
 {
     LOG_WRN("%s default implementation called", __func__);
-    MtibRunner_UploadFwFileHandlerImplemented = false;
+    MtibRunnerV1_UploadFwFileHandlerImplemented = false;
     UploadFwFileResponse response  = {0};
     return response ;
 }
@@ -397,16 +396,16 @@ __attribute__((weak)) UploadFwFileResponse MtibRunner_UploadFwFileHandler(Upload
 cipher_rpc_err_t UploadFwFileRpcPrvHandler(void *request, void *response)
 {
     // Call the actual handler function
-    *((UploadFwFileResponse *)response ) = MtibRunner_UploadFwFileHandler(*((UploadFwFileRequest *)request));
-    return MtibRunner_UploadFwFileHandlerImplemented ? CIPHER_RPC_ERR_OK : CIPHER_RPC_ERR_NOT_IMPLEMENTED;
+    *((UploadFwFileResponse *)response ) = MtibRunnerV1_UploadFwFileHandler(*((UploadFwFileRequest *)request));
+    return MtibRunnerV1_UploadFwFileHandlerImplemented ? CIPHER_RPC_ERR_OK : CIPHER_RPC_ERR_NOT_IMPLEMENTED;
 }
 
 // Server side
-static bool MtibRunner_DeleteFwFileHandlerImplemented = true;
-__attribute__((weak)) DeleteFwFileResponse MtibRunner_DeleteFwFileHandler(DeleteFwFileRequest request)
+static bool MtibRunnerV1_DeleteFwFileHandlerImplemented = true;
+__attribute__((weak)) DeleteFwFileResponse MtibRunnerV1_DeleteFwFileHandler(DeleteFwFileRequest request)
 {
     LOG_WRN("%s default implementation called", __func__);
-    MtibRunner_DeleteFwFileHandlerImplemented = false;
+    MtibRunnerV1_DeleteFwFileHandlerImplemented = false;
     DeleteFwFileResponse response  = {0};
     return response ;
 }
@@ -414,63 +413,46 @@ __attribute__((weak)) DeleteFwFileResponse MtibRunner_DeleteFwFileHandler(Delete
 cipher_rpc_err_t DeleteFwFileRpcPrvHandler(void *request, void *response)
 {
     // Call the actual handler function
-    *((DeleteFwFileResponse *)response ) = MtibRunner_DeleteFwFileHandler(*((DeleteFwFileRequest *)request));
-    return MtibRunner_DeleteFwFileHandlerImplemented ? CIPHER_RPC_ERR_OK : CIPHER_RPC_ERR_NOT_IMPLEMENTED;
+    *((DeleteFwFileResponse *)response ) = MtibRunnerV1_DeleteFwFileHandler(*((DeleteFwFileRequest *)request));
+    return MtibRunnerV1_DeleteFwFileHandlerImplemented ? CIPHER_RPC_ERR_OK : CIPHER_RPC_ERR_NOT_IMPLEMENTED;
 }
 
 // Server side
-static bool MtibRunner_FlashHexFileHandlerImplemented = true;
-__attribute__((weak)) FlashHexFileResponse MtibRunner_FlashHexFileHandler(FlashHexFileRequest request)
+static bool MtibRunnerV1_FlashFwFileHandlerImplemented = true;
+__attribute__((weak)) FlashFwFileResponse MtibRunnerV1_FlashFwFileHandler(FlashFwFileRequest request)
 {
     LOG_WRN("%s default implementation called", __func__);
-    MtibRunner_FlashHexFileHandlerImplemented = false;
-    FlashHexFileResponse response  = {0};
+    MtibRunnerV1_FlashFwFileHandlerImplemented = false;
+    FlashFwFileResponse response  = {0};
     return response ;
 }
 
-cipher_rpc_err_t FlashHexFileRpcPrvHandler(void *request, void *response)
+cipher_rpc_err_t FlashFwFileRpcPrvHandler(void *request, void *response)
 {
     // Call the actual handler function
-    *((FlashHexFileResponse *)response ) = MtibRunner_FlashHexFileHandler(*((FlashHexFileRequest *)request));
-    return MtibRunner_FlashHexFileHandlerImplemented ? CIPHER_RPC_ERR_OK : CIPHER_RPC_ERR_NOT_IMPLEMENTED;
+    *((FlashFwFileResponse *)response ) = MtibRunnerV1_FlashFwFileHandler(*((FlashFwFileRequest *)request));
+    return MtibRunnerV1_FlashFwFileHandlerImplemented ? CIPHER_RPC_ERR_OK : CIPHER_RPC_ERR_NOT_IMPLEMENTED;
 }
 
 // Server side
-static bool MtibRunner_nrf9160UartStreamHandlerImplemented = true;
-__attribute__((weak)) UartStreamResponse MtibRunner_nrf9160UartStreamHandler(UartStreamRequest request)
+static bool MtibRunnerV1_UartStreamHandlerImplemented = true;
+__attribute__((weak)) UartStreamResponse MtibRunnerV1_UartStreamHandler(UartStreamRequest request)
 {
     LOG_WRN("%s default implementation called", __func__);
-    MtibRunner_nrf9160UartStreamHandlerImplemented = false;
+    MtibRunnerV1_UartStreamHandlerImplemented = false;
     UartStreamResponse response  = {0};
     return response ;
 }
 
-cipher_rpc_err_t nrf9160UartStreamRpcPrvHandler(void *request, void *response)
+cipher_rpc_err_t UartStreamRpcPrvHandler(void *request, void *response)
 {
     // Call the actual handler function
-    *((UartStreamResponse *)response ) = MtibRunner_nrf9160UartStreamHandler(*((UartStreamRequest *)request));
-    return MtibRunner_nrf9160UartStreamHandlerImplemented ? CIPHER_RPC_ERR_OK : CIPHER_RPC_ERR_NOT_IMPLEMENTED;
-}
-
-// Server side
-static bool MtibRunner_nrf52840UartStreamHandlerImplemented = true;
-__attribute__((weak)) UartStreamResponse MtibRunner_nrf52840UartStreamHandler(UartStreamRequest request)
-{
-    LOG_WRN("%s default implementation called", __func__);
-    MtibRunner_nrf52840UartStreamHandlerImplemented = false;
-    UartStreamResponse response  = {0};
-    return response ;
-}
-
-cipher_rpc_err_t nrf52840UartStreamRpcPrvHandler(void *request, void *response)
-{
-    // Call the actual handler function
-    *((UartStreamResponse *)response ) = MtibRunner_nrf52840UartStreamHandler(*((UartStreamRequest *)request));
-    return MtibRunner_nrf52840UartStreamHandlerImplemented ? CIPHER_RPC_ERR_OK : CIPHER_RPC_ERR_NOT_IMPLEMENTED;
+    *((UartStreamResponse *)response ) = MtibRunnerV1_UartStreamHandler(*((UartStreamRequest *)request));
+    return MtibRunnerV1_UartStreamHandlerImplemented ? CIPHER_RPC_ERR_OK : CIPHER_RPC_ERR_NOT_IMPLEMENTED;
 }
 
 // Client side
-HealthCheckResponse MtibRunner_HealthCheckRpc(cipher_unary_rpc_user_info_t *info, HealthCheckRequest request)
+HealthCheckResponse MtibRunnerV1_HealthCheckRpc(cipher_unary_rpc_user_info_t *info, Empty request)
 {
     HealthCheckResponse response  = {0};
 
@@ -478,7 +460,7 @@ HealthCheckResponse MtibRunner_HealthCheckRpc(cipher_unary_rpc_user_info_t *info
     {
         .local = true,
         .user_info = info,
-        .service_id = MTIBRUNNER_SERVICE_ID,
+        .service_id = MTIBRUNNERV1_SERVICE_ID,
         .rpc_id = rpc_HealthCheck,
         .request_struct = &request,
         .request_struct_size = sizeof(request),
@@ -489,7 +471,7 @@ HealthCheckResponse MtibRunner_HealthCheckRpc(cipher_unary_rpc_user_info_t *info
     cipher_daemon_execute_remote_rpc(&context);
     return response;
 }
-GetRunnerInfoResponse MtibRunner_GetRunnerInfoRpc(cipher_unary_rpc_user_info_t *info, GetRunnerInfoRequest request)
+GetRunnerInfoResponse MtibRunnerV1_GetRunnerInfoRpc(cipher_unary_rpc_user_info_t *info, Empty request)
 {
     GetRunnerInfoResponse response  = {0};
 
@@ -497,7 +479,7 @@ GetRunnerInfoResponse MtibRunner_GetRunnerInfoRpc(cipher_unary_rpc_user_info_t *
     {
         .local = true,
         .user_info = info,
-        .service_id = MTIBRUNNER_SERVICE_ID,
+        .service_id = MTIBRUNNERV1_SERVICE_ID,
         .rpc_id = rpc_GetRunnerInfo,
         .request_struct = &request,
         .request_struct_size = sizeof(request),
@@ -508,26 +490,7 @@ GetRunnerInfoResponse MtibRunner_GetRunnerInfoRpc(cipher_unary_rpc_user_info_t *
     cipher_daemon_execute_remote_rpc(&context);
     return response;
 }
-ResetResponse MtibRunner_ResetRpc(cipher_unary_rpc_user_info_t *info, ResetRequest request)
-{
-    ResetResponse response  = {0};
-
-    cipher_daemon_rpc_context_t context =
-    {
-        .local = true,
-        .user_info = info,
-        .service_id = MTIBRUNNER_SERVICE_ID,
-        .rpc_id = rpc_Reset,
-        .request_struct = &request,
-        .request_struct_size = sizeof(request),
-        .response_struct = &response ,
-        .response_struct_size = sizeof(response)
-    };
-
-    cipher_daemon_execute_remote_rpc(&context);
-    return response;
-}
-GpioConfigResponse MtibRunner_GpioConfigRpc(cipher_unary_rpc_user_info_t *info, GpioConfigRequest request)
+GpioConfigResponse MtibRunnerV1_GpioConfigRpc(cipher_unary_rpc_user_info_t *info, GpioConfigRequest request)
 {
     GpioConfigResponse response  = {0};
 
@@ -535,7 +498,7 @@ GpioConfigResponse MtibRunner_GpioConfigRpc(cipher_unary_rpc_user_info_t *info, 
     {
         .local = true,
         .user_info = info,
-        .service_id = MTIBRUNNER_SERVICE_ID,
+        .service_id = MTIBRUNNERV1_SERVICE_ID,
         .rpc_id = rpc_GpioConfig,
         .request_struct = &request,
         .request_struct_size = sizeof(request),
@@ -546,7 +509,7 @@ GpioConfigResponse MtibRunner_GpioConfigRpc(cipher_unary_rpc_user_info_t *info, 
     cipher_daemon_execute_remote_rpc(&context);
     return response;
 }
-GpioWriteResponse MtibRunner_GpioWriteRpc(cipher_unary_rpc_user_info_t *info, GpioWriteRequest request)
+GpioWriteResponse MtibRunnerV1_GpioWriteRpc(cipher_unary_rpc_user_info_t *info, GpioWriteRequest request)
 {
     GpioWriteResponse response  = {0};
 
@@ -554,7 +517,7 @@ GpioWriteResponse MtibRunner_GpioWriteRpc(cipher_unary_rpc_user_info_t *info, Gp
     {
         .local = true,
         .user_info = info,
-        .service_id = MTIBRUNNER_SERVICE_ID,
+        .service_id = MTIBRUNNERV1_SERVICE_ID,
         .rpc_id = rpc_GpioWrite,
         .request_struct = &request,
         .request_struct_size = sizeof(request),
@@ -565,7 +528,7 @@ GpioWriteResponse MtibRunner_GpioWriteRpc(cipher_unary_rpc_user_info_t *info, Gp
     cipher_daemon_execute_remote_rpc(&context);
     return response;
 }
-GpioReadResponse MtibRunner_GpioReadRpc(cipher_unary_rpc_user_info_t *info, GpioReadRequest request)
+GpioReadResponse MtibRunnerV1_GpioReadRpc(cipher_unary_rpc_user_info_t *info, GpioReadRequest request)
 {
     GpioReadResponse response  = {0};
 
@@ -573,7 +536,7 @@ GpioReadResponse MtibRunner_GpioReadRpc(cipher_unary_rpc_user_info_t *info, Gpio
     {
         .local = true,
         .user_info = info,
-        .service_id = MTIBRUNNER_SERVICE_ID,
+        .service_id = MTIBRUNNERV1_SERVICE_ID,
         .rpc_id = rpc_GpioRead,
         .request_struct = &request,
         .request_struct_size = sizeof(request),
@@ -584,7 +547,7 @@ GpioReadResponse MtibRunner_GpioReadRpc(cipher_unary_rpc_user_info_t *info, Gpio
     cipher_daemon_execute_remote_rpc(&context);
     return response;
 }
-AdcReadResponse MtibRunner_AdcReadRpc(cipher_unary_rpc_user_info_t *info, AdcReadRequest request)
+AdcReadResponse MtibRunnerV1_AdcReadRpc(cipher_unary_rpc_user_info_t *info, AdcReadRequest request)
 {
     AdcReadResponse response  = {0};
 
@@ -592,7 +555,7 @@ AdcReadResponse MtibRunner_AdcReadRpc(cipher_unary_rpc_user_info_t *info, AdcRea
     {
         .local = true,
         .user_info = info,
-        .service_id = MTIBRUNNER_SERVICE_ID,
+        .service_id = MTIBRUNNERV1_SERVICE_ID,
         .rpc_id = rpc_AdcRead,
         .request_struct = &request,
         .request_struct_size = sizeof(request),
@@ -603,7 +566,7 @@ AdcReadResponse MtibRunner_AdcReadRpc(cipher_unary_rpc_user_info_t *info, AdcRea
     cipher_daemon_execute_remote_rpc(&context);
     return response;
 }
-AdcReadAllResponse MtibRunner_AdcReadAllRpc(cipher_unary_rpc_user_info_t *info, AdcReadAllRequest request)
+AdcReadAllResponse MtibRunnerV1_AdcReadAllRpc(cipher_unary_rpc_user_info_t *info, AdcReadAllRequest request)
 {
     AdcReadAllResponse response  = {0};
 
@@ -611,7 +574,7 @@ AdcReadAllResponse MtibRunner_AdcReadAllRpc(cipher_unary_rpc_user_info_t *info, 
     {
         .local = true,
         .user_info = info,
-        .service_id = MTIBRUNNER_SERVICE_ID,
+        .service_id = MTIBRUNNERV1_SERVICE_ID,
         .rpc_id = rpc_AdcReadAll,
         .request_struct = &request,
         .request_struct_size = sizeof(request),
@@ -622,15 +585,15 @@ AdcReadAllResponse MtibRunner_AdcReadAllRpc(cipher_unary_rpc_user_info_t *info, 
     cipher_daemon_execute_remote_rpc(&context);
     return response;
 }
-DutPowerEnableResponse MtibRunner_DutPowerEnableRpc(cipher_unary_rpc_user_info_t *info, DutPowerEnableRequest request)
+DutPowerResponse MtibRunnerV1_DutPowerEnableRpc(cipher_unary_rpc_user_info_t *info, DutPowerRequest request)
 {
-    DutPowerEnableResponse response  = {0};
+    DutPowerResponse response  = {0};
 
     cipher_daemon_rpc_context_t context =
     {
         .local = true,
         .user_info = info,
-        .service_id = MTIBRUNNER_SERVICE_ID,
+        .service_id = MTIBRUNNERV1_SERVICE_ID,
         .rpc_id = rpc_DutPowerEnable,
         .request_struct = &request,
         .request_struct_size = sizeof(request),
@@ -641,15 +604,34 @@ DutPowerEnableResponse MtibRunner_DutPowerEnableRpc(cipher_unary_rpc_user_info_t
     cipher_daemon_execute_remote_rpc(&context);
     return response;
 }
-DutPowerEnableResponse MtibRunner_DutChargePowerEnableRpc(cipher_unary_rpc_user_info_t *info, DutPowerEnableRequest request)
+DutPowerResponse MtibRunnerV1_DutPowerDisableRpc(cipher_unary_rpc_user_info_t *info, Empty request)
 {
-    DutPowerEnableResponse response  = {0};
+    DutPowerResponse response  = {0};
 
     cipher_daemon_rpc_context_t context =
     {
         .local = true,
         .user_info = info,
-        .service_id = MTIBRUNNER_SERVICE_ID,
+        .service_id = MTIBRUNNERV1_SERVICE_ID,
+        .rpc_id = rpc_DutPowerDisable,
+        .request_struct = &request,
+        .request_struct_size = sizeof(request),
+        .response_struct = &response ,
+        .response_struct_size = sizeof(response)
+    };
+
+    cipher_daemon_execute_remote_rpc(&context);
+    return response;
+}
+DutPowerResponse MtibRunnerV1_DutChargePowerEnableRpc(cipher_unary_rpc_user_info_t *info, DutPowerRequest request)
+{
+    DutPowerResponse response  = {0};
+
+    cipher_daemon_rpc_context_t context =
+    {
+        .local = true,
+        .user_info = info,
+        .service_id = MTIBRUNNERV1_SERVICE_ID,
         .rpc_id = rpc_DutChargePowerEnable,
         .request_struct = &request,
         .request_struct_size = sizeof(request),
@@ -660,16 +642,16 @@ DutPowerEnableResponse MtibRunner_DutChargePowerEnableRpc(cipher_unary_rpc_user_
     cipher_daemon_execute_remote_rpc(&context);
     return response;
 }
-DutVoltageSetResponse MtibRunner_DutVoltageSetRpc(cipher_unary_rpc_user_info_t *info, DutVoltageSetRequest request)
+DutPowerResponse MtibRunnerV1_DutChargePowerDisableRpc(cipher_unary_rpc_user_info_t *info, Empty request)
 {
-    DutVoltageSetResponse response  = {0};
+    DutPowerResponse response  = {0};
 
     cipher_daemon_rpc_context_t context =
     {
         .local = true,
         .user_info = info,
-        .service_id = MTIBRUNNER_SERVICE_ID,
-        .rpc_id = rpc_DutVoltageSet,
+        .service_id = MTIBRUNNERV1_SERVICE_ID,
+        .rpc_id = rpc_DutChargePowerDisable,
         .request_struct = &request,
         .request_struct_size = sizeof(request),
         .response_struct = &response ,
@@ -679,45 +661,7 @@ DutVoltageSetResponse MtibRunner_DutVoltageSetRpc(cipher_unary_rpc_user_info_t *
     cipher_daemon_execute_remote_rpc(&context);
     return response;
 }
-DutCurrentReadResponse MtibRunner_DutCurrentReadRpc(cipher_unary_rpc_user_info_t *info, DutCurrentReadRequest request)
-{
-    DutCurrentReadResponse response  = {0};
-
-    cipher_daemon_rpc_context_t context =
-    {
-        .local = true,
-        .user_info = info,
-        .service_id = MTIBRUNNER_SERVICE_ID,
-        .rpc_id = rpc_DutCurrentRead,
-        .request_struct = &request,
-        .request_struct_size = sizeof(request),
-        .response_struct = &response ,
-        .response_struct_size = sizeof(response)
-    };
-
-    cipher_daemon_execute_remote_rpc(&context);
-    return response;
-}
-DutVoltageReadResponse MtibRunner_DutVoltageReadRpc(cipher_unary_rpc_user_info_t *info, DutVoltageReadRequest request)
-{
-    DutVoltageReadResponse response  = {0};
-
-    cipher_daemon_rpc_context_t context =
-    {
-        .local = true,
-        .user_info = info,
-        .service_id = MTIBRUNNER_SERVICE_ID,
-        .rpc_id = rpc_DutVoltageRead,
-        .request_struct = &request,
-        .request_struct_size = sizeof(request),
-        .response_struct = &response ,
-        .response_struct_size = sizeof(response)
-    };
-
-    cipher_daemon_execute_remote_rpc(&context);
-    return response;
-}
-DutPowerReadResponse MtibRunner_DutPowerReadRpc(cipher_unary_rpc_user_info_t *info, DutPowerReadRequest request)
+DutPowerReadResponse MtibRunnerV1_DutPowerReadRpc(cipher_unary_rpc_user_info_t *info, Empty request)
 {
     DutPowerReadResponse response  = {0};
 
@@ -725,7 +669,7 @@ DutPowerReadResponse MtibRunner_DutPowerReadRpc(cipher_unary_rpc_user_info_t *in
     {
         .local = true,
         .user_info = info,
-        .service_id = MTIBRUNNER_SERVICE_ID,
+        .service_id = MTIBRUNNERV1_SERVICE_ID,
         .rpc_id = rpc_DutPowerRead,
         .request_struct = &request,
         .request_struct_size = sizeof(request),
@@ -736,7 +680,7 @@ DutPowerReadResponse MtibRunner_DutPowerReadRpc(cipher_unary_rpc_user_info_t *in
     cipher_daemon_execute_remote_rpc(&context);
     return response;
 }
-AltimeterReadResponse MtibRunner_AltimeterReadRpc(cipher_unary_rpc_user_info_t *info, AltimeterReadRequest request)
+AltimeterReadResponse MtibRunnerV1_AltimeterReadRpc(cipher_unary_rpc_user_info_t *info, Empty request)
 {
     AltimeterReadResponse response  = {0};
 
@@ -744,7 +688,7 @@ AltimeterReadResponse MtibRunner_AltimeterReadRpc(cipher_unary_rpc_user_info_t *
     {
         .local = true,
         .user_info = info,
-        .service_id = MTIBRUNNER_SERVICE_ID,
+        .service_id = MTIBRUNNERV1_SERVICE_ID,
         .rpc_id = rpc_AltimeterRead,
         .request_struct = &request,
         .request_struct_size = sizeof(request),
@@ -755,7 +699,7 @@ AltimeterReadResponse MtibRunner_AltimeterReadRpc(cipher_unary_rpc_user_info_t *
     cipher_daemon_execute_remote_rpc(&context);
     return response;
 }
-AccelReadResponse MtibRunner_AccelReadRpc(cipher_unary_rpc_user_info_t *info, AccelReadRequest request)
+AccelReadResponse MtibRunnerV1_AccelReadRpc(cipher_unary_rpc_user_info_t *info, Empty request)
 {
     AccelReadResponse response  = {0};
 
@@ -763,7 +707,7 @@ AccelReadResponse MtibRunner_AccelReadRpc(cipher_unary_rpc_user_info_t *info, Ac
     {
         .local = true,
         .user_info = info,
-        .service_id = MTIBRUNNER_SERVICE_ID,
+        .service_id = MTIBRUNNERV1_SERVICE_ID,
         .rpc_id = rpc_AccelRead,
         .request_struct = &request,
         .request_struct_size = sizeof(request),
@@ -774,16 +718,16 @@ AccelReadResponse MtibRunner_AccelReadRpc(cipher_unary_rpc_user_info_t *info, Ac
     cipher_daemon_execute_remote_rpc(&context);
     return response;
 }
-AccelReadMaxResponse MtibRunner_AccelReadMaxForceRpc(cipher_unary_rpc_user_info_t *info, AccelReadMaxRequest request)
+GetMotionStatusResponse MtibRunnerV1_GetMotionStatusRpc(cipher_unary_rpc_user_info_t *info, Empty request)
 {
-    AccelReadMaxResponse response  = {0};
+    GetMotionStatusResponse response  = {0};
 
     cipher_daemon_rpc_context_t context =
     {
         .local = true,
         .user_info = info,
-        .service_id = MTIBRUNNER_SERVICE_ID,
-        .rpc_id = rpc_AccelReadMaxForce,
+        .service_id = MTIBRUNNERV1_SERVICE_ID,
+        .rpc_id = rpc_GetMotionStatus,
         .request_struct = &request,
         .request_struct_size = sizeof(request),
         .response_struct = &response ,
@@ -793,16 +737,16 @@ AccelReadMaxResponse MtibRunner_AccelReadMaxForceRpc(cipher_unary_rpc_user_info_
     cipher_daemon_execute_remote_rpc(&context);
     return response;
 }
-EepromReadResponse MtibRunner_EepromReadRpc(cipher_unary_rpc_user_info_t *info, EepromReadRequest request)
+MotionHomeResponse MtibRunnerV1_MotionHomeRpc(cipher_unary_rpc_user_info_t *info, Empty request)
 {
-    EepromReadResponse response  = {0};
+    MotionHomeResponse response  = {0};
 
     cipher_daemon_rpc_context_t context =
     {
         .local = true,
         .user_info = info,
-        .service_id = MTIBRUNNER_SERVICE_ID,
-        .rpc_id = rpc_EepromRead,
+        .service_id = MTIBRUNNERV1_SERVICE_ID,
+        .rpc_id = rpc_MotionHome,
         .request_struct = &request,
         .request_struct_size = sizeof(request),
         .response_struct = &response ,
@@ -812,16 +756,16 @@ EepromReadResponse MtibRunner_EepromReadRpc(cipher_unary_rpc_user_info_t *info, 
     cipher_daemon_execute_remote_rpc(&context);
     return response;
 }
-EepromWriteResponse MtibRunner_EepromWriteRpc(cipher_unary_rpc_user_info_t *info, EepromWriteRequest request)
+MotionTriggerResponse MtibRunnerV1_MotionTriggerRpc(cipher_unary_rpc_user_info_t *info, MotionTriggerRequest request)
 {
-    EepromWriteResponse response  = {0};
+    MotionTriggerResponse response  = {0};
 
     cipher_daemon_rpc_context_t context =
     {
         .local = true,
         .user_info = info,
-        .service_id = MTIBRUNNER_SERVICE_ID,
-        .rpc_id = rpc_EepromWrite,
+        .service_id = MTIBRUNNERV1_SERVICE_ID,
+        .rpc_id = rpc_MotionTrigger,
         .request_struct = &request,
         .request_struct_size = sizeof(request),
         .response_struct = &response ,
@@ -831,7 +775,45 @@ EepromWriteResponse MtibRunner_EepromWriteRpc(cipher_unary_rpc_user_info_t *info
     cipher_daemon_execute_remote_rpc(&context);
     return response;
 }
-ListFwFilesResponse MtibRunner_ListFwFilesRpc(cipher_unary_rpc_user_info_t *info, ListFwFilesRequest request)
+MotionContinuousResponse MtibRunnerV1_MotionContinuousRpc(cipher_unary_rpc_user_info_t *info, MotionContinuousRequest request)
+{
+    MotionContinuousResponse response  = {0};
+
+    cipher_daemon_rpc_context_t context =
+    {
+        .local = true,
+        .user_info = info,
+        .service_id = MTIBRUNNERV1_SERVICE_ID,
+        .rpc_id = rpc_MotionContinuous,
+        .request_struct = &request,
+        .request_struct_size = sizeof(request),
+        .response_struct = &response ,
+        .response_struct_size = sizeof(response)
+    };
+
+    cipher_daemon_execute_remote_rpc(&context);
+    return response;
+}
+MotionStopResponse MtibRunnerV1_MotionStopRpc(cipher_unary_rpc_user_info_t *info, Empty request)
+{
+    MotionStopResponse response  = {0};
+
+    cipher_daemon_rpc_context_t context =
+    {
+        .local = true,
+        .user_info = info,
+        .service_id = MTIBRUNNERV1_SERVICE_ID,
+        .rpc_id = rpc_MotionStop,
+        .request_struct = &request,
+        .request_struct_size = sizeof(request),
+        .response_struct = &response ,
+        .response_struct_size = sizeof(response)
+    };
+
+    cipher_daemon_execute_remote_rpc(&context);
+    return response;
+}
+ListFwFilesResponse MtibRunnerV1_ListFwFilesRpc(cipher_unary_rpc_user_info_t *info, Empty request)
 {
     ListFwFilesResponse response  = {0};
 
@@ -839,7 +821,7 @@ ListFwFilesResponse MtibRunner_ListFwFilesRpc(cipher_unary_rpc_user_info_t *info
     {
         .local = true,
         .user_info = info,
-        .service_id = MTIBRUNNER_SERVICE_ID,
+        .service_id = MTIBRUNNERV1_SERVICE_ID,
         .rpc_id = rpc_ListFwFiles,
         .request_struct = &request,
         .request_struct_size = sizeof(request),
@@ -850,7 +832,7 @@ ListFwFilesResponse MtibRunner_ListFwFilesRpc(cipher_unary_rpc_user_info_t *info
     cipher_daemon_execute_remote_rpc(&context);
     return response;
 }
-UploadFwFileResponse MtibRunner_UploadFwFileRpc(cipher_unary_rpc_user_info_t *info, UploadFwFileRequest request)
+UploadFwFileResponse MtibRunnerV1_UploadFwFileRpc(cipher_unary_rpc_user_info_t *info, UploadFwFileRequest request)
 {
     UploadFwFileResponse response  = {0};
 
@@ -858,7 +840,7 @@ UploadFwFileResponse MtibRunner_UploadFwFileRpc(cipher_unary_rpc_user_info_t *in
     {
         .local = true,
         .user_info = info,
-        .service_id = MTIBRUNNER_SERVICE_ID,
+        .service_id = MTIBRUNNERV1_SERVICE_ID,
         .rpc_id = rpc_UploadFwFile,
         .request_struct = &request,
         .request_struct_size = sizeof(request),
@@ -869,7 +851,7 @@ UploadFwFileResponse MtibRunner_UploadFwFileRpc(cipher_unary_rpc_user_info_t *in
     cipher_daemon_execute_remote_rpc(&context);
     return response;
 }
-DeleteFwFileResponse MtibRunner_DeleteFwFileRpc(cipher_unary_rpc_user_info_t *info, DeleteFwFileRequest request)
+DeleteFwFileResponse MtibRunnerV1_DeleteFwFileRpc(cipher_unary_rpc_user_info_t *info, DeleteFwFileRequest request)
 {
     DeleteFwFileResponse response  = {0};
 
@@ -877,7 +859,7 @@ DeleteFwFileResponse MtibRunner_DeleteFwFileRpc(cipher_unary_rpc_user_info_t *in
     {
         .local = true,
         .user_info = info,
-        .service_id = MTIBRUNNER_SERVICE_ID,
+        .service_id = MTIBRUNNERV1_SERVICE_ID,
         .rpc_id = rpc_DeleteFwFile,
         .request_struct = &request,
         .request_struct_size = sizeof(request),
@@ -888,16 +870,16 @@ DeleteFwFileResponse MtibRunner_DeleteFwFileRpc(cipher_unary_rpc_user_info_t *in
     cipher_daemon_execute_remote_rpc(&context);
     return response;
 }
-FlashHexFileResponse MtibRunner_FlashHexFileRpc(cipher_unary_rpc_user_info_t *info, FlashHexFileRequest request)
+FlashFwFileResponse MtibRunnerV1_FlashFwFileRpc(cipher_unary_rpc_user_info_t *info, FlashFwFileRequest request)
 {
-    FlashHexFileResponse response  = {0};
+    FlashFwFileResponse response  = {0};
 
     cipher_daemon_rpc_context_t context =
     {
         .local = true,
         .user_info = info,
-        .service_id = MTIBRUNNER_SERVICE_ID,
-        .rpc_id = rpc_FlashHexFile,
+        .service_id = MTIBRUNNERV1_SERVICE_ID,
+        .rpc_id = rpc_FlashFwFile,
         .request_struct = &request,
         .request_struct_size = sizeof(request),
         .response_struct = &response ,
@@ -907,26 +889,7 @@ FlashHexFileResponse MtibRunner_FlashHexFileRpc(cipher_unary_rpc_user_info_t *in
     cipher_daemon_execute_remote_rpc(&context);
     return response;
 }
-UartStreamResponse MtibRunner_nrf9160UartStreamRpc(cipher_unary_rpc_user_info_t *info, UartStreamRequest request)
-{
-    UartStreamResponse response  = {0};
-
-    cipher_daemon_rpc_context_t context =
-    {
-        .local = true,
-        .user_info = info,
-        .service_id = MTIBRUNNER_SERVICE_ID,
-        .rpc_id = rpc_nrf9160UartStream,
-        .request_struct = &request,
-        .request_struct_size = sizeof(request),
-        .response_struct = &response ,
-        .response_struct_size = sizeof(response)
-    };
-
-    cipher_daemon_execute_remote_rpc(&context);
-    return response;
-}
-UartStreamResponse MtibRunner_nrf52840UartStreamRpc(cipher_unary_rpc_user_info_t *info, UartStreamRequest request)
+UartStreamResponse MtibRunnerV1_UartStreamRpc(cipher_unary_rpc_user_info_t *info, UartStreamRequest request)
 {
     UartStreamResponse response  = {0};
 
@@ -934,8 +897,8 @@ UartStreamResponse MtibRunner_nrf52840UartStreamRpc(cipher_unary_rpc_user_info_t
     {
         .local = true,
         .user_info = info,
-        .service_id = MTIBRUNNER_SERVICE_ID,
-        .rpc_id = rpc_nrf52840UartStream,
+        .service_id = MTIBRUNNERV1_SERVICE_ID,
+        .rpc_id = rpc_UartStream,
         .request_struct = &request,
         .request_struct_size = sizeof(request),
         .response_struct = &response ,
@@ -946,7 +909,7 @@ UartStreamResponse MtibRunner_nrf52840UartStreamRpc(cipher_unary_rpc_user_info_t
     return response;
 }
 
-static cipher_rpc_info_t mtibrunner_rpcs[] =
+static cipher_rpc_info_t mtibrunnerv1_rpcs[] =
 {
     {
         .id = rpc_HealthCheck,
@@ -954,9 +917,9 @@ static cipher_rpc_info_t mtibrunner_rpcs[] =
         .name = "HealthCheck",
         .handler = HealthCheckRpcPrvHandler,
         .request_info = {
-            .fields = HealthCheckRequest_fields,
-            .encoded_size = HealthCheckRequest_size,
-            .decoded_size = sizeof(HealthCheckRequest)
+            .fields = Empty_fields,
+            .encoded_size = Empty_size,
+            .decoded_size = sizeof(Empty)
         },
         .response_info = {
             .fields = HealthCheckResponse_fields,
@@ -971,31 +934,14 @@ static cipher_rpc_info_t mtibrunner_rpcs[] =
         .name = "GetRunnerInfo",
         .handler = GetRunnerInfoRpcPrvHandler,
         .request_info = {
-            .fields = GetRunnerInfoRequest_fields,
-            .encoded_size = GetRunnerInfoRequest_size,
-            .decoded_size = sizeof(GetRunnerInfoRequest)
+            .fields = Empty_fields,
+            .encoded_size = Empty_size,
+            .decoded_size = sizeof(Empty)
         },
         .response_info = {
             .fields = GetRunnerInfoResponse_fields,
             .encoded_size = GetRunnerInfoResponse_size,
             .decoded_size = sizeof(GetRunnerInfoResponse)
-        },
-        .supports_parallelism = true,
-    },
-    {
-        .id = rpc_Reset,
-        .type = CIPHER_RPC_TYPE_UNARY,
-        .name = "Reset",
-        .handler = ResetRpcPrvHandler,
-        .request_info = {
-            .fields = ResetRequest_fields,
-            .encoded_size = ResetRequest_size,
-            .decoded_size = sizeof(ResetRequest)
-        },
-        .response_info = {
-            .fields = ResetResponse_fields,
-            .encoded_size = ResetResponse_size,
-            .decoded_size = sizeof(ResetResponse)
         },
         .supports_parallelism = true,
     },
@@ -1090,14 +1036,31 @@ static cipher_rpc_info_t mtibrunner_rpcs[] =
         .name = "DutPowerEnable",
         .handler = DutPowerEnableRpcPrvHandler,
         .request_info = {
-            .fields = DutPowerEnableRequest_fields,
-            .encoded_size = DutPowerEnableRequest_size,
-            .decoded_size = sizeof(DutPowerEnableRequest)
+            .fields = DutPowerRequest_fields,
+            .encoded_size = DutPowerRequest_size,
+            .decoded_size = sizeof(DutPowerRequest)
         },
         .response_info = {
-            .fields = DutPowerEnableResponse_fields,
-            .encoded_size = DutPowerEnableResponse_size,
-            .decoded_size = sizeof(DutPowerEnableResponse)
+            .fields = DutPowerResponse_fields,
+            .encoded_size = DutPowerResponse_size,
+            .decoded_size = sizeof(DutPowerResponse)
+        },
+        .supports_parallelism = true,
+    },
+    {
+        .id = rpc_DutPowerDisable,
+        .type = CIPHER_RPC_TYPE_UNARY,
+        .name = "DutPowerDisable",
+        .handler = DutPowerDisableRpcPrvHandler,
+        .request_info = {
+            .fields = Empty_fields,
+            .encoded_size = Empty_size,
+            .decoded_size = sizeof(Empty)
+        },
+        .response_info = {
+            .fields = DutPowerResponse_fields,
+            .encoded_size = DutPowerResponse_size,
+            .decoded_size = sizeof(DutPowerResponse)
         },
         .supports_parallelism = true,
     },
@@ -1107,65 +1070,31 @@ static cipher_rpc_info_t mtibrunner_rpcs[] =
         .name = "DutChargePowerEnable",
         .handler = DutChargePowerEnableRpcPrvHandler,
         .request_info = {
-            .fields = DutPowerEnableRequest_fields,
-            .encoded_size = DutPowerEnableRequest_size,
-            .decoded_size = sizeof(DutPowerEnableRequest)
+            .fields = DutPowerRequest_fields,
+            .encoded_size = DutPowerRequest_size,
+            .decoded_size = sizeof(DutPowerRequest)
         },
         .response_info = {
-            .fields = DutPowerEnableResponse_fields,
-            .encoded_size = DutPowerEnableResponse_size,
-            .decoded_size = sizeof(DutPowerEnableResponse)
+            .fields = DutPowerResponse_fields,
+            .encoded_size = DutPowerResponse_size,
+            .decoded_size = sizeof(DutPowerResponse)
         },
         .supports_parallelism = true,
     },
     {
-        .id = rpc_DutVoltageSet,
+        .id = rpc_DutChargePowerDisable,
         .type = CIPHER_RPC_TYPE_UNARY,
-        .name = "DutVoltageSet",
-        .handler = DutVoltageSetRpcPrvHandler,
+        .name = "DutChargePowerDisable",
+        .handler = DutChargePowerDisableRpcPrvHandler,
         .request_info = {
-            .fields = DutVoltageSetRequest_fields,
-            .encoded_size = DutVoltageSetRequest_size,
-            .decoded_size = sizeof(DutVoltageSetRequest)
+            .fields = Empty_fields,
+            .encoded_size = Empty_size,
+            .decoded_size = sizeof(Empty)
         },
         .response_info = {
-            .fields = DutVoltageSetResponse_fields,
-            .encoded_size = DutVoltageSetResponse_size,
-            .decoded_size = sizeof(DutVoltageSetResponse)
-        },
-        .supports_parallelism = true,
-    },
-    {
-        .id = rpc_DutCurrentRead,
-        .type = CIPHER_RPC_TYPE_UNARY,
-        .name = "DutCurrentRead",
-        .handler = DutCurrentReadRpcPrvHandler,
-        .request_info = {
-            .fields = DutCurrentReadRequest_fields,
-            .encoded_size = DutCurrentReadRequest_size,
-            .decoded_size = sizeof(DutCurrentReadRequest)
-        },
-        .response_info = {
-            .fields = DutCurrentReadResponse_fields,
-            .encoded_size = DutCurrentReadResponse_size,
-            .decoded_size = sizeof(DutCurrentReadResponse)
-        },
-        .supports_parallelism = true,
-    },
-    {
-        .id = rpc_DutVoltageRead,
-        .type = CIPHER_RPC_TYPE_UNARY,
-        .name = "DutVoltageRead",
-        .handler = DutVoltageReadRpcPrvHandler,
-        .request_info = {
-            .fields = DutVoltageReadRequest_fields,
-            .encoded_size = DutVoltageReadRequest_size,
-            .decoded_size = sizeof(DutVoltageReadRequest)
-        },
-        .response_info = {
-            .fields = DutVoltageReadResponse_fields,
-            .encoded_size = DutVoltageReadResponse_size,
-            .decoded_size = sizeof(DutVoltageReadResponse)
+            .fields = DutPowerResponse_fields,
+            .encoded_size = DutPowerResponse_size,
+            .decoded_size = sizeof(DutPowerResponse)
         },
         .supports_parallelism = true,
     },
@@ -1175,9 +1104,9 @@ static cipher_rpc_info_t mtibrunner_rpcs[] =
         .name = "DutPowerRead",
         .handler = DutPowerReadRpcPrvHandler,
         .request_info = {
-            .fields = DutPowerReadRequest_fields,
-            .encoded_size = DutPowerReadRequest_size,
-            .decoded_size = sizeof(DutPowerReadRequest)
+            .fields = Empty_fields,
+            .encoded_size = Empty_size,
+            .decoded_size = sizeof(Empty)
         },
         .response_info = {
             .fields = DutPowerReadResponse_fields,
@@ -1192,9 +1121,9 @@ static cipher_rpc_info_t mtibrunner_rpcs[] =
         .name = "AltimeterRead",
         .handler = AltimeterReadRpcPrvHandler,
         .request_info = {
-            .fields = AltimeterReadRequest_fields,
-            .encoded_size = AltimeterReadRequest_size,
-            .decoded_size = sizeof(AltimeterReadRequest)
+            .fields = Empty_fields,
+            .encoded_size = Empty_size,
+            .decoded_size = sizeof(Empty)
         },
         .response_info = {
             .fields = AltimeterReadResponse_fields,
@@ -1209,9 +1138,9 @@ static cipher_rpc_info_t mtibrunner_rpcs[] =
         .name = "AccelRead",
         .handler = AccelReadRpcPrvHandler,
         .request_info = {
-            .fields = AccelReadRequest_fields,
-            .encoded_size = AccelReadRequest_size,
-            .decoded_size = sizeof(AccelReadRequest)
+            .fields = Empty_fields,
+            .encoded_size = Empty_size,
+            .decoded_size = sizeof(Empty)
         },
         .response_info = {
             .fields = AccelReadResponse_fields,
@@ -1221,53 +1150,87 @@ static cipher_rpc_info_t mtibrunner_rpcs[] =
         .supports_parallelism = true,
     },
     {
-        .id = rpc_AccelReadMaxForce,
+        .id = rpc_GetMotionStatus,
         .type = CIPHER_RPC_TYPE_UNARY,
-        .name = "AccelReadMaxForce",
-        .handler = AccelReadMaxForceRpcPrvHandler,
+        .name = "GetMotionStatus",
+        .handler = GetMotionStatusRpcPrvHandler,
         .request_info = {
-            .fields = AccelReadMaxRequest_fields,
-            .encoded_size = AccelReadMaxRequest_size,
-            .decoded_size = sizeof(AccelReadMaxRequest)
+            .fields = Empty_fields,
+            .encoded_size = Empty_size,
+            .decoded_size = sizeof(Empty)
         },
         .response_info = {
-            .fields = AccelReadMaxResponse_fields,
-            .encoded_size = AccelReadMaxResponse_size,
-            .decoded_size = sizeof(AccelReadMaxResponse)
+            .fields = GetMotionStatusResponse_fields,
+            .encoded_size = GetMotionStatusResponse_size,
+            .decoded_size = sizeof(GetMotionStatusResponse)
         },
         .supports_parallelism = true,
     },
     {
-        .id = rpc_EepromRead,
+        .id = rpc_MotionHome,
         .type = CIPHER_RPC_TYPE_UNARY,
-        .name = "EepromRead",
-        .handler = EepromReadRpcPrvHandler,
+        .name = "MotionHome",
+        .handler = MotionHomeRpcPrvHandler,
         .request_info = {
-            .fields = EepromReadRequest_fields,
-            .encoded_size = EepromReadRequest_size,
-            .decoded_size = sizeof(EepromReadRequest)
+            .fields = Empty_fields,
+            .encoded_size = Empty_size,
+            .decoded_size = sizeof(Empty)
         },
         .response_info = {
-            .fields = EepromReadResponse_fields,
-            .encoded_size = EepromReadResponse_size,
-            .decoded_size = sizeof(EepromReadResponse)
+            .fields = MotionHomeResponse_fields,
+            .encoded_size = MotionHomeResponse_size,
+            .decoded_size = sizeof(MotionHomeResponse)
         },
         .supports_parallelism = true,
     },
     {
-        .id = rpc_EepromWrite,
+        .id = rpc_MotionTrigger,
         .type = CIPHER_RPC_TYPE_UNARY,
-        .name = "EepromWrite",
-        .handler = EepromWriteRpcPrvHandler,
+        .name = "MotionTrigger",
+        .handler = MotionTriggerRpcPrvHandler,
         .request_info = {
-            .fields = EepromWriteRequest_fields,
-            .encoded_size = EepromWriteRequest_size,
-            .decoded_size = sizeof(EepromWriteRequest)
+            .fields = MotionTriggerRequest_fields,
+            .encoded_size = MotionTriggerRequest_size,
+            .decoded_size = sizeof(MotionTriggerRequest)
         },
         .response_info = {
-            .fields = EepromWriteResponse_fields,
-            .encoded_size = EepromWriteResponse_size,
-            .decoded_size = sizeof(EepromWriteResponse)
+            .fields = MotionTriggerResponse_fields,
+            .encoded_size = MotionTriggerResponse_size,
+            .decoded_size = sizeof(MotionTriggerResponse)
+        },
+        .supports_parallelism = true,
+    },
+    {
+        .id = rpc_MotionContinuous,
+        .type = CIPHER_RPC_TYPE_UNARY,
+        .name = "MotionContinuous",
+        .handler = MotionContinuousRpcPrvHandler,
+        .request_info = {
+            .fields = MotionContinuousRequest_fields,
+            .encoded_size = MotionContinuousRequest_size,
+            .decoded_size = sizeof(MotionContinuousRequest)
+        },
+        .response_info = {
+            .fields = MotionContinuousResponse_fields,
+            .encoded_size = MotionContinuousResponse_size,
+            .decoded_size = sizeof(MotionContinuousResponse)
+        },
+        .supports_parallelism = true,
+    },
+    {
+        .id = rpc_MotionStop,
+        .type = CIPHER_RPC_TYPE_UNARY,
+        .name = "MotionStop",
+        .handler = MotionStopRpcPrvHandler,
+        .request_info = {
+            .fields = Empty_fields,
+            .encoded_size = Empty_size,
+            .decoded_size = sizeof(Empty)
+        },
+        .response_info = {
+            .fields = MotionStopResponse_fields,
+            .encoded_size = MotionStopResponse_size,
+            .decoded_size = sizeof(MotionStopResponse)
         },
         .supports_parallelism = true,
     },
@@ -1277,9 +1240,9 @@ static cipher_rpc_info_t mtibrunner_rpcs[] =
         .name = "ListFwFiles",
         .handler = ListFwFilesRpcPrvHandler,
         .request_info = {
-            .fields = ListFwFilesRequest_fields,
-            .encoded_size = ListFwFilesRequest_size,
-            .decoded_size = sizeof(ListFwFilesRequest)
+            .fields = Empty_fields,
+            .encoded_size = Empty_size,
+            .decoded_size = sizeof(Empty)
         },
         .response_info = {
             .fields = ListFwFilesResponse_fields,
@@ -1323,44 +1286,27 @@ static cipher_rpc_info_t mtibrunner_rpcs[] =
         .supports_parallelism = true,
     },
     {
-        .id = rpc_FlashHexFile,
+        .id = rpc_FlashFwFile,
         .type = CIPHER_RPC_TYPE_UNARY,
-        .name = "FlashHexFile",
-        .handler = FlashHexFileRpcPrvHandler,
+        .name = "FlashFwFile",
+        .handler = FlashFwFileRpcPrvHandler,
         .request_info = {
-            .fields = FlashHexFileRequest_fields,
-            .encoded_size = FlashHexFileRequest_size,
-            .decoded_size = sizeof(FlashHexFileRequest)
+            .fields = FlashFwFileRequest_fields,
+            .encoded_size = FlashFwFileRequest_size,
+            .decoded_size = sizeof(FlashFwFileRequest)
         },
         .response_info = {
-            .fields = FlashHexFileResponse_fields,
-            .encoded_size = FlashHexFileResponse_size,
-            .decoded_size = sizeof(FlashHexFileResponse)
+            .fields = FlashFwFileResponse_fields,
+            .encoded_size = FlashFwFileResponse_size,
+            .decoded_size = sizeof(FlashFwFileResponse)
         },
         .supports_parallelism = true,
     },
     {
-        .id = rpc_nrf9160UartStream,
+        .id = rpc_UartStream,
         .type = CIPHER_RPC_TYPE_UNARY,
-        .name = "nrf9160UartStream",
-        .handler = nrf9160UartStreamRpcPrvHandler,
-        .request_info = {
-            .fields = UartStreamRequest_fields,
-            .encoded_size = UartStreamRequest_size,
-            .decoded_size = sizeof(UartStreamRequest)
-        },
-        .response_info = {
-            .fields = UartStreamResponse_fields,
-            .encoded_size = UartStreamResponse_size,
-            .decoded_size = sizeof(UartStreamResponse)
-        },
-        .supports_parallelism = true,
-    },
-    {
-        .id = rpc_nrf52840UartStream,
-        .type = CIPHER_RPC_TYPE_UNARY,
-        .name = "nrf52840UartStream",
-        .handler = nrf52840UartStreamRpcPrvHandler,
+        .name = "UartStream",
+        .handler = UartStreamRpcPrvHandler,
         .request_info = {
             .fields = UartStreamRequest_fields,
             .encoded_size = UartStreamRequest_size,
@@ -1375,16 +1321,16 @@ static cipher_rpc_info_t mtibrunner_rpcs[] =
     },
 };
 
-static cipher_service_info_t mtibrunner_service =
+static cipher_service_info_t mtibrunnerv1_service =
 {
-    .id = MTIBRUNNER_SERVICE_ID,
-    .name = "MtibRunner",
+    .id = MTIBRUNNERV1_SERVICE_ID,
+    .name = "MtibRunnerV1",
     .max_hops = 1,
-    .rpcs = mtibrunner_rpcs,
-    .num_rpcs = ARRAY_SIZE(mtibrunner_rpcs),
+    .rpcs = mtibrunnerv1_rpcs,
+    .num_rpcs = ARRAY_SIZE(mtibrunnerv1_rpcs),
 };
 
-cipher_service_info_t *get_mtibrunnerservice_info(void)
+cipher_service_info_t *get_mtibrunnerv1service_info(void)
 {
-    return &mtibrunner_service;
+    return &mtibrunnerv1_service;
 }

@@ -1,0 +1,9 @@
+{
+    "python.analysis.extraPaths": [
+        "/workspaces/concord/libs/python/corekinect/utils/log",
+        "/workspaces/concord/libs/python/corekinect/utils/env",
+        "/workspaces/concord/libs/python/corekinect/iface",
+        "/workspaces/concord/libs/python/corekinect/cipher",
+        "/workspaces/concord/libs/python/corekinect/mtib_runner_client/v1/client",
+    ]
+}

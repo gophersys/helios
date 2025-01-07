@@ -45,9 +45,7 @@ class Step4Readings:
 # ---------------------------------------------------------------------------------
 #                                                                           Handler
 # -------------------------------------------------------------------------------*/
-def electrical_test_step_4_handler(
-    config: Sigma5ManufacturingConfig, node: str, usr_data: Dict[str, ElectricalTestSharedData]
-) -> TestStepResult:
+def electrical_test_step_4_handler(config: Sigma5ManufacturingConfig, node: str, usr_data: Dict[str, ElectricalTestSharedData]) -> None:
     result: TestStepResult = TestStepResult(success=False)
 
     readings = Step4Readings()
@@ -55,76 +53,77 @@ def electrical_test_step_4_handler(
     # 4.a: Ensure +VIN test point is the same as +BATT
     result.error, readings.vin_voltage = runnners_controller.read_vin(node)
     if result.error:
-        return result
+        raise PassTest(
+            details = readings.marshall()
+        )
 
     result.error, readings.vbatt_voltage = runnners_controller.read_vbat(node)
     if result.error:
-        return result
-
-    if abs(readings.vin_voltage - readings.vbatt_voltage) > config.electrical_step_4a_vin_vbat_tolerance:
-        result.reason = f"Step 4.a failed: Expected +VIN = +VBAT, with tolerance {config.electrical_step_4a_vin_vbat_tolerance}, Actual +VIN = {readings.vin_voltage}V, +VBAT = {readings.vbatt_voltage}V"
-        result.details = readings.marshall()
-        return result
-
-    # 4.b: Ensure regulated +3.3V test point voltage is within 3.2V - 3.4V
-    result.error, readings._3v3_voltage = runnners_controller.read_3v3(node)
-    if result.error:
-        return result
-
-    if not (config.electrical_step_4a_3v3_min <= readings._3v3_voltage <= config.electrical_step_4a_3v3_max):
-        result.reason = f"Step 4.b failed: Expected +3.3V within {config.electrical_step_4a_3v3_min}V - {config.electrical_step_4a_3v3_max}V, Actual +3.3V = {readings._3v3_voltage}V"
-        result.details = readings.marshall()
-        return result
-
-    # 4.c: Ensure +VBCKP test point voltage is within +2.4V - 2.6V
-    result.error, readings.vbckp_voltage = runnners_controller.read_vbckp(node)
-    if result.error:
-        return result
-
-    if not (config.electrical_step_4c_vbckp_min <= readings.vbckp_voltage <= config.electrical_step_4c_vbckp_max):
-        result.reason = f"Step 4.c failed: Expected +VBCKP within {config.electrical_step_4c_vbckp_min}V - {config.electrical_step_4c_vbckp_max}V, Actual +3.3V = {readings.vbckp_voltage}V"
-        result.details = readings.marshall()
-        return result
-
-    # TODO: Remove step 4.d from documentation or correct test
-
-    # 4.e: Ensure UVP_N test point voltage is digital high
-    result.error, readings.uvp_n_value = runnners_controller.read_uvp_n(node)
-    if result.error:
-        return result
-
-    if readings.uvp_n_value is not True:
-        result.reason = f"Step 4.e failed: Expected UVP_N digital high, Actual UVP_N = {readings.uvp_n_value}"
-        result.details = readings.marshall()
-        return result
-
-    # 4.f: Ensure proper power consumption (no short circuits)
-    result.error, readings.current_a = runnners_controller.read_current(node)
-    if result.error:
-        return result
-
-    if not (config.electrical_step_4f_current_min <= readings.current_a <= config.electrical_step_4f_current_max):
-        result.reason = f"Step 4.f failed: Expected current consumption within {config.electrical_step_4f_current_min}A - {config.electrical_step_4f_current_max}A, Actual current = {readings.current_a}A"
-        result.details = readings.marshall()
-        return result
-
-    # Succeeded
-    result.success = True
-    result.details = readings.marshall()
-
+        raise FailTest(
+            details = readings.marshall()
+        )
+    
     return result
 
-
-# ----------------------------------------------------------------------------------
-#                                                                               Step
-# --------------------------------------------------------------------------------*/
 electrical_test_step_4: TestStep = TestStep(
     info=StepInfo(
         sequence=4,
         name="Ensure device electrical state.",
         description="Checks VIN, 3.3V, VBCKUP, UVP_N and current consumption against thresholds.",
         noPassIsFatal=False,
+        supported_platforms = ["sigma3", "sigma5", "sigma7"]
+        supported_board_revisions = ["A3", "B0", "B1", "C0"]
+        supported_firmware_versions = ["1.x", "2.x"]
+        supported_socket_server_versions = ["0.9", "1.x"]
     ),
     timeout_ms=1000,
     handler=electrical_test_step_4_handler,
 )
+
+
+# ----------------------------------------------------------------------------------
+#                                                                               Step
+# --------------------------------------------------------------------------------*/
+
+class StepGpsSomething(TestStep):
+    metadata: StepInfo(
+            name="Ensure device electrical state.",
+            description="Checks VIN, 3.3V, VBCKUP, UVP_N and current consumption against thresholds.",
+            noPassIsFatal=False,
+            supported_platforms = ["sigma3", "sigma5", "sigma7"]
+            supported_board_revisions = ["A3", "B0", "B1", "C0"]
+            supported_firmware_versions = ["1.x", "2.x"]
+            supported_socket_server_versions = ["0.9", "1.x"]
+        ),
+    
+    class Config:
+        field_1: int = 0
+        
+    class Data:
+        field_1: int = 0
+
+    # TODO: How do we pass global config
+    # TODO: How do we use the 'usr_data' -> 'shared_data'
+    # TODO: Modify handler to pass 1 more arguement, called global_config (Manufacturing or Validation)
+    # TODO: Unmarshall configs (local and global) in the lib.py
+    # TODO: Progress indicator object (prefereably a callback)
+    # TODO: Add ons
+    
+    def _handler(config: Config, node: str, usr_data:Any, add_ons:Any ):
+        data:Data = Data()
+        
+        # 4.a: Ensure +VIN test point is the same as +BATT
+        error, data.vin_voltage = runnners_controller.read_vin(node)
+        if error:
+            raise FailTest(
+                ""
+            )
+
+        result.error, readings.vbatt_voltage = runnners_controller.read_vbat(node)
+        if result.error:
+            
+        raise PassTest(
+            data=data.marshall()
+        )
+
+    

@@ -4,6 +4,8 @@ import concurrent.futures
 import hashlib
 import os
 import socket
+import traceback
+
 import struct
 import zlib
 from dataclasses import dataclass
@@ -369,11 +371,13 @@ class Sigma5RunnersController:
                     errors.append(error)
 
         if errors:
+            self.runners.clear()
             return f"Errors occurred during runner initialization: {', '.join(errors)}"
 
         # Configure any GPIOs
         error = self._setup_runners()
         if error:
+            self.runners.clear()
             return f"Failed to setup runners for sigma5 manufacturing configuration: {error}"
 
         return None  # No error
@@ -403,32 +407,32 @@ class Sigma5RunnersController:
             logging.error(f"Failed to connect to runner at {host}. Error: {str(e.details())}")
             return f"Failed to connect to runner at {host}. Error: {str(e.details())}"
         except Exception as e:
-            logging.error(f"Unexpected error when connecting to runner at {host}. Error: {str(e)}")
+            logging.error(f"Unexpected error when connecting to runner at {host}. Error: {str(e)}, {traceback.print_exc()}")
             return f"Unexpected error when connecting to runner at {host}. Error: {str(e)}"
 
     def _setup_runners(self) -> str:
-        for _, stub in self.runners.items():
+        for runner, stub in self.runners.items():
             error = self._config_gpio(
                 stub, TP50_HARD_RESET, GpioType.GPIO_OUTPUT, GpioResistorConfig.GPIO_RESISTOR_PULL_UP
             )
             if error:
-                return error
+                return f"Could not configure GPIO TP50_HARD_RESET in {runner}, {error}"
 
             error = self._config_gpio(
                 stub, TP49_CHRG_DET, GpioType.GPIO_INPUT, GpioResistorConfig.GPIO_RESISTOR_PULL_DOWN
             )
             if error:
-                return error
+                return f"Could not configure GPIO TP49_CHRG_DET in {runner}, {error}"
 
             error = self._config_gpio(stub, TP12_UVP_N, GpioType.GPIO_INPUT, GpioResistorConfig.GPIO_RESISTOR_PULL_UP)
             if error:
-                return error
+                return f"Could not configure GPIO TP12_UVP_N in {runner}, {error}"
 
             error = self._config_gpio(
                 stub, TP1_3V3_PSM, GpioType.GPIO_INPUT, GpioResistorConfig.GPIO_RESISTOR_PULL_DOWN
             )
             if error:
-                return error
+                return f"Could not configure GPIO TP1_3V3_PSM in {runner}, {error}"
 
         return ""
 

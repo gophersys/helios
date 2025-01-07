@@ -1,23 +1,45 @@
-# Known issues
+# Concord HTTP Proxy Server 
 
-## /v1/cluster/register
-[ ] If a cluster is succesfully registered, but the controller of that cluster resets for some reason, the cluster is unable to register itself again.
+## TODO
+- Install the supabase, prisma and openapi dependencies in the dev container
+- Create nx actions (setup, build, push, docs)
+- Create libraries
+    - Logging
+    - Config Helper
+- Database
+    - Setup supabase
+    - Setup prisma
+    - Setup seed
+- Docs
+    [x] openapi take many .yaml to single yaml
+    - Generate clients for preferred languages 
+- Routes
+- Permissions and Roles
+
+## Table of Contents
+1. [Introduction](#introduction)
+2. [Features](#features)
+3. [Installation](#installation)
+4. [Configuration](#configuration)
+5. [Usage](#usage)
+6. [API Endpoints](#api-endpoints)
+7. [Contributing](#contributing)
+8. [License](#license)
 
 
+## Introduction
+This application is an HTTP server designed to handle all requests to the concord testing backend. It is built using the Flask framework and provides endpoints for [storage, healthcheck, etc.]. The server is designed to be modular, extendable, and easy to set up for both development and production environments.
 
-# cipher
+## Installation
+### Prerequisites
+- **Python 3.x** or **Node.js** (depending on your codebase)
+- **Package manager**: (pip, npm, etc.)
+- **Database**: If applicable
 
-A brief description of what cipher does and its purpose.
-
-## Todo
-
-[ ] Set the right branch in the setup.py for iface once iface is done
 
 ## Installation
 
 Instructions for installing cipher, including any prerequisites.
-
-### Development Setup
 1. **Install python venv dependencies**
     ```bash
     apt install -y python3.10-venv
@@ -42,14 +64,25 @@ Instructions for installing cipher, including any prerequisites.
     ```bash
     pip install -e .
     ```
+# Database
 
-## Usage
+## Validation Tables
+### Platform
+A platform will be a product, such as **sigma5** or **alpha**.
 
-Examples of how to use `cipher` module.
+[ ] Platform
+[ ] HardwareVersion
+[ ] FirmwareVersion
+[ ] SocketServerVersion
+[ ] Host
+[ ] Test
+[ ] TestExecutions
+[ ] TestResults
+[ ] Cluster
+[ ] Node
+[ ] Deployment
 
-## Contributing
 
-Guidelines for how to report issues, propose changes, or submit Pull Requests.
 
-## Improvements for V2
-- How do we do updates of runner software smoothly
+
+# Known issue

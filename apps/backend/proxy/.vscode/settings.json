@@ -1,0 +1,7 @@
+{
+    "python.analysis.extraPaths": [
+        "/workspaces/concord/libs/python/corekinect/proxy_client/v1",
+        "/workspaces/concord/libs/python/corekinect/utils/log",
+        "/workspaces/concord/libs/python/corekinect/utils/env"
+    ]
+}

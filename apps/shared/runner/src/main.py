@@ -1,135 +1,79 @@
 # Standard includes
-import logging
-import os
-from concurrent import futures
-from typing import Optional, Tuple
-
+import sys
 import grpc
-import wiringpi
-# App includes
-from config import conf
-from corekinect.cipher.cipher import *
+import logging
+import signal
+import logging
+from concurrent.futures import ThreadPoolExecutor
+
 # Corekinect includes
-from corekinect.iface.iface import *
+from corekinect.utils import Logger
+
 # Protocol includes
-from protos.mtib_runner.mtib_runner_pb2 import *
-from protos.mtib_runner.mtib_runner_pb2_grpc import \
-    add_MtibRunnerServicer_to_server
-from protos.mtib_runner_zephyr.mtib_runner_zephyr_pb2_cipher import \
-    mtibrunnerzephyr_service_info
-from providers.cluster_runner_provider import *
-from providers.cluster_runner_zephyr_provider import *
+from protos.mtib_runner.mtib_runner_pb2_grpc import MtibRunnerV1Servicer, add_MtibRunnerV1Servicer_to_server
+
+# App includes
+from src.config.env import ServerEnvConfig
+from providers.runner import ServerProvider
+from providers.mock import MockServerProvider
 
 
-# ----------------------------------------------------------------------------------
-#                                                               STM32 Server Helpers
-# --------------------------------------------------------------------------------*/
-def reset_zephyr_server():
-    logging.info("Resetting zephyr server")
+def graceful_shutdown(server: grpc.Server, provider: MtibRunnerV1Servicer, log: Logger):
+    log.warning("Kill signal detected, stopping server...")
 
-    wiringpi.pinMode(conf.SERVER_RESET_GPIO, wiringpi.GPIO.OUTPUT)
-
-    # Drive the pin low
-    wiringpi.digitalWrite(conf.SERVER_RESET_GPIO, wiringpi.GPIO.LOW)
-
-    time.sleep(1)
-
-    # Drive the pin high
-    wiringpi.digitalWrite(conf.SERVER_RESET_GPIO, wiringpi.GPIO.HIGH)
-
-    # Give it some time to start
-    time.sleep(2)
-
-    logging.info("Zephyr server has been reset")
-
-
-# ----------------------------------------------------------------------------------
-#                                                                       Cipher Setup
-# --------------------------------------------------------------------------------*/
-def setup_cipher_daemon() -> Tuple[bool, Optional[Cipher]]:
-    # Daemon configuration
-    uart_iface = Iface(
-        type=IfaceType.UART, link=IfaceLinkType.CLIENT, uart_port=conf.MTIB_SERIAL_PORT, baudrate=conf.MTIB_SERIAL_BAUD
-    )
-    client_config = CipherConfig(server_ifaces=[], client_ifaces=[uart_iface])
-
-    # Instantiate & start the daemon
-    daemon: Cipher = Cipher()
-    if not daemon.init(client_config):
-        logging.error("Could not initialize cipher application daemon")
-        return False, None
-
-    logging.info("Daemon initialized OK")
-
-    # Register services
-    daemon.register_service(service=mtibrunnerzephyr_service_info, local=True)
-
-    # Register service provider
-    mtib_service_provider = MtibRunnerZephyrProvider(daemon)
-    daemon.register_service_provider(mtib_service_provider, mtibrunnerzephyr_service_info)
-
-    logging.info(f"Cipher started")
-
-    return True, daemon
-
-
-# ----------------------------------------------------------------------------------
-#                                                                         gRPC Setup
-# --------------------------------------------------------------------------------*/
-def setup_grpc_server(daemon: Cipher) -> Tuple[bool, Optional[grpc.Server]]:
-    # Create gRPC server
-    server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
-
-    # Register the MTIB service
     try:
-        provider = MtibRunnerServicerProvider()
-    except Exception as e:
-        logging.error(f"Could instantiate runner service provider: {str(e)}")
-        os._exit(1)
+        if provider is not None:
+            err = provider.stop()
+            if err is not None:
+                log.error(f"An error occurred stopping runner service provider: {err}")
 
-    add_MtibRunnerServicer_to_server(provider, server)
-
-    # Pass the cipher daemon to the service provider
-    provider.SetInternalDaemon(daemon)
-
-    # Serve
-    server.add_insecure_port(f"[::]:{conf.GRPC_SERVER_PORT}")
-    server.start()
-
-    logging.info(f"Server started, listening on port {conf.GRPC_SERVER_PORT}.")
-
-    return True, server
+        server.stop(0)
+    finally:
+        log.info("Exiting application...")
+        sys.exit(0)
 
 
 # ----------------------------------------------------------------------------------
 #                                                                               Main
 # --------------------------------------------------------------------------------*/
+
 if __name__ == "__main__":
-    logging.debug(f"App configuration: \n{conf}")
+    # Instantiate a global server logger
+    log: Logger = Logger(
+        config=Logger.Config(
+            logger_name="runner",
+            console_log_level=logging.DEBUG,
+        )
+    )
 
-    # Initialize wiringPi for GPIO control
-    wiringpi.wiringPiSetup()
-
-    # Reset the server
-    if conf.SERVER_RESET_ENABLED is True:
-        reset_zephyr_server()
-
-    # Setup Cipher Daemon
-    success, daemon = setup_cipher_daemon()
-    if not success:
-        raise ValueError("Error setting up communication with MTIB")
-
-    # Setup gRPC server
-    success, server = setup_grpc_server(daemon)
-    if not success:
-        raise ValueError("Error setting up GRPC server")
-
-    # Await for kill signal
     try:
+        # Load configuration from environment
+        env_config: ServerEnvConfig = ServerEnvConfig()
+
+        # Create gRPC server
+        server = grpc.server(ThreadPoolExecutor(max_workers=10))
+        server.add_insecure_port(f"[::]:{env_config.RUNNER_GRPC_SERVER_PORT}")
+
+        # Instantiate a runner service provider (mock or actual server)
+        provider: MtibRunnerV1Servicer = None
+        if env_config.MOCK_SERVER:
+            provider = MockServerProvider(env_config=env_config, logger=log)
+        else:
+            provider = ServerProvider(env_config=env_config, logger=log)
+
+        add_MtibRunnerV1Servicer_to_server(provider, server)
+
+        # Start server
+        server.start()
+        log.info(f"Server started, listening on port {env_config.RUNNER_GRPC_SERVER_PORT}.")
+
+        # Set up signal handlers
+        signal.signal(signal.SIGINT, lambda sig, frame: graceful_shutdown(server, provider, log))
+        signal.signal(signal.SIGTERM, lambda sig, frame: graceful_shutdown(server, provider, log))
+
+        # Block until the server terminates
         server.wait_for_termination()
-    except KeyboardInterrupt:
-        print("\n")
-        logging.warning("Kill signal detected, stopping server...")
-        server.stop(0)
-        daemon.stop()
-        logging.info("Server stopped.")
+
+    except Exception as e:
+        log.error(f"Server crashed due to an exception: {e}")
+        sys.exit(1)

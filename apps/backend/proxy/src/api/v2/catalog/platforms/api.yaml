@@ -1,0 +1,224 @@
+
+/v1/catalog/platforms:
+  get:
+    summary: Get a list of all platforms
+    description: Retrieves all platforms in the catalog along with their respective IDs and names.
+    tags:
+        - Catalog
+    responses:
+      '200':
+        description: Successful retrieval of platforms
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                platforms:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        example: "uuid-platform-sigma5"
+                      name:
+                        type: string
+                        example: "sigma5"
+                message:
+                  type: string
+                  example: "No platforms available."
+      '500':
+        description: Server error
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                error:
+                  type: string
+                  example: "Internal server error: Database connection failed."
+  post:
+    summary: Create a new platform
+    description: Creates a new platform with the provided name, ensuring the name is unique.
+    tags:
+        - Catalog
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              name:
+                type: string
+                example: "sigma5"
+            required:
+              - name
+    responses:
+      '201':
+        description: Platform created successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: string
+                  example: "uuid-platform-sigma5"
+                name:
+                  type: string
+                  example: "sigma5"
+      '400':
+        description: Bad request - Missing required fields
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                error:
+                  type: string
+                  example: "Platform name is required."
+      '409':
+        description: Conflict - Platform name already exists
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                error:
+                  type: string
+                  example: "Platform with name 'sigma5' already exists."
+      '500':
+        description: Server error
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                error:
+                  type: string
+                  example: "Internal server error: Database connection failed."
+
+/v1/catalog/platforms/{platformId}:
+  get:
+    summary: Get platform by UUID with all details
+    description: Retrieves the details of a platform, including its hardware versions, firmware versions, and hosts.
+    tags:
+        - Catalog
+    parameters:
+      - in: path
+        name: platformId
+        schema:
+          type: string
+        required: true
+        description: The UUID of the platform
+    responses:
+      '200':
+        description: Platform details retrieved successfully, including hardware versions, firmware versions, and hosts
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: string
+                  example: "uuid-platform-sigma5"
+                name:
+                  type: string
+                  example: "sigma5"
+                hardwareVersions:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        example: "uuid-hardware-B0"
+                      version:
+                        type: string
+                        example: "B0"
+                      firmwareVersions:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                              example: "uuid-firmware-1.2.0"
+                            version:
+                              type: string
+                              example: "1.2.0"
+                      hosts:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                              example: "uuid-host-nrf9160"
+                            name:
+                              type: string
+                              example: "nrf9160"
+      '404':
+        description: Platform not found
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                error:
+                  type: string
+                  example: "Platform with ID 'uuid-platform-sigma5' not found."
+      '500':
+        description: Server error
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                error:
+                  type: string
+                  example: "Internal server error: Database connection failed."
+  delete:
+    summary: Delete platform by UUID
+    description: Deletes the platform with the given UUID.
+    tags:
+        - Catalog
+    parameters:
+      - in: path
+        name: platformId
+        schema:
+          type: string
+        required: true
+        description: The UUID of the platform to be deleted
+    responses:
+      '200':
+        description: Platform deleted successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                message:
+                  type: string
+                  example: "Platform with ID 'uuid-platform-sigma5' deleted successfully."
+      '404':
+        description: Platform not found
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                error:
+                  type: string
+                  example: "Platform with ID 'uuid-platform-sigma5' not found."
+      '500':
+        description: Server error
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                error:
+                  type: string
+                  example: "Internal server error: Database connection failed."

@@ -1,0 +1,5 @@
+joulescope>=0.9.7
+pip
+pyserial
+requests
+packaging

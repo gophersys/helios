@@ -277,8 +277,8 @@
 	};
 
 	chosen {
-		// zephyr,console = &usart6;
-		// zephyr,shell-uart = &usart6;
+		zephyr,console = &usart6;
+		zephyr,shell-uart = &usart6;
 	};
 
 	aliases {

@@ -9,12 +9,8 @@
 			"path": "../../libs/protos"
 		},
 		{
-			"name": "iface",
-			"path": "../../libs/python/corekinect/iface"
-		},
-		{
-			"name": "cipher",
-			"path": "../../libs/python/corekinect/cipher"
+			"name": "libs",
+			"path": "../../libs/python/corekinect"
 		},
 		{
 			"name": "runner",
@@ -22,7 +18,6 @@
 		},
 	],
 	"settings": {
-		"files.associations": {
-		},
+		"files.associations": {},
 	}
 }

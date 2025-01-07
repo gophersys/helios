@@ -1,0 +1,8 @@
+{
+    "paths": {
+        "validation": [
+            "/workspaces/concord/apps/shared/runner/test/steps"
+        ],
+        "manufacturing": []
+    }
+}

@@ -1,213 +1,57 @@
 # Standard includes
 import logging
-import sys
-import eventlet
-
-eventlet.monkey_patch(socket=True, select=False, time=False, os=False, thread=False)
-
-# Library includes
-from flask import Flask, request
-from flask_socketio import SocketIO, emit, join_room
 
 # App includes
-from config import conf
-from src.middleware.permissions import authMiddleware, AuthMiddlewareConfig
-from src.services.proxy import ProxyServerConfiguration, appProxyServer
+from src.server import Proxy, ProxyEnvConfig, proxy_server
 
-# Server
-server = Flask(__name__)
-socketio = SocketIO(server, debug=True, cors_allowed_origins="*", async_mode="eventlet")
+# Corekinect includes
+from corekinect.utils import Logger
 
-
-# ----------------------------------------------------------------------------------
-#                                                                             Routes
-# --------------------------------------------------------------------------------*/
-# Log filter
-from api.v1.log_filter import LogFilter
-
-# Healthcheck
-from api.v1.healthcheck import healthcheck_bp  # GET /v1/healthcheck
-
-server.register_blueprint(healthcheck_bp)  # GET /v1/healthcheck
-
-# Storage
-from api.v1.storage import storage_bp
-
-server.register_blueprint(storage_bp)  # GET /v1/storage
-
-# Auth
-from api.v1.auth.tokens.request import tokens_request_bp
-
-server.register_blueprint(tokens_request_bp)  # POST /v1/auth/tokens/request
-
-from api.v1.auth.tokens.refresh import token_refresh_bp
-
-server.register_blueprint(token_refresh_bp)  # POST /v1/auth/tokens/refresh
-
-# Devices
-from api.v1.devices.validate_snr import devices_snr_validate_bp
-
-server.register_blueprint(devices_snr_validate_bp)  # POST /v1/devices/snr/validate
-
-from api.v1.devices.assign_device_id import devices_assign_id_bp
-
-server.register_blueprint(devices_assign_id_bp)  # POST /v1/devices/ids/assign
-
-from api.v1.devices.save_iccid import devices_save_iccid_bp
-
-server.register_blueprint(devices_save_iccid_bp)  # POST /v1/devices/iccids/save
-
-from api.v1.devices.upload_pub_key import devices_save_pub_key_bp
-
-server.register_blueprint(devices_save_pub_key_bp)  # POST /v1/devices/keys/upload
-
-from api.v1.devices.alpha.get_algo_update import devices_alpha_algo_update_bp
-
-server.register_blueprint(devices_alpha_algo_update_bp)  # POST /v1/devices/alpha/algo/update
-
-# Clusters
-from api.v1.clusters.create import clusters_create_bp
-
-server.register_blueprint(clusters_create_bp)  # POST /v1/clusters
-
-from api.v1.clusters.get_uuid import clusters_get_uuid_bp
-
-server.register_blueprint(clusters_get_uuid_bp)  # GET /v1/clusters/<uuid>
-
-from api.v1.clusters.list import clusters_list_bp
-
-server.register_blueprint(clusters_list_bp)  # GET /v1/clusters
-
-from api.v1.clusters.delete_all import clusters_delete_all_bp
-
-server.register_blueprint(clusters_delete_all_bp)  # DELETE /v1/clusters
-
-from api.v1.clusters.delete_uuid import clusters_delete_uuid_bp
-
-server.register_blueprint(clusters_delete_uuid_bp)  # DELETE /v1/clusters/<uuid>
-
-from api.v1.clusters.register_uuid import clusters_register_uuid_bp
-
-server.register_blueprint(clusters_register_uuid_bp)  # POST /v1/clusters/<uuid>/register
-
-# Cluster Deployments
-from api.v1.clusters.deployments.create import clusters_deployments_create_bp
-
-server.register_blueprint(clusters_deployments_create_bp)  # POST /v1/clusters/<uuid>/deployments
-
-from api.v1.clusters.deployments.get_uuid import clusters_deployments_get_uuid_bp
-
-server.register_blueprint(clusters_deployments_get_uuid_bp)  # GET /v1/clusters/<uuid>/deployments/<uuid>
-
-from api.v1.clusters.deployments.status_uuid import clusters_deployments_status_uuid_bp
-
-server.register_blueprint(clusters_deployments_status_uuid_bp)  # GET /v1/clusters/<uuid>/deployments/<uuid>/status
-
-from api.v1.clusters.deployments.list import clusters_deployments_list_bp
-
-server.register_blueprint(clusters_deployments_list_bp)  # GET /v1/clusters/<uuid>/deployments
-
-from api.v1.clusters.deployments.delete_all import clusters_deployments_delete_all_bp
-
-server.register_blueprint(clusters_deployments_delete_all_bp)  # DELETE /v1/clusters/<uuid>/deployments
-
-from api.v1.clusters.deployments.delete_uuid import clusters_deployments_delete_uuid_bp
-
-server.register_blueprint(clusters_deployments_delete_uuid_bp)  # DELETE /v1/clusters/<uuid>/deployments/<uuid>
-
-from api.v1.clusters.deployments.apply_uuid import clusters_deployments_apply_uuid_bp
-
-server.register_blueprint(clusters_deployments_apply_uuid_bp)  # POST /v1/clusters/<uuid>/deployments/<uuid>/apply
-
-# Cluster Tests
-from api.v1.clusters.tests.get_uuid import clusters_tests_get_uuid_bp
-
-server.register_blueprint(clusters_tests_get_uuid_bp)  # GET /v1/clusters/<uuid>/tests/<uuid>
-
-from api.v1.clusters.tests.list import clusters_tests_list_bp
-
-server.register_blueprint(clusters_tests_list_bp)  # GET /v1/clusters/<uuid>/tests
-
-from api.v1.clusters.tests.exec_uuid import clusters_tests_exec_uuid_bp
-
-server.register_blueprint(clusters_tests_exec_uuid_bp)  # ws://<url>/exec_test
-
-from api.v1.clusters.tests.exec_uuid import clusters_tests_exec_uuid_socketio_handler
-
-
-@socketio.on("exec_test")
-def handle_ws_event_exec_test(data):
-    clusters_tests_exec_uuid_socketio_handler(data, socketio)
-
-
-from api.v1.clusters.tests.stop_uuid import clusters_tests_stop_uuid_bp
-
-server.register_blueprint(clusters_tests_stop_uuid_bp)  # POST /v1/clusters/<uuid>/tests/<uuid>/stop
-
-# Cluster executions
-from api.v1.clusters.executions.list import clusters_executions_list_bp
-
-server.register_blueprint(clusters_executions_list_bp)  # GET /v1/clusters/<uuid>/executions
-
-from api.v1.clusters.executions.get_uuid import clusters_executions_get_uuid_bp
-
-server.register_blueprint(clusters_executions_get_uuid_bp)  # GET /v1/clusters/<uuid>/executions/<uuid>
-
-from api.v1.clusters.executions.delete_uuid import clusters_executions_delete_uuid_bp
-
-server.register_blueprint(clusters_executions_delete_uuid_bp)  # DELETE /v1/clusters/<uuid>/executions/<uuid>
-
-from api.v1.clusters.executions.delete_all import clusters_executions_delete_all_bp
-
-server.register_blueprint(clusters_executions_delete_all_bp)  # DELETE /v1/clusters/<uuid>/executions
-
-# Observability
-from api.v1.observability.memory.start import observability_memory_start_bp
-
-server.register_blueprint(observability_memory_start_bp)  # POST /v1/observability/memory/start
-
-from api.v1.observability.memory.record import observability_memory_measurement_bp
-
-server.register_blueprint(
-    observability_memory_measurement_bp
-)  # POST /v1/observability/memory/<session_id>/measurement
-
+# API
+from src.api.v1.register import api_v1_register
+from src.api.v2.register import api_v2_register
 
 # ----------------------------------------------------------------------------------
 #                                                                              Entry
 # --------------------------------------------------------------------------------*/
 if __name__ == "__main__":
-    logging.debug(f"App configuration: \n{conf}")
+    logger: Logger = None
 
-    # Initiate the middleware layer
-    middleware_config: AuthMiddlewareConfig = AuthMiddlewareConfig(
-        cc_auth_server_url=conf.AUTH_SERVER_URL,
-        server_api_key=conf.AUTH_SERVER_API_KEY,
-        server_client_id=conf.AUTH_SERVER_CREDENTIALS_USER,
-        server_client_secret=conf.AUTH_SERVER_CREDENTIALS_PASS,
-    )
-    error = authMiddleware.init(middleware_config)
-    if error:
-        logging.error(f"Could not initialize middleware: {error}")
-        sys.exit(1)
+    try:
+        # Load any environment variables
+        env_config = ProxyEnvConfig()
 
-    # Add a log filter to avoid spamming the logs with commonly hit routes
-    logging.getLogger().addFilter(LogFilter())
+        # Create the logger configuration for the global logger
+        log_config = Logger.Config(
+            logger_name="proxy",
+            log_directory=env_config.LOG_PATH,
+            overall_log_level=logging.DEBUG,
+            console_log_level=logging.DEBUG,
+            file_log_level=logging.DEBUG,
+            enable_log_color=True,
+        )
 
-    # Instantiate server with desired configuration
-    app_config: ProxyServerConfiguration = ProxyServerConfiguration(
-        db_storage_path=conf.DB_STORAGE_PATH,
-        db_storage_limit_gb=conf.DB_STORAGE_LIMIT_GB,
-        supported_registries=conf.SUPPORTED_REGISTRIES,
-    )
-    appProxyServer.init(app_config)
+        # Instantiate the app logger
+        logger: Logger = Logger(log_config)
 
-    # Start the server
-    socketio.run(
-        app=server,
-        host="0.0.0.0",
-        port=conf.SERVER_PORT,
-        debug=False,
-        log_output=True,
-        log=logging.getLogger(),
-    )
+        # Create the config for the Proxy server
+        config = Proxy.Config(
+            debug=True,
+            addr="0.0.0.0",
+            logger=logger,
+            env=env_config,
+        )
+
+        # Initialize ProxyServer with the config
+        proxy_server = Proxy(config)
+
+        # Register the API routes
+        api_v1_register(proxy_server.app)
+        api_v2_register(proxy_server.app)
+
+        # Listen for requests
+        proxy_server.listen()
+
+    except Exception as e:
+        # If we have already setup our logger, then use that one so we can see fatal error in log files
+        logger.error(f"Failed to initialize or run the ProxyServer: {e}")

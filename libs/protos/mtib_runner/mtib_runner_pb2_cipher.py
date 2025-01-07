@@ -6,52 +6,51 @@ from corekinect.cipher.cipher import *
 # -----------------------------------------------------------------------------------------------------
 #                                                                                                 Types
 # -----------------------------------------------------------------------------------------------------
-MTIBRUNNER_SERVICE_ID = 1
+MTIBRUNNERV1_SERVICE_ID = 1
 
-class MtibRunnerRpc(Enum):
+class MtibRunnerV1Rpc(Enum):
     HealthCheck = 1
     GetRunnerInfo = 2
-    Reset = 3
-    GpioConfig = 4
-    GpioWrite = 5
-    GpioRead = 6
-    AdcRead = 7
-    AdcReadAll = 8
-    DutPowerEnable = 9
+    GpioConfig = 3
+    GpioWrite = 4
+    GpioRead = 5
+    AdcRead = 6
+    AdcReadAll = 7
+    DutPowerEnable = 8
+    DutPowerDisable = 9
     DutChargePowerEnable = 10
-    DutVoltageSet = 11
-    DutCurrentRead = 12
-    DutVoltageRead = 13
-    DutPowerRead = 14
-    AltimeterRead = 15
-    AccelRead = 16
-    AccelReadMaxForce = 17
-    EepromRead = 18
-    EepromWrite = 19
+    DutChargePowerDisable = 11
+    DutPowerRead = 12
+    AltimeterRead = 13
+    AccelRead = 14
+    GetMotionStatus = 15
+    MotionHome = 16
+    MotionTrigger = 17
+    MotionContinuous = 18
+    MotionStop = 19
     ListFwFiles = 20
     UploadFwFile = 21
     DeleteFwFile = 22
-    FlashHexFile = 23
-    nrf9160UartStream = 24
-    nrf52840UartStream = 25
+    FlashFwFile = 23
+    UartStream = 24
     
-class MtibRunner:
+class MtibRunnerV1:
     def __init__(self, daemon:Cipher):
         self.daemon: Cipher = daemon
     # Server side handlers
-    def HealthCheckHandler(self, request:HealthCheckRequest) -> Tuple[HealthCheckResponse, CipherRpcErr]:
+    def HealthCheckHandler(self, request:Empty) -> Tuple[HealthCheckResponse, CipherRpcErr]:
         print("Default HealthCheck handler called")
         response: HealthCheckResponse = HealthCheckResponse()
         return response, CipherRpcErr.NOT_IMPLEMENTED
         
     # Client side 
-    def HealthCheckRpc(self, info:CipherUnaryRpcUserInfo, request:HealthCheckRequest) -> Tuple[Optional[HealthCheckResponse], CipherRpcErr]:
+    def HealthCheckRpc(self, info:CipherUnaryRpcUserInfo, request:Empty) -> Tuple[Optional[HealthCheckResponse], CipherRpcErr]:
         response: HealthCheckResponse = HealthCheckResponse()
         context: CipherDaemonRpcContext = CipherDaemonRpcContext(
             local=True,
             user_info=info,
-            service_id=MTIBRUNNER_SERVICE_ID,
-            rpc_id=MtibRunnerRpc.HealthCheck.value,
+            service_id=MTIBRUNNERV1_SERVICE_ID,
+            rpc_id=MtibRunnerV1Rpc.HealthCheck.value,
             request_struct=request,
             response_struct=response,            
         )
@@ -60,40 +59,19 @@ class MtibRunner:
         
         return context.response_struct, context.user_info.error
     # Server side handlers
-    def GetRunnerInfoHandler(self, request:GetRunnerInfoRequest) -> Tuple[GetRunnerInfoResponse, CipherRpcErr]:
+    def GetRunnerInfoHandler(self, request:Empty) -> Tuple[GetRunnerInfoResponse, CipherRpcErr]:
         print("Default GetRunnerInfo handler called")
         response: GetRunnerInfoResponse = GetRunnerInfoResponse()
         return response, CipherRpcErr.NOT_IMPLEMENTED
         
     # Client side 
-    def GetRunnerInfoRpc(self, info:CipherUnaryRpcUserInfo, request:GetRunnerInfoRequest) -> Tuple[Optional[GetRunnerInfoResponse], CipherRpcErr]:
+    def GetRunnerInfoRpc(self, info:CipherUnaryRpcUserInfo, request:Empty) -> Tuple[Optional[GetRunnerInfoResponse], CipherRpcErr]:
         response: GetRunnerInfoResponse = GetRunnerInfoResponse()
         context: CipherDaemonRpcContext = CipherDaemonRpcContext(
             local=True,
             user_info=info,
-            service_id=MTIBRUNNER_SERVICE_ID,
-            rpc_id=MtibRunnerRpc.GetRunnerInfo.value,
-            request_struct=request,
-            response_struct=response,            
-        )
-        
-        self.daemon.execute_remote_rpc(context)
-        
-        return context.response_struct, context.user_info.error
-    # Server side handlers
-    def ResetHandler(self, request:ResetRequest) -> Tuple[ResetResponse, CipherRpcErr]:
-        print("Default Reset handler called")
-        response: ResetResponse = ResetResponse()
-        return response, CipherRpcErr.NOT_IMPLEMENTED
-        
-    # Client side 
-    def ResetRpc(self, info:CipherUnaryRpcUserInfo, request:ResetRequest) -> Tuple[Optional[ResetResponse], CipherRpcErr]:
-        response: ResetResponse = ResetResponse()
-        context: CipherDaemonRpcContext = CipherDaemonRpcContext(
-            local=True,
-            user_info=info,
-            service_id=MTIBRUNNER_SERVICE_ID,
-            rpc_id=MtibRunnerRpc.Reset.value,
+            service_id=MTIBRUNNERV1_SERVICE_ID,
+            rpc_id=MtibRunnerV1Rpc.GetRunnerInfo.value,
             request_struct=request,
             response_struct=response,            
         )
@@ -113,8 +91,8 @@ class MtibRunner:
         context: CipherDaemonRpcContext = CipherDaemonRpcContext(
             local=True,
             user_info=info,
-            service_id=MTIBRUNNER_SERVICE_ID,
-            rpc_id=MtibRunnerRpc.GpioConfig.value,
+            service_id=MTIBRUNNERV1_SERVICE_ID,
+            rpc_id=MtibRunnerV1Rpc.GpioConfig.value,
             request_struct=request,
             response_struct=response,            
         )
@@ -134,8 +112,8 @@ class MtibRunner:
         context: CipherDaemonRpcContext = CipherDaemonRpcContext(
             local=True,
             user_info=info,
-            service_id=MTIBRUNNER_SERVICE_ID,
-            rpc_id=MtibRunnerRpc.GpioWrite.value,
+            service_id=MTIBRUNNERV1_SERVICE_ID,
+            rpc_id=MtibRunnerV1Rpc.GpioWrite.value,
             request_struct=request,
             response_struct=response,            
         )
@@ -155,8 +133,8 @@ class MtibRunner:
         context: CipherDaemonRpcContext = CipherDaemonRpcContext(
             local=True,
             user_info=info,
-            service_id=MTIBRUNNER_SERVICE_ID,
-            rpc_id=MtibRunnerRpc.GpioRead.value,
+            service_id=MTIBRUNNERV1_SERVICE_ID,
+            rpc_id=MtibRunnerV1Rpc.GpioRead.value,
             request_struct=request,
             response_struct=response,            
         )
@@ -176,8 +154,8 @@ class MtibRunner:
         context: CipherDaemonRpcContext = CipherDaemonRpcContext(
             local=True,
             user_info=info,
-            service_id=MTIBRUNNER_SERVICE_ID,
-            rpc_id=MtibRunnerRpc.AdcRead.value,
+            service_id=MTIBRUNNERV1_SERVICE_ID,
+            rpc_id=MtibRunnerV1Rpc.AdcRead.value,
             request_struct=request,
             response_struct=response,            
         )
@@ -197,8 +175,8 @@ class MtibRunner:
         context: CipherDaemonRpcContext = CipherDaemonRpcContext(
             local=True,
             user_info=info,
-            service_id=MTIBRUNNER_SERVICE_ID,
-            rpc_id=MtibRunnerRpc.AdcReadAll.value,
+            service_id=MTIBRUNNERV1_SERVICE_ID,
+            rpc_id=MtibRunnerV1Rpc.AdcReadAll.value,
             request_struct=request,
             response_struct=response,            
         )
@@ -207,19 +185,19 @@ class MtibRunner:
         
         return context.response_struct, context.user_info.error
     # Server side handlers
-    def DutPowerEnableHandler(self, request:DutPowerEnableRequest) -> Tuple[DutPowerEnableResponse, CipherRpcErr]:
+    def DutPowerEnableHandler(self, request:DutPowerRequest) -> Tuple[DutPowerResponse, CipherRpcErr]:
         print("Default DutPowerEnable handler called")
-        response: DutPowerEnableResponse = DutPowerEnableResponse()
+        response: DutPowerResponse = DutPowerResponse()
         return response, CipherRpcErr.NOT_IMPLEMENTED
         
     # Client side 
-    def DutPowerEnableRpc(self, info:CipherUnaryRpcUserInfo, request:DutPowerEnableRequest) -> Tuple[Optional[DutPowerEnableResponse], CipherRpcErr]:
-        response: DutPowerEnableResponse = DutPowerEnableResponse()
+    def DutPowerEnableRpc(self, info:CipherUnaryRpcUserInfo, request:DutPowerRequest) -> Tuple[Optional[DutPowerResponse], CipherRpcErr]:
+        response: DutPowerResponse = DutPowerResponse()
         context: CipherDaemonRpcContext = CipherDaemonRpcContext(
             local=True,
             user_info=info,
-            service_id=MTIBRUNNER_SERVICE_ID,
-            rpc_id=MtibRunnerRpc.DutPowerEnable.value,
+            service_id=MTIBRUNNERV1_SERVICE_ID,
+            rpc_id=MtibRunnerV1Rpc.DutPowerEnable.value,
             request_struct=request,
             response_struct=response,            
         )
@@ -228,19 +206,40 @@ class MtibRunner:
         
         return context.response_struct, context.user_info.error
     # Server side handlers
-    def DutChargePowerEnableHandler(self, request:DutPowerEnableRequest) -> Tuple[DutPowerEnableResponse, CipherRpcErr]:
+    def DutPowerDisableHandler(self, request:Empty) -> Tuple[DutPowerResponse, CipherRpcErr]:
+        print("Default DutPowerDisable handler called")
+        response: DutPowerResponse = DutPowerResponse()
+        return response, CipherRpcErr.NOT_IMPLEMENTED
+        
+    # Client side 
+    def DutPowerDisableRpc(self, info:CipherUnaryRpcUserInfo, request:Empty) -> Tuple[Optional[DutPowerResponse], CipherRpcErr]:
+        response: DutPowerResponse = DutPowerResponse()
+        context: CipherDaemonRpcContext = CipherDaemonRpcContext(
+            local=True,
+            user_info=info,
+            service_id=MTIBRUNNERV1_SERVICE_ID,
+            rpc_id=MtibRunnerV1Rpc.DutPowerDisable.value,
+            request_struct=request,
+            response_struct=response,            
+        )
+        
+        self.daemon.execute_remote_rpc(context)
+        
+        return context.response_struct, context.user_info.error
+    # Server side handlers
+    def DutChargePowerEnableHandler(self, request:DutPowerRequest) -> Tuple[DutPowerResponse, CipherRpcErr]:
         print("Default DutChargePowerEnable handler called")
-        response: DutPowerEnableResponse = DutPowerEnableResponse()
+        response: DutPowerResponse = DutPowerResponse()
         return response, CipherRpcErr.NOT_IMPLEMENTED
         
     # Client side 
-    def DutChargePowerEnableRpc(self, info:CipherUnaryRpcUserInfo, request:DutPowerEnableRequest) -> Tuple[Optional[DutPowerEnableResponse], CipherRpcErr]:
-        response: DutPowerEnableResponse = DutPowerEnableResponse()
+    def DutChargePowerEnableRpc(self, info:CipherUnaryRpcUserInfo, request:DutPowerRequest) -> Tuple[Optional[DutPowerResponse], CipherRpcErr]:
+        response: DutPowerResponse = DutPowerResponse()
         context: CipherDaemonRpcContext = CipherDaemonRpcContext(
             local=True,
             user_info=info,
-            service_id=MTIBRUNNER_SERVICE_ID,
-            rpc_id=MtibRunnerRpc.DutChargePowerEnable.value,
+            service_id=MTIBRUNNERV1_SERVICE_ID,
+            rpc_id=MtibRunnerV1Rpc.DutChargePowerEnable.value,
             request_struct=request,
             response_struct=response,            
         )
@@ -249,19 +248,19 @@ class MtibRunner:
         
         return context.response_struct, context.user_info.error
     # Server side handlers
-    def DutVoltageSetHandler(self, request:DutVoltageSetRequest) -> Tuple[DutVoltageSetResponse, CipherRpcErr]:
-        print("Default DutVoltageSet handler called")
-        response: DutVoltageSetResponse = DutVoltageSetResponse()
+    def DutChargePowerDisableHandler(self, request:Empty) -> Tuple[DutPowerResponse, CipherRpcErr]:
+        print("Default DutChargePowerDisable handler called")
+        response: DutPowerResponse = DutPowerResponse()
         return response, CipherRpcErr.NOT_IMPLEMENTED
         
     # Client side 
-    def DutVoltageSetRpc(self, info:CipherUnaryRpcUserInfo, request:DutVoltageSetRequest) -> Tuple[Optional[DutVoltageSetResponse], CipherRpcErr]:
-        response: DutVoltageSetResponse = DutVoltageSetResponse()
+    def DutChargePowerDisableRpc(self, info:CipherUnaryRpcUserInfo, request:Empty) -> Tuple[Optional[DutPowerResponse], CipherRpcErr]:
+        response: DutPowerResponse = DutPowerResponse()
         context: CipherDaemonRpcContext = CipherDaemonRpcContext(
             local=True,
             user_info=info,
-            service_id=MTIBRUNNER_SERVICE_ID,
-            rpc_id=MtibRunnerRpc.DutVoltageSet.value,
+            service_id=MTIBRUNNERV1_SERVICE_ID,
+            rpc_id=MtibRunnerV1Rpc.DutChargePowerDisable.value,
             request_struct=request,
             response_struct=response,            
         )
@@ -270,61 +269,19 @@ class MtibRunner:
         
         return context.response_struct, context.user_info.error
     # Server side handlers
-    def DutCurrentReadHandler(self, request:DutCurrentReadRequest) -> Tuple[DutCurrentReadResponse, CipherRpcErr]:
-        print("Default DutCurrentRead handler called")
-        response: DutCurrentReadResponse = DutCurrentReadResponse()
-        return response, CipherRpcErr.NOT_IMPLEMENTED
-        
-    # Client side 
-    def DutCurrentReadRpc(self, info:CipherUnaryRpcUserInfo, request:DutCurrentReadRequest) -> Tuple[Optional[DutCurrentReadResponse], CipherRpcErr]:
-        response: DutCurrentReadResponse = DutCurrentReadResponse()
-        context: CipherDaemonRpcContext = CipherDaemonRpcContext(
-            local=True,
-            user_info=info,
-            service_id=MTIBRUNNER_SERVICE_ID,
-            rpc_id=MtibRunnerRpc.DutCurrentRead.value,
-            request_struct=request,
-            response_struct=response,            
-        )
-        
-        self.daemon.execute_remote_rpc(context)
-        
-        return context.response_struct, context.user_info.error
-    # Server side handlers
-    def DutVoltageReadHandler(self, request:DutVoltageReadRequest) -> Tuple[DutVoltageReadResponse, CipherRpcErr]:
-        print("Default DutVoltageRead handler called")
-        response: DutVoltageReadResponse = DutVoltageReadResponse()
-        return response, CipherRpcErr.NOT_IMPLEMENTED
-        
-    # Client side 
-    def DutVoltageReadRpc(self, info:CipherUnaryRpcUserInfo, request:DutVoltageReadRequest) -> Tuple[Optional[DutVoltageReadResponse], CipherRpcErr]:
-        response: DutVoltageReadResponse = DutVoltageReadResponse()
-        context: CipherDaemonRpcContext = CipherDaemonRpcContext(
-            local=True,
-            user_info=info,
-            service_id=MTIBRUNNER_SERVICE_ID,
-            rpc_id=MtibRunnerRpc.DutVoltageRead.value,
-            request_struct=request,
-            response_struct=response,            
-        )
-        
-        self.daemon.execute_remote_rpc(context)
-        
-        return context.response_struct, context.user_info.error
-    # Server side handlers
-    def DutPowerReadHandler(self, request:DutPowerReadRequest) -> Tuple[DutPowerReadResponse, CipherRpcErr]:
+    def DutPowerReadHandler(self, request:Empty) -> Tuple[DutPowerReadResponse, CipherRpcErr]:
         print("Default DutPowerRead handler called")
         response: DutPowerReadResponse = DutPowerReadResponse()
         return response, CipherRpcErr.NOT_IMPLEMENTED
         
     # Client side 
-    def DutPowerReadRpc(self, info:CipherUnaryRpcUserInfo, request:DutPowerReadRequest) -> Tuple[Optional[DutPowerReadResponse], CipherRpcErr]:
+    def DutPowerReadRpc(self, info:CipherUnaryRpcUserInfo, request:Empty) -> Tuple[Optional[DutPowerReadResponse], CipherRpcErr]:
         response: DutPowerReadResponse = DutPowerReadResponse()
         context: CipherDaemonRpcContext = CipherDaemonRpcContext(
             local=True,
             user_info=info,
-            service_id=MTIBRUNNER_SERVICE_ID,
-            rpc_id=MtibRunnerRpc.DutPowerRead.value,
+            service_id=MTIBRUNNERV1_SERVICE_ID,
+            rpc_id=MtibRunnerV1Rpc.DutPowerRead.value,
             request_struct=request,
             response_struct=response,            
         )
@@ -333,19 +290,19 @@ class MtibRunner:
         
         return context.response_struct, context.user_info.error
     # Server side handlers
-    def AltimeterReadHandler(self, request:AltimeterReadRequest) -> Tuple[AltimeterReadResponse, CipherRpcErr]:
+    def AltimeterReadHandler(self, request:Empty) -> Tuple[AltimeterReadResponse, CipherRpcErr]:
         print("Default AltimeterRead handler called")
         response: AltimeterReadResponse = AltimeterReadResponse()
         return response, CipherRpcErr.NOT_IMPLEMENTED
         
     # Client side 
-    def AltimeterReadRpc(self, info:CipherUnaryRpcUserInfo, request:AltimeterReadRequest) -> Tuple[Optional[AltimeterReadResponse], CipherRpcErr]:
+    def AltimeterReadRpc(self, info:CipherUnaryRpcUserInfo, request:Empty) -> Tuple[Optional[AltimeterReadResponse], CipherRpcErr]:
         response: AltimeterReadResponse = AltimeterReadResponse()
         context: CipherDaemonRpcContext = CipherDaemonRpcContext(
             local=True,
             user_info=info,
-            service_id=MTIBRUNNER_SERVICE_ID,
-            rpc_id=MtibRunnerRpc.AltimeterRead.value,
+            service_id=MTIBRUNNERV1_SERVICE_ID,
+            rpc_id=MtibRunnerV1Rpc.AltimeterRead.value,
             request_struct=request,
             response_struct=response,            
         )
@@ -354,19 +311,19 @@ class MtibRunner:
         
         return context.response_struct, context.user_info.error
     # Server side handlers
-    def AccelReadHandler(self, request:AccelReadRequest) -> Tuple[AccelReadResponse, CipherRpcErr]:
+    def AccelReadHandler(self, request:Empty) -> Tuple[AccelReadResponse, CipherRpcErr]:
         print("Default AccelRead handler called")
         response: AccelReadResponse = AccelReadResponse()
         return response, CipherRpcErr.NOT_IMPLEMENTED
         
     # Client side 
-    def AccelReadRpc(self, info:CipherUnaryRpcUserInfo, request:AccelReadRequest) -> Tuple[Optional[AccelReadResponse], CipherRpcErr]:
+    def AccelReadRpc(self, info:CipherUnaryRpcUserInfo, request:Empty) -> Tuple[Optional[AccelReadResponse], CipherRpcErr]:
         response: AccelReadResponse = AccelReadResponse()
         context: CipherDaemonRpcContext = CipherDaemonRpcContext(
             local=True,
             user_info=info,
-            service_id=MTIBRUNNER_SERVICE_ID,
-            rpc_id=MtibRunnerRpc.AccelRead.value,
+            service_id=MTIBRUNNERV1_SERVICE_ID,
+            rpc_id=MtibRunnerV1Rpc.AccelRead.value,
             request_struct=request,
             response_struct=response,            
         )
@@ -375,19 +332,19 @@ class MtibRunner:
         
         return context.response_struct, context.user_info.error
     # Server side handlers
-    def AccelReadMaxForceHandler(self, request:AccelReadMaxRequest) -> Tuple[AccelReadMaxResponse, CipherRpcErr]:
-        print("Default AccelReadMaxForce handler called")
-        response: AccelReadMaxResponse = AccelReadMaxResponse()
+    def GetMotionStatusHandler(self, request:Empty) -> Tuple[GetMotionStatusResponse, CipherRpcErr]:
+        print("Default GetMotionStatus handler called")
+        response: GetMotionStatusResponse = GetMotionStatusResponse()
         return response, CipherRpcErr.NOT_IMPLEMENTED
         
     # Client side 
-    def AccelReadMaxForceRpc(self, info:CipherUnaryRpcUserInfo, request:AccelReadMaxRequest) -> Tuple[Optional[AccelReadMaxResponse], CipherRpcErr]:
-        response: AccelReadMaxResponse = AccelReadMaxResponse()
+    def GetMotionStatusRpc(self, info:CipherUnaryRpcUserInfo, request:Empty) -> Tuple[Optional[GetMotionStatusResponse], CipherRpcErr]:
+        response: GetMotionStatusResponse = GetMotionStatusResponse()
         context: CipherDaemonRpcContext = CipherDaemonRpcContext(
             local=True,
             user_info=info,
-            service_id=MTIBRUNNER_SERVICE_ID,
-            rpc_id=MtibRunnerRpc.AccelReadMaxForce.value,
+            service_id=MTIBRUNNERV1_SERVICE_ID,
+            rpc_id=MtibRunnerV1Rpc.GetMotionStatus.value,
             request_struct=request,
             response_struct=response,            
         )
@@ -396,19 +353,19 @@ class MtibRunner:
         
         return context.response_struct, context.user_info.error
     # Server side handlers
-    def EepromReadHandler(self, request:EepromReadRequest) -> Tuple[EepromReadResponse, CipherRpcErr]:
-        print("Default EepromRead handler called")
-        response: EepromReadResponse = EepromReadResponse()
+    def MotionHomeHandler(self, request:Empty) -> Tuple[MotionHomeResponse, CipherRpcErr]:
+        print("Default MotionHome handler called")
+        response: MotionHomeResponse = MotionHomeResponse()
         return response, CipherRpcErr.NOT_IMPLEMENTED
         
     # Client side 
-    def EepromReadRpc(self, info:CipherUnaryRpcUserInfo, request:EepromReadRequest) -> Tuple[Optional[EepromReadResponse], CipherRpcErr]:
-        response: EepromReadResponse = EepromReadResponse()
+    def MotionHomeRpc(self, info:CipherUnaryRpcUserInfo, request:Empty) -> Tuple[Optional[MotionHomeResponse], CipherRpcErr]:
+        response: MotionHomeResponse = MotionHomeResponse()
         context: CipherDaemonRpcContext = CipherDaemonRpcContext(
             local=True,
             user_info=info,
-            service_id=MTIBRUNNER_SERVICE_ID,
-            rpc_id=MtibRunnerRpc.EepromRead.value,
+            service_id=MTIBRUNNERV1_SERVICE_ID,
+            rpc_id=MtibRunnerV1Rpc.MotionHome.value,
             request_struct=request,
             response_struct=response,            
         )
@@ -417,19 +374,19 @@ class MtibRunner:
         
         return context.response_struct, context.user_info.error
     # Server side handlers
-    def EepromWriteHandler(self, request:EepromWriteRequest) -> Tuple[EepromWriteResponse, CipherRpcErr]:
-        print("Default EepromWrite handler called")
-        response: EepromWriteResponse = EepromWriteResponse()
+    def MotionTriggerHandler(self, request:MotionTriggerRequest) -> Tuple[MotionTriggerResponse, CipherRpcErr]:
+        print("Default MotionTrigger handler called")
+        response: MotionTriggerResponse = MotionTriggerResponse()
         return response, CipherRpcErr.NOT_IMPLEMENTED
         
     # Client side 
-    def EepromWriteRpc(self, info:CipherUnaryRpcUserInfo, request:EepromWriteRequest) -> Tuple[Optional[EepromWriteResponse], CipherRpcErr]:
-        response: EepromWriteResponse = EepromWriteResponse()
+    def MotionTriggerRpc(self, info:CipherUnaryRpcUserInfo, request:MotionTriggerRequest) -> Tuple[Optional[MotionTriggerResponse], CipherRpcErr]:
+        response: MotionTriggerResponse = MotionTriggerResponse()
         context: CipherDaemonRpcContext = CipherDaemonRpcContext(
             local=True,
             user_info=info,
-            service_id=MTIBRUNNER_SERVICE_ID,
-            rpc_id=MtibRunnerRpc.EepromWrite.value,
+            service_id=MTIBRUNNERV1_SERVICE_ID,
+            rpc_id=MtibRunnerV1Rpc.MotionTrigger.value,
             request_struct=request,
             response_struct=response,            
         )
@@ -438,19 +395,61 @@ class MtibRunner:
         
         return context.response_struct, context.user_info.error
     # Server side handlers
-    def ListFwFilesHandler(self, request:ListFwFilesRequest) -> Tuple[ListFwFilesResponse, CipherRpcErr]:
+    def MotionContinuousHandler(self, request:MotionContinuousRequest) -> Tuple[MotionContinuousResponse, CipherRpcErr]:
+        print("Default MotionContinuous handler called")
+        response: MotionContinuousResponse = MotionContinuousResponse()
+        return response, CipherRpcErr.NOT_IMPLEMENTED
+        
+    # Client side 
+    def MotionContinuousRpc(self, info:CipherUnaryRpcUserInfo, request:MotionContinuousRequest) -> Tuple[Optional[MotionContinuousResponse], CipherRpcErr]:
+        response: MotionContinuousResponse = MotionContinuousResponse()
+        context: CipherDaemonRpcContext = CipherDaemonRpcContext(
+            local=True,
+            user_info=info,
+            service_id=MTIBRUNNERV1_SERVICE_ID,
+            rpc_id=MtibRunnerV1Rpc.MotionContinuous.value,
+            request_struct=request,
+            response_struct=response,            
+        )
+        
+        self.daemon.execute_remote_rpc(context)
+        
+        return context.response_struct, context.user_info.error
+    # Server side handlers
+    def MotionStopHandler(self, request:Empty) -> Tuple[MotionStopResponse, CipherRpcErr]:
+        print("Default MotionStop handler called")
+        response: MotionStopResponse = MotionStopResponse()
+        return response, CipherRpcErr.NOT_IMPLEMENTED
+        
+    # Client side 
+    def MotionStopRpc(self, info:CipherUnaryRpcUserInfo, request:Empty) -> Tuple[Optional[MotionStopResponse], CipherRpcErr]:
+        response: MotionStopResponse = MotionStopResponse()
+        context: CipherDaemonRpcContext = CipherDaemonRpcContext(
+            local=True,
+            user_info=info,
+            service_id=MTIBRUNNERV1_SERVICE_ID,
+            rpc_id=MtibRunnerV1Rpc.MotionStop.value,
+            request_struct=request,
+            response_struct=response,            
+        )
+        
+        self.daemon.execute_remote_rpc(context)
+        
+        return context.response_struct, context.user_info.error
+    # Server side handlers
+    def ListFwFilesHandler(self, request:Empty) -> Tuple[ListFwFilesResponse, CipherRpcErr]:
         print("Default ListFwFiles handler called")
         response: ListFwFilesResponse = ListFwFilesResponse()
         return response, CipherRpcErr.NOT_IMPLEMENTED
         
     # Client side 
-    def ListFwFilesRpc(self, info:CipherUnaryRpcUserInfo, request:ListFwFilesRequest) -> Tuple[Optional[ListFwFilesResponse], CipherRpcErr]:
+    def ListFwFilesRpc(self, info:CipherUnaryRpcUserInfo, request:Empty) -> Tuple[Optional[ListFwFilesResponse], CipherRpcErr]:
         response: ListFwFilesResponse = ListFwFilesResponse()
         context: CipherDaemonRpcContext = CipherDaemonRpcContext(
             local=True,
             user_info=info,
-            service_id=MTIBRUNNER_SERVICE_ID,
-            rpc_id=MtibRunnerRpc.ListFwFiles.value,
+            service_id=MTIBRUNNERV1_SERVICE_ID,
+            rpc_id=MtibRunnerV1Rpc.ListFwFiles.value,
             request_struct=request,
             response_struct=response,            
         )
@@ -470,8 +469,8 @@ class MtibRunner:
         context: CipherDaemonRpcContext = CipherDaemonRpcContext(
             local=True,
             user_info=info,
-            service_id=MTIBRUNNER_SERVICE_ID,
-            rpc_id=MtibRunnerRpc.UploadFwFile.value,
+            service_id=MTIBRUNNERV1_SERVICE_ID,
+            rpc_id=MtibRunnerV1Rpc.UploadFwFile.value,
             request_struct=request,
             response_struct=response,            
         )
@@ -491,8 +490,8 @@ class MtibRunner:
         context: CipherDaemonRpcContext = CipherDaemonRpcContext(
             local=True,
             user_info=info,
-            service_id=MTIBRUNNER_SERVICE_ID,
-            rpc_id=MtibRunnerRpc.DeleteFwFile.value,
+            service_id=MTIBRUNNERV1_SERVICE_ID,
+            rpc_id=MtibRunnerV1Rpc.DeleteFwFile.value,
             request_struct=request,
             response_struct=response,            
         )
@@ -501,19 +500,19 @@ class MtibRunner:
         
         return context.response_struct, context.user_info.error
     # Server side handlers
-    def FlashHexFileHandler(self, request:FlashHexFileRequest) -> Tuple[FlashHexFileResponse, CipherRpcErr]:
-        print("Default FlashHexFile handler called")
-        response: FlashHexFileResponse = FlashHexFileResponse()
+    def FlashFwFileHandler(self, request:FlashFwFileRequest) -> Tuple[FlashFwFileResponse, CipherRpcErr]:
+        print("Default FlashFwFile handler called")
+        response: FlashFwFileResponse = FlashFwFileResponse()
         return response, CipherRpcErr.NOT_IMPLEMENTED
         
     # Client side 
-    def FlashHexFileRpc(self, info:CipherUnaryRpcUserInfo, request:FlashHexFileRequest) -> Tuple[Optional[FlashHexFileResponse], CipherRpcErr]:
-        response: FlashHexFileResponse = FlashHexFileResponse()
+    def FlashFwFileRpc(self, info:CipherUnaryRpcUserInfo, request:FlashFwFileRequest) -> Tuple[Optional[FlashFwFileResponse], CipherRpcErr]:
+        response: FlashFwFileResponse = FlashFwFileResponse()
         context: CipherDaemonRpcContext = CipherDaemonRpcContext(
             local=True,
             user_info=info,
-            service_id=MTIBRUNNER_SERVICE_ID,
-            rpc_id=MtibRunnerRpc.FlashHexFile.value,
+            service_id=MTIBRUNNERV1_SERVICE_ID,
+            rpc_id=MtibRunnerV1Rpc.FlashFwFile.value,
             request_struct=request,
             response_struct=response,            
         )
@@ -522,40 +521,19 @@ class MtibRunner:
         
         return context.response_struct, context.user_info.error
     # Server side handlers
-    def nrf9160UartStreamHandler(self, request:UartStreamRequest) -> Tuple[UartStreamResponse, CipherRpcErr]:
-        print("Default nrf9160UartStream handler called")
+    def UartStreamHandler(self, request:UartStreamRequest) -> Tuple[UartStreamResponse, CipherRpcErr]:
+        print("Default UartStream handler called")
         response: UartStreamResponse = UartStreamResponse()
         return response, CipherRpcErr.NOT_IMPLEMENTED
         
     # Client side 
-    def nrf9160UartStreamRpc(self, info:CipherUnaryRpcUserInfo, request:UartStreamRequest) -> Tuple[Optional[UartStreamResponse], CipherRpcErr]:
+    def UartStreamRpc(self, info:CipherUnaryRpcUserInfo, request:UartStreamRequest) -> Tuple[Optional[UartStreamResponse], CipherRpcErr]:
         response: UartStreamResponse = UartStreamResponse()
         context: CipherDaemonRpcContext = CipherDaemonRpcContext(
             local=True,
             user_info=info,
-            service_id=MTIBRUNNER_SERVICE_ID,
-            rpc_id=MtibRunnerRpc.nrf9160UartStream.value,
-            request_struct=request,
-            response_struct=response,            
-        )
-        
-        self.daemon.execute_remote_rpc(context)
-        
-        return context.response_struct, context.user_info.error
-    # Server side handlers
-    def nrf52840UartStreamHandler(self, request:UartStreamRequest) -> Tuple[UartStreamResponse, CipherRpcErr]:
-        print("Default nrf52840UartStream handler called")
-        response: UartStreamResponse = UartStreamResponse()
-        return response, CipherRpcErr.NOT_IMPLEMENTED
-        
-    # Client side 
-    def nrf52840UartStreamRpc(self, info:CipherUnaryRpcUserInfo, request:UartStreamRequest) -> Tuple[Optional[UartStreamResponse], CipherRpcErr]:
-        response: UartStreamResponse = UartStreamResponse()
-        context: CipherDaemonRpcContext = CipherDaemonRpcContext(
-            local=True,
-            user_info=info,
-            service_id=MTIBRUNNER_SERVICE_ID,
-            rpc_id=MtibRunnerRpc.nrf52840UartStream.value,
+            service_id=MTIBRUNNERV1_SERVICE_ID,
+            rpc_id=MtibRunnerV1Rpc.UartStream.value,
             request_struct=request,
             response_struct=response,            
         )
@@ -564,239 +542,230 @@ class MtibRunner:
         
         return context.response_struct, context.user_info.error
 
-# MtibRunner RPCs
-mtibrunner_service_rpcs = [
+# MtibRunnerV1 RPCs
+mtibrunnerv1_service_rpcs = [
     CipherRpcInfo(
-        id=MtibRunnerRpc.HealthCheck.value,
+        id=MtibRunnerV1Rpc.HealthCheck.value,
         type=CipherRpcType.UNARY,
         name="HealthCheck",
-        handler=MtibRunner.HealthCheckHandler,
-        request_info=CipherMessageInfo(HealthCheckRequest),
+        handler=MtibRunnerV1.HealthCheckHandler,
+        request_info=CipherMessageInfo(Empty),
         response_info=CipherMessageInfo(HealthCheckResponse),
         supports_parallelism=True
     ),
     CipherRpcInfo(
-        id=MtibRunnerRpc.GetRunnerInfo.value,
+        id=MtibRunnerV1Rpc.GetRunnerInfo.value,
         type=CipherRpcType.UNARY,
         name="GetRunnerInfo",
-        handler=MtibRunner.GetRunnerInfoHandler,
-        request_info=CipherMessageInfo(GetRunnerInfoRequest),
+        handler=MtibRunnerV1.GetRunnerInfoHandler,
+        request_info=CipherMessageInfo(Empty),
         response_info=CipherMessageInfo(GetRunnerInfoResponse),
         supports_parallelism=True
     ),
     CipherRpcInfo(
-        id=MtibRunnerRpc.Reset.value,
-        type=CipherRpcType.UNARY,
-        name="Reset",
-        handler=MtibRunner.ResetHandler,
-        request_info=CipherMessageInfo(ResetRequest),
-        response_info=CipherMessageInfo(ResetResponse),
-        supports_parallelism=True
-    ),
-    CipherRpcInfo(
-        id=MtibRunnerRpc.GpioConfig.value,
+        id=MtibRunnerV1Rpc.GpioConfig.value,
         type=CipherRpcType.UNARY,
         name="GpioConfig",
-        handler=MtibRunner.GpioConfigHandler,
+        handler=MtibRunnerV1.GpioConfigHandler,
         request_info=CipherMessageInfo(GpioConfigRequest),
         response_info=CipherMessageInfo(GpioConfigResponse),
         supports_parallelism=True
     ),
     CipherRpcInfo(
-        id=MtibRunnerRpc.GpioWrite.value,
+        id=MtibRunnerV1Rpc.GpioWrite.value,
         type=CipherRpcType.UNARY,
         name="GpioWrite",
-        handler=MtibRunner.GpioWriteHandler,
+        handler=MtibRunnerV1.GpioWriteHandler,
         request_info=CipherMessageInfo(GpioWriteRequest),
         response_info=CipherMessageInfo(GpioWriteResponse),
         supports_parallelism=True
     ),
     CipherRpcInfo(
-        id=MtibRunnerRpc.GpioRead.value,
+        id=MtibRunnerV1Rpc.GpioRead.value,
         type=CipherRpcType.UNARY,
         name="GpioRead",
-        handler=MtibRunner.GpioReadHandler,
+        handler=MtibRunnerV1.GpioReadHandler,
         request_info=CipherMessageInfo(GpioReadRequest),
         response_info=CipherMessageInfo(GpioReadResponse),
         supports_parallelism=True
     ),
     CipherRpcInfo(
-        id=MtibRunnerRpc.AdcRead.value,
+        id=MtibRunnerV1Rpc.AdcRead.value,
         type=CipherRpcType.UNARY,
         name="AdcRead",
-        handler=MtibRunner.AdcReadHandler,
+        handler=MtibRunnerV1.AdcReadHandler,
         request_info=CipherMessageInfo(AdcReadRequest),
         response_info=CipherMessageInfo(AdcReadResponse),
         supports_parallelism=True
     ),
     CipherRpcInfo(
-        id=MtibRunnerRpc.AdcReadAll.value,
+        id=MtibRunnerV1Rpc.AdcReadAll.value,
         type=CipherRpcType.UNARY,
         name="AdcReadAll",
-        handler=MtibRunner.AdcReadAllHandler,
+        handler=MtibRunnerV1.AdcReadAllHandler,
         request_info=CipherMessageInfo(AdcReadAllRequest),
         response_info=CipherMessageInfo(AdcReadAllResponse),
         supports_parallelism=True
     ),
     CipherRpcInfo(
-        id=MtibRunnerRpc.DutPowerEnable.value,
+        id=MtibRunnerV1Rpc.DutPowerEnable.value,
         type=CipherRpcType.UNARY,
         name="DutPowerEnable",
-        handler=MtibRunner.DutPowerEnableHandler,
-        request_info=CipherMessageInfo(DutPowerEnableRequest),
-        response_info=CipherMessageInfo(DutPowerEnableResponse),
+        handler=MtibRunnerV1.DutPowerEnableHandler,
+        request_info=CipherMessageInfo(DutPowerRequest),
+        response_info=CipherMessageInfo(DutPowerResponse),
         supports_parallelism=True
     ),
     CipherRpcInfo(
-        id=MtibRunnerRpc.DutChargePowerEnable.value,
+        id=MtibRunnerV1Rpc.DutPowerDisable.value,
+        type=CipherRpcType.UNARY,
+        name="DutPowerDisable",
+        handler=MtibRunnerV1.DutPowerDisableHandler,
+        request_info=CipherMessageInfo(Empty),
+        response_info=CipherMessageInfo(DutPowerResponse),
+        supports_parallelism=True
+    ),
+    CipherRpcInfo(
+        id=MtibRunnerV1Rpc.DutChargePowerEnable.value,
         type=CipherRpcType.UNARY,
         name="DutChargePowerEnable",
-        handler=MtibRunner.DutChargePowerEnableHandler,
-        request_info=CipherMessageInfo(DutPowerEnableRequest),
-        response_info=CipherMessageInfo(DutPowerEnableResponse),
+        handler=MtibRunnerV1.DutChargePowerEnableHandler,
+        request_info=CipherMessageInfo(DutPowerRequest),
+        response_info=CipherMessageInfo(DutPowerResponse),
         supports_parallelism=True
     ),
     CipherRpcInfo(
-        id=MtibRunnerRpc.DutVoltageSet.value,
+        id=MtibRunnerV1Rpc.DutChargePowerDisable.value,
         type=CipherRpcType.UNARY,
-        name="DutVoltageSet",
-        handler=MtibRunner.DutVoltageSetHandler,
-        request_info=CipherMessageInfo(DutVoltageSetRequest),
-        response_info=CipherMessageInfo(DutVoltageSetResponse),
+        name="DutChargePowerDisable",
+        handler=MtibRunnerV1.DutChargePowerDisableHandler,
+        request_info=CipherMessageInfo(Empty),
+        response_info=CipherMessageInfo(DutPowerResponse),
         supports_parallelism=True
     ),
     CipherRpcInfo(
-        id=MtibRunnerRpc.DutCurrentRead.value,
-        type=CipherRpcType.UNARY,
-        name="DutCurrentRead",
-        handler=MtibRunner.DutCurrentReadHandler,
-        request_info=CipherMessageInfo(DutCurrentReadRequest),
-        response_info=CipherMessageInfo(DutCurrentReadResponse),
-        supports_parallelism=True
-    ),
-    CipherRpcInfo(
-        id=MtibRunnerRpc.DutVoltageRead.value,
-        type=CipherRpcType.UNARY,
-        name="DutVoltageRead",
-        handler=MtibRunner.DutVoltageReadHandler,
-        request_info=CipherMessageInfo(DutVoltageReadRequest),
-        response_info=CipherMessageInfo(DutVoltageReadResponse),
-        supports_parallelism=True
-    ),
-    CipherRpcInfo(
-        id=MtibRunnerRpc.DutPowerRead.value,
+        id=MtibRunnerV1Rpc.DutPowerRead.value,
         type=CipherRpcType.UNARY,
         name="DutPowerRead",
-        handler=MtibRunner.DutPowerReadHandler,
-        request_info=CipherMessageInfo(DutPowerReadRequest),
+        handler=MtibRunnerV1.DutPowerReadHandler,
+        request_info=CipherMessageInfo(Empty),
         response_info=CipherMessageInfo(DutPowerReadResponse),
         supports_parallelism=True
     ),
     CipherRpcInfo(
-        id=MtibRunnerRpc.AltimeterRead.value,
+        id=MtibRunnerV1Rpc.AltimeterRead.value,
         type=CipherRpcType.UNARY,
         name="AltimeterRead",
-        handler=MtibRunner.AltimeterReadHandler,
-        request_info=CipherMessageInfo(AltimeterReadRequest),
+        handler=MtibRunnerV1.AltimeterReadHandler,
+        request_info=CipherMessageInfo(Empty),
         response_info=CipherMessageInfo(AltimeterReadResponse),
         supports_parallelism=True
     ),
     CipherRpcInfo(
-        id=MtibRunnerRpc.AccelRead.value,
+        id=MtibRunnerV1Rpc.AccelRead.value,
         type=CipherRpcType.UNARY,
         name="AccelRead",
-        handler=MtibRunner.AccelReadHandler,
-        request_info=CipherMessageInfo(AccelReadRequest),
+        handler=MtibRunnerV1.AccelReadHandler,
+        request_info=CipherMessageInfo(Empty),
         response_info=CipherMessageInfo(AccelReadResponse),
         supports_parallelism=True
     ),
     CipherRpcInfo(
-        id=MtibRunnerRpc.AccelReadMaxForce.value,
+        id=MtibRunnerV1Rpc.GetMotionStatus.value,
         type=CipherRpcType.UNARY,
-        name="AccelReadMaxForce",
-        handler=MtibRunner.AccelReadMaxForceHandler,
-        request_info=CipherMessageInfo(AccelReadMaxRequest),
-        response_info=CipherMessageInfo(AccelReadMaxResponse),
+        name="GetMotionStatus",
+        handler=MtibRunnerV1.GetMotionStatusHandler,
+        request_info=CipherMessageInfo(Empty),
+        response_info=CipherMessageInfo(GetMotionStatusResponse),
         supports_parallelism=True
     ),
     CipherRpcInfo(
-        id=MtibRunnerRpc.EepromRead.value,
+        id=MtibRunnerV1Rpc.MotionHome.value,
         type=CipherRpcType.UNARY,
-        name="EepromRead",
-        handler=MtibRunner.EepromReadHandler,
-        request_info=CipherMessageInfo(EepromReadRequest),
-        response_info=CipherMessageInfo(EepromReadResponse),
+        name="MotionHome",
+        handler=MtibRunnerV1.MotionHomeHandler,
+        request_info=CipherMessageInfo(Empty),
+        response_info=CipherMessageInfo(MotionHomeResponse),
         supports_parallelism=True
     ),
     CipherRpcInfo(
-        id=MtibRunnerRpc.EepromWrite.value,
+        id=MtibRunnerV1Rpc.MotionTrigger.value,
         type=CipherRpcType.UNARY,
-        name="EepromWrite",
-        handler=MtibRunner.EepromWriteHandler,
-        request_info=CipherMessageInfo(EepromWriteRequest),
-        response_info=CipherMessageInfo(EepromWriteResponse),
+        name="MotionTrigger",
+        handler=MtibRunnerV1.MotionTriggerHandler,
+        request_info=CipherMessageInfo(MotionTriggerRequest),
+        response_info=CipherMessageInfo(MotionTriggerResponse),
         supports_parallelism=True
     ),
     CipherRpcInfo(
-        id=MtibRunnerRpc.ListFwFiles.value,
+        id=MtibRunnerV1Rpc.MotionContinuous.value,
+        type=CipherRpcType.UNARY,
+        name="MotionContinuous",
+        handler=MtibRunnerV1.MotionContinuousHandler,
+        request_info=CipherMessageInfo(MotionContinuousRequest),
+        response_info=CipherMessageInfo(MotionContinuousResponse),
+        supports_parallelism=True
+    ),
+    CipherRpcInfo(
+        id=MtibRunnerV1Rpc.MotionStop.value,
+        type=CipherRpcType.UNARY,
+        name="MotionStop",
+        handler=MtibRunnerV1.MotionStopHandler,
+        request_info=CipherMessageInfo(Empty),
+        response_info=CipherMessageInfo(MotionStopResponse),
+        supports_parallelism=True
+    ),
+    CipherRpcInfo(
+        id=MtibRunnerV1Rpc.ListFwFiles.value,
         type=CipherRpcType.UNARY,
         name="ListFwFiles",
-        handler=MtibRunner.ListFwFilesHandler,
-        request_info=CipherMessageInfo(ListFwFilesRequest),
+        handler=MtibRunnerV1.ListFwFilesHandler,
+        request_info=CipherMessageInfo(Empty),
         response_info=CipherMessageInfo(ListFwFilesResponse),
         supports_parallelism=True
     ),
     CipherRpcInfo(
-        id=MtibRunnerRpc.UploadFwFile.value,
+        id=MtibRunnerV1Rpc.UploadFwFile.value,
         type=CipherRpcType.UNARY,
         name="UploadFwFile",
-        handler=MtibRunner.UploadFwFileHandler,
+        handler=MtibRunnerV1.UploadFwFileHandler,
         request_info=CipherMessageInfo(UploadFwFileRequest),
         response_info=CipherMessageInfo(UploadFwFileResponse),
         supports_parallelism=True
     ),
     CipherRpcInfo(
-        id=MtibRunnerRpc.DeleteFwFile.value,
+        id=MtibRunnerV1Rpc.DeleteFwFile.value,
         type=CipherRpcType.UNARY,
         name="DeleteFwFile",
-        handler=MtibRunner.DeleteFwFileHandler,
+        handler=MtibRunnerV1.DeleteFwFileHandler,
         request_info=CipherMessageInfo(DeleteFwFileRequest),
         response_info=CipherMessageInfo(DeleteFwFileResponse),
         supports_parallelism=True
     ),
     CipherRpcInfo(
-        id=MtibRunnerRpc.FlashHexFile.value,
+        id=MtibRunnerV1Rpc.FlashFwFile.value,
         type=CipherRpcType.UNARY,
-        name="FlashHexFile",
-        handler=MtibRunner.FlashHexFileHandler,
-        request_info=CipherMessageInfo(FlashHexFileRequest),
-        response_info=CipherMessageInfo(FlashHexFileResponse),
+        name="FlashFwFile",
+        handler=MtibRunnerV1.FlashFwFileHandler,
+        request_info=CipherMessageInfo(FlashFwFileRequest),
+        response_info=CipherMessageInfo(FlashFwFileResponse),
         supports_parallelism=True
     ),
     CipherRpcInfo(
-        id=MtibRunnerRpc.nrf9160UartStream.value,
+        id=MtibRunnerV1Rpc.UartStream.value,
         type=CipherRpcType.UNARY,
-        name="nrf9160UartStream",
-        handler=MtibRunner.nrf9160UartStreamHandler,
-        request_info=CipherMessageInfo(UartStreamRequest),
-        response_info=CipherMessageInfo(UartStreamResponse),
-        supports_parallelism=True
-    ),
-    CipherRpcInfo(
-        id=MtibRunnerRpc.nrf52840UartStream.value,
-        type=CipherRpcType.UNARY,
-        name="nrf52840UartStream",
-        handler=MtibRunner.nrf52840UartStreamHandler,
+        name="UartStream",
+        handler=MtibRunnerV1.UartStreamHandler,
         request_info=CipherMessageInfo(UartStreamRequest),
         response_info=CipherMessageInfo(UartStreamResponse),
         supports_parallelism=True
     ),
 ]
 
-# MtibRunner Service Definition
-mtibrunner_service_info = CipherServiceInfo(
-    id=MTIBRUNNER_SERVICE_ID,
-    name="MtibRunner",
+# MtibRunnerV1 Service Definition
+mtibrunnerv1_service_info = CipherServiceInfo(
+    id=MTIBRUNNERV1_SERVICE_ID,
+    name="MtibRunnerV1",
     num_allowed_hops=1,
-    rpcs=mtibrunner_service_rpcs
+    rpcs=mtibrunnerv1_service_rpcs
 )

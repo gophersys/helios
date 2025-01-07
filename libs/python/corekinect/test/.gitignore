@@ -1,0 +1,8 @@
+# Virtual environment
+.venv/
+
+# Package metadata
+*.egg-info
+
+# Caches
+*__pycache__/
