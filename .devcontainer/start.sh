@@ -1,6 +1,10 @@
 #!/bin/bash
 
-WDIR=/workdir
+if [ -z "$WORKDIR" ]
+then
+    echo "Work Directory is not set, exiting..."
+    exit 1
+fi
 
 # Check if machine is set otherwise exit
 if [ -z "$MACHINE" ]
@@ -34,8 +38,8 @@ if [ ! $(git config --global --get user.email) ]; then
 fi
 
 # Create a directory for yocto setup
-mkdir -p $WDIR
-cd $WDIR
+mkdir -p $WORKDIR
+cd $WORKDIR
 
 # Initialize if repo not yet initialized
 if [ ! -d ".repo" ]; then
@@ -65,17 +69,17 @@ else
 fi
 
 # Accept Freescale/NXP EULA
-if ! grep -q ACCEPT_FSL_EULA $WDIR/$BDDIR/conf/local.conf
+if ! grep -q ACCEPT_FSL_EULA $WORKDIR/$BDDIR/conf/local.conf
 then
     echo 'You have to accept freescale EULA. Read it carefully and then accept it.'
     echo 'Press "space" to scroll down and "q" to exit'
     sleep 3
-    less $WDIR/layers/meta-freescale/EULA
+    less $WORKDIR/layers/meta-freescale/EULA
     while true; do
         read -p "Do you accept the EULA? [y/n] " yn
         case $yn in
             [Yy]* ) echo 'EULA accepted'
-                echo 'ACCEPT_FSL_EULA="1"' >> $WDIR/$BDDIR/conf/local.conf
+                echo 'ACCEPT_FSL_EULA="1"' >> $WORKDIR/$BDDIR/conf/local.conf
                 break;;
             [Nn]* ) exit;;
             * ) echo "Please answer yes or no.";;
@@ -87,9 +91,9 @@ fi
 cat >> /home/usersetup/.bashrc << EOF
 
 # Yocto/BitBake environment setup
-if [ -f "${WDIR}/${BDDIR}/conf/local.conf" ]; then
+if [ -f "${WORKDIR}/${BDDIR}/conf/local.conf" ]; then
     echo "Setting up Yocto build environment..."
-    cd ${WDIR}
+    cd ${WORKDIR}
     MACHINE=${MACHINE} DISTRO=${DISTRO} BUILDDIRECTORY=${BDDIR} source setup-environment ${BDDIR}
 
     echo "Or alternatively, you can build the custom Corekinect targets:"

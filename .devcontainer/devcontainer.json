@@ -10,8 +10,9 @@
         ".devcontainer/.env"
     ],
     "remoteUser": "usersetup",
-    "workspaceMount": "source=${localWorkspaceFolder},target=/workdir,type=bind",
-    "workspaceFolder": "/workdir",
+    "remoteEnv": {
+        "WORKDIR": "${containerWorkspaceFolder}"
+    },
     "customizations": {
         "vscode": {
             "extensions": [
