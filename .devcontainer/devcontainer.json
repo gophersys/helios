@@ -1,0 +1,24 @@
+{
+    "name": "Yocto Build Environment",
+    "build": {
+        "dockerfile": "Dockerfile",
+        "context": "."
+    },
+    "runArgs": [
+        "--rm",
+        "--env-file",
+        ".devcontainer/.env"
+    ],
+    "remoteUser": "usersetup",
+    "workspaceMount": "source=${localWorkspaceFolder},target=/workdir,type=bind",
+    "workspaceFolder": "/workdir",
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-vscode.cpptools",
+                "yocto-project.yocto-bitbake"
+            ]
+        }
+    },
+    "postStartCommand": "chmod +x .devcontainer/start.sh && .devcontainer/start.sh"
+}

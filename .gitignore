@@ -1,0 +1,7 @@
+.repo
+build
+downloads
+layers/*
+!layers/meta-corekienct
+sstate-cache
+setup-environment
