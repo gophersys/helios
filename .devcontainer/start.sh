@@ -88,18 +88,41 @@ then
 fi
 
 # Set up the environment for all future shells
-cat >> /home/usersetup/.bashrc << EOF
+cat > /home/usersetup/.bashrc << EOF
+# Default bash configuration
+if [ -f /etc/bash.bashrc ]; then
+    . /etc/bash.bashrc
+fi
+
+# Set up colorful PS1 prompt
+export PS1='\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
+
+# Enable color support
+alias ls='ls --color=auto'
+alias grep='grep --color=auto'
+alias fgrep='fgrep --color=auto'
+alias egrep='egrep --color=auto'
 
 # Yocto/BitBake environment setup
-if [ -f "${WORKDIR}/${BDDIR}/conf/local.conf" ]; then
-    echo "Setting up Yocto build environment..."
+if [ -d "${WORKDIR}" ]; then
     cd ${WORKDIR}
-    MACHINE=${MACHINE} DISTRO=${DISTRO} BUILDDIRECTORY=${BDDIR} source setup-environment ${BDDIR}
-
-    echo "Or alternatively, you can build the custom Corekinect targets:"
-    echo "   corekinect-mtib-dev"
-    echo "   corekinect-mtib-k8s"
+    if [ -f "setup-environment" ]; then
+        echo "Setting up Yocto build environment..."
+        # Save current PS1
+        OLD_PS1="\$PS1"
+        MACHINE=${MACHINE} DISTRO=${DISTRO} BUILDDIRECTORY=${BDDIR} source setup-environment ${BDDIR}
+        # Restore our colorful PS1
+        PS1="\$OLD_PS1"
+    fi
 fi
+
+# Return to workspace directory
+cd ${WORKDIR}
+
+# Custom build targets info
+echo "Available custom build targets:"
+echo "   corekinect-mtib-dev"
+echo "   corekinect-mtib-k8s"
 EOF
 
 # Make sure the .bashrc has correct permissions
