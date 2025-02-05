@@ -1,0 +1,22 @@
+// INA219 sensor connected via I2C to the Verdin iMX8MM
+
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/gpio/gpio.h>
+
+/ {
+	compatible = "toradex,verdin-imx8mm";
+};
+
+&i2c4 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+	
+	ina219@45 {
+		compatible = "ti,ina219";
+		reg = <0x45>;
+		status = "okay";
+	};
+};

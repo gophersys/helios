@@ -1,0 +1,5 @@
+{
+    "insecure-registries": [
+        "kubecop.ad.corekinect.com:5000"
+    ]
+}

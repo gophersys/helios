@@ -1,0 +1,33 @@
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
+/*
+ * Copyright 2024 Corekinect
+ * AD7689 ADC overlay for Verdin iMX8MM
+ */
+
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/gpio/gpio.h>
+
+/ {
+    compatible = "toradex,verdin-imx8mm";
+};
+
+&ecspi2 {
+    #address-cells = <1>;
+    #size-cells = <0>;
+    status = "okay";
+    
+    /* Disable existing spidev device */
+    spidev@0 {
+        status = "disabled";
+    };
+    
+    /* Add ADC on CS0 */
+    ad7689@0 {
+        compatible = "adi,ad7689";
+        reg = <0>;
+        spi-max-frequency = <40000000>;
+        status = "okay";
+    };
+};
