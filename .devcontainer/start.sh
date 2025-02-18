@@ -68,6 +68,25 @@ else
     DISTRO=$DISTRO MACHINE=$MACHINE BUILDDIRECTORY=$BDDIR source setup-environment $BDDIR
 fi
 
+# Configure debug paths properly
+if ! grep -q "DEBUG_PREFIX_MAP\|REPRODUCIBLE_BUILD" $WORKDIR/$BDDIR/conf/local.conf
+then
+    cat >> $WORKDIR/$BDDIR/conf/local.conf << 'EOL'
+# Strip build paths from debug packages
+# This maps the build-time paths (WORKDIR) to a standardized path in the debug packages
+# This helps achieve reproducible builds and prevents leaking build system paths
+DEBUG_PREFIX_MAP = "-fdebug-prefix-map=${WORKDIR}=/usr/src/debug/${PN}/${PV}"
+
+# Enable reproducible build paths for debug info
+# This ensures debug paths are consistent across builds, improving reproducibility
+REPRODUCIBLE_BUILD_DEBUG_PATHS = "1"
+
+# Maintain debug information in the output
+# Ensures debug symbols are generated but properly managed
+DEBUG_BUILD_OPTIONS = "-g"
+EOL
+fi
+
 # Accept Freescale/NXP EULA
 if ! grep -q ACCEPT_FSL_EULA $WORKDIR/$BDDIR/conf/local.conf
 then
@@ -117,7 +136,7 @@ if [ -d "${WORKDIR}" ]; then
 fi
 
 # Return to workspace directory
-cd ${WORKDIR}
+cd ${WORKDIR}/../
 
 # Custom build targets info
 echo "Available custom build targets:"

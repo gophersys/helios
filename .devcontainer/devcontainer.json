@@ -9,15 +9,21 @@
         "--env-file",
         ".devcontainer/.env"
     ],
+    "mounts": [
+        "source=/mnt/c,target=/mnt/c,type=bind"
+    ],
     "remoteUser": "usersetup",
     "remoteEnv": {
-        "WORKDIR": "${containerWorkspaceFolder}"
+        "WORKDIR": "${containerWorkspaceFolder}/torizon"
     },
     "customizations": {
         "vscode": {
             "extensions": [
                 "ms-vscode.cpptools",
-                "yocto-project.yocto-bitbake"
+                "yocto-project.yocto-bitbake",
+                "plorefice.devicetree",
+                "ms-python.python",
+                "mads-hartmann.bash-ide-vscode"
             ]
         }
     },

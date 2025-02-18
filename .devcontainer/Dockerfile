@@ -22,6 +22,7 @@ RUN apt-get update && apt-get install --no-install-recommends --no-install-sugge
     python3-gi \
     gir1.2-ostree-1.0 \
     python3-requests \
+    device-tree-compiler \
     && rm -rf /var/lib/apt/lists/*
 
 # Install repo

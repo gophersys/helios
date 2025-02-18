@@ -16,7 +16,7 @@ CUSTOM_OVERLAYS_SOURCE = " \
 # - ad7689-overlay.dtbo: AD7689 16-bit ADC, connected to SPI1
 #
 CUSTOM_OVERLAYS_BINARY = " \
-    verdin-imx8mm_spidev_overlay.dtbo \ 
+    verdin-imx8mm_spidev_overlay.dtbo \
     ina219-overlay.dtbo \
     ad7689-overlay.dtbo \
 "

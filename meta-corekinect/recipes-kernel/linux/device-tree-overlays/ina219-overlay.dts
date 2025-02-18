@@ -1,22 +1,53 @@
-// INA219 sensor connected via I2C to the Verdin iMX8MM
-
 /dts-v1/;
 /plugin/;
 
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/interrupt-controller/irq.h>
 
 / {
 	compatible = "toradex,verdin-imx8mm";
 };
 
-&i2c4 {
+&i2c2 {    /* This is i2c-1 in Linux */
 	#address-cells = <1>;
 	#size-cells = <0>;
 	status = "okay";
-	
-	ina219@45 {
-		compatible = "ti,ina219";
-		reg = <0x45>;
+
+	/* LIS2DE12TR accelerometer */
+	accel@19 {
+		compatible = "st,lis2de12";
+		reg = <0x19>;
 		status = "okay";
+		vdd-supply = <&reg_vdd_3v3>;   
+        vddio-supply = <&reg_vdd_3v3>;
+        st,drdy-int-pin = <1>;
+        drive-open-drain;
+        interrupt-parent = <&gpio3>;
+        interrupts = <7 IRQ_TYPE_EDGE_RISING>;
+	};
+
+	/* MCP4017 digital potentiometer */
+	digipot@2f {
+		compatible = "microchip,mcp4017";
+		reg = <0x2f>;
+		status = "okay";
+	};
+
+	/* INA219 current sensor */
+	ina219@40 {
+		compatible = "ti,ina219";
+		reg = <0x40>;
+		status = "okay";
+		shunt-resistor = <100000>;
+	};
+
+	/* BMP390 pressure sensor */
+	bmp390@76 {
+		compatible = "bosch,bmp380";
+		reg = <0x76>;
+		status = "okay";
+		
+		vdda-supply = <&reg_3v3>;  /* 3.3V supply for analog */
+		vddd-supply = <&reg_3v3>;  /* 3.3V supply for digital */
 	};
 };

@@ -10,11 +10,25 @@ IMAGE_BASENAME = "CoreKinect-MTIB"
 IMAGE_CLASSES += "image_type_tezi"
 TEZI_IMAGE_NAME = "${IMAGE_BASENAME}"
 
-# Ensure device tree overlays are included and loaded at boot
-MACHINE_EXTRA_RRECOMMENDS += "kernel-devicetree-overlays"
+# This is disabled for now because the system is not booting
+# when the container preloading is enabled
+# TODO: Enable this again when the system is stable
+# 
+# # Define insecure registries
+# CONTAINER_INSECURE_REGISTRIES = " \
+#     kubecop.ad.corekinect.com:5000 \
+# "
 
-# Remove the direct dependency on moby-engine since it's handled by torizon-docker.bb
-# through VIRTUAL-RUNTIME_container_engine
+# # Preload Docker images
+# CONTAINER_PRELOAD_IMAGES = " \
+#     kubecop.ad.corekinect.com:5000/concord-mtib:dev \
+# "
+
+# # Enable container preloading feature
+# MACHINE_FEATURES:append = " preload-containers"
+
+# # Add the container preloading class from our layer
+# inherit image-preload-container
 
 # Disable Android repo manifest copy
 COPY_TEZI_ANDROID_MANIFEST = "0"
