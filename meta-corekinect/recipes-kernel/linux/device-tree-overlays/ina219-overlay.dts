@@ -1,6 +1,22 @@
 /dts-v1/;
 /plugin/;
 
+/*
+ * Reserved I2C addresses on i2c4 (Verdin I2C_1):
+ * 0x21 - GPIO Expander (PCAL6416)
+ * 0x2C - LVDS Bridge (SN65DSI84)
+ * 0x40 - INA219 Current Sensor (hwmon)
+ * 0x48 - HDMI Bridge (LT8912)
+ * 0x49 - ADC
+ * 0x4A - Touch Controller (Atmel MaxTouch)
+ * 0x4F - Temperature Sensor (TMP75C)
+ * 0x50 - Display Adapter EEPROM
+ * 0x57 - Carrier Board EEPROM
+ *
+ * From i2cdetect, these addresses show as in use (UU):
+ * 0x40, 0x49, 0x4F, 0x50, 0x57
+ */
+
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 
@@ -8,46 +24,24 @@
 	compatible = "toradex,verdin-imx8mm";
 };
 
-&i2c2 {    /* This is i2c-1 in Linux */
+// Enable &i2c2
+&i2c4 {   
 	#address-cells = <1>;
 	#size-cells = <0>;
 	status = "okay";
-
-	/* LIS2DE12TR accelerometer */
-	accel@19 {
-		compatible = "st,lis2de12";
-		reg = <0x19>;
-		status = "okay";
-		vdd-supply = <&reg_vdd_3v3>;   
-        vddio-supply = <&reg_vdd_3v3>;
-        st,drdy-int-pin = <1>;
-        drive-open-drain;
-        interrupt-parent = <&gpio3>;
-        interrupts = <7 IRQ_TYPE_EDGE_RISING>;
-	};
-
-	/* MCP4017 digital potentiometer */
-	digipot@2f {
-		compatible = "microchip,mcp4017";
-		reg = <0x2f>;
-		status = "okay";
-	};
-
-	/* INA219 current sensor */
-	ina219@40 {
+	
+	ina219@45 {
 		compatible = "ti,ina219";
-		reg = <0x40>;
+		reg = <0x45>;
 		status = "okay";
 		shunt-resistor = <100000>;
 	};
 
-	/* BMP390 pressure sensor */
-	bmp390@76 {
-		compatible = "bosch,bmp380";
-		reg = <0x76>;
+	accel@19 {
+		compatible = "st,lis2de12";
+		reg = <0x19>;
 		status = "okay";
-		
-		vdda-supply = <&reg_3v3>;  /* 3.3V supply for analog */
-		vddd-supply = <&reg_3v3>;  /* 3.3V supply for digital */
+		vdd-supply = <&reg_vdd_3v3>;
+		vddio-supply = <&reg_vdd_3v3>;
 	};
 };

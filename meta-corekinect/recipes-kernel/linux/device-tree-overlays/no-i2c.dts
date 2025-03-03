@@ -1,0 +1,23 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/dts-v1/;
+/plugin/;
+
+/ {
+	compatible = "toradex,verdin-imx8mm";
+};
+
+&i2c2 {
+	status = "disabled";
+};
+
+&mipi_dsi {
+	status = "disabled";
+};
+
+&lcdif {
+	status = "disabled";
+};
+
+&dsi_host {
+	status = "disabled";
+};

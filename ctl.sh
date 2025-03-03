@@ -10,17 +10,17 @@ function compile() {
         -I $STAGING_KERNEL_DIR/include \
         -I $STAGING_KERNEL_DIR/scripts/dtc/include-prefixes \
         -undef -x assembler-with-cpp \
-        meta-corekinect/recipes-kernel/linux/device-tree-overlays/ina219-overlay.dts \
-        ina219-overlay.dts.preprocessed
+        meta-corekinect/recipes-kernel/linux/device-tree-overlays/no-i2s.dts \
+        no-i2s.dts.preprocessed
 
-    dtc -@ -I dts -O dtb -o ina219-overlay.dtbo ina219-overlay.dts.preprocessed
+    dtc -@ -I dts -O dtb -o no-i2s.dtbo no-i2s.dts.preprocessed
 
-    echo "Compiled ina219-overlay.dtbo successfully"
+    echo "Compiled no-i2s.dtbo successfully"
 }
 
 function deploy() {
     # Copy to device
-    scp ina219-overlay.dtbo torizon@imx8:/tmp/
+    scp no-i2s.dtbo torizon@imx8:/tmp/
     
     # Execute commands with a terminal allocation
     ssh -t torizon@imx8 '
@@ -31,10 +31,10 @@ function deploy() {
         sudo mkdir -p /boot/overlays
         
         echo "Copying overlay..."
-        sudo cp /tmp/ina219-overlay.dtbo /boot/overlays/
+        sudo cp /tmp/no-i2s.dtbo /boot/overlays/
         
         echo "Setting U-Boot environment..."
-        sudo fw_setenv overlays ina219-overlay.dtbo
+        sudo fw_setenv overlays no-i2s.dtbo
         sudo fw_setenv saveenv
         
         echo "Verifying setup..."
