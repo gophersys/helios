@@ -16,7 +16,9 @@
             "options": {
                 "context": "{projectRoot}",
                 "file": ".devcontainer/zephyr-6.0.0/Dockerfile",
-                "platforms": [],
+                "platforms": [
+                    "linux/amd64"
+                ],
                 "load": true,
                 "push": false,
                 "tags": [

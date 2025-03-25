@@ -1,0 +1,52 @@
+<mxfile host="65bd71144e">
+    <diagram id="JaCnYbtURxnfiGmCmqKJ" name="architecture">
+        <mxGraphModel dx="892" dy="618" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="2" value="iMX8" style="whiteSpace=wrap;html=1;aspect=fixed;" vertex="1" parent="1">
+                    <mxGeometry x="360" y="400" width="80" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="3" value="Stepper&amp;nbsp;&lt;br&gt;Driver" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+                    <mxGeometry x="40" y="200" width="80" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="4" value="JLINK" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+                    <mxGeometry x="540" y="160" width="80" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="5" value="JLINK" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+                    <mxGeometry x="540" y="210" width="80" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="6" value="ADC x 7" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+                    <mxGeometry x="630" y="160" width="80" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="7" value="SPI x 1" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+                    <mxGeometry x="720" y="160" width="80" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="8" value="BMP390 Altimeter" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+                    <mxGeometry x="160" y="280" width="80" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="9" value="LIS2DE12TR&lt;br&gt;Accel" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+                    <mxGeometry x="280" y="280" width="80" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="10" value="Adjustable Power Rail" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+                    <mxGeometry x="450" y="160" width="80" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="11" value="Power Measurement" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+                    <mxGeometry x="400" y="210" width="90" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="12" value="GPIO x 7" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+                    <mxGeometry x="630" y="210" width="80" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="13" value="Charge Power Rail" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+                    <mxGeometry x="360" y="160" width="80" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="14" value="GPIO x 7" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+                    <mxGeometry x="140" y="200" width="80" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="15" value="I2C x 1" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+                    <mxGeometry x="720" y="210" width="80" height="40" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>

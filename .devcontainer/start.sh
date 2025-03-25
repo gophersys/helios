@@ -16,3 +16,6 @@ done
 
 # Now change to workspace
 cd "$WORKSPACE" || exit
+
+# Create the platform builder if it doesn't exist
+nx create-platform-builder devcontainers

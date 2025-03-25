@@ -1,0 +1,26 @@
+{
+  "name": "protocols",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/protocols",
+  "projectType": "application",
+  "targets": {
+    "create": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          "chmod +x ./libs/protocols/ctl.sh && ./libs/protocols/ctl.sh generate"
+        ],
+        "cwd": "{workspaceRoot}"
+      }
+    },
+    "clean": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          "chmod +x ./libs/protocols/ctl.sh && ./libs/protocols/ctl.sh clean"
+        ],
+        "cwd": "{workspaceRoot}"
+      }
+    }
+  }
+}

@@ -1,0 +1,18 @@
+debug = true
+
+# Global registry settings
+[registry."kubecop.ad.corekinect.com:5000"]
+  http = true
+  insecure = true
+
+[registry."10.4.45.2"]
+  http = true
+  insecure = true
+
+# Worker settings
+[worker.oci]
+  enabled = true
+  platforms = ["linux/amd64", "linux/arm64"]
+
+[worker.containerd]
+  enabled = false 

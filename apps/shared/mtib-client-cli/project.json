@@ -1,0 +1,54 @@
+{
+  "name": "mtib-client-cli",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/shared/mtib-client-cli",
+  "projectType": "application",
+  "targets": {
+    "build": {
+      "command": "nx run mtib-client-cli:containerize",
+      "cwd": "{workspaceRoot}"
+    },
+    "containerize": {
+      "executor": "@nx-tools/nx-container:build",
+      "cwd": "{workspaceRoot}",
+      "options": {
+        "context": "{workspaceRoot}",
+        "file": "apps/shared/mtib-client-cli/deploy/Dockerfile",
+        "platforms": [],
+        "load": true,
+        "push": false,
+        "tags": [
+          "containers.ad.corekinect.com/mtib-client-cli:latest"
+        ]
+      }
+    },
+    "setup": {
+      "executor": "nx:run-commands",
+      "cwd": "{projectRoot}",
+      "options": {
+        "cwd": "{projectRoot}",
+        "commands": [
+          {
+            "command": "python3 -m venv .venv"
+          },
+          {
+            "command": "zsh -c 'source .venv/bin/activate && pip install -e .'"
+          },
+          {
+            "command": "cp .env.example .env"
+          }
+        ],
+        "parallel": false
+      }
+    },
+    "serve": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{projectRoot}",
+        "commands": [
+          "python3 src/main.py"
+        ]
+      }
+    }
+  }
+}

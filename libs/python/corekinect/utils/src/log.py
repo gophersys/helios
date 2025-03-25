@@ -1,4 +1,6 @@
 import inspect
+from typing import List
+
 import logging
 import os
 import random
@@ -14,21 +16,42 @@ from termcolor import colored
 class CustomFormatter(logging.Formatter):
     """Custom logging formatter to add colors and customize the message format."""
 
-    # Default format for logs
-    format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    # Define level name mappings
+    LEVEL_NAMES = {
+        logging.DEBUG: "DBG",
+        logging.INFO: "INF",
+        logging.WARNING: "WRN",
+        logging.ERROR: "ERR",
+        logging.CRITICAL: "CRT",
+    }
+
+    # Define different formats for debug vs other levels
+    FORMAT = "%(asctime)s - %(levelshort)s - %(name)s - %(message)s"
 
     # Define color formats for different log levels
     FORMATS = {
-        logging.DEBUG: colored(format, "white"),
-        logging.INFO: colored(format, "blue"),
-        logging.WARNING: colored(format, "yellow"),
-        logging.ERROR: colored(format, "red"),
-        logging.CRITICAL: colored(format, "red", attrs=["bold"]),
+        logging.DEBUG: colored(FORMAT, "white"),
+        logging.INFO: colored(FORMAT, "blue"),
+        logging.WARNING: colored(FORMAT, "yellow"),
+        logging.ERROR: colored(FORMAT, "red"),
+        logging.CRITICAL: colored(FORMAT, "red", attrs=["bold"]),
     }
 
     def format(self, record):
-        """Apply the color format to the log message based on its level."""
+        """Apply the appropriate format to the log message based on its level."""
+        # Add custom levelshort attribute
+        record.levelshort = self.LEVEL_NAMES.get(record.levelno, record.levelname)
+
         log_fmt = self.FORMATS.get(record.levelno)
+
+        # For debug level, set funcName as the first part of the message
+        if record.levelno == logging.DEBUG:
+            # Remove the "debug" function name if it's from our decorator
+            if record.funcName == "debug":
+                record.funcName = record.msg.split(":")[0]
+                record.msg = record.msg.split(":", 1)[1].strip()
+            record.msg = f"{record.funcName} - {record.msg}"
+
         formatter = logging.Formatter(log_fmt)
         return formatter.format(record)
 
@@ -131,6 +154,27 @@ class Logger:
             # Set the test case logger in the context
             Logger.test_case_logger.set(self)
 
+        # Create a list of modules, which are simple strings that will be added to the log messages
+        self.modules: List[str] = []
+
+    def from_parent(self, module_name: str) -> "Logger":
+        """
+        Create a new logger that inherits settings from its parent logger.
+
+        Parameters:
+            module_name (str): The name of the child module to append to the parent's logger name
+
+        Returns:
+            Logger: A new logger instance with inherited settings and nested name
+        """
+        # Create a copy of the parent's config
+        child_config = Logger.Config(**vars(self.config))
+
+        # Only modify the logger name to create the parent.child hierarchy
+        child_config.logger_name = f"{self.config.logger_name}.{module_name}"
+
+        return Logger(child_config)
+
     def _setup_logger(self):
         """Set up the logger with console and file handlers."""
         self.logger.setLevel(self.config.overall_log_level)
@@ -166,14 +210,9 @@ class Logger:
         self.logger.addHandler(file_handler)
 
     def debug(self, message, *args):
-        """Log a message at DEBUG level, including the function name or module."""
-        current_stack = inspect.stack()[1]
-        current_function = current_stack.function
-        if current_function == "<module>":
-            current_function = "__main__"
-
-        # Log the message, including the function or module name
-        self.logger.debug(f"{current_function}: {message}", *args)
+        """Log a message at DEBUG level, including the function name."""
+        # Let the formatter handle the function name
+        self.logger.debug(message, *args)
 
     def info(self, message, *args):
         """Log a message at INFO level."""
@@ -184,27 +223,19 @@ class Logger:
         self.logger.warning(message, *args)
 
     def error(self, message, *args):
-        """Log a message at ERROR level. If there is an active exception being handled, log the full stack trace."""
-        # Check if an exception is being handled in the current context
+        """Log a message at ERROR level with optional stack trace."""
         exc_type, exc_value, _ = sys.exc_info()
-
         if exc_type is not None:
-            # If there's an active exception, log the message with the full stack trace
             self.logger.error(f"{message}\nException: {exc_value}", exc_info=True, *args)
         else:
-            # If no exception is active, log the message normally
             self.logger.error(message, *args)
 
     def critical(self, message, *args):
-        """Log a message at CRITICAL level. If there is an active exception being handled, log the full stack trace."""
-        # Check if an exception is being handled in the current context
+        """Log a message at CRITICAL level with optional stack trace."""
         exc_type, exc_value, _ = sys.exc_info()
-
         if exc_type is not None:
-            # If there's an active exception, log the message with the full stack trace
             self.logger.critical(f"{message}\nException: {exc_value}", exc_info=True, *args)
         else:
-            # If no exception is active, log the message normally
             self.logger.critical(message, *args)
 
     def exception(self, message, *args):

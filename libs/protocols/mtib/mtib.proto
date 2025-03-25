@@ -1,0 +1,352 @@
+syntax = "proto3";
+
+option go_package = "bitbucket.org/corekinect/concord/libs/protocols/mtib";
+
+package mtib;
+
+// This is the main interface used to access all the functionality built 
+// into the MTIB hardware.
+// 
+// This service gets served at port 50053
+//
+service MtibV1 {
+  // HealthCheck
+  rpc HealthCheck(Empty) returns (HealthCheckResponse) {}
+
+  // Gpio
+  rpc GpioConfig(GpioConfigRequest) returns (GpioConfigResponse) {}
+  rpc GpioWrite(GpioWriteRequest) returns (GpioWriteResponse) {}
+  rpc GpioRead(GpioReadRequest) returns (GpioReadResponse) {}
+
+  // Adc
+  rpc AdcRead(AdcReadRequest) returns (AdcReadResponse) {}
+  rpc AdcReadAll(Empty) returns (AdcReadAllResponse) {}
+
+  // Power
+  rpc DutPowerEnable(DutPowerRequest) returns (DutPowerResponse){}
+  rpc DutPowerDisable(Empty) returns (DutPowerResponse){}
+  rpc DutChargePowerEnable(DutPowerRequest) returns (DutPowerResponse){}
+  rpc DutChargePowerDisable(Empty) returns (DutPowerResponse){}
+
+  // Power Consumption
+  rpc DutPowerRead(Empty) returns (DutPowerReadResponse) {}
+
+  // Sensors
+  rpc AltimeterRead(Empty) returns (AltimeterReadResponse) {}
+  rpc AccelRead(Empty) returns (AccelReadResponse) {}
+
+  // FluidNc config
+  rpc GetFluidNcConfig(Empty) returns (FluidNcConfigResponse) {}
+  rpc UpdateFluidNcConfig(UpdateFluidNcConfigRequest) returns (UpdateFluidNcConfigResponse) {}
+
+  // Motion Profiles
+  rpc UploadMotionProfile(MotionProfileRequest) returns (MotionProfileResponse) {}
+  rpc ListMotionProfiles(Empty) returns (ListMotionProfilesResponse) {}
+  rpc ExecuteMotionProfile(ExecuteProfileRequest) returns (ExecuteProfileResponse) {}
+  // rpc SetDefaultMotionProfile(Empty) returns (SetDefaultMotionProfileResponse) {}
+
+  // Gcode
+  rpc SendGcode(GcodeRequest) returns (GcodeResponse) {}
+
+  // Motion
+  rpc GetMotionStatus(GetMotionStatusRequest) returns (GetMotionStatusResponse) {}
+  // rpc MotionStart(Empty) returns (MotionStartResponse) {}
+  rpc MotionHome(Empty) returns (MotionHomeResponse) {}
+  rpc MotionStop(Empty) returns (MotionStopResponse) {}
+
+  // Firmware
+  rpc ListProgrammers(Empty) returns (ListProgrammersResponse) {}
+  rpc ListFwFiles(Empty) returns (ListFwFilesResponse) {}
+  rpc UploadFwFile(stream UploadFwFileRequest) returns (UploadFwFileResponse) {}
+  rpc DeleteFwFile(DeleteFwFileRequest) returns (DeleteFwFileResponse) {}
+  rpc FlashFwFile(FlashFwFileRequest) returns (FlashFwFileResponse) {}
+
+  // Uart streams
+  rpc UartStream(stream UartStreamRequest) returns (stream UartStreamResponse) {}
+}
+
+// Shared
+message Empty{}
+
+message Component {
+  string name = 1;
+  bool ready = 2;
+  string error = 3;
+}
+
+// Health Check
+message HealthCheckResponse {
+  bool ready = 1;
+  repeated Component components = 2;
+}
+
+// Gpio
+enum GpioDirection {
+  GPIO_DIRECTION_UNDEFINED = 0;
+  GPIO_DIRECTION_INPUT = 1;
+  GPIO_DIRECTION_OUTPUT = 2;
+}
+
+enum GpioResistorConfig {
+  GPIO_RESISTOR_UNDEFINED = 0;
+  GPIO_RESISTOR_PULL_UP = 1;
+  GPIO_RESISTOR_PULL_DOWN = 2;
+  GPIO_RESISTOR_NONE = 3;
+}
+
+message GpioConfigRequest {
+  int32 gpio = 1;
+  GpioDirection direction = 2;
+  GpioResistorConfig resistor = 3;
+}
+
+message GpioConfigResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message GpioWriteRequest {
+  int32 gpio = 1;
+  bool state = 2;
+}
+
+message GpioWriteResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message GpioReadRequest {
+  int32 gpio = 1;
+}
+
+message GpioReadResponse {
+  bool success = 1;
+  string message = 2;
+  bool state = 3;
+}
+
+// Adc
+message AdcReadRequest{
+  int32 channel = 1;
+}
+
+message AdcReadResponse{
+  bool success = 1;
+  string message = 2;
+  double voltage_v = 3;
+}
+
+message AdcReadAllResponse{
+  bool success = 1;
+  string message = 2;
+  repeated double voltages_v = 3;
+}
+
+// Power
+message DutPowerRequest {
+  double voltage_v = 1;
+}
+
+message DutPowerResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// Power Monitor
+message DutPowerReadResponse {
+  bool success = 1;
+  string message = 2;
+
+  double current_a = 3;
+  double voltage_v = 4;
+  double power_w = 5;
+}
+
+// Sensors
+message AltimeterReadResponse {
+  bool success = 1;
+  string message = 2;
+
+  double temperature_f = 3; 
+  double pressure_hg = 4;
+  double altitude_ft = 5;
+}
+
+message AccelReadResponse {
+  bool success = 1;
+  string message = 2;
+
+  double x_g = 3;
+  double y_g = 4;
+  double z_g = 5;
+}
+
+// FluidNc config
+message FluidNcConfigResponse {
+  bool success = 1;
+  string message = 2;
+
+  string config_yaml = 3;
+}
+
+message UpdateFluidNcConfigRequest {
+  string config_yaml = 1;
+}
+
+message UpdateFluidNcConfigResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// Motion
+enum MotionStatus {
+  MOTION_STATUS_UNDEFINED = 0;
+  MOTION_STATUS_IDLE = 1;
+  MOTION_STATUS_MOVING = 2;
+  MOTION_STATUS_ERRORED = 3;
+}
+
+message GetMotionStatusRequest {
+}
+
+message MotionHomeResponse {
+  bool success = 1; 
+  string message = 2;
+}
+
+message MotionStopResponse {
+  bool success = 1; 
+  string message = 2;
+}
+
+message GetMotionStatusResponse {
+  bool success = 1; 
+  string message = 2;
+
+  MotionStatus status = 3;
+}
+
+message GcodeRequest {
+  string command = 1;
+}
+
+message GcodeResponse {
+  bool success = 1;
+  string message = 2;
+  string response = 3;
+}
+
+message MotionProfile {
+  string name = 1;
+  string description = 2;
+  repeated string gcode_commands = 3;
+}
+
+message MotionProfileRequest {
+  MotionProfile profile = 1;
+}
+
+message MotionProfileResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message ListMotionProfilesResponse {
+  repeated MotionProfile profiles = 1;
+}
+
+message ExecuteProfileRequest {
+  string profile_name = 1;
+}
+
+message ExecuteProfileResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+
+// Firmware
+enum ProgrammerType {
+  PROGRAMMER_TYPE_UNDEFINED = 0;
+  PROGRAMMER_TYPE_JLINK = 1;
+  PROGRAMMER_TYPE_BLACKMAGIC = 2;
+}
+
+enum HostType {
+  HOST_TYPE_UNDEFINED = 0;
+  HOST_TYPE_NRF9160_MCU = 1;
+  HOST_TYPE_NRF9160_MODEM = 2;
+  HOST_TYPE_NRF52840 = 3;
+  HOST_TYPE_NRF5340 = 4;
+}
+
+message Programmer {
+  ProgrammerType type = 1;
+  HostType host = 2;
+}
+
+message ListProgrammersResponse {
+  bool success = 1;
+  string message = 2;
+
+  repeated Programmer programmers = 3;
+}
+
+message FwFileInfo {
+  string name = 1;
+  HostType target = 2;
+  int64 size_b = 3;
+  string sha256_digest = 4;
+}
+
+message ListFwFilesResponse {
+  repeated FwFileInfo files = 1;
+}
+
+message UploadFwFileRequest {
+  string name = 1;
+  HostType target = 2;
+
+  bytes content = 4;
+}
+
+message UploadFwFileResponse {
+  bool success = 1;
+  string message = 2;
+
+  string sha256_digest = 3;
+}
+
+message DeleteFwFileRequest {
+  FwFileInfo file_info = 1;
+}
+
+message DeleteFwFileResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message FlashFwFileRequest {
+  FwFileInfo file_info = 1;
+}
+
+message FlashFwFileResponse {
+  bool success = 1;
+  string message = 2;
+
+  int32 time_ms = 3;
+}
+
+// Uart streams
+message UartStreamRequest {
+  HostType target = 1;
+  bytes data = 2;
+}
+
+message UartStreamResponse {
+  bool success = 1;
+  string message = 2;
+
+  HostType target = 3;
+  bytes data = 4; 
+}

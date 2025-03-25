@@ -1,0 +1,11 @@
+services:
+  mtib-server:
+    image: kubecop.ad.corekinect.com:5000/mtib-server:dev
+    pull_policy: always
+    privileged: true
+    ports:
+      - 50053:50053
+    env_file:
+      - ../.env
+    volumes:
+      - /dev:/dev

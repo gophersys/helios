@@ -4,7 +4,13 @@
     "sourceRoot": ".devcontainer",
     "projectType": "application",
     "targets": {
-        "build-all": {
+        "create-platform-builder": {
+            "executor": "nx:run-commands",
+            "options": {
+                "command": "mkdir -p ~/.docker/buildx && cp .devcontainer/buildkitd.toml ~/.docker/buildx/ && (docker buildx ls | grep concord-builder || docker buildx create --name concord-builder --use --driver docker-container --config .devcontainer/buildkitd.toml --driver-opt network=host) && docker buildx inspect --bootstrap"
+            }
+        },
+        "build": {
             "executor": "nx:run-commands",
             "dependsOn": [
                 "devcontainer-base:build"
@@ -17,10 +23,10 @@
                 ]
             }
         },
-        "push-all": {
+        "push": {
             "executor": "nx:run-commands",
             "dependsOn": [
-                "devcontainers:build-all"
+                "devcontainers:build"
             ],
             "options": {
                 "commands": [

@@ -1,6 +1,16 @@
 import os
+from enum import Enum
 from dotenv import load_dotenv
 from typing import Any, Optional, List, Type
+
+
+class Environment(Enum):
+    """
+    An enumeration of the different environments that the application can be run in.
+    """
+
+    DEVELOPMENT = "development"
+    PRODUCTION = "production"
 
 
 class EnvConfig:
@@ -38,7 +48,7 @@ class EnvConfig:
             else:
                 raise EnvironmentError(f"{env_file} does not exist.")
         else:
-            print("No specific env file path and name provided, trying to load default .env", flush=True)
+            # print("No specific env file path and name provided, trying to load default .env", flush=True)
             loaded = load_dotenv(".env")  # This will load from '.env' file if present
 
             default_env_file = ".env"

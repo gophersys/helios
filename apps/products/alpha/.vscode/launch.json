@@ -37,7 +37,7 @@
             "runToEntryPoint": "main",
             "servertype": "jlink",
             "gdbPath": "/usr/home/zephyr-sdk-0.16.8/arm-zephyr-eabi/bin/arm-zephyr-eabi-gdb",
-            "preLaunchTask": "West Build",
+            // "preLaunchTask": "West Build",
             "rtos": "Zephyr"
         },
         {

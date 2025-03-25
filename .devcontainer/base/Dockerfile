@@ -61,6 +61,9 @@ ENV GOPATH /go
 ENV PATH $GOPATH/bin:/usr/local/go/bin:$PATH
 RUN mkdir -p "$GOPATH/src" "$GOPATH/bin" && chmod -R 777 "$GOPATH"
 
+# RUN go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+# RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+
 # -----------------------------------------------------------------------------------------------------
 #                                                                                                Docker
 # ---------------------------------------------------------------------------------------------------*/
@@ -228,3 +231,10 @@ RUN ARCH="$(uname -m)" && \
     chmod +x k9s && \
     mv k9s /usr/local/bin/k9s && \
     rm "k9s_Linux_${K9S_ARCH}.tar.gz"
+
+
+# Install esptool - pip3 install esptool
+# Install minicom - apt-get update && apt-get install -y minicom
+# Install gpiod - apt install libgpiod-dev python3-libgpiod
+# Install tkinter - apt-get install -y python3-tk
+# Install xmodem - pip3 install xmodem

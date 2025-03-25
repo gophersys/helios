@@ -1,0 +1,5 @@
+# Ignore all .h, .c, and .py and .go files in this directory and all subdirectories
+**/*.h
+**/*.c
+**/*.py
+**/*.go

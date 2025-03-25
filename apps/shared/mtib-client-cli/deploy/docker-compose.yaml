@@ -1,0 +1,7 @@
+services:
+  mtib-server:
+    image: containers.ad.corekinect.com/mtib-server:latest
+    ports:
+      - 50053:50053
+    env_file:
+      - ../.env

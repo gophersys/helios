@@ -134,4 +134,4 @@ ENV LC_ALL=en_US.UTF-8
 RUN git config --global --add safe.directory /workspaces
 
 # Set Zephyr environment
-RUN echo 'source /ncs/zephyr/zephyr-env.sh' >> ~/.zshrc
+RUN echo 'source /ncs/zephyr/zephyr-env.sh' >> ~/.profile

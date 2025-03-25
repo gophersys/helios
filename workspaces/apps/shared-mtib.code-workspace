@@ -1,0 +1,31 @@
+{
+    "folders": [
+        {
+            "name": ".devcontainer",
+            "path": "../../.devcontainer"
+        },
+        {
+            "name": "docs",
+            "path": "../../docs"
+        },
+        {
+            "name": "protocols",
+            "path": "../../libs/protocols"
+        },
+        {
+            "name": "mtib_client",
+            "path": "../../libs/python/corekinect/mtib_client"
+        },
+        {
+            "name": "mtib-server",
+            "path": "../../apps/shared/mtib-server"
+        },
+        {
+            "name": "mtib-client-cli",
+            "path": "../../apps/shared/mtib-client-cli"
+        }
+    ],
+    "settings": {
+        "files.associations": {},
+    }
+}

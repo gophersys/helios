@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+option go_package = "bitbucket.org/corekinect/concord/libs/protocols/comm_coproc_mfg";
+
+// Service for manufacturing commands
+service CommCoprocMfg {
+  rpc GetImeiIccids(Empty) returns (GetImeiIccidsResponse) {}
+  rpc GetChipIds(Empty) returns (GetChipIdsResponse) {}
+  rpc VerifyExternalFlash(Empty) returns (Error) {}
+  rpc PersonalizeDeviceId(PersonalizeDeviceIdRequest) returns (Error) {}
+  rpc GetPublicKeys(Empty) returns (GetPublicKeysResponse) {}
+  rpc PersonalizeIPCKeys(PersonalizeIPCKeysRequest) returns (Error) {}
+}
+
+// Generic messages
+message Empty {}
+message Error { string error = 1; }
+
+message GetImeiIccidsResponse {
+  string imei = 1;
+  repeated string iccids = 2;
+}
+
+message GetChipIdsResponse {
+  string external_flash_id = 1;
+  string lora_ic_id = 2;
+}
+
+message GetPublicKeysResponse { repeated string keys = 1; }
+
+message PersonalizeIPCKeysRequest { repeated string keys = 1; }
+
+message PersonalizeDeviceIdRequest { string id = 1; }

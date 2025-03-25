@@ -30,7 +30,8 @@ from .src.singleton import (
     SingletonThreadSafeMeta,
 )
 from .src.temperature import celsius_to_fahrenheit, fahrenheit_to_celsius
-from .src.version_checker import is_version_supported
+
+# from .src.version_checker import is_version_supported
 
 __all__ = [
     "celsius_to_fahrenheit",

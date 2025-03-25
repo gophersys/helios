@@ -8,7 +8,7 @@
             "command": "nx run devcontainer-base:containerize"
         },
         "push": {
-            "command": "docker push containers.ad.corekinect.com/concord-base:latest"
+            "command": "docker push kubecop.ad.corekinect.com/concord-base:latest"
         },
         "containerize": {
             "executor": "@nx-tools/nx-container:build",
@@ -16,11 +16,14 @@
             "options": {
                 "context": "{projectRoot}",
                 "file": ".devcontainer/base/Dockerfile",
-                "platforms": [],
-                "load": true,
-                "push": false,
+                "platforms": [
+                    "linux/amd64",
+                    "linux/arm64"
+                ],
+                "load": false,
+                "push": true,
                 "tags": [
-                    "containers.ad.corekinect.com/concord-base:latest"
+                    "kubecop.ad.corekinect.com:5000/concord-base:latest"
                 ]
             }
         }

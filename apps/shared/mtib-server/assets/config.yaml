@@ -1,0 +1,49 @@
+stepping:
+  engine: RMT                
+  idle_ms: 250              
+  pulse_us: 2               
+  dir_delay_us: 1          
+  disable_delay_us: 0                     
+
+axes:
+  x:
+    homing: 
+      cycle: 2
+      settle_ms: 250
+      seek_mm_per_min: 3000.000
+      feed_mm_per_min: 1000.000
+      seek_scaler: 1.100
+      feed_scaler: 1.100
+      allow_single_axis: true
+      positive_direction: false
+    steps_per_mm: 4.315
+    max_rate_mm_per_min: 20000.000    
+    acceleration_mm_per_sec2: 400.000
+    max_travel_mm: 680      
+    soft_limits: true
+    motor0:
+      limit_neg_pin: gpio.15:low
+      stepstick:
+        step_pin: gpio.22
+        direction_pin: gpio.21
+        disable_pin: gpio.23:high
+        reset_pin: gpio.5:high
+  
+  y:
+    steps_per_mm: 80.000
+    max_rate_mm_per_min: 4500.000
+    acceleration_mm_per_sec2: 100.000
+    max_travel_mm: 200.000
+    soft_limits: true
+    motor0:
+      standard_stepper:
+        step_pin: gpio.27
+        direction_pin: gpio.26
+        disable_pin: gpio.17:low
+
+  z:
+    steps_per_mm: 1.000
+    max_rate_mm_per_min: 1000.000
+    acceleration_mm_per_sec2: 1.000
+    max_travel_mm: 0.100
+    soft_limits: false
