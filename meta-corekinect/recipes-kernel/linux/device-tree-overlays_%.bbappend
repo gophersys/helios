@@ -8,8 +8,7 @@ DTC_FLAGS += "-@"
 CUSTOM_OVERLAYS_SOURCE = " \
     ina219-overlay.dts \
     ad7689-overlay.dts \
-    no-i2s.dts \
-    no-i2c.dts \
+    usb.dts \
 "
 
 # There's a bug in the build system that doesn't allow the inclusion of custom
@@ -25,15 +24,13 @@ CUSTOM_OVERLAYS_BINARY = " \
     verdin-imx8mm_spidev_overlay.dtbo \
     ina219-overlay.dtbo \
     ad7689-overlay.dtbo \
-    no-i2s.dtbo \
-    no-i2c.dtbo \
+    usb.dtbo \
 "
 
 SRC_URI += " \
     file://ina219-overlay.dts \
     file://ad7689-overlay.dts \
-    file://no-i2s.dts \
-    file://no-i2c.dts \
+    file://usb.dts \
 "
 
 TEZI_EXTERNAL_KERNEL_DEVICETREE += " \

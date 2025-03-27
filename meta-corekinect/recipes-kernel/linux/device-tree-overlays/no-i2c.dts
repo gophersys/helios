@@ -7,17 +7,11 @@
 };
 
 &i2c2 {
-	status = "disabled";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c2altgrp>;
+	status = "okay";
 };
 
 &mipi_dsi {
-	status = "disabled";
-};
-
-&lcdif {
-	status = "disabled";
-};
-
-&dsi_host {
 	status = "disabled";
 };

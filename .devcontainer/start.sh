@@ -140,8 +140,7 @@ cd ${WORKDIR}/../
 
 # Custom build targets info
 echo "Available custom build targets:"
-echo "   corekinect-mtib-dev"
-echo "   corekinect-mtib-k8s"
+echo "   corekinect-mtib"
 EOF
 
 # Make sure the .bashrc has correct permissions
