@@ -30,9 +30,16 @@
 	#size-cells = <0>;
 	status = "okay";
 	
-	ina219@45 {
+	ina219@40 {
 		compatible = "ti,ina219";
-		reg = <0x45>;
+		reg = <0x40>;
+		status = "okay";
+		shunt-resistor = <100000>;
+	};
+
+	ina219@41 {
+		compatible = "ti,ina219";
+		reg = <0x41>;
 		status = "okay";
 		shunt-resistor = <100000>;
 	};
