@@ -5,14 +5,15 @@
   "postStartCommand": "chmod +x .devcontainer/start.sh && ./.devcontainer/start.sh",
   "runArgs": [
     "--privileged",
-    "--network=host"
+    "--network=host",
+    "--env-file=.devcontainer/.env"
   ],
   "mounts": [
     "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind",
     "source=/dev,target=/dev,type=bind",
     "source=${localEnv:HOME}/.ssh-devcontainer,target=/root/.ssh,type=bind,readonly",
     "source=${localEnv:HOME}/.oh-my-zsh/custom/themes,target=/root/.oh-my-zsh/custom/themes,type=bind,readonly",
-    "source=${localEnv:HOME}/.zshrc,target=/root/.zshrc,type=bind,readonly"
+    // "source=${localEnv:HOME}/.zshrc,target=/root/.zshrc,type=bind,readonly"
   ],
   // Vs Code Customizations
   "customizations": {

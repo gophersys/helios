@@ -14,6 +14,26 @@
 
 LOG_MODULE_DECLARE(vitals_t);
 
+// Constants for PPG normalization
+
+// Thresholds as per Philips PSP requirements
+#define PPG_MAX_THRESHOLD_PERCENT 0.90  // 90% of max range
+#define PPG_MIN_THRESHOLD_PERCENT 0.20  // 20% of max range
+#define PPG_MAX_VALUE 65535.0           // 16-bit unsigned max (2^16 - 1)
+#define DEFAULT_SF0 32768.0             // Default scaling factor (middle of range)
+#define CALIBRATION_PERIOD_SEC 3        // N seconds for initial calibration
+
+// ADC gain settings as per Philips requirements
+#define DEFAULT_ADC_GAIN 2  // Start with gain = 2
+#define MIN_ADC_GAIN 1
+#define MAX_ADC_GAIN 3
+
+// Accelerometer conversion constants - converts g-force to PSP algorithm units
+#define ACCEL_G_TO_PSP_SCALE 512.0f  // Conversion factor from g-force to PSP units (1/512 g/unit)
+#define ACCEL_PSP_MAX 4095           // Maximum value for 13-bit signed accelerometer data
+#define ACCEL_PSP_MIN -4096          // Minimum value for 13-bit signed accelerometer data
+
+// Private functions
 static void _interpolate_sensors_to_25Hz(vitals_thread_t *p_thread);
 static void _interpolate_25Hz_to_32Hz(vitals_thread_t *p_thread);
 static void _convert_raw_samples_for_psp(vitals_thread_t *p_thread);
@@ -153,19 +173,6 @@ static void _interpolate_sensors_to_25Hz(vitals_thread_t *p_thread) {
     }
 }
 
-// Constants for PPG normalization
-#define PPG_MAX_THRESHOLD_PERCENT 0.90f  // 90% of max range
-#define PPG_MIN_THRESHOLD_PERCENT 0.20f  // 20% of max range
-#define PPG_MAX_VALUE 65535.0f           // 16-bit unsigned max
-#define DEFAULT_SF0 32768.0f             // Default scaling factor (middle of range)
-#define CALIBRATION_PERIOD_SEC 3         // N seconds for initial calibration
-#define DEFAULT_ADC_GAIN 2               // Start with gain = 2 as specified
-#define MIN_ADC_GAIN 1
-#define MAX_ADC_GAIN 3
-#define ACCEL_G_TO_PSP_SCALE 512.0f  // Convert g to PSP units (1/512 g/unit)
-#define ACCEL_PSP_MAX 4095           // Max value for 13-bit signed
-#define ACCEL_PSP_MIN -4096          // Min value for 13-bit signed
-
 // Structure to track calibration state for each LED
 typedef struct {
     float scaling_factor;
@@ -184,7 +191,7 @@ typedef struct {
     uint32_t cal_timer;
 } ppg_calibration_state_t;
 
-static void init_led_calibration(led_calibration_t *cal) {
+static void _init_led_calibration(led_calibration_t *cal) {
     cal->scaling_factor = DEFAULT_SF0;
     cal->adc_gain = DEFAULT_ADC_GAIN;  // Start at gain = 2
     cal->max_value = 0.0f;
@@ -193,7 +200,7 @@ static void init_led_calibration(led_calibration_t *cal) {
     cal->last_max_ppg = 0.0f;
 }
 
-static void adjust_led_gain(led_calibration_t *cal, float raw_value, float normalized_value) {
+static void _adjust_led_gain(led_calibration_t *cal, float raw_value, float normalized_value) {
     // Track maximum raw value
     cal->last_max_ppg = fmaxf(cal->last_max_ppg, fabsf(raw_value));
 
@@ -224,70 +231,102 @@ static void adjust_led_gain(led_calibration_t *cal, float raw_value, float norma
 
 static void _convert_raw_samples_for_psp(vitals_thread_t *p_thread) {
     static ppg_calibration_state_t cal_state = {0};
+    static uint32_t samples_since_last_check = 0;
 
     // Initialize calibration state if needed
     if (cal_state.cal_timer == 0) {
-        init_led_calibration(&cal_state.red);
-        init_led_calibration(&cal_state.ir);
-        init_led_calibration(&cal_state.green);
+        _init_led_calibration(&cal_state.red);
+        _init_led_calibration(&cal_state.ir);
+        _init_led_calibration(&cal_state.green);
+
+        // Start with default scaling factors
+        cal_state.red.scaling_factor = DEFAULT_SF0;
+        cal_state.ir.scaling_factor = DEFAULT_SF0;  // Same as red for SpO2
+        cal_state.green.scaling_factor = DEFAULT_SF0;
+
+        // Start with default gain
+        cal_state.red.adc_gain = DEFAULT_ADC_GAIN;
+        cal_state.ir.adc_gain = DEFAULT_ADC_GAIN;
+        cal_state.green.adc_gain = DEFAULT_ADC_GAIN;
     }
 
     for (int i = 0; i < CONFIG_PSP_ALGORITHM_SAMPLES_PER_SECOND; i++) {
         sensors_sample_t *raw = &p_thread->raw_samples_32Hz[i];
         psp_algorithm_input_metrics_t *psp = &p_thread->psp_input_samples_32Hz[i];
 
+        // Convert to double for calculations
+        double raw_red = (double)raw->ppg.red_intensity;
+        double raw_ir = (double)raw->ppg.ir_intensity;
+        double raw_green = (double)raw->ppg.green_intensity;
+
         // Initial calibration period
         if (!cal_state.red.cal_complete) {
-            cal_state.red.max_value = fmaxf(cal_state.red.max_value, fabsf(raw->ppg.red_intensity));
+            // Track maximum values during calibration
+            cal_state.red.max_value = fmax(cal_state.red.max_value, raw_red);
+            cal_state.ir.max_value = fmax(cal_state.ir.max_value, raw_ir);
+            cal_state.green.max_value = fmax(cal_state.green.max_value, raw_green);
+
             cal_state.red.sample_count++;
 
             if (cal_state.red.sample_count >= CALIBRATION_PERIOD_SEC * CONFIG_PSP_ALGORITHM_SAMPLES_PER_SECOND) {
-                // Calculate SF1 based on max value during calibration period
-                cal_state.red.scaling_factor = (PPG_MAX_VALUE / 2.0f) / cal_state.red.max_value;
+                // Calculate SF1 based on calibration period
+                double max_value = fmax(cal_state.red.max_value, cal_state.ir.max_value);
+                cal_state.red.scaling_factor = (PPG_MAX_VALUE / 2.0) / max_value;
+                cal_state.ir.scaling_factor = cal_state.red.scaling_factor;  // Same as red for SpO2
+                cal_state.green.scaling_factor = (PPG_MAX_VALUE / 2.0) / cal_state.green.max_value;
+
                 cal_state.red.cal_complete = true;
-                cal_state.red.last_max_ppg = cal_state.red.max_value;
-
-                // IR must use same scaling factor as red for SpO2, but divided by 2
-                cal_state.ir.scaling_factor = cal_state.red.scaling_factor / 2.0f;
                 cal_state.ir.cal_complete = true;
-                cal_state.ir.adc_gain = cal_state.red.adc_gain;
-            }
-        }
-
-        // Green channel calibration
-        if (!cal_state.green.cal_complete) {
-            cal_state.green.max_value = fmaxf(cal_state.green.max_value, fabsf(raw->ppg.green_intensity));
-            cal_state.green.sample_count++;
-
-            if (cal_state.green.sample_count >= CALIBRATION_PERIOD_SEC * CONFIG_PSP_ALGORITHM_SAMPLES_PER_SECOND) {
-                cal_state.green.scaling_factor = (PPG_MAX_VALUE / 2.0f) / cal_state.green.max_value;
                 cal_state.green.cal_complete = true;
                 p_thread->data_ready_for_psp = true;
-                cal_state.green.last_max_ppg = cal_state.green.max_value;
             }
         }
 
-        // Scale and normalize the PPG signals
-        float scaled_red = raw->ppg.red_intensity * cal_state.red.scaling_factor;
-        float scaled_ir = raw->ppg.ir_intensity * cal_state.ir.scaling_factor;  // Already includes /2
-        float scaled_green = raw->ppg.green_intensity * cal_state.green.scaling_factor;
+        // Scale the signals
+        double scaled_red = raw_red * cal_state.red.scaling_factor;
+        double scaled_ir = raw_ir * cal_state.ir.scaling_factor;
+        double scaled_green = raw_green * cal_state.green.scaling_factor;
 
-        // Dynamic gain adjustment if calibration is complete
-        if (cal_state.red.cal_complete) {
-            adjust_led_gain(&cal_state.red, raw->ppg.red_intensity, scaled_red);
-            // IR uses same scaling as red for SpO2, but divided by 2
-            cal_state.ir.scaling_factor = cal_state.red.scaling_factor / 2.0f;
-            cal_state.ir.adc_gain = cal_state.red.adc_gain;
+        // Check for gain adjustment every second (32 samples)
+        samples_since_last_check++;
+        if (samples_since_last_check >= CONFIG_PSP_ALGORITHM_SAMPLES_PER_SECOND) {
+            samples_since_last_check = 0;
+
+            // Check red channel (IR follows red's gain)
+            if (scaled_red > PPG_MAX_VALUE * PPG_MAX_THRESHOLD_PERCENT) {
+                if (cal_state.red.adc_gain > MIN_ADC_GAIN) {
+                    cal_state.red.scaling_factor /= 2.0;
+                    cal_state.ir.scaling_factor = cal_state.red.scaling_factor;  // Keep same for SpO2
+                    cal_state.red.adc_gain--;
+                    cal_state.ir.adc_gain = cal_state.red.adc_gain;
+                }
+            } else if (scaled_red < PPG_MAX_VALUE * PPG_MIN_THRESHOLD_PERCENT) {
+                if (cal_state.red.adc_gain < MAX_ADC_GAIN) {
+                    cal_state.red.scaling_factor *= 2.0;
+                    cal_state.ir.scaling_factor = cal_state.red.scaling_factor;  // Keep same for SpO2
+                    cal_state.red.adc_gain++;
+                    cal_state.ir.adc_gain = cal_state.red.adc_gain;
+                }
+            }
+
+            // Check green channel independently
+            if (scaled_green > PPG_MAX_VALUE * PPG_MAX_THRESHOLD_PERCENT) {
+                if (cal_state.green.adc_gain > MIN_ADC_GAIN) {
+                    cal_state.green.scaling_factor /= 2.0;
+                    cal_state.green.adc_gain--;
+                }
+            } else if (scaled_green < PPG_MAX_VALUE * PPG_MIN_THRESHOLD_PERCENT) {
+                if (cal_state.green.adc_gain < MAX_ADC_GAIN) {
+                    cal_state.green.scaling_factor *= 2.0;
+                    cal_state.green.adc_gain++;
+                }
+            }
         }
 
-        if (cal_state.green.cal_complete) {
-            adjust_led_gain(&cal_state.green, raw->ppg.green_intensity, scaled_green);
-        }
-
-        // Store normalized values
-        psp->ppg_red = (uint16_t)CLAMP(scaled_red, 0.0f, PPG_MAX_VALUE);
-        psp->ppg_ir = (uint16_t)CLAMP(scaled_ir, 0.0f, PPG_MAX_VALUE);
-        psp->ppg_green = (uint16_t)CLAMP(scaled_green, 0.0f, PPG_MAX_VALUE);
+        // Clamp and store final values
+        psp->ppg_red = (uint16_t)CLAMP(scaled_red, 0.0, PPG_MAX_VALUE);
+        psp->ppg_ir = (uint16_t)CLAMP(scaled_ir, 0.0, PPG_MAX_VALUE);
+        psp->ppg_green = (uint16_t)CLAMP(scaled_green, 0.0, PPG_MAX_VALUE);
 
         // Convert accelerometer values (unchanged)
         float accel_x_psp = raw->accel_x * ACCEL_G_TO_PSP_SCALE;
@@ -297,8 +336,6 @@ static void _convert_raw_samples_for_psp(vitals_thread_t *p_thread) {
         psp->accel_x = (int16_t)CLAMP(accel_x_psp, ACCEL_PSP_MIN, ACCEL_PSP_MAX);
         psp->accel_y = (int16_t)CLAMP(accel_y_psp, ACCEL_PSP_MIN, ACCEL_PSP_MAX);
         psp->accel_z = (int16_t)CLAMP(accel_z_psp, ACCEL_PSP_MIN, ACCEL_PSP_MAX);
-
-        // TODO: add a log here to print the psp values
     }
 
     cal_state.cal_timer++;

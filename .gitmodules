@@ -49,3 +49,6 @@
 [submodule "libs/zephyr/ck_boards"]
 	path = libs/zephyr/ck_boards
 	url = git@bitbucket.org:corekinect/ck_boards.git
+[submodule "libs/zephyr/paf9615_drv"]
+	path = libs/zephyr/paf9615_drv
+	url = git@bitbucket.org:corekinect/paf9615_drv.git

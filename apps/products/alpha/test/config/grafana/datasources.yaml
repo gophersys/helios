@@ -1,0 +1,15 @@
+apiVersion: 1
+
+datasources:
+  - name: InfluxDB
+    uid: eeaqxbe9txywwa
+    type: influxdb
+    access: proxy
+    url: http://influxdb:8086
+    jsonData:
+      version: Flux
+      organization: corekinect
+      defaultBucket: alpha-tests
+    secureJsonData:
+      token: my-secret-influxdb2-token
+    isDefault: false

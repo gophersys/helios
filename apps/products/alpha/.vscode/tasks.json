@@ -4,7 +4,7 @@
         "env": {
             // "APP_BOARD": "nucleo_h743zi"
             // "APP_BOARD": "nrf5340dk/nrf5340/cpuapp"
-            "APP_BOARD": "theta_a0/nrf52840"
+            "APP_BOARD": "theta_b0/nrf52840"
         }
     },
     "tasks": [
@@ -51,7 +51,7 @@
             "type": "shell",
             "command": "west",
             "args": [
-                "flash",
+                "flash_merged",
             ],
             "problemMatcher": [
                 "$gcc"

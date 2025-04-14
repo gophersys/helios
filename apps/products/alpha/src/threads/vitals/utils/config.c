@@ -31,5 +31,10 @@ bool _check_config(const vitals_thread_config_t *p_config) {
         return false;
     }
 
+    if (p_config->p_temp_dev == NULL) {
+        LOG_ERR("Invalid temperature device");
+        return false;
+    }
+
     return true;
 }

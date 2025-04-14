@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.20.0)
 # Drivers
 set(DRIVERS
     pah8151_drv
+    paf9615_drv
 )
 
 # Set Monorepo root
@@ -12,7 +13,7 @@ set(MONOREPO_ROOT ${MONOREPO_ROOT} CACHE INTERNAL "Monorepo root directory")
 # Set the paths to the DTS and BOARD
 set(DTS_ROOT ${MONOREPO_ROOT}/libs/zephyr/ck_boards/current)
 set(BOARD_ROOT ${MONOREPO_ROOT}/libs/zephyr/ck_boards/current)
-set(BOARD theta_a0/nrf52840)
+set(BOARD theta_b0/nrf52840)
 
 # Append drivers
 foreach(DRIVER IN LISTS DRIVERS)
@@ -51,6 +52,3 @@ else()
 endif()
 
 target_sources(app PRIVATE src/main.c lib/inc/psp.c)
-
-# target_sources(app PRIVATE src/main.c)
-

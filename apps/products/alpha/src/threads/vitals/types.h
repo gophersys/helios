@@ -62,6 +62,11 @@
 #define CONFIG_PSP_NUM_OUTPUT_METRICS 24
 
 /**
+ * @brief The warmup period for the vitals thread
+ */
+#define CONFIG_VITALS_WARMUP_PERIOD 6000
+
+/**
  * @brief The events for the vitals thread
  */
 typedef enum {
@@ -76,6 +81,7 @@ typedef struct {
     // Devices used by this thread
     const struct device *p_ppg_dev;
     const struct device *p_imu_dev;
+    const struct device *p_temp_dev;
 } vitals_thread_config_t;
 
 /**
@@ -120,6 +126,16 @@ typedef struct {
     int16_t accel_z;
 } psp_algorithm_input_metrics_t;
 
+typedef struct {
+    int16_t heart_rate;
+    int8_t heart_rate_quality;
+    int16_t heart_rate_index;
+    int16_t spo2;
+    int8_t spo2_quality;
+    int16_t spo2_index;
+    float temperature_f;
+} vitals_output_metrics_t;
+
 /**
  * @brief Thread structure for the vitals thread
  */
@@ -154,6 +170,9 @@ typedef struct {
 
     // PSP algorithm input metrics
     psp_algorithm_input_metrics_t psp_input_samples_32Hz[CONFIG_PSP_ALGORITHM_SAMPLES_PER_SECOND];
+
+    // Vitals output metrics
+    vitals_output_metrics_t vitals_output_metrics;
 
     // Touch state
     bool is_touched;

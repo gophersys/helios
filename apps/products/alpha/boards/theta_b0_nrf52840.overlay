@@ -4,29 +4,35 @@
 };
 
 &i2c1 {
-    // compatible = "nordic,nrf-twim";
-    // status = "okay";
-    // pinctrl-0 = <&i2c2_default>;
-    // pinctrl-1 = <&i2c2_sleep>;
-    // pinctrl-names = "default", "sleep";
-    // clock-frequency = <I2C_BITRATE_FAST>;
+    compatible = "nordic,nrf-twim";
+    status = "okay";
+    clock-frequency = <100000>;
+
+    paf9615: paf9615@34 {
+        status = "okay";
+        compatible = "pixart,paf9615";
+        reg = <0x34>;
+        irq-gpios = <&gpio1 5 GPIO_ACTIVE_LOW>;
+        int-pin = <1>;
+    };
 
     pah8151: pah8151@15 {
+        status = "okay";
         compatible = "pixart,pah8151";
         reg = <0x15>;
-        irq-gpios = <&gpio1 1 GPIO_ACTIVE_HIGH>;
+        irq-gpios = <&gpio1 3 GPIO_ACTIVE_HIGH>;
         int-pin = <1>;
         led-current-ir = <255>;
         led-current-red = <255>;
         led-current-green = <255>;
     };
 
-     lsm6dso0: lsm6dso@6b {
+    lsm6dso0: lsm6dso@6a {
         status = "okay";
 		compatible = "st,lsm6dso";
-        reg = <0x6b>;
-        int-pin = <1>;	
-        irq-gpios =  <&gpio0 7 GPIO_ACTIVE_HIGH>;
+        reg = <0x6a>;
+        int-pin = <2>;	
+        irq-gpios =  <&gpio1 6 GPIO_ACTIVE_HIGH>;
         accel-pm = <1>;      // 1 # LSM6DSO_DT_LP_NORMAL_MODE
         accel-range = <3>;   // 3 # LSM6DSO_DT_FS_8G
         accel-odr = <2>;     // 3 # LSM6DSO_DT_ODR_26HZ
@@ -36,74 +42,3 @@
         drdy-pulsed;
 	};
 };
-
-// &pinctrl {
-//     i2c2_default: i2c2_default {
-//         group1 {
-//             psels = <NRF_PSEL(TWIM_SCL, 0, 4)>,
-//                     <NRF_PSEL(TWIM_SDA, 0, 5)>;
-//             bias-pull-up;
-//             nordic,drive-mode = <NRF_DRIVE_H0S1>;
-//         };
-//     };
- 
-//     i2c2_sleep: i2c2_sleep {
-//         group1 {
-//             psels = <NRF_PSEL(TWIM_SCL, 0, 4)>,
-//                     <NRF_PSEL(TWIM_SDA, 0, 5)>;
-//             low-power-enable;
-//         };
-//     };
-// };
-
-
-// // Standard includes
-// #include <stdbool.h>
-// #include <stdio.h>
-
-// // Zephyr includes
-// #include <corekinect/sensor/pah8151.h>
-// #include <zephyr/device.h>
-// #include <zephyr/drivers/sensor.h>
-// #include <zephyr/kernel.h>       
-// #include <zephyr/logging/log.h>
-// #include <zephyr/drivers/i2c.h>
-// #include <zephyr/devicetree.h>
-
-// // Application includes
-// #include "threads/bluetooth/thread.h"
-// #include "threads/vitals/thread.h"
-
-// // Add after other includes
-// #include <zephyr/kernel.h>
-
-// LOG_MODULE_REGISTER(alpha, 4);
-
-// int main(void) {
-//     // Get I2C device
-//     const struct device *i2c_dev = DEVICE_DT_GET(DT_NODELABEL(i2c1));
-    
-//     if (!device_is_ready(i2c_dev)) {
-//         LOG_ERR("I2C device not ready");
-//         return -1;
-//     }
-
-//     LOG_INF("Scanning I2C bus...");
-    
-//     // Scan through all possible I2C addresses (7-bit addressing)
-//     for (uint8_t addr = 0x08; addr < 0x78; addr++) {
-//         struct i2c_msg msgs[1];
-//         uint8_t dst = 0;
-
-//         msgs[0].buf = &dst;
-//         msgs[0].len = 1U;
-//         msgs[0].flags = I2C_MSG_WRITE | I2C_MSG_STOP;
-
-//         if (i2c_transfer(i2c_dev, msgs, 1, addr) == 0) {
-//             LOG_INF("I2C device found at address 0x%02x", addr);
-//         }
-//     }
-
-//     LOG_INF("Alpha application started!");
-//     return 0;
-// }

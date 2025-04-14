@@ -224,7 +224,7 @@ bool _psp_input_ppg_data(vitals_thread_t *p_thread, psp_ppg_type_t update_type) 
                 ppg_sample = p_thread->psp_input_samples_32Hz[i].ppg_red;
                 break;
             case PSP_UPDATE_TYPE_PPG_AMBIENT:
-                ppg_sample = 0;
+                ppg_sample = p_thread->psp_input_samples_32Hz[i].ppg_ambient;
                 break;
             default:
                 LOG_ERR("Invalid PPG update type");
@@ -488,33 +488,44 @@ bool _psp_get_output_metrics(vitals_thread_t *p_thread) {
     }
 
     // Extract and log the preamble information
-    LOG_ERR("Heart Rate Metric, index %d, quality %d, length 0x%02x, value %d BPM",
+    LOG_INF("Heart Rate Metric, index %d, quality %d, length 0x%02x, value %d BPM",
             heartrate_data[3],
             heartrate_data[4],
             (heartrate_data[1] & 0xFF) + ((heartrate_data[2] & 0xFF) << 8),
             heartrate_data[5]);
 
-    // // Get SpO2 value
-    // uint8_t spo2_data[6];
-    // metric_size = sizeof(spo2_data);
-    // err = PSP_GetMetric(p_thread->psp_inst, PSP_METRIC_ID_SPO2, spo2_data, &metric_size);
-    // if (err != PSP_ERROR_NONE) {
-    //     LOG_ERR("Failed to get SpO2 metric: %s", _psp_error_string(err));
-    //     return false;
-    // }
+    p_thread->vitals_output_metrics.heart_rate = heartrate_data[5];
+    p_thread->vitals_output_metrics.heart_rate_quality = heartrate_data[4];
+    p_thread->vitals_output_metrics.heart_rate_index = heartrate_data[3];
 
-    // // Extract and log the preamble information
-    // LOG_ERR("SpO2 Metric, index %d, quality %d, length 0x%02x, value %d",
-    //         spo2_data[3],
-    //         spo2_data[4],
-    //         (spo2_data[1] & 0xFF) + ((spo2_data[2] & 0xFF) << 8),
-    //         spo2_data[5]);
+    // Get SpO2 value
+    uint8_t spo2_data[6];
+    metric_size = sizeof(spo2_data);
+    err = PSP_GetMetric(p_thread->psp_inst, PSP_METRIC_ID_SPO2, spo2_data, &metric_size);
+    if (err != PSP_ERROR_NONE) {
+        LOG_ERR("Failed to get SpO2 metric: %s", _psp_error_string(err));
+        return false;
+    }
+
+    // Extract and log the preamble information
+    LOG_INF("SpO2 Metric, index %d, quality %d, length 0x%02x, value %d",
+            spo2_data[3],
+            spo2_data[4],
+            (spo2_data[1] & 0xFF) + ((spo2_data[2] & 0xFF) << 8),
+            spo2_data[5]);
+
+    p_thread->vitals_output_metrics.spo2 = spo2_data[5];
+    p_thread->vitals_output_metrics.spo2_quality = spo2_data[4];
+    p_thread->vitals_output_metrics.spo2_index = spo2_data[3];
 
     // Get the data we had previously inputted in this processing cycle
     if (!_psp_get_updated_psp_data(p_thread)) {
         LOG_ERR("Failed to get PSP data");
         return false;
     }
+
+    // Print the last temperature value
+    LOG_INF("Subject temperature, %0.2f F", (double)p_thread->vitals_output_metrics.temperature_f);
 
     return true;
 }

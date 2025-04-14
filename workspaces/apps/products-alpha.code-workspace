@@ -12,6 +12,12 @@
             "path": "../../libs/zephyr/pah8151_drv"
         },
         {
+            "path": "../../libs/zephyr/mlx90632_drv"
+        },
+        {
+            "path": "../../libs/zephyr/paf9615_drv"
+        },
+        {
             "path": "../../libs/zephyr/ck_boards"
         }
     ],

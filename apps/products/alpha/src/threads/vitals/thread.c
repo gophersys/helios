@@ -16,6 +16,7 @@
 #include <zephyr/sys/ring_buffer.h>
 
 // Corekinect includes
+#include <corekinect/sensor/paf9615.h>
 #include <corekinect/sensor/pah8151.h>
 
 // App includes
@@ -44,7 +45,8 @@ static void _vitals_thread_entry(void *p_arg0, void *p_arg1, void *p_arg2);
 vitals_thread_t *_get_thread_from_dev(const struct device *p_dev) {
     for (size_t i = 0; i < s_num_threads; i++) {
         if (s_vitals_threads[i]->config->p_ppg_dev == p_dev ||
-            s_vitals_threads[i]->config->p_imu_dev == p_dev) {
+            s_vitals_threads[i]->config->p_imu_dev == p_dev ||
+            s_vitals_threads[i]->config->p_temp_dev == p_dev) {
             return s_vitals_threads[i];
         }
     }
@@ -57,6 +59,7 @@ static void _ppg_data_ready_handler(const struct device *p_dev, const struct sen
 static void _ppg_touch_handler(const struct device *p_dev, const struct sensor_trigger *p_trig);
 static void _imu_acc_trig_handler(const struct device *dev, const struct sensor_trigger *trig);
 static void _imu_gyro_trig_handler(const struct device *dev, const struct sensor_trigger *trig);
+static void _temp_data_ready_handler(const struct device *p_dev, const struct sensor_trigger *p_trig);
 
 /*----------------------------------------------------------------------------------------
  *                                                                                   Init
@@ -81,6 +84,11 @@ bool vitals_thread_init(const vitals_thread_config_t *p_config, vitals_thread_t 
 
     if (!device_is_ready(p_thread->config->p_imu_dev)) {
         LOG_ERR("IMU device not ready");
+        return false;
+    }
+
+    if (!device_is_ready(p_thread->config->p_temp_dev)) {
+        LOG_ERR("Temperature device not ready");
         return false;
     }
 
@@ -148,6 +156,16 @@ bool vitals_thread_init(const vitals_thread_config_t *p_config, vitals_thread_t 
     };
     if (sensor_trigger_set(p_thread->config->p_imu_dev, &gyro_trig, _imu_gyro_trig_handler) != 0) {
         LOG_ERR("Failed to set IMU gyroscope trigger");
+        return false;
+    }
+
+    // Register temperature sensor data handler
+    struct sensor_trigger temp_trig = {
+        .type = SENSOR_TRIG_DATA_READY,
+        .chan = SENSOR_CHAN_OBJECT_TEMP,
+    };
+    if (sensor_trigger_set(p_thread->config->p_temp_dev, &temp_trig, _temp_data_ready_handler) != 0) {
+        LOG_ERR("Failed to set temperature sensor trigger");
         return false;
     }
 
@@ -285,6 +303,18 @@ static void _imu_gyro_trig_handler(const struct device *dev, const struct sensor
     }
 }
 
+static void _temp_data_ready_handler(const struct device *p_dev, const struct sensor_trigger *p_trig) {
+    sensor_sample_fetch_chan(p_dev, SENSOR_CHAN_OBJECT_TEMP);
+    vitals_thread_t *p_thread = _get_thread_from_dev(p_dev);
+    if (p_thread == NULL) {
+        return;
+    }
+
+    struct sensor_value temp;
+    sensor_channel_get(p_dev, SENSOR_CHAN_OBJECT_TEMP, &temp);
+    p_thread->vitals_output_metrics.temperature_f = sensor_value_to_float(&temp);
+}
+
 /*----------------------------------------------------------------------------------------
  *                                                                                   Thread
  *--------------------------------------------------------------------------------------*/
@@ -292,6 +322,8 @@ static void _vitals_thread_entry(void *p_arg0, void *p_arg1, void *p_arg2) {
     LOG_INF("Vitals thread started");
 
     vitals_thread_t *p_thread = (vitals_thread_t *)p_arg0;
+    int64_t touch_start_time = 0;   // Track when touch started
+    bool is_warmup_period = false;  // Track if we're in the 5-second warmup period
 
     // Initialize thread events
     k_poll_event_init(&p_thread->events[VITALS_THREAD_EVENT_PPG_DATA_READY],
@@ -310,8 +342,41 @@ static void _vitals_thread_entry(void *p_arg0, void *p_arg1, void *p_arg2) {
         if (rc != 0) {
             LOG_ERR("%s", "Unknown timeout in vitals thread");
         } else {
+            if (p_thread->events[VITALS_THREAD_EVENT_PPG_TOUCH].state == K_POLL_STATE_SEM_AVAILABLE) {
+                k_sem_take(&p_thread->ppg_touch_sem, K_NO_WAIT);
+                LOG_INF("PPG touch state changed: %s", p_thread->is_touched ? "Touched" : "Released");
+
+                if (p_thread->is_touched) {
+                    // Start warmup period when touched
+                    touch_start_time = k_uptime_get();
+                    is_warmup_period = true;
+                    LOG_INF("Starting 5-second warmup period");
+
+                    // Clear all buffers to start fresh
+                    ring_buf_reset(&p_thread->accel_interrupt_samples_buf);
+                    memset(p_thread->accel_interrupt_samples, 0, sizeof(p_thread->accel_interrupt_samples));
+                    memset(p_thread->ppg_interrupt_samples, 0, sizeof(p_thread->ppg_interrupt_samples));
+                } else {
+                    // Reset warmup state when released
+                    is_warmup_period = false;
+                    touch_start_time = 0;
+                }
+            }
+
             if (p_thread->events[VITALS_THREAD_EVENT_PPG_DATA_READY].state == K_POLL_STATE_SEM_AVAILABLE) {
                 k_sem_take(&p_thread->ppg_data_ready_sem, K_NO_WAIT);
+
+                // Check if we're in warmup period
+                if (is_warmup_period) {
+                    int64_t current_time = k_uptime_get();
+                    if (current_time - touch_start_time < CONFIG_VITALS_WARMUP_PERIOD) {  // 5 seconds in milliseconds
+                        LOG_DBG("Skipping samples during warmup period");
+                        continue;  // Skip processing during warmup
+                    } else {
+                        is_warmup_period = false;
+                        LOG_INF("Warmup period complete, starting normal processing");
+                    }
+                }
 
                 // Add retry logic with timeout
                 uint32_t start_time = k_uptime_get_32();
@@ -380,10 +445,6 @@ static void _vitals_thread_entry(void *p_arg0, void *p_arg1, void *p_arg2) {
                             ring_buf_size_get(&p_thread->accel_interrupt_samples_buf) / sizeof(accel_interrupt_sample_t),
                             CONFIG_ACCEL_RING_BUF_COUNT);
                 }
-            }
-            if (p_thread->events[VITALS_THREAD_EVENT_PPG_TOUCH].state == K_POLL_STATE_SEM_AVAILABLE) {
-                k_sem_take(&p_thread->ppg_touch_sem, K_NO_WAIT);
-                LOG_INF("PPG touch state changed: %s", p_thread->is_touched ? "Touched" : "Released");
             }
         }
 
