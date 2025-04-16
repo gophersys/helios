@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 
-
+# -------------------------------------------------
+#                                            Config
+# -------------------------------------------------
 @dataclass
 class ProviderConfig:
     # Where the server will look for assets for all of its components

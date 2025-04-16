@@ -68,16 +68,10 @@ service MtibV1 {
 // Shared
 message Empty{}
 
-message Component {
-  string name = 1;
-  bool ready = 2;
-  string error = 3;
-}
-
 // Health Check
 message HealthCheckResponse {
   bool ready = 1;
-  repeated Component components = 2;
+  repeated string errors = 2;
 }
 
 // Gpio

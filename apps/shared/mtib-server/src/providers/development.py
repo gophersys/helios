@@ -24,7 +24,7 @@ from .helpers import grpc_method
 LOG_MODULE = "dev-provider"
 
 
-class DevelopmentProvider(MtibV1Servicer):
+class DevProvider(MtibV1Servicer):
     def __init__(self, config: ProviderConfig, logger: Logger = None):
         # Setup the logger for the server
         self.logger: Logger = logger
@@ -67,15 +67,5 @@ class DevelopmentProvider(MtibV1Servicer):
             if not component.ready:
                 self.logger.error("Component %s is not ready: %s", component.name, component.error)
                 response.ready = False
-
-        return response
-
-    @grpc_method
-    def GpioConfig(self, request: GpioConfigRequest, context: grpc.ServicerContext) -> GpioConfigResponse:
-        self.logger.info(
-            "GpioConfig: gpio=%d, direction=%s, resistor=%s", request.gpio, request.direction, request.resistor
-        )
-
-        response = GpioConfigResponse(success=True, message="")
 
         return response

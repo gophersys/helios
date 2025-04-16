@@ -7,7 +7,7 @@ import grpc
 from grpc import insecure_channel, RpcError
 
 # Protocol includes
-from protocols.mtib_runner.mtib_runner_pb2_grpc import MtibRunnerV1Stub as MtibClientV1
+from protocols.mtib.mtib_pb2_grpc import MtibV1Stub as MtibClientV1
 
 # Corekinect includes
 from corekinect.utils import Logger

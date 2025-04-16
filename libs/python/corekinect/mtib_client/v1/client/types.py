@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from enum import IntEnum
 
 # Protocol includes
-from protocols.mtib_runner.mtib_runner_pb2 import (
+from protocols.mtib.mtib_pb2 import (
     Empty,
     GetRunnerInfoResponse,
     GpioConfigRequest,

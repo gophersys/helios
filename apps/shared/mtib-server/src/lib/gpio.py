@@ -1,7 +1,6 @@
 # Standard library imports
 from enum import Enum
 from typing import Optional
-import time
 
 # Third party imports
 import gpiod
