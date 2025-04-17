@@ -136,6 +136,24 @@ typedef struct {
     float temperature_f;
 } vitals_output_metrics_t;
 
+// Structure to track calibration state for each LED
+typedef struct {
+    float scaling_factor;
+    uint8_t adc_gain;
+    float max_value;
+    bool cal_complete;
+    uint32_t sample_count;
+    float last_max_ppg;  // Track max PPG in last calibration period
+} led_calibration_t;
+
+// Calibration state structure
+typedef struct {
+    led_calibration_t red;
+    led_calibration_t ir;
+    led_calibration_t green;
+    uint32_t cal_timer;
+} ppg_calibration_state_t;
+
 /**
  * @brief Thread structure for the vitals thread
  */
@@ -174,6 +192,9 @@ typedef struct {
     // Vitals output metrics
     vitals_output_metrics_t vitals_output_metrics;
 
+    // Calibration state
+    ppg_calibration_state_t ppg_cal_state;
+
     // Touch state
     bool is_touched;
 
@@ -188,8 +209,8 @@ typedef struct {
     uint32_t sequence_number;
 
     // Flags for data
-    bool calibration_complete;  // Indicates PSP algorithm's internal calibration is complete (affects quality field)
-    bool data_ready_for_psp;    // Indicates signal stabilization and initial calibration are complete
+    bool calibration_complete;
+    bool data_ready_for_psp;
 } vitals_thread_t;
 
 #endif  // THREADS_VITALS_TYPES_H_

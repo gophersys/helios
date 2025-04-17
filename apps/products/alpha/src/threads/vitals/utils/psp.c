@@ -201,13 +201,48 @@ bool _psp_input_ppg_data(vitals_thread_t *p_thread, psp_ppg_type_t update_type) 
         if (metric_id == PSP_METRIC_ID_PPG_AMBIENT) {
             data[OFFSET_LED_POWER + i] = 0;
         } else {
-            data[OFFSET_LED_POWER + i] = 25;
+            // Use the actual LED DAC value from the sensor for each channel
+            uint8_t led_power = 0;
+
+            // Use the first sample's LED DAC value as representative
+            switch (update_type) {
+                case PSP_UPDATE_TYPE_PPG_RED:
+                    led_power = p_thread->raw_samples_32Hz[0].ppg.red_dac;
+                    break;
+                case PSP_UPDATE_TYPE_PPG_GREEN:
+                    led_power = p_thread->raw_samples_32Hz[0].ppg.green_dac;
+                    break;
+                case PSP_UPDATE_TYPE_PPG_IR:
+                    led_power = p_thread->raw_samples_32Hz[0].ppg.ir_dac;
+                    break;
+                default:
+                    led_power = 25;  // Fallback to default if type is unknown
+            }
+            data[OFFSET_LED_POWER + i] = led_power;
         }
     }
 
-    // ADC gain
+    // ADC gain - use our calibration state's gain values which are adjusted based on signal levels
     for (size_t i = 0; i < ADC_GAIN_SIZE; i++) {
-        data[OFFSET_ADC_GAIN + i] = 1;
+        uint8_t adc_gain = 1;  // Default gain
+
+        // Map the calibration gain to each channel
+        if (p_thread->calibration_complete) {
+            switch (update_type) {
+                case PSP_UPDATE_TYPE_PPG_RED:
+                    adc_gain = p_thread->ppg_cal_state.red.adc_gain;
+                    break;
+                case PSP_UPDATE_TYPE_PPG_GREEN:
+                    adc_gain = p_thread->ppg_cal_state.green.adc_gain;
+                    break;
+                case PSP_UPDATE_TYPE_PPG_IR:
+                    adc_gain = p_thread->ppg_cal_state.ir.adc_gain;
+                    break;
+                default:
+                    adc_gain = 1;  // Default gain for ambient
+            }
+        }
+        data[OFFSET_ADC_GAIN + i] = adc_gain;
     }
 
     // PPG samples
@@ -307,19 +342,12 @@ bool _psp_input_imu_data(vitals_thread_t *p_thread) {
 }
 
 bool _psp_update_input_metrics(vitals_thread_t *p_thread) {
-    // Only update the data quality field after calibration is complete
-    if (!p_thread->data_ready_for_psp) {
-        LOG_DBG("Skipping PSP update - waiting for signal stabilization and calibration");
-        return false;
-    }
-
-    // Enable clean up after 4 seconds of processing calibrated data
+    // Enable clean up after 4 seconds
     static uint32_t cleanup_timer = 0;
     if (cleanup_timer == 0) {
         cleanup_timer = k_uptime_get_32();
-    } else if (!p_thread->calibration_complete && k_uptime_get_32() - cleanup_timer > 4000) {
+    } else if (k_uptime_get_32() - cleanup_timer > 4000) {
         p_thread->calibration_complete = true;
-        LOG_INF("PSP calibration complete - data quality set to good");
     }
 
     // Now update PSP metrics with the same upsampled data

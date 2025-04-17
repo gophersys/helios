@@ -332,9 +332,8 @@ static void _vitals_thread_entry(void *p_arg0, void *p_arg1, void *p_arg2) {
     LOG_INF("Vitals thread started");
 
     vitals_thread_t *p_thread = (vitals_thread_t *)p_arg0;
-    int64_t touch_start_time = 0;     // Track when touch started
-    bool is_warmup_period = false;    // Track if we're in the 5-second warmup period
-    bool is_first_processing = true;  // Track the first processing cycle
+    int64_t touch_start_time = 0;   // Track when touch started
+    bool is_warmup_period = false;  // Track if we're in the 5-second warmup period
 
     // Initialize thread events
     k_poll_event_init(&p_thread->events[VITALS_THREAD_EVENT_PPG_DATA_READY],
@@ -361,24 +360,16 @@ static void _vitals_thread_entry(void *p_arg0, void *p_arg1, void *p_arg2) {
                     // Start warmup period when touched
                     touch_start_time = k_uptime_get();
                     is_warmup_period = true;
-                    is_first_processing = true;
-                    LOG_INF("Starting %d-second warmup period", CONFIG_VITALS_WARMUP_PERIOD / 1000);
+                    LOG_INF("Starting 5-second warmup period");
 
                     // Clear all buffers to start fresh
                     ring_buf_reset(&p_thread->accel_interrupt_samples_buf);
                     memset(p_thread->accel_interrupt_samples, 0, sizeof(p_thread->accel_interrupt_samples));
                     memset(p_thread->ppg_interrupt_samples, 0, sizeof(p_thread->ppg_interrupt_samples));
-
-                    // Reset PSP algorithm state
-                    p_thread->data_ready_for_psp = false;
-                    p_thread->calibration_complete = false;
                 } else {
                     // Reset warmup state when released
                     is_warmup_period = false;
                     touch_start_time = 0;
-                    is_first_processing = true;
-
-                    LOG_INF("Device removed - resetting calibration state");
                 }
             }
 
@@ -388,9 +379,8 @@ static void _vitals_thread_entry(void *p_arg0, void *p_arg1, void *p_arg2) {
                 // Check if we're in warmup period
                 if (is_warmup_period) {
                     int64_t current_time = k_uptime_get();
-                    if (current_time - touch_start_time < CONFIG_VITALS_WARMUP_PERIOD) {
-                        LOG_DBG("Skipping samples during warmup period (%lld ms elapsed)",
-                                current_time - touch_start_time);
+                    if (current_time - touch_start_time < CONFIG_VITALS_WARMUP_PERIOD) {  // 5 seconds in milliseconds
+                        LOG_DBG("Skipping samples during warmup period");
                         continue;  // Skip processing during warmup
                     } else {
                         is_warmup_period = false;
@@ -429,29 +419,19 @@ static void _vitals_thread_entry(void *p_arg0, void *p_arg1, void *p_arg2) {
                             // Process the data
                             _prepare_sensor_samples(p_thread);
 
-                            // Send raw sensor data to BLE (useful for debugging/analysis)
                             _send_ble_sensor_samples(p_thread);
 
-                            // Only process with PSP if calibration is complete or on first sample set
-                            if (p_thread->data_ready_for_psp) {
-                                // Call the PSP algorithm
-                                if (!_psp_update_input_metrics(p_thread)) {
-                                    LOG_ERR("Failed to update input metrics");
-                                }
+                            // Call the PSP algorithm
+                            if (!_psp_update_input_metrics(p_thread)) {
+                                LOG_ERR("Failed to update input metrics");
+                            }
 
-                                if (!_psp_process(p_thread)) {
-                                    LOG_ERR("Failed to process PPG data with PSP algorithm");
-                                }
+                            if (!_psp_process(p_thread)) {
+                                LOG_ERR("Failed to process PPG data with PSP algorithm");
+                            }
 
-                                if (!_psp_get_output_metrics(p_thread)) {
-                                    LOG_ERR("Failed to get output metrics");
-                                }
-                            } else if (is_first_processing) {
-                                // Just log first processing cycle
-                                LOG_INF("First PPG data received, starting calibration and stabilization");
-                                is_first_processing = false;
-                            } else {
-                                LOG_DBG("Waiting for signal stabilization and calibration to complete");
+                            if (!_psp_get_output_metrics(p_thread)) {
+                                LOG_ERR("Failed to get output metrics");
                             }
 
                             samples_acquired = true;
