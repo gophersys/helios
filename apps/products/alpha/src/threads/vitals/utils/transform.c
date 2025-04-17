@@ -18,10 +18,15 @@ LOG_MODULE_DECLARE(vitals_t);
 
 // Thresholds as per Philips PSP requirements
 #define PPG_MAX_THRESHOLD_PERCENT 0.90  // 90% of max range
-#define PPG_MIN_THRESHOLD_PERCENT 0.20  // 20% of max range
+#define PPG_MIN_THRESHOLD_PERCENT 0.45  // 45% of max range
 #define PPG_MAX_VALUE 65535.0           // 16-bit unsigned max (2^16 - 1)
 #define DEFAULT_SF0 32768.0             // Default scaling factor (middle of range)
 #define CALIBRATION_PERIOD_SEC 3        // N seconds for initial calibration
+
+// Signal stabilization parameters
+#define STABILIZATION_MAX_VARIATION 0.30  // 30% max variation during stabilization period
+#define STABILIZATION_WINDOW_SIZE 8       // Number of samples to check for stability
+#define MIN_SIGNAL_INTENSITY 1000.0       // Minimum expected signal level when properly attached
 
 // ADC gain settings as per Philips requirements
 #define DEFAULT_ADC_GAIN 2  // Start with gain = 2
@@ -181,6 +186,11 @@ typedef struct {
     bool cal_complete;
     uint32_t sample_count;
     float last_max_ppg;  // Track max PPG in last calibration period
+
+    // Signal stabilization tracking
+    float recent_values[STABILIZATION_WINDOW_SIZE];
+    uint8_t value_index;
+    bool is_stable;
 } led_calibration_t;
 
 // Add this to vitals_thread_t in types.h
@@ -189,6 +199,8 @@ typedef struct {
     led_calibration_t ir;
     led_calibration_t green;
     uint32_t cal_timer;
+    bool stabilization_period_complete;
+    uint32_t stable_reading_count;
 } ppg_calibration_state_t;
 
 static void _init_led_calibration(led_calibration_t *cal) {
@@ -198,35 +210,41 @@ static void _init_led_calibration(led_calibration_t *cal) {
     cal->cal_complete = false;
     cal->sample_count = 0;
     cal->last_max_ppg = 0.0f;
+
+    // Initialize stabilization tracking
+    memset(cal->recent_values, 0, sizeof(cal->recent_values));
+    cal->value_index = 0;
+    cal->is_stable = false;
 }
 
-static void _adjust_led_gain(led_calibration_t *cal, float raw_value, float normalized_value) {
-    // Track maximum raw value
-    cal->last_max_ppg = fmaxf(cal->last_max_ppg, fabsf(raw_value));
+// Check if signal is stable by examining variation in recent readings
+static bool _is_signal_stable(led_calibration_t *cal, double new_value) {
+    // Update the circular buffer of recent values
+    cal->recent_values[cal->value_index] = new_value;
+    cal->value_index = (cal->value_index + 1) % STABILIZATION_WINDOW_SIZE;
 
-    if (normalized_value > PPG_MAX_VALUE * PPG_MAX_THRESHOLD_PERCENT) {
-        if (cal->adc_gain > MIN_ADC_GAIN) {
-            cal->scaling_factor /= 2.0f;
-            cal->adc_gain--;
-        } else {
-            // Recalibrate if we can't decrease gain further
-            cal->cal_complete = false;
-            cal->max_value = 0.0f;
-            cal->last_max_ppg = 0.0f;
-            cal->sample_count = 0;
-        }
-    } else if (normalized_value < PPG_MAX_VALUE * PPG_MIN_THRESHOLD_PERCENT) {
-        if (cal->adc_gain < MAX_ADC_GAIN) {
-            cal->scaling_factor *= 2.0f;
-            cal->adc_gain++;
-        } else {
-            // Recalibrate if we can't increase gain further
-            cal->cal_complete = false;
-            cal->max_value = 0.0f;
-            cal->last_max_ppg = 0.0f;
-            cal->sample_count = 0;
-        }
+    // Only check for stability after we have enough samples
+    if (cal->sample_count < STABILIZATION_WINDOW_SIZE) {
+        return false;
     }
+
+    // Find min and max values in the recent readings
+    float min_val = cal->recent_values[0];
+    float max_val = cal->recent_values[0];
+
+    for (int i = 1; i < STABILIZATION_WINDOW_SIZE; i++) {
+        if (cal->recent_values[i] < min_val) min_val = cal->recent_values[i];
+        if (cal->recent_values[i] > max_val) max_val = cal->recent_values[i];
+    }
+
+    // Signal is considered stable if:
+    // 1. Max variation is within threshold
+    // 2. Signal level is above minimum threshold (meaning device is properly attached)
+    bool intensity_ok = max_val > MIN_SIGNAL_INTENSITY;
+    bool variation_ok = (max_val - min_val) / max_val < STABILIZATION_MAX_VARIATION;
+
+    cal->is_stable = intensity_ok && variation_ok;
+    return cal->is_stable;
 }
 
 static void _convert_raw_samples_for_psp(vitals_thread_t *p_thread) {
@@ -248,6 +266,10 @@ static void _convert_raw_samples_for_psp(vitals_thread_t *p_thread) {
         cal_state.red.adc_gain = DEFAULT_ADC_GAIN;
         cal_state.ir.adc_gain = DEFAULT_ADC_GAIN;
         cal_state.green.adc_gain = DEFAULT_ADC_GAIN;
+
+        // Initialize stabilization tracking
+        cal_state.stabilization_period_complete = false;
+        cal_state.stable_reading_count = 0;
     }
 
     for (int i = 0; i < CONFIG_PSP_ALGORITHM_SAMPLES_PER_SECOND; i++) {
@@ -259,6 +281,11 @@ static void _convert_raw_samples_for_psp(vitals_thread_t *p_thread) {
         double raw_ir = (double)raw->ppg.ir_intensity;
         double raw_green = (double)raw->ppg.green_intensity;
 
+        // Track signal stability
+        bool red_stable = _is_signal_stable(&cal_state.red, raw_red);
+        bool ir_stable = _is_signal_stable(&cal_state.ir, raw_ir);
+        bool green_stable = _is_signal_stable(&cal_state.green, raw_green);
+
         // Initial calibration period
         if (!cal_state.red.cal_complete) {
             // Track maximum values during calibration
@@ -267,8 +294,23 @@ static void _convert_raw_samples_for_psp(vitals_thread_t *p_thread) {
             cal_state.green.max_value = fmax(cal_state.green.max_value, raw_green);
 
             cal_state.red.sample_count++;
+            cal_state.ir.sample_count++;
+            cal_state.green.sample_count++;
 
-            if (cal_state.red.sample_count >= CALIBRATION_PERIOD_SEC * CONFIG_PSP_ALGORITHM_SAMPLES_PER_SECOND) {
+            // Check if all signals are stable to complete calibration
+            if (!cal_state.stabilization_period_complete && red_stable && ir_stable && green_stable) {
+                cal_state.stable_reading_count++;
+
+                // Only consider calibration complete after stable readings for half a second
+                if (cal_state.stable_reading_count >= CONFIG_PSP_ALGORITHM_SAMPLES_PER_SECOND / 2) {
+                    cal_state.stabilization_period_complete = true;
+                    LOG_INF("Signal stabilization complete after %d samples", cal_state.red.sample_count);
+                }
+            }
+
+            // Only complete calibration after stabilization AND minimum calibration period
+            if (cal_state.stabilization_period_complete &&
+                cal_state.red.sample_count >= CALIBRATION_PERIOD_SEC * CONFIG_PSP_ALGORITHM_SAMPLES_PER_SECOND) {
                 // Calculate SF1 based on calibration period
                 double max_value = fmax(cal_state.red.max_value, cal_state.ir.max_value);
                 cal_state.red.scaling_factor = (PPG_MAX_VALUE / 2.0) / max_value;
@@ -279,6 +321,10 @@ static void _convert_raw_samples_for_psp(vitals_thread_t *p_thread) {
                 cal_state.ir.cal_complete = true;
                 cal_state.green.cal_complete = true;
                 p_thread->data_ready_for_psp = true;
+
+                LOG_INF("Calibration complete - Scaling factors: R/IR=%.2f, G=%.2f",
+                        (double)cal_state.red.scaling_factor,
+                        (double)cal_state.green.scaling_factor);
             }
         }
 
@@ -320,6 +366,11 @@ static void _convert_raw_samples_for_psp(vitals_thread_t *p_thread) {
                     cal_state.green.scaling_factor *= 2.0;
                     cal_state.green.adc_gain++;
                 }
+            }
+
+            // If signal becomes unstable after calibration, log warning but continue
+            if (cal_state.red.cal_complete && (!red_stable || !ir_stable || !green_stable)) {
+                LOG_WRN("Signal instability detected after calibration");
             }
         }
 

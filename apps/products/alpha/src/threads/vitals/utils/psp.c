@@ -307,12 +307,19 @@ bool _psp_input_imu_data(vitals_thread_t *p_thread) {
 }
 
 bool _psp_update_input_metrics(vitals_thread_t *p_thread) {
-    // Enable clean up after 4 seconds
+    // Only update the data quality field after calibration is complete
+    if (!p_thread->data_ready_for_psp) {
+        LOG_DBG("Skipping PSP update - waiting for signal stabilization and calibration");
+        return false;
+    }
+
+    // Enable clean up after 4 seconds of processing calibrated data
     static uint32_t cleanup_timer = 0;
     if (cleanup_timer == 0) {
         cleanup_timer = k_uptime_get_32();
-    } else if (k_uptime_get_32() - cleanup_timer > 4000) {
+    } else if (!p_thread->calibration_complete && k_uptime_get_32() - cleanup_timer > 4000) {
         p_thread->calibration_complete = true;
+        LOG_INF("PSP calibration complete - data quality set to good");
     }
 
     // Now update PSP metrics with the same upsampled data

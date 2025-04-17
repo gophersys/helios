@@ -188,8 +188,8 @@ typedef struct {
     uint32_t sequence_number;
 
     // Flags for data
-    bool calibration_complete;
-    bool data_ready_for_psp;
+    bool calibration_complete;  // Indicates PSP algorithm's internal calibration is complete (affects quality field)
+    bool data_ready_for_psp;    // Indicates signal stabilization and initial calibration are complete
 } vitals_thread_t;
 
 #endif  // THREADS_VITALS_TYPES_H_
