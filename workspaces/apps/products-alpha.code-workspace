@@ -5,17 +5,7 @@
             "path": "../../apps/products/alpha"
         },
         {
-            "name": "lsm6dso",
-            "path": "../../../../ncs/zephyr/drivers/sensor/st/lsm6dso"
-        },
-        {
-            "path": "../../libs/zephyr/pah8151_drv"
-        },
-        {
-            "path": "../../libs/zephyr/mlx90632_drv"
-        },
-        {
-            "path": "../../libs/zephyr/paf9615_drv"
+            "path": "../../libs/zephyr/vsm_drv"
         },
         {
             "path": "../../libs/zephyr/ck_boards"
@@ -54,7 +44,14 @@
             "mutex": "c",
             "new": "c",
             "functional": "c",
-            "conn.h": "c"
+            "conn.h": "c",
+            "vsm.h": "c",
+            "ring_buffer.h": "c",
+            "pah_815x_factory_test_v1.h": "c",
+            "random": "c",
+            "api.h": "c",
+            "types.h": "c",
+            "thread.h": "c"
         },
     }
 }
