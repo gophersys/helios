@@ -52,3 +52,6 @@
 [submodule "libs/zephyr/paf9615_drv"]
 	path = libs/zephyr/paf9615_drv
 	url = git@bitbucket.org:corekinect/paf9615_drv.git
+[submodule "libs/zephyr/vsm_drv"]
+	path = libs/zephyr/vsm_drv
+	url = git@bitbucket.org:corekinect/vsm_drv.git
