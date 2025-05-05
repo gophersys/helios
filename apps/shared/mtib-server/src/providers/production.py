@@ -4,7 +4,7 @@ from .helpers import grpc_method
 # Standard imports
 import logging
 import time
-from typing import Optional, List
+from typing import Optional, List, Dict
 from dataclasses import dataclass
 
 # Protocol imports
@@ -13,12 +13,14 @@ from protocols.mtib.mtib_pb2_grpc import MtibV1Servicer
 # 3rd party imports
 import grpc
 import gpiod
+
 # Corekinect imports
 from corekinect.utils import Logger
 
 # Private imports
 from src.shared.types import *
-from src.handlers.gpio import GpioHandler, Gpio, Pin
+from src.lib.gpio import Gpio, Pin
+from src.handlers.gpio import GpioHandler
 from src.handlers.adc import AdcHandler
 from src.handlers.motion import MotionHandler
 from src.handlers.power import PowerHandler
@@ -31,20 +33,18 @@ LOG_MODULE = "provider"
 #                              Toradex SoM GPIO Map
 # -------------------------------------------------
 GPIO_PIN_MAP = {
-    0: Pin.SODIMM_206,  # GPIO_1
-    1: Pin.SODIMM_208,  # GPIO_2
-    2: Pin.SODIMM_210,  # GPIO_3
-    3: Pin.SODIMM_212,  # GPIO_4
-    4: Pin.SODIMM_15,   # PWM_1
-    5: Pin.SODIMM_16,   # PWM_2
-    6: Pin.SODIMM_2,    # ADC_1
-    7: Pin.SODIMM_4,    # ADC_2
-    8: Pin.SODIMM_6,    # ADC_3
-    9: Pin.SODIMM_8,    # ADC_4
-    10: Pin.SODIMM_196, # SPI_1_CLK
-    11: Pin.SODIMM_198, # SPI_1_MISO
-    12: Pin.SODIMM_200, # SPI_1_MOSI
+    0: Pin.SODIMM_206,  # GPIO_0 - available on gpiochip2, line 4
+    1: Pin.SODIMM_208,  # GPIO_1 - available on gpiochip4, line 5
+    2: Pin.SODIMM_210,  # GPIO_2 - available on gpiochip4, line 26
+    3: Pin.SODIMM_212,  # GPIO_3 - available on gpiochip4, line 27
+    4: Pin.SODIMM_34,  # I2S1_D_OUT - available on gpiochip3, line 26
+    5: Pin.SODIMM_30,  # I2S1_BCLK - available on gpiochip3, line 25
+    6: Pin.SODIMM_32,  # I2S1_SYNC - available on gpiochip3, line 24
+    10: Pin.SODIMM_196,  # SPI_1_CLK - available on gpiochip4, line 10
+    11: Pin.SODIMM_198,  # SPI_1_MISO - available on gpiochip4, line 12
+    12: Pin.SODIMM_200,  # SPI_1_MOSI - available on gpiochip4, line 11
 }
+
 
 class MtibV1Provider(MtibV1Servicer):
     # -------------------------------------------------
@@ -57,7 +57,7 @@ class MtibV1Provider(MtibV1Servicer):
     ):
         # Measure the time it takes to initialize the provider
         start_time = time.time()
-        
+
         # Setup the config
         self.config: ProviderConfig = config
 
@@ -78,10 +78,12 @@ class MtibV1Provider(MtibV1Servicer):
             # Create a child logger from the parent
             self.logger = logger.from_parent(LOG_MODULE)
 
+        self._gpios: Dict[int, Gpio] = {}
+
         # Initialize all the objects
-        # if err := self._init_components():
-        #     self.logger.error(f"Failed to initialize the components: {err}")
-        #     raise Exception(err)
+        if err := self._init_components():
+            self.logger.error(f"Failed to initialize the components: {err}")
+            raise Exception(err)
 
         if err := self._init_handlers():
             self.logger.error(f"Failed to initialize the handlers: {err}")
@@ -93,14 +95,10 @@ class MtibV1Provider(MtibV1Servicer):
         """
         Initialize the servicer components.
         """
-        self._gpios: List[Gpio] = [None] * len(GPIO_PIN_MAP)
+
         # Initialize all GPIOs as inputs by default
         for logical_num, pin in GPIO_PIN_MAP.items():
-            gpio = Gpio(
-                consumer=f"mtib-gpio-{logical_num}",
-                pin=pin,
-                direction=gpiod.line.Direction.INPUT
-            )
+            gpio = Gpio(consumer=f"mtib-gpio-{logical_num}", pin=pin, direction=gpiod.line.Direction.INPUT)
             if err := gpio.init():
                 return f"Failed to initialize GPIO {logical_num} ({pin}): {err}"
             self._gpios[logical_num] = gpio
@@ -108,7 +106,7 @@ class MtibV1Provider(MtibV1Servicer):
         self.logger.debug("All components initialized successfully")
 
         return None
-    
+
     def _init_handlers(self) -> Optional[str]:
         """
         Initialize the servicer function handlers.
@@ -119,9 +117,9 @@ class MtibV1Provider(MtibV1Servicer):
         self._power_handlers = PowerHandler(self.logger)
         self._sensors_handlers = SensorsHandler(self.logger)
         self._firmware_handlers = FirmwareHandler(self.logger)
-        
+
         return None
-    
+
     # -------------------------------------------------
     #                                              GPIO
     # -------------------------------------------------
@@ -152,7 +150,9 @@ class MtibV1Provider(MtibV1Servicer):
     #                                                                          Motion
     # -------------------------------------------------------------------------------
     @grpc_method
-    def GetMotionStatus(self, request: GetMotionStatusRequest, context: grpc.ServicerContext) -> GetMotionStatusResponse:
+    def GetMotionStatus(
+        self, request: GetMotionStatusRequest, context: grpc.ServicerContext
+    ) -> GetMotionStatusResponse:
         return self._motion_handlers.get_status(request, context)
 
     @grpc_method
@@ -228,7 +228,9 @@ class MtibV1Provider(MtibV1Servicer):
     #                                    Motion Profile
     # -------------------------------------------------
     @grpc_method
-    def UploadMotionProfile(self, request: MotionProfileRequest, context: grpc.ServicerContext) -> MotionProfileResponse:
+    def UploadMotionProfile(
+        self, request: MotionProfileRequest, context: grpc.ServicerContext
+    ) -> MotionProfileResponse:
         return self._motion_handlers.upload_profile(request, context)
 
     @grpc_method
@@ -236,7 +238,9 @@ class MtibV1Provider(MtibV1Servicer):
         return self._motion_handlers.list_profiles(request, context)
 
     @grpc_method
-    def ExecuteMotionProfile(self, request: ExecuteProfileRequest, context: grpc.ServicerContext) -> ExecuteProfileResponse:
+    def ExecuteMotionProfile(
+        self, request: ExecuteProfileRequest, context: grpc.ServicerContext
+    ) -> ExecuteProfileResponse:
         return self._motion_handlers.execute_profile(request, context)
 
     # -------------------------------------------------
@@ -245,7 +249,4 @@ class MtibV1Provider(MtibV1Servicer):
     @grpc_method
     def HealthCheck(self, request: Empty, context: grpc.ServicerContext) -> HealthCheckResponse:
         self.logger.info("HealthCheck request received")
-        return HealthCheckResponse(
-            ready=True,
-            errors=self.errors
-        )
+        return HealthCheckResponse(ready=True, errors=self.errors)

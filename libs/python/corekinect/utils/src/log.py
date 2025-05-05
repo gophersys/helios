@@ -211,8 +211,15 @@ class Logger:
 
     def debug(self, message, *args):
         """Log a message at DEBUG level, including the function name."""
-        # Let the formatter handle the function name
-        self.logger.debug(message, *args)
+        # Get the caller's function name
+        frame = inspect.currentframe().f_back
+        func_name = frame.f_code.co_name
+
+        # Automatically prefix the message with the function name and a colon
+        prefixed_message = f"{func_name}: {message}"
+
+        # Pass the modified message to the logger
+        self.logger.debug(prefixed_message, *args)
 
     def info(self, message, *args):
         """Log a message at INFO level."""
