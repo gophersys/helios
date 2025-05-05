@@ -1,8 +1,0 @@
-Customer         : CoreKinect_Wellness (0x00830001)
-Architecture     : ARM M4F
-Collection       : Wellness (template ARM_M4F_Philips_Wellness)
-Base Address     : 0x000E0000
-Limit Address    : 0x000F2FDE
-License Type     : Evaluation
-SpO2 Limit       : 90
-Licensed Metrics : Acceleration (2B), Activity Count (2E), Activity Type (26), Compressed Acceleration (34), Compressed PPG (35), Energy Expenditure (23), Fitness Index (29), Heartbeats (27), Heart Rate (20), Low Power Energy Expenditure (3C), Low Power Heart Rate (2D), Motion Cadence (25), PPG Ambient (7F), PPG Infrared (7B), PPG Motion (7D), PPG Green (7E), PPG Red (7C), Private Data (2F), Respiration Rate (2A), Resting Heart Rate (21), Skin Proximity (22), Sleep Stages (30), Speed (24), SpO2 (41), Stress Level Heart Rate (40), VO2 Max (28)
