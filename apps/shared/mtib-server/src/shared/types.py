@@ -2,11 +2,8 @@
 from protocols.mtib.mtib_pb2 import (
     # Shared types
     Empty,
-    Component,
-
     # Health Check
     HealthCheckResponse,
-
     # GPIO types
     GpioDirection,
     GpioResistorConfig,
@@ -16,26 +13,21 @@ from protocols.mtib.mtib_pb2 import (
     GpioWriteResponse,
     GpioReadRequest,
     GpioReadResponse,
-
     # ADC types
     AdcReadRequest,
     AdcReadResponse,
     AdcReadAllResponse,
-
     # Power types
     DutPowerRequest,
     DutPowerResponse,
     DutPowerReadResponse,
-
     # Sensor types
     AltimeterReadResponse,
     AccelReadResponse,
-
     # FluidNC types
     FluidNcConfigResponse,
     UpdateFluidNcConfigRequest,
     UpdateFluidNcConfigResponse,
-
     # Motion types
     MotionStatus,
     GetMotionStatusRequest,
@@ -44,7 +36,6 @@ from protocols.mtib.mtib_pb2 import (
     MotionStopResponse,
     GcodeRequest,
     GcodeResponse,
-
     # Motion Profile types
     MotionProfile,
     MotionProfileRequest,
@@ -52,7 +43,6 @@ from protocols.mtib.mtib_pb2 import (
     ListMotionProfilesResponse,
     ExecuteProfileRequest,
     ExecuteProfileResponse,
-
     # Firmware types
     ProgrammerType,
     HostType,
@@ -66,7 +56,6 @@ from protocols.mtib.mtib_pb2 import (
     DeleteFwFileResponse,
     FlashFwFileRequest,
     FlashFwFileResponse,
-
     # UART types
     UartStreamRequest,
     UartStreamResponse,

@@ -25,7 +25,7 @@ def grpc_method(func: Callable[P, R]) -> Callable[P, R]:
         method_name = func.__name__
 
         # Log request received
-        self.logger.debug(f"{method_name}: Request received from client at {context.peer()}")
+        self.logger.debug(f"{method_name}: Request received from {context.peer()}")
 
         # Time the request
         start_time = time.time()
@@ -36,14 +36,14 @@ def grpc_method(func: Callable[P, R]) -> Callable[P, R]:
 
             # Log request completion time
             elapsed_ms = (time.time() - start_time) * 1000
-            self.logger.debug(f"{method_name}: Request processed in {elapsed_ms:.2f}ms")
+            self.logger.debug(f"{method_name}: Request processed in {elapsed_ms:.2f}ms for {context.peer()}")
 
             return response
 
         except Exception as e:
             # Log any errors that occur
             elapsed_ms = (time.time() - start_time) * 1000
-            self.logger.error(f"{method_name}: Request failed after {elapsed_ms:.2f}ms")
+            self.logger.error(f"{method_name}: Request failed after {elapsed_ms:.2f}ms for {context.peer()}")
             raise  # Re-raise the exception
 
     return method

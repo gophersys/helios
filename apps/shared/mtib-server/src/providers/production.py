@@ -78,6 +78,10 @@ class MtibV1Provider(MtibV1Servicer):
             # Create a child logger from the parent
             self.logger = logger.from_parent(LOG_MODULE)
 
+        # Global error list for all components
+        self.errors: List[str] = []
+
+        # Objects we manage
         self._gpios: Dict[int, Gpio] = {}
 
         # Initialize all the objects
