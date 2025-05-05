@@ -2,8 +2,7 @@ cmake_minimum_required(VERSION 3.20.0)
 
 # Drivers
 set(DRIVERS
-    pah8151_drv
-    paf9615_drv
+    vsm_drv
 )
 
 # Set Monorepo root
@@ -24,13 +23,26 @@ endforeach()
 find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
 project(alpha)
 
-# Path to the library hex file
-set(LIBRARY_HEX_PATH "${CMAKE_SOURCE_DIR}/lib/bin/psp.hex")
+# Get the library hex file path from the VSM driver module
+set(LIBRARY_HEX_PATH ${VSM_PSP_HEX_PATH})
+
+# Get the PAH8151 HRD library path from the VSM driver module
+set(PAH8151_HRD_LIB_PATH ${VSM_PAH8151_HRD_LIB_PATH})
 
 # Define the merged hex file path
 set(MERGED_HEX_PATH "${CMAKE_BINARY_DIR}/merged.hex")
 
-add_subdirectory(src/threads)
+# Add PAH8151 HRD library if it's available
+if(EXISTS ${PAH8151_HRD_LIB_PATH})
+    # Create an imported static library
+    add_library(pah8151_hrd_lib STATIC IMPORTED GLOBAL)
+    set_target_properties(pah8151_hrd_lib PROPERTIES IMPORTED_LOCATION ${PAH8151_HRD_LIB_PATH})
+    # Link the library to the application
+    target_link_libraries(app PRIVATE pah8151_hrd_lib)
+    message(STATUS "PAH8151 HRD library found and linked: ${PAH8151_HRD_LIB_PATH}")
+else()
+    message(WARNING "PAH8151 HRD library not found at: ${PAH8151_HRD_LIB_PATH}")
+endif()
 
 # Custom target to merge and flash both hex files
 if(EXISTS ${LIBRARY_HEX_PATH})
@@ -48,7 +60,9 @@ if(EXISTS ${LIBRARY_HEX_PATH})
         COMMENT "Flashing merged hex file"
     )
 else()
-    message(WARNING "Library hex file not found. Ensure the correct path is provided.")
+    message(WARNING "Library hex file not found at: ${LIBRARY_HEX_PATH}. Ensure the vsm_drv module is included correctly.")
 endif()
 
-target_sources(app PRIVATE src/main.c lib/inc/psp.c)
+# target_sources(app PRIVATE src/main.c)
+target_sources(app PRIVATE src/main_example.c)
+# target_sources(app PRIVATE src/main_test.c)   
