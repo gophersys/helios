@@ -12,13 +12,13 @@ from protocols.mtib.mtib_pb2_grpc import MtibV1Servicer
 
 # 3rd party imports
 import grpc
-
+import gpiod
 # Corekinect imports
 from corekinect.utils import Logger
 
 # Private imports
 from src.shared.types import *
-from src.handlers.gpio import GpioHandler
+from src.handlers.gpio import GpioHandler, Gpio, Pin
 from src.handlers.adc import AdcHandler
 from src.handlers.motion import MotionHandler
 from src.handlers.power import PowerHandler
