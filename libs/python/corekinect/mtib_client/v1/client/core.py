@@ -1,6 +1,6 @@
 # Standard includes
 import inspect
-from typing import Optional, Tuple, Any
+from typing import Optional, Tuple, List
 
 # 3rd Party includes
 import grpc
@@ -103,26 +103,16 @@ class MtibV1Client:
             return f"Unexpected error when disconnecting from runner. Error: {str(e)}"
 
     # -----------------------------------------------------------------------------
-    #                                                                          Info
+    #                                                                        Health
     # ---------------------------------------------------------------------------*/
-    def get_server_info(self) -> Tuple[Optional[MtibV1ServerInfo], Optional[str]]:
+    def health_check(self) -> Tuple[Optional[bool], Optional[List[str]]]:
         try:
-            response = self.client.GetServerInfo(Empty())
-
-            info: MtibV1ServerInfo = MtibV1ServerInfo(
-                name=response.server_info.name,
-                version=response.server_info.version,
-                hardware=Hardware(
-                    adc_count=response.server_info.hardware.adc_count,
-                    gpio_count=response.server_info.hardware.gpio_count,
-                    j_link_count=response.server_info.hardware.j_link_count,
-                ),
-            )
-            return info, None
+            response: HealthCheckResponse = self.client.HealthCheck(Empty())
+            return response.ready, response.errors
         except grpc.RpcError as e:
-            return None, f"gRPC error for {self._get_func_name()} at {self.config.net.addr}. Error: {str(e.details())}"
+            return False, [f"gRPC error for {self._get_func_name()} at {self.config.net.addr}. Error: {str(e.details())}"]
         except Exception as e:
-            return None, f"Unexpected error in {self._get_func_name()} at {self.config.net.addr}: {str(e)}"
+            return False, [f"Unexpected error in {self._get_func_name()} at {self.config.net.addr}: {str(e)}"]
 
     # -----------------------------------------------------------------------------
     #                                                                          GPIO
