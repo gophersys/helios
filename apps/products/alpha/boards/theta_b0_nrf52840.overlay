@@ -21,6 +21,8 @@
         compatible = "pixart,pah8151";
         reg = <0x15>;
         irq-gpios = <&gpio1 3 GPIO_ACTIVE_HIGH>;
+        int1-gpios = <&gpio1 3 GPIO_ACTIVE_HIGH>;
+        int2-gpios = <&gpio1 1 GPIO_ACTIVE_HIGH>;
         int-pin = <1>;
         led-current-ir = <255>;
         led-current-red = <255>;
@@ -29,16 +31,16 @@
 
     lsm6dso0: lsm6dso@6a {
         status = "okay";
-		compatible = "st,lsm6dso";
+        compatible = "st,lsm6dso";
         reg = <0x6a>;
-        int-pin = <2>;	
-        irq-gpios =  <&gpio1 6 GPIO_ACTIVE_HIGH>;
+        int-pin = <2>;
+        irq-gpios = <&gpio1 6 GPIO_ACTIVE_HIGH>;
         accel-pm = <1>;      // 1 # LSM6DSO_DT_LP_NORMAL_MODE
         accel-range = <3>;   // 3 # LSM6DSO_DT_FS_8G
-        accel-odr = <2>;     // 3 # LSM6DSO_DT_ODR_26HZ
+        accel-odr = <3>;     // 3 # LSM6DSO_DT_ODR_52HZ
         gyro-pm = <1>;       // 1 # LSM6DSO_DT_GY_NORMAL_MODE
         gyro-range = <0>;    // 2 # LSM6DSO_DT_GY_FS_2000DPS
         gyro-odr = <2>;      // 3 # LSM6DSO_DT_GY_ODR_26HZ
         drdy-pulsed;
-	};
+    };
 };
