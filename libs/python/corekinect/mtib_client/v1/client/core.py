@@ -107,7 +107,7 @@ class MtibV1Client:
     # ---------------------------------------------------------------------------*/
     def health_check(self) -> Tuple[Optional[bool], Optional[List[str]]]:
         try:
-            response: HealthCheckResponse = self.client.HealthCheck(Empty())
+            response = self.client.HealthCheck(Empty())
             return response.ready, response.errors
         except grpc.RpcError as e:
             return False, [f"gRPC error for {self._get_func_name()} at {self.config.net.addr}. Error: {str(e.details())}"]
@@ -120,8 +120,8 @@ class MtibV1Client:
     def gpio_config(self, gpio: int, direction: GpioDirection, resistor: GpioResistorConfig) -> Optional[str]:
         try:
             response = self.client.GpioConfig(GpioConfigRequest(gpio=gpio, direction=direction, resistor=resistor))
-            if response.error:
-                return f"{self._get_func_name()} error: {response.error}"
+            if not response.success:
+                return f"{self._get_func_name()} error: {response.message}"
             return None
         except grpc.RpcError as e:
             return f"gRPC error for {self._get_func_name()} at {self.config.net.addr}. Error: {str(e.details())}"
@@ -131,8 +131,8 @@ class MtibV1Client:
     def gpio_write(self, gpio: int, state: bool) -> Optional[str]:
         try:
             response = self.client.GpioWrite(GpioWriteRequest(gpio=gpio, state=state))
-            if response.error:
-                return f"{self._get_func_name()} error: {response.error}"
+            if not response.success:
+                return f"{self._get_func_name()} error: {response.message}"
             return None
         except grpc.RpcError as e:
             return f"gRPC error for {self._get_func_name()} at {self.config.net.addr}. Error: {str(e.details())}"
@@ -142,8 +142,8 @@ class MtibV1Client:
     def gpio_read(self, gpio: int) -> Tuple[Optional[bool], Optional[str]]:
         try:
             response = self.client.GpioRead(GpioReadRequest(gpio=gpio))
-            if response.error:
-                return None, f"{self._get_func_name()} error: {response.error}"
+            if not response.success:
+                return None, f"{self._get_func_name()} error: {response.message}"
             return response.state, None
         except grpc.RpcError as e:
             return None, f"gRPC error for {self._get_func_name()} at {self.config.net.addr}. Error: {str(e.details())}"
