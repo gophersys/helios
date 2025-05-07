@@ -31,7 +31,7 @@
 
     lsm6dso0: lsm6dso@6a {
         status = "okay";
-        compatible = "st,lsm6dso";
+        compatible = "ck,lsm6dso";
         reg = <0x6a>;
         int-pin = <2>;
         irq-gpios = <&gpio1 6 GPIO_ACTIVE_HIGH>;

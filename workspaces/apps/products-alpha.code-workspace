@@ -9,6 +9,9 @@
         },
         {
             "path": "../../libs/zephyr/ck_boards"
+        },
+        {
+            "path": "../../../../ncs"
         }
     ],
     "settings": {
@@ -51,7 +54,10 @@
             "random": "c",
             "api.h": "c",
             "types.h": "c",
-            "thread.h": "c"
+            "thread.h": "c",
+            "array": "c",
+            "lsm6dso.h": "c",
+            "lsm6dso_reg.h": "c"
         },
     }
 }

@@ -63,6 +63,5 @@ else()
     message(WARNING "Library hex file not found at: ${LIBRARY_HEX_PATH}. Ensure the vsm_drv module is included correctly.")
 endif()
 
-# target_sources(app PRIVATE src/main.c)
-target_sources(app PRIVATE src/main_example.c)
-# target_sources(app PRIVATE src/main_test.c)   
+target_sources(app PRIVATE src/main.c)
+# target_sources(app PRIVATE src/test.c)
