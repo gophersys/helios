@@ -9,9 +9,6 @@
         },
         {
             "path": "../../libs/zephyr/ck_boards"
-        },
-        {
-            "path": "../../../../ncs"
         }
     ],
     "settings": {
