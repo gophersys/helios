@@ -4,7 +4,7 @@ import traceback
 import time
 
 # Corekinect includes
-from corekinect.utils import EnvConfig, Logger
+from corekinect.utils import Logger
 
 # Private includes
 from corekinect.mtib_client.v1 import *  # Library is configured to only export the needed types
