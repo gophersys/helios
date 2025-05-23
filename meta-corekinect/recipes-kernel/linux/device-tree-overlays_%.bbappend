@@ -8,6 +8,7 @@ DTC_FLAGS += "-@"
 CUSTOM_OVERLAYS_SOURCE = " \
     ina219-overlay.dts \
     ad7689-overlay.dts \
+    no-i2s.dts \
     usb.dts \
 "
 
@@ -24,12 +25,14 @@ CUSTOM_OVERLAYS_BINARY = " \
     verdin-imx8mm_spidev_overlay.dtbo \
     ina219-overlay.dtbo \
     ad7689-overlay.dtbo \
+    no-i2s.dtbo \
     usb.dtbo \
 "
 
 SRC_URI += " \
     file://ina219-overlay.dts \
     file://ad7689-overlay.dts \
+    file://no-i2s.dts \
     file://usb.dts \
 "
 
