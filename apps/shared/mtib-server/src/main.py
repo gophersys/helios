@@ -40,6 +40,7 @@ class MtibEnvConfig(EnvConfig):
     FLUIDNC_SERIAL_PORT: str
     FLUIDNC_RESET_PIN: str
 
+
 # -------------------------------------------------
 #                                          Shutdown
 # -------------------------------------------------
@@ -53,6 +54,7 @@ def handle_shutdown(signum, frame, server, logger):
     logger.info("Server shutdown complete")
     sys.exit(0)
 
+
 # -------------------------------------------------
 #                                             Entry
 # -------------------------------------------------
@@ -63,7 +65,7 @@ if __name__ == "__main__":
     try:
         # Load any environment variables
         env_config = MtibEnvConfig()
-        
+
         # Good logging is a must
         log_config = Logger.Config(
             logger_name="mtib",

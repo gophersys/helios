@@ -5,8 +5,7 @@
   "postStartCommand": "chmod +x .devcontainer/start.sh && ./.devcontainer/start.sh",
   "runArgs": [
     "--privileged",
-    "--network=host",
-    "--group-add=dialout"
+    "--network=host"
   ],
   "mounts": [
     "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind",

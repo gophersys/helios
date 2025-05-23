@@ -43,17 +43,17 @@ class Pin(Enum):
     SODIMM_202 = "SODIMM_202"  # SPI_1_CS, Chip Select
 
     # CAN pins
-    SODIMM_20 = "SODIMM_20"   # CAN_1_TX, CAN port 1 transmit
-    SODIMM_22 = "SODIMM_22"   # CAN_1_RX, CAN port 1 receive
-    SODIMM_24 = "SODIMM_24"   # CAN_2_TX, CAN port 2 transmit
-    SODIMM_26 = "SODIMM_26"   # CAN_2_RX, CAN port 2 receive
+    SODIMM_20 = "SODIMM_20"  # CAN_1_TX, CAN port 1 transmit
+    SODIMM_22 = "SODIMM_22"  # CAN_1_RX, CAN port 1 receive
+    SODIMM_24 = "SODIMM_24"  # CAN_2_TX, CAN port 2 transmit
+    SODIMM_26 = "SODIMM_26"  # CAN_2_RX, CAN port 2 receive
 
     # I2S pins
-    SODIMM_30 = "SODIMM_30"   # I2S_1_BCLK, Serial audio bit clock
-    SODIMM_32 = "SODIMM_32"   # I2S_1_SYNC, Left-right channel select
-    SODIMM_34 = "SODIMM_34"   # I2S_1_D_OUT, Serial audio output
-    SODIMM_36 = "SODIMM_36"   # I2S_1_D_IN, Serial audio input
-    SODIMM_38 = "SODIMM_38"   # I2S_1_MCLK, Serial audio master clock
+    SODIMM_30 = "SODIMM_30"  # I2S_1_BCLK, Serial audio bit clock
+    SODIMM_32 = "SODIMM_32"  # I2S_1_SYNC, Left-right channel select
+    SODIMM_34 = "SODIMM_34"  # I2S_1_D_OUT, Serial audio output
+    SODIMM_36 = "SODIMM_36"  # I2S_1_D_IN, Serial audio input
+    SODIMM_38 = "SODIMM_38"  # I2S_1_MCLK, Serial audio master clock
 
     # UART pins
     SODIMM_129 = "SODIMM_129"  # UART_1_RXD, UART1 Receive Data
@@ -90,12 +90,7 @@ class Pin(Enum):
 
 
 class Gpio:
-    def __init__(
-        self,
-        consumer: str,
-        pin: Pin,
-        direction: Direction,
-    ):
+    def __init__(self, consumer: str, pin: Pin, direction: Direction):
         self.consumer = consumer
         self.pin = pin
         self.direction = direction
@@ -116,11 +111,13 @@ class Gpio:
                         }
                         self.request = gpio_chip.request_lines(config=config, consumer=self.consumer)
                         return None
+                except PermissionError:
+                    return f"Permission denied: cannot access GPIO. Try running with sudo or check udev rules"
                 except Exception:
                     continue
             return f"GPIO pin {self.pin.value} not found"
         except Exception as e:
-            return f"Failed to initialize GPIO: {e}"
+            return f"Failed to initialize GPIO: {str(e)}"
 
     def write(self, value: int) -> Optional[str]:
         """Write a value to the GPIO line."""
@@ -129,8 +126,10 @@ class Gpio:
         try:
             self.request.set_value(self.pin.value, Value.ACTIVE if value else Value.INACTIVE)
             return None
+        except PermissionError:
+            return "Permission denied: cannot write to GPIO. Try running with sudo or check udev rules"
         except Exception as e:
-            return f"Failed to write to GPIO: {e}"
+            return f"Failed to write to GPIO: {str(e)}"
 
     def read(self) -> tuple[Optional[str], int]:
         """Read the current value of the GPIO line."""
@@ -139,8 +138,10 @@ class Gpio:
         try:
             value = self.request.get_value(self.pin.value)
             return None, 1 if value == Value.ACTIVE else 0
+        except PermissionError:
+            return "Permission denied: cannot read from GPIO. Try running with sudo or check udev rules", 0
         except Exception as e:
-            return f"Failed to read GPIO: {e}", 0
+            return f"Failed to read GPIO: {str(e)}", 0
 
     def deinit(self) -> Optional[str]:
         """Release the GPIO line."""
@@ -149,8 +150,10 @@ class Gpio:
                 self.request.release()
                 self.request = None
                 return None
+            except PermissionError:
+                return "Permission denied: cannot release GPIO. Try running with sudo or check udev rules"
             except Exception as e:
-                return f"Failed to release GPIO: {e}"
+                return f"Failed to release GPIO: {str(e)}"
         return None
 
     def __enter__(self):

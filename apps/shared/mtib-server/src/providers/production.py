@@ -99,16 +99,18 @@ class MtibV1Provider(MtibV1Servicer):
         """
         Initialize the servicer components.
         """
-
-        # Initialize all GPIOs as inputs by default
+        # Initialize all GPIOs as OUTPUT by default
         for logical_num, pin in GPIO_PIN_MAP.items():
-            gpio = Gpio(consumer=f"mtib-gpio-{logical_num}", pin=pin, direction=gpiod.line.Direction.INPUT)
+            # Initialize as OUTPUT with initial value INACTIVE (0)
+            gpio = Gpio(consumer=f"mtib-gpio-{logical_num}", pin=pin, direction=gpiod.line.Direction.OUTPUT)
             if err := gpio.init():
                 return f"Failed to initialize GPIO {logical_num} ({pin}): {err}"
+            # Set initial value to 0
+            if err := gpio.write(0):
+                return f"Failed to set initial value for GPIO {logical_num} ({pin}): {err}"
             self._gpios[logical_num] = gpio
 
         self.logger.debug("All components initialized successfully")
-
         return None
 
     def _init_handlers(self) -> Optional[str]:

@@ -36,7 +36,7 @@ class GpioHandler:
 
         gpio = self.gpios[request.gpio]
         if err := gpio.write(1 if request.state else 0):
-            return GpioWriteResponse(success=False, message=f"Failed to write to GPIO: {err}")
+            return GpioWriteResponse(success=False, message=f"{err}")
 
         return GpioWriteResponse(success=True, message="")
 
