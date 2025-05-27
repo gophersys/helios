@@ -30,6 +30,11 @@ class AdcHandler:
         self.max_voltage = 4.096  # Maximum voltage in volts
         self.scale_factor = self.max_voltage / self.max_raw
 
+        # Voltage divider ratio (R1 + R2) / R2
+        # For 10k + 20k divider: (10000 + 20000) / 20000 = 1.5
+        self.divider_ratio = 1.5
+        self.logger.info(f"Using voltage divider ratio: {self.divider_ratio}")
+
     def _read_raw(self, channel: int) -> tuple[Optional[str], int]:
         """Read raw value from ADC channel."""
         try:
@@ -43,6 +48,12 @@ class AdcHandler:
     def _format_voltage(self, voltage: float) -> float:
         """Format voltage to 4 decimal places."""
         return round(voltage, 4)
+
+    def _calculate_real_voltage(self, raw_value: int) -> float:
+        """Calculate the real voltage after accounting for voltage divider."""
+        measured_voltage = raw_value * self.scale_factor
+        real_voltage = measured_voltage * self.divider_ratio
+        return self._format_voltage(real_voltage)
 
     def read(self, request: AdcReadRequest, context: grpc.ServicerContext) -> AdcReadResponse:
         """Read a single ADC channel."""
@@ -59,10 +70,12 @@ class AdcHandler:
         if err:
             return AdcReadResponse(success=False, message=err, voltage_v=0.0)
 
-        # Convert raw value (0-65535) to voltage (0-4.096V)
-        voltage = self._format_voltage(raw_value * self.scale_factor)
-        self.logger.debug(f"Channel {request.channel} voltage: {voltage:.4f}V (raw: {raw_value})")
-        return AdcReadResponse(success=True, message="", voltage_v=voltage)
+        real_voltage = self._calculate_real_voltage(raw_value)
+        self.logger.debug(
+            f"Channel {request.channel} voltage: {real_voltage:.4f}V "
+            f"(raw: {raw_value}, divider: {self.divider_ratio:.2f})"
+        )
+        return AdcReadResponse(success=True, message="", voltage_v=real_voltage)
 
     def read_all(self, request: Empty, context: grpc.ServicerContext) -> AdcReadAllResponse:
         """Read all ADC channels."""
@@ -75,8 +88,11 @@ class AdcHandler:
                 return AdcReadAllResponse(
                     success=False, message=f"Failed to read channel {channel}: {err}", voltages_v=[]
                 )
-            voltage = self._format_voltage(raw_value * self.scale_factor)
-            self.logger.debug(f"Channel {channel} voltage: {voltage:.4f}V (raw: {raw_value})")
-            voltages.append(voltage)
+            real_voltage = self._calculate_real_voltage(raw_value)
+            self.logger.debug(
+                f"Channel {channel} voltage: {real_voltage:.4f}V "
+                f"(raw: {raw_value}, divider: {self.divider_ratio:.2f})"
+            )
+            voltages.append(real_voltage)
 
         return AdcReadAllResponse(success=True, message="", voltages_v=voltages)
