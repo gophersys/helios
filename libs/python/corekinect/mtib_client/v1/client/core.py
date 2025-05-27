@@ -110,7 +110,9 @@ class MtibV1Client:
             response = self.client.HealthCheck(Empty())
             return response.ready, response.errors
         except grpc.RpcError as e:
-            return False, [f"gRPC error for {self._get_func_name()} at {self.config.net.addr}. Error: {str(e.details())}"]
+            return False, [
+                f"gRPC error for {self._get_func_name()} at {self.config.net.addr}. Error: {str(e.details())}"
+            ]
         except Exception as e:
             return False, [f"Unexpected error in {self._get_func_name()} at {self.config.net.addr}: {str(e)}"]
 
@@ -150,36 +152,36 @@ class MtibV1Client:
         except Exception as e:
             return None, f"Unexpected error in {self._get_func_name()} at {self.config.net.addr}: {str(e)}"
 
-    # # -----------------------------------------------------------------------------
-    # #                                                                           ADC
-    # # ---------------------------------------------------------------------------*/
-    # def adc_read(self, channel: int) -> Tuple[Optional[float], Optional[str]]:
-    #     try:
-    #         response = self.client.AdcRead(AdcReadRequest(channel=channel, delay_ms=self.config.adc.read_delay_ms))
-    #         if not response.success:
-    #             return None, f"{self._get_func_name()} error: {response.message}"
-    #         return response.voltage, None
-    #     except grpc.RpcError as e:
-    #         return (
-    #             None,
-    #             f"gRPC error for {self._get_func_name()} at {self.config.net.addr}. Error: {str(e.details())}",
-    #         )
-    #     except Exception as e:
-    #         return None, f"Unexpected error in {self._get_func_name()} at {self.config.net.addr}: {str(e)}"
+    # -----------------------------------------------------------------------------
+    #                                                                           ADC
+    # ---------------------------------------------------------------------------*/
+    def adc_read(self, channel: int) -> Tuple[Optional[float], Optional[str]]:
+        try:
+            response = self.client.AdcRead(AdcReadRequest(channel=channel))
+            if not response.success:
+                return None, f"{self._get_func_name()} error: {response.message}"
+            return response.voltage_v, None
+        except grpc.RpcError as e:
+            return (
+                None,
+                f"gRPC error for {self._get_func_name()} at {self.config.net.addr}. Error: {str(e.details())}",
+            )
+        except Exception as e:
+            return None, f"Unexpected error in {self._get_func_name()} at {self.config.net.addr}: {str(e)}"
 
-    # def adc_read_all(self) -> Tuple[Optional[List[float]], Optional[str]]:
-    #     try:
-    #         response = self.client.AdcReadAll(AdcReadAllRequest(delay_ms=self.config.adc.read_delay_ms))
-    #         if not response.success:
-    #             return None, f"{self._get_func_name()} error: {response.message}"
-    #         return response.voltages, None
-    #     except grpc.RpcError as e:
-    #         return (
-    #             None,
-    #             f"gRPC error for {self._get_func_name()} at {self.config.net.addr}. Error: {str(e.details())}",
-    #         )
-    #     except Exception as e:
-    #         return None, f"Unexpected error in {self._get_func_name()} at {self.config.net.addr}: {str(e)}"
+    def adc_read_all(self) -> Tuple[Optional[List[float]], Optional[str]]:
+        try:
+            response = self.client.AdcReadAll(Empty())
+            if not response.success:
+                return None, f"{self._get_func_name()} error: {response.message}"
+            return response.voltages_v, None
+        except grpc.RpcError as e:
+            return (
+                None,
+                f"gRPC error for {self._get_func_name()} at {self.config.net.addr}. Error: {str(e.details())}",
+            )
+        except Exception as e:
+            return None, f"Unexpected error in {self._get_func_name()} at {self.config.net.addr}: {str(e)}"
 
     # # -----------------------------------------------------------------------------
     # #                                                                     DUT Power

@@ -20,12 +20,14 @@ from corekinect.utils import Logger
 # Private imports
 from src.shared.types import *
 from src.lib.gpio import Gpio, Pin
-from src.handlers.gpio import GpioHandler
-from src.handlers.adc import AdcHandler
-from src.handlers.motion import MotionHandler
-from src.handlers.power import PowerHandler
-from src.handlers.sensors import SensorsHandler
-from src.handlers.firmware import FirmwareHandler
+
+# Function handlers makes it easier to write service handlers
+from .handlers.gpio import GpioHandler
+from .handlers.adc import AdcHandler
+from .handlers.motion import MotionHandler
+from .handlers.power import PowerHandler
+from .handlers.sensors import SensorsHandler
+from .handlers.firmware import FirmwareHandler
 
 LOG_MODULE = "provider"
 
