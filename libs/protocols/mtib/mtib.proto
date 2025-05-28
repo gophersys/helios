@@ -268,10 +268,11 @@ enum ProgrammerType {
 
 enum HostType {
   HOST_TYPE_UNDEFINED = 0;
-  HOST_TYPE_NRF9160_MCU = 1;
+  HOST_TYPE_NRF9160 = 1;
   HOST_TYPE_NRF9160_MODEM = 2;
   HOST_TYPE_NRF52840 = 3;
   HOST_TYPE_NRF5340 = 4;
+  HOST_TYPE_NRF9151= 5;
 }
 
 message Programmer {
@@ -294,7 +295,10 @@ message FwFileInfo {
 }
 
 message ListFwFilesResponse {
-  repeated FwFileInfo files = 1;
+  bool success = 1;
+  string message = 2;
+
+  repeated FwFileInfo files = 3;
 }
 
 message UploadFwFileRequest {

@@ -20,10 +20,6 @@
             "name": "mtib-server",
             "path": "../../apps/shared/mtib-server"
         },
-        {
-            "name": "mtib-client-cli",
-            "path": "../../apps/shared/mtib-client-cli"
-        }
     ],
     "settings": {
         "files.associations": {},

@@ -1,6 +1,6 @@
 # Standard includes
 import inspect
-from typing import Optional, Tuple, List
+from typing import Optional, Tuple, List, Iterator
 
 # 3rd Party includes
 import grpc
@@ -384,3 +384,90 @@ class MtibV1Client:
     # # # -----------------------------------------------------------------------------
     # # #                                                                  UART Streams
     # # # ---------------------------------------------------------------------------*/
+
+    # -----------------------------------------------------------------------------
+    #                                                                     Firmware
+    # ---------------------------------------------------------------------------*/
+    def list_programmers(self) -> Tuple[Optional[List[Programmer]], Optional[str]]:
+        """List all available programmers."""
+        try:
+            response = self.client.ListProgrammers(Empty())
+            if not response.success:
+                return None, f"{self._get_func_name()} error: {response.message}"
+            return response.programmers, None
+        except grpc.RpcError as e:
+            return None, f"gRPC error for {self._get_func_name()} at {self.config.net.addr}. Error: {str(e.details())}"
+        except Exception as e:
+            return None, f"Unexpected error in {self._get_func_name()} at {self.config.net.addr}: {str(e)}"
+
+    def list_fw_files(self) -> Tuple[Optional[List[FwFileInfo]], Optional[str]]:
+        """List all available firmware files."""
+        try:
+            response = self.client.ListFwFiles(Empty())
+            if not response.success:
+                return None, f"{self._get_func_name()} error: {response.message}"
+            return response.files, None
+        except grpc.RpcError as e:
+            return None, f"gRPC error for {self._get_func_name()} at {self.config.net.addr}. Error: {str(e.details())}"
+        except Exception as e:
+            return None, f"Unexpected error in {self._get_func_name()} at {self.config.net.addr}: {str(e)}"
+
+    def upload_fw_file(self, file_path: str, file_name: str) -> Tuple[Optional[bool], Optional[str]]:
+        """Upload a firmware file to the server."""
+        try:
+
+            def request_iterator():
+                # First request contains just the filename
+                yield UploadFwFileRequest(name=file_name, content=b"")
+
+                # Subsequent requests contain file chunks
+                with open(file_path, "rb") as f:
+                    while True:
+                        chunk = f.read(1024 * 1024)  # Read 1MB chunks
+                        if not chunk:
+                            break
+                        yield UploadFwFileRequest(content=chunk)
+
+            response = self.client.UploadFwFile(request_iterator())
+            if not response.success:
+                return False, f"{self._get_func_name()} error: {response.message}"
+            return True, None
+        except grpc.RpcError as e:
+            return (
+                False,
+                f"gRPC error for {self._get_func_name()} at {self.config.net.addr}. Error: {str(e.details())}",
+            )
+        except Exception as e:
+            return False, f"Unexpected error in {self._get_func_name()} at {self.config.net.addr}: {str(e)}"
+
+    def delete_fw_file(self, file_name: str) -> Tuple[Optional[bool], Optional[str]]:
+        """Delete a firmware file from the server."""
+        try:
+            response = self.client.DeleteFwFile(DeleteFwFileRequest(file_name=file_name))
+            if not response.success:
+                return False, f"{self._get_func_name()} error: {response.message}"
+            return True, None
+        except grpc.RpcError as e:
+            return (
+                False,
+                f"gRPC error for {self._get_func_name()} at {self.config.net.addr}. Error: {str(e.details())}",
+            )
+        except Exception as e:
+            return False, f"Unexpected error in {self._get_func_name()} at {self.config.net.addr}: {str(e)}"
+
+    def flash_fw_file(self, file_name: str, target: HostType) -> Tuple[Optional[bool], Optional[str]]:
+        """Flash a firmware file using the specified target."""
+        try:
+            # Create FwFileInfo with the required fields
+            file_info = FwFileInfo(name=file_name, target=target)
+            response = self.client.FlashFwFile(FlashFwFileRequest(file_info=file_info))
+            if not response.success:
+                return False, f"{self._get_func_name()} error: {response.message}"
+            return True, None
+        except grpc.RpcError as e:
+            return (
+                False,
+                f"gRPC error for {self._get_func_name()} at {self.config.net.addr}. Error: {str(e.details())}",
+            )
+        except Exception as e:
+            return False, f"Unexpected error in {self._get_func_name()} at {self.config.net.addr}: {str(e)}"

@@ -6,10 +6,8 @@ from enum import IntEnum
 from protocols.mtib.mtib_pb2 import (
     # Shared types
     Empty,
-
     # Health Check
     HealthCheckResponse,
-
     # GPIO types
     GpioDirection,
     GpioResistorConfig,
@@ -19,26 +17,21 @@ from protocols.mtib.mtib_pb2 import (
     GpioWriteResponse,
     GpioReadRequest,
     GpioReadResponse,
-
     # ADC types
     AdcReadRequest,
     AdcReadResponse,
     AdcReadAllResponse,
-
     # Power types
     DutPowerRequest,
     DutPowerResponse,
     DutPowerReadResponse,
-
     # Sensor types
     AltimeterReadResponse,
     AccelReadResponse,
-
     # FluidNC types
     FluidNcConfigResponse,
     UpdateFluidNcConfigRequest,
     UpdateFluidNcConfigResponse,
-
     # Motion types
     MotionStatus,
     GetMotionStatusRequest,
@@ -47,7 +40,6 @@ from protocols.mtib.mtib_pb2 import (
     MotionStopResponse,
     GcodeRequest,
     GcodeResponse,
-
     # Motion Profile types
     MotionProfile,
     MotionProfileRequest,
@@ -55,7 +47,6 @@ from protocols.mtib.mtib_pb2 import (
     ListMotionProfilesResponse,
     ExecuteProfileRequest,
     ExecuteProfileResponse,
-
     # Firmware types
     ProgrammerType,
     HostType,
@@ -69,12 +60,10 @@ from protocols.mtib.mtib_pb2 import (
     DeleteFwFileResponse,
     FlashFwFileRequest,
     FlashFwFileResponse,
-
     # UART types
     UartStreamRequest,
     UartStreamResponse,
 )
-
 
 
 @dataclass
@@ -191,3 +180,25 @@ class UpdateFluidConfigRequest:
 class UpdateFluidConfigResponse:
     success: bool = False
     message: str = False
+
+
+# Firmware types
+class ProgrammerType(IntEnum):
+    UNDEFINED = 0
+    JLINK = 1
+    BLACKMAGIC = 2
+
+
+class HostType(IntEnum):
+    UNDEFINED = 0
+    NRF9160 = 1
+    NRF9160_MODEM = 2
+    NRF52840 = 3
+    NRF5340 = 4
+    NRF9151 = 5
+
+
+@dataclass
+class Programmer:
+    type: ProgrammerType = ProgrammerType.UNDEFINED
+    host: HostType = HostType.UNDEFINED
