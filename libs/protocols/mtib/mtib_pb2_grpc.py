@@ -61,7 +61,7 @@ class MtibV1Stub(object):
                 )
         self.DutChargePowerEnable = channel.unary_unary(
                 '/mtib.MtibV1/DutChargePowerEnable',
-                request_serializer=mtib__pb2.DutPowerRequest.SerializeToString,
+                request_serializer=mtib__pb2.Empty.SerializeToString,
                 response_deserializer=mtib__pb2.DutPowerResponse.FromString,
                 )
         self.DutChargePowerDisable = channel.unary_unary(
@@ -395,7 +395,7 @@ def add_MtibV1Servicer_to_server(servicer, server):
             ),
             'DutChargePowerEnable': grpc.unary_unary_rpc_method_handler(
                     servicer.DutChargePowerEnable,
-                    request_deserializer=mtib__pb2.DutPowerRequest.FromString,
+                    request_deserializer=mtib__pb2.Empty.FromString,
                     response_serializer=mtib__pb2.DutPowerResponse.SerializeToString,
             ),
             'DutChargePowerDisable': grpc.unary_unary_rpc_method_handler(
@@ -656,7 +656,7 @@ class MtibV1(object):
             timeout=None,
             metadata=None):
         return grpc.experimental.unary_unary(request, target, '/mtib.MtibV1/DutChargePowerEnable',
-            mtib__pb2.DutPowerRequest.SerializeToString,
+            mtib__pb2.Empty.SerializeToString,
             mtib__pb2.DutPowerResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)

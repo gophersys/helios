@@ -183,69 +183,52 @@ class MtibV1Client:
         except Exception as e:
             return None, f"Unexpected error in {self._get_func_name()} at {self.config.net.addr}: {str(e)}"
 
-    # # -----------------------------------------------------------------------------
-    # #                                                                     DUT Power
-    # # ---------------------------------------------------------------------------*/
-    # def dut_power_enable(self, vbat_voltage: float) -> Optional[str]:
-    #     try:
-    #         # Set the battery voltage first
-    #         err = self._dut_set_vbat(voltage=vbat_voltage)
-    #         if err is not None:
-    #             return f"could not set power voltage to {vbat_voltage}, {err}"
+    # -----------------------------------------------------------------------------
+    #                                                                     DUT Power
+    # ---------------------------------------------------------------------------*/
+    def dut_power_enable(self, voltage_v: float) -> Optional[str]:
+        try:
+            response: DutPowerResponse = self.client.DutPowerEnable(DutPowerRequest(voltage_v=voltage_v))
+            if not response.success:
+                return f"{self._get_func_name()} error: {response.message}"
+            return None
+        except grpc.RpcError as e:
+            return f"gRPC error for {self._get_func_name()} at {self.config.net.addr}. Error: {str(e.details())}"
+        except Exception as e:
+            return f"Unexpected error in {self._get_func_name()} at {self.config.net.addr}: {str(e)}"
 
-    #         # Switch power on
-    #         response: DutPowerEnableResponse = self.client.DutPowerEnable(DutPowerEnableRequest(enable=True))
-    #         if not response.success:
-    #             return f"{self._get_func_name()} error: {response.message}"
-    #         return None
-    #     except grpc.RpcError as e:
-    #         return f"gRPC error for {self._get_func_name()} at {self.config.net.addr}. Error: {str(e.details())}"
-    #     except Exception as e:
-    #         return f"Unexpected error in {self._get_func_name()} at {self.config.net.addr}: {str(e)}"
+    def dut_power_disable(self) -> Optional[str]:
+        try:
+            response: DutPowerResponse = self.client.DutPowerDisable(Empty())
+            if not response.success:
+                return f"{self._get_func_name()} error: {response.message}"
+            return None
+        except grpc.RpcError as e:
+            return f"gRPC error for {self._get_func_name()} at {self.config.net.addr}. Error: {str(e.details())}"
+        except Exception as e:
+            return f"Unexpected error in {self._get_func_name()} at {self.config.net.addr}: {str(e)}"
 
-    # def dut_power_disable(self) -> Optional[str]:
-    #     try:
-    #         response: DutPowerEnableResponse = self.client.DutPowerEnable(DutPowerEnableRequest(enable=False))
-    #         if not response.success:
-    #             return f"{self._get_func_name()} error: {response.message}"
-    #         return None
-    #     except grpc.RpcError as e:
-    #         return f"gRPC error for {self._get_func_name()} at {self.config.net.addr}. Error: {str(e.details())}"
-    #     except Exception as e:
-    #         return f"Unexpected error in {self._get_func_name()} at {self.config.net.addr}: {str(e)}"
+    def dut_charge_power_enable(self) -> Optional[str]:
+        try:
+            response: DutPowerResponse = self.client.DutChargePowerEnable(Empty())
+            if not response.success:
+                return f"{self._get_func_name()} error: {response.message}"
+            return None
+        except grpc.RpcError as e:
+            return f"gRPC error for {self._get_func_name()} at {self.config.net.addr}. Error: {str(e.details())}"
+        except Exception as e:
+            return f"Unexpected error in {self._get_func_name()} at {self.config.net.addr}: {str(e)}"
 
-    # def dut_charge_power_enable(self) -> Optional[str]:
-    #     try:
-    #         response: DutPowerEnableResponse = self.client.DutChargePowerEnable(DutPowerEnableRequest(enable=True))
-    #         if not response.success:
-    #             return f"{self._get_func_name()} error: {response.message}"
-    #         return None
-    #     except grpc.RpcError as e:
-    #         return f"gRPC error for {self._get_func_name()} at {self.config.net.addr}. Error: {str(e.details())}"
-    #     except Exception as e:
-    #         return f"Unexpected error in {self._get_func_name()} at {self.config.net.addr}: {str(e)}"
-
-    # def dut_charge_power_disable(self) -> Optional[str]:
-    #     try:
-    #         response: DutPowerEnableResponse = self.client.DutChargePowerEnable(DutPowerEnableRequest(enable=False))
-    #         if not response.success:
-    #             return f"{self._get_func_name()} error: {response.message}"
-    #         return None
-    #     except grpc.RpcError as e:
-    #         return f"gRPC error for {self._get_func_name()} at {self.config.net.addr}. Error: {str(e.details())}"
-    #     except Exception as e:
-    #         return f"Unexpected error in {self._get_func_name()} at {self.config.net.addr}: {str(e)}"
-
-    # def _dut_set_vbat(self, voltage: float) -> Optional[str]:
-    #     try:
-    #         response: DutVoltageSetResponse = self.client.DutVoltageSet(DutVoltageSetRequest(voltage=voltage))
-    #         if not response.success:
-    #             return f"{self._get_func_name()} error: {response.message}"
-    #         return None
-    #     except grpc.RpcError as e:
-    #         return f"gRPC error for {self._get_func_name()} at {self.config.net.addr}. Error: {str(e.details())}"
-    #     except Exception as e:
-    #         return f"Unexpected error in {self._get_func_name()} at {self.config.net.addr}: {str(e)}"
+    def dut_charge_power_disable(self) -> Optional[str]:
+        try:
+            response: DutPowerResponse = self.client.DutChargePowerDisable(Empty())
+            if not response.success:
+                return f"{self._get_func_name()} error: {response.message}"
+            return None
+        except grpc.RpcError as e:
+            return f"gRPC error for {self._get_func_name()} at {self.config.net.addr}. Error: {str(e.details())}"
+        except Exception as e:
+            return f"Unexpected error in {self._get_func_name()} at {self.config.net.addr}: {str(e)}"
 
     # # -----------------------------------------------------------------------------
     # #                                                                       Sensors

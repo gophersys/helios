@@ -25,7 +25,7 @@ service MtibV1 {
   // Power
   rpc DutPowerEnable(DutPowerRequest) returns (DutPowerResponse){}
   rpc DutPowerDisable(Empty) returns (DutPowerResponse){}
-  rpc DutChargePowerEnable(DutPowerRequest) returns (DutPowerResponse){}
+  rpc DutChargePowerEnable(Empty) returns (DutPowerResponse){}
   rpc DutChargePowerDisable(Empty) returns (DutPowerResponse){}
 
   // Power Consumption

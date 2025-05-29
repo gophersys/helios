@@ -22,17 +22,17 @@ class MtibCliEnvConfig(EnvConfig):
 def run_sample(sample_func: Callable[[MtibV1Client, Logger], None], sample_name: str = "mtib_sample") -> None:
     """
     Run a sample function with standardized error handling, logging, and setup.
-    
+
     Args:
         sample_func: Function that takes a MtibV1Client and Logger and performs the sample operations
         sample_name: Name of the sample (used for logging)
     """
     logger: Optional[Logger] = None
     client: Optional[MtibV1Client] = None
-    
+
     try:
         env_config = MtibCliEnvConfig()
-    
+
         # Setup logging
         log_config = Logger.Config(
             logger_name=sample_name,
@@ -43,7 +43,7 @@ def run_sample(sample_func: Callable[[MtibV1Client, Logger], None], sample_name:
             enable_log_color=True,
         )
         logger = Logger(log_config)
-        
+
         # Initialize the client
         client = MtibV1Client(
             config=MtibV1Client.Config(
@@ -52,25 +52,25 @@ def run_sample(sample_func: Callable[[MtibV1Client, Logger], None], sample_name:
                     port=env_config.SERVER_PORT,
                 )
             ),
-            logger=logger
+            logger=logger,
         )
-        
+
         # Connect to the server
         if err := client.connect():
             logger.error(f"Error connecting to server: {err}")
             sys.exit(1)
-            
+
         # Health check
         ready, errors = client.health_check()
         if not ready:
             logger.error(f"Error checking health: {errors}")
             sys.exit(1)
-            
+
         logger.info("Health check passed for server at %s:%d", env_config.SERVER_HOST, env_config.SERVER_PORT)
-        
+
         # Run the actual sample function
         sample_func(client, logger)
-        
+
     except Exception as e:
         if logger:
             # Print the entire traceback
@@ -86,4 +86,4 @@ def run_sample(sample_func: Callable[[MtibV1Client, Logger], None], sample_name:
                 if logger:
                     logger.error(f"Error disconnecting from server: {err}")
                 else:
-                    print(f"Error disconnecting from server: {err}") 
+                    print(f"Error disconnecting from server: {err}")

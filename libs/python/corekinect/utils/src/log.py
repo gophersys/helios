@@ -3,6 +3,7 @@ from typing import List
 
 import logging
 import os
+import sys
 import random
 import string
 import sys
@@ -248,6 +249,16 @@ class Logger:
     def exception(self, message, *args):
         """Log a message at ERROR level with the full stack trace."""
         self.logger.exception(message, *args)
+
+    def fatal(self, message, *args):
+        """Log a message at ERROR level with optional stack trace."""
+        exc_type, exc_value, _ = sys.exc_info()
+        if exc_type is not None:
+            self.logger.error(f"{message}\nException: {exc_value}", exc_info=True, *args)
+        else:
+            self.logger.error(message, *args)
+
+        sys.exit(1)
 
     @staticmethod
     def get_test_case_logger() -> "Logger":
