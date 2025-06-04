@@ -20,6 +20,12 @@
             "name": "mtib-server",
             "path": "../../apps/shared/mtib-server"
         },
+        {
+            "path": "../../libs/zephyr/mcp4017_drv"
+        },
+        {
+            "path": "../../apps/shared/runner/zephyr"
+        }
     ],
     "settings": {
         "files.associations": {},

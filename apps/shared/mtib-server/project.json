@@ -53,6 +53,9 @@
           },
           {
             "command": "cd assets && chmod +x ctl.sh && ./ctl.sh"
+          },
+          {
+            "command": "apt install python3-tk -y"
           }
         ],
         "parallel": false

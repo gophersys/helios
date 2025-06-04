@@ -1,6 +1,8 @@
 import grpc
 from corekinect.utils import Logger
 from src.shared.types import *
+from src.lib.mcp4017 import MCP4017
+
 
 # The EN FETs in the carrier board are connected to the following pins:
 # - DUT_PWR_EN_1V8 is connected to IMX8_I2C1_DSI_SCL_1V8 (SODIMM_53)
@@ -20,6 +22,7 @@ from src.shared.types import *
 class PowerHandler:
     def __init__(self, logger: Logger):
         self.logger = logger
+        self.mcp4017 = MCP4017(logger=logger)
 
     def dut_power_enable(self, request: DutPowerRequest, context: grpc.ServicerContext) -> DutPowerResponse:
         """Enable DUT power with specified voltage."""
@@ -45,9 +48,5 @@ class PowerHandler:
         """Read DUT power measurements."""
         self.logger.info("DutPowerRead request received")
         return DutPowerReadResponse(
-            success=False,
-            message="Not implemented",
-            current_a=0.0,
-            voltage_v=0.0,
-            power_w=0.0
-        ) 
+            success=False, message="Not implemented", current_a=0.0, voltage_v=0.0, power_w=0.0
+        )
