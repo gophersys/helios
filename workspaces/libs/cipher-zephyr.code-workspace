@@ -7,7 +7,7 @@
 			"path": "../../libs/zephyr/cipher"
 		},
 		{
-			"path": "../../libs/protos"
+			"path": "../../libs/protocols"
 		},
 		{
 			"path": "../../libs/zephyr/cipher/samples/scratchpad"
