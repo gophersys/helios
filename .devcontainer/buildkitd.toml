@@ -9,10 +9,18 @@ debug = true
   http = true
   insecure = true
 
+[registry."containers.ad.corekinect.com"]
+  http = true
+  insecure = true
+
 # Worker settings
 [worker.oci]
   enabled = true
   platforms = ["linux/amd64", "linux/arm64"]
 
 [worker.containerd]
-  enabled = false 
+  enabled = false
+
+# SSL Configuration
+[worker.oci.ssl]
+  certs = ["/etc/ssl/certs/ca-certificates.crt"] 
