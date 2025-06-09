@@ -7,39 +7,43 @@ function compile() {
     # Compile DTS to DTBO
     cpp -nostdinc \
         -I $STAGING_KERNEL_DIR/arch/arm64/boot/dts \
+        -I $STAGING_KERNEL_DIR/arch/arm64/boot/dts/freescale \
         -I $STAGING_KERNEL_DIR/include \
         -I $STAGING_KERNEL_DIR/scripts/dtc/include-prefixes \
         -undef -x assembler-with-cpp \
-        meta-corekinect/recipes-kernel/linux/device-tree-overlays/no-i2s.dts \
-        no-i2s.dts.preprocessed
+        meta-corekinect/recipes-kernel/linux/device-tree-overlays/no-i2c.dts \
+        no-i2c.dts.preprocessed
 
-    dtc -@ -I dts -O dtb -o no-i2s.dtbo no-i2s.dts.preprocessed
+    dtc -@ -I dts -O dtb -o no-i2c.dtbo no-i2c.dts.preprocessed
 
-    echo "Compiled no-i2s.dtbo successfully"
+    echo "Compiled no-i2c.dtbo successfully"
 }
 
 function deploy() {
     # Copy to device
-    scp no-i2s.dtbo torizon@imx8:/tmp/
+    scp no-i2c.dtbo torizon@imx8:/tmp/
     
     # Execute commands with a terminal allocation
     ssh -t torizon@imx8 '
         echo "Mounting /boot read-write..."
         sudo mount -o remount,rw /boot
         
-        echo "Creating overlays directory..."
-        sudo mkdir -p /boot/overlays
+        echo "Finding OSTree overlays directory..."
+        OVERLAYS_DIR=$(find /boot/ostree -type d -path "*/dtb/overlays" | head -n 1)
+        if [ -z "$OVERLAYS_DIR" ]; then
+            echo "Could not find OSTree overlays directory!"
+            exit 1
+        fi
+        echo "OSTree overlays directory: $OVERLAYS_DIR"
         
         echo "Copying overlay..."
-        sudo cp /tmp/no-i2s.dtbo /boot/overlays/
+        sudo cp /tmp/no-i2c.dtbo "$OVERLAYS_DIR/"
         
-        echo "Setting U-Boot environment..."
-        sudo fw_setenv overlays no-i2s.dtbo
-        sudo fw_setenv saveenv
+        echo "Removing legacy overlay if present..."
+        sudo rm -f /boot/overlays/no-i2c.dtbo
         
         echo "Verifying setup..."
-        sudo fw_printenv overlays
-        ls -l /boot/overlays/
+        ls -l "$OVERLAYS_DIR/"
         
         echo "Rebooting..."
         sudo reboot

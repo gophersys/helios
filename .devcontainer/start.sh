@@ -146,5 +146,21 @@ EOF
 # Make sure the .bashrc has correct permissions
 chown usersetup:usersetup /home/usersetup/.bashrc
 
+update_tezi_overlays() {
+    echo "WORKDIR is: $WORKDIR"
+    CONF_FILE="$WORKDIR/layers/meta-toradex-nxp/conf/machine/verdin-imx8mm.conf"
+
+    if [ -f "$CONF_FILE" ]; then
+        # Remove only the DSI overlay from the overlays list, keep others
+        sed -i -E 's/(TEZI_EXTERNAL_KERNEL_DEVICETREE_BOOT = ")([^"]*)verdin-imx8mm_dsi-to-hdmi_overlay\.dtbo ?([^"]*)"/\1\2\3"/' "$CONF_FILE"
+        echo "Removed DSI overlay from TEZI_EXTERNAL_KERNEL_DEVICETREE_BOOT in $CONF_FILE"
+    else
+        echo "Error: $CONF_FILE not found at $CONF_FILE!"
+        exit 1
+    fi
+}
+
+update_tezi_overlays
+
 # Exit successfully
 exit 0
