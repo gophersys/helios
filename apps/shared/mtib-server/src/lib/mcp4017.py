@@ -95,16 +95,17 @@ class MCP4017:
             self._current_value = 0
 
             # Initialize to 0
-            self.set_resistance(0)
+            self.set_step(0)
+            time.sleep(1)
             logger.info("MCP4017 initialized successfully")
             for i in range(128):
-                self.set_resistance(i)
+                self.set_step(i)
                 time.sleep(0.1)
 
         except Exception as e:
             raise MCP4017Error(f"Failed to initialize MCP4017: {str(e)}")
 
-    def set_resistance(self, value: int) -> None:
+    def set_step(self, value: int) -> None:
         """Set the wiper position (resistance value).
 
         Args:
@@ -119,12 +120,12 @@ class MCP4017:
         try:
             self._bus.write_byte(self._address, value)
             self._current_value = value
-            self.logger.debug(f"Set MCP4017 resistance to {value}")
+            self.logger.debug(f"Set MCP4017 step to {value}")
 
         except Exception as e:
-            raise MCP4017Error(f"Failed to set resistance: {str(e)}")
+            raise MCP4017Error(f"Failed to set step: {str(e)}")
 
-    def get_resistance(self) -> int:
+    def get_step(self) -> int:
         """Get the current wiper position.
 
         Note: The MCP4017 is write-only, so this returns the last written value

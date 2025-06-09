@@ -11,22 +11,22 @@ class MotionHandler:
     def __init__(self, logger: Logger):
         self.logger = logger
 
-        fluidnc = FluidNC(
-            logger=logger,
-            assets_dir="/workspaces/concord/apps/shared/mtib-server/assets/fluidNc",
-            serial_port="/dev/ttyUSB0",
-            reset_pin=Pin.SODIMM_36,
-        )
+        # fluidnc = FluidNC(
+        #     logger=logger,
+        #     assets_dir="/workspaces/concord/apps/shared/mtib-server/assets/fluidNc",
+        #     serial_port="/dev/ttyUSB0",
+        #     reset_pin=Pin.SODIMM_36,
+        # )
 
-        if err := fluidnc.init():
-            print(f"Failed to initialize: {err}")
-            sys.exit(1)
+        # if err := fluidnc.init():
+        #     print(f"Failed to initialize: {err}")
+        #     sys.exit(1)
 
-        # Start interactive terminal
-        if err := fluidnc.start_terminal():
-            print(f"Terminal error: {err}")
+        # # Start interactive terminal
+        # if err := fluidnc.start_terminal():
+        #     print(f"Terminal error: {err}")
 
-        fluidnc.deinit()
+        # fluidnc.deinit()
 
     def get_status(self, request: GetMotionStatusRequest, context: grpc.ServicerContext) -> GetMotionStatusResponse:
         """Get the current motion system status."""
