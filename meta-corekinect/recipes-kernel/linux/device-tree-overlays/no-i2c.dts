@@ -17,20 +17,7 @@
 	};
 };
 
-&{/soc@0/bus@30800000/i2c@30a50000/hdmi@48} {
-    status = "disabled";
-};
-
-&{/soc@0/bus@30800000/i2c@30a50000} {
-    status = "disabled";
-};
-
-
 &hdmi_connector {
-    status = "disabled";
-};
-
-&{/soc@0/bus@32c00000/mipi_dsi@32e10000} {
     status = "disabled";
 };
 
