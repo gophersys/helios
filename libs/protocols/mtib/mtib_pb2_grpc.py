@@ -94,6 +94,11 @@ class MtibV1Stub(object):
                 request_serializer=mtib__pb2.UpdateFluidNcConfigRequest.SerializeToString,
                 response_deserializer=mtib__pb2.UpdateFluidNcConfigResponse.FromString,
                 )
+        self.SendGcode = channel.unary_unary(
+                '/mtib.MtibV1/SendGcode',
+                request_serializer=mtib__pb2.GcodeRequest.SerializeToString,
+                response_deserializer=mtib__pb2.GcodeResponse.FromString,
+                )
         self.UploadMotionProfile = channel.unary_unary(
                 '/mtib.MtibV1/UploadMotionProfile',
                 request_serializer=mtib__pb2.MotionProfileRequest.SerializeToString,
@@ -109,15 +114,25 @@ class MtibV1Stub(object):
                 request_serializer=mtib__pb2.ExecuteProfileRequest.SerializeToString,
                 response_deserializer=mtib__pb2.ExecuteProfileResponse.FromString,
                 )
-        self.SendGcode = channel.unary_unary(
-                '/mtib.MtibV1/SendGcode',
-                request_serializer=mtib__pb2.GcodeRequest.SerializeToString,
-                response_deserializer=mtib__pb2.GcodeResponse.FromString,
+        self.DeleteMotionProfile = channel.unary_unary(
+                '/mtib.MtibV1/DeleteMotionProfile',
+                request_serializer=mtib__pb2.DeleteProfileRequest.SerializeToString,
+                response_deserializer=mtib__pb2.DeleteProfileResponse.FromString,
+                )
+        self.SetDefaultMotionProfile = channel.unary_unary(
+                '/mtib.MtibV1/SetDefaultMotionProfile',
+                request_serializer=mtib__pb2.SetDefaultProfileRequest.SerializeToString,
+                response_deserializer=mtib__pb2.SetDefaultProfileResponse.FromString,
                 )
         self.GetMotionStatus = channel.unary_unary(
                 '/mtib.MtibV1/GetMotionStatus',
-                request_serializer=mtib__pb2.GetMotionStatusRequest.SerializeToString,
+                request_serializer=mtib__pb2.Empty.SerializeToString,
                 response_deserializer=mtib__pb2.GetMotionStatusResponse.FromString,
+                )
+        self.MotionStart = channel.unary_unary(
+                '/mtib.MtibV1/MotionStart',
+                request_serializer=mtib__pb2.Empty.SerializeToString,
+                response_deserializer=mtib__pb2.MotionStartResponse.FromString,
                 )
         self.MotionHome = channel.unary_unary(
                 '/mtib.MtibV1/MotionHome',
@@ -266,6 +281,13 @@ class MtibV1Servicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def SendGcode(self, request, context):
+        """Gcode
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
     def UploadMotionProfile(self, request, context):
         """Motion Profiles
         """
@@ -285,9 +307,14 @@ class MtibV1Servicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def SendGcode(self, request, context):
-        """Gcode
-        """
+    def DeleteMotionProfile(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def SetDefaultMotionProfile(self, request, context):
+        """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
@@ -299,9 +326,14 @@ class MtibV1Servicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def MotionStart(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
     def MotionHome(self, request, context):
-        """rpc MotionStart(Empty) returns (MotionStartResponse) {}
-        """
+        """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
@@ -428,6 +460,11 @@ def add_MtibV1Servicer_to_server(servicer, server):
                     request_deserializer=mtib__pb2.UpdateFluidNcConfigRequest.FromString,
                     response_serializer=mtib__pb2.UpdateFluidNcConfigResponse.SerializeToString,
             ),
+            'SendGcode': grpc.unary_unary_rpc_method_handler(
+                    servicer.SendGcode,
+                    request_deserializer=mtib__pb2.GcodeRequest.FromString,
+                    response_serializer=mtib__pb2.GcodeResponse.SerializeToString,
+            ),
             'UploadMotionProfile': grpc.unary_unary_rpc_method_handler(
                     servicer.UploadMotionProfile,
                     request_deserializer=mtib__pb2.MotionProfileRequest.FromString,
@@ -443,15 +480,25 @@ def add_MtibV1Servicer_to_server(servicer, server):
                     request_deserializer=mtib__pb2.ExecuteProfileRequest.FromString,
                     response_serializer=mtib__pb2.ExecuteProfileResponse.SerializeToString,
             ),
-            'SendGcode': grpc.unary_unary_rpc_method_handler(
-                    servicer.SendGcode,
-                    request_deserializer=mtib__pb2.GcodeRequest.FromString,
-                    response_serializer=mtib__pb2.GcodeResponse.SerializeToString,
+            'DeleteMotionProfile': grpc.unary_unary_rpc_method_handler(
+                    servicer.DeleteMotionProfile,
+                    request_deserializer=mtib__pb2.DeleteProfileRequest.FromString,
+                    response_serializer=mtib__pb2.DeleteProfileResponse.SerializeToString,
+            ),
+            'SetDefaultMotionProfile': grpc.unary_unary_rpc_method_handler(
+                    servicer.SetDefaultMotionProfile,
+                    request_deserializer=mtib__pb2.SetDefaultProfileRequest.FromString,
+                    response_serializer=mtib__pb2.SetDefaultProfileResponse.SerializeToString,
             ),
             'GetMotionStatus': grpc.unary_unary_rpc_method_handler(
                     servicer.GetMotionStatus,
-                    request_deserializer=mtib__pb2.GetMotionStatusRequest.FromString,
+                    request_deserializer=mtib__pb2.Empty.FromString,
                     response_serializer=mtib__pb2.GetMotionStatusResponse.SerializeToString,
+            ),
+            'MotionStart': grpc.unary_unary_rpc_method_handler(
+                    servicer.MotionStart,
+                    request_deserializer=mtib__pb2.Empty.FromString,
+                    response_serializer=mtib__pb2.MotionStartResponse.SerializeToString,
             ),
             'MotionHome': grpc.unary_unary_rpc_method_handler(
                     servicer.MotionHome,
@@ -764,6 +811,23 @@ class MtibV1(object):
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
     @staticmethod
+    def SendGcode(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/mtib.MtibV1/SendGcode',
+            mtib__pb2.GcodeRequest.SerializeToString,
+            mtib__pb2.GcodeResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
     def UploadMotionProfile(request,
             target,
             options=(),
@@ -815,7 +879,7 @@ class MtibV1(object):
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
     @staticmethod
-    def SendGcode(request,
+    def DeleteMotionProfile(request,
             target,
             options=(),
             channel_credentials=None,
@@ -825,9 +889,26 @@ class MtibV1(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/mtib.MtibV1/SendGcode',
-            mtib__pb2.GcodeRequest.SerializeToString,
-            mtib__pb2.GcodeResponse.FromString,
+        return grpc.experimental.unary_unary(request, target, '/mtib.MtibV1/DeleteMotionProfile',
+            mtib__pb2.DeleteProfileRequest.SerializeToString,
+            mtib__pb2.DeleteProfileResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def SetDefaultMotionProfile(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/mtib.MtibV1/SetDefaultMotionProfile',
+            mtib__pb2.SetDefaultProfileRequest.SerializeToString,
+            mtib__pb2.SetDefaultProfileResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
@@ -843,8 +924,25 @@ class MtibV1(object):
             timeout=None,
             metadata=None):
         return grpc.experimental.unary_unary(request, target, '/mtib.MtibV1/GetMotionStatus',
-            mtib__pb2.GetMotionStatusRequest.SerializeToString,
+            mtib__pb2.Empty.SerializeToString,
             mtib__pb2.GetMotionStatusResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def MotionStart(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/mtib.MtibV1/MotionStart',
+            mtib__pb2.Empty.SerializeToString,
+            mtib__pb2.MotionStartResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 

@@ -4,7 +4,7 @@ from .helpers import grpc_method
 # Standard imports
 import logging
 import time
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Iterator
 from dataclasses import dataclass
 
 # Protocol imports
@@ -129,6 +129,14 @@ class MtibV1Provider(MtibV1Servicer):
         return None
 
     # -------------------------------------------------
+    #                                     Health Check
+    # -------------------------------------------------
+    @grpc_method
+    def HealthCheck(self, request: Empty, context: grpc.ServicerContext) -> HealthCheckResponse:
+        self.logger.info("HealthCheck request received")
+        return HealthCheckResponse(ready=True, errors=self.errors)
+
+    # -------------------------------------------------
     #                                              GPIO
     # -------------------------------------------------
     @grpc_method
@@ -154,27 +162,6 @@ class MtibV1Provider(MtibV1Servicer):
     def AdcReadAll(self, request: Empty, context: grpc.ServicerContext) -> AdcReadAllResponse:
         return self._adc_handlers.read_all(request, context)
 
-    # -------------------------------------------------------------------------------
-    #                                                                          Motion
-    # -------------------------------------------------------------------------------
-    @grpc_method
-    def GetMotionStatus(
-        self, request: GetMotionStatusRequest, context: grpc.ServicerContext
-    ) -> GetMotionStatusResponse:
-        return self._motion_handlers.get_status(request, context)
-
-    @grpc_method
-    def MotionHome(self, request: Empty, context: grpc.ServicerContext) -> MotionHomeResponse:
-        return self._motion_handlers.home(request, context)
-
-    @grpc_method
-    def MotionStop(self, request: Empty, context: grpc.ServicerContext) -> MotionStopResponse:
-        return self._motion_handlers.stop(request, context)
-
-    @grpc_method
-    def SendGcode(self, request: GcodeRequest, context: grpc.ServicerContext) -> GcodeResponse:
-        return self._motion_handlers.send_gcode(request, context)
-
     # -------------------------------------------------
     #                                             Power
     # -------------------------------------------------
@@ -194,12 +181,15 @@ class MtibV1Provider(MtibV1Servicer):
     def DutChargePowerDisable(self, request: Empty, context: grpc.ServicerContext) -> DutPowerResponse:
         return self._power_handlers.dut_charge_power_disable(request, context)
 
+    # -------------------------------------------------
+    #                                 Power Consumption
+    # -------------------------------------------------
     @grpc_method
     def DutPowerRead(self, request: Empty, context: grpc.ServicerContext) -> DutPowerReadResponse:
         return self._power_handlers.dut_power_read(request, context)
 
     # -------------------------------------------------
-    #                                          Sensors
+    #                                           Sensors
     # -------------------------------------------------
     @grpc_method
     def AltimeterRead(self, request: Empty, context: grpc.ServicerContext) -> AltimeterReadResponse:
@@ -210,30 +200,27 @@ class MtibV1Provider(MtibV1Servicer):
         return self._sensors_handlers.read_accel(request, context)
 
     # -------------------------------------------------
-    #                                         Firmware
+    #                                           FluidNC
     # -------------------------------------------------
     @grpc_method
-    def ListProgrammers(self, request: Empty, context: grpc.ServicerContext) -> ListProgrammersResponse:
-        return self._firmware_handlers.list_programmers(request, context)
+    def GetFluidNcConfig(self, request: Empty, context: grpc.ServicerContext) -> FluidNcConfigResponse:
+        return self._motion_handlers.get_config(request, context)
 
     @grpc_method
-    def ListFwFiles(self, request: Empty, context: grpc.ServicerContext) -> ListFwFilesResponse:
-        return self._firmware_handlers.list_fw_files(request, context)
-
-    @grpc_method
-    def UploadFwFile(self, request: UploadFwFileRequest, context: grpc.ServicerContext) -> UploadFwFileResponse:
-        return self._firmware_handlers.upload_fw_file(request, context)
-
-    @grpc_method
-    def DeleteFwFile(self, request: DeleteFwFileRequest, context: grpc.ServicerContext) -> DeleteFwFileResponse:
-        return self._firmware_handlers.delete_fw_file(request, context)
-
-    @grpc_method
-    def FlashFwFile(self, request: FlashFwFileRequest, context: grpc.ServicerContext) -> FlashFwFileResponse:
-        return self._firmware_handlers.flash_fw_file(request, context)
+    def UpdateFluidNcConfig(
+        self, request: UpdateFluidNcConfigRequest, context: grpc.ServicerContext
+    ) -> UpdateFluidNcConfigResponse:
+        return self._motion_handlers.update_config(request, context)
 
     # -------------------------------------------------
-    #                                    Motion Profile
+    #                                             Gcode
+    # -------------------------------------------------
+    @grpc_method
+    def SendGcode(self, request: GcodeRequest, context: grpc.ServicerContext) -> GcodeResponse:
+        return self._motion_handlers.send_gcode(request, context)
+
+    # -------------------------------------------------
+    #                                   Motion Profiles
     # -------------------------------------------------
     @grpc_method
     def UploadMotionProfile(
@@ -251,10 +238,58 @@ class MtibV1Provider(MtibV1Servicer):
     ) -> ExecuteProfileResponse:
         return self._motion_handlers.execute_profile(request, context)
 
+    @grpc_method
+    def DeleteMotionProfile(
+        self, request: DeleteProfileRequest, context: grpc.ServicerContext
+    ) -> DeleteProfileResponse:
+        return self._motion_handlers.delete_profile(request, context)
+
+    @grpc_method
+    def SetDefaultMotionProfile(
+        self, request: SetDefaultProfileRequest, context: grpc.ServicerContext
+    ) -> SetDefaultProfileResponse:
+        return self._motion_handlers.set_default_profile(request, context)
+
     # -------------------------------------------------
-    #                                     Health Check
+    #                                            Motion
     # -------------------------------------------------
     @grpc_method
-    def HealthCheck(self, request: Empty, context: grpc.ServicerContext) -> HealthCheckResponse:
-        self.logger.info("HealthCheck request received")
-        return HealthCheckResponse(ready=True, errors=self.errors)
+    def GetMotionStatus(self, request: Empty, context: grpc.ServicerContext) -> GetMotionStatusResponse:
+        return self._motion_handlers.get_status(request, context)
+
+    @grpc_method
+    def MotionStart(self, request: Empty, context: grpc.ServicerContext) -> MotionStartResponse:
+        return self._motion_handlers.start(request, context)
+
+    @grpc_method
+    def MotionHome(self, request: Empty, context: grpc.ServicerContext) -> MotionHomeResponse:
+        return self._motion_handlers.home(request, context)
+
+    @grpc_method
+    def MotionStop(self, request: Empty, context: grpc.ServicerContext) -> MotionStopResponse:
+        return self._motion_handlers.stop(request, context)
+
+    # -------------------------------------------------
+    #                                          Firmware
+    # -------------------------------------------------
+    @grpc_method
+    def ListProgrammers(self, request: Empty, context: grpc.ServicerContext) -> ListProgrammersResponse:
+        return self._firmware_handlers.list_programmers(request, context)
+
+    @grpc_method
+    def ListFwFiles(self, request: Empty, context: grpc.ServicerContext) -> ListFwFilesResponse:
+        return self._firmware_handlers.list_fw_files(request, context)
+
+    @grpc_method
+    def UploadFwFile(
+        self, request_iterator: Iterator[UploadFwFileRequest], context: grpc.ServicerContext
+    ) -> UploadFwFileResponse:
+        return self._firmware_handlers.upload_fw_file(request_iterator, context)
+
+    @grpc_method
+    def DeleteFwFile(self, request: DeleteFwFileRequest, context: grpc.ServicerContext) -> DeleteFwFileResponse:
+        return self._firmware_handlers.delete_fw_file(request, context)
+
+    @grpc_method
+    def FlashFwFile(self, request: FlashFwFileRequest, context: grpc.ServicerContext) -> FlashFwFileResponse:
+        return self._firmware_handlers.flash_fw_file(request, context)

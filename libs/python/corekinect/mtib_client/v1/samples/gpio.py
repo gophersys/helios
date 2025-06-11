@@ -18,21 +18,21 @@ def sample(client: MtibV1Client, logger: Logger) -> None:
     # The LEDs in the back of the board are connected to GPIOs 0-7.
     # You should see the LEDs blink in a pattern.
     for i in range(7):
-        client.gpio_config(i, GpioDirection.OUTPUT, GpioResistorConfig.NONE)
-        client.gpio_write(i, True)
+        client.GpioConfig(i, GpioDirection.OUTPUT, GpioResistorConfig.NONE)
+        client.GpioWrite(i, True)
         time.sleep(0.1)
-        client.gpio_write(i, False)
+        client.GpioWrite(i, False)
         time.sleep(0.1)
-        client.gpio_write(i, True)
+        client.GpioWrite(i, True)
 
     # Now in reverse order
     for i in range(7, -1, -1):
-        client.gpio_config(i, GpioDirection.OUTPUT, GpioResistorConfig.NONE)
-        client.gpio_write(i, True)
+        client.GpioConfig(i, GpioDirection.OUTPUT, GpioResistorConfig.NONE)
+        client.GpioWrite(i, True)
         time.sleep(0.1)
-        client.gpio_write(i, False)
+        client.GpioWrite(i, False)
         time.sleep(0.1)
-        client.gpio_write(i, True)
+        client.GpioWrite(i, True)
 
 
 if __name__ == "__main__":

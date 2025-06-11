@@ -18,7 +18,7 @@ def sample(client: MtibV1Client, logger: Logger) -> None:
 
     readings = []
     for i in range(8):
-        voltage, error = client.adc_read(i)
+        voltage, error = client.AdcRead(i)
         if error:
             logger.error(f"Error reading ADC {i}: {error}")
             sys.exit(1)

@@ -6,7 +6,7 @@ import tempfile
 import shutil
 import hashlib
 from pathlib import Path
-from typing import Dict, Tuple, Optional
+from typing import Dict, Tuple, Optional, Iterator
 from corekinect.utils import Logger
 from src.shared.types import *
 
@@ -130,9 +130,17 @@ class FirmwareHandler:
             return ListFwFilesResponse(success=False, message=f"Failed to list firmware files: {str(e)}", files=[])
 
     def upload_fw_file(
-        self, request_iterator: grpc.ServicerContext, context: grpc.ServicerContext
+        self, request_iterator: Iterator[UploadFwFileRequest], context: grpc.ServicerContext
     ) -> UploadFwFileResponse:
-        """Upload a firmware file to RAM."""
+        """Upload a firmware file to RAM.
+
+        Args:
+            request_iterator: Iterator of UploadFwFileRequest messages containing file chunks
+            context: gRPC servicer context
+
+        Returns:
+            UploadFwFileResponse with success status and SHA256 digest
+        """
         try:
             # Get the first request to get the filename
             first_request = next(request_iterator)
@@ -150,6 +158,8 @@ class FirmwareHandler:
 
                 # Write remaining chunks
                 for chunk in request_iterator:
+                    if not chunk.content:  # Skip empty chunks
+                        continue
                     f.write(chunk.content)
 
             # Calculate SHA256 and store the file path

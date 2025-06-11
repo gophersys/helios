@@ -16,22 +16,22 @@ def sample(client: MtibV1Client, logger: Logger) -> None:
     logger.info("Testing power management")
 
     # Turn off everything
-    if err := client.dut_power_disable():
+    if err := client.DutPowerDisable():
         logger.fatal(f"Error disabling DUT power: {err}")
 
-    if err := client.dut_charge_power_disable():
+    if err := client.DutChargePowerDisable():
         logger.fatal(f"Error disabling DUT charge power: {err}")
 
     logger.info("DUT power and charge power disabled")
 
     # Turn on the DUT power and DUT charge power
     voltage_v = 3.3
-    if err := client.dut_power_enable(voltage_v):
+    if err := client.DutPowerEnable(voltage_v):
         logger.fatal(f"Error enabling DUT power: {err}")
 
     logger.info(f"DUT power enabled, voltage: {voltage_v}")
 
-    if err := client.dut_charge_power_enable():
+    if err := client.DutChargePowerEnable():
         logger.fatal(f"Error enabling DUT charge power: {err}")
 
     logger.info("DUT charge power enabled")
@@ -40,12 +40,12 @@ def sample(client: MtibV1Client, logger: Logger) -> None:
     time.sleep(3)
 
     # Turn off everything
-    if err := client.dut_charge_power_disable():
+    if err := client.DutChargePowerDisable():
         logger.fatal(f"Error disabling DUT charge power: {err}")
 
     logger.info("DUT charge power disabled")
 
-    if err := client.dut_power_disable():
+    if err := client.DutPowerDisable():
         logger.fatal(f"Error disabling DUT power: {err}")
 
     logger.info("DUT power disabled")

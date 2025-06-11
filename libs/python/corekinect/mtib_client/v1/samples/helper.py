@@ -61,7 +61,7 @@ def run_sample(sample_func: Callable[[MtibV1Client, Logger], None], sample_name:
             sys.exit(1)
 
         # Health check
-        ready, errors = client.health_check()
+        ready, errors = client.HealthCheck()
         if not ready:
             logger.error(f"Error checking health: {errors}")
             sys.exit(1)
