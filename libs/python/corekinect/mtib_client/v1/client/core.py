@@ -70,6 +70,7 @@ class MtibV1Client:
                 - On success: (value1, value2, ..., None)  # Following Go convention of error last
                 - On failure: (None, None, ..., error_str)
         """
+        response = None
         try:
             response = func(request)
             if not response.success:
@@ -101,6 +102,9 @@ class MtibV1Client:
             error_msg = f"gRPC error for {self._get_func_name()} at {self.config.net.addr}. Error: {str(e.details())}"
             if return_value:
                 # For value methods, return Nones for all values plus error
+                if response is None:
+                    # If we never got a response, return a single None + error
+                    return None, error_msg
                 response_data = {k: v for k, v in response.__dict__.items() if k not in ("success", "message")}
                 if not response_data:
                     return None, error_msg
@@ -111,6 +115,9 @@ class MtibV1Client:
             error_msg = f"Unexpected error in {self._get_func_name()} at {self.config.net.addr}: {str(e)}"
             if return_value:
                 # For value methods, return Nones for all values plus error
+                if response is None:
+                    # If we never got a response, return a single None + error
+                    return None, error_msg
                 response_data = {k: v for k, v in response.__dict__.items() if k not in ("success", "message")}
                 if not response_data:
                     return None, error_msg
@@ -128,6 +135,19 @@ class MtibV1Client:
 
             # Create a stub using the newly created channel
             self.client = MtibClientV1(self.channel)
+
+            # Health check
+            ready, errors = self.HealthCheck()
+            if not ready:
+                return f"Error checking health: {errors}"
+
+            if ready and errors:
+                self.logger.error("Server is ready, but there are errors: %s", errors)
+                for error in errors:
+                    self.logger.error(error)
+
+            self.logger.debug("Connected to MTIB at %s:%d", self.config.net.addr, self.config.net.port)
+            return None
 
         except RpcError as e:
             return f"Failed to connect to MTIB at {self.config.net.addr}:{self.config.net.port}. Error: {str(e.details())}"
