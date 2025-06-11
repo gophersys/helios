@@ -67,29 +67,26 @@ class MtibV1Client:
                 - On success: None
                 - On failure: Error string
             If return_value=True (value methods):
-                - On success: (value1, value2, ..., None)  # Following Go convention of error last
-                - On failure: (None, None, ..., error_str)
+                - On success: (value1, value2, ..., None)  # All response fields except success/message, plus None for error
+                - On failure: (None, None, ..., error_str) # Nones for all fields plus error string
         """
-        response = None
         try:
             response = func(request)
             if not response.success:
                 error_msg = f"{self._get_func_name()} error: {response.message}"
                 if return_value:
-                    # For value methods, return Nones for all values plus error
+                    # Get all fields except success/message
                     response_data = {k: v for k, v in response.__dict__.items() if k not in ("success", "message")}
-                    if not response_data:
-                        return None, error_msg
-                    # Create a tuple of Nones for each value, plus the error
+                    # Return Nones for all fields plus error
                     return tuple([None] * len(response_data)) + (error_msg,)
                 return error_msg
 
-            # Extract the actual data from response, excluding success and message fields
+            # Extract all fields except success and message
             response_data = {k: v for k, v in response.__dict__.items() if k not in ("success", "message")}
 
             if not response_data:  # If no data fields (like in Empty responses)
                 if return_value:
-                    return None, None  # Single value + error
+                    return None, None  # Single None + error
                 return None
 
             # Convert dict values to tuple, maintaining order
@@ -101,28 +98,16 @@ class MtibV1Client:
         except grpc.RpcError as e:
             error_msg = f"gRPC error for {self._get_func_name()} at {self.config.net.addr}. Error: {str(e.details())}"
             if return_value:
-                # For value methods, return Nones for all values plus error
-                if response is None:
-                    # If we never got a response, return a single None + error
-                    return None, error_msg
-                response_data = {k: v for k, v in response.__dict__.items() if k not in ("success", "message")}
-                if not response_data:
-                    return None, error_msg
-                # Create a tuple of Nones for each value, plus the error
-                return tuple([None] * len(response_data)) + (error_msg,)
+                # For connection errors, we don't know the response type yet
+                # So we'll return a single None + error
+                return None, error_msg
             return error_msg
         except Exception as e:
             error_msg = f"Unexpected error in {self._get_func_name()} at {self.config.net.addr}: {str(e)}"
             if return_value:
-                # For value methods, return Nones for all values plus error
-                if response is None:
-                    # If we never got a response, return a single None + error
-                    return None, error_msg
-                response_data = {k: v for k, v in response.__dict__.items() if k not in ("success", "message")}
-                if not response_data:
-                    return None, error_msg
-                # Create a tuple of Nones for each value, plus the error
-                return tuple([None] * len(response_data)) + (error_msg,)
+                # For unexpected errors, we don't know the response type yet
+                # So we'll return a single None + error
+                return None, error_msg
             return error_msg
 
     # -----------------------------------------------
@@ -137,7 +122,10 @@ class MtibV1Client:
             self.client = MtibClientV1(self.channel)
 
             # Health check
-            ready, errors = self.HealthCheck()
+            ready, errors, error = self.HealthCheck()
+            if error:
+                return error
+
             if not ready:
                 return f"Error checking health: {errors}"
 
@@ -174,8 +162,16 @@ class MtibV1Client:
 
         Returns:
             Tuple of (ready status, list of errors if any, error string if failed)
+            - On success: (ready, errors, None)
+            - On failure: (None, None, error_string)
         """
-        return self._grpc_call(self.client.HealthCheck, Empty(), return_value=True)
+        try:
+            response = self.client.HealthCheck(Empty())
+            return response.ready, response.errors, None
+        except grpc.RpcError as e:
+            return None, None, f"gRPC error for HealthCheck at {self.config.net.addr}. Error: {str(e.details())}"
+        except Exception as e:
+            return None, None, f"Unexpected error in HealthCheck at {self.config.net.addr}: {str(e)}"
 
     # -----------------------------------------------
     #                                            GPIO
@@ -191,9 +187,15 @@ class MtibV1Client:
         Returns:
             None on success, error string on failure
         """
-        return self._grpc_call(
-            self.client.GpioConfig, GpioConfigRequest(gpio=gpio, direction=direction, resistor=resistor)
-        )
+        try:
+            response = self.client.GpioConfig(GpioConfigRequest(gpio=gpio, direction=direction, resistor=resistor))
+            if not response.success:
+                return f"GpioConfig error: {response.message}"
+            return None
+        except grpc.RpcError as e:
+            return f"gRPC error for GpioConfig at {self.config.net.addr}. Error: {str(e.details())}"
+        except Exception as e:
+            return f"Unexpected error in GpioConfig at {self.config.net.addr}: {str(e)}"
 
     def GpioWrite(self, gpio: int, state: bool) -> Optional[str]:
         """Set a GPIO pin's output state.
@@ -205,7 +207,15 @@ class MtibV1Client:
         Returns:
             None on success, error string on failure
         """
-        return self._grpc_call(self.client.GpioWrite, GpioWriteRequest(gpio=gpio, state=state))
+        try:
+            response = self.client.GpioWrite(GpioWriteRequest(gpio=gpio, state=state))
+            if not response.success:
+                return f"GpioWrite error: {response.message}"
+            return None
+        except grpc.RpcError as e:
+            return f"gRPC error for GpioWrite at {self.config.net.addr}. Error: {str(e.details())}"
+        except Exception as e:
+            return f"Unexpected error in GpioWrite at {self.config.net.addr}: {str(e)}"
 
     def GpioRead(self, gpio: int) -> Tuple[Optional[bool], Optional[str]]:
         """Read the current state of a GPIO pin.
@@ -215,8 +225,18 @@ class MtibV1Client:
 
         Returns:
             Tuple of (pin state, error if any)
+            - On success: (state, None)
+            - On failure: (None, error_string)
         """
-        return self._grpc_call(self.client.GpioRead, GpioReadRequest(gpio=gpio), return_value=True)
+        try:
+            response = self.client.GpioRead(GpioReadRequest(gpio=gpio))
+            if not response.success:
+                return None, f"GpioRead error: {response.message}"
+            return response.state, None
+        except grpc.RpcError as e:
+            return None, f"gRPC error for GpioRead at {self.config.net.addr}. Error: {str(e.details())}"
+        except Exception as e:
+            return None, f"Unexpected error in GpioRead at {self.config.net.addr}: {str(e)}"
 
     # -----------------------------------------------
     #                                             ADC

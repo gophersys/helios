@@ -112,33 +112,10 @@ class HealthCheckResponse:
 
 
 @dataclass
-class GpioConfigRequest:
-    gpio: int = 0
-    direction: GpioDirection = GpioDirection.UNDEFINED
-    resistor: GpioResistorConfig = GpioResistorConfig.UNDEFINED
-
-
-@dataclass
-class GpioWriteRequest:
-    gpio: int = 0
-    state: bool = False
-
-
-@dataclass
-class GpioReadRequest:
-    gpio: int = 0
-
-
-@dataclass
 class GpioReadResponse:
     success: bool = False
     message: str = ""
     state: bool = False
-
-
-@dataclass
-class AdcReadRequest:
-    channel: int = 0
 
 
 @dataclass

@@ -59,6 +59,11 @@ class MtibV1Stub(object):
                 request_serializer=mtib__pb2.Empty.SerializeToString,
                 response_deserializer=mtib__pb2.DutPowerResponse.FromString,
                 )
+        self.DutPowerRead = channel.unary_unary(
+                '/mtib.MtibV1/DutPowerRead',
+                request_serializer=mtib__pb2.Empty.SerializeToString,
+                response_deserializer=mtib__pb2.DutPowerReadResponse.FromString,
+                )
         self.DutChargePowerEnable = channel.unary_unary(
                 '/mtib.MtibV1/DutChargePowerEnable',
                 request_serializer=mtib__pb2.Empty.SerializeToString,
@@ -68,11 +73,6 @@ class MtibV1Stub(object):
                 '/mtib.MtibV1/DutChargePowerDisable',
                 request_serializer=mtib__pb2.Empty.SerializeToString,
                 response_deserializer=mtib__pb2.DutPowerResponse.FromString,
-                )
-        self.DutPowerRead = channel.unary_unary(
-                '/mtib.MtibV1/DutPowerRead',
-                request_serializer=mtib__pb2.Empty.SerializeToString,
-                response_deserializer=mtib__pb2.DutPowerReadResponse.FromString,
                 )
         self.AltimeterRead = channel.unary_unary(
                 '/mtib.MtibV1/AltimeterRead',
@@ -224,7 +224,7 @@ class MtibV1Servicer(object):
         raise NotImplementedError('Method not implemented!')
 
     def DutPowerEnable(self, request, context):
-        """Power
+        """DUT Power
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -236,21 +236,21 @@ class MtibV1Servicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def DutChargePowerEnable(self, request, context):
+    def DutPowerRead(self, request, context):
         """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def DutChargePowerEnable(self, request, context):
+        """DUT Charge Power
+        """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
     def DutChargePowerDisable(self, request, context):
         """Missing associated documentation comment in .proto file."""
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
-    def DutPowerRead(self, request, context):
-        """Power Consumption
-        """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
@@ -425,6 +425,11 @@ def add_MtibV1Servicer_to_server(servicer, server):
                     request_deserializer=mtib__pb2.Empty.FromString,
                     response_serializer=mtib__pb2.DutPowerResponse.SerializeToString,
             ),
+            'DutPowerRead': grpc.unary_unary_rpc_method_handler(
+                    servicer.DutPowerRead,
+                    request_deserializer=mtib__pb2.Empty.FromString,
+                    response_serializer=mtib__pb2.DutPowerReadResponse.SerializeToString,
+            ),
             'DutChargePowerEnable': grpc.unary_unary_rpc_method_handler(
                     servicer.DutChargePowerEnable,
                     request_deserializer=mtib__pb2.Empty.FromString,
@@ -434,11 +439,6 @@ def add_MtibV1Servicer_to_server(servicer, server):
                     servicer.DutChargePowerDisable,
                     request_deserializer=mtib__pb2.Empty.FromString,
                     response_serializer=mtib__pb2.DutPowerResponse.SerializeToString,
-            ),
-            'DutPowerRead': grpc.unary_unary_rpc_method_handler(
-                    servicer.DutPowerRead,
-                    request_deserializer=mtib__pb2.Empty.FromString,
-                    response_serializer=mtib__pb2.DutPowerReadResponse.SerializeToString,
             ),
             'AltimeterRead': grpc.unary_unary_rpc_method_handler(
                     servicer.AltimeterRead,
@@ -692,6 +692,23 @@ class MtibV1(object):
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
     @staticmethod
+    def DutPowerRead(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/mtib.MtibV1/DutPowerRead',
+            mtib__pb2.Empty.SerializeToString,
+            mtib__pb2.DutPowerReadResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
     def DutChargePowerEnable(request,
             target,
             options=(),
@@ -722,23 +739,6 @@ class MtibV1(object):
         return grpc.experimental.unary_unary(request, target, '/mtib.MtibV1/DutChargePowerDisable',
             mtib__pb2.Empty.SerializeToString,
             mtib__pb2.DutPowerResponse.FromString,
-            options, channel_credentials,
-            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
-
-    @staticmethod
-    def DutPowerRead(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/mtib.MtibV1/DutPowerRead',
-            mtib__pb2.Empty.SerializeToString,
-            mtib__pb2.DutPowerReadResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 

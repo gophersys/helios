@@ -92,15 +92,7 @@ class MCP4017:
         try:
             self._bus = smbus.SMBus(bus)
             self._address = address
-            self._current_value = 0
-
-            # Initialize to 0
-            self.set_step(0)
-            time.sleep(1)
-            logger.info("MCP4017 initialized successfully")
-            for i in range(128):
-                self.set_step(i)
-                time.sleep(0.1)
+            self._current_value = initial_value
 
         except Exception as e:
             raise MCP4017Error(f"Failed to initialize MCP4017: {str(e)}")

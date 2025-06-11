@@ -16,6 +16,5 @@ setup(
         "cryptography",
         "smbus",
         "reedsolo",
-        "tkinter",
     ],
 )

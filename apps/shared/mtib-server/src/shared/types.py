@@ -5,6 +5,7 @@ from protocols.mtib.mtib_pb2 import (
     # Health Check
     HealthCheckResponse,
     # GPIO types
+    GpioDirection,
     GpioConfigRequest,
     GpioConfigResponse,
     GpioWriteRequest,
