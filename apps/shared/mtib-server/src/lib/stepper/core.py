@@ -290,16 +290,16 @@ class StepperMotor:
             return f"Failed to initialize FluidNC: {err}"
 
 
-# Example usage:
-if __name__ == "__main__":
-    fluidnc = FluidNC("/dev/ttyUSB0", Pin.SODIMM_22)
+# # Example usage:
+# if __name__ == "__main__":
+#     fluidnc = FluidNC("/dev/ttyUSB0", Pin.SODIMM_22)
 
-    if err := fluidnc.init():
-        print(f"Failed to initialize: {err}")
-        sys.exit(1)
+#     if err := fluidnc.init():
+#         print(f"Failed to initialize: {err}")
+#         sys.exit(1)
 
-    # Start interactive terminal
-    if err := fluidnc.start_terminal():
-        print(f"Terminal error: {err}")
+#     # Start interactive terminal
+#     if err := fluidnc.start_terminal():
+#         print(f"Terminal error: {err}")
 
-    fluidnc.deinit()
+#     fluidnc.deinit()

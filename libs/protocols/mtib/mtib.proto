@@ -22,15 +22,15 @@ service MtibV1 {
   rpc AdcRead(AdcReadRequest) returns (AdcReadResponse) {}
   rpc AdcReadAll(Empty) returns (AdcReadAllResponse) {}
 
-  // Power
+  // DUT Power
   rpc DutPowerEnable(DutPowerRequest) returns (DutPowerResponse){}
   rpc DutPowerDisable(Empty) returns (DutPowerResponse){}
-  rpc DutChargePowerEnable(Empty) returns (DutPowerResponse){}
-  rpc DutChargePowerDisable(Empty) returns (DutPowerResponse){}
-
-  // Power Consumption
   rpc DutPowerRead(Empty) returns (DutPowerReadResponse) {}
 
+  // DUT Charge Power
+  rpc DutChargePowerEnable(Empty) returns (DutPowerResponse){}
+  rpc DutChargePowerDisable(Empty) returns (DutPowerResponse){}
+  
   // Sensors
   rpc AltimeterRead(Empty) returns (AltimeterReadResponse) {}
   rpc AccelRead(Empty) returns (AccelReadResponse) {}

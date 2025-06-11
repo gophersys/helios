@@ -14,6 +14,8 @@ setup(
         "gpiod==2.2.3",
         "xmodem",
         "cryptography",
+        "smbus",
         "reedsolo",
+        "tkinter",
     ],
 )
