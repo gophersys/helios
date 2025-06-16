@@ -74,6 +74,11 @@ class MtibV1Stub(object):
                 request_serializer=mtib__pb2.Empty.SerializeToString,
                 response_deserializer=mtib__pb2.DutPowerResponse.FromString,
                 )
+        self.DutChargePowerRead = channel.unary_unary(
+                '/mtib.MtibV1/DutChargePowerRead',
+                request_serializer=mtib__pb2.Empty.SerializeToString,
+                response_deserializer=mtib__pb2.DutPowerReadResponse.FromString,
+                )
         self.AltimeterRead = channel.unary_unary(
                 '/mtib.MtibV1/AltimeterRead',
                 request_serializer=mtib__pb2.Empty.SerializeToString,
@@ -250,6 +255,12 @@ class MtibV1Servicer(object):
         raise NotImplementedError('Method not implemented!')
 
     def DutChargePowerDisable(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def DutChargePowerRead(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -439,6 +450,11 @@ def add_MtibV1Servicer_to_server(servicer, server):
                     servicer.DutChargePowerDisable,
                     request_deserializer=mtib__pb2.Empty.FromString,
                     response_serializer=mtib__pb2.DutPowerResponse.SerializeToString,
+            ),
+            'DutChargePowerRead': grpc.unary_unary_rpc_method_handler(
+                    servicer.DutChargePowerRead,
+                    request_deserializer=mtib__pb2.Empty.FromString,
+                    response_serializer=mtib__pb2.DutPowerReadResponse.SerializeToString,
             ),
             'AltimeterRead': grpc.unary_unary_rpc_method_handler(
                     servicer.AltimeterRead,
@@ -739,6 +755,23 @@ class MtibV1(object):
         return grpc.experimental.unary_unary(request, target, '/mtib.MtibV1/DutChargePowerDisable',
             mtib__pb2.Empty.SerializeToString,
             mtib__pb2.DutPowerResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def DutChargePowerRead(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/mtib.MtibV1/DutChargePowerRead',
+            mtib__pb2.Empty.SerializeToString,
+            mtib__pb2.DutPowerReadResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 

@@ -30,6 +30,7 @@ service MtibV1 {
   // DUT Charge Power
   rpc DutChargePowerEnable(Empty) returns (DutPowerResponse){}
   rpc DutChargePowerDisable(Empty) returns (DutPowerResponse){}
+  rpc DutChargePowerRead(Empty) returns (DutPowerReadResponse) {}
   
   // Sensors
   rpc AltimeterRead(Empty) returns (AltimeterReadResponse) {}

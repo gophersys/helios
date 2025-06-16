@@ -35,6 +35,7 @@ LOG_MODULE = "provider"
 #                              Toradex SoM GPIO Map
 # -------------------------------------------------
 GPIO_PIN_MAP = {
+    # Main connector
     0: Pin.SODIMM_206,  # GPIO_0 - available on gpiochip2, line 4
     1: Pin.SODIMM_208,  # GPIO_1 - available on gpiochip4, line 5
     2: Pin.SODIMM_210,  # GPIO_2 - available on gpiochip4, line 26
@@ -42,9 +43,9 @@ GPIO_PIN_MAP = {
     4: Pin.SODIMM_34,  # I2S1_D_OUT - available on gpiochip3, line 26
     5: Pin.SODIMM_30,  # I2S1_BCLK - available on gpiochip3, line 25
     6: Pin.SODIMM_32,  # I2S1_SYNC - available on gpiochip3, line 24
-    10: Pin.SODIMM_196,  # SPI_1_CLK - available on gpiochip4, line 10
-    11: Pin.SODIMM_198,  # SPI_1_MISO - available on gpiochip4, line 12
-    12: Pin.SODIMM_200,  # SPI_1_MOSI - available on gpiochip4, line 11
+    # Auxiliary connector
+    7: Pin.SODIMM_15,  # PWM_1 - available on gpiochip4, line 10
+    8: Pin.SODIMM_16,  # PWM_2 - available on gpiochip4, line 12
 }
 
 
@@ -187,6 +188,10 @@ class MtibV1Provider(MtibV1Servicer):
     @grpc_method
     def DutPowerRead(self, request: Empty, context: grpc.ServicerContext) -> DutPowerReadResponse:
         return self._power_handlers.dut_power_read(request, context)
+
+    @grpc_method
+    def DutChargePowerRead(self, request: Empty, context: grpc.ServicerContext) -> DutPowerReadResponse:
+        return self._power_handlers.dut_charge_power_read(request, context)
 
     # -------------------------------------------------
     #                                           Sensors

@@ -18,7 +18,7 @@ def sample(client: MtibV1Client, logger: Logger) -> None:
 
     # The LEDs in the back of the board are connected to GPIOs 0-7.
     # You should see the LEDs blink in a pattern.
-    for i in range(7):
+    for i in range(9):
         error = client.GpioConfig(i, GpioDirection.OUTPUT, GpioResistorConfig.NONE)
         if error:
             logger.error(f"Error configuring GPIO {i}: {error}")
@@ -42,7 +42,7 @@ def sample(client: MtibV1Client, logger: Logger) -> None:
             return
 
     # Now in reverse order
-    for i in range(6, -1, -1):
+    for i in range(7, -1, -1):
         error = client.GpioConfig(i, GpioDirection.OUTPUT, GpioResistorConfig.NONE)
         if error:
             logger.error(f"Error configuring GPIO {i}: {error}")
@@ -64,6 +64,19 @@ def sample(client: MtibV1Client, logger: Logger) -> None:
         if error:
             logger.error(f"Error writing to GPIO {i}: {error}")
             return
+
+    # Now read the values of the GPIOs
+    for i in range(9):
+        error = client.GpioConfig(i, GpioDirection.INPUT, GpioResistorConfig.NONE)
+        if error:
+            logger.error(f"Error configuring GPIO {i}: {error}")
+            return
+
+        value, error = client.GpioRead(i)
+        if error:
+            logger.error(f"Error reading from GPIO {i}: {error}")
+            return
+        logger.info(f"GPIO {i}: {value}")
 
 
 if __name__ == "__main__":

@@ -272,7 +272,15 @@ class MtibV1Client:
         Returns:
             None on success, error string on failure
         """
-        return self._grpc_call(self.client.DutPowerEnable, DutPowerRequest(voltage_v=voltage_v))
+        try:
+            response = self.client.DutPowerEnable(DutPowerRequest(voltage_v=voltage_v))
+            if not response.success:
+                return f"DutPowerEnable error: {response.message}"
+            return None
+        except grpc.RpcError as e:
+            return f"gRPC error for DutPowerEnable at {self.config.net.addr}. Error: {str(e.details())}"
+        except Exception as e:
+            return f"Unexpected error in DutPowerEnable at {self.config.net.addr}: {str(e)}"
 
     def DutPowerDisable(self) -> Optional[str]:
         """Disable power to the device under test (DUT).
@@ -280,7 +288,15 @@ class MtibV1Client:
         Returns:
             None on success, error string on failure
         """
-        return self._grpc_call(self.client.DutPowerDisable, Empty())
+        try:
+            response = self.client.DutPowerDisable(Empty())
+            if not response.success:
+                return f"DutPowerDisable error: {response.message}"
+            return None
+        except grpc.RpcError as e:
+            return f"gRPC error for DutPowerDisable at {self.config.net.addr}. Error: {str(e.details())}"
+        except Exception as e:
+            return f"Unexpected error in DutPowerDisable at {self.config.net.addr}: {str(e)}"
 
     def DutChargePowerEnable(self) -> Optional[str]:
         """Enable charging power to the device under test (DUT).
@@ -288,7 +304,15 @@ class MtibV1Client:
         Returns:
             None on success, error string on failure
         """
-        return self._grpc_call(self.client.DutChargePowerEnable, Empty())
+        try:
+            response = self.client.DutChargePowerEnable(Empty())
+            if not response.success:
+                return f"DutChargePowerEnable error: {response.message}"
+            return None
+        except grpc.RpcError as e:
+            return f"gRPC error for DutChargePowerEnable at {self.config.net.addr}. Error: {str(e.details())}"
+        except Exception as e:
+            return f"Unexpected error in DutChargePowerEnable at {self.config.net.addr}: {str(e)}"
 
     def DutChargePowerDisable(self) -> Optional[str]:
         """Disable charging power to the device under test (DUT).
@@ -296,7 +320,15 @@ class MtibV1Client:
         Returns:
             None on success, error string on failure
         """
-        return self._grpc_call(self.client.DutChargePowerDisable, Empty())
+        try:
+            response = self.client.DutChargePowerDisable(Empty())
+            if not response.success:
+                return f"DutChargePowerDisable error: {response.message}"
+            return None
+        except grpc.RpcError as e:
+            return f"gRPC error for DutChargePowerDisable at {self.config.net.addr}. Error: {str(e.details())}"
+        except Exception as e:
+            return f"Unexpected error in DutChargePowerDisable at {self.config.net.addr}: {str(e)}"
 
     # -----------------------------------------------
     #                                    Power Consumption
@@ -307,7 +339,31 @@ class MtibV1Client:
         Returns:
             Tuple of (current in amps, voltage in volts, power in watts, error if any)
         """
-        return self._grpc_call(self.client.DutPowerRead, Empty(), return_value=True)
+        try:
+            response = self.client.DutPowerRead(Empty())
+            if not response.success:
+                return None, None, None, f"DutPowerRead error: {response.message}"
+            return response.current_a, response.voltage_v, response.power_w, None
+        except grpc.RpcError as e:
+            return None, None, None, f"gRPC error for DutPowerRead at {self.config.net.addr}. Error: {str(e.details())}"
+        except Exception as e:
+            return None, None, None, f"Unexpected error in DutChargePowerDisable at {self.config.net.addr}: {str(e)}"
+
+    def DutChargePowerRead(self) -> Tuple[Optional[float], Optional[float], Optional[float], Optional[str]]:
+        """Read the charging power consumption of the device under test (DUT).
+
+        Returns:
+            Tuple of (current in amps, voltage in volts, power in watts, error if any)
+        """
+        try:
+            response = self.client.DutChargePowerRead(Empty())
+            if not response.success:
+                return None, None, None, f"DutChargePowerRead error: {response.message}"
+            return response.current_a, response.voltage_v, response.power_w, None
+        except grpc.RpcError as e:
+            return None, None, None, f"gRPC error for DutChargePowerRead at {self.config.net.addr}. Error: {str(e.details())}"
+        except Exception as e:
+            return None, None, None, f"Unexpected error in DutChargePowerRead at {self.config.net.addr}: {str(e)}"
 
     # -----------------------------------------------
     #                                        Sensors

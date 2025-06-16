@@ -133,11 +133,6 @@ class AdcReadAllResponse:
 
 
 @dataclass
-class DutPowerRequest:
-    voltage_v: float = 0.0
-
-
-@dataclass
 class DutPowerResponse:
     success: bool = False
     message: str = ""

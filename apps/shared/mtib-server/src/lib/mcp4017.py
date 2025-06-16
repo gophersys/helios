@@ -112,7 +112,6 @@ class MCP4017:
         try:
             self._bus.write_byte(self._address, value)
             self._current_value = value
-            self.logger.debug(f"Set MCP4017 step to {value}")
 
         except Exception as e:
             raise MCP4017Error(f"Failed to set step: {str(e)}")
