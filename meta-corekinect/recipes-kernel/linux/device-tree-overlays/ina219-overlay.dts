@@ -35,6 +35,8 @@
 		reg = <0x40>;
 		status = "okay";
 		shunt-resistor = <100000>;
+		vdd-supply = <&reg_vdd_3v3>;
+		vddio-supply = <&reg_vdd_3v3>;
 	};
 
 	ina219@41 {
@@ -42,7 +44,9 @@
 		reg = <0x41>;
 		status = "okay";
 		shunt-resistor = <100000>;
-	};
+		vdd-supply = <&reg_vdd_3v3>;
+		vddio-supply = <&reg_vdd_3v3>;
+	}; 
 
 	accel@19 {
 		compatible = "st,lis2de12";

@@ -11,17 +11,17 @@ function compile() {
         -I $STAGING_KERNEL_DIR/include \
         -I $STAGING_KERNEL_DIR/scripts/dtc/include-prefixes \
         -undef -x assembler-with-cpp \
-        meta-corekinect/recipes-kernel/linux/device-tree-overlays/no-i2c.dts \
-        no-i2c.dts.preprocessed
+        meta-corekinect/recipes-kernel/linux/device-tree-overlays/ad7689-overlay.dts \
+        ad7689-overlay.dts.preprocessed
 
-    dtc -@ -I dts -O dtb -o no-i2c.dtbo no-i2c.dts.preprocessed
+    dtc -@ -I dts -O dtb -o ad7689-overlay.dtbo ad7689-overlay.dts.preprocessed
 
-    echo "Compiled no-i2c.dtbo successfully"
+    echo "Compiled ad7689-overlay.dtbo successfully"
 }
 
 function deploy() {
     # Copy to device
-    scp no-i2c.dtbo torizon@imx8:/tmp/
+    scp ad7689-overlay.dtbo torizon@imx8:/tmp/
     
     # Execute commands with a terminal allocation
     ssh -t torizon@imx8 '
@@ -37,10 +37,10 @@ function deploy() {
         echo "OSTree overlays directory: $OVERLAYS_DIR"
         
         echo "Copying overlay..."
-        sudo cp /tmp/no-i2c.dtbo "$OVERLAYS_DIR/"
+        sudo cp /tmp/ad7689-overlay.dtbo "$OVERLAYS_DIR/"
         
         echo "Removing legacy overlay if present..."
-        sudo rm -f /boot/overlays/no-i2c.dtbo
+        sudo rm -f /boot/overlays/ad7689-overlay.dtbo
         
         echo "Verifying setup..."
         ls -l "$OVERLAYS_DIR/"
