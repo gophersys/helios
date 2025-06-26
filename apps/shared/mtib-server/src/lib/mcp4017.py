@@ -3,6 +3,8 @@ import logging
 from typing import Optional, List, Dict
 import time
 
+from corekinect.utils import Logger
+
 
 class MCP4017Error(Exception):
     """Base exception for MCP4017 errors"""
@@ -66,7 +68,7 @@ class MCP4017:
 
     def __init__(
         self,
-        logger: logging.Logger,
+        logger: Logger,
         bus: int = DEFAULT_BUS,
         address: int = DEFAULT_ADDRESS,
         verify: bool = True,

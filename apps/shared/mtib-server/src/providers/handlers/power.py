@@ -121,7 +121,7 @@ class PowerHandler:
             voltage_v = 0.0
 
             # Read bus voltage (in mV) and convert to V
-            with open(os.path.join(self.chg_power_ina_path, "in1_input"), "r") as f:
+            with open(os.path.join(self.power_ina_path, "in1_input"), "r") as f:
                 voltage_v = float(f.read().strip()) / 1000.0  # Convert mV to V
 
             return voltage_v, None
@@ -145,7 +145,7 @@ class PowerHandler:
             # Binary search bounds
             min_step = 0
             max_step = MCP4017.MAX_VALUE
-            current_step = max_step // 2  # Start in the middle
+            current_step = int(max_step / 2)  # Start in the middle
 
             for _ in range(MAX_ATTEMPTS):
                 # Set the wiper position
@@ -154,7 +154,7 @@ class PowerHandler:
 
                 # Read current voltage from ADC
                 current_voltage_v, error = self._read_adc_voltage()
-                if error:
+                if error or current_voltage_v is None:
                     return error
 
                 # Check if we're close enough
