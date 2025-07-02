@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, Dict
 import grpc
 import os
 from corekinect.utils import Logger
@@ -8,25 +8,19 @@ from src.shared.types import *
 class AdcHandler:
     def __init__(self, logger: Logger):
         self.logger = logger
-        self.iio_device_path = None
+        self.ads1015_devices: Dict[int, str] = {}  # channel -> device_path mapping
 
-        # Find the AD7689 IIO device
-        for device_path in os.listdir("/sys/bus/iio/devices"):
-            try:
-                with open(f"/sys/bus/iio/devices/{device_path}/name", "r") as f:
-                    if f.read().strip() == "ad7689":
-                        self.iio_device_path = f"/sys/bus/iio/devices/{device_path}"
-                        break
-            except Exception:
-                continue
+        # Find and map ADS1015 devices to channels
+        self._discover_ads1015_devices()
 
-        if not self.iio_device_path:
-            raise Exception("AD7689 IIO device not found")
+        if not self.ads1015_devices:
+            raise Exception("No ADS1015 IIO devices found")
 
-        self.logger.info(f"Found AD7689 at {self.iio_device_path}")
+        self.logger.info(f"Found {len(self.ads1015_devices)} ADS1015 devices: {self.ads1015_devices}")
 
-        # AD7689 is a 16-bit ADC with 0-4.096V range
-        self.max_raw = 65535  # 16-bit max value
+        # ADS1015 is a 12-bit ADC with programmable gain
+        # We'll use the default ±4.096V range
+        self.max_raw = 2047  # 12-bit signed max value
         self.max_voltage = 4.096  # Maximum voltage in volts
         self.scale_factor = self.max_voltage / self.max_raw
 
@@ -35,12 +29,57 @@ class AdcHandler:
         self.divider_ratio = 1.5
         self.logger.info(f"Using voltage divider ratio: {self.divider_ratio}")
 
+    def _discover_ads1015_devices(self):
+        """Discover ADS1015 devices and map them to channels."""
+        try:
+            # Scan all IIO devices
+            for device_path in os.listdir("/sys/bus/iio/devices"):
+                device_full_path = f"/sys/bus/iio/devices/{device_path}"
+
+                try:
+                    with open(os.path.join(device_full_path, "name"), "r") as f:
+                        device_name = f.read().strip()
+
+                    if device_name == "ads1015":
+                        # Read the device address to identify which chip this is
+                        # We'll use the device number as a proxy for now
+                        device_num = int(device_path.replace("iio:device", ""))
+
+                        # Map channels based on device number
+                        # Assuming device0 = 0x48 (channels 0-3), device1 = 0x49 (channels 4-7)
+                        if device_num == 0:  # First ADS1015 (0x48)
+                            for channel in range(4):
+                                self.ads1015_devices[channel] = device_full_path
+                        elif device_num == 1:  # Second ADS1015 (0x49)
+                            for channel in range(4, 8):
+                                self.ads1015_devices[channel] = device_full_path
+                        elif device_num == 2:  # Third ADS1015 (if present)
+                            # This one might be used for other purposes, skip for now
+                            self.logger.info(f"Found third ADS1015 at {device_full_path}, skipping")
+
+                except Exception as e:
+                    self.logger.debug(f"Error reading device {device_path}: {e}")
+                    continue
+
+        except Exception as e:
+            self.logger.error(f"Error discovering ADS1015 devices: {e}")
+
     def _read_raw(self, channel: int) -> tuple[Optional[str], int]:
         """Read raw value from ADC channel."""
+        if channel not in self.ads1015_devices:
+            return f"Channel {channel} not mapped to any ADS1015 device", 0
+
+        device_path = self.ads1015_devices[channel]
+
         try:
-            with open(os.path.join(self.iio_device_path, f"in_voltage{channel}_raw"), "r") as f:
+            # Calculate the channel number within the device (0-3)
+            device_channel = channel % 4
+
+            with open(os.path.join(device_path, f"in_voltage{device_channel}_raw"), "r") as f:
                 raw = int(f.read().strip())
-                self.logger.debug(f"Raw ADC value for channel {channel}: {raw}")
+                self.logger.debug(
+                    f"Raw ADC value for channel {channel} (device {device_path}, device_channel {device_channel}): {raw}"
+                )
                 return None, raw
         except Exception as e:
             return f"Failed to read ADC channel {channel}: {str(e)}", 0
@@ -71,9 +110,10 @@ class AdcHandler:
             return AdcReadResponse(success=False, message=err, voltage_v=0.0)
 
         real_voltage = self._calculate_real_voltage(raw_value)
+        device_path = self.ads1015_devices.get(request.channel, "unknown")
         self.logger.debug(
             f"Channel {request.channel} voltage: {real_voltage:.4f}V "
-            f"(raw: {raw_value}, divider: {self.divider_ratio:.2f})"
+            f"(raw: {raw_value}, device: {device_path}, divider: {self.divider_ratio:.2f})"
         )
         return AdcReadResponse(success=True, message="", voltage_v=real_voltage)
 
@@ -89,9 +129,10 @@ class AdcHandler:
                     success=False, message=f"Failed to read channel {channel}: {err}", voltages_v=[]
                 )
             real_voltage = self._calculate_real_voltage(raw_value)
+            device_path = self.ads1015_devices.get(channel, "unknown")
             self.logger.debug(
                 f"Channel {channel} voltage: {real_voltage:.4f}V "
-                f"(raw: {raw_value}, divider: {self.divider_ratio:.2f})"
+                f"(raw: {raw_value}, device: {device_path}, divider: {self.divider_ratio:.2f})"
             )
             voltages.append(real_voltage)
 
