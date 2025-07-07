@@ -212,12 +212,7 @@ func (r *ADCReader) readADCValue() (float64, error) {
 	
 	// 3. Convert to volts
 	voltage_V := realVoltage_mV / 1000.0
-	
-	// Debug logging for channel 3 (the one you're monitoring)
-	if r.realChannel == 3 {
-		log.Printf("Channel %d conversion: raw=%d, scale=%.9f mV/unit, measured=%.3f mV, divider_ratio=%.1f, real_voltage=%.6f V", 
-			r.realChannel, rawValue, r.scaleFactor, voltage_mV, voltageDividerRatio, voltage_V)
-	}
+
 	
 	return voltage_V, nil
 }
@@ -236,11 +231,6 @@ func (r *ADCReader) publishReading() {
 	if token.Wait() && token.Error() != nil {
 		log.Printf("Error publishing to topic %s: %v", topic, token.Error())
 		return
-	}
-
-	// Log every 100th reading to avoid spam
-	if r.realChannel == 3 {
-		log.Printf("Published real channel %d (MQTT: %d): %.6f V to topic %s", r.realChannel, r.mqttChannel, value, topic)
 	}
 }
 
