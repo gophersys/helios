@@ -6,33 +6,33 @@ stepping:
   disable_delay_us: 0                     
 
 axes:
-  x:
-    homing: 
-      cycle: 1
-      settle_ms: 250
-      mpos_mm: 0.000
-      seek_mm_per_min: 6000.000
-      feed_mm_per_min: 6000.000
-      seek_scaler: 1.100
-      feed_scaler: 1.100
-      allow_single_axis: true
-      positive_direction: false
-    steps_per_mm: 4.315
-    max_rate_mm_per_min: 20000.000    
-    acceleration_mm_per_sec2: 500.000
-    max_travel_mm: 550
-    soft_limits: true
-    motor0:
-      limit_pos_pin: gpio.25:low
-      limit_neg_pin: gpio.26:low
-      stepstick:
-        step_pin: gpio.5
-        direction_pin: gpio.4
-        disable_pin: gpio.18:high
-        reset_pin: gpio.13:high
-        ms1_pin: gpio.27:low
-        ms2_pin: gpio.14:low
-        ms3_pin: gpio.12:low
+  # x:
+  #   homing: 
+  #     cycle: 1
+  #     settle_ms: 250
+  #     mpos_mm: 0.000
+  #     seek_mm_per_min: 6000.000
+  #     feed_mm_per_min: 6000.000
+  #     seek_scaler: 1.100
+  #     feed_scaler: 1.100
+  #     allow_single_axis: true
+  #     positive_direction: false
+  #   steps_per_mm: 4.315
+  #   max_rate_mm_per_min: 20000.000    
+  #   acceleration_mm_per_sec2: 500.000
+  #   max_travel_mm: 550
+  #   soft_limits: true
+  #   motor0:
+  #     limit_pos_pin: gpio.25:low
+  #     limit_neg_pin: gpio.26:low
+  #     stepstick:
+  #       step_pin: gpio.5
+  #       direction_pin: gpio.4
+  #       disable_pin: gpio.18:high
+  #       reset_pin: gpio.13:high
+  #       ms1_pin: gpio.27:low
+  #       ms2_pin: gpio.14:low
+  #       ms3_pin: gpio.12:low
   
   y:
     homing: 
