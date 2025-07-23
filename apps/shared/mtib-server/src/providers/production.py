@@ -28,6 +28,7 @@ from .handlers.motion import MotionHandler
 from .handlers.power import PowerHandler
 from .handlers.sensors import SensorsHandler
 from .handlers.firmware import FirmwareHandler
+from .handlers.uart import UartHandler
 
 LOG_MODULE = "provider"
 
@@ -126,6 +127,7 @@ class MtibV1Provider(MtibV1Servicer):
         self._power_handlers = PowerHandler(self.logger)
         self._sensors_handlers = SensorsHandler(self.logger)
         self._firmware_handlers = FirmwareHandler(self.logger)
+        self._uart_handlers = UartHandler(self.logger)
 
         return None
 
@@ -298,3 +300,11 @@ class MtibV1Provider(MtibV1Servicer):
     @grpc_method
     def FlashFwFile(self, request: FlashFwFileRequest, context: grpc.ServicerContext) -> FlashFwFileResponse:
         return self._firmware_handlers.flash_fw_file(request, context)
+
+    # -------------------------------------------------
+    #                                              UART
+    # -------------------------------------------------
+    def UartStream(
+        self, request_iterator: Iterator[UartStreamRequest], context: grpc.ServicerContext
+    ) -> Iterator[UartStreamResponse]:
+        return self._uart_handlers.stream(request_iterator, context)

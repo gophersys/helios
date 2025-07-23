@@ -17,6 +17,9 @@ from corekinect.utils import Logger
 from .types import *
 from .config import *
 
+# Import actual protobuf types for UART streaming
+from protocols.mtib.mtib_pb2 import UartStreamRequest, UartStreamResponse
+
 
 class MtibV1Client:
     # -----------------------------------------------
@@ -604,4 +607,34 @@ class MtibV1Client:
     # -----------------------------------------------
     #                                        Uart
     # ---------------------------------------------*/
-    # TODO: Implement UartStream
+    def UartStream(self, target: HostType, request_iterator: Iterator[UartStreamRequest]) -> Iterator[UartStreamResponse]:
+        """Stream UART data to/from a target device using a custom request iterator.
+
+        Args:
+            target: Target host type (NRF9160, NRF52840, etc.)
+            request_iterator: Iterator that yields UartStreamRequest objects
+
+        Yields:
+            UartStreamResponse objects containing received data or status
+        """
+        try:
+            # Make the streaming call with the provided request iterator
+            response_iterator = self.client.UartStream(request_iterator)
+            
+            for response in response_iterator:
+                yield response
+                
+        except grpc.RpcError as e:
+            self.logger.error(f"gRPC error for UartStream at {self.config.net.addr}. Error: {str(e.details())}")
+            yield UartStreamResponse(
+                success=False,
+                message=f"gRPC error: {str(e.details())}",
+                target=target
+            )
+        except Exception as e:
+            self.logger.error(f"Unexpected error in UartStream at {self.config.net.addr}: {str(e)}")
+            yield UartStreamResponse(
+                success=False,
+                message=f"Unexpected error: {str(e)}",
+                target=target
+            )
