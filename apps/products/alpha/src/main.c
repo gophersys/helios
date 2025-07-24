@@ -9,6 +9,7 @@
 #include <zephyr/drivers/sensor.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
+#include <zephyr/pm/pm.h>
 
 // Application includes
 #include <corekinect/module/vsm/vsm.h>
@@ -16,13 +17,13 @@
 LOG_MODULE_REGISTER(alpha, 4);
 
 // Forward declarations for helper functions
-static void handle_vitals_callback(const vitals_thread_callback_data_t *data, void *user_data);
+static void handle_vsm_callback(const vitals_thread_callback_data_t *data, void *user_data);
 static void process_vitals_metrics(const vitals_output_metrics_t *metrics);
 
 // Global variables
-static vitals_thread_t g_vitals_thread = {0};
+static vsm_t g_vsm = {0};
 
-static void handle_vitals_callback(const vitals_thread_callback_data_t *data, void *user_data) {
+static void handle_vsm_callback(const vitals_thread_callback_data_t *data, void *user_data) {
     // Process based on event type
     switch (data->event) {
         case VITALS_EVENT_STATE_CHANGED:
@@ -30,7 +31,6 @@ static void handle_vitals_callback(const vitals_thread_callback_data_t *data, vo
             switch (data->state) {
                 case VITALS_STATE_IDLE:
                     // Idle state, do nothing
-                    LOG_WRN("Vitals thread is idle");
                     break;
 
                 case VITALS_STATE_TOUCH_DETECTED:
@@ -41,7 +41,7 @@ static void handle_vitals_callback(const vitals_thread_callback_data_t *data, vo
                 case VITALS_STATE_SKIN_CONFIRMED:
                     // Skin contact confirmed, activate full monitoring
                     LOG_WRN("Skin contact confirmed, activating monitoring");
-                    vitals_thread_activate_monitoring(&g_vitals_thread);
+                    vsm_activate_monitoring(&g_vsm);
                     break;
 
                 case VITALS_STATE_ACTIVE_MONITORING:
@@ -57,7 +57,7 @@ static void handle_vitals_callback(const vitals_thread_callback_data_t *data, vo
                 case VITALS_STATE_DESKIN_CONFIRMED:
                     // Skin contact lost, deactivate monitoring
                     LOG_WRN("Skin contact lost, deactivating monitoring");
-                    // vitals_thread_deactivate_monitoring(&g_vitals_thread);
+                    // vsm_deactivate_monitoring(&g_vsm);
                     break;
 
                 default:
@@ -94,14 +94,15 @@ static void process_vitals_metrics(const vitals_output_metrics_t *metrics) {
 
 int main(void) {
     // Configure vitals thread with callback and detection parameters
-    static const vitals_thread_config_t vitals_config = {
+    static const vsm_config_t vsm_cfg = {
         // Hardware devices
         .p_ppg_dev = DEVICE_DT_GET(DT_NODELABEL(pah8151)),
         .p_imu_dev = DEVICE_DT_GET(DT_NODELABEL(lsm6dso0)),
-        .p_temp_dev = DEVICE_DT_GET(DT_NODELABEL(paf9615)),
+        .p_temp_dev = DEVICE_DT_GET(DT_NODELABEL(mlx90614)),
+        .p_ppg_enable_gpio = GPIO_DT_SPEC_GET(DT_ALIAS(vsm_enable), gpios),
 
         // Application callback
-        .callback = handle_vitals_callback,
+        .callback = handle_vsm_callback,
         .callback_user_data = NULL,
 
         // Skin detection parameters
@@ -112,17 +113,29 @@ int main(void) {
     };
 
     // Initialize vitals thread
-    if (!vitals_thread_init(&vitals_config, &g_vitals_thread)) {
+    if (!vsm_init(&vsm_cfg, &g_vsm)) {
         LOG_ERR("Failed to initialize vitals thread");
         return -1;
     }
 
-    LOG_INF("Alpha application started!");
-
     // Main application loop
     while (1) {
-        // Application logic
-        k_sleep(K_MSEC(100));
+        // // Initialize vitals thread
+        // if (!vsm_init(&vsm_cfg, &g_vsm)) {
+        //     LOG_ERR("Failed to initialize vitals thread");
+        //     return -1;
+        // }
+
+        // LOG_INF("VSM module is ready to use");
+        // k_sleep(K_SECONDS(20));
+        // LOG_INF("Shutting down VSM module");
+
+        // if (!vsm_deinit(&g_vsm)) {
+        //     LOG_ERR("Failed to deinitialize vitals thread");
+        //     return -1;
+        // }
+
+        k_sleep(K_SECONDS(20));
     }
 
     return 0;

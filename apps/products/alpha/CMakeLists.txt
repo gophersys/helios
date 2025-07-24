@@ -32,18 +32,6 @@ set(PAH8151_HRD_LIB_PATH ${VSM_PAH8151_HRD_LIB_PATH})
 # Define the merged hex file path
 set(MERGED_HEX_PATH "${CMAKE_BINARY_DIR}/merged.hex")
 
-# Add PAH8151 HRD library if it's available
-if(EXISTS ${PAH8151_HRD_LIB_PATH})
-    # Create an imported static library
-    add_library(pah8151_hrd_lib STATIC IMPORTED GLOBAL)
-    set_target_properties(pah8151_hrd_lib PROPERTIES IMPORTED_LOCATION ${PAH8151_HRD_LIB_PATH})
-    # Link the library to the application
-    target_link_libraries(app PRIVATE pah8151_hrd_lib)
-    message(STATUS "PAH8151 HRD library found and linked: ${PAH8151_HRD_LIB_PATH}")
-else()
-    message(WARNING "PAH8151 HRD library not found at: ${PAH8151_HRD_LIB_PATH}")
-endif()
-
 # Custom target to merge and flash both hex files
 if(EXISTS ${LIBRARY_HEX_PATH})
     add_custom_target(merge_hex ALL
@@ -63,5 +51,10 @@ else()
     message(WARNING "Library hex file not found at: ${LIBRARY_HEX_PATH}. Ensure the vsm_drv module is included correctly.")
 endif()
 
-target_sources(app PRIVATE src/main.c)
+# target_sources(app PRIVATE src/main.c)
+# target_sources(app PRIVATE src/main_9160.c)
 # target_sources(app PRIVATE src/test.c)
+# target_sources(app PRIVATE src/test_temp.c)
+# target_sources(app PRIVATE src/test_snr.c)
+target_sources(app PRIVATE src/test_cross_talk.c)
+# target_sources(app PRIVATE src/test_reflectivity.c)

@@ -9,6 +9,15 @@
         },
         {
             "path": "../../libs/zephyr/ck_boards"
+        },
+        {
+            "path": "../../libs/zephyr/vsm_drv/samples/simple"
+        },
+        {
+            "path": "../../libs/zephyr"
+        },
+        {
+            "path": "../../../../ncs"
         }
     ],
     "settings": {
@@ -54,7 +63,11 @@
             "thread.h": "c",
             "array": "c",
             "lsm6dso.h": "c",
-            "lsm6dso_reg.h": "c"
+            "lsm6dso_reg.h": "c",
+            "mlx90614.h": "c",
+            "stmemsc.h": "c",
+            "paf9615.h": "c",
+            "pah_815x_verify_reg_v1.h": "c"
         },
     }
 }

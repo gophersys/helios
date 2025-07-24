@@ -7,15 +7,6 @@
     aliases {
         vsm-enable = &vsm_enable;
     };
-
-    gpio_outputs {
-        compatible = "gpio-leds";
-
-        vsm_enable: vsm_enable {
-            gpios = <&gpio0 25 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>;
-            label = "VSM Enable";
-        };
-    };
 };
 
 &i2c1 {
