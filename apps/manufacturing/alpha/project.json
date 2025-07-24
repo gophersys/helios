@@ -1,0 +1,53 @@
+{
+  "name": "manufacturing-alpha",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/manufacturing/alpha",
+  "projectType": "application",
+  "targets": {
+    "build": {
+      "command": "nx run manufacturing-alpha:containerize",
+      "cwd": "{workspaceRoot}"
+    },
+    "push": {
+      "dependsOn": [
+        "build"
+      ],
+      "command": "docker push kubecop.ad.corekinect.com:5000/manufacturing-alpha:latest"
+    },
+    "containerize": {
+      "executor": "@nx-tools/nx-container:build",
+      "cwd": "{workspaceRoot}",
+      "options": {
+        "context": "{workspaceRoot}",
+        "file": "apps/manufacturing/alpha/deploy/Dockerfile",
+        "platforms": [
+          "linux/arm64"
+        ],
+        "load": true,
+        "push": false,
+        "tags": [
+          "kubecop.ad.corekinect.com:5000/manufacturing-alpha:latest"
+        ]
+      }
+    },
+    "setup": {
+      "executor": "nx:run-commands",
+      "cwd": "{projectRoot}",
+      "options": {
+        "cwd": "{projectRoot}",
+        "commands": [
+          {
+            "command": "python3 -m venv .venv"
+          },
+          {
+            "command": "bash -c 'source .venv/bin/activate && pip install -e .'"
+          },
+          {
+            "command": "cp .env.example .env"
+          }
+        ],
+        "parallel": false
+      }
+    }
+  }
+}

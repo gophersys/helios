@@ -5,10 +5,6 @@
             "path": "../../.devcontainer"
         },
         {
-            "name": "docs",
-            "path": "../../docs"
-        },
-        {
             "name": "protocols",
             "path": "../../libs/protocols"
         },
@@ -17,16 +13,16 @@
             "path": "../../apps/shared/mtib-server"
         },
         {
-            "path": "../../libs/zephyr/mcp4017_drv"
-        },
-        {
-            "path": "../../apps/shared/runner/zephyr"
-        },
-        {
             "path": "../../libs/python/corekinect/mtib_client/v1"
         },
         {
-            "path": "../.."
+            "path": "../../apps/manufacturing/alpha"
+        },
+        {
+            "path": "../../apps/manufacturing/sigma5_legacy"
+        },
+        {
+            "path": "../../apps/backend/proxy"
         }
     ],
     "settings": {
