@@ -16,11 +16,11 @@ def sample(client: MtibV1Client, logger: Logger) -> None:
     """
     logger.info("Testing power management")
 
-    # # Turn off everything
-    if err := client.DutPowerDisable():
-        logger.fatal(f"Error disabling DUT power: {err}")
+    # # # Turn off everything
+    # if err := client.DutPowerDisable():
+    #     logger.fatal(f"Error disabling DUT power: {err}")
 
-    time.sleep(1)
+    # time.sleep(1)
 
     # if err := client.DutChargePowerDisable():
         # logger.fatal(f"Error disabling DUT charge power: {err}")
@@ -35,7 +35,7 @@ def sample(client: MtibV1Client, logger: Logger) -> None:
 
     # Display the readings for a few seconds
     count = 0
-    while count < 10:
+    while True:
         # Normal Power
         current_a, voltage_v, power_w, err = client.DutPowerRead()
         if err:

@@ -24,6 +24,9 @@
         },
         {
             "path": "../../libs/python/corekinect/mtib_client/v1"
+        },
+        {
+            "path": "../.."
         }
     ],
     "settings": {

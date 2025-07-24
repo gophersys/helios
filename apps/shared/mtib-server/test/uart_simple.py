@@ -5,6 +5,8 @@ import threading
 import queue
 import select
 import os
+import termios
+import tty
 
 # Corekinect includes
 from corekinect.utils import Logger
@@ -29,12 +31,16 @@ class UartTerminal:
         self.running = False
         self.input_queue = queue.Queue()
         self.output_queue = queue.Queue()
+        self.old_settings = None
         
     def start(self):
         """Start the interactive UART terminal."""
         self.running = True
         self.logger.info(f"Starting UART terminal for {self.target}")
-        self.logger.info("Type your commands and press Enter. Ctrl+C to exit.")
+        self.logger.info("Type your commands. All keystrokes (including tabs, arrows) are sent immediately. Ctrl+C to exit.")
+        
+        # Save terminal settings and set raw mode
+        self._setup_terminal()
         
         # Start input thread
         input_thread = threading.Thread(target=self._input_loop, daemon=True)
@@ -48,22 +54,65 @@ class UartTerminal:
             # Main loop - handle UART stream
             self._uart_loop()
         except KeyboardInterrupt:
-            self.logger.info("\nTerminal interrupted by user")
+            # This should not happen in raw mode, but just in case
+            self._restore_terminal()
+            print("\n")  # Add a clean newline
+            self.logger.info("Terminal interrupted by user")
         finally:
             self.stop()
+    
+    def _setup_terminal(self):
+        """Set up terminal for raw input mode."""
+        try:
+            # Save current terminal settings
+            self.old_settings = termios.tcgetattr(sys.stdin)
+            
+            # Set terminal to raw mode
+            tty.setraw(sys.stdin.fileno())
+            
+            # Set non-blocking mode
+            fd = sys.stdin.fileno()
+            try:
+                old_flags = os.get_blocking(fd)
+                os.set_blocking(fd, False)
+            except AttributeError:
+                # get_blocking/set_blocking not available on all systems
+                pass
+            
+        except Exception as e:
+            self.logger.warning(f"Could not set terminal to raw mode: {e}")
+            self.old_settings = None
+    
+    def _restore_terminal(self):
+        """Restore terminal to original settings."""
+        try:
+            if self.old_settings:
+                termios.tcsetattr(sys.stdin, termios.TCSADRAIN, self.old_settings)
+        except Exception as e:
+            self.logger.warning(f"Could not restore terminal settings: {e}")
     
     def _input_loop(self):
         """Background thread to read user input."""
         while self.running:
             try:
-                # Check if input is available (non-blocking)
+                # Read individual characters in raw mode
                 if select.select([sys.stdin], [], [], 0.1)[0]:
-                    line = sys.stdin.readline()
-                    if line:
-                        # Add newline and encode
-                        data = line.encode('utf-8')
+                    char = sys.stdin.read(1)
+                    if char:
+                        # Check for Ctrl+C (ASCII 3)
+                        if ord(char) == 3:
+                            # Restore terminal immediately for clean output
+                            self._restore_terminal()
+                            print("\n")  # Add a clean newline
+                            self.logger.info("Received Ctrl+C, stopping terminal...")
+                            self.running = False
+                            break
+                        
+                        # Encode and send the character
+                        data = char.encode('utf-8')
                         self.input_queue.put(data)
-            except:
+            except Exception as e:
+                self.logger.error(f"Input loop error: {e}")
                 break
     
     def _output_loop(self):
@@ -77,7 +126,8 @@ class UartTerminal:
                     sys.stdout.flush()
             except queue.Empty:
                 continue
-            except:
+            except Exception as e:
+                self.logger.error(f"Output loop error: {e}")
                 break
     
     def _uart_loop(self):
@@ -108,6 +158,8 @@ class UartTerminal:
     def stop(self):
         """Stop the terminal."""
         self.running = False
+        # Terminal is already restored in Ctrl+C handler, but restore again just in case
+        self._restore_terminal()
         self.logger.info("UART terminal stopped")
 
 
@@ -118,7 +170,7 @@ def sample(client: MtibV1Client, logger: Logger) -> None:
     logger.info("Interactive UART Terminal")
     
     # Test target - use protobuf enum
-    target = HostType.HOST_TYPE_NRF52840
+    target = HostType.HOST_TYPE_NRF9160
     logger.info(f"Opening UART terminal for target: {target}")
     
     # Create and start terminal
