@@ -1,5 +1,6 @@
 from corekinect.utils import EnvConfig
 
+
 class AlphaEnvConfig(EnvConfig):
     LOG_LEVEL: int
     LOG_PATH: str
@@ -14,5 +15,7 @@ class AlphaEnvConfig(EnvConfig):
     # Assets directory
     ASSETS_DIR: str
 
-    # Scanner device
-    SCANNER_DEV: str
+    # Firmware file names
+    MODEM_FW_FILE: str
+    COMMS_COPROC_FW_FILE: str
+    APP_PROC_FW_FILE: str

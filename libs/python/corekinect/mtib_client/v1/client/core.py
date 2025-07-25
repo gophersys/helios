@@ -374,16 +374,29 @@ class MtibV1Client:
         except grpc.RpcError as e:
             error_msg = f"gRPC error for {self._get_func_name()} at {self.config.net.addr}. Error: {str(e.details())}"
             if return_value:
-                # For connection errors, we don't know the response type yet
-                # So we'll return a single None + error
-                return None, error_msg
+                # For connection errors, we need to determine the expected return structure
+                # by calling the function with a mock request to get the response type
+                try:
+                    # Try to get the response type by calling the function
+                    mock_response = func(request)
+                    response_data = {k: v for k, v in mock_response.__dict__.items() if k not in ("success", "message")}
+                    return tuple([None] * len(response_data)) + (error_msg,)
+                except:
+                    # If we can't determine the structure, return a single None + error
+                    return None, error_msg
             return error_msg
         except Exception as e:
             error_msg = f"Unexpected error in {self._get_func_name()} at {self.config.net.addr}: {str(e)}"
             if return_value:
-                # For unexpected errors, we don't know the response type yet
-                # So we'll return a single None + error
-                return None, error_msg
+                # For unexpected errors, we need to determine the expected return structure
+                try:
+                    # Try to get the response type by calling the function
+                    mock_response = func(request)
+                    response_data = {k: v for k, v in mock_response.__dict__.items() if k not in ("success", "message")}
+                    return tuple([None] * len(response_data)) + (error_msg,)
+                except:
+                    # If we can't determine the structure, return a single None + error
+                    return None, error_msg
             return error_msg
 
     # -----------------------------------------------
@@ -810,7 +823,15 @@ class MtibV1Client:
         Returns:
             Tuple of (list of firmware file info, error if any)
         """
-        return self._grpc_call(self.client.ListFwFiles, Empty(), return_value=True)
+        try:
+            response = self.client.ListFwFiles(Empty())
+            if not response.success:
+                return None, f"ListFwFiles error: {response.message}"
+            return response.files, None
+        except grpc.RpcError as e:
+            return None, f"gRPC error for ListFwFiles at {self.config.net.addr}. Error: {str(e.details())}"
+        except Exception as e:
+            return None, f"Unexpected error in ListFwFiles at {self.config.net.addr}: {str(e)}"
 
     def UploadFwFile(self, file_path: str, target: HostType) -> Optional[str]:
         """Upload a firmware file to the device using streaming.
@@ -833,11 +854,19 @@ class MtibV1Client:
             def request_iterator():
                 # Stream the file content in chunks
                 with open(file_path, "rb") as f:
+                    first_chunk = True
                     while True:
                         chunk = f.read(CHUNK_SIZE)
                         if not chunk:
                             break
-                        yield UploadFwFileRequest(name=file_name, target=target, content=chunk)
+                        
+                        if first_chunk:
+                            # First request contains name, target, and first chunk
+                            yield UploadFwFileRequest(name=file_name, target=target, content=chunk)
+                            first_chunk = False
+                        else:
+                            # Subsequent requests contain only content
+                            yield UploadFwFileRequest(content=chunk)
 
             # Make the streaming call
             try:

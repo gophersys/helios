@@ -93,6 +93,7 @@ from config.env import AlphaEnvConfig
 #     result.success = True
 #     return result
 
+
 def _init(client: MtibV1Client, logger: Logger, env_config: AlphaEnvConfig) -> Optional[str]:
     """
     Initialize the client
@@ -108,17 +109,113 @@ def _init(client: MtibV1Client, logger: Logger, env_config: AlphaEnvConfig) -> O
     if not os.path.isdir(assets_dir):
         return f"Assets directory {assets_dir} is not a directory"
 
-    # List the files in the assets directory
-    files = os.listdir(assets_dir)
-    logger.info(f"Assets directory {assets_dir} contains the following files: {files}")
-
-def personalization_step(client: MtibV1Client, logger: Logger, env_config: AlphaEnvConfig) -> Optional[str]:
-    """
-    Personalization step
-    """
-    err = _init(client, logger, env_config)
+    # List files in the remote server
+    files, err = client.ListFwFiles()
     if err:
-        return f"Error initializing application: {err}"
+        return f"Error listing firmware files: {err}"
+    
+    if files:
+        for file in files:
+            if file.name == env_config.MODEM_FW_FILE:
+                logger.info(f"Server has modem firmware file: {file}")
+            elif file.name == env_config.COMMS_COPROC_FW_FILE:
+                logger.info(f"Server has comms coproc firmware file: {file}")
+            elif file.name == env_config.APP_PROC_FW_FILE:
+                logger.info(f"Server has app proc firmware file: {file}")
+            else:
+                logger.info(f"Server has unknown firmware file: {file}")
+    else:
+        logger.info("No firmware files found on server!")
+
+        # Upload the modem firmware file
+        if err := client.UploadFwFile(os.path.join(assets_dir, env_config.MODEM_FW_FILE), HostType.HOST_TYPE_NRF9160_MODEM):
+            logger.fatal(f"Error uploading modem firmware file: {err}")
+
+        # # Upload the comms coproc firmware file
+        # if err := client.UploadFwFile(os.path.join(assets_dir, env_config.COMMS_COPROC_FW_FILE), HostType.HOST_TYPE_NRF9160_MODEM):
+        #     logger.fatal(f"Error uploading comms coproc firmware file: {err}")
+
+    # Upload the app proc firmware file
+
+def _power_on(client: MtibV1Client, logger: Logger) -> Optional[str]:
+    """
+    Power on the device
+    """
+    import time
+    voltage_v = 4.0
+    if err := client.DutPowerEnable(voltage_v):
+        logger.fatal(f"Error enabling DUT power: {err}")
+
+    logger.info("Waiting for device to power on...")
+    time.sleep(1)
+
+    # Sample power every 250ms for 2 seconds (8 samples)
+    samples = []
+    min_ma_draw = None
+    max_ma_draw = None
+    for _ in range(4):
+        current_a, voltage_v, power_w, err = client.DutPowerRead()
+        if err:
+            logger.fatal(f"Error reading DUT power: {err}")
+        ma_draw = current_a * 1000
+        samples.append(ma_draw)
+        if min_ma_draw is None or ma_draw < min_ma_draw:
+            min_ma_draw = ma_draw
+        if max_ma_draw is None or ma_draw > max_ma_draw:
+            max_ma_draw = ma_draw
+        time.sleep(0.25)
+
+    avg_ma_draw = sum(samples) / len(samples)
+    logger.info(f"Device powered on, power draw: min {min_ma_draw} mA, max {max_ma_draw} mA, avg {avg_ma_draw} mA")
+
+    if avg_ma_draw < 10 or avg_ma_draw > 30:
+        return f"Average power draw is not within expected range: {avg_ma_draw} mA, min {min_ma_draw} mA, max {max_ma_draw} mA"
 
     return None
 
+def _flash_mfg_firmware(client: MtibV1Client, logger: Logger, env_config: AlphaEnvConfig) -> Optional[str]:
+    """
+    Flash the manufacturing firmware
+    """
+    # Get the assets directory
+    assets_dir = env_config.ASSETS_DIR
+
+    # Upload the firmware files to the device
+    for file in os.listdir(assets_dir):
+        if file.endswith(".bin"):
+            logger.info(f"Uploading firmware file: {file}")
+            if err := client.DutFirmwareUpload(file):
+                logger.fatal(f"Error uploading firmware file: {err}")
+
+    return None
+
+def _power_off(client: MtibV1Client, logger: Logger) -> Optional[str]:
+    """
+    Power off the device
+    """
+    if err := client.DutPowerDisable():
+        logger.fatal(f"Error disabling DUT power: {err}")
+
+    return None
+
+def personalization_step(
+    client: MtibV1Client, logger: Logger, env_config: AlphaEnvConfig, serial_number: str
+) -> Optional[str]:
+    """
+    Personalization step
+    """
+    logger.info(f"Personalizing device with serial number: {serial_number}")
+
+    err = _init(client, logger, env_config)
+    if err:
+        return f"Error initializing application: {err}"
+    
+    err = _power_on(client, logger)
+    if err:
+        return f"Error powering on device: {err}"
+    
+    err = _power_off(client, logger)
+    if err:
+        return f"Error powering off device: {err}"
+
+    return None

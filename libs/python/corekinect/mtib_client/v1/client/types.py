@@ -51,6 +51,7 @@ from protocols.mtib.mtib_pb2 import (
     SetDefaultProfileRequest,
     SetDefaultProfileResponse,
     # Firmware types
+    HostType,
     ListProgrammersResponse,
     ListFwFilesResponse,
     UploadFwFileRequest,
@@ -243,19 +244,10 @@ class ProgrammerType(IntEnum):
     BLACKMAGIC = 2
 
 
-class HostType(IntEnum):
-    UNDEFINED = 0
-    NRF9160 = 1
-    NRF9160_MODEM = 2
-    NRF52840 = 3
-    NRF5340 = 4
-    NRF9151 = 5
-
-
 @dataclass
 class Programmer:
     type: ProgrammerType = ProgrammerType.UNDEFINED
-    host: HostType = HostType.UNDEFINED
+    host: HostType = HostType.HOST_TYPE_NRF9160_MODEM
 
 
 @dataclass
@@ -268,7 +260,7 @@ class ListProgrammersResponse:
 @dataclass
 class FwFileInfo:
     name: str = ""
-    target: HostType = HostType.UNDEFINED
+    target: HostType = HostType.HOST_TYPE_NRF9160_MODEM
     size_b: int = 0
     sha256_digest: str = ""
 
@@ -283,7 +275,7 @@ class ListFwFilesResponse:
 @dataclass
 class UploadFwFileRequest:
     name: str = ""
-    target: HostType = HostType.UNDEFINED
+    target: HostType = HostType.HOST_TYPE_NRF9160_MODEM
     content: bytes = b""
 
 
@@ -319,7 +311,7 @@ class FlashFwFileResponse:
 
 @dataclass
 class UartStreamRequest:
-    target: HostType = HostType.UNDEFINED
+    target: HostType = HostType.HOST_TYPE_NRF9160_MODEM
     data: bytes = b""
 
 
@@ -327,5 +319,5 @@ class UartStreamRequest:
 class UartStreamResponse:
     success: bool = False
     message: str = ""
-    target: HostType = HostType.UNDEFINED
+    target: HostType = HostType.HOST_TYPE_NRF9160_MODEM
     data: bytes = b""

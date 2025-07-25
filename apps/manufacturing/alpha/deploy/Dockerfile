@@ -1,4 +1,4 @@
-FROM ubuntu:24.04
+FROM ubuntu:22.04
 
 # -----------------------------------------------------------------------------------------------------
 #                                                                                                System
@@ -32,18 +32,21 @@ RUN pip install -e . && \
 # ---------------------------------------------------------------------------------------------------*/
 WORKDIR /app
 
+# Copy the libraries used by the app
+COPY libs/python /libs/python
+
 # Copy the protocols used by the app
-COPY libs/protos/cluster_test /libs/protos/cluster_test
-COPY libs/protos/cluster_operator /libs/protos/cluster_operator
-COPY libs/protos/mtib_runner /libs/protos/mtib_runner
+COPY libs/protocols/mtib /libs/protocols/mtib
+
+# Set the PYTHONPATH to include the libs directory
+ENV PYTHONPATH="/libs:${PYTHONPATH}"
+ENV PYTHONPATH="/libs/python/:${PYTHONPATH}"
 
 # Import the paths to the python path
 ENV PYTHONPATH="/libs:${PYTHONPATH}"
 
-# Copy any assets we may need
-COPY apps/manufacturing/alpha/assets assets
-
 # Copy the app itself
+COPY apps/manufacturing/alpha/config config
 COPY apps/manufacturing/alpha/src src
 
 # Keep the container running
