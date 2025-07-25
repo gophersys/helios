@@ -1,6 +1,7 @@
 # Standard includes
 import time
 import sys
+import os
 
 # Corekinect includes
 from corekinect.utils import Logger
@@ -19,8 +20,6 @@ def sample(client: MtibV1Client, logger: Logger) -> None:
     # # # Turn off everything
     # if err := client.DutPowerDisable():
     #     logger.fatal(f"Error disabling DUT power: {err}")
-
-    # time.sleep(1)
 
     # if err := client.DutChargePowerDisable():
         # logger.fatal(f"Error disabling DUT charge power: {err}")

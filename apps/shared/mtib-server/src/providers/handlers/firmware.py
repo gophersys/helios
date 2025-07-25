@@ -248,62 +248,24 @@ class FirmwareHandler:
 
             # Flash the firmware
             start_time = time.time()
-            try:
-                # Step 1: Recover if requested
-                if request.recover:
-                    try:
-                        recover_cmd = ["nrfjprog", "--recover", "--snr", programmer]
-                        self.logger.info(f"Running recover: {' '.join(recover_cmd)}")
-                        subprocess.run(
-                            recover_cmd,
-                            capture_output=True,
-                            text=True,
-                            check=True,
-                            timeout=60,  # 1 minute timeout
-                        )
-                    except subprocess.TimeoutExpired:
-                        error_msg = f"Recover operation timed out after 1 minute for programmer {programmer}"
-                        self.logger.error(error_msg)
-                        return FlashFwFileResponse(success=False, message=error_msg, time_ms=0)
-                    except subprocess.CalledProcessError as e:
-                        error_msg = f"Failed to recover programmer {programmer}: {e.stderr if e.stderr else str(e)}"
-                        if e.stdout:
-                            error_msg += f"\nstdout: {e.stdout}"
-                        self.logger.error(error_msg)
-                        return FlashFwFileResponse(success=False, message=error_msg, time_ms=0)
-                    except FileNotFoundError:
-                        error_msg = "nrfjprog command not found. Please ensure nRF Command Line Tools are installed."
-                        self.logger.error(error_msg)
-                        return FlashFwFileResponse(success=False, message=error_msg, time_ms=0)
-                    except Exception as e:
-                        error_msg = f"Unexpected error during recover operation: {str(e)}"
-                        self.logger.error(error_msg)
-                        return FlashFwFileResponse(success=False, message=error_msg, time_ms=0)
-
-                # Step 2: Build the nrfjprog programming command
-                cmd = ["nrfjprog", "--program", str(file_path), "--verify", "--snr", programmer]
-                if request.sector_erase:
-                    cmd.append("--sectorerase")
-
-                # Step 3: Run the programming command
+            # Step 1: Recover if requested
+            if request.recover:
                 try:
-                    self.logger.info(f"Running program: {' '.join(cmd)}")
-                    result = subprocess.run(
-                        cmd,
+                    recover_cmd = ["nrfjprog", "--recover", "--snr", programmer]
+                    self.logger.info(f"Running recover: {' '.join(recover_cmd)}")
+                    subprocess.run(
+                        recover_cmd,
                         capture_output=True,
                         text=True,
                         check=True,
                         timeout=60,  # 1 minute timeout
                     )
-                    time_ms = int((time.time() - start_time) * 1000)
-                    self.logger.info(f"Successfully flashed firmware in {time_ms}ms")
-                    return FlashFwFileResponse(success=True, message="", time_ms=time_ms)
                 except subprocess.TimeoutExpired:
-                    error_msg = f"Flash operation timed out after 1 minute for programmer {programmer}"
+                    error_msg = f"Recover operation timed out after 1 minute for programmer {programmer}"
                     self.logger.error(error_msg)
                     return FlashFwFileResponse(success=False, message=error_msg, time_ms=0)
                 except subprocess.CalledProcessError as e:
-                    error_msg = f"Failed to flash firmware: {e.stderr if e.stderr else str(e)}"
+                    error_msg = f"Failed to recover programmer {programmer}: {e.stderr if e.stderr else str(e)}"
                     if e.stdout:
                         error_msg += f"\nstdout: {e.stdout}"
                     self.logger.error(error_msg)
@@ -313,13 +275,45 @@ class FirmwareHandler:
                     self.logger.error(error_msg)
                     return FlashFwFileResponse(success=False, message=error_msg, time_ms=0)
                 except Exception as e:
-                    error_msg = f"Unexpected error during flash operation: {str(e)}"
+                    error_msg = f"Unexpected error during recover operation: {str(e)}"
                     self.logger.error(error_msg)
                     return FlashFwFileResponse(success=False, message=error_msg, time_ms=0)
 
-            except Exception as e:
-                self.logger.error(f"Error flashing firmware: {e}")
-                return FlashFwFileResponse(success=False, message=f"Failed to flash firmware: {str(e)}", time_ms=0)
+            # Step 2: Build the nrfjprog programming command
+            cmd = ["nrfjprog", "--program", str(file_path), "--verify", "--snr", programmer]
+            if request.sector_erase:
+                cmd.append("--sectorerase")
+
+            # Step 3: Run the programming command
+            self.logger.info(f"Running program: {' '.join(cmd)}")
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                check=True,
+                timeout=60,  # 1 minute timeout
+            )
+            time_ms = int((time.time() - start_time) * 1000)
+            self.logger.info(f"Successfully flashed firmware in {time_ms}ms")
+            return FlashFwFileResponse(success=True, message="", time_ms=time_ms)
+
+        except subprocess.TimeoutExpired:
+            error_msg = f"Flash operation timed out after 1 minute for programmer {programmer}"
+            self.logger.error(error_msg)
+            return FlashFwFileResponse(success=False, message=error_msg, time_ms=0)
+        except subprocess.CalledProcessError as e:
+            error_msg = f"Failed to flash firmware: {e.stderr if e.stderr else str(e)}"
+            if e.stdout:
+                error_msg += f"\nstdout: {e.stdout}"
+            self.logger.error(error_msg)
+            return FlashFwFileResponse(success=False, message=error_msg, time_ms=0)
+        except FileNotFoundError:
+            error_msg = "nrfjprog command not found. Please ensure nRF Command Line Tools are installed."
+            self.logger.error(error_msg)
+            return FlashFwFileResponse(success=False, message=error_msg, time_ms=0)
+        except Exception as e:
+            self.logger.error(f"Error flashing firmware: {e}")
+            return FlashFwFileResponse(success=False, message=f"Failed to flash firmware: {str(e)}", time_ms=0)
 
     def __del__(self):
         """Cleanup all temporary files when the handler is destroyed."""

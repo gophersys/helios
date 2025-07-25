@@ -139,7 +139,7 @@ class PowerHandler:
         try:
             # Constants for voltage control
             MAX_ATTEMPTS = 10  # Maximum number of adjustment attempts
-            VOLTAGE_TOLERANCE = 0.025  # Acceptable voltage error in V
+            VOLTAGE_TOLERANCE = 0.04  # Acceptable voltage error in V
             STEP_DELAY = 0.1  # Delay between adjustments in seconds
 
             # Binary search bounds

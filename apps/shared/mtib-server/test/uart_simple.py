@@ -7,6 +7,7 @@ import select
 import os
 import termios
 import tty
+import argparse
 
 # Corekinect includes
 from corekinect.utils import Logger
@@ -163,14 +164,41 @@ class UartTerminal:
         self.logger.info("UART terminal stopped")
 
 
+def parse_target(target_str: str) -> HostType:
+    """Parse target string to HostType enum."""
+    target_map = {
+        'nrf52840': HostType.HOST_TYPE_NRF52840,
+        'nrf9160': HostType.HOST_TYPE_NRF9160,
+        'nrf5340': HostType.HOST_TYPE_NRF5340,
+        'nrf9151': HostType.HOST_TYPE_NRF9151,
+    }
+    
+    target_lower = target_str.lower()
+    if target_lower not in target_map:
+        raise ValueError(f"Invalid target '{target_str}'. Valid targets: {', '.join(target_map.keys())}")
+    
+    return target_map[target_lower]
+
+
 def sample(client: MtibV1Client, logger: Logger) -> None:
     """
     Interactive UART terminal like minicom.
     """
     logger.info("Interactive UART Terminal")
     
-    # Test target - use protobuf enum
-    target = HostType.HOST_TYPE_NRF9160
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description='Interactive UART terminal for MTIB targets')
+    parser.add_argument('target', choices=['nrf52840', 'nrf9160', 'nrf5340', 'nrf9151'], 
+                       help='Target device to connect to')
+    args = parser.parse_args()
+    
+    # Parse target
+    try:
+        target = parse_target(args.target)
+    except ValueError as e:
+        logger.error(f"Invalid target: {e}")
+        return
+    
     logger.info(f"Opening UART terminal for target: {target}")
     
     # Create and start terminal
