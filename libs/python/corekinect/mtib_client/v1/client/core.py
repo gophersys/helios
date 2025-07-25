@@ -28,252 +28,6 @@ from .config import *
 from protocols.mtib.mtib_pb2 import UartStreamRequest, UartStreamResponse
 
 
-# ---------------------------------------------------------------------------------
-#                                                                    Test Constants
-# -------------------------------------------------------------------------------*/
-NUM_CRC_BYTES = 4
-SYNC_BYTE1 = 0x12
-SYNC_BYTE2 = 0xE4
-RECEIVE_TIMEOUT_MS = 1000  # 1 second
-
-
-class Sigma5DeviceCommand(Enum):
-    CMD_NOP = 0x00
-    CMD_ACK = 0x01
-    CMD_CLEAR_PERSONALIZATION = 0x02
-    CMD_PERSONALIZE_DEV_EUI = 0x11
-    CMD_IMEI_ICCID_GET = 0x2B
-    CMD_POST = 0x2C
-    CMD_GET_SENSOR_VALS = 0x2D
-    CMD_GET_MODEM_FW_VER = 0x2E
-    CMD_DEV_EC_PUB_KEY = 0x2F
-
-
-class CommandResponse:
-    @classmethod
-    def from_bytes(cls, data: bytes):
-        return cls(data)
-
-
-@dataclass(frozen=True)
-class CMD_ACK_Response(CommandResponse):
-    ack: bool
-
-    @classmethod
-    def from_bytes(cls, data: bytes):
-        ack = False
-        if len(data) > 1 and data[1] == 1:  # Check if the second byte equals 1
-            ack = True
-        return cls(ack=ack)
-
-
-@dataclass(frozen=True)
-class CMD_CLEAR_PERSONALIZATION_Response(CommandResponse):
-    ack: bool = None
-
-    @classmethod
-    def from_bytes(cls, data: bytes):
-        ack = False
-        if len(data) > 1 and data[1] == 1:  # Check if the second byte equals 1
-            ack = True
-        return cls(ack)
-
-
-@dataclass(frozen=True)
-class CMD_PERSONALIZE_DEV_EUI_Response(CommandResponse):
-    flags: int = None
-    read: bool = None
-    device_id: int = None
-
-    @classmethod
-    def from_bytes(cls, data: bytes):
-        data_length: int = 9
-        data_format: str = ">BQ"
-
-        if len(data) < data_length:
-            raise ValueError(
-                f"Data length is insufficient for CMD_PERSONALIZE_DEV_EUI_Response, expected {data_length}, got {len(data)}"
-            )
-
-        flags, device_id = struct.unpack(data_format, data)
-
-        read = (flags & 0x80) >> 7  # bit 7
-
-        return cls(flags=flags, read=read, device_id=device_id)
-
-    @classmethod
-    def to_bytes(cls, read: bool, device_id: int):
-        data_length = 9
-        data_format: str = ">BQ"
-
-        flags = 0x80 if read else 0x00  # bit 7
-
-        payload = struct.pack(data_format, flags, device_id)
-
-        if len(payload) != data_length:
-            raise ValueError(
-                f"Data length is incorrect packing payload for CMD_PERSONALIZE_DEV_EUI_Response, expected {data_length}, got {len(payload)}"
-            )
-
-        return payload
-
-
-@dataclass(frozen=True)
-class CMD_IMEI_ICCID_Response(CommandResponse):
-    imei: str
-    iccids: List[str]
-
-    @classmethod
-    def from_bytes(cls, data: bytes):
-        imei_iccid_str = data.decode("ascii").strip("\x00")
-        imei_iccid_list = imei_iccid_str.split(",")
-        imei = imei_iccid_list[0]
-        iccids = imei_iccid_list[1:]
-
-        return cls(imei=imei, iccids=iccids)
-
-
-@dataclass(frozen=True)
-class CMD_POST_Response(CommandResponse):
-    # Supported by message spec
-    accel_ic_id: int = None
-    alt_ic_id: int = None
-    external_flash_ic_id: str = None
-    external_flash_test_pass: bool = None
-    is_lora_connected: bool = None
-    gps_ublox_version_info: str = None
-
-    # Further decoding of gps_ublox_raw_version_info
-    gps_ublox_sw_ver: str = None
-    gps_ublox_hw_ver: str = None
-    gps_ublox_fw_ver: str = None
-    gps_ublox_proto_ver: str = None
-    gps_ublox_supported_constellations: List[str] = None
-
-    @classmethod
-    def from_bytes(cls, data: bytes):
-
-        data_length: int = 167
-        packed_format: str = ">BB3sBB160s"
-
-        # Check if the data length is sufficient
-        if len(data) < data_length:
-            raise ValueError("Data length is insufficient for CMD_POST_Response")
-
-        # Unpack the data
-        unpacked_data = struct.unpack(packed_format, data[:data_length])
-
-        # Extract the data
-        accelerometer_ic_id = unpacked_data[0]
-        altimeter_ic_id = unpacked_data[1]
-        external_flash_ic_id = unpacked_data[2].hex()
-        external_flash_test_pass = True if unpacked_data[3] == 255 else False
-        is_lora_connected = True if unpacked_data[4] == 255 else False
-        gps_ublox_version_info = unpacked_data[5].decode("utf-8", errors="replace")
-
-        # Further decode the GPS u-blox version info
-        gps_ublox_null_term_split = unpacked_data[5].split(b"\x00")
-
-        # Remove empty strings
-        gps_ublox_null_term_split = [x for x in gps_ublox_null_term_split if x]
-
-        gps_ublox_sw_ver = gps_ublox_null_term_split[0].decode("utf-8", errors="replace")
-        gps_ublox_hw_ver = gps_ublox_null_term_split[1].decode("utf-8", errors="replace")
-        gps_ublox_fw_ver = gps_ublox_null_term_split[2].decode("utf-8", errors="replace")
-        gps_ublox_proto_ver = gps_ublox_null_term_split[3].decode("utf-8", errors="replace")
-        gps_ublox_supported_constellations = gps_ublox_null_term_split[4:]
-        gps_ublox_supported_constellations = b";".join(gps_ublox_supported_constellations)
-        gps_ublox_supported_constellations = gps_ublox_supported_constellations.decode("utf-8", errors="replace")
-        gps_ublox_supported_constellations = gps_ublox_supported_constellations.split(";")
-
-        return cls(
-            accel_ic_id=accelerometer_ic_id,
-            alt_ic_id=altimeter_ic_id,
-            external_flash_ic_id=external_flash_ic_id,
-            external_flash_test_pass=external_flash_test_pass,
-            is_lora_connected=is_lora_connected,
-            gps_ublox_version_info=gps_ublox_version_info,
-            gps_ublox_sw_ver=gps_ublox_sw_ver,
-            gps_ublox_hw_ver=gps_ublox_hw_ver,
-            gps_ublox_fw_ver=gps_ublox_fw_ver,
-            gps_ublox_proto_ver=gps_ublox_proto_ver,
-            gps_ublox_supported_constellations=gps_ublox_supported_constellations,
-        )
-
-
-@dataclass(frozen=True)
-class CMD_GET_SENSOR_VALS_Response(CommandResponse):
-    accelerometer_x_g: int = None
-    accelerometer_y_g: int = None
-    accelerometer_z_g: int = None
-    altimeter_pressure_in_hg: int = None
-    altimeter_temperature_c: int = None
-    voltage_measurement: int = None
-
-    @classmethod
-    def from_bytes(cls, data: bytes):
-        """Unpack response bytes and put into right fields based on the given payload definition"""
-        data_length: int = 11
-        packed_format: str = ">hhhHhB"
-
-        if len(data) < data_length:
-            raise ValueError("Data length is insufficient for CMD_GET_SENSOR_VALS_Response")
-
-        unpacked_data = struct.unpack(packed_format, data)
-
-        # Accelerometer measurements are 2-bytes, 1/256 G per LSB
-        accelerometer_x_g = unpacked_data[0] / 256.0
-        accelerometer_y_g = unpacked_data[1] / 256.0
-        accelerometer_z_g = unpacked_data[2] / 256.0
-
-        # Altimeter pressure measurements are 2-bytes (unsigned), 1/256 inHg per LSB
-        altimeter_pressure_in_hg = unpacked_data[3] / 256.0
-
-        # Altimeter temperature measurements are 2-bytes, 0 LSB = 25°C, sensitivity of 16 LSB / °C
-        altimeter_temperature_c = 25.0 + unpacked_data[4] / 16.0
-
-        # Voltage measurement is 1-byte (unsigned), with 25mV per bit
-        voltage_measurement = unpacked_data[5] * 0.025
-
-        return cls(
-            accelerometer_x_g=accelerometer_x_g,
-            accelerometer_y_g=accelerometer_y_g,
-            accelerometer_z_g=accelerometer_z_g,
-            altimeter_pressure_in_hg=altimeter_pressure_in_hg,
-            altimeter_temperature_c=altimeter_temperature_c,
-            voltage_measurement=voltage_measurement,
-        )
-
-
-@dataclass(frozen=True)
-class CMD_GET_MODEM_FW_VER_Response(CommandResponse):
-    fw_version: str = None
-
-    @classmethod
-    def from_bytes(cls, data: bytes):
-        fw_version = data.decode("ascii").strip("\x00")
-        return cls(fw_version=fw_version)
-
-
-@dataclass(frozen=True)
-class CMD_DEV_EC_PUB_KEY_Response(CommandResponse):
-    public_key: str = None
-
-    @classmethod
-    def from_bytes(cls, data: bytes):
-        data_length = 65
-
-        if len(data) < data_length:
-            raise ValueError(
-                f"Data length is insufficient for CMD_DEV_EC_PUB_KEY_Response, expected {data_length}, got {len(data)}"
-            )
-
-        # Convert the public key to a string
-        public_key = "".join(f"{byte:02x}" for byte in data)
-
-        return cls(public_key=public_key)
-
-
 class MtibV1Client:
     # -----------------------------------------------
     #                                          Config
@@ -303,26 +57,6 @@ class MtibV1Client:
         # Internal objects used by the channel
         self.channel: grpc.Channel = None
         self.client: MtibClientV1 = None
-        
-        # Command interpreter state
-        self.response_classes = {
-            Sigma5DeviceCommand.CMD_NOP: CMD_ACK_Response,
-            Sigma5DeviceCommand.CMD_ACK: CMD_ACK_Response,
-            Sigma5DeviceCommand.CMD_CLEAR_PERSONALIZATION: CMD_CLEAR_PERSONALIZATION_Response,
-            Sigma5DeviceCommand.CMD_PERSONALIZE_DEV_EUI: CMD_PERSONALIZE_DEV_EUI_Response,
-            Sigma5DeviceCommand.CMD_IMEI_ICCID_GET: CMD_IMEI_ICCID_Response,
-            Sigma5DeviceCommand.CMD_POST: CMD_POST_Response,
-            Sigma5DeviceCommand.CMD_GET_SENSOR_VALS: CMD_GET_SENSOR_VALS_Response,
-            Sigma5DeviceCommand.CMD_GET_MODEM_FW_VER: CMD_GET_MODEM_FW_VER_Response,
-            Sigma5DeviceCommand.CMD_DEV_EC_PUB_KEY: CMD_DEV_EC_PUB_KEY_Response,
-        }
-        
-        # Command interpreter state per target
-        self.cmd_responses_queues: Dict[HostType, queue.Queue] = {}
-        self.cmd_requests_queues: Dict[HostType, queue.Queue] = {}
-        self.interpreter_running: Dict[HostType, bool] = {}
-        self.interpreter_threads: Dict[HostType, threading.Thread] = {}
-        self.uart_rpc_streams: Dict[HostType, Any] = {}
 
     # -----------------------------------------------
     #                                         Helpers
@@ -379,7 +113,9 @@ class MtibV1Client:
                 try:
                     # Try to get the response type by calling the function
                     mock_response = func(request)
-                    response_data = {k: v for k, v in mock_response.__dict__.items() if k not in ("success", "message")}
+                    response_data = {
+                        k: v for k, v in mock_response.__dict__.items() if k not in ("success", "message")
+                    }
                     return tuple([None] * len(response_data)) + (error_msg,)
                 except:
                     # If we can't determine the structure, return a single None + error
@@ -392,7 +128,9 @@ class MtibV1Client:
                 try:
                     # Try to get the response type by calling the function
                     mock_response = func(request)
-                    response_data = {k: v for k, v in mock_response.__dict__.items() if k not in ("success", "message")}
+                    response_data = {
+                        k: v for k, v in mock_response.__dict__.items() if k not in ("success", "message")
+                    }
                     return tuple([None] * len(response_data)) + (error_msg,)
                 except:
                     # If we can't determine the structure, return a single None + error
@@ -650,7 +388,12 @@ class MtibV1Client:
                 return None, None, None, f"DutPowerRead error: {response.message}"
             return response.current_a, response.voltage_v, response.power_w, None
         except grpc.RpcError as e:
-            return None, None, None, f"gRPC error for DutPowerRead at {self.config.net.addr}. Error: {str(e.details())}"
+            return (
+                None,
+                None,
+                None,
+                f"gRPC error for DutPowerRead at {self.config.net.addr}. Error: {str(e.details())}",
+            )
         except Exception as e:
             return None, None, None, f"Unexpected error in DutChargePowerDisable at {self.config.net.addr}: {str(e)}"
 
@@ -666,7 +409,12 @@ class MtibV1Client:
                 return None, None, None, f"DutChargePowerRead error: {response.message}"
             return response.current_a, response.voltage_v, response.power_w, None
         except grpc.RpcError as e:
-            return None, None, None, f"gRPC error for DutChargePowerRead at {self.config.net.addr}. Error: {str(e.details())}"
+            return (
+                None,
+                None,
+                None,
+                f"gRPC error for DutChargePowerRead at {self.config.net.addr}. Error: {str(e.details())}",
+            )
         except Exception as e:
             return None, None, None, f"Unexpected error in DutChargePowerRead at {self.config.net.addr}: {str(e)}"
 
@@ -685,7 +433,12 @@ class MtibV1Client:
                 return None, None, None, f"AltimeterRead error: {response.message}"
             return response.temperature_f, response.pressure_hg, response.altitude_ft, None
         except grpc.RpcError as e:
-            return None, None, None, f"gRPC error for AltimeterRead at {self.config.net.addr}. Error: {str(e.details())}"
+            return (
+                None,
+                None,
+                None,
+                f"gRPC error for AltimeterRead at {self.config.net.addr}. Error: {str(e.details())}",
+            )
         except Exception as e:
             return None, None, None, f"Unexpected error in AltimeterRead at {self.config.net.addr}: {str(e)}"
 
@@ -850,7 +603,7 @@ class MtibV1Client:
         except grpc.RpcError as e:
             return f"gRPC error for SetDefaultMotionProfile at {self.config.net.addr}. Error: {str(e.details())}"
         except Exception as e:
-            return f"Unexpected error in SetDefaultMotionProfile at {self.config.net.addr}: {str(e)}"       
+            return f"Unexpected error in SetDefaultMotionProfile at {self.config.net.addr}: {str(e)}"
 
     # -----------------------------------------------
     #                                        Motion
@@ -985,7 +738,7 @@ class MtibV1Client:
                         chunk = f.read(CHUNK_SIZE)
                         if not chunk:
                             break
-                        
+
                         if first_chunk:
                             # First request contains name, target, and first chunk
                             request = UploadFwFileRequest()
@@ -1035,7 +788,9 @@ class MtibV1Client:
         except Exception as e:
             return f"Unexpected error in DeleteFwFile at {self.config.net.addr}: {str(e)}"
 
-    def FlashFwFile(self, file_info: FwFileInfo, sector_erase: bool = False, recover: bool = False) -> Tuple[Optional[int], Optional[str]]:
+    def FlashFwFile(
+        self, file_info: FwFileInfo, sector_erase: bool = False, recover: bool = False
+    ) -> Tuple[Optional[int], Optional[str]]:
         """Flash a firmware file to the device.
 
         Args:
@@ -1047,7 +802,9 @@ class MtibV1Client:
             Tuple of (flash time in milliseconds, error if any)
         """
         try:
-            response = self.client.FlashFwFile(FlashFwFileRequest(file_info=file_info, sector_erase=sector_erase, recover=recover))
+            response = self.client.FlashFwFile(
+                FlashFwFileRequest(file_info=file_info, sector_erase=sector_erase, recover=recover)
+            )
             if not response.success:
                 return None, f"FlashFwFile error: {response.message}"
             return response.time_ms, None
@@ -1059,7 +816,9 @@ class MtibV1Client:
     # -----------------------------------------------
     #                                        Uart
     # ---------------------------------------------*/
-    def UartStream(self, target: HostType, request_iterator: Iterator[UartStreamRequest]) -> Iterator[UartStreamResponse]:
+    def UartStream(
+        self, target: HostType, request_iterator: Iterator[UartStreamRequest]
+    ) -> Iterator[UartStreamResponse]:
         """Stream UART data to/from a target device using a custom request iterator.
 
         Args:
@@ -1072,335 +831,218 @@ class MtibV1Client:
         try:
             # Make the streaming call with the provided request iterator
             response_iterator = self.client.UartStream(request_iterator)
-            
+
             for response in response_iterator:
                 yield response
-                
+
         except grpc.RpcError as e:
             self.logger.error(f"gRPC error for UartStream at {self.config.net.addr}. Error: {str(e.details())}")
-            yield UartStreamResponse(
-                success=False,
-                message=f"gRPC error: {str(e.details())}",
-                target=target
-            )
+            yield UartStreamResponse(success=False, message=f"gRPC error: {str(e.details())}", target=target)
         except Exception as e:
             self.logger.error(f"Unexpected error in UartStream at {self.config.net.addr}: {str(e)}")
-            yield UartStreamResponse(
-                success=False,
-                message=f"Unexpected error: {str(e)}",
-                target=target
-            )
+            yield UartStreamResponse(success=False, message=f"Unexpected error: {str(e)}", target=target)
 
-    # -----------------------------------------------
-    #                                    Command Interpreter
-    # ---------------------------------------------*/
-    def _start_cmd_interpreter(self, target: HostType) -> str:
-        """Start the command interpreter for a specific target."""
-        if self.interpreter_running.get(target, False):
-            return "Command interpreter is already running"
+    def alpha_cmd_personalize(
+        self, device_id: str, target: HostType
+    ) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+        """
+        Send a UART command to personalize the device using the given device_id.
+        Opens a new UART stream, hits ENTER to get prompt, then sends the personalize command,
+        and parses the response to extract the public key data.
 
-        # Initialize queues for this target if not already done
-        if target not in self.cmd_responses_queues:
-            self.cmd_responses_queues[target] = queue.Queue()
-        if target not in self.cmd_requests_queues:
-            self.cmd_requests_queues[target] = queue.Queue()
+        Returns:
+            Tuple of (hex_public_key, base64_public_key, error_string)
+        """
+        from protocols.mtib.mtib_pb2 import UartStreamRequest
+        import time
+        import queue
 
-        self.interpreter_running[target] = True
-        self.interpreter_threads[target] = threading.Thread(target=self._interpret_commands, args=(target,))
-        self.interpreter_threads[target].start()
-        return ""
+        # Use queues like the working terminal
+        input_queue = queue.Queue()
+        output_queue = queue.Queue()
 
-    def _interpret_commands(self, target: HostType):
-        """Background thread to interpret commands from the UART stream."""
-        buffer = b""
+        # Add commands to input queue
+        input_queue.put(b"\r")  # Hit ENTER to get prompt
+        time.sleep(0.2)
+        input_queue.put(f"personalize {device_id}\r".encode("utf-8"))  # Send command
 
-        def request_iterator() -> Iterator[UartStreamRequest]:
-            while self.interpreter_running[target]:
+        def request_iterator():
+            while True:
                 try:
-                    request = self.cmd_requests_queues[target].get(
-                        timeout=1
-                    )  # Use a timeout to regularly check the running flag
-                    if request.data == b"STOP":
-                        break  # Exit the iterator loop
-                    # Ensure the target is set correctly
-                    request.target = target
-                    yield request
+                    # Get input from queue (non-blocking)
+                    data = input_queue.get_nowait()
+                    yield UartStreamRequest(target=target, data=data)
                 except queue.Empty:
-                    continue
+                    # No input, send empty request to keep stream alive
+                    yield UartStreamRequest(target=target, data=b"")
+                    time.sleep(0.1)
 
-        try:
-            self.uart_rpc_streams[target] = self.UartStream(target, request_iterator())
-            for response in self.uart_rpc_streams[target]:
-                if not self.interpreter_running[target]:
-                    break
+        # Collect response like the working terminal
+        response_lines = []
+        start_time = time.time()
+        timeout = 10  # 10 second timeout
 
-                data = response.data
-                buffer += data
+        for resp in self.UartStream(target, request_iterator()):
+            if resp.data:
+                line = resp.data.decode("utf-8", errors="ignore")
+                response_lines.append(line)
 
-                while len(buffer) > 0:
-                    sync_index = buffer.find(struct.pack("BB", SYNC_BYTE1, SYNC_BYTE2))
-                    if sync_index == -1:
-                        buffer = b""  # Clear buffer if no sync bytes are found
-                        break
+                # Check if we got the public keys (wait for actual data)
+                full_response = "".join(response_lines)
+                if "Public key (hex)" in full_response and "Public key (base64)" in full_response:
+                    # Look for the actual hex key data
+                    hex_pos = full_response.find("Public key (hex)")
+                    if hex_pos != -1:
+                        hex_colon_pos = full_response.find(":", hex_pos)
+                        if hex_colon_pos != -1:
+                            hex_data_start = hex_colon_pos + 1
+                            hex_data_end = full_response.find("\n", hex_data_start)
+                            if hex_data_end != -1:
+                                hex_data = full_response[hex_data_start:hex_data_end].strip()
+                                # Only break if we have actual hex data (not empty)
+                                if hex_data and hex_data != "" and len(hex_data) > 10:
+                                    break
 
-                    buffer = buffer[sync_index:]
+            if not resp.success:
+                break
 
-                    if len(buffer) < 5:
-                        break
+            # Timeout check
+            if time.time() - start_time > timeout:
+                break
 
-                    payload_length = struct.unpack(">H", buffer[3:5])[0]
-                    total_length = 5 + payload_length  # 5 bytes before payload + payload length + CRC
+        # Parse the response for public keys
+        hex_key = None
+        base64_key = None
 
-                    if len(buffer) < total_length:
-                        break
+        full_response = "".join(response_lines)
 
-                    full_response = buffer[:total_length]
-                    buffer = buffer[total_length:]
+        # Look for hex public key (handle variable spacing)
+        hex_start = full_response.find("Public key (hex)")
+        if hex_start != -1:
+            # Find the colon after "Public key (hex)"
+            colon_pos = full_response.find(":", hex_start)
+            if colon_pos != -1:
+                hex_start = colon_pos + 1
+                hex_end = full_response.find("\n", hex_start)
+                if hex_end != -1:
+                    hex_key = full_response[hex_start:hex_end].strip()
 
-                    try:
-                        unpack_format = f">BBBH{payload_length - NUM_CRC_BYTES}sI"
-                        sync_byte1, sync_byte2, command_byte, length_field, payload, crc_received = struct.unpack(
-                            unpack_format, full_response
-                        )
+        # Look for base64 public key (handle variable spacing)
+        base64_start = full_response.find("Public key (base64)")
+        if base64_start != -1:
+            # Find the colon after "Public key (base64)"
+            colon_pos = full_response.find(":", base64_start)
+            if colon_pos != -1:
+                base64_start = colon_pos + 1
+                base64_end = full_response.find("\n", base64_start)
+                if base64_end != -1:
+                    base64_key = full_response[base64_start:base64_end].strip()
 
-                        # CRC should be calculated from command_byte to the end of the payload, excluding the CRC itself
-                        crc_calculated = self._calculate_crc32(full_response[2:-NUM_CRC_BYTES])
-                        if crc_received != crc_calculated:
-                            self.logger.error(f"CRC mismatch: received {crc_received}, calculated {crc_calculated}")
-                            continue
+        if hex_key and base64_key:
+            return hex_key, base64_key, None
+        else:
+            return None, None, f"Failed to parse public keys from response: {full_response}"
 
-                        self.cmd_responses_queues[target].put(full_response)
-                    except Exception as e:
-                        self.logger.error(f"An exception occurred whilst trying to unpack response: {e}")
-                        break
-        except grpc.RpcError as e:
-            if e.code() != grpc.StatusCode.CANCELLED:
-                self.logger.error(f"An exception occurred during command interpretation: {e}")
-        except Exception as e:
-            self.logger.error(f"Unexpected error in command interpretation: {e}")
+    def alpha_cmd_get_imei_iccids(
+        self, device_id: str, target: HostType
+    ) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+        """
+        Send a UART command to get the device IMEI and ICCIDs.
+        Opens a new UART stream, hits ENTER to get prompt, then sends the imei_ccid command,
+        and parses the response to extract the IMEI and ICCIDs.
 
-    def _stop_cmd_interpreter(self, target: HostType) -> str:
-        """Stop the command interpreter for a specific target."""
-        if not self.interpreter_running.get(target, False):
-            return "Command interpreter is not running"
+        Returns:
+            Tuple of (imei, iccids, error_string)
+        """
+        from protocols.mtib.mtib_pb2 import UartStreamRequest
+        import time
+        import queue
 
-        # Set the running flag to False
-        self.interpreter_running[target] = False
+        # Use queues like the working terminal
+        input_queue = queue.Queue()
+        output_queue = queue.Queue()
 
-        # Insert a stop request to unblock the iterator
-        try:
-            stop_request = UartStreamRequest(target=target, data=b"STOP")
-            self.cmd_requests_queues[target].put(stop_request)
-        except:
-            pass
+        # Add commands to input queue
+        input_queue.put(b"\r")  # Hit ENTER to get prompt
+        time.sleep(0.2)
+        input_queue.put(b"imei_ccid\r")  # Send command
 
-        # Cancel the gRPC call if it exists
-        if target in self.uart_rpc_streams and self.uart_rpc_streams[target]:
-            try:
-                self.uart_rpc_streams[target].cancel()
-            except Exception as e:
-                self.logger.error(f"Error cancelling UART stream for {target}: {e}")
-            self.uart_rpc_streams[target] = None
+        def request_iterator():
+            while True:
+                try:
+                    # Get input from queue (non-blocking)
+                    data = input_queue.get_nowait()
+                    yield UartStreamRequest(target=target, data=data)
+                except queue.Empty:
+                    # No input, send empty request to keep stream alive
+                    yield UartStreamRequest(target=target, data=b"")
+                    time.sleep(0.1)
 
-        # Wait for the interpreter thread to terminate
-        if target in self.interpreter_threads and self.interpreter_threads[target]:
-            self.interpreter_threads[target].join(timeout=10)  # Wait for a maximum of 10 seconds
-            if self.interpreter_threads[target].is_alive():
-                self.logger.error(f"Failed to stop the command interpreter thread in time for {target}")
-                return f"Failed to stop the command interpreter thread in time for {target}"
-            self.interpreter_threads[target] = None
+        # Collect response like the working terminal
+        response_lines = []
+        start_time = time.time()
+        timeout = 10  # 10 second timeout
 
-        return ""
+        for resp in self.UartStream(target, request_iterator()):
+            if resp.data:
+                line = resp.data.decode("utf-8", errors="ignore")
+                response_lines.append(line)
 
-    def _send_command(
-        self,
-        target: HostType,
-        command: Sigma5DeviceCommand,
-        payload: bytes = b"",
-        receive_timeout_ms=RECEIVE_TIMEOUT_MS,
-        response_type: Sigma5DeviceCommand = None,
-    ) -> Tuple[str, Any]:
-        """Send a command to the device and wait for response."""
-        try:
-            # Start the interpreter handler
-            error = self._start_cmd_interpreter(target)
-            if error:
-                return f"Could not start the command interpreter for {target}, {error}", None
+                # Check if we got the IMEI/ICCID response (wait for actual data)
+                full_response = "".join(response_lines)
+                if "IMEI,ICCID" in full_response:
+                    # Look for the actual data after the colon
+                    imei_pos = full_response.find("IMEI,ICCID")
+                    if imei_pos != -1:
+                        colon_pos = full_response.find(":", imei_pos)
+                        if colon_pos != -1:
+                            data_start = colon_pos + 1
+                            data_end = full_response.find("\n", data_start)
+                            if data_end != -1:
+                                data_line = full_response[data_start:data_end].strip()
+                                # Only break if we have actual data
+                                if data_line and data_line != "" and "," in data_line:
+                                    break
 
-            # Build the command
-            sync_bytes = struct.pack("BB", SYNC_BYTE1, SYNC_BYTE2)
-            command_byte = struct.pack("B", command.value)
-            message_length = struct.pack(">H", len(payload) + NUM_CRC_BYTES)
+            if not resp.success:
+                break
 
-            crc_value = self._calculate_crc32(command_byte + message_length + payload)
-            crc_bytes = struct.pack(">I", crc_value)
+            # Timeout check
+            if time.time() - start_time > timeout:
+                break
 
-            message = sync_bytes + command_byte + message_length + payload + crc_bytes
+        # Parse the response for IMEI and ICCIDs
+        imei = None
+        iccids = None
 
-            # Send the command to the device
-            request = UartStreamRequest(target=target, data=message)
-            self.cmd_requests_queues[target].put(request)
-            try:
-                # Await for responses in the queue
-                response = self.cmd_responses_queues[target].get(timeout=receive_timeout_ms / 1000.0)
+        full_response = "".join(response_lines)
 
-                # Decode the response into the right type
-                if response_type is None:
-                    parse_error, response = self._parse_response(command, response, self.response_classes[command])
-                else:
-                    parse_error, response = self._parse_response(
-                        response_type, response, self.response_classes[response_type]
-                    )
-                if parse_error:
-                    parse_error = f"Could not parse response for command {command.name} at {target}, {parse_error}"
+        # Look for IMEI,ICCID line (handle both direct response and modem log response)
+        imei_start = full_response.find("IMEI,ICCID")
+        if imei_start != -1:
+            # Find the colon after "IMEI,ICCID"
+            colon_pos = full_response.find(":", imei_start)
+            if colon_pos != -1:
+                data_start = colon_pos + 1
+                data_end = full_response.find("\n", data_start)
+                if data_end != -1:
+                    data_line = full_response[data_start:data_end].strip()
+                    # Only process if we have actual data (not empty)
+                    if data_line and data_line != "":
+                        # Split by comma to get IMEI and ICCIDs
+                        parts = data_line.split(",")
+                        if len(parts) >= 1:  # Allow at least 1 value (could be just ICCID)
+                            if len(parts) >= 2:
+                                # We have IMEI and ICCID(s)
+                                imei = parts[0].strip()
+                                # Join the rest as ICCIDs (there might be 1 or 2 ICCIDs)
+                                iccids = ",".join(parts[1:]).strip()
+                            else:
+                                # We only have one value, treat it as ICCID
+                                imei = "unknown"  # or could be None
+                                iccids = parts[0].strip()
 
-                # Stop the interpreter
-                error = self._stop_cmd_interpreter(target)
-                if error:
-                    return f"Could not stop the command interpreter for {target}, {error}", None
-
-                return parse_error, response
-            except queue.Empty:
-                error = self._stop_cmd_interpreter(target)
-                if error:
-                    return f"Could not stop the command interpreter for {target}, {error}", None
-
-                return f"Response timeout occurred for command {command.name} at {target}", None
-
-        except Exception as e:
-            error = self._stop_cmd_interpreter(target)
-            if error:
-                return f"Could not stop the command interpreter for {target}, {error}", None
-
-            return f"Error sending command {command.name} to target {target}. Error: {str(e)}", None
-
-    def _parse_response(
-        self, command: Sigma5DeviceCommand, response: bytes, response_class: Type[CommandResponse]
-    ) -> Tuple[str, Any]:
-        """Parse a response from the device."""
-        try:
-            payload_length = struct.unpack(">H", response[3:5])[0]
-            unpack_format = f">BBBH{payload_length - NUM_CRC_BYTES}sI"
-            sync_byte1, sync_byte2, command_byte, length_field, payload, crc_received = struct.unpack(
-                unpack_format, response
-            )
-
-            if command == Sigma5DeviceCommand.CMD_NOP:
-                command = Sigma5DeviceCommand.CMD_ACK
-
-            if command.value != command_byte:
-                return f"Command mismatch. Expected {command.value}, got {command_byte}", None
-
-            crc_calculated = self._calculate_crc32(response[2:-NUM_CRC_BYTES])
-            if crc_received != crc_calculated:
-                return f"CRC mismatch, expected {crc_calculated}, got {crc_received}", None
-
-            response_object = response_class.from_bytes(payload)
-            return "", response_object
-        except Exception as e:
-            return f"Failed to parse response: {str(e)}", None
-
-    def _calculate_crc32(self, data):
-        """Calculate CRC32 for data."""
-        return zlib.crc32(data) & 0xFFFFFFFF
-
-    # -----------------------------------------------
-    #                                    Device Commands
-    # ---------------------------------------------*/
-    def dut_command_send_nop(self, target: HostType) -> Tuple[str, CMD_ACK_Response]:
-        """Send NOP command to wake up the device."""
-        return self._send_command(target, Sigma5DeviceCommand.CMD_NOP, response_type=Sigma5DeviceCommand.CMD_ACK)
-
-    def dut_command_get_sensor_value(self, target: HostType) -> Tuple[str, CMD_GET_SENSOR_VALS_Response]:
-        """Get sensor values from the device."""
-        # Wake up the device
-        self.dut_command_send_nop(target)
-        time.sleep(1)
-
-        # Send the command
-        return self._send_command(
-            target,
-            Sigma5DeviceCommand.CMD_GET_SENSOR_VALS,
-        )
-
-    def dut_command_get_chip_id(self, target: HostType) -> Tuple[str, CMD_POST_Response]:
-        """Get chip ID information from the device."""
-        # Wake up the device
-        self.dut_command_send_nop(target)
-        time.sleep(1)
-
-        # Send the command
-        return self._send_command(
-            target,
-            Sigma5DeviceCommand.CMD_POST,
-        )
-
-    def dut_command_get_imei_iccid(self, target: HostType) -> Tuple[str, CMD_IMEI_ICCID_Response]:
-        """Get IMEI and ICCID from the device."""
-        # Wake up the device
-        self.dut_command_send_nop(target)
-        time.sleep(1)
-
-        # Send the command
-        return self._send_command(
-            target,
-            Sigma5DeviceCommand.CMD_IMEI_ICCID_GET,
-        )
-
-    def dut_command_get_modem_fw(self, target: HostType) -> Tuple[str, CMD_GET_MODEM_FW_VER_Response]:
-        """Get modem firmware version from the device."""
-        # Wake up the device
-        self.dut_command_send_nop(target)
-        time.sleep(1)
-
-        # Send the command
-        return self._send_command(
-            target,
-            Sigma5DeviceCommand.CMD_GET_MODEM_FW_VER,
-        )
-
-    def dut_command_clear_personalization(self, target: HostType) -> Tuple[str, CMD_CLEAR_PERSONALIZATION_Response]:
-        """Clear personalization data from the device."""
-        # Wake up the device
-        self.dut_command_send_nop(target)
-        time.sleep(1)
-
-        # Send the command
-        return self._send_command(
-            target,
-            Sigma5DeviceCommand.CMD_CLEAR_PERSONALIZATION,
-            response_type=Sigma5DeviceCommand.CMD_ACK,  # Use CMD_ACK as the response type
-        )
-
-    def dut_command_set_device_eui(self, target: HostType, device_eui: int) -> Tuple[str, CMD_DEV_EC_PUB_KEY_Response]:
-        """Set device EUI on the device."""
-        # Create the payload
-        payload = CMD_PERSONALIZE_DEV_EUI_Response.to_bytes(read=False, device_id=device_eui)
-
-        # Wake up the device
-        self.dut_command_send_nop(target)
-        time.sleep(1)
-
-        # Send the command
-        return self._send_command(
-            target,
-            Sigma5DeviceCommand.CMD_PERSONALIZE_DEV_EUI,
-            payload=payload,
-            response_type=Sigma5DeviceCommand.CMD_DEV_EC_PUB_KEY,  # We expect a CMD_DEV_EC_PUB_KEY response
-        )
-
-    def dut_command_get_device_eui(self, target: HostType) -> Tuple[str, CMD_PERSONALIZE_DEV_EUI_Response]:
-        """Get device EUI from the device."""
-        payload = CMD_PERSONALIZE_DEV_EUI_Response.to_bytes(read=True, device_id=0xDEADBEEFDEADBEEF)
-
-        # Wake up the device
-        self.dut_command_send_nop(target)
-        time.sleep(1)
-
-        # Send the command
-        return self._send_command(
-            target,
-            Sigma5DeviceCommand.CMD_PERSONALIZE_DEV_EUI,
-            payload=payload,
-            response_type=Sigma5DeviceCommand.CMD_PERSONALIZE_DEV_EUI,
-        )
+        if imei and iccids:
+            return imei, iccids, None
+        else:
+            return None, None, f"Failed to parse IMEI/ICCIDs from response: {full_response}"
