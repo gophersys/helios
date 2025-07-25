@@ -39,11 +39,12 @@ class FirmwareHandler:
                 result = (
                     subprocess.check_output(["nrfjprog", "--snr", serial, "--deviceversion"], stderr=subprocess.STDOUT)
                     .decode()
-                    .lower()
+                    .strip()
+                    .upper()
                 )
 
                 # Check for common error patterns in the output
-                if "low voltage" in result or "error" in result:
+                if "LOW VOLTAGE" in result or "ERROR" in result:
                     self.logger.warning(f"J-Link {serial} detected but no device connected or low voltage condition")
                     self.programmers[serial] = (None, False)  # No host type, not connected
                     continue
@@ -52,13 +53,13 @@ class FirmwareHandler:
 
                 # Determine host type based on the actual device version
                 host_type = None
-                if "nrf91" in result:
+                if "NRF9160" in result:
                     host_type = HostType.HOST_TYPE_NRF9160
-                elif "nrf52" in result:
+                elif "NRF52840" in result:
                     host_type = HostType.HOST_TYPE_NRF52840
-                elif "nrf53" in result:
+                elif "NRF5340" in result:
                     host_type = HostType.HOST_TYPE_NRF5340
-                elif "nrf91" in result:
+                elif "NRF9151" in result:
                     host_type = HostType.HOST_TYPE_NRF9151
 
                 if host_type:
@@ -203,6 +204,9 @@ class FirmwareHandler:
         """Flash a firmware file from RAM."""
         self.logger.info(f"FlashFwFile request received for {request.file_info.name}")
         try:
+            # Re-scan and update programmer assignments before flashing
+            self._assign_jlinks()
+
             if request.file_info.name not in self.active_files:
                 return FlashFwFileResponse(
                     success=False, message=f"Firmware file {request.file_info.name} not found", time_ms=0
@@ -223,9 +227,17 @@ class FirmwareHandler:
             # Find a suitable programmer
             programmer = None
             for serial, (host_type, is_connected) in self.programmers.items():
-                if is_connected and host_type == request.file_info.target:
-                    programmer = serial
-                    break
+                if not is_connected:
+                    continue
+                # Allow NRF9160 programmer for both NRF9160 and NRF9160_MODEM targets
+                if request.file_info.target in [HostType.HOST_TYPE_NRF9160, HostType.HOST_TYPE_NRF9160_MODEM]:
+                    if host_type == HostType.HOST_TYPE_NRF9160:
+                        programmer = serial
+                        break
+                else:
+                    if host_type == request.file_info.target:
+                        programmer = serial
+                        break
 
             if not programmer:
                 return FlashFwFileResponse(
@@ -237,20 +249,77 @@ class FirmwareHandler:
             # Flash the firmware
             start_time = time.time()
             try:
-                result = subprocess.run(
-                    ["nrfjprog", "--program", str(file_path), "--verify", "--snr", programmer],
-                    capture_output=True,
-                    text=True,
-                    check=True,
-                )
-                time_ms = int((time.time() - start_time) * 1000)
-                return FlashFwFileResponse(success=True, message="", time_ms=time_ms)
-            except subprocess.CalledProcessError as e:
-                return FlashFwFileResponse(success=False, message=f"Failed to flash firmware: {e.stderr}", time_ms=0)
+                # Step 1: Recover if requested
+                if request.recover:
+                    try:
+                        recover_cmd = ["nrfjprog", "--recover", "--snr", programmer]
+                        self.logger.info(f"Running recover: {' '.join(recover_cmd)}")
+                        subprocess.run(
+                            recover_cmd,
+                            capture_output=True,
+                            text=True,
+                            check=True,
+                            timeout=60,  # 1 minute timeout
+                        )
+                    except subprocess.TimeoutExpired:
+                        error_msg = f"Recover operation timed out after 1 minute for programmer {programmer}"
+                        self.logger.error(error_msg)
+                        return FlashFwFileResponse(success=False, message=error_msg, time_ms=0)
+                    except subprocess.CalledProcessError as e:
+                        error_msg = f"Failed to recover programmer {programmer}: {e.stderr if e.stderr else str(e)}"
+                        if e.stdout:
+                            error_msg += f"\nstdout: {e.stdout}"
+                        self.logger.error(error_msg)
+                        return FlashFwFileResponse(success=False, message=error_msg, time_ms=0)
+                    except FileNotFoundError:
+                        error_msg = "nrfjprog command not found. Please ensure nRF Command Line Tools are installed."
+                        self.logger.error(error_msg)
+                        return FlashFwFileResponse(success=False, message=error_msg, time_ms=0)
+                    except Exception as e:
+                        error_msg = f"Unexpected error during recover operation: {str(e)}"
+                        self.logger.error(error_msg)
+                        return FlashFwFileResponse(success=False, message=error_msg, time_ms=0)
 
-        except Exception as e:
-            self.logger.error(f"Error flashing firmware: {e}")
-            return FlashFwFileResponse(success=False, message=f"Failed to flash firmware: {str(e)}", time_ms=0)
+                # Step 2: Build the nrfjprog programming command
+                cmd = ["nrfjprog", "--program", str(file_path), "--verify", "--snr", programmer]
+                if request.sector_erase:
+                    cmd.append("--sectorerase")
+
+                # Step 3: Run the programming command
+                try:
+                    self.logger.info(f"Running program: {' '.join(cmd)}")
+                    result = subprocess.run(
+                        cmd,
+                        capture_output=True,
+                        text=True,
+                        check=True,
+                        timeout=60,  # 1 minute timeout
+                    )
+                    time_ms = int((time.time() - start_time) * 1000)
+                    self.logger.info(f"Successfully flashed firmware in {time_ms}ms")
+                    return FlashFwFileResponse(success=True, message="", time_ms=time_ms)
+                except subprocess.TimeoutExpired:
+                    error_msg = f"Flash operation timed out after 1 minute for programmer {programmer}"
+                    self.logger.error(error_msg)
+                    return FlashFwFileResponse(success=False, message=error_msg, time_ms=0)
+                except subprocess.CalledProcessError as e:
+                    error_msg = f"Failed to flash firmware: {e.stderr if e.stderr else str(e)}"
+                    if e.stdout:
+                        error_msg += f"\nstdout: {e.stdout}"
+                    self.logger.error(error_msg)
+                    return FlashFwFileResponse(success=False, message=error_msg, time_ms=0)
+                except FileNotFoundError:
+                    error_msg = "nrfjprog command not found. Please ensure nRF Command Line Tools are installed."
+                    self.logger.error(error_msg)
+                    return FlashFwFileResponse(success=False, message=error_msg, time_ms=0)
+                except Exception as e:
+                    error_msg = f"Unexpected error during flash operation: {str(e)}"
+                    self.logger.error(error_msg)
+                    return FlashFwFileResponse(success=False, message=error_msg, time_ms=0)
+
+            except Exception as e:
+                self.logger.error(f"Error flashing firmware: {e}")
+                return FlashFwFileResponse(success=False, message=f"Failed to flash firmware: {str(e)}", time_ms=0)
 
     def __del__(self):
         """Cleanup all temporary files when the handler is destroyed."""

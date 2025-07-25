@@ -1035,20 +1035,22 @@ class MtibV1Client:
         except Exception as e:
             return f"Unexpected error in DeleteFwFile at {self.config.net.addr}: {str(e)}"
 
-    def FlashFwFile(self, file_info: FwFileInfo) -> Tuple[Optional[int], Optional[str]]:
+    def FlashFwFile(self, file_info: FwFileInfo, sector_erase: bool = False, recover: bool = False) -> Tuple[Optional[int], Optional[str]]:
         """Flash a firmware file to the device.
 
         Args:
             file_info: Information about the firmware file to flash
+            sector_erase: Whether to perform sector erase before flashing
+            recover: Whether to recover the device before flashing
 
         Returns:
             Tuple of (flash time in milliseconds, error if any)
         """
         try:
-            response = self.client.FlashFwFile(FlashFwFileRequest(file_info=file_info))
+            response = self.client.FlashFwFile(FlashFwFileRequest(file_info=file_info, sector_erase=sector_erase, recover=recover))
             if not response.success:
                 return None, f"FlashFwFile error: {response.message}"
-            return response.flash_time, None
+            return response.time_ms, None
         except grpc.RpcError as e:
             return None, f"gRPC error for FlashFwFile at {self.config.net.addr}. Error: {str(e.details())}"
         except Exception as e:

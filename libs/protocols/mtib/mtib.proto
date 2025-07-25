@@ -354,6 +354,8 @@ message DeleteFwFileResponse {
 
 message FlashFwFileRequest {
   FwFileInfo file_info = 1;
+  bool sector_erase = 2;
+  bool recover = 3;
 }
 
 message FlashFwFileResponse {
