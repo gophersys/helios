@@ -15,24 +15,21 @@ from corekinect.mtib_client.v1 import *
 # Application includes
 from config.env import AlphaEnvConfig
 
-# def _get_device_id(proxy_server_url: str, snr: str) -> Tuple[str, Optional[str]]:
-#     # Call concord proxy
-#     try:
-#         get_device_id_url = f"{proxy_server_url}/v1/devices/ids/assign"
-#         body = {"snr": snr}
-#         response: requests.Response = requests.post(url=get_device_id_url, json=body, verify=False)
+def _get_device_id(proxy_server_url: str, snr: str) -> Tuple[Optional[str], Optional[str]]:
+    # Call concord proxy
+    try:
+        get_device_id_url = f"{proxy_server_url}/v1/devices/ids/assign"
+        body = {"snr": snr}
+        response: requests.Response = requests.post(url=get_device_id_url, json=body, verify=False)
 
-#         if response.status_code == 200:
-#             response_data = response.json()
-#             id = response_data.get("deviceId")
-#             return "", id
-#         else:
-#             return (
-#                 f"Call to concord proxy at {get_device_id_url} to get device id {snr} for {node} failed with status code ({response.status_code}), body: {response.content}",
-#                 None,
-#             )
-#     except Exception as e:
-#         return f"An exception occurred whilst trying to get device id from concord proxy: {str(e)}", None
+        if response.status_code == 200:
+            response_data = response.json()
+            id = response_data.get("deviceId")
+            return id, None
+        else:
+            return None, f"Call to concord proxy at {get_device_id_url} to get device id {snr} failed with status code ({response.status_code}), body: {response.content}"
+    except Exception as e:
+        return None, f"An exception occurred whilst trying to get device id from concord proxy: {str(e)}"
 
 # def _upload_device_public_key(proxy_server_url: str, device_id: str, public_key: str) -> str:
 #     # Call concord proxy
@@ -201,6 +198,20 @@ def _flash_firmware(client: MtibV1Client, logger: Logger, env_config: AlphaEnvCo
 
     return None
 
+def _personalize_device(client: MtibV1Client, logger: Logger, env_config: AlphaEnvConfig, serial_number: str) -> Optional[str]:
+    """
+    Personalize the device
+    """
+    logger.info(f"Personalizing device with serial number: {serial_number}")
+
+    device_id, err = _get_device_id(env_config.PROXY_SERVER_URL, serial_number)
+    if err:
+        return f"Error getting device id: {err}"
+
+    logger.info(f"Device ID: {device_id}")
+
+    return None
+
 def _power_off(client: MtibV1Client, logger: Logger) -> Optional[str]:
     """
     Power off the device
@@ -221,9 +232,13 @@ def personalization_step(client: MtibV1Client, logger: Logger, env_config: Alpha
     if err:
         return f"Error powering on device: {err}"
     
-    err = _flash_firmware(client, logger, env_config)
+    # err = _flash_firmware(client, logger, env_config)
+    # if err:
+    #     return f"Error flashing manufacturing firmware: {err}"
+    
+    err = _personalize_device(client, logger, env_config, serial_number)
     if err:
-        return f"Error flashing manufacturing firmware: {err}"
+        return f"Error personalizing device: {err}"
     
     err = _power_off(client, logger)
     if err:
