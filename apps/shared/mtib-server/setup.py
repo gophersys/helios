@@ -5,8 +5,8 @@ setup(
     version="1.0",
     packages=find_packages(),
     install_requires=[
-        "grpcio==1.62.0",
-        "grpcio-tools==1.62.0",
+        "grpcio==1.64.0",
+        "grpcio-tools==1.64.0",
         "protobuf>=4.21.6",
         "python-dotenv==1.0.1",
         "pyserial==3.5",

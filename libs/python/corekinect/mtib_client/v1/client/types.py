@@ -273,33 +273,17 @@ class ListFwFilesResponse:
 
 
 @dataclass
-class UploadFwFileRequest:
-    name: str = ""
-    target: HostType = HostType.HOST_TYPE_NRF9160_MODEM
-    content: bytes = b""
-
-
-@dataclass
 class UploadFwFileResponse:
     success: bool = False
     message: str = ""
     sha256_digest: str = ""
 
 
-@dataclass
-class DeleteFwFileRequest:
-    file_info: FwFileInfo = None
-
 
 @dataclass
 class DeleteFwFileResponse:
     success: bool = False
     message: str = ""
-
-
-@dataclass
-class FlashFwFileRequest:
-    file_info: FwFileInfo = None
 
 
 @dataclass

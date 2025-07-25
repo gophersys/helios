@@ -24,7 +24,7 @@ class FirmwareHandler:
         self._assign_jlinks()
 
         # Track active firmware files
-        self.active_files: Dict[str, Path] = {}  # Maps filename to temp file path
+        self.active_files: Dict[str, Tuple[Path, HostType]] = {}  # Maps filename to (temp file path, target)
 
     def _assign_jlinks(self):
         """Detect and assign J-Link programmers to their respective chips."""
@@ -88,7 +88,8 @@ class FirmwareHandler:
         """Clean up a temporary file."""
         if filename in self.active_files:
             try:
-                self.active_files[filename].unlink(missing_ok=True)
+                file_path, _ = self.active_files[filename]
+                file_path.unlink(missing_ok=True)
                 del self.active_files[filename]
             except Exception as e:
                 self.logger.error(f"Error cleaning up file {filename}: {e}")
@@ -119,11 +120,11 @@ class FirmwareHandler:
         self.logger.info("ListFwFiles request received")
         try:
             files = []
-            for filename, file_path in self.active_files.items():
+            for filename, (file_path, target) in self.active_files.items():
                 if file_path.exists():
                     size = file_path.stat().st_size
                     sha256 = self._calculate_sha256(file_path)
-                    files.append(FwFileInfo(name=filename, size_b=size, sha256_digest=sha256))
+                    files.append(FwFileInfo(name=filename, target=target, size_b=size, sha256_digest=sha256))
             return ListFwFilesResponse(success=True, message="", files=files)
         except Exception as e:
             self.logger.error(f"Error listing firmware files: {e}")
@@ -143,9 +144,18 @@ class FirmwareHandler:
         """
         try:
             # Get the first request to get the filename
-            first_request = next(request_iterator)
+            try:
+                first_request = next(request_iterator)
+            except StopIteration:
+                self.logger.error("UploadFwFile request stream ended before first chunk")
+                return UploadFwFileResponse(success=False, message="Upload stream ended before first chunk", sha256_digest="")
+            except grpc.RpcError as e:
+                self.logger.error(f"gRPC error getting first request: {e}")
+                return UploadFwFileResponse(success=False, message=f"gRPC error getting first request: {str(e)}", sha256_digest="")
+            
             filename = first_request.name
-            self.logger.info(f"UploadFwFile request received for {filename}")
+            target = first_request.target
+            self.logger.info(f"UploadFwFile request received for {filename} with target {target}")
 
             # Clean up any existing file with the same name
             self._cleanup_file(filename)
@@ -157,22 +167,22 @@ class FirmwareHandler:
                 f.write(first_request.content)
 
                 # Write remaining chunks
-                for chunk in request_iterator:
-                    if not chunk.content:  # Skip empty chunks
-                        continue
-                    f.write(chunk.content)
+                try:
+                    for chunk in request_iterator:
+                        if not chunk.content:  # Skip empty chunks
+                            continue
+                        f.write(chunk.content)
+                except grpc.RpcError as e:
+                    self.logger.error(f"gRPC error during chunk processing: {e}")
+                    # Clean up the partial file
+                    self._cleanup_file(filename)
+                    return UploadFwFileResponse(success=False, message=f"gRPC error during chunk processing: {str(e)}", sha256_digest="")
 
-            # Calculate SHA256 and store the file path
+            # Calculate SHA256 and store the file path and target
             sha256 = self._calculate_sha256(temp_file)
-            self.active_files[filename] = temp_file
+            self.active_files[filename] = (temp_file, target)
 
             return UploadFwFileResponse(success=True, message="", sha256_digest=sha256)
-        except StopIteration:
-            self.logger.error("UploadFwFile request stream ended unexpectedly")
-            return UploadFwFileResponse(success=False, message="Upload stream ended unexpectedly", sha256_digest="")
-        except grpc.RpcError as e:
-            self.logger.error(f"gRPC error during upload: {e}")
-            return UploadFwFileResponse(success=False, message=f"gRPC error during upload: {str(e)}", sha256_digest="")
         except Exception as e:
             self.logger.error(f"Error uploading firmware file: {e}")
             return UploadFwFileResponse(
@@ -198,7 +208,7 @@ class FirmwareHandler:
                     success=False, message=f"Firmware file {request.file_info.name} not found", time_ms=0
                 )
 
-            file_path = self.active_files[request.file_info.name]
+            file_path, stored_target = self.active_files[request.file_info.name]
             if not file_path.exists():
                 return FlashFwFileResponse(
                     success=False, message=f"Firmware file {request.file_info.name} no longer exists", time_ms=0

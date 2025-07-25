@@ -8,9 +8,8 @@ from corekinect.utils import Logger
 
 # Private includes
 from corekinect.mtib_client.v1 import MtibV1Client
-from corekinect.mtib_client.v1.samples.helper import run_sample
 from corekinect.mtib_client.v1.client.types import HostType, ProgrammerType
-
+from test.helper import run_sample
 
 def sample(client: MtibV1Client, logger: Logger) -> None:
     """
@@ -31,7 +30,7 @@ def sample(client: MtibV1Client, logger: Logger) -> None:
         return
 
     # List available programmers
-    programmers, err = client.list_programmers()
+    programmers, err = client.ListProgrammers()
     if err:
         logger.error(f"Failed to list programmers: {err}")
         return
@@ -53,24 +52,24 @@ def sample(client: MtibV1Client, logger: Logger) -> None:
 
     if not valid_programmer:
         logger.error("No connected devices found. Please connect a device to a programmer and try again.")
-        return
+        # return
 
     # List firmware files before upload
-    fw_files, err = client.list_fw_files()
+    fw_files, err = client.ListFwFiles()
     if err:
         logger.error(f"Failed to list firmware files: {err}")
         return
     logger.info(f"Available firmware files before upload: {[f.name for f in fw_files]}")
 
     # Upload the firmware file
-    success, err = client.upload_fw_file(fw_path, fw_name)
+    err = client.UploadFwFile(fw_path, HostType.HOST_TYPE_NRF52840)
     if err:
         logger.error(f"Failed to upload firmware file: {err}")
         return
     logger.info(f"Successfully uploaded firmware file: {fw_name}")
 
     # List firmware files after upload to verify
-    fw_files, err = client.list_fw_files()
+    fw_files, err = client.ListFwFiles()
     if err:
         logger.error(f"Failed to list firmware files: {err}")
         return
@@ -79,15 +78,26 @@ def sample(client: MtibV1Client, logger: Logger) -> None:
         return
     logger.info(f"Available firmware files after upload: {[f.name for f in fw_files]}")
 
-    # Flash the firmware using the first valid programmer
-    success, err = client.flash_fw_file(fw_name, valid_programmer.host)
+    # Find the uploaded file info for flashing
+    uploaded_file = None
+    for f in fw_files:
+        if f.name == fw_name:
+            uploaded_file = f
+            break
+    
+    if not uploaded_file:
+        logger.error(f"Could not find uploaded file {fw_name} for flashing")
+        return
+
+    # Flash the firmware using the uploaded file info
+    time_ms, err = client.FlashFwFile(uploaded_file)
     if err:
         logger.error(f"Failed to flash firmware: {err}")
         return
-    logger.info(f"Successfully flashed firmware to {HostType(valid_programmer.host).name} device")
+    logger.info(f"Successfully flashed firmware to {HostType(valid_programmer.host).name} device in {time_ms}ms")
 
     # Delete the firmware file after flashing
-    success, err = client.delete_fw_file(fw_name)
+    err = client.DeleteFwFile(uploaded_file)
     if err:
         logger.error(f"Failed to delete firmware file: {err}")
         return

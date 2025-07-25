@@ -539,7 +539,15 @@ class MtibV1Client:
         Returns:
             Tuple of (voltage in volts, error if any)
         """
-        return self._grpc_call(self.client.AdcRead, AdcReadRequest(channel=channel), return_value=True)
+        try:
+            response = self.client.AdcRead(AdcReadRequest(channel=channel))
+            if not response.success:
+                return None, f"AdcRead error: {response.message}"
+            return response.voltage_v, None
+        except grpc.RpcError as e:
+            return None, f"gRPC error for AdcRead at {self.config.net.addr}. Error: {str(e.details())}"
+        except Exception as e:
+            return None, f"Unexpected error in AdcRead at {self.config.net.addr}: {str(e)}"
 
     def AdcReadAll(self) -> Tuple[Optional[List[float]], Optional[str]]:
         """Read voltage from all ADC channels.
@@ -547,7 +555,15 @@ class MtibV1Client:
         Returns:
             Tuple of (list of voltages in volts, error if any)
         """
-        return self._grpc_call(self.client.AdcReadAll, Empty(), return_value=True)
+        try:
+            response = self.client.AdcReadAll(Empty())
+            if not response.success:
+                return None, f"AdcReadAll error: {response.message}"
+            return response.voltages, None
+        except grpc.RpcError as e:
+            return None, f"gRPC error for AdcReadAll at {self.config.net.addr}. Error: {str(e.details())}"
+        except Exception as e:
+            return None, f"Unexpected error in AdcReadAll at {self.config.net.addr}: {str(e)}"
 
     # -----------------------------------------------
     #                                           Power
@@ -663,7 +679,15 @@ class MtibV1Client:
         Returns:
             Tuple of (temperature in °F, pressure in Hg, altitude in feet, error if any)
         """
-        return self._grpc_call(self.client.AltimeterRead, Empty(), return_value=True)
+        try:
+            response = self.client.AltimeterRead(Empty())
+            if not response.success:
+                return None, None, None, f"AltimeterRead error: {response.message}"
+            return response.temperature_f, response.pressure_hg, response.altitude_ft, None
+        except grpc.RpcError as e:
+            return None, None, None, f"gRPC error for AltimeterRead at {self.config.net.addr}. Error: {str(e.details())}"
+        except Exception as e:
+            return None, None, None, f"Unexpected error in AltimeterRead at {self.config.net.addr}: {str(e)}"
 
     def AccelRead(self) -> Tuple[Optional[float], Optional[float], Optional[float], Optional[str]]:
         """Read data from the accelerometer sensor.
@@ -671,7 +695,15 @@ class MtibV1Client:
         Returns:
             Tuple of (x acceleration in g, y acceleration in g, z acceleration in g, error if any)
         """
-        return self._grpc_call(self.client.AccelRead, Empty(), return_value=True)
+        try:
+            response = self.client.AccelRead(Empty())
+            if not response.success:
+                return None, None, None, f"AccelRead error: {response.message}"
+            return response.x_g, response.y_g, response.z_g, None
+        except grpc.RpcError as e:
+            return None, None, None, f"gRPC error for AccelRead at {self.config.net.addr}. Error: {str(e.details())}"
+        except Exception as e:
+            return None, None, None, f"Unexpected error in AccelRead at {self.config.net.addr}: {str(e)}"
 
     # -----------------------------------------------
     #                                    FluidNc Config
@@ -682,7 +714,15 @@ class MtibV1Client:
         Returns:
             Tuple of (YAML configuration string, error if any)
         """
-        return self._grpc_call(self.client.GetFluidNcConfig, Empty(), return_value=True)
+        try:
+            response = self.client.GetFluidNcConfig(Empty())
+            if not response.success:
+                return None, f"GetFluidNcConfig error: {response.message}"
+            return response.config_yaml, None
+        except grpc.RpcError as e:
+            return None, f"gRPC error for GetFluidNcConfig at {self.config.net.addr}. Error: {str(e.details())}"
+        except Exception as e:
+            return None, f"Unexpected error in GetFluidNcConfig at {self.config.net.addr}: {str(e)}"
 
     def UpdateFluidNcConfig(self, config_yaml: str) -> Optional[str]:
         """Update the FluidNC configuration.
@@ -707,7 +747,15 @@ class MtibV1Client:
         Returns:
             Tuple of (device response, error if any)
         """
-        return self._grpc_call(self.client.SendGcode, GcodeRequest(command=command), return_value=True)
+        try:
+            response = self.client.SendGcode(GcodeRequest(command=command))
+            if not response.success:
+                return None, f"SendGcode error: {response.message}"
+            return response.response, None
+        except grpc.RpcError as e:
+            return None, f"gRPC error for SendGcode at {self.config.net.addr}. Error: {str(e.details())}"
+        except Exception as e:
+            return None, f"Unexpected error in SendGcode at {self.config.net.addr}: {str(e)}"
 
     # -----------------------------------------------
     #                                  Motion Profiles
@@ -721,7 +769,15 @@ class MtibV1Client:
         Returns:
             None on success, error string on failure
         """
-        return self._grpc_call(self.client.UploadMotionProfile, MotionProfileRequest(profile=profile))
+        try:
+            response = self.client.UploadMotionProfile(MotionProfileRequest(profile=profile))
+            if not response.success:
+                return f"UploadMotionProfile error: {response.message}"
+            return None
+        except grpc.RpcError as e:
+            return f"gRPC error for UploadMotionProfile at {self.config.net.addr}. Error: {str(e.details())}"
+        except Exception as e:
+            return f"Unexpected error in UploadMotionProfile at {self.config.net.addr}: {str(e)}"
 
     def ListMotionProfiles(self) -> Tuple[Optional[List[MotionProfile]], Optional[str]]:
         """Get a list of all available motion profiles.
@@ -729,7 +785,15 @@ class MtibV1Client:
         Returns:
             Tuple of (list of motion profiles, error if any)
         """
-        return self._grpc_call(self.client.ListMotionProfiles, Empty(), return_value=True)
+        try:
+            response = self.client.ListMotionProfiles(Empty())
+            if not response.success:
+                return None, f"ListMotionProfiles error: {response.message}"
+            return response.profiles, None
+        except grpc.RpcError as e:
+            return None, f"gRPC error for ListMotionProfiles at {self.config.net.addr}. Error: {str(e.details())}"
+        except Exception as e:
+            return None, f"Unexpected error in ListMotionProfiles at {self.config.net.addr}: {str(e)}"
 
     def ExecuteMotionProfile(self, profile_name: str) -> Optional[str]:
         """Execute a motion profile by name.
@@ -740,7 +804,15 @@ class MtibV1Client:
         Returns:
             None on success, error string on failure
         """
-        return self._grpc_call(self.client.ExecuteMotionProfile, ExecuteProfileRequest(profile_name=profile_name))
+        try:
+            response = self.client.ExecuteMotionProfile(ExecuteProfileRequest(profile_name=profile_name))
+            if not response.success:
+                return f"ExecuteMotionProfile error: {response.message}"
+            return None
+        except grpc.RpcError as e:
+            return f"gRPC error for ExecuteMotionProfile at {self.config.net.addr}. Error: {str(e.details())}"
+        except Exception as e:
+            return f"Unexpected error in ExecuteMotionProfile at {self.config.net.addr}: {str(e)}"
 
     def DeleteMotionProfile(self, profile_name: str) -> Optional[str]:
         """Delete a motion profile by name.
@@ -751,7 +823,15 @@ class MtibV1Client:
         Returns:
             None on success, error string on failure
         """
-        return self._grpc_call(self.client.DeleteMotionProfile, DeleteProfileRequest(profile_name=profile_name))
+        try:
+            response = self.client.DeleteMotionProfile(DeleteProfileRequest(profile_name=profile_name))
+            if not response.success:
+                return f"DeleteMotionProfile error: {response.message}"
+            return None
+        except grpc.RpcError as e:
+            return f"gRPC error for DeleteMotionProfile at {self.config.net.addr}. Error: {str(e.details())}"
+        except Exception as e:
+            return f"Unexpected error in DeleteMotionProfile at {self.config.net.addr}: {str(e)}"
 
     def SetDefaultMotionProfile(self, profile_name: str) -> Optional[str]:
         """Set the default motion profile.
@@ -762,9 +842,15 @@ class MtibV1Client:
         Returns:
             None on success, error string on failure
         """
-        return self._grpc_call(
-            self.client.SetDefaultMotionProfile, SetDefaultProfileRequest(profile_name=profile_name)
-        )
+        try:
+            response = self.client.SetDefaultMotionProfile(SetDefaultProfileRequest(profile_name=profile_name))
+            if not response.success:
+                return f"SetDefaultMotionProfile error: {response.message}"
+            return None
+        except grpc.RpcError as e:
+            return f"gRPC error for SetDefaultMotionProfile at {self.config.net.addr}. Error: {str(e.details())}"
+        except Exception as e:
+            return f"Unexpected error in SetDefaultMotionProfile at {self.config.net.addr}: {str(e)}"       
 
     # -----------------------------------------------
     #                                        Motion
@@ -775,7 +861,15 @@ class MtibV1Client:
         Returns:
             Tuple of (motion status enum, error if any)
         """
-        return self._grpc_call(self.client.GetMotionStatus, GetMotionStatusRequest(), return_value=True)
+        try:
+            response = self.client.GetMotionStatus(GetMotionStatusRequest())
+            if not response.success:
+                return None, f"GetMotionStatus error: {response.message}"
+            return response.status, None
+        except grpc.RpcError as e:
+            return None, f"gRPC error for GetMotionStatus at {self.config.net.addr}. Error: {str(e.details())}"
+        except Exception as e:
+            return None, f"Unexpected error in GetMotionStatus at {self.config.net.addr}: {str(e)}"
 
     def MotionStart(self) -> Optional[str]:
         """Start the default motion profile. If no default profile is set, an error will be returned.
@@ -785,7 +879,15 @@ class MtibV1Client:
         Returns:
             None on success, error string on failure
         """
-        return self._grpc_call(self.client.MotionStart, Empty())
+        try:
+            response = self.client.MotionStart(Empty())
+            if not response.success:
+                return f"MotionStart error: {response.message}"
+            return None
+        except grpc.RpcError as e:
+            return f"gRPC error for MotionStart at {self.config.net.addr}. Error: {str(e.details())}"
+        except Exception as e:
+            return f"Unexpected error in MotionStart at {self.config.net.addr}: {str(e)}"
 
     def MotionHome(self) -> Optional[str]:
         """Home the motion system to its reference position.
@@ -796,7 +898,15 @@ class MtibV1Client:
         Returns:
             None on success, error string on failure
         """
-        return self._grpc_call(self.client.MotionHome, Empty())
+        try:
+            response = self.client.MotionHome(Empty())
+            if not response.success:
+                return f"MotionHome error: {response.message}"
+            return None
+        except grpc.RpcError as e:
+            return f"gRPC error for MotionHome at {self.config.net.addr}. Error: {str(e.details())}"
+        except Exception as e:
+            return f"Unexpected error in MotionHome at {self.config.net.addr}: {str(e)}"
 
     def MotionStop(self) -> Optional[str]:
         """Stop any ongoing motion.
@@ -804,7 +914,15 @@ class MtibV1Client:
         Returns:
             None on success, error string on failure
         """
-        return self._grpc_call(self.client.MotionStop, Empty())
+        try:
+            response = self.client.MotionStop(Empty())
+            if not response.success:
+                return f"MotionStop error: {response.message}"
+            return None
+        except grpc.RpcError as e:
+            return f"gRPC error for MotionStop at {self.config.net.addr}. Error: {str(e.details())}"
+        except Exception as e:
+            return f"Unexpected error in MotionStop at {self.config.net.addr}: {str(e)}"
 
     # -----------------------------------------------
     #                                      Firmware
@@ -815,7 +933,15 @@ class MtibV1Client:
         Returns:
             Tuple of (list of programmer devices, error if any)
         """
-        return self._grpc_call(self.client.ListProgrammers, Empty(), return_value=True)
+        try:
+            response = self.client.ListProgrammers(Empty())
+            if not response.success:
+                return None, f"ListProgrammers error: {response.message}"
+            return response.programmers, None
+        except grpc.RpcError as e:
+            return None, f"gRPC error for ListProgrammers at {self.config.net.addr}. Error: {str(e.details())}"
+        except Exception as e:
+            return None, f"Unexpected error in ListProgrammers at {self.config.net.addr}: {str(e)}"
 
     def ListFwFiles(self) -> Tuple[Optional[List[FwFileInfo]], Optional[str]]:
         """Get a list of available firmware files.
@@ -862,11 +988,17 @@ class MtibV1Client:
                         
                         if first_chunk:
                             # First request contains name, target, and first chunk
-                            yield UploadFwFileRequest(name=file_name, target=target, content=chunk)
+                            request = UploadFwFileRequest()
+                            request.name = file_name
+                            request.target = target
+                            request.content = chunk
+                            yield request
                             first_chunk = False
                         else:
                             # Subsequent requests contain only content
-                            yield UploadFwFileRequest(content=chunk)
+                            request = UploadFwFileRequest()
+                            request.content = chunk
+                            yield request
 
             # Make the streaming call
             try:
@@ -893,7 +1025,15 @@ class MtibV1Client:
         Returns:
             None on success, error string on failure
         """
-        return self._grpc_call(self.client.DeleteFwFile, DeleteFwFileRequest(file_info=file_info))
+        try:
+            response = self.client.DeleteFwFile(DeleteFwFileRequest(file_info=file_info))
+            if not response.success:
+                return f"DeleteFwFile error: {response.message}"
+            return None
+        except grpc.RpcError as e:
+            return f"gRPC error for DeleteFwFile at {self.config.net.addr}. Error: {str(e.details())}"
+        except Exception as e:
+            return f"Unexpected error in DeleteFwFile at {self.config.net.addr}: {str(e)}"
 
     def FlashFwFile(self, file_info: FwFileInfo) -> Tuple[Optional[int], Optional[str]]:
         """Flash a firmware file to the device.
@@ -904,7 +1044,15 @@ class MtibV1Client:
         Returns:
             Tuple of (flash time in milliseconds, error if any)
         """
-        return self._grpc_call(self.client.FlashFwFile, FlashFwFileRequest(file_info=file_info), return_value=True)
+        try:
+            response = self.client.FlashFwFile(FlashFwFileRequest(file_info=file_info))
+            if not response.success:
+                return None, f"FlashFwFile error: {response.message}"
+            return response.flash_time, None
+        except grpc.RpcError as e:
+            return None, f"gRPC error for FlashFwFile at {self.config.net.addr}. Error: {str(e.details())}"
+        except Exception as e:
+            return None, f"Unexpected error in FlashFwFile at {self.config.net.addr}: {str(e)}"
 
     # -----------------------------------------------
     #                                        Uart
