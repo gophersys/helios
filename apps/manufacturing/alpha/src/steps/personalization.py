@@ -5,6 +5,7 @@ import base64
 import requests
 import traceback
 import sys
+import time
 from typing import Callable, Optional, Any, Tuple
 
 # Corekinect includes
@@ -172,7 +173,7 @@ def _init(client: MtibV1Client, logger: Logger, env_config: AlphaEnvConfig) -> O
         logger.fatal(f"Error uploading app proc firmware file: {err}")
 
 
-def _power_on(client: MtibV1Client, logger: Logger) -> Optional[str]:
+def _power_on(client: MtibV1Client, logger: Logger, delay: int = 3) -> Optional[str]:
     """
     Power on the device
     """
@@ -183,7 +184,7 @@ def _power_on(client: MtibV1Client, logger: Logger) -> Optional[str]:
         logger.fatal(f"Error enabling DUT power: {err}")
 
     logger.info("Waiting for device to power on...")
-    time.sleep(3)
+    time.sleep(delay)
 
     # Sample power every 250ms for 2 seconds (8 samples)
     samples = []
@@ -217,7 +218,8 @@ def _flash_firmware(client: MtibV1Client, logger: Logger, env_config: AlphaEnvCo
     logger.info(f"Flashing modem firmware, this will take a while...")
 
     # Flash the modem firmware
-    file_info = FwFileInfo(name=env_config.MODEM_FW_FILE, target=HostType.HOST_TYPE_NRF9160_MODEM)
+    file_name = os.path.basename(env_config.MODEM_FW_FILE)
+    file_info = FwFileInfo(name=file_name, target=HostType.HOST_TYPE_NRF9160_MODEM)
     time_ms, err = client.FlashFwFile(file_info, sector_erase=False, recover=True)
     if err:
         return f"Failed to flash modem firmware: {err}"
@@ -226,7 +228,9 @@ def _flash_firmware(client: MtibV1Client, logger: Logger, env_config: AlphaEnvCo
     logger.info(f"Flashing comms coproc firmware...")
 
     # Flash the comms coproc firmware
-    file_info = FwFileInfo(name=env_config.COMMS_COPROC_FW_FILE, target=HostType.HOST_TYPE_NRF9160)
+    # Extract just the file name from the path
+    file_name = os.path.basename(env_config.COMMS_COPROC_FW_FILE)
+    file_info = FwFileInfo(name=file_name, target=HostType.HOST_TYPE_NRF9160)
     time_ms, err = client.FlashFwFile(file_info, sector_erase=False, recover=False)
     if err:
         return f"Failed to flash modem firmware: {err}"
@@ -235,7 +239,8 @@ def _flash_firmware(client: MtibV1Client, logger: Logger, env_config: AlphaEnvCo
     logger.info(f"Flashing app proc firmware...")
 
     # Flash the app proc firmware
-    file_info = FwFileInfo(name=env_config.APP_PROC_FW_FILE, target=HostType.HOST_TYPE_NRF52840)
+    file_name = os.path.basename(env_config.APP_PROC_FW_FILE)
+    file_info = FwFileInfo(name=file_name, target=HostType.HOST_TYPE_NRF52840)
     time_ms, err = client.FlashFwFile(file_info, sector_erase=False, recover=True)
     if err:
         return f"Failed to flash modem firmware: {err}"
@@ -255,22 +260,40 @@ def _power_off(client: MtibV1Client, logger: Logger) -> Optional[str]:
     return None
 
 
+def _reset(client: MtibV1Client, logger: Logger) -> Optional[str]:
+    """
+    Reset the device
+    """
+    err = _power_off(client, logger)
+    if err:
+        return f"Error powering off device: {err}"
+
+    err = _power_on(client, logger, delay=3)
+    if err:
+        return f"Error powering on device: {err}"
+
+
 def personalization_step(
     client: MtibV1Client, logger: Logger, env_config: AlphaEnvConfig, serial_number: str
 ) -> Optional[str]:
+    start_time = time.time()
     logger.info(f"Personalizing device with serial number: {serial_number}")
 
     err = _init(client, logger, env_config)
     if err:
         return f"Error initializing application: {err}"
 
-    err = _power_on(client, logger)
+    err = _power_on(client, logger, 3)
     if err:
         return f"Error powering on device: {err}"
 
-    # err = _flash_firmware(client, logger, env_config)
-    # if err:
-    #     return f"Error flashing manufacturing firmware: {err}"
+    err = _flash_firmware(client, logger, env_config)
+    if err:
+        return f"Error flashing manufacturing firmware: {err}"
+
+    err = _reset(client, logger)
+    if err:
+        return f"Error resetting device: {err}"
 
     device_id, err = _get_device_id(env_config.PROXY_SERVER_URL, serial_number)
     if err:
@@ -293,5 +316,8 @@ def personalization_step(
     err = _power_off(client, logger)
     if err:
         return f"Error powering off device: {err}"
+
+    end_time = time.time()
+    logger.info(f"Personalization took {end_time - start_time} seconds")
 
     return None
