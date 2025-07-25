@@ -1,6 +1,7 @@
 # Standard includes
 import logging
 import os
+import base64
 import requests
 import traceback
 import sys
@@ -15,6 +16,7 @@ from corekinect.mtib_client.v1 import *
 # Application includes
 from config.env import AlphaEnvConfig
 
+
 def _get_device_id(proxy_server_url: str, snr: str) -> Tuple[Optional[str], Optional[str]]:
     # Call concord proxy
     try:
@@ -27,68 +29,105 @@ def _get_device_id(proxy_server_url: str, snr: str) -> Tuple[Optional[str], Opti
             id = response_data.get("deviceId")
             return id, None
         else:
-            return None, f"Call to concord proxy at {get_device_id_url} to get device id {snr} failed with status code ({response.status_code}), body: {response.content}"
+            return (
+                None,
+                f"Call to concord proxy at {get_device_id_url} to get device id {snr} failed with status code ({response.status_code}), body: {response.content}",
+            )
     except Exception as e:
         return None, f"An exception occurred whilst trying to get device id from concord proxy: {str(e)}"
 
-# def _upload_device_public_key(proxy_server_url: str, device_id: str, public_key: str) -> str:
-#     # Call concord proxy
-#     try:
-#         # Create request body
-#         body = {"deviceId": device_id, "pubKey": public_key}
 
-#         # Do request
-#         upload_public_key_url = f"{proxy_server_url}/v1/devices/keys/upload"
-#         response: requests.Response = requests.post(url=upload_public_key_url, json=body, verify=False)
+def _get_device_public_key(
+    client: MtibV1Client, device_id: str, logger: Logger
+) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+    # Use the MTIB client to programatically get the device public key
+    try:
+        # Get the device public key
+        hex_key, base64_key, err = client.alpha_cmd_personalize(device_id, HostType.HOST_TYPE_NRF9160)
+        if err:
+            return None, None, f"Error getting device public key: {err}"
 
-#         if response.status_code == 200:
-#             return ""
-#         else:
-#             return f"Call to concord proxy at {upload_public_key_url} upload public key for {device_id} failed with status code ({response.status_code}), body: {response.content}"
-#     except Exception as e:
-#         return f"An exception occurred whilst trying to get device id from concord proxy: \n{traceback.format_exc()}"
+        # Do a quick check to see if the public key is valid
+        if not hex_key or not base64_key:
+            return None, None, f"Invalid public key: {hex_key} {base64_key}"
 
-# def _set_device_id(proxy_server_url: str, node: str, usr_data: None) -> TestStepResult:
-#     result = TestStepResult(success=False)
+        # Verify that the base64 key is valid by decoding it and comparing to hex
+        try:
+            decoded_bytes = base64.b64decode(base64_key)
+            decoded_hex = decoded_bytes.hex()
+            if decoded_hex != hex_key:
+                return (
+                    None,
+                    None,
+                    f"Base64 key does not match hex key: decoded_hex={decoded_hex}, hex_key={hex_key}",
+                )
+        except Exception as e:
+            return None, None, f"Failed to verify base64 key: {e}"
 
-#     #  Get the device ID from CoreCloud
-#     result.error, device_id = _get_device_id(config, node)
-#     if result.error:
-#         return result
+        logger.info(f"Device public key (base64): {base64_key}")
 
-#     # Prepend "0x" to the device ID and convert it to an integer
-#     try:
-#         hex_device_id = "0x" + device_id
-#         int_device_id = int(hex_device_id, 16)  # Convert hex string to integer
-#     except ValueError as e:
-#         result.error = f"Failed to convert device ID to integer: {e}"
-#         return result
+        return hex_key, base64_key, None
+    except Exception as e:
+        return None, None, f"An exception occurred whilst trying to get device public key from concord proxy: {str(e)}"
 
-#     # Set the device id, to get back a public key
-#     set_response: CMD_DEV_EC_PUB_KEY_Response
-#     result.error, set_response = runnners_controller.dut_command_set_device_eui(node, int_device_id)
-#     if result.error:
-#         return result
 
-#     # Verify that we succesfully set the device id
-#     verify_response: CMD_PERSONALIZE_DEV_EUI_Response
-#     error, verify_response = runnners_controller.dut_command_get_device_eui(node)
+def _get_device_imei_iccids(
+    client: MtibV1Client, device_id: str, logger: Logger
+) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+    # Use the MTIB client to programatically get the device IMEI and ICCIDs
+    try:
+        # Get the device IMEI and ICCIDs
+        imei, iccids, err = client.alpha_cmd_get_imei_iccids(device_id, HostType.HOST_TYPE_NRF9160)
+        if err:
+            return None, None, f"Error getting device IMEI and ICCIDs: {err}"
 
-#     if error:
-#         result.error = f"Could not read device ID from host {node}: {error=}"
-#         return result
+        logger.info(f"Device IMEI: {imei}")
+        logger.info(f"Device ICCIDs: {iccids}")
 
-#     if int_device_id != verify_response.device_id:
-#         result.error = f"Device ID set to {int_device_id} but read back {verify_response.device_id}."
-#         return result
+        return imei, iccids, None
+    except Exception as e:
+        return None, None, f"An exception occurred whilst trying to get device IMEI and ICCIDs: {str(e)}"
 
-#     # Upload private key to CoreCloud
-#     result.error = _upload_device_public_key(node, device_id, set_response.public_key)
-#     if result.error:
-#         return result
 
-#     result.success = True
-#     return result
+def _save_device_info(
+    proxy_server_url: str,
+    device_id: str,
+    pub_key: str,
+    base64_key: str,
+    imei: str,
+    iccids: str,
+    snr: str,
+    logger: Logger,
+) -> Optional[str]:
+    try:
+        # Save Device Public Key
+        body = {"deviceId": device_id, "pubKey": base64_key}
+
+        upload_public_key_url = f"{proxy_server_url}/v1/devices/keys/upload"
+        response: requests.Response = requests.post(url=upload_public_key_url, json=body, verify=False)
+
+        if response.status_code != 200:
+            return f"Call to concord proxy at {upload_public_key_url} upload public key for {device_id} failed with status code ({response.status_code}), body: {response.content}"
+
+        # Save Device IMEI and ICCIDs
+        for iccid in iccids.split(","):
+            carrier = "Verizon" if iccid.startswith("891480") else "Soracom"
+
+            # Create the request body
+            body = {"iccid": iccid, "carrier": carrier, "snr": snr, "imei": imei}
+
+            # Do request
+            save_iccids_url = f"{proxy_server_url}/v1/devices/iccids/save"
+            response: requests.Response = requests.post(url=save_iccids_url, json=body, verify=False)
+
+            if response.status_code != 200:
+                return f"Call to concord proxy at {save_iccids_url} upload for iccid for {snr} failed with status code ({response.status_code}), body: {response.content}"
+
+        return None
+
+    except Exception as e:
+        return f"An exception occurred whilst trying to save device info to proxy: \n{traceback.format_exc()}"
+
 
 def _init(client: MtibV1Client, logger: Logger, env_config: AlphaEnvConfig) -> Optional[str]:
     """
@@ -109,7 +148,7 @@ def _init(client: MtibV1Client, logger: Logger, env_config: AlphaEnvConfig) -> O
     files, err = client.ListFwFiles()
     if err:
         return f"Error listing firmware files: {err}"
-    
+
     if files:
         for file in files:
             logger.info(f"Server has firmware file: {file}")
@@ -117,28 +156,34 @@ def _init(client: MtibV1Client, logger: Logger, env_config: AlphaEnvConfig) -> O
         logger.info("No firmware files found on server!")
 
     # Upload the modem firmware file
-    if err := client.UploadFwFile(os.path.join(assets_dir, env_config.MODEM_FW_FILE), HostType.HOST_TYPE_NRF9160_MODEM):
+    if err := client.UploadFwFile(
+        os.path.join(assets_dir, env_config.MODEM_FW_FILE), HostType.HOST_TYPE_NRF9160_MODEM
+    ):
         logger.fatal(f"Error uploading modem firmware file: {err}")
 
     # Upload the comms coproc firmware file
-    if err := client.UploadFwFile(os.path.join(assets_dir, env_config.COMMS_COPROC_FW_FILE), HostType.HOST_TYPE_NRF9160):
+    if err := client.UploadFwFile(
+        os.path.join(assets_dir, env_config.COMMS_COPROC_FW_FILE), HostType.HOST_TYPE_NRF9160
+    ):
         logger.fatal(f"Error uploading comms coproc firmware file: {err}")
-    
+
     # Upload the app proc firmware file
     if err := client.UploadFwFile(os.path.join(assets_dir, env_config.APP_PROC_FW_FILE), HostType.HOST_TYPE_NRF52840):
         logger.fatal(f"Error uploading app proc firmware file: {err}")
+
 
 def _power_on(client: MtibV1Client, logger: Logger) -> Optional[str]:
     """
     Power on the device
     """
     import time
+
     voltage_v = 4.0
     if err := client.DutPowerEnable(voltage_v):
         logger.fatal(f"Error enabling DUT power: {err}")
 
     logger.info("Waiting for device to power on...")
-    time.sleep(2)
+    time.sleep(3)
 
     # Sample power every 250ms for 2 seconds (8 samples)
     samples = []
@@ -164,18 +209,19 @@ def _power_on(client: MtibV1Client, logger: Logger) -> Optional[str]:
 
     return None
 
+
 def _flash_firmware(client: MtibV1Client, logger: Logger, env_config: AlphaEnvConfig) -> Optional[str]:
     """
     Flash the manufacturing firmware
     """
     logger.info(f"Flashing modem firmware, this will take a while...")
-    
+
     # Flash the modem firmware
     file_info = FwFileInfo(name=env_config.MODEM_FW_FILE, target=HostType.HOST_TYPE_NRF9160_MODEM)
     time_ms, err = client.FlashFwFile(file_info, sector_erase=False, recover=True)
     if err:
         return f"Failed to flash modem firmware: {err}"
-    
+
     logger.info(f"Successfully flashed modem firmware in {time_ms}ms")
     logger.info(f"Flashing comms coproc firmware...")
 
@@ -184,7 +230,7 @@ def _flash_firmware(client: MtibV1Client, logger: Logger, env_config: AlphaEnvCo
     time_ms, err = client.FlashFwFile(file_info, sector_erase=False, recover=False)
     if err:
         return f"Failed to flash modem firmware: {err}"
-    
+
     logger.info(f"Successfully flashed comms coproc firmware in {time_ms}ms")
     logger.info(f"Flashing app proc firmware...")
 
@@ -193,24 +239,11 @@ def _flash_firmware(client: MtibV1Client, logger: Logger, env_config: AlphaEnvCo
     time_ms, err = client.FlashFwFile(file_info, sector_erase=False, recover=True)
     if err:
         return f"Failed to flash modem firmware: {err}"
-    
+
     logger.info(f"Successfully flashed app proc firmware in {time_ms}ms")
 
     return None
 
-def _personalize_device(client: MtibV1Client, logger: Logger, env_config: AlphaEnvConfig, serial_number: str) -> Optional[str]:
-    """
-    Personalize the device
-    """
-    logger.info(f"Personalizing device with serial number: {serial_number}")
-
-    device_id, err = _get_device_id(env_config.PROXY_SERVER_URL, serial_number)
-    if err:
-        return f"Error getting device id: {err}"
-
-    logger.info(f"Device ID: {device_id}")
-
-    return None
 
 def _power_off(client: MtibV1Client, logger: Logger) -> Optional[str]:
     """
@@ -221,25 +254,42 @@ def _power_off(client: MtibV1Client, logger: Logger) -> Optional[str]:
 
     return None
 
-def personalization_step(client: MtibV1Client, logger: Logger, env_config: AlphaEnvConfig, serial_number: str) -> Optional[str]:
+
+def personalization_step(
+    client: MtibV1Client, logger: Logger, env_config: AlphaEnvConfig, serial_number: str
+) -> Optional[str]:
     logger.info(f"Personalizing device with serial number: {serial_number}")
 
     err = _init(client, logger, env_config)
     if err:
         return f"Error initializing application: {err}"
-    
+
     err = _power_on(client, logger)
     if err:
         return f"Error powering on device: {err}"
-    
+
     # err = _flash_firmware(client, logger, env_config)
     # if err:
     #     return f"Error flashing manufacturing firmware: {err}"
-    
-    err = _personalize_device(client, logger, env_config, serial_number)
+
+    device_id, err = _get_device_id(env_config.PROXY_SERVER_URL, serial_number)
     if err:
         return f"Error personalizing device: {err}"
-    
+
+    pub_key, base64_key, err = _get_device_public_key(client, device_id, logger)
+    if err:
+        return f"Error getting device public key: {err}"
+
+    imei, iccids, err = _get_device_imei_iccids(client, device_id, logger)
+    if err:
+        return f"Error getting device IMEI and ICCIDs: {err}"
+
+    err = _save_device_info(
+        env_config.PROXY_SERVER_URL, device_id, pub_key, base64_key, imei, iccids, serial_number, logger
+    )
+    if err:
+        return f"Error saving device info: {err}"
+
     err = _power_off(client, logger)
     if err:
         return f"Error powering off device: {err}"

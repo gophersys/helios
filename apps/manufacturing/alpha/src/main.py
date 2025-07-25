@@ -86,10 +86,10 @@ if __name__ == "__main__":
         if err := client.DutChargePowerDisable():
             logger.fatal(f"Error disabling DUT charge power: {err}")
 
-        err = personalization_step(client, logger, env_config, "1234567890")
-        if err is not None:
-            logger.error(f"Error during personalization: {err}")
-            sys.exit(1)
+        # err = personalization_step(client, logger, env_config, "1234567890")
+        # if err is not None:
+        #     logger.error(f"Error during personalization: {err}")
+        #     sys.exit(1)
 
         # Main loop for barcode scanning
         while True:
