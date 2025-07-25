@@ -93,7 +93,6 @@ from config.env import AlphaEnvConfig
 #     result.success = True
 #     return result
 
-
 def _init(client: MtibV1Client, logger: Logger, env_config: AlphaEnvConfig) -> Optional[str]:
     """
     Initialize the client
@@ -116,26 +115,21 @@ def _init(client: MtibV1Client, logger: Logger, env_config: AlphaEnvConfig) -> O
     
     if files:
         for file in files:
-            if file.name == env_config.MODEM_FW_FILE:
-                logger.info(f"Server has modem firmware file: {file}")
-            elif file.name == env_config.COMMS_COPROC_FW_FILE:
-                logger.info(f"Server has comms coproc firmware file: {file}")
-            elif file.name == env_config.APP_PROC_FW_FILE:
-                logger.info(f"Server has app proc firmware file: {file}")
-            else:
-                logger.info(f"Server has unknown firmware file: {file}")
+            logger.info(f"Server has firmware file: {file}")
     else:
         logger.info("No firmware files found on server!")
 
-        # Upload the modem firmware file
-        if err := client.UploadFwFile(os.path.join(assets_dir, env_config.MODEM_FW_FILE), HostType.HOST_TYPE_NRF9160_MODEM):
-            logger.fatal(f"Error uploading modem firmware file: {err}")
+    # Upload the modem firmware file
+    if err := client.UploadFwFile(os.path.join(assets_dir, env_config.MODEM_FW_FILE), HostType.HOST_TYPE_NRF9160_MODEM):
+        logger.fatal(f"Error uploading modem firmware file: {err}")
 
-        # # Upload the comms coproc firmware file
-        # if err := client.UploadFwFile(os.path.join(assets_dir, env_config.COMMS_COPROC_FW_FILE), HostType.HOST_TYPE_NRF9160_MODEM):
-        #     logger.fatal(f"Error uploading comms coproc firmware file: {err}")
-
+    # Upload the comms coproc firmware file
+    if err := client.UploadFwFile(os.path.join(assets_dir, env_config.COMMS_COPROC_FW_FILE), HostType.HOST_TYPE_NRF9160):
+        logger.fatal(f"Error uploading comms coproc firmware file: {err}")
+    
     # Upload the app proc firmware file
+    if err := client.UploadFwFile(os.path.join(assets_dir, env_config.APP_PROC_FW_FILE), HostType.HOST_TYPE_NRF52840):
+        logger.fatal(f"Error uploading app proc firmware file: {err}")
 
 def _power_on(client: MtibV1Client, logger: Logger) -> Optional[str]:
     """
@@ -147,7 +141,7 @@ def _power_on(client: MtibV1Client, logger: Logger) -> Optional[str]:
         logger.fatal(f"Error enabling DUT power: {err}")
 
     logger.info("Waiting for device to power on...")
-    time.sleep(1)
+    time.sleep(2)
 
     # Sample power every 250ms for 2 seconds (8 samples)
     samples = []
@@ -173,19 +167,37 @@ def _power_on(client: MtibV1Client, logger: Logger) -> Optional[str]:
 
     return None
 
-def _flash_mfg_firmware(client: MtibV1Client, logger: Logger, env_config: AlphaEnvConfig) -> Optional[str]:
+def _flash_firmware(client: MtibV1Client, logger: Logger, env_config: AlphaEnvConfig) -> Optional[str]:
     """
     Flash the manufacturing firmware
     """
-    # Get the assets directory
-    assets_dir = env_config.ASSETS_DIR
+    logger.info(f"Flashing modem firmware, this will take a while...")
+    
+    # Flash the modem firmware
+    file_info = FwFileInfo(name=env_config.MODEM_FW_FILE, target=HostType.HOST_TYPE_NRF9160_MODEM)
+    time_ms, err = client.FlashFwFile(file_info, sector_erase=False, recover=True)
+    if err:
+        return f"Failed to flash modem firmware: {err}"
+    
+    logger.info(f"Successfully flashed modem firmware in {time_ms}ms")
+    logger.info(f"Flashing comms coproc firmware...")
 
-    # Upload the firmware files to the device
-    for file in os.listdir(assets_dir):
-        if file.endswith(".bin"):
-            logger.info(f"Uploading firmware file: {file}")
-            if err := client.DutFirmwareUpload(file):
-                logger.fatal(f"Error uploading firmware file: {err}")
+    # Flash the comms coproc firmware
+    file_info = FwFileInfo(name=env_config.COMMS_COPROC_FW_FILE, target=HostType.HOST_TYPE_NRF9160)
+    time_ms, err = client.FlashFwFile(file_info, sector_erase=False, recover=False)
+    if err:
+        return f"Failed to flash modem firmware: {err}"
+    
+    logger.info(f"Successfully flashed comms coproc firmware in {time_ms}ms")
+    logger.info(f"Flashing app proc firmware...")
+
+    # Flash the app proc firmware
+    file_info = FwFileInfo(name=env_config.APP_PROC_FW_FILE, target=HostType.HOST_TYPE_NRF52840)
+    time_ms, err = client.FlashFwFile(file_info, sector_erase=False, recover=True)
+    if err:
+        return f"Failed to flash modem firmware: {err}"
+    
+    logger.info(f"Successfully flashed app proc firmware in {time_ms}ms")
 
     return None
 
@@ -198,12 +210,7 @@ def _power_off(client: MtibV1Client, logger: Logger) -> Optional[str]:
 
     return None
 
-def personalization_step(
-    client: MtibV1Client, logger: Logger, env_config: AlphaEnvConfig, serial_number: str
-) -> Optional[str]:
-    """
-    Personalization step
-    """
+def personalization_step(client: MtibV1Client, logger: Logger, env_config: AlphaEnvConfig, serial_number: str) -> Optional[str]:
     logger.info(f"Personalizing device with serial number: {serial_number}")
 
     err = _init(client, logger, env_config)
@@ -213,6 +220,10 @@ def personalization_step(
     err = _power_on(client, logger)
     if err:
         return f"Error powering on device: {err}"
+    
+    err = _flash_firmware(client, logger, env_config)
+    if err:
+        return f"Error flashing manufacturing firmware: {err}"
     
     err = _power_off(client, logger)
     if err:

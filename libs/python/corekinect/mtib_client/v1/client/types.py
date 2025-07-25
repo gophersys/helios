@@ -52,6 +52,7 @@ from protocols.mtib.mtib_pb2 import (
     SetDefaultProfileResponse,
     # Firmware types
     HostType,
+    FwFileInfo,
     ListProgrammersResponse,
     ListFwFilesResponse,
     UploadFwFileRequest,
@@ -255,15 +256,6 @@ class ListProgrammersResponse:
     success: bool = False
     message: str = ""
     programmers: List[Programmer] = None
-
-
-@dataclass
-class FwFileInfo:
-    name: str = ""
-    target: HostType = HostType.HOST_TYPE_NRF9160_MODEM
-    size_b: int = 0
-    sha256_digest: str = ""
-
 
 @dataclass
 class ListFwFilesResponse:
