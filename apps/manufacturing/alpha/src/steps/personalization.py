@@ -18,7 +18,7 @@ from corekinect.mtib_client.v1 import *
 from config.env import AlphaEnvConfig
 
 
-def _get_device_id(proxy_server_url: str, snr: str) -> Tuple[Optional[str], Optional[str]]:
+def _get_device_id(proxy_server_url: str, snr: str, logger: Logger) -> Tuple[Optional[str], Optional[str]]:
     # Call concord proxy
     try:
         get_device_id_url = f"{proxy_server_url}/v1/devices/ids/assign"
@@ -28,12 +28,16 @@ def _get_device_id(proxy_server_url: str, snr: str) -> Tuple[Optional[str], Opti
         if response.status_code == 200:
             response_data = response.json()
             id = response_data.get("deviceId")
+
+            logger.info(f"Device ID: {id}")
+
             return id, None
         else:
             return (
                 None,
                 f"Call to concord proxy at {get_device_id_url} to get device id {snr} failed with status code ({response.status_code}), body: {response.content}",
             )
+
     except Exception as e:
         return None, f"An exception occurred whilst trying to get device id from concord proxy: {str(e)}"
 
@@ -295,7 +299,7 @@ def personalization_step(
     if err:
         return f"Error resetting device: {err}"
 
-    device_id, err = _get_device_id(env_config.PROXY_SERVER_URL, serial_number)
+    device_id, err = _get_device_id(env_config.PROXY_SERVER_URL, serial_number, logger)
     if err:
         return f"Error personalizing device: {err}"
 
