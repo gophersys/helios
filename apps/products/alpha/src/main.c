@@ -22,10 +22,20 @@ static void process_vitals_metrics(const vitals_output_metrics_t *metrics);
 
 // Global variables
 static vsm_t g_vsm = {0};
+static struct k_sem g_vsm_hw_error_sem;
 
 static void handle_vsm_callback(const vitals_thread_callback_data_t *data, void *user_data) {
     // Process based on event type
     switch (data->event) {
+        case VITALS_EVENT_HW_ERROR:
+            // Handle hardware error
+            LOG_ERR("PPG Sensor Error: %d", data->hw_error.ppg_sensor_error);
+            LOG_ERR("IMU Sensor Error: %d", data->hw_error.imu_sensor_error);
+            LOG_ERR("Temp Sensor Error: %d", data->hw_error.temp_sensor_error);
+
+            k_sem_give(&g_vsm_hw_error_sem);
+            break;
+
         case VITALS_EVENT_STATE_CHANGED:
             // Handle state transitions
             switch (data->state) {
@@ -58,6 +68,11 @@ static void handle_vsm_callback(const vitals_thread_callback_data_t *data, void 
                     // Skin contact lost, deactivate monitoring
                     LOG_WRN("Skin contact lost, deactivating monitoring");
                     // vsm_deactivate_monitoring(&g_vsm);
+                    break;
+
+                case VITALS_STATE_SHUTDOWN:
+                    // Shutdown state, do nothing
+                    LOG_WRN("Shutting down");
                     break;
 
                 default:
@@ -112,30 +127,35 @@ int main(void) {
         .deskin_detection_period_ms = 6000,
     };
 
-    // Initialize vitals thread
-    if (!vsm_init(&vsm_cfg, &g_vsm)) {
-        LOG_ERR("Failed to initialize vitals thread");
-        return -1;
-    }
+    k_sem_init(&g_vsm_hw_error_sem, 0, 1);
 
     // Main application loop
     while (1) {
-        // // Initialize vitals thread
-        // if (!vsm_init(&vsm_cfg, &g_vsm)) {
-        //     LOG_ERR("Failed to initialize vitals thread");
-        //     return -1;
-        // }
+        bool vsm_initialized = false;
+        while (!vsm_initialized) {
+            k_sleep(K_SECONDS(1));
 
-        // LOG_INF("VSM module is ready to use");
-        // k_sleep(K_SECONDS(20));
-        // LOG_INF("Shutting down VSM module");
+            if (!vsm_init(&vsm_cfg, &g_vsm)) {
+                LOG_ERR("Failed to initialize vitals thread");
+                vsm_initialized = false;
 
-        // if (!vsm_deinit(&g_vsm)) {
-        //     LOG_ERR("Failed to deinitialize vitals thread");
-        //     return -1;
-        // }
+                // Try to clean up, it may fail depending on hardware state,
+                // but will attempt to clean up sensor hardware
+                vsm_deinit(&g_vsm);
+            } else {
+                vsm_initialized = true;
+            }
+        }
 
-        k_sleep(K_SECONDS(20));
+        LOG_INF("VSM module is ready to use!");
+
+        k_sem_take(&g_vsm_hw_error_sem, K_FOREVER);
+        LOG_ERR("Hardware error detected, shutting down VSM module");
+
+        if (!vsm_deinit(&g_vsm)) {
+            LOG_ERR("Failed to deinitialize vitals thread");
+            return -1;
+        }
     }
 
     return 0;
