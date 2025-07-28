@@ -149,11 +149,15 @@ class FirmwareHandler:
                 first_request = next(request_iterator)
             except StopIteration:
                 self.logger.error("UploadFwFile request stream ended before first chunk")
-                return UploadFwFileResponse(success=False, message="Upload stream ended before first chunk", sha256_digest="")
+                return UploadFwFileResponse(
+                    success=False, message="Upload stream ended before first chunk", sha256_digest=""
+                )
             except grpc.RpcError as e:
                 self.logger.error(f"gRPC error getting first request: {e}")
-                return UploadFwFileResponse(success=False, message=f"gRPC error getting first request: {str(e)}", sha256_digest="")
-            
+                return UploadFwFileResponse(
+                    success=False, message=f"gRPC error getting first request: {str(e)}", sha256_digest=""
+                )
+
             filename = first_request.name
             target = first_request.target
             self.logger.info(f"UploadFwFile request received for {filename} with target {target}")
@@ -177,7 +181,9 @@ class FirmwareHandler:
                     self.logger.error(f"gRPC error during chunk processing: {e}")
                     # Clean up the partial file
                     self._cleanup_file(filename)
-                    return UploadFwFileResponse(success=False, message=f"gRPC error during chunk processing: {str(e)}", sha256_digest="")
+                    return UploadFwFileResponse(
+                        success=False, message=f"gRPC error during chunk processing: {str(e)}", sha256_digest=""
+                    )
 
             # Calculate SHA256 and store the file path and target
             sha256 = self._calculate_sha256(temp_file)
@@ -283,6 +289,20 @@ class FirmwareHandler:
             cmd = ["nrfjprog", "--program", str(file_path), "--verify", "--snr", programmer]
             if request.sector_erase:
                 cmd.append("--sectorerase")
+
+            # Step 3: Run the programming command
+            self.logger.info(f"Running program: {' '.join(cmd)}")
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                check=True,
+                timeout=60,  # 1 minute timeout
+            )
+            time_ms = int((time.time() - start_time) * 1000)
+
+            # Step 4: Run the verify command
+            cmd = ["nrfjprog", "--verify", str(file_path), "--snr", programmer]
 
             # Step 3: Run the programming command
             self.logger.info(f"Running program: {' '.join(cmd)}")
