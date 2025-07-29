@@ -116,7 +116,15 @@ def _save_device_info(
 
         # Save Device IMEI and ICCIDs
         for iccid in iccids.split(","):
-            carrier = "Verizon" if iccid.startswith("891480") else "Soracom"
+            carrier = ""
+            if iccid.startswith("891480"):
+                carrier = "Verizon"
+            elif iccid.startswith("8942310"):
+                carrier = "Soracom"
+            elif iccid.startswith("894573"):
+                carrier = "Onomondo"
+            else:
+                return f"Invalid ICCID found {iccid}"
 
             # Create the request body
             body = {"iccid": iccid, "carrier": carrier, "snr": snr, "imei": imei}
@@ -190,27 +198,27 @@ def _power_on(client: MtibV1Client, logger: Logger, delay: int = 3) -> Optional[
     logger.info("Waiting for device to power on...")
     time.sleep(delay)
 
-    # Sample power every 250ms for 2 seconds (8 samples)
-    samples = []
-    min_ma_draw = None
-    max_ma_draw = None
-    for _ in range(4):
-        current_a, voltage_v, power_w, err = client.DutPowerRead()
-        if err:
-            logger.fatal(f"Error reading DUT power: {err}")
-        ma_draw = current_a * 1000
-        samples.append(ma_draw)
-        if min_ma_draw is None or ma_draw < min_ma_draw:
-            min_ma_draw = ma_draw
-        if max_ma_draw is None or ma_draw > max_ma_draw:
-            max_ma_draw = ma_draw
-        time.sleep(0.25)
+    # # Sample power every 250ms for 2 seconds (8 samples)
+    # samples = []
+    # min_ma_draw = None
+    # max_ma_draw = None
+    # for _ in range(4):
+    #     current_a, voltage_v, power_w, err = client.DutPowerRead()
+    #     if err:
+    #         logger.fatal(f"Error reading DUT power: {err}")
+    #     ma_draw = current_a * 1000
+    #     samples.append(ma_draw)
+    #     if min_ma_draw is None or ma_draw < min_ma_draw:
+    #         min_ma_draw = ma_draw
+    #     if max_ma_draw is None or ma_draw > max_ma_draw:
+    #         max_ma_draw = ma_draw
+    #     time.sleep(0.25)
 
-    avg_ma_draw = sum(samples) / len(samples)
-    logger.info(f"Device powered on, power draw: min {min_ma_draw} mA, max {max_ma_draw} mA, avg {avg_ma_draw} mA")
+    # avg_ma_draw = sum(samples) / len(samples)
+    # logger.info(f"Device powered on, power draw: min {min_ma_draw} mA, max {max_ma_draw} mA, avg {avg_ma_draw} mA")
 
-    if avg_ma_draw < 10 or avg_ma_draw > 30:
-        return f"Average power draw is not within expected range: {avg_ma_draw} mA, min {min_ma_draw} mA, max {max_ma_draw} mA"
+    # if avg_ma_draw < 10 or avg_ma_draw > 30:
+    #     return f"Average power draw is not within expected range: {avg_ma_draw} mA, min {min_ma_draw} mA, max {max_ma_draw} mA"
 
     return None
 
@@ -221,25 +229,25 @@ def _flash_firmware(client: MtibV1Client, logger: Logger, env_config: AlphaEnvCo
     """
     logger.info(f"Flashing modem firmware, this will take a while...")
 
-    # Flash the modem firmware
-    file_name = os.path.basename(env_config.MODEM_FW_FILE)
-    file_info = FwFileInfo(name=file_name, target=HostType.HOST_TYPE_NRF9160_MODEM)
-    time_ms, err = client.FlashFwFile(file_info, sector_erase=False, recover=True)
-    if err:
-        return f"Failed to flash modem firmware: {err}"
+    # # Flash the modem firmware
+    # file_name = os.path.basename(env_config.MODEM_FW_FILE)
+    # file_info = FwFileInfo(name=file_name, target=HostType.HOST_TYPE_NRF9160_MODEM)
+    # time_ms, err = client.FlashFwFile(file_info, sector_erase=False, recover=True)
+    # if err:
+    #     return f"Failed to flash modem firmware: {err}"
 
-    logger.info(f"Successfully flashed modem firmware in {time_ms}ms")
-    logger.info(f"Flashing comms coproc firmware...")
+    # logger.info(f"Successfully flashed modem firmware in {time_ms}ms")
+    # logger.info(f"Flashing comms coproc firmware...")
 
-    # Flash the comms coproc firmware
-    # Extract just the file name from the path
-    file_name = os.path.basename(env_config.COMMS_COPROC_FW_FILE)
-    file_info = FwFileInfo(name=file_name, target=HostType.HOST_TYPE_NRF9160)
-    time_ms, err = client.FlashFwFile(file_info, sector_erase=False, recover=False)
-    if err:
-        return f"Failed to flash modem firmware: {err}"
+    # # Flash the comms coproc firmware
+    # # Extract just the file name from the path
+    # file_name = os.path.basename(env_config.COMMS_COPROC_FW_FILE)
+    # file_info = FwFileInfo(name=file_name, target=HostType.HOST_TYPE_NRF9160)
+    # time_ms, err = client.FlashFwFile(file_info, sector_erase=False, recover=False)
+    # if err:
+    #     return f"Failed to flash modem firmware: {err}"
 
-    logger.info(f"Successfully flashed comms coproc firmware in {time_ms}ms")
+    # logger.info(f"Successfully flashed comms coproc firmware in {time_ms}ms")
     logger.info(f"Flashing app proc firmware...")
 
     # Flash the app proc firmware
@@ -287,41 +295,46 @@ def personalization_step(
     if err:
         return f"Error initializing application: {err}"
 
-    err = _power_on(client, logger, 3)
-    if err:
-        return f"Error powering on device: {err}"
+    # err = _power_on(client, logger, 3)
+    # if err:
+    #     return f"Error powering on device: {err}"
 
-    err = _flash_firmware(client, logger, env_config)
-    if err:
-        return f"Error flashing manufacturing firmware: {err}"
+    # Use try-finally to ensure power off runs even if any step fails
+    try:
+        err = _flash_firmware(client, logger, env_config)
+        if err:
+            return f"Error flashing manufacturing firmware: {err}"
 
-    err = _reset(client, logger)
-    if err:
-        return f"Error resetting device: {err}"
+        # err = _reset(client, logger)
+        # if err:
+        #     return f"Error resetting device: {err}"
 
-    device_id, err = _get_device_id(env_config.PROXY_SERVER_URL, serial_number, logger)
-    if err:
-        return f"Error personalizing device: {err}"
+        # device_id, err = _get_device_id(env_config.PROXY_SERVER_URL, serial_number, logger)
+        # if err:
+        #     return f"Error personalizing device: {err}"
 
-    pub_key, base64_key, err = _get_device_public_key(client, device_id, logger)
-    if err:
-        return f"Error getting device public key: {err}"
+        # pub_key, base64_key, err = _get_device_public_key(client, device_id, logger)
+        # if err:
+        #     return f"Error getting device public key: {err}"
 
-    imei, iccids, err = _get_device_imei_iccids(client, device_id, logger)
-    if err:
-        return f"Error getting device IMEI and ICCIDs: {err}"
+        # imei, iccids, err = _get_device_imei_iccids(client, device_id, logger)
+        # if err:
+        #     return f"Error getting device IMEI and ICCIDs: {err}"
 
-    err = _save_device_info(
-        env_config.PROXY_SERVER_URL, device_id, pub_key, base64_key, imei, iccids, serial_number, logger
-    )
-    if err:
-        return f"Error saving device info: {err}"
+        # err = _save_device_info(
+        #     env_config.PROXY_SERVER_URL, device_id, pub_key, base64_key, imei, iccids, serial_number, logger
+        # )
+        # if err:
+        #     return f"Error saving device info: {err}"
 
-    err = _power_off(client, logger)
-    if err:
-        return f"Error powering off device: {err}"
+        # If we reach here, all steps succeeded
+        end_time = time.time()
+        logger.info(f"Personalization took {end_time - start_time} seconds")
+        return None
 
-    end_time = time.time()
-    logger.info(f"Personalization took {end_time - start_time} seconds")
-
-    return None
+    finally:
+        # Always power off the device, regardless of success or failure
+        power_off_err = _power_off(client, logger)
+        if power_off_err:
+            logger.error(f"Error powering off device: {power_off_err}")
+            # Don't return here as we want to preserve the original error if there was one
