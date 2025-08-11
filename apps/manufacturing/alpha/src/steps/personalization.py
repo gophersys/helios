@@ -16,6 +16,18 @@ from corekinect.mtib_client.v1 import *
 
 # Application includes
 from config.env import AlphaEnvConfig
+import re
+
+
+def _clean_iccid(iccid: str) -> str:
+    """Remove ANSI escape sequences and other trailing characters from ICCID."""
+    # Remove ANSI escape sequences like [0m, [1m, etc.
+    cleaned = re.sub(r"\x1b\[[0-9;]*[a-zA-Z]", "", iccid)
+    # Remove any remaining non-printable characters
+    cleaned = "".join(char for char in cleaned if char.isprintable())
+    # Remove any trailing whitespace
+    cleaned = cleaned.strip()
+    return cleaned
 
 
 def _get_device_id(proxy_server_url: str, snr: str, logger: Logger) -> Tuple[Optional[str], Optional[str]]:
@@ -116,18 +128,21 @@ def _save_device_info(
 
         # Save Device IMEI and ICCIDs
         for iccid in iccids.split(","):
+            # Clean the ICCID to remove ANSI escape sequences and trailing characters
+            cleaned_iccid = _clean_iccid(iccid)
+
             carrier = ""
-            if iccid.startswith("891480"):
+            if cleaned_iccid.startswith("891480"):
                 carrier = "Verizon"
-            elif iccid.startswith("8942310"):
+            elif cleaned_iccid.startswith("8942310"):
                 carrier = "Soracom"
-            elif iccid.startswith("894573"):
+            elif cleaned_iccid.startswith("894573"):
                 carrier = "Onomondo"
             else:
-                return f"Invalid ICCID found {iccid}"
+                return f"Invalid ICCID found {cleaned_iccid}"
 
             # Create the request body
-            body = {"iccid": iccid, "carrier": carrier, "snr": snr, "imei": imei}
+            body = {"iccid": cleaned_iccid, "carrier": carrier, "snr": snr, "imei": imei}
 
             # Do request
             save_iccids_url = f"{proxy_server_url}/v1/devices/iccids/save"
@@ -229,25 +244,25 @@ def _flash_firmware(client: MtibV1Client, logger: Logger, env_config: AlphaEnvCo
     """
     logger.info(f"Flashing modem firmware, this will take a while...")
 
-    # # Flash the modem firmware
-    # file_name = os.path.basename(env_config.MODEM_FW_FILE)
-    # file_info = FwFileInfo(name=file_name, target=HostType.HOST_TYPE_NRF9160_MODEM)
-    # time_ms, err = client.FlashFwFile(file_info, sector_erase=False, recover=True)
-    # if err:
-    #     return f"Failed to flash modem firmware: {err}"
+    # Flash the modem firmware
+    file_name = os.path.basename(env_config.MODEM_FW_FILE)
+    file_info = FwFileInfo(name=file_name, target=HostType.HOST_TYPE_NRF9160_MODEM)
+    time_ms, err = client.FlashFwFile(file_info, sector_erase=False, recover=True)
+    if err:
+        return f"Failed to flash modem firmware: {err}"
 
-    # logger.info(f"Successfully flashed modem firmware in {time_ms}ms")
-    # logger.info(f"Flashing comms coproc firmware...")
+    logger.info(f"Successfully flashed modem firmware in {time_ms}ms")
+    logger.info(f"Flashing comms coproc firmware...")
 
-    # # Flash the comms coproc firmware
-    # # Extract just the file name from the path
-    # file_name = os.path.basename(env_config.COMMS_COPROC_FW_FILE)
-    # file_info = FwFileInfo(name=file_name, target=HostType.HOST_TYPE_NRF9160)
-    # time_ms, err = client.FlashFwFile(file_info, sector_erase=False, recover=False)
-    # if err:
-    #     return f"Failed to flash modem firmware: {err}"
+    # Flash the comms coproc firmware
+    # Extract just the file name from the path
+    file_name = os.path.basename(env_config.COMMS_COPROC_FW_FILE)
+    file_info = FwFileInfo(name=file_name, target=HostType.HOST_TYPE_NRF9160)
+    time_ms, err = client.FlashFwFile(file_info, sector_erase=False, recover=False)
+    if err:
+        return f"Failed to flash modem firmware: {err}"
 
-    # logger.info(f"Successfully flashed comms coproc firmware in {time_ms}ms")
+    logger.info(f"Successfully flashed comms coproc firmware in {time_ms}ms")
     logger.info(f"Flashing app proc firmware...")
 
     # Flash the app proc firmware
@@ -295,9 +310,9 @@ def personalization_step(
     if err:
         return f"Error initializing application: {err}"
 
-    # err = _power_on(client, logger, 3)
-    # if err:
-    #     return f"Error powering on device: {err}"
+    err = _power_on(client, logger, 3)
+    if err:
+        return f"Error powering on device: {err}"
 
     # Use try-finally to ensure power off runs even if any step fails
     try:
@@ -305,27 +320,33 @@ def personalization_step(
         if err:
             return f"Error flashing manufacturing firmware: {err}"
 
-        # err = _reset(client, logger)
-        # if err:
-        #     return f"Error resetting device: {err}"
+        err = _reset(client, logger)
+        if err:
+            return f"Error resetting device: {err}"
 
-        # device_id, err = _get_device_id(env_config.PROXY_SERVER_URL, serial_number, logger)
-        # if err:
-        #     return f"Error personalizing device: {err}"
+        device_id, err = _get_device_id(env_config.PROXY_SERVER_URL, serial_number, logger)
+        if err:
+            return f"Error personalizing device: {err}"
 
-        # pub_key, base64_key, err = _get_device_public_key(client, device_id, logger)
-        # if err:
-        #     return f"Error getting device public key: {err}"
+        pub_key, base64_key, err = _get_device_public_key(client, device_id, logger)
+        if err:
+            return f"Error getting device public key: {err}"
 
-        # imei, iccids, err = _get_device_imei_iccids(client, device_id, logger)
-        # if err:
-        #     return f"Error getting device IMEI and ICCIDs: {err}"
+        imei, iccids, err = _get_device_imei_iccids(client, device_id, logger)
+        if err:
+            return f"Error getting device IMEI and ICCIDs: {err}"
 
-        # err = _save_device_info(
-        #     env_config.PROXY_SERVER_URL, device_id, pub_key, base64_key, imei, iccids, serial_number, logger
-        # )
-        # if err:
-        #     return f"Error saving device info: {err}"
+        # device_id = "70B3D584C01E14AA"
+        # pub_key = "0409cbe18f69330bc47e8ad6b7138a5d7b1b7db6797b0f12b5ed18ce4b37959fca054ae76e1789a639677be7bd841f6228fa027cfc8d7a96ecdb86db929245a672"
+        # base64_key = "BJ5QYtZgbzBGwBuqWRDenQ8vyjN6a9tvuLBs02AH51Qp9ONRn6FD3OK3pqabvmfSzT00roZyO7ZumBl2h5MVM98="
+        # imei = "359746161665539"
+        # iccids = "89148000009808568903,89457300000035348195"
+
+        err = _save_device_info(
+            env_config.PROXY_SERVER_URL, device_id, pub_key, base64_key, imei, iccids, serial_number, logger
+        )
+        if err:
+            return f"Error saving device info: {err}"
 
         # If we reach here, all steps succeeded
         end_time = time.time()
