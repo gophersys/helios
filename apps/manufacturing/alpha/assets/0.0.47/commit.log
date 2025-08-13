@@ -1,0 +1,5 @@
+commit 624b44c0d948e37342d85e50e09900f78ec1113d
+Author: Christian Cortes <christian@corekinect.com>
+Date:   Wed Jul 30 06:15:55 2025 +0000
+
+    added logic to not blink when the charger reaches 100% and the charger stops charging the device. LEDs should remain solid
