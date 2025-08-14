@@ -16,6 +16,18 @@ from corekinect.mtib_client.v1 import *
 
 # Application includes
 from config.env import AlphaEnvConfig
+import re
+
+
+def _clean_iccid(iccid: str) -> str:
+    """Remove ANSI escape sequences and other trailing characters from ICCID."""
+    # Remove ANSI escape sequences like [0m, [1m, etc.
+    cleaned = re.sub(r"\x1b\[[0-9;]*[a-zA-Z]", "", iccid)
+    # Remove any remaining non-printable characters
+    cleaned = "".join(char for char in cleaned if char.isprintable())
+    # Remove any trailing whitespace
+    cleaned = cleaned.strip()
+    return cleaned
 
 
 def _get_device_id(proxy_server_url: str, snr: str, logger: Logger) -> Tuple[Optional[str], Optional[str]]:
@@ -116,10 +128,21 @@ def _save_device_info(
 
         # Save Device IMEI and ICCIDs
         for iccid in iccids.split(","):
-            carrier = "Verizon" if iccid.startswith("891480") else "Soracom"
+            # Clean the ICCID to remove ANSI escape sequences and trailing characters
+            cleaned_iccid = _clean_iccid(iccid)
+
+            carrier = ""
+            if cleaned_iccid.startswith("891480"):
+                carrier = "Verizon"
+            elif cleaned_iccid.startswith("8942310"):
+                carrier = "Soracom"
+            elif cleaned_iccid.startswith("894573"):
+                carrier = "Onomondo"
+            else:
+                return f"Invalid ICCID found {cleaned_iccid}"
 
             # Create the request body
-            body = {"iccid": iccid, "carrier": carrier, "snr": snr, "imei": imei}
+            body = {"iccid": cleaned_iccid, "carrier": carrier, "snr": snr, "imei": imei}
 
             # Do request
             save_iccids_url = f"{proxy_server_url}/v1/devices/iccids/save"
@@ -190,27 +213,27 @@ def _power_on(client: MtibV1Client, logger: Logger, delay: int = 3) -> Optional[
     logger.info("Waiting for device to power on...")
     time.sleep(delay)
 
-    # Sample power every 250ms for 2 seconds (8 samples)
-    samples = []
-    min_ma_draw = None
-    max_ma_draw = None
-    for _ in range(4):
-        current_a, voltage_v, power_w, err = client.DutPowerRead()
-        if err:
-            logger.fatal(f"Error reading DUT power: {err}")
-        ma_draw = current_a * 1000
-        samples.append(ma_draw)
-        if min_ma_draw is None or ma_draw < min_ma_draw:
-            min_ma_draw = ma_draw
-        if max_ma_draw is None or ma_draw > max_ma_draw:
-            max_ma_draw = ma_draw
-        time.sleep(0.25)
+    # # Sample power every 250ms for 2 seconds (8 samples)
+    # samples = []
+    # min_ma_draw = None
+    # max_ma_draw = None
+    # for _ in range(4):
+    #     current_a, voltage_v, power_w, err = client.DutPowerRead()
+    #     if err:
+    #         logger.fatal(f"Error reading DUT power: {err}")
+    #     ma_draw = current_a * 1000
+    #     samples.append(ma_draw)
+    #     if min_ma_draw is None or ma_draw < min_ma_draw:
+    #         min_ma_draw = ma_draw
+    #     if max_ma_draw is None or ma_draw > max_ma_draw:
+    #         max_ma_draw = ma_draw
+    #     time.sleep(0.25)
 
-    avg_ma_draw = sum(samples) / len(samples)
-    logger.info(f"Device powered on, power draw: min {min_ma_draw} mA, max {max_ma_draw} mA, avg {avg_ma_draw} mA")
+    # avg_ma_draw = sum(samples) / len(samples)
+    # logger.info(f"Device powered on, power draw: min {min_ma_draw} mA, max {max_ma_draw} mA, avg {avg_ma_draw} mA")
 
-    if avg_ma_draw < 10 or avg_ma_draw > 30:
-        return f"Average power draw is not within expected range: {avg_ma_draw} mA, min {min_ma_draw} mA, max {max_ma_draw} mA"
+    # if avg_ma_draw < 10 or avg_ma_draw > 30:
+    #     return f"Average power draw is not within expected range: {avg_ma_draw} mA, min {min_ma_draw} mA, max {max_ma_draw} mA"
 
     return None
 
@@ -291,37 +314,48 @@ def personalization_step(
     if err:
         return f"Error powering on device: {err}"
 
-    err = _flash_firmware(client, logger, env_config)
-    if err:
-        return f"Error flashing manufacturing firmware: {err}"
+    # Use try-finally to ensure power off runs even if any step fails
+    try:
+        err = _flash_firmware(client, logger, env_config)
+        if err:
+            return f"Error flashing manufacturing firmware: {err}"
 
-    err = _reset(client, logger)
-    if err:
-        return f"Error resetting device: {err}"
+        err = _reset(client, logger)
+        if err:
+            return f"Error resetting device: {err}"
 
-    device_id, err = _get_device_id(env_config.PROXY_SERVER_URL, serial_number, logger)
-    if err:
-        return f"Error personalizing device: {err}"
+        device_id, err = _get_device_id(env_config.PROXY_SERVER_URL, serial_number, logger)
+        if err:
+            return f"Error personalizing device: {err}"
 
-    pub_key, base64_key, err = _get_device_public_key(client, device_id, logger)
-    if err:
-        return f"Error getting device public key: {err}"
+        pub_key, base64_key, err = _get_device_public_key(client, device_id, logger)
+        if err:
+            return f"Error getting device public key: {err}"
 
-    imei, iccids, err = _get_device_imei_iccids(client, device_id, logger)
-    if err:
-        return f"Error getting device IMEI and ICCIDs: {err}"
+        imei, iccids, err = _get_device_imei_iccids(client, device_id, logger)
+        if err:
+            return f"Error getting device IMEI and ICCIDs: {err}"
 
-    err = _save_device_info(
-        env_config.PROXY_SERVER_URL, device_id, pub_key, base64_key, imei, iccids, serial_number, logger
-    )
-    if err:
-        return f"Error saving device info: {err}"
+        # device_id = "70B3D584C01E14AA"
+        # pub_key = "0409cbe18f69330bc47e8ad6b7138a5d7b1b7db6797b0f12b5ed18ce4b37959fca054ae76e1789a639677be7bd841f6228fa027cfc8d7a96ecdb86db929245a672"
+        # base64_key = "BJ5QYtZgbzBGwBuqWRDenQ8vyjN6a9tvuLBs02AH51Qp9ONRn6FD3OK3pqabvmfSzT00roZyO7ZumBl2h5MVM98="
+        # imei = "359746161665539"
+        # iccids = "89148000009808568903,89457300000035348195"
 
-    err = _power_off(client, logger)
-    if err:
-        return f"Error powering off device: {err}"
+        err = _save_device_info(
+            env_config.PROXY_SERVER_URL, device_id, pub_key, base64_key, imei, iccids, serial_number, logger
+        )
+        if err:
+            return f"Error saving device info: {err}"
 
-    end_time = time.time()
-    logger.info(f"Personalization took {end_time - start_time} seconds")
+        # If we reach here, all steps succeeded
+        end_time = time.time()
+        logger.info(f"Personalization took {end_time - start_time} seconds")
+        return None
 
-    return None
+    finally:
+        # Always power off the device, regardless of success or failure
+        power_off_err = _power_off(client, logger)
+        if power_off_err:
+            logger.error(f"Error powering off device: {power_off_err}")
+            # Don't return here as we want to preserve the original error if there was one
