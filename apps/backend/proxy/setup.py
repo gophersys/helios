@@ -5,8 +5,8 @@ setup(
     version="1.0",
     packages=find_packages(),
     install_requires=[
-        "grpcio==1.64.0",
-        "grpcio-tools==1.64.0",
+        "grpcio==1.68.1",
+        "grpcio-tools==1.68.1",
         "python-dotenv==1.0.1",
         "flask==3.0.2",
         "flask-socketio==5.3.6",
