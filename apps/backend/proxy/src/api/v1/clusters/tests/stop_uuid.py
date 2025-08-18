@@ -12,8 +12,8 @@ from flask import Blueprint, jsonify, request
 from flask_socketio import SocketIO, close_room, disconnect, emit, join_room
 
 # Protocol includes
-from protos.cluster_operator.cluster_operator_pb2 import ClusterStatus
-from protos.cluster_test.cluster_test_pb2 import TestInfo, TestStepResult
+from protocols.cluster_operator.cluster_operator_pb2 import ClusterStatus
+from protocols.cluster_test.cluster_test_pb2 import TestInfo, TestStepResult
 
 # App includes
 from src.middleware.permissions import authMiddleware

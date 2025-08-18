@@ -16,7 +16,7 @@ import docker.errors
 import grpc
 import yaml
 from flask import Flask
-from protos.cluster_operator.cluster_operator_pb2 import (
+from protocols.cluster_operator.cluster_operator_pb2 import (
     DeploymentInfo,
     ExecuteTestRequest,
     GetClusterInfoRequest,
@@ -30,10 +30,10 @@ from protos.cluster_operator.cluster_operator_pb2 import (
     StopTestRequest,
     StopTestResponse,
 )
-from protos.cluster_operator.cluster_operator_pb2_grpc import ClusterOperatorStub
+from protocols.cluster_operator.cluster_operator_pb2_grpc import ClusterOperatorStub
 
 # Assuming protos are already correctly imported
-from protos.cluster_test.cluster_test_pb2 import TestInfo, TestStepResult
+from protocols.cluster_test.cluster_test_pb2 import TestInfo, TestStepResult
 
 from config import conf
 

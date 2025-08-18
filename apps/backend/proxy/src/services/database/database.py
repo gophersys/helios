@@ -13,7 +13,7 @@ from json.decoder import JSONDecodeError
 from typing import Callable, List, Optional, Tuple
 
 # Protocol includes
-from protos.cluster_test.cluster_test_pb2 import TestInfo, TestStepResult
+from protocols.cluster_test.cluster_test_pb2 import TestInfo, TestStepResult
 
 from .schema import (
     ClusterInfo,

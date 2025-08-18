@@ -6,7 +6,7 @@ from typing import List
 from flask import Blueprint, jsonify
 
 # Protocol includes
-from protos.cluster_operator.cluster_operator_pb2 import ClusterStatus, NodeInfo
+from protocols.cluster_operator.cluster_operator_pb2 import ClusterStatus, NodeInfo
 from src.services.database.schema import DeploymentInfo, TestExecutionInfo
 
 # App includes

@@ -15,8 +15,8 @@ from flask_socketio import SocketIO, close_room, disconnect, emit, join_room, le
 from google.protobuf.json_format import MessageToDict
 
 # Protocol includes
-from protos.cluster_operator.cluster_operator_pb2 import ClusterStatus
-from protos.cluster_test.cluster_test_pb2 import TestInfo, TestStepResult
+from protocols.cluster_operator.cluster_operator_pb2 import ClusterStatus
+from protocols.cluster_test.cluster_test_pb2 import TestInfo, TestStepResult
 
 # App includes
 from src.middleware.permissions import authMiddleware
