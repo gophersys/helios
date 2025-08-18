@@ -3,6 +3,21 @@
     current-speed = <115200>;
 };
 
+/ {
+    aliases {
+        vsm-enable = &vsm_enable;
+    };
+
+    gpio_outputs {
+        compatible = "gpio-leds";
+
+        vsm_enable: vsm_enable {
+            gpios = <&gpio0 25 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>;
+            label = "VSM Enable";
+        };
+    };
+};
+
 &i2c1 {
     compatible = "nordic,nrf-twim";
     status = "okay";
@@ -31,7 +46,7 @@
 
     lsm6dso0: lsm6dso@6a {
         status = "okay";
-        compatible = "st,lsm6dso";
+        compatible = "ck,lsm6dso";
         reg = <0x6a>;
         int-pin = <2>;
         irq-gpios = <&gpio1 6 GPIO_ACTIVE_HIGH>;
@@ -42,5 +57,12 @@
         gyro-range = <0>;    // 2 # LSM6DSO_DT_GY_FS_2000DPS
         gyro-odr = <2>;      // 3 # LSM6DSO_DT_GY_ODR_26HZ
         drdy-pulsed;
+    };
+
+    mlx90614: mlx90614@5a {
+        status = "okay";
+        compatible = "melexis,mlx90614";
+        reg = <0x5a>;
+        emissivity = <65535>;  /* Default to 1.0 (65535/65535) */
     };
 };
