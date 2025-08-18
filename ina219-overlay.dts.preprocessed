@@ -1,0 +1,246 @@
+# 1 "meta-corekinect/recipes-kernel/linux/device-tree-overlays/ina219-overlay.dts"
+# 1 "<built-in>"
+# 1 "<command-line>"
+# 1 "meta-corekinect/recipes-kernel/linux/device-tree-overlays/ina219-overlay.dts"
+/dts-v1/;
+/plugin/;
+# 20 "meta-corekinect/recipes-kernel/linux/device-tree-overlays/ina219-overlay.dts"
+# 1 "/workspaces/concord-os-yocto/linux-toradex/include/dt-bindings/gpio/gpio.h" 1
+# 21 "meta-corekinect/recipes-kernel/linux/device-tree-overlays/ina219-overlay.dts" 2
+# 1 "/workspaces/concord-os-yocto/linux-toradex/include/dt-bindings/interrupt-controller/irq.h" 1
+# 22 "meta-corekinect/recipes-kernel/linux/device-tree-overlays/ina219-overlay.dts" 2
+
+/ {
+ compatible = "toradex,verdin-imx8mm";
+};
+
+
+&i2c4 {
+ #address-cells = <1>;
+ #size-cells = <0>;
+ status = "okay";
+
+ ina219@40 {
+  compatible = "ti,ina219";
+  reg = <0x40>;
+  status = "okay";
+  shunt-resistor = <100000>;
+  vdd-supply = <&reg_vdd_3v3>;
+  vddio-supply = <&reg_vdd_3v3>;
+ };
+
+ ina219@41 {
+  compatible = "ti,ina219";
+  reg = <0x41>;
+  status = "okay";
+  shunt-resistor = <100000>;
+  vdd-supply = <&reg_vdd_3v3>;
+  vddio-supply = <&reg_vdd_3v3>;
+ };
+
+ accel@19 {
+  compatible = "st,lis2de12";
+  reg = <0x19>;
+  status = "okay";
+  vdd-supply = <&reg_vdd_3v3>;
+  vddio-supply = <&reg_vdd_3v3>;
+ };
+
+ adc@48 {
+  compatible = "ti,ads1115";
+  reg = <0x48>;
+  #address-cells = <1>;
+  #size-cells = <0>;
+  #io-channel-cells = <1>;
+
+
+  channel@0 {
+   reg = <0>;
+   ti,datarate = <4>;
+   ti,gain = <2>;
+  };
+
+
+  channel@1 {
+   reg = <1>;
+   ti,datarate = <4>;
+   ti,gain = <2>;
+  };
+
+
+  channel@2 {
+   reg = <2>;
+   ti,datarate = <4>;
+   ti,gain = <2>;
+  };
+
+
+  channel@3 {
+   reg = <3>;
+   ti,datarate = <4>;
+   ti,gain = <2>;
+  };
+
+
+  channel@4 {
+   reg = <4>;
+   ti,datarate = <4>;
+   ti,gain = <2>;
+  };
+
+
+  channel@5 {
+   reg = <5>;
+   ti,datarate = <4>;
+   ti,gain = <2>;
+  };
+
+
+  channel@6 {
+   reg = <6>;
+   ti,datarate = <4>;
+   ti,gain = <2>;
+  };
+
+
+  channel@7 {
+   reg = <7>;
+   ti,datarate = <4>;
+   ti,gain = <2>;
+  };
+ };
+
+ adc@49 {
+  compatible = "ti,ads1115";
+  reg = <0x49>;
+  #address-cells = <1>;
+  #size-cells = <0>;
+  #io-channel-cells = <1>;
+
+
+  channel@0 {
+   reg = <0>;
+   ti,datarate = <4>;
+   ti,gain = <2>;
+  };
+
+
+  channel@1 {
+   reg = <1>;
+   ti,datarate = <4>;
+   ti,gain = <2>;
+  };
+
+
+  channel@2 {
+   reg = <2>;
+   ti,datarate = <4>;
+   ti,gain = <2>;
+  };
+
+
+  channel@3 {
+   reg = <3>;
+   ti,datarate = <4>;
+   ti,gain = <2>;
+  };
+
+
+  channel@4 {
+   reg = <4>;
+   ti,datarate = <4>;
+   ti,gain = <2>;
+  };
+
+
+  channel@5 {
+   reg = <5>;
+   ti,datarate = <4>;
+   ti,gain = <2>;
+  };
+
+
+  channel@6 {
+   reg = <6>;
+   ti,datarate = <4>;
+   ti,gain = <2>;
+  };
+
+
+  channel@7 {
+   reg = <7>;
+   ti,datarate = <4>;
+   ti,gain = <2>;
+  };
+ };
+};
+
+&i2c3 {
+ #address-cells = <1>;
+ #size-cells = <0>;
+ status = "okay";
+
+ adc@48 {
+  compatible = "ti,ads1115";
+  reg = <0x48>;
+  #address-cells = <1>;
+  #size-cells = <0>;
+  #io-channel-cells = <1>;
+
+
+  channel@0 {
+   reg = <0>;
+   ti,datarate = <4>;
+   ti,gain = <2>;
+  };
+
+
+  channel@1 {
+   reg = <1>;
+   ti,datarate = <4>;
+   ti,gain = <2>;
+  };
+
+
+  channel@2 {
+   reg = <2>;
+   ti,datarate = <4>;
+   ti,gain = <2>;
+  };
+
+
+  channel@3 {
+   reg = <3>;
+   ti,datarate = <4>;
+   ti,gain = <2>;
+  };
+
+
+  channel@4 {
+   reg = <4>;
+   ti,datarate = <4>;
+   ti,gain = <2>;
+  };
+
+
+  channel@5 {
+   reg = <5>;
+   ti,datarate = <4>;
+   ti,gain = <2>;
+  };
+
+
+  channel@6 {
+   reg = <6>;
+   ti,datarate = <4>;
+   ti,gain = <2>;
+  };
+
+
+  channel@7 {
+   reg = <7>;
+   ti,datarate = <4>;
+   ti,gain = <2>;
+  };
+ };
+};
