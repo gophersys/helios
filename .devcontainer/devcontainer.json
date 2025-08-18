@@ -1,0 +1,31 @@
+{
+    "name": "Yocto Build Environment",
+    "build": {
+        "dockerfile": "Dockerfile",
+        "context": "."
+    },
+    "runArgs": [
+        "--rm",
+        "--env-file",
+        ".devcontainer/.env"
+    ],
+    "mounts": [
+        "source=/mnt/c,target=/mnt/c,type=bind"
+    ],
+    "remoteUser": "usersetup",
+    "remoteEnv": {
+        "WORKDIR": "${containerWorkspaceFolder}/torizon"
+    },
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-vscode.cpptools",
+                "yocto-project.yocto-bitbake",
+                "plorefice.devicetree",
+                "ms-python.python",
+                "mads-hartmann.bash-ide-vscode"
+            ]
+        }
+    },
+    "postStartCommand": "chmod +x .devcontainer/start.sh && .devcontainer/start.sh"
+}
