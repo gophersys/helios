@@ -213,27 +213,27 @@ def _power_on(client: MtibV1Client, logger: Logger, delay: int = 3) -> Optional[
     logger.info("Waiting for device to power on...")
     time.sleep(delay)
 
-    # # Sample power every 250ms for 2 seconds (8 samples)
-    # samples = []
-    # min_ma_draw = None
-    # max_ma_draw = None
-    # for _ in range(4):
-    #     current_a, voltage_v, power_w, err = client.DutPowerRead()
-    #     if err:
-    #         logger.fatal(f"Error reading DUT power: {err}")
-    #     ma_draw = current_a * 1000
-    #     samples.append(ma_draw)
-    #     if min_ma_draw is None or ma_draw < min_ma_draw:
-    #         min_ma_draw = ma_draw
-    #     if max_ma_draw is None or ma_draw > max_ma_draw:
-    #         max_ma_draw = ma_draw
-    #     time.sleep(0.25)
+    # Sample power every 250ms for 2 seconds (8 samples)
+    samples = []
+    min_ma_draw = None
+    max_ma_draw = None
+    for _ in range(4):
+        current_a, voltage_v, power_w, err = client.DutPowerRead()
+        if err:
+            logger.fatal(f"Error reading DUT power: {err}")
+        ma_draw = current_a * 1000
+        samples.append(ma_draw)
+        if min_ma_draw is None or ma_draw < min_ma_draw:
+            min_ma_draw = ma_draw
+        if max_ma_draw is None or ma_draw > max_ma_draw:
+            max_ma_draw = ma_draw
+        time.sleep(0.25)
 
-    # avg_ma_draw = sum(samples) / len(samples)
-    # logger.info(f"Device powered on, power draw: min {min_ma_draw} mA, max {max_ma_draw} mA, avg {avg_ma_draw} mA")
+    avg_ma_draw = sum(samples) / len(samples)
+    logger.info(f"Device powered on, power draw: min {min_ma_draw} mA, max {max_ma_draw} mA, avg {avg_ma_draw} mA")
 
-    # if avg_ma_draw < 10 or avg_ma_draw > 30:
-    #     return f"Average power draw is not within expected range: {avg_ma_draw} mA, min {min_ma_draw} mA, max {max_ma_draw} mA"
+    if avg_ma_draw < 10 or avg_ma_draw > 30:
+        return f"Average power draw is not within expected range: {avg_ma_draw} mA, min {min_ma_draw} mA, max {max_ma_draw} mA"
 
     return None
 
