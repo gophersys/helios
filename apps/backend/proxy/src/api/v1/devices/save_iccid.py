@@ -41,12 +41,24 @@ def devices_save_iccid_handler():
 
         # Call Manufacturing servers
         try:
+            # Create auth headers
+            token_error, server_token = authMiddleware.get_server_token()
+            if token_error:
+                logging.error(f"A server error ocurred whilst getting access token: {token_error}")
+                return jsonify({"error": f"{token_error}"}), 503
+
+            # Prepare headers for the auth server request
+            headers = {
+                "X-API-KEY": authMiddleware.config.server_api_key,
+                "Authorization": f"Bearer {server_token}",
+            }
+
             # Create payload
             body = {"Iccid": iccid, "Carrier": carrier, "boardSerialNumber": snr, "Imei": imei}
 
             # Do request
-            save_iccid_url = f"{conf.MANU_SERVER_URL}/iccids/save"
-            response = requests.post(save_iccid_url, json=body, verify=None, timeout=5)
+            save_iccid_url = f"{conf.MANU_SERVER_URL}/iccids/register"
+            response = requests.post(save_iccid_url, json=body, verify=None, timeout=5, headers=headers)
 
             if response.status_code == 200:
                 logging.info(response.content)

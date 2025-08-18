@@ -33,12 +33,24 @@ def devices_save_pub_key_handler():
 
         # Call Manufacturing server
         try:
+            # Create auth headers
+            token_error, server_token = authMiddleware.get_server_token()
+            if token_error:
+                logging.error(f"A server error ocurred whilst getting access token: {token_error}")
+                return jsonify({"error": f"{token_error}"}), 503
+
+            # Prepare headers for the auth server request
+            headers = {
+                "X-API-KEY": authMiddleware.config.server_api_key,
+                "Authorization": f"Bearer {server_token}",
+            }
+
             # Create the request body
             body = {"DeviceId": device_id, "PublicKey": pub_key}
 
             # Do request
             save_public_key_url = f"{conf.MANU_SERVER_URL}/devices/publickeys/save"
-            response = requests.post(save_public_key_url, json=body, verify=None, timeout=5)
+            response = requests.post(save_public_key_url, json=body, verify=None, timeout=5, headers=headers)
 
             if response.status_code == 200:
                 return "", 200

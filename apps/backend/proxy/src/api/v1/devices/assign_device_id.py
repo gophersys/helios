@@ -30,8 +30,22 @@ def devices_assign_id_handler():
         # Call Manufacturing server
         device_id: str = None
         try:
+            # Create auth headers
+            token_error, server_token = authMiddleware.get_server_token()
+            if token_error:
+                logging.error(f"A server error ocurred whilst getting access token: {token_error}")
+                return jsonify({"error": f"{token_error}"}), 503
+
+            # Prepare headers for the auth server request
+            headers = {
+                "X-API-KEY": authMiddleware.config.server_api_key,
+                "Authorization": f"Bearer {server_token}",
+            }
+
+            logging.info(f"Doing request with headers: {headers}")
+
             assign_device_id_to_board_url = f"{conf.MANU_SERVER_URL}/devices/ids/assign?boardSerialNumber={snr}"
-            response = requests.post(assign_device_id_to_board_url, verify=None, timeout=5)
+            response = requests.post(assign_device_id_to_board_url, verify=None, timeout=5, headers=headers)
 
             if response.status_code == 200:
                 response_data = response.json()
