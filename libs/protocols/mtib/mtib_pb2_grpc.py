@@ -5,8 +5,10 @@ import warnings
 
 import protocols.mtib.mtib_pb2 as mtib__pb2
 
-GRPC_GENERATED_VERSION = '1.68.1'
+GRPC_GENERATED_VERSION = '1.64.0'
 GRPC_VERSION = grpc.__version__
+EXPECTED_ERROR_RELEASE = '1.65.0'
+SCHEDULED_RELEASE_DATE = 'June 25, 2024'
 _version_not_supported = False
 
 try:
@@ -16,12 +18,15 @@ except ImportError:
     _version_not_supported = True
 
 if _version_not_supported:
-    raise RuntimeError(
+    warnings.warn(
         f'The grpc package installed is at version {GRPC_VERSION},'
         + f' but the generated code in mtib_pb2_grpc.py depends on'
         + f' grpcio>={GRPC_GENERATED_VERSION}.'
         + f' Please upgrade your grpc module to grpcio>={GRPC_GENERATED_VERSION}'
         + f' or downgrade your generated code using grpcio-tools<={GRPC_VERSION}.'
+        + f' This warning will become an error in {EXPECTED_ERROR_RELEASE},'
+        + f' scheduled for release on {SCHEDULED_RELEASE_DATE}.',
+        RuntimeWarning
     )
 
 
@@ -79,9 +84,14 @@ class MtibV1Stub(object):
                 request_serializer=mtib__pb2.Empty.SerializeToString,
                 response_deserializer=mtib__pb2.DutPowerResponse.FromString,
                 _registered_method=True)
+        self.DutPowerRead = channel.unary_unary(
+                '/mtib.MtibV1/DutPowerRead',
+                request_serializer=mtib__pb2.Empty.SerializeToString,
+                response_deserializer=mtib__pb2.DutPowerReadResponse.FromString,
+                _registered_method=True)
         self.DutChargePowerEnable = channel.unary_unary(
                 '/mtib.MtibV1/DutChargePowerEnable',
-                request_serializer=mtib__pb2.DutPowerRequest.SerializeToString,
+                request_serializer=mtib__pb2.Empty.SerializeToString,
                 response_deserializer=mtib__pb2.DutPowerResponse.FromString,
                 _registered_method=True)
         self.DutChargePowerDisable = channel.unary_unary(
@@ -89,8 +99,8 @@ class MtibV1Stub(object):
                 request_serializer=mtib__pb2.Empty.SerializeToString,
                 response_deserializer=mtib__pb2.DutPowerResponse.FromString,
                 _registered_method=True)
-        self.DutPowerRead = channel.unary_unary(
-                '/mtib.MtibV1/DutPowerRead',
+        self.DutChargePowerRead = channel.unary_unary(
+                '/mtib.MtibV1/DutChargePowerRead',
                 request_serializer=mtib__pb2.Empty.SerializeToString,
                 response_deserializer=mtib__pb2.DutPowerReadResponse.FromString,
                 _registered_method=True)
@@ -114,6 +124,11 @@ class MtibV1Stub(object):
                 request_serializer=mtib__pb2.UpdateFluidNcConfigRequest.SerializeToString,
                 response_deserializer=mtib__pb2.UpdateFluidNcConfigResponse.FromString,
                 _registered_method=True)
+        self.SendGcode = channel.unary_unary(
+                '/mtib.MtibV1/SendGcode',
+                request_serializer=mtib__pb2.GcodeRequest.SerializeToString,
+                response_deserializer=mtib__pb2.GcodeResponse.FromString,
+                _registered_method=True)
         self.UploadMotionProfile = channel.unary_unary(
                 '/mtib.MtibV1/UploadMotionProfile',
                 request_serializer=mtib__pb2.MotionProfileRequest.SerializeToString,
@@ -129,15 +144,25 @@ class MtibV1Stub(object):
                 request_serializer=mtib__pb2.ExecuteProfileRequest.SerializeToString,
                 response_deserializer=mtib__pb2.ExecuteProfileResponse.FromString,
                 _registered_method=True)
-        self.SendGcode = channel.unary_unary(
-                '/mtib.MtibV1/SendGcode',
-                request_serializer=mtib__pb2.GcodeRequest.SerializeToString,
-                response_deserializer=mtib__pb2.GcodeResponse.FromString,
+        self.DeleteMotionProfile = channel.unary_unary(
+                '/mtib.MtibV1/DeleteMotionProfile',
+                request_serializer=mtib__pb2.DeleteProfileRequest.SerializeToString,
+                response_deserializer=mtib__pb2.DeleteProfileResponse.FromString,
+                _registered_method=True)
+        self.SetDefaultMotionProfile = channel.unary_unary(
+                '/mtib.MtibV1/SetDefaultMotionProfile',
+                request_serializer=mtib__pb2.SetDefaultProfileRequest.SerializeToString,
+                response_deserializer=mtib__pb2.SetDefaultProfileResponse.FromString,
                 _registered_method=True)
         self.GetMotionStatus = channel.unary_unary(
                 '/mtib.MtibV1/GetMotionStatus',
-                request_serializer=mtib__pb2.GetMotionStatusRequest.SerializeToString,
+                request_serializer=mtib__pb2.Empty.SerializeToString,
                 response_deserializer=mtib__pb2.GetMotionStatusResponse.FromString,
+                _registered_method=True)
+        self.MotionStart = channel.unary_unary(
+                '/mtib.MtibV1/MotionStart',
+                request_serializer=mtib__pb2.Empty.SerializeToString,
+                response_deserializer=mtib__pb2.MotionStartResponse.FromString,
                 _registered_method=True)
         self.MotionHome = channel.unary_unary(
                 '/mtib.MtibV1/MotionHome',
@@ -229,7 +254,7 @@ class MtibV1Servicer(object):
         raise NotImplementedError('Method not implemented!')
 
     def DutPowerEnable(self, request, context):
-        """Power
+        """DUT Power
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -241,8 +266,15 @@ class MtibV1Servicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def DutChargePowerEnable(self, request, context):
+    def DutPowerRead(self, request, context):
         """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def DutChargePowerEnable(self, request, context):
+        """DUT Charge Power
+        """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
@@ -253,9 +285,8 @@ class MtibV1Servicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def DutPowerRead(self, request, context):
-        """Power Consumption
-        """
+    def DutChargePowerRead(self, request, context):
+        """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
@@ -286,6 +317,13 @@ class MtibV1Servicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def SendGcode(self, request, context):
+        """Gcode
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
     def UploadMotionProfile(self, request, context):
         """Motion Profiles
         """
@@ -305,9 +343,14 @@ class MtibV1Servicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def SendGcode(self, request, context):
-        """Gcode
-        """
+    def DeleteMotionProfile(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def SetDefaultMotionProfile(self, request, context):
+        """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
@@ -319,9 +362,14 @@ class MtibV1Servicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def MotionStart(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
     def MotionHome(self, request, context):
-        """rpc MotionStart(Empty) returns (MotionStartResponse) {}
-        """
+        """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
@@ -413,9 +461,14 @@ def add_MtibV1Servicer_to_server(servicer, server):
                     request_deserializer=mtib__pb2.Empty.FromString,
                     response_serializer=mtib__pb2.DutPowerResponse.SerializeToString,
             ),
+            'DutPowerRead': grpc.unary_unary_rpc_method_handler(
+                    servicer.DutPowerRead,
+                    request_deserializer=mtib__pb2.Empty.FromString,
+                    response_serializer=mtib__pb2.DutPowerReadResponse.SerializeToString,
+            ),
             'DutChargePowerEnable': grpc.unary_unary_rpc_method_handler(
                     servicer.DutChargePowerEnable,
-                    request_deserializer=mtib__pb2.DutPowerRequest.FromString,
+                    request_deserializer=mtib__pb2.Empty.FromString,
                     response_serializer=mtib__pb2.DutPowerResponse.SerializeToString,
             ),
             'DutChargePowerDisable': grpc.unary_unary_rpc_method_handler(
@@ -423,8 +476,8 @@ def add_MtibV1Servicer_to_server(servicer, server):
                     request_deserializer=mtib__pb2.Empty.FromString,
                     response_serializer=mtib__pb2.DutPowerResponse.SerializeToString,
             ),
-            'DutPowerRead': grpc.unary_unary_rpc_method_handler(
-                    servicer.DutPowerRead,
+            'DutChargePowerRead': grpc.unary_unary_rpc_method_handler(
+                    servicer.DutChargePowerRead,
                     request_deserializer=mtib__pb2.Empty.FromString,
                     response_serializer=mtib__pb2.DutPowerReadResponse.SerializeToString,
             ),
@@ -448,6 +501,11 @@ def add_MtibV1Servicer_to_server(servicer, server):
                     request_deserializer=mtib__pb2.UpdateFluidNcConfigRequest.FromString,
                     response_serializer=mtib__pb2.UpdateFluidNcConfigResponse.SerializeToString,
             ),
+            'SendGcode': grpc.unary_unary_rpc_method_handler(
+                    servicer.SendGcode,
+                    request_deserializer=mtib__pb2.GcodeRequest.FromString,
+                    response_serializer=mtib__pb2.GcodeResponse.SerializeToString,
+            ),
             'UploadMotionProfile': grpc.unary_unary_rpc_method_handler(
                     servicer.UploadMotionProfile,
                     request_deserializer=mtib__pb2.MotionProfileRequest.FromString,
@@ -463,15 +521,25 @@ def add_MtibV1Servicer_to_server(servicer, server):
                     request_deserializer=mtib__pb2.ExecuteProfileRequest.FromString,
                     response_serializer=mtib__pb2.ExecuteProfileResponse.SerializeToString,
             ),
-            'SendGcode': grpc.unary_unary_rpc_method_handler(
-                    servicer.SendGcode,
-                    request_deserializer=mtib__pb2.GcodeRequest.FromString,
-                    response_serializer=mtib__pb2.GcodeResponse.SerializeToString,
+            'DeleteMotionProfile': grpc.unary_unary_rpc_method_handler(
+                    servicer.DeleteMotionProfile,
+                    request_deserializer=mtib__pb2.DeleteProfileRequest.FromString,
+                    response_serializer=mtib__pb2.DeleteProfileResponse.SerializeToString,
+            ),
+            'SetDefaultMotionProfile': grpc.unary_unary_rpc_method_handler(
+                    servicer.SetDefaultMotionProfile,
+                    request_deserializer=mtib__pb2.SetDefaultProfileRequest.FromString,
+                    response_serializer=mtib__pb2.SetDefaultProfileResponse.SerializeToString,
             ),
             'GetMotionStatus': grpc.unary_unary_rpc_method_handler(
                     servicer.GetMotionStatus,
-                    request_deserializer=mtib__pb2.GetMotionStatusRequest.FromString,
+                    request_deserializer=mtib__pb2.Empty.FromString,
                     response_serializer=mtib__pb2.GetMotionStatusResponse.SerializeToString,
+            ),
+            'MotionStart': grpc.unary_unary_rpc_method_handler(
+                    servicer.MotionStart,
+                    request_deserializer=mtib__pb2.Empty.FromString,
+                    response_serializer=mtib__pb2.MotionStartResponse.SerializeToString,
             ),
             'MotionHome': grpc.unary_unary_rpc_method_handler(
                     servicer.MotionHome,
@@ -746,6 +814,33 @@ class MtibV1(object):
             _registered_method=True)
 
     @staticmethod
+    def DutPowerRead(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/mtib.MtibV1/DutPowerRead',
+            mtib__pb2.Empty.SerializeToString,
+            mtib__pb2.DutPowerReadResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
     def DutChargePowerEnable(request,
             target,
             options=(),
@@ -760,7 +855,7 @@ class MtibV1(object):
             request,
             target,
             '/mtib.MtibV1/DutChargePowerEnable',
-            mtib__pb2.DutPowerRequest.SerializeToString,
+            mtib__pb2.Empty.SerializeToString,
             mtib__pb2.DutPowerResponse.FromString,
             options,
             channel_credentials,
@@ -800,7 +895,7 @@ class MtibV1(object):
             _registered_method=True)
 
     @staticmethod
-    def DutPowerRead(request,
+    def DutChargePowerRead(request,
             target,
             options=(),
             channel_credentials=None,
@@ -813,7 +908,7 @@ class MtibV1(object):
         return grpc.experimental.unary_unary(
             request,
             target,
-            '/mtib.MtibV1/DutPowerRead',
+            '/mtib.MtibV1/DutChargePowerRead',
             mtib__pb2.Empty.SerializeToString,
             mtib__pb2.DutPowerReadResponse.FromString,
             options,
@@ -935,6 +1030,33 @@ class MtibV1(object):
             _registered_method=True)
 
     @staticmethod
+    def SendGcode(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/mtib.MtibV1/SendGcode',
+            mtib__pb2.GcodeRequest.SerializeToString,
+            mtib__pb2.GcodeResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
     def UploadMotionProfile(request,
             target,
             options=(),
@@ -1016,7 +1138,7 @@ class MtibV1(object):
             _registered_method=True)
 
     @staticmethod
-    def SendGcode(request,
+    def DeleteMotionProfile(request,
             target,
             options=(),
             channel_credentials=None,
@@ -1029,9 +1151,36 @@ class MtibV1(object):
         return grpc.experimental.unary_unary(
             request,
             target,
-            '/mtib.MtibV1/SendGcode',
-            mtib__pb2.GcodeRequest.SerializeToString,
-            mtib__pb2.GcodeResponse.FromString,
+            '/mtib.MtibV1/DeleteMotionProfile',
+            mtib__pb2.DeleteProfileRequest.SerializeToString,
+            mtib__pb2.DeleteProfileResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def SetDefaultMotionProfile(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/mtib.MtibV1/SetDefaultMotionProfile',
+            mtib__pb2.SetDefaultProfileRequest.SerializeToString,
+            mtib__pb2.SetDefaultProfileResponse.FromString,
             options,
             channel_credentials,
             insecure,
@@ -1057,8 +1206,35 @@ class MtibV1(object):
             request,
             target,
             '/mtib.MtibV1/GetMotionStatus',
-            mtib__pb2.GetMotionStatusRequest.SerializeToString,
+            mtib__pb2.Empty.SerializeToString,
             mtib__pb2.GetMotionStatusResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def MotionStart(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/mtib.MtibV1/MotionStart',
+            mtib__pb2.Empty.SerializeToString,
+            mtib__pb2.MotionStartResponse.FromString,
             options,
             channel_credentials,
             insecure,

@@ -4,7 +4,7 @@
             "name": "Python",
             "type": "debugpy",
             "request": "launch",
-            "program": "src/main.py",
+            "program": "test/gpio.py",
             "console": "integratedTerminal",
             "justMyCode": false
         }

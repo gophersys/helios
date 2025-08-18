@@ -80,13 +80,10 @@ function generate_python() {
             # Get include paths for this file
             local includes=$(get_proto_dirs "${proto_files[@]}")
 
-            # Generate Python code
-            protoc $includes \
-                --python_out="$dir" \
-                "$protofile"
-
+            # Generate both protobuf and gRPC using grpc_tools.protoc
             python3 -m grpc_tools.protoc \
                 $includes \
+                --python_out="$dir" \
                 --grpc_python_out="$dir" \
                 "$protofile"
 

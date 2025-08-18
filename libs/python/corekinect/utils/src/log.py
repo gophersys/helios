@@ -3,6 +3,7 @@ from typing import List
 
 import logging
 import os
+import sys
 import random
 import string
 import sys
@@ -211,8 +212,15 @@ class Logger:
 
     def debug(self, message, *args):
         """Log a message at DEBUG level, including the function name."""
-        # Let the formatter handle the function name
-        self.logger.debug(message, *args)
+        # Get the caller's function name
+        frame = inspect.currentframe().f_back
+        func_name = frame.f_code.co_name
+
+        # Automatically prefix the message with the function name and a colon
+        prefixed_message = f"{func_name}: {message}"
+
+        # Pass the modified message to the logger
+        self.logger.debug(prefixed_message, *args)
 
     def info(self, message, *args):
         """Log a message at INFO level."""
@@ -241,6 +249,16 @@ class Logger:
     def exception(self, message, *args):
         """Log a message at ERROR level with the full stack trace."""
         self.logger.exception(message, *args)
+
+    def fatal(self, message, *args):
+        """Log a message at ERROR level with optional stack trace."""
+        exc_type, exc_value, _ = sys.exc_info()
+        if exc_type is not None:
+            self.logger.error(f"{message}\nException: {exc_value}", exc_info=True, *args)
+        else:
+            self.logger.error(message, *args)
+
+        sys.exit(1)
 
     @staticmethod
     def get_test_case_logger() -> "Logger":

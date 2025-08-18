@@ -77,24 +77,6 @@ RUN pip install -e . && \
 # ----------------------------------------------------------------------------------
 #                                                            App python dependencies
 # --------------------------------------------------------------------------------*/
-WORKDIR /app
-
-# Copy the libraries used by the app
-COPY libs/python /libs/python
-
-# Copy the protocols used by the app
-COPY libs/protocols/mtib /libs/protocols/mtib
-
-# Set the PYTHONPATH to include the libs directory
-ENV PYTHONPATH="/libs:${PYTHONPATH}"
-ENV PYTHONPATH="/libs/python/:${PYTHONPATH}"
-
-# Copy the assets
-COPY apps/shared/mtib-server/assets /app/assets
-
-WORKDIR /app/assets
-
-
 # Install other dependencies
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && \
@@ -107,9 +89,23 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
+# Copy the assets
+COPY apps/shared/mtib-server/assets /app/assets
+WORKDIR /app/assets
+
 # Generate the fluidnc firmware assets
 RUN chmod +x ctl.sh && \
     ./ctl.sh
+
+    # Copy the libraries used by the app
+COPY libs/python /libs/python
+
+# Copy the protocols used by the app
+COPY libs/protocols/mtib /libs/protocols/mtib
+
+# Set the PYTHONPATH to include the libs directory
+ENV PYTHONPATH="/libs:${PYTHONPATH}"
+ENV PYTHONPATH="/libs/python/:${PYTHONPATH}"
 
 WORKDIR /app
 

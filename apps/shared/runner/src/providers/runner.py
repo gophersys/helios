@@ -851,122 +851,122 @@ class ServerProvider(MtibRunnerV1Servicer):
 
     #     return response
 
-    # # -------------------------------------------------------------------------------------------------
-    # #                                                                                      Uart Streams
-    # # -----------------------------------------------------------------------------------------------*/
-    # def nrf9160UartStream(
-    #     self, request_iterator: Iterator[UartStreamRequest], context: ServicerContext
-    # ) -> Iterator[UartStreamResponse]:
-    #     device_id = UartDeviceType.NRF9160
-    #     if device_id not in uart_shared_state.rx_queues:
-    #         uart_shared_state.rx_queues[device_id] = Queue()
+    # -------------------------------------------------------------------------------------------------
+    #                                                                                      Uart Streams
+    # -----------------------------------------------------------------------------------------------*/
+    def nrf9160UartStream(
+        self, request_iterator: Iterator[UartStreamRequest], context: ServicerContext
+    ) -> Iterator[UartStreamResponse]:
+        device_id = UartDeviceType.NRF9160
+        if device_id not in uart_shared_state.rx_queues:
+            uart_shared_state.rx_queues[device_id] = Queue()
 
-    #     # Enable UART port at the start of the stream
-    #     enable_request = UartPortStateChangeRequest(device=device_id, enable=True)
-    #     enable_response, err = self.stm32.UartPortEnableRpc(self.rpc_info, enable_request)
-    #     if err != CipherRpcErr.OK:
-    #         context.set_code(grpc.StatusCode.INTERNAL)
-    #         context.set_details(f"Communication error while trying to enable UART port {str(err)}")
-    #         return
+        # Enable UART port at the start of the stream
+        enable_request = UartPortStateChangeRequest(device=device_id, enable=True)
+        enable_response, err = self.stm32.UartPortEnableRpc(self.rpc_info, enable_request)
+        if err != CipherRpcErr.OK:
+            context.set_code(grpc.StatusCode.INTERNAL)
+            context.set_details(f"Communication error while trying to enable UART port {str(err)}")
+            return
 
-    #     if enable_response.error:
-    #         context.set_code(grpc.StatusCode.INTERNAL)
-    #         context.set_details(f"Failed to enable UART port {enable_response.error}")
-    #         return
+        if enable_response.error:
+            context.set_code(grpc.StatusCode.INTERNAL)
+            context.set_details(f"Failed to enable UART port {enable_response.error}")
+            return
 
-    #     logging.info(f"UART port enabled for nrf9160")
+        logging.info(f"UART port enabled for nrf9160")
 
-    #     def handle_tx():
-    #         for request in request_iterator:
-    #             if not context.is_active():
-    #                 break
-    #             pi_to_sigma_request = UartMessageRequest(device=device_id, data=request.data)
-    #             response, err = self.stm32.PiToSigmaMessageRpc(self.rpc_info, pi_to_sigma_request)
-    #             if err != CipherRpcErr.OK:
-    #                 context.set_code(grpc.StatusCode.INTERNAL)
-    #                 context.set_details(f"Communication error while sending data to port {str(err)}")
-    #                 return
+        def handle_tx():
+            for request in request_iterator:
+                if not context.is_active():
+                    break
+                pi_to_sigma_request = UartMessageRequest(device=device_id, data=request.data)
+                response, err = self.stm32.PiToSigmaMessageRpc(self.rpc_info, pi_to_sigma_request)
+                if err != CipherRpcErr.OK:
+                    context.set_code(grpc.StatusCode.INTERNAL)
+                    context.set_details(f"Communication error while sending data to port {str(err)}")
+                    return
 
-    #             if response.error:
-    #                 context.set_code(grpc.StatusCode.INTERNAL)
-    #                 context.set_details(f"Failed to send data {response.error}")
-    #                 return
+                if response.error:
+                    context.set_code(grpc.StatusCode.INTERNAL)
+                    context.set_details(f"Failed to send data {response.error}")
+                    return
 
-    #     def handle_rx():
-    #         while context.is_active():
-    #             try:
-    #                 data = uart_shared_state.rx_queues[device_id].get(timeout=1)
-    #                 yield UartStreamResponse(data=data)
-    #             except Empty:
-    #                 continue
+        def handle_rx():
+            while context.is_active():
+                try:
+                    data = uart_shared_state.rx_queues[device_id].get(timeout=1)
+                    yield UartStreamResponse(data=data)
+                except Empty:
+                    continue
 
-    #     try:
-    #         # Start the TX handler in a separate thread
-    #         self.executor.submit(handle_tx)
+        try:
+            # Start the TX handler in a separate thread
+            self.executor.submit(handle_tx)
 
-    #         # Handle RX in the main thread
-    #         yield from handle_rx()
-    #     finally:
-    #         # Ensure the UART port is disabled when the stream ends
-    #         disable_request = UartPortStateChangeRequest(device=device_id, enable=False)
-    #         self.stm32.UartPortDisableRpc(self.rpc_info, disable_request)
-    #         logging.info(f"UART port disabled for nrf9160")
+            # Handle RX in the main thread
+            yield from handle_rx()
+        finally:
+            # Ensure the UART port is disabled when the stream ends
+            disable_request = UartPortStateChangeRequest(device=device_id, enable=False)
+            self.stm32.UartPortDisableRpc(self.rpc_info, disable_request)
+            logging.info(f"UART port disabled for nrf9160")
 
-    # def nrf52840UartStream(
-    #     self, request_iterator: Iterator[UartStreamRequest], context: ServicerContext
-    # ) -> Iterator[UartStreamResponse]:
-    #     device_id = UartDeviceType.NRF82840
-    #     if device_id not in uart_shared_state.rx_queues:
-    #         uart_shared_state.rx_queues[device_id] = Queue()
+    def nrf52840UartStream(
+        self, request_iterator: Iterator[UartStreamRequest], context: ServicerContext
+    ) -> Iterator[UartStreamResponse]:
+        device_id = UartDeviceType.NRF82840
+        if device_id not in uart_shared_state.rx_queues:
+            uart_shared_state.rx_queues[device_id] = Queue()
 
-    #     # Enable UART port at the start of the stream
-    #     enable_request = UartPortStateChangeRequest(device=device_id, enable=True)
-    #     enable_response, err = self.stm32.UartPortEnableRpc(self.rpc_info, enable_request)
-    #     if err != CipherRpcErr.OK:
-    #         context.set_code(grpc.StatusCode.INTERNAL)
-    #         context.set_details(f"Communication error while trying to enable UART port {str(err)}")
-    #         return
+        # Enable UART port at the start of the stream
+        enable_request = UartPortStateChangeRequest(device=device_id, enable=True)
+        enable_response, err = self.stm32.UartPortEnableRpc(self.rpc_info, enable_request)
+        if err != CipherRpcErr.OK:
+            context.set_code(grpc.StatusCode.INTERNAL)
+            context.set_details(f"Communication error while trying to enable UART port {str(err)}")
+            return
 
-    #     if enable_response.error:
-    #         context.set_code(grpc.StatusCode.INTERNAL)
-    #         context.set_details(f"Failed to enable UART port {enable_response.error}")
-    #         return
+        if enable_response.error:
+            context.set_code(grpc.StatusCode.INTERNAL)
+            context.set_details(f"Failed to enable UART port {enable_response.error}")
+            return
 
-    #     logging.info(f"UART port enabled for nrf52840")
+        logging.info(f"UART port enabled for nrf52840")
 
-    #     def handle_tx():
-    #         for request in request_iterator:
-    #             if not context.is_active():
-    #                 break
-    #             pi_to_sigma_request = UartMessageRequest(device=device_id, data=request.data)
-    #             response, err = self.stm32.PiToSigmaMessageRpc(self.rpc_info, pi_to_sigma_request)
-    #             if err != CipherRpcErr.OK:
-    #                 context.set_code(grpc.StatusCode.INTERNAL)
-    #                 context.set_details(f"Communication error while sending data to port {str(err)}")
-    #                 return
+        def handle_tx():
+            for request in request_iterator:
+                if not context.is_active():
+                    break
+                pi_to_sigma_request = UartMessageRequest(device=device_id, data=request.data)
+                response, err = self.stm32.PiToSigmaMessageRpc(self.rpc_info, pi_to_sigma_request)
+                if err != CipherRpcErr.OK:
+                    context.set_code(grpc.StatusCode.INTERNAL)
+                    context.set_details(f"Communication error while sending data to port {str(err)}")
+                    return
 
-    #             if response.error:
-    #                 context.set_code(grpc.StatusCode.INTERNAL)
-    #                 context.set_details(f"Failed to send data {response.error}")
-    #                 return
+                if response.error:
+                    context.set_code(grpc.StatusCode.INTERNAL)
+                    context.set_details(f"Failed to send data {response.error}")
+                    return
 
-    #     def handle_rx():
-    #         while context.is_active():
-    #             try:
-    #                 data = uart_shared_state.rx_queues[device_id].get(timeout=1)
-    #                 response = UartStreamResponse(data=data)
-    #                 yield response
-    #             except Empty:
-    #                 continue
+        def handle_rx():
+            while context.is_active():
+                try:
+                    data = uart_shared_state.rx_queues[device_id].get(timeout=1)
+                    response = UartStreamResponse(data=data)
+                    yield response
+                except Empty:
+                    continue
 
-    #     try:
-    #         # Start the TX handler in a separate thread
-    #         self.executor.submit(handle_tx)
+        try:
+            # Start the TX handler in a separate thread
+            self.executor.submit(handle_tx)
 
-    #         # Handle RX in the main thread
-    #         yield from handle_rx()
-    #     finally:
-    #         # Ensure the UART port is disabled when the stream ends
-    #         disable_request = UartPortStateChangeRequest(device=device_id, enable=False)
-    #         self.stm32.UartPortDisableRpc(self.rpc_info, disable_request)
-    #         logging.info(f"UART port disabled for nrf52840")
+            # Handle RX in the main thread
+            yield from handle_rx()
+        finally:
+            # Ensure the UART port is disabled when the stream ends
+            disable_request = UartPortStateChangeRequest(device=device_id, enable=False)
+            self.stm32.UartPortDisableRpc(self.rpc_info, disable_request)
+            logging.info(f"UART port disabled for nrf52840")

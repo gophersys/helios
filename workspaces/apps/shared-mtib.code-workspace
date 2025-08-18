@@ -5,24 +5,28 @@
             "path": "../../.devcontainer"
         },
         {
-            "name": "docs",
-            "path": "../../docs"
-        },
-        {
             "name": "protocols",
             "path": "../../libs/protocols"
-        },
-        {
-            "name": "mtib_client",
-            "path": "../../libs/python/corekinect/mtib_client"
         },
         {
             "name": "mtib-server",
             "path": "../../apps/shared/mtib-server"
         },
         {
-            "name": "mtib-client-cli",
-            "path": "../../apps/shared/mtib-client-cli"
+            "name": "v1",
+            "path": "../../libs/python/corekinect/mtib_client/v1"
+        },
+        {
+            "name": "alpha",
+            "path": "../../apps/manufacturing/alpha"
+        },
+        {
+            "name": "sigma5_legacy",
+            "path": "../../apps/manufacturing/sigma5_legacy"
+        },
+        {
+            "name": "proxy",
+            "path": "../../apps/backend/proxy"
         }
     ],
     "settings": {

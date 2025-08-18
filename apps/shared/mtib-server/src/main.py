@@ -15,11 +15,14 @@ from corekinect.utils import Logger, EnvConfig
 from protocols.mtib import mtib_pb2_grpc
 
 # Application includes
-from src.providers import ProviderConfig, DevelopmentProvider
+from src.providers import ProviderConfig, DevProvider, MtibV1Provider
 
 
-# Environment variables for the Mtib server
+# -------------------------------------------------
+#                                        Env Config
+# -------------------------------------------------
 class MtibEnvConfig(EnvConfig):
+    ENVIRONMENT: str
     LOG_LEVEL: int
     LOG_PATH: str
     ASSETS_PATH: str
@@ -38,6 +41,9 @@ class MtibEnvConfig(EnvConfig):
     FLUIDNC_RESET_PIN: str
 
 
+# -------------------------------------------------
+#                                          Shutdown
+# -------------------------------------------------
 def handle_shutdown(signum, frame, server, logger):
     """Handle graceful shutdown on SIGINT and SIGTERM"""
     signal_name = "SIGTERM" if signum == signal.SIGTERM else "SIGINT"
@@ -49,9 +55,9 @@ def handle_shutdown(signum, frame, server, logger):
     sys.exit(0)
 
 
-# ----------------------------------------------------------------------------------
-#                                                                              Entry
-# --------------------------------------------------------------------------------*/
+# -------------------------------------------------
+#                                             Entry
+# -------------------------------------------------
 if __name__ == "__main__":
     logger: Logger = None
     server = None
@@ -60,7 +66,7 @@ if __name__ == "__main__":
         # Load any environment variables
         env_config = MtibEnvConfig()
 
-        # Create the logger configuration for the global logger
+        # Good logging is a must
         log_config = Logger.Config(
             logger_name="mtib",
             log_directory=env_config.LOG_PATH,
@@ -69,36 +75,44 @@ if __name__ == "__main__":
             file_log_level=logging.DEBUG,  # Always log everything to file
             enable_log_color=True,
         )
-
-        # Instantiate the app logger
         logger: Logger = Logger(log_config)
 
-        # Instantiate the servicer provider
+        # A provider is the class that implements the gRPC methods
         try:
-            provider = DevelopmentProvider(
-                config=ProviderConfig(
-                    ASSETS_DIR=env_config.ASSETS_PATH,
-                ),
-                logger=logger,
-            )
+            if env_config.ENVIRONMENT == "development":
+                provider = DevProvider(
+                    config=ProviderConfig(
+                        ASSETS_DIR=env_config.ASSETS_PATH,
+                    ),
+                    logger=logger,
+                )
+            elif env_config.ENVIRONMENT == "production":
+                provider = MtibV1Provider(
+                    config=ProviderConfig(
+                        ASSETS_DIR=env_config.ASSETS_PATH,
+                    ),
+                    logger=logger,
+                )
+            else:
+                raise ValueError(f"Invalid environment: {env_config.ENVIRONMENT}")
         except Exception as e:
-            logger.error(f"Failed to initialize the servicer provider: {e}")
+            logger.error(f"Failed to initialize the provider: {e}")
             sys.exit(1)
 
-        # Create the gRPC server
-        server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
+        # Instantiate the gRPC server by adding the provider to it
+        server = grpc.server(futures.ThreadPoolExecutor(max_workers=50))
         mtib_pb2_grpc.add_MtibV1Servicer_to_server(provider, server)
         server.add_insecure_port(f"[::]:{env_config.GRPC_SERVER_PORT}")
 
-        # Setup signal handlers
+        # Setup signal handlers for OS signals
         for sig in (signal.SIGTERM, signal.SIGINT):
             signal.signal(sig, lambda signum, frame: handle_shutdown(signum, frame, server, logger))
 
-        # Start the server
+        # Run baby run
         server.start()
         logger.info(f"Server started on port {env_config.GRPC_SERVER_PORT}")
 
-        # Wait for termination
+        # Let's clean up after ourselves
         server.wait_for_termination()
 
     except Exception as e:

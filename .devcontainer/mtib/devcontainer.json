@@ -1,12 +1,11 @@
 {
   "name": "MTIB Dev Environment",
-  "image": "kubecop.ad.corekinect.com:5000/concord-mtib:dev",
+  "image": "kubecop.ad.corekinect.com:5000/concord-base:latest",
   "postCreateCommand": "npm install && npm fund && npm audit fix && NX_NO_CLOUD=true",
   "postStartCommand": "chmod +x .devcontainer/start.sh && ./.devcontainer/start.sh",
   "runArgs": [
     "--privileged",
-    "--network=host",
-    "--group-add=dialout"
+    "--network=host"
   ],
   "mounts": [
     "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind",
