@@ -4,18 +4,6 @@
   "sourceRoot": "apps/backend/proxy",
   "projectType": "application",
   "targets": {
-    "start": {
-      "executor": "nx:run-commands",
-      "options": {
-        "cwd": "{projectRoot}",
-        "commands": [
-          {
-            "command": "python3 src/main.py"
-          }
-        ],
-        "parallel": false
-      }
-    },
     "build": {
       "command": "nx run proxy:containerize",
       "cwd": "{workspaceRoot}"
@@ -41,7 +29,7 @@
         ]
       }
     },
-    "setup-dev": {
+    "setup": {
       "executor": "nx:run-commands",
       "cwd": "{projectRoot}",
       "options": {
@@ -55,39 +43,6 @@
           },
           {
             "command": "cp .env.example .env"
-          }
-        ],
-        "parallel": false
-      }
-    },
-    "generate-clients": {
-      "executor": "nx:run-commands",
-      "options": {
-        "cwd": "{projectRoot}",
-        "commands": [
-          {
-            "command": "python3 docs/generate.py src/api/v1 -o docs/gen_api_v1.yaml"
-          },
-          {
-            "command": "openapi-generator-cli generate -i docs/gen_api_v1.yaml -g python -o /workspaces/concord/libs/python/corekinect/proxy_client/v1\n"
-          },
-          {
-            "command": "pip install -e /workspaces/concord/libs/python/corekinect/proxy_client/v1"
-          }
-        ],
-        "parallel": false
-      }
-    },
-    "setup-db": {
-      "executor": "nx:run-commands",
-      "options": {
-        "cwd": "{projectRoot}",
-        "commands": [
-          {
-            "command": "supabase start"
-          },
-          {
-            "command": "prisma db push"
           }
         ],
         "parallel": false

@@ -139,9 +139,9 @@ class AuthMiddleware:
 
                     # Hit the auth server to check permissions
                     auth_server_url = f"{self.config.cc_auth_server_url}/Authorization/Validation/ValidatePermissions"
-                    # logger.debug(
-                    #     f"Hitting auth server at {auth_server_url} with headers \n{headers} and body: \n{body}"
-                    # )
+                    logger.debug(
+                        f"Hitting auth server at {auth_server_url} with headers \n{headers} and body: \n{body}"
+                    )
 
                     try:
                         response = requests.post(auth_server_url, headers=headers, json=body)
@@ -153,12 +153,12 @@ class AuthMiddleware:
 
                     # Handle the response from the auth server
                     if response.status_code == 200:
-                        # auth_data = response.json()
-                        logger.debug(f"Authorized Request")
+                        auth_data = response.json()
+                        logger.debug(f"Auth data: {auth_data}")
 
-                        # if not auth_data.get("isAuthorized"):
-                        #     logger.debug("Permissions not granted")
-                        #     return jsonify({"error": "Forbidden"}), 403
+                        if not auth_data.get("isAuthorized"):
+                            logger.debug("Permissions not granted")
+                            return jsonify({"error": "Forbidden"}), 403
                     else:
                         logger.debug("Unauthorized request")
                         return response.text, response.status_code

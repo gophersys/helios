@@ -5,7 +5,7 @@ storage_bp = Blueprint("storage", __name__)
 
 
 @storage_bp.route("/v1/storage", methods=["GET"])
-def storage_handler():
+def storage_check():
     """
     This route returns the storage usage information in a more human-readable format.
     """
