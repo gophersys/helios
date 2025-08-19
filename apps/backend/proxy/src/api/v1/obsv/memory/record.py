@@ -17,11 +17,11 @@ from src.services.proxy import appProxyServer
 from src.services.database.schema import ObservabilityMemEntry
 
 # Flask Route
-observability_memory_measurement_bp = Blueprint("observability_memory_measurement", __name__)
+obsv_memory_record_bp = Blueprint("obsv_memory_record", __name__)
 
 
-@observability_memory_measurement_bp.route("/v1/observability/memory/<session_uuid>/measurement", methods=["POST"])
-def observability_memory_measurement_handler(session_uuid):
+@obsv_memory_record_bp.route("/v1/obsv/memory/<session_uuid>/record", methods=["POST"])
+def obsv_memory_record_handler(session_uuid):
     global read_count, write_count, erase_count
 
     try:

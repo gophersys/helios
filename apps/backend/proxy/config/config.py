@@ -79,9 +79,6 @@ class Config:
 
             default_env_file = ".env"
             if os.path.exists(default_env_file) and os.path.isfile(default_env_file):
-                print(f"Contents of {default_env_file}:", flush=True)
-                with open(default_env_file, "r") as file:
-                    print(file.read(), flush=True)
                 loaded = True
 
         if not loaded:

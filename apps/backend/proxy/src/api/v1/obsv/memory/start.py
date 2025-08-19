@@ -15,11 +15,11 @@ from src.services.proxy import appProxyServer
 from src.services.database.schema import ObservabilityMemMetadata
 
 # Flask Route
-observability_memory_start_bp = Blueprint("observability_memory_start", __name__)
+obsv_memory_start_bp = Blueprint("obsv_memory_start", __name__)
 
 
-@observability_memory_start_bp.route("/v1/observability/memory/start", methods=["POST"])
-def observability_memory_start_handler():
+@obsv_memory_start_bp.route("/v1/obsv/memory/start", methods=["POST"])
+def obsv_memory_start_handler():
     try:
         data = request.get_json()
 
