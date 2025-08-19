@@ -9,7 +9,6 @@ import json
 from flask import Blueprint, jsonify, request
 
 # App includes
-from config import conf
 from src.middleware.permissions import authMiddleware
 from src.services.proxy import appProxyServer
 from src.services.database.schema import ObservabilityMemMetadata

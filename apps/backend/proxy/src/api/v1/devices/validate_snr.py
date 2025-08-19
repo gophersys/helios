@@ -7,7 +7,7 @@ from typing import List
 from flask import Blueprint, jsonify, request
 
 # App includes
-from config import conf
+from config import env_config
 from src.middleware.permissions import authMiddleware
 from src.services.proxy import appProxyServer
 
@@ -47,7 +47,7 @@ def devices_snr_validate_handler():
                 "Authorization": f"Bearer {server_token}",
             }
 
-            search_board_srn_url = f"{conf.MANU_SERVER_URL}/boards/panels/Search?boardSerialNumber={snr}"
+            search_board_srn_url = f"{env_config.MANU_SERVER_URL}/boards/panels/Search?boardSerialNumber={snr}"
             response = requests.get(search_board_srn_url, verify=None, timeout=5, headers=headers)
 
             if response.status_code == 200:

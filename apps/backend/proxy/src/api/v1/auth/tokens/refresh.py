@@ -6,7 +6,7 @@ from flask import Blueprint, request, jsonify
 import requests
 
 # App includes
-from config import conf
+from config import env_config
 
 token_refresh_bp = Blueprint("token_refresh", __name__)
 
@@ -22,13 +22,13 @@ def auth_tokens_refresh_handler():
         logging.debug(f"Received refresh token: {refresh_token}")
 
         # Prepare headers for the auth server request
-        headers = {"X-API-KEY": conf.AUTH_SERVER_API_KEY}
+        headers = {"X-API-KEY": env_config.AUTH_SERVER_API_KEY}
 
         # Prepare the request body
         body = {"refreshToken": refresh_token}
 
         # Make the request to the auth server
-        auth_server_url = f"{conf.AUTH_SERVER_URL}/Authentication/Tokens/Refresh"
+        auth_server_url = f"{env_config.AUTH_SERVER_URL}/Authentication/Tokens/Refresh"
         logging.debug(f"Sending request to auth server at {auth_server_url} with headers: {headers} and body: {body}")
 
         response = requests.post(auth_server_url, headers=headers, json=body)

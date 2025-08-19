@@ -7,7 +7,7 @@ from typing import List
 from flask import Blueprint, jsonify, request
 
 # App includes
-from config import conf
+from config import env_config
 from src.middleware.permissions import authMiddleware
 from src.services.proxy import appProxyServer
 
@@ -44,7 +44,7 @@ def devices_assign_id_handler():
 
             logging.info(f"Doing request with headers: {headers}")
 
-            assign_device_id_to_board_url = f"{conf.MANU_SERVER_URL}/devices/ids/assign?boardSerialNumber={snr}"
+            assign_device_id_to_board_url = f"{env_config.MANU_SERVER_URL}/devices/ids/assign?boardSerialNumber={snr}"
             response = requests.post(assign_device_id_to_board_url, verify=None, timeout=5, headers=headers)
 
             if response.status_code == 200:

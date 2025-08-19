@@ -11,6 +11,10 @@ from pathlib import Path
 from typing import Callable, List, Optional, Tuple
 from urllib.parse import urlparse
 
+# Corekinect includes
+from corekinect.utils import Logger
+
+# 3rd party includes
 import docker
 import docker.errors
 import grpc
@@ -35,8 +39,6 @@ from protocols.cluster_operator.cluster_operator_pb2_grpc import ClusterOperator
 # Assuming protos are already correctly imported
 from protocols.cluster_test.cluster_test_pb2 import TestInfo, TestStepResult
 
-from config import conf
-
 # App includes
 from src.services.database import Database, DatabaseConfiguration
 from src.services.database.schema import Cluster, ClusterType, TestExecution
@@ -44,6 +46,8 @@ from src.services.database.schema import Cluster, ClusterType, TestExecution
 # ----------------------------------------------------------------------------------
 #                                                                        Event Types
 # --------------------------------------------------------------------------------*/
+
+LOG_MODULE = "proxy"
 
 
 # ----------------------------------------------------------------------------------
@@ -58,10 +62,12 @@ class ProxyServerConfiguration:
 
     def __init__(
         self,
+        logger: Logger,
         db_storage_path: str,
         db_storage_limit_gb: int,
         supported_registries: List[str],
     ):
+        self.logger: Logger = logger
         self.db_storage_path: str = db_storage_path
         self.db_storage_limit_gb: str = db_storage_limit_gb
         self.supported_registries: List[str] = supported_registries
@@ -110,14 +116,35 @@ class ProxyServer:
         logger.setLevel(logging.INFO)
         self.docker_client: docker.DockerClient = None
 
+        # Logger
+        self.logger: Logger = None
+
     def init(self, config: ProxyServerConfiguration) -> str:
         if self.initialized:
             return "Do not initialize class again."
 
         self.config = config
 
+        # Logger
+        self.logger: Logger = self.config.logger
+        if self.logger is None:
+            self.logger = Logger(
+                Logger.Config(
+                    logger_name=LOG_MODULE,
+                    log_directory="logs",
+                    overall_log_level=logging.DEBUG,
+                    console_log_level=logging.DEBUG,
+                    file_log_level=logging.DEBUG,
+                    enable_log_color=True,
+                )
+            )
+        else:
+            # Create a child logger from the parent
+            self.logger = self.config.logger.from_parent(LOG_MODULE)
+
         # Initialize the server's database
         db_config: DatabaseConfiguration = DatabaseConfiguration(
+            logger=self.logger,
             db_storage_path=self.config.db_storage_path,
             storage_limit_gb=self.config.db_storage_limit_gb,
             storage_full_cb=self._db_storage_full_cb,
@@ -134,7 +161,7 @@ class ProxyServer:
             cluster = Cluster(info=info, error=None, status=None, url=None, channel=None, stub=None)
             self.clusters.append(cluster)
 
-        logging.info(f"{len(self.clusters)} clusters are being managed by the server")
+        self.logger.info(f"{len(self.clusters)} clusters are being managed by the server")
 
         # Services we use
         self.docker_client = docker.from_env()
@@ -157,7 +184,7 @@ class ProxyServer:
     #                                                                     Callbacks
     #  --------------------------------------------------------------------------*/
     def _db_storage_full_cb(self, error):
-        logging.error(f"Server ran out of storage :( , database error: {error}")
+        self.logger.error(f"Server ran out of storage :( , database error: {error}")
         sys.exit(1)
 
     # -----------------------------------------------------------------------------
@@ -178,7 +205,7 @@ class ProxyServer:
                         error: str = (
                             f"Failed to perform health check on cluster at {cluster.url}. Disconnecting from cluster"
                         )
-                        logging.error(error)
+                        self.logger.error(error)
                         cluster.status = None
                         cluster.error = error
                         cluster.channel.close()
@@ -211,7 +238,7 @@ class ProxyServer:
         cluster = Cluster(info=info, status=None, error=None, url=None, channel=None, stub=None)
         self.clusters.append(cluster)
 
-        logging.info(f"Created proxy {cluster.info.name} with ID {cluster.info.uuid} succesfully")
+        self.logger.info(f"Created proxy {cluster.info.name} with ID {cluster.info.uuid} succesfully")
         return "", uuid
 
     def clusters_get(self) -> List[Cluster]:
@@ -237,7 +264,7 @@ class ProxyServer:
         clusters_to_remove = [cluster for cluster in self.clusters if cluster.status is None]
 
         for cluster in clusters_to_remove:
-            logging.info(f"Removing cluster {cluster.info.name} with ID {cluster.info.uuid}")
+            self.logger.info(f"Removing cluster {cluster.info.name} with ID {cluster.info.uuid}")
             error = self.db.cluster_delete(cluster.info.uuid)
             if error:
                 return error
@@ -246,7 +273,7 @@ class ProxyServer:
         # Log warning for clusters not removed
         for cluster in self.clusters:
             if cluster.status is not None:
-                logging.warning(
+                self.logger.warning(
                     f"Cannot remove cluster {cluster.info.name} with ID {cluster.info.uuid} while it's connected"
                 )
 
@@ -270,7 +297,7 @@ class ProxyServer:
 
                 # Remove the cluster from the server's cache
                 self.clusters.remove(cluster)
-                logging.info(f"Removed cluster {cluster.info.name} with ID {cluster.info.uuid}")
+                self.logger.info(f"Removed cluster {cluster.info.name} with ID {cluster.info.uuid}")
                 return ""
 
     def clusters_register(self, cluster_uuid: str, cluster_url: str) -> str:
@@ -281,7 +308,7 @@ class ProxyServer:
 
         # Check if the cluster is already connected
         if cluster.info.registered and cluster.status is not None:
-            logging.warning(
+            self.logger.warning(
                 f"Cluster {cluster.info.name} at {cluster.url} is trying to register while in the connected state. Possible operator software bug?"
             )
             return ""
@@ -291,7 +318,7 @@ class ProxyServer:
             # Create a gRPC channel
             channel = grpc.insecure_channel(cluster_url, options=(("grpc.enable_http_proxy", 0),))
 
-            logging.info(f"Connecting to cluster at {cluster_url}")
+            self.logger.info(f"Connecting to cluster at {cluster_url}")
 
             # Create a stub using the insecure channel
             stub = ClusterOperatorStub(channel)
@@ -311,7 +338,7 @@ class ProxyServer:
             cluster.channel = channel
             cluster.stub = stub
 
-            logging.info(
+            self.logger.info(
                 f"Cluster {cluster.info.name} with UUID {cluster.info.uuid} has been successfully registered and connected."
             )
             return ""
@@ -346,7 +373,7 @@ class ProxyServer:
 
         cluster.info = info
 
-        logging.info(f"New deployment created for cluster {cluster_uuid}")
+        self.logger.info(f"New deployment created for cluster {cluster_uuid}")
         return "", deployment_uuid
 
     def cluster_deployments_get_status(self, cluster_uuid: str) -> Tuple[str, Optional[List[DeploymentInfo]]]:
@@ -386,7 +413,7 @@ class ProxyServer:
 
         cluster.info = info
 
-        logging.info(f"Removed all deployments for cluster {cluster_uuid}")
+        self.logger.info(f"Removed all deployments for cluster {cluster_uuid}")
         return ""
 
     def cluster_deployments_delete_one(self, cluster_uuid: str, deployment_uuid: str) -> str:
@@ -406,7 +433,7 @@ class ProxyServer:
 
         cluster.info = info
 
-        logging.info(f"Removed deployment {deployment_uuid} for cluster {cluster_uuid}")
+        self.logger.info(f"Removed deployment {deployment_uuid} for cluster {cluster_uuid}")
         return ""
 
     def clusters_deployments_apply(self, cluster_uuid: str, deployment_uuid: str) -> str:
@@ -419,7 +446,7 @@ class ProxyServer:
         if error:
             return f"Could not apply deployment: {error}"
 
-        logging.info(f"Cluster {cluster_uuid} deployment was updated to {deployment_uuid}")
+        self.logger.info(f"Cluster {cluster_uuid} deployment was updated to {deployment_uuid}")
         return ""
 
     def _deployment_verify(self, deployment_file_path) -> str:
@@ -471,7 +498,7 @@ class ProxyServer:
                 # if not self._check_arm64_support(container_image):
                 #     return f"Container image '{container_image}' does not support arm64 architecture"
 
-        logging.info("All images in deployment found with arm64 support in the registries")
+        self.logger.info("All images in deployment found with arm64 support in the registries")
         return ""
 
     def _check_arm64_support(self, image):
@@ -480,16 +507,16 @@ class ProxyServer:
             image_data = self.docker_client.images.get(image)  # This retrieves the image data
             architecture = image_data.attrs.get("Architecture")
             if architecture == "arm64":
-                logging.info(f"Image {image} supports arm64.")
+                self.logger.info(f"Image {image} supports arm64.")
                 return True
             else:
-                logging.info(f"Image {image} does not support arm64; it supports {architecture}.")
+                self.logger.info(f"Image {image} does not support arm64; it supports {architecture}.")
                 return False
         except docker.errors.NotFound:
-            logging.error(f"Image {image} not found.")
+            self.logger.error(f"Image {image} not found.")
             return False
         except Exception as e:
-            logging.error(f"Error retrieving image data for {image}: {str(e)}")
+            self.logger.error(f"Error retrieving image data for {image}: {str(e)}")
             return False
 
     # -----------------------------------------------------------------------------
@@ -551,7 +578,7 @@ class ProxyServer:
                         cluster_uuid, execution_uuid, response.results, response.stopped
                     )
                     if error:
-                        logging.error(f"Could not append result to entry in database: f{error}")
+                        self.logger.error(f"Could not append result to entry in database: f{error}")
 
                     # Callback for websockets
                     if results_cb is not None:
@@ -574,7 +601,7 @@ class ProxyServer:
             except grpc.RpcError as e:
                 error = self.db.cluster_test_execution_set_error(cluster_uuid, execution_uuid, e.details())
                 if error:
-                    logging.error(f"Could not set error in execution entry in database: f{error}")
+                    self.logger.error(f"Could not set error in execution entry in database: f{error}")
 
                 # An error ocurred, let websockets know
                 if results_cb is not None:
@@ -629,7 +656,7 @@ class ProxyServer:
 
         cluster.info = info
 
-        logging.info(f"Removed all test executions for cluster {cluster_uuid}")
+        self.logger.info(f"Removed all test executions for cluster {cluster_uuid}")
         return ""
 
     def cluster_test_executions_delete_one(self, cluster_uuid: str, execution_uuid: str) -> str:
@@ -649,7 +676,7 @@ class ProxyServer:
 
         cluster.info = info
 
-        logging.info(f"Removed test execution {execution_uuid} for cluster {cluster_uuid}")
+        self.logger.info(f"Removed test execution {execution_uuid} for cluster {cluster_uuid}")
         return ""
 
     # -----------------------------------------------------------------------------

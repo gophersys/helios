@@ -7,7 +7,7 @@ from typing import List
 from flask import Blueprint, jsonify, request
 
 # App includes
-from config import conf
+from config import env_config
 from src.middleware.permissions import authMiddleware
 from src.services.proxy import appProxyServer
 
@@ -57,7 +57,7 @@ def devices_save_iccid_handler():
             body = {"Iccid": iccid, "Carrier": carrier, "boardSerialNumber": snr, "Imei": imei}
 
             # Do request
-            save_iccid_url = f"{conf.MANU_SERVER_URL}/iccids/register"
+            save_iccid_url = f"{env_config.MANU_SERVER_URL}/iccids/register"
             response = requests.post(save_iccid_url, json=body, verify=None, timeout=5, headers=headers)
 
             if response.status_code == 200:

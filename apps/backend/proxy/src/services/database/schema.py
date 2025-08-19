@@ -7,7 +7,6 @@ from typing import List, Optional
 import grpc
 
 # App includes
-from config import conf
 from google.protobuf.json_format import MessageToDict, MessageToJson, Parse, ParseDict
 
 # Protocol includes
