@@ -19,13 +19,11 @@ import grpc
 # Protocol includes
 from protocols.mtib.mtib_pb2 import (
     Empty,
-    # AccelReadRequest,
-    # AccelReadResponse,
     # AdcChannel,
     AdcReadRequest,
     AdcReadResponse,
-    # AltimeterReadRequest,
-    # AltimeterReadResponse,
+    AccelReadResponse,
+    AltimeterReadResponse,
     # DeleteFwFileRequest,
     # DeleteFwFileResponse,
     # DeviceType,
@@ -257,31 +255,31 @@ class Sigma5RunnersController:
         except grpc.RpcError as e:
             return f"Failed to set 5VIN for runner at {host}. Error: {str(e.details())}"
 
-    # def read_altimeter(self, host: str) -> Tuple[str, Optional[Any]]:
-    #     if host not in self.runners:
-    #         return f"No runner found for host {host}"
+    def read_altimeter(self, host: str) -> Tuple[Optional[float], Optional[float], Optional[float], Optional[str]]:
+        if host not in self.runners:
+            return None, None, None, f"No runner found for host {host}"
 
-    #     try:
-    #         stub = self.runners[host]
-    #         response: AltimeterReadResponse = stub.AltimeterRead(AltimeterReadRequest())
-    #         if not response.success:
-    #             return f"Failed to read altimeter form MTIB. Error: {response.error}", None
-    #         return "", response
-    #     except grpc.RpcError as e:
-    #         return f"Failed to read altimeter for runner at {host}. Error: {str(e.details())}", None
+        try:
+            stub = self.runners[host]
+            response: AltimeterReadResponse = stub.AltimeterRead(Empty())
+            if not response.success:
+                return None, None, None, f"Failed to read altimeter form MTIB. Error: {response.message}"
+            return response.temperature_f, response.pressure_hg, response.altitude_ft, None
+        except grpc.RpcError as e:
+            return None, None, None, f"Failed to read altimeter for runner at {host}. Error: {str(e.details())}"
 
-    # def read_accelerometer(self, host: str) -> Tuple[str, Optional[Any]]:
-    #     if host not in self.runners:
-    #         return f"No runner found for host {host}"
+    def read_accelerometer(self, host: str) -> Tuple[Optional[float], Optional[float], Optional[float], Optional[str]]:
+        if host not in self.runners:
+            return None, None, None, f"No runner found for host {host}"
 
-    #     try:
-    #         stub = self.runners[host]
-    #         response: AccelReadResponse = stub.AccelRead(AccelReadRequest())
-    #         if not response.success:
-    #             return f"Failed to read accelerometer from MTIB. Error: {response.error}", None
-    #         return "", response
-    #     except grpc.RpcError as e:
-    #         return f"Failed to read accelerometer for runner at {host}. Error: {str(e.details())}", None
+        try:
+            stub = self.runners[host]
+            response: AccelReadResponse = stub.AccelRead(Empty())
+            if not response.success:
+                return None, None, None, f"Failed to read accelerometer from MTIB. Error: {response.message}"
+            return response.x_g, response.y_g, response.z_g, None
+        except grpc.RpcError as e:
+            return None, None, None, f"Failed to read accelerometer for runner at {host}. Error: {str(e.details())}"
 
     # def set_hard_reset(self, host: str, state: bool) -> str:
     #     if host not in self.runners:
@@ -634,8 +632,10 @@ class Sigma5RunnersController:
         except Exception as e:
             return None, f"Exception in lock_shell: {str(e)}"
 
-    def sigma5_cmd_app_get_chip_ids(self, host: str) -> Tuple[Optional[str], Optional[str], Optional[str]]:
-        """Get chip IDs from the device and return LoRa status and Ext flash chip ID"""
+    def sigma5_cmd_app_get_chip_ids(
+        self, host: str
+    ) -> Tuple[Optional[str], Optional[str], Optional[str], Optional[str], Optional[str], Optional[str]]:
+        """Get chip IDs from the comms co-processor device"""
         try:
             # Use queues like the working terminal
             input_queue = queue.Queue()
@@ -665,7 +665,7 @@ class Sigma5RunnersController:
             target = HostType.HOST_TYPE_NRF52840
             for resp in self.UartStream(host, target, request_iterator()):
                 if not resp.success:
-                    return None, None, f"UartStream error: {resp.message}"
+                    return None, None, None, None, None, f"UartStream error: {resp.message}"
 
                 if resp.data and len(resp.data) > 0:
                     line = resp.data.decode("utf-8", errors="ignore")
@@ -673,23 +673,43 @@ class Sigma5RunnersController:
 
                     # Check if we got the complete response
                     full_response = "".join(response_lines)
-                    if "LoRa hardware available:" in full_response and "Ext flash chip ID:" in full_response:
+                    if (
+                        "Accel chip ID:" in full_response
+                        and "Altimeter chip ID:" in full_response
+                        and "Ext flash chip ID:" in full_response
+                        and "GPS HW version:" in full_response
+                        and "BLE MAC:" in full_response
+                    ):
                         # Check if we also have the command prompt, indicating the response is complete
                         if "Mfg shell" in full_response:
                             # Parse the response
-                            lora_status = None
+                            accel_id = None
+                            altimeter_id = None
                             ext_flash_id = None
+                            gps_hw_version = None
+                            ble_mac = None
 
-                            # Extract LoRa status
-                            lora_start = full_response.find("LoRa hardware available:")
-                            if lora_start != -1:
-                                lora_line_start = full_response.rfind("\n", 0, lora_start) + 1
-                                lora_line_end = full_response.find("\n", lora_start)
-                                if lora_line_end == -1:
-                                    lora_line_end = len(full_response)
-                                lora_line = full_response[lora_line_start:lora_line_end].strip()
-                                if ":" in lora_line:
-                                    lora_status = lora_line.split(":", 1)[1].strip()
+                            # Extract Accel chip ID
+                            accel_start = full_response.find("Accel chip ID:")
+                            if accel_start != -1:
+                                accel_line_start = full_response.rfind("\n", 0, accel_start) + 1
+                                accel_line_end = full_response.find("\n", accel_start)
+                                if accel_line_end == -1:
+                                    accel_line_end = len(full_response)
+                                accel_line = full_response[accel_line_start:accel_line_end].strip()
+                                if ":" in accel_line:
+                                    accel_id = accel_line.split(":", 1)[1].strip()
+
+                            # Extract Altimeter chip ID
+                            altimeter_start = full_response.find("Altimeter chip ID:")
+                            if altimeter_start != -1:
+                                altimeter_line_start = full_response.rfind("\n", 0, altimeter_start) + 1
+                                altimeter_line_end = full_response.find("\n", altimeter_start)
+                                if altimeter_line_end == -1:
+                                    altimeter_line_end = len(full_response)
+                                altimeter_line = full_response[altimeter_line_start:altimeter_line_end].strip()
+                                if ":" in altimeter_line:
+                                    altimeter_id = altimeter_line.split(":", 1)[1].strip()
 
                             # Extract Ext flash chip ID
                             flash_start = full_response.find("Ext flash chip ID:")
@@ -702,7 +722,339 @@ class Sigma5RunnersController:
                                 if ":" in flash_line:
                                     ext_flash_id = flash_line.split(":", 1)[1].strip()
 
-                            return lora_status, ext_flash_id, None
+                            # Extract GPS HW version
+                            gps_start = full_response.find("GPS HW version:")
+                            if gps_start != -1:
+                                gps_line_start = full_response.rfind("\n", 0, gps_start) + 1
+                                gps_line_end = full_response.find("\n", gps_start)
+                                if gps_line_end == -1:
+                                    gps_line_end = len(full_response)
+                                gps_line = full_response[gps_line_start:gps_line_end].strip()
+                                if ":" in gps_line:
+                                    gps_hw_version = gps_line.split(":", 1)[1].strip()
+
+                            # Extract BLE MAC
+                            ble_start = full_response.find("BLE MAC:")
+                            if ble_start != -1:
+                                ble_line_start = full_response.rfind("\n", 0, ble_start) + 1
+                                ble_line_end = full_response.find("\n", ble_start)
+                                if ble_line_end == -1:
+                                    ble_line_end = len(full_response)
+                                ble_line = full_response[ble_line_start:ble_line_end].strip()
+                                if ":" in ble_line:
+                                    ble_mac = ble_line.split(":", 1)[1].strip()
+
+                            return accel_id, altimeter_id, ext_flash_id, gps_hw_version, ble_mac, None
+
+                # Timeout check
+                if time.time() - start_time > timeout:
+                    break
+
+            # If we get here, we didn't find the success message
+            full_response = "".join(response_lines)
+            return (
+                None,
+                None,
+                None,
+                None,
+                None,
+                f"Timeout or no success message found. Response: {full_response[:200]}...",
+            )
+
+        except Exception as e:
+            return None, None, None, None, None, f"Exception in get_chip_ids: {str(e)}"
+
+    def sigma5_cmd_app_get_ublox_version_info(
+        self, host: str
+    ) -> Tuple[Optional[str], Optional[str], Optional[str], Optional[str], Optional[str], Optional[str]]:
+        """Get ublox version info from the device"""
+        try:
+            # Use queues like the working terminal
+            input_queue = queue.Queue()
+            output_queue = queue.Queue()
+
+            # Add commands to input queue
+            input_queue.put(b"\r")  # Hit ENTER to get prompt
+            time.sleep(0.2)
+            input_queue.put(f"get_ublox\r".encode("utf-8"))  # Send command
+
+            def request_iterator():
+                while True:
+                    try:
+                        # Get input from queue (non-blocking)
+                        data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=data)
+                    except queue.Empty:
+                        # No input, send empty request to keep stream alive
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=b"")
+                        time.sleep(0.1)
+
+            # Collect response like the working terminal
+            response_lines = []
+            start_time = time.time()
+            timeout = 10  # 10 second timeout
+
+            target = HostType.HOST_TYPE_NRF52840
+            for resp in self.UartStream(host, target, request_iterator()):
+                if not resp.success:
+                    return None, None, None, None, None, f"UartStream error: {resp.message}"
+
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
+
+                    # Check if we got the complete response
+                    full_response = "".join(response_lines)
+                    if (
+                        "GPS HW version:" in full_response
+                        and "GPS FW version:" in full_response
+                        and "GPS SW version:" in full_response
+                        and "GPS protocol version:" in full_response
+                        and "GPS constellations:" in full_response
+                    ):
+                        # Check if we also have the command prompt, indicating the response is complete
+                        if "Mfg shell" in full_response:
+                            # Parse the response
+                            hw_version = None
+                            fw_version = None
+                            sw_version = None
+                            proto_version = None
+                            constellations = None
+
+                            # Extract HW version
+                            hw_start = full_response.find("GPS HW version:")
+                            if hw_start != -1:
+                                hw_line_start = full_response.rfind("\n", 0, hw_start) + 1
+                                hw_line_end = full_response.find("\n", hw_start)
+                                if hw_line_end == -1:
+                                    hw_line_end = len(full_response)
+                                hw_line = full_response[hw_line_start:hw_line_end].strip()
+                                if ":" in hw_line:
+                                    hw_version = hw_line.split(":", 1)[1].strip()
+
+                            # Extract FW version
+                            fw_start = full_response.find("GPS FW version:")
+                            if fw_start != -1:
+                                fw_line_start = full_response.rfind("\n", 0, fw_start) + 1
+                                fw_line_end = full_response.find("\n", fw_start)
+                                if fw_line_end == -1:
+                                    fw_line_end = len(full_response)
+                                fw_line = full_response[fw_line_start:fw_line_end].strip()
+                                if ":" in fw_line:
+                                    fw_version = fw_line.split(":", 1)[1].strip()
+
+                            # Extract SW version
+                            sw_start = full_response.find("GPS SW version:")
+                            if sw_start != -1:
+                                sw_line_start = full_response.rfind("\n", 0, sw_start) + 1
+                                sw_line_end = full_response.find("\n", sw_start)
+                                if sw_line_end == -1:
+                                    sw_line_end = len(full_response)
+                                sw_line = full_response[sw_line_start:sw_line_end].strip()
+                                if ":" in sw_line:
+                                    sw_version = sw_line.split(":", 1)[1].strip()
+
+                            # Extract Protocol version
+                            proto_start = full_response.find("GPS protocol version:")
+                            if proto_start != -1:
+                                proto_line_start = full_response.rfind("\n", 0, proto_start) + 1
+                                proto_line_end = full_response.find("\n", proto_start)
+                                if proto_line_end == -1:
+                                    proto_line_end = len(full_response)
+                                proto_line = full_response[proto_line_start:proto_line_end].strip()
+                                if ":" in proto_line:
+                                    proto_version = proto_line.split(":", 1)[1].strip()
+
+                            # Extract Constellations
+                            constellations_start = full_response.find("GPS constellations:")
+                            if constellations_start != -1:
+                                constellations_line_start = full_response.rfind("\n", 0, constellations_start) + 1
+                                constellations_line_end = full_response.find("\n", constellations_start)
+                                if constellations_line_end == -1:
+                                    constellations_line_end = len(full_response)
+                                constellations_line = full_response[
+                                    constellations_line_start:constellations_line_end
+                                ].strip()
+                                if ":" in constellations_line:
+                                    constellations = constellations_line.split(":", 1)[1].strip()
+
+                            return hw_version, fw_version, sw_version, proto_version, constellations, None
+
+                # Timeout check
+                if time.time() - start_time > timeout:
+                    break
+
+            # If we get here, we didn't find the success message
+            full_response = "".join(response_lines)
+            return (
+                None,
+                None,
+                None,
+                None,
+                None,
+                f"Timeout or no success message found. Response: {full_response[:200]}...",
+            )
+
+        except Exception as e:
+            return None, None, None, None, None, f"Exception in get_ublox: {str(e)}"
+
+    def sigma5_cmd_app_read_accel(
+        self, host: str
+    ) -> Tuple[Optional[float], Optional[float], Optional[float], Optional[float], Optional[str]]:
+        """Get accelerometer values from the app co-processor device"""
+        try:
+            # Use queues like the working terminal
+            input_queue = queue.Queue()
+            output_queue = queue.Queue()
+
+            # Add commands to input queue
+            input_queue.put(b"\r")  # Hit ENTER to get prompt
+            time.sleep(0.2)
+            input_queue.put(f"read_accel\r".encode("utf-8"))  # Send command
+
+            def request_iterator():
+                while True:
+                    try:
+                        # Get input from queue (non-blocking)
+                        data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=data)
+                    except queue.Empty:
+                        # No input, send empty request to keep stream alive
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=b"")
+                        time.sleep(0.1)
+
+            # Collect response like the working terminal
+            response_lines = []
+            start_time = time.time()
+            timeout = 10  # 10 second timeout
+
+            target = HostType.HOST_TYPE_NRF52840
+            for resp in self.UartStream(host, target, request_iterator()):
+                if not resp.success:
+                    return None, None, None, None, f"UartStream error: {resp.message}"
+
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
+
+                    # Check if we got the complete response
+                    full_response = "".join(response_lines)
+                    if "Accelerometer values:" in full_response:
+                        # Check if we also have the command prompt, indicating the response is complete
+                        if "Mfg shell" in full_response:
+                            # Parse the response
+                            x_value = None
+                            y_value = None
+                            z_value = None
+                            temp_value = None
+
+                            # Extract accelerometer values
+                            accel_start = full_response.find("Accelerometer values:")
+                            if accel_start != -1:
+                                accel_line_start = full_response.rfind("\n", 0, accel_start) + 1
+                                accel_line_end = full_response.find("\n", accel_start)
+                                if accel_line_end == -1:
+                                    accel_line_end = len(full_response)
+                                accel_line = full_response[accel_line_start:accel_line_end].strip()
+
+                                # Parse the format: "Accelerometer values: (x, y, z, temp): 0.890625, -0.015625, 0.437500, 31.000000"
+                                if ":" in accel_line:
+                                    values_part = accel_line.split(":", 1)[1].strip()
+                                    # Remove the "(x, y, z, temp):" part and get just the values
+                                    if ":" in values_part:
+                                        values_str = values_part.split(":", 1)[1].strip()
+                                        try:
+                                            # Split by comma and convert to float
+                                            values = [float(v.strip()) for v in values_str.split(",")]
+                                            if len(values) >= 4:
+                                                x_value = values[0]
+                                                y_value = values[1]
+                                                z_value = values[2]
+                                                temp_value = values[3]
+                                        except ValueError:
+                                            pass
+
+                            return x_value, y_value, z_value, temp_value, None
+
+                # Timeout check
+                if time.time() - start_time > timeout:
+                    break
+
+            # If we get here, we didn't find the success message
+            full_response = "".join(response_lines)
+            return None, None, None, None, f"Timeout or no success message found. Response: {full_response[:200]}..."
+
+        except Exception as e:
+            return None, None, None, None, f"Exception in read_accel: {str(e)}"
+
+    def sigma5_cmd_app_read_altimeter(self, host: str) -> Tuple[Optional[float], Optional[float], Optional[str]]:
+        """Get altimeter values from the app co-processor device"""
+        try:
+            # Use queues like the working terminal
+            input_queue = queue.Queue()
+            output_queue = queue.Queue()
+
+            # Add commands to input queue
+            input_queue.put(b"\r")  # Hit ENTER to get prompt
+            time.sleep(0.2)
+            input_queue.put(f"read_alt\r".encode("utf-8"))  # Send command
+
+            def request_iterator():
+                while True:
+                    try:
+                        # Get input from queue (non-blocking)
+                        data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=data)
+                    except queue.Empty:
+                        # No input, send empty request to keep stream alive
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=b"")
+                        time.sleep(0.1)
+
+            # Collect response like the working terminal
+            response_lines = []
+            start_time = time.time()
+            timeout = 5  # 5 second timeout (reduced from 10)
+
+            target = HostType.HOST_TYPE_NRF52840
+            for resp in self.UartStream(host, target, request_iterator()):
+                if not resp.success:
+                    return None, None, f"UartStream error: {resp.message}"
+
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
+
+                    # Check if we got the complete response
+                    full_response = "".join(response_lines)
+                    if "Altimeter values" in full_response:
+                        # Check if we also have the command prompt, indicating the response is complete
+                        if "Mfg shell" in full_response:
+                            # Parse the response
+                            pressure_value = None
+                            temp_value = None
+
+                            # Extract altimeter values
+                            alt_start = full_response.find("Altimeter values:")
+                            if alt_start != -1:
+                                alt_line_start = full_response.rfind("\n", 0, alt_start) + 1
+                                alt_line_end = full_response.find("\n", alt_start)
+                                if alt_line_end == -1:
+                                    alt_line_end = len(full_response)
+                                alt_line = full_response[alt_line_start:alt_line_end].strip()
+
+                                # Parse the format: "Altimeter values (pressure, temp): 28.722524, 25.412672"
+                                if ":" in alt_line:
+                                    values_part = alt_line.split(":", 1)[1].strip()
+                                    try:
+                                        # Split by comma and convert to float
+                                        values = [float(v.strip()) for v in values_part.split(",")]
+                                        if len(values) >= 2:
+                                            pressure_value = values[0]
+                                            temp_value = values[1]
+                                    except ValueError:
+                                        pass
+
+                            return pressure_value, temp_value, None
 
                 # Timeout check
                 if time.time() - start_time > timeout:
@@ -713,7 +1065,7 @@ class Sigma5RunnersController:
             return None, None, f"Timeout or no success message found. Response: {full_response[:200]}..."
 
         except Exception as e:
-            return None, None, f"Exception in get_chip_ids: {str(e)}"
+            return None, None, f"Exception in read_altimeter: {str(e)}"
 
     # ---------------------------------------------------------------------------------
     #                                                             Comms Coproc Commands
@@ -826,10 +1178,8 @@ class Sigma5RunnersController:
         except Exception as e:
             return None, f"Exception in lock_shell: {str(e)}"
 
-    def sigma5_cmd_comms_get_chip_ids(
-        self, host: str
-    ) -> Tuple[Optional[str], Optional[str], Optional[str], Optional[str], Optional[str], Optional[str]]:
-        """Get chip IDs from the comms co-processor device"""
+    def sigma5_cmd_comms_get_chip_ids(self, host: str) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+        """Get chip IDs from the device and return LoRa status and Ext flash chip ID"""
         try:
             # Use queues like the working terminal
             input_queue = queue.Queue()
@@ -859,7 +1209,7 @@ class Sigma5RunnersController:
             target = HostType.HOST_TYPE_NRF9160
             for resp in self.UartStream(host, target, request_iterator()):
                 if not resp.success:
-                    return None, None, None, None, None, f"UartStream error: {resp.message}"
+                    return None, None, f"UartStream error: {resp.message}"
 
                 if resp.data and len(resp.data) > 0:
                     line = resp.data.decode("utf-8", errors="ignore")
@@ -867,43 +1217,23 @@ class Sigma5RunnersController:
 
                     # Check if we got the complete response
                     full_response = "".join(response_lines)
-                    if (
-                        "Accel chip ID:" in full_response
-                        and "Altimeter chip ID:" in full_response
-                        and "Ext flash chip ID:" in full_response
-                        and "GPS HW version:" in full_response
-                        and "BLE MAC:" in full_response
-                    ):
+                    if "LoRa hardware available:" in full_response and "Ext flash chip ID:" in full_response:
                         # Check if we also have the command prompt, indicating the response is complete
                         if "Mfg shell" in full_response:
                             # Parse the response
-                            accel_id = None
-                            altimeter_id = None
+                            lora_status = None
                             ext_flash_id = None
-                            gps_hw_version = None
-                            ble_mac = None
 
-                            # Extract Accel chip ID
-                            accel_start = full_response.find("Accel chip ID:")
-                            if accel_start != -1:
-                                accel_line_start = full_response.rfind("\n", 0, accel_start) + 1
-                                accel_line_end = full_response.find("\n", accel_start)
-                                if accel_line_end == -1:
-                                    accel_line_end = len(full_response)
-                                accel_line = full_response[accel_line_start:accel_line_end].strip()
-                                if ":" in accel_line:
-                                    accel_id = accel_line.split(":", 1)[1].strip()
-
-                            # Extract Altimeter chip ID
-                            altimeter_start = full_response.find("Altimeter chip ID:")
-                            if altimeter_start != -1:
-                                altimeter_line_start = full_response.rfind("\n", 0, altimeter_start) + 1
-                                altimeter_line_end = full_response.find("\n", altimeter_start)
-                                if altimeter_line_end == -1:
-                                    altimeter_line_end = len(full_response)
-                                altimeter_line = full_response[altimeter_line_start:altimeter_line_end].strip()
-                                if ":" in altimeter_line:
-                                    altimeter_id = altimeter_line.split(":", 1)[1].strip()
+                            # Extract LoRa status
+                            lora_start = full_response.find("LoRa hardware available:")
+                            if lora_start != -1:
+                                lora_line_start = full_response.rfind("\n", 0, lora_start) + 1
+                                lora_line_end = full_response.find("\n", lora_start)
+                                if lora_line_end == -1:
+                                    lora_line_end = len(full_response)
+                                lora_line = full_response[lora_line_start:lora_line_end].strip()
+                                if ":" in lora_line:
+                                    lora_status = lora_line.split(":", 1)[1].strip()
 
                             # Extract Ext flash chip ID
                             flash_start = full_response.find("Ext flash chip ID:")
@@ -916,29 +1246,7 @@ class Sigma5RunnersController:
                                 if ":" in flash_line:
                                     ext_flash_id = flash_line.split(":", 1)[1].strip()
 
-                            # Extract GPS HW version
-                            gps_start = full_response.find("GPS HW version:")
-                            if gps_start != -1:
-                                gps_line_start = full_response.rfind("\n", 0, gps_start) + 1
-                                gps_line_end = full_response.find("\n", gps_start)
-                                if gps_line_end == -1:
-                                    gps_line_end = len(full_response)
-                                gps_line = full_response[gps_line_start:gps_line_end].strip()
-                                if ":" in gps_line:
-                                    gps_hw_version = gps_line.split(":", 1)[1].strip()
-
-                            # Extract BLE MAC
-                            ble_start = full_response.find("BLE MAC:")
-                            if ble_start != -1:
-                                ble_line_start = full_response.rfind("\n", 0, ble_start) + 1
-                                ble_line_end = full_response.find("\n", ble_start)
-                                if ble_line_end == -1:
-                                    ble_line_end = len(full_response)
-                                ble_line = full_response[ble_line_start:ble_line_end].strip()
-                                if ":" in ble_line:
-                                    ble_mac = ble_line.split(":", 1)[1].strip()
-
-                            return accel_id, altimeter_id, ext_flash_id, gps_hw_version, ble_mac, None
+                            return lora_status, ext_flash_id, None
 
                 # Timeout check
                 if time.time() - start_time > timeout:
@@ -946,151 +1254,10 @@ class Sigma5RunnersController:
 
             # If we get here, we didn't find the success message
             full_response = "".join(response_lines)
-            return (
-                None,
-                None,
-                None,
-                None,
-                None,
-                f"Timeout or no success message found. Response: {full_response[:200]}...",
-            )
+            return None, None, f"Timeout or no success message found. Response: {full_response[:200]}..."
 
         except Exception as e:
-            return None, None, None, None, None, f"Exception in get_chip_ids: {str(e)}"
-
-    def sigma5_cmd_comms_get_ublox_version_info(
-        self, host: str
-    ) -> Tuple[Optional[str], Optional[str], Optional[str], Optional[str], Optional[str], Optional[str]]:
-        """Get ublox version info from the device"""
-        try:
-            # Use queues like the working terminal
-            input_queue = queue.Queue()
-            output_queue = queue.Queue()
-
-            # Add commands to input queue
-            input_queue.put(b"\r")  # Hit ENTER to get prompt
-            time.sleep(0.2)
-            input_queue.put(f"get_ublox\r".encode("utf-8"))  # Send command
-
-            def request_iterator():
-                while True:
-                    try:
-                        # Get input from queue (non-blocking)
-                        data = input_queue.get_nowait()
-                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=data)
-                    except queue.Empty:
-                        # No input, send empty request to keep stream alive
-                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=b"")
-                        time.sleep(0.1)
-
-            # Collect response like the working terminal
-            response_lines = []
-            start_time = time.time()
-            timeout = 10  # 10 second timeout
-
-            target = HostType.HOST_TYPE_NRF9160
-            for resp in self.UartStream(host, target, request_iterator()):
-                if not resp.success:
-                    return None, None, None, None, None, f"UartStream error: {resp.message}"
-
-                if resp.data and len(resp.data) > 0:
-                    line = resp.data.decode("utf-8", errors="ignore")
-                    response_lines.append(line)
-
-                    # Check if we got the complete response
-                    full_response = "".join(response_lines)
-                    if (
-                        "GPS HW version:" in full_response
-                        and "GPS FW version:" in full_response
-                        and "GPS SW version:" in full_response
-                        and "GPS protocol version:" in full_response
-                        and "GPS constellations:" in full_response
-                    ):
-                        # Check if we also have the command prompt, indicating the response is complete
-                        if "Mfg shell" in full_response:
-                            # Parse the response
-                            hw_version = None
-                            fw_version = None
-                            sw_version = None
-                            proto_version = None
-                            constellations = None
-
-                            # Extract HW version
-                            hw_start = full_response.find("GPS HW version:")
-                            if hw_start != -1:
-                                hw_line_start = full_response.rfind("\n", 0, hw_start) + 1
-                                hw_line_end = full_response.find("\n", hw_start)
-                                if hw_line_end == -1:
-                                    hw_line_end = len(full_response)
-                                hw_line = full_response[hw_line_start:hw_line_end].strip()
-                                if ":" in hw_line:
-                                    hw_version = hw_line.split(":", 1)[1].strip()
-
-                            # Extract FW version
-                            fw_start = full_response.find("GPS FW version:")
-                            if fw_start != -1:
-                                fw_line_start = full_response.rfind("\n", 0, fw_start) + 1
-                                fw_line_end = full_response.find("\n", fw_start)
-                                if fw_line_end == -1:
-                                    fw_line_end = len(full_response)
-                                fw_line = full_response[fw_line_start:fw_line_end].strip()
-                                if ":" in fw_line:
-                                    fw_version = fw_line.split(":", 1)[1].strip()
-
-                            # Extract SW version
-                            sw_start = full_response.find("GPS SW version:")
-                            if sw_start != -1:
-                                sw_line_start = full_response.rfind("\n", 0, sw_start) + 1
-                                sw_line_end = full_response.find("\n", sw_start)
-                                if sw_line_end == -1:
-                                    sw_line_end = len(full_response)
-                                sw_line = full_response[sw_line_start:sw_line_end].strip()
-                                if ":" in sw_line:
-                                    sw_version = sw_line.split(":", 1)[1].strip()
-
-                            # Extract Protocol version
-                            proto_start = full_response.find("GPS protocol version:")
-                            if proto_start != -1:
-                                proto_line_start = full_response.rfind("\n", 0, proto_start) + 1
-                                proto_line_end = full_response.find("\n", proto_start)
-                                if proto_line_end == -1:
-                                    proto_line_end = len(full_response)
-                                proto_line = full_response[proto_line_start:proto_line_end].strip()
-                                if ":" in proto_line:
-                                    proto_version = proto_line.split(":", 1)[1].strip()
-
-                            # Extract Constellations
-                            constellations_start = full_response.find("GPS constellations:")
-                            if constellations_start != -1:
-                                constellations_line_start = full_response.rfind("\n", 0, constellations_start) + 1
-                                constellations_line_end = full_response.find("\n", constellations_start)
-                                if constellations_line_end == -1:
-                                    constellations_line_end = len(full_response)
-                                constellations_line = full_response[
-                                    constellations_line_start:constellations_line_end
-                                ].strip()
-                                if ":" in constellations_line:
-                                    constellations = constellations_line.split(":", 1)[1].strip()
-
-                            return hw_version, fw_version, sw_version, proto_version, constellations, None
-
-                # Timeout check
-                if time.time() - start_time > timeout:
-                    break
-
-            # If we get here, we didn't find the success message
-            full_response = "".join(response_lines)
-            return (
-                None,
-                None,
-                None,
-                None,
-                None,
-                f"Timeout or no success message found. Response: {full_response[:200]}...",
-            )
-
-        except Exception as e:
-            return None, None, None, None, None, f"Exception in get_ublox: {str(e)}"
+            return None, None, f"Exception in get_chip_ids: {str(e)}"
 
 
 # ---------------------------------------------------------------------------------

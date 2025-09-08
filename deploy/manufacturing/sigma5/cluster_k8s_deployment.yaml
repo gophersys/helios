@@ -25,6 +25,13 @@ spec:
     spec:
       # Allow the app 1 second to end "gracefully", and then force terminate
       terminationGracePeriodSeconds: 1
+      # Init container to remount /sys as writable
+      initContainers:
+      - name: remount-sys
+        image: busybox:latest
+        command: ['sh', '-c', 'mount -o remount,rw /sys']
+        securityContext:
+          privileged: true
       affinity:
         nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
@@ -87,6 +94,8 @@ spec:
           mountPath: /var/fw_files/
         - name: gpio
           mountPath: /sys/class/gpio
+        - name: sys-bus-iio
+          mountPath: /sys/bus/iio
 
         # The resource definition below is telling k8s 'hey please
         # give me at least what I've `requested` and let me consume
@@ -115,6 +124,9 @@ spec:
       - name: gpio
         hostPath:
           path: /sys/class/gpio
+      - name: sys-bus-iio
+        hostPath:
+          path: /sys/bus/iio
 ---
 # All the applications we want to run on a single MTIB hardware instance
 # are defined here

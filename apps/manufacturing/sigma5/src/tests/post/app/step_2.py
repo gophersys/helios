@@ -46,7 +46,7 @@ def verify_ublox(config: Sigma5ManufacturingConfig, node: str, usr_data: None) -
     ublox = Ublox()
 
     hw_version, fw_version, sw_version, proto_version, supported_constellations, error = (
-        mtib_servers.sigma5_cmd_comms_get_ublox_version_info(node)
+        mtib_servers.sigma5_cmd_app_get_ublox_version_info(node)
     )
     if error:
         result.error = error
@@ -74,7 +74,7 @@ def verify_ublox(config: Sigma5ManufacturingConfig, node: str, usr_data: None) -
 # ---------------------------------------------------------------------------------
 #                                                                              Step
 # -------------------------------------------------------------------------------*/
-step_2_verify_ublox: TestStep = TestStep(
+app_post_step_2_verify_ublox: TestStep = TestStep(
     info=StepInfo(
         name="Verify ublox",
         description="Verify the ublox data.",

@@ -12,8 +12,10 @@ from src.tests.lib import Test, TestStep
 # Test includes
 from src.tests.shared.config import Sigma5ManufacturingConfig
 from src.tests.shared.rpcs import mtib_servers
-from .step_1 import step_1_verify_chip_ids
-from .step_2 import step_2_verify_ublox
+from .step_1 import app_post_step_1_verify_chip_ids
+from .step_2 import app_post_step_2_verify_ublox
+from .step_3 import app_post_step_3_verify_accelerometer
+from .step_4 import app_post_step_4_verify_altimeter
 
 
 # ---------------------------------------------------------------------------------
@@ -128,7 +130,9 @@ post_app_test: Test = Test(
     usr_data=None,
     usr_data_type=None,
     steps=[
-        step_1_verify_chip_ids,
-        step_2_verify_ublox,
+        app_post_step_1_verify_chip_ids,
+        app_post_step_2_verify_ublox,
+        app_post_step_3_verify_accelerometer,
+        app_post_step_4_verify_altimeter,
     ],
 )

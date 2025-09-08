@@ -17,8 +17,8 @@ class UartHandler:
 
         # Map HostType to UART device paths
         self.uart_devices = {
-            HostType.HOST_TYPE_NRF9160: "/dev/verdin-uart2",
-            HostType.HOST_TYPE_NRF52840: "/dev/verdin-uart1",
+            HostType.HOST_TYPE_NRF9160: "/dev/verdin-uart1",
+            HostType.HOST_TYPE_NRF52840: "/dev/verdin-uart2",
             HostType.HOST_TYPE_NRF5340: "/dev/uart1",  # Using uart1 for NRF5340
             HostType.HOST_TYPE_NRF9151: "/dev/uart2",  # Using uart2 for NRF9151
         }
