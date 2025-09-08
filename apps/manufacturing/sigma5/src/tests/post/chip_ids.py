@@ -7,7 +7,7 @@ from tests.lib import *
 
 # Shared includes
 from ..shared.config import Sigma5ManufacturingConfig
-from ..shared.rpcs import runnners_controller, CMD_POST_Response
+from ..shared.rpcs import mtib_servers, CMD_POST_Response
 
 
 # ---------------------------------------------------------------------------------
@@ -18,7 +18,7 @@ def verify_chip_ids(config: Sigma5ManufacturingConfig, node: str, usr_data: None
 
     # Get the sensor values from the DUT
     dut_sensor_values: CMD_POST_Response
-    result.error, dut_sensor_values = runnners_controller.dut_command_get_chip_id(node)
+    result.error, dut_sensor_values = mtib_servers.dut_command_get_chip_id(node)
 
     if result.error:
         return result

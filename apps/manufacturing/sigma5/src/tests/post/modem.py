@@ -9,14 +9,14 @@ from tests.lib import TestStepResult
 
 # Shared includes
 from ..shared.config import Sigma5ManufacturingConfig
-from ..shared.rpcs import CMD_GET_MODEM_FW_VER_Response, runnners_controller
+from ..shared.rpcs import CMD_GET_MODEM_FW_VER_Response, mtib_servers
 
 
 def verify_modem_fw(config: Sigma5ManufacturingConfig, node: str, usr_data: None) -> TestStepResult:
     result = TestStepResult(success=False)
 
     response: CMD_GET_MODEM_FW_VER_Response
-    result.error, response = runnners_controller.dut_command_get_modem_fw(node)
+    result.error, response = mtib_servers.dut_command_get_modem_fw(node)
     if result.error:
         return result
 

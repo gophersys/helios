@@ -842,6 +842,9 @@ class MtibV1Client:
             self.logger.error(f"Unexpected error in UartStream at {self.config.net.addr}: {str(e)}")
             yield UartStreamResponse(success=False, message=f"Unexpected error: {str(e)}", target=target)
 
+    # -----------------------------------------------
+    #                                        Uart
+    # ---------------------------------------------*/
     def alpha_cmd_personalize(
         self, device_id: str, target: HostType
     ) -> Tuple[Optional[str], Optional[str], Optional[str]]:

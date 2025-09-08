@@ -11,7 +11,7 @@ from tests.lib import *
 
 # Shared includes
 from ..shared.config import Sigma5ManufacturingConfig
-from ..shared.rpcs import runnners_controller
+from ..shared.rpcs import mtib_servers
 
 # Test includes
 from .data import ElectricalTestSharedData, electrical_test_shared_data
@@ -36,18 +36,18 @@ def electrical_test_init(
     config: Sigma5ManufacturingConfig, nodes: List[str], usr_data: Dict[str, ElectricalTestSharedData]
 ) -> str:
     # Initialize the runners required to run this test
-    error = runnners_controller.init(nodes)
+    error = mtib_servers.init(nodes)
     if error:
         return f"Could not initialize runners for test: {error}"
 
     def init_node(node: str) -> str:
         # Turn off power
-        error = runnners_controller.disable_power(node)
+        error = mtib_servers.disable_power(node)
         if error:
             return f"Could not disable device power in host {node}: {error}"
 
         # Turn off charging power
-        error = runnners_controller.set_5vin(node, False)
+        error = mtib_servers.set_5vin(node, False)
         if error:
             return f"Could not disable charging power in host {node}: {error}"
 
@@ -76,12 +76,12 @@ def electrical_test_deinit(
     # Turn off power
     for node in nodes:
         # Disable device power
-        error = runnners_controller.disable_power(node)
+        error = mtib_servers.disable_power(node)
         if error:
             return f"Could not disable device power in host {node}: {error}"
 
         # Turn off charging power
-        error = runnners_controller.set_5vin(node, False)
+        error = mtib_servers.set_5vin(node, False)
         if error:
             return f"Could not disable charging power in host {node}: {error}"
 
@@ -92,7 +92,7 @@ def electrical_test_deinit(
     usr_data.clear()
 
     # Deinitialize the runners used to run this test
-    error = runnners_controller.deinit()
+    error = mtib_servers.deinit()
     if error:
         return f"Could not deinitialize runners for test: {error}"
 

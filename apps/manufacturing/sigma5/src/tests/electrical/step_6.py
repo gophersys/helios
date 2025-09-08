@@ -7,7 +7,7 @@ from tests.lib import *
 
 # Shared includes
 from ..shared.config import Sigma5ManufacturingConfig
-from ..shared.rpcs import runnners_controller
+from ..shared.rpcs import mtib_servers
 
 # Test includes
 from .data import ElectricalTestSharedData
@@ -49,11 +49,11 @@ def electrical_test_step_6_handler(
     readings = Step6Readings()
 
     # 6.a: Ensure +VIN test point is the same as +BATT
-    result.error, readings.vin_voltage = runnners_controller.read_vin(node)
+    result.error, readings.vin_voltage = mtib_servers.read_vin(node)
     if result.error:
         return result
 
-    result.error, readings.vbatt_voltage = runnners_controller.read_vbat(node)
+    result.error, readings.vbatt_voltage = mtib_servers.read_vbat(node)
     if result.error:
         return result
 

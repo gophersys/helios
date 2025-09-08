@@ -9,7 +9,9 @@ from token import OP
 import zlib
 from dataclasses import dataclass
 from time import sleep
-from typing import Iterator, Type
+from typing import Iterator, Type, List, Optional, Callable, Any
+import queue
+import time
 
 # 3rd party includes
 import grpc
@@ -56,8 +58,8 @@ from protocols.mtib.mtib_pb2 import (
     # HealthCheckResponse,
     # ListFwFilesRequest,
     # ListFwFilesResponse,
-    # UartStreamRequest,
-    # UartStreamResponse,
+    UartStreamRequest,
+    UartStreamResponse,
     # UploadFwFileRequest,
     # UploadFwFileResponse,
 )
@@ -90,252 +92,6 @@ TP1_3V3_PSM = 3
 RUNNER_SERVICE_GRPC_SERVER_PORT = 50053  # TODO: This should come from env variable
 
 # ---------------------------------------------------------------------------------
-#                                                                   Device Commands
-# -------------------------------------------------------------------------------*/
-NUM_CRC_BYTES = 4
-SYNC_BYTE1 = 0x12
-SYNC_BYTE2 = 0xE4
-RECEIVE_TIMEOUT_MS = 15000  # 15 seconds
-
-
-class Sigma5DeviceCommand(Enum):
-    CMD_NOP = 0x00
-    CMD_ACK = 0x01
-    CMD_CLEAR_PERSONALIZATION = 0x02
-    CMD_PERSONALIZE_DEV_EUI = 0x11
-    CMD_IMEI_ICCID_GET = 0x2B
-    CMD_POST = 0x2C
-    CMD_GET_SENSOR_VALS = 0x2D
-    CMD_GET_MODEM_FW_VER = 0x2E
-    CMD_DEV_EC_PUB_KEY = 0x2F
-
-
-class CommandResponse:
-    @classmethod
-    def from_bytes(cls, data: bytes):
-        return cls(data)
-
-
-@dataclass(frozen=True)
-class CMD_ACK_Response(CommandResponse):
-    ack: bool
-
-    @classmethod
-    def from_bytes(cls, data: bytes):
-        ack = False
-        if len(data) > 1 and data[1] == 1:  # Check if the second byte equals 1
-            ack = True
-        return cls(ack=ack)
-
-
-@dataclass(frozen=True)
-class CMD_CLEAR_PERSONALIZATION_Response(CommandResponse):
-    ack: bool = None
-
-    @classmethod
-    def from_bytes(cls, data: bytes):
-        ack = False
-        if len(data) > 1 and data[1] == 1:  # Check if the second byte equals 1
-            ack = True
-        return cls(ack)
-
-
-@dataclass(frozen=True)
-class CMD_PERSONALIZE_DEV_EUI_Response(CommandResponse):
-    flags: int = None
-    read: bool = None
-    device_id: int = None
-
-    @classmethod
-    def from_bytes(cls, data: bytes):
-        data_length: int = 9
-        data_format: str = ">BQ"
-
-        if len(data) < data_length:
-            raise ValueError(
-                f"Data length is insufficient for CMD_PERSONALIZE_DEV_EUI_Response, expected {data_length}, got {len(data)}"
-            )
-
-        flags, device_id = struct.unpack(data_format, data)
-
-        read = (flags & 0x80) >> 7  # bit 7
-
-        return cls(flags=flags, read=read, device_id=device_id)
-
-    @classmethod
-    def to_bytes(cls, read: bool, device_id: int):
-        data_length = 9
-        data_format: str = ">BQ"
-
-        flags = 0x80 if read else 0x00  # bit 7
-
-        payload = struct.pack(data_format, flags, device_id)
-
-        if len(payload) != data_length:
-            raise ValueError(
-                f"Data length is incorrect packing payload for CMD_PERSONALIZE_DEV_EUI_Response, expected {data_length}, got {len(payload)}"
-            )
-
-        return payload
-
-
-@dataclass(frozen=True)
-class CMD_IMEI_ICCID_Response(CommandResponse):
-    imei: str
-    iccids: List[str]
-
-    @classmethod
-    def from_bytes(cls, data: bytes):
-        imei_iccid_str = data.decode("ascii").strip("\x00")
-        imei_iccid_list = imei_iccid_str.split(",")
-        imei = imei_iccid_list[0]
-        iccids = imei_iccid_list[1:]
-
-        return cls(imei=imei, iccids=iccids)
-
-
-@dataclass(frozen=True)
-class CMD_POST_Response(CommandResponse):
-    # Supported by message spec
-    accel_ic_id: int = None
-    alt_ic_id: int = None
-    external_flash_ic_id: str = None
-    external_flash_test_pass: bool = None
-    is_lora_connected: bool = None
-    gps_ublox_version_info: str = None
-
-    # Further decoding of gps_ublox_raw_version_info
-    gps_ublox_sw_ver: str = None
-    gps_ublox_hw_ver: str = None
-    gps_ublox_fw_ver: str = None
-    gps_ublox_proto_ver: str = None
-    gps_ublox_supported_constellations: List[str] = None
-
-    @classmethod
-    def from_bytes(cls, data: bytes):
-
-        data_length: int = 167
-        packed_format: str = ">BB3sBB160s"
-
-        # Check if the data length is sufficient
-        if len(data) < data_length:
-            raise ValueError("Data length is insufficient for CMD_POST_Response")
-
-        # Unpack the data
-        unpacked_data = struct.unpack(packed_format, data[:data_length])
-
-        # Extract the data
-        accelerometer_ic_id = unpacked_data[0]
-        altimeter_ic_id = unpacked_data[1]
-        external_flash_ic_id = unpacked_data[2].hex()
-        external_flash_test_pass = True if unpacked_data[3] == 255 else False
-        is_lora_connected = True if unpacked_data[4] == 255 else False
-        gps_ublox_version_info = unpacked_data[5].decode("utf-8", errors="replace")
-
-        # Further decode the GPS u-blox version info
-        gps_ublox_null_term_split = unpacked_data[5].split(b"\x00")
-
-        # Remove empty strings
-        gps_ublox_null_term_split = [x for x in gps_ublox_null_term_split if x]
-
-        gps_ublox_sw_ver = gps_ublox_null_term_split[0].decode("utf-8", errors="replace")
-        gps_ublox_hw_ver = gps_ublox_null_term_split[1].decode("utf-8", errors="replace")
-        gps_ublox_fw_ver = gps_ublox_null_term_split[2].decode("utf-8", errors="replace")
-        gps_ublox_proto_ver = gps_ublox_null_term_split[3].decode("utf-8", errors="replace")
-        gps_ublox_supported_constellations = gps_ublox_null_term_split[4:]
-        gps_ublox_supported_constellations = b";".join(gps_ublox_supported_constellations)
-        gps_ublox_supported_constellations = gps_ublox_supported_constellations.decode("utf-8", errors="replace")
-        gps_ublox_supported_constellations = gps_ublox_supported_constellations.split(";")
-
-        return cls(
-            accel_ic_id=accelerometer_ic_id,
-            alt_ic_id=altimeter_ic_id,
-            external_flash_ic_id=external_flash_ic_id,
-            external_flash_test_pass=external_flash_test_pass,
-            is_lora_connected=is_lora_connected,
-            gps_ublox_version_info=gps_ublox_version_info,
-            gps_ublox_sw_ver=gps_ublox_sw_ver,
-            gps_ublox_hw_ver=gps_ublox_hw_ver,
-            gps_ublox_fw_ver=gps_ublox_fw_ver,
-            gps_ublox_proto_ver=gps_ublox_proto_ver,
-            gps_ublox_supported_constellations=gps_ublox_supported_constellations,
-        )
-
-
-@dataclass(frozen=True)
-class CMD_GET_SENSOR_VALS_Response(CommandResponse):
-    accelerometer_x_g: int = None
-    accelerometer_y_g: int = None
-    accelerometer_z_g: int = None
-    altimeter_pressure_in_hg: int = None
-    altimeter_temperature_c: int = None
-    voltage_measurement: int = None
-
-    @classmethod
-    def from_bytes(cls, data: bytes):
-        """Unpack response bytes and put into right fields based on the given payload definition"""
-        data_length: int = 11
-        packed_format: str = ">hhhHhB"
-
-        if len(data) < data_length:
-            raise ValueError("Data length is insufficient for CMD_GET_SENSOR_VALS_Response")
-
-        unpacked_data = struct.unpack(packed_format, data)
-
-        # Accelerometer measurements are 2-bytes, 1/256 G per LSB
-        accelerometer_x_g = unpacked_data[0] / 256.0
-        accelerometer_y_g = unpacked_data[1] / 256.0
-        accelerometer_z_g = unpacked_data[2] / 256.0
-
-        # Altimeter pressure measurements are 2-bytes (unsigned), 1/256 inHg per LSB
-        altimeter_pressure_in_hg = unpacked_data[3] / 256.0
-
-        # Altimeter temperature measurements are 2-bytes, 0 LSB = 25°C, sensitivity of 16 LSB / °C
-        altimeter_temperature_c = 25.0 + unpacked_data[4] / 16.0
-
-        # Voltage measurement is 1-byte (unsigned), with 25mV per bit
-        voltage_measurement = unpacked_data[5] * 0.025
-
-        return cls(
-            accelerometer_x_g=accelerometer_x_g,
-            accelerometer_y_g=accelerometer_y_g,
-            accelerometer_z_g=accelerometer_z_g,
-            altimeter_pressure_in_hg=altimeter_pressure_in_hg,
-            altimeter_temperature_c=altimeter_temperature_c,
-            voltage_measurement=voltage_measurement,
-        )
-
-
-@dataclass(frozen=True)
-class CMD_GET_MODEM_FW_VER_Response:
-    fw_version: str = None
-
-    @classmethod
-    def from_bytes(cls, data: bytes):
-        fw_version = data.decode("ascii").strip("\x00")
-        return cls(fw_version=fw_version)
-
-
-@dataclass(frozen=True)
-class CMD_DEV_EC_PUB_KEY_Response(CommandResponse):
-    public_key: str = None
-
-    @classmethod
-    def from_bytes(cls, data: bytes):
-        data_length = 65
-
-        if len(data) < data_length:
-            raise ValueError(
-                f"Data length is insufficient for CMD_DEV_EC_PUB_KEY_Response, expected {data_length}, got {len(data)}"
-            )
-
-        # Convert the public key to a string
-        public_key = "".join(f"{byte:02x}" for byte in data)
-
-        return cls(public_key=public_key)
-
-
-# ---------------------------------------------------------------------------------
 #                                                                             Class
 # -------------------------------------------------------------------------------*/
 
@@ -344,18 +100,6 @@ class Sigma5RunnersController:
     def __init__(self):
         self.runners: Dict[str, MtibV1Stub] = {}
         self.channels: Dict[str, grpc.Channel] = {}
-
-        self.response_classes = {
-            Sigma5DeviceCommand.CMD_NOP: CMD_ACK_Response,
-            Sigma5DeviceCommand.CMD_ACK: CMD_ACK_Response,
-            Sigma5DeviceCommand.CMD_CLEAR_PERSONALIZATION: CMD_CLEAR_PERSONALIZATION_Response,
-            Sigma5DeviceCommand.CMD_PERSONALIZE_DEV_EUI: CMD_PERSONALIZE_DEV_EUI_Response,
-            Sigma5DeviceCommand.CMD_IMEI_ICCID_GET: CMD_IMEI_ICCID_Response,
-            Sigma5DeviceCommand.CMD_POST: CMD_POST_Response,
-            Sigma5DeviceCommand.CMD_GET_SENSOR_VALS: CMD_GET_SENSOR_VALS_Response,
-            Sigma5DeviceCommand.CMD_GET_MODEM_FW_VER: CMD_GET_MODEM_FW_VER_Response,
-            Sigma5DeviceCommand.CMD_DEV_EC_PUB_KEY: CMD_DEV_EC_PUB_KEY_Response,
-        }
 
         self.cmd_responses_queues: Dict[str, queue.Queue] = {}
         self.cmd_requests_queues: Dict[str, queue.Queue] = {}
@@ -733,7 +477,7 @@ class Sigma5RunnersController:
 
     def flash_fw_file(
         self, host: str, file_info: FwFileInfo, sector_erase: bool = False, recover: bool = False
-    ) -> Tuple[Optional[int], Optional[str]]:
+    ) -> Tuple[Optional[bool], Optional[str]]:
         # Retrieve the runner stub
         if host not in self.runners:
             return None, f"No runner stub found for host {host}"
@@ -751,297 +495,605 @@ class Sigma5RunnersController:
         except Exception as e:
             return None, f"Unexpected error in FlashFwFile at {self.config.net.addr}: {str(e)}"
 
-    # def _start_cmd_interpreter(self, host: str) -> str:
-    #     if self.interpreter_running.get(host, False):
-    #         return "Command interpreter is already running"
+    def UartStream(
+        self, host: str, target: HostType, request_iterator: Iterator[UartStreamRequest]
+    ) -> Iterator[UartStreamResponse]:
+        """Stream UART data to/from a target device using a custom request iterator.
 
-    #     self.interpreter_running[host] = True
-    #     self.interpreter_threads[host] = threading.Thread(target=self._interpret_commands, args=(host,))
-    #     self.interpreter_threads[host].start()
-    #     return ""
+        Args:
+            target: Target host type (NRF9160, NRF52840, etc.)
+            request_iterator: Iterator that yields UartStreamRequest objects
 
-    # def _interpret_commands(self, host: str):
-    #     buffer = b""
-    #     runner = self.runners.get(host)
+        Yields:
+            UartStreamResponse objects containing received data or status
+        """
+        try:
+            # Make the streaming call with the provided request iterator
+            # The gRPC stub's UartStream method only takes the request_iterator, not the target
+            response_iterator = self.runners[host].UartStream(request_iterator)
 
-    #     def request_iterator() -> Iterator[UartStreamRequest]:
-    #         while self.interpreter_running[host]:
-    #             try:
-    #                 request = self.cmd_requests_queues[host].get(
-    #                     timeout=1
-    #                 )  # Use a timeout to regularly check the running flag
-    #                 if request.data == b"STOP":
-    #                     break  # Exit the iterator loop
-    #                 yield request
-    #             except queue.Empty:
-    #                 continue
+            for response in response_iterator:
+                yield response
 
-    #     try:
-    #         self.uart_rpc_streams[host] = runner.nrf9160UartStream(request_iterator())
-    #         for response in self.uart_rpc_streams[host]:
-    #             if not self.interpreter_running[host]:
-    #                 break
+        except grpc.RpcError as e:
+            logging.error(f"gRPC error for UartStream at {host}. Error: {str(e.details())}")
+            yield UartStreamResponse(success=False, message=f"gRPC error: {str(e.details())}", target=target)
+        except Exception as e:
+            logging.error(f"Unexpected error in UartStream at {host}: {str(e)}")
+            yield UartStreamResponse(success=False, message=f"Unexpected error: {str(e)}", target=target)
 
-    #             data = response.data
-    #             buffer += data
+    # ---------------------------------------------------------------------------------
+    #                                                             App Coproc Commands
+    # -------------------------------------------------------------------------------*/
 
-    #             while len(buffer) > 0:
-    #                 sync_index = buffer.find(struct.pack("BB", SYNC_BYTE1, SYNC_BYTE2))
-    #                 if sync_index == -1:
-    #                     buffer = b""  # Clear buffer if no sync bytes are found
-    #                     break
+    def sigma5_cmd_app_lock_shell(self, host: str) -> Tuple[Optional[bool], Optional[str]]:
+        """Simplified UART stream listener for lock_shell command"""
+        try:
+            # Use queues like the working terminal
+            input_queue = queue.Queue()
+            output_queue = queue.Queue()
 
-    #                 buffer = buffer[sync_index:]
+            # Add commands to input queue
+            input_queue.put(b"\r")  # Hit ENTER to get prompt
+            time.sleep(0.2)
+            input_queue.put(f"lock_shell\r".encode("utf-8"))  # Send command
 
-    #                 if len(buffer) < 5:
-    #                     break
+            def request_iterator():
+                while True:
+                    try:
+                        # Get input from queue (non-blocking)
+                        data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=data)
+                    except queue.Empty:
+                        # No input, send empty request to keep stream alive
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=b"")
+                        time.sleep(0.1)
 
-    #                 payload_length = struct.unpack(">H", buffer[3:5])[0]
-    #                 total_length = 5 + payload_length  # 5 bytes before payload + payload length + CRC
+            # Collect response like the working terminal
+            response_lines = []
+            start_time = time.time()
+            timeout = 10  # 10 second timeout
 
-    #                 if len(buffer) < total_length:
-    #                     break
+            target = HostType.HOST_TYPE_NRF52840
+            for resp in self.UartStream(host, target, request_iterator()):
+                if not resp.success:
+                    return None, f"UartStream error: {resp.message}"
 
-    #                 full_response = buffer[:total_length]
-    #                 buffer = buffer[total_length:]
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
 
-    #                 try:
-    #                     unpack_format = f">BBBH{payload_length - NUM_CRC_BYTES}sI"
-    #                     sync_byte1, sync_byte2, command_byte, length_field, payload, crc_received = struct.unpack(
-    #                         unpack_format, full_response
-    #                     )
-    #                     # logging.debug(f"Unpacked data: {sync_byte1}, {sync_byte2}, {command_byte}, {length_field}, {payload}, {crc_received}")
+                    # Check if we got the success message
+                    full_response = "".join(response_lines)
+                    if "Locking shell mode ON" in full_response:
+                        # Got the response
+                        return True, None
 
-    #                     # CRC should be calculated from command_byte to the end of the payload, excluding the CRC itself
-    #                     crc_calculated = self._calculate_crc32(full_response[2:-NUM_CRC_BYTES])
-    #                     if crc_received != crc_calculated:
-    #                         logging.error(f"CRC mismatch: received {crc_received}, calculated {crc_calculated}")
-    #                         continue
+                # Timeout check
+                if time.time() - start_time > timeout:
+                    break
 
-    #                     self.cmd_responses_queues[host].put(full_response)
-    #                 except Exception as e:
-    #                     logging.error(f"An exception ocurred whilst trying to unpack response: {e}")
-    #                     break
-    #     except grpc.RpcError as e:
-    #         if e.code() != grpc.StatusCode.CANCELLED:
-    #             logging.error(f"An exception occurred during command interpretation: {e}")
+            # If we get here, we didn't find the success message
+            full_response = "".join(response_lines)
+            return False, f"Timeout or no success message found. Response: {full_response[:200]}..."
 
-    # def _stop_cmd_interpreter(self, host: str) -> str:
-    #     if not self.interpreter_running.get(host, False):
-    #         return "Command interpreter is not running"
+        except Exception as e:
+            return None, f"Exception in lock_shell: {str(e)}"
 
-    #     # Set the running flag to False
-    #     self.interpreter_running[host] = False
+    def sigma5_cmd_app_debug_uart_disable(self, host: str) -> Tuple[Optional[bool], Optional[str]]:
+        """Simplified UART stream listener for debug_uart_off command"""
+        try:
+            # Use queues like the working terminal
+            input_queue = queue.Queue()
+            output_queue = queue.Queue()
 
-    #     # Insert a stop request to unblock the iterator
-    #     self.cmd_requests_queues[host].put(UartStreamRequest(data=b"STOP"))
+            # Add commands to input queue
+            input_queue.put(b"\r")  # Hit ENTER to get prompt
+            time.sleep(0.2)
+            input_queue.put(f"debug_enable 0\r".encode("utf-8"))  # Send command
 
-    #     # Cancel the gRPC call if it exists
-    #     if self.uart_rpc_streams[host]:
-    #         self.uart_rpc_streams[host].cancel()
+            def request_iterator():
+                while True:
+                    try:
+                        # Get input from queue (non-blocking)
+                        data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=data)
+                    except queue.Empty:
+                        # No input, send empty request to keep stream alive
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=b"")
+                        time.sleep(0.1)
 
-    #     # Wait for the interpreter thread to terminate
-    #     if self.interpreter_threads[host]:
-    #         self.interpreter_threads[host].join(timeout=10)  # Wait for a maximum of 5 seconds
-    #         if self.interpreter_threads[host].is_alive():
-    #             logging.error(f"Failed to stop the command interpreter thread in time for {host}")
-    #             return f"Failed to stop the command interpreter thread in time for {host}"
-    #         self.interpreter_threads[host] = None
+            # Collect response like the working terminal
+            response_lines = []
+            start_time = time.time()
+            timeout = 10  # 10 second timeout
 
-    #     return ""
+            target = HostType.HOST_TYPE_NRF52840
+            for resp in self.UartStream(host, target, request_iterator()):
+                if not resp.success:
+                    return None, f"UartStream error: {resp.message}"
 
-    # def _send_command(
-    #     self,
-    #     host: str,
-    #     command: Sigma5DeviceCommand,
-    #     payload: bytes = b"",
-    #     receive_timeout_ms=RECEIVE_TIMEOUT_MS,
-    #     response_type: Sigma5DeviceCommand = None,
-    # ) -> Tuple[str, Any]:
-    #     runner = self.runners.get(host)
-    #     if not runner:
-    #         return f"No runner found for host: {host}", None
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
 
-    #     try:
-    #         # Start the interpreter handler
-    #         error = self._start_cmd_interpreter(host)
-    #         if error:
-    #             return f"Could not start the command interpreter for {host}, {error}", None
+                    # Check if we got the success message
+                    full_response = "".join(response_lines)
+                    if "Debug is not enabled" in full_response:
+                        # Got the response
+                        return True, None
 
-    #         # Build the command
-    #         sync_bytes = struct.pack("BB", SYNC_BYTE1, SYNC_BYTE2)
-    #         command_byte = struct.pack("B", command.value)
-    #         message_length = struct.pack(">H", len(payload) + NUM_CRC_BYTES)
+                # Timeout check
+                if time.time() - start_time > timeout:
+                    break
 
-    #         crc_value = self._calculate_crc32(command_byte + message_length + payload)
-    #         crc_bytes = struct.pack(">I", crc_value)
+            # If we get here, we didn't find the success message
+            full_response = "".join(response_lines)
+            return False, f"Timeout or no success message found. Response: {full_response[:200]}..."
 
-    #         message = sync_bytes + command_byte + message_length + payload + crc_bytes
+        except Exception as e:
+            return None, f"Exception in lock_shell: {str(e)}"
 
-    #         # Send the command to the device
-    #         self.cmd_requests_queues[host].put(UartStreamRequest(data=message))
-    #         try:
-    #             # Await for responses in the queue
-    #             response = self.cmd_responses_queues[host].get(timeout=receive_timeout_ms / 1000.0)
+    def sigma5_cmd_app_get_chip_ids(self, host: str) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+        """Get chip IDs from the device and return LoRa status and Ext flash chip ID"""
+        try:
+            # Use queues like the working terminal
+            input_queue = queue.Queue()
+            output_queue = queue.Queue()
 
-    #             # Decode the response into the right type
-    #             if response_type is None:
-    #                 parse_error, response = self._parse_response(command, response, self.response_classes[command])
-    #             else:
-    #                 parse_error, response = self._parse_response(
-    #                     response_type, response, self.response_classes[response_type]
-    #                 )
-    #             if parse_error:
-    #                 parse_error = f"Could not parse response for command {command.name} at {host}, {parse_error}"
+            # Add commands to input queue
+            input_queue.put(b"\r")  # Hit ENTER to get prompt
+            time.sleep(0.2)
+            input_queue.put(f"get_chip_ids\r".encode("utf-8"))  # Send command
 
-    #             # Stop the interpreter
-    #             error = self._stop_cmd_interpreter(host)
-    #             if error:
-    #                 return f"Could not stop the command interpreter for {host}, {error}", None
+            def request_iterator():
+                while True:
+                    try:
+                        # Get input from queue (non-blocking)
+                        data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=data)
+                    except queue.Empty:
+                        # No input, send empty request to keep stream alive
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=b"")
+                        time.sleep(0.1)
 
-    #             return parse_error, response
-    #         except queue.Empty:
-    #             error = self._stop_cmd_interpreter(host)
-    #             if error:
-    #                 return f"Could not stop the command interpreter for {host}, {error}", None
+            # Collect response like the working terminal
+            response_lines = []
+            start_time = time.time()
+            timeout = 10  # 10 second timeout
 
-    #             return f"Response timeout ocurred for command {command.name} at {host}", None
+            target = HostType.HOST_TYPE_NRF52840
+            for resp in self.UartStream(host, target, request_iterator()):
+                if not resp.success:
+                    return None, None, f"UartStream error: {resp.message}"
 
-    #     except Exception as e:
-    #         error = self._stop_cmd_interpreter(host)
-    #         if error:
-    #             return f"Could not stop the command interpreter for {host}, {error}", None
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
 
-    #         return f"Error sending command {command.name} to runner at {host}. Error: {str(e)}", None
+                    # Check if we got the complete response
+                    full_response = "".join(response_lines)
+                    if "LoRa hardware available:" in full_response and "Ext flash chip ID:" in full_response:
+                        # Check if we also have the command prompt, indicating the response is complete
+                        if "Mfg shell" in full_response:
+                            # Parse the response
+                            lora_status = None
+                            ext_flash_id = None
 
-    # def _parse_response(
-    #     self, command: Sigma5DeviceCommand, response: bytes, response_class: Type[CommandResponse]
-    # ) -> Tuple[str, Any]:
-    #     try:
-    #         payload_length = struct.unpack(">H", response[3:5])[0]
-    #         unpack_format = f">BBBH{payload_length - NUM_CRC_BYTES}sI"
-    #         sync_byte1, sync_byte2, command_byte, length_field, payload, crc_received = struct.unpack(
-    #             unpack_format, response
-    #         )
+                            # Extract LoRa status
+                            lora_start = full_response.find("LoRa hardware available:")
+                            if lora_start != -1:
+                                lora_line_start = full_response.rfind("\n", 0, lora_start) + 1
+                                lora_line_end = full_response.find("\n", lora_start)
+                                if lora_line_end == -1:
+                                    lora_line_end = len(full_response)
+                                lora_line = full_response[lora_line_start:lora_line_end].strip()
+                                if ":" in lora_line:
+                                    lora_status = lora_line.split(":", 1)[1].strip()
 
-    #         if command == Sigma5DeviceCommand.CMD_NOP:
-    #             command = Sigma5DeviceCommand.CMD_ACK
+                            # Extract Ext flash chip ID
+                            flash_start = full_response.find("Ext flash chip ID:")
+                            if flash_start != -1:
+                                flash_line_start = full_response.rfind("\n", 0, flash_start) + 1
+                                flash_line_end = full_response.find("\n", flash_start)
+                                if flash_line_end == -1:
+                                    flash_line_end = len(full_response)
+                                flash_line = full_response[flash_line_start:flash_line_end].strip()
+                                if ":" in flash_line:
+                                    ext_flash_id = flash_line.split(":", 1)[1].strip()
 
-    #         if command.value != command_byte:
-    #             return f"Command mismatch. Expected {command.value}, got {command_byte}", None
+                            return lora_status, ext_flash_id, None
 
-    #         crc_calculated = self._calculate_crc32(response[2:-NUM_CRC_BYTES])
-    #         if crc_received != crc_calculated:
-    #             return f"CRC mismatch, expected {crc_calculated}, got {crc_received}", None
+                # Timeout check
+                if time.time() - start_time > timeout:
+                    break
 
-    #         response_object = response_class.from_bytes(payload)
-    #         return "", response_object
-    #     except Exception as e:
-    #         return f"Failed to parse response: {str(e)}", None
+            # If we get here, we didn't find the success message
+            full_response = "".join(response_lines)
+            return None, None, f"Timeout or no success message found. Response: {full_response[:200]}..."
 
-    # def _calculate_sha256(self, file_path: str) -> str:
-    #     sha256_hash = hashlib.sha256()
-    #     with open(file_path, "rb") as f:
-    #         for byte_block in iter(lambda: f.read(4096), b""):
-    #             sha256_hash.update(byte_block)
-    #     return sha256_hash.hexdigest()
+        except Exception as e:
+            return None, None, f"Exception in get_chip_ids: {str(e)}"
 
-    # def _calculate_crc32(self, data):
-    #     return zlib.crc32(data) & 0xFFFFFFFF
+    # ---------------------------------------------------------------------------------
+    #                                                             Comms Coproc Commands
+    # -------------------------------------------------------------------------------*/
+    def sigma5_cmd_comms_lock_shell(self, host: str) -> Tuple[Optional[bool], Optional[str]]:
+        """Simplified UART stream listener for lock_shell command"""
+        try:
+            # Use queues like the working terminal
+            input_queue = queue.Queue()
+            output_queue = queue.Queue()
 
-    # def dut_command_send_nop(self, host: str) -> Tuple[str, CMD_ACK_Response]:
-    #     return self._send_command(host, Sigma5DeviceCommand.CMD_NOP, response_type=Sigma5DeviceCommand.CMD_ACK)
+            # Add commands to input queue
+            input_queue.put(b"\r")  # Hit ENTER to get prompt
+            time.sleep(0.2)
+            input_queue.put(f"lock_shell\r".encode("utf-8"))  # Send command
 
-    # def dut_command_get_sensor_value(self, host: str) -> Tuple[str, CMD_GET_SENSOR_VALS_Response]:
-    #     # Wake up the device
-    #     self.dut_command_send_nop(host)
-    #     sleep(1)
+            def request_iterator():
+                while True:
+                    try:
+                        # Get input from queue (non-blocking)
+                        data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=data)
+                    except queue.Empty:
+                        # No input, send empty request to keep stream alive
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=b"")
+                        time.sleep(0.1)
 
-    #     # Send the command
-    #     return runnners_controller._send_command(
-    #         host,
-    #         Sigma5DeviceCommand.CMD_GET_SENSOR_VALS,
-    #     )
+            # Collect response like the working terminal
+            response_lines = []
+            start_time = time.time()
+            timeout = 10  # 10 second timeout
 
-    # def dut_command_get_chip_id(self, host: str) -> Tuple[str, CMD_POST_Response]:
-    #     # Wake up the device
-    #     self.dut_command_send_nop(host)
-    #     sleep(1)
+            target = HostType.HOST_TYPE_NRF9160
+            for resp in self.UartStream(host, target, request_iterator()):
+                if not resp.success:
+                    return None, f"UartStream error: {resp.message}"
 
-    #     # Send the command
-    #     return runnners_controller._send_command(
-    #         host,
-    #         Sigma5DeviceCommand.CMD_POST,
-    #     )
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
 
-    # def dut_command_get_imei_iccid(self, host: str) -> Tuple[str, CMD_IMEI_ICCID_Response]:
-    #     # Wake up the device
-    #     self.dut_command_send_nop(host)
-    #     sleep(1)
+                    # Check if we got the success message
+                    full_response = "".join(response_lines)
+                    if "Locking shell mode ON" in full_response:
+                        # Got the response
+                        return True, None
 
-    #     # Send the command
-    #     return runnners_controller._send_command(
-    #         host,
-    #         Sigma5DeviceCommand.CMD_IMEI_ICCID_GET,
-    #     )
+                # Timeout check
+                if time.time() - start_time > timeout:
+                    break
 
-    # def dut_command_get_modem_fw(self, host: str) -> Tuple[str, CMD_GET_MODEM_FW_VER_Response]:
-    #     # Wake up the device
-    #     self.dut_command_send_nop(host)
-    #     sleep(1)
+            # If we get here, we didn't find the success message
+            full_response = "".join(response_lines)
+            return False, f"Timeout or no success message found. Response: {full_response[:200]}..."
 
-    #     # Send the command
-    #     return runnners_controller._send_command(
-    #         host,
-    #         Sigma5DeviceCommand.CMD_GET_MODEM_FW_VER,
-    #     )
+        except Exception as e:
+            return None, f"Exception in lock_shell: {str(e)}"
 
-    # def dut_command_clear_personalization(self, host: str) -> tuple[str, CMD_CLEAR_PERSONALIZATION_Response]:
-    #     # Wake up the device
-    #     self.dut_command_send_nop(host)
-    #     sleep(1)
+    def sigma5_cmd_comms_debug_uart_disable(self, host: str) -> Tuple[Optional[bool], Optional[str]]:
+        """Simplified UART stream listener for debug_uart_off command"""
+        try:
+            # Use queues like the working terminal
+            input_queue = queue.Queue()
+            output_queue = queue.Queue()
 
-    #     # Send the command
-    #     return runnners_controller._send_command(
-    #         host,
-    #         Sigma5DeviceCommand.CMD_CLEAR_PERSONALIZATION,
-    #         response_type=Sigma5DeviceCommand.CMD_ACK,  # Use CMD_ACK as the response type
-    #     )
+            # Add commands to input queue
+            input_queue.put(b"\r")  # Hit ENTER to get prompt
+            time.sleep(0.2)
+            input_queue.put(f"debug_enable 0\r".encode("utf-8"))  # Send command
 
-    # def dut_command_set_device_eui(self, host: str, device_eui: int) -> Tuple[str, CMD_DEV_EC_PUB_KEY_Response]:
+            def request_iterator():
+                while True:
+                    try:
+                        # Get input from queue (non-blocking)
+                        data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=data)
+                    except queue.Empty:
+                        # No input, send empty request to keep stream alive
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=b"")
+                        time.sleep(0.1)
 
-    #     # Create the payload
-    #     payload = CMD_PERSONALIZE_DEV_EUI_Response.to_bytes(read=False, device_id=device_eui)
+            # Collect response like the working terminal
+            response_lines = []
+            start_time = time.time()
+            timeout = 10  # 10 second timeout
 
-    #     # Wake up the device
-    #     self.dut_command_send_nop(host)
-    #     sleep(1)
+            target = HostType.HOST_TYPE_NRF9160
+            for resp in self.UartStream(host, target, request_iterator()):
+                if not resp.success:
+                    return None, f"UartStream error: {resp.message}"
 
-    #     # Send the command
-    #     return runnners_controller._send_command(
-    #         host,
-    #         Sigma5DeviceCommand.CMD_PERSONALIZE_DEV_EUI,
-    #         payload=payload,
-    #         response_type=Sigma5DeviceCommand.CMD_DEV_EC_PUB_KEY,  # We expect a CMD_DEV_EC_PUB_KEY response
-    #     )
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
 
-    # def dut_command_get_device_eui(self, host: str) -> Tuple[str, CMD_PERSONALIZE_DEV_EUI_Response]:
-    #     payload = CMD_PERSONALIZE_DEV_EUI_Response.to_bytes(read=True, device_id=0xDEADBEEFDEADBEEF)
+                    # Check if we got the success message
+                    full_response = "".join(response_lines)
+                    if "Debug is not enabled" in full_response:
+                        # Got the response
+                        return True, None
 
-    #     # Wake up the device
-    #     self.dut_command_send_nop(host)
-    #     sleep(1)
+                # Timeout check
+                if time.time() - start_time > timeout:
+                    break
 
-    #     # Send the command
-    #     return runnners_controller._send_command(
-    #         host,
-    #         Sigma5DeviceCommand.CMD_PERSONALIZE_DEV_EUI,
-    #         payload=payload,
-    #         response_type=Sigma5DeviceCommand.CMD_PERSONALIZE_DEV_EUI,
-    #     )
+            # If we get here, we didn't find the success message
+            full_response = "".join(response_lines)
+            return False, f"Timeout or no success message found. Response: {full_response[:200]}..."
+
+        except Exception as e:
+            return None, f"Exception in lock_shell: {str(e)}"
+
+    def sigma5_cmd_comms_get_chip_ids(
+        self, host: str
+    ) -> Tuple[Optional[str], Optional[str], Optional[str], Optional[str], Optional[str], Optional[str]]:
+        """Get chip IDs from the comms co-processor device"""
+        try:
+            # Use queues like the working terminal
+            input_queue = queue.Queue()
+            output_queue = queue.Queue()
+
+            # Add commands to input queue
+            input_queue.put(b"\r")  # Hit ENTER to get prompt
+            time.sleep(0.2)
+            input_queue.put(f"get_chip_ids\r".encode("utf-8"))  # Send command
+
+            def request_iterator():
+                while True:
+                    try:
+                        # Get input from queue (non-blocking)
+                        data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=data)
+                    except queue.Empty:
+                        # No input, send empty request to keep stream alive
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=b"")
+                        time.sleep(0.1)
+
+            # Collect response like the working terminal
+            response_lines = []
+            start_time = time.time()
+            timeout = 10  # 10 second timeout
+
+            target = HostType.HOST_TYPE_NRF9160
+            for resp in self.UartStream(host, target, request_iterator()):
+                if not resp.success:
+                    return None, None, None, None, None, f"UartStream error: {resp.message}"
+
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
+
+                    # Check if we got the complete response
+                    full_response = "".join(response_lines)
+                    if (
+                        "Accel chip ID:" in full_response
+                        and "Altimeter chip ID:" in full_response
+                        and "Ext flash chip ID:" in full_response
+                        and "GPS HW version:" in full_response
+                        and "BLE MAC:" in full_response
+                    ):
+                        # Check if we also have the command prompt, indicating the response is complete
+                        if "Mfg shell" in full_response:
+                            # Parse the response
+                            accel_id = None
+                            altimeter_id = None
+                            ext_flash_id = None
+                            gps_hw_version = None
+                            ble_mac = None
+
+                            # Extract Accel chip ID
+                            accel_start = full_response.find("Accel chip ID:")
+                            if accel_start != -1:
+                                accel_line_start = full_response.rfind("\n", 0, accel_start) + 1
+                                accel_line_end = full_response.find("\n", accel_start)
+                                if accel_line_end == -1:
+                                    accel_line_end = len(full_response)
+                                accel_line = full_response[accel_line_start:accel_line_end].strip()
+                                if ":" in accel_line:
+                                    accel_id = accel_line.split(":", 1)[1].strip()
+
+                            # Extract Altimeter chip ID
+                            altimeter_start = full_response.find("Altimeter chip ID:")
+                            if altimeter_start != -1:
+                                altimeter_line_start = full_response.rfind("\n", 0, altimeter_start) + 1
+                                altimeter_line_end = full_response.find("\n", altimeter_start)
+                                if altimeter_line_end == -1:
+                                    altimeter_line_end = len(full_response)
+                                altimeter_line = full_response[altimeter_line_start:altimeter_line_end].strip()
+                                if ":" in altimeter_line:
+                                    altimeter_id = altimeter_line.split(":", 1)[1].strip()
+
+                            # Extract Ext flash chip ID
+                            flash_start = full_response.find("Ext flash chip ID:")
+                            if flash_start != -1:
+                                flash_line_start = full_response.rfind("\n", 0, flash_start) + 1
+                                flash_line_end = full_response.find("\n", flash_start)
+                                if flash_line_end == -1:
+                                    flash_line_end = len(full_response)
+                                flash_line = full_response[flash_line_start:flash_line_end].strip()
+                                if ":" in flash_line:
+                                    ext_flash_id = flash_line.split(":", 1)[1].strip()
+
+                            # Extract GPS HW version
+                            gps_start = full_response.find("GPS HW version:")
+                            if gps_start != -1:
+                                gps_line_start = full_response.rfind("\n", 0, gps_start) + 1
+                                gps_line_end = full_response.find("\n", gps_start)
+                                if gps_line_end == -1:
+                                    gps_line_end = len(full_response)
+                                gps_line = full_response[gps_line_start:gps_line_end].strip()
+                                if ":" in gps_line:
+                                    gps_hw_version = gps_line.split(":", 1)[1].strip()
+
+                            # Extract BLE MAC
+                            ble_start = full_response.find("BLE MAC:")
+                            if ble_start != -1:
+                                ble_line_start = full_response.rfind("\n", 0, ble_start) + 1
+                                ble_line_end = full_response.find("\n", ble_start)
+                                if ble_line_end == -1:
+                                    ble_line_end = len(full_response)
+                                ble_line = full_response[ble_line_start:ble_line_end].strip()
+                                if ":" in ble_line:
+                                    ble_mac = ble_line.split(":", 1)[1].strip()
+
+                            return accel_id, altimeter_id, ext_flash_id, gps_hw_version, ble_mac, None
+
+                # Timeout check
+                if time.time() - start_time > timeout:
+                    break
+
+            # If we get here, we didn't find the success message
+            full_response = "".join(response_lines)
+            return (
+                None,
+                None,
+                None,
+                None,
+                None,
+                f"Timeout or no success message found. Response: {full_response[:200]}...",
+            )
+
+        except Exception as e:
+            return None, None, None, None, None, f"Exception in get_chip_ids: {str(e)}"
+
+    def sigma5_cmd_comms_get_ublox_version_info(
+        self, host: str
+    ) -> Tuple[Optional[str], Optional[str], Optional[str], Optional[str], Optional[str], Optional[str]]:
+        """Get ublox version info from the device"""
+        try:
+            # Use queues like the working terminal
+            input_queue = queue.Queue()
+            output_queue = queue.Queue()
+
+            # Add commands to input queue
+            input_queue.put(b"\r")  # Hit ENTER to get prompt
+            time.sleep(0.2)
+            input_queue.put(f"get_ublox\r".encode("utf-8"))  # Send command
+
+            def request_iterator():
+                while True:
+                    try:
+                        # Get input from queue (non-blocking)
+                        data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=data)
+                    except queue.Empty:
+                        # No input, send empty request to keep stream alive
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=b"")
+                        time.sleep(0.1)
+
+            # Collect response like the working terminal
+            response_lines = []
+            start_time = time.time()
+            timeout = 10  # 10 second timeout
+
+            target = HostType.HOST_TYPE_NRF9160
+            for resp in self.UartStream(host, target, request_iterator()):
+                if not resp.success:
+                    return None, None, None, None, None, f"UartStream error: {resp.message}"
+
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
+
+                    # Check if we got the complete response
+                    full_response = "".join(response_lines)
+                    if (
+                        "GPS HW version:" in full_response
+                        and "GPS FW version:" in full_response
+                        and "GPS SW version:" in full_response
+                        and "GPS protocol version:" in full_response
+                        and "GPS constellations:" in full_response
+                    ):
+                        # Check if we also have the command prompt, indicating the response is complete
+                        if "Mfg shell" in full_response:
+                            # Parse the response
+                            hw_version = None
+                            fw_version = None
+                            sw_version = None
+                            proto_version = None
+                            constellations = None
+
+                            # Extract HW version
+                            hw_start = full_response.find("GPS HW version:")
+                            if hw_start != -1:
+                                hw_line_start = full_response.rfind("\n", 0, hw_start) + 1
+                                hw_line_end = full_response.find("\n", hw_start)
+                                if hw_line_end == -1:
+                                    hw_line_end = len(full_response)
+                                hw_line = full_response[hw_line_start:hw_line_end].strip()
+                                if ":" in hw_line:
+                                    hw_version = hw_line.split(":", 1)[1].strip()
+
+                            # Extract FW version
+                            fw_start = full_response.find("GPS FW version:")
+                            if fw_start != -1:
+                                fw_line_start = full_response.rfind("\n", 0, fw_start) + 1
+                                fw_line_end = full_response.find("\n", fw_start)
+                                if fw_line_end == -1:
+                                    fw_line_end = len(full_response)
+                                fw_line = full_response[fw_line_start:fw_line_end].strip()
+                                if ":" in fw_line:
+                                    fw_version = fw_line.split(":", 1)[1].strip()
+
+                            # Extract SW version
+                            sw_start = full_response.find("GPS SW version:")
+                            if sw_start != -1:
+                                sw_line_start = full_response.rfind("\n", 0, sw_start) + 1
+                                sw_line_end = full_response.find("\n", sw_start)
+                                if sw_line_end == -1:
+                                    sw_line_end = len(full_response)
+                                sw_line = full_response[sw_line_start:sw_line_end].strip()
+                                if ":" in sw_line:
+                                    sw_version = sw_line.split(":", 1)[1].strip()
+
+                            # Extract Protocol version
+                            proto_start = full_response.find("GPS protocol version:")
+                            if proto_start != -1:
+                                proto_line_start = full_response.rfind("\n", 0, proto_start) + 1
+                                proto_line_end = full_response.find("\n", proto_start)
+                                if proto_line_end == -1:
+                                    proto_line_end = len(full_response)
+                                proto_line = full_response[proto_line_start:proto_line_end].strip()
+                                if ":" in proto_line:
+                                    proto_version = proto_line.split(":", 1)[1].strip()
+
+                            # Extract Constellations
+                            constellations_start = full_response.find("GPS constellations:")
+                            if constellations_start != -1:
+                                constellations_line_start = full_response.rfind("\n", 0, constellations_start) + 1
+                                constellations_line_end = full_response.find("\n", constellations_start)
+                                if constellations_line_end == -1:
+                                    constellations_line_end = len(full_response)
+                                constellations_line = full_response[
+                                    constellations_line_start:constellations_line_end
+                                ].strip()
+                                if ":" in constellations_line:
+                                    constellations = constellations_line.split(":", 1)[1].strip()
+
+                            return hw_version, fw_version, sw_version, proto_version, constellations, None
+
+                # Timeout check
+                if time.time() - start_time > timeout:
+                    break
+
+            # If we get here, we didn't find the success message
+            full_response = "".join(response_lines)
+            return (
+                None,
+                None,
+                None,
+                None,
+                None,
+                f"Timeout or no success message found. Response: {full_response[:200]}...",
+            )
+
+        except Exception as e:
+            return None, None, None, None, None, f"Exception in get_ublox: {str(e)}"
 
 
 # ---------------------------------------------------------------------------------
 #                                                                   Class Singleton
 # -------------------------------------------------------------------------------*/
-runnners_controller: Sigma5RunnersController = Sigma5RunnersController()
+mtib_servers: Sigma5RunnersController = Sigma5RunnersController()

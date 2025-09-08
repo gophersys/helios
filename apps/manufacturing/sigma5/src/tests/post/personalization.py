@@ -11,7 +11,7 @@ from ..shared.rpcs import (
     CMD_ACK_Response,
     CMD_DEV_EC_PUB_KEY_Response,
     CMD_PERSONALIZE_DEV_EUI_Response,
-    runnners_controller,
+    mtib_servers,
 )
 
 
@@ -20,7 +20,7 @@ def clear_personalization(config: Sigma5ManufacturingConfig, node: str, usr_data
     result = TestStepResult(success=False)
 
     response: CMD_ACK_Response
-    error, response = runnners_controller.dut_command_clear_personalization(node)
+    error, response = mtib_servers.dut_command_clear_personalization(node)
 
     if error:
         result.error = f"Could not clear personalization on host {node}: {error=}"
@@ -96,13 +96,13 @@ def set_device_id(config: Sigma5ManufacturingConfig, node: str, usr_data: None) 
 
     # Set the device id, to get back a public key
     set_response: CMD_DEV_EC_PUB_KEY_Response
-    result.error, set_response = runnners_controller.dut_command_set_device_eui(node, int_device_id)
+    result.error, set_response = mtib_servers.dut_command_set_device_eui(node, int_device_id)
     if result.error:
         return result
 
     # Verify that we succesfully set the device id
     verify_response: CMD_PERSONALIZE_DEV_EUI_Response
-    error, verify_response = runnners_controller.dut_command_get_device_eui(node)
+    error, verify_response = mtib_servers.dut_command_get_device_eui(node)
 
     if error:
         result.error = f"Could not read device ID from host {node}: {error=}"

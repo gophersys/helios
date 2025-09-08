@@ -6,7 +6,8 @@ from tests.lib import *
 
 # Shared includes
 from ..shared.config import Sigma5ManufacturingConfig
-from ..shared.rpcs import runnners_controller
+from ..shared.rpcs import mtib_servers
+
 # Test includes
 from .data import ElectricalTestSharedData
 
@@ -21,7 +22,7 @@ def electrical_test_step_9_handler(
     result: TestStepResult = TestStepResult(success=False)
 
     # Apply +5V to +5V_IN test point
-    result.error = runnners_controller.set_5vin(node, True)
+    result.error = mtib_servers.set_5vin(node, True)
     if result.error:
         return result
 

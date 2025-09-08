@@ -8,7 +8,7 @@ from tests.lib import TestStepResult
 
 # Shared includes
 from ..shared.config import Sigma5ManufacturingConfig
-from ..shared.rpcs import CMD_GET_SENSOR_VALS_Response, runnners_controller
+from ..shared.rpcs import CMD_GET_SENSOR_VALS_Response, mtib_servers
 
 
 # ---------------------------------------------------------------------------------
@@ -50,13 +50,13 @@ def verify_accelerometer(config: Sigma5ManufacturingConfig, node: str, usr_data:
 
     # Get the sensor values from the DUT
     dut_sensor_values: CMD_GET_SENSOR_VALS_Response
-    result.error, dut_sensor_values = runnners_controller.dut_command_get_sensor_value(node)
+    result.error, dut_sensor_values = mtib_servers.dut_command_get_sensor_value(node)
 
     if result.error:
         return result
 
     # Get the accelerometer values from the MTIB
-    result.error, mtib_accel_values = runnners_controller.read_accelerometer(node)
+    result.error, mtib_accel_values = mtib_servers.read_accelerometer(node)
     if result.error:
         return result
 

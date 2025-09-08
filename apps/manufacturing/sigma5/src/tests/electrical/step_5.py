@@ -3,7 +3,8 @@ from tests.lib import *
 
 # Shared includes
 from ..shared.config import Sigma5ManufacturingConfig
-from ..shared.rpcs import runnners_controller
+from ..shared.rpcs import mtib_servers
+
 # Test includes
 from .data import ElectricalTestSharedData
 
@@ -17,7 +18,7 @@ def electrical_test_step_5_handler(
     result: TestStepResult = TestStepResult(success=False)
 
     # Apply +3.6V to +BATT test point
-    result.error = runnners_controller.set_vbat(node, 3.6)
+    result.error = mtib_servers.set_vbat(node, 3.6)
     if result.error:
         return result
 

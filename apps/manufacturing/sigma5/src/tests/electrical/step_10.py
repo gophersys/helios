@@ -7,7 +7,7 @@ from tests.lib import *
 
 # Shared includes
 from ..shared.config import Sigma5ManufacturingConfig
-from ..shared.rpcs import runnners_controller
+from ..shared.rpcs import mtib_servers
 
 # Test includes
 from .data import ElectricalTestSharedData
@@ -57,7 +57,7 @@ def electrical_test_step_10_handler(
     start_time = datetime.now()
     while datetime.now() - start_time < timedelta(seconds=config.vin_rail_stabilization_period_s):
         # Read the pin voltage
-        result.error, readings.vin_voltage = runnners_controller.read_vin(node)
+        result.error, readings.vin_voltage = mtib_servers.read_vin(node)
         if result.error:
             return result
 
@@ -77,7 +77,7 @@ def electrical_test_step_10_handler(
         return result
 
     # 10.b: Ensure regulated +3.3V test point voltage is within 3.2V - 3.4V
-    result.error, readings._3v3_voltage = runnners_controller.read_3v3(node)
+    result.error, readings._3v3_voltage = mtib_servers.read_3v3(node)
     if result.error:
         return result
 
@@ -87,7 +87,7 @@ def electrical_test_step_10_handler(
         return result
 
     # 10.c: Ensure +VBCKP test point voltage is within +2.4V - 2.6V
-    result.error, readings.vbckp_voltage = runnners_controller.read_vbckp(node)
+    result.error, readings.vbckp_voltage = mtib_servers.read_vbckp(node)
     if result.error:
         return result
 
@@ -97,7 +97,7 @@ def electrical_test_step_10_handler(
         return result
 
     # 10.e: Ensure CHRG_DET test point is digital low
-    result.error, readings.chrg_det_value = runnners_controller.read_chrg_det(node)
+    result.error, readings.chrg_det_value = mtib_servers.read_chrg_det(node)
     if result.error:
         return result
 

@@ -6,7 +6,8 @@ from tests.lib import *
 
 # Shared includes
 from ..shared.config import Sigma5ManufacturingConfig
-from ..shared.rpcs import runnners_controller
+from ..shared.rpcs import mtib_servers
+
 # Test includes
 from .data import ElectricalTestSharedData
 
@@ -21,7 +22,7 @@ def electrical_test_step_11_handler(
     result: TestStepResult = TestStepResult(success=False)
 
     # Set HARD_RESET test point to digital low.
-    result.error = runnners_controller.set_hard_reset(node, False)
+    result.error = mtib_servers.set_hard_reset(node, False)
     if result.error:
         return result
 

@@ -25,7 +25,7 @@ def fw_flash_test_step_2_handler(config: Sigma5ManufacturingConfig, node: str, u
     )
     sector_erase = True
     recover = True
-    time_taken, error = runnners_controller.flash_fw_file(node, file_info, sector_erase, recover)
+    time_taken, error = mtib_servers.flash_fw_file(node, file_info, sector_erase, recover)
 
     if error:
         result.error = error
@@ -38,7 +38,7 @@ def fw_flash_test_step_2_handler(config: Sigma5ManufacturingConfig, node: str, u
     )
     sector_erase = True
     recover = True
-    time_taken, error = runnners_controller.flash_fw_file(node, file_info, sector_erase, recover)
+    time_taken, error = mtib_servers.flash_fw_file(node, file_info, sector_erase, recover)
 
     if error:
         result.error = error

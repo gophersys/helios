@@ -11,7 +11,7 @@ from tests.lib import Test, TestStep
 
 # Test includes
 from ..shared.config import Sigma5ManufacturingConfig
-from ..shared.rpcs import runnners_controller
+from ..shared.rpcs import mtib_servers
 from .acceleromeer import verify_accelerometer
 from .altimeter import verify_altimeter
 from .chip_ids import verify_chip_ids
@@ -27,18 +27,18 @@ from .voltage import verify_voltage
 # -------------------------------------------------------------------------------*/
 def post_test_init(config: Sigma5ManufacturingConfig, nodes: List[str], usr_data: None) -> str:
     # Initialize the runners required to run this test
-    error = runnners_controller.init(nodes)
+    error = mtib_servers.init(nodes)
     if error:
         return f"Could not initialize runners for test: {error}"
 
     def init_node(node: str) -> str:
         # Turn off power
-        error = runnners_controller.disable_power(node)
+        error = mtib_servers.disable_power(node)
         if error:
             return f"Could not disable device power in host {node}: {error}"
 
         # Turn off charging power
-        error = runnners_controller.set_5vin(node, False)
+        error = mtib_servers.set_5vin(node, False)
         if error:
             return f"Could not disable charging power in host {node}: {error}"
 
@@ -64,12 +64,12 @@ def post_test_init(config: Sigma5ManufacturingConfig, nodes: List[str], usr_data
 def post_test_deinit(config: Sigma5ManufacturingConfig, nodes: List[str], usr_data: None) -> str:
     def deinit_node(node: str) -> str:
         # Turn off charging power
-        error = runnners_controller.set_5vin(node, False)
+        error = mtib_servers.set_5vin(node, False)
         if error:
             return f"Could not disable charging power in host {node}: {error}"
 
         # Turn off power
-        error = runnners_controller.disable_power(node)
+        error = mtib_servers.disable_power(node)
         if error:
             return f"Could not disable device power in host {node}: {error}"
 
@@ -87,7 +87,7 @@ def post_test_deinit(config: Sigma5ManufacturingConfig, nodes: List[str], usr_da
     time.sleep(1)
 
     # Deinitialize the runners used to run this test
-    error = runnners_controller.deinit()
+    error = mtib_servers.deinit()
     if error:
         return f"Could not deinitialize runners for test: {error}"
 

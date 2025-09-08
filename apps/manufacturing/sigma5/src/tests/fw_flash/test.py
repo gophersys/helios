@@ -24,19 +24,19 @@ from .step_2 import fw_flash_test_step_2
 def fw_flash_test_init(config: Sigma5ManufacturingConfig, nodes: List[str], usr_data: None) -> str:
 
     # Initialize the runners required to run this test
-    error = runnners_controller.init(nodes)
+    error = mtib_servers.init(nodes)
     if error:
         return f"Could not initialize runners for test: {error}"
 
     def init_node(node: str) -> str:
         # Turn on power
-        error = runnners_controller.set_vbat(node, 4.0)
+        error = mtib_servers.set_vbat(node, 4.0)
         if error:
             return f"Could not disable device power in host {node}: {error}"
 
         # Turn on charging power, as the modem firmware fails to be flashed
         # when this rail is not on. Consumes too much power? Not sure?
-        error = runnners_controller.set_5vin(node, True)
+        error = mtib_servers.set_5vin(node, True)
         if error:
             return f"Could not disable charging power in host {node}: {error}"
 
@@ -46,19 +46,19 @@ def fw_flash_test_init(config: Sigma5ManufacturingConfig, nodes: List[str], usr_
 
         # First, upload the modem firmware for the nrf9160
         modem_fw_file = os.path.abspath(os.path.join(assets_folder, config.fw_flash_test_nrf9160_modem_fw_name))
-        error = runnners_controller.upload_fw_file(node, modem_fw_file, HostType.HOST_TYPE_NRF9160_MODEM)
+        error = mtib_servers.upload_fw_file(node, modem_fw_file, HostType.HOST_TYPE_NRF9160_MODEM)
         if error:
             return f"Could not upload fw file {config.fw_flash_test_nrf9160_modem_fw_name} to node {node}: {error}"
 
         # Then, upload the app firmware for the nrf9160
         app_fw_file = os.path.abspath(os.path.join(assets_folder, config.fw_flash_test_nrf9160_app_fw_name))
-        error = runnners_controller.upload_fw_file(node, app_fw_file, HostType.HOST_TYPE_NRF9160)
+        error = mtib_servers.upload_fw_file(node, app_fw_file, HostType.HOST_TYPE_NRF9160)
         if error:
             return f"Could not upload fw file {config.fw_flash_test_nrf9160_app_fw_name} to node {node}: {error}"
 
         # Then, upload the app firmware for the nrf52840
         app_fw_file = os.path.abspath(os.path.join(assets_folder, config.fw_flash_test_nrf52840_app_fw_name))
-        error = runnners_controller.upload_fw_file(node, app_fw_file, HostType.HOST_TYPE_NRF52840)
+        error = mtib_servers.upload_fw_file(node, app_fw_file, HostType.HOST_TYPE_NRF52840)
         if error:
             return f"Could not upload fw file {config.fw_flash_test_nrf52840_app_fw_name} to node {node}: {error}"
 
@@ -84,27 +84,25 @@ def fw_flash_test_init(config: Sigma5ManufacturingConfig, nodes: List[str], usr_
 def fw_flash_test_deinit(config: Sigma5ManufacturingConfig, nodes: List[str], usr_data: None) -> str:
     def deinit_node(node: str) -> str:
         # Turn off power
-        error = runnners_controller.disable_power(node)
+        error = mtib_servers.disable_power(node)
         if error:
             return f"Could not disable device power in host {node}: {error}"
 
         # Turn off charging power
-        error = runnners_controller.set_5vin(node, False)
+        error = mtib_servers.set_5vin(node, False)
         if error:
             return f"Could not disable charging power in host {node}: {error}"
 
         # Delete firmware files
-        error = runnners_controller.delete_fw_file(
+        error = mtib_servers.delete_fw_file(
             node, config.fw_flash_test_nrf9160_modem_fw_name, HostType.HOST_TYPE_NRF9160_MODEM
         )
         if error:
             return f"Could not delete fw file {config.fw_flash_test_nrf9160_modem_fw_name} from node {node}: {error}"
-        error = runnners_controller.delete_fw_file(
-            node, config.fw_flash_test_nrf9160_app_fw_name, HostType.HOST_TYPE_NRF9160
-        )
+        error = mtib_servers.delete_fw_file(node, config.fw_flash_test_nrf9160_app_fw_name, HostType.HOST_TYPE_NRF9160)
         if error:
             return f"Could not delete fw file {config.fw_flash_test_nrf9160_app_fw_name} from node {node}: {error}"
-        error = runnners_controller.delete_fw_file(
+        error = mtib_servers.delete_fw_file(
             node, config.fw_flash_test_nrf52840_app_fw_name, HostType.HOST_TYPE_NRF52840
         )
         if error:
@@ -124,7 +122,7 @@ def fw_flash_test_deinit(config: Sigma5ManufacturingConfig, nodes: List[str], us
     time.sleep(1)
 
     # Deinitialize the runners used to run this test
-    error = runnners_controller.deinit()
+    error = mtib_servers.deinit()
     if error:
         return f"Could not deinitialize runners for test: {error}"
 

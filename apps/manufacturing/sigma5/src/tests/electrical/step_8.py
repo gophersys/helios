@@ -7,7 +7,7 @@ from tests.lib import *
 
 # Shared includes
 from ..shared.config import Sigma5ManufacturingConfig
-from ..shared.rpcs import runnners_controller
+from ..shared.rpcs import mtib_servers
 
 # Test includes
 from .data import ElectricalTestSharedData
@@ -54,7 +54,7 @@ def electrical_test_step_8_handler(
     start_time = datetime.now()
     while datetime.now() - start_time < timedelta(seconds=config.vin_rail_stabilization_period_s):
         # Read the pin voltage
-        result.error, readings.vin_voltage = runnners_controller.read_vin(node)
+        result.error, readings.vin_voltage = mtib_servers.read_vin(node)
         if result.error:
             return result
 
@@ -74,7 +74,7 @@ def electrical_test_step_8_handler(
         return result
 
     # 8.b: Ensure UVP_N test point voltage is digital low
-    result.error, readings.uvp_n_value = runnners_controller.read_uvp_n(node)
+    result.error, readings.uvp_n_value = mtib_servers.read_uvp_n(node)
     if result.error:
         return result
 

@@ -13,7 +13,7 @@ from config import conf
 
 # Shared includes
 from ..shared.config import Sigma5ManufacturingConfig
-from ..shared.rpcs import CMD_IMEI_ICCID_Response, runnners_controller
+from ..shared.rpcs import CMD_IMEI_ICCID_Response, mtib_servers
 
 # ---------------------------------------------------------------------------------
 #                                                                           Details
@@ -140,7 +140,7 @@ def verify_imei_iccid(config: Sigma5ManufacturingConfig, node: str, usr_data: No
     response: CMD_IMEI_ICCID_Response
 
     # Get the IMEI and ICCID values from the DUT
-    result.error, response = runnners_controller.dut_command_get_imei_iccid(node)
+    result.error, response = mtib_servers.dut_command_get_imei_iccid(node)
     if result.error:
         return result
 

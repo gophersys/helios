@@ -7,7 +7,7 @@ from tests.lib import *
 
 # Shared includes
 from ..shared.config import Sigma5ManufacturingConfig
-from ..shared.rpcs import runnners_controller
+from ..shared.rpcs import mtib_servers
 
 # Test includes
 from .data import ElectricalTestSharedData
@@ -53,11 +53,11 @@ def electrical_test_step_4_handler(
     readings = Step4Readings()
 
     # 4.a: Ensure +VIN test point is the same as +BATT
-    result.error, readings.vin_voltage = runnners_controller.read_vin(node)
+    result.error, readings.vin_voltage = mtib_servers.read_vin(node)
     if result.error:
         return result
 
-    result.error, readings.vbatt_voltage = runnners_controller.read_vbat(node)
+    result.error, readings.vbatt_voltage = mtib_servers.read_vbat(node)
     if result.error:
         return result
 
@@ -67,7 +67,7 @@ def electrical_test_step_4_handler(
         return result
 
     # 4.b: Ensure regulated +3.3V test point voltage is within 3.2V - 3.4V
-    result.error, readings._3v3_voltage = runnners_controller.read_3v3(node)
+    result.error, readings._3v3_voltage = mtib_servers.read_3v3(node)
     if result.error:
         return result
 
@@ -77,7 +77,7 @@ def electrical_test_step_4_handler(
         return result
 
     # 4.c: Ensure +VBCKP test point voltage is within +2.4V - 2.6V
-    result.error, readings.vbckp_voltage = runnners_controller.read_vbckp(node)
+    result.error, readings.vbckp_voltage = mtib_servers.read_vbckp(node)
     if result.error:
         return result
 
@@ -89,7 +89,7 @@ def electrical_test_step_4_handler(
     # TODO: Remove step 4.d from documentation or correct test
 
     # 4.e: Ensure UVP_N test point voltage is digital high
-    result.error, readings.uvp_n_value = runnners_controller.read_uvp_n(node)
+    result.error, readings.uvp_n_value = mtib_servers.read_uvp_n(node)
     if result.error:
         return result
 
@@ -99,7 +99,7 @@ def electrical_test_step_4_handler(
         return result
 
     # 4.f: Ensure proper power consumption (no short circuits)
-    result.error, readings.current_a = runnners_controller.read_current(node)
+    result.error, readings.current_a = mtib_servers.read_current(node)
     if result.error:
         return result
 
