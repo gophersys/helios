@@ -5,6 +5,7 @@ import hashlib
 import os
 import socket
 import struct
+from token import OP
 import zlib
 from dataclasses import dataclass
 from time import sleep
@@ -14,46 +15,53 @@ from typing import Iterator, Type
 import grpc
 
 # Protocol includes
-from protos.mtib_runner.mtib_runner_pb2 import (
-    AccelReadRequest,
-    AccelReadResponse,
-    AdcChannel,
+from protocols.mtib.mtib_pb2 import (
+    Empty,
+    # AccelReadRequest,
+    # AccelReadResponse,
+    # AdcChannel,
     AdcReadRequest,
     AdcReadResponse,
-    AltimeterReadRequest,
-    AltimeterReadResponse,
-    DeleteFwFileRequest,
-    DeleteFwFileResponse,
-    DeviceType,
-    DutCurrentReadRequest,
-    DutCurrentReadResponse,
-    DutPowerEnableRequest,
-    DutPowerEnableResponse,
-    DutVoltageReadRequest,
-    DutVoltageReadResponse,
-    DutVoltageSetRequest,
-    DutVoltageSetResponse,
-    FlashHexFileRequest,
-    FlashHexFileResponse,
-    Gpio,
+    # AltimeterReadRequest,
+    # AltimeterReadResponse,
+    # DeleteFwFileRequest,
+    # DeleteFwFileResponse,
+    # DeviceType,
+    DutPowerReadResponse,
+    DutPowerRequest,
+    DutPowerResponse,
+    # DutVoltageReadRequest,
+    # DutVoltageReadResponse,
+    # FlashHexFileRequest,
+    # FlashHexFileResponse,
+    # Gpio,
     GpioConfigRequest,
     GpioConfigResponse,
+    GpioDirection,
+    GpioResistorConfig,
     GpioReadRequest,
     GpioReadResponse,
-    GpioResistorConfig,
-    GpioType,
     GpioWriteRequest,
     GpioWriteResponse,
-    HealthCheckRequest,
-    HealthCheckResponse,
-    ListFwFilesRequest,
-    ListFwFilesResponse,
-    UartStreamRequest,
-    UartStreamResponse,
+    HostType,
+    FwFileInfo,
     UploadFwFileRequest,
     UploadFwFileResponse,
+    ListFwFilesResponse,
+    DeleteFwFileRequest,
+    DeleteFwFileResponse,
+    FlashFwFileRequest,
+    FlashFwFileResponse,
+    # HealthCheckRequest,
+    # HealthCheckResponse,
+    # ListFwFilesRequest,
+    # ListFwFilesResponse,
+    # UartStreamRequest,
+    # UartStreamResponse,
+    # UploadFwFileRequest,
+    # UploadFwFileResponse,
 )
-from protos.mtib_runner.mtib_runner_pb2_grpc import MtibRunnerStub
+from protocols.mtib.mtib_pb2_grpc import MtibV1Stub
 
 # App includes
 from tests.lib import *
@@ -66,22 +74,20 @@ TP8_BATT = 0
 TP47_5V_IN = 0
 
 # Adc
-TP11_3V3 = AdcChannel.ADC_CHANNEL_0
-TP52_VIN = AdcChannel.ADC_CHANNEL_1
-TP30_VBCKP = AdcChannel.ADC_CHANNEL_2
-TP7_VBAT_MEAS = AdcChannel.ADC_CHANNEL_3
-TP24_3V3_GPS = AdcChannel.ADC_CHANNEL_4
-
-ADC_READ_DELAY_MS = 100
+TP11_3V3 = 7
+TP52_VIN = 0
+TP30_VBCKP = 1
+TP7_VBAT_MEAS = 2
+TP24_3V3_GPS = 3
 
 # Gpio
-TP50_HARD_RESET = Gpio.GPIO_0
-TP49_CHRG_DET = Gpio.GPIO_1
-TP12_UVP_N = Gpio.GPIO_2
-TP1_3V3_PSM = Gpio.GPIO_3
+TP50_HARD_RESET = 0
+TP49_CHRG_DET = 1
+TP12_UVP_N = 2
+TP1_3V3_PSM = 3
 
 # Runner gRPC server port, as defined in the .proto file
-RUNNER_SERVICE_GRPC_SERVER_PORT = 50051
+RUNNER_SERVICE_GRPC_SERVER_PORT = 50053  # TODO: This should come from env variable
 
 # ---------------------------------------------------------------------------------
 #                                                                   Device Commands
@@ -336,7 +342,7 @@ class CMD_DEV_EC_PUB_KEY_Response(CommandResponse):
 
 class Sigma5RunnersController:
     def __init__(self):
-        self.runners: Dict[str, MtibRunnerStub] = {}
+        self.runners: Dict[str, MtibV1Stub] = {}
         self.channels: Dict[str, grpc.Channel] = {}
 
         self.response_classes = {
@@ -385,10 +391,10 @@ class Sigma5RunnersController:
             self.channels[host] = channel
 
             # Create a stub using the insecure channel
-            stub = MtibRunnerStub(channel)
+            stub = MtibV1Stub(channel)
 
             # Do an initial health check with a timeout
-            response = stub.HealthCheck(HealthCheckRequest(), timeout=5)
+            response = stub.HealthCheck(Empty(), timeout=5)
 
             # Add the runner to the dictionary
             self.runners[host] = stub
@@ -409,38 +415,42 @@ class Sigma5RunnersController:
     def _setup_runners(self) -> str:
         for _, stub in self.runners.items():
             error = self._config_gpio(
-                stub, TP50_HARD_RESET, GpioType.GPIO_OUTPUT, GpioResistorConfig.GPIO_RESISTOR_PULL_UP
+                stub, TP50_HARD_RESET, GpioDirection.GPIO_DIRECTION_OUTPUT, GpioResistorConfig.GPIO_RESISTOR_PULL_UP
             )
             if error:
                 return error
 
             error = self._config_gpio(
-                stub, TP49_CHRG_DET, GpioType.GPIO_INPUT, GpioResistorConfig.GPIO_RESISTOR_PULL_DOWN
+                stub, TP49_CHRG_DET, GpioDirection.GPIO_DIRECTION_INPUT, GpioResistorConfig.GPIO_RESISTOR_PULL_DOWN
             )
             if error:
                 return error
 
-            error = self._config_gpio(stub, TP12_UVP_N, GpioType.GPIO_INPUT, GpioResistorConfig.GPIO_RESISTOR_PULL_UP)
+            error = self._config_gpio(
+                stub, TP12_UVP_N, GpioDirection.GPIO_DIRECTION_INPUT, GpioResistorConfig.GPIO_RESISTOR_PULL_UP
+            )
             if error:
                 return error
 
             error = self._config_gpio(
-                stub, TP1_3V3_PSM, GpioType.GPIO_INPUT, GpioResistorConfig.GPIO_RESISTOR_PULL_DOWN
+                stub, TP1_3V3_PSM, GpioDirection.GPIO_DIRECTION_INPUT, GpioResistorConfig.GPIO_RESISTOR_PULL_DOWN
             )
             if error:
                 return error
 
         return ""
 
-    def _config_gpio(self, server: MtibRunnerStub, gpio: Gpio, type: GpioType, resistor: GpioResistorConfig) -> str:
+    def _config_gpio(
+        self, server: MtibV1Stub, gpio: int, direction: GpioDirection, resistor: GpioResistorConfig
+    ) -> str:
         try:
-            response = server.GpioConfig(GpioConfigRequest(gpio=gpio, type=type, resistor=resistor))
+            response = server.GpioConfig(GpioConfigRequest(gpio=gpio, direction=direction, resistor=resistor))
             if response.success:
                 return ""
             else:
-                return f"Error: {response.error}, for GPIO {gpio}, type: {type}"
+                return f"Error: {response.message}, for GPIO {gpio}, type: {direction}"
         except grpc.RpcError as e:
-            return f"RPC Error: {str(e.details())} for GPIO {gpio}, type: {type}"
+            return f"RPC Error: {str(e.details())} for GPIO {gpio}, type: {direction}"
 
     def deinit(self) -> str:
         try:
@@ -460,46 +470,25 @@ class Sigma5RunnersController:
         except Exception as e:
             return f"An error occurred during deinitialization: {str(e)}"
 
-    def enable_power(self, host: str) -> str:
-        if host not in self.runners:
-            return f"No runner found for host {host}"
-
-        try:
-            stub = self.runners[host]
-            response: DutPowerEnableResponse = stub.DutPowerEnable(DutPowerEnableRequest(enable=True))
-            if not response.success:
-                return f"DutPowerEnable Error: {response.error}"
-            return ""
-        except grpc.RpcError as e:
-            return f"Failed to enable power for runner at {host}. Error: {str(e.details())}"
-
     def disable_power(self, host: str) -> str:
         if host not in self.runners:
             return f"No runner found for host {host}"
 
         try:
             stub = self.runners[host]
-            response: DutPowerEnableResponse = stub.DutPowerEnable(DutPowerEnableRequest(enable=False))
+            response: DutPowerResponse = stub.DutPowerDisable(Empty())
             if not response.success:
-                return f"DutPowerEnable Error: {response.error}"
+                return f"DutPowerDisable Error: {response.message}"
             return ""
         except grpc.RpcError as e:
             return f"Failed to disable power for runner at {host}. Error: {str(e.details())}"
 
     def set_vbat(self, host: str, voltage: float) -> str:
-        disable_power_result = self.disable_power(host)
-        if disable_power_result:
-            return disable_power_result
-
         try:
             stub = self.runners[host]
-            response: DutVoltageSetResponse = stub.DutVoltageSet(DutVoltageSetRequest(voltage=voltage))
+            response: DutPowerResponse = stub.DutPowerEnable(DutPowerRequest(voltage_v=voltage))
             if not response.success:
-                return f"DutVoltageSet Error: {response.error}"
-
-            enable_power_result = self.enable_power(host)
-            if enable_power_result:
-                return enable_power_result
+                return f"DutVoltageSet Error: {response.message}"
 
             return ""
         except grpc.RpcError as e:
@@ -510,52 +499,58 @@ class Sigma5RunnersController:
             return f"No runner found for host {host}"
 
         try:
-            stub = self.runners[host]
-            response: DutPowerEnableResponse = stub.DutChargePowerEnable(DutPowerEnableRequest(enable=state))
-            if not response.success:
-                return f"DutChargePowerEnable failed for state {state} Error: {response.error}"
+            if state:
+                stub = self.runners[host]
+                response: DutPowerResponse = stub.DutChargePowerEnable(Empty())
+                if not response.success:
+                    return f"DutChargePowerEnable failed Error: {response.message}"
+            else:
+                stub = self.runners[host]
+                response: DutPowerResponse = stub.DutChargePowerDisable(Empty())
+                if not response.success:
+                    return f"DutChargePowerDisable failed Error: {response.message}"
             return ""
         except grpc.RpcError as e:
             return f"Failed to set 5VIN for runner at {host}. Error: {str(e.details())}"
 
-    def read_altimeter(self, host: str) -> Tuple[str, Optional[Any]]:
-        if host not in self.runners:
-            return f"No runner found for host {host}"
+    # def read_altimeter(self, host: str) -> Tuple[str, Optional[Any]]:
+    #     if host not in self.runners:
+    #         return f"No runner found for host {host}"
 
-        try:
-            stub = self.runners[host]
-            response: AltimeterReadResponse = stub.AltimeterRead(AltimeterReadRequest())
-            if not response.success:
-                return f"Failed to read altimeter form MTIB. Error: {response.error}", None
-            return "", response
-        except grpc.RpcError as e:
-            return f"Failed to read altimeter for runner at {host}. Error: {str(e.details())}", None
+    #     try:
+    #         stub = self.runners[host]
+    #         response: AltimeterReadResponse = stub.AltimeterRead(AltimeterReadRequest())
+    #         if not response.success:
+    #             return f"Failed to read altimeter form MTIB. Error: {response.error}", None
+    #         return "", response
+    #     except grpc.RpcError as e:
+    #         return f"Failed to read altimeter for runner at {host}. Error: {str(e.details())}", None
 
-    def read_accelerometer(self, host: str) -> Tuple[str, Optional[Any]]:
-        if host not in self.runners:
-            return f"No runner found for host {host}"
+    # def read_accelerometer(self, host: str) -> Tuple[str, Optional[Any]]:
+    #     if host not in self.runners:
+    #         return f"No runner found for host {host}"
 
-        try:
-            stub = self.runners[host]
-            response: AccelReadResponse = stub.AccelRead(AccelReadRequest())
-            if not response.success:
-                return f"Failed to read accelerometer from MTIB. Error: {response.error}", None
-            return "", response
-        except grpc.RpcError as e:
-            return f"Failed to read accelerometer for runner at {host}. Error: {str(e.details())}", None
+    #     try:
+    #         stub = self.runners[host]
+    #         response: AccelReadResponse = stub.AccelRead(AccelReadRequest())
+    #         if not response.success:
+    #             return f"Failed to read accelerometer from MTIB. Error: {response.error}", None
+    #         return "", response
+    #     except grpc.RpcError as e:
+    #         return f"Failed to read accelerometer for runner at {host}. Error: {str(e.details())}", None
 
-    def set_hard_reset(self, host: str, state: bool) -> str:
-        if host not in self.runners:
-            return f"No runner found for host {host}"
+    # def set_hard_reset(self, host: str, state: bool) -> str:
+    #     if host not in self.runners:
+    #         return f"No runner found for host {host}"
 
-        try:
-            stub = self.runners[host]
-            response: GpioWriteResponse = stub.GpioWrite(GpioWriteRequest(gpio=TP50_HARD_RESET, state=state))
-            if not response.success:
-                return f"GpioWrite for {TP50_HARD_RESET} Error: {response.error}"
-            return ""
-        except grpc.RpcError as e:
-            return f"Failed to set hard reset for runner at {host}. Error: {str(e.details())}"
+    #     try:
+    #         stub = self.runners[host]
+    #         response: GpioWriteResponse = stub.GpioWrite(GpioWriteRequest(gpio=TP50_HARD_RESET, state=state))
+    #         if not response.success:
+    #             return f"GpioWrite for {TP50_HARD_RESET} Error: {response.error}"
+    #         return ""
+    #     except grpc.RpcError as e:
+    #         return f"Failed to set hard reset for runner at {host}. Error: {str(e.details())}"
 
     def read_vin(self, host: str) -> Tuple[str, Optional[float]]:
         if host not in self.runners:
@@ -563,10 +558,10 @@ class Sigma5RunnersController:
 
         try:
             stub = self.runners[host]
-            response: AdcReadResponse = stub.AdcRead(AdcReadRequest(channel=TP52_VIN, delayMs=ADC_READ_DELAY_MS))
+            response: AdcReadResponse = stub.AdcRead(AdcReadRequest(channel=TP52_VIN))
             if not response.success:
-                return f"AdcRead Channel {TP52_VIN} Error: {response.error}", None
-            return "", response.voltage
+                return f"AdcRead Channel {TP52_VIN} Error: {response.message}", None
+            return "", response.voltage_v
         except grpc.RpcError as e:
             return f"Failed to read VIN for runner at {host}. Error: {str(e.details())}", None
 
@@ -576,25 +571,25 @@ class Sigma5RunnersController:
 
         try:
             stub = self.runners[host]
-            response: AdcReadResponse = stub.AdcRead(AdcReadRequest(channel=TP11_3V3, delayMs=ADC_READ_DELAY_MS))
+            response: AdcReadResponse = stub.AdcRead(AdcReadRequest(channel=TP11_3V3))
             if not response.success:
-                return f"AdcRead Channel {TP11_3V3} Error: {response.error}", None
-            return "", response.voltage
+                return f"AdcRead Channel {TP11_3V3} Error: {response.message}", None
+            return "", response.voltage_v
         except grpc.RpcError as e:
             return f"Failed to read 3V3 for runner at {host}. Error: {str(e.details())}", None
 
-    def read_voltage(self, host: str) -> Tuple[str, Optional[float]]:
-        if host not in self.runners:
-            return f"No runner found for host {host}", None
+    # def read_voltage(self, host: str) -> Tuple[str, Optional[float]]:
+    #     if host not in self.runners:
+    #         return f"No runner found for host {host}", None
 
-        try:
-            stub = self.runners[host]
-            response: DutVoltageReadResponse = stub.DutVoltageRead(DutVoltageReadRequest())
-            if not response.success:
-                return f"DutVoltageRead Error: {response.error}", None
-            return "", float(response.voltage_mv / 1000)
-        except grpc.RpcError as e:
-            return f"Failed to read voltage for runner at {host}. Error: {str(e.details())}", None
+    #     try:
+    #         stub = self.runners[host]
+    #         response: DutVoltageReadResponse = stub.DutVoltageRead(DutVoltageReadRequest())
+    #         if not response.success:
+    #             return f"DutVoltageRead Error: {response.error}", None
+    #         return "", float(response.voltage_mv / 1000)
+    #     except grpc.RpcError as e:
+    #         return f"Failed to read voltage for runner at {host}. Error: {str(e.details())}", None
 
     def read_current(self, host: str) -> Tuple[str, Optional[float]]:
         if host not in self.runners:
@@ -602,10 +597,10 @@ class Sigma5RunnersController:
 
         try:
             stub = self.runners[host]
-            response: DutCurrentReadResponse = stub.DutCurrentRead(DutCurrentReadRequest())
+            response: DutPowerReadResponse = stub.DutPowerRead(Empty())
             if not response.success:
-                return f"DutCurrentRead Error: {response.error}", None
-            return "", float(response.current_ma / 1000)
+                return f"DutPowerRead Error: {response.message}", None
+            return "", float(response.current_a)
         except grpc.RpcError as e:
             return f"Failed to read current for runner at {host}. Error: {str(e.details())}", None
 
@@ -615,10 +610,10 @@ class Sigma5RunnersController:
 
         try:
             stub = self.runners[host]
-            response: DutVoltageReadResponse = stub.DutVoltageRead(DutVoltageReadRequest())
+            response: DutPowerReadResponse = stub.DutPowerRead(Empty())
             if not response.success:
-                return f"DutVoltageRead Error: {response.error}", None
-            return "", float(response.voltage_mv / 1000)
+                return f"DutPowerRead Error: {response.message}", None
+            return "", float(response.voltage_v)
         except grpc.RpcError as e:
             return f"Failed to read VBAT for runner at {host}. Error: {str(e.details())}", None
 
@@ -628,10 +623,10 @@ class Sigma5RunnersController:
 
         try:
             stub = self.runners[host]
-            response: AdcReadResponse = stub.AdcRead(AdcReadRequest(channel=TP30_VBCKP, delayMs=ADC_READ_DELAY_MS))
+            response: AdcReadResponse = stub.AdcRead(AdcReadRequest(channel=TP30_VBCKP))
             if not response.success:
-                return f"AdcRead Channel {TP30_VBCKP} Error: {response.error}", None
-            return "", response.voltage
+                return f"AdcRead Channel {TP30_VBCKP} Error: {response.message}", None
+            return "", response.voltage_v
         except grpc.RpcError as e:
             return f"Failed to read VBCKP for runner at {host}. Error: {str(e.details())}", None
 
@@ -643,78 +638,74 @@ class Sigma5RunnersController:
             stub = self.runners[host]
             response: GpioReadResponse = stub.GpioRead(GpioReadRequest(gpio=TP12_UVP_N))
             if not response.success:
-                return f"GpioRead for {TP12_UVP_N} Error: {response.error}", None
+                return f"GpioRead for {TP12_UVP_N} Error: {response.message}", None
             return "", response.state
         except grpc.RpcError as e:
             return f"Failed to read UVP_N for runner at {host}. Error: {str(e.details())}", None
 
-    def read_chrg_det(self, host: str) -> Tuple[str, Optional[bool]]:
-        if host not in self.runners:
-            return f"No runner found for host {host}", None
+    # def read_chrg_det(self, host: str) -> Tuple[str, Optional[bool]]:
+    #     if host not in self.runners:
+    #         return f"No runner found for host {host}", None
 
+    #     try:
+    #         stub = self.runners[host]
+    #         response: GpioReadResponse = stub.GpioRead(GpioReadRequest(gpio=TP49_CHRG_DET))
+    #         if not response.success:
+    #             return f"GpioRead for {TP49_CHRG_DET} Error: {response.error}", None
+    #         return "", response.state
+    #     except grpc.RpcError as e:
+    #         return f"Failed to read CHRG_DET for runner at {host}. Error: {str(e.details())}", None
+
+    def upload_fw_file(self, host: str, file_path: str, host_type: HostType) -> Optional[str]:
         try:
-            stub = self.runners[host]
-            response: GpioReadResponse = stub.GpioRead(GpioReadRequest(gpio=TP49_CHRG_DET))
-            if not response.success:
-                return f"GpioRead for {TP49_CHRG_DET} Error: {response.error}", None
-            return "", response.state
-        except grpc.RpcError as e:
-            return f"Failed to read CHRG_DET for runner at {host}. Error: {str(e.details())}", None
+            # Get file info first
+            file_name = os.path.basename(file_path)
+            file_size = os.path.getsize(file_path)
 
-    def upload_fw_file(self, host: str, file_path: str) -> str:
-        if host not in self.runners:
-            return f"No runner found for host {host}"
+            # Read file in chunks to avoid loading entire file into memory
+            CHUNK_SIZE = 1024 * 1024  # 1MB chunks
 
-        # Check if the file path exists
-        if not os.path.isfile(file_path):
-            return f"File not found in test application: {file_path}, did you forget to provision assets?"
+            def request_iterator():
+                # Stream the file content in chunks
+                with open(file_path, "rb") as f:
+                    first_chunk = True
+                    while True:
+                        chunk = f.read(CHUNK_SIZE)
+                        if not chunk:
+                            break
 
-        try:
-            stub = self.runners[host]
-            filename = os.path.basename(file_path)
-            local_sha256 = self._calculate_sha256(file_path)
+                        if first_chunk:
+                            # First request contains name, target, and first chunk
+                            request = UploadFwFileRequest()
+                            request.name = file_name
+                            request.target = host_type
+                            request.content = chunk
+                            yield request
+                            first_chunk = False
+                        else:
+                            # Subsequent requests contain only content
+                            request = UploadFwFileRequest()
+                            request.content = chunk
+                            yield request
 
-            # Check if the file already exists on the server
-            list_response = stub.ListFwFiles(ListFwFilesRequest())
-            for file_info in list_response.files:
-                if file_info.name == filename:
-                    if file_info.sha256Digest == local_sha256:
-                        return ""  # File already exists and matches the local file
-                    else:
-                        # File exists but does not match, delete it
-                        delete_response = stub.DeleteFwFile(DeleteFwFileRequest(filename=filename))
-                        if not delete_response.success:
-                            return f"Failed to delete existing file: {delete_response.error}"
+            # Make the streaming call
+            try:
+                stub = self.runners[host]
+                response: UploadFwFileResponse = stub.UploadFwFile(request_iterator())
+                if not response.success:
+                    return f"UploadFwFile error: {response.message}"
+                return None
+            except grpc.RpcError as e:
+                return f"gRPC error for UploadFwFile at {self.config.net.addr}. Error: {str(e.details())}"
 
-            # Read the file
-            with open(file_path, "rb") as f:
-                content = f.read()
-
-            total_size = len(content)
-            chunk_size = 1024
-
-            # Generate requests
-            def generate_requests():
-                for i in range(0, total_size, chunk_size):
-                    yield UploadFwFileRequest(filename=filename, content=content[i : i + chunk_size])
-
-            # Execute RPC with timing
-            start_time = time.time()
-            response = stub.UploadFwFile(generate_requests())
-            duration_ms = (time.time() - start_time) * 1000
-
-            if response.success:
-                logging.info(f"File {file_path} uploaded successfully ({duration_ms} ms)")
-                logging.info(f"Server-side SHA-256 Digest: {response.sha256Digest}")
-                return ""
-            else:
-                return f"Upload failed: {response.error}"
-        except grpc.RpcError as e:
-            return f"RPC Error: {str(e.details())}"
+        except FileNotFoundError:
+            return f"UploadFwFile error: File not found at {file_path}"
+        except PermissionError:
+            return f"UploadFwFile error: Permission denied reading file {file_path}"
         except Exception as e:
-            return f"An error occurred: {str(e)}"
+            return f"Unexpected error in UploadFwFile at {self.config.net.addr}: {str(e)}"
 
-    def delete_fw_file(self, host: str, filename: str) -> str:
+    def delete_fw_file(self, host: str, filename: str, host_type: HostType) -> str:
         if host not in self.runners:
             return f"No runner found for host {host}"
 
@@ -722,12 +713,14 @@ class Sigma5RunnersController:
             stub = self.runners[host]
 
             # Check if the file already exists on the server
-            list_response = stub.ListFwFiles(ListFwFilesRequest())
+            list_response: ListFwFilesResponse = stub.ListFwFiles(Empty())
             if not any(file_info.name == filename for file_info in list_response.files):
                 return f"File {filename} does not exist on the server"
 
             # Delete the file
-            delete_response = stub.DeleteFwFile(DeleteFwFileRequest(filename=filename))
+            delete_response: DeleteFwFileResponse = stub.DeleteFwFile(
+                DeleteFwFileRequest(file_info=FwFileInfo(name=filename, target=host_type))
+            )
             if delete_response.success:
                 logging.info(f"File {filename} deleted successfully")
                 return ""
@@ -738,321 +731,314 @@ class Sigma5RunnersController:
         except Exception as e:
             return f"An error occurred: {str(e)}"
 
-    def flash_fw_file(self, host: str, filename: str, device: DeviceType, is_modem_fw: bool) -> str:
+    def flash_fw_file(
+        self, host: str, file_info: FwFileInfo, sector_erase: bool = False, recover: bool = False
+    ) -> Tuple[Optional[int], Optional[str]]:
         # Retrieve the runner stub
-        stub = self.runners.get(host)
-        if not stub:
-            return f"No runner stub found for host {host}"
+        if host not in self.runners:
+            return None, f"No runner stub found for host {host}"
 
         try:
-            logging.info(f"Flashing {filename} on {host}")
-
-            # Prepare the device information and flash request
-            request = FlashHexFileRequest(fileName=filename, device=device, isModemFw=is_modem_fw)
-
-            # Measure the flashing process time
-            start_time = time.time()
-            response: FlashHexFileResponse = stub.FlashHexFile(request)
-            duration_seconds = time.time() - start_time
-
-            if response.success:
-                logging.info(f"Flash successful for {filename} at {host}. Time taken: {duration_seconds:.2f} seconds")
-                return ""  # No error
-            else:
-                return f"Flash failed for {device} at {host}: {response.error}"
-        except grpc.RpcError as e:
-            return f"Exception while flashing {device} at {host}: {str(e.details())}"
-        except Exception as e:
-            return f"Unexpected error while flashing {device} at {host}: {str(e)}"
-
-    def _start_cmd_interpreter(self, host: str) -> str:
-        if self.interpreter_running.get(host, False):
-            return "Command interpreter is already running"
-
-        self.interpreter_running[host] = True
-        self.interpreter_threads[host] = threading.Thread(target=self._interpret_commands, args=(host,))
-        self.interpreter_threads[host].start()
-        return ""
-
-    def _interpret_commands(self, host: str):
-        buffer = b""
-        runner = self.runners.get(host)
-
-        def request_iterator() -> Iterator[UartStreamRequest]:
-            while self.interpreter_running[host]:
-                try:
-                    request = self.cmd_requests_queues[host].get(
-                        timeout=1
-                    )  # Use a timeout to regularly check the running flag
-                    if request.data == b"STOP":
-                        break  # Exit the iterator loop
-                    yield request
-                except queue.Empty:
-                    continue
-
-        try:
-            self.uart_rpc_streams[host] = runner.nrf9160UartStream(request_iterator())
-            for response in self.uart_rpc_streams[host]:
-                if not self.interpreter_running[host]:
-                    break
-
-                data = response.data
-                buffer += data
-
-                while len(buffer) > 0:
-                    sync_index = buffer.find(struct.pack("BB", SYNC_BYTE1, SYNC_BYTE2))
-                    if sync_index == -1:
-                        buffer = b""  # Clear buffer if no sync bytes are found
-                        break
-
-                    buffer = buffer[sync_index:]
-
-                    if len(buffer) < 5:
-                        break
-
-                    payload_length = struct.unpack(">H", buffer[3:5])[0]
-                    total_length = 5 + payload_length  # 5 bytes before payload + payload length + CRC
-
-                    if len(buffer) < total_length:
-                        break
-
-                    full_response = buffer[:total_length]
-                    buffer = buffer[total_length:]
-
-                    try:
-                        unpack_format = f">BBBH{payload_length - NUM_CRC_BYTES}sI"
-                        sync_byte1, sync_byte2, command_byte, length_field, payload, crc_received = struct.unpack(
-                            unpack_format, full_response
-                        )
-                        # logging.debug(f"Unpacked data: {sync_byte1}, {sync_byte2}, {command_byte}, {length_field}, {payload}, {crc_received}")
-
-                        # CRC should be calculated from command_byte to the end of the payload, excluding the CRC itself
-                        crc_calculated = self._calculate_crc32(full_response[2:-NUM_CRC_BYTES])
-                        if crc_received != crc_calculated:
-                            logging.error(f"CRC mismatch: received {crc_received}, calculated {crc_calculated}")
-                            continue
-
-                        self.cmd_responses_queues[host].put(full_response)
-                    except Exception as e:
-                        logging.error(f"An exception ocurred whilst trying to unpack response: {e}")
-                        break
-        except grpc.RpcError as e:
-            if e.code() != grpc.StatusCode.CANCELLED:
-                logging.error(f"An exception occurred during command interpretation: {e}")
-
-    def _stop_cmd_interpreter(self, host: str) -> str:
-        if not self.interpreter_running.get(host, False):
-            return "Command interpreter is not running"
-
-        # Set the running flag to False
-        self.interpreter_running[host] = False
-
-        # Insert a stop request to unblock the iterator
-        self.cmd_requests_queues[host].put(UartStreamRequest(data=b"STOP"))
-
-        # Cancel the gRPC call if it exists
-        if self.uart_rpc_streams[host]:
-            self.uart_rpc_streams[host].cancel()
-
-        # Wait for the interpreter thread to terminate
-        if self.interpreter_threads[host]:
-            self.interpreter_threads[host].join(timeout=10)  # Wait for a maximum of 5 seconds
-            if self.interpreter_threads[host].is_alive():
-                logging.error(f"Failed to stop the command interpreter thread in time for {host}")
-                return f"Failed to stop the command interpreter thread in time for {host}"
-            self.interpreter_threads[host] = None
-
-        return ""
-
-    def _send_command(
-        self,
-        host: str,
-        command: Sigma5DeviceCommand,
-        payload: bytes = b"",
-        receive_timeout_ms=RECEIVE_TIMEOUT_MS,
-        response_type: Sigma5DeviceCommand = None,
-    ) -> Tuple[str, Any]:
-        runner = self.runners.get(host)
-        if not runner:
-            return f"No runner found for host: {host}", None
-
-        try:
-            # Start the interpreter handler
-            error = self._start_cmd_interpreter(host)
-            if error:
-                return f"Could not start the command interpreter for {host}, {error}", None
-
-            # Build the command
-            sync_bytes = struct.pack("BB", SYNC_BYTE1, SYNC_BYTE2)
-            command_byte = struct.pack("B", command.value)
-            message_length = struct.pack(">H", len(payload) + NUM_CRC_BYTES)
-
-            crc_value = self._calculate_crc32(command_byte + message_length + payload)
-            crc_bytes = struct.pack(">I", crc_value)
-
-            message = sync_bytes + command_byte + message_length + payload + crc_bytes
-
-            # Send the command to the device
-            self.cmd_requests_queues[host].put(UartStreamRequest(data=message))
-            try:
-                # Await for responses in the queue
-                response = self.cmd_responses_queues[host].get(timeout=receive_timeout_ms / 1000.0)
-
-                # Decode the response into the right type
-                if response_type is None:
-                    parse_error, response = self._parse_response(command, response, self.response_classes[command])
-                else:
-                    parse_error, response = self._parse_response(
-                        response_type, response, self.response_classes[response_type]
-                    )
-                if parse_error:
-                    parse_error = f"Could not parse response for command {command.name} at {host}, {parse_error}"
-
-                # Stop the interpreter
-                error = self._stop_cmd_interpreter(host)
-                if error:
-                    return f"Could not stop the command interpreter for {host}, {error}", None
-
-                return parse_error, response
-            except queue.Empty:
-                error = self._stop_cmd_interpreter(host)
-                if error:
-                    return f"Could not stop the command interpreter for {host}, {error}", None
-
-                return f"Response timeout ocurred for command {command.name} at {host}", None
-
-        except Exception as e:
-            error = self._stop_cmd_interpreter(host)
-            if error:
-                return f"Could not stop the command interpreter for {host}, {error}", None
-
-            return f"Error sending command {command.name} to runner at {host}. Error: {str(e)}", None
-
-    def _parse_response(
-        self, command: Sigma5DeviceCommand, response: bytes, response_class: Type[CommandResponse]
-    ) -> Tuple[str, Any]:
-        try:
-            payload_length = struct.unpack(">H", response[3:5])[0]
-            unpack_format = f">BBBH{payload_length - NUM_CRC_BYTES}sI"
-            sync_byte1, sync_byte2, command_byte, length_field, payload, crc_received = struct.unpack(
-                unpack_format, response
+            stub = self.runners[host]
+            response: FlashFwFileResponse = stub.FlashFwFile(
+                FlashFwFileRequest(file_info=file_info, sector_erase=sector_erase, recover=recover)
             )
-
-            if command == Sigma5DeviceCommand.CMD_NOP:
-                command = Sigma5DeviceCommand.CMD_ACK
-
-            if command.value != command_byte:
-                return f"Command mismatch. Expected {command.value}, got {command_byte}", None
-
-            crc_calculated = self._calculate_crc32(response[2:-NUM_CRC_BYTES])
-            if crc_received != crc_calculated:
-                return f"CRC mismatch, expected {crc_calculated}, got {crc_received}", None
-
-            response_object = response_class.from_bytes(payload)
-            return "", response_object
+            if not response.success:
+                return None, f"FlashFwFile error: {response.message}"
+            return response.time_ms, None
+        except grpc.RpcError as e:
+            return None, f"gRPC error for FlashFwFile at {self.config.net.addr}. Error: {str(e.details())}"
         except Exception as e:
-            return f"Failed to parse response: {str(e)}", None
+            return None, f"Unexpected error in FlashFwFile at {self.config.net.addr}: {str(e)}"
 
-    def _calculate_sha256(self, file_path: str) -> str:
-        sha256_hash = hashlib.sha256()
-        with open(file_path, "rb") as f:
-            for byte_block in iter(lambda: f.read(4096), b""):
-                sha256_hash.update(byte_block)
-        return sha256_hash.hexdigest()
+    # def _start_cmd_interpreter(self, host: str) -> str:
+    #     if self.interpreter_running.get(host, False):
+    #         return "Command interpreter is already running"
 
-    def _calculate_crc32(self, data):
-        return zlib.crc32(data) & 0xFFFFFFFF
+    #     self.interpreter_running[host] = True
+    #     self.interpreter_threads[host] = threading.Thread(target=self._interpret_commands, args=(host,))
+    #     self.interpreter_threads[host].start()
+    #     return ""
 
-    def dut_command_send_nop(self, host: str) -> Tuple[str, CMD_ACK_Response]:
-        return self._send_command(host, Sigma5DeviceCommand.CMD_NOP, response_type=Sigma5DeviceCommand.CMD_ACK)
+    # def _interpret_commands(self, host: str):
+    #     buffer = b""
+    #     runner = self.runners.get(host)
 
-    def dut_command_get_sensor_value(self, host: str) -> Tuple[str, CMD_GET_SENSOR_VALS_Response]:
-        # Wake up the device
-        self.dut_command_send_nop(host)
-        sleep(1)
+    #     def request_iterator() -> Iterator[UartStreamRequest]:
+    #         while self.interpreter_running[host]:
+    #             try:
+    #                 request = self.cmd_requests_queues[host].get(
+    #                     timeout=1
+    #                 )  # Use a timeout to regularly check the running flag
+    #                 if request.data == b"STOP":
+    #                     break  # Exit the iterator loop
+    #                 yield request
+    #             except queue.Empty:
+    #                 continue
 
-        # Send the command
-        return runnners_controller._send_command(
-            host,
-            Sigma5DeviceCommand.CMD_GET_SENSOR_VALS,
-        )
+    #     try:
+    #         self.uart_rpc_streams[host] = runner.nrf9160UartStream(request_iterator())
+    #         for response in self.uart_rpc_streams[host]:
+    #             if not self.interpreter_running[host]:
+    #                 break
 
-    def dut_command_get_chip_id(self, host: str) -> Tuple[str, CMD_POST_Response]:
-        # Wake up the device
-        self.dut_command_send_nop(host)
-        sleep(1)
+    #             data = response.data
+    #             buffer += data
 
-        # Send the command
-        return runnners_controller._send_command(
-            host,
-            Sigma5DeviceCommand.CMD_POST,
-        )
+    #             while len(buffer) > 0:
+    #                 sync_index = buffer.find(struct.pack("BB", SYNC_BYTE1, SYNC_BYTE2))
+    #                 if sync_index == -1:
+    #                     buffer = b""  # Clear buffer if no sync bytes are found
+    #                     break
 
-    def dut_command_get_imei_iccid(self, host: str) -> Tuple[str, CMD_IMEI_ICCID_Response]:
-        # Wake up the device
-        self.dut_command_send_nop(host)
-        sleep(1)
+    #                 buffer = buffer[sync_index:]
 
-        # Send the command
-        return runnners_controller._send_command(
-            host,
-            Sigma5DeviceCommand.CMD_IMEI_ICCID_GET,
-        )
+    #                 if len(buffer) < 5:
+    #                     break
 
-    def dut_command_get_modem_fw(self, host: str) -> Tuple[str, CMD_GET_MODEM_FW_VER_Response]:
-        # Wake up the device
-        self.dut_command_send_nop(host)
-        sleep(1)
+    #                 payload_length = struct.unpack(">H", buffer[3:5])[0]
+    #                 total_length = 5 + payload_length  # 5 bytes before payload + payload length + CRC
 
-        # Send the command
-        return runnners_controller._send_command(
-            host,
-            Sigma5DeviceCommand.CMD_GET_MODEM_FW_VER,
-        )
+    #                 if len(buffer) < total_length:
+    #                     break
 
-    def dut_command_clear_personalization(self, host: str) -> tuple[str, CMD_CLEAR_PERSONALIZATION_Response]:
-        # Wake up the device
-        self.dut_command_send_nop(host)
-        sleep(1)
+    #                 full_response = buffer[:total_length]
+    #                 buffer = buffer[total_length:]
 
-        # Send the command
-        return runnners_controller._send_command(
-            host,
-            Sigma5DeviceCommand.CMD_CLEAR_PERSONALIZATION,
-            response_type=Sigma5DeviceCommand.CMD_ACK,  # Use CMD_ACK as the response type
-        )
+    #                 try:
+    #                     unpack_format = f">BBBH{payload_length - NUM_CRC_BYTES}sI"
+    #                     sync_byte1, sync_byte2, command_byte, length_field, payload, crc_received = struct.unpack(
+    #                         unpack_format, full_response
+    #                     )
+    #                     # logging.debug(f"Unpacked data: {sync_byte1}, {sync_byte2}, {command_byte}, {length_field}, {payload}, {crc_received}")
 
-    def dut_command_set_device_eui(self, host: str, device_eui: int) -> Tuple[str, CMD_DEV_EC_PUB_KEY_Response]:
+    #                     # CRC should be calculated from command_byte to the end of the payload, excluding the CRC itself
+    #                     crc_calculated = self._calculate_crc32(full_response[2:-NUM_CRC_BYTES])
+    #                     if crc_received != crc_calculated:
+    #                         logging.error(f"CRC mismatch: received {crc_received}, calculated {crc_calculated}")
+    #                         continue
 
-        # Create the payload
-        payload = CMD_PERSONALIZE_DEV_EUI_Response.to_bytes(read=False, device_id=device_eui)
+    #                     self.cmd_responses_queues[host].put(full_response)
+    #                 except Exception as e:
+    #                     logging.error(f"An exception ocurred whilst trying to unpack response: {e}")
+    #                     break
+    #     except grpc.RpcError as e:
+    #         if e.code() != grpc.StatusCode.CANCELLED:
+    #             logging.error(f"An exception occurred during command interpretation: {e}")
 
-        # Wake up the device
-        self.dut_command_send_nop(host)
-        sleep(1)
+    # def _stop_cmd_interpreter(self, host: str) -> str:
+    #     if not self.interpreter_running.get(host, False):
+    #         return "Command interpreter is not running"
 
-        # Send the command
-        return runnners_controller._send_command(
-            host,
-            Sigma5DeviceCommand.CMD_PERSONALIZE_DEV_EUI,
-            payload=payload,
-            response_type=Sigma5DeviceCommand.CMD_DEV_EC_PUB_KEY,  # We expect a CMD_DEV_EC_PUB_KEY response
-        )
+    #     # Set the running flag to False
+    #     self.interpreter_running[host] = False
 
-    def dut_command_get_device_eui(self, host: str) -> Tuple[str, CMD_PERSONALIZE_DEV_EUI_Response]:
-        payload = CMD_PERSONALIZE_DEV_EUI_Response.to_bytes(read=True, device_id=0xDEADBEEFDEADBEEF)
+    #     # Insert a stop request to unblock the iterator
+    #     self.cmd_requests_queues[host].put(UartStreamRequest(data=b"STOP"))
 
-        # Wake up the device
-        self.dut_command_send_nop(host)
-        sleep(1)
+    #     # Cancel the gRPC call if it exists
+    #     if self.uart_rpc_streams[host]:
+    #         self.uart_rpc_streams[host].cancel()
 
-        # Send the command
-        return runnners_controller._send_command(
-            host,
-            Sigma5DeviceCommand.CMD_PERSONALIZE_DEV_EUI,
-            payload=payload,
-            response_type=Sigma5DeviceCommand.CMD_PERSONALIZE_DEV_EUI,
-        )
+    #     # Wait for the interpreter thread to terminate
+    #     if self.interpreter_threads[host]:
+    #         self.interpreter_threads[host].join(timeout=10)  # Wait for a maximum of 5 seconds
+    #         if self.interpreter_threads[host].is_alive():
+    #             logging.error(f"Failed to stop the command interpreter thread in time for {host}")
+    #             return f"Failed to stop the command interpreter thread in time for {host}"
+    #         self.interpreter_threads[host] = None
+
+    #     return ""
+
+    # def _send_command(
+    #     self,
+    #     host: str,
+    #     command: Sigma5DeviceCommand,
+    #     payload: bytes = b"",
+    #     receive_timeout_ms=RECEIVE_TIMEOUT_MS,
+    #     response_type: Sigma5DeviceCommand = None,
+    # ) -> Tuple[str, Any]:
+    #     runner = self.runners.get(host)
+    #     if not runner:
+    #         return f"No runner found for host: {host}", None
+
+    #     try:
+    #         # Start the interpreter handler
+    #         error = self._start_cmd_interpreter(host)
+    #         if error:
+    #             return f"Could not start the command interpreter for {host}, {error}", None
+
+    #         # Build the command
+    #         sync_bytes = struct.pack("BB", SYNC_BYTE1, SYNC_BYTE2)
+    #         command_byte = struct.pack("B", command.value)
+    #         message_length = struct.pack(">H", len(payload) + NUM_CRC_BYTES)
+
+    #         crc_value = self._calculate_crc32(command_byte + message_length + payload)
+    #         crc_bytes = struct.pack(">I", crc_value)
+
+    #         message = sync_bytes + command_byte + message_length + payload + crc_bytes
+
+    #         # Send the command to the device
+    #         self.cmd_requests_queues[host].put(UartStreamRequest(data=message))
+    #         try:
+    #             # Await for responses in the queue
+    #             response = self.cmd_responses_queues[host].get(timeout=receive_timeout_ms / 1000.0)
+
+    #             # Decode the response into the right type
+    #             if response_type is None:
+    #                 parse_error, response = self._parse_response(command, response, self.response_classes[command])
+    #             else:
+    #                 parse_error, response = self._parse_response(
+    #                     response_type, response, self.response_classes[response_type]
+    #                 )
+    #             if parse_error:
+    #                 parse_error = f"Could not parse response for command {command.name} at {host}, {parse_error}"
+
+    #             # Stop the interpreter
+    #             error = self._stop_cmd_interpreter(host)
+    #             if error:
+    #                 return f"Could not stop the command interpreter for {host}, {error}", None
+
+    #             return parse_error, response
+    #         except queue.Empty:
+    #             error = self._stop_cmd_interpreter(host)
+    #             if error:
+    #                 return f"Could not stop the command interpreter for {host}, {error}", None
+
+    #             return f"Response timeout ocurred for command {command.name} at {host}", None
+
+    #     except Exception as e:
+    #         error = self._stop_cmd_interpreter(host)
+    #         if error:
+    #             return f"Could not stop the command interpreter for {host}, {error}", None
+
+    #         return f"Error sending command {command.name} to runner at {host}. Error: {str(e)}", None
+
+    # def _parse_response(
+    #     self, command: Sigma5DeviceCommand, response: bytes, response_class: Type[CommandResponse]
+    # ) -> Tuple[str, Any]:
+    #     try:
+    #         payload_length = struct.unpack(">H", response[3:5])[0]
+    #         unpack_format = f">BBBH{payload_length - NUM_CRC_BYTES}sI"
+    #         sync_byte1, sync_byte2, command_byte, length_field, payload, crc_received = struct.unpack(
+    #             unpack_format, response
+    #         )
+
+    #         if command == Sigma5DeviceCommand.CMD_NOP:
+    #             command = Sigma5DeviceCommand.CMD_ACK
+
+    #         if command.value != command_byte:
+    #             return f"Command mismatch. Expected {command.value}, got {command_byte}", None
+
+    #         crc_calculated = self._calculate_crc32(response[2:-NUM_CRC_BYTES])
+    #         if crc_received != crc_calculated:
+    #             return f"CRC mismatch, expected {crc_calculated}, got {crc_received}", None
+
+    #         response_object = response_class.from_bytes(payload)
+    #         return "", response_object
+    #     except Exception as e:
+    #         return f"Failed to parse response: {str(e)}", None
+
+    # def _calculate_sha256(self, file_path: str) -> str:
+    #     sha256_hash = hashlib.sha256()
+    #     with open(file_path, "rb") as f:
+    #         for byte_block in iter(lambda: f.read(4096), b""):
+    #             sha256_hash.update(byte_block)
+    #     return sha256_hash.hexdigest()
+
+    # def _calculate_crc32(self, data):
+    #     return zlib.crc32(data) & 0xFFFFFFFF
+
+    # def dut_command_send_nop(self, host: str) -> Tuple[str, CMD_ACK_Response]:
+    #     return self._send_command(host, Sigma5DeviceCommand.CMD_NOP, response_type=Sigma5DeviceCommand.CMD_ACK)
+
+    # def dut_command_get_sensor_value(self, host: str) -> Tuple[str, CMD_GET_SENSOR_VALS_Response]:
+    #     # Wake up the device
+    #     self.dut_command_send_nop(host)
+    #     sleep(1)
+
+    #     # Send the command
+    #     return runnners_controller._send_command(
+    #         host,
+    #         Sigma5DeviceCommand.CMD_GET_SENSOR_VALS,
+    #     )
+
+    # def dut_command_get_chip_id(self, host: str) -> Tuple[str, CMD_POST_Response]:
+    #     # Wake up the device
+    #     self.dut_command_send_nop(host)
+    #     sleep(1)
+
+    #     # Send the command
+    #     return runnners_controller._send_command(
+    #         host,
+    #         Sigma5DeviceCommand.CMD_POST,
+    #     )
+
+    # def dut_command_get_imei_iccid(self, host: str) -> Tuple[str, CMD_IMEI_ICCID_Response]:
+    #     # Wake up the device
+    #     self.dut_command_send_nop(host)
+    #     sleep(1)
+
+    #     # Send the command
+    #     return runnners_controller._send_command(
+    #         host,
+    #         Sigma5DeviceCommand.CMD_IMEI_ICCID_GET,
+    #     )
+
+    # def dut_command_get_modem_fw(self, host: str) -> Tuple[str, CMD_GET_MODEM_FW_VER_Response]:
+    #     # Wake up the device
+    #     self.dut_command_send_nop(host)
+    #     sleep(1)
+
+    #     # Send the command
+    #     return runnners_controller._send_command(
+    #         host,
+    #         Sigma5DeviceCommand.CMD_GET_MODEM_FW_VER,
+    #     )
+
+    # def dut_command_clear_personalization(self, host: str) -> tuple[str, CMD_CLEAR_PERSONALIZATION_Response]:
+    #     # Wake up the device
+    #     self.dut_command_send_nop(host)
+    #     sleep(1)
+
+    #     # Send the command
+    #     return runnners_controller._send_command(
+    #         host,
+    #         Sigma5DeviceCommand.CMD_CLEAR_PERSONALIZATION,
+    #         response_type=Sigma5DeviceCommand.CMD_ACK,  # Use CMD_ACK as the response type
+    #     )
+
+    # def dut_command_set_device_eui(self, host: str, device_eui: int) -> Tuple[str, CMD_DEV_EC_PUB_KEY_Response]:
+
+    #     # Create the payload
+    #     payload = CMD_PERSONALIZE_DEV_EUI_Response.to_bytes(read=False, device_id=device_eui)
+
+    #     # Wake up the device
+    #     self.dut_command_send_nop(host)
+    #     sleep(1)
+
+    #     # Send the command
+    #     return runnners_controller._send_command(
+    #         host,
+    #         Sigma5DeviceCommand.CMD_PERSONALIZE_DEV_EUI,
+    #         payload=payload,
+    #         response_type=Sigma5DeviceCommand.CMD_DEV_EC_PUB_KEY,  # We expect a CMD_DEV_EC_PUB_KEY response
+    #     )
+
+    # def dut_command_get_device_eui(self, host: str) -> Tuple[str, CMD_PERSONALIZE_DEV_EUI_Response]:
+    #     payload = CMD_PERSONALIZE_DEV_EUI_Response.to_bytes(read=True, device_id=0xDEADBEEFDEADBEEF)
+
+    #     # Wake up the device
+    #     self.dut_command_send_nop(host)
+    #     sleep(1)
+
+    #     # Send the command
+    #     return runnners_controller._send_command(
+    #         host,
+    #         Sigma5DeviceCommand.CMD_PERSONALIZE_DEV_EUI,
+    #         payload=payload,
+    #         response_type=Sigma5DeviceCommand.CMD_PERSONALIZE_DEV_EUI,
+    #     )
 
 
 # ---------------------------------------------------------------------------------

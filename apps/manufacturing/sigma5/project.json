@@ -1,18 +1,19 @@
 {
-  "name": "sigma5_man",
+  "name": "manufacturing-sigma5",
   "$schema": "../../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "apps/manufacturing/sigma5",
   "projectType": "application",
   "targets": {
     "build": {
-      "command": "nx run sigma5_man:containerize",
+      "command": "nx run manufacturing-sigma5:containerize",
       "cwd": "{workspaceRoot}"
     },
     "push": {
       "dependsOn": [
         "build"
       ],
-      "command": "docker push ccr01.ad.corekinect.com/manufacturing-sigma5:latest"
+      // "command": "docker push ccr01.ad.corekinect.com/manufacturing-sigma5:latest"
+      "command": "docker push 10.4.45.2:5000/manufacturing-sigma5:latest"
     },
     "containerize": {
       "executor": "@nx-tools/nx-container:build",
@@ -26,7 +27,8 @@
         "load": true,
         "push": false,
         "tags": [
-          "ccr01.ad.corekinect.com/manufacturing-sigma5:latest"
+          // "ccr01.ad.corekinect.com/manufacturing-sigma5:latest"
+          "10.4.45.2:5000/manufacturing-sigma5:latest"
         ]
       }
     },

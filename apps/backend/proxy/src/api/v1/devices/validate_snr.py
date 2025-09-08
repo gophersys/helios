@@ -47,7 +47,7 @@ def devices_snr_validate_handler():
                 "Authorization": f"Bearer {server_token}",
             }
 
-            search_board_srn_url = f"{env_config.MANU_SERVER_URL}/boards/panels/Search?boardSerialNumber={snr}"
+            search_board_srn_url = f"{env_config.MANU_SERVER_URL}/boards/assemblies/search?boardSerialNumber={snr}"
             response = requests.get(search_board_srn_url, verify=None, timeout=5, headers=headers)
 
             if response.status_code == 200:

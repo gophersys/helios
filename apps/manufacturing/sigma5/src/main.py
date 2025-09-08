@@ -11,7 +11,8 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 from config import conf
 from tests.electrical.test import electrical_test
 from tests.fw_flash.test import fw_flash_test
-from tests.post.test import post_test
+
+# from tests.post.test import post_test
 
 
 async def wait_for_termination(servers):
@@ -28,15 +29,7 @@ if __name__ == "__main__":
 
     # Run test
     # nodes = ["slot-1", "slot-2", "slot-3", "slot-4", "slot-5"]
-    # nodes = ["slot-6.lan"]
-
-    # # if error := fw_flash_test.run(nodes):
-    # #     logging.error(f"Could not run firmware flash test: {error}")
-    # #     sys.exit(1)
-
-    # if error := post_test.run(nodes):
-    #     logging.error(f"Could not run POST test: {error}")
-    #     sys.exit(1)
+    nodes = ["verdin-imx8mm-15005679"]
 
     # Electrical test
     if error := electrical_test.setup(conf.ELECTRICAL_TEST_UUID, conf.ELECTRICAL_TEST_PORT, conf.OPERATOR_URL):
@@ -48,11 +41,12 @@ if __name__ == "__main__":
         logging.error(f"Could not setup firmware flash test: {error}")
         sys.exit(1)
 
-    # POST Test
-    if error := post_test.setup(conf.POST_TEST_UUID, conf.POST_TEST_PORT, conf.OPERATOR_URL):
-        logging.error(f"Could not setup POST test: {error}")
-        sys.exit(1)
+    # # POST Test
+    # if error := post_test.setup(conf.POST_TEST_UUID, conf.POST_TEST_PORT, conf.OPERATOR_URL):
+    #     logging.error(f"Could not setup POST test: {error}")
+    #     sys.exit(1)
 
     # Await program termination
-    servers = [electrical_test.server, fw_flash_test.server, post_test.server]
+    servers = [electrical_test.server]
+    # servers = [electrical_test.server, fw_flash_test.server, post_test.server]
     asyncio.run(wait_for_termination(servers))

@@ -297,7 +297,7 @@ class MtibV1Client:
             response = self.client.AdcReadAll(Empty())
             if not response.success:
                 return None, f"AdcReadAll error: {response.message}"
-            return response.voltages, None
+            return response.voltages_v, None
         except grpc.RpcError as e:
             return None, f"gRPC error for AdcReadAll at {self.config.net.addr}. Error: {str(e.details())}"
         except Exception as e:

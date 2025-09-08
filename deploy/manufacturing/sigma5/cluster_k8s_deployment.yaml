@@ -3,14 +3,14 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: mtib-runner
+  name: mtib-server
   labels:
-    app: mtib-runner
+    app: mtib-server
 spec:
-  replicas: 6  # <- 1 replica per MTIB host in the cluster
+  replicas: 1  # <- 1 replica per MTIB host in the cluster
   selector:
     matchLabels:
-      app: mtib-runner
+      app: mtib-server
   strategy:
     # When we update the deployment we want to terminate the current
     # instance of this container in a host, and then start the new one
@@ -21,7 +21,7 @@ spec:
   template:
     metadata:
       labels:
-        app: mtib-runner
+        app: mtib-server
     spec:
       # Allow the app 1 second to end "gracefully", and then force terminate
       terminationGracePeriodSeconds: 1
@@ -36,16 +36,15 @@ spec:
               - key: "kubernetes.io/hostname"
                 operator: In
                 values:
-                - "slot-1"
-                - "slot-2"
-                - "slot-3"
-                - "slot-4"
-                - "slot-5"
-                - "slot-6"
+                # - "verdin-imx8mm-15005658" # slot-1
+                # - "verdin-imx8mm-15005689" # slot-2
+                # - "verdin-imx8mm-15005817" # slot-3
+                # - "verdin-imx8mm-15005816" # slot-4
+                # - "verdin-imx8mm-15005665" # slot-5
+                - "verdin-imx8mm-15005679" # slot-6
       containers:
-        # MTIB Runner Application
-      - name: mtib-runner
-        image: ccr01.ad.corekinect.com/mtib-runner:1.0  # <- The image we want to deploy
+      - name: mtib-server
+        image: 10.4.45.2:5000/mtib-server:latest  # <- The image we want to deploy
         imagePullPolicy: Always                         # Guarantees a fresh 'docker pull' every time
 
         # The container makes use of a lot of hardware on the host,
@@ -56,8 +55,8 @@ spec:
         # The port in which we serve the MtibRunner gRPC service, as
         # defined in the .proto file for this service
         ports:
-        - containerPort: 50051
-          hostPort: 50051
+        - containerPort: 50053
+          hostPort: 50053
 
         # Application configuration
         env:
@@ -65,35 +64,27 @@ spec:
           value: "4"
         - name: LOG_PATH              # Path where the service will store its logs
           value: "/var/log"
-        - name: MTIB_SERIAL_PORT      # JLink connected to the Orange Pi
+        - name: SERVER_PORT      # Port that this app uses to serve the MtibRunner service
+          value: "50053"
+        - name: ASSETS_PATH      # Path where this app will store uploaded firmware files
+          value: "assets"
+        - name: FLUIDNC_SERIAL_PORT   # Path where this app will store uploaded firmware files
           value: "/dev/ttyS5"
-        - name: MTIB_SERIAL_BAUD
-          value: "115200"
-        - name: GRPC_SERVER_PORT      # Port that this app uses to serve the MtibRunner service
-          value: "50051"
-        - name: FW_FILE_STORAGE_DIR   # Path where this app will store uploaded firmware files
-          value: "/var/fw_files/"
-        - name: MCU_9160_USB_BUS      # JLink ports for each microcontroller
-          value: "/dev/bus/usb/002"
-        - name: MCU_52840_USB_BUS
-          value: "/dev/bus/usb/003"
-        - name: SERVER_RESET_ENABLED  # Flag to reset zephyr app at boot
-          value: "true"
-        - name: SERVER_RESET_GPIO     
-          value: "9"
-        - name: USB_ENABLE_GPIO       # Pin used to enable second JLink
-          value: "17"
-
+        - name: FLUIDNC_RESET_PIN
+          value: "SODIMM_206"
+        - name: DATA_LOGGER_ENABLED
+          value: "false"
+        - name: DATA_LOGGER_MQTT_BROKER_URL
+          value: "mqtt://10.4.45.2:1883"
+      
         # What volumes we mount from the pod onto this container
         volumeMounts:
-        - name: dev-bus-usb
-          mountPath: /dev/bus/usb
+        - name: devices
+          mountPath: /dev
         - name: logs
           mountPath: /var/log/runner
         - name: fw-files
           mountPath: /var/fw_files/
-        - name: cipher-uart
-          mountPath: /dev/ttyS5
         - name: gpio
           mountPath: /sys/class/gpio
 
@@ -112,18 +103,15 @@ spec:
       # container in it, each container will have to mount the specific containers 
       # needed onto itself
       volumes:
-      - name: dev-bus-usb
+      - name: devices
         hostPath:
-          path: /dev/bus/usb
+          path: /dev
       - name: logs
         hostPath:
           path: /var/log/runner
       - name: fw-files
         hostPath:
           path: /var/fw_files/
-      - name: cipher-uart
-        hostPath:
-          path: /dev/ttyS5
       - name: gpio
         hostPath:
           path: /sys/class/gpio
@@ -166,11 +154,11 @@ spec:
               - key: "kubernetes.io/hostname"
                 operator: In
                 values:
-                - "control-plane"
+                - "orangepizero3"
       containers:
         # Sigma5 Manufacturing Tests Runner Application
       - name: sigma5-manufacturing
-        image: ccr01.ad.corekinect.com/manufacturing-sigma5:latest  # <- The image we want to deploy
+        image: 10.4.45.2:5000/manufacturing-sigma5:latest  # <- The image we want to deploy
         imagePullPolicy: Always                                     # Guarantees a fresh 'docker pull' every time
 
         # The container makes use of a lot of hardware on the host,
@@ -194,9 +182,9 @@ spec:
         - name: LOG_PATH              # Path where the service will store its logs
           value: "/var/log"
         - name: OPERATOR_URL          # The operator resides in the same machine
-          value: "control-plane:50050"
+          value: "10.4.45.7:50052"
         - name: PROXY_SERVER_URL     
-          value: "https://concordproxy.ad.corekinect.com"
+          value: "https://10.4.45.3:443"
         - name: ELECTRICAL_TEST_PORT
           value: "50060"
         - name: ELECTRICAL_TEST_UUID     

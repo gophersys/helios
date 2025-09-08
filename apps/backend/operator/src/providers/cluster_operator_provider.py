@@ -9,20 +9,35 @@ from queue import Queue
 from typing import List, Optional
 
 import grpc
+
 # App includes
 from config import conf
-from protos.cluster_operator.cluster_operator_pb2 import (
-    ClusterStatus, ExecuteTestResponse, GetClusterInfoRequest,
-    GetClusterInfoResponse, GetDeploymentInfoRequest,
-    GetDeploymentInfoResponse, HealthCheckRequest, HealthCheckResponse,
-    ListTestsRequest, ListTestsResponse, NodeInfo, RegisterTestRequest,
-    RegisterTestResponse, StopTestResponse)
-from protos.cluster_operator.cluster_operator_pb2_grpc import \
-    ClusterOperatorServicer
+from protocols.cluster_operator.cluster_operator_pb2 import (
+    ClusterStatus,
+    ExecuteTestResponse,
+    GetClusterInfoRequest,
+    GetClusterInfoResponse,
+    GetDeploymentInfoRequest,
+    GetDeploymentInfoResponse,
+    HealthCheckRequest,
+    HealthCheckResponse,
+    ListTestsRequest,
+    ListTestsResponse,
+    NodeInfo,
+    RegisterTestRequest,
+    RegisterTestResponse,
+    StopTestResponse,
+)
+from protocols.cluster_operator.cluster_operator_pb2_grpc import ClusterOperatorServicer
+
 # Protocol includes
-from protos.cluster_test.cluster_test_pb2 import (ExecuteRequest,
-                                                  ExecuteResponse, StopRequest,
-                                                  StopResponse, TestStepResult)
+from protocols.cluster_test.cluster_test_pb2 import (
+    ExecuteRequest,
+    ExecuteResponse,
+    StopRequest,
+    StopResponse,
+    TestStepResult,
+)
 from src.services.operator import ClusterOperator
 
 

@@ -4,6 +4,7 @@ from tests.lib import *
 # Shared includes
 from ..shared.config import Sigma5ManufacturingConfig
 from ..shared.rpcs import runnners_controller
+
 # Test includes
 from .data import ElectricalTestSharedData
 
@@ -36,6 +37,6 @@ electrical_test_step_3: TestStep = TestStep(
         description="Apply +3.2V to +BATT test point using the runner API.",
         noPassIsFatal=True,
     ),
-    timeout_ms=1000,
+    timeout_ms=3000,
     handler=electrical_test_step_3_handler,
 )

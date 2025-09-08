@@ -34,9 +34,9 @@ class Sigma5ManufacturingConfig:
     electrical_step_10b_3v3_max: float = 3.4
     electrical_step_10c_vbckp_min: float = 2.4
     electrical_step_10c_vbckp_max: float = 2.6
-    fw_flash_test_nrf9160_modem_fw_name: str = "mfw_nrf9160_1.3.5.zip"
-    fw_flash_test_nrf9160_app_fw_name: str = "sigma5_nrf9160.hex"
-    fw_flash_test_nrf52840_app_fw_name: str = "sigma5_nrf52840.hex"
+    fw_flash_test_nrf9160_modem_fw_name: str = "mfw_nrf9160_1.3.6.zip"
+    fw_flash_test_nrf9160_app_fw_name: str = "sigma_comm_eng_7.hex"
+    fw_flash_test_nrf52840_app_fw_name: str = "sigma_app_eng_7.hex"
     post_test_accelerometer_error_margin: float = 0.2  # G's
     post_test_altimeter_error_margin: float = 0.01  # inHg
     post_test_temperature_error_margin: float = 6.0  # °C

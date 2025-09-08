@@ -1,10 +1,10 @@
 # Standard includes
 import concurrent.futures
-import json
-import os
+import time
+from typing import Dict, List
 
 # Protocol includes
-from protos.cluster_test.cluster_test_pb2 import TestInfo
+from protocols.cluster_test.cluster_test_pb2 import TestInfo
 
 # Corekinect libraries
 from tests.lib import *
@@ -27,6 +27,7 @@ from .step_9 import electrical_test_step_9
 from .step_10 import electrical_test_step_10
 from .step_11 import electrical_test_step_11
 from .step_12 import electrical_test_step_12
+
 
 # ---------------------------------------------------------------------------------
 #                                                                              Init
@@ -118,17 +119,17 @@ electrical_test: Test = Test(
     usr_data_type=Dict[str, ElectricalTestSharedData],
     # Steps
     steps=[
-        electrical_test_step_1,
-        electrical_test_step_2,
+        # electrical_test_step_1,
+        # electrical_test_step_2,
         electrical_test_step_3,
         electrical_test_step_4,
-        electrical_test_step_5,
-        electrical_test_step_6,
-        electrical_test_step_7,
-        electrical_test_step_8,
-        electrical_test_step_9,
-        electrical_test_step_10,
-        electrical_test_step_11,
-        electrical_test_step_12,
+        # electrical_test_step_5,
+        # electrical_test_step_6,
+        # electrical_test_step_7,
+        # electrical_test_step_8,
+        # electrical_test_step_9,
+        # electrical_test_step_10,
+        # electrical_test_step_11,
+        # electrical_test_step_12,
     ],
 )

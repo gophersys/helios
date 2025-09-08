@@ -58,21 +58,24 @@ RUN ARCH="$(uname -m)" && \
     curl -o nrf-cli-tools.deb "https://nsscprodmedia.blob.core.windows.net/prod/software-and-other-downloads/desktop-software/nrf-command-line-tools/sw/versions-10-x-x/10-24-2/${NRF_CLI_DEB}" && \
     dpkg -i nrf-cli-tools.deb || true && \
     apt-get install -f -y && \
-    rm nrf-cli-tools.deb
+    # Install the required J-Link dependency for nrf command line tools
+    # Check what J-Link deb files are available and install the appropriate one
+    if [ -f "/opt/nrf-command-line-tools/share/JLink_Linux_V794e_arm64.deb" ]; then \
+        apt install /opt/nrf-command-line-tools/share/JLink_Linux_V794e_arm64.deb --fix-broken || true; \
+    elif [ -f "/opt/nrf-command-line-tools/share/JLink_Linux_V794e_x86_64.deb" ]; then \
+        apt install /opt/nrf-command-line-tools/share/JLink_Linux_V794e_x86_64.deb --fix-broken || true; \
+    else \
+        echo "No J-Link deb found in /opt/nrf-command-line-tools/share/, listing available files:"; \
+        ls -la /opt/nrf-command-line-tools/share/ || true; \
+    fi && \
+    echo "Installed nrf-command-line-tools" && \
+    rm nrf-cli-tools.deb && \
+    # Verify nrfjprog is properly installed and accessible
+    which nrfjprog && \
+    nrfjprog --version && \
+    echo "nrfjprog verification successful"
 
 WORKDIR /root
-
-# ----------------------------------------------------------------------------------
-#                                                            App python dependencies
-# --------------------------------------------------------------------------------*/
-
-WORKDIR /app
-
-# By installing these first you save a lot of time when making changes to the source code
-# and rebuilding the application
-COPY apps/shared/mtib-server/setup.py setup.py
-RUN pip install -e . && \
-    pip cache purge
 
 # ----------------------------------------------------------------------------------
 #                                                            App python dependencies
@@ -88,6 +91,18 @@ RUN apt-get update && \
     python3.10-venv && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
+
+# ----------------------------------------------------------------------------------
+#                                                            App python dependencies
+# --------------------------------------------------------------------------------*/
+
+WORKDIR /app
+
+# By installing these first you save a lot of time when making changes to the source code
+# and rebuilding the application
+COPY apps/shared/mtib-server/setup.py setup.py
+RUN pip install -e . && \
+    pip cache purge
 
 # Copy the assets
 COPY apps/shared/mtib-server/assets /app/assets

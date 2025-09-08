@@ -17,16 +17,18 @@ import (
 const (
 	mqttBroker = "tcp://kubecop.ad.corekinect.com:1883"
 	interval   = 10 * time.Millisecond
-	// Voltage divider ratio - actual voltage is 0.756x the ADC reading
+	// Voltage divider ratio - actual voltage is 3.48x the ADC reading
 	// This compensates for the voltage divider circuit
-	// Calibrated: 4V input reads as 5.29V, so ratio = 4.0/5.29 = 0.756
-	voltageDividerRatio = 1.5
+	// Circuit: R29=82kΩ, R32=33kΩ
+	// Divider ratio = R32/(R29+R32) = 33/(82+33) = 33/115 = 0.287
+	// Compensation ratio = 1/0.287 = 3.48
+	voltageDividerRatio = 3.48
 )
 
 /*
 ADS1015/ADS1115 Gain Settings and Voltage Ranges:
 - 0.007812500 = ±0.256V range
-- 0.015625000 = ±0.512V range  
+- 0.015625000 = ±0.512V range
 - 0.031250000 = ±1.024V range
 - 0.062500000 = ±4.096V range
 - 0.125000000 = ±2.048V range
@@ -38,31 +40,34 @@ The scale factor can be changed at runtime by writing to in_voltageX_scale files
 
 // Real channel to MQTT channel mapping
 // [real_channel, mqtt_channel]
+// Based on schematic: ADC1-4 -> U8(0x48), ADC5-8 -> U31(0x49)
+// Actual mapping from user description:
+// Physical 0->MQTT 1, Physical 1->MQTT 2, Physical 2->MQTT 0, Physical 3->MQTT 3
 var channelMapping = [][2]int{
-	{8, 4}, {7, 5}, {6, 6}, {5, 7}, // Device 0x49 channels
-	{4, 0}, {3, 1}, {2, 2}, {1, 3}, // Device 0x48 channels
+	{7, 7}, {6, 6}, {5, 5}, {4, 4}, // Device 0x49 channels (ADC5-8)
+	{3, 3}, {2}, {1, 2}, {0, 1}, // Device 0x48 channels (ADC1-4)
 }
 
 type ADCReader struct {
-	realChannel    int     // Real channel (1-8)
-	mqttChannel    int     // MQTT channel (0-7)
-	deviceChannel  string  // Device channel 0-3 (within the specific device)
-	devicePath     string  // Path to the specific device
-	client         MQTT.Client
-	wg             *sync.WaitGroup
-	scaleFactor    float64 // Scale factor from device (mV per raw unit)
+	realChannel   int    // Real channel (1-8)
+	mqttChannel   int    // MQTT channel (0-7)
+	deviceChannel string // Device channel 0-3 (within the specific device)
+	devicePath    string // Path to the specific device
+	client        MQTT.Client
+	wg            *sync.WaitGroup
+	scaleFactor   float64 // Scale factor from device (mV per raw unit)
 }
 
 // Auto-detect ADC devices by I2C address
 func detectADCDevices() (map[string]string, error) {
 	devices := make(map[string]string)
-	
+
 	// Scan all IIO devices
 	deviceDirs, err := filepath.Glob("/sys/bus/iio/devices/iio:device*")
 	if err != nil {
 		return nil, fmt.Errorf("failed to scan IIO devices: %v", err)
 	}
-	
+
 	for _, deviceDir := range deviceDirs {
 		// Read the device name
 		nameFile := filepath.Join(deviceDir, "name")
@@ -70,7 +75,7 @@ func detectADCDevices() (map[string]string, error) {
 		if err != nil {
 			continue // Skip devices we can't read
 		}
-		
+
 		deviceName := strings.TrimSpace(string(nameData))
 		if deviceName == "ads1015" {
 			// Read the I2C address from the device path
@@ -81,7 +86,7 @@ func detectADCDevices() (map[string]string, error) {
 				log.Printf("Warning: cannot read symlink for %s: %v", deviceDir, err)
 				continue
 			}
-			
+
 			// Extract I2C address from the path
 			parts := strings.Split(linkTarget, "/")
 			for _, part := range parts {
@@ -99,24 +104,24 @@ func detectADCDevices() (map[string]string, error) {
 			}
 		}
 	}
-	
+
 	return devices, nil
 }
 
 func NewADCReader(realChannel int, mqttChannel int, devicePath string, client MQTT.Client, wg *sync.WaitGroup) *ADCReader {
 	// Determine device channel based on real channel
 	var deviceChannel int
-	
-	if realChannel >= 5 && realChannel <= 8 {
-		// Channels 5-8 (device 0x49): map to device channels 0-3
-		// Channel mapping: 8->0, 7->1, 6->2, 5->3
-		deviceChannel = 8 - realChannel
+
+	if realChannel >= 4 && realChannel <= 7 {
+		// Channels 4-7 (device 0x49): map to device channels 0-3
+		// Channel mapping: 7->0, 6->1, 5->2, 4->3
+		deviceChannel = 7 - realChannel
 	} else {
-		// Channels 1-4 (device 0x48): map to device channels 0-3
-		// Channel mapping: 1->0, 2->1, 3->2, 4->3
-		deviceChannel = realChannel - 1
+		// Channels 0-3 (device 0x48): map to device channels 0-3
+		// Channel mapping: 0->0, 1->1, 2->2, 3->3
+		deviceChannel = realChannel
 	}
-	
+
 	reader := &ADCReader{
 		realChannel:   realChannel,
 		mqttChannel:   mqttChannel,
@@ -137,11 +142,11 @@ func NewADCReader(realChannel int, mqttChannel int, devicePath string, client MQ
 			scaleFile.Close()
 		}
 	}
-	
+
 	// Set optimal gain for VCC up to 4.75V (use ±6.144V range)
 	optimalScale := 0.187500000
 	scalePath := fmt.Sprintf("%s/in_voltage%s_scale", devicePath, reader.deviceChannel)
-	
+
 	// Try to set the optimal scale
 	scaleFile, err := os.OpenFile(scalePath, os.O_WRONLY, 0644)
 	if err != nil {
@@ -155,7 +160,7 @@ func NewADCReader(realChannel int, mqttChannel int, devicePath string, client MQ
 			log.Printf("Set optimal scale %.9f for real channel %d (MQTT: %d, device: %s)", optimalScale, realChannel, mqttChannel, devicePath)
 		}
 	}
-	
+
 	// Read the current scale factor from the device
 	scaleFile, err = os.Open(scalePath)
 	if err != nil {
@@ -178,8 +183,8 @@ func NewADCReader(realChannel int, mqttChannel int, devicePath string, client MQ
 			reader.scaleFactor = optimalScale
 		}
 	}
-	
-	log.Printf("ADC Reader for real channel %d (MQTT: %d) initialized with scale factor: %f mV/unit (device: %s, device_channel: %s)", 
+
+	log.Printf("ADC Reader for real channel %d (MQTT: %d) initialized with scale factor: %f mV/unit (device: %s, device_channel: %s)",
 		realChannel, mqttChannel, reader.scaleFactor, devicePath, reader.deviceChannel)
 	return reader
 }
@@ -206,14 +211,13 @@ func (r *ADCReader) readADCValue() (float64, error) {
 	// Convert raw ADC value to voltage
 	// 1. Multiply raw value by scale factor to get voltage in mV
 	voltage_mV := float64(rawValue) * r.scaleFactor
-	
+
 	// 2. Apply voltage divider compensation
 	realVoltage_mV := voltage_mV * voltageDividerRatio
-	
+
 	// 3. Convert to volts
 	voltage_V := realVoltage_mV / 1000.0
 
-	
 	return voltage_V, nil
 }
 
@@ -226,7 +230,7 @@ func (r *ADCReader) publishReading() {
 
 	topic := fmt.Sprintf("adc/%d", r.mqttChannel)
 	payload := fmt.Sprintf("%.6f", value) // Use 6 decimal places for precision
-	
+
 	token := r.client.Publish(topic, 0, false, payload)
 	if token.Wait() && token.Error() != nil {
 		log.Printf("Error publishing to topic %s: %v", topic, token.Error())
@@ -237,9 +241,9 @@ func (r *ADCReader) publishReading() {
 func (r *ADCReader) Start() {
 	defer r.wg.Done()
 
-	log.Printf("Starting ADC reader for real channel %d (MQTT: %d) (device: %s, device_channel: %s)", 
+	log.Printf("Starting ADC reader for real channel %d (MQTT: %d) (device: %s, device_channel: %s)",
 		r.realChannel, r.mqttChannel, r.devicePath, r.deviceChannel)
-	
+
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
@@ -253,13 +257,13 @@ func (r *ADCReader) Start() {
 
 func main() {
 	log.Println("Starting ADC reader")
-	
+
 	// Auto-detect ADC devices
 	devices, err := detectADCDevices()
 	if err != nil {
 		log.Fatalf("Failed to detect ADC devices: %v", err)
 	}
-	
+
 	// Verify we have both required devices
 	if _, ok := devices["48"]; !ok {
 		log.Fatalf("ADC device at address 0x48 not found")
@@ -267,9 +271,9 @@ func main() {
 	if _, ok := devices["49"]; !ok {
 		log.Fatalf("ADC device at address 0x49 not found")
 	}
-	
+
 	log.Printf("Found ADC devices: 0x48 -> %s, 0x49 -> %s", devices["48"], devices["49"])
-	
+
 	// MQTT client options
 	opts := MQTT.NewClientOptions()
 	opts.AddBroker(mqttBroker)
@@ -279,7 +283,7 @@ func main() {
 
 	// Create MQTT client
 	client := MQTT.NewClient(opts)
-	
+
 	// Connect to MQTT broker
 	if token := client.Connect(); token.Wait() && token.Error() != nil {
 		log.Fatalf("Failed to connect to MQTT broker: %v", token.Error())
@@ -293,15 +297,15 @@ func main() {
 	for _, mapping := range channelMapping {
 		realChannel := mapping[0]
 		mqttChannel := mapping[1]
-		
+
 		// Determine which device to use
 		var devicePath string
-		if realChannel >= 5 && realChannel <= 8 {
+		if realChannel >= 4 && realChannel <= 7 {
 			devicePath = devices["49"] // 0x49
 		} else {
 			devicePath = devices["48"] // 0x48
 		}
-		
+
 		reader := NewADCReader(realChannel, mqttChannel, devicePath, client, &wg)
 		wg.Add(1)
 		go reader.Start()

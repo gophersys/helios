@@ -12,7 +12,8 @@
       "dependsOn": [
         "build"
       ],
-      "command": "docker push ccr01.ad.corekinect.com/concord-proxy:latest"
+      // "command": "docker push ccr01.ad.corekinect.com/concord-proxy:latest"
+      "command": "docker push containers.ad.corekinect.com/concord-proxy:latest"
     },
     "containerize": {
       "executor": "@nx-tools/nx-container:build",
@@ -24,8 +25,10 @@
           "linux/amd64"
         ],
         "push": false,
+        "load": true,
         "tags": [
-          "ccr01.ad.corekinect.com/concord-proxy:latest"
+          // "ccr01.ad.corekinect.com/concord-proxy:latest"
+          "containers.ad.corekinect.com/concord-proxy:latest"
         ]
       }
     },

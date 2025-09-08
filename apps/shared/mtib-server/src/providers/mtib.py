@@ -1,11 +1,11 @@
-from .config import ProviderConfig
-from .helpers import grpc_method
-
 # Standard imports
 import logging
 import time
 from typing import Optional, List, Dict, Iterator
 from dataclasses import dataclass
+import functools
+import time
+from typing import Callable, TypeVar, ParamSpec
 
 # Protocol imports
 from protocols.mtib.mtib_pb2_grpc import MtibV1Servicer
@@ -50,20 +50,71 @@ GPIO_PIN_MAP = {
 }
 
 
+# -------------------------------------------------
+#                     Generic gRPC method decorator
+# -------------------------------------------------
+# Type variables for generic function signature
+P = ParamSpec("P")
+R = TypeVar("R")
+
+
+def grpc_method(func: Callable[P, R]) -> Callable[P, R]:
+    @functools.wraps(func)
+    def method(self, request, context, *args, **kwargs) -> R:
+        # Get method name from the original function
+        method_name = func.__name__
+
+        # Log request received
+        self.logger.debug(f"{method_name}: Request received from {context.peer()}")
+
+        # Time the request
+        start_time = time.time()
+
+        try:
+            # Execute the original function
+            response = func(self, request, context, *args, **kwargs)
+
+            # Log request completion time
+            elapsed_ms = (time.time() - start_time) * 1000
+            self.logger.debug(f"{method_name}: Request processed in {elapsed_ms:.2f}ms for {context.peer()}")
+
+            return response
+
+        except Exception as e:
+            # Log any errors that occur
+            elapsed_ms = (time.time() - start_time) * 1000
+            self.logger.error(f"{method_name}: Request failed after {elapsed_ms:.2f}ms for {context.peer()}")
+            raise  # Re-raise the exception
+
+    return method
+
+
+# -------------------------------------------------
+#                                            Config
+# -------------------------------------------------
+@dataclass
+class MtibV1ProviderConfig:
+    # Where the server will look for assets for all of its components
+    # that need configurations or firmware files (e.g. FluidNC)
+    ASSETS_DIR: str
+
+
+# -----------------------------------------------------
+#                                 MTIB Service Provider
+# -----------------------------------------------------
 class MtibV1Provider(MtibV1Servicer):
     # -------------------------------------------------
     #                                              Init
     # -------------------------------------------------
     def __init__(
         self,
-        config: ProviderConfig,
+        config: MtibV1ProviderConfig,
         logger: Logger = None,
     ):
-        # Measure the time it takes to initialize the provider
         start_time = time.time()
 
         # Setup the config
-        self.config: ProviderConfig = config
+        self.config: MtibV1ProviderConfig = config
 
         # Setup the logger for the server
         self.logger: Logger = logger

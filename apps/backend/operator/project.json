@@ -12,7 +12,8 @@
       "dependsOn": [
         "build"
       ],
-      "command": "docker push ccr01.ad.corekinect.com/concord-operator:1.0"
+      // "command": "docker push ccr01.ad.corekinect.com/concord-operator:1.0",
+      "command": "docker push 10.4.45.2:5000/concord-operator:latest"
     },
     "containerize": {
       "executor": "@nx-tools/nx-container:build",
@@ -23,9 +24,11 @@
         "platforms": [
           "linux/arm64"
         ],
+        "load": true,
         "push": false,
         "tags": [
-          "ccr01.ad.corekinect.com/concord-operator:1.0"
+          // "ccr01.ad.corekinect.com/concord-operator:1.0"
+          "10.4.45.2:5000/concord-operator:latest"
         ]
       }
     },

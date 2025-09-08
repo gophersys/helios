@@ -6,7 +6,7 @@ from tests.lib import *
 
 # Shared includes
 from ..shared.config import Sigma5ManufacturingConfig
-from ..shared.rpcs import DeviceType, runnners_controller
+from ..shared.rpcs import *
 
 # Test includes
 
@@ -19,19 +19,29 @@ def fw_flash_test_step_2_handler(config: Sigma5ManufacturingConfig, node: str, u
     result: TestStepResult = TestStepResult(success=False)
 
     # Flash 9160
-    result.error = runnners_controller.flash_fw_file(
-        node, config.fw_flash_test_nrf9160_app_fw_name, DeviceType.DEVICE_NRF9160, False
-    )  # It is NOT modem firmware
+    file_info = FwFileInfo(
+        name=config.fw_flash_test_nrf9160_app_fw_name,
+        target=HostType.HOST_TYPE_NRF9160,
+    )
+    sector_erase = True
+    recover = True
+    time_taken, error = runnners_controller.flash_fw_file(node, file_info, sector_erase, recover)
 
-    if result.error:
+    if error:
+        result.error = error
         return result
 
     # Flash 52840
-    result.error = runnners_controller.flash_fw_file(
-        node, config.fw_flash_test_nrf52840_app_fw_name, DeviceType.DEVICE_NRF82840, False
-    )  # It is NOT modem firmware
+    file_info = FwFileInfo(
+        name=config.fw_flash_test_nrf52840_app_fw_name,
+        target=HostType.HOST_TYPE_NRF52840,
+    )
+    sector_erase = True
+    recover = True
+    time_taken, error = runnners_controller.flash_fw_file(node, file_info, sector_erase, recover)
 
-    if result.error:
+    if error:
+        result.error = error
         return result
 
     # Flash was succesful

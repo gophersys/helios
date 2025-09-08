@@ -29,8 +29,8 @@ RUN pip install -e . && \
 WORKDIR /app
 
 # Copy the protocols used by the app
-COPY libs/protos/cluster_test /libs/protos/cluster_test
-COPY libs/protos/cluster_operator /libs/protos/cluster_operator
+COPY libs/protocols/cluster_test /libs/protocols/cluster_test
+COPY libs/protocols/cluster_operator /libs/protocols/cluster_operator
 
 # Import the paths to the python path
 ENV PYTHONPATH="/libs:${PYTHONPATH}"
