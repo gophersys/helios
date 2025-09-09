@@ -5,6 +5,9 @@ from dataclasses import asdict, dataclass
 # Corekinect libraries
 from src.tests.lib import *
 
+# Post test includes
+from src.tests.post.data import PostTestSharedData
+
 # Shared includes
 from src.tests.shared.config import Sigma5ManufacturingConfig
 from src.tests.shared.rpcs import mtib_servers
@@ -44,7 +47,9 @@ class DeviceIds:
 # -------------------------------------------------
 #                                           Handler
 # -------------------------------------------------
-def verify_chip_ids(config: Sigma5ManufacturingConfig, node: str, usr_data: None) -> TestStepResult:
+def verify_chip_ids(
+    config: Sigma5ManufacturingConfig, node: str, usr_data: Dict[str, PostTestSharedData]
+) -> TestStepResult:
     result = TestStepResult(success=False)
     device_ids = DeviceIds()
 

@@ -1,6 +1,7 @@
 # Standard includes
 import json
 from dataclasses import asdict, dataclass
+from typing import Dict
 
 # Corekinect libraries
 from src.tests.lib import *
@@ -8,6 +9,9 @@ from src.tests.lib import *
 # Shared includes
 from src.tests.shared.config import Sigma5ManufacturingConfig
 from src.tests.shared.rpcs import mtib_servers
+
+# Post test includes
+from src.tests.post.data import PostTestSharedData
 
 # -------------------------------------------------
 #                                            Config
@@ -48,7 +52,9 @@ class DeviceIds:
 # -------------------------------------------------
 #                                           Handler
 # -------------------------------------------------
-def verify_chip_ids(config: Sigma5ManufacturingConfig, node: str, usr_data: None) -> TestStepResult:
+def verify_chip_ids(
+    config: Sigma5ManufacturingConfig, node: str, usr_data: Dict[str, PostTestSharedData]
+) -> TestStepResult:
     result = TestStepResult(success=False)
     device_ids = DeviceIds()
 
@@ -87,6 +93,9 @@ def verify_chip_ids(config: Sigma5ManufacturingConfig, node: str, usr_data: None
     logging.debug(f"App altimeter chip ID: {device_ids.altimeter_id}")
     logging.debug(f"App external flash chip ID: {device_ids.app_ext_flash_id}")
     logging.debug(f"App BLE MAC: {device_ids.ble_mac}")
+
+    # Save user data
+    usr_data[node].ble_mac = device_ids.ble_mac
 
     result.details = device_ids.marshall()
     result.success = True

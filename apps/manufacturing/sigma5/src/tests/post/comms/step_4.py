@@ -7,6 +7,9 @@ from dataclasses import asdict, dataclass
 # Corekinect libraries
 from src.tests.lib import *
 
+# Post test includes
+from src.tests.post.data import PostTestSharedData
+
 # Shared includes
 from src.tests.shared.config import Sigma5ManufacturingConfig
 from src.tests.shared.rpcs import mtib_servers
@@ -54,7 +57,7 @@ class ExternalFlashInfo:
 #                                           Handler
 # -------------------------------------------------
 def verify_external_flash_functionality(
-    config: Sigma5ManufacturingConfig, node: str, usr_data: None
+    config: Sigma5ManufacturingConfig, node: str, usr_data: Dict[str, PostTestSharedData]
 ) -> TestStepResult:
     result = TestStepResult(success=False)
     flash_info = ExternalFlashInfo()
@@ -207,6 +210,6 @@ comms_post_step_4_verify_external_flash: TestStep = TestStep(
         description="Verify external flash is present and is writable.",
         noPassIsFatal=True,
     ),
-    timeout_ms=40000,
+    timeout_ms=120000,  # 2mins, erase can take a long time
     handler=verify_external_flash_functionality,
 )

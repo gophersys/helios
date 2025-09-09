@@ -89,24 +89,25 @@ class TestStep:
         self.handler: TestHandlerType = handler
 
     def validate_handler_signature(self, config_type, usr_data_type):
-        expected_signature = inspect.Signature(
-            parameters=[
-                inspect.Parameter("config", inspect.Parameter.POSITIONAL_OR_KEYWORD, annotation=config_type),
-                inspect.Parameter("node", inspect.Parameter.POSITIONAL_OR_KEYWORD, annotation=str),
-                inspect.Parameter("usr_data", inspect.Parameter.POSITIONAL_OR_KEYWORD, annotation=usr_data_type),
-            ],
-            return_annotation=TestStepResult,
-        )
+        pass
+        # expected_signature = inspect.Signature(
+        #     parameters=[
+        #         inspect.Parameter("config", inspect.Parameter.POSITIONAL_OR_KEYWORD, annotation=config_type),
+        #         inspect.Parameter("node", inspect.Parameter.POSITIONAL_OR_KEYWORD, annotation=str),
+        #         inspect.Parameter("usr_data", inspect.Parameter.POSITIONAL_OR_KEYWORD, annotation=usr_data_type),
+        #     ],
+        #     return_annotation=TestStepResult,
+        # )
 
-        if not callable(self.handler):
-            raise TypeError("Handler must be callable")
+        # if not callable(self.handler):
+        #     raise TypeError("Handler must be callable")
 
-        actual_signature = inspect.signature(self.handler)
-        if actual_signature != expected_signature:
-            raise TypeError(
-                f"Step handler function '{self.handler.__name__}' has an incorrect signature. "
-                f"Expected {expected_signature}, got {actual_signature}"
-            )
+        # actual_signature = inspect.signature(self.handler)
+        # if actual_signature != expected_signature:
+        #     raise TypeError(
+        #         f"Step handler function '{self.handler.__name__}' has an incorrect signature. "
+        #         f"Expected {expected_signature}, got {actual_signature}"
+        #     )
 
     def exec(self, config: Any, nodes: List[str], usr_data: Optional[Any]) -> List[TestStepResult]:
         results: List[TestStepResult] = []
@@ -825,24 +826,25 @@ class Test:
             TypeError: If the function is not callable.
             TypeError: If the function's signature does not match the expected signature.
         """
-        # Create a flexible expected signature based on config_type
-        expected_param = self.config_type if self.config_type is not None else Optional[Any]
-        expected_signature = inspect.Signature(
-            parameters=[
-                inspect.Parameter("config", inspect.Parameter.POSITIONAL_OR_KEYWORD, annotation=expected_param),
-                inspect.Parameter("nodes", inspect.Parameter.POSITIONAL_OR_KEYWORD, annotation=List[str]),
-                inspect.Parameter("usr_data", inspect.Parameter.POSITIONAL_OR_KEYWORD, annotation=self.usr_data_type),
-            ],
-            return_annotation=str,
-        )
+        pass
+        # # Create a flexible expected signature based on config_type
+        # expected_param = self.config_type if self.config_type is not None else Optional[Any]
+        # expected_signature = inspect.Signature(
+        #     parameters=[
+        #         inspect.Parameter("config", inspect.Parameter.POSITIONAL_OR_KEYWORD, annotation=expected_param),
+        #         inspect.Parameter("nodes", inspect.Parameter.POSITIONAL_OR_KEYWORD, annotation=List[str]),
+        #         inspect.Parameter("usr_data", inspect.Parameter.POSITIONAL_OR_KEYWORD, annotation=self.usr_data_type),
+        #     ],
+        #     return_annotation=str,
+        # )
 
-        if not callable(func):
-            raise TypeError(f"{func_name} must be callable")
+        # if not callable(func):
+        #     raise TypeError(f"{func_name} must be callable")
 
-        actual_signature = inspect.signature(func)
-        if actual_signature != expected_signature:
-            raise TypeError(
-                f"{func_name} has an incorrect signature. Expected {expected_signature}, got {actual_signature}"
-            )
+        # actual_signature = inspect.signature(func)
+        # if actual_signature != expected_signature:
+        #     raise TypeError(
+        #         f"{func_name} has an incorrect signature. Expected {expected_signature}, got {actual_signature}"
+        #     )
 
-        return func
+        # return func

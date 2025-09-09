@@ -7,6 +7,9 @@ from typing import List
 # Corekinect libraries
 from src.tests.lib import *
 
+# Post test includes
+from src.tests.post.data import PostTestSharedData
+
 # Shared includes
 from src.tests.shared.config import Sigma5ManufacturingConfig
 from src.tests.shared.rpcs import mtib_servers
@@ -124,7 +127,9 @@ def _validate_iccid(iccid: str) -> str:
 # -------------------------------------------------
 #                                           Handler
 # -------------------------------------------------
-def verify_imei_iccids(config: Sigma5ManufacturingConfig, node: str, usr_data: None) -> TestStepResult:
+def verify_imei_iccids(
+    config: Sigma5ManufacturingConfig, node: str, usr_data: Dict[str, PostTestSharedData]
+) -> TestStepResult:
     result: TestStepResult = TestStepResult(success=False)
 
     device_info: DeviceInfo = DeviceInfo(iccids=[])
@@ -216,6 +221,10 @@ def verify_imei_iccids(config: Sigma5ManufacturingConfig, node: str, usr_data: N
 
     logging.debug(f"IMEI: {device_info.imei}")
     logging.debug(f"ICCIDs: {[iccid.iccid for iccid in device_info.iccids]}")
+
+    # Save user data
+    usr_data[node].imei = device_info.imei
+    usr_data[node].iccids = [iccid.iccid for iccid in device_info.iccids]
 
     # Pass
     result.success = True

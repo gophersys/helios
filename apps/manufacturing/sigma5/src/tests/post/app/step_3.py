@@ -9,6 +9,9 @@ from src.tests.lib import *
 from src.tests.shared.config import Sigma5ManufacturingConfig
 from src.tests.shared.rpcs import mtib_servers
 
+# Post test includes
+from src.tests.post.data import PostTestSharedData
+
 # -------------------------------------------------
 #                                           Config
 # -------------------------------------------------
@@ -18,7 +21,9 @@ ACCELEROMETER_TOLERANCE = 0.5
 # -------------------------------------------------
 #                                           Handler
 # -------------------------------------------------
-def verify_accelerometer_data(config: Sigma5ManufacturingConfig, node: str, usr_data: None) -> TestStepResult:
+def verify_accelerometer_data(
+    config: Sigma5ManufacturingConfig, node: str, usr_data: Dict[str, PostTestSharedData]
+) -> TestStepResult:
     result = TestStepResult(success=False)
 
     sigma5_x_raw, sigma5_y_raw, sigma5_z_raw, sigma5_temp, error = mtib_servers.sigma5_cmd_app_read_accel(node)

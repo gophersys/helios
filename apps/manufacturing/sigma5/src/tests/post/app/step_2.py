@@ -1,6 +1,7 @@
 # Standard includes
 import json
 from dataclasses import asdict, dataclass
+from typing import Dict
 
 # Corekinect libraries
 from src.tests.lib import *
@@ -8,6 +9,9 @@ from src.tests.lib import *
 # Shared includes
 from src.tests.shared.config import Sigma5ManufacturingConfig
 from src.tests.shared.rpcs import mtib_servers
+
+# Post test includes
+from src.tests.post.data import PostTestSharedData
 
 # -------------------------------------------------
 #                                            Config
@@ -50,7 +54,9 @@ class Ublox:
 # -------------------------------------------------
 #                                           Handler
 # -------------------------------------------------
-def verify_ublox_module(config: Sigma5ManufacturingConfig, node: str, usr_data: None) -> TestStepResult:
+def verify_ublox_module(
+    config: Sigma5ManufacturingConfig, node: str, usr_data: Dict[str, PostTestSharedData]
+) -> TestStepResult:
     result = TestStepResult(success=False)
     ublox = Ublox()
 

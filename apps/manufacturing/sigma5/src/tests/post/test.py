@@ -1,7 +1,7 @@
 # Standard includes
 import concurrent.futures
 import time
-from typing import List
+from typing import Dict, List
 
 # Protocol includes
 from protocols.cluster_test.cluster_test_pb2 import StepInfo, TestInfo
@@ -12,6 +12,10 @@ from src.tests.lib import Test, TestStep
 # Test includes
 from src.tests.shared.config import Sigma5ManufacturingConfig
 from src.tests.shared.rpcs import mtib_servers
+
+# Post test includes
+from .data import post_test_shared_data
+from .data import PostTestSharedData
 
 # App POST steps
 from .app.step_1 import app_post_step_1_verify_chip_ids
@@ -26,12 +30,15 @@ from .comms.step_1 import comms_post_step_1_verify_chip_ids
 from .comms.step_2 import comms_post_step_2_verify_modem_fw
 from .comms.step_3 import comms_post_step_3_verify_imei_iccids
 from .comms.step_4 import comms_post_step_4_verify_external_flash
+from .comms.step_5 import comms_post_step_5_personalize
 
 
 # ---------------------------------------------------------------------------------
 #                                                                              Init
 # -------------------------------------------------------------------------------*/
-def post_test_init(config: Sigma5ManufacturingConfig, nodes: List[str], usr_data: None) -> str:
+def post_test_init(
+    config: Sigma5ManufacturingConfig, nodes: List[str], usr_data: Dict[str, PostTestSharedData]
+) -> str:
     # Initialize the runners required to run this test
     error = mtib_servers.init(nodes)
     if error:
@@ -75,6 +82,9 @@ def post_test_init(config: Sigma5ManufacturingConfig, nodes: List[str], usr_data
         if error or not disabled:
             return f"Could not disable debug UART on host {node}: {error}"
 
+        # Initialize the shared data
+        usr_data[node] = PostTestSharedData()
+
         return None
 
     # Run all hosts init in parallel to speed things up
@@ -94,7 +104,9 @@ def post_test_init(config: Sigma5ManufacturingConfig, nodes: List[str], usr_data
 # ---------------------------------------------------------------------------------
 #                                                                            Deinit
 # -------------------------------------------------------------------------------*/
-def post_test_deinit(config: Sigma5ManufacturingConfig, nodes: List[str], usr_data: None) -> str:
+def post_test_deinit(
+    config: Sigma5ManufacturingConfig, nodes: List[str], usr_data: Dict[str, PostTestSharedData]
+) -> str:
     def deinit_node(node: str) -> str:
         # Turn off charging power
         error = mtib_servers.set_5vin(node, False)
@@ -105,6 +117,9 @@ def post_test_deinit(config: Sigma5ManufacturingConfig, nodes: List[str], usr_da
         error = mtib_servers.disable_power(node)
         if error:
             return f"Could not disable device power in host {node}: {error}"
+
+        # Clear the shared data
+        usr_data[node] = None
 
         return None
 
@@ -141,20 +156,21 @@ post_test: Test = Test(
     config_type=Sigma5ManufacturingConfig,
     init_func=post_test_init,
     deinit_func=post_test_deinit,
-    usr_data=None,
-    usr_data_type=None,
+    usr_data=post_test_shared_data,
+    usr_data_type=Dict[str, PostTestSharedData],
     steps=[
         # App
-        # app_post_step_1_verify_chip_ids,
+        app_post_step_1_verify_chip_ids,
         # app_post_step_2_verify_ublox,
         # app_post_step_3_verify_accelerometer,
-        # # app_post_step_4_verify_altimeter,     # TODO: Need to update MTIB server altimeter driver
+        # app_post_step_4_verify_altimeter,     # TODO: Need to update MTIB server altimeter driver
         # app_post_step_5_verify_ble,  # TODO: Implement
-        # app_post_step_6_verify_external_flash,
+        app_post_step_6_verify_external_flash,
         # Comms
         comms_post_step_1_verify_chip_ids,
-        comms_post_step_2_verify_modem_fw,
+        # comms_post_step_2_verify_modem_fw,
         comms_post_step_3_verify_imei_iccids,
-        comms_post_step_4_verify_external_flash,
+        # comms_post_step_4_verify_external_flash,
+        comms_post_step_5_personalize,
     ],
 )
