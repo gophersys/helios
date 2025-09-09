@@ -9,24 +9,14 @@ from src.tests.lib import *
 from src.tests.shared.config import Sigma5ManufacturingConfig
 from src.tests.shared.rpcs import mtib_servers
 
-# -------------------------------------------------
-#                                            Config
-# -------------------------------------------------
-ACCEL_CHIP_ID = "0x33"
-ALTIMETER_CHIP_ID = "0x60"
-APP_EXT_FLASH_CHIP_ID = "0xef 0x40 0x17"
-
 
 # -------------------------------------------------
 #                                              Data
 # -------------------------------------------------
 @dataclass
 class DeviceIds:
-    accel_id: str = None
-    altimeter_id: str = None
-    app_ext_flash_id: str = None
-    gps_hw_version: str = None
-    ble_mac: str = None
+    lora_available: str = None
+    ext_flash_id: str = None
 
     def marshall(self) -> str:
         try:
@@ -52,36 +42,17 @@ def verify_chip_ids(config: Sigma5ManufacturingConfig, node: str, usr_data: None
     result = TestStepResult(success=False)
     device_ids = DeviceIds()
 
-    # Read
-    accel_id, altimeter_id, app_ext_flash_id, gps_hw_version, ble_mac, error = (
-        mtib_servers.sigma5_cmd_app_get_chip_ids(node)
-    )
+    lora_available, ext_flash_id, error = mtib_servers.sigma5_cmd_comms_get_chip_ids(node)
     if error:
         result.error = error
         result.details = device_ids.marshall()
         return result
 
-    # Verify
-    if accel_id != ACCEL_CHIP_ID:
-        result.error = f"Accelerometer chip ID {accel_id} does not match expected value {config.accel_chip_id}"
-        result.details = device_ids.marshall()
-        return result
+    device_ids.lora_available = lora_available
+    device_ids.ext_flash_id = ext_flash_id
 
-    if altimeter_id != ALTIMETER_CHIP_ID:
-        result.error = f"Altimeter chip ID {altimeter_id} does not match expected value {config.altimeter_chip_id}"
-        result.details = device_ids.marshall()
-        return result
-
-    if app_ext_flash_id != APP_EXT_FLASH_CHIP_ID:
-        result.error = f"App external flash chip ID {app_ext_flash_id} does not match expected value {config.app_ext_flash_chip_id}"
-        result.details = device_ids.marshall()
-        return result
-
-    # Assin
-    device_ids.accel_id = accel_id
-    device_ids.altimeter_id = altimeter_id
-    device_ids.app_ext_flash_id = app_ext_flash_id
-    device_ids.ble_mac = ble_mac
+    logging.debug(f"LoRa Available: {device_ids.lora_available}")
+    logging.debug(f"Ext Flash ID: {device_ids.ext_flash_id}")
 
     result.details = device_ids.marshall()
     result.success = True
@@ -91,7 +62,7 @@ def verify_chip_ids(config: Sigma5ManufacturingConfig, node: str, usr_data: None
 # ---------------------------------------------------------------------------------
 #                                                                              Step
 # -------------------------------------------------------------------------------*/
-app_post_step_1_verify_chip_ids: TestStep = TestStep(
+comms_post_step_1_verify_chip_ids: TestStep = TestStep(
     info=StepInfo(
         name="Verify chip IDs",
         description="Verify the chip are present and are correct.",

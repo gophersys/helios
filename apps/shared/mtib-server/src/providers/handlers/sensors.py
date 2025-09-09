@@ -4,6 +4,7 @@ import glob
 import time
 from corekinect.utils import Logger
 from src.shared.types import *
+from src.lib.bme280 import BME280
 
 
 class SensorsHandler:
@@ -13,7 +14,9 @@ class SensorsHandler:
         self.accel_scale_x = None
         self.accel_scale_y = None
         self.accel_scale_z = None
+        self.bme280 = None
         self._init_accelerometer()
+        self._init_bme280()
 
     def _init_accelerometer(self):
         """Initialize accelerometer by finding the lis2de12 device and reading scale factors."""
@@ -56,6 +59,29 @@ class SensorsHandler:
         except Exception as e:
             self.logger.error(f"Error initializing accelerometer: {e}")
 
+    def _init_bme280(self):
+        """Initialize BME280 sensor for altimeter readings."""
+        init_start = time.time()
+        try:
+            # Try both common BME280 addresses
+            for address in [0x77, 0x76]:
+                try:
+                    self.bme280 = BME280(bus_number=3, device_address=address, logger=self.logger)
+                    if self.bme280.initialize():
+                        init_time = time.time() - init_start
+                        self.logger.info(f"BME280 initialized at address 0x{address:02x} (took {init_time:.3f}s)")
+                        return
+                    else:
+                        self.bme280 = None
+                except Exception as e:
+                    self.logger.debug(f"BME280 at address 0x{address:02x} not available: {e}")
+                    continue
+
+            self.logger.warning("BME280 sensor not found on I2C bus 3")
+
+        except Exception as e:
+            self.logger.error(f"Error initializing BME280: {e}")
+
     def _read_scale_factor(self, scale_file_path):
         """Read scale factor from IIO device file."""
         try:
@@ -76,11 +102,68 @@ class SensorsHandler:
             self.logger.warning(f"Error setting sampling frequency to {frequency_hz} Hz: {e}")
 
     def read_altimeter(self, request: Empty, context: grpc.ServicerContext) -> AltimeterReadResponse:
-        """Read altimeter sensor data."""
+        """Read altimeter sensor data from BME280."""
+        start_time = time.time()
         self.logger.info("AltimeterRead request received")
-        return AltimeterReadResponse(
-            success=False, message="Not implemented", temperature_f=0.0, pressure_hg=0.0, altitude_ft=0.0
-        )
+
+        if self.bme280 is None:
+            return AltimeterReadResponse(
+                success=False,
+                message="BME280 sensor not initialized",
+                temperature_f=0.0,
+                pressure_hg=0.0,
+                altitude_ft=0.0,
+            )
+
+        try:
+            # Read all sensor values
+            temperature_c, pressure_pa, humidity_rh = self.bme280.read_all()
+
+            if temperature_c is None or pressure_pa is None:
+                return AltimeterReadResponse(
+                    success=False,
+                    message="Failed to read sensor data",
+                    temperature_f=0.0,
+                    pressure_hg=0.0,
+                    altitude_ft=0.0,
+                )
+
+            # Convert temperature from Celsius to Fahrenheit
+            temperature_f = (temperature_c * 9.0 / 5.0) + 32.0
+
+            # Convert pressure from Pascal to inches of mercury (Hg)
+            # 1 Pa = 0.00029529983071445 inHg
+            pressure_hg = pressure_pa * 0.00029529983071445
+
+            # Calculate altitude in feet (using standard sea level pressure of 1013.25 hPa)
+            altitude_m = self.bme280.calculate_altitude(1013.25)
+            altitude_ft = altitude_m * 3.28084 if altitude_m is not None else 0.0
+
+            total_time = time.time() - start_time
+            self.logger.info(
+                f"BME280 altimeter read - Temp: {temperature_f:.1f}°F, "
+                f"Pressure: {pressure_hg:.2f} inHg, Altitude: {altitude_ft:.1f} ft "
+                f"(took {total_time:.3f}s)"
+            )
+
+            return AltimeterReadResponse(
+                success=True,
+                message="BME280 altimeter read successful",
+                temperature_f=temperature_f,
+                pressure_hg=pressure_hg,
+                altitude_ft=altitude_ft,
+            )
+
+        except Exception as e:
+            total_time = time.time() - start_time
+            self.logger.error(f"Error reading BME280 altimeter after {total_time:.3f}s: {e}")
+            return AltimeterReadResponse(
+                success=False,
+                message=f"Error reading BME280 altimeter: {str(e)}",
+                temperature_f=0.0,
+                pressure_hg=0.0,
+                altitude_ft=0.0,
+            )
 
     def read_accel(self, request: Empty, context: grpc.ServicerContext) -> AccelReadResponse:
         """Read accelerometer sensor data."""

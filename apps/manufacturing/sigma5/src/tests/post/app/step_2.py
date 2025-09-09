@@ -9,6 +9,15 @@ from src.tests.lib import *
 from src.tests.shared.config import Sigma5ManufacturingConfig
 from src.tests.shared.rpcs import mtib_servers
 
+# -------------------------------------------------
+#                                            Config
+# -------------------------------------------------
+UBLOX_HW_VERSION = "00080000"
+UBLOX_FW_VERSION = "FWVER=SPG 3.01"
+UBLOX_SW_VERSION = "ROM CORE 3.01 (107888)"
+UBLOX_PROTO_VERSION = "PROTVER=18.00"
+UBLOX_SUPPORTED_CONSTELATIONS = "GPS;GLO;GAL;BDS;SBAS;IMES;QZSS"
+
 
 # -------------------------------------------------
 #                                              Data
@@ -19,7 +28,7 @@ class Ublox:
     fw_version: str = None
     sw_version: str = None
     proto_version: str = None
-    supported_constellations: List[str] = None
+    supported_constellations: str = None
 
     def marshall(self) -> str:
         try:
@@ -45,6 +54,7 @@ def verify_ublox(config: Sigma5ManufacturingConfig, node: str, usr_data: None) -
     result = TestStepResult(success=False)
     ublox = Ublox()
 
+    # Read
     hw_version, fw_version, sw_version, proto_version, supported_constellations, error = (
         mtib_servers.sigma5_cmd_app_get_ublox_version_info(node)
     )
@@ -53,18 +63,34 @@ def verify_ublox(config: Sigma5ManufacturingConfig, node: str, usr_data: None) -
         result.details = ublox.marshall()
         return result
 
-    # Print the IDs out for debugging
+    # Verify
+    if hw_version != UBLOX_HW_VERSION:
+        result.error = f"HW version {hw_version} does not match expected value {UBLOX_HW_VERSION}"
+        result.details = ublox.marshall()
+        return result
+    if fw_version != UBLOX_FW_VERSION:
+        result.error = f"FW version {fw_version} does not match expected value {UBLOX_FW_VERSION}"
+        result.details = ublox.marshall()
+        return result
+    if sw_version != UBLOX_SW_VERSION:
+        result.error = f"SW version {sw_version} does not match expected value {UBLOX_SW_VERSION}"
+        result.details = ublox.marshall()
+        return result
+    if proto_version != UBLOX_PROTO_VERSION:
+        result.error = f"Proto version {proto_version} does not match expected value {UBLOX_PROTO_VERSION}"
+        result.details = ublox.marshall()
+        return result
+    if supported_constellations != UBLOX_SUPPORTED_CONSTELATIONS:
+        result.error = f"Supported constellations {supported_constellations} does not match expected value {UBLOX_SUPPORTED_CONSTELATIONS}"
+        result.details = ublox.marshall()
+        return result
+
+    # Assign
     ublox.hw_version = hw_version
     ublox.fw_version = fw_version
     ublox.sw_version = sw_version
     ublox.proto_version = proto_version
     ublox.supported_constellations = supported_constellations
-
-    logging.debug(f"HW version: {ublox.hw_version}")
-    logging.debug(f"FW version: {ublox.fw_version}")
-    logging.debug(f"SW version: {ublox.sw_version}")
-    logging.debug(f"Proto version: {ublox.proto_version}")
-    logging.debug(f"Supported constellations: {ublox.supported_constellations}")
 
     result.details = ublox.marshall()
     result.success = True

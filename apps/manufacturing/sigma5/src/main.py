@@ -11,7 +11,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 from config import conf
 from tests.electrical.test import electrical_test
 from tests.fw_flash.test import fw_flash_test
-from tests.post.app.test import post_app_test
+from tests.post.test import post_test
 
 # from tests.post.test import post_test
 
@@ -43,7 +43,7 @@ if __name__ == "__main__":
         sys.exit(1)
 
     # POST Test
-    if error := post_app_test.setup(conf.POST_TEST_UUID, conf.POST_TEST_PORT, conf.OPERATOR_URL):
+    if error := post_test.setup(conf.POST_TEST_UUID, conf.POST_TEST_PORT, conf.OPERATOR_URL):
         logging.error(f"Could not setup POST test: {error}")
         sys.exit(1)
 

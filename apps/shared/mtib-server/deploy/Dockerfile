@@ -92,6 +92,9 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
+RUN apt update && apt install -y \
+    i2c-tools 
+
 # ----------------------------------------------------------------------------------
 #                                                            App python dependencies
 # --------------------------------------------------------------------------------*/

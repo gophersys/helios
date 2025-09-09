@@ -94,7 +94,7 @@ RUNNER_SERVICE_GRPC_SERVER_PORT = 50053  # TODO: This should come from env varia
 # -------------------------------------------------------------------------------*/
 
 
-class Sigma5RunnersController:
+class Sigma5MtibServers:
     def __init__(self):
         self.runners: Dict[str, MtibV1Stub] = {}
         self.channels: Dict[str, grpc.Channel] = {}
@@ -264,7 +264,9 @@ class Sigma5RunnersController:
             response: AltimeterReadResponse = stub.AltimeterRead(Empty())
             if not response.success:
                 return None, None, None, f"Failed to read altimeter form MTIB. Error: {response.message}"
-            return response.temperature_f, response.pressure_hg, response.altitude_ft, None
+            # Convert temperature from Fahrenheit to Celsius for comparison
+            temperature_c = (response.temperature_f - 32.0) * 5.0 / 9.0
+            return response.pressure_hg, temperature_c, response.altitude_ft, None
         except grpc.RpcError as e:
             return None, None, None, f"Failed to read altimeter for runner at {host}. Error: {str(e.details())}"
 
@@ -523,7 +525,6 @@ class Sigma5RunnersController:
     # ---------------------------------------------------------------------------------
     #                                                             App Coproc Commands
     # -------------------------------------------------------------------------------*/
-
     def sigma5_cmd_app_lock_shell(self, host: str) -> Tuple[Optional[bool], Optional[str]]:
         """Simplified UART stream listener for lock_shell command"""
         try:
@@ -1034,7 +1035,7 @@ class Sigma5RunnersController:
                             temp_value = None
 
                             # Extract altimeter values
-                            alt_start = full_response.find("Altimeter values:")
+                            alt_start = full_response.find("Altimeter values")
                             if alt_start != -1:
                                 alt_line_start = full_response.rfind("\n", 0, alt_start) + 1
                                 alt_line_end = full_response.find("\n", alt_start)
@@ -1259,8 +1260,100 @@ class Sigma5RunnersController:
         except Exception as e:
             return None, None, f"Exception in get_chip_ids: {str(e)}"
 
+    def sigma5_cmd_comms_get_modem_fw_version(self, host: str) -> Tuple[Optional[str], Optional[str]]:
+        """Get modem firmware version from the communications co-processor device"""
+        try:
+            # Use queues for UART communication
+            input_queue = queue.Queue()
+
+            # Add commands to input queue
+            input_queue.put(b"\r")  # Hit ENTER to get prompt
+            time.sleep(0.2)
+            input_queue.put(f"get_modem_fw\r".encode("utf-8"))  # Send command
+
+            def request_iterator():
+                while True:
+                    try:
+                        # Get input from queue (non-blocking)
+                        data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=data)
+                    except queue.Empty:
+                        # No input, send empty request to keep stream alive
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=b"")
+                        time.sleep(0.1)
+
+            # Collect response from UART stream
+            response_lines = []
+            start_time = time.time()
+            timeout = 5  # 5 second timeout
+            command_sent = False
+            modem_fw_found = False
+
+            target = HostType.HOST_TYPE_NRF9160
+            for resp in self.UartStream(host, target, request_iterator()):
+                if not resp.success:
+                    return None, f"UartStream error: {resp.message}"
+
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
+
+                    # Check if we've sent the command
+                    if "get_modem_fw" in line:
+                        command_sent = True
+
+                    # Check if we got the Modem FW response
+                    if command_sent and "Modem FW:" in line:
+                        modem_fw_found = True
+
+                    # Check if we got the complete response
+                    full_response = "".join(response_lines)
+                    if modem_fw_found and "Modem FW:" in full_response:
+                        # Look for the command prompt AFTER the Modem FW response
+                        modem_fw_pos = full_response.find("Modem FW:")
+                        response_after_modem_fw = full_response[modem_fw_pos:]
+
+                        # Check if we have the command prompt after the Modem FW response
+                        if "Mfg shell" in response_after_modem_fw:
+                            # Parse the response
+                            fw_version = None
+
+                            # Extract Modem FW version - use a more robust approach
+                            modem_start = full_response.find("Modem FW:")
+                            if modem_start != -1:
+                                # Find the end of the line containing "Modem FW:"
+                                line_end = full_response.find("\n", modem_start)
+                                if line_end == -1:
+                                    line_end = len(full_response)
+
+                                # Extract the complete line
+                                modem_line = full_response[modem_start:line_end].strip()
+
+                                # Extract version after the colon
+                                if ":" in modem_line:
+                                    fw_version = modem_line.split(":", 1)[1].strip()
+
+                                # Debug logging to understand parsing issues
+                                logging.debug(f"Full response: {repr(full_response)}")
+                                logging.debug(f"Modem start: {modem_start}, line_end: {line_end}")
+                                logging.debug(f"Modem line: {repr(modem_line)}")
+                                logging.debug(f"Extracted fw_version: {repr(fw_version)}")
+
+                            return fw_version, None
+
+                # Timeout check
+                if time.time() - start_time > timeout:
+                    break
+
+            # If we get here, we didn't find the success message
+            full_response = "".join(response_lines)
+            return None, f"Timeout or no success message found. Response: {full_response[:200]}..."
+
+        except Exception as e:
+            return None, f"Exception in get_modem_fw_version: {str(e)}"
+
 
 # ---------------------------------------------------------------------------------
 #                                                                   Class Singleton
 # -------------------------------------------------------------------------------*/
-mtib_servers: Sigma5RunnersController = Sigma5RunnersController()
+mtib_servers: Sigma5MtibServers = Sigma5MtibServers()
