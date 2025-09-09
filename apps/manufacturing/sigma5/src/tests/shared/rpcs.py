@@ -9,7 +9,7 @@ from token import OP
 import zlib
 from dataclasses import dataclass
 from time import sleep
-from typing import Iterator, Type, List, Optional, Callable, Any
+from typing import Iterator, Type, List, Optional, Callable, Any, Tuple
 import queue
 import time
 
@@ -1763,6 +1763,97 @@ class Sigma5MtibServers:
 
         except Exception as e:
             return None, None, f"Exception in get_imei_iccid: {str(e)}"
+
+    def sigma5_cmd_comms_personalize(
+        self, host: str, device_id: str
+    ) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+        """Personalize the communications co-processor device"""
+        try:
+            # Use queues for UART communication
+            input_queue = queue.Queue()
+
+            # Add commands to input queue
+            input_queue.put(b"\r")  # Hit ENTER to get prompt
+            time.sleep(0.2)
+            input_queue.put(f"personalize {device_id}\r".encode("utf-8"))  # Send command
+
+            def request_iterator():
+                while True:
+                    try:
+                        # Get input from queue (non-blocking)
+                        data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=data)
+                    except queue.Empty:
+                        # No input, send empty request to keep stream alive
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=b"")
+                        time.sleep(0.1)
+
+            # Collect response from UART stream
+            response_lines = []
+            start_time = time.time()
+            timeout = 10  # 10 second timeout
+
+            target = HostType.HOST_TYPE_NRF9160
+            for resp in self.UartStream(host, target, request_iterator()):
+                if not resp.success:
+                    return None, None, f"UartStream error: {resp.message}"
+
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
+
+                    # Check if we got the complete response
+                    full_response = "".join(response_lines)
+                    if "Public key (hex)" in full_response and "Public key (base64)" in full_response:
+                        # Wait for the command to complete - look for the prompt after the personalize command
+                        lines = full_response.split("\n")
+                        command_found = False
+                        prompt_found = False
+
+                        for i, line in enumerate(lines):
+                            if "personalize" in line:
+                                command_found = True
+                            elif command_found and "Mfg shell:" in line.strip():
+                                prompt_found = True
+                                break
+
+                        if prompt_found:
+                            # Parse the response to extract both hex and base64 keys
+                            hex_key = None
+                            base64_key = None
+
+                            # Extract hex key
+                            hex_start = full_response.find("Public key (hex)")
+                            if hex_start != -1:
+                                hex_line_end = full_response.find("\n", hex_start)
+                                if hex_line_end == -1:
+                                    hex_line_end = len(full_response)
+                                hex_line = full_response[hex_start:hex_line_end].strip()
+                                if ":" in hex_line:
+                                    hex_key = hex_line.split(":", 1)[1].strip()
+
+                            # Extract base64 key
+                            base64_start = full_response.find("Public key (base64)")
+                            if base64_start != -1:
+                                base64_line_end = full_response.find("\n", base64_start)
+                                if base64_line_end == -1:
+                                    base64_line_end = len(full_response)
+                                base64_line = full_response[base64_start:base64_line_end].strip()
+                                if ":" in base64_line:
+                                    base64_key = base64_line.split(":", 1)[1].strip()
+
+                            return hex_key, base64_key, None
+
+                # Timeout check
+                if time.time() - start_time > timeout:
+                    break
+
+            # If we get here, we didn't find the success message
+            full_response = "".join(response_lines)
+            return None, None, f"Timeout or no success message found. Response: {full_response[:200]}..."
+
+        except Exception as e:
+            return None, None, f"Exception in personalize: {str(e)}"
 
     def sigma5_cmd_comms_read_ext_flash(
         self, host: str, address: str, num_bytes: int

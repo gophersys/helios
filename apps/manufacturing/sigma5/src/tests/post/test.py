@@ -161,16 +161,16 @@ post_test: Test = Test(
     steps=[
         # App
         app_post_step_1_verify_chip_ids,
-        # app_post_step_2_verify_ublox,
-        # app_post_step_3_verify_accelerometer,
-        # app_post_step_4_verify_altimeter,     # TODO: Need to update MTIB server altimeter driver
-        # app_post_step_5_verify_ble,  # TODO: Implement
+        app_post_step_2_verify_ublox,
+        app_post_step_3_verify_accelerometer,
+        # app_post_step_4_verify_altimeter,  # TODO: Need to update MTIB server altimeter driver
+        app_post_step_5_verify_ble,  # TODO: Implement
         app_post_step_6_verify_external_flash,
         # Comms
         comms_post_step_1_verify_chip_ids,
-        # comms_post_step_2_verify_modem_fw,
+        comms_post_step_2_verify_modem_fw,
         comms_post_step_3_verify_imei_iccids,
-        # comms_post_step_4_verify_external_flash,
+        comms_post_step_4_verify_external_flash,
         comms_post_step_5_personalize,
     ],
 )

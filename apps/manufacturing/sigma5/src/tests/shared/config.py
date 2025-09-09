@@ -13,7 +13,7 @@ class Sigma5ManufacturingConfig:
             "slot-3": "000D",
             "slot-4": "000E",
             "slot-5": "000F",
-            "slot-6.lan": "000F",
+            "verdin-imx8mm-15005679": "05JD",
         }
     )
     vin_rail_stabilization_period_s: int = 20

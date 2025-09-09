@@ -91,13 +91,25 @@ def devices_snr_validate_handler():
         if not snr_is_valid:
             return jsonify({"error": "Invalid serial number."}), 400
 
+        # response = {
+        #     "snrs": {
+        #         "slot-1": snr_references[0],
+        #         "slot-2": snr_references[1],
+        #         "slot-3": snr_references[2],
+        #         "slot-4": snr_references[3],
+        #         "slot-5": snr_references[4],
+        #     }
+        # }
+
+        # TODO: Remove this once we have a proper way to validate SNRS
+        # per cluster
         response = {
             "snrs": {
-                "slot-1": snr_references[0],
-                "slot-2": snr_references[1],
-                "slot-3": snr_references[2],
-                "slot-4": snr_references[3],
-                "slot-5": snr_references[4],
+                "verdin-imx8mm-15005658": snr_references[0],
+                "verdin-imx8mm-15005689": snr_references[1],
+                "verdin-imx8mm-15005817": snr_references[2],
+                "verdin-imx8mm-15005816": snr_references[3],
+                "verdin-imx8mm-15005665": snr_references[4],
             }
         }
 
