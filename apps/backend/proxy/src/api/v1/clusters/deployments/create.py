@@ -8,6 +8,7 @@ from werkzeug.utils import secure_filename
 from flask import Blueprint, jsonify, request
 
 # App includes
+from api.v1.clusters.deployments import apply_uuid
 from src.middleware.permissions import authMiddleware
 from src.services.proxy import appProxyServer
 
@@ -35,21 +36,30 @@ def clusters_deployments_create_handler(uuid):
         if not file:
             return jsonify({"error": "Bad request, 'file' field is required."}), 400
 
+        # Apply is an optional field
+        apply = request.form.get("apply")
+
         # Generate a unique filename and save it to a temporary folder for post-processing
         unique_filename = secure_filename(f"{uuid4()}-{file.filename}")
         temp_file_path = os.path.join("/tmp", unique_filename)
         file.save(temp_file_path)
 
         # Call App
-        error, cluster_uuid = appProxyServer.cluster_deployments_create(uuid, name, temp_file_path)
+        error, deployment_uuid = appProxyServer.cluster_deployments_create(uuid, name, temp_file_path)
 
         os.remove(temp_file_path)  # Delete the temporary file created regardless of request success
+
+        if apply is not None and apply == "true":
+            error = appProxyServer.clusters_deployments_apply(uuid, deployment_uuid)
+            if error:
+                logging.error(error)
+                return jsonify({"error": error}), 400
 
         if error:
             logging.error(error)
             return jsonify({"error": error}), 400
 
-        return jsonify({"uuid": cluster_uuid}), 200
+        return jsonify({"uuid": deployment_uuid}), 200
 
     except Exception as e:
         logging.error(f"An error occurred: {str(e)}")
