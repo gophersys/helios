@@ -225,7 +225,20 @@ class Sigma5MtibServers:
         except grpc.RpcError as e:
             return f"Failed to disable power for runner at {host}. Error: {str(e.details())}"
 
-    def set_vbat(self, host: str, voltage: float) -> str:
+    def disable_charge_power(self, host: str) -> str:
+        if host not in self.runners:
+            return f"No runner found for host {host}"
+
+        try:
+            stub = self.runners[host]
+            response: DutPowerResponse = stub.DutChargePowerDisable(Empty())
+            if not response.success:
+                return f"DutChargePowerDisable Error: {response.message}"
+            return ""
+        except grpc.RpcError as e:
+            return f"Failed to disable charge power for runner at {host}. Error: {str(e.details())}"
+
+    def enable_power(self, host: str, voltage: float) -> str:
         try:
             stub = self.runners[host]
             response: DutPowerResponse = stub.DutPowerEnable(DutPowerRequest(voltage_v=voltage))
@@ -562,11 +575,23 @@ class Sigma5MtibServers:
                     line = resp.data.decode("utf-8", errors="ignore")
                     response_lines.append(line)
 
-                    # Check if we got the success message
+                    # Check if we got the complete response
                     full_response = "".join(response_lines)
                     if "Locking shell mode ON" in full_response:
-                        # Got the response
-                        return True, None
+                        # Wait for the command to complete - look for the prompt after the lock_shell command
+                        lines = full_response.split("\n")
+                        lock_command_found = False
+                        prompt_found = False
+
+                        for i, line in enumerate(lines):
+                            if "lock_shell" in line:
+                                lock_command_found = True
+                            elif lock_command_found and "Mfg shell:" in line.strip():
+                                prompt_found = True
+                                break
+
+                        if prompt_found:
+                            return True, None
 
                 # Timeout check
                 if time.time() - start_time > timeout:
@@ -616,11 +641,23 @@ class Sigma5MtibServers:
                     line = resp.data.decode("utf-8", errors="ignore")
                     response_lines.append(line)
 
-                    # Check if we got the success message
+                    # Check if we got the complete response
                     full_response = "".join(response_lines)
                     if "Debug is not enabled" in full_response:
-                        # Got the response
-                        return True, None
+                        # Wait for the command to complete - look for the prompt after the debug_enable command
+                        lines = full_response.split("\n")
+                        debug_command_found = False
+                        prompt_found = False
+
+                        for i, line in enumerate(lines):
+                            if "debug_enable" in line:
+                                debug_command_found = True
+                            elif debug_command_found and "Mfg shell:" in line.strip():
+                                prompt_found = True
+                                break
+
+                        if prompt_found:
+                            return True, None
 
                 # Timeout check
                 if time.time() - start_time > timeout:
@@ -681,8 +718,19 @@ class Sigma5MtibServers:
                         and "GPS HW version:" in full_response
                         and "BLE MAC:" in full_response
                     ):
-                        # Check if we also have the command prompt, indicating the response is complete
-                        if "Mfg shell" in full_response:
+                        # Wait for the command to complete - look for the prompt after the get_chip_ids command
+                        lines = full_response.split("\n")
+                        chip_command_found = False
+                        prompt_found = False
+
+                        for i, line in enumerate(lines):
+                            if "get_chip_ids" in line:
+                                chip_command_found = True
+                            elif chip_command_found and "Mfg shell:" in line.strip():
+                                prompt_found = True
+                                break
+
+                        if prompt_found:
                             # Parse the response
                             accel_id = None
                             altimeter_id = None
@@ -813,8 +861,19 @@ class Sigma5MtibServers:
                         and "GPS protocol version:" in full_response
                         and "GPS constellations:" in full_response
                     ):
-                        # Check if we also have the command prompt, indicating the response is complete
-                        if "Mfg shell" in full_response:
+                        # Wait for the command to complete - look for the prompt after the get_ublox command
+                        lines = full_response.split("\n")
+                        ublox_command_found = False
+                        prompt_found = False
+
+                        for i, line in enumerate(lines):
+                            if "get_ublox" in line:
+                                ublox_command_found = True
+                            elif ublox_command_found and "Mfg shell:" in line.strip():
+                                prompt_found = True
+                                break
+
+                        if prompt_found:
                             # Parse the response
                             hw_version = None
                             fw_version = None
@@ -941,8 +1000,19 @@ class Sigma5MtibServers:
                     # Check if we got the complete response
                     full_response = "".join(response_lines)
                     if "Accelerometer values:" in full_response:
-                        # Check if we also have the command prompt, indicating the response is complete
-                        if "Mfg shell" in full_response:
+                        # Wait for the command to complete - look for the prompt after the read_accel command
+                        lines = full_response.split("\n")
+                        accel_command_found = False
+                        prompt_found = False
+
+                        for i, line in enumerate(lines):
+                            if "read_accel" in line:
+                                accel_command_found = True
+                            elif accel_command_found and "Mfg shell:" in line.strip():
+                                prompt_found = True
+                                break
+
+                        if prompt_found:
                             # Parse the response
                             x_value = None
                             y_value = None
@@ -1028,8 +1098,19 @@ class Sigma5MtibServers:
                     # Check if we got the complete response
                     full_response = "".join(response_lines)
                     if "Altimeter values" in full_response:
-                        # Check if we also have the command prompt, indicating the response is complete
-                        if "Mfg shell" in full_response:
+                        # Wait for the command to complete - look for the prompt after the read_alt command
+                        lines = full_response.split("\n")
+                        alt_command_found = False
+                        prompt_found = False
+
+                        for i, line in enumerate(lines):
+                            if "read_alt" in line:
+                                alt_command_found = True
+                            elif alt_command_found and "Mfg shell:" in line.strip():
+                                prompt_found = True
+                                break
+
+                        if prompt_found:
                             # Parse the response
                             pressure_value = None
                             temp_value = None
@@ -1067,6 +1148,223 @@ class Sigma5MtibServers:
 
         except Exception as e:
             return None, None, f"Exception in read_altimeter: {str(e)}"
+
+    def sigma5_cmd_app_read_ext_flash(
+        self, host: str, address: str, num_bytes: int
+    ) -> Tuple[Optional[str], Optional[str]]:
+        """Read data from external flash"""
+        try:
+            # Use queues like the working terminal
+            input_queue = queue.Queue()
+            output_queue = queue.Queue()
+
+            # Add commands to input queue
+            input_queue.put(b"\r")  # Hit ENTER to get prompt
+            time.sleep(0.2)
+            input_queue.put(f"read_ext_flash {address} {num_bytes}\r".encode("utf-8"))  # Send command
+
+            def request_iterator():
+                while True:
+                    try:
+                        # Get input from queue (non-blocking)
+                        data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=data)
+                    except queue.Empty:
+                        # No input, send empty request to keep stream alive
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=b"")
+                        time.sleep(0.1)
+
+            # Collect response like the working terminal
+            response_lines = []
+            start_time = time.time()
+            timeout = 10  # 10 second timeout
+
+            target = HostType.HOST_TYPE_NRF52840
+            for resp in self.UartStream(host, target, request_iterator()):
+                if not resp.success:
+                    return None, f"UartStream error: {resp.message}"
+
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
+
+                    # Check if we got the complete response
+                    full_response = "".join(response_lines)
+                    if "Reading" in full_response and "bytes from address:" in full_response:
+                        # Wait for the command to complete - look for the prompt after the read command
+                        # Find where the read command output ends and look for prompt after that
+                        lines = full_response.split("\n")
+                        read_command_found = False
+                        prompt_found = False
+
+                        for i, line in enumerate(lines):
+                            if "read_ext_flash" in line:
+                                read_command_found = True
+                            elif read_command_found and "Mfg shell:" in line.strip():
+                                prompt_found = True
+                                break
+
+                        if prompt_found:
+                            # Extract the hex data from the response
+                            hex_data = ""
+                            lines = full_response.split("\n")
+                            for line in lines:
+                                if ":" in line and "|" in line:
+                                    # This is a hex dump line, extract the hex part
+                                    hex_part = line.split("|")[0].strip()
+                                    # Remove the address prefix (e.g., "00000000: ")
+                                    if ":" in hex_part:
+                                        hex_values = hex_part.split(":", 1)[1].strip()
+                                        hex_data += hex_values.replace(" ", "")
+
+                            return hex_data, None
+
+                # Timeout check
+                if time.time() - start_time > timeout:
+                    break
+
+            # If we get here, we didn't find the success message
+            full_response = "".join(response_lines)
+            return None, f"Timeout or no success message found. Response: {full_response[:200]}..."
+
+        except Exception as e:
+            return None, f"Exception in read_ext_flash: {str(e)}"
+
+    def sigma5_cmd_app_erase_ext_flash(self, host: str) -> Tuple[Optional[bool], Optional[str]]:
+        """Erase entire external flash"""
+        try:
+            # Use queues like the working terminal
+            input_queue = queue.Queue()
+            output_queue = queue.Queue()
+
+            # Add commands to input queue
+            input_queue.put(b"\r")  # Hit ENTER to get prompt
+            time.sleep(0.2)
+            input_queue.put(f"erase_ext_flash\r".encode("utf-8"))  # Send command
+
+            def request_iterator():
+                while True:
+                    try:
+                        # Get input from queue (non-blocking)
+                        data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=data)
+                    except queue.Empty:
+                        # No input, send empty request to keep stream alive
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=b"")
+                        time.sleep(0.1)
+
+            # Collect response like the working terminal
+            response_lines = []
+            start_time = time.time()
+            timeout = 30  # 30 second timeout (erase can take longer)
+
+            target = HostType.HOST_TYPE_NRF52840
+            for resp in self.UartStream(host, target, request_iterator()):
+                if not resp.success:
+                    return None, f"UartStream error: {resp.message}"
+
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
+
+                    # Check if we got the complete response
+                    full_response = "".join(response_lines)
+                    if "Erasing flash" in full_response and "pages" in full_response:
+                        # Wait for the command to complete - look for the prompt after the erase command
+                        # Find where the erase command output ends and look for prompt after that
+                        lines = full_response.split("\n")
+                        erase_command_found = False
+                        prompt_found = False
+
+                        for i, line in enumerate(lines):
+                            if "erase_ext_flash" in line:
+                                erase_command_found = True
+                            elif erase_command_found and "Mfg shell:" in line.strip():
+                                prompt_found = True
+                                break
+
+                        if prompt_found:
+                            return True, None
+
+                # Timeout check
+                if time.time() - start_time > timeout:
+                    break
+
+            # If we get here, we didn't find the success message
+            full_response = "".join(response_lines)
+            return False, f"Timeout or no success message found. Response: {full_response[:200]}..."
+
+        except Exception as e:
+            return None, f"Exception in erase_ext_flash: {str(e)}"
+
+    def sigma5_cmd_app_write_ext_flash(
+        self, host: str, address: str, data: str
+    ) -> Tuple[Optional[bool], Optional[str]]:
+        """Write data to external flash (data should be base64 encoded)"""
+        try:
+            # Use queues like the working terminal
+            input_queue = queue.Queue()
+            output_queue = queue.Queue()
+
+            # Add commands to input queue
+            input_queue.put(b"\r")  # Hit ENTER to get prompt
+            time.sleep(0.2)
+            input_queue.put(f"write_ext_flash {address} {data}\r".encode("utf-8"))  # Send command
+
+            def request_iterator():
+                while True:
+                    try:
+                        # Get input from queue (non-blocking)
+                        data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=data)
+                    except queue.Empty:
+                        # No input, send empty request to keep stream alive
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=b"")
+                        time.sleep(0.1)
+
+            # Collect response like the working terminal
+            response_lines = []
+            start_time = time.time()
+            timeout = 10  # 10 second timeout
+
+            target = HostType.HOST_TYPE_NRF52840
+            for resp in self.UartStream(host, target, request_iterator()):
+                if not resp.success:
+                    return None, f"UartStream error: {resp.message}"
+
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
+
+                    # Check if we got the complete response
+                    full_response = "".join(response_lines)
+                    if "Writing" in full_response and "bytes to address:" in full_response:
+                        # Wait for the command to complete - look for the prompt after the write command
+                        # Find where the write command output ends and look for prompt after that
+                        lines = full_response.split("\n")
+                        write_command_found = False
+                        prompt_found = False
+
+                        for i, line in enumerate(lines):
+                            if "write_ext_flash" in line:
+                                write_command_found = True
+                            elif write_command_found and "Mfg shell:" in line.strip():
+                                prompt_found = True
+                                break
+
+                        if prompt_found:
+                            return True, None
+
+                # Timeout check
+                if time.time() - start_time > timeout:
+                    break
+
+            # If we get here, we didn't find the success message
+            full_response = "".join(response_lines)
+            return False, f"Timeout or no success message found. Response: {full_response[:200]}..."
+
+        except Exception as e:
+            return None, f"Exception in write_ext_flash: {str(e)}"
 
     # ---------------------------------------------------------------------------------
     #                                                             Comms Coproc Commands
@@ -1108,11 +1406,23 @@ class Sigma5MtibServers:
                     line = resp.data.decode("utf-8", errors="ignore")
                     response_lines.append(line)
 
-                    # Check if we got the success message
+                    # Check if we got the complete response
                     full_response = "".join(response_lines)
                     if "Locking shell mode ON" in full_response:
-                        # Got the response
-                        return True, None
+                        # Wait for the command to complete - look for the prompt after the lock_shell command
+                        lines = full_response.split("\n")
+                        lock_command_found = False
+                        prompt_found = False
+
+                        for i, line in enumerate(lines):
+                            if "lock_shell" in line:
+                                lock_command_found = True
+                            elif lock_command_found and "Mfg shell:" in line.strip():
+                                prompt_found = True
+                                break
+
+                        if prompt_found:
+                            return True, None
 
                 # Timeout check
                 if time.time() - start_time > timeout:
@@ -1162,11 +1472,23 @@ class Sigma5MtibServers:
                     line = resp.data.decode("utf-8", errors="ignore")
                     response_lines.append(line)
 
-                    # Check if we got the success message
+                    # Check if we got the complete response
                     full_response = "".join(response_lines)
                     if "Debug is not enabled" in full_response:
-                        # Got the response
-                        return True, None
+                        # Wait for the command to complete - look for the prompt after the debug_enable command
+                        lines = full_response.split("\n")
+                        debug_command_found = False
+                        prompt_found = False
+
+                        for i, line in enumerate(lines):
+                            if "debug_enable" in line:
+                                debug_command_found = True
+                            elif debug_command_found and "Mfg shell:" in line.strip():
+                                prompt_found = True
+                                break
+
+                        if prompt_found:
+                            return True, None
 
                 # Timeout check
                 if time.time() - start_time > timeout:
@@ -1219,8 +1541,19 @@ class Sigma5MtibServers:
                     # Check if we got the complete response
                     full_response = "".join(response_lines)
                     if "LoRa hardware available:" in full_response and "Ext flash chip ID:" in full_response:
-                        # Check if we also have the command prompt, indicating the response is complete
-                        if "Mfg shell" in full_response:
+                        # Wait for the command to complete - look for the prompt after the get_chip_ids command
+                        lines = full_response.split("\n")
+                        chip_command_found = False
+                        prompt_found = False
+
+                        for i, line in enumerate(lines):
+                            if "get_chip_ids" in line:
+                                chip_command_found = True
+                            elif chip_command_found and "Mfg shell:" in line.strip():
+                                prompt_found = True
+                                break
+
+                        if prompt_found:
                             # Parse the response
                             lora_status = None
                             ext_flash_id = None
@@ -1285,9 +1618,7 @@ class Sigma5MtibServers:
             # Collect response from UART stream
             response_lines = []
             start_time = time.time()
-            timeout = 5  # 5 second timeout
-            command_sent = False
-            modem_fw_found = False
+            timeout = 10  # 10 second timeout
 
             target = HostType.HOST_TYPE_NRF9160
             for resp in self.UartStream(host, target, request_iterator()):
@@ -1298,23 +1629,22 @@ class Sigma5MtibServers:
                     line = resp.data.decode("utf-8", errors="ignore")
                     response_lines.append(line)
 
-                    # Check if we've sent the command
-                    if "get_modem_fw" in line:
-                        command_sent = True
-
-                    # Check if we got the Modem FW response
-                    if command_sent and "Modem FW:" in line:
-                        modem_fw_found = True
-
                     # Check if we got the complete response
                     full_response = "".join(response_lines)
-                    if modem_fw_found and "Modem FW:" in full_response:
-                        # Look for the command prompt AFTER the Modem FW response
-                        modem_fw_pos = full_response.find("Modem FW:")
-                        response_after_modem_fw = full_response[modem_fw_pos:]
+                    if "Modem FW:" in full_response:
+                        # Wait for the command to complete - look for the prompt after the get_modem_fw command
+                        lines = full_response.split("\n")
+                        modem_command_found = False
+                        prompt_found = False
 
-                        # Check if we have the command prompt after the Modem FW response
-                        if "Mfg shell" in response_after_modem_fw:
+                        for i, line in enumerate(lines):
+                            if "get_modem_fw" in line:
+                                modem_command_found = True
+                            elif modem_command_found and "Mfg shell:" in line.strip():
+                                prompt_found = True
+                                break
+
+                        if prompt_found:
                             # Parse the response
                             fw_version = None
 
@@ -1333,12 +1663,6 @@ class Sigma5MtibServers:
                                 if ":" in modem_line:
                                     fw_version = modem_line.split(":", 1)[1].strip()
 
-                                # Debug logging to understand parsing issues
-                                logging.debug(f"Full response: {repr(full_response)}")
-                                logging.debug(f"Modem start: {modem_start}, line_end: {line_end}")
-                                logging.debug(f"Modem line: {repr(modem_line)}")
-                                logging.debug(f"Extracted fw_version: {repr(fw_version)}")
-
                             return fw_version, None
 
                 # Timeout check
@@ -1351,6 +1675,311 @@ class Sigma5MtibServers:
 
         except Exception as e:
             return None, f"Exception in get_modem_fw_version: {str(e)}"
+
+    def sigma5_cmd_comms_get_imei_iccid(self, host: str) -> Tuple[Optional[str], Optional[List[str]], Optional[str]]:
+        """Get IMEI and ICCID from the communications co-processor device"""
+        try:
+            # Use queues like the working terminal
+            input_queue = queue.Queue()
+            output_queue = queue.Queue()
+
+            # Add commands to input queue
+            input_queue.put(b"\r")  # Hit ENTER to get prompt
+            time.sleep(0.2)
+            input_queue.put(f"imei_iccid\r".encode("utf-8"))  # Send command
+
+            def request_iterator():
+                while True:
+                    try:
+                        # Get input from queue (non-blocking)
+                        data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=data)
+                    except queue.Empty:
+                        # No input, send empty request to keep stream alive
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=b"")
+                        time.sleep(0.1)
+
+            # Collect response like the working terminal
+            response_lines = []
+            start_time = time.time()
+            timeout = 10  # 10 second timeout
+
+            target = HostType.HOST_TYPE_NRF9160
+            for resp in self.UartStream(host, target, request_iterator()):
+                if not resp.success:
+                    return None, None, f"UartStream error: {resp.message}"
+
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
+
+                    # Check if we got the complete response
+                    full_response = "".join(response_lines)
+                    if "IMEI,ICCID0" in full_response:
+                        # Wait for the command to complete - look for the prompt after the imei_iccid command
+                        lines = full_response.split("\n")
+                        imei_command_found = False
+                        prompt_found = False
+
+                        for i, line in enumerate(lines):
+                            if "imei_iccid" in line:
+                                imei_command_found = True
+                            elif imei_command_found and "Mfg shell:" in line.strip():
+                                prompt_found = True
+                                break
+
+                        if prompt_found:
+                            # Parse the response
+                            imei = None
+                            iccid_list = []
+
+                            # Extract IMEI and ICCID data
+                            imei_start = full_response.find("IMEI,ICCID0")
+                            if imei_start != -1:
+                                imei_line_start = full_response.rfind("\n", 0, imei_start) + 1
+                                imei_line_end = full_response.find("\n", imei_start)
+                                if imei_line_end == -1:
+                                    imei_line_end = len(full_response)
+                                imei_line = full_response[imei_line_start:imei_line_end].strip()
+
+                                # Parse format: "IMEI,ICCID0[,ICCID1]: 358447171854988,89148000009808536124,89457300000035352429"
+                                if ":" in imei_line:
+                                    data_part = imei_line.split(":", 1)[1].strip()
+                                    # Split by comma to get IMEI and ICCIDs
+                                    parts = [part.strip() for part in data_part.split(",")]
+                                    if len(parts) >= 2:
+                                        imei = parts[0]  # First part is IMEI
+                                        iccid_list = parts[1:]  # Rest are ICCIDs
+
+                            return imei, iccid_list, None
+
+                # Timeout check
+                if time.time() - start_time > timeout:
+                    break
+
+            # If we get here, we didn't find the success message
+            full_response = "".join(response_lines)
+            return None, None, f"Timeout or no success message found. Response: {full_response[:200]}..."
+
+        except Exception as e:
+            return None, None, f"Exception in get_imei_iccid: {str(e)}"
+
+    def sigma5_cmd_comms_read_ext_flash(
+        self, host: str, address: str, num_bytes: int
+    ) -> Tuple[Optional[str], Optional[str]]:
+        """Read data from external flash"""
+        try:
+            # Use queues like the working terminal
+            input_queue = queue.Queue()
+            output_queue = queue.Queue()
+
+            # Add commands to input queue
+            input_queue.put(b"\r")  # Hit ENTER to get prompt
+            time.sleep(0.2)
+            input_queue.put(f"read_ext_flash {address} {num_bytes}\r".encode("utf-8"))  # Send command
+
+            def request_iterator():
+                while True:
+                    try:
+                        # Get input from queue (non-blocking)
+                        data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=data)
+                    except queue.Empty:
+                        # No input, send empty request to keep stream alive
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=b"")
+                        time.sleep(0.1)
+
+            # Collect response like the working terminal
+            response_lines = []
+            start_time = time.time()
+            timeout = 10  # 10 second timeout
+
+            target = HostType.HOST_TYPE_NRF9160
+            for resp in self.UartStream(host, target, request_iterator()):
+                if not resp.success:
+                    return None, f"UartStream error: {resp.message}"
+
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
+
+                    # Check if we got the complete response
+                    full_response = "".join(response_lines)
+                    if "Reading" in full_response and "bytes from address:" in full_response:
+                        # Wait for the command to complete - look for the prompt after the read command
+                        # Find where the read command output ends and look for prompt after that
+                        lines = full_response.split("\n")
+                        read_command_found = False
+                        prompt_found = False
+
+                        for i, line in enumerate(lines):
+                            if "read_ext_flash" in line:
+                                read_command_found = True
+                            elif read_command_found and "Mfg shell:" in line.strip():
+                                prompt_found = True
+                                break
+
+                        if prompt_found:
+                            # Extract the hex data from the response
+                            hex_data = ""
+                            lines = full_response.split("\n")
+                            for line in lines:
+                                if ":" in line and "|" in line:
+                                    # This is a hex dump line, extract the hex part
+                                    hex_part = line.split("|")[0].strip()
+                                    # Remove the address prefix (e.g., "00000000: ")
+                                    if ":" in hex_part:
+                                        hex_values = hex_part.split(":", 1)[1].strip()
+                                        hex_data += hex_values.replace(" ", "")
+
+                            return hex_data, None
+
+                # Timeout check
+                if time.time() - start_time > timeout:
+                    break
+
+            # If we get here, we didn't find the success message
+            full_response = "".join(response_lines)
+            return None, f"Timeout or no success message found. Response: {full_response[:200]}..."
+
+        except Exception as e:
+            return None, f"Exception in read_ext_flash: {str(e)}"
+
+    def sigma5_cmd_comms_erase_ext_flash(self, host: str) -> Tuple[Optional[bool], Optional[str]]:
+        """Erase entire external flash"""
+        try:
+            # Use queues like the working terminal
+            input_queue = queue.Queue()
+            output_queue = queue.Queue()
+
+            # Add commands to input queue
+            input_queue.put(b"\r")  # Hit ENTER to get prompt
+            time.sleep(0.2)
+            input_queue.put(f"erase_ext_flash\r".encode("utf-8"))  # Send command
+
+            def request_iterator():
+                while True:
+                    try:
+                        # Get input from queue (non-blocking)
+                        data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=data)
+                    except queue.Empty:
+                        # No input, send empty request to keep stream alive
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=b"")
+                        time.sleep(0.1)
+
+            # Collect response like the working terminal
+            response_lines = []
+            start_time = time.time()
+            timeout = 30  # 30 second timeout (erase can take longer)
+
+            target = HostType.HOST_TYPE_NRF9160
+            for resp in self.UartStream(host, target, request_iterator()):
+                if not resp.success:
+                    return None, f"UartStream error: {resp.message}"
+
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
+
+                    # Check if we got the complete response
+                    full_response = "".join(response_lines)
+                    if "Erasing flash" in full_response and "pages" in full_response:
+                        # Wait for the command to complete - look for the prompt after the erase command
+                        # Find where the erase command output ends and look for prompt after that
+                        lines = full_response.split("\n")
+                        erase_command_found = False
+                        prompt_found = False
+
+                        for i, line in enumerate(lines):
+                            if "erase_ext_flash" in line:
+                                erase_command_found = True
+                            elif erase_command_found and "Mfg shell:" in line.strip():
+                                prompt_found = True
+                                break
+
+                        if prompt_found:
+                            return True, None
+
+                # Timeout check
+                if time.time() - start_time > timeout:
+                    break
+
+            # If we get here, we didn't find the success message
+            full_response = "".join(response_lines)
+            return False, f"Timeout or no success message found. Response: {full_response[:200]}..."
+
+        except Exception as e:
+            return None, f"Exception in erase_ext_flash: {str(e)}"
+
+    def sigma5_cmd_comms_write_ext_flash(
+        self, host: str, address: str, data: str
+    ) -> Tuple[Optional[bool], Optional[str]]:
+        """Write data to external flash (data should be base64 encoded)"""
+        try:
+            # Use queues like the working terminal
+            input_queue = queue.Queue()
+            output_queue = queue.Queue()
+
+            # Add commands to input queue
+            input_queue.put(b"\r")  # Hit ENTER to get prompt
+            time.sleep(0.2)
+            input_queue.put(f"write_ext_flash {address} {data}\r".encode("utf-8"))  # Send command
+
+            def request_iterator():
+                while True:
+                    try:
+                        # Get input from queue (non-blocking)
+                        data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=data)
+                    except queue.Empty:
+                        # No input, send empty request to keep stream alive
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=b"")
+                        time.sleep(0.1)
+
+            # Collect response like the working terminal
+            response_lines = []
+            start_time = time.time()
+            timeout = 10  # 10 second timeout
+
+            target = HostType.HOST_TYPE_NRF9160
+            for resp in self.UartStream(host, target, request_iterator()):
+                if not resp.success:
+                    return None, f"UartStream error: {resp.message}"
+
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
+
+                    # Check if we got the complete response
+                    full_response = "".join(response_lines)
+                    if "Writing" in full_response and "bytes to address:" in full_response:
+                        # Wait for the command to complete - look for the prompt after the write command
+                        # Find where the write command output ends and look for prompt after that
+                        lines = full_response.split("\n")
+                        write_command_found = False
+                        prompt_found = False
+
+                        for i, line in enumerate(lines):
+                            if "write_ext_flash" in line:
+                                write_command_found = True
+                            elif write_command_found and "Mfg shell:" in line.strip():
+                                prompt_found = True
+                                break
+
+                        if prompt_found:
+                            return True, None
+
+                # Timeout check
+                if time.time() - start_time > timeout:
+                    break
+
+            # If we get here, we didn't find the success message
+            full_response = "".join(response_lines)
+            return False, f"Timeout or no success message found. Response: {full_response[:200]}..."
+
+        except Exception as e:
+            return None, f"Exception in write_ext_flash: {str(e)}"
 
 
 # ---------------------------------------------------------------------------------

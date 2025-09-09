@@ -18,7 +18,7 @@ def electrical_test_step_5_handler(
     result: TestStepResult = TestStepResult(success=False)
 
     # Apply +3.6V to +BATT test point
-    result.error = mtib_servers.set_vbat(node, 3.6)
+    result.error = mtib_servers.enable_power(node, 3.6)
     if result.error:
         return result
 

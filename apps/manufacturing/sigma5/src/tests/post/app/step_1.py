@@ -83,6 +83,11 @@ def verify_chip_ids(config: Sigma5ManufacturingConfig, node: str, usr_data: None
     device_ids.app_ext_flash_id = app_ext_flash_id
     device_ids.ble_mac = ble_mac
 
+    logging.debug(f"App accelerometer chip ID: {device_ids.accel_id}")
+    logging.debug(f"App altimeter chip ID: {device_ids.altimeter_id}")
+    logging.debug(f"App external flash chip ID: {device_ids.app_ext_flash_id}")
+    logging.debug(f"App BLE MAC: {device_ids.ble_mac}")
+
     result.details = device_ids.marshall()
     result.success = True
     return result

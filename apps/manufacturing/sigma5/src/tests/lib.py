@@ -111,7 +111,7 @@ class TestStep:
     def exec(self, config: Any, nodes: List[str], usr_data: Optional[Any]) -> List[TestStepResult]:
         results: List[TestStepResult] = []
         timeout_sec = self.timeout_ms / 1000  # Convert timeout to seconds
-        start_time = datetime.now().isoformat()  # Record the start time of the step
+        start_time = datetime.now()  # Record the start time of the step
 
         with ThreadPoolExecutor(max_workers=len(nodes)) as executor:
             # Create a mapping of futures to their respective nodes
@@ -136,7 +136,7 @@ class TestStep:
                     try:
                         result = future.result()  # We already waited, so just get the result
                         logging.debug(
-                            f"{self.info.name} (step {self.info.sequence}) handler finished executing on node {node}"
+                            f"{self.info.name} (step {self.info.sequence}) handler finished executing on node {node} elapsed time: {datetime.now() - start_time}"
                         )
                         results.append(result)
                     except TimeoutError:
@@ -148,7 +148,7 @@ class TestStep:
                                 node=node,
                                 timeout=True,
                                 sequence=self.info.sequence,
-                                startTime=start_time,
+                                startTime=start_time.isoformat(),
                                 endTime=datetime.now().isoformat(),
                                 noPassIsFatal=self.info.noPassIsFatal,
                             )
@@ -162,7 +162,7 @@ class TestStep:
                                 node=node,
                                 timeout=False,
                                 sequence=self.info.sequence,
-                                startTime=start_time,
+                                startTime=start_time.isoformat(),
                                 endTime=datetime.now().isoformat(),
                                 noPassIsFatal=self.info.noPassIsFatal,
                             )
@@ -180,7 +180,7 @@ class TestStep:
                         node=node,
                         timeout=True,
                         sequence=self.info.sequence,
-                        startTime=start_time,
+                        startTime=start_time.isoformat(),
                         endTime=datetime.now().isoformat(),
                         noPassIsFatal=self.info.noPassIsFatal,
                     )

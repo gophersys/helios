@@ -50,7 +50,7 @@ class Ublox:
 # -------------------------------------------------
 #                                           Handler
 # -------------------------------------------------
-def verify_ublox(config: Sigma5ManufacturingConfig, node: str, usr_data: None) -> TestStepResult:
+def verify_ublox_module(config: Sigma5ManufacturingConfig, node: str, usr_data: None) -> TestStepResult:
     result = TestStepResult(success=False)
     ublox = Ublox()
 
@@ -92,6 +92,12 @@ def verify_ublox(config: Sigma5ManufacturingConfig, node: str, usr_data: None) -
     ublox.proto_version = proto_version
     ublox.supported_constellations = supported_constellations
 
+    logging.debug(f"Ublox HW version: {ublox.hw_version}")
+    logging.debug(f"Ublox FW version: {ublox.fw_version}")
+    logging.debug(f"Ublox SW version: {ublox.sw_version}")
+    logging.debug(f"Ublox Proto version: {ublox.proto_version}")
+    logging.debug(f"Ublox Supported constellations: {ublox.supported_constellations}")
+
     result.details = ublox.marshall()
     result.success = True
     return result
@@ -103,9 +109,9 @@ def verify_ublox(config: Sigma5ManufacturingConfig, node: str, usr_data: None) -
 app_post_step_2_verify_ublox: TestStep = TestStep(
     info=StepInfo(
         name="Verify ublox",
-        description="Verify the ublox data.",
+        description="Verify the ublox GPS module data.",
         noPassIsFatal=True,
     ),
     timeout_ms=5000,
-    handler=verify_ublox,
+    handler=verify_ublox_module,
 )

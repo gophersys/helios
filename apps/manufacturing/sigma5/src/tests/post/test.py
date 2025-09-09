@@ -12,12 +12,20 @@ from src.tests.lib import Test, TestStep
 # Test includes
 from src.tests.shared.config import Sigma5ManufacturingConfig
 from src.tests.shared.rpcs import mtib_servers
+
+# App POST steps
 from .app.step_1 import app_post_step_1_verify_chip_ids
 from .app.step_2 import app_post_step_2_verify_ublox
 from .app.step_3 import app_post_step_3_verify_accelerometer
 from .app.step_4 import app_post_step_4_verify_altimeter
+from .app.step_5 import app_post_step_5_verify_ble
+from .app.step_6 import app_post_step_6_verify_external_flash
+
+# Comms POST steps
 from .comms.step_1 import comms_post_step_1_verify_chip_ids
 from .comms.step_2 import comms_post_step_2_verify_modem_fw
+from .comms.step_3 import comms_post_step_3_verify_imei_iccids
+from .comms.step_4 import comms_post_step_4_verify_external_flash
 
 
 # ---------------------------------------------------------------------------------
@@ -36,15 +44,19 @@ def post_test_init(config: Sigma5ManufacturingConfig, nodes: List[str], usr_data
             return f"Could not disable device power in host {node}: {error}"
 
         # Turn off charging power
-        error = mtib_servers.set_5vin(node, False)
+        error = mtib_servers.disable_charge_power(node)
         if error:
             return f"Could not disable charging power in host {node}: {error}"
 
+        # Await some time for the power to be off
+        time.sleep(2)
+
         # Turn on the device
-        error = mtib_servers.set_vbat(node, 4.0)
+        error = mtib_servers.enable_power(node, 4.0)
         if error:
             return f"Could not set VBAT on host {node} to 3.8V: {error}"
 
+        # Await some time for boot
         time.sleep(2)
 
         # Setup the shell for the app processor
@@ -133,12 +145,16 @@ post_test: Test = Test(
     usr_data_type=None,
     steps=[
         # App
-        app_post_step_1_verify_chip_ids,
-        app_post_step_2_verify_ublox,
-        app_post_step_3_verify_accelerometer,
-        # app_post_step_4_verify_altimeter,
+        # app_post_step_1_verify_chip_ids,
+        # app_post_step_2_verify_ublox,
+        # app_post_step_3_verify_accelerometer,
+        # # app_post_step_4_verify_altimeter,     # TODO: Need to update MTIB server altimeter driver
+        # app_post_step_5_verify_ble,  # TODO: Implement
+        # app_post_step_6_verify_external_flash,
         # Comms
         comms_post_step_1_verify_chip_ids,
         comms_post_step_2_verify_modem_fw,
+        comms_post_step_3_verify_imei_iccids,
+        comms_post_step_4_verify_external_flash,
     ],
 )

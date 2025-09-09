@@ -30,7 +30,7 @@ def fw_flash_test_init(config: Sigma5ManufacturingConfig, nodes: List[str], usr_
 
     def init_node(node: str) -> str:
         # Turn on power
-        error = mtib_servers.set_vbat(node, 4.0)
+        error = mtib_servers.enable_power(node, 4.0)
         if error:
             return f"Could not disable device power in host {node}: {error}"
 

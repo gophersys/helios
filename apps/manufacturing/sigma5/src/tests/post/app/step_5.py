@@ -14,8 +14,8 @@ from src.tests.shared.rpcs import mtib_servers
 #                                              Data
 # -------------------------------------------------
 @dataclass
-class ModemFw:
-    fw_version: str = None
+class BleInfo:
+    rssi: str = None
 
     def marshall(self) -> str:
         try:
@@ -27,7 +27,7 @@ class ModemFw:
     def unmarshall(json_str: str):
         try:
             data = json.loads(json_str)
-            return ModemFw(**data)
+            return BleInfo(**data)
         except KeyError as e:
             raise ValueError(f"Missing required configuration value: {e}")
         except TypeError as e:
@@ -37,35 +37,15 @@ class ModemFw:
 # -------------------------------------------------
 #                                           Handler
 # -------------------------------------------------
-def verify_modem_fw(config: Sigma5ManufacturingConfig, node: str, usr_data: None) -> TestStepResult:
+def verify_ble_functionality(config: Sigma5ManufacturingConfig, node: str, usr_data: None) -> TestStepResult:
     result = TestStepResult(success=False)
-    modem_fw = ModemFw()
+    ble_info = BleInfo()
 
-    fw_version, error = mtib_servers.sigma5_cmd_comms_get_modem_fw_version(node)
-    if error:
-        result.error = error
-        result.details = modem_fw.marshall()
-        return result
+    # TODO: Implement
+    # The `usr_data` variable can be used to pass in the expected MAC address from the step that
+    # gets this info from the device.
 
-    # Print the IDs out for debugging
-    modem_fw.fw_version = fw_version
-
-    logging.debug(f"Comms FW version: {modem_fw.fw_version}")
-
-    # Remove the .zip from the fw_version
-    flashed_fw_version = config.fw_flash_test_nrf9160_modem_fw_name.replace(".zip", "")
-
-    # Compare the fw_version with the config.fw_flash_test_nrf9160_modem_fw_name
-    if flashed_fw_version != modem_fw.fw_version:
-        result.error = (
-            f"Flashed modem fw version {flashed_fw_version} does not match expected version {modem_fw.fw_version}"
-        )
-        result.details = modem_fw.marshall()
-        return result
-
-    logging.info(f"Modem fw version verified: {modem_fw.fw_version}")
-
-    result.details = modem_fw.marshall()
+    result.details = ble_info.marshall()
     result.success = True
     return result
 
@@ -73,12 +53,12 @@ def verify_modem_fw(config: Sigma5ManufacturingConfig, node: str, usr_data: None
 # ---------------------------------------------------------------------------------
 #                                                                              Step
 # -------------------------------------------------------------------------------*/
-comms_post_step_2_verify_modem_fw: TestStep = TestStep(
+app_post_step_5_verify_ble: TestStep = TestStep(
     info=StepInfo(
-        name="Verify modem fw",
-        description="Verify the modem fw is flashed.",
+        name="Verify BLE",
+        description="Verify chip broadcasts with the correct MAC address and a reasonable RSSI.",
         noPassIsFatal=True,
     ),
     timeout_ms=5000,
-    handler=verify_modem_fw,
+    handler=verify_ble_functionality,
 )
