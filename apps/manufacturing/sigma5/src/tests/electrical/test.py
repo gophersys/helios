@@ -22,11 +22,6 @@ from .step_4 import electrical_test_step_4
 from .step_5 import electrical_test_step_5
 from .step_6 import electrical_test_step_6
 from .step_7 import electrical_test_step_7
-from .step_8 import electrical_test_step_8
-from .step_9 import electrical_test_step_9
-from .step_10 import electrical_test_step_10
-from .step_11 import electrical_test_step_11
-from .step_12 import electrical_test_step_12
 
 
 # ---------------------------------------------------------------------------------
@@ -47,9 +42,11 @@ def electrical_test_init(
             return f"Could not disable device power in host {node}: {error}"
 
         # Turn off charging power
-        error = mtib_servers.set_5vin(node, False)
+        error = mtib_servers.disable_charge_power(node)
         if error:
             return f"Could not disable charging power in host {node}: {error}"
+
+        usr_data[node] = ElectricalTestSharedData()
 
         return None
 
@@ -81,15 +78,20 @@ def electrical_test_deinit(
             return f"Could not disable device power in host {node}: {error}"
 
         # Turn off charging power
-        error = mtib_servers.set_5vin(node, False)
+        error = mtib_servers.disable_charge_power(node)
         if error:
             return f"Could not disable charging power in host {node}: {error}"
+
+        # Clear the shared data
+        usr_data[node] = None
 
     # Await some time for the power to be off
     time.sleep(1)
 
     # Deinitialize our shared data
     usr_data.clear()
+
+    electrical_test_shared_data.clear()
 
     # Deinitialize the runners used to run this test
     error = mtib_servers.deinit()
@@ -119,17 +121,12 @@ electrical_test: Test = Test(
     usr_data_type=Dict[str, ElectricalTestSharedData],
     # Steps
     steps=[
-        # electrical_test_step_1,
-        # electrical_test_step_2,
+        electrical_test_step_1,
+        electrical_test_step_2,
         electrical_test_step_3,
         electrical_test_step_4,
-        # electrical_test_step_5,
-        # electrical_test_step_6,
-        # electrical_test_step_7,
-        # electrical_test_step_8,
-        # electrical_test_step_9,
-        # electrical_test_step_10,
-        # electrical_test_step_11,
-        # electrical_test_step_12,
+        electrical_test_step_5,
+        electrical_test_step_6,
+        electrical_test_step_7,
     ],
 )
