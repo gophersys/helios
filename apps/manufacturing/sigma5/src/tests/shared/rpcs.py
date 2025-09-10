@@ -69,10 +69,6 @@ from tests.lib import *
 # ---------------------------------------------------------------------------------
 #                                                                    Test Constants
 # -------------------------------------------------------------------------------*/
-# Power
-TP8_BATT = 0
-TP47_5V_IN = 0
-
 # Adc
 TP11_3V3 = 7
 TP52_VIN = 0
@@ -86,8 +82,8 @@ TP49_CHRG_DET = 1
 TP12_UVP_N = 2
 TP1_3V3_PSM = 3
 
-# Runner gRPC server port, as defined in the .proto file
-RUNNER_SERVICE_GRPC_SERVER_PORT = 50053  # TODO: This should come from env variable
+# mtib gRPC server port, as defined in the .proto file
+mtib_SERVICE_GRPC_SERVER_PORT = 50053  # TODO: This should come from env variable
 
 # ---------------------------------------------------------------------------------
 #                                                                             Class
@@ -96,7 +92,7 @@ RUNNER_SERVICE_GRPC_SERVER_PORT = 50053  # TODO: This should come from env varia
 
 class Sigma5MtibServers:
     def __init__(self):
-        self.runners: Dict[str, MtibV1Stub] = {}
+        self.mtibs: Dict[str, MtibV1Stub] = {}
         self.channels: Dict[str, grpc.Channel] = {}
 
         self.cmd_responses_queues: Dict[str, queue.Queue] = {}
@@ -110,26 +106,26 @@ class Sigma5MtibServers:
 
         # Use ThreadPoolExecutor to parallelize the connection process
         with concurrent.futures.ThreadPoolExecutor() as executor:
-            futures = {executor.submit(self._connect_runner, host): host for host in hosts}
+            futures = {executor.submit(self._connect_mtib, host): host for host in hosts}
             for future in concurrent.futures.as_completed(futures):
                 error = future.result()
                 if error:
                     errors.append(error)
 
         if errors:
-            return f"Errors occurred during runner initialization: {', '.join(errors)}"
+            return f"Errors occurred during mtib initialization: {', '.join(errors)}"
 
         # Configure any GPIOs
-        error = self._setup_runners()
+        error = self._setup_mtibs()
         if error:
-            return f"Failed to setup runners for sigma5 manufacturing configuration: {error}"
+            return f"Failed to setup mtibs for sigma5 manufacturing configuration: {error}"
 
         return None  # No error
 
-    def _connect_runner(self, host: str) -> str:
+    def _connect_mtib(self, host: str) -> str:
         try:
             # Create a gRPC channel
-            channel = grpc.insecure_channel(f"{host}:{RUNNER_SERVICE_GRPC_SERVER_PORT}")
+            channel = grpc.insecure_channel(f"{host}:{mtib_SERVICE_GRPC_SERVER_PORT}")
             self.channels[host] = channel
 
             # Create a stub using the insecure channel
@@ -138,24 +134,24 @@ class Sigma5MtibServers:
             # Do an initial health check with a timeout
             response = stub.HealthCheck(Empty(), timeout=5)
 
-            # Add the runner to the dictionary
-            self.runners[host] = stub
+            # Add the mtib to the dictionary
+            self.mtibs[host] = stub
 
-            # Create the needed objects for this runner
+            # Create the needed objects for this mtib
             self.cmd_responses_queues[host] = queue.Queue()
             self.cmd_requests_queues[host] = queue.Queue()
 
-            logging.info(f"Runner at {host} connected successfully")
+            logging.info(f"mtib at {host} connected successfully")
             return ""
         except grpc.RpcError as e:
-            logging.error(f"Failed to connect to runner at {host}. Error: {str(e.details())}")
-            return f"Failed to connect to runner at {host}. Error: {str(e.details())}"
+            logging.error(f"Failed to connect to mtib at {host}. Error: {str(e.details())}")
+            return f"Failed to connect to mtib at {host}. Error: {str(e.details())}"
         except Exception as e:
-            logging.error(f"Unexpected error when connecting to runner at {host}. Error: {str(e)}")
-            return f"Unexpected error when connecting to runner at {host}. Error: {str(e)}"
+            logging.error(f"Unexpected error when connecting to mtib at {host}. Error: {str(e)}")
+            return f"Unexpected error when connecting to mtib at {host}. Error: {str(e)}"
 
-    def _setup_runners(self) -> str:
-        for _, stub in self.runners.items():
+    def _setup_mtibs(self) -> str:
+        for _, stub in self.mtibs.items():
             error = self._config_gpio(
                 stub, TP50_HARD_RESET, GpioDirection.GPIO_DIRECTION_OUTPUT, GpioResistorConfig.GPIO_RESISTOR_PULL_UP
             )
@@ -197,12 +193,12 @@ class Sigma5MtibServers:
     def deinit(self) -> str:
         try:
             for host, channel in self.channels.items():
-                # Close the gRPC channel for each runner
+                # Close the gRPC channel for each mtib
                 channel.close()
-                logging.info(f"Runner at {host} disconnected successfully")
+                logging.info(f"mtib at {host} disconnected successfully")
 
-            # Clear the runners and channels dictionaries
-            self.runners.clear()
+            # Clear the mtibs and channels dictionaries
+            self.mtibs.clear()
             self.channels.clear()
 
             self.cmd_requests_queues = {}
@@ -213,67 +209,61 @@ class Sigma5MtibServers:
             return f"An error occurred during deinitialization: {str(e)}"
 
     def disable_power(self, host: str) -> str:
-        if host not in self.runners:
-            return f"No runner found for host {host}"
+        if host not in self.mtibs:
+            return f"No mtib found for host {host}"
 
         try:
-            stub = self.runners[host]
+            stub = self.mtibs[host]
             response: DutPowerResponse = stub.DutPowerDisable(Empty())
             if not response.success:
                 return f"DutPowerDisable Error: {response.message}"
             return ""
         except grpc.RpcError as e:
-            return f"Failed to disable power for runner at {host}. Error: {str(e.details())}"
+            return f"Failed to disable power for mtib at {host}. Error: {str(e.details())}"
 
     def disable_charge_power(self, host: str) -> str:
-        if host not in self.runners:
-            return f"No runner found for host {host}"
+        if host not in self.mtibs:
+            return f"No mtib found for host {host}"
 
         try:
-            stub = self.runners[host]
+            stub = self.mtibs[host]
             response: DutPowerResponse = stub.DutChargePowerDisable(Empty())
             if not response.success:
                 return f"DutChargePowerDisable Error: {response.message}"
             return ""
         except grpc.RpcError as e:
-            return f"Failed to disable charge power for runner at {host}. Error: {str(e.details())}"
+            return f"Failed to disable charge power for mtib at {host}. Error: {str(e.details())}"
 
     def enable_power(self, host: str, voltage: float) -> str:
         try:
-            stub = self.runners[host]
+            stub = self.mtibs[host]
             response: DutPowerResponse = stub.DutPowerEnable(DutPowerRequest(voltage_v=voltage))
             if not response.success:
                 return f"DutVoltageSet Error: {response.message}"
 
             return ""
         except grpc.RpcError as e:
-            return f"Failed to set VBAT for runner at {host}. Error: {str(e.details())}"
+            return f"Failed to set VBAT for mtib at {host}. Error: {str(e.details())}"
 
-    def set_5vin(self, host: str, state: bool) -> str:
-        if host not in self.runners:
-            return f"No runner found for host {host}"
+    def enable_charge_power(self, host: str) -> str:
+        if host not in self.mtibs:
+            return f"No mtib found for host {host}"
 
         try:
-            if state:
-                stub = self.runners[host]
-                response: DutPowerResponse = stub.DutChargePowerEnable(Empty())
-                if not response.success:
-                    return f"DutChargePowerEnable failed Error: {response.message}"
-            else:
-                stub = self.runners[host]
-                response: DutPowerResponse = stub.DutChargePowerDisable(Empty())
-                if not response.success:
-                    return f"DutChargePowerDisable failed Error: {response.message}"
+            stub = self.mtibs[host]
+            response: DutPowerResponse = stub.DutChargePowerEnable(Empty())
+            if not response.success:
+                return f"DutChargePowerEnable failed Error: {response.message}"
             return ""
         except grpc.RpcError as e:
-            return f"Failed to set 5VIN for runner at {host}. Error: {str(e.details())}"
+            return f"Failed to enable charge power for mtib at {host}. Error: {str(e.details())}"
 
     def read_altimeter(self, host: str) -> Tuple[Optional[float], Optional[float], Optional[float], Optional[str]]:
-        if host not in self.runners:
-            return None, None, None, f"No runner found for host {host}"
+        if host not in self.mtibs:
+            return None, None, None, f"No mtib found for host {host}"
 
         try:
-            stub = self.runners[host]
+            stub = self.mtibs[host]
             response: AltimeterReadResponse = stub.AltimeterRead(Empty())
             if not response.success:
                 return None, None, None, f"Failed to read altimeter form MTIB. Error: {response.message}"
@@ -281,137 +271,137 @@ class Sigma5MtibServers:
             temperature_c = (response.temperature_f - 32.0) * 5.0 / 9.0
             return response.pressure_hg, temperature_c, response.altitude_ft, None
         except grpc.RpcError as e:
-            return None, None, None, f"Failed to read altimeter for runner at {host}. Error: {str(e.details())}"
+            return None, None, None, f"Failed to read altimeter for mtib at {host}. Error: {str(e.details())}"
 
     def read_accelerometer(self, host: str) -> Tuple[Optional[float], Optional[float], Optional[float], Optional[str]]:
-        if host not in self.runners:
-            return None, None, None, f"No runner found for host {host}"
+        if host not in self.mtibs:
+            return None, None, None, f"No mtib found for host {host}"
 
         try:
-            stub = self.runners[host]
+            stub = self.mtibs[host]
             response: AccelReadResponse = stub.AccelRead(Empty())
             if not response.success:
                 return None, None, None, f"Failed to read accelerometer from MTIB. Error: {response.message}"
             return response.x_g, response.y_g, response.z_g, None
         except grpc.RpcError as e:
-            return None, None, None, f"Failed to read accelerometer for runner at {host}. Error: {str(e.details())}"
+            return None, None, None, f"Failed to read accelerometer for mtib at {host}. Error: {str(e.details())}"
 
-    # def set_hard_reset(self, host: str, state: bool) -> str:
-    #     if host not in self.runners:
-    #         return f"No runner found for host {host}"
-
-    #     try:
-    #         stub = self.runners[host]
-    #         response: GpioWriteResponse = stub.GpioWrite(GpioWriteRequest(gpio=TP50_HARD_RESET, state=state))
-    #         if not response.success:
-    #             return f"GpioWrite for {TP50_HARD_RESET} Error: {response.error}"
-    #         return ""
-    #     except grpc.RpcError as e:
-    #         return f"Failed to set hard reset for runner at {host}. Error: {str(e.details())}"
-
-    def read_vin(self, host: str) -> Tuple[str, Optional[float]]:
-        if host not in self.runners:
-            return f"No runner found for host {host}", None
+    def set_hard_reset(self, host: str, state: bool) -> str:
+        if host not in self.mtibs:
+            return f"No mtib found for host {host}"
 
         try:
-            stub = self.runners[host]
+            stub = self.mtibs[host]
+            response: GpioWriteResponse = stub.GpioWrite(GpioWriteRequest(gpio=TP50_HARD_RESET, state=state))
+            if not response.success:
+                return f"GpioWrite for {TP50_HARD_RESET} Error: {response.error}"
+            return ""
+        except grpc.RpcError as e:
+            return f"Failed to set hard reset for mtib at {host}. Error: {str(e.details())}"
+
+    def read_vin(self, host: str) -> Tuple[str, Optional[float]]:
+        if host not in self.mtibs:
+            return f"No mtib found for host {host}", None
+
+        try:
+            stub = self.mtibs[host]
             response: AdcReadResponse = stub.AdcRead(AdcReadRequest(channel=TP52_VIN))
             if not response.success:
                 return f"AdcRead Channel {TP52_VIN} Error: {response.message}", None
             return "", response.voltage_v
         except grpc.RpcError as e:
-            return f"Failed to read VIN for runner at {host}. Error: {str(e.details())}", None
+            return f"Failed to read VIN for mtib at {host}. Error: {str(e.details())}", None
 
     def read_3v3(self, host: str) -> Tuple[str, Optional[float]]:
-        if host not in self.runners:
-            return f"No runner found for host {host}", None
+        if host not in self.mtibs:
+            return f"No mtib found for host {host}", None
 
         try:
-            stub = self.runners[host]
+            stub = self.mtibs[host]
             response: AdcReadResponse = stub.AdcRead(AdcReadRequest(channel=TP11_3V3))
             if not response.success:
                 return f"AdcRead Channel {TP11_3V3} Error: {response.message}", None
             return "", response.voltage_v
         except grpc.RpcError as e:
-            return f"Failed to read 3V3 for runner at {host}. Error: {str(e.details())}", None
+            return f"Failed to read 3V3 for mtib at {host}. Error: {str(e.details())}", None
 
     # def read_voltage(self, host: str) -> Tuple[str, Optional[float]]:
-    #     if host not in self.runners:
-    #         return f"No runner found for host {host}", None
+    #     if host not in self.mtibs:
+    #         return f"No mtib found for host {host}", None
 
     #     try:
-    #         stub = self.runners[host]
+    #         stub = self.mtibs[host]
     #         response: DutVoltageReadResponse = stub.DutVoltageRead(DutVoltageReadRequest())
     #         if not response.success:
     #             return f"DutVoltageRead Error: {response.error}", None
     #         return "", float(response.voltage_mv / 1000)
     #     except grpc.RpcError as e:
-    #         return f"Failed to read voltage for runner at {host}. Error: {str(e.details())}", None
+    #         return f"Failed to read voltage for mtib at {host}. Error: {str(e.details())}", None
 
     def read_current(self, host: str) -> Tuple[str, Optional[float]]:
-        if host not in self.runners:
-            return f"No runner found for host {host}", None
+        if host not in self.mtibs:
+            return f"No mtib found for host {host}", None
 
         try:
-            stub = self.runners[host]
+            stub = self.mtibs[host]
             response: DutPowerReadResponse = stub.DutPowerRead(Empty())
             if not response.success:
                 return f"DutPowerRead Error: {response.message}", None
             return "", float(response.current_a)
         except grpc.RpcError as e:
-            return f"Failed to read current for runner at {host}. Error: {str(e.details())}", None
+            return f"Failed to read current for mtib at {host}. Error: {str(e.details())}", None
 
     def read_vbat(self, host: str) -> Tuple[str, Optional[float]]:
-        if host not in self.runners:
-            return f"No runner found for host {host}", None
+        if host not in self.mtibs:
+            return f"No mtib found for host {host}", None
 
         try:
-            stub = self.runners[host]
+            stub = self.mtibs[host]
             response: DutPowerReadResponse = stub.DutPowerRead(Empty())
             if not response.success:
                 return f"DutPowerRead Error: {response.message}", None
             return "", float(response.voltage_v)
         except grpc.RpcError as e:
-            return f"Failed to read VBAT for runner at {host}. Error: {str(e.details())}", None
+            return f"Failed to read VBAT for mtib at {host}. Error: {str(e.details())}", None
 
     def read_vbckp(self, host: str) -> Tuple[str, Optional[float]]:
-        if host not in self.runners:
-            return f"No runner found for host {host}", None
+        if host not in self.mtibs:
+            return f"No mtib found for host {host}", None
 
         try:
-            stub = self.runners[host]
+            stub = self.mtibs[host]
             response: AdcReadResponse = stub.AdcRead(AdcReadRequest(channel=TP30_VBCKP))
             if not response.success:
                 return f"AdcRead Channel {TP30_VBCKP} Error: {response.message}", None
             return "", response.voltage_v
         except grpc.RpcError as e:
-            return f"Failed to read VBCKP for runner at {host}. Error: {str(e.details())}", None
+            return f"Failed to read VBCKP for mtib at {host}. Error: {str(e.details())}", None
 
     def read_uvp_n(self, host: str) -> Tuple[str, Optional[bool]]:
-        if host not in self.runners:
-            return f"No runner found for host {host}", None
+        if host not in self.mtibs:
+            return f"No mtib found for host {host}", None
 
         try:
-            stub = self.runners[host]
+            stub = self.mtibs[host]
             response: GpioReadResponse = stub.GpioRead(GpioReadRequest(gpio=TP12_UVP_N))
             if not response.success:
                 return f"GpioRead for {TP12_UVP_N} Error: {response.message}", None
             return "", response.state
         except grpc.RpcError as e:
-            return f"Failed to read UVP_N for runner at {host}. Error: {str(e.details())}", None
+            return f"Failed to read UVP_N for mtib at {host}. Error: {str(e.details())}", None
 
-    # def read_chrg_det(self, host: str) -> Tuple[str, Optional[bool]]:
-    #     if host not in self.runners:
-    #         return f"No runner found for host {host}", None
+    def read_chrg_det(self, host: str) -> Tuple[str, Optional[bool]]:
+        if host not in self.mtibs:
+            return f"No mtib found for host {host}", None
 
-    #     try:
-    #         stub = self.runners[host]
-    #         response: GpioReadResponse = stub.GpioRead(GpioReadRequest(gpio=TP49_CHRG_DET))
-    #         if not response.success:
-    #             return f"GpioRead for {TP49_CHRG_DET} Error: {response.error}", None
-    #         return "", response.state
-    #     except grpc.RpcError as e:
-    #         return f"Failed to read CHRG_DET for runner at {host}. Error: {str(e.details())}", None
+        try:
+            stub = self.mtibs[host]
+            response: GpioReadResponse = stub.GpioRead(GpioReadRequest(gpio=TP49_CHRG_DET))
+            if not response.success:
+                return f"GpioRead for {TP49_CHRG_DET} Error: {response.error}", None
+            return "", response.state
+        except grpc.RpcError as e:
+            return f"Failed to read CHRG_DET for mtib at {host}. Error: {str(e.details())}", None
 
     def upload_fw_file(self, host: str, file_path: str, host_type: HostType) -> Optional[str]:
         try:
@@ -447,7 +437,7 @@ class Sigma5MtibServers:
 
             # Make the streaming call
             try:
-                stub = self.runners[host]
+                stub = self.mtibs[host]
                 response: UploadFwFileResponse = stub.UploadFwFile(request_iterator())
                 if not response.success:
                     return f"UploadFwFile error: {response.message}"
@@ -463,11 +453,11 @@ class Sigma5MtibServers:
             return f"Unexpected error in UploadFwFile at {self.config.net.addr}: {str(e)}"
 
     def delete_fw_file(self, host: str, filename: str, host_type: HostType) -> str:
-        if host not in self.runners:
-            return f"No runner found for host {host}"
+        if host not in self.mtibs:
+            return f"No mtib found for host {host}"
 
         try:
-            stub = self.runners[host]
+            stub = self.mtibs[host]
 
             # Check if the file already exists on the server
             list_response: ListFwFilesResponse = stub.ListFwFiles(Empty())
@@ -491,12 +481,12 @@ class Sigma5MtibServers:
     def flash_fw_file(
         self, host: str, file_info: FwFileInfo, sector_erase: bool = False, recover: bool = False
     ) -> Tuple[Optional[bool], Optional[str]]:
-        # Retrieve the runner stub
-        if host not in self.runners:
-            return None, f"No runner stub found for host {host}"
+        # Retrieve the mtib stub
+        if host not in self.mtibs:
+            return None, f"No mtib stub found for host {host}"
 
         try:
-            stub = self.runners[host]
+            stub = self.mtibs[host]
             response: FlashFwFileResponse = stub.FlashFwFile(
                 FlashFwFileRequest(file_info=file_info, sector_erase=sector_erase, recover=recover)
             )
@@ -523,7 +513,7 @@ class Sigma5MtibServers:
         try:
             # Make the streaming call with the provided request iterator
             # The gRPC stub's UartStream method only takes the request_iterator, not the target
-            response_iterator = self.runners[host].UartStream(request_iterator)
+            response_iterator = self.mtibs[host].UartStream(request_iterator)
 
             for response in response_iterator:
                 yield response

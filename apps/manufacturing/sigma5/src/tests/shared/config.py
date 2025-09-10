@@ -13,30 +13,37 @@ class Sigma5ManufacturingConfig:
             "slot-3": "000D",
             "slot-4": "000E",
             "slot-5": "000F",
-            "verdin-imx8mm-15005679": "05JD",
+            "verdin-imx8mm-15005679": "05JI",
         }
     )
-    vin_rail_stabilization_period_s: int = 20
-    electrical_step_2a_vin_threshold_v: float = 0.3
-    electrical_step_2a_near_zero_current_a: float = 0.01
-    electrical_step_4a_vin_vbat_tolerance: float = 0.1
-    electrical_step_4a_3v3_min: float = 3.2
-    electrical_step_4a_3v3_max: float = 3.4
-    electrical_step_4c_vbckp_min: float = 2.4
-    electrical_step_4c_vbckp_max: float = 2.6
-    electrical_step_4f_current_min: float = 0.01
-    electrical_step_4f_current_max: float = 0.1
-    electrical_step_6a_vin_vbat_tolerance: float = 0.1
-    electrical_step_8a_vin_threshold_v: float = 0.3
-    electrical_step_9_settle_time_s: int = 2
-    electrical_step_10a_vin_threshold_v: float = 4.5
-    electrical_step_10b_3v3_min: float = 3.2
-    electrical_step_10b_3v3_max: float = 3.4
-    electrical_step_10c_vbckp_min: float = 2.4
-    electrical_step_10c_vbckp_max: float = 2.6
+    # Electrical test
+    vin_rail_stabilization_period_s: int = 30
+    electrical_step_1a_vin_threshold_v: float = 0.5
+    electrical_step_1b_vbckp_threshold_v: float = 0.3
+    electrical_step_1d_near_zero_current_a: float = 0.01
+    electrical_step_2a_vin_vbat_tolerance: float = 0.1
+    electrical_step_2b_3v3_min: float = 3.2
+    electrical_step_2b_3v3_max: float = 3.4
+    electrical_step_2c_vbckp_min: float = 2.4
+    electrical_step_2c_vbckp_max: float = 2.7
+    electrical_step_2e_current_min: float = 0.01
+    electrical_step_2e_current_max: float = 0.1
+    electrical_step_3a_vin_vbat_tolerance: float = 0.1
+    electrical_step_3b_current_min: float = 0.01
+    electrical_step_3b_current_max: float = 0.1
+    electrical_step_4a_vin_threshold_v: float = 0.5
+    electrical_step_5a_vin_threshold_v: float = 4.65
+    electrical_step_5b_3v3_min: float = 3.25
+    electrical_step_5b_3v3_max: float = 3.35
+    electrical_step_5c_vbckp_min: float = 2.4
+    electrical_step_5c_vbckp_max: float = 2.7
+
+    # Firmware flash test
     fw_flash_test_nrf9160_modem_fw_name: str = "mfw_nrf9160_1.3.6.zip"
     fw_flash_test_nrf9160_app_fw_name: str = "sigma_comm_eng_7.hex"
     fw_flash_test_nrf52840_app_fw_name: str = "sigma_app_eng_7.hex"
+
+    # Post test
     post_test_accelerometer_error_margin: float = 0.2  # G's
     post_test_altimeter_error_margin: float = 0.01  # inHg
     post_test_temperature_error_margin: float = 6.0  # °C

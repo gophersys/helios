@@ -36,7 +36,7 @@ def fw_flash_test_init(config: Sigma5ManufacturingConfig, nodes: List[str], usr_
 
         # Turn on charging power, as the modem firmware fails to be flashed
         # when this rail is not on. Consumes too much power? Not sure?
-        error = mtib_servers.set_5vin(node, True)
+        error = mtib_servers.enable_charge_power(node)
         if error:
             return f"Could not disable charging power in host {node}: {error}"
 
@@ -89,7 +89,7 @@ def fw_flash_test_deinit(config: Sigma5ManufacturingConfig, nodes: List[str], us
             return f"Could not disable device power in host {node}: {error}"
 
         # Turn off charging power
-        error = mtib_servers.set_5vin(node, False)
+        error = mtib_servers.disable_charge_power(node)
         if error:
             return f"Could not disable charging power in host {node}: {error}"
 

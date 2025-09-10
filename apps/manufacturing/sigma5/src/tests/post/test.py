@@ -109,7 +109,7 @@ def post_test_deinit(
 ) -> str:
     def deinit_node(node: str) -> str:
         # Turn off charging power
-        error = mtib_servers.set_5vin(node, False)
+        error = mtib_servers.disable_charge_power(node)
         if error:
             return f"Could not disable charging power in host {node}: {error}"
 
