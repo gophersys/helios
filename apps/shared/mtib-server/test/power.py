@@ -17,20 +17,20 @@ def sample(client: MtibV1Client, logger: Logger) -> None:
     """
     logger.info("Testing power management")
 
-    # # Turn off everything
-    if err := client.DutPowerDisable():
-        logger.fatal(f"Error disabling DUT power: {err}")
+    # # # Turn off everything
+    # if err := client.DutPowerDisable():
+    #     logger.fatal(f"Error disabling DUT power: {err}")
 
-    if err := client.DutChargePowerDisable():
-        logger.fatal(f"Error disabling DUT charge power: {err}")
+    # if err := client.DutChargePowerDisable():
+    #     logger.fatal(f"Error disabling DUT charge power: {err}")
 
-    # sys.exit(0)
-    time.sleep(2)
+    # # sys.exit(0)
+    # time.sleep(2)
 
-    # Turn on the DUT power (connected to the battery)
-    voltage_v = 4.0
-    if err := client.DutPowerEnable(voltage_v):
-        logger.fatal(f"Error enabling DUT power: {err}")
+    # # Turn on the DUT power (connected to the battery)
+    # voltage_v = 4.0
+    # if err := client.DutPowerEnable(voltage_v):
+    #     logger.fatal(f"Error enabling DUT power: {err}")
 
     # if err := client.DutChargePowerEnable():
     #     logger.fatal(f"Error enabling DUT charge power: {err}")
@@ -43,14 +43,14 @@ def sample(client: MtibV1Client, logger: Logger) -> None:
         if err:
             logger.fatal(f"Error reading DUT power: {err}")
 
-        logger.info(f"DUT power: {power_w} W, current: {current_a} A, voltage: {voltage_v} V")
+        # Charge Power
+        chg_current_a, chg_voltage_v, chg_power_w, err = client.DutChargePowerRead()
+        if err:
+            logger.fatal(f"Error reading DUT charge power: {err}")
 
-        # # Charge Power
-        # chg_current_a, chg_voltage_v, chg_power_w, err = client.DutChargePowerRead()
-        # if err:
-        #     logger.fatal(f"Error reading DUT charge power: {err}")
-
-        # logger.info(f"DUT charge power: {chg_power_w} W, current: {chg_current_a} A, voltage: {chg_voltage_v} V")
+        logger.info(
+            f"DUT  power: {power_w} W, current: {current_a} A, voltage: {voltage_v} V charge power: {chg_power_w} W, current: {chg_current_a} A, voltage: {chg_voltage_v} V"
+        )
 
         # Wait a bit
         time.sleep(1)

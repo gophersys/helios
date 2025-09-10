@@ -1,6 +1,6 @@
 module adc-mqtt
 
-go 1.21
+go 1.18
 
 require github.com/eclipse/paho.mqtt.golang v1.4.3
 

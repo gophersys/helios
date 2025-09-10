@@ -125,7 +125,7 @@ if __name__ == "__main__":
 
     finally:
         # Ensure data logger client is properly deinitialized
-        if data_logger_client:
+        if data_logger_client is not None:
             data_logger_client.deinit()
 
         # Ensure server is properly stopped if it was created
