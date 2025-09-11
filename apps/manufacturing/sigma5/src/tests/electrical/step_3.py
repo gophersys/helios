@@ -94,7 +94,7 @@ electrical_test_step_3: TestStep = TestStep(
     info=StepInfo(
         name="Apply +3.6V to +BATT; voltage at max voltage.",
         description="Checks VIN, VBAT, and current consumption against thresholds.",
-        noPassIsFatal=False,
+        noPassIsFatal=True,
     ),
     timeout_ms=10000,
     handler=electrical_test_step_3_handler,

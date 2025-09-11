@@ -97,7 +97,7 @@ if __name__ == "__main__":
 
         # Run baby run
         server.start()
-        logger.info(f"Server started on port {env_config.SERVER_PORT}")
+        logger.info(f"Server started on port {env_config.SERVER_PORT} with new updates!!!")
 
         # Instantiate a data logger client that will be used to plot/listen for data
         if env_config.DATA_LOGGER_ENABLED:

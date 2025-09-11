@@ -25,11 +25,13 @@ def fw_flash_test_step_2_handler(config: Sigma5ManufacturingConfig, node: str, u
     )
     sector_erase = True
     recover = True
-    time_taken, error = mtib_servers.flash_fw_file(node, file_info, sector_erase, recover)
+    time_ms, error = mtib_servers.flash_fw_file(node, file_info, sector_erase, recover)
 
     if error:
         result.error = error
         return result
+
+    logging.debug(f"Time taken to flash {config.fw_flash_test_nrf9160_app_fw_name}: {time_ms}ms")
 
     # Flash 52840
     file_info = FwFileInfo(
@@ -38,11 +40,13 @@ def fw_flash_test_step_2_handler(config: Sigma5ManufacturingConfig, node: str, u
     )
     sector_erase = True
     recover = True
-    time_taken, error = mtib_servers.flash_fw_file(node, file_info, sector_erase, recover)
+    time_ms, error = mtib_servers.flash_fw_file(node, file_info, sector_erase, recover)
 
     if error:
         result.error = error
         return result
+
+    logging.debug(f"Time taken to flash {config.fw_flash_test_nrf52840_app_fw_name}: {time_ms}ms")
 
     # Flash was succesful
     result.success = True
@@ -55,11 +59,10 @@ def fw_flash_test_step_2_handler(config: Sigma5ManufacturingConfig, node: str, u
 # -------------------------------------------------------------------------------*/
 fw_flash_test_step_2: TestStep = TestStep(
     info=StepInfo(
-        sequence=2,
         name="Flash Corekinect apps.",
         description="Flashes the Corekinect firmware on both MCUs. using the runner API.",
         noPassIsFatal=True,
     ),
-    timeout_ms=30000,
+    timeout_ms=120000,
     handler=fw_flash_test_step_2_handler,
 )

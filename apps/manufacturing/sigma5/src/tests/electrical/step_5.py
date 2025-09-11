@@ -125,7 +125,7 @@ electrical_test_step_5: TestStep = TestStep(
     info=StepInfo(
         name="Ensure device electrical state.",
         description="Checks VIN, 3.3V, VBCKUP, UVP_N and CHRG_DET against thresholds.",
-        noPassIsFatal=False,
+        noPassIsFatal=True,
     ),
     timeout_ms=60000,
     handler=electrical_test_step_5_handler,

@@ -14,16 +14,6 @@ from src.tests.shared.rpcs import mtib_servers
 # Post test includes
 from src.tests.post.data import PostTestSharedData
 
-# -------------------------------------------------
-#                                            Config
-# -------------------------------------------------
-EXTERNAL_FLASH_WRITE_TEST_STRING = "Hello, world!0xA54A"
-EXTERNAL_FLASH_SIZE = 8388608  # 8MB flash size from terminal output
-EXTERNAL_FLASH_START = "0x0000"
-EXTERNAL_FLASH_END = "0x7F0000"  # Conservative end address (8MB - 64KB)
-EXTERNAL_FLASH_MIDDLE_START = "0x2AAAAA"  # Start of middle third
-EXTERNAL_FLASH_MIDDLE_END = "0x555555"  # End of middle third
-
 
 # -------------------------------------------------
 #                                              Data
@@ -71,28 +61,30 @@ def verify_external_flash_functionality(
         return result
 
     # Convert test string to base64 for writing
-    test_data_b64 = base64.b64encode(EXTERNAL_FLASH_WRITE_TEST_STRING.encode("utf-8")).decode("utf-8")
+    test_data_b64 = base64.b64encode(config.post_test_app_external_flash_test_string.encode("utf-8")).decode("utf-8")
 
     # Generate random address in middle third
-    middle_start = int(EXTERNAL_FLASH_MIDDLE_START, 16)
-    middle_end = int(EXTERNAL_FLASH_MIDDLE_END, 16)
+    middle_start = int(config.post_test_app_external_flash_middle_start, 16)
+    middle_end = int(config.post_test_app_external_flash_middle_end, 16)
     random_middle_address = f"0x{random.randint(middle_start, middle_end):06X}"
 
     # Populate flash info
-    flash_info.test_pattern = EXTERNAL_FLASH_WRITE_TEST_STRING
-    flash_info.start_address = EXTERNAL_FLASH_START
-    flash_info.end_address = EXTERNAL_FLASH_END
+    flash_info.test_pattern = config.post_test_app_external_flash_test_string
+    flash_info.start_address = config.post_test_app_external_flash_start
+    flash_info.end_address = config.post_test_app_external_flash_end
     flash_info.middle_address = random_middle_address
-    flash_info.flash_size = EXTERNAL_FLASH_SIZE
+    flash_info.flash_size = config.post_test_app_external_flash_size
 
-    logging.debug(f"Testing external flash with pattern: {EXTERNAL_FLASH_WRITE_TEST_STRING}")
+    logging.debug(f"Testing external flash with pattern: {config.post_test_app_external_flash_test_string}")
     logging.debug(
-        f"Test addresses - Start: {EXTERNAL_FLASH_START}, End: {EXTERNAL_FLASH_END}, Middle: {random_middle_address}"
+        f"Test addresses - Start: {config.post_test_app_external_flash_start}, End: {config.post_test_app_external_flash_end}, Middle: {random_middle_address}"
     )
 
     # Step 1: Write known pattern to start of external flash
     logging.debug("Writing test pattern to start of external flash...")
-    write_success, write_error = mtib_servers.sigma5_cmd_app_write_ext_flash(node, EXTERNAL_FLASH_START, test_data_b64)
+    write_success, write_error = mtib_servers.sigma5_cmd_app_write_ext_flash(
+        node, config.post_test_app_external_flash_start, test_data_b64
+    )
     if not write_success or write_error:
         result.error = f"Failed to write to start of flash: {write_error}"
         result.details = flash_info.marshall()
@@ -100,7 +92,9 @@ def verify_external_flash_functionality(
 
     # Step 2: Write known pattern to end of external flash
     logging.debug("Writing test pattern to end of external flash...")
-    write_success, write_error = mtib_servers.sigma5_cmd_app_write_ext_flash(node, EXTERNAL_FLASH_END, test_data_b64)
+    write_success, write_error = mtib_servers.sigma5_cmd_app_write_ext_flash(
+        node, config.post_test_app_external_flash_end, test_data_b64
+    )
     if not write_success or write_error:
         result.error = f"Failed to write to end of flash: {write_error}"
         result.details = flash_info.marshall()
@@ -119,7 +113,7 @@ def verify_external_flash_functionality(
     # Step 4: Verify pattern at start
     logging.debug("Reading and verifying pattern at start...")
     read_data, read_error = mtib_servers.sigma5_cmd_app_read_ext_flash(
-        node, EXTERNAL_FLASH_START, len(EXTERNAL_FLASH_WRITE_TEST_STRING)
+        node, config.post_test_app_external_flash_start, len(config.post_test_app_external_flash_test_string)
     )
     if not read_data or read_error:
         result.error = f"Failed to read from start of flash: {read_error}"
@@ -131,8 +125,8 @@ def verify_external_flash_functionality(
         # Convert hex string to bytes, then decode
         hex_bytes = bytes.fromhex(read_data)
         read_string = hex_bytes.decode("utf-8", errors="ignore")
-        if read_string != EXTERNAL_FLASH_WRITE_TEST_STRING:
-            result.error = f"Data mismatch at start. Expected: {EXTERNAL_FLASH_WRITE_TEST_STRING}, Got: {read_string}"
+        if read_string != config.post_test_app_external_flash_test_string:
+            result.error = f"Data mismatch at start. Expected: {config.post_test_app_external_flash_test_string}, Got: {read_string}"
             result.details = flash_info.marshall()
             return result
     except Exception as e:
@@ -143,7 +137,7 @@ def verify_external_flash_functionality(
     # Step 5: Verify pattern at end
     logging.debug("Reading and verifying pattern at end...")
     read_data, read_error = mtib_servers.sigma5_cmd_app_read_ext_flash(
-        node, EXTERNAL_FLASH_END, len(EXTERNAL_FLASH_WRITE_TEST_STRING)
+        node, config.post_test_app_external_flash_end, len(config.post_test_app_external_flash_test_string)
     )
     if not read_data or read_error:
         result.error = f"Failed to read from end of flash: {read_error}"
@@ -153,8 +147,8 @@ def verify_external_flash_functionality(
     try:
         hex_bytes = bytes.fromhex(read_data)
         read_string = hex_bytes.decode("utf-8", errors="ignore")
-        if read_string != EXTERNAL_FLASH_WRITE_TEST_STRING:
-            result.error = f"Data mismatch at end. Expected: {EXTERNAL_FLASH_WRITE_TEST_STRING}, Got: {read_string}"
+        if read_string != config.post_test_app_external_flash_test_string:
+            result.error = f"Data mismatch at end. Expected: {config.post_test_app_external_flash_test_string}, Got: {read_string}"
             result.details = flash_info.marshall()
             return result
     except Exception as e:
@@ -165,7 +159,7 @@ def verify_external_flash_functionality(
     # Step 6: Verify pattern at middle
     logging.debug(f"Reading and verifying pattern at middle address {random_middle_address}...")
     read_data, read_error = mtib_servers.sigma5_cmd_app_read_ext_flash(
-        node, random_middle_address, len(EXTERNAL_FLASH_WRITE_TEST_STRING)
+        node, random_middle_address, len(config.post_test_app_external_flash_test_string)
     )
     if not read_data or read_error:
         result.error = f"Failed to read from middle of flash: {read_error}"
@@ -175,8 +169,8 @@ def verify_external_flash_functionality(
     try:
         hex_bytes = bytes.fromhex(read_data)
         read_string = hex_bytes.decode("utf-8", errors="ignore")
-        if read_string != EXTERNAL_FLASH_WRITE_TEST_STRING:
-            result.error = f"Data mismatch at middle. Expected: {EXTERNAL_FLASH_WRITE_TEST_STRING}, Got: {read_string}"
+        if read_string != config.post_test_app_external_flash_test_string:
+            result.error = f"Data mismatch at middle. Expected: {config.post_test_app_external_flash_test_string}, Got: {read_string}"
             result.details = flash_info.marshall()
             return result
     except Exception as e:

@@ -14,13 +14,6 @@ from src.tests.post.data import PostTestSharedData
 
 
 # -------------------------------------------------
-#                                           Config
-# -------------------------------------------------
-ALTIMETER_PRESSURE_TOLERANCE = 0.01
-ALTIMETER_TEMPERATURE_TOLERANCE = 6.0
-
-
-# -------------------------------------------------
 #                                           Handler
 # -------------------------------------------------
 def verify_altimeter_data(
@@ -46,12 +39,18 @@ def verify_altimeter_data(
 
     logging.debug(f"Altimeter differences - pressure: {pressure_diff:.3f}inHg, temperature: {temperature_diff:.3f}°C")
 
-    if pressure_diff <= ALTIMETER_PRESSURE_TOLERANCE and temperature_diff <= ALTIMETER_TEMPERATURE_TOLERANCE:
+    if (
+        pressure_diff <= config.post_test_app_altimeter_pressure_error_margin
+        and temperature_diff <= config.post_test_app_altimeter_temperature_error_margin
+    ):
         result.success = True
+        logging.debug(
+            f"Altimeter verification passed - all values within ±{config.post_test_app_altimeter_pressure_error_margin}inHg and ±{config.post_test_app_altimeter_temperature_error_margin}°C tolerance"
+        )
     else:
         result.error = f"Altimeter values don't match within tolerances. "
-        result.error += f"pressure diff: {pressure_diff:.3f}inHg (tolerance: ±{ALTIMETER_PRESSURE_TOLERANCE}inHg), "
-        result.error += f"temperature diff: {temperature_diff:.3f}°C (tolerance: ±{ALTIMETER_TEMPERATURE_TOLERANCE}°C)"
+        result.error += f"pressure diff: {pressure_diff:.3f}inHg (tolerance: ±{config.post_test_app_altimeter_pressure_error_margin}inHg), "
+        result.error += f"temperature diff: {temperature_diff:.3f}°C (tolerance: ±{config.post_test_app_altimeter_temperature_error_margin}°C)"
         return result
 
     return result

@@ -102,7 +102,7 @@ electrical_test_step_4: TestStep = TestStep(
     info=StepInfo(
         name="Set HARD_RESET pin to digital high.",
         description="Verify VIN and UVP_N against thresholds.",
-        noPassIsFatal=False,
+        noPassIsFatal=True,
     ),
     timeout_ms=60000,
     handler=electrical_test_step_4_handler,

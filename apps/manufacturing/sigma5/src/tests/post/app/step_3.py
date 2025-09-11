@@ -12,11 +12,6 @@ from src.tests.shared.rpcs import mtib_servers
 # Post test includes
 from src.tests.post.data import PostTestSharedData
 
-# -------------------------------------------------
-#                                           Config
-# -------------------------------------------------
-ACCELEROMETER_TOLERANCE = 0.5
-
 
 # -------------------------------------------------
 #                                           Handler
@@ -55,11 +50,19 @@ def verify_accelerometer_data(
 
     logging.debug(f"Accelerometer differences - X: {x_diff:.3f}g, Y: {y_diff:.3f}g, Z: {z_diff:.3f}g")
 
-    if x_diff <= ACCELEROMETER_TOLERANCE and y_diff <= ACCELEROMETER_TOLERANCE and z_diff <= ACCELEROMETER_TOLERANCE:
+    if (
+        x_diff <= config.post_test_app_accelerometer_error_margin
+        and y_diff <= config.post_test_app_accelerometer_error_margin
+        and z_diff <= config.post_test_app_accelerometer_error_margin
+    ):
         result.success = True
-        logging.debug(f"Accelerometer verification passed - all values within ±{ACCELEROMETER_TOLERANCE}g tolerance")
+        logging.debug(
+            f"Accelerometer verification passed - all values within ±{config.post_test_app_accelerometer_error_margin}g tolerance"
+        )
     else:
-        result.error = f"Accelerometer values don't match within ±{ACCELEROMETER_TOLERANCE}g tolerance. "
+        result.error = (
+            f"Accelerometer values don't match within ±{config.post_test_app_accelerometer_error_margin}g tolerance. "
+        )
         result.error += f"X diff: {x_diff:.3f}g, Y diff: {y_diff:.3f}g, Z diff: {z_diff:.3f}g"
         return result
 

@@ -596,8 +596,18 @@ class Test:
                     self.config_obj = self.config_type()
                 else:
                     try:
-                        self.config_obj = self.config_type.unmarshall(config)
-                        logging.debug(f"Using user configuration for test: {config}")
+                        # Parse the provided config
+                        provided_config = self.config_type.unmarshall(config)
+
+                        # Start with default configuration
+                        self.config_obj = self.config_type()
+
+                        # Only substitute the snrs field from the provided config
+                        if hasattr(provided_config, "snrs"):
+                            self.config_obj.snrs = provided_config.snrs
+                            logging.debug(f"Substituted snrs field from provided config: {provided_config.snrs}")
+
+                        logging.debug(f"Using default configuration with substituted snrs field")
                     except Exception as e:
                         return f"Failed to parse config: {str(e)}"
 

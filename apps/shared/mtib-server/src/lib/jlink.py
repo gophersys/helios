@@ -14,7 +14,7 @@ FW_FILE_STORAGE_DIR = "/tmp/fw_files"
 class Jlink:
     def __init__(self, logger: Logger):
         self.chip_to_serial = {
-            HostType.HOST_TYPE_NRF9160_MCU: None,
+            HostType.HOST_TYPE_NRF9160: None,
             HostType.HOST_TYPE_NRF52840: None,
             HostType.HOST_TYPE_NRF9160_MODEM: None,
             HostType.HOST_TYPE_NRF5340: None,
@@ -31,37 +31,93 @@ class Jlink:
             serials = []
 
         for serial in serials:
-            try:
-                result = (
-                    subprocess.check_output(["nrfjprog", "--snr", serial, "--deviceversion"], stderr=subprocess.STDOUT)
-                    .decode()
-                    .lower()
-                )
+            # Try to get device version
+            success = self._try_detect_device(serial)
+            if not success:
+                # If detection failed, try recovery and detect again
+                self.logger.info(f"J-Link {serial} detection failed, attempting recovery...")
+                if self._try_recover_device(serial):
+                    self._try_detect_device(serial)
 
-                # Check for common error patterns in the output
-                if "low voltage" in result or "error" in result:
-                    self.logger.warning(f"J-Link {serial} detected but no device connected or low voltage condition")
-                    self.unknown_serials.append(serial)
-                    continue
+    def _try_detect_device(self, serial: str) -> bool:
+        """Try to detect device type for a J-Link serial number. Returns True if successful."""
+        try:
+            result = subprocess.check_output(
+                ["nrfjprog", "--snr", serial, "--deviceversion"], stderr=subprocess.STDOUT
+            ).decode()
 
-                self.logger.info(f"J-Link serial {serial} detected with device version {result}")
+            # Log the raw output for debugging
+            self.logger.info(f"J-Link {serial} deviceversion output: {result}")
+            result_lower = result.lower()
 
-                if "nrf91" in result:
-                    self.chip_to_serial[HostType.HOST_TYPE_NRF9160_MCU] = serial
-                elif "nrf52" in result:
-                    self.chip_to_serial[HostType.HOST_TYPE_NRF52840] = serial
-                elif "nrf5340" in result:
-                    self.chip_to_serial[HostType.HOST_TYPE_NRF5340] = serial
-                else:
-                    self.logger.warning(f"Unknown device version {result} for serial {serial}")
-                    self.unknown_serials.append(serial)
-            except subprocess.CalledProcessError as e:
-                error_msg = e.stderr.decode() if e.stderr else str(e)
-                if "low voltage" in error_msg.lower():
-                    self.logger.warning(f"J-Link {serial} detected but no device connected or low voltage condition")
-                else:
-                    self.logger.error(f"Error reading device info for J-Link {serial}: {error_msg}")
+            # Check for access protection error
+            if "access protection is enabled" in result_lower:
+                self.logger.info(f"J-Link {serial} has access protection enabled")
+                return False
+
+            # Check for other error conditions
+            if "low voltage" in result_lower or "error" in result_lower:
+                self.logger.warning(f"J-Link {serial} detected but no device connected or low voltage condition")
                 self.unknown_serials.append(serial)
+                return False
+
+            # Successfully detected device
+            self.logger.info(f"J-Link serial {serial} detected with device version {result}")
+            self._assign_device_type(serial, result_lower)
+            return True
+
+        except subprocess.CalledProcessError as e:
+            error_msg = e.stderr.decode() if e.stderr else str(e)
+            self.logger.error(f"Error reading device info for J-Link {serial}: {error_msg}")
+
+            # Check if this might be access protection
+            if "access protection" in error_msg.lower() or "error -90" in error_msg.lower():
+                self.logger.info(f"J-Link {serial} might have access protection (detected in exception)")
+                return False
+
+            self.unknown_serials.append(serial)
+            return False
+
+    def _try_recover_device(self, serial: str) -> bool:
+        """Try to recover a J-Link device. Returns True if recovery was successful."""
+        try:
+            self.logger.info(f"Attempting recovery for J-Link {serial}...")
+            recover_result = subprocess.run(
+                ["nrfjprog", "--snr", serial, "--recover"],
+                capture_output=True,
+                text=True,
+                timeout=60,  # 30s + buffer
+            )
+
+            if recover_result.returncode == 0:
+                self.logger.info(f"Successfully recovered J-Link {serial}")
+                return True
+            else:
+                self.logger.error(f"Failed to recover J-Link {serial}: {recover_result.stderr}")
+                self.unknown_serials.append(serial)
+                return False
+
+        except subprocess.TimeoutExpired:
+            self.logger.error(f"Recovery timeout for J-Link {serial}")
+            self.unknown_serials.append(serial)
+            return False
+        except Exception as e:
+            self.logger.error(f"Unexpected error during recovery for J-Link {serial}: {e}")
+            self.unknown_serials.append(serial)
+            return False
+
+    def _assign_device_type(self, serial: str, result_lower: str):
+        """Assign the J-Link serial to the appropriate device type."""
+        if "nrf91" in result_lower:
+            self.chip_to_serial[HostType.HOST_TYPE_NRF9160] = serial
+            self.chip_to_serial[HostType.HOST_TYPE_NRF9160_MODEM] = serial  # Same chip, different targets
+        elif "nrf52" in result_lower:
+            self.chip_to_serial[HostType.HOST_TYPE_NRF52840] = serial
+        elif "nrf5340" in result_lower:
+            self.chip_to_serial[HostType.HOST_TYPE_NRF5340] = serial
+        else:
+            self.logger.warning(f"Unknown device version for serial {serial}")
+            self.unknown_serials.append(serial)
 
     def _run_nrfjprog(self, serial_number, firmware_file_path, modem) -> Tuple[bool, str]:
         # Construct the nrfjprog command

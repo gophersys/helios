@@ -480,7 +480,7 @@ class Sigma5MtibServers:
 
     def flash_fw_file(
         self, host: str, file_info: FwFileInfo, sector_erase: bool = False, recover: bool = False
-    ) -> Tuple[Optional[bool], Optional[str]]:
+    ) -> Tuple[Optional[int], Optional[str]]:
         # Retrieve the mtib stub
         if host not in self.mtibs:
             return None, f"No mtib stub found for host {host}"
@@ -2061,6 +2061,105 @@ class Sigma5MtibServers:
 
         except Exception as e:
             return None, f"Exception in write_ext_flash: {str(e)}"
+
+    def sigma5_cmd_comms_rekey_ip(self, host: str) -> Tuple[Optional[bool], Optional[str]]:
+        """Rekey IP"""
+        try:
+            # Use queues like the working terminal
+            input_queue = queue.Queue()
+            output_queue = queue.Queue()
+
+            # Add commands to input queue
+            input_queue.put(b"\r")  # Hit ENTER to get prompt
+            time.sleep(0.2)
+            input_queue.put(f"rekey_ip\r".encode("utf-8"))  # Send command
+
+            def request_iterator():
+                while True:
+                    try:
+                        # Get input from queue (non-blocking)
+                        data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=data)
+                    except queue.Empty:
+                        # No input, send empty request to keep stream alive
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=b"")
+                        time.sleep(0.1)
+
+            # Collect response like the working terminal
+            response_lines = []
+            start_time = time.time()
+            timeout = 10  # 10 second timeout
+
+            target = HostType.HOST_TYPE_NRF9160
+
+            for resp in self.UartStream(host, target, request_iterator()):
+                if not resp.success:
+                    return None, f"UartStream error: {resp.message}"
+
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
+
+            return True, None
+
+        except Exception as e:
+            return None, f"Exception in rekey_ip: {str(e)}"  # type: ignore
+
+    def sigma5_cmd_comms_rekey_ipc(self, host: str) -> Tuple[Optional[bool], Optional[str]]:
+        """Rekey IPC"""
+        try:
+            # Use queues like the working terminal
+            input_queue = queue.Queue()
+            output_queue = queue.Queue()
+
+            # Add commands to input queue
+            input_queue.put(b"\r")  # Hit ENTER to get prompt
+            time.sleep(0.2)
+            input_queue.put(f"rekey_ipc\r".encode("utf-8"))  # Send command
+
+            def request_iterator():
+                while True:
+                    try:
+                        # Get input from queue (non-blocking)
+                        data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=data)
+                    except queue.Empty:
+                        # No input, send empty request to keep stream alive
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=b"")
+                        time.sleep(0.1)
+
+            # Collect response like the working terminal
+            response_lines = []
+            start_time = time.time()
+            timeout = 10  # 10 second timeout
+
+            target = HostType.HOST_TYPE_NRF9160
+
+            for resp in self.UartStream(host, target, request_iterator()):
+                if not resp.success:
+                    return None, f"UartStream error: {resp.message}"
+
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
+
+                    # Check if we got the complete response
+                    full_response = "".join(response_lines)
+                    if "IPC rekey completed successfully" in full_response:
+                        return True, None
+                    elif "IPC rekey failed" in full_response:
+                        return False, "IPC rekey failed"
+
+                # Timeout check
+                if time.time() - start_time > timeout:
+                    break
+
+            # If we get here, we didn't find the success or failure message
+            full_response = "".join(response_lines)
+            return None, f"Timeout or no response found. Response: {full_response[:200]}..."
+
+        except Exception as e:
+            return None, f"Exception in rekey_ipc: {str(e)}"  # type: ignore
 
 
 # ---------------------------------------------------------------------------------

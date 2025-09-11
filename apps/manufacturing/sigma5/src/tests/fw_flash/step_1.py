@@ -34,6 +34,8 @@ def fw_flash_test_step_1_handler(config: Sigma5ManufacturingConfig, node: str, u
         result.error = error
         return result
 
+    logging.debug(f"Time taken to flash {config.fw_flash_test_nrf9160_modem_fw_name}: {time_ms}ms")
+
     # Flash was succesful
     result.success = True
 
@@ -45,7 +47,6 @@ def fw_flash_test_step_1_handler(config: Sigma5ManufacturingConfig, node: str, u
 # -------------------------------------------------------------------------------*/
 fw_flash_test_step_1: TestStep = TestStep(
     info=StepInfo(
-        sequence=1,
         name="Flash nrf9160 modem firmware.",
         description="Flashes the nrf9160 modem firmware. using the runner API.",
         noPassIsFatal=True,

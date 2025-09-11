@@ -13,13 +13,6 @@ from src.tests.shared.rpcs import mtib_servers
 # Post test includes
 from src.tests.post.data import PostTestSharedData
 
-# -------------------------------------------------
-#                                            Config
-# -------------------------------------------------
-ACCEL_CHIP_ID = "0x33"
-ALTIMETER_CHIP_ID = "0x60"
-APP_EXT_FLASH_CHIP_ID = "0xef 0x40 0x17"
-
 
 # -------------------------------------------------
 #                                              Data
@@ -68,18 +61,22 @@ def verify_chip_ids(
         return result
 
     # Verify
-    if accel_id != ACCEL_CHIP_ID:
-        result.error = f"Accelerometer chip ID {accel_id} does not match expected value {config.accel_chip_id}"
+    if accel_id != config.post_test_app_accel_chip_id:
+        result.error = (
+            f"Accelerometer chip ID {accel_id} does not match expected value {config.post_test_app_accel_chip_id}"
+        )
         result.details = device_ids.marshall()
         return result
 
-    if altimeter_id != ALTIMETER_CHIP_ID:
-        result.error = f"Altimeter chip ID {altimeter_id} does not match expected value {config.altimeter_chip_id}"
+    if altimeter_id != config.post_test_app_altimeter_chip_id:
+        result.error = (
+            f"Altimeter chip ID {altimeter_id} does not match expected value {config.post_test_app_altimeter_chip_id}"
+        )
         result.details = device_ids.marshall()
         return result
 
-    if app_ext_flash_id != APP_EXT_FLASH_CHIP_ID:
-        result.error = f"App external flash chip ID {app_ext_flash_id} does not match expected value {config.app_ext_flash_chip_id}"
+    if app_ext_flash_id != config.post_test_app_external_flash_chip_id:
+        result.error = f"App external flash chip ID {app_ext_flash_id} does not match expected value {config.post_test_app_external_flash_chip_id}"
         result.details = device_ids.marshall()
         return result
 

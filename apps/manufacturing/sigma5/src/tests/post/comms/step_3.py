@@ -154,8 +154,8 @@ def verify_imei_iccids(
         return result
 
     # Validate the number of ICCIDs
-    if len(iccids) != config.post_test_expected_number_of_sims:
-        result.reason = f"Expected {config.post_test_expected_number_of_sims} ICCIDs, got {len(iccids)}"
+    if len(iccids) != config.post_test_comms_expected_number_of_sims:
+        result.reason = f"Expected {config.post_test_comms_expected_number_of_sims} ICCIDs, got {len(iccids)}"
         result.details = device_info.marshall()
         return result
 

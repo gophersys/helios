@@ -12,12 +12,6 @@ from src.tests.post.data import PostTestSharedData
 from src.tests.shared.config import Sigma5ManufacturingConfig
 from src.tests.shared.rpcs import mtib_servers
 
-# -------------------------------------------------
-#                                            Config
-# -------------------------------------------------
-LORA_AVAILABLE = "yes"
-EXT_FLASH_ID = "0xef 0x40 0x17"
-
 
 # -------------------------------------------------
 #                                              Data
@@ -61,13 +55,17 @@ def verify_chip_ids(
         return result
 
     # Verify
-    if lora_available != LORA_AVAILABLE:
-        result.error = f"LoRa available {lora_available} does not match expected value {LORA_AVAILABLE}"
+    if lora_available != config.post_test_comms_lora_available:
+        result.error = (
+            f"LoRa available {lora_available} does not match expected value {config.post_test_comms_lora_available}"
+        )
         result.details = device_ids.marshall()
         return result
 
-    if ext_flash_id != EXT_FLASH_ID:
-        result.error = f"Ext flash ID {ext_flash_id} does not match expected value {EXT_FLASH_ID}"
+    if ext_flash_id != config.post_test_comms_ext_flash_id:
+        result.error = (
+            f"Ext flash ID {ext_flash_id} does not match expected value {config.post_test_comms_ext_flash_id}"
+        )
         result.details = device_ids.marshall()
         return result
 

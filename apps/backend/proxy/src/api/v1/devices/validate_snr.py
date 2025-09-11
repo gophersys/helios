@@ -103,14 +103,27 @@ def devices_snr_validate_handler():
 
         # TODO: Remove this once we have a proper way to validate SNRS
         # per cluster
+
+        # Sort SNR values alphabetically while keeping hostnames in order
+        # Filter out None values and manually sort
+        valid_snrs = [snr for snr in snr_references if snr is not None]
+
+        # Use the actual sorted array
+        sorted_snrs = sorted(valid_snrs)
+
+        # Use OrderedDict to maintain hostname order
+        from collections import OrderedDict
+
         response = {
-            "snrs": {
-                "verdin-imx8mm-15005658": snr_references[0],
-                "verdin-imx8mm-15005689": snr_references[1],
-                "verdin-imx8mm-15005817": snr_references[2],
-                "verdin-imx8mm-15005816": snr_references[3],
-                "verdin-imx8mm-15005665": snr_references[4],
-            }
+            "snrs": OrderedDict(
+                [
+                    ("verdin-imx8mm-15005658", sorted_snrs[0]),  # 05AU - .11 // 9160 yes, 52840 yes, POST yes
+                    ("verdin-imx8mm-15005689", sorted_snrs[1]),  # 05AV - .9  // 9160 yes, 52840 yes, POST yes
+                    ("verdin-imx8mm-15005817", sorted_snrs[2]),  # 05AW - .13 // 9160 yes, 52840 yes, POST yes
+                    ("verdin-imx8mm-15005816", sorted_snrs[3]),  # 05AX - .10 // 9160 yes, 52840 yes, POST yes
+                    ("verdin-imx8mm-15005665", sorted_snrs[4]),  # 05AY - .6  // 9160 yes, 52840 yes, POST yes
+                ]
+            ),
         }
 
         return jsonify(response), 200

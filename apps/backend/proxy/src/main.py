@@ -19,12 +19,18 @@ from config import env_config
 from src.middleware.permissions import authMiddleware, AuthMiddlewareConfig
 from src.services.proxy import ProxyServerConfiguration, appProxyServer
 from api.v1.register import register_v1_routes
+from api.v1.clusters.tests.exec_uuid import clusters_tests_exec_uuid_socketio_handler
 
 # -------------------------------------------------
 #                                            Server
 # -------------------------------------------------
 server = Flask(__name__)
-socketio = SocketIO(server, debug=True, cors_allowed_origins="*", async_mode="eventlet")
+socketio = SocketIO(server, debug=True, cors_allowed_origins="*", async_mode="eventlet", logger=True)
+
+
+@socketio.on("exec_test")
+def handle_ws_event_exec_test(data):
+    clusters_tests_exec_uuid_socketio_handler(data, socketio)
 
 
 # -------------------------------------------------
@@ -67,7 +73,7 @@ if __name__ == "__main__":
         appProxyServer.init(app_config)
 
         # Register the v1 routes
-        register_v1_routes(server, socketio)
+        register_v1_routes(server)
 
         # Start the server
         socketio.run(

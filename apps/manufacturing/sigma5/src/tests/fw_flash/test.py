@@ -149,5 +149,8 @@ fw_flash_test: Test = Test(
     usr_data=None,
     usr_data_type=None,
     # Steps
-    steps=[fw_flash_test_step_2],
+    steps=[
+        fw_flash_test_step_1,
+        fw_flash_test_step_2,
+    ],
 )

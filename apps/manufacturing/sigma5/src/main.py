@@ -28,10 +28,6 @@ async def wait_for_termination(servers):
 if __name__ == "__main__":
     logging.debug(f"Test app environment configuration: \n{conf}")
 
-    # Run test
-    # nodes = ["slot-1", "slot-2", "slot-3", "slot-4", "slot-5"]
-    nodes = ["verdin-imx8mm-15005679"]
-
     # Electrical test
     if error := electrical_test.setup(conf.ELECTRICAL_TEST_UUID, conf.ELECTRICAL_TEST_PORT, conf.OPERATOR_URL):
         logging.error(f"Could not setup electrical test: {error}")
@@ -48,6 +44,5 @@ if __name__ == "__main__":
         sys.exit(1)
 
     # Await program termination
-    servers = [electrical_test.server]
-    # servers = [electrical_test.server, fw_flash_test.server, post_test.server]
+    servers = [electrical_test.server, fw_flash_test.server, post_test.server]
     asyncio.run(wait_for_termination(servers))

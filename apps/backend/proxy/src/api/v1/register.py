@@ -29,7 +29,6 @@ from .clusters.deployments.apply_uuid import clusters_deployments_apply_uuid_bp
 from .clusters.tests.get_uuid import clusters_tests_get_uuid_bp
 from .clusters.tests.list import clusters_tests_list_bp
 from .clusters.tests.exec_uuid import clusters_tests_exec_uuid_bp
-from .clusters.tests.exec_uuid import clusters_tests_exec_uuid_socketio_handler
 from .clusters.tests.stop_uuid import clusters_tests_stop_uuid_bp
 from .clusters.executions.get_uuid import clusters_executions_get_uuid_bp
 from .clusters.executions.list import clusters_executions_list_bp
@@ -39,7 +38,7 @@ from .obsv.memory.start import obsv_memory_start_bp
 from .obsv.memory.record import obsv_memory_record_bp
 
 
-def register_v1_routes(server: Flask, socketio: SocketIO):
+def register_v1_routes(server: Flask):
     # Add a log filter to avoid spamming the logs with commonly hit routes
     logging.getLogger().addFilter(LogFilter())
 
@@ -79,10 +78,6 @@ def register_v1_routes(server: Flask, socketio: SocketIO):
     server.register_blueprint(clusters_tests_list_bp)  # GET /v1/clusters/<uuid>/tests
     server.register_blueprint(clusters_tests_exec_uuid_bp)  # POST /v1/clusters/<uuid>/tests/<uuid>/exec
     server.register_blueprint(clusters_tests_stop_uuid_bp)  # POST /v1/clusters/<uuid>/tests/<uuid>/stop
-
-    @socketio.on("exec_test")
-    def handle_ws_event_exec_test(data):
-        clusters_tests_exec_uuid_socketio_handler(data, socketio)
 
     # Cluster Executions
     server.register_blueprint(clusters_executions_get_uuid_bp)  # GET /v1/clusters/<uuid>/executions/<uuid>

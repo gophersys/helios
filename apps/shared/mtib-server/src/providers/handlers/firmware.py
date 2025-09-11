@@ -35,47 +35,99 @@ class FirmwareHandler:
             serials = []
 
         for serial in serials:
-            try:
-                result = (
-                    subprocess.check_output(["nrfjprog", "--snr", serial, "--deviceversion"], stderr=subprocess.STDOUT)
-                    .decode()
-                    .strip()
-                    .upper()
-                )
+            # Try to get device version
+            success = self._try_detect_device(serial)
+            if not success:
+                # If detection failed, try recovery and detect again
+                self.logger.info(f"J-Link {serial} detection failed, attempting recovery...")
+                if self._try_recover_device(serial):
+                    self._try_detect_device(serial)
 
-                # Check for common error patterns in the output
-                if "LOW VOLTAGE" in result or "ERROR" in result:
-                    self.logger.warning(f"J-Link {serial} detected but no device connected or low voltage condition")
-                    self.programmers[serial] = (None, False)  # No host type, not connected
-                    continue
+    def _try_detect_device(self, serial: str) -> bool:
+        """Try to detect device type for a J-Link serial number. Returns True if successful."""
+        try:
+            result = subprocess.check_output(
+                ["nrfjprog", "--snr", serial, "--deviceversion"], stderr=subprocess.STDOUT
+            ).decode()
 
-                self.logger.info(f"J-Link serial {serial} detected with device version {result}")
+            # Log the raw output for debugging
+            self.logger.info(f"J-Link {serial} deviceversion output: {result}")
+            result_upper = result.strip().upper()
 
-                # Determine host type based on the actual device version
-                host_type = None
-                if "NRF9160" in result:
-                    host_type = HostType.HOST_TYPE_NRF9160
-                elif "NRF52840" in result:
-                    host_type = HostType.HOST_TYPE_NRF52840
-                elif "NRF5340" in result:
-                    host_type = HostType.HOST_TYPE_NRF5340
-                elif "NRF9151" in result:
-                    host_type = HostType.HOST_TYPE_NRF9151
+            # Check for access protection error
+            if "ACCESS PROTECTION IS ENABLED" in result_upper:
+                self.logger.info(f"J-Link {serial} has access protection enabled")
+                return False
 
-                if host_type:
-                    self.programmers[serial] = (host_type, True)
-                    self.logger.info(f"Assigned J-Link {serial} to host type {host_type}")
-                else:
-                    self.logger.warning(f"Unknown device version {result} for serial {serial}")
-                    self.programmers[serial] = (None, False)
-
-            except subprocess.CalledProcessError as e:
-                error_msg = e.stderr.decode() if e.stderr else str(e)
-                if "low voltage" in error_msg.lower():
-                    self.logger.warning(f"J-Link {serial} detected but no device connected or low voltage condition")
-                else:
-                    self.logger.error(f"Error reading device info for J-Link {serial}: {error_msg}")
+            # Check for other error conditions
+            if "LOW VOLTAGE" in result_upper or "ERROR" in result_upper:
+                self.logger.warning(f"J-Link {serial} detected but no device connected or low voltage condition")
                 self.programmers[serial] = (None, False)
+                return False
+
+            # Successfully detected device
+            self.logger.info(f"J-Link serial {serial} detected with device version {result}")
+            self._assign_device_type(serial, result_upper)
+            return True
+
+        except subprocess.CalledProcessError as e:
+            error_msg = e.stderr.decode() if e.stderr else str(e)
+            self.logger.error(f"Error reading device info for J-Link {serial}: {error_msg}")
+
+            # Check if this might be access protection
+            if "access protection" in error_msg.lower() or "error -90" in error_msg.lower():
+                self.logger.info(f"J-Link {serial} might have access protection (detected in exception)")
+                return False
+
+            self.programmers[serial] = (None, False)
+            return False
+
+    def _try_recover_device(self, serial: str) -> bool:
+        """Try to recover a J-Link device. Returns True if recovery was successful."""
+        try:
+            self.logger.info(f"Attempting recovery for J-Link {serial}...")
+            recover_result = subprocess.run(
+                ["nrfjprog", "--snr", serial, "--recover"],
+                capture_output=True,
+                text=True,
+                timeout=60,  # 30s + buffer
+            )
+
+            if recover_result.returncode == 0:
+                self.logger.info(f"Successfully recovered J-Link {serial}")
+                return True
+            else:
+                self.logger.error(f"Failed to recover J-Link {serial}: {recover_result.stderr}")
+                self.programmers[serial] = (None, False)
+                return False
+
+        except subprocess.TimeoutExpired:
+            self.logger.error(f"Recovery timeout for J-Link {serial}")
+            self.programmers[serial] = (None, False)
+            return False
+        except Exception as e:
+            self.logger.error(f"Unexpected error during recovery for J-Link {serial}: {e}")
+            self.programmers[serial] = (None, False)
+            return False
+
+    def _assign_device_type(self, serial: str, result_upper: str):
+        """Assign the J-Link serial to the appropriate device type."""
+        host_type = None
+        if "NRF9160" in result_upper:
+            host_type = HostType.HOST_TYPE_NRF9160
+        elif "NRF52840" in result_upper:
+            host_type = HostType.HOST_TYPE_NRF52840
+        elif "NRF5340" in result_upper:
+            host_type = HostType.HOST_TYPE_NRF5340
+        elif "NRF9151" in result_upper:
+            host_type = HostType.HOST_TYPE_NRF9151
+
+        if host_type:
+            self.programmers[serial] = (host_type, True)
+            self.logger.info(f"Assigned J-Link {serial} to host type {host_type}")
+        else:
+            self.logger.warning(f"Unknown device version for serial {serial}")
+            self.programmers[serial] = (None, False)
 
     def _calculate_sha256(self, file_path: Path) -> str:
         """Calculate SHA256 hash of a file."""

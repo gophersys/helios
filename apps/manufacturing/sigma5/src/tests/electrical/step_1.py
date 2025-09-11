@@ -50,7 +50,7 @@ def electrical_test_step_1_handler(
     readings = Step1Readings()
 
     # 1. Apply +2.5V to +BATT test point
-    result.error = mtib_servers.enable_power(node, 2.5)
+    result.error = mtib_servers.enable_power(node, 2.4)
     if result.error:
         return result
 

@@ -98,11 +98,20 @@ def electrical_test_step_2_handler(
     logging.debug(f"Step 2.c: +VBCKP voltage: {readings.vbckp_voltage}V")
 
     # # 2.d: Ensure UVP_N test point voltage is digital high
-    # result.error, readings.uvp_n_value = mtib_servers.read_uvp_n(node)
-    # if result.error:
-    #     return result
+    # uvp_state = False
+    # start_time = datetime.now()
+    # while datetime.now() - start_time < timedelta(seconds=config.uvp_n_stabilization_period_s):
+    #     result.error, uvp_state = mtib_servers.read_uvp_n(node)
+    #     if result.error:
+    #         return result
 
-    # if readings.uvp_n_value is not True:
+    #     if uvp_state is True:
+    #         break
+
+    # readings.uvp_n_value = uvp_state
+    # readings.uvp_n_stabilization_period_s = (datetime.now() - start_time).seconds
+
+    # if not uvp_state:
     #     result.reason = f"Step 2.d failed: Expected UVP_N digital high, Actual UVP_N = {readings.uvp_n_value}"
     #     result.details = readings.marshall()
     #     return result
@@ -135,7 +144,7 @@ electrical_test_step_2: TestStep = TestStep(
     info=StepInfo(
         name="Apply +3.2V to +BATT; voltage at nominal.",
         description="Checks VIN, VBAT, 3.3V, VBCKP, UVP_N and current consumption against thresholds.",
-        noPassIsFatal=False,
+        noPassIsFatal=True,
     ),
     timeout_ms=60000,
     handler=electrical_test_step_2_handler,
