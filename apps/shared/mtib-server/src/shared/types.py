@@ -59,6 +59,8 @@ from protocols.mtib.mtib_pb2 import (
     DeleteFwFileResponse,
     FlashFwFileRequest,
     FlashFwFileResponse,
+    EnableAppProtectRequest,
+    EnableAppProtectResponse,
     # UART types
     UartStreamRequest,
     UartStreamResponse,

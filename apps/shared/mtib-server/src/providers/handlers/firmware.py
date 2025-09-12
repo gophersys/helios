@@ -387,6 +387,185 @@ class FirmwareHandler:
             self.logger.error(f"Error flashing firmware: {e}")
             return FlashFwFileResponse(success=False, message=f"Failed to flash firmware: {str(e)}", time_ms=0)
 
+    def enable_app_protect(
+        self, request: EnableAppProtectRequest, context: grpc.ServicerContext
+    ) -> EnableAppProtectResponse:
+        """Enable App Protect."""
+        self.logger.info(f"EnableAppProtect request received for {request.target}")
+
+        try:
+            # Re-scan and update programmer assignments before enabling protection
+            self._assign_jlinks()
+
+            # Find a suitable programmer for the target
+            programmer = None
+            for serial, (host_type, is_connected) in self.programmers.items():
+                if not is_connected:
+                    continue
+                # Allow NRF9160 programmer for both NRF9160 and NRF9160_MODEM targets
+                if request.target in [HostType.HOST_TYPE_NRF9160, HostType.HOST_TYPE_NRF9160_MODEM]:
+                    if host_type == HostType.HOST_TYPE_NRF9160:
+                        programmer = serial
+                        break
+                else:
+                    if host_type == request.target:
+                        programmer = serial
+                        break
+
+            if not programmer:
+                return EnableAppProtectResponse(
+                    success=False, message=f"No suitable programmer found for target {request.target}"
+                )
+
+            # Determine chip family and protection parameters
+            if request.target in [HostType.HOST_TYPE_NRF52840, HostType.HOST_TYPE_NRF5340]:
+                # NRF52 family
+                family = "NRF52"
+                protect_addr = "0x10001208"
+                protect_val = "0xFFFFFF00"
+            elif request.target in [
+                HostType.HOST_TYPE_NRF9160,
+                HostType.HOST_TYPE_NRF9160_MODEM,
+                HostType.HOST_TYPE_NRF9151,
+            ]:
+                # NRF91 family
+                family = "NRF91"
+                protect_addr = "0x00FF8000"
+                protect_val = "0"
+            else:
+                return EnableAppProtectResponse(
+                    success=False, message=f"Unsupported target {request.target} for App Protect"
+                )
+
+            self.logger.info(f"Enabling App Protect for {family} family on programmer {programmer}")
+
+            # Step 1: Write the App Protect value
+            try:
+                protect_cmd = [
+                    "nrfjprog",
+                    "--family",
+                    family,
+                    "--memwr",
+                    protect_addr,
+                    "--val",
+                    protect_val,
+                    "--snr",
+                    programmer,
+                ]
+                self.logger.info(f"Running App Protect write: {' '.join(protect_cmd)}")
+                subprocess.run(
+                    protect_cmd,
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                    timeout=30,  # 30 second timeout
+                )
+                self.logger.info(f"Successfully wrote App Protect value {protect_val} to address {protect_addr}")
+            except subprocess.TimeoutExpired:
+                error_msg = f"App Protect write operation timed out after 30 seconds for programmer {programmer}"
+                self.logger.error(error_msg)
+                return EnableAppProtectResponse(success=False, message=error_msg)
+            except subprocess.CalledProcessError as e:
+                error_msg = f"Failed to write App Protect value: {e.stderr if e.stderr else str(e)}"
+                if e.stdout:
+                    error_msg += f"\nstdout: {e.stdout}"
+                self.logger.error(error_msg)
+                return EnableAppProtectResponse(success=False, message=error_msg)
+            except FileNotFoundError:
+                error_msg = "nrfjprog command not found. Please ensure nRF Command Line Tools are installed."
+                self.logger.error(error_msg)
+                return EnableAppProtectResponse(success=False, message=error_msg)
+            except Exception as e:
+                error_msg = f"Unexpected error during App Protect write: {str(e)}"
+                self.logger.error(error_msg)
+                return EnableAppProtectResponse(success=False, message=error_msg)
+
+            # Step 2: Reset MCU to apply protection
+            try:
+                reset_cmd = ["nrfjprog", "--reset", "--snr", programmer]
+                self.logger.info(f"Running reset: {' '.join(reset_cmd)}")
+                result = subprocess.run(
+                    reset_cmd,
+                    capture_output=True,
+                    text=True,
+                    check=False,  # Don't fail on non-zero exit code, check output instead
+                    timeout=30,  # 30 second timeout
+                )
+
+                # Check if reset failed due to access protection
+                output = result.stdout + result.stderr
+                if "Access protection is enabled" in output or "readback protection" in output.lower():
+                    self.logger.info("Device already has access protection enabled - skipping reset")
+                    # Protection is already active, proceed to verification
+                elif result.returncode == 0:
+                    self.logger.info("Successfully reset MCU to apply protection")
+                else:
+                    error_msg = f"Failed to reset MCU: {result.stderr if result.stderr else str(result)}"
+                    if result.stdout:
+                        error_msg += f"\nstdout: {result.stdout}"
+                    self.logger.error(error_msg)
+                    return EnableAppProtectResponse(success=False, message=error_msg)
+
+            except subprocess.TimeoutExpired:
+                error_msg = f"Reset operation timed out after 30 seconds for programmer {programmer}"
+                self.logger.error(error_msg)
+                return EnableAppProtectResponse(success=False, message=error_msg)
+            except Exception as e:
+                error_msg = f"Unexpected error during reset: {str(e)}"
+                self.logger.error(error_msg)
+                return EnableAppProtectResponse(success=False, message=error_msg)
+
+            # Step 3: Wait for MCU to boot (brief delay)
+            self.logger.info("Waiting for MCU to boot...")
+            time.sleep(2)  # Wait 2 seconds for MCU to boot
+
+            # Step 4: Verify protection is active
+            try:
+                verify_cmd = ["nrfjprog", "--family", family, "--memrd", "0x00000000", "--n", "4", "--snr", programmer]
+                self.logger.info(f"Running protection verification: {' '.join(verify_cmd)}")
+                result = subprocess.run(
+                    verify_cmd,
+                    capture_output=True,
+                    text=True,
+                    check=False,  # Don't fail on non-zero exit code, we expect this to fail
+                    timeout=30,  # 30 second timeout
+                )
+
+                # Check if the expected protection message is in the output
+                output = result.stdout + result.stderr
+                protection_indicators = [
+                    "Can't read memory descriptors, ap-protection is enabled.",
+                    "Access protection is enabled",
+                    "readback protection",
+                    "unavailable due to readback protection",
+                ]
+
+                protection_active = any(indicator.lower() in output.lower() for indicator in protection_indicators)
+
+                if protection_active:
+                    self.logger.info("App Protect verification successful - protection is active")
+                    return EnableAppProtectResponse(success=True, message="App Protect enabled successfully")
+                else:
+                    # If we can read memory, protection might not be active
+                    self.logger.warning("App Protect verification inconclusive - protection status unclear")
+                    self.logger.debug(f"Verification output: {output}")
+                    return EnableAppProtectResponse(
+                        success=False, message="App Protect verification failed - protection may not be active"
+                    )
+
+            except subprocess.TimeoutExpired:
+                error_msg = f"Protection verification timed out after 30 seconds for programmer {programmer}"
+                self.logger.error(error_msg)
+                return EnableAppProtectResponse(success=False, message=error_msg)
+            except Exception as e:
+                error_msg = f"Unexpected error during protection verification: {str(e)}"
+                self.logger.error(error_msg)
+                return EnableAppProtectResponse(success=False, message=error_msg)
+
+        except Exception as e:
+            self.logger.error(f"Error enabling App Protect: {e}")
+            return EnableAppProtectResponse(success=False, message=f"Failed to enable App Protect: {str(e)}")
+
     def __del__(self):
         """Cleanup all temporary files when the handler is destroyed."""
         try:

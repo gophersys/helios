@@ -46,9 +46,8 @@ def verify_ble_functionality(
     result = TestStepResult(success=False)
     ble_info = BleInfo()
 
-    # TODO: Implement
-    # The `usr_data` variable can be used to pass in the expected MAC address from the step that
-    # gets this info from the device.
+    # TODO: Implement BLE in MTIB server. Right now this is very difficult to do
+    # without modifying the underlying OS distro, and it's too complex to do right now.
 
     result.details = ble_info.marshall()
     result.success = True

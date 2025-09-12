@@ -352,6 +352,12 @@ class MtibV1Provider(MtibV1Servicer):
     def FlashFwFile(self, request: FlashFwFileRequest, context: grpc.ServicerContext) -> FlashFwFileResponse:
         return self._firmware_handlers.flash_fw_file(request, context)
 
+    @grpc_method
+    def EnableAppProtect(
+        self, request: EnableAppProtectRequest, context: grpc.ServicerContext
+    ) -> EnableAppProtectResponse:
+        return self._firmware_handlers.enable_app_protect(request, context)
+
     # -------------------------------------------------
     #                                              UART
     # -------------------------------------------------

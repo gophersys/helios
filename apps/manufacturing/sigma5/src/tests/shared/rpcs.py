@@ -58,6 +58,8 @@ from protocols.mtib.mtib_pb2 import (
     # ListFwFilesResponse,
     UartStreamRequest,
     UartStreamResponse,
+    EnableAppProtectRequest,
+    EnableAppProtectResponse,
     # UploadFwFileRequest,
     # UploadFwFileResponse,
 )
@@ -497,6 +499,21 @@ class Sigma5MtibServers:
             return None, f"gRPC error for FlashFwFile at {self.config.net.addr}. Error: {str(e.details())}"
         except Exception as e:
             return None, f"Unexpected error in FlashFwFile at {self.config.net.addr}: {str(e)}"
+
+    def enable_app_protect(self, host: str, target: HostType) -> Tuple[Optional[bool], Optional[str]]:
+        if host not in self.mtibs:
+            return None, f"No mtib stub found for host {host}"
+
+        try:
+            stub = self.mtibs[host]
+            response: EnableAppProtectResponse = stub.EnableAppProtect(EnableAppProtectRequest(target=target))
+            if not response.success:
+                return None, f"EnableAppProtect error: {response.message}"
+            return response.success, None
+        except grpc.RpcError as e:
+            return None, f"gRPC error for EnableAppProtect at {host}. Error: {str(e.details())}"
+        except Exception as e:
+            return None, f"Unexpected error in EnableAppProtect at {host}: {str(e)}"
 
     def UartStream(
         self, host: str, target: HostType, request_iterator: Iterator[UartStreamRequest]

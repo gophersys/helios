@@ -80,7 +80,7 @@ def verify_chip_ids(
         result.details = device_ids.marshall()
         return result
 
-    # Assin
+    # Assign
     device_ids.accel_id = accel_id
     device_ids.altimeter_id = altimeter_id
     device_ids.app_ext_flash_id = app_ext_flash_id

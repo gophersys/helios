@@ -67,6 +67,8 @@ service MtibV1 {
   rpc UploadFwFile(stream UploadFwFileRequest) returns (UploadFwFileResponse) {}
   rpc DeleteFwFile(DeleteFwFileRequest) returns (DeleteFwFileResponse) {}
   rpc FlashFwFile(FlashFwFileRequest) returns (FlashFwFileResponse) {}
+  rpc EnableAppProtect(EnableAppProtectRequest)
+      returns (EnableAppProtectResponse) {}
 
   // Uart streams
   rpc UartStream(stream UartStreamRequest) returns (stream UartStreamResponse) {
@@ -347,6 +349,13 @@ message FlashFwFileResponse {
   string message = 2;
 
   int32 time_ms = 3;
+}
+
+message EnableAppProtectRequest { HostType target = 1; }
+
+message EnableAppProtectResponse {
+  bool success = 1;
+  string message = 2;
 }
 
 // Uart streams

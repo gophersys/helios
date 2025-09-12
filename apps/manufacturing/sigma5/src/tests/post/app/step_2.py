@@ -78,8 +78,7 @@ def verify_ublox_module(
                 result.details = ublox.marshall()
                 return result
         else:
-            # Success - break out of retry loop
-            break
+            break  # Success - break out of retry loop
 
     # Verify
     if hw_version != config.post_test_app_gps_ublox_hw_version:

@@ -42,8 +42,8 @@ class Sigma5ManufacturingConfig:
 
     # Firmware flash test
     fw_flash_test_nrf9160_modem_fw_name: str = "mfw_nrf9160_1.3.6.zip"
-    fw_flash_test_nrf9160_app_fw_name: str = "sigma_comm_eng_12.hex"
-    fw_flash_test_nrf52840_app_fw_name: str = "sigma_app_eng_12.hex"
+    fw_flash_test_nrf9160_app_fw_name: str = "sigma_comm_eng_18.hex"
+    fw_flash_test_nrf52840_app_fw_name: str = "sigma_app_eng_18.hex"
 
     # Post test
     post_test_app_accel_chip_id: str = "0x33"

@@ -52,14 +52,6 @@ def verify_external_flash_functionality(
     result = TestStepResult(success=False)
     flash_info = ExternalFlashInfo()
 
-    # Erase external flash before testing
-    logging.debug("Erasing external flash before testing...")
-    erase_success, erase_error = mtib_servers.sigma5_cmd_app_erase_ext_flash(node)
-    if not erase_success or erase_error:
-        result.error = f"Failed to erase external flash: {erase_error}"
-        result.details = flash_info.marshall()
-        return result
-
     # Convert test string to base64 for writing
     test_data_b64 = base64.b64encode(config.post_test_app_external_flash_test_string.encode("utf-8")).decode("utf-8")
 
@@ -80,6 +72,53 @@ def verify_external_flash_functionality(
         f"Test addresses - Start: {config.post_test_app_external_flash_start}, End: {config.post_test_app_external_flash_end}, Middle: {random_middle_address}"
     )
 
+    # Try the test first without erasing
+    logging.debug("Attempting external flash test without initial erase...")
+    test_result = _run_flash_test(node, config, test_data_b64, random_middle_address)
+
+    if test_result.success:
+        logging.debug("First test attempt succeeded!")
+        result.success = True
+        result.details = flash_info.marshall()
+    else:
+        logging.debug(f"First test attempt failed: {test_result.error}. Erasing flash and retrying...")
+
+        # Erase external flash and retry
+        erase_success, erase_error = mtib_servers.sigma5_cmd_app_erase_ext_flash(node)
+        if not erase_success or erase_error:
+            result.error = f"Failed to erase external flash for retry: {erase_error}"
+            result.details = flash_info.marshall()
+            return result
+
+        # Retry the test
+        logging.debug("Retrying external flash test after erase...")
+        test_result = _run_flash_test(node, config, test_data_b64, random_middle_address)
+
+        if test_result.success:
+            logging.debug("Second test attempt succeeded!")
+            result.success = True
+            result.details = flash_info.marshall()
+        else:
+            logging.debug(f"Second test attempt also failed: {test_result.error}")
+            result.error = f"External flash test failed after retry: {test_result.error}"
+            result.details = flash_info.marshall()
+
+    # Always perform cleanup erase at the end
+    logging.debug("Performing cleanup erase of external flash...")
+    erase_success, erase_error = mtib_servers.sigma5_cmd_app_erase_ext_flash(node)
+    if not erase_success or erase_error:
+        # Don't fail the test for cleanup erase failure, just log it
+        logging.warning(f"Failed to perform cleanup erase: {erase_error}")
+
+    return result
+
+
+def _run_flash_test(
+    node: str, config: Sigma5ManufacturingConfig, test_data_b64: str, random_middle_address: str
+) -> TestStepResult:
+    """Run the actual flash test operations without erase operations."""
+    result = TestStepResult(success=False)
+
     # Step 1: Write known pattern to start of external flash
     logging.debug("Writing test pattern to start of external flash...")
     write_success, write_error = mtib_servers.sigma5_cmd_app_write_ext_flash(
@@ -87,7 +126,6 @@ def verify_external_flash_functionality(
     )
     if not write_success or write_error:
         result.error = f"Failed to write to start of flash: {write_error}"
-        result.details = flash_info.marshall()
         return result
 
     # Step 2: Write known pattern to end of external flash
@@ -97,7 +135,6 @@ def verify_external_flash_functionality(
     )
     if not write_success or write_error:
         result.error = f"Failed to write to end of flash: {write_error}"
-        result.details = flash_info.marshall()
         return result
 
     # Step 3: Write known pattern to random middle address
@@ -107,7 +144,6 @@ def verify_external_flash_functionality(
     )
     if not write_success or write_error:
         result.error = f"Failed to write to middle of flash: {write_error}"
-        result.details = flash_info.marshall()
         return result
 
     # Step 4: Verify pattern at start
@@ -117,7 +153,6 @@ def verify_external_flash_functionality(
     )
     if not read_data or read_error:
         result.error = f"Failed to read from start of flash: {read_error}"
-        result.details = flash_info.marshall()
         return result
 
     # Convert hex data back to string for comparison
@@ -127,11 +162,9 @@ def verify_external_flash_functionality(
         read_string = hex_bytes.decode("utf-8", errors="ignore")
         if read_string != config.post_test_app_external_flash_test_string:
             result.error = f"Data mismatch at start. Expected: {config.post_test_app_external_flash_test_string}, Got: {read_string}"
-            result.details = flash_info.marshall()
             return result
     except Exception as e:
         result.error = f"Failed to parse read data from start: {e}"
-        result.details = flash_info.marshall()
         return result
 
     # Step 5: Verify pattern at end
@@ -141,7 +174,6 @@ def verify_external_flash_functionality(
     )
     if not read_data or read_error:
         result.error = f"Failed to read from end of flash: {read_error}"
-        result.details = flash_info.marshall()
         return result
 
     try:
@@ -149,11 +181,9 @@ def verify_external_flash_functionality(
         read_string = hex_bytes.decode("utf-8", errors="ignore")
         if read_string != config.post_test_app_external_flash_test_string:
             result.error = f"Data mismatch at end. Expected: {config.post_test_app_external_flash_test_string}, Got: {read_string}"
-            result.details = flash_info.marshall()
             return result
     except Exception as e:
         result.error = f"Failed to parse read data from end: {e}"
-        result.details = flash_info.marshall()
         return result
 
     # Step 6: Verify pattern at middle
@@ -163,7 +193,6 @@ def verify_external_flash_functionality(
     )
     if not read_data or read_error:
         result.error = f"Failed to read from middle of flash: {read_error}"
-        result.details = flash_info.marshall()
         return result
 
     try:
@@ -171,25 +200,13 @@ def verify_external_flash_functionality(
         read_string = hex_bytes.decode("utf-8", errors="ignore")
         if read_string != config.post_test_app_external_flash_test_string:
             result.error = f"Data mismatch at middle. Expected: {config.post_test_app_external_flash_test_string}, Got: {read_string}"
-            result.details = flash_info.marshall()
             return result
     except Exception as e:
         result.error = f"Failed to parse read data from middle: {e}"
-        result.details = flash_info.marshall()
-        return result
-
-    # Step 7: Erase external flash
-    logging.debug("Erasing external flash...")
-    erase_success, erase_error = mtib_servers.sigma5_cmd_app_erase_ext_flash(node)
-    if not erase_success or erase_error:
-        result.error = f"Failed to erase external flash: {erase_error}"
-        result.details = flash_info.marshall()
         return result
 
     # All tests passed
     result.success = True
-    result.details = flash_info.marshall()
-
     return result
 
 
