@@ -15,9 +15,7 @@ from src.tests.shared.rpcs import *
 # -------------------------------------------------
 #                                           Handler
 # -------------------------------------------------
-def enable_comms_app_protect(
-    config: Sigma5ManufacturingConfig, node: str, usr_data: Dict[str, PostTestSharedData]
-) -> TestStepResult:
+def rekey_ipc(config: Sigma5ManufacturingConfig, node: str, usr_data: Dict[str, PostTestSharedData]) -> TestStepResult:
     result = TestStepResult(success=False)
 
     success, error = mtib_servers.sigma5_cmd_comms_rekey_ipc(node)
@@ -44,5 +42,5 @@ comms_post_step_6_rekey_ipc: TestStep = TestStep(
         noPassIsFatal=True,
     ),
     timeout_ms=20000,
-    handler=enable_comms_app_protect,
+    handler=rekey_ipc,
 )
