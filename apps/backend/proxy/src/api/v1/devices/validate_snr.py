@@ -117,11 +117,11 @@ def devices_snr_validate_handler():
         response = {
             "snrs": OrderedDict(
                 [
-                    ("verdin-imx8mm-15005658", sorted_snrs[0]),  # 05AU - .11 // 9160 yes, 52840 yes, POST yes
-                    ("verdin-imx8mm-15005689", sorted_snrs[1]),  # 05AV - .9  // 9160 yes, 52840 yes, POST yes
+                    ("verdin-imx8mm-15005658", sorted_snrs[4]),  # 05AU - .11 // 9160 yes, 52840 yes, POST yes
+                    ("verdin-imx8mm-15005689", sorted_snrs[3]),  # 05AV - .9  // 9160 yes, 52840 yes, POST yes
                     ("verdin-imx8mm-15005817", sorted_snrs[2]),  # 05AW - .13 // 9160 yes, 52840 yes, POST yes
-                    ("verdin-imx8mm-15005816", sorted_snrs[3]),  # 05AX - .10 // 9160 yes, 52840 yes, POST yes // cook
-                    ("verdin-imx8mm-15005665", sorted_snrs[4]),  # 05AY - .6  // 9160 yes, 52840 yes, POST yes
+                    ("verdin-imx8mm-15005816", sorted_snrs[1]),  # 05AX - .10 // 9160 yes, 52840 yes, POST yes // cook
+                    ("verdin-imx8mm-15005665", sorted_snrs[0]),  # 05AY - .6  // 9160 yes, 52840 yes, POST yes
                 ]
             ),
         }

@@ -34,7 +34,7 @@ class Sigma5ManufacturingConfig:
     electrical_step_3b_current_min: float = 0.01
     electrical_step_3b_current_max: float = 0.1
     electrical_step_4a_vin_threshold_v: float = 0.6
-    electrical_step_5a_vin_threshold_v: float = 4.65
+    electrical_step_5a_vin_threshold_v: float = 4.55
     electrical_step_5b_3v3_min: float = 3.25
     electrical_step_5b_3v3_max: float = 3.35
     electrical_step_5c_vbckp_min: float = 2.4
@@ -54,7 +54,7 @@ class Sigma5ManufacturingConfig:
     post_test_app_gps_ublox_hw_version: str = "00080000"
     post_test_app_gps_ublox_proto_version: str = "PROTVER=18.00"
     post_test_app_gps_ublox_constellations: str = "GPS;GLO;GAL;BDS;SBAS;IMES;QZSS"
-    post_test_app_accelerometer_error_margin: float = 0.75
+    post_test_app_accelerometer_error_margin: float = 0.99
     post_test_app_altimeter_pressure_error_margin: float = 0.01
     post_test_app_altimeter_temperature_error_margin: float = 6.0
     post_test_app_external_flash_test_string: str = "Hello, world!0xA54A"

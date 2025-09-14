@@ -108,7 +108,7 @@ if __name__ == "__main__":
                 ),
                 logger=logger,
             )
-            error = data_logger_client.init()
+            error = data_logger_client.init(provider)
             if error:
                 logger.error(f"Failed to initialize data logger client: {error}")
                 sys.exit(1)

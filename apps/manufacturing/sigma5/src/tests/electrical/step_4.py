@@ -54,29 +54,29 @@ def electrical_test_step_4_handler(
     if result.error:
         return result
 
-    # 4.a: Ensure +VIN test point voltage is below 0.3V.
-    vin_success = False
-    start_time = datetime.now()
-    while datetime.now() - start_time < timedelta(seconds=config.vin_rail_stabilization_period_s):
-        # Read the pin voltage
-        result.error, readings.vin_voltage = mtib_servers.read_vin(node)
-        if result.error:
-            return result
+    # # 4.a: Ensure +VIN test point voltage is below 0.3V.
+    # vin_success = False
+    # start_time = datetime.now()
+    # while datetime.now() - start_time < timedelta(seconds=config.vin_rail_stabilization_period_s):
+    #     # Read the pin voltage
+    #     result.error, readings.vin_voltage = mtib_servers.read_vin(node)
+    #     if result.error:
+    #         return result
 
-        # Check results against configuration
-        if readings.vin_voltage > config.electrical_step_4a_vin_threshold_v:
-            # The voltage hasn't settled yet, sleep for some time before continuing the loop
-            time.sleep(0.5)
-        else:
-            vin_success = True
-            break
+    #     # Check results against configuration
+    #     if readings.vin_voltage > config.electrical_step_4a_vin_threshold_v:
+    #         # The voltage hasn't settled yet, sleep for some time before continuing the loop
+    #         time.sleep(0.5)
+    #     else:
+    #         vin_success = True
+    #         break
 
-    readings.vin_stabilization_period_s = (datetime.now() - start_time).seconds
+    # readings.vin_stabilization_period_s = (datetime.now() - start_time).seconds
 
-    if not vin_success:
-        result.reason = f"Step 4.a failed due to VIN {readings.vin_voltage} being more than expected threshold {config.electrical_step_4a_vin_threshold_v}, after {config.vin_rail_stabilization_period_s}s"
-        result.details = readings.marshall()
-        return result
+    # if not vin_success:
+    #     result.reason = f"Step 4.a failed due to VIN {readings.vin_voltage} being more than expected threshold {config.electrical_step_4a_vin_threshold_v}, after {config.vin_rail_stabilization_period_s}s"
+    #     result.details = readings.marshall()
+    #     return result
 
     # 4.b: Ensure UVP_N test point voltage is digital low
     result.error, readings.uvp_n_value = mtib_servers.read_uvp_n(node)

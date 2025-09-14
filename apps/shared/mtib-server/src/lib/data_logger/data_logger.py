@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from typing import Optional
+import socket
 import time
 import logging
 import threading
@@ -7,8 +8,9 @@ import paho.mqtt.client as mqtt
 
 # Corekinect includes
 from corekinect.utils import Logger
-from corekinect.mtib_client.v1 import MtibV1Client, NetConfig
 from paho.mqtt.enums import MQTTErrorCode
+
+from src.providers.mtib import *
 
 LOG_MODULE = "data_logger"
 
@@ -44,16 +46,18 @@ class DataLoggerClient:
 
         # Objects we manage
         self.mqtt_client: mqtt.Client = None
-        self.mtib_client: MtibV1Client = None
 
         # Thread management
         self.adc_thread: Optional[threading.Thread] = None
         self.stop_event: threading.Event = threading.Event()
         self.adc_thread_running: bool = False
 
-    def init(self) -> Optional[str]:
+    def init(self, provider: MtibV1Provider) -> Optional[str]:
         start_time = time.time()
         self.logger.debug("Initializing with config: %s", self.config)
+
+        # Setup the provider
+        self.provider: MtibV1Provider = provider
 
         # Using the paho libaray, and parsing URLs that may come like this:"mqtt://10.4.45.7:1883",
         # attempt to connect to the broker, and return errors accordingly
@@ -73,22 +77,6 @@ class DataLoggerClient:
         except Exception as e:
             return f"Failed to connect to MQTT broker: {e}"
 
-        # Instantiate the MTIB client, which is just connected to this same server
-        self.mtib_client = MtibV1Client(
-            config=MtibV1Client.Config(
-                net=NetConfig(
-                    addr="localhost",
-                    port=self.config.SERVER_PORT,
-                ),
-            ),
-        )
-
-        # Connect to the server
-        if err := self.mtib_client.connect():
-            return f"Failed to connect to server: {err}"
-
-        self.logger.info("Connected to MTIB server at %s:%d", "localhost", self.config.SERVER_PORT)
-
         # Start the ADC reading thread
         self._start_adc_thread()
 
@@ -98,12 +86,6 @@ class DataLoggerClient:
     def deinit(self) -> Optional[str]:
         # Stop the ADC thread gracefully
         self._stop_adc_thread()
-
-        # Disconnect MTIB client
-        if self.mtib_client is not None:
-            self.logger.debug("Disconnecting from MTIB server")
-            # Note: MtibV1Client doesn't have a disconnect method, so we just clear the reference
-            self.mtib_client = None
 
         # Check if the MQTT client is connected
         if self.mqtt_client is not None:
@@ -151,22 +133,25 @@ class DataLoggerClient:
         self.logger.debug("ADC thread worker started")
 
         # Target frequency: 100Hz = 10ms interval
-        target_interval = 0.01
+        target_interval = 0.1
 
         while not self.stop_event.is_set():
             loop_start = time.time()
 
             try:
                 # Read all ADC channels (0-7)
-                voltages, error = self.mtib_client.AdcReadAll()
+                response = self.provider._adc_handlers.read_all(Empty(), None)
 
-                if error:
-                    self.logger.error("Failed to read ADC data: %s", error)
-                elif voltages is not None:
+                if not response.success:
+                    self.logger.error("Failed to read ADC data: %s", response.message)
+                elif response.voltages_v is not None:
                     # Publish each channel to its respective MQTT topic
-                    for channel, voltage in enumerate(voltages):
+                    for channel, voltage in enumerate(response.voltages_v):
                         if channel < 8:  # Ensure we don't exceed expected channels
-                            topic = f"adc/{channel}"
+
+                            # Get the hostname
+                            hostname = socket.gethostname()
+                            topic = f"{hostname}/adc/{channel}"
                             payload = voltage
 
                             try:
