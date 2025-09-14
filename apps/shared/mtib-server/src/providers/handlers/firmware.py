@@ -21,12 +21,12 @@ class FirmwareHandler:
 
         # Initialize programmer info storage
         self.programmers: dict[str, tuple[HostType | None, bool]] = {}
-        self._assign_jlinks()
+        self._assign_jlinks(True)
 
         # Track active firmware files
         self.active_files: Dict[str, Tuple[Path, HostType]] = {}  # Maps filename to (temp file path, target)
 
-    def _assign_jlinks(self):
+    def _assign_jlinks(self, force_recovery: bool = False):
         """Detect and assign J-Link programmers to their respective chips."""
         try:
             serials = subprocess.check_output(["nrfjprog", "--ids"]).decode().split()
@@ -38,10 +38,10 @@ class FirmwareHandler:
             # Try to get device version
             success = self._try_detect_device(serial)
             if not success:
-                # If detection failed, try recovery and detect again
-                self.logger.info(f"J-Link {serial} detection failed, attempting recovery...")
-                if self._try_recover_device(serial):
-                    self._try_detect_device(serial)
+                if force_recovery:
+                    if self._try_recover_device(serial):
+                        self.logger.info(f"J-Link {serial} detection failed, attempting recovery...")
+                        self._try_detect_device(serial)
 
     def _try_detect_device(self, serial: str) -> bool:
         """Try to detect device type for a J-Link serial number. Returns True if successful."""
@@ -263,7 +263,7 @@ class FirmwareHandler:
         self.logger.info(f"FlashFwFile request received for {request.file_info.name}")
         try:
             # Re-scan and update programmer assignments before flashing
-            self._assign_jlinks()
+            self._assign_jlinks(force_recovery=True)
 
             if request.file_info.name not in self.active_files:
                 return FlashFwFileResponse(
@@ -395,7 +395,7 @@ class FirmwareHandler:
 
         try:
             # Re-scan and update programmer assignments before enabling protection
-            self._assign_jlinks()
+            self._assign_jlinks(False)
 
             # Find a suitable programmer for the target
             programmer = None
