@@ -15,30 +15,31 @@ from corekinect.utils import Logger, EnvConfig
 from protocols.mtib import mtib_pb2_grpc
 
 # Application includes
-from src.providers import ProviderConfig, DevProvider, MtibV1Provider
+from src.providers import MtibV1Provider, MtibV1ProviderConfig
+from src.lib.data_logger import DataLoggerClient, DataLoggerClientConfig
 
 
 # -------------------------------------------------
 #                                        Env Config
 # -------------------------------------------------
 class MtibEnvConfig(EnvConfig):
-    ENVIRONMENT: str
+    # Logging configuration
     LOG_LEVEL: int
     LOG_PATH: str
-    ASSETS_PATH: str
-    GRPC_SERVER_PORT: int
-    MTIB_SERIAL_PORT: str
-    MTIB_SERIAL_BAUD: int
-    FW_FILE_STORAGE_DIR: str
-    MCU_9160_USB_BUS: str
-    MCU_52840_USB_BUS: str
-    SERVER_RESET_ENABLED: bool
-    SERVER_RESET_GPIO: int
-    USB_ENABLE_GPIO: int
 
-    # Pinout configuration
+    # Server port configuration
+    SERVER_PORT: int
+
+    # Server firmware and assets configuration
+    ASSETS_PATH: str
+
+    # FluidNC configuration
     FLUIDNC_SERIAL_PORT: str
     FLUIDNC_RESET_PIN: str
+
+    # Data logger configuration
+    DATA_LOGGER_ENABLED: bool
+    DATA_LOGGER_MQTT_BROKER_URL: str
 
 
 # -------------------------------------------------
@@ -78,31 +79,17 @@ if __name__ == "__main__":
         logger: Logger = Logger(log_config)
 
         # A provider is the class that implements the gRPC methods
-        try:
-            if env_config.ENVIRONMENT == "development":
-                provider = DevProvider(
-                    config=ProviderConfig(
-                        ASSETS_DIR=env_config.ASSETS_PATH,
-                    ),
-                    logger=logger,
-                )
-            elif env_config.ENVIRONMENT == "production":
-                provider = MtibV1Provider(
-                    config=ProviderConfig(
-                        ASSETS_DIR=env_config.ASSETS_PATH,
-                    ),
-                    logger=logger,
-                )
-            else:
-                raise ValueError(f"Invalid environment: {env_config.ENVIRONMENT}")
-        except Exception as e:
-            logger.error(f"Failed to initialize the provider: {e}")
-            sys.exit(1)
+        provider = MtibV1Provider(
+            config=MtibV1ProviderConfig(
+                ASSETS_DIR=env_config.ASSETS_PATH,
+            ),
+            logger=logger,
+        )
 
         # Instantiate the gRPC server by adding the provider to it
         server = grpc.server(futures.ThreadPoolExecutor(max_workers=50))
         mtib_pb2_grpc.add_MtibV1Servicer_to_server(provider, server)
-        server.add_insecure_port(f"[::]:{env_config.GRPC_SERVER_PORT}")
+        server.add_insecure_port(f"[::]:{env_config.SERVER_PORT}")
 
         # Setup signal handlers for OS signals
         for sig in (signal.SIGTERM, signal.SIGINT):
@@ -110,7 +97,21 @@ if __name__ == "__main__":
 
         # Run baby run
         server.start()
-        logger.info(f"Server started on port {env_config.GRPC_SERVER_PORT}")
+        logger.info(f"Server started on port {env_config.SERVER_PORT} with new updates!!!")
+
+        # Instantiate a data logger client that will be used to plot/listen for data
+        if env_config.DATA_LOGGER_ENABLED:
+            data_logger_client = DataLoggerClient(
+                config=DataLoggerClientConfig(
+                    MQTT_BROKER_URL=env_config.DATA_LOGGER_MQTT_BROKER_URL,
+                    SERVER_PORT=env_config.SERVER_PORT,
+                ),
+                logger=logger,
+            )
+            error = data_logger_client.init(provider)
+            if error:
+                logger.error(f"Failed to initialize data logger client: {error}")
+                sys.exit(1)
 
         # Let's clean up after ourselves
         server.wait_for_termination()
@@ -123,6 +124,10 @@ if __name__ == "__main__":
             print(f"Failed to initialize or run the MtibServer: {e}\n{traceback.format_exc()}")
 
     finally:
+        # Ensure data logger client is properly deinitialized
+        if data_logger_client is not None:
+            data_logger_client.deinit()
+
         # Ensure server is properly stopped if it was created
         if server:
             server.stop(0)

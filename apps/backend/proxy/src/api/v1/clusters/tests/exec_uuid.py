@@ -15,8 +15,8 @@ from flask_socketio import SocketIO, close_room, disconnect, emit, join_room, le
 from google.protobuf.json_format import MessageToDict
 
 # Protocol includes
-from protos.cluster_operator.cluster_operator_pb2 import ClusterStatus
-from protos.cluster_test.cluster_test_pb2 import TestInfo, TestStepResult
+from protocols.cluster_operator.cluster_operator_pb2 import ClusterStatus
+from protocols.cluster_test.cluster_test_pb2 import TestInfo, TestStepResult
 
 # App includes
 from src.middleware.permissions import authMiddleware
@@ -163,11 +163,11 @@ def clusters_tests_exec_uuid_handler(cluster_uuid, test_uuid):
         if error:
             return jsonify({"error": f"{error}"}), 400
 
-        # # Check that the nodes in the request are present in the nodes_info
-        # available_hosts = {node.host for node in nodes_info}  # Assuming each node info has a 'host' attribute
-        # missing_nodes = [node for node in requested_nodes if node not in available_hosts]
-        # if missing_nodes:
-        #     return jsonify({"error": f"Requested nodes not found: {', '.join(missing_nodes)}"}), 400
+        # Check that the nodes in the request are present in the nodes_info
+        available_hosts = {node.host for node in nodes_info}  # Assuming each node info has a 'host' attribute
+        missing_nodes = [node for node in requested_nodes if node not in available_hosts]
+        if missing_nodes:
+            return jsonify({"error": f"Requested nodes not found: {', '.join(missing_nodes)}"}), 400
 
         # Generate a unique session ID for this test execution
         error, execution_id = appProxyServer.clusters_test_exec(

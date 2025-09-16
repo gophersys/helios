@@ -4,9 +4,9 @@ option go_package = "bitbucket.org/corekinect/concord/libs/protocols/mtib";
 
 package mtib;
 
-// This is the main interface used to access all the functionality built 
+// This is the main interface used to access all the functionality built
 // into the MTIB hardware.
-// 
+//
 // This service gets served at port 50053
 //
 service MtibV1 {
@@ -23,32 +23,37 @@ service MtibV1 {
   rpc AdcReadAll(Empty) returns (AdcReadAllResponse) {}
 
   // DUT Power
-  rpc DutPowerEnable(DutPowerRequest) returns (DutPowerResponse){}
-  rpc DutPowerDisable(Empty) returns (DutPowerResponse){}
+  rpc DutPowerEnable(DutPowerRequest) returns (DutPowerResponse) {}
+  rpc DutPowerDisable(Empty) returns (DutPowerResponse) {}
   rpc DutPowerRead(Empty) returns (DutPowerReadResponse) {}
 
   // DUT Charge Power
-  rpc DutChargePowerEnable(Empty) returns (DutPowerResponse){}
-  rpc DutChargePowerDisable(Empty) returns (DutPowerResponse){}
+  rpc DutChargePowerEnable(Empty) returns (DutPowerResponse) {}
+  rpc DutChargePowerDisable(Empty) returns (DutPowerResponse) {}
   rpc DutChargePowerRead(Empty) returns (DutPowerReadResponse) {}
-  
+
   // Sensors
   rpc AltimeterRead(Empty) returns (AltimeterReadResponse) {}
   rpc AccelRead(Empty) returns (AccelReadResponse) {}
 
   // FluidNc config
   rpc GetFluidNcConfig(Empty) returns (FluidNcConfigResponse) {}
-  rpc UpdateFluidNcConfig(UpdateFluidNcConfigRequest) returns (UpdateFluidNcConfigResponse) {}
+  rpc UpdateFluidNcConfig(UpdateFluidNcConfigRequest)
+      returns (UpdateFluidNcConfigResponse) {}
 
   // Gcode
   rpc SendGcode(GcodeRequest) returns (GcodeResponse) {}
 
   // Motion Profiles
-  rpc UploadMotionProfile(MotionProfileRequest) returns (MotionProfileResponse) {}
+  rpc UploadMotionProfile(MotionProfileRequest)
+      returns (MotionProfileResponse) {}
   rpc ListMotionProfiles(Empty) returns (ListMotionProfilesResponse) {}
-  rpc ExecuteMotionProfile(ExecuteProfileRequest) returns (ExecuteProfileResponse) {}
-  rpc DeleteMotionProfile(DeleteProfileRequest) returns (DeleteProfileResponse) {}
-  rpc SetDefaultMotionProfile(SetDefaultProfileRequest) returns (SetDefaultProfileResponse) {}
+  rpc ExecuteMotionProfile(ExecuteProfileRequest)
+      returns (ExecuteProfileResponse) {}
+  rpc DeleteMotionProfile(DeleteProfileRequest)
+      returns (DeleteProfileResponse) {}
+  rpc SetDefaultMotionProfile(SetDefaultProfileRequest)
+      returns (SetDefaultProfileResponse) {}
 
   // Motion
   rpc GetMotionStatus(Empty) returns (GetMotionStatusResponse) {}
@@ -62,13 +67,16 @@ service MtibV1 {
   rpc UploadFwFile(stream UploadFwFileRequest) returns (UploadFwFileResponse) {}
   rpc DeleteFwFile(DeleteFwFileRequest) returns (DeleteFwFileResponse) {}
   rpc FlashFwFile(FlashFwFileRequest) returns (FlashFwFileResponse) {}
+  rpc EnableAppProtect(EnableAppProtectRequest)
+      returns (EnableAppProtectResponse) {}
 
   // Uart streams
-  rpc UartStream(stream UartStreamRequest) returns (stream UartStreamResponse) {}
+  rpc UartStream(stream UartStreamRequest) returns (stream UartStreamResponse) {
+  }
 }
 
 // Shared
-message Empty{}
+message Empty {}
 
 // Health Check
 message HealthCheckResponse {
@@ -111,9 +119,7 @@ message GpioWriteResponse {
   string message = 2;
 }
 
-message GpioReadRequest {
-  int32 gpio = 1;
-}
+message GpioReadRequest { int32 gpio = 1; }
 
 message GpioReadResponse {
   bool success = 1;
@@ -122,26 +128,22 @@ message GpioReadResponse {
 }
 
 // Adc
-message AdcReadRequest{
-  int32 channel = 1;
-}
+message AdcReadRequest { int32 channel = 1; }
 
-message AdcReadResponse{
+message AdcReadResponse {
   bool success = 1;
   string message = 2;
   double voltage_v = 3;
 }
 
-message AdcReadAllResponse{
+message AdcReadAllResponse {
   bool success = 1;
   string message = 2;
   repeated double voltages_v = 3;
 }
 
 // Power
-message DutPowerRequest {
-  double voltage_v = 1;
-}
+message DutPowerRequest { double voltage_v = 1; }
 
 message DutPowerResponse {
   bool success = 1;
@@ -163,7 +165,7 @@ message AltimeterReadResponse {
   bool success = 1;
   string message = 2;
 
-  double temperature_f = 3; 
+  double temperature_f = 3;
   double pressure_hg = 4;
   double altitude_ft = 5;
 }
@@ -185,9 +187,7 @@ message FluidNcConfigResponse {
   string config_yaml = 3;
 }
 
-message UpdateFluidNcConfigRequest {
-  string config_yaml = 1;
-}
+message UpdateFluidNcConfigRequest { string config_yaml = 1; }
 
 message UpdateFluidNcConfigResponse {
   bool success = 1;
@@ -209,31 +209,29 @@ enum MotionPosition {
 }
 
 message MotionStartResponse {
-  bool success = 1; 
+  bool success = 1;
   string message = 2;
 }
 
 message MotionHomeResponse {
-  bool success = 1; 
+  bool success = 1;
   string message = 2;
 }
 
 message MotionStopResponse {
-  bool success = 1; 
+  bool success = 1;
   string message = 2;
 }
 
 message GetMotionStatusResponse {
-  bool success = 1; 
+  bool success = 1;
   string message = 2;
 
   MotionStatus status = 3;
   MotionPosition position = 4;
 }
 
-message GcodeRequest {
-  string command = 1;
-}
+message GcodeRequest { string command = 1; }
 
 message GcodeResponse {
   bool success = 1;
@@ -247,40 +245,30 @@ message MotionProfile {
   repeated string gcode_commands = 3;
 }
 
-message MotionProfileRequest {
-  MotionProfile profile = 1;
-}
+message MotionProfileRequest { MotionProfile profile = 1; }
 
 message MotionProfileResponse {
   bool success = 1;
   string message = 2;
 }
 
-message ListMotionProfilesResponse {
-  repeated MotionProfile profiles = 1;
-}
+message ListMotionProfilesResponse { repeated MotionProfile profiles = 1; }
 
-message ExecuteProfileRequest {
-  string profile_name = 1;
-}
+message ExecuteProfileRequest { string profile_name = 1; }
 
 message ExecuteProfileResponse {
   bool success = 1;
   string message = 2;
 }
 
-message DeleteProfileRequest {
-  string profile_name = 1;
-}
+message DeleteProfileRequest { string profile_name = 1; }
 
 message DeleteProfileResponse {
   bool success = 1;
   string message = 2;
 }
 
-message SetDefaultProfileRequest {
-  string profile_name = 1;
-}
+message SetDefaultProfileRequest { string profile_name = 1; }
 
 message SetDefaultProfileResponse {
   bool success = 1;
@@ -300,7 +288,7 @@ enum HostType {
   HOST_TYPE_NRF9160_MODEM = 2;
   HOST_TYPE_NRF52840 = 3;
   HOST_TYPE_NRF5340 = 4;
-  HOST_TYPE_NRF9151= 5;
+  HOST_TYPE_NRF9151 = 5;
 }
 
 message Programmer {
@@ -343,9 +331,7 @@ message UploadFwFileResponse {
   string sha256_digest = 3;
 }
 
-message DeleteFwFileRequest {
-  FwFileInfo file_info = 1;
-}
+message DeleteFwFileRequest { FwFileInfo file_info = 1; }
 
 message DeleteFwFileResponse {
   bool success = 1;
@@ -365,6 +351,13 @@ message FlashFwFileResponse {
   int32 time_ms = 3;
 }
 
+message EnableAppProtectRequest { HostType target = 1; }
+
+message EnableAppProtectResponse {
+  bool success = 1;
+  string message = 2;
+}
+
 // Uart streams
 message UartStreamRequest {
   HostType target = 1;
@@ -376,5 +369,5 @@ message UartStreamResponse {
   string message = 2;
 
   HostType target = 3;
-  bytes data = 4; 
+  bytes data = 4;
 }

@@ -5,55 +5,65 @@ import hashlib
 import os
 import socket
 import struct
+from token import OP
 import zlib
 from dataclasses import dataclass
 from time import sleep
-from typing import Iterator, Type
+from typing import Iterator, Type, List, Optional, Callable, Any, Tuple
+import queue
+import time
 
 # 3rd party includes
 import grpc
 
 # Protocol includes
-from protos.mtib_runner.mtib_runner_pb2 import (
-    AccelReadRequest,
-    AccelReadResponse,
-    AdcChannel,
+from protocols.mtib.mtib_pb2 import (
+    Empty,
+    # AdcChannel,
     AdcReadRequest,
     AdcReadResponse,
-    AltimeterReadRequest,
+    AccelReadResponse,
     AltimeterReadResponse,
-    DeleteFwFileRequest,
-    DeleteFwFileResponse,
-    DeviceType,
-    DutCurrentReadRequest,
-    DutCurrentReadResponse,
-    DutPowerEnableRequest,
-    DutPowerEnableResponse,
-    DutVoltageReadRequest,
-    DutVoltageReadResponse,
-    DutVoltageSetRequest,
-    DutVoltageSetResponse,
-    FlashHexFileRequest,
-    FlashHexFileResponse,
-    Gpio,
+    # DeleteFwFileRequest,
+    # DeleteFwFileResponse,
+    # DeviceType,
+    DutPowerReadResponse,
+    DutPowerRequest,
+    DutPowerResponse,
+    # DutVoltageReadRequest,
+    # DutVoltageReadResponse,
+    # FlashHexFileRequest,
+    # FlashHexFileResponse,
+    # Gpio,
     GpioConfigRequest,
     GpioConfigResponse,
+    GpioDirection,
+    GpioResistorConfig,
     GpioReadRequest,
     GpioReadResponse,
-    GpioResistorConfig,
-    GpioType,
     GpioWriteRequest,
     GpioWriteResponse,
-    HealthCheckRequest,
-    HealthCheckResponse,
-    ListFwFilesRequest,
-    ListFwFilesResponse,
-    UartStreamRequest,
-    UartStreamResponse,
+    HostType,
+    FwFileInfo,
     UploadFwFileRequest,
     UploadFwFileResponse,
+    ListFwFilesResponse,
+    DeleteFwFileRequest,
+    DeleteFwFileResponse,
+    FlashFwFileRequest,
+    FlashFwFileResponse,
+    # HealthCheckRequest,
+    # HealthCheckResponse,
+    # ListFwFilesRequest,
+    # ListFwFilesResponse,
+    UartStreamRequest,
+    UartStreamResponse,
+    EnableAppProtectRequest,
+    EnableAppProtectResponse,
+    # UploadFwFileRequest,
+    # UploadFwFileResponse,
 )
-from protos.mtib_runner.mtib_runner_pb2_grpc import MtibRunnerStub
+from protocols.mtib.mtib_pb2_grpc import MtibV1Stub
 
 # App includes
 from tests.lib import *
@@ -61,295 +71,31 @@ from tests.lib import *
 # ---------------------------------------------------------------------------------
 #                                                                    Test Constants
 # -------------------------------------------------------------------------------*/
-# Power
-TP8_BATT = 0
-TP47_5V_IN = 0
-
 # Adc
-TP11_3V3 = AdcChannel.ADC_CHANNEL_0
-TP52_VIN = AdcChannel.ADC_CHANNEL_1
-TP30_VBCKP = AdcChannel.ADC_CHANNEL_2
-TP7_VBAT_MEAS = AdcChannel.ADC_CHANNEL_3
-TP24_3V3_GPS = AdcChannel.ADC_CHANNEL_4
-
-ADC_READ_DELAY_MS = 100
+TP11_3V3 = 7
+TP52_VIN = 0
+TP30_VBCKP = 1
+TP7_VBAT_MEAS = 2
+TP24_3V3_GPS = 3
 
 # Gpio
-TP50_HARD_RESET = Gpio.GPIO_0
-TP49_CHRG_DET = Gpio.GPIO_1
-TP12_UVP_N = Gpio.GPIO_2
-TP1_3V3_PSM = Gpio.GPIO_3
+TP50_HARD_RESET = 0
+TP49_CHRG_DET = 1
+TP12_UVP_N = 2
+TP1_3V3_PSM = 3
 
-# Runner gRPC server port, as defined in the .proto file
-RUNNER_SERVICE_GRPC_SERVER_PORT = 50051
-
-# ---------------------------------------------------------------------------------
-#                                                                   Device Commands
-# -------------------------------------------------------------------------------*/
-NUM_CRC_BYTES = 4
-SYNC_BYTE1 = 0x12
-SYNC_BYTE2 = 0xE4
-RECEIVE_TIMEOUT_MS = 15000  # 15 seconds
-
-
-class Sigma5DeviceCommand(Enum):
-    CMD_NOP = 0x00
-    CMD_ACK = 0x01
-    CMD_CLEAR_PERSONALIZATION = 0x02
-    CMD_PERSONALIZE_DEV_EUI = 0x11
-    CMD_IMEI_ICCID_GET = 0x2B
-    CMD_POST = 0x2C
-    CMD_GET_SENSOR_VALS = 0x2D
-    CMD_GET_MODEM_FW_VER = 0x2E
-    CMD_DEV_EC_PUB_KEY = 0x2F
-
-
-class CommandResponse:
-    @classmethod
-    def from_bytes(cls, data: bytes):
-        return cls(data)
-
-
-@dataclass(frozen=True)
-class CMD_ACK_Response(CommandResponse):
-    ack: bool
-
-    @classmethod
-    def from_bytes(cls, data: bytes):
-        ack = False
-        if len(data) > 1 and data[1] == 1:  # Check if the second byte equals 1
-            ack = True
-        return cls(ack=ack)
-
-
-@dataclass(frozen=True)
-class CMD_CLEAR_PERSONALIZATION_Response(CommandResponse):
-    ack: bool = None
-
-    @classmethod
-    def from_bytes(cls, data: bytes):
-        ack = False
-        if len(data) > 1 and data[1] == 1:  # Check if the second byte equals 1
-            ack = True
-        return cls(ack)
-
-
-@dataclass(frozen=True)
-class CMD_PERSONALIZE_DEV_EUI_Response(CommandResponse):
-    flags: int = None
-    read: bool = None
-    device_id: int = None
-
-    @classmethod
-    def from_bytes(cls, data: bytes):
-        data_length: int = 9
-        data_format: str = ">BQ"
-
-        if len(data) < data_length:
-            raise ValueError(
-                f"Data length is insufficient for CMD_PERSONALIZE_DEV_EUI_Response, expected {data_length}, got {len(data)}"
-            )
-
-        flags, device_id = struct.unpack(data_format, data)
-
-        read = (flags & 0x80) >> 7  # bit 7
-
-        return cls(flags=flags, read=read, device_id=device_id)
-
-    @classmethod
-    def to_bytes(cls, read: bool, device_id: int):
-        data_length = 9
-        data_format: str = ">BQ"
-
-        flags = 0x80 if read else 0x00  # bit 7
-
-        payload = struct.pack(data_format, flags, device_id)
-
-        if len(payload) != data_length:
-            raise ValueError(
-                f"Data length is incorrect packing payload for CMD_PERSONALIZE_DEV_EUI_Response, expected {data_length}, got {len(payload)}"
-            )
-
-        return payload
-
-
-@dataclass(frozen=True)
-class CMD_IMEI_ICCID_Response(CommandResponse):
-    imei: str
-    iccids: List[str]
-
-    @classmethod
-    def from_bytes(cls, data: bytes):
-        imei_iccid_str = data.decode("ascii").strip("\x00")
-        imei_iccid_list = imei_iccid_str.split(",")
-        imei = imei_iccid_list[0]
-        iccids = imei_iccid_list[1:]
-
-        return cls(imei=imei, iccids=iccids)
-
-
-@dataclass(frozen=True)
-class CMD_POST_Response(CommandResponse):
-    # Supported by message spec
-    accel_ic_id: int = None
-    alt_ic_id: int = None
-    external_flash_ic_id: str = None
-    external_flash_test_pass: bool = None
-    is_lora_connected: bool = None
-    gps_ublox_version_info: str = None
-
-    # Further decoding of gps_ublox_raw_version_info
-    gps_ublox_sw_ver: str = None
-    gps_ublox_hw_ver: str = None
-    gps_ublox_fw_ver: str = None
-    gps_ublox_proto_ver: str = None
-    gps_ublox_supported_constellations: List[str] = None
-
-    @classmethod
-    def from_bytes(cls, data: bytes):
-
-        data_length: int = 167
-        packed_format: str = ">BB3sBB160s"
-
-        # Check if the data length is sufficient
-        if len(data) < data_length:
-            raise ValueError("Data length is insufficient for CMD_POST_Response")
-
-        # Unpack the data
-        unpacked_data = struct.unpack(packed_format, data[:data_length])
-
-        # Extract the data
-        accelerometer_ic_id = unpacked_data[0]
-        altimeter_ic_id = unpacked_data[1]
-        external_flash_ic_id = unpacked_data[2].hex()
-        external_flash_test_pass = True if unpacked_data[3] == 255 else False
-        is_lora_connected = True if unpacked_data[4] == 255 else False
-        gps_ublox_version_info = unpacked_data[5].decode("utf-8", errors="replace")
-
-        # Further decode the GPS u-blox version info
-        gps_ublox_null_term_split = unpacked_data[5].split(b"\x00")
-
-        # Remove empty strings
-        gps_ublox_null_term_split = [x for x in gps_ublox_null_term_split if x]
-
-        gps_ublox_sw_ver = gps_ublox_null_term_split[0].decode("utf-8", errors="replace")
-        gps_ublox_hw_ver = gps_ublox_null_term_split[1].decode("utf-8", errors="replace")
-        gps_ublox_fw_ver = gps_ublox_null_term_split[2].decode("utf-8", errors="replace")
-        gps_ublox_proto_ver = gps_ublox_null_term_split[3].decode("utf-8", errors="replace")
-        gps_ublox_supported_constellations = gps_ublox_null_term_split[4:]
-        gps_ublox_supported_constellations = b";".join(gps_ublox_supported_constellations)
-        gps_ublox_supported_constellations = gps_ublox_supported_constellations.decode("utf-8", errors="replace")
-        gps_ublox_supported_constellations = gps_ublox_supported_constellations.split(";")
-
-        return cls(
-            accel_ic_id=accelerometer_ic_id,
-            alt_ic_id=altimeter_ic_id,
-            external_flash_ic_id=external_flash_ic_id,
-            external_flash_test_pass=external_flash_test_pass,
-            is_lora_connected=is_lora_connected,
-            gps_ublox_version_info=gps_ublox_version_info,
-            gps_ublox_sw_ver=gps_ublox_sw_ver,
-            gps_ublox_hw_ver=gps_ublox_hw_ver,
-            gps_ublox_fw_ver=gps_ublox_fw_ver,
-            gps_ublox_proto_ver=gps_ublox_proto_ver,
-            gps_ublox_supported_constellations=gps_ublox_supported_constellations,
-        )
-
-
-@dataclass(frozen=True)
-class CMD_GET_SENSOR_VALS_Response(CommandResponse):
-    accelerometer_x_g: int = None
-    accelerometer_y_g: int = None
-    accelerometer_z_g: int = None
-    altimeter_pressure_in_hg: int = None
-    altimeter_temperature_c: int = None
-    voltage_measurement: int = None
-
-    @classmethod
-    def from_bytes(cls, data: bytes):
-        """Unpack response bytes and put into right fields based on the given payload definition"""
-        data_length: int = 11
-        packed_format: str = ">hhhHhB"
-
-        if len(data) < data_length:
-            raise ValueError("Data length is insufficient for CMD_GET_SENSOR_VALS_Response")
-
-        unpacked_data = struct.unpack(packed_format, data)
-
-        # Accelerometer measurements are 2-bytes, 1/256 G per LSB
-        accelerometer_x_g = unpacked_data[0] / 256.0
-        accelerometer_y_g = unpacked_data[1] / 256.0
-        accelerometer_z_g = unpacked_data[2] / 256.0
-
-        # Altimeter pressure measurements are 2-bytes (unsigned), 1/256 inHg per LSB
-        altimeter_pressure_in_hg = unpacked_data[3] / 256.0
-
-        # Altimeter temperature measurements are 2-bytes, 0 LSB = 25°C, sensitivity of 16 LSB / °C
-        altimeter_temperature_c = 25.0 + unpacked_data[4] / 16.0
-
-        # Voltage measurement is 1-byte (unsigned), with 25mV per bit
-        voltage_measurement = unpacked_data[5] * 0.025
-
-        return cls(
-            accelerometer_x_g=accelerometer_x_g,
-            accelerometer_y_g=accelerometer_y_g,
-            accelerometer_z_g=accelerometer_z_g,
-            altimeter_pressure_in_hg=altimeter_pressure_in_hg,
-            altimeter_temperature_c=altimeter_temperature_c,
-            voltage_measurement=voltage_measurement,
-        )
-
-
-@dataclass(frozen=True)
-class CMD_GET_MODEM_FW_VER_Response:
-    fw_version: str = None
-
-    @classmethod
-    def from_bytes(cls, data: bytes):
-        fw_version = data.decode("ascii").strip("\x00")
-        return cls(fw_version=fw_version)
-
-
-@dataclass(frozen=True)
-class CMD_DEV_EC_PUB_KEY_Response(CommandResponse):
-    public_key: str = None
-
-    @classmethod
-    def from_bytes(cls, data: bytes):
-        data_length = 65
-
-        if len(data) < data_length:
-            raise ValueError(
-                f"Data length is insufficient for CMD_DEV_EC_PUB_KEY_Response, expected {data_length}, got {len(data)}"
-            )
-
-        # Convert the public key to a string
-        public_key = "".join(f"{byte:02x}" for byte in data)
-
-        return cls(public_key=public_key)
-
+# mtib gRPC server port, as defined in the .proto file
+mtib_SERVICE_GRPC_SERVER_PORT = 50053  # TODO: This should come from env variable
 
 # ---------------------------------------------------------------------------------
 #                                                                             Class
 # -------------------------------------------------------------------------------*/
 
 
-class Sigma5RunnersController:
+class Sigma5MtibServers:
     def __init__(self):
-        self.runners: Dict[str, MtibRunnerStub] = {}
+        self.mtibs: Dict[str, MtibV1Stub] = {}
         self.channels: Dict[str, grpc.Channel] = {}
-
-        self.response_classes = {
-            Sigma5DeviceCommand.CMD_NOP: CMD_ACK_Response,
-            Sigma5DeviceCommand.CMD_ACK: CMD_ACK_Response,
-            Sigma5DeviceCommand.CMD_CLEAR_PERSONALIZATION: CMD_CLEAR_PERSONALIZATION_Response,
-            Sigma5DeviceCommand.CMD_PERSONALIZE_DEV_EUI: CMD_PERSONALIZE_DEV_EUI_Response,
-            Sigma5DeviceCommand.CMD_IMEI_ICCID_GET: CMD_IMEI_ICCID_Response,
-            Sigma5DeviceCommand.CMD_POST: CMD_POST_Response,
-            Sigma5DeviceCommand.CMD_GET_SENSOR_VALS: CMD_GET_SENSOR_VALS_Response,
-            Sigma5DeviceCommand.CMD_GET_MODEM_FW_VER: CMD_GET_MODEM_FW_VER_Response,
-            Sigma5DeviceCommand.CMD_DEV_EC_PUB_KEY: CMD_DEV_EC_PUB_KEY_Response,
-        }
 
         self.cmd_responses_queues: Dict[str, queue.Queue] = {}
         self.cmd_requests_queues: Dict[str, queue.Queue] = {}
@@ -362,95 +108,99 @@ class Sigma5RunnersController:
 
         # Use ThreadPoolExecutor to parallelize the connection process
         with concurrent.futures.ThreadPoolExecutor() as executor:
-            futures = {executor.submit(self._connect_runner, host): host for host in hosts}
+            futures = {executor.submit(self._connect_mtib, host): host for host in hosts}
             for future in concurrent.futures.as_completed(futures):
                 error = future.result()
                 if error:
                     errors.append(error)
 
         if errors:
-            return f"Errors occurred during runner initialization: {', '.join(errors)}"
+            return f"Errors occurred during mtib initialization: {', '.join(errors)}"
 
         # Configure any GPIOs
-        error = self._setup_runners()
+        error = self._setup_mtibs()
         if error:
-            return f"Failed to setup runners for sigma5 manufacturing configuration: {error}"
+            return f"Failed to setup mtibs for sigma5 manufacturing configuration: {error}"
 
         return None  # No error
 
-    def _connect_runner(self, host: str) -> str:
+    def _connect_mtib(self, host: str) -> str:
         try:
             # Create a gRPC channel
-            channel = grpc.insecure_channel(f"{host}:{RUNNER_SERVICE_GRPC_SERVER_PORT}")
+            channel = grpc.insecure_channel(f"{host}:{mtib_SERVICE_GRPC_SERVER_PORT}")
             self.channels[host] = channel
 
             # Create a stub using the insecure channel
-            stub = MtibRunnerStub(channel)
+            stub = MtibV1Stub(channel)
 
             # Do an initial health check with a timeout
-            response = stub.HealthCheck(HealthCheckRequest(), timeout=5)
+            response = stub.HealthCheck(Empty(), timeout=5)
 
-            # Add the runner to the dictionary
-            self.runners[host] = stub
+            # Add the mtib to the dictionary
+            self.mtibs[host] = stub
 
-            # Create the needed objects for this runner
+            # Create the needed objects for this mtib
             self.cmd_responses_queues[host] = queue.Queue()
             self.cmd_requests_queues[host] = queue.Queue()
 
-            logging.info(f"Runner at {host} connected successfully")
+            logging.info(f"mtib at {host} connected successfully")
             return ""
         except grpc.RpcError as e:
-            logging.error(f"Failed to connect to runner at {host}. Error: {str(e.details())}")
-            return f"Failed to connect to runner at {host}. Error: {str(e.details())}"
+            logging.error(f"Failed to connect to mtib at {host}. Error: {str(e.details())}")
+            return f"Failed to connect to mtib at {host}. Error: {str(e.details())}"
         except Exception as e:
-            logging.error(f"Unexpected error when connecting to runner at {host}. Error: {str(e)}")
-            return f"Unexpected error when connecting to runner at {host}. Error: {str(e)}"
+            logging.error(f"Unexpected error when connecting to mtib at {host}. Error: {str(e)}")
+            return f"Unexpected error when connecting to mtib at {host}. Error: {str(e)}"
 
-    def _setup_runners(self) -> str:
-        for _, stub in self.runners.items():
+    def _setup_mtibs(self) -> str:
+        for _, stub in self.mtibs.items():
             error = self._config_gpio(
-                stub, TP50_HARD_RESET, GpioType.GPIO_OUTPUT, GpioResistorConfig.GPIO_RESISTOR_PULL_UP
+                stub, TP50_HARD_RESET, GpioDirection.GPIO_DIRECTION_OUTPUT, GpioResistorConfig.GPIO_RESISTOR_PULL_UP
             )
             if error:
                 return error
 
             error = self._config_gpio(
-                stub, TP49_CHRG_DET, GpioType.GPIO_INPUT, GpioResistorConfig.GPIO_RESISTOR_PULL_DOWN
+                stub, TP49_CHRG_DET, GpioDirection.GPIO_DIRECTION_INPUT, GpioResistorConfig.GPIO_RESISTOR_PULL_DOWN
             )
             if error:
                 return error
 
-            error = self._config_gpio(stub, TP12_UVP_N, GpioType.GPIO_INPUT, GpioResistorConfig.GPIO_RESISTOR_PULL_UP)
+            error = self._config_gpio(
+                stub, TP12_UVP_N, GpioDirection.GPIO_DIRECTION_INPUT, GpioResistorConfig.GPIO_RESISTOR_PULL_UP
+            )
             if error:
                 return error
 
             error = self._config_gpio(
-                stub, TP1_3V3_PSM, GpioType.GPIO_INPUT, GpioResistorConfig.GPIO_RESISTOR_PULL_DOWN
+                stub, TP1_3V3_PSM, GpioDirection.GPIO_DIRECTION_INPUT, GpioResistorConfig.GPIO_RESISTOR_PULL_DOWN
             )
             if error:
                 return error
 
         return ""
 
-    def _config_gpio(self, server: MtibRunnerStub, gpio: Gpio, type: GpioType, resistor: GpioResistorConfig) -> str:
+    def _config_gpio(
+        self, server: MtibV1Stub, gpio: int, direction: GpioDirection, resistor: GpioResistorConfig
+    ) -> str:
         try:
-            response = server.GpioConfig(GpioConfigRequest(gpio=gpio, type=type, resistor=resistor))
+            response = server.GpioConfig(GpioConfigRequest(gpio=gpio, direction=direction, resistor=resistor))
             if response.success:
                 return ""
             else:
-                return f"Error: {response.error}, for GPIO {gpio}, type: {type}"
+                return f"Error: {response.message}, for GPIO {gpio}, type: {direction}"
         except grpc.RpcError as e:
-            return f"RPC Error: {str(e.details())} for GPIO {gpio}, type: {type}"
+            return f"RPC Error: {str(e.details())} for GPIO {gpio}, type: {direction}"
 
     def deinit(self) -> str:
         try:
             for host, channel in self.channels.items():
-                # Close the gRPC channel for each runner
+                # Close the gRPC channel for each mtib
                 channel.close()
-                logging.info(f"Runner at {host} disconnected successfully")
+                logging.info(f"mtib at {host} disconnected successfully")
 
-            # Clear the runners and channels dictionaries
-            self.runners.clear()
+            # Clear the mtibs and channels dictionaries
+            self.mtibs.clear()
             self.channels.clear()
 
             self.cmd_requests_queues = {}
@@ -460,274 +210,266 @@ class Sigma5RunnersController:
         except Exception as e:
             return f"An error occurred during deinitialization: {str(e)}"
 
-    def enable_power(self, host: str) -> str:
-        if host not in self.runners:
-            return f"No runner found for host {host}"
-
-        try:
-            stub = self.runners[host]
-            response: DutPowerEnableResponse = stub.DutPowerEnable(DutPowerEnableRequest(enable=True))
-            if not response.success:
-                return f"DutPowerEnable Error: {response.error}"
-            return ""
-        except grpc.RpcError as e:
-            return f"Failed to enable power for runner at {host}. Error: {str(e.details())}"
-
     def disable_power(self, host: str) -> str:
-        if host not in self.runners:
-            return f"No runner found for host {host}"
+        if host not in self.mtibs:
+            return f"No mtib found for host {host}"
 
         try:
-            stub = self.runners[host]
-            response: DutPowerEnableResponse = stub.DutPowerEnable(DutPowerEnableRequest(enable=False))
+            stub = self.mtibs[host]
+            response: DutPowerResponse = stub.DutPowerDisable(Empty())
             if not response.success:
-                return f"DutPowerEnable Error: {response.error}"
+                return f"DutPowerDisable Error: {response.message}"
             return ""
         except grpc.RpcError as e:
-            return f"Failed to disable power for runner at {host}. Error: {str(e.details())}"
+            return f"Failed to disable power for mtib at {host}. Error: {str(e.details())}"
 
-    def set_vbat(self, host: str, voltage: float) -> str:
-        disable_power_result = self.disable_power(host)
-        if disable_power_result:
-            return disable_power_result
+    def disable_charge_power(self, host: str) -> str:
+        if host not in self.mtibs:
+            return f"No mtib found for host {host}"
 
         try:
-            stub = self.runners[host]
-            response: DutVoltageSetResponse = stub.DutVoltageSet(DutVoltageSetRequest(voltage=voltage))
+            stub = self.mtibs[host]
+            response: DutPowerResponse = stub.DutChargePowerDisable(Empty())
             if not response.success:
-                return f"DutVoltageSet Error: {response.error}"
+                return f"DutChargePowerDisable Error: {response.message}"
+            return ""
+        except grpc.RpcError as e:
+            return f"Failed to disable charge power for mtib at {host}. Error: {str(e.details())}"
 
-            enable_power_result = self.enable_power(host)
-            if enable_power_result:
-                return enable_power_result
+    def enable_power(self, host: str, voltage: float) -> str:
+        try:
+            stub = self.mtibs[host]
+            response: DutPowerResponse = stub.DutPowerEnable(DutPowerRequest(voltage_v=voltage))
+            if not response.success:
+                return f"DutVoltageSet Error: {response.message}"
 
             return ""
         except grpc.RpcError as e:
-            return f"Failed to set VBAT for runner at {host}. Error: {str(e.details())}"
+            return f"Failed to set VBAT for mtib at {host}. Error: {str(e.details())}"
 
-    def set_5vin(self, host: str, state: bool) -> str:
-        if host not in self.runners:
-            return f"No runner found for host {host}"
+    def enable_charge_power(self, host: str) -> str:
+        if host not in self.mtibs:
+            return f"No mtib found for host {host}"
 
         try:
-            stub = self.runners[host]
-            response: DutPowerEnableResponse = stub.DutChargePowerEnable(DutPowerEnableRequest(enable=state))
+            stub = self.mtibs[host]
+            response: DutPowerResponse = stub.DutChargePowerEnable(Empty())
             if not response.success:
-                return f"DutChargePowerEnable failed for state {state} Error: {response.error}"
+                return f"DutChargePowerEnable failed Error: {response.message}"
             return ""
         except grpc.RpcError as e:
-            return f"Failed to set 5VIN for runner at {host}. Error: {str(e.details())}"
+            return f"Failed to enable charge power for mtib at {host}. Error: {str(e.details())}"
 
-    def read_altimeter(self, host: str) -> Tuple[str, Optional[Any]]:
-        if host not in self.runners:
-            return f"No runner found for host {host}"
-
-        try:
-            stub = self.runners[host]
-            response: AltimeterReadResponse = stub.AltimeterRead(AltimeterReadRequest())
-            if not response.success:
-                return f"Failed to read altimeter form MTIB. Error: {response.error}", None
-            return "", response
-        except grpc.RpcError as e:
-            return f"Failed to read altimeter for runner at {host}. Error: {str(e.details())}", None
-
-    def read_accelerometer(self, host: str) -> Tuple[str, Optional[Any]]:
-        if host not in self.runners:
-            return f"No runner found for host {host}"
+    def read_altimeter(self, host: str) -> Tuple[Optional[float], Optional[float], Optional[float], Optional[str]]:
+        if host not in self.mtibs:
+            return None, None, None, f"No mtib found for host {host}"
 
         try:
-            stub = self.runners[host]
-            response: AccelReadResponse = stub.AccelRead(AccelReadRequest())
+            stub = self.mtibs[host]
+            response: AltimeterReadResponse = stub.AltimeterRead(Empty())
             if not response.success:
-                return f"Failed to read accelerometer from MTIB. Error: {response.error}", None
-            return "", response
+                return None, None, None, f"Failed to read altimeter form MTIB. Error: {response.message}"
+            # Convert temperature from Fahrenheit to Celsius for comparison
+            temperature_c = (response.temperature_f - 32.0) * 5.0 / 9.0
+            return response.pressure_hg, temperature_c, response.altitude_ft, None
         except grpc.RpcError as e:
-            return f"Failed to read accelerometer for runner at {host}. Error: {str(e.details())}", None
+            return None, None, None, f"Failed to read altimeter for mtib at {host}. Error: {str(e.details())}"
+
+    def read_accelerometer(self, host: str) -> Tuple[Optional[float], Optional[float], Optional[float], Optional[str]]:
+        if host not in self.mtibs:
+            return None, None, None, f"No mtib found for host {host}"
+
+        try:
+            stub = self.mtibs[host]
+            response: AccelReadResponse = stub.AccelRead(Empty())
+            if not response.success:
+                return None, None, None, f"Failed to read accelerometer from MTIB. Error: {response.message}"
+            return response.x_g, response.y_g, response.z_g, None
+        except grpc.RpcError as e:
+            return None, None, None, f"Failed to read accelerometer for mtib at {host}. Error: {str(e.details())}"
 
     def set_hard_reset(self, host: str, state: bool) -> str:
-        if host not in self.runners:
-            return f"No runner found for host {host}"
+        if host not in self.mtibs:
+            return f"No mtib found for host {host}"
 
         try:
-            stub = self.runners[host]
+            stub = self.mtibs[host]
             response: GpioWriteResponse = stub.GpioWrite(GpioWriteRequest(gpio=TP50_HARD_RESET, state=state))
             if not response.success:
                 return f"GpioWrite for {TP50_HARD_RESET} Error: {response.error}"
             return ""
         except grpc.RpcError as e:
-            return f"Failed to set hard reset for runner at {host}. Error: {str(e.details())}"
+            return f"Failed to set hard reset for mtib at {host}. Error: {str(e.details())}"
 
     def read_vin(self, host: str) -> Tuple[str, Optional[float]]:
-        if host not in self.runners:
-            return f"No runner found for host {host}", None
+        if host not in self.mtibs:
+            return f"No mtib found for host {host}", None
 
         try:
-            stub = self.runners[host]
-            response: AdcReadResponse = stub.AdcRead(AdcReadRequest(channel=TP52_VIN, delayMs=ADC_READ_DELAY_MS))
+            stub = self.mtibs[host]
+            response: AdcReadResponse = stub.AdcRead(AdcReadRequest(channel=TP52_VIN))
             if not response.success:
-                return f"AdcRead Channel {TP52_VIN} Error: {response.error}", None
-            return "", response.voltage
+                return f"AdcRead Channel {TP52_VIN} Error: {response.message}", None
+            return "", response.voltage_v
         except grpc.RpcError as e:
-            return f"Failed to read VIN for runner at {host}. Error: {str(e.details())}", None
+            return f"Failed to read VIN for mtib at {host}. Error: {str(e.details())}", None
 
     def read_3v3(self, host: str) -> Tuple[str, Optional[float]]:
-        if host not in self.runners:
-            return f"No runner found for host {host}", None
+        if host not in self.mtibs:
+            return f"No mtib found for host {host}", None
 
         try:
-            stub = self.runners[host]
-            response: AdcReadResponse = stub.AdcRead(AdcReadRequest(channel=TP11_3V3, delayMs=ADC_READ_DELAY_MS))
+            stub = self.mtibs[host]
+            response: AdcReadResponse = stub.AdcRead(AdcReadRequest(channel=TP11_3V3))
             if not response.success:
-                return f"AdcRead Channel {TP11_3V3} Error: {response.error}", None
-            return "", response.voltage
+                return f"AdcRead Channel {TP11_3V3} Error: {response.message}", None
+            return "", response.voltage_v
         except grpc.RpcError as e:
-            return f"Failed to read 3V3 for runner at {host}. Error: {str(e.details())}", None
+            return f"Failed to read 3V3 for mtib at {host}. Error: {str(e.details())}", None
 
-    def read_voltage(self, host: str) -> Tuple[str, Optional[float]]:
-        if host not in self.runners:
-            return f"No runner found for host {host}", None
+    # def read_voltage(self, host: str) -> Tuple[str, Optional[float]]:
+    #     if host not in self.mtibs:
+    #         return f"No mtib found for host {host}", None
 
-        try:
-            stub = self.runners[host]
-            response: DutVoltageReadResponse = stub.DutVoltageRead(DutVoltageReadRequest())
-            if not response.success:
-                return f"DutVoltageRead Error: {response.error}", None
-            return "", float(response.voltage_mv / 1000)
-        except grpc.RpcError as e:
-            return f"Failed to read voltage for runner at {host}. Error: {str(e.details())}", None
+    #     try:
+    #         stub = self.mtibs[host]
+    #         response: DutVoltageReadResponse = stub.DutVoltageRead(DutVoltageReadRequest())
+    #         if not response.success:
+    #             return f"DutVoltageRead Error: {response.error}", None
+    #         return "", float(response.voltage_mv / 1000)
+    #     except grpc.RpcError as e:
+    #         return f"Failed to read voltage for mtib at {host}. Error: {str(e.details())}", None
 
     def read_current(self, host: str) -> Tuple[str, Optional[float]]:
-        if host not in self.runners:
-            return f"No runner found for host {host}", None
+        if host not in self.mtibs:
+            return f"No mtib found for host {host}", None
 
         try:
-            stub = self.runners[host]
-            response: DutCurrentReadResponse = stub.DutCurrentRead(DutCurrentReadRequest())
+            stub = self.mtibs[host]
+            response: DutPowerReadResponse = stub.DutPowerRead(Empty())
             if not response.success:
-                return f"DutCurrentRead Error: {response.error}", None
-            return "", float(response.current_ma / 1000)
+                return f"DutPowerRead Error: {response.message}", None
+            return "", float(response.current_a)
         except grpc.RpcError as e:
-            return f"Failed to read current for runner at {host}. Error: {str(e.details())}", None
+            return f"Failed to read current for mtib at {host}. Error: {str(e.details())}", None
 
     def read_vbat(self, host: str) -> Tuple[str, Optional[float]]:
-        if host not in self.runners:
-            return f"No runner found for host {host}", None
+        if host not in self.mtibs:
+            return f"No mtib found for host {host}", None
 
         try:
-            stub = self.runners[host]
-            response: DutVoltageReadResponse = stub.DutVoltageRead(DutVoltageReadRequest())
+            stub = self.mtibs[host]
+            response: DutPowerReadResponse = stub.DutPowerRead(Empty())
             if not response.success:
-                return f"DutVoltageRead Error: {response.error}", None
-            return "", float(response.voltage_mv / 1000)
+                return f"DutPowerRead Error: {response.message}", None
+            return "", float(response.voltage_v)
         except grpc.RpcError as e:
-            return f"Failed to read VBAT for runner at {host}. Error: {str(e.details())}", None
+            return f"Failed to read VBAT for mtib at {host}. Error: {str(e.details())}", None
 
     def read_vbckp(self, host: str) -> Tuple[str, Optional[float]]:
-        if host not in self.runners:
-            return f"No runner found for host {host}", None
+        if host not in self.mtibs:
+            return f"No mtib found for host {host}", None
 
         try:
-            stub = self.runners[host]
-            response: AdcReadResponse = stub.AdcRead(AdcReadRequest(channel=TP30_VBCKP, delayMs=ADC_READ_DELAY_MS))
+            stub = self.mtibs[host]
+            response: AdcReadResponse = stub.AdcRead(AdcReadRequest(channel=TP30_VBCKP))
             if not response.success:
-                return f"AdcRead Channel {TP30_VBCKP} Error: {response.error}", None
-            return "", response.voltage
+                return f"AdcRead Channel {TP30_VBCKP} Error: {response.message}", None
+            return "", response.voltage_v
         except grpc.RpcError as e:
-            return f"Failed to read VBCKP for runner at {host}. Error: {str(e.details())}", None
+            return f"Failed to read VBCKP for mtib at {host}. Error: {str(e.details())}", None
 
     def read_uvp_n(self, host: str) -> Tuple[str, Optional[bool]]:
-        if host not in self.runners:
-            return f"No runner found for host {host}", None
+        if host not in self.mtibs:
+            return f"No mtib found for host {host}", None
 
         try:
-            stub = self.runners[host]
+            stub = self.mtibs[host]
             response: GpioReadResponse = stub.GpioRead(GpioReadRequest(gpio=TP12_UVP_N))
             if not response.success:
-                return f"GpioRead for {TP12_UVP_N} Error: {response.error}", None
+                return f"GpioRead for {TP12_UVP_N} Error: {response.message}", None
             return "", response.state
         except grpc.RpcError as e:
-            return f"Failed to read UVP_N for runner at {host}. Error: {str(e.details())}", None
+            return f"Failed to read UVP_N for mtib at {host}. Error: {str(e.details())}", None
 
     def read_chrg_det(self, host: str) -> Tuple[str, Optional[bool]]:
-        if host not in self.runners:
-            return f"No runner found for host {host}", None
+        if host not in self.mtibs:
+            return f"No mtib found for host {host}", None
 
         try:
-            stub = self.runners[host]
+            stub = self.mtibs[host]
             response: GpioReadResponse = stub.GpioRead(GpioReadRequest(gpio=TP49_CHRG_DET))
             if not response.success:
                 return f"GpioRead for {TP49_CHRG_DET} Error: {response.error}", None
             return "", response.state
         except grpc.RpcError as e:
-            return f"Failed to read CHRG_DET for runner at {host}. Error: {str(e.details())}", None
+            return f"Failed to read CHRG_DET for mtib at {host}. Error: {str(e.details())}", None
 
-    def upload_fw_file(self, host: str, file_path: str) -> str:
-        if host not in self.runners:
-            return f"No runner found for host {host}"
-
-        # Check if the file path exists
-        if not os.path.isfile(file_path):
-            return f"File not found in test application: {file_path}, did you forget to provision assets?"
-
+    def upload_fw_file(self, host: str, file_path: str, host_type: HostType) -> Optional[str]:
         try:
-            stub = self.runners[host]
-            filename = os.path.basename(file_path)
-            local_sha256 = self._calculate_sha256(file_path)
+            # Get file info first
+            file_name = os.path.basename(file_path)
+            file_size = os.path.getsize(file_path)
 
-            # Check if the file already exists on the server
-            list_response = stub.ListFwFiles(ListFwFilesRequest())
-            for file_info in list_response.files:
-                if file_info.name == filename:
-                    if file_info.sha256Digest == local_sha256:
-                        return ""  # File already exists and matches the local file
-                    else:
-                        # File exists but does not match, delete it
-                        delete_response = stub.DeleteFwFile(DeleteFwFileRequest(filename=filename))
-                        if not delete_response.success:
-                            return f"Failed to delete existing file: {delete_response.error}"
+            # Read file in chunks to avoid loading entire file into memory
+            CHUNK_SIZE = 1024 * 1024  # 1MB chunks
 
-            # Read the file
-            with open(file_path, "rb") as f:
-                content = f.read()
+            def request_iterator():
+                # Stream the file content in chunks
+                with open(file_path, "rb") as f:
+                    first_chunk = True
+                    while True:
+                        chunk = f.read(CHUNK_SIZE)
+                        if not chunk:
+                            break
 
-            total_size = len(content)
-            chunk_size = 1024
+                        if first_chunk:
+                            # First request contains name, target, and first chunk
+                            request = UploadFwFileRequest()
+                            request.name = file_name
+                            request.target = host_type
+                            request.content = chunk
+                            yield request
+                            first_chunk = False
+                        else:
+                            # Subsequent requests contain only content
+                            request = UploadFwFileRequest()
+                            request.content = chunk
+                            yield request
 
-            # Generate requests
-            def generate_requests():
-                for i in range(0, total_size, chunk_size):
-                    yield UploadFwFileRequest(filename=filename, content=content[i : i + chunk_size])
+            # Make the streaming call
+            try:
+                stub = self.mtibs[host]
+                response: UploadFwFileResponse = stub.UploadFwFile(request_iterator())
+                if not response.success:
+                    return f"UploadFwFile error: {response.message}"
+                return None
+            except grpc.RpcError as e:
+                return f"gRPC error for UploadFwFile at {self.config.net.addr}. Error: {str(e.details())}"
 
-            # Execute RPC with timing
-            start_time = time.time()
-            response = stub.UploadFwFile(generate_requests())
-            duration_ms = (time.time() - start_time) * 1000
-
-            if response.success:
-                logging.info(f"File {file_path} uploaded successfully ({duration_ms} ms)")
-                logging.info(f"Server-side SHA-256 Digest: {response.sha256Digest}")
-                return ""
-            else:
-                return f"Upload failed: {response.error}"
-        except grpc.RpcError as e:
-            return f"RPC Error: {str(e.details())}"
+        except FileNotFoundError:
+            return f"UploadFwFile error: File not found at {file_path}"
+        except PermissionError:
+            return f"UploadFwFile error: Permission denied reading file {file_path}"
         except Exception as e:
-            return f"An error occurred: {str(e)}"
+            return f"Unexpected error in UploadFwFile at {self.config.net.addr}: {str(e)}"
 
-    def delete_fw_file(self, host: str, filename: str) -> str:
-        if host not in self.runners:
-            return f"No runner found for host {host}"
+    def delete_fw_file(self, host: str, filename: str, host_type: HostType) -> str:
+        if host not in self.mtibs:
+            return f"No mtib found for host {host}"
 
         try:
-            stub = self.runners[host]
+            stub = self.mtibs[host]
 
             # Check if the file already exists on the server
-            list_response = stub.ListFwFiles(ListFwFilesRequest())
+            list_response: ListFwFilesResponse = stub.ListFwFiles(Empty())
             if not any(file_info.name == filename for file_info in list_response.files):
                 return f"File {filename} does not exist on the server"
 
             # Delete the file
-            delete_response = stub.DeleteFwFile(DeleteFwFileRequest(filename=filename))
+            delete_response: DeleteFwFileResponse = stub.DeleteFwFile(
+                DeleteFwFileRequest(file_info=FwFileInfo(name=filename, target=host_type))
+            )
             if delete_response.success:
                 logging.info(f"File {filename} deleted successfully")
                 return ""
@@ -738,324 +480,1706 @@ class Sigma5RunnersController:
         except Exception as e:
             return f"An error occurred: {str(e)}"
 
-    def flash_fw_file(self, host: str, filename: str, device: DeviceType, is_modem_fw: bool) -> str:
-        # Retrieve the runner stub
-        stub = self.runners.get(host)
-        if not stub:
-            return f"No runner stub found for host {host}"
+    def flash_fw_file(
+        self, host: str, file_info: FwFileInfo, sector_erase: bool = False, recover: bool = False
+    ) -> Tuple[Optional[int], Optional[str]]:
+        # Retrieve the mtib stub
+        if host not in self.mtibs:
+            return None, f"No mtib stub found for host {host}"
 
         try:
-            logging.info(f"Flashing {filename} on {host}")
-
-            # Prepare the device information and flash request
-            request = FlashHexFileRequest(fileName=filename, device=device, isModemFw=is_modem_fw)
-
-            # Measure the flashing process time
-            start_time = time.time()
-            response: FlashHexFileResponse = stub.FlashHexFile(request)
-            duration_seconds = time.time() - start_time
-
-            if response.success:
-                logging.info(f"Flash successful for {filename} at {host}. Time taken: {duration_seconds:.2f} seconds")
-                return ""  # No error
-            else:
-                return f"Flash failed for {device} at {host}: {response.error}"
+            stub = self.mtibs[host]
+            response: FlashFwFileResponse = stub.FlashFwFile(
+                FlashFwFileRequest(file_info=file_info, sector_erase=sector_erase, recover=recover)
+            )
+            if not response.success:
+                return None, f"FlashFwFile error: {response.message}"
+            return response.time_ms, None
         except grpc.RpcError as e:
-            return f"Exception while flashing {device} at {host}: {str(e.details())}"
+            return None, f"gRPC error for FlashFwFile at {self.config.net.addr}. Error: {str(e.details())}"
         except Exception as e:
-            return f"Unexpected error while flashing {device} at {host}: {str(e)}"
+            return None, f"Unexpected error in FlashFwFile at {self.config.net.addr}: {str(e)}"
 
-    def _start_cmd_interpreter(self, host: str) -> str:
-        if self.interpreter_running.get(host, False):
-            return "Command interpreter is already running"
-
-        self.interpreter_running[host] = True
-        self.interpreter_threads[host] = threading.Thread(target=self._interpret_commands, args=(host,))
-        self.interpreter_threads[host].start()
-        return ""
-
-    def _interpret_commands(self, host: str):
-        buffer = b""
-        runner = self.runners.get(host)
-
-        def request_iterator() -> Iterator[UartStreamRequest]:
-            while self.interpreter_running[host]:
-                try:
-                    request = self.cmd_requests_queues[host].get(
-                        timeout=1
-                    )  # Use a timeout to regularly check the running flag
-                    if request.data == b"STOP":
-                        break  # Exit the iterator loop
-                    yield request
-                except queue.Empty:
-                    continue
+    def enable_app_protect(self, host: str, target: HostType) -> Tuple[Optional[bool], Optional[str]]:
+        if host not in self.mtibs:
+            return None, f"No mtib stub found for host {host}"
 
         try:
-            self.uart_rpc_streams[host] = runner.nrf9160UartStream(request_iterator())
-            for response in self.uart_rpc_streams[host]:
-                if not self.interpreter_running[host]:
+            stub = self.mtibs[host]
+            response: EnableAppProtectResponse = stub.EnableAppProtect(EnableAppProtectRequest(target=target))
+            if not response.success:
+                return None, f"EnableAppProtect error: {response.message}"
+            return response.success, None
+        except grpc.RpcError as e:
+            return None, f"gRPC error for EnableAppProtect at {host}. Error: {str(e.details())}"
+        except Exception as e:
+            return None, f"Unexpected error in EnableAppProtect at {host}: {str(e)}"
+
+    def UartStream(
+        self, host: str, target: HostType, request_iterator: Iterator[UartStreamRequest]
+    ) -> Iterator[UartStreamResponse]:
+        """Stream UART data to/from a target device using a custom request iterator.
+
+        Args:
+            target: Target host type (NRF9160, NRF52840, etc.)
+            request_iterator: Iterator that yields UartStreamRequest objects
+
+        Yields:
+            UartStreamResponse objects containing received data or status
+        """
+        try:
+            # Make the streaming call with the provided request iterator
+            # The gRPC stub's UartStream method only takes the request_iterator, not the target
+            response_iterator = self.mtibs[host].UartStream(request_iterator)
+
+            for response in response_iterator:
+                yield response
+
+        except grpc.RpcError as e:
+            logging.error(f"gRPC error for UartStream at {host}. Error: {str(e.details())}")
+            yield UartStreamResponse(success=False, message=f"gRPC error: {str(e.details())}", target=target)
+        except Exception as e:
+            logging.error(f"Unexpected error in UartStream at {host}: {str(e)}")
+            yield UartStreamResponse(success=False, message=f"Unexpected error: {str(e)}", target=target)
+
+    # ---------------------------------------------------------------------------------
+    #                                                             App Coproc Commands
+    # -------------------------------------------------------------------------------*/
+    def sigma5_cmd_app_lock_shell(self, host: str) -> Tuple[Optional[bool], Optional[str]]:
+        """Simplified UART stream listener for lock_shell command"""
+        try:
+            # Use queues like the working terminal
+            input_queue = queue.Queue()
+            output_queue = queue.Queue()
+
+            # Add commands to input queue
+            input_queue.put(b"\r")  # Hit ENTER to get prompt
+            time.sleep(0.2)
+            input_queue.put(f"lock_shell\r".encode("utf-8"))  # Send command
+
+            def request_iterator():
+                while True:
+                    try:
+                        # Get input from queue (non-blocking)
+                        data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=data)
+                    except queue.Empty:
+                        # No input, send empty request to keep stream alive
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=b"")
+                        time.sleep(0.1)
+
+            # Collect response like the working terminal
+            response_lines = []
+            start_time = time.time()
+            timeout = 10  # 10 second timeout
+
+            target = HostType.HOST_TYPE_NRF52840
+            for resp in self.UartStream(host, target, request_iterator()):
+                if not resp.success:
+                    return None, f"UartStream error: {resp.message}"
+
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
+
+                    # Check if we got the complete response
+                    full_response = "".join(response_lines)
+                    if "Locking shell mode ON" in full_response:
+                        # Wait for the command to complete - look for the prompt after the lock_shell command
+                        lines = full_response.split("\n")
+                        lock_command_found = False
+                        prompt_found = False
+
+                        for i, line in enumerate(lines):
+                            if "lock_shell" in line:
+                                lock_command_found = True
+                            elif lock_command_found and "Mfg shell:" in line.strip():
+                                prompt_found = True
+                                break
+
+                        if prompt_found:
+                            return True, None
+
+                # Timeout check
+                if time.time() - start_time > timeout:
                     break
 
-                data = response.data
-                buffer += data
-
-                while len(buffer) > 0:
-                    sync_index = buffer.find(struct.pack("BB", SYNC_BYTE1, SYNC_BYTE2))
-                    if sync_index == -1:
-                        buffer = b""  # Clear buffer if no sync bytes are found
-                        break
-
-                    buffer = buffer[sync_index:]
-
-                    if len(buffer) < 5:
-                        break
-
-                    payload_length = struct.unpack(">H", buffer[3:5])[0]
-                    total_length = 5 + payload_length  # 5 bytes before payload + payload length + CRC
-
-                    if len(buffer) < total_length:
-                        break
-
-                    full_response = buffer[:total_length]
-                    buffer = buffer[total_length:]
-
-                    try:
-                        unpack_format = f">BBBH{payload_length - NUM_CRC_BYTES}sI"
-                        sync_byte1, sync_byte2, command_byte, length_field, payload, crc_received = struct.unpack(
-                            unpack_format, full_response
-                        )
-                        # logging.debug(f"Unpacked data: {sync_byte1}, {sync_byte2}, {command_byte}, {length_field}, {payload}, {crc_received}")
-
-                        # CRC should be calculated from command_byte to the end of the payload, excluding the CRC itself
-                        crc_calculated = self._calculate_crc32(full_response[2:-NUM_CRC_BYTES])
-                        if crc_received != crc_calculated:
-                            logging.error(f"CRC mismatch: received {crc_received}, calculated {crc_calculated}")
-                            continue
-
-                        self.cmd_responses_queues[host].put(full_response)
-                    except Exception as e:
-                        logging.error(f"An exception ocurred whilst trying to unpack response: {e}")
-                        break
-        except grpc.RpcError as e:
-            if e.code() != grpc.StatusCode.CANCELLED:
-                logging.error(f"An exception occurred during command interpretation: {e}")
-
-    def _stop_cmd_interpreter(self, host: str) -> str:
-        if not self.interpreter_running.get(host, False):
-            return "Command interpreter is not running"
-
-        # Set the running flag to False
-        self.interpreter_running[host] = False
-
-        # Insert a stop request to unblock the iterator
-        self.cmd_requests_queues[host].put(UartStreamRequest(data=b"STOP"))
-
-        # Cancel the gRPC call if it exists
-        if self.uart_rpc_streams[host]:
-            self.uart_rpc_streams[host].cancel()
-
-        # Wait for the interpreter thread to terminate
-        if self.interpreter_threads[host]:
-            self.interpreter_threads[host].join(timeout=10)  # Wait for a maximum of 5 seconds
-            if self.interpreter_threads[host].is_alive():
-                logging.error(f"Failed to stop the command interpreter thread in time for {host}")
-                return f"Failed to stop the command interpreter thread in time for {host}"
-            self.interpreter_threads[host] = None
-
-        return ""
-
-    def _send_command(
-        self,
-        host: str,
-        command: Sigma5DeviceCommand,
-        payload: bytes = b"",
-        receive_timeout_ms=RECEIVE_TIMEOUT_MS,
-        response_type: Sigma5DeviceCommand = None,
-    ) -> Tuple[str, Any]:
-        runner = self.runners.get(host)
-        if not runner:
-            return f"No runner found for host: {host}", None
-
-        try:
-            # Start the interpreter handler
-            error = self._start_cmd_interpreter(host)
-            if error:
-                return f"Could not start the command interpreter for {host}, {error}", None
-
-            # Build the command
-            sync_bytes = struct.pack("BB", SYNC_BYTE1, SYNC_BYTE2)
-            command_byte = struct.pack("B", command.value)
-            message_length = struct.pack(">H", len(payload) + NUM_CRC_BYTES)
-
-            crc_value = self._calculate_crc32(command_byte + message_length + payload)
-            crc_bytes = struct.pack(">I", crc_value)
-
-            message = sync_bytes + command_byte + message_length + payload + crc_bytes
-
-            # Send the command to the device
-            self.cmd_requests_queues[host].put(UartStreamRequest(data=message))
-            try:
-                # Await for responses in the queue
-                response = self.cmd_responses_queues[host].get(timeout=receive_timeout_ms / 1000.0)
-
-                # Decode the response into the right type
-                if response_type is None:
-                    parse_error, response = self._parse_response(command, response, self.response_classes[command])
-                else:
-                    parse_error, response = self._parse_response(
-                        response_type, response, self.response_classes[response_type]
-                    )
-                if parse_error:
-                    parse_error = f"Could not parse response for command {command.name} at {host}, {parse_error}"
-
-                # Stop the interpreter
-                error = self._stop_cmd_interpreter(host)
-                if error:
-                    return f"Could not stop the command interpreter for {host}, {error}", None
-
-                return parse_error, response
-            except queue.Empty:
-                error = self._stop_cmd_interpreter(host)
-                if error:
-                    return f"Could not stop the command interpreter for {host}, {error}", None
-
-                return f"Response timeout ocurred for command {command.name} at {host}", None
+            # If we get here, we didn't find the success message
+            full_response = "".join(response_lines)
+            return False, f"Timeout or no success message found. Response: {full_response[:200]}..."
 
         except Exception as e:
-            error = self._stop_cmd_interpreter(host)
-            if error:
-                return f"Could not stop the command interpreter for {host}, {error}", None
+            return None, f"Exception in lock_shell: {str(e)}"
 
-            return f"Error sending command {command.name} to runner at {host}. Error: {str(e)}", None
-
-    def _parse_response(
-        self, command: Sigma5DeviceCommand, response: bytes, response_class: Type[CommandResponse]
-    ) -> Tuple[str, Any]:
+    def sigma5_cmd_app_debug_uart_disable(self, host: str) -> Tuple[Optional[bool], Optional[str]]:
+        """Simplified UART stream listener for debug_uart_off command"""
         try:
-            payload_length = struct.unpack(">H", response[3:5])[0]
-            unpack_format = f">BBBH{payload_length - NUM_CRC_BYTES}sI"
-            sync_byte1, sync_byte2, command_byte, length_field, payload, crc_received = struct.unpack(
-                unpack_format, response
+            # Use queues like the working terminal
+            input_queue = queue.Queue()
+            output_queue = queue.Queue()
+
+            # Add commands to input queue
+            input_queue.put(b"\r")  # Hit ENTER to get prompt
+            time.sleep(0.2)
+            input_queue.put(f"debug_enable 0\r".encode("utf-8"))  # Send command
+
+            def request_iterator():
+                while True:
+                    try:
+                        # Get input from queue (non-blocking)
+                        data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=data)
+                    except queue.Empty:
+                        # No input, send empty request to keep stream alive
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=b"")
+                        time.sleep(0.1)
+
+            # Collect response like the working terminal
+            response_lines = []
+            start_time = time.time()
+            timeout = 10  # 10 second timeout
+
+            target = HostType.HOST_TYPE_NRF52840
+            for resp in self.UartStream(host, target, request_iterator()):
+                if not resp.success:
+                    return None, f"UartStream error: {resp.message}"
+
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
+
+                    # Check if we got the complete response
+                    full_response = "".join(response_lines)
+                    if "Debug is not enabled" in full_response:
+                        # Wait for the command to complete - look for the prompt after the debug_enable command
+                        lines = full_response.split("\n")
+                        debug_command_found = False
+                        prompt_found = False
+
+                        for i, line in enumerate(lines):
+                            if "debug_enable" in line:
+                                debug_command_found = True
+                            elif debug_command_found and "Mfg shell:" in line.strip():
+                                prompt_found = True
+                                break
+
+                        if prompt_found:
+                            return True, None
+
+                # Timeout check
+                if time.time() - start_time > timeout:
+                    break
+
+            # If we get here, we didn't find the success message
+            full_response = "".join(response_lines)
+            return False, f"Timeout or no success message found. Response: {full_response[:200]}..."
+
+        except Exception as e:
+            return None, f"Exception in lock_shell: {str(e)}"
+
+    def sigma5_cmd_app_get_chip_ids(
+        self, host: str
+    ) -> Tuple[Optional[str], Optional[str], Optional[str], Optional[str], Optional[str], Optional[str]]:
+        """Get chip IDs from the comms co-processor device"""
+        try:
+            # Use queues like the working terminal
+            input_queue = queue.Queue()
+            output_queue = queue.Queue()
+
+            # Add commands to input queue
+            input_queue.put(b"\r")  # Hit ENTER to get prompt
+            time.sleep(0.2)
+            input_queue.put(f"get_chip_ids\r".encode("utf-8"))  # Send command
+
+            def request_iterator():
+                while True:
+                    try:
+                        # Get input from queue (non-blocking)
+                        data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=data)
+                    except queue.Empty:
+                        # No input, send empty request to keep stream alive
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=b"")
+                        time.sleep(0.1)
+
+            # Collect response like the working terminal
+            response_lines = []
+            start_time = time.time()
+            timeout = 10  # 10 second timeout
+
+            target = HostType.HOST_TYPE_NRF52840
+            for resp in self.UartStream(host, target, request_iterator()):
+                if not resp.success:
+                    return None, None, None, None, None, f"UartStream error: {resp.message}"
+
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
+
+                    # Check if we got the complete response
+                    full_response = "".join(response_lines)
+                    if (
+                        "Accel chip ID:" in full_response
+                        and "Altimeter chip ID:" in full_response
+                        and "Ext flash chip ID:" in full_response
+                        and "GPS HW version:" in full_response
+                        and "BLE MAC:" in full_response
+                    ):
+                        # Wait for the command to complete - look for the prompt after the get_chip_ids command
+                        lines = full_response.split("\n")
+                        chip_command_found = False
+                        prompt_found = False
+
+                        for i, line in enumerate(lines):
+                            if "get_chip_ids" in line:
+                                chip_command_found = True
+                            elif chip_command_found and "Mfg shell:" in line.strip():
+                                prompt_found = True
+                                break
+
+                        if prompt_found:
+                            # Parse the response
+                            accel_id = None
+                            altimeter_id = None
+                            ext_flash_id = None
+                            gps_hw_version = None
+                            ble_mac = None
+
+                            # Extract Accel chip ID
+                            accel_start = full_response.find("Accel chip ID:")
+                            if accel_start != -1:
+                                accel_line_start = full_response.rfind("\n", 0, accel_start) + 1
+                                accel_line_end = full_response.find("\n", accel_start)
+                                if accel_line_end == -1:
+                                    accel_line_end = len(full_response)
+                                accel_line = full_response[accel_line_start:accel_line_end].strip()
+                                if ":" in accel_line:
+                                    accel_id = accel_line.split(":", 1)[1].strip()
+
+                            # Extract Altimeter chip ID
+                            altimeter_start = full_response.find("Altimeter chip ID:")
+                            if altimeter_start != -1:
+                                altimeter_line_start = full_response.rfind("\n", 0, altimeter_start) + 1
+                                altimeter_line_end = full_response.find("\n", altimeter_start)
+                                if altimeter_line_end == -1:
+                                    altimeter_line_end = len(full_response)
+                                altimeter_line = full_response[altimeter_line_start:altimeter_line_end].strip()
+                                if ":" in altimeter_line:
+                                    altimeter_id = altimeter_line.split(":", 1)[1].strip()
+
+                            # Extract Ext flash chip ID
+                            flash_start = full_response.find("Ext flash chip ID:")
+                            if flash_start != -1:
+                                flash_line_start = full_response.rfind("\n", 0, flash_start) + 1
+                                flash_line_end = full_response.find("\n", flash_start)
+                                if flash_line_end == -1:
+                                    flash_line_end = len(full_response)
+                                flash_line = full_response[flash_line_start:flash_line_end].strip()
+                                if ":" in flash_line:
+                                    ext_flash_id = flash_line.split(":", 1)[1].strip()
+
+                            # Extract GPS HW version
+                            gps_start = full_response.find("GPS HW version:")
+                            if gps_start != -1:
+                                gps_line_start = full_response.rfind("\n", 0, gps_start) + 1
+                                gps_line_end = full_response.find("\n", gps_start)
+                                if gps_line_end == -1:
+                                    gps_line_end = len(full_response)
+                                gps_line = full_response[gps_line_start:gps_line_end].strip()
+                                if ":" in gps_line:
+                                    gps_hw_version = gps_line.split(":", 1)[1].strip()
+
+                            # Extract BLE MAC
+                            ble_start = full_response.find("BLE MAC:")
+                            if ble_start != -1:
+                                ble_line_start = full_response.rfind("\n", 0, ble_start) + 1
+                                ble_line_end = full_response.find("\n", ble_start)
+                                if ble_line_end == -1:
+                                    ble_line_end = len(full_response)
+                                ble_line = full_response[ble_line_start:ble_line_end].strip()
+                                if ":" in ble_line:
+                                    ble_mac = ble_line.split(":", 1)[1].strip()
+
+                            return accel_id, altimeter_id, ext_flash_id, gps_hw_version, ble_mac, None
+
+                # Timeout check
+                if time.time() - start_time > timeout:
+                    break
+
+            # If we get here, we didn't find the success message
+            full_response = "".join(response_lines)
+            return (
+                None,
+                None,
+                None,
+                None,
+                None,
+                f"Timeout or no success message found. Response: {full_response[:200]}...",
             )
 
-            if command == Sigma5DeviceCommand.CMD_NOP:
-                command = Sigma5DeviceCommand.CMD_ACK
-
-            if command.value != command_byte:
-                return f"Command mismatch. Expected {command.value}, got {command_byte}", None
-
-            crc_calculated = self._calculate_crc32(response[2:-NUM_CRC_BYTES])
-            if crc_received != crc_calculated:
-                return f"CRC mismatch, expected {crc_calculated}, got {crc_received}", None
-
-            response_object = response_class.from_bytes(payload)
-            return "", response_object
         except Exception as e:
-            return f"Failed to parse response: {str(e)}", None
+            return None, None, None, None, None, f"Exception in get_chip_ids: {str(e)}"
 
-    def _calculate_sha256(self, file_path: str) -> str:
-        sha256_hash = hashlib.sha256()
-        with open(file_path, "rb") as f:
-            for byte_block in iter(lambda: f.read(4096), b""):
-                sha256_hash.update(byte_block)
-        return sha256_hash.hexdigest()
+    def sigma5_cmd_app_get_ublox_version_info(
+        self, host: str
+    ) -> Tuple[Optional[str], Optional[str], Optional[str], Optional[str], Optional[str], Optional[str]]:
+        """Get ublox version info from the device"""
+        try:
+            # Use queues like the working terminal
+            input_queue = queue.Queue()
+            output_queue = queue.Queue()
 
-    def _calculate_crc32(self, data):
-        return zlib.crc32(data) & 0xFFFFFFFF
+            # Add commands to input queue
+            input_queue.put(b"\r")  # Hit ENTER to get prompt
+            time.sleep(0.2)
+            input_queue.put(f"get_ublox\r".encode("utf-8"))  # Send command
 
-    def dut_command_send_nop(self, host: str) -> Tuple[str, CMD_ACK_Response]:
-        return self._send_command(host, Sigma5DeviceCommand.CMD_NOP, response_type=Sigma5DeviceCommand.CMD_ACK)
+            def request_iterator():
+                while True:
+                    try:
+                        # Get input from queue (non-blocking)
+                        data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=data)
+                    except queue.Empty:
+                        # No input, send empty request to keep stream alive
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=b"")
+                        time.sleep(0.1)
 
-    def dut_command_get_sensor_value(self, host: str) -> Tuple[str, CMD_GET_SENSOR_VALS_Response]:
-        # Wake up the device
-        self.dut_command_send_nop(host)
-        sleep(1)
+            # Collect response like the working terminal
+            response_lines = []
+            start_time = time.time()
+            timeout = 10  # 10 second timeout
 
-        # Send the command
-        return runnners_controller._send_command(
-            host,
-            Sigma5DeviceCommand.CMD_GET_SENSOR_VALS,
-        )
+            target = HostType.HOST_TYPE_NRF52840
+            for resp in self.UartStream(host, target, request_iterator()):
+                if not resp.success:
+                    return None, None, None, None, None, f"UartStream error: {resp.message}"
 
-    def dut_command_get_chip_id(self, host: str) -> Tuple[str, CMD_POST_Response]:
-        # Wake up the device
-        self.dut_command_send_nop(host)
-        sleep(1)
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
 
-        # Send the command
-        return runnners_controller._send_command(
-            host,
-            Sigma5DeviceCommand.CMD_POST,
-        )
+                    # Check if we got the complete response
+                    full_response = "".join(response_lines)
+                    if (
+                        "GPS HW version:" in full_response
+                        and "GPS FW version:" in full_response
+                        and "GPS SW version:" in full_response
+                        and "GPS protocol version:" in full_response
+                        and "GPS constellations:" in full_response
+                    ):
+                        # Wait for the command to complete - look for the prompt after the get_ublox command
+                        lines = full_response.split("\n")
+                        ublox_command_found = False
+                        prompt_found = False
 
-    def dut_command_get_imei_iccid(self, host: str) -> Tuple[str, CMD_IMEI_ICCID_Response]:
-        # Wake up the device
-        self.dut_command_send_nop(host)
-        sleep(1)
+                        for i, line in enumerate(lines):
+                            if "get_ublox" in line:
+                                ublox_command_found = True
+                            elif ublox_command_found and "Mfg shell:" in line.strip():
+                                prompt_found = True
+                                break
 
-        # Send the command
-        return runnners_controller._send_command(
-            host,
-            Sigma5DeviceCommand.CMD_IMEI_ICCID_GET,
-        )
+                        if prompt_found:
+                            # Parse the response
+                            hw_version = None
+                            fw_version = None
+                            sw_version = None
+                            proto_version = None
+                            constellations = None
 
-    def dut_command_get_modem_fw(self, host: str) -> Tuple[str, CMD_GET_MODEM_FW_VER_Response]:
-        # Wake up the device
-        self.dut_command_send_nop(host)
-        sleep(1)
+                            # Extract HW version
+                            hw_start = full_response.find("GPS HW version:")
+                            if hw_start != -1:
+                                hw_line_start = full_response.rfind("\n", 0, hw_start) + 1
+                                hw_line_end = full_response.find("\n", hw_start)
+                                if hw_line_end == -1:
+                                    hw_line_end = len(full_response)
+                                hw_line = full_response[hw_line_start:hw_line_end].strip()
+                                if ":" in hw_line:
+                                    hw_version = hw_line.split(":", 1)[1].strip()
 
-        # Send the command
-        return runnners_controller._send_command(
-            host,
-            Sigma5DeviceCommand.CMD_GET_MODEM_FW_VER,
-        )
+                            # Extract FW version
+                            fw_start = full_response.find("GPS FW version:")
+                            if fw_start != -1:
+                                fw_line_start = full_response.rfind("\n", 0, fw_start) + 1
+                                fw_line_end = full_response.find("\n", fw_start)
+                                if fw_line_end == -1:
+                                    fw_line_end = len(full_response)
+                                fw_line = full_response[fw_line_start:fw_line_end].strip()
+                                if ":" in fw_line:
+                                    fw_version = fw_line.split(":", 1)[1].strip()
 
-    def dut_command_clear_personalization(self, host: str) -> tuple[str, CMD_CLEAR_PERSONALIZATION_Response]:
-        # Wake up the device
-        self.dut_command_send_nop(host)
-        sleep(1)
+                            # Extract SW version
+                            sw_start = full_response.find("GPS SW version:")
+                            if sw_start != -1:
+                                sw_line_start = full_response.rfind("\n", 0, sw_start) + 1
+                                sw_line_end = full_response.find("\n", sw_start)
+                                if sw_line_end == -1:
+                                    sw_line_end = len(full_response)
+                                sw_line = full_response[sw_line_start:sw_line_end].strip()
+                                if ":" in sw_line:
+                                    sw_version = sw_line.split(":", 1)[1].strip()
 
-        # Send the command
-        return runnners_controller._send_command(
-            host,
-            Sigma5DeviceCommand.CMD_CLEAR_PERSONALIZATION,
-            response_type=Sigma5DeviceCommand.CMD_ACK,  # Use CMD_ACK as the response type
-        )
+                            # Extract Protocol version
+                            proto_start = full_response.find("GPS protocol version:")
+                            if proto_start != -1:
+                                proto_line_start = full_response.rfind("\n", 0, proto_start) + 1
+                                proto_line_end = full_response.find("\n", proto_start)
+                                if proto_line_end == -1:
+                                    proto_line_end = len(full_response)
+                                proto_line = full_response[proto_line_start:proto_line_end].strip()
+                                if ":" in proto_line:
+                                    proto_version = proto_line.split(":", 1)[1].strip()
 
-    def dut_command_set_device_eui(self, host: str, device_eui: int) -> Tuple[str, CMD_DEV_EC_PUB_KEY_Response]:
+                            # Extract Constellations
+                            constellations_start = full_response.find("GPS constellations:")
+                            if constellations_start != -1:
+                                constellations_line_start = full_response.rfind("\n", 0, constellations_start) + 1
+                                constellations_line_end = full_response.find("\n", constellations_start)
+                                if constellations_line_end == -1:
+                                    constellations_line_end = len(full_response)
+                                constellations_line = full_response[
+                                    constellations_line_start:constellations_line_end
+                                ].strip()
+                                if ":" in constellations_line:
+                                    constellations = constellations_line.split(":", 1)[1].strip()
 
-        # Create the payload
-        payload = CMD_PERSONALIZE_DEV_EUI_Response.to_bytes(read=False, device_id=device_eui)
+                            return hw_version, fw_version, sw_version, proto_version, constellations, None
 
-        # Wake up the device
-        self.dut_command_send_nop(host)
-        sleep(1)
+                # Timeout check
+                if time.time() - start_time > timeout:
+                    break
 
-        # Send the command
-        return runnners_controller._send_command(
-            host,
-            Sigma5DeviceCommand.CMD_PERSONALIZE_DEV_EUI,
-            payload=payload,
-            response_type=Sigma5DeviceCommand.CMD_DEV_EC_PUB_KEY,  # We expect a CMD_DEV_EC_PUB_KEY response
-        )
+            # If we get here, we didn't find the success message
+            full_response = "".join(response_lines)
+            return (
+                None,
+                None,
+                None,
+                None,
+                None,
+                f"Timeout or no success message found. Response: {full_response[:200]}...",
+            )
 
-    def dut_command_get_device_eui(self, host: str) -> Tuple[str, CMD_PERSONALIZE_DEV_EUI_Response]:
-        payload = CMD_PERSONALIZE_DEV_EUI_Response.to_bytes(read=True, device_id=0xDEADBEEFDEADBEEF)
+        except Exception as e:
+            return None, None, None, None, None, f"Exception in get_ublox: {str(e)}"
 
-        # Wake up the device
-        self.dut_command_send_nop(host)
-        sleep(1)
+    def sigma5_cmd_app_read_accel(
+        self, host: str
+    ) -> Tuple[Optional[float], Optional[float], Optional[float], Optional[float], Optional[str]]:
+        """Get accelerometer values from the app co-processor device"""
+        try:
+            # Use queues like the working terminal
+            input_queue = queue.Queue()
+            output_queue = queue.Queue()
 
-        # Send the command
-        return runnners_controller._send_command(
-            host,
-            Sigma5DeviceCommand.CMD_PERSONALIZE_DEV_EUI,
-            payload=payload,
-            response_type=Sigma5DeviceCommand.CMD_PERSONALIZE_DEV_EUI,
-        )
+            # Add commands to input queue
+            input_queue.put(b"\r")  # Hit ENTER to get prompt
+            time.sleep(0.2)
+            input_queue.put(f"read_accel\r".encode("utf-8"))  # Send command
+
+            def request_iterator():
+                while True:
+                    try:
+                        # Get input from queue (non-blocking)
+                        data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=data)
+                    except queue.Empty:
+                        # No input, send empty request to keep stream alive
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=b"")
+                        time.sleep(0.1)
+
+            # Collect response like the working terminal
+            response_lines = []
+            start_time = time.time()
+            timeout = 10  # 10 second timeout
+
+            target = HostType.HOST_TYPE_NRF52840
+            for resp in self.UartStream(host, target, request_iterator()):
+                if not resp.success:
+                    return None, None, None, None, f"UartStream error: {resp.message}"
+
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
+
+                    # Check if we got the complete response
+                    full_response = "".join(response_lines)
+                    if "Accelerometer values:" in full_response:
+                        # Wait for the command to complete - look for the prompt after the read_accel command
+                        lines = full_response.split("\n")
+                        accel_command_found = False
+                        prompt_found = False
+
+                        for i, line in enumerate(lines):
+                            if "read_accel" in line:
+                                accel_command_found = True
+                            elif accel_command_found and "Mfg shell:" in line.strip():
+                                prompt_found = True
+                                break
+
+                        if prompt_found:
+                            # Parse the response
+                            x_value = None
+                            y_value = None
+                            z_value = None
+                            temp_value = None
+
+                            # Extract accelerometer values
+                            accel_start = full_response.find("Accelerometer values:")
+                            if accel_start != -1:
+                                accel_line_start = full_response.rfind("\n", 0, accel_start) + 1
+                                accel_line_end = full_response.find("\n", accel_start)
+                                if accel_line_end == -1:
+                                    accel_line_end = len(full_response)
+                                accel_line = full_response[accel_line_start:accel_line_end].strip()
+
+                                # Parse the format: "Accelerometer values: (x, y, z, temp): 0.890625, -0.015625, 0.437500, 31.000000"
+                                if ":" in accel_line:
+                                    values_part = accel_line.split(":", 1)[1].strip()
+                                    # Remove the "(x, y, z, temp):" part and get just the values
+                                    if ":" in values_part:
+                                        values_str = values_part.split(":", 1)[1].strip()
+                                        try:
+                                            # Split by comma and convert to float
+                                            values = [float(v.strip()) for v in values_str.split(",")]
+                                            if len(values) >= 4:
+                                                x_value = values[0]
+                                                y_value = values[1]
+                                                z_value = values[2]
+                                                temp_value = values[3]
+                                        except ValueError:
+                                            pass
+
+                            return x_value, y_value, z_value, temp_value, None
+
+                # Timeout check
+                if time.time() - start_time > timeout:
+                    break
+
+            # If we get here, we didn't find the success message
+            full_response = "".join(response_lines)
+            return None, None, None, None, f"Timeout or no success message found. Response: {full_response[:200]}..."
+
+        except Exception as e:
+            return None, None, None, None, f"Exception in read_accel: {str(e)}"
+
+    def sigma5_cmd_app_read_altimeter(self, host: str) -> Tuple[Optional[float], Optional[float], Optional[str]]:
+        """Get altimeter values from the app co-processor device"""
+        try:
+            # Use queues like the working terminal
+            input_queue = queue.Queue()
+            output_queue = queue.Queue()
+
+            # Add commands to input queue
+            input_queue.put(b"\r")  # Hit ENTER to get prompt
+            time.sleep(0.2)
+            input_queue.put(f"read_alt\r".encode("utf-8"))  # Send command
+
+            def request_iterator():
+                while True:
+                    try:
+                        # Get input from queue (non-blocking)
+                        data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=data)
+                    except queue.Empty:
+                        # No input, send empty request to keep stream alive
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=b"")
+                        time.sleep(0.1)
+
+            # Collect response like the working terminal
+            response_lines = []
+            start_time = time.time()
+            timeout = 5  # 5 second timeout (reduced from 10)
+
+            target = HostType.HOST_TYPE_NRF52840
+            for resp in self.UartStream(host, target, request_iterator()):
+                if not resp.success:
+                    return None, None, f"UartStream error: {resp.message}"
+
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
+
+                    # Check if we got the complete response
+                    full_response = "".join(response_lines)
+                    if "Altimeter values" in full_response:
+                        # Wait for the command to complete - look for the prompt after the read_alt command
+                        lines = full_response.split("\n")
+                        alt_command_found = False
+                        prompt_found = False
+
+                        for i, line in enumerate(lines):
+                            if "read_alt" in line:
+                                alt_command_found = True
+                            elif alt_command_found and "Mfg shell:" in line.strip():
+                                prompt_found = True
+                                break
+
+                        if prompt_found:
+                            # Parse the response
+                            pressure_value = None
+                            temp_value = None
+
+                            # Extract altimeter values
+                            alt_start = full_response.find("Altimeter values")
+                            if alt_start != -1:
+                                alt_line_start = full_response.rfind("\n", 0, alt_start) + 1
+                                alt_line_end = full_response.find("\n", alt_start)
+                                if alt_line_end == -1:
+                                    alt_line_end = len(full_response)
+                                alt_line = full_response[alt_line_start:alt_line_end].strip()
+
+                                # Parse the format: "Altimeter values (pressure, temp): 28.722524, 25.412672"
+                                if ":" in alt_line:
+                                    values_part = alt_line.split(":", 1)[1].strip()
+                                    try:
+                                        # Split by comma and convert to float
+                                        values = [float(v.strip()) for v in values_part.split(",")]
+                                        if len(values) >= 2:
+                                            pressure_value = values[0]
+                                            temp_value = values[1]
+                                    except ValueError:
+                                        pass
+
+                            return pressure_value, temp_value, None
+
+                # Timeout check
+                if time.time() - start_time > timeout:
+                    break
+
+            # If we get here, we didn't find the success message
+            full_response = "".join(response_lines)
+            return None, None, f"Timeout or no success message found. Response: {full_response[:200]}..."
+
+        except Exception as e:
+            return None, None, f"Exception in read_altimeter: {str(e)}"
+
+    def sigma5_cmd_app_read_ext_flash(
+        self, host: str, address: str, num_bytes: int
+    ) -> Tuple[Optional[str], Optional[str]]:
+        """Read data from external flash"""
+        try:
+            # Use queues like the working terminal
+            input_queue = queue.Queue()
+            output_queue = queue.Queue()
+
+            # Add commands to input queue
+            input_queue.put(b"\r")  # Hit ENTER to get prompt
+            time.sleep(0.2)
+            input_queue.put(f"read_ext_flash {address} {num_bytes}\r".encode("utf-8"))  # Send command
+
+            def request_iterator():
+                while True:
+                    try:
+                        # Get input from queue (non-blocking)
+                        data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=data)
+                    except queue.Empty:
+                        # No input, send empty request to keep stream alive
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=b"")
+                        time.sleep(0.1)
+
+            # Collect response like the working terminal
+            response_lines = []
+            start_time = time.time()
+            timeout = 10  # 10 second timeout
+
+            target = HostType.HOST_TYPE_NRF52840
+            for resp in self.UartStream(host, target, request_iterator()):
+                if not resp.success:
+                    return None, f"UartStream error: {resp.message}"
+
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
+
+                    # Check if we got the complete response
+                    full_response = "".join(response_lines)
+                    if "Reading" in full_response and "bytes from address:" in full_response:
+                        # Wait for the command to complete - look for the prompt after the read command
+                        # Find where the read command output ends and look for prompt after that
+                        lines = full_response.split("\n")
+                        read_command_found = False
+                        prompt_found = False
+
+                        for i, line in enumerate(lines):
+                            if "read_ext_flash" in line:
+                                read_command_found = True
+                            elif read_command_found and "Mfg shell:" in line.strip():
+                                prompt_found = True
+                                break
+
+                        if prompt_found:
+                            # Extract the hex data from the response
+                            hex_data = ""
+                            lines = full_response.split("\n")
+                            for line in lines:
+                                if ":" in line and "|" in line:
+                                    # This is a hex dump line, extract the hex part
+                                    hex_part = line.split("|")[0].strip()
+                                    # Remove the address prefix (e.g., "00000000: ")
+                                    if ":" in hex_part:
+                                        hex_values = hex_part.split(":", 1)[1].strip()
+                                        hex_data += hex_values.replace(" ", "")
+
+                            return hex_data, None
+
+                # Timeout check
+                if time.time() - start_time > timeout:
+                    break
+
+            # If we get here, we didn't find the success message
+            full_response = "".join(response_lines)
+            return None, f"Timeout or no success message found. Response: {full_response[:200]}..."
+
+        except Exception as e:
+            return None, f"Exception in read_ext_flash: {str(e)}"
+
+    def sigma5_cmd_app_erase_ext_flash(self, host: str) -> Tuple[Optional[bool], Optional[str]]:
+        """Erase entire external flash"""
+        try:
+            # Use queues like the working terminal
+            input_queue = queue.Queue()
+            output_queue = queue.Queue()
+
+            # Add commands to input queue
+            input_queue.put(b"\r")  # Hit ENTER to get prompt
+            time.sleep(0.2)
+            input_queue.put(f"erase_ext_flash\r".encode("utf-8"))  # Send command
+
+            def request_iterator():
+                while True:
+                    try:
+                        # Get input from queue (non-blocking)
+                        data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=data)
+                    except queue.Empty:
+                        # No input, send empty request to keep stream alive
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=b"")
+                        time.sleep(0.1)
+
+            # Collect response like the working terminal
+            response_lines = []
+            start_time = time.time()
+            timeout = 30  # 30 second timeout (erase can take longer)
+
+            target = HostType.HOST_TYPE_NRF52840
+            for resp in self.UartStream(host, target, request_iterator()):
+                if not resp.success:
+                    return None, f"UartStream error: {resp.message}"
+
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
+
+                    # Check if we got the complete response
+                    full_response = "".join(response_lines)
+                    if "Erasing flash" in full_response and "pages" in full_response:
+                        # Wait for the command to complete - look for the prompt after the erase command
+                        # Find where the erase command output ends and look for prompt after that
+                        lines = full_response.split("\n")
+                        erase_command_found = False
+                        prompt_found = False
+
+                        for i, line in enumerate(lines):
+                            if "erase_ext_flash" in line:
+                                erase_command_found = True
+                            elif erase_command_found and "Mfg shell:" in line.strip():
+                                prompt_found = True
+                                break
+
+                        if prompt_found:
+                            return True, None
+
+                # Timeout check
+                if time.time() - start_time > timeout:
+                    break
+
+            # If we get here, we didn't find the success message
+            full_response = "".join(response_lines)
+            return False, f"Timeout or no success message found. Response: {full_response[:200]}..."
+
+        except Exception as e:
+            return None, f"Exception in erase_ext_flash: {str(e)}"
+
+    def sigma5_cmd_app_write_ext_flash(
+        self, host: str, address: str, data: str
+    ) -> Tuple[Optional[bool], Optional[str]]:
+        """Write data to external flash (data should be base64 encoded)"""
+        try:
+            # Use queues like the working terminal
+            input_queue = queue.Queue()
+            output_queue = queue.Queue()
+
+            # Add commands to input queue
+            input_queue.put(b"\r")  # Hit ENTER to get prompt
+            time.sleep(0.2)
+            input_queue.put(f"write_ext_flash {address} {data}\r".encode("utf-8"))  # Send command
+
+            def request_iterator():
+                while True:
+                    try:
+                        # Get input from queue (non-blocking)
+                        data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=data)
+                    except queue.Empty:
+                        # No input, send empty request to keep stream alive
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=b"")
+                        time.sleep(0.1)
+
+            # Collect response like the working terminal
+            response_lines = []
+            start_time = time.time()
+            timeout = 10  # 10 second timeout
+
+            target = HostType.HOST_TYPE_NRF52840
+            for resp in self.UartStream(host, target, request_iterator()):
+                if not resp.success:
+                    return None, f"UartStream error: {resp.message}"
+
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
+
+                    # Check if we got the complete response
+                    full_response = "".join(response_lines)
+                    if "Writing" in full_response and "bytes to address:" in full_response:
+                        # Wait for the command to complete - look for the prompt after the write command
+                        # Find where the write command output ends and look for prompt after that
+                        lines = full_response.split("\n")
+                        write_command_found = False
+                        prompt_found = False
+
+                        for i, line in enumerate(lines):
+                            if "write_ext_flash" in line:
+                                write_command_found = True
+                            elif write_command_found and "Mfg shell:" in line.strip():
+                                prompt_found = True
+                                break
+
+                        if prompt_found:
+                            return True, None
+
+                # Timeout check
+                if time.time() - start_time > timeout:
+                    break
+
+            # If we get here, we didn't find the success message
+            full_response = "".join(response_lines)
+            return False, f"Timeout or no success message found. Response: {full_response[:200]}..."
+
+        except Exception as e:
+            return None, f"Exception in write_ext_flash: {str(e)}"
+
+    # ---------------------------------------------------------------------------------
+    #                                                             Comms Coproc Commands
+    # -------------------------------------------------------------------------------*/
+    def sigma5_cmd_comms_lock_shell(self, host: str) -> Tuple[Optional[bool], Optional[str]]:
+        """Simplified UART stream listener for lock_shell command"""
+        try:
+            # Use queues like the working terminal
+            input_queue = queue.Queue()
+            output_queue = queue.Queue()
+
+            # Add commands to input queue
+            input_queue.put(b"\r")  # Hit ENTER to get prompt
+            time.sleep(0.2)
+            input_queue.put(f"lock_shell\r".encode("utf-8"))  # Send command
+
+            def request_iterator():
+                while True:
+                    try:
+                        # Get input from queue (non-blocking)
+                        data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=data)
+                    except queue.Empty:
+                        # No input, send empty request to keep stream alive
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=b"")
+                        time.sleep(0.1)
+
+            # Collect response like the working terminal
+            response_lines = []
+            start_time = time.time()
+            timeout = 10  # 10 second timeout
+
+            target = HostType.HOST_TYPE_NRF9160
+            for resp in self.UartStream(host, target, request_iterator()):
+                if not resp.success:
+                    return None, f"UartStream error: {resp.message}"
+
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
+
+                    # Check if we got the complete response
+                    full_response = "".join(response_lines)
+                    if "Locking shell mode ON" in full_response:
+                        # Wait for the command to complete - look for the prompt after the lock_shell command
+                        lines = full_response.split("\n")
+                        lock_command_found = False
+                        prompt_found = False
+
+                        for i, line in enumerate(lines):
+                            if "lock_shell" in line:
+                                lock_command_found = True
+                            elif lock_command_found and "Mfg shell:" in line.strip():
+                                prompt_found = True
+                                break
+
+                        if prompt_found:
+                            return True, None
+
+                # Timeout check
+                if time.time() - start_time > timeout:
+                    break
+
+            # If we get here, we didn't find the success message
+            full_response = "".join(response_lines)
+            return False, f"Timeout or no success message found. Response: {full_response[:200]}..."
+
+        except Exception as e:
+            return None, f"Exception in lock_shell: {str(e)}"
+
+    def sigma5_cmd_comms_debug_uart_disable(self, host: str) -> Tuple[Optional[bool], Optional[str]]:
+        """Simplified UART stream listener for debug_uart_off command"""
+        try:
+            # Use queues like the working terminal
+            input_queue = queue.Queue()
+            output_queue = queue.Queue()
+
+            # Add commands to input queue
+            input_queue.put(b"\r")  # Hit ENTER to get prompt
+            time.sleep(0.2)
+            input_queue.put(f"debug_enable 0\r".encode("utf-8"))  # Send command
+
+            def request_iterator():
+                while True:
+                    try:
+                        # Get input from queue (non-blocking)
+                        data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=data)
+                    except queue.Empty:
+                        # No input, send empty request to keep stream alive
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=b"")
+                        time.sleep(0.1)
+
+            # Collect response like the working terminal
+            response_lines = []
+            start_time = time.time()
+            timeout = 10  # 10 second timeout
+
+            target = HostType.HOST_TYPE_NRF9160
+            for resp in self.UartStream(host, target, request_iterator()):
+                if not resp.success:
+                    return None, f"UartStream error: {resp.message}"
+
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
+
+                    # Check if we got the complete response
+                    full_response = "".join(response_lines)
+                    if "Debug is not enabled" in full_response:
+                        # Wait for the command to complete - look for the prompt after the debug_enable command
+                        lines = full_response.split("\n")
+                        debug_command_found = False
+                        prompt_found = False
+
+                        for i, line in enumerate(lines):
+                            if "debug_enable" in line:
+                                debug_command_found = True
+                            elif debug_command_found and "Mfg shell:" in line.strip():
+                                prompt_found = True
+                                break
+
+                        if prompt_found:
+                            return True, None
+
+                # Timeout check
+                if time.time() - start_time > timeout:
+                    break
+
+            # If we get here, we didn't find the success message
+            full_response = "".join(response_lines)
+            return False, f"Timeout or no success message found. Response: {full_response[:200]}..."
+
+        except Exception as e:
+            return None, f"Exception in lock_shell: {str(e)}"
+
+    def sigma5_cmd_comms_get_chip_ids(self, host: str) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+        """Get chip IDs from the device and return LoRa status and Ext flash chip ID"""
+        try:
+            # Use queues like the working terminal
+            input_queue = queue.Queue()
+            output_queue = queue.Queue()
+
+            # Add commands to input queue
+            input_queue.put(b"\r")  # Hit ENTER to get prompt
+            time.sleep(0.2)
+            input_queue.put(f"get_chip_ids\r".encode("utf-8"))  # Send command
+
+            def request_iterator():
+                while True:
+                    try:
+                        # Get input from queue (non-blocking)
+                        data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=data)
+                    except queue.Empty:
+                        # No input, send empty request to keep stream alive
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=b"")
+                        time.sleep(0.1)
+
+            # Collect response like the working terminal
+            response_lines = []
+            start_time = time.time()
+            timeout = 10  # 10 second timeout
+
+            target = HostType.HOST_TYPE_NRF9160
+            for resp in self.UartStream(host, target, request_iterator()):
+                if not resp.success:
+                    return None, None, f"UartStream error: {resp.message}"
+
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
+
+                    # Check if we got the complete response
+                    full_response = "".join(response_lines)
+                    if "LoRa hardware available:" in full_response and "Ext flash chip ID:" in full_response:
+                        # Wait for the command to complete - look for the prompt after the get_chip_ids command
+                        lines = full_response.split("\n")
+                        chip_command_found = False
+                        prompt_found = False
+
+                        for i, line in enumerate(lines):
+                            if "get_chip_ids" in line:
+                                chip_command_found = True
+                            elif chip_command_found and "Mfg shell:" in line.strip():
+                                prompt_found = True
+                                break
+
+                        if prompt_found:
+                            # Parse the response
+                            lora_status = None
+                            ext_flash_id = None
+
+                            # Extract LoRa status
+                            lora_start = full_response.find("LoRa hardware available:")
+                            if lora_start != -1:
+                                lora_line_start = full_response.rfind("\n", 0, lora_start) + 1
+                                lora_line_end = full_response.find("\n", lora_start)
+                                if lora_line_end == -1:
+                                    lora_line_end = len(full_response)
+                                lora_line = full_response[lora_line_start:lora_line_end].strip()
+                                if ":" in lora_line:
+                                    lora_status = lora_line.split(":", 1)[1].strip()
+
+                            # Extract Ext flash chip ID
+                            flash_start = full_response.find("Ext flash chip ID:")
+                            if flash_start != -1:
+                                flash_line_start = full_response.rfind("\n", 0, flash_start) + 1
+                                flash_line_end = full_response.find("\n", flash_start)
+                                if flash_line_end == -1:
+                                    flash_line_end = len(full_response)
+                                flash_line = full_response[flash_line_start:flash_line_end].strip()
+                                if ":" in flash_line:
+                                    ext_flash_id = flash_line.split(":", 1)[1].strip()
+
+                            return lora_status, ext_flash_id, None
+
+                # Timeout check
+                if time.time() - start_time > timeout:
+                    break
+
+            # If we get here, we didn't find the success message
+            full_response = "".join(response_lines)
+            return None, None, f"Timeout or no success message found. Response: {full_response[:200]}..."
+
+        except Exception as e:
+            return None, None, f"Exception in get_chip_ids: {str(e)}"
+
+    def sigma5_cmd_comms_get_modem_fw_version(self, host: str) -> Tuple[Optional[str], Optional[str]]:
+        """Get modem firmware version from the communications co-processor device"""
+        try:
+            # Use queues for UART communication
+            input_queue = queue.Queue()
+
+            # Add commands to input queue
+            input_queue.put(b"\r")  # Hit ENTER to get prompt
+            time.sleep(0.2)
+            input_queue.put(f"get_modem_fw\r".encode("utf-8"))  # Send command
+
+            def request_iterator():
+                while True:
+                    try:
+                        # Get input from queue (non-blocking)
+                        data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=data)
+                    except queue.Empty:
+                        # No input, send empty request to keep stream alive
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=b"")
+                        time.sleep(0.1)
+
+            # Collect response from UART stream
+            response_lines = []
+            start_time = time.time()
+            timeout = 10  # 10 second timeout
+
+            target = HostType.HOST_TYPE_NRF9160
+            for resp in self.UartStream(host, target, request_iterator()):
+                if not resp.success:
+                    return None, f"UartStream error: {resp.message}"
+
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
+
+                    # Check if we got the complete response
+                    full_response = "".join(response_lines)
+                    if "Modem FW:" in full_response:
+                        # Wait for the command to complete - look for the prompt after the get_modem_fw command
+                        lines = full_response.split("\n")
+                        modem_command_found = False
+                        prompt_found = False
+
+                        for i, line in enumerate(lines):
+                            if "get_modem_fw" in line:
+                                modem_command_found = True
+                            elif modem_command_found and "Mfg shell:" in line.strip():
+                                prompt_found = True
+                                break
+
+                        if prompt_found:
+                            # Parse the response
+                            fw_version = None
+
+                            # Extract Modem FW version - use a more robust approach
+                            modem_start = full_response.find("Modem FW:")
+                            if modem_start != -1:
+                                # Find the end of the line containing "Modem FW:"
+                                line_end = full_response.find("\n", modem_start)
+                                if line_end == -1:
+                                    line_end = len(full_response)
+
+                                # Extract the complete line
+                                modem_line = full_response[modem_start:line_end].strip()
+
+                                # Extract version after the colon
+                                if ":" in modem_line:
+                                    fw_version = modem_line.split(":", 1)[1].strip()
+
+                            return fw_version, None
+
+                # Timeout check
+                if time.time() - start_time > timeout:
+                    break
+
+            # If we get here, we didn't find the success message
+            full_response = "".join(response_lines)
+            return None, f"Timeout or no success message found. Response: {full_response[:200]}..."
+
+        except Exception as e:
+            return None, f"Exception in get_modem_fw_version: {str(e)}"
+
+    def sigma5_cmd_comms_get_imei_iccid(self, host: str) -> Tuple[Optional[str], Optional[List[str]], Optional[str]]:
+        """Get IMEI and ICCID from the communications co-processor device"""
+        try:
+            # Use queues like the working terminal
+            input_queue = queue.Queue()
+            output_queue = queue.Queue()
+
+            # Add commands to input queue
+            input_queue.put(b"\r")  # Hit ENTER to get prompt
+            time.sleep(0.2)
+            input_queue.put(f"imei_iccid\r".encode("utf-8"))  # Send command
+
+            def request_iterator():
+                while True:
+                    try:
+                        # Get input from queue (non-blocking)
+                        data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=data)
+                    except queue.Empty:
+                        # No input, send empty request to keep stream alive
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=b"")
+                        time.sleep(0.1)
+
+            # Collect response like the working terminal
+            response_lines = []
+            start_time = time.time()
+            timeout = 10  # 10 second timeout
+
+            target = HostType.HOST_TYPE_NRF9160
+            for resp in self.UartStream(host, target, request_iterator()):
+                if not resp.success:
+                    return None, None, f"UartStream error: {resp.message}"
+
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
+
+                    # Check if we got the complete response
+                    full_response = "".join(response_lines)
+                    if "IMEI,ICCID0" in full_response:
+                        # Wait for the command to complete - look for the prompt after the imei_iccid command
+                        lines = full_response.split("\n")
+                        imei_command_found = False
+                        prompt_found = False
+
+                        for i, line in enumerate(lines):
+                            if "imei_iccid" in line:
+                                imei_command_found = True
+                            elif imei_command_found and "Mfg shell:" in line.strip():
+                                prompt_found = True
+                                break
+
+                        if prompt_found:
+                            # Parse the response
+                            imei = None
+                            iccid_list = []
+
+                            # Extract IMEI and ICCID data
+                            imei_start = full_response.find("IMEI,ICCID0")
+                            if imei_start != -1:
+                                imei_line_start = full_response.rfind("\n", 0, imei_start) + 1
+                                imei_line_end = full_response.find("\n", imei_start)
+                                if imei_line_end == -1:
+                                    imei_line_end = len(full_response)
+                                imei_line = full_response[imei_line_start:imei_line_end].strip()
+
+                                # Parse format: "IMEI,ICCID0[,ICCID1]: 358447171854988,89148000009808536124,89457300000035352429"
+                                if ":" in imei_line:
+                                    data_part = imei_line.split(":", 1)[1].strip()
+                                    # Split by comma to get IMEI and ICCIDs
+                                    parts = [part.strip() for part in data_part.split(",")]
+                                    if len(parts) >= 2:
+                                        imei = parts[0]  # First part is IMEI
+                                        iccid_list = parts[1:]  # Rest are ICCIDs
+
+                            return imei, iccid_list, None
+
+                # Timeout check
+                if time.time() - start_time > timeout:
+                    break
+
+            # If we get here, we didn't find the success message
+            full_response = "".join(response_lines)
+            return None, None, f"Timeout or no success message found. Response: {full_response[:200]}..."
+
+        except Exception as e:
+            return None, None, f"Exception in get_imei_iccid: {str(e)}"
+
+    def sigma5_cmd_comms_personalize(
+        self, host: str, device_id: str
+    ) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+        """Personalize the communications co-processor device"""
+        try:
+            # Use queues for UART communication
+            input_queue = queue.Queue()
+
+            # Add commands to input queue
+            input_queue.put(b"\r")  # Hit ENTER to get prompt
+            time.sleep(0.2)
+            input_queue.put(f"personalize {device_id}\r".encode("utf-8"))  # Send command
+
+            def request_iterator():
+                while True:
+                    try:
+                        # Get input from queue (non-blocking)
+                        data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=data)
+                    except queue.Empty:
+                        # No input, send empty request to keep stream alive
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=b"")
+                        time.sleep(0.1)
+
+            # Collect response from UART stream
+            response_lines = []
+            start_time = time.time()
+            timeout = 10  # 10 second timeout
+
+            target = HostType.HOST_TYPE_NRF9160
+            for resp in self.UartStream(host, target, request_iterator()):
+                if not resp.success:
+                    return None, None, f"UartStream error: {resp.message}"
+
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
+
+                    # Check if we got the complete response
+                    full_response = "".join(response_lines)
+                    if "Public key (hex)" in full_response and "Public key (base64)" in full_response:
+                        # Wait for the command to complete - look for the prompt after the personalize command
+                        lines = full_response.split("\n")
+                        command_found = False
+                        prompt_found = False
+
+                        for i, line in enumerate(lines):
+                            if "personalize" in line:
+                                command_found = True
+                            elif command_found and "Mfg shell:" in line.strip():
+                                prompt_found = True
+                                break
+
+                        if prompt_found:
+                            # Parse the response to extract both hex and base64 keys
+                            hex_key = None
+                            base64_key = None
+
+                            # Extract hex key
+                            hex_start = full_response.find("Public key (hex)")
+                            if hex_start != -1:
+                                hex_line_end = full_response.find("\n", hex_start)
+                                if hex_line_end == -1:
+                                    hex_line_end = len(full_response)
+                                hex_line = full_response[hex_start:hex_line_end].strip()
+                                if ":" in hex_line:
+                                    hex_key = hex_line.split(":", 1)[1].strip()
+
+                            # Extract base64 key
+                            base64_start = full_response.find("Public key (base64)")
+                            if base64_start != -1:
+                                base64_line_end = full_response.find("\n", base64_start)
+                                if base64_line_end == -1:
+                                    base64_line_end = len(full_response)
+                                base64_line = full_response[base64_start:base64_line_end].strip()
+                                if ":" in base64_line:
+                                    base64_key = base64_line.split(":", 1)[1].strip()
+
+                            return hex_key, base64_key, None
+
+                # Timeout check
+                if time.time() - start_time > timeout:
+                    break
+
+            # If we get here, we didn't find the success message
+            full_response = "".join(response_lines)
+            return None, None, f"Timeout or no success message found. Response: {full_response[:200]}..."
+
+        except Exception as e:
+            return None, None, f"Exception in personalize: {str(e)}"
+
+    def sigma5_cmd_comms_read_ext_flash(
+        self, host: str, address: str, num_bytes: int
+    ) -> Tuple[Optional[str], Optional[str]]:
+        """Read data from external flash"""
+        try:
+            # Use queues like the working terminal
+            input_queue = queue.Queue()
+            output_queue = queue.Queue()
+
+            # Add commands to input queue
+            input_queue.put(b"\r")  # Hit ENTER to get prompt
+            time.sleep(0.2)
+            input_queue.put(f"read_ext_flash {address} {num_bytes}\r".encode("utf-8"))  # Send command
+
+            def request_iterator():
+                while True:
+                    try:
+                        # Get input from queue (non-blocking)
+                        data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=data)
+                    except queue.Empty:
+                        # No input, send empty request to keep stream alive
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=b"")
+                        time.sleep(0.1)
+
+            # Collect response like the working terminal
+            response_lines = []
+            start_time = time.time()
+            timeout = 10  # 10 second timeout
+
+            target = HostType.HOST_TYPE_NRF9160
+            for resp in self.UartStream(host, target, request_iterator()):
+                if not resp.success:
+                    return None, f"UartStream error: {resp.message}"
+
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
+
+                    # Check if we got the complete response
+                    full_response = "".join(response_lines)
+                    if "Reading" in full_response and "bytes from address:" in full_response:
+                        # Wait for the command to complete - look for the prompt after the read command
+                        # Find where the read command output ends and look for prompt after that
+                        lines = full_response.split("\n")
+                        read_command_found = False
+                        prompt_found = False
+
+                        for i, line in enumerate(lines):
+                            if "read_ext_flash" in line:
+                                read_command_found = True
+                            elif read_command_found and "Mfg shell:" in line.strip():
+                                prompt_found = True
+                                break
+
+                        if prompt_found:
+                            # Extract the hex data from the response
+                            hex_data = ""
+                            lines = full_response.split("\n")
+                            for line in lines:
+                                if ":" in line and "|" in line:
+                                    # This is a hex dump line, extract the hex part
+                                    hex_part = line.split("|")[0].strip()
+                                    # Remove the address prefix (e.g., "00000000: ")
+                                    if ":" in hex_part:
+                                        hex_values = hex_part.split(":", 1)[1].strip()
+                                        hex_data += hex_values.replace(" ", "")
+
+                            return hex_data, None
+
+                # Timeout check
+                if time.time() - start_time > timeout:
+                    break
+
+            # If we get here, we didn't find the success message
+            full_response = "".join(response_lines)
+            return None, f"Timeout or no success message found. Response: {full_response[:200]}..."
+
+        except Exception as e:
+            return None, f"Exception in read_ext_flash: {str(e)}"
+
+    def sigma5_cmd_comms_erase_ext_flash(self, host: str) -> Tuple[Optional[bool], Optional[str]]:
+        """Erase entire external flash"""
+        try:
+            # Use queues like the working terminal
+            input_queue = queue.Queue()
+            output_queue = queue.Queue()
+
+            # Add commands to input queue
+            input_queue.put(b"\r")  # Hit ENTER to get prompt
+            time.sleep(0.2)
+            input_queue.put(f"erase_ext_flash\r".encode("utf-8"))  # Send command
+
+            def request_iterator():
+                while True:
+                    try:
+                        # Get input from queue (non-blocking)
+                        data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=data)
+                    except queue.Empty:
+                        # No input, send empty request to keep stream alive
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=b"")
+                        time.sleep(0.1)
+
+            # Collect response like the working terminal
+            response_lines = []
+            start_time = time.time()
+            timeout = 30  # 30 second timeout (erase can take longer)
+
+            target = HostType.HOST_TYPE_NRF9160
+            for resp in self.UartStream(host, target, request_iterator()):
+                if not resp.success:
+                    return None, f"UartStream error: {resp.message}"
+
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
+
+                    # Check if we got the complete response
+                    full_response = "".join(response_lines)
+                    if "Erasing flash" in full_response and "pages" in full_response:
+                        # Wait for the command to complete - look for the prompt after the erase command
+                        # Find where the erase command output ends and look for prompt after that
+                        lines = full_response.split("\n")
+                        erase_command_found = False
+                        prompt_found = False
+
+                        for i, line in enumerate(lines):
+                            if "erase_ext_flash" in line:
+                                erase_command_found = True
+                            elif erase_command_found and "Mfg shell:" in line.strip():
+                                prompt_found = True
+                                break
+
+                        if prompt_found:
+                            return True, None
+
+                # Timeout check
+                if time.time() - start_time > timeout:
+                    break
+
+            # If we get here, we didn't find the success message
+            full_response = "".join(response_lines)
+            return False, f"Timeout or no success message found. Response: {full_response[:200]}..."
+
+        except Exception as e:
+            return None, f"Exception in erase_ext_flash: {str(e)}"
+
+    def sigma5_cmd_comms_write_ext_flash(
+        self, host: str, address: str, data: str
+    ) -> Tuple[Optional[bool], Optional[str]]:
+        """Write data to external flash (data should be base64 encoded)"""
+        try:
+            # Use queues like the working terminal
+            input_queue = queue.Queue()
+            output_queue = queue.Queue()
+
+            # Add commands to input queue
+            input_queue.put(b"\r")  # Hit ENTER to get prompt
+            time.sleep(0.2)
+            input_queue.put(f"write_ext_flash {address} {data}\r".encode("utf-8"))  # Send command
+
+            def request_iterator():
+                while True:
+                    try:
+                        # Get input from queue (non-blocking)
+                        data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=data)
+                    except queue.Empty:
+                        # No input, send empty request to keep stream alive
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=b"")
+                        time.sleep(0.1)
+
+            # Collect response like the working terminal
+            response_lines = []
+            start_time = time.time()
+            timeout = 10  # 10 second timeout
+
+            target = HostType.HOST_TYPE_NRF9160
+            for resp in self.UartStream(host, target, request_iterator()):
+                if not resp.success:
+                    return None, f"UartStream error: {resp.message}"
+
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
+
+                    # Check if we got the complete response
+                    full_response = "".join(response_lines)
+                    if "Writing" in full_response and "bytes to address:" in full_response:
+                        # Wait for the command to complete - look for the prompt after the write command
+                        # Find where the write command output ends and look for prompt after that
+                        lines = full_response.split("\n")
+                        write_command_found = False
+                        prompt_found = False
+
+                        for i, line in enumerate(lines):
+                            if "write_ext_flash" in line:
+                                write_command_found = True
+                            elif write_command_found and "Mfg shell:" in line.strip():
+                                prompt_found = True
+                                break
+
+                        if prompt_found:
+                            return True, None
+
+                # Timeout check
+                if time.time() - start_time > timeout:
+                    break
+
+            # If we get here, we didn't find the success message
+            full_response = "".join(response_lines)
+            return False, f"Timeout or no success message found. Response: {full_response[:200]}..."
+
+        except Exception as e:
+            return None, f"Exception in write_ext_flash: {str(e)}"
+
+    def sigma5_cmd_comms_rekey_ip(self, host: str) -> Tuple[Optional[bool], Optional[str]]:
+        """Rekey IP"""
+        try:
+            # Use queues like the working terminal
+            input_queue = queue.Queue()
+            output_queue = queue.Queue()
+
+            # Add commands to input queue
+            input_queue.put(b"\r")  # Hit ENTER to get prompt
+            time.sleep(0.2)
+            input_queue.put(f"rekey_ip\r".encode("utf-8"))  # Send command
+
+            def request_iterator():
+                while True:
+                    try:
+                        # Get input from queue (non-blocking)
+                        data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=data)
+                    except queue.Empty:
+                        # No input, send empty request to keep stream alive
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=b"")
+                        time.sleep(0.1)
+
+            # Collect response like the working terminal
+            response_lines = []
+            start_time = time.time()
+            timeout = 10  # 10 second timeout
+
+            target = HostType.HOST_TYPE_NRF9160
+
+            for resp in self.UartStream(host, target, request_iterator()):
+                if not resp.success:
+                    return None, f"UartStream error: {resp.message}"
+
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
+
+            return True, None
+
+        except Exception as e:
+            return None, f"Exception in rekey_ip: {str(e)}"  # type: ignore
+
+    def sigma5_cmd_comms_rekey_ipc(self, host: str) -> Tuple[Optional[bool], Optional[str]]:
+        """Rekey IPC"""
+        try:
+            # Use queues like the working terminal
+            input_queue = queue.Queue()
+            output_queue = queue.Queue()
+
+            # Add commands to input queue
+            input_queue.put(b"\r")  # Hit ENTER to get prompt
+            time.sleep(0.2)
+            input_queue.put(f"rekey_ipc\r".encode("utf-8"))  # Send command
+
+            def request_iterator():
+                while True:
+                    try:
+                        # Get input from queue (non-blocking)
+                        data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=data)
+                    except queue.Empty:
+                        # No input, send empty request to keep stream alive
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=b"")
+                        time.sleep(0.1)
+
+            # Collect response like the working terminal
+            response_lines = []
+            start_time = time.time()
+            timeout = 10  # 10 second timeout
+
+            target = HostType.HOST_TYPE_NRF9160
+
+            for resp in self.UartStream(host, target, request_iterator()):
+                if not resp.success:
+                    return None, f"UartStream error: {resp.message}"
+
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
+
+                    # Check if we got the complete response
+                    full_response = "".join(response_lines)
+                    if "IPC rekey completed successfully" in full_response:
+                        return True, None
+                    elif "IPC rekey failed" in full_response:
+                        return False, "IPC rekey failed"
+
+                # Timeout check
+                if time.time() - start_time > timeout:
+                    break
+
+            # If we get here, we didn't find the success or failure message
+            full_response = "".join(response_lines)
+            return None, f"Timeout or no response found. Response: {full_response[:200]}..."
+
+        except Exception as e:
+            return None, f"Exception in rekey_ipc: {str(e)}"  # type: ignore
 
 
 # ---------------------------------------------------------------------------------
 #                                                                   Class Singleton
 # -------------------------------------------------------------------------------*/
-runnners_controller: Sigma5RunnersController = Sigma5RunnersController()
+mtib_servers: Sigma5MtibServers = Sigma5MtibServers()

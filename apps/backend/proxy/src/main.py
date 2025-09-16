@@ -1,57 +1,93 @@
 # Standard includes
 import logging
+import sys
+import eventlet
+from typing import List
+import traceback
 
-# App includes
-from src.server import Proxy, ProxyEnvConfig, proxy_server
+eventlet.monkey_patch(socket=True, select=False, time=False, os=False, thread=False)
+
+# 3rd party includes
+from flask import Flask
+from flask_socketio import SocketIO
 
 # Corekinect includes
-from corekinect.utils import Logger
+from corekinect.utils import Logger, EnvConfig
 
-# API
-from src.api.v1.register import api_v1_register
-from src.api.v2.register import api_v2_register
+# App includes
+from config import env_config
+from src.middleware.permissions import authMiddleware, AuthMiddlewareConfig
+from src.services.proxy import ProxyServerConfiguration, appProxyServer
+from api.v1.register import register_v1_routes
+from api.v1.clusters.tests.exec_uuid import clusters_tests_exec_uuid_socketio_handler
 
-# ----------------------------------------------------------------------------------
-#                                                                              Entry
-# --------------------------------------------------------------------------------*/
+# -------------------------------------------------
+#                                            Server
+# -------------------------------------------------
+server = Flask(__name__)
+socketio = SocketIO(server, debug=True, cors_allowed_origins="*", async_mode="eventlet", logger=True)
+
+
+@socketio.on("exec_test")
+def handle_ws_event_exec_test(data):
+    clusters_tests_exec_uuid_socketio_handler(data, socketio)
+
+
+# -------------------------------------------------
+#                                             Entry
+# -------------------------------------------------
 if __name__ == "__main__":
     logger: Logger = None
 
     try:
-        # Load any environment variables
-        env_config = ProxyEnvConfig()
-
-        # Create the logger configuration for the global logger
+        # Initialize the logger
         log_config = Logger.Config(
-            logger_name="proxy",
+            logger_name="server",
             log_directory=env_config.LOG_PATH,
-            overall_log_level=logging.DEBUG,
-            console_log_level=logging.DEBUG,
-            file_log_level=logging.DEBUG,
+            overall_log_level=env_config.LOG_LEVEL,
+            console_log_level=env_config.LOG_LEVEL,
+            file_log_level=logging.DEBUG,  # Always log everything to file
             enable_log_color=True,
         )
-
-        # Instantiate the app logger
         logger: Logger = Logger(log_config)
 
-        # Create the config for the Proxy server
-        config = Proxy.Config(
-            debug=True,
-            addr="0.0.0.0",
+        # Initiate the middleware layer
+        middleware_config: AuthMiddlewareConfig = AuthMiddlewareConfig(
+            cc_auth_server_url=env_config.AUTH_SERVER_URL,
+            server_api_key=env_config.AUTH_SERVER_API_KEY,
+            server_client_id=env_config.AUTH_SERVER_CREDENTIALS_USER,
+            server_client_secret=env_config.AUTH_SERVER_CREDENTIALS_PASS,
+        )
+        error = authMiddleware.init(logger=logger, auth_enabled=env_config.AUTH_ENABLED, config=middleware_config)
+        if error:
+            logger.error(f"Could not initialize middleware: {error}")
+            sys.exit(1)
+
+        # Instantiate server with desired configuration
+        app_config: ProxyServerConfiguration = ProxyServerConfiguration(
             logger=logger,
-            env=env_config,
+            db_storage_path=env_config.DB_STORAGE_PATH,
+            db_storage_limit_gb=env_config.DB_STORAGE_LIMIT_GB,
+            supported_registries=env_config.SUPPORTED_REGISTRIES,
+        )
+        appProxyServer.init(app_config)
+
+        # Register the v1 routes
+        register_v1_routes(server)
+
+        # Start the server
+        socketio.run(
+            app=server,
+            host="0.0.0.0",
+            port=env_config.SERVER_PORT,
+            debug=False,
+            log_output=True,
+            log=logger,
         )
 
-        # Initialize ProxyServer with the config
-        proxy_server = Proxy(config)
-
-        # Register the API routes
-        api_v1_register(proxy_server.app)
-        api_v2_register(proxy_server.app)
-
-        # Listen for requests
-        proxy_server.listen()
-
     except Exception as e:
-        # If we have already setup our logger, then use that one so we can see fatal error in log files
-        logger.error(f"Failed to initialize or run the ProxyServer: {e}")
+        if logger:
+            # Print the entire traceback
+            logger.error(f"Failed to initialize or run the Proxy: {e}")
+        else:
+            print(f"Failed to initialize or run the Proxy: {e}\n{traceback.format_exc()}")

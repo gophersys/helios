@@ -1,46 +1,92 @@
 # Standard includes
 import concurrent.futures
 import time
-from typing import List
+from typing import Dict, List
 
 # Protocol includes
-from protos.cluster_test.cluster_test_pb2 import StepInfo, TestInfo
+from protocols.cluster_test.cluster_test_pb2 import StepInfo, TestInfo
 
 # Corekinect Libraries
-from tests.lib import Test, TestStep
+from src.tests.lib import Test, TestStep
 
 # Test includes
-from ..shared.config import Sigma5ManufacturingConfig
-from ..shared.rpcs import runnners_controller
-from .acceleromeer import verify_accelerometer
-from .altimeter import verify_altimeter
-from .chip_ids import verify_chip_ids
-from .imei_iccid import verify_imei_iccid
-from .modem import verify_modem_fw
-from .personalization import clear_personalization, set_device_id
-from .power import power_on_verify_comms
-from .voltage import verify_voltage
+from src.tests.shared.config import Sigma5ManufacturingConfig
+from src.tests.shared.rpcs import mtib_servers
+
+# Post test includes
+from .data import post_test_shared_data
+from .data import PostTestSharedData
+
+# App POST steps
+from .app.step_1 import app_post_step_1_verify_chip_ids
+from .app.step_2 import app_post_step_2_verify_ublox
+from .app.step_3 import app_post_step_3_verify_accelerometer
+from .app.step_4 import app_post_step_4_verify_altimeter
+from .app.step_5 import app_post_step_5_verify_ble
+from .app.step_6 import app_post_step_6_verify_external_flash
+from .app.step_7 import app_post_step_7_enable_app_protect
+
+# Comms POST steps
+from .comms.step_1 import comms_post_step_1_verify_chip_ids
+from .comms.step_2 import comms_post_step_2_verify_modem_fw
+from .comms.step_3 import comms_post_step_3_verify_imei_iccids
+from .comms.step_4 import comms_post_step_4_verify_external_flash
+from .comms.step_5 import comms_post_step_5_personalize
+from .comms.step_6 import comms_post_step_6_rekey_ipc
+from .comms.step_7 import comms_post_step_7_enable_app_protect
 
 
 # ---------------------------------------------------------------------------------
 #                                                                              Init
 # -------------------------------------------------------------------------------*/
-def post_test_init(config: Sigma5ManufacturingConfig, nodes: List[str], usr_data: None) -> str:
+def post_test_init(
+    config: Sigma5ManufacturingConfig, nodes: List[str], usr_data: Dict[str, PostTestSharedData]
+) -> str:
     # Initialize the runners required to run this test
-    error = runnners_controller.init(nodes)
+    error = mtib_servers.init(nodes)
     if error:
         return f"Could not initialize runners for test: {error}"
 
     def init_node(node: str) -> str:
         # Turn off power
-        error = runnners_controller.disable_power(node)
+        error = mtib_servers.disable_power(node)
         if error:
             return f"Could not disable device power in host {node}: {error}"
 
         # Turn off charging power
-        error = runnners_controller.set_5vin(node, False)
+        error = mtib_servers.disable_charge_power(node)
         if error:
             return f"Could not disable charging power in host {node}: {error}"
+
+        # Await some time for the power to be off
+        time.sleep(2)
+
+        # Turn on the device
+        error = mtib_servers.enable_power(node, 4.0)
+        if error:
+            return f"Could not set VBAT on host {node} to 3.8V: {error}"
+
+        # Await some time for boot
+        time.sleep(2)
+
+        # Setup the shell for the app processor
+        locked, error = mtib_servers.sigma5_cmd_app_lock_shell(node)
+        if error or not locked:
+            return f"Could not lock shell on host {node}: {error}"
+        disabled, error = mtib_servers.sigma5_cmd_app_debug_uart_disable(node)
+        if error or not disabled:
+            return f"Could not disable debug UART on host {node}: {error}"
+
+        # Setup the shell for the comms processor
+        locked, error = mtib_servers.sigma5_cmd_comms_lock_shell(node)
+        if error or not locked:
+            return f"Could not lock shell on host {node}: {error}"
+        disabled, error = mtib_servers.sigma5_cmd_comms_debug_uart_disable(node)
+        if error or not disabled:
+            return f"Could not disable debug UART on host {node}: {error}"
+
+        # Initialize the shared data
+        usr_data[node] = PostTestSharedData()
 
         return None
 
@@ -61,17 +107,22 @@ def post_test_init(config: Sigma5ManufacturingConfig, nodes: List[str], usr_data
 # ---------------------------------------------------------------------------------
 #                                                                            Deinit
 # -------------------------------------------------------------------------------*/
-def post_test_deinit(config: Sigma5ManufacturingConfig, nodes: List[str], usr_data: None) -> str:
+def post_test_deinit(
+    config: Sigma5ManufacturingConfig, nodes: List[str], usr_data: Dict[str, PostTestSharedData]
+) -> str:
     def deinit_node(node: str) -> str:
         # Turn off charging power
-        error = runnners_controller.set_5vin(node, False)
+        error = mtib_servers.disable_charge_power(node)
         if error:
             return f"Could not disable charging power in host {node}: {error}"
 
         # Turn off power
-        error = runnners_controller.disable_power(node)
+        error = mtib_servers.disable_power(node)
         if error:
             return f"Could not disable device power in host {node}: {error}"
+
+        # Clear the shared data
+        usr_data[node] = None
 
         return None
 
@@ -87,7 +138,7 @@ def post_test_deinit(config: Sigma5ManufacturingConfig, nodes: List[str], usr_da
     time.sleep(1)
 
     # Deinitialize the runners used to run this test
-    error = runnners_controller.deinit()
+    error = mtib_servers.deinit()
     if error:
         return f"Could not deinitialize runners for test: {error}"
 
@@ -97,8 +148,6 @@ def post_test_deinit(config: Sigma5ManufacturingConfig, nodes: List[str], usr_da
 # ---------------------------------------------------------------------------------
 #                                                                              Test
 # -------------------------------------------------------------------------------*/
-DEFAULT_STEP_TIMEOUT_MS = 300000  # 5 minutes
-
 post_test: Test = Test(
     info=TestInfo(
         name="POST Test",
@@ -110,90 +159,24 @@ post_test: Test = Test(
     config_type=Sigma5ManufacturingConfig,
     init_func=post_test_init,
     deinit_func=post_test_deinit,
-    usr_data=None,
-    usr_data_type=None,
+    usr_data=post_test_shared_data,
+    usr_data_type=Dict[str, PostTestSharedData],
     steps=[
-        TestStep(
-            info=StepInfo(
-                name="Verify device responds to commands after power up.",
-                description="Verifies that device responds to commands after power up using the runner API.",
-                noPassIsFatal=True,
-            ),
-            timeout_ms=DEFAULT_STEP_TIMEOUT_MS,
-            handler=power_on_verify_comms,
-        ),
-        # TODO: Rework fixture to enable correct voltage sensor reading before re-enabling this test
-        # TestStep(
-        #     info=StepInfo(
-        #         name="Verify voltage",
-        #         description="Verify the voltage on VBAT is reported by the DUT correctly.",
-        #         noPassIsFatal=False,
-        #     ),
-        #     timeout_ms=DEFAULT_TIMEOUT,
-        #     handler=verify_voltage,
-        # ),
-        TestStep(
-            info=StepInfo(
-                name="Get Chip IDs",
-                description="Gets the chip IDs from the DUT.",
-                noPassIsFatal=False,
-            ),
-            timeout_ms=DEFAULT_STEP_TIMEOUT_MS,
-            handler=verify_chip_ids,
-        ),
-        TestStep(
-            info=StepInfo(
-                name="Get IMEI and ICCIDs.",
-                description="Gets the device's IMEI and ICCIDs.",
-                noPassIsFatal=False,
-            ),
-            timeout_ms=DEFAULT_STEP_TIMEOUT_MS,
-            handler=verify_imei_iccid,
-        ),
-        TestStep(
-            info=StepInfo(
-                name="Verify Accelerometer",
-                description="Verify the accelerometer readings from the DUT against the readings from the MTIB.",
-                noPassIsFatal=False,
-            ),
-            timeout_ms=DEFAULT_STEP_TIMEOUT_MS,
-            handler=verify_accelerometer,
-        ),
-        TestStep(
-            info=StepInfo(
-                name="Verify Altimeter",
-                description="Verify the values reported by the DUT's Altimeter match the readings from the MTIB.",
-                noPassIsFatal=False,
-            ),
-            timeout_ms=DEFAULT_STEP_TIMEOUT_MS,
-            handler=verify_altimeter,
-        ),
-        TestStep(
-            info=StepInfo(
-                name="Verify Modem Firmware",
-                description="Verify the modem firmware version is correct.",
-                noPassIsFatal=False,
-            ),
-            timeout_ms=DEFAULT_STEP_TIMEOUT_MS,
-            handler=verify_modem_fw,
-        ),
-        TestStep(
-            info=StepInfo(
-                name="Clear Personalization",
-                description="Clear the personalization data from the device.",
-                noPassIsFatal=False,
-            ),
-            timeout_ms=DEFAULT_STEP_TIMEOUT_MS,
-            handler=clear_personalization,
-        ),
-        TestStep(
-            info=StepInfo(
-                name="Set Device ID",
-                description="Set the device ID on the device.",
-                noPassIsFatal=False,
-            ),
-            timeout_ms=DEFAULT_STEP_TIMEOUT_MS,
-            handler=set_device_id,
-        ),
+        # App
+        app_post_step_1_verify_chip_ids,
+        app_post_step_2_verify_ublox,
+        app_post_step_3_verify_accelerometer,
+        # app_post_step_4_verify_altimeter,
+        app_post_step_5_verify_ble,  # TODO: Implement BLE in MTIB server
+        app_post_step_6_verify_external_flash,
+        app_post_step_7_enable_app_protect,
+        # Comms
+        comms_post_step_1_verify_chip_ids,
+        comms_post_step_2_verify_modem_fw,
+        comms_post_step_3_verify_imei_iccids,
+        comms_post_step_4_verify_external_flash,
+        comms_post_step_5_personalize,
+        comms_post_step_6_rekey_ipc,
+        comms_post_step_7_enable_app_protect,
     ],
 )

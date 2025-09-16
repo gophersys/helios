@@ -13,6 +13,8 @@ from tests.electrical.test import electrical_test
 from tests.fw_flash.test import fw_flash_test
 from tests.post.test import post_test
 
+# from tests.post.test import post_test
+
 
 async def wait_for_termination(servers):
     try:
@@ -25,18 +27,6 @@ async def wait_for_termination(servers):
 
 if __name__ == "__main__":
     logging.debug(f"Test app environment configuration: \n{conf}")
-
-    # Run test
-    # nodes = ["slot-1", "slot-2", "slot-3", "slot-4", "slot-5"]
-    # nodes = ["slot-6.lan"]
-
-    # # if error := fw_flash_test.run(nodes):
-    # #     logging.error(f"Could not run firmware flash test: {error}")
-    # #     sys.exit(1)
-
-    # if error := post_test.run(nodes):
-    #     logging.error(f"Could not run POST test: {error}")
-    #     sys.exit(1)
 
     # Electrical test
     if error := electrical_test.setup(conf.ELECTRICAL_TEST_UUID, conf.ELECTRICAL_TEST_PORT, conf.OPERATOR_URL):

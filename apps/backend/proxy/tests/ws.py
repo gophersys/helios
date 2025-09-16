@@ -1,21 +1,24 @@
 import json
 import logging
 import sys
+import urllib3
 
 import requests
 import socketio
 
-sio = socketio.Client()
+# Disable SSL warnings
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-PROXY_URL = "localhost"
-PROXY_PORT = 9001
+sio = socketio.Client(ssl_verify=False)
+
+PROXY_URL = "https://concordproxy.ad.corekinect.com:443"
 
 
 def start_test(cluster_uuid, test_uuid) -> str:
     """Make an HTTP request to start the test and obtain a session_id."""
-    request = {"config": {}, "nodes": ["slot-1", "slot-2", "slot-3", "slot-4", "slot-5"]}
+    request = {"config": {}, "nodes": ["verdin-imx8mm-15005817"]}
     response = requests.post(
-        f"http://{PROXY_URL}:{PROXY_PORT}/v1/clusters/{cluster_uuid}/tests/{test_uuid}/exec", json=request
+        f"{PROXY_URL}/v1/clusters/{cluster_uuid}/tests/{test_uuid}/exec", json=request, verify=False
     )
     if response.status_code == 202:
         return response.json().get("executionId")
@@ -50,7 +53,7 @@ def disconnect():
 
 if __name__ == "__main__":
     try:
-        cluster_uuid = "5edcf143-69fd-4511-af56-3dce55ed2eb5"
+        cluster_uuid = "d0abb4c8-2815-47b6-8003-c9a63db8f546"
         test_uuid = "fce7ab74-b225-433d-b27d-629d346548d9"
 
         # Hit the HTTP route which will return a session id
@@ -59,7 +62,7 @@ if __name__ == "__main__":
         print(f"Test {test_uuid} started, session id: {session_id}")
 
         # Connect to the server
-        sio.connect(f"http://{PROXY_URL}:{PROXY_PORT}")
+        sio.connect(f"{PROXY_URL}")
         sio.emit("exec_test", {"session_id": session_id})
         sio.wait()
 

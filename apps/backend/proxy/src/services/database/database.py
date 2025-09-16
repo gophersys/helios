@@ -12,8 +12,11 @@ from datetime import datetime
 from json.decoder import JSONDecodeError
 from typing import Callable, List, Optional, Tuple
 
+# Corekinect includes
+from corekinect.utils import Logger
+
 # Protocol includes
-from protos.cluster_test.cluster_test_pb2 import TestInfo, TestStepResult
+from protocols.cluster_test.cluster_test_pb2 import TestInfo, TestStepResult
 
 from .schema import (
     ClusterInfo,
@@ -25,6 +28,9 @@ from .schema import (
     ObservabilityMemInfo,
     ObservabilityMemEntry,
 )
+
+LOG_MODULE = "database"
+
 
 # -------------------------------------------------------------------------------------------------
 #                                                                                          Database
@@ -45,7 +51,10 @@ class DatabaseConfiguration:
         storage_full_cb (DatabaseStorageFullCallback): Called when we run out of space
     """
 
-    def __init__(self, db_storage_path: str, storage_limit_gb: int, storage_full_cb: DatabaseStorageFullCallback):
+    def __init__(
+        self, logger: Logger, db_storage_path: str, storage_limit_gb: int, storage_full_cb: DatabaseStorageFullCallback
+    ):
+        self.logger: Logger = logger
         self.storage_path: str = db_storage_path
         self.storage_limit_gb: int = storage_limit_gb
         self.storage_full_cb: DatabaseStorageFullCallback = storage_full_cb
@@ -120,24 +129,41 @@ class Database:
 
             self.config = config
 
+            # Logger
+            self.logger: Logger = self.config.logger
+            if self.logger is None:
+                self.logger = Logger(
+                    Logger.Config(
+                        logger_name=LOG_MODULE,
+                        log_directory="logs",
+                        overall_log_level=logging.DEBUG,
+                        console_log_level=logging.DEBUG,
+                        file_log_level=logging.DEBUG,
+                        enable_log_color=True,
+                    )
+                )
+            else:
+                # Create a child logger from the parent
+                self.logger = self.config.logger.from_parent(LOG_MODULE)
+
             # Check if there exists a clusters folder
             clusters_dir = os.path.join(self.config.storage_path, "clusters")
             observability_dir = os.path.join(self.config.storage_path, "observability")
 
             if not os.path.exists(clusters_dir) and not os.path.exists(observability_dir):
-                logging.warning(
+                self.logger.warning(
                     f"No data detected in storage path: {self.config.storage_path}, server will start with no data!"
                 )
                 time.sleep(2)
                 return ""
 
             # Empty the cache always
-            logging.info("Initializing database, reading from storage...")
+            self.logger.info("Initializing database, reading from storage...")
 
             # Load cluster entries if the clusters directory exists
             if os.path.exists(clusters_dir):
                 for cluster_uuid in os.listdir(clusters_dir):
-                    logging.debug(f"Uploading cluster {cluster_uuid}")
+                    self.logger.debug(f"Uploading cluster {cluster_uuid}")
                     info_path = os.path.join(clusters_dir, cluster_uuid, "info.json")
 
                     if os.path.exists(info_path):
@@ -147,20 +173,20 @@ class Database:
                                 entry = ClusterInfo.unmarshal(entry_json)  # Unmarshal it into a struct
                                 self.cluster_entries.append(entry)  # Add it to the server's cache
 
-                                logging.debug(f"Loaded cluster entry {entry.name} OK")
+                                self.logger.debug(f"Loaded cluster entry {entry.name} OK")
 
                         except JSONDecodeError as e:
-                            logging.warning(f"Invalid JSON in {info_path}: {e}. Skipping cluster database entry.")
+                            self.logger.warning(f"Invalid JSON in {info_path}: {e}. Skipping cluster database entry.")
                         except Exception as e:  # Any other errors.
                             return f"An unexpected error occurred while processing {info_path}: {e}"
                     else:
-                        logging.warning(f"No info.json found for cluster {cluster_uuid}. Skipping cluster.")
+                        self.logger.warning(f"No info.json found for cluster {cluster_uuid}. Skipping cluster.")
 
             # Load observability entries
             self._load_observability_entries(observability_dir, "memory", self.obsv_mem_entries, ObservabilityMemInfo)
 
             self.initialized = True
-            logging.info("Database initialized OK")
+            self.logger.info("Database initialized OK")
 
             return ""
 
@@ -185,15 +211,15 @@ class Database:
                             entry = entry_class.unmarshal(entry_json)  # Unmarshal it into a struct
                             entries_list.append(entry)  # Add it to the server's cache
 
-                            logging.debug(f"Loaded {obsv_type} entry {entry.uuid} OK")
+                            self.logger.debug(f"Loaded {obsv_type} entry {entry.uuid} OK")
 
                     except JSONDecodeError as e:
-                        logging.warning(f"Invalid JSON in {info_path}: {e}. Skipping {obsv_type} database entry.")
+                        self.logger.warning(f"Invalid JSON in {info_path}: {e}. Skipping {obsv_type} database entry.")
                     except Exception as e:  # Any other errors.
-                        logging.error(f"An unexpected error occurred while processing {info_path}: {e}")
+                        self.logger.error(f"An unexpected error occurred while processing {info_path}: {e}")
                         return
                 else:
-                    logging.warning(f"No valid JSON file found for {obsv_type} entry {obsv_uuid}. Skipping entry.")
+                    self.logger.warning(f"No valid JSON file found for {obsv_type} entry {obsv_uuid}. Skipping entry.")
 
     # -----------------------------------------------------------------------------
     #                                                                        Health
@@ -857,7 +883,7 @@ class Database:
                 # Update the cache
                 self.obsv_mem_entries.append(entry)
 
-                logging.debug(f"Created new observability memory session {session_uuid} OK")
+                self.logger.debug(f"Created new observability memory session {session_uuid} OK")
 
                 return ""
             except Exception as e:
@@ -910,7 +936,7 @@ class Database:
                             with open(session_path, "w") as file:
                                 json.dump(session_data.marshal(), file, indent=4)
                     except Exception as e:
-                        logging.error(f"An error occurred while updating the session: {str(e)}")
+                        self.logger.error(f"An error occurred while updating the session: {str(e)}")
 
                 # Submit the file write operation to the executor
                 self.executor.submit(write_to_file, session)

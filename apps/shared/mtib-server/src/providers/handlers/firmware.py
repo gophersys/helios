@@ -21,12 +21,12 @@ class FirmwareHandler:
 
         # Initialize programmer info storage
         self.programmers: dict[str, tuple[HostType | None, bool]] = {}
-        self._assign_jlinks()
+        self._assign_jlinks(True)
 
         # Track active firmware files
         self.active_files: Dict[str, Tuple[Path, HostType]] = {}  # Maps filename to (temp file path, target)
 
-    def _assign_jlinks(self):
+    def _assign_jlinks(self, force_recovery: bool = False):
         """Detect and assign J-Link programmers to their respective chips."""
         try:
             serials = subprocess.check_output(["nrfjprog", "--ids"]).decode().split()
@@ -35,47 +35,99 @@ class FirmwareHandler:
             serials = []
 
         for serial in serials:
-            try:
-                result = (
-                    subprocess.check_output(["nrfjprog", "--snr", serial, "--deviceversion"], stderr=subprocess.STDOUT)
-                    .decode()
-                    .strip()
-                    .upper()
-                )
+            # Try to get device version
+            success = self._try_detect_device(serial)
+            if not success:
+                if force_recovery:
+                    if self._try_recover_device(serial):
+                        self.logger.info(f"J-Link {serial} detection failed, attempting recovery...")
+                        self._try_detect_device(serial)
 
-                # Check for common error patterns in the output
-                if "LOW VOLTAGE" in result or "ERROR" in result:
-                    self.logger.warning(f"J-Link {serial} detected but no device connected or low voltage condition")
-                    self.programmers[serial] = (None, False)  # No host type, not connected
-                    continue
+    def _try_detect_device(self, serial: str) -> bool:
+        """Try to detect device type for a J-Link serial number. Returns True if successful."""
+        try:
+            result = subprocess.check_output(
+                ["nrfjprog", "--snr", serial, "--deviceversion"], stderr=subprocess.STDOUT
+            ).decode()
 
-                self.logger.info(f"J-Link serial {serial} detected with device version {result}")
+            # Log the raw output for debugging
+            self.logger.info(f"J-Link {serial} deviceversion output: {result}")
+            result_upper = result.strip().upper()
 
-                # Determine host type based on the actual device version
-                host_type = None
-                if "NRF9160" in result:
-                    host_type = HostType.HOST_TYPE_NRF9160
-                elif "NRF52840" in result:
-                    host_type = HostType.HOST_TYPE_NRF52840
-                elif "NRF5340" in result:
-                    host_type = HostType.HOST_TYPE_NRF5340
-                elif "NRF9151" in result:
-                    host_type = HostType.HOST_TYPE_NRF9151
+            # Check for access protection error
+            if "ACCESS PROTECTION IS ENABLED" in result_upper:
+                self.logger.info(f"J-Link {serial} has access protection enabled")
+                return False
 
-                if host_type:
-                    self.programmers[serial] = (host_type, True)
-                    self.logger.info(f"Assigned J-Link {serial} to host type {host_type}")
-                else:
-                    self.logger.warning(f"Unknown device version {result} for serial {serial}")
-                    self.programmers[serial] = (None, False)
-
-            except subprocess.CalledProcessError as e:
-                error_msg = e.stderr.decode() if e.stderr else str(e)
-                if "low voltage" in error_msg.lower():
-                    self.logger.warning(f"J-Link {serial} detected but no device connected or low voltage condition")
-                else:
-                    self.logger.error(f"Error reading device info for J-Link {serial}: {error_msg}")
+            # Check for other error conditions
+            if "LOW VOLTAGE" in result_upper or "ERROR" in result_upper:
+                self.logger.warning(f"J-Link {serial} detected but no device connected or low voltage condition")
                 self.programmers[serial] = (None, False)
+                return False
+
+            # Successfully detected device
+            self.logger.info(f"J-Link serial {serial} detected with device version {result}")
+            self._assign_device_type(serial, result_upper)
+            return True
+
+        except subprocess.CalledProcessError as e:
+            error_msg = e.stderr.decode() if e.stderr else str(e)
+            self.logger.error(f"Error reading device info for J-Link {serial}: {error_msg}")
+
+            # Check if this might be access protection
+            if "access protection" in error_msg.lower() or "error -90" in error_msg.lower():
+                self.logger.info(f"J-Link {serial} might have access protection (detected in exception)")
+                return False
+
+            self.programmers[serial] = (None, False)
+            return False
+
+    def _try_recover_device(self, serial: str) -> bool:
+        """Try to recover a J-Link device. Returns True if recovery was successful."""
+        try:
+            self.logger.info(f"Attempting recovery for J-Link {serial}...")
+            recover_result = subprocess.run(
+                ["nrfjprog", "--snr", serial, "--recover"],
+                capture_output=True,
+                text=True,
+                timeout=60,  # 30s + buffer
+            )
+
+            if recover_result.returncode == 0:
+                self.logger.info(f"Successfully recovered J-Link {serial}")
+                return True
+            else:
+                self.logger.error(f"Failed to recover J-Link {serial}: {recover_result.stderr}")
+                self.programmers[serial] = (None, False)
+                return False
+
+        except subprocess.TimeoutExpired:
+            self.logger.error(f"Recovery timeout for J-Link {serial}")
+            self.programmers[serial] = (None, False)
+            return False
+        except Exception as e:
+            self.logger.error(f"Unexpected error during recovery for J-Link {serial}: {e}")
+            self.programmers[serial] = (None, False)
+            return False
+
+    def _assign_device_type(self, serial: str, result_upper: str):
+        """Assign the J-Link serial to the appropriate device type."""
+        host_type = None
+        if "NRF9160" in result_upper:
+            host_type = HostType.HOST_TYPE_NRF9160
+        elif "NRF52840" in result_upper:
+            host_type = HostType.HOST_TYPE_NRF52840
+        elif "NRF5340" in result_upper:
+            host_type = HostType.HOST_TYPE_NRF5340
+        elif "NRF9151" in result_upper:
+            host_type = HostType.HOST_TYPE_NRF9151
+
+        if host_type:
+            self.programmers[serial] = (host_type, True)
+            self.logger.info(f"Assigned J-Link {serial} to host type {host_type}")
+        else:
+            self.logger.warning(f"Unknown device version for serial {serial}")
+            self.programmers[serial] = (None, False)
 
     def _calculate_sha256(self, file_path: Path) -> str:
         """Calculate SHA256 hash of a file."""
@@ -211,7 +263,7 @@ class FirmwareHandler:
         self.logger.info(f"FlashFwFile request received for {request.file_info.name}")
         try:
             # Re-scan and update programmer assignments before flashing
-            self._assign_jlinks()
+            self._assign_jlinks(force_recovery=True)
 
             if request.file_info.name not in self.active_files:
                 return FlashFwFileResponse(
@@ -334,6 +386,185 @@ class FirmwareHandler:
         except Exception as e:
             self.logger.error(f"Error flashing firmware: {e}")
             return FlashFwFileResponse(success=False, message=f"Failed to flash firmware: {str(e)}", time_ms=0)
+
+    def enable_app_protect(
+        self, request: EnableAppProtectRequest, context: grpc.ServicerContext
+    ) -> EnableAppProtectResponse:
+        """Enable App Protect."""
+        self.logger.info(f"EnableAppProtect request received for {request.target}")
+
+        try:
+            # Re-scan and update programmer assignments before enabling protection
+            self._assign_jlinks(False)
+
+            # Find a suitable programmer for the target
+            programmer = None
+            for serial, (host_type, is_connected) in self.programmers.items():
+                if not is_connected:
+                    continue
+                # Allow NRF9160 programmer for both NRF9160 and NRF9160_MODEM targets
+                if request.target in [HostType.HOST_TYPE_NRF9160, HostType.HOST_TYPE_NRF9160_MODEM]:
+                    if host_type == HostType.HOST_TYPE_NRF9160:
+                        programmer = serial
+                        break
+                else:
+                    if host_type == request.target:
+                        programmer = serial
+                        break
+
+            if not programmer:
+                return EnableAppProtectResponse(
+                    success=False, message=f"No suitable programmer found for target {request.target}"
+                )
+
+            # Determine chip family and protection parameters
+            if request.target in [HostType.HOST_TYPE_NRF52840, HostType.HOST_TYPE_NRF5340]:
+                # NRF52 family
+                family = "NRF52"
+                protect_addr = "0x10001208"
+                protect_val = "0xFFFFFF00"
+            elif request.target in [
+                HostType.HOST_TYPE_NRF9160,
+                HostType.HOST_TYPE_NRF9160_MODEM,
+                HostType.HOST_TYPE_NRF9151,
+            ]:
+                # NRF91 family
+                family = "NRF91"
+                protect_addr = "0x00FF8000"
+                protect_val = "0"
+            else:
+                return EnableAppProtectResponse(
+                    success=False, message=f"Unsupported target {request.target} for App Protect"
+                )
+
+            self.logger.info(f"Enabling App Protect for {family} family on programmer {programmer}")
+
+            # Step 1: Write the App Protect value
+            try:
+                protect_cmd = [
+                    "nrfjprog",
+                    "--family",
+                    family,
+                    "--memwr",
+                    protect_addr,
+                    "--val",
+                    protect_val,
+                    "--snr",
+                    programmer,
+                ]
+                self.logger.info(f"Running App Protect write: {' '.join(protect_cmd)}")
+                subprocess.run(
+                    protect_cmd,
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                    timeout=30,  # 30 second timeout
+                )
+                self.logger.info(f"Successfully wrote App Protect value {protect_val} to address {protect_addr}")
+            except subprocess.TimeoutExpired:
+                error_msg = f"App Protect write operation timed out after 30 seconds for programmer {programmer}"
+                self.logger.error(error_msg)
+                return EnableAppProtectResponse(success=False, message=error_msg)
+            except subprocess.CalledProcessError as e:
+                error_msg = f"Failed to write App Protect value: {e.stderr if e.stderr else str(e)}"
+                if e.stdout:
+                    error_msg += f"\nstdout: {e.stdout}"
+                self.logger.error(error_msg)
+                return EnableAppProtectResponse(success=False, message=error_msg)
+            except FileNotFoundError:
+                error_msg = "nrfjprog command not found. Please ensure nRF Command Line Tools are installed."
+                self.logger.error(error_msg)
+                return EnableAppProtectResponse(success=False, message=error_msg)
+            except Exception as e:
+                error_msg = f"Unexpected error during App Protect write: {str(e)}"
+                self.logger.error(error_msg)
+                return EnableAppProtectResponse(success=False, message=error_msg)
+
+            # Step 2: Reset MCU to apply protection
+            try:
+                reset_cmd = ["nrfjprog", "--reset", "--snr", programmer]
+                self.logger.info(f"Running reset: {' '.join(reset_cmd)}")
+                result = subprocess.run(
+                    reset_cmd,
+                    capture_output=True,
+                    text=True,
+                    check=False,  # Don't fail on non-zero exit code, check output instead
+                    timeout=30,  # 30 second timeout
+                )
+
+                # Check if reset failed due to access protection
+                output = result.stdout + result.stderr
+                if "Access protection is enabled" in output or "readback protection" in output.lower():
+                    self.logger.info("Device already has access protection enabled - skipping reset")
+                    # Protection is already active, proceed to verification
+                elif result.returncode == 0:
+                    self.logger.info("Successfully reset MCU to apply protection")
+                else:
+                    error_msg = f"Failed to reset MCU: {result.stderr if result.stderr else str(result)}"
+                    if result.stdout:
+                        error_msg += f"\nstdout: {result.stdout}"
+                    self.logger.error(error_msg)
+                    return EnableAppProtectResponse(success=False, message=error_msg)
+
+            except subprocess.TimeoutExpired:
+                error_msg = f"Reset operation timed out after 30 seconds for programmer {programmer}"
+                self.logger.error(error_msg)
+                return EnableAppProtectResponse(success=False, message=error_msg)
+            except Exception as e:
+                error_msg = f"Unexpected error during reset: {str(e)}"
+                self.logger.error(error_msg)
+                return EnableAppProtectResponse(success=False, message=error_msg)
+
+            # Step 3: Wait for MCU to boot (brief delay)
+            self.logger.info("Waiting for MCU to boot...")
+            time.sleep(2)  # Wait 2 seconds for MCU to boot
+
+            # Step 4: Verify protection is active
+            try:
+                verify_cmd = ["nrfjprog", "--family", family, "--memrd", "0x00000000", "--n", "4", "--snr", programmer]
+                self.logger.info(f"Running protection verification: {' '.join(verify_cmd)}")
+                result = subprocess.run(
+                    verify_cmd,
+                    capture_output=True,
+                    text=True,
+                    check=False,  # Don't fail on non-zero exit code, we expect this to fail
+                    timeout=30,  # 30 second timeout
+                )
+
+                # Check if the expected protection message is in the output
+                output = result.stdout + result.stderr
+                protection_indicators = [
+                    "Can't read memory descriptors, ap-protection is enabled.",
+                    "Access protection is enabled",
+                    "readback protection",
+                    "unavailable due to readback protection",
+                ]
+
+                protection_active = any(indicator.lower() in output.lower() for indicator in protection_indicators)
+
+                if protection_active:
+                    self.logger.info("App Protect verification successful - protection is active")
+                    return EnableAppProtectResponse(success=True, message="App Protect enabled successfully")
+                else:
+                    # If we can read memory, protection might not be active
+                    self.logger.warning("App Protect verification inconclusive - protection status unclear")
+                    self.logger.debug(f"Verification output: {output}")
+                    return EnableAppProtectResponse(
+                        success=False, message="App Protect verification failed - protection may not be active"
+                    )
+
+            except subprocess.TimeoutExpired:
+                error_msg = f"Protection verification timed out after 30 seconds for programmer {programmer}"
+                self.logger.error(error_msg)
+                return EnableAppProtectResponse(success=False, message=error_msg)
+            except Exception as e:
+                error_msg = f"Unexpected error during protection verification: {str(e)}"
+                self.logger.error(error_msg)
+                return EnableAppProtectResponse(success=False, message=error_msg)
+
+        except Exception as e:
+            self.logger.error(f"Error enabling App Protect: {e}")
+            return EnableAppProtectResponse(success=False, message=f"Failed to enable App Protect: {str(e)}")
 
     def __del__(self):
         """Cleanup all temporary files when the handler is destroyed."""

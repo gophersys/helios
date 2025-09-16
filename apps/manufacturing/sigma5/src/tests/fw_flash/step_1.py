@@ -6,7 +6,7 @@ from tests.lib import *
 
 # Shared includes
 from ..shared.config import Sigma5ManufacturingConfig
-from ..shared.rpcs import DeviceType, runnners_controller
+from ..shared.rpcs import *
 
 # Test includes
 
@@ -18,13 +18,23 @@ def fw_flash_test_step_1_handler(config: Sigma5ManufacturingConfig, node: str, u
 
     result: TestStepResult = TestStepResult(success=False)
 
-    # Flash the modem firmware first
-    result.error = runnners_controller.flash_fw_file(
-        node, config.fw_flash_test_nrf9160_modem_fw_name, DeviceType.DEVICE_NRF9160, True
-    )  # It is indeed modem firmware
+    # Build the file info
+    file_info = FwFileInfo(
+        name=config.fw_flash_test_nrf9160_modem_fw_name,
+        target=HostType.HOST_TYPE_NRF9160_MODEM,
+    )
 
-    if result.error:
+    # We want to sector erase and recover the device, clean slate
+    sector_erase = True
+    recover = True
+
+    time_ms, error = mtib_servers.flash_fw_file(node, file_info, sector_erase, recover)
+
+    if error:
+        result.error = error
         return result
+
+    logging.debug(f"Time taken to flash {config.fw_flash_test_nrf9160_modem_fw_name}: {time_ms}ms")
 
     # Flash was succesful
     result.success = True
@@ -37,7 +47,6 @@ def fw_flash_test_step_1_handler(config: Sigma5ManufacturingConfig, node: str, u
 # -------------------------------------------------------------------------------*/
 fw_flash_test_step_1: TestStep = TestStep(
     info=StepInfo(
-        sequence=1,
         name="Flash nrf9160 modem firmware.",
         description="Flashes the nrf9160 modem firmware. using the runner API.",
         noPassIsFatal=True,

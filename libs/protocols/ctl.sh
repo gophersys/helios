@@ -32,11 +32,8 @@ function gather_proto_files() {
 # Get proto directories for include paths
 function get_proto_dirs() {
     local files=("$@")
-    local dirs=()
-    for file in "${files[@]}"; do
-        dirs+=("-I$(dirname "$file")")
-    done
-    printf '%s\n' "${dirs[@]}" | sort -u | tr '\n' ' '
+    # Create include paths for all proto directories, similar to the working script
+    printf "%s\n" "${files[@]}" | xargs -n1 dirname | sort -u | xargs -n1 echo -I | tr '\n' ' '
 }
 
 function generate_nanopb() {
@@ -81,11 +78,10 @@ function generate_python() {
             local includes=$(get_proto_dirs "${proto_files[@]}")
 
             # Generate both protobuf and gRPC using grpc_tools.protoc
-            python3 -m grpc_tools.protoc \
-                $includes \
-                --python_out="$dir" \
-                --grpc_python_out="$dir" \
-                "$protofile"
+            # First generate protobuf code
+            protoc --python_out="$dir" --proto_path="$dir" $includes "$protofile"
+            # Then generate gRPC code
+            python3 -m grpc_tools.protoc --grpc_python_out="$dir" --proto_path="$dir" $includes "$protofile" -I"$dir"
 
             # Process import statements for generated files
             local base_name=$(basename "$protofile" .proto)
@@ -147,15 +143,16 @@ function generate_go() {
         dir=$(dirname "$protofile")
         echo "Processing: $protofile"
 
-        # Run the protoc command in the directory of the .proto file
-        (
-            cd "$dir" || exit
-            protoc --go_out=. \
-                   --go_opt=paths=source_relative \
-                   --go-grpc_out=. \
-                   --go-grpc_opt=paths=source_relative \
-                   "$(basename "$protofile")"
-        )
+        # Get include paths for this file
+        local includes=$(get_proto_dirs "${proto_files[@]}")
+        
+        # Run protoc from the root protocols directory with the full path to the proto file
+        protoc --proto_path="$dir" $includes \
+               --go_out="$dir" \
+               --go_opt=paths=source_relative \
+               --go-grpc_out="$dir" \
+               --go-grpc_opt=paths=source_relative \
+               "$protofile"
         
         if [ $? -ne 0 ]; then
             echo "Error generating code for $protofile" >&2

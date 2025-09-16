@@ -1,12 +1,12 @@
 from setuptools import find_packages, setup
 
 setup(
-    name="ConcordProxy",
+    name="proxy",
     version="1.0",
     packages=find_packages(),
     install_requires=[
-        "grpcio==1.64.0",
-        "grpcio-tools==1.64.0",
+        "grpcio>=1.74.0",
+        "grpcio-tools>=1.74.0",
         "python-dotenv==1.0.1",
         "flask==3.0.2",
         "flask-socketio==5.3.6",
@@ -18,7 +18,5 @@ setup(
         "dnspython==2.1.0",
         "websocket-client==1.8.0",
         "python-dateutil==2.9.0",
-        "prisma==0.15.0",
     ],
-    options={"egg_info": {"egg_base": ".venv"}},  # Change to your desired location
 )

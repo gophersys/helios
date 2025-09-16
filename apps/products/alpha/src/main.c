@@ -30,6 +30,7 @@ static void handle_vsm_callback(const vitals_thread_callback_data_t *data, void 
         case VITALS_EVENT_HW_ERROR:
             // Handle hardware error
             LOG_ERR("PPG Sensor Error: %d", data->hw_error.ppg_sensor_error);
+            LOG_ERR("PPG Watchdog Timeout: %d", data->hw_error.ppg_watchdog_timeout);
             LOG_ERR("IMU Sensor Error: %d", data->hw_error.imu_sensor_error);
             LOG_ERR("Temp Sensor Error: %d", data->hw_error.temp_sensor_error);
 

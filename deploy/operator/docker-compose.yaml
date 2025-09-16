@@ -1,9 +1,8 @@
 services:
-  # HTTP-API
-  proxy:
-    image: ccr01.ad.corekinect.com/concord-operator:1.0
-    ports:
-      - "50052:50052"  # HTTP
+  operator:
+    image: 10.4.45.2:5000/concord-operator:latest
+    pull_policy: always
+    network_mode: host
     environment:
       - LOG_LEVEL=${LOG_LEVEL}
       - LOG_PATH=${LOG_PATH}
@@ -20,4 +19,4 @@ services:
       # Logs location (must match environment file)
       - /var/operator:/var/operator
       # Kubernetes configuration (must match environment file)
-      - /var/snap/microk8s/current/credentials/client.config:/root/.kube/client.config
+      - /home/orangepi/.kube/config:/home/orangepi/.kube/config

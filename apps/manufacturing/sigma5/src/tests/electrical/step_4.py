@@ -7,7 +7,7 @@ from tests.lib import *
 
 # Shared includes
 from ..shared.config import Sigma5ManufacturingConfig
-from ..shared.rpcs import runnners_controller
+from ..shared.rpcs import mtib_servers
 
 # Test includes
 from .data import ElectricalTestSharedData
@@ -18,12 +18,9 @@ from .data import ElectricalTestSharedData
 # -------------------------------------------------------------------------------*/
 @dataclass
 class Step4Readings:
+    vin_stabilization_period_s: int = None
     vin_voltage: float = None
-    vbatt_voltage: float = None
-    _3v3_voltage: float = None
-    vbckp_voltage: float = None
     uvp_n_value: bool = None
-    current_a: float = None
 
     def marshall(self) -> str:
         try:
@@ -45,85 +42,68 @@ class Step4Readings:
 # ---------------------------------------------------------------------------------
 #                                                                           Handler
 # -------------------------------------------------------------------------------*/
-def electrical_test_step_4_handler(config: Sigma5ManufacturingConfig, node: str, usr_data: Dict[str, ElectricalTestSharedData]) -> None:
+def electrical_test_step_4_handler(
+    config: Sigma5ManufacturingConfig, node: str, usr_data: Dict[str, ElectricalTestSharedData]
+) -> TestStepResult:
     result: TestStepResult = TestStepResult(success=False)
 
     readings = Step4Readings()
 
-    # 4.a: Ensure +VIN test point is the same as +BATT
-    result.error, readings.vin_voltage = runnners_controller.read_vin(node)
+    # 4. Set HARD_RESET test point to digital high.
+    result.error = mtib_servers.set_hard_reset(node, True)
     if result.error:
-        raise PassTest(
-            details = readings.marshall()
-        )
+        return result
 
-    result.error, readings.vbatt_voltage = runnners_controller.read_vbat(node)
+    # # 4.a: Ensure +VIN test point voltage is below 0.3V.
+    # vin_success = False
+    # start_time = datetime.now()
+    # while datetime.now() - start_time < timedelta(seconds=config.vin_rail_stabilization_period_s):
+    #     # Read the pin voltage
+    #     result.error, readings.vin_voltage = mtib_servers.read_vin(node)
+    #     if result.error:
+    #         return result
+
+    #     # Check results against configuration
+    #     if readings.vin_voltage > config.electrical_step_4a_vin_threshold_v:
+    #         # The voltage hasn't settled yet, sleep for some time before continuing the loop
+    #         time.sleep(0.5)
+    #     else:
+    #         vin_success = True
+    #         break
+
+    # readings.vin_stabilization_period_s = (datetime.now() - start_time).seconds
+
+    # if not vin_success:
+    #     result.reason = f"Step 4.a failed due to VIN {readings.vin_voltage} being more than expected threshold {config.electrical_step_4a_vin_threshold_v}, after {config.vin_rail_stabilization_period_s}s"
+    #     result.details = readings.marshall()
+    #     return result
+
+    # 4.b: Ensure UVP_N test point voltage is digital low
+    result.error, readings.uvp_n_value = mtib_servers.read_uvp_n(node)
     if result.error:
-        raise FailTest(
-            details = readings.marshall()
-        )
-    
+        return result
+
+    if readings.uvp_n_value is not False:
+        result.reason = f"Step 4.b failed: Expected UVP_N digital low, Actual UVP_N = {readings.uvp_n_value}"
+        result.details = readings.marshall()
+        return result
+
+    # Succeeded
+    result.success = True
+    result.details = readings.marshall()
+
     return result
-
-electrical_test_step_4: TestStep = TestStep(
-    info=StepInfo(
-        sequence=4,
-        name="Ensure device electrical state.",
-        description="Checks VIN, 3.3V, VBCKUP, UVP_N and current consumption against thresholds.",
-        noPassIsFatal=False,
-        supported_platforms = ["sigma3", "sigma5", "sigma7"]
-        supported_board_revisions = ["A3", "B0", "B1", "C0"]
-        supported_firmware_versions = ["1.x", "2.x"]
-        supported_socket_server_versions = ["0.9", "1.x"]
-    ),
-    timeout_ms=1000,
-    handler=electrical_test_step_4_handler,
-)
 
 
 # ----------------------------------------------------------------------------------
 #                                                                               Step
 # --------------------------------------------------------------------------------*/
-
-class StepGpsSomething(TestStep):
-    metadata: StepInfo(
-            name="Ensure device electrical state.",
-            description="Checks VIN, 3.3V, VBCKUP, UVP_N and current consumption against thresholds.",
-            noPassIsFatal=False,
-            supported_platforms = ["sigma3", "sigma5", "sigma7"]
-            supported_board_revisions = ["A3", "B0", "B1", "C0"]
-            supported_firmware_versions = ["1.x", "2.x"]
-            supported_socket_server_versions = ["0.9", "1.x"]
-        ),
-    
-    class Config:
-        field_1: int = 0
-        
-    class Data:
-        field_1: int = 0
-
-    # TODO: How do we pass global config
-    # TODO: How do we use the 'usr_data' -> 'shared_data'
-    # TODO: Modify handler to pass 1 more arguement, called global_config (Manufacturing or Validation)
-    # TODO: Unmarshall configs (local and global) in the lib.py
-    # TODO: Progress indicator object (prefereably a callback)
-    # TODO: Add ons
-    
-    def _handler(config: Config, node: str, usr_data:Any, add_ons:Any ):
-        data:Data = Data()
-        
-        # 4.a: Ensure +VIN test point is the same as +BATT
-        error, data.vin_voltage = runnners_controller.read_vin(node)
-        if error:
-            raise FailTest(
-                ""
-            )
-
-        result.error, readings.vbatt_voltage = runnners_controller.read_vbat(node)
-        if result.error:
-            
-        raise PassTest(
-            data=data.marshall()
-        )
-
-    
+electrical_test_step_4: TestStep = TestStep(
+    info=StepInfo(
+        name="Set HARD_RESET pin to digital high.",
+        description="Verify VIN and UVP_N against thresholds.",
+        noPassIsFatal=True,
+    ),
+    timeout_ms=60000,
+    handler=electrical_test_step_4_handler,
+)

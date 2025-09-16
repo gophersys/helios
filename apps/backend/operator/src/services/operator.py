@@ -26,17 +26,17 @@ import yaml
 
 # App includes
 from config import conf
-from protos.cluster_operator.cluster_operator_pb2 import ClusterStatus, DeploymentInfo, NodeInfo, PodInfo
+from protocols.cluster_operator.cluster_operator_pb2 import ClusterStatus, DeploymentInfo, NodeInfo, PodInfo
 
 # Protocol includes
-from protos.cluster_test.cluster_test_pb2 import (
+from protocols.cluster_test.cluster_test_pb2 import (
     ExecuteRequest,
     HealthCheckRequest,
     HealthCheckResponse,
     TestInfo,
     TestStepResult,
 )
-from protos.cluster_test.cluster_test_pb2_grpc import ClusterTestStub
+from protocols.cluster_test.cluster_test_pb2_grpc import ClusterTestStub
 
 
 # -------------------------------------------------------------------------------------------------
@@ -486,49 +486,55 @@ class ClusterOperator:
         return ""
 
     def __await_for_hosts_ping(self) -> str:
-        logging.info("Attempting to ping all hosts in the runners list...")
+        # Hardcode for now, since the orangepi lives in the network outside of the internal
+        # router of the sigma5 fixture, so it cannot ping the nodes in the sigma5 network
+        # TODO: Remove this once we have a proper network setup
+        logging.warning("Can't actually ping the hosts, hardcoding control plane availability to True!!! FIX THIS!!!")
+        self.control_plane_available = True
+        return ""
 
-        start_time = time.time()
-        timeout = self.HOST_STARTUP_TIMEOUT_S
-        unreachable_nodes = self.config.nodes_hostnames.copy()
+        # logging.info("Attempting to ping all hosts in the runners list...")
+        # start_time = time.time()
+        # timeout = self.HOST_STARTUP_TIMEOUT_S
+        # unreachable_nodes = self.config.nodes_hostnames.copy()
 
-        # Function to ping a single host
-        def ping_host(hostname):
-            try:
-                response = subprocess.run(
-                    ["ping", "-I", "eth0", "-c", "1", "-W", "1", hostname],
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                )
-                if response.returncode == 0:
-                    logging.debug(f"Successfully pinged {hostname}.")
-                    if hostname in unreachable_nodes:
-                        unreachable_nodes.remove(hostname)
-            except Exception as e:
-                logging.warning(f"Error occurred pinging host {hostname}: {str(e)}")
+        # # Function to ping a single host
+        # def ping_host(hostname):
+        #     try:
+        #         response = subprocess.run(
+        #             ["ping", "-I", "eth0", "-c", "1", "-W", "1", hostname],
+        #             stdout=subprocess.PIPE,
+        #             stderr=subprocess.PIPE,
+        #         )
+        #         if response.returncode == 0:
+        #             logging.debug(f"Successfully pinged {hostname}.")
+        #             if hostname in unreachable_nodes:
+        #                 unreachable_nodes.remove(hostname)
+        #     except Exception as e:
+        #         logging.warning(f"Error occurred pinging host {hostname}: {str(e)}")
 
-        # Thread list
-        threads = []
+        # # Thread list
+        # threads = []
 
-        # Keep pinging until all hosts are reachable or timeout occurs
-        while time.time() - start_time < timeout and unreachable_nodes:
-            for hostname in unreachable_nodes[:]:
-                thread = threading.Thread(target=ping_host, args=(hostname,))
-                threads.append(thread)
-                thread.start()
+        # # Keep pinging until all hosts are reachable or timeout occurs
+        # while time.time() - start_time < timeout and unreachable_nodes:
+        #     for hostname in unreachable_nodes[:]:
+        #         thread = threading.Thread(target=ping_host, args=(hostname,))
+        #         threads.append(thread)
+        #         thread.start()
 
-            # Wait for all threads to complete
-            for thread in threads:
-                thread.join(timeout=(timeout - (time.time() - start_time)))
+        #     # Wait for all threads to complete
+        #     for thread in threads:
+        #         thread.join(timeout=(timeout - (time.time() - start_time)))
 
-            time.sleep(0.2)  # Sleep to prevent too many rapid pings
+        #     time.sleep(0.2)  # Sleep to prevent too many rapid pings
 
-        if not unreachable_nodes:
-            self.control_plane_available = True
-            return ""
-        else:
-            unreachable_hosts = ", ".join(unreachable_nodes)
-            return f"Timeout reached. Could not verify hosts: {unreachable_hosts}"
+        # if not unreachable_nodes:
+        #     self.control_plane_available = True
+        #     return ""
+        # else:
+        #     unreachable_hosts = ", ".join(unreachable_nodes)
+        #     return f"Timeout reached. Could not verify hosts: {unreachable_hosts}"
 
     def __await_for_k8s_nodes(self) -> str:
         """Awaits for the Kubernetes nodes in the cluster to all be in the Ready state."""
@@ -910,39 +916,39 @@ class ClusterOperator:
             if not deployment_yaml:
                 continue
 
-            try:
-                containers = deployment_yaml["spec"]["template"]["spec"]["containers"]
-            except KeyError as e:
-                return f"Error extracting containers from deployment: {e}"
+            # try:
+            #     containers = deployment_yaml["spec"]["template"]["spec"]["containers"]
+            # except KeyError as e:
+            #     return f"Error extracting containers from deployment: {e}"
 
-            # Prepare a dictionary to track image updates
-            image_updates = {}
+            # # Prepare a dictionary to track image updates
+            # image_updates = {}
 
-            for container in containers:
-                original_image = container["image"]
-                new_image_name = f"{self.config.registry_host}:{self.config.registry_port}/{os.path.basename(urlparse(original_image).path)}"
+            # for container in containers:
+            #     original_image = container["image"]
+            #     new_image_name = f"{self.config.registry_host}:{self.config.registry_port}/{os.path.basename(urlparse(original_image).path)}"
 
-                logging.info(f"Checking image {original_image}...")
+            #     logging.info(f"Checking image {original_image}...")
 
-                # Check if the new image name exists and matches; if not, update and re-upload
-                if not self._image_exists_and_matches(new_image_name, original_image):
-                    logging.info(f"Pulling image {original_image}...")
-                    local_image = self.docker_client.images.pull(original_image)
-                    local_image.tag(new_image_name)
-                    if self._retry_upload_image(new_image_name):
-                        image_updates[original_image] = new_image_name  # Store the new image name
-                        logging.info(
-                            f"Image pulled, retagged and uploaded succesuful for: {original_image} ({new_image_name})..."
-                        )
-                    else:
-                        image_updates[original_image] = original_image  # Upload failed, keep the original
-                else:
-                    image_updates[original_image] = new_image_name  # Image already matches, use the new name
+            #     # Check if the new image name exists and matches; if not, update and re-upload
+            #     if not self._image_exists_and_matches(new_image_name, original_image):
+            #         logging.info(f"Pulling image {original_image}...")
+            #         local_image = self.docker_client.images.pull(original_image)
+            #         local_image.tag(new_image_name)
+            #         if self._retry_upload_image(new_image_name):
+            #             image_updates[original_image] = new_image_name  # Store the new image name
+            #             logging.info(
+            #                 f"Image pulled, retagged and uploaded succesuful for: {original_image} ({new_image_name})..."
+            #             )
+            #         else:
+            #             image_updates[original_image] = original_image  # Upload failed, keep the original
+            #     else:
+            #         image_updates[original_image] = new_image_name  # Image already matches, use the new name
 
-            # Update the image names in the deployment YAML
-            for container in containers:
-                original_image = container["image"]
-                container["image"] = image_updates.get(original_image, original_image)  # Ensure all images are updated
+            # # Update the image names in the deployment YAML
+            # for container in containers:
+            #     original_image = container["image"]
+            #     container["image"] = image_updates.get(original_image, original_image)  # Ensure all images are updated
 
             updated_documents.append(deployment_yaml)  # Add the updated YAML to the list
 

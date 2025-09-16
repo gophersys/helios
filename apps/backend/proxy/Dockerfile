@@ -32,13 +32,17 @@ RUN pip install -e . && \
 # --------------------------------------------------------------------------------*/
 WORKDIR /app
 
+# Copy the libraries used by the app
+COPY libs/python /libs/python
+
 # Copy the protocols used by the app
-COPY libs/protos/cluster_test /libs/protos/cluster_test
-COPY libs/protos/cluster_operator /libs/protos/cluster_operator
+COPY libs/protocols/cluster_test /libs/protocols/cluster_test
+COPY libs/protocols/cluster_operator /libs/protocols/cluster_operator
 
-# Import the paths to the python path
+# Set the PYTHONPATH to include the libs directory
 ENV PYTHONPATH="/libs:${PYTHONPATH}"
-
+ENV PYTHONPATH="/libs/python/:${PYTHONPATH}"
+    
 # Copy the app itself
 COPY apps/backend/proxy/config config
 COPY apps/backend/proxy/src src

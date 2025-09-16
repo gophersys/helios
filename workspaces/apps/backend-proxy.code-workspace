@@ -5,6 +5,10 @@
             "path": "../../apps/backend/proxy"
         },
         {
+            "name": "protocols",
+            "path": "../../libs/protocols"
+        },
+        {
             "name": "libs",
             "path": "../../libs/python/corekinect"
         }

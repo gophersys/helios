@@ -8,7 +8,7 @@ from flask import Blueprint, jsonify
 from google.protobuf.json_format import MessageToDict
 
 # Protocol includes
-from protos.cluster_test.cluster_test_pb2 import TestInfo
+from protocols.cluster_test.cluster_test_pb2 import TestInfo
 
 # App includes
 from src.middleware.permissions import authMiddleware

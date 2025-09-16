@@ -5,7 +5,7 @@ import logging
 from flask import Blueprint, jsonify, request
 
 # App includes
-from config import conf
+from config import env_config
 from src.middleware.permissions import authMiddleware
 from src.services.proxy import appProxyServer
 
@@ -34,7 +34,7 @@ def clusters_deployments_delete_all_handler(cluster_uuid):
                 400,
             )
 
-        if key != conf.DELETE_ALL_KEY:  # <- Update confluence if you change this
+        if key != env_config.DELETE_ALL_KEY:  # <- Update confluence if you change this
             return jsonify({"error": "Wrong key. Careful! This really does delete all the executions!"}), 400
 
         # Call app

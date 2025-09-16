@@ -7,7 +7,7 @@ from typing import List
 from flask import Blueprint, jsonify, request
 
 # App includes
-from config import conf
+from config import env_config
 from src.middleware.permissions import authMiddleware
 from src.services.proxy import appProxyServer
 
@@ -47,8 +47,8 @@ def devices_snr_validate_handler():
                 "Authorization": f"Bearer {server_token}",
             }
 
-            search_board_srn_url = f"{conf.MANU_SERVER_URL}/boards/assemblies/Search?boardSerialNumber={snr}"
-            response = requests.get(search_board_srn_url, headers=headers, timeout=5)
+            search_board_srn_url = f"{env_config.MANU_SERVER_URL}/boards/assemblies/search?boardSerialNumber={snr}"
+            response = requests.get(search_board_srn_url, verify=None, timeout=5, headers=headers)
 
             if response.status_code == 200:
                 response_data = response.json()
@@ -86,20 +86,44 @@ def devices_snr_validate_handler():
 
         # Form response
         if singleton and snr_is_valid:
-            response = {"snrs": {"slot-6": snr}}
-            return jsonify(response), 200
+            return "", 200
 
         if not snr_is_valid:
             return jsonify({"error": "Invalid serial number."}), 400
 
+        # response = {
+        #     "snrs": {
+        #         "slot-1": snr_references[0],
+        #         "slot-2": snr_references[1],
+        #         "slot-3": snr_references[2],
+        #         "slot-4": snr_references[3],
+        #         "slot-5": snr_references[4],
+        #     }
+        # }
+
+        # TODO: Remove this once we have a proper way to validate SNRS
+        # per cluster
+
+        # Sort SNR values alphabetically while keeping hostnames in order
+        # Filter out None values and manually sort
+        valid_snrs = [snr for snr in snr_references if snr is not None]
+
+        # Use the actual sorted array
+        sorted_snrs = sorted(valid_snrs)
+
+        # Use OrderedDict to maintain hostname order
+        from collections import OrderedDict
+
         response = {
-            "snrs": {
-                "slot-1": snr_references[0],
-                "slot-2": snr_references[1],
-                "slot-3": snr_references[2],
-                "slot-4": snr_references[3],
-                "slot-5": snr_references[4],
-            }
+            "snrs": OrderedDict(
+                [
+                    ("verdin-imx8mm-15005658", sorted_snrs[4]),  # 05AU - .11 // 9160 yes, 52840 yes, POST yes
+                    ("verdin-imx8mm-15005689", sorted_snrs[3]),  # 05AV - .9  // 9160 yes, 52840 yes, POST yes
+                    ("verdin-imx8mm-15005817", sorted_snrs[2]),  # 05AW - .13 // 9160 yes, 52840 yes, POST yes
+                    ("verdin-imx8mm-15005816", sorted_snrs[1]),  # 05AX - .10 // 9160 yes, 52840 yes, POST yes // cook
+                    ("verdin-imx8mm-15005665", sorted_snrs[0]),  # 05AY - .6  // 9160 yes, 52840 yes, POST yes
+                ]
+            ),
         }
 
         return jsonify(response), 200

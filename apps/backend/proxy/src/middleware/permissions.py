@@ -5,12 +5,12 @@ from datetime import datetime, timedelta
 from functools import wraps
 from typing import Tuple, Optional
 from flask import Blueprint, jsonify, request
-from config import conf  # Assuming this contains your API_KEY
 from dateutil import parser
 
-# Set up logging
-logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger(__name__)
+# Corekinect includes
+from corekinect.utils import Logger
+
+LOG_MODULE = "middleware"
 
 
 class CoreCloudAuthTokenInfo:
@@ -43,10 +43,28 @@ class AuthMiddleware:
         self.config: AuthMiddlewareConfig = None
         self.my_token_info: CoreCloudAuthTokenInfo = None
 
-    def init(self, config: AuthMiddlewareConfig) -> str:
+    def init(self, logger: Logger, auth_enabled: bool, config: AuthMiddlewareConfig) -> str:
         self.config = config
+        self.auth_enabled = auth_enabled
 
-        if conf.AUTH_ENABLED:
+        # Logger
+        self.logger: Logger = logger
+        if self.logger is None:
+            self.logger = Logger(
+                Logger.Config(
+                    logger_name=LOG_MODULE,
+                    log_directory="logs",
+                    overall_log_level=logging.DEBUG,
+                    console_log_level=logging.DEBUG,
+                    file_log_level=logging.DEBUG,
+                    enable_log_color=True,
+                )
+            )
+        else:
+            # Create a child logger from the parent
+            self.logger = logger.from_parent(LOG_MODULE)
+
+        if auth_enabled:
             # Do a health check on the auth server make sure it's reachable
             error = self._do_auth_server_health_check()
             if error:
@@ -57,7 +75,7 @@ class AuthMiddleware:
             if error:
                 return f"Could not get a service token for this server: {error}"
         else:
-            logging.warning("!!!!!!!!! -> Auth is disabled in server!, proceed with caution <- !!!!!!!!!")
+            self.logger.warning("!!!!!!!!! -> Auth is disabled in server!, proceed with caution <- !!!!!!!!!")
 
         return ""
 
@@ -100,7 +118,7 @@ class AuthMiddleware:
                     expires=auth_data.get("expires"),
                     expires_in=auth_data.get("expiresIn"),
                 )
-                logging.info(f"Succesfully acquired access token for server")
+                self.logger.info(f"Succesfully acquired access token for server")
                 return "", self.my_token_info.access_token
             else:
                 return f"Failed to get server token (status: {response.status_code}): {response.text}", None
@@ -111,16 +129,16 @@ class AuthMiddleware:
         def decorator(f):
             @wraps(f)
             def decorated_function(*args, **kwargs):
-                if conf.AUTH_ENABLED:
+                if self.auth_enabled:
                     # Extract the access token from the request headers
                     access_token = request.headers.get("Authorization")
                     if access_token is None or not access_token.startswith("Bearer "):
-                        logger.debug("No access token provided or invalid format")
+                        self.logger.debug("No access token provided or invalid format")
                         return jsonify({"error": "Unauthorized"}), 401
 
                     token_error, server_token = self.get_server_token()
                     if token_error:
-                        logging.error(f"A server error ocurred whilst getting access token: {token_error}")
+                        self.logger.error(f"A server error ocurred whilst getting access token: {token_error}")
                         return jsonify({"error": f"{token_error}"}), 503
 
                     # Prepare headers for the auth server request
@@ -139,28 +157,28 @@ class AuthMiddleware:
 
                     # Hit the auth server to check permissions
                     auth_server_url = f"{self.config.cc_auth_server_url}/Authorization/Validation/ValidatePermissions"
-                    # logger.debug(
-                    #     f"Hitting auth server at {auth_server_url} with headers \n{headers} and body: \n{body}"
-                    # )
+                    self.logger.debug(
+                        f"Hitting auth server at {auth_server_url} with headers \n{headers} and body: \n{body}"
+                    )
 
                     try:
                         response = requests.post(auth_server_url, headers=headers, json=body)
                     except Exception as e:
-                        logger.error(f"Auth server request failed: {e}")
+                        self.logger.error(f"Auth server request failed: {e}")
                         return jsonify({"error": "Unauthorized"}), 401
 
-                    logger.debug(f"Auth server response status: {response.status_code}")
+                    self.logger.debug(f"Auth server response status: {response.status_code}")
 
                     # Handle the response from the auth server
                     if response.status_code == 200:
-                        # auth_data = response.json()
-                        logger.debug(f"Authorized Request")
+                        auth_data = response.json()
+                        self.logger.debug(f"Auth data: {auth_data}")
 
-                        # if not auth_data.get("isAuthorized"):
-                        #     logger.debug("Permissions not granted")
-                        #     return jsonify({"error": "Forbidden"}), 403
+                        if not auth_data.get("isAuthorized"):
+                            self.logger.debug("Permissions not granted")
+                            return jsonify({"error": "Forbidden"}), 403
                     else:
-                        logger.debug("Unauthorized request")
+                        self.logger.debug("Unauthorized request")
                         return response.text, response.status_code
 
                 return f(*args, **kwargs)

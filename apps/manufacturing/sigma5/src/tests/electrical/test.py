@@ -1,17 +1,17 @@
 # Standard includes
 import concurrent.futures
-import json
-import os
+import time
+from typing import Dict, List
 
 # Protocol includes
-from protos.cluster_test.cluster_test_pb2 import TestInfo
+from protocols.cluster_test.cluster_test_pb2 import TestInfo
 
 # Corekinect libraries
 from tests.lib import *
 
 # Shared includes
 from ..shared.config import Sigma5ManufacturingConfig
-from ..shared.rpcs import runnners_controller
+from ..shared.rpcs import mtib_servers
 
 # Test includes
 from .data import ElectricalTestSharedData, electrical_test_shared_data
@@ -22,11 +22,7 @@ from .step_4 import electrical_test_step_4
 from .step_5 import electrical_test_step_5
 from .step_6 import electrical_test_step_6
 from .step_7 import electrical_test_step_7
-from .step_8 import electrical_test_step_8
-from .step_9 import electrical_test_step_9
-from .step_10 import electrical_test_step_10
-from .step_11 import electrical_test_step_11
-from .step_12 import electrical_test_step_12
+
 
 # ---------------------------------------------------------------------------------
 #                                                                              Init
@@ -35,20 +31,22 @@ def electrical_test_init(
     config: Sigma5ManufacturingConfig, nodes: List[str], usr_data: Dict[str, ElectricalTestSharedData]
 ) -> str:
     # Initialize the runners required to run this test
-    error = runnners_controller.init(nodes)
+    error = mtib_servers.init(nodes)
     if error:
         return f"Could not initialize runners for test: {error}"
 
     def init_node(node: str) -> str:
         # Turn off power
-        error = runnners_controller.disable_power(node)
+        error = mtib_servers.disable_power(node)
         if error:
             return f"Could not disable device power in host {node}: {error}"
 
         # Turn off charging power
-        error = runnners_controller.set_5vin(node, False)
+        error = mtib_servers.disable_charge_power(node)
         if error:
             return f"Could not disable charging power in host {node}: {error}"
+
+        usr_data[node] = ElectricalTestSharedData()
 
         return None
 
@@ -75,14 +73,17 @@ def electrical_test_deinit(
     # Turn off power
     for node in nodes:
         # Disable device power
-        error = runnners_controller.disable_power(node)
+        error = mtib_servers.disable_power(node)
         if error:
             return f"Could not disable device power in host {node}: {error}"
 
         # Turn off charging power
-        error = runnners_controller.set_5vin(node, False)
+        error = mtib_servers.disable_charge_power(node)
         if error:
             return f"Could not disable charging power in host {node}: {error}"
+
+        # Clear the shared data
+        usr_data[node] = None
 
     # Await some time for the power to be off
     time.sleep(1)
@@ -90,8 +91,10 @@ def electrical_test_deinit(
     # Deinitialize our shared data
     usr_data.clear()
 
+    electrical_test_shared_data.clear()
+
     # Deinitialize the runners used to run this test
-    error = runnners_controller.deinit()
+    error = mtib_servers.deinit()
     if error:
         return f"Could not deinitialize runners for test: {error}"
 
@@ -125,10 +128,5 @@ electrical_test: Test = Test(
         electrical_test_step_5,
         electrical_test_step_6,
         electrical_test_step_7,
-        electrical_test_step_8,
-        electrical_test_step_9,
-        electrical_test_step_10,
-        electrical_test_step_11,
-        electrical_test_step_12,
     ],
 )

@@ -7,13 +7,12 @@ from typing import List, Optional
 import grpc
 
 # App includes
-from config import conf
 from google.protobuf.json_format import MessageToDict, MessageToJson, Parse, ParseDict
 
 # Protocol includes
-from protos.cluster_operator.cluster_operator_pb2 import ClusterStatus
-from protos.cluster_operator.cluster_operator_pb2_grpc import ClusterOperatorStub
-from protos.cluster_test.cluster_test_pb2 import TestInfo, TestStepResult
+from protocols.cluster_operator.cluster_operator_pb2 import ClusterStatus
+from protocols.cluster_operator.cluster_operator_pb2_grpc import ClusterOperatorStub
+from protocols.cluster_test.cluster_test_pb2 import TestInfo, TestStepResult
 
 
 class ClusterType(Enum):

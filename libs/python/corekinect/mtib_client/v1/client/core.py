@@ -297,7 +297,7 @@ class MtibV1Client:
             response = self.client.AdcReadAll(Empty())
             if not response.success:
                 return None, f"AdcReadAll error: {response.message}"
-            return response.voltages, None
+            return response.voltages_v, None
         except grpc.RpcError as e:
             return None, f"gRPC error for AdcReadAll at {self.config.net.addr}. Error: {str(e.details())}"
         except Exception as e:
@@ -842,6 +842,9 @@ class MtibV1Client:
             self.logger.error(f"Unexpected error in UartStream at {self.config.net.addr}: {str(e)}")
             yield UartStreamResponse(success=False, message=f"Unexpected error: {str(e)}", target=target)
 
+    # -----------------------------------------------
+    #                                        Uart
+    # ---------------------------------------------*/
     def alpha_cmd_personalize(
         self, device_id: str, target: HostType
     ) -> Tuple[Optional[str], Optional[str], Optional[str]]:

@@ -1,16 +1,13 @@
 {
 	"folders": [
 		{
-			"path": "../../docs"
-		},
-		{
-			"path": "../../libs/protos"
-		},
-		{
 			"path": "../../deploy"
 		},
 		{
-			"path": "../../apps/shared/runner"
+			"path": "../../libs/protocols"
+		},
+		{
+			"path": "../../apps/shared/mtib-server"
 		},
 		{
 			"path": "../../apps/backend/operator"
@@ -20,12 +17,6 @@
 		},
 		{
 			"path": "../../apps/manufacturing/sigma5"
-		},
-		{
-			"path": "../../apps/manufacturing/sigma5_legacy"
-		},
-		{
-			"path": "../../apps/manufacturing/theta"
 		}
 	],
 	"settings": {
