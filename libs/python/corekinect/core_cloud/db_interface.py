@@ -212,7 +212,7 @@ class CoreCloudDBInterface(metaclass=SingletonThreadSafeMeta):
             return self.session
 
         except Exception:
-            self.depth = 0
+            self._depth = 0
             self._teardown()
             raise
 
@@ -240,6 +240,21 @@ class CoreCloudDBInterface(metaclass=SingletonThreadSafeMeta):
                 self.tunnel.stop()
             finally:
                 self.tunnel = None
+
+    def close(self):
+        """
+        Close the session and tunnel explicitly.
+        This is optional since __exit__ will handle it, but can be used for manual cleanup.
+        """
+        self._teardown()
+
+    @classmethod
+    def reset_singleton(cls, env: str | None = None) -> None:
+        store = getattr(type(cls), "_instances", {})
+        key = (cls, env) if env is not None else cls
+        inst = store.pop(key, None)
+        if inst:
+            inst.close()
 
     @staticmethod
     def device_time_expr(model, field_names):

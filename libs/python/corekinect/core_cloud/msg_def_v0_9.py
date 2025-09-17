@@ -936,7 +936,7 @@ class PositionMsgV6(MsgBase):
 
     @property
     def temperature_fahrenheit(self):
-        return celsius_to_fahrenheit(self.temperature) if self.temperature is not None else None
+        return celsius_to_fahrenheit(float(self.temperature)) if self.temperature is not None else None
 
 
 # UID 534
