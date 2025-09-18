@@ -1,240 +1,219 @@
 FROM ubuntu:22.04
 
-# Install global dependencies needed for downloading, installing & building software
-RUN apt update && \
-    apt install -y \
+# ----------------------------------------------------
+#                                      Build Arguments
+# ----------------------------------------------------
+# Default docker arguments
+ARG TARGETPLATFORM
+ARG BUILDPLATFORM
+
+# Environment versions
+ARG NVM_VERSION=0.40.3
+ARG NODE_VERSION=22.19.0
+ARG NPM_VERSION=11.6.0
+ARG NX_VERSION=21.5
+ARG DOCKER_COMPOSE_VERSION=2.39.3
+ARG GO_VERSION=1.24.2       
+ARG K9S_VERSION=0.50.9
+ARG HELM_VERSION=3.19.0
+
+# ----------------------------------------------------
+#                                      System Packages
+# ----------------------------------------------------
+RUN DEBIAN_FRONTEND=noninteractive apt update && apt upgrade -y && \
+    apt install -y zsh \
     curl \
     git \
     libc6-dev \
-    zsh \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
-
-# Down oh my zsh and set it as default shell
-RUN sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/2056aeeeaddd977eb205619c6f236b94dac896be/tools/install.sh)"
-RUN chsh -s $(which zsh)
-
-# Switch to zsh for all subsequent RUN commands
-SHELL ["/usr/bin/zsh", "-c"]
-
-# -----------------------------------------------------------------------------------------------------
-#                                                                                                    Nx
-# ---------------------------------------------------------------------------------------------------*/
-
-# Install Node Version Manager and Node.js
-RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash && \
-    echo 'export NVM_DIR="/root/.nvm"' >> /root/.profile && \
-    echo '[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"' >> /root/.profile && \
-    echo 'export NVM_DIR="/root/.nvm"' >> /root/.bashrc && \
-    echo '[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"' >> /root/.bashrc && \
-    . /root/.nvm/nvm.sh && \
-    nvm install v22.12.0 && \
-    nvm alias default v22.12.0 && \
-    npm install -g npm@11.0.0 && \
-    npm install -g nx
-
-# Create symbolic links for node and npm in /usr/local/bin with full paths
-RUN ln -sf "/root/.nvm/versions/node/v22.12.0/bin/node" "/usr/local/bin/node" && \
-    ln -sf "/root/.nvm/versions/node/v22.12.0/bin/npm" "/usr/local/bin/npm" && \
-    ln -sf "/root/.nvm/versions/node/v22.12.0/bin/nx" "/usr/local/bin/nx"
-
-# Verify the installation
-RUN node --version && npm --version && nx --version
-
-# -----------------------------------------------------------------------------------------------------
-#                                                                                                    Go
-# ---------------------------------------------------------------------------------------------------*/
-
-ARG GO_VERSION=1.23.4
-RUN ARCH="" && \
-    case "$(uname -m)" in \
-    x86_64) ARCH="amd64" ;; \
-    aarch64) ARCH="arm64" ;; \
-    *) echo "Unsupported architecture" && exit 1 ;; \
-    esac && \
-    curl -LO "https://golang.org/dl/go${GO_VERSION}.linux-${ARCH}.tar.gz" \
-    && tar -C /usr/local -xzf go${GO_VERSION}.linux-${ARCH}.tar.gz \
-    && rm go${GO_VERSION}.linux-${ARCH}.tar.gz
-
-# Set up environment
-ENV GOPATH /go
-ENV PATH $GOPATH/bin:/usr/local/go/bin:$PATH
-RUN mkdir -p "$GOPATH/src" "$GOPATH/bin" && chmod -R 777 "$GOPATH"
-
-# RUN go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
-# RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
-
-# -----------------------------------------------------------------------------------------------------
-#                                                                                                Docker
-# ---------------------------------------------------------------------------------------------------*/
-
-# Install Docker CLI (not the full Docker Engine)
-RUN apt-get update && \
-    apt-get install -y apt-transport-https ca-certificates curl software-properties-common gnupg lsb-release && \
-    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg && \
-    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null && \
-    apt-get update && \
-    apt-get install -y docker-ce-cli \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install Docker Compose
-RUN curl -L "https://github.com/docker/compose/releases/download/v2.7.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose && \
-    chmod +x /usr/local/bin/docker-compose
-
-# -----------------------------------------------------------------------------------------------------
-#                                                                                           Other tools
-# ---------------------------------------------------------------------------------------------------*/
-WORKDIR /
-
-# Update and install all necessary tools in one layer
-RUN apt-get update && \
-    apt-get install -y \
+    apt-transport-https \
+    ca-certificates \
+    software-properties-common \
+    unzip \
     build-essential \
+    net-tools \
+    usbutils \
+    netcat \
+    protobuf-compiler \
+    gettext \
+    jq \
+    iputils-ping \
+    unzip \
+    htop \
+    speedtest-cli \
+    wget \
+    gpg \
+    gnupg \
     make \
     python3 \
     python3-pip \
-    screen \
-    stlink-tools \
-    net-tools \
-    usbutils \
-    iputils-ping \
-    astyle \
-    unzip \
-    protobuf-compiler \
     python3-venv \
-    && apt-get clean \ 
-    && rm -rf /var/lib/apt/lists/* 
+    lsb-release 
 
-# -----------------------------------------------------------------------------------------------------
-#                                                                                                Protoc
-# ---------------------------------------------------------------------------------------------------*/
+# Setup shell - ensure zsh is properly installed
+RUN apt-get update && apt-get install -y zsh && \
+    sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended && \
+    chsh -s $(which zsh)
 
-# Determine architecture and download the appropriate version of protoc
-RUN ARCH="$(uname -m)" && \
-    case "${ARCH}" in \
-    aarch64) PROTOC_ZIP="protoc-29.1-linux-aarch_64.zip" ;; \
-    x86_64) PROTOC_ZIP="protoc-29.1-linux-x86_64.zip" ;; \
-    *) echo "Unsupported architecture: ${ARCH}" && exit 1 ;; \
-    esac && \
-    curl -LO "https://github.com/protocolbuffers/protobuf/releases/download/v29.1/${PROTOC_ZIP}" && \
+# Verify zsh is installed and switch to it for subsequent RUN commands
+RUN ls -la /usr/bin/zsh && which zsh && echo "Zsh found at: $(which zsh)"
+SHELL ["/usr/bin/zsh", "-c"]
+
+# Set the working directory
+WORKDIR /tmp
+
+# ----------------------------------------------------
+#                                             Node, Nx
+# ----------------------------------------------------
+RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v${NVM_VERSION}/install.sh | bash && \
+    source ~/.zshrc && \
+    nvm install v${NODE_VERSION} && \
+    npm install -g npm@${NPM_VERSION} && \
+    npm install -g nx@${NX_VERSION} && \
+    corepack enable && \
+    corepack prepare yarn@4.9.4 --activate
+
+# Set up Node.js and yarn environment for non-interactive shells
+ENV NVM_DIR=/root/.nvm
+ENV NODE_PATH=/root/.nvm/versions/node/v${NODE_VERSION}/lib/node_modules
+ENV PATH=/root/.nvm/versions/node/v${NODE_VERSION}/bin:/root/.yarn/bin:$PATH
+
+# Create symlinks for yarn and node to make them available globally
+RUN ln -sf /root/.nvm/versions/node/v${NODE_VERSION}/bin/node /usr/local/bin/node && \
+    ln -sf /root/.nvm/versions/node/v${NODE_VERSION}/bin/npm /usr/local/bin/npm && \
+    ln -sf /root/.yarn/bin/yarn /usr/local/bin/yarn
+
+# ----------------------------------------------------
+#                                               Docker
+# ----------------------------------------------------
+RUN case "${TARGETPLATFORM}" in \
+    "linux/amd64") \
+    # Install Docker CLI for amd64
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add - && \
+    add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" && \
+    apt-get update && \
+    apt-get install -y docker-ce-cli && \
+    # Install Docker Compose for amd64
+    curl -L "https://github.com/docker/compose/releases/download/v${DOCKER_COMPOSE_VERSION}/docker-compose-Linux-x86_64" -o /usr/local/bin/docker-compose && \
+    chmod +x /usr/local/bin/docker-compose && \
+    apt-get clean && rm -rf /var/lib/apt/lists/* \
+    ;; \
+    "linux/arm64") \
+    # Install Docker CLI for arm64
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add - && \
+    add-apt-repository "deb [arch=arm64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" && \
+    apt-get update && \
+    apt-get install -y docker-ce-cli && \
+    # Install Docker Compose for arm64
+    curl -L "https://github.com/docker/compose/releases/download/v${DOCKER_COMPOSE_VERSION}/docker-compose-Linux-aarch64" -o /usr/local/bin/docker-compose && \
+    chmod +x /usr/local/bin/docker-compose && \
+    apt-get clean && rm -rf /var/lib/apt/lists/* \
+    ;; \
+    esac
+
+# ----------------------------------------------------
+#                                                   Go
+# ----------------------------------------------------
+RUN case "${TARGETPLATFORM}" in \
+    "linux/amd64") \
+    curl -LO "https://golang.org/dl/go${GO_VERSION}.linux-amd64.tar.gz" && \
+    tar -C /usr/local -xzf go${GO_VERSION}.linux-amd64.tar.gz && \
+    rm go${GO_VERSION}.linux-amd64.tar.gz \
+    ;; \
+    "linux/arm64") \
+    curl -LO "https://golang.org/dl/go${GO_VERSION}.linux-arm64.tar.gz" && \
+    tar -C /usr/local -xzf go${GO_VERSION}.linux-arm64.tar.gz && \
+    rm go${GO_VERSION}.linux-arm64.tar.gz \
+    ;; \
+    esac
+
+# Set up Go environment
+ENV GOPATH=/go \
+    PATH=/usr/local/go/bin:/go/bin:$PATH
+
+RUN mkdir -p "$GOPATH/src" "$GOPATH/bin" && chmod -R 777 "$GOPATH"
+
+# Go tools will be installed via go.mod dependencies
+
+# ----------------------------------------------------
+#                                               Python
+# ----------------------------------------------------
+
+# Set the PYTHONPATH to include the libs directory
+ENV PYTHONPATH="/workspaces/concord/libs:/workspaces/concord/libs/python/"
+
+# Install grpcio-tools
+RUN pip3 install grpcio-tools==1.75.0
+
+# ----------------------------------------------------
+#                                             Protobuf
+# ----------------------------------------------------
+RUN case "${TARGETPLATFORM}" in \
+    "linux/amd64") \
+    PROTOC_ZIP="protoc-32.1-linux-x86_64.zip" && \
+    curl -LO "https://github.com/protocolbuffers/protobuf/releases/download/v32.1/${PROTOC_ZIP}" && \
     unzip -o ${PROTOC_ZIP} -d /usr/local && \
-    rm ${PROTOC_ZIP}
+    rm ${PROTOC_ZIP} \
+    ;; \
+    "linux/arm64") \
+    PROTOC_ZIP="protoc-32.1-linux-aarch_64.zip" && \
+    curl -LO "https://github.com/protocolbuffers/protobuf/releases/download/v32.1/${PROTOC_ZIP}" && \
+    unzip -o ${PROTOC_ZIP} -d /usr/local && \
+    rm ${PROTOC_ZIP} \
+    ;; \
+    esac
 
 ENV PATH="/usr/local/bin:${PATH}"
 
-# -----------------------------------------------------------------------------------------------------
-#                                                                                         nRF CLI Tools
-# ---------------------------------------------------------------------------------------------------*/
+# ----------------------------------------------------
+#                                              Kubectl
+# ----------------------------------------------------
+RUN case "${TARGETPLATFORM}" in \
+    "linux/amd64") \
+    curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" && \
+    curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl.sha256" && \
+    echo "$(cat kubectl.sha256)  kubectl" | sha256sum --check && \
+    chmod +x kubectl && \
+    mv kubectl /usr/local/bin/ && \
+    rm kubectl.sha256 ;; \
+    "linux/arm64") \
+    curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/arm64/kubectl" && \
+    curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/arm64/kubectl.sha256" && \
+    echo "$(cat kubectl.sha256)  kubectl" | sha256sum --check && \
+    chmod +x kubectl && \
+    mv kubectl /usr/local/bin/ && \
+    rm kubectl.sha256 ;; \
+    esac
 
-# Get .deb package and install based on architecture
-RUN ARCH="$(uname -m)" && \
-    case "${ARCH}" in \
-    aarch64) \
-    NRF_CLI_DEB="nrf-command-line-tools_10.24.2_arm64.deb" \
-    ;; \
-    x86_64) \
-    NRF_CLI_DEB="nrf-command-line-tools_10.24.2_amd64.deb" \
-    ;; \
-    *) echo "Unsupported architecture: ${ARCH}" && exit 1 ;; \
-    esac && \
-    curl -o nrf-cli-tools.deb "https://nsscprodmedia.blob.core.windows.net/prod/software-and-other-downloads/desktop-software/nrf-command-line-tools/sw/versions-10-x-x/10-24-2/${NRF_CLI_DEB}" && \
-    dpkg -i nrf-cli-tools.deb || true && \
-    apt-get install -f -y && \
-    rm nrf-cli-tools.deb
+# ----------------------------------------------------
+#                                                  K9s
+# ----------------------------------------------------
+RUN case "${TARGETPLATFORM}" in \
+    "linux/amd64") \
+    curl -sLO https://github.com/derailed/k9s/releases/download/v${K9S_VERSION}/k9s_linux_amd64.tar.gz && \
+    tar -xzf k9s_linux_amd64.tar.gz -C /tmp && \
+    rm k9s_linux_amd64.tar.gz && \
+    mv /tmp/k9s /usr/local/bin ;;\
+    "linux/arm64") \
+    curl -sLO https://github.com/derailed/k9s/releases/download/v${K9S_VERSION}/k9s_linux_arm64.tar.gz && \
+    tar -xzf k9s_linux_arm64.tar.gz -C /tmp && \
+    rm k9s_linux_arm64.tar.gz && \
+    mv /tmp/k9s /usr/local/bin ;; \
+    esac
 
-# -----------------------------------------------------------------------------------------------------
-#                                                                                                 JLink
-# ---------------------------------------------------------------------------------------------------*/
-WORKDIR /tmp
+# ----------------------------------------------------
+#                                                 Helm
+# ----------------------------------------------------
+RUN curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/v${HELM_VERSION}/scripts/get-helm-3 && \
+    chmod 700 get_helm.sh && \
+    ./get_helm.sh && \
+    rm ./get_helm.sh
 
-# Install common dependencies first
+
+# ----------------------------------------------------
+#                                          Other Tools
+# ----------------------------------------------------
 RUN apt-get update && \
-    apt-get upgrade -y && \
-    apt-get install -y x11-common && \
-    apt-get install -y \
-    libxcb-icccm4 \
-    libxcb-image0 \
-    libxcb-keysyms1 \
-    libxcb-render-util0 \
-    libxcb-render0 \
-    libxcb-shape0 \
-    libxkbcommon-x11-0 \
-    curl \
-    libudev-dev \
-    udev \
-    libice6 || apt-get --fix-broken install -y && \
+    apt-get install -y vim \
+    btop && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
-
-# Download and install JLink package based on architecture, resolving any missing dependencies
-RUN ARCH="$(uname -m)" && \
-    case "${ARCH}" in \
-    aarch64) \
-    JLINK_DEB="JLink_Linux_V810i_arm64.deb" \
-    ;; \
-    x86_64) \
-    JLINK_DEB="JLink_Linux_V810i_x86_64.deb" \
-    ;; \
-    *) echo "Unsupported architecture: ${ARCH}" && exit 1 ;; \
-    esac && \
-    echo '#!/bin/sh\nexit 0' > /usr/bin/udevadm && \
-    chmod +x /usr/bin/udevadm && \
-    curl -fsSL -o ${JLINK_DEB} -d "accept_license_agreement=accepted&submit=Download+software" "https://www.segger.com/downloads/jlink/${JLINK_DEB}" && \
-    dpkg -i ${JLINK_DEB} || true && \
-    apt-get update && apt-get install -y -f && \
-    rm -f ${JLINK_DEB}
-
-# Setup config folder to avoid "Terms of Use" pop up window of JLink on every board flash
-COPY assets/segger /root/.config/SEGGER
-
-# Remove udev mock
-RUN rm /usr/bin/udevadm
-
-# -----------------------------------------------------------------------------------------------------
-#                                                                                                Python
-# ---------------------------------------------------------------------------------------------------*/
-
-# Set the PYTHONPATH to include the libs directory
-ENV PYTHONPATH="/workspaces/concord/libs:${PYTHONPATH}"
-ENV PYTHONPATH="/workspaces/concord/libs/python/:${PYTHONPATH}"
-
-# Install grpcio-tools
-RUN pip3 install grpcio-tools==1.68.1
-
-# -----------------------------------------------------------------------------------------------------
-#                                                                                               Kubectl
-# ---------------------------------------------------------------------------------------------------*/
-RUN ARCH="$(uname -m)" && \
-    case "${ARCH}" in \
-    aarch64) KUBECTL_ARCH="arm64" ;; \
-    x86_64) KUBECTL_ARCH="amd64" ;; \
-    *) echo "Unsupported architecture: ${ARCH}" && exit 1 ;; \
-    esac && \
-    KUBECTL_VERSION=$(curl -L -s https://dl.k8s.io/release/stable.txt) && \
-    curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/arm64/kubectl" && \
-    chmod +x kubectl && \
-    mv kubectl /usr/local/bin/kubectl
-
-# -----------------------------------------------------------------------------------------------------
-#                                                                                                   K9s
-# ---------------------------------------------------------------------------------------------------*/
-RUN ARCH="$(uname -m)" && \
-    case "${ARCH}" in \
-    aarch64) K9S_ARCH="arm64" ;; \
-    x86_64) K9S_ARCH="amd64" ;; \
-    *) echo "Unsupported architecture: ${ARCH}" && exit 1 ;; \
-    esac && \
-    K9S_VERSION=$(curl -s https://api.github.com/repos/derailed/k9s/releases/latest | grep 'tag_name' | cut -d '"' -f 4) && \
-    curl -LO "https://github.com/derailed/k9s/releases/download/${K9S_VERSION}/k9s_Linux_${K9S_ARCH}.tar.gz" && \
-    tar -xzf "k9s_Linux_${K9S_ARCH}.tar.gz" k9s && \
-    chmod +x k9s && \
-    mv k9s /usr/local/bin/k9s && \
-    rm "k9s_Linux_${K9S_ARCH}.tar.gz"
-
-
-# Install esptool - pip3 install esptool
-# Install minicom - apt-get update && apt-get install -y minicom
-# Install gpiod - apt install libgpiod-dev python3-libgpiod
-# Install tkinter - apt-get install -y python3-tk
-# Install xmodem - pip3 install xmodem

@@ -1,88 +1,68 @@
-# Concord Framework
+# Concord Monorepo
 
-The framework is distributed as a monorepo (this). Follow the getting started to get it working. All scripts will work under Ubuntu 22.04 bare metal, although this is targetted at devs running under Windows.
+This repository contains the Concord monorepo. It is a collection of applications, libraries, deployments,and tools that are used to build the Concord System.
+
+If you need to make changes to the backend, the frontend, or the shared libraries, you are in the right place.
 
 # Getting Started
-There are 3 requirements that must be satisfiesd by the development machine in order to get started:
+There are 3 requirements that must be satisfiesd by your development machine in order to get started:
+1. Have VS Code installed
+2. Have Windows Subsystem for Linux (WSL2) installed
+3. Have Docker installed in same environment as WSL2
+4. Have the monorepo (this repository) `--recursive`cloned to your development machine
 
-    1. VS Code
-    2. Windows Subsystem for Linux (WSL2)
-    2. Docker 
+# Setup your workstation for development
+Use the `devcontainer` feature of VS Code to develop in a containerized environment. This will allow you to develop in a consistent environment with all the necessary dependencies installed.
 
-# Installing VS Code
-Download and install from the [official website](https://code.visualstudio.com/download)
+There are a few different devcontainers available, each with their own purpose.
+- `base`: This is the base devcontainer that contains the necessary dependencies for all the other devcontainers.
+    - Use if working on the backend. Python, Go, K8s, etc.
+- `mtib`: This is the devcontainer for the MTIB application. This environment runs on the MTIB hardware.    
+    - Use if working on the MTIB application. ***This environment runs on the MTIB hardware. (arm64)***
+- `ncs`: This is the devcontainer for the NCS firmware.
+    - Use if working on the NCS firmware, or Zephyr firmware. `nordic`, `espressif`, `nxp`, `stm32` support is included.
 
-# Installing WSL
-Please follow the [official docs](https://learn.microsoft.com/en-us/windows/wsl/setup/environment)
+To find out more about the devcontainers, please refer to the [devcontainer README](.devcontainer/README.md) file.
 
-This will install Ubunut 22.04, which is what the DevOps team recommends & uses as a development environment. If you use prefer other flavors of Linux, the DevOps team will **not** provide any support if things break. 
+# Understanding the monorepo
+The monorepo is a collection of applications, libraries, deployments, and tools that are used to build the Concord System. Read more about the monorepo in the [monorepo README](docs/monorepo.md) file.
 
-## Configuring Resources (Not Required)
-WSL2 will automatically allocated about 1/2 of your host resources. It is recommended you change this to allocated about 3/4 of your resources, [follow this link](https://learn.microsoft.com/en-us/windows/wsl/wsl-config) to find out more. You're looking to edit your ***global*** .wslconfig.
+The monorepo is organized into the following folders:
 
-# Installing Docker
-Although there's an option to install the [Docker Desktop App](https://www.docker.com/products/docker-desktop/), it is highly recommended you install the docker daemon and tools natively on WSL2. Since *systemd* is now supported, this process is now very straight forward.
+## Important folders
+- `.devcontainer`: Development containers for all use cases. Refer to the [devcontainer README](.devcontainer/README.md) for more information.
+- `apps`: Anything that is considered a software application, from firmware to ui/ux, as well as tests and backend services. Refer to the [apps README](apps/README.md) for more information.
+- `deploy`: Infrastructure as code, k8s deployments, helm charts, etc. Refer to the [deploy README](deploy/README.md) for more information.
+- `docs`: Useful diagrams, in depth documentation, etc. Refer to the [docs README](docs/README.md) for more information.
+- `libs`: Libraries that are used to build the Concord System. Zepjhyr, Python, Go, Network protocols, etc. Refer to the [libs README](libs/README.md) for more information.
+- `tools`: Tools that are used with the Concord System. Scripts, etc. Refer to the [tools README](tools/README.md) for more information.
+- `workspaces`: VS Code workspaces for each major project. Backend, frontend, manufacturing, validation, etc. Refer to the [workspaces README](workspaces/README.md) for more information.
 
-The script ***'install-docker.sh'*** under the **'.devcontainer/assets/'** folder will install Docker and all needed dependencies for you. 
+## Important files
+- `README.md`: This file. High level overview of the monorepo.
+- `CONTRIBUTING.md`: Read before contributing, please.
+- `CODE_OWNERS`: Code owners and maintainers. Who to ask for help.
 
-## Note
-Run these commands from the root folder of the monorepo *concord/*
+## Not so important folders
+- `.nx, .yarn`: Contains [nx](https://nx.dev/) and [yarn](https://yarnpkg.com/) workspaces that are used to build the Concord System. Don't touch this folder.
+- `node_modules`: node.js dependencies. Don't touch this folder.
 
-1. Provide execution permissions to the script:
-    ```bash
-    chmod +x .devcontainer/assets/install-docker.sh
-    ```
-3. Run the script:
-    ```bash
-    bash .devcontainer/assets/install-docker.sh 
-    ```
-4. Once the installation is complete, you can verify the Docker installation with:
-    ```bash
-    docker --version
-    ```
+## Not so important files
+- `.editorconfig`: Used for formatting TypeScript code. Set and forget.
+- `.gitattributes`: Used for git to ignore certain files. Set and forget.
+- `.gitmodules`: Used for git to pull in submodules. Set and forget.
+- `.gitignore`: Used for git to ignore certain files. Set and forget.
+- `.yarnrc.yml`: Used for yarn to ignore certain files. Set and forget.
+- `go.mod`: Contains the dependencies for the Go projects. Don't touch this file.
+- `go.sum`: Contains the dependencies for the Go projects. Don't touch this file.
+- `nx.json`: Contains the configuration for the nx workspaces.
+- `package.json`: Contains the node.js dependencies. Don't touch this file.
+- `yarn.lock`: Contains the dependencies for the yarn workspaces.
 
-# Requirements
+# Contributing
 
-- Access hardware (USB ports) for flashing from within container
-- Must launch environment using docker-compose for simplicity
-- Must allow for seamless networking with the external host network
-- Must have VSCode configuration "out of the box"
+If using the any one of the `devcontainers` (highly recommended), auto formatting, auto highlighting, etc. should work out of the box. for `Python`, `Go`, and `Zephyr` projects.
 
-# Questions
-- What does a DevOps engineer need installed in their machine initially to make the monorepo itself?
+There are some [basic contributing](CONTRIBUTING.md) guidelines in the `CONTRIBUTING.md` file, they are not a must, and they're opinionated as well. The initial efforts of the repo were written using these, but as the code matures, they may not be as relevant. So long as nothing is broken, and the code is readable, we're good.. for the most part.
 
-- How do I install VSCode dependencies from the DockerFile itself? In other words, how do I deploy a VSCode server inside the container with all the needed dependencies already installed? How much size will this add?
-
-- How do I make the terminal look pretty and not just an ugly and blank bash terminal
-
-- How do I add credentials to the docker-compose
-
-# Resources
-https://www.youtube.com/watch?v=0H2miBK_gAk
-https://code.visualstudio.com/docs/devcontainers/create-dev-container
-https://github.com/alfredodeza/devcontainer-python-template/blob/main/.devcontainer/devcontainer.json
-https://github.com/dorssel/usbipd-win
-
-# TODO:
-### monorepo
-- [ ] Do we need the editorconfig file?
-- [ ] Install go tools
-
-### devcontainer
-- [ ] Create NCS versioned image
-
-### libs/
-- [ ] 
-
-
-
-
-
-
-# Depricated TODO
-Add info on networkin: https://jwstanly.com/blog/article/Port+Forwarding+WSL+2+to+Your+LAN/
-[ ] Update /zephyr/scripts/requirements-extras.txt line 4 anytree to version anytree==2.8.0
-    - This is needed to run ram and rom analysis 
-[ ] Install astyle in docker file (apt) and vscode extension
-[ ] Install appoverlay and kconfig extensions
-
+If you have any questions, please reach out.

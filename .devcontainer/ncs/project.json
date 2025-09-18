@@ -1,26 +1,28 @@
 {
-    "name": "devcontainer-base",
+    "name": "devcontainer-ncs",
     "$schema": "../../../node_modules/nx/schemas/project-schema.json",
-    "sourceRoot": ".devcontainer/base",
+    "sourceRoot": ".devcontainer/ncs",
     "projectType": "application",
     "targets": {
         "build": {
-            "command": "nx run devcontainer-base:containerize"
+            "command": "nx run devcontainer-ncs:containerize"
         },
         "push": {
-            "command": "nx run devcontainer-base:containerize-push"
+            "command": "nx run devcontainer-ncs:containerize-push"
         },
         "containerize": {
             "executor": "@nx-tools/nx-container:build",
             "cwd": "{projectRoot}",
             "options": {
                 "context": "{projectRoot}",
-                "file": ".devcontainer/base/Dockerfile",
-                "platforms": [],
+                "file": ".devcontainer/ncs/Dockerfile",
+                "platforms": [
+                    "linux/amd64"
+                ],
                 "load": true,
                 "push": false,
                 "tags": [
-                    "containers.ad.corekinect.com/concord-devcontainer-base:latest"
+                    "containers.ad.corekinect.com/concord-devcontainer-ncs:latest"
                 ]
             }
         },
@@ -29,15 +31,14 @@
             "cwd": "{projectRoot}",
             "options": {
                 "context": "{projectRoot}",
-                "file": ".devcontainer/base/Dockerfile",
+                "file": ".devcontainer/ncs/Dockerfile",
                 "platforms": [
-                    "linux/amd64",
-                    "linux/arm64"
+                    "linux/amd64"
                 ],
                 "load": false,
                 "push": true,
                 "tags": [
-                    "containers.ad.corekinect.com/concord-devcontainer-base:latest"
+                    "containers.ad.corekinect.com/concord-devcontainer-ncs:latest"
                 ]
             }
         }

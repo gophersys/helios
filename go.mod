@@ -10,6 +10,15 @@ require (
 	google.golang.org/protobuf v1.36.5
 )
 
+// Development tools
+require (
+	golang.org/x/tools v0.26.0 // gopls
+	github.com/go-delve/delve v1.25.0 // dlv debugger
+	honnef.co/go/tools v0.4.6 // staticcheck
+	google.golang.org/protobuf/cmd/protoc-gen-go v1.36.5 // protoc-gen-go
+	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.65.0 // protoc-gen-go-grpc
+)
+
 require (
 	golang.org/x/net v0.26.0 // indirect
 	golang.org/x/sys v0.21.0 // indirect

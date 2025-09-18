@@ -1,5 +1,5 @@
 {
-    "name": "devcontainers",
+    "name": "devcontainer",
     "$schema": "../../../node_modules/nx/schemas/project-schema.json",
     "sourceRoot": ".devcontainer",
     "projectType": "application",
@@ -7,33 +7,30 @@
         "create-platform-builder": {
             "executor": "nx:run-commands",
             "options": {
-                "command": "mkdir -p ~/.docker/buildx && cp .devcontainer/buildkitd.toml ~/.docker/buildx/ && (docker buildx ls | grep concord-builder || docker buildx create --name concord-builder --use --driver docker-container --config .devcontainer/buildkitd.toml --driver-opt network=host) && docker buildx inspect --bootstrap"
+                "command": "mkdir -p ~/.docker/buildx && cp .devcontainer/assets/buildkitd.toml ~/.docker/buildx/ && (docker buildx ls | grep concord-builder || docker buildx create --name concord-builder --use --driver docker-container --config .devcontainer/assets/buildkitd.toml --driver-opt network=host) && docker buildx inspect --bootstrap"
             }
         },
-        "build": {
+        "build-all": {
             "executor": "nx:run-commands",
             "dependsOn": [
                 "devcontainer-base:build"
             ],
             "options": {
                 "commands": [
-                    "nx run devcontainer-ncs-2.4.2:build",
-                    "nx run devcontainer-ncs-2.7.0:build",
-                    "nx run devcontainer-zephyr-6.0.0:build"
+                    "nx run devcontainer-mtib:build",
+                    "nx run devcontainer-ncs:build"
                 ]
             }
         },
-        "push": {
+        "push-all": {
             "executor": "nx:run-commands",
             "dependsOn": [
-                "devcontainers:build"
+                "devcontainer-base:push"
             ],
             "options": {
                 "commands": [
-                    "nx run devcontainer-base:push",
-                    "nx run devcontainer-ncs-2.4.2:push",
-                    "nx run devcontainer-ncs-2.7.0:push",
-                    "nx run devcontainer-zephyr-6.0.0:push"
+                    "nx run devcontainer-mtib:push",
+                    "nx run devcontainer-ncs:push"
                 ]
             }
         }

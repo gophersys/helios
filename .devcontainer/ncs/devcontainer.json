@@ -1,19 +1,27 @@
 {
-  "name": "NCS 2.7.0 Dev",
-  "image": "containers.ad.corekinect.com/concord-ncs-2.7.0:latest",
-  "postCreateCommand": "npm install && npm fund && npm audit fix && NX_NO_CLOUD=true",
-  "postStartCommand": "chmod +x .devcontainer/start.sh && ./.devcontainer/start.sh",
+  "name": "NCS Dev Environment",
+  "image": "containers.ad.corekinect.com/concord-devcontainer-ncs:latest",
+  "postCreateCommand": "chmod +x .devcontainer/ctl.sh && ./.devcontainer/ctl.sh create",
+  "postStartCommand": "chmod +x .devcontainer/ctl.sh && ./.devcontainer/ctl.sh start",
   "runArgs": [
+    // Docker in Docker requires the dev container to have elevated persmissions
     "--privileged",
-    "--network=host",
+    // Network mode must also be privileged
+    "--net=host",
+    // Useful for accessing services running on the host machine from within the container.
+    "--add-host=host.docker.internal:host-gateway",
+    // We pass credentials and global environment variables
     "--env-file=.devcontainer/.env"
   ],
   "mounts": [
+    // Docker in Docker requires the dev container to have access to the host's Docker socket
     "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind",
+    // Access to host's devices
     "source=/dev,target=/dev,type=bind",
+    // Access to host's mount points (Windows drive access)
+    "source=/mnt,target=/mnt,type=bind",
+    // Access to host's ssh credentials for bitbucket access
     "source=${localEnv:HOME}/.ssh-devcontainer,target=/root/.ssh,type=bind,readonly",
-    "source=${localEnv:HOME}/.oh-my-zsh/custom/themes,target=/root/.oh-my-zsh/custom/themes,type=bind,readonly",
-    // "source=${localEnv:HOME}/.zshrc,target=/root/.zshrc,type=bind,readonly"
   ],
   // Vs Code Customizations
   "customizations": {

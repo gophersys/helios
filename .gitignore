@@ -87,3 +87,7 @@ venv/
 # /protos/*_grpc.py
 # /protos/*_cipher.py
 # /protos/*_pb2.py
+
+# nx
+.nx/cache
+.nx/workspace-data
