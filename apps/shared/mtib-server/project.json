@@ -12,8 +12,7 @@
       "cwd": "{workspaceRoot}",
       "options": {
         "commands": [
-          // "docker push kubecop.ad.corekinect.com:5000/mtib-server:latest",
-          "docker push 10.4.45.2:5000/mtib-server:latest"
+          "docker push containers.ad.corekinect.com/concord-mtib-server:latest"
         ]
       }
     },
@@ -33,8 +32,7 @@
         "load": true,
         "push": false,
         "tags": [
-          // "kubecop.ad.corekinect.com:5000/mtib-server:latest",
-          "10.4.45.2:5000/mtib-server:latest"
+          "containers.ad.corekinect.com/concord-mtib-server:latest"
         ]
       }
     },

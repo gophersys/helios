@@ -97,7 +97,7 @@ def electrical_test_step_5_handler(
         return result
 
     if not (config.electrical_step_5c_vbckp_min <= readings.vbckp_voltage <= config.electrical_step_5c_vbckp_max):
-        result.reason = f"Step 5.c failed: Expected +VBCKP within {config.electrical_step_5c_vbckp_min}V - {config.electrical_step_5c_vbckp_max}V, Actual +3.3V = {readings.vbckp_voltage}V"
+        result.reason = f"Step 5.c failed: Expected +VBCKP within {config.electrical_step_5c_vbckp_min}V - {config.electrical_step_5c_vbckp_max}V, Actual +VBCKP = {readings.vbckp_voltage}V"
         result.details = readings.marshall()
         return result
 

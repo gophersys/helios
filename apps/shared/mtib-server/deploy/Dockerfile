@@ -36,9 +36,6 @@ RUN ARCH="$(uname -m)" && \
     apt-get update && apt-get install -y -f && \
     rm -f ${JLINK_DEB}
 
-# Setup config folder to avoid "Terms of Use" pop up window of JLink on every board flash
-COPY .devcontainer/base/assets/segger /root/.config/SEGGER
-
 # Remove udev mock
 RUN rm /usr/bin/udevadm
 
@@ -61,12 +58,12 @@ RUN ARCH="$(uname -m)" && \
     # Install the required J-Link dependency for nrf command line tools
     # Check what J-Link deb files are available and install the appropriate one
     if [ -f "/opt/nrf-command-line-tools/share/JLink_Linux_V794e_arm64.deb" ]; then \
-        apt install /opt/nrf-command-line-tools/share/JLink_Linux_V794e_arm64.deb --fix-broken || true; \
+    apt install /opt/nrf-command-line-tools/share/JLink_Linux_V794e_arm64.deb --fix-broken || true; \
     elif [ -f "/opt/nrf-command-line-tools/share/JLink_Linux_V794e_x86_64.deb" ]; then \
-        apt install /opt/nrf-command-line-tools/share/JLink_Linux_V794e_x86_64.deb --fix-broken || true; \
+    apt install /opt/nrf-command-line-tools/share/JLink_Linux_V794e_x86_64.deb --fix-broken || true; \
     else \
-        echo "No J-Link deb found in /opt/nrf-command-line-tools/share/, listing available files:"; \
-        ls -la /opt/nrf-command-line-tools/share/ || true; \
+    echo "No J-Link deb found in /opt/nrf-command-line-tools/share/, listing available files:"; \
+    ls -la /opt/nrf-command-line-tools/share/ || true; \
     fi && \
     echo "Installed nrf-command-line-tools" && \
     rm nrf-cli-tools.deb && \
@@ -115,7 +112,7 @@ WORKDIR /app/assets
 RUN chmod +x ctl.sh && \
     ./ctl.sh
 
-    # Copy the libraries used by the app
+# Copy the libraries used by the app
 COPY libs/python /libs/python
 
 # Copy the protocols used by the app

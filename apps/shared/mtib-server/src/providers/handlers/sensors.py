@@ -1,10 +1,11 @@
-import grpc
-import os
 import glob
+import os
 import time
+
+import grpc
 from corekinect.utils import Logger
-from src.shared.types import *
 from src.lib.bme280 import BME280
+from src.shared.types import *
 
 
 class SensorsHandler:
@@ -117,9 +118,9 @@ class SensorsHandler:
 
         try:
             # Read all sensor values
-            temperature_c, pressure_pa, humidity_rh = self.bme280.read_all()
+            temperature_c, pressure_hpa, humidity_rh = self.bme280.read_all()
 
-            if temperature_c is None or pressure_pa is None:
+            if temperature_c is None or pressure_hpa is None:
                 return AltimeterReadResponse(
                     success=False,
                     message="Failed to read sensor data",
@@ -131,9 +132,9 @@ class SensorsHandler:
             # Convert temperature from Celsius to Fahrenheit
             temperature_f = (temperature_c * 9.0 / 5.0) + 32.0
 
-            # Convert pressure from Pascal to inches of mercury (Hg)
-            # 1 Pa = 0.00029529983071445 inHg
-            pressure_hg = pressure_pa * 0.00029529983071445
+            # Convert pressure from hectoPascal to inches of mercury (Hg)
+            # BME280 returns pressure in hPa, 1 hPa = 0.029529983071445 inHg
+            pressure_hg = pressure_hpa * 0.029529983071445
 
             # Calculate altitude in feet (using standard sea level pressure of 1013.25 hPa)
             altitude_m = self.bme280.calculate_altitude(1013.25)

@@ -12,8 +12,7 @@
       "dependsOn": [
         "build"
       ],
-      // "command": "docker push ccr01.ad.corekinect.com/manufacturing-sigma5:latest"
-      "command": "docker push 10.4.45.2:5000/manufacturing-sigma5:latest"
+      "command": "docker push containers.ad.corekinect.com/concord-manufacturing-sigma5:latest"
     },
     "containerize": {
       "executor": "@nx-tools/nx-container:build",
@@ -27,8 +26,7 @@
         "load": true,
         "push": false,
         "tags": [
-          // "ccr01.ad.corekinect.com/manufacturing-sigma5:latest"
-          "10.4.45.2:5000/manufacturing-sigma5:latest"
+          "containers.ad.corekinect.com/concord-manufacturing-sigma5:latest"
         ]
       }
     },

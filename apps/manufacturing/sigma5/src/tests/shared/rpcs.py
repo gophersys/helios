@@ -296,7 +296,7 @@ class Sigma5MtibServers:
             stub = self.mtibs[host]
             response: GpioWriteResponse = stub.GpioWrite(GpioWriteRequest(gpio=TP50_HARD_RESET, state=state))
             if not response.success:
-                return f"GpioWrite for {TP50_HARD_RESET} Error: {response.error}"
+                return f"GpioWrite for {TP50_HARD_RESET} Error: {response.message}"
             return ""
         except grpc.RpcError as e:
             return f"Failed to set hard reset for mtib at {host}. Error: {str(e.details())}"
@@ -335,7 +335,7 @@ class Sigma5MtibServers:
     #         stub = self.mtibs[host]
     #         response: DutVoltageReadResponse = stub.DutVoltageRead(DutVoltageReadRequest())
     #         if not response.success:
-    #             return f"DutVoltageRead Error: {response.error}", None
+    #             return f"DutVoltageRead Error: {response.message}", None
     #         return "", float(response.voltage_mv / 1000)
     #     except grpc.RpcError as e:
     #         return f"Failed to read voltage for mtib at {host}. Error: {str(e.details())}", None
@@ -400,7 +400,7 @@ class Sigma5MtibServers:
             stub = self.mtibs[host]
             response: GpioReadResponse = stub.GpioRead(GpioReadRequest(gpio=TP49_CHRG_DET))
             if not response.success:
-                return f"GpioRead for {TP49_CHRG_DET} Error: {response.error}", None
+                return f"GpioRead for {TP49_CHRG_DET} Error: {response.message}", None
             return "", response.state
         except grpc.RpcError as e:
             return f"Failed to read CHRG_DET for mtib at {host}. Error: {str(e.details())}", None
@@ -474,7 +474,7 @@ class Sigma5MtibServers:
                 logging.info(f"File {filename} deleted successfully")
                 return ""
             else:
-                return f"Failed to delete file {filename}: {delete_response.error}"
+                return f"Failed to delete file {filename}: {delete_response.message}"
         except grpc.RpcError as e:
             return f"RPC Error: {str(e.details())}"
         except Exception as e:

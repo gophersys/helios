@@ -13,18 +13,13 @@ from src.tests.lib import Test, TestStep
 from src.tests.shared.config import Sigma5ManufacturingConfig
 from src.tests.shared.rpcs import mtib_servers
 
-# Post test includes
-from .data import post_test_shared_data
-from .data import PostTestSharedData
-
 # App POST steps
 from .app.step_1 import app_post_step_1_verify_chip_ids
 from .app.step_2 import app_post_step_2_verify_ublox
 from .app.step_3 import app_post_step_3_verify_accelerometer
 from .app.step_4 import app_post_step_4_verify_altimeter
 from .app.step_5 import app_post_step_5_verify_ble
-from .app.step_6 import app_post_step_6_verify_external_flash
-from .app.step_7 import app_post_step_7_enable_app_protect
+from .app.step_6 import app_post_step_6_enable_app_protect
 
 # Comms POST steps
 from .comms.step_1 import comms_post_step_1_verify_chip_ids
@@ -34,6 +29,9 @@ from .comms.step_4 import comms_post_step_4_verify_external_flash
 from .comms.step_5 import comms_post_step_5_personalize
 from .comms.step_6 import comms_post_step_6_rekey_ipc
 from .comms.step_7 import comms_post_step_7_enable_app_protect
+
+# Post test includes
+from .data import PostTestSharedData, post_test_shared_data
 
 
 # ---------------------------------------------------------------------------------
@@ -166,17 +164,23 @@ post_test: Test = Test(
         app_post_step_1_verify_chip_ids,
         app_post_step_2_verify_ublox,
         app_post_step_3_verify_accelerometer,
-        # app_post_step_4_verify_altimeter,
+        app_post_step_4_verify_altimeter,
         app_post_step_5_verify_ble,  # TODO: Implement BLE in MTIB server
-        app_post_step_6_verify_external_flash,
-        app_post_step_7_enable_app_protect,
+        
         # Comms
         comms_post_step_1_verify_chip_ids,
         comms_post_step_2_verify_modem_fw,
         comms_post_step_3_verify_imei_iccids,
-        comms_post_step_4_verify_external_flash,
-        comms_post_step_5_personalize,
         comms_post_step_6_rekey_ipc,
+
+        # External Flash
+        comms_post_step_4_verify_external_flash,
+
+        # Personalize
+        comms_post_step_5_personalize,
+
+        # Ap Protect
+        app_post_step_6_enable_app_protect,
         comms_post_step_7_enable_app_protect,
     ],
 )

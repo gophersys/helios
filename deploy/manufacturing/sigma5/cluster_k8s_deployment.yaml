@@ -51,7 +51,7 @@ spec:
                 - "verdin-imx8mm-15005679" # slot-6
       containers:
       - name: mtib-server
-        image: 10.4.45.2:5000/mtib-server:latest  # <- The image we want to deploy
+        image: containers.ad.corekinect.com/concord-mtib-server:latest  # <- The image we want to deploy
         imagePullPolicy: Always                         # Guarantees a fresh 'docker pull' every time
 
         # The container makes use of a lot of hardware on the host,
@@ -170,7 +170,7 @@ spec:
       containers:
         # Sigma5 Manufacturing Tests Runner Application
       - name: sigma5-manufacturing
-        image: 10.4.45.2:5000/manufacturing-sigma5:latest  # <- The image we want to deploy
+        image: containers.ad.corekinect.com/concord-manufacturing-sigma5:latest  # <- The image we want to deploy
         imagePullPolicy: Always                                     # Guarantees a fresh 'docker pull' every time
 
         # The container makes use of a lot of hardware on the host,
