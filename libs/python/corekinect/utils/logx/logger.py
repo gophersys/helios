@@ -78,11 +78,11 @@ class Logger:
             self.enable_log_color = enable_log_color
             self.test_case_logger = test_case_logger
 
-    def __init__(self, config: Config = None):
+    def __init__(self, config: Config = None, *, log_name: str = None):
         """Initialize the Logger class with the given configuration."""
 
         if config is None:
-            config = Logger.Config()
+            config = Logger.Config(logger_name=log_name or "app_logger")
 
         self.config = config
         self.logger = logging.getLogger(self.config.logger_name)
@@ -145,7 +145,7 @@ class Logger:
             self.config.log_file_name = os.path.join(self.config.log_directory, log_file_name)
 
         # Create console handler
-        console_handler = logging.StreamHandler()
+        console_handler = logging.StreamHandler(stream=sys.stdout)
         console_handler.setLevel(self.config.console_log_level)
 
         # Create file handler
