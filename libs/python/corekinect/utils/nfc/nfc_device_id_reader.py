@@ -4,6 +4,7 @@ from typing import Iterator, List, Optional
 
 from smartcard.CardRequest import CardRequest
 from smartcard.System import readers
+from corekinect.utils import Logger
 
 
 class NfcReader:
@@ -76,8 +77,8 @@ class NfcReader:
         clipboard: bool = False,
         keyboard: bool = False,
         file_path: Optional[str] = None,
+        logger: Optional[Logger] = None,
     ) -> None:
-        # Configuration.
         self.prepend_0x = prepend_0x
         self.preferred_reader_substr = preferred_reader_substr
         self.keyboard_newline = keyboard_newline
@@ -85,6 +86,11 @@ class NfcReader:
         self.clipboard = clipboard
         self.keyboard = keyboard
         self.file_path = file_path
+
+        if logger is None:
+            self.logger = Logger(log_name="NfcReader")
+        else:
+            self.logger = logger
 
         self._clipboard_available = False
         self._keyboard_backend: Optional[str] = None  # "keyboard" | "pynput" | None
@@ -97,10 +103,7 @@ class NfcReader:
 
                 self._clipboard_available = True
             except Exception:
-                print(
-                    "[warn] Clipboard output requested but 'pyperclip' is not available.",
-                    file=sys.stderr,
-                )
+                self.logger.warning("Clipboard output requested but 'pyperclip' is not available.")
 
         # Keyboard output using 'keyboard' or 'pynput'; if configured and if package(s) installed.
         if self.keyboard:
@@ -116,10 +119,7 @@ class NfcReader:
                     self._keyboard_backend = "pynput"
                     self._keyboard_driver = Controller()
                 except Exception:
-                    print(
-                        "[warn] Keyboard output requested but neither 'keyboard' nor " "'pynput' is available.",
-                        file=sys.stderr,
-                    )
+                    self.logger.warning("Keyboard output requested but neither 'keyboard' nor 'pynput' is available.")
                     self._keyboard_backend = None
 
         # Assignment in __enter__
@@ -133,8 +133,8 @@ class NfcReader:
             NfcReader: The instance itself, so `as reader` binds to this object.
         """
         self._selected_reader = self._pick_smartcard_reader()
-        print(f"Using reader: {self._selected_reader}")
-        print("Tap a tag (Ctrl+C to quit).")
+        self.logger.info(f"Selected reader: {self._selected_reader}")
+        self.logger.info("Tap a tag (Ctrl+C to quit).")
         return self
 
     def __exit__(self, exc_type, exc, tb) -> bool:
@@ -162,8 +162,8 @@ class NfcReader:
         # Allow use without `with`, but don't do that...
         if self._selected_reader is None:
             self._selected_reader = self._pick_smartcard_reader()
-            print(f"Using reader: {self._selected_reader}")
-            print("Tap a tag (Ctrl+C to quit).")
+            self.logger.info(f"Using reader: {self._selected_reader}")
+            self.logger.info("Tap a tag (Ctrl+C to quit).")
 
         while True:
             # Block until a *new* card is presented to the selected reader.
@@ -197,7 +197,9 @@ class NfcReader:
             except KeyboardInterrupt:
                 raise
             except Exception as exc:
-                print(f"(Error during card processing: {exc})")  # Keep scanning even if the card read fails.
+                self.logger.error(
+                    f"(Error during card processing: {exc})"
+                )  # Keep scanning even if the card read fails.
             finally:
                 try:
                     connection.disconnect()
@@ -229,8 +231,8 @@ class NfcReader:
         """
         available_readers = readers()
         if not available_readers:
-            print("No PC/SC readers found.", file=sys.stderr)
-            sys.exit(1)
+            self.logger.critical("No PC/SC readers found.")
+            raise RuntimeError("No PC/SC readers found.")
 
         preferred_lower = self.preferred_reader_substr.lower()
         for reader_handle in available_readers:
@@ -248,7 +250,7 @@ class NfcReader:
         """
         # Console output.
         if self.console:
-            print(text)
+            self.logger.info(f"{text}")
 
         # File output.
         if self.file_path:
@@ -256,7 +258,7 @@ class NfcReader:
                 with open(self.file_path, "a", encoding="utf-8") as output_file:
                     output_file.write(text + "\n")
             except Exception as exc:
-                print(f"[warn] File write failed: {exc}", file=sys.stderr)
+                self.logger.warning(f"File write failed: {exc}")
 
         # Clipboard output via pyperclip.
         if self.clipboard and self._clipboard_available:
@@ -265,7 +267,7 @@ class NfcReader:
 
                 pyperclip.copy(text)
             except Exception as exc:
-                print(f"[warn] Clipboard copy failed: {exc}", file=sys.stderr)
+                self.logger.warning(f"Clipboard copy failed: {exc}")
 
         # Keyboard output via 'keyboard' or 'pynput'.
         if self.keyboard and self._keyboard_backend:
@@ -281,7 +283,7 @@ class NfcReader:
                         self._keyboard_driver.press(Key.enter)
                         self._keyboard_driver.release(Key.enter)
             except Exception as exc:
-                print(f"[warn] Keyboard typing failed: {exc}", file=sys.stderr)
+                self.logger.warning(f"Keyboard typing failed: {exc}")
 
     def _type_with_pynput(self, text: str) -> None:
         """Type characters using a `pynput` Controller (best-effort)."""
@@ -581,8 +583,8 @@ if __name__ == "__main__":
         with NfcReader(
             prepend_0x=True,
             console=True,
-            clipboard=False,
-            keyboard=False,
+            clipboard=True,
+            keyboard=True,
             file_path=None,
         ) as reader:
             for device_id in reader.scan():
