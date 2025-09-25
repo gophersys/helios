@@ -1,14 +1,15 @@
-import grpc
+import hashlib
 import os
-import time
+import shutil
 import subprocess
 import tempfile
-import shutil
-import hashlib
+import time
 from pathlib import Path
-from typing import Dict, Tuple, Optional, Iterator
+from typing import Dict, Iterator, Optional, Tuple
+
+import grpc
 from corekinect.utils import Logger
-from src.shared.types import *
+from src.types.protocols import *
 
 
 class FirmwareHandler:
@@ -21,7 +22,6 @@ class FirmwareHandler:
 
         # Initialize programmer info storage
         self.programmers: dict[str, tuple[HostType | None, bool]] = {}
-        self._assign_jlinks(True)
 
         # Track active firmware files
         self.active_files: Dict[str, Tuple[Path, HostType]] = {}  # Maps filename to (temp file path, target)
@@ -51,7 +51,6 @@ class FirmwareHandler:
             ).decode()
 
             # Log the raw output for debugging
-            self.logger.info(f"J-Link {serial} deviceversion output: {result}")
             result_upper = result.strip().upper()
 
             # Check for access protection error

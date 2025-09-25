@@ -1,14 +1,15 @@
-import grpc
-import serial
+import os
+import queue
 import threading
 import time
 import weakref
-import queue
-import os
-from typing import Iterator, Dict, Optional, Set
 from queue import Queue
+from typing import Dict, Iterator, Optional, Set
+
+import grpc
+import serial
 from corekinect.utils import Logger
-from src.shared.types import *
+from src.types.protocols import *
 
 
 class UartHandler:

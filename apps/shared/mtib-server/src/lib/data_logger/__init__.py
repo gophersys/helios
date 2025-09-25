@@ -1,3 +1,3 @@
-from .data_logger import DataLoggerClient, DataLoggerClientConfig
+from .data_logger import MetricsClient, MetricsClientConfig
 
-__all__ = ["DataLoggerClient", "DataLoggerClientConfig"]
+__all__ = ["MetricsClient", "MetricsClientConfig"]

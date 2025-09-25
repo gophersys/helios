@@ -67,6 +67,8 @@ spec:
 
         # Application configuration
         env:
+        - name: HARDWARE_VERSION
+          value: "REV1.1"
         - name: LOG_LEVEL             # Log level of the stdout logs. 4 = DEBUG, 1 = ERROR
           value: "4"
         - name: LOG_PATH              # Path where the service will store its logs
@@ -75,14 +77,10 @@ spec:
           value: "50053"
         - name: ASSETS_PATH      # Path where this app will store uploaded firmware files
           value: "assets"
-        - name: FLUIDNC_SERIAL_PORT   # Path where this app will store uploaded firmware files
-          value: "/dev/ttyS5"
-        - name: FLUIDNC_RESET_PIN
-          value: "SODIMM_206"
-        - name: DATA_LOGGER_ENABLED
-          value: "false"
-        - name: DATA_LOGGER_MQTT_BROKER_URL
-          value: "mqtt://10.4.45.2:1883"
+        - name: METRICS_ENABLED
+          value: "true"
+        - name: METRICS_BROKER_URL
+          value: "mqtt://kubecop.ad.corekinect.com:1883"
       
         # What volumes we mount from the pod onto this container
         volumeMounts:

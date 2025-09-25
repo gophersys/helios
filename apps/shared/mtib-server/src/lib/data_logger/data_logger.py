@@ -1,31 +1,31 @@
+import logging
+import socket
+import threading
+import time
 from dataclasses import dataclass
 from typing import Optional
-import socket
-import time
-import logging
-import threading
+
 import paho.mqtt.client as mqtt
 
 # Corekinect includes
 from corekinect.utils import Logger
 from paho.mqtt.enums import MQTTErrorCode
-
 from src.providers.mtib import *
 
 LOG_MODULE = "data_logger"
 
 
 @dataclass
-class DataLoggerClientConfig:
+class MetricsClientConfig:
     MQTT_BROKER_URL: str
 
     SERVER_PORT: int
 
 
-class DataLoggerClient:
-    def __init__(self, config: DataLoggerClientConfig, logger: Logger):
+class MetricsClient:
+    def __init__(self, config: MetricsClientConfig, logger: Logger):
         # Setup the config
-        self.config: DataLoggerClientConfig = config
+        self.config: MetricsClientConfig = config
 
         # Setup the logger for the server
         self.logger: Logger = logger

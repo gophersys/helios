@@ -1,45 +1,46 @@
-# Standard includes
+# Standard imports
 import logging
-from concurrent import futures
 import signal
 import sys
 import traceback
+from concurrent import futures
 
-# 3rd party includes
+# 3rd party imports
 import grpc
 
-# Corekinect includes
-from corekinect.utils import Logger, EnvConfig
+# Corekinect imports
+from corekinect.utils import EnvConfig, Logger
 
-# Protocol includes
+# Protocol imports
 from protocols.mtib import mtib_pb2_grpc
 
-# Application includes
-from src.providers import MtibV1Provider, MtibV1ProviderConfig
-from src.lib.data_logger import DataLoggerClient, DataLoggerClientConfig
-
+# Application imports
+from src.providers.mtib import MtibV1Provider, MtibV1ProviderConfig
 
 # -------------------------------------------------
 #                                        Env Config
 # -------------------------------------------------
+
+
+# These get loaded from environment variables
 class MtibEnvConfig(EnvConfig):
+    # Hardware configuration
+    HARDWARE_VERSION: str
+
     # Logging configuration
     LOG_LEVEL: int
     LOG_PATH: str
 
-    # Server port configuration
+    # Where this app will listen for incoming requests
     SERVER_PORT: int
 
-    # Server firmware and assets configuration
+    # Where this app will look for assets for all of its components
+    # that need configurations or firmware files (e.g. FluidNC)
     ASSETS_PATH: str
 
-    # FluidNC configuration
-    FLUIDNC_SERIAL_PORT: str
-    FLUIDNC_RESET_PIN: str
-
-    # Data logger configuration
-    DATA_LOGGER_ENABLED: bool
-    DATA_LOGGER_MQTT_BROKER_URL: str
+    # Metrics configuration
+    METRICS_ENABLED: bool
+    METRICS_BROKER_URL: str
 
 
 # -------------------------------------------------
@@ -61,13 +62,19 @@ def handle_shutdown(signum, frame, server, logger):
 # -------------------------------------------------
 if __name__ == "__main__":
     logger: Logger = None
-    server = None
+    server: grpc.Server = None
 
     try:
+        # Try to handle shutdown gracefully
+        for sig in (signal.SIGTERM, signal.SIGINT):
+            signal.signal(sig, lambda signum, frame: handle_shutdown(signum, frame, server, logger))
+
         # Load any environment variables
         env_config = MtibEnvConfig()
 
-        # Good logging is a must
+        print(f"\n{env_config}\n")
+
+        # Setup logging
         log_config = Logger.Config(
             logger_name="mtib",
             log_directory=env_config.LOG_PATH,
@@ -78,55 +85,34 @@ if __name__ == "__main__":
         )
         logger: Logger = Logger(log_config)
 
-        # A provider is the class that implements the gRPC methods
+        # Instantiate the provider that will be used to implement the gRPC methods, and add it to the server
         provider = MtibV1Provider(
             config=MtibV1ProviderConfig(
+                HARDWARE_VERSION=env_config.HARDWARE_VERSION,
                 ASSETS_DIR=env_config.ASSETS_PATH,
+                METRICS_ENABLED=env_config.METRICS_ENABLED,
+                METRICS_BROKER_URL=env_config.METRICS_BROKER_URL,
             ),
             logger=logger,
         )
 
-        # Instantiate the gRPC server by adding the provider to it
         server = grpc.server(futures.ThreadPoolExecutor(max_workers=50))
         mtib_pb2_grpc.add_MtibV1Servicer_to_server(provider, server)
         server.add_insecure_port(f"[::]:{env_config.SERVER_PORT}")
 
-        # Setup signal handlers for OS signals
-        for sig in (signal.SIGTERM, signal.SIGINT):
-            signal.signal(sig, lambda signum, frame: handle_shutdown(signum, frame, server, logger))
-
-        # Run baby run
+        # Start the gRPC server
         server.start()
-        logger.info(f"Server started on port {env_config.SERVER_PORT} with new updates!!!")
-
-        # Instantiate a data logger client that will be used to plot/listen for data
-        if env_config.DATA_LOGGER_ENABLED:
-            data_logger_client = DataLoggerClient(
-                config=DataLoggerClientConfig(
-                    MQTT_BROKER_URL=env_config.DATA_LOGGER_MQTT_BROKER_URL,
-                    SERVER_PORT=env_config.SERVER_PORT,
-                ),
-                logger=logger,
-            )
-            error = data_logger_client.init(provider)
-            if error:
-                logger.error(f"Failed to initialize data logger client: {error}")
-                sys.exit(1)
-
-        # Let's clean up after ourselves
-        server.wait_for_termination()
+        logger.info(f"Server started on port {env_config.SERVER_PORT}")
+        server.wait_for_termination()  # Runs forever until the server is stopped
 
     except Exception as e:
         if logger:
-            # Print the entire traceback
+            # Print the entire traceback for debugging
             logger.error(f"Failed to initialize or run the MtibServer: {e}")
         else:
             print(f"Failed to initialize or run the MtibServer: {e}\n{traceback.format_exc()}")
 
     finally:
-        # Ensure data logger client is properly deinitialized
-        if data_logger_client is not None:
-            data_logger_client.deinit()
 
         # Ensure server is properly stopped if it was created
         if server:

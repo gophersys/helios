@@ -3,7 +3,7 @@ import grpc
 import os
 import glob
 from corekinect.utils import Logger
-from src.shared.types import *
+from src.types.protocols import *
 
 
 class AdcHandler:
@@ -28,7 +28,7 @@ class AdcHandler:
         self.divider_ratio = 3.48
         self.logger.info(f"Using voltage divider ratio: {self.divider_ratio}")
 
-        # Optimal scale factor for ±6.144V range (recommended for VCC up to 4.75V)
+        # Optimal scale factor for Â±6.144V range (recommended for VCC up to 4.75V)
         self.optimal_scale = 0.187500000
 
         # Find and map ADS1015 devices

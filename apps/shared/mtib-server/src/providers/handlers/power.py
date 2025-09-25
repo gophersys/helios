@@ -1,18 +1,20 @@
 # Corekinect imports
-from corekinect.utils import Logger
+import glob
+import os
+import time
+from typing import Optional, Tuple
 
-# Private imports
-from src.shared.types import *
-from src.lib.mcp4017 import MCP4017
-from src.lib.gpio import Gpio, Pin
+import gpiod
 
 # 3rd party imports
 import grpc
-import gpiod
-import os
-import glob
-import time
-from typing import Optional, Tuple
+from corekinect.utils import Logger
+from src.lib.mcp4017 import MCP4017
+
+# Private imports
+from src.types.protocols import *
+
+from .gpio import Gpio, Pin
 
 
 # The EN FETs in the carrier board are connected to the following pins:

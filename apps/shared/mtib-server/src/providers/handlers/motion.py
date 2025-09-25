@@ -1,7 +1,8 @@
-import grpc
 import sys
+
+import grpc
 from corekinect.utils import Logger
-from src.shared.types import *
+from src.types.protocols import *
 
 
 class MotionHandler:

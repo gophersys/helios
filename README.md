@@ -2,25 +2,22 @@
 
 This repository contains the Concord monorepo. It is a collection of applications, libraries, deployments,and tools that are used to build the Concord System.
 
-If you need to make changes to the backend, the frontend, or the shared libraries, you are in the right place.
+***If you need to make changes to the backend, the frontend, or the shared libraries, you are in the right place.***
 
 # Getting Started
-There are 3 requirements that must be satisfiesd by your development machine in order to get started:
-1. Have VS Code installed
-2. Have Windows Subsystem for Linux (WSL2) installed
-3. Have Docker installed in same environment as WSL2
-4. Have the monorepo (this repository) `--recursive`cloned to your development machine
+The following requirements must be satisfied by your development machine in order to get started:
+
+- Have VS Code installed
+- Have Windows Subsystem for Linux (WSL2) installed
+- Have Docker installed in same environment as WSL2
+- Have the monorepo (this repository) `--recursive` cloned to your development machine
 
 # Setup your workstation for development
 Use the `devcontainer` feature of VS Code to develop in a containerized environment. This will allow you to develop in a consistent environment with all the necessary dependencies installed.
 
-There are a few different devcontainers available, each with their own purpose.
-- `base`: This is the base devcontainer that contains the necessary dependencies for all the other devcontainers.
-    - Use if working on the backend. Python, Go, K8s, etc.
-- `mtib`: This is the devcontainer for the MTIB application. This environment runs on the MTIB hardware.    
-    - Use if working on the MTIB application. ***This environment runs on the MTIB hardware. (arm64)***
-- `ncs`: This is the devcontainer for the NCS firmware.
-    - Use if working on the NCS firmware, or Zephyr firmware. `nordic`, `espressif`, `nxp`, `stm32` support is included.
+- `base`: This is the base devcontainer that contains the necessary dependencies for all the other devcontainers. Use if working on the backend. Python, Go, K8s, etc.
+- `mtib`: This is the devcontainer for the MTIB application. Use if working on the MTIB server application. ***This environment runs on the MTIB hardware. (arm64)***
+- `ncs`: This is the devcontainer for the NCS firmware. Use if working on zephyr firmware. `nordic`, `espressif`, `nxp`, `stm32` support is included.
 
 To find out more about the devcontainers, please refer to the [devcontainer README](.devcontainer/README.md) file.
 

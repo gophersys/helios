@@ -90,7 +90,7 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 RUN apt update && apt install -y \
-    i2c-tools golang vim 
+    i2c-tools vim 
 
 # ----------------------------------------------------------------------------------
 #                                                            App python dependencies
@@ -126,14 +126,6 @@ WORKDIR /app
 
 # Copy the app itself
 COPY apps/shared/mtib-server/src src
-COPY apps/shared/mtib-server/test/adc test/adc
-WORKDIR /app/test/adc
-RUN go mod tidy && go build main.go
-WORKDIR /app
-
-# Copy the entrypoint
-COPY apps/shared/mtib-server/deploy/entrypoint.sh entrypoint.sh
-RUN chmod +x entrypoint.sh
 
 # Keep the container running
-ENTRYPOINT ["./entrypoint.sh"]
+ENTRYPOINT ["python3", "src/main.py"]
