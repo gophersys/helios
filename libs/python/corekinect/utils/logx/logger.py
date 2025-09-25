@@ -145,7 +145,7 @@ class Logger:
             self.config.log_file_name = os.path.join(self.config.log_directory, log_file_name)
 
         # Create console handler
-        console_handler = logging.StreamHandler(stream=sys.stdout)
+        console_handler = logging.StreamHandler()
         console_handler.setLevel(self.config.console_log_level)
 
         # Create file handler
