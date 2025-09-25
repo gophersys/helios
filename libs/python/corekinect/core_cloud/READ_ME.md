@@ -1,57 +1,56 @@
+# CoreCloud Interface Library
 
+A thin, stable Python API for interacting with CoreCloud in automated validation and test workflows.
+It wraps device messages and selected tables into strongly-typed “message” classes so your test logic stays
+decoupled from backend details.
 
-## .env template
-```dotenv
+## Versioned APIs
+### CoreCloud v1.0
 
-# CC Validation v1.0
-VAL_1_0_DB_DRIVER=postgresql+psycopg2
-VAL_1_0_DB_USER=<user>
-VAL_1_0_DB_PASS=<password>
-VAL_1_0_DB_HOST=validation.ad.corekinect.com
-VAL_1_0_DB_PORT=5432
-VAL_1_0_DB_NAME=test
-VAL_1_0_DB_CONNECT_TIMEOUT=5
-VAL_1_0_DB_ECHO=false
-VAL_1_0_API_AUTH_SERVER_HOST_NAME=https://auth.office.corekinect.cloud:2013
-VAL_1_0_API_REST_SERVER_HOST_NAME=https://val.office.corekinect.cloud:2018/api
-VAL_1_0_API_AUTH_USERNAME=<user>
-VAL_1_0_API_AUTH_PASSWORD=<password>
-VAL_1_0_API_KEY=<key>
+Use `msg_def_v1_0` for current systems. Each message type exposes classmethods for common queries
+(e.g., latest record, ranges by time or record ID).
 
-# CC Office Dev v1.0
-DEV_1_0_DB_DRIVER=postgresql+psycopg2
-DEV_1_0_DB_USERNAME=<user>
-DEV_1_0_DB_PASSWORD=<password>
-DEV_1_0_DB_HOST=127.0.0.1
-DEV_1_0_DB_PORT=5432
-DEV_1_0_DB_DATABASE_NAME=corecloud_office_prod
-DEV_1_0_DB_CONNECT_TIMEOUT=5
-DEV_1_0_DB_ECHO=false
-DEV_1_0_SSH_HOST=dmz-pg02.dmz.corekinect.com
-DEV_1_0_SSH_PORT=22
-DEV_1_0_SSH_USERNAME=<user>
-DEV_1_0_SSH_PASSWORD=<password>
-DEV_1_0_SSH_PKEY_PATH=<key_path>
-DEV_1_0_SSH_PKEY_PASSPHRASE=<passprhase>
-DEV_1_0_SSH_REMOTE_HOST=127.0.0.1
-DEV_1_0_SSH_REMOTE_PORT=5432
-DEV_1_0_SSH_LOCAL_HOST=127.0.0.1
-DEV_1_0_SSH_LOCAL_PORT=0
-DEV_1_0_SSH_ALLOW_AGENT=true
-DEV_1_0_API_AUTH_SERVER_HOST_NAME=https://auth.office.corekinect.cloud:2013
-DEV_1_0_API_REST_SERVER_HOST_NAME=https://dev.office.corekinect.cloud:2022/api
-DEV_1_0_API_AUTH_USERNAME=<user>
-DEV_1_0_API_AUTH_PASSWORD=<password>
-DEV_1_0_API_KEY=<key>
+Example – fetch last Position message and print key fields
+```python
+from corekinect.core_cloud.msg_def_v1_0 import PositionMsgV6
 
-# CC Office Dev v0.9
-DEV_0_9_DB_DRIVER=mysql+pymysql
-DEV_0_9_DB_USERNAME=<user>
-DEV_0_9_DB_PASSWORD=<password>
-DEV_0_9_DB_HOST=coreserver005.ad.corekinect.com
-DEV_0_9_DB_PORT=3306
-DEV_0_9_DB_DATABASE_NAME=CoreCloudTestData
-DEV_0_9_DB_CONNECT_TIMEOUT=5
-DEV_0_9_DB_ECHO=false
+last_pos = PositionMsgV6.last(0x70B3D584C02002FE, db_env="DEV_1_0")
+print(
+    f"lat,lon: {last_pos.latitude},{last_pos.longitude}; "
+    f"Alt: pressure={last_pos.pressure_altitude_feet} ft, gps={last_pos.gps_altitude_feet} ft"
+)
+```
+
+Example – send a GPS configuration via REST
+```python
+from corekinect.core_cloud.msg_def_v1_0 import GPSConfMsg
+
+cfg = GPSConfMsg(
+    is_psm_enabled=False,
+    is_aiding_enabled=False,
+    gnss_update_freq=0,
+    target_fix_accuracy=10,
+    target_fix_pdop=30,
+)
+resp = cfg.send_via_rest(device_id=0x70B3D584C020038F, env_namespace="VAL_1_0", raise_for_status=True)
 
 ```
+
+### CoreCloud v0.9 (legacy)
+
+`msg_def_v0_9` mirrors the v1.0 surface so test code can remain the same. Internally, the library performs the extra
+mapping required to align legacy schemas with the v1.0 conventions.
+
+
+## What you import (typical)
+
+Most users only need the message wrappers:
+- `corekinect.core_cloud.msg_def_v1_0` (current)
+- `corekinect.core_cloud.msg_def_v0_9` (legacy)
+
+Advanced helpers (DB/REST interfaces, utilities) are available if you have special cases, but aren’t required for common test flows.
+
+## Configuration (.env)
+
+Copy `.env.example` to `.env` and fill in your credentials and endpoints (user names, passwords, URIs, ports).
+These values are read at runtime by the DB and REST clients.
