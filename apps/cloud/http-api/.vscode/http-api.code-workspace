@@ -1,0 +1,33 @@
+{
+    "folders": [
+        {
+            "path": "../../../../.devcontainer"
+        },
+        {
+            "name": "http-api",
+            "path": "../"
+        },
+        {
+            "name": "protocols",
+            "path": "../../../../libs/protocols"
+        },
+        {
+            "name": "libs",
+            "path": "../../../../libs/python/corekinect"
+        },
+        {
+            "name": "deploy",
+            "path": "../../../../deploy"
+        },
+        {
+            "name": "prisma",
+            "path": "../../../../prisma"
+        },
+        {
+            "path": "../../../../docs"
+        }
+    ],
+    "settings": {
+        "files.associations": {},
+    }
+}

@@ -1,0 +1,32 @@
+volumes:
+  postgres_data_volume:
+
+
+services:
+  # proxy:
+  #   image: containers.ad.corekinect.com/concord-proxy:latest
+  #   ports:
+  #     - 5000:5000
+  #   environment:
+  #     - DATABASE_URL=postgresql://postgres:localhost@db:5432/postgres
+  #     - DIRECT_URL=postgresql://postgres:localhost@db:5432/postgres
+  #     - AUTH_SERVER_URL=http://localhost:8080
+  #     - AUTH_SERVER_API_KEY=1234567890
+  #     - AUTH_SERVER_CREDENTIALS_USER=user
+  #     - AUTH_SERVER_CREDENTIALS_PASS=pass
+
+  db:
+    image: postgres:latest
+    environment:
+      POSTGRES_USER: concord
+      POSTGRES_PASSWORD: concord
+      POSTGRES_DB: concord
+      POSTGRES_MAX_CONNECTIONS: 200 # Default is usually 100
+    command:
+      - "postgres"
+      - "-c"
+      - "max_connections=200"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data_volume:/var/lib/postgresql/data

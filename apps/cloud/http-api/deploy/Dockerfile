@@ -1,0 +1,148 @@
+# Multi-stage build to reduce final image size
+FROM ubuntu:22.04 AS prisma-builder
+
+# ----------------------------------------------------
+#                                      Build Arguments
+# ----------------------------------------------------
+ARG NVM_VERSION=0.40.3
+ARG NODE_VERSION=22.19.0
+ARG NPM_VERSION=11.6.0
+
+# ----------------------------------------------------
+#                                             System
+# ----------------------------------------------------
+WORKDIR /
+
+# Install minimal tools needed for Prisma generation
+RUN apt-get update && \
+    apt-get install -y \
+    curl \
+    git \
+    python3 \
+    python3-pip \
+    openssl \
+    && apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# ----------------------------------------------------
+#                                             Node, Nx
+# ----------------------------------------------------
+RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v${NVM_VERSION}/install.sh | bash && \
+    export NVM_DIR="$HOME/.nvm" && \
+    [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" && \
+    nvm install v${NODE_VERSION} && \
+    npm install -g npm@${NPM_VERSION} && \
+    corepack enable && \
+    corepack prepare yarn@4.9.4 --activate
+
+# Set up Node.js and yarn environment
+ENV NVM_DIR=/root/.nvm
+ENV PATH=/root/.nvm/versions/node/v${NODE_VERSION}/bin:/root/.yarn/bin:$PATH
+
+# ----------------------------------------------------
+#                                           ORM Client
+# ----------------------------------------------------
+WORKDIR /concord
+
+# Copy prisma schema and package files for client generation
+COPY ./prisma/schema.prisma ./prisma/schema.prisma
+COPY ./nx.json nx.json
+COPY ./package.json package.json
+
+# Install Prisma Python client generator
+RUN pip3 install prisma==0.15.0
+
+# Generate Prisma clients (both Go and Python)
+# Keep working directory as /concord to maintain relative path context
+WORKDIR /concord
+RUN export NVM_DIR="$HOME/.nvm" && \
+    [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" && \
+    cd prisma && \
+    yarn && \
+    yarn prisma generate
+
+# Download Prisma binary using prisma py fetch
+RUN echo "=== Running prisma py fetch ===" && \
+    cd prisma && \
+    prisma py fetch && \
+    echo "=== Checking where binary was downloaded ===" && \
+    find /root/.cache -name "*prisma*" -type f && \
+    echo "=== Checking binary cache directory structure ===" && \
+    ls -la /root/.cache/prisma-python/binaries/ && \
+    echo "=== Checking version directory ===" && \
+    ls -la /root/.cache/prisma-python/binaries/5.17.0/ && \
+    echo "=== Checking engine directory ===" && \
+    ls -la /root/.cache/prisma-python/binaries/5.17.0/393aa359c9ad4a4bb28630fb5613f9c281cde053/ && \
+    echo "=== Looking for ANY files in engine directory ===" && \
+    find /root/.cache/prisma-python/binaries/5.17.0/393aa359c9ad4a4bb28630fb5613f9c281cde053 -type f && \
+    echo "=== Looking for query-engine specifically ===" && \
+    find /root/.cache/prisma-python/binaries -name "*query-engine*" -type f && \
+    echo "=== Testing binary execution ===" && \
+    find /root/.cache/prisma-python/binaries -name "*query-engine*" -type f -executable -exec {} --version \;
+
+# ----------------------------------------------------
+#                                           Final Stage
+# ----------------------------------------------------
+FROM ubuntu:22.04
+
+# ----------------------------------------------------
+#                                             System
+# ----------------------------------------------------
+WORKDIR /
+
+# Update and install only necessary runtime tools
+RUN apt-get update && \
+    apt-get install -y \
+    python3 \
+    python3-pip \
+    openssl \
+    && apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# ----------------------------------------------------
+#                                                  App
+# ----------------------------------------------------
+
+# By installing these first you save a lot of time when making changes to the source code
+# and rebuilding the application
+WORKDIR /app
+COPY ./apps/cloud/http-api/setup.py setup.py
+RUN pip3 install -e . && \
+    pip3 install prisma==0.15.0 && \
+    pip3 cache purge
+
+# Copy the generated Prisma client from the builder stage
+COPY --from=prisma-builder /concord/libs/python/corekinect/database /libs/python/corekinect/database
+
+# Copy Prisma binaries directly from monorepo node_modules
+COPY ./node_modules/prisma/query-engine-debian-openssl-3.0.x /app/prisma-query-engine-debian-openssl-3.0.x
+COPY ./node_modules/prisma/libquery_engine-debian-openssl-3.0.x.so.node /app/libquery_engine-debian-openssl-3.0.x.so.node
+
+# Make binaries executable
+RUN chmod +x /app/prisma-query-engine-debian-openssl-3.0.x && \
+    chmod +x /app/libquery_engine-debian-openssl-3.0.x.so.node
+
+# ----------------------------------------------------
+#                                               App
+# ----------------------------------------------------
+WORKDIR /app
+
+# Copy the Python libraries used by the app
+COPY ./libs/python /libs/python
+
+# Copy the protocols used by the app
+COPY ./libs/protocols/cluster_test /libs/protocols/cluster_test
+COPY ./libs/protocols/cluster_operator /libs/protocols/cluster_operator
+
+# Set the PYTHONPATH to include the libs directory
+ENV PYTHONPATH="/libs:/libs/python/"
+
+# Set Prisma binary cache directory
+ENV PRISMA_BINARY_CACHE_DIR="/root/.cache/prisma-python/binaries"
+
+# Copy the app itself
+COPY ./apps/cloud/http-api/config config
+COPY ./apps/cloud/http-api/src src
+
+# Keep the container running
+CMD ["python3", "src/main.py"]
