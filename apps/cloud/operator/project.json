@@ -1,35 +1,75 @@
 {
   "name": "operator",
   "$schema": "../../../node_modules/nx/schemas/project-schema.json",
-  "sourceRoot": "apps/backend/operator",
+  "sourceRoot": "apps/cloud/operator",
   "projectType": "application",
   "targets": {
     "build": {
-      "command": "nx run operator:containerize",
-      "cwd": "{workspaceRoot}"
+      "executor": "nx:run-commands",
+      "defaultConfiguration": "development",
+      "options": {
+        "cwd": "{workspaceRoot}"
+      },
+      "configurations": {
+        "development": {
+          "command": "nx run operator:containerize -c development"
+        },
+        "staging": {
+          "command": "nx run operator:containerize -c staging"
+        },
+        "production": {
+          "command": "nx run operator:containerize -c production"
+        }
+      }
     },
     "push": {
+      "executor": "nx:run-commands",
       "dependsOn": [
         "build"
       ],
-      // "command": "docker push ccr01.ad.corekinect.com/concord-operator:1.0",
-      "command": "docker push 10.4.45.2:5000/concord-operator:latest"
+      "options": {
+        "cwd": "{workspaceRoot}"
+      },
+      "defaultConfiguration": "staging",
+      "configurations": {
+        "staging": {
+          "command": "docker push containers.ad.corekinect.com/concord-operator:latest"
+        },
+        "production": {
+          "command": "docker push containers.ad.corekinect.com/concord-operator:latest"
+        }
+      }
     },
     "containerize": {
       "executor": "@nx-tools/nx-container:build",
-      "cwd": "{workspaceRoot}",
+      "defaultConfiguration": "development",
       "options": {
         "context": "{workspaceRoot}",
-        "file": "apps/backend/operator/Dockerfile",
-        "platforms": [
-          "linux/arm64"
-        ],
-        "load": true,
+        "cwd": "{workspaceRoot}",
+        "file": "apps/cloud/operator/deploy/Dockerfile",
         "push": false,
-        "tags": [
-          // "ccr01.ad.corekinect.com/concord-operator:1.0"
-          "10.4.45.2:5000/concord-operator:latest"
-        ]
+        "load": true
+      },
+      "configurations": {
+        "development": {
+          "tags": [
+            "concord-operator:development"
+          ],
+          "platforms": []
+        },
+        "staging": {
+          "tags": [
+            "containers.ad.corekinect.com/concord-operator:staging"
+          ]
+        },
+        "production": {
+          "tags": [
+            "containers.ad.corekinect.com/concord-operator:latest"
+          ],
+          "platforms": [
+            "linux/amd64"
+          ]
+        }
       }
     },
     "setup": {
@@ -46,6 +86,19 @@
           },
           {
             "command": "cp .env.example .env"
+          }
+        ],
+        "parallel": false
+      }
+    },
+    "serve": {
+      "executor": "nx:run-commands",
+      "cwd": "{projectRoot}",
+      "options": {
+        "cwd": "{projectRoot}",
+        "commands": [
+          {
+            "command": "bash -c 'source .venv/bin/activate && source .env && python3 src/main.py'"
           }
         ],
         "parallel": false

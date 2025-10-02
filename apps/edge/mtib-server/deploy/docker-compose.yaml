@@ -1,6 +1,6 @@
 services:
   mtib-server:
-    image: kubecop.ad.corekinect.com:5000/mtib-server:dev
+    image: containers.ad.corekinect.com/mtib-server:dev
     pull_policy: always
     privileged: true
     ports:

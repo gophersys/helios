@@ -19,7 +19,7 @@ WORKDIR /app
 
 # By installing these first you save a lot of time when making changes to the source code
 # and rebuilding the application
-COPY apps/backend/operator/setup.py setup.py
+COPY apps/cloud/operator/setup.py setup.py
 RUN pip install -e . && \
     pip cache purge
 
@@ -36,8 +36,8 @@ COPY libs/protocols/cluster_operator /libs/protocols/cluster_operator
 ENV PYTHONPATH="/libs:${PYTHONPATH}"
 
 # Copy the app itself
-COPY apps/backend/operator/config config
-COPY apps/backend/operator/src src
+COPY apps/cloud/operator/config config
+COPY apps/cloud/operator/src src
 
 # Keep the container running
 CMD ["python3", "src/main.py"]

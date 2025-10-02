@@ -1,5 +1,6 @@
 # standard includes
 import logging
+from collections import OrderedDict
 from typing import List
 
 import requests
@@ -87,7 +88,15 @@ def devices_snr_validate_handler():
 
         # Form response
         if singleton and snr_is_valid:
-            return "", 200
+            response = {
+                "snrs": OrderedDict(
+                    [
+                        ("verdin-imx8mm-15005679", snr),
+                    ]
+                ),
+            }
+
+            return jsonify(response), 200
 
         if not snr_is_valid:
             return jsonify({"error": "Invalid serial number."}), 400
@@ -111,9 +120,6 @@ def devices_snr_validate_handler():
 
         # Use the actual sorted array
         sorted_snrs = sorted(valid_snrs)
-
-        # Use OrderedDict to maintain hostname order
-        from collections import OrderedDict
 
         response = {
             "snrs": OrderedDict(

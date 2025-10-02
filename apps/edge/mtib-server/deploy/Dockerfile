@@ -100,12 +100,12 @@ WORKDIR /app
 
 # By installing these first you save a lot of time when making changes to the source code
 # and rebuilding the application
-COPY apps/shared/mtib-server/setup.py setup.py
+COPY apps/edge/mtib-server/setup.py setup.py
 RUN pip install -e . && \
     pip cache purge
 
 # Copy the assets
-COPY apps/shared/mtib-server/assets /app/assets
+COPY apps/edge/mtib-server/assets /app/assets
 WORKDIR /app/assets
 
 # Generate the fluidnc firmware assets
@@ -125,7 +125,7 @@ ENV PYTHONPATH="/libs/python/:${PYTHONPATH}"
 WORKDIR /app
 
 # Copy the app itself
-COPY apps/shared/mtib-server/src src
+COPY apps/edge/mtib-server/src src
 
 # Keep the container running
 ENTRYPOINT ["python3", "src/main.py"]
