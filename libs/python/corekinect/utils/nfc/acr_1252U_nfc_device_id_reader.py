@@ -576,19 +576,3 @@ class NfcReader:
 
         records = self._parse_ndef(ndef_message)
         return self._extract_texts(records)
-
-
-if __name__ == "__main__":
-    try:
-        with NfcReader(
-            prepend_0x=True,
-            console=True,
-            clipboard=True,
-            keyboard=True,
-            file_path=None,
-        ) as reader:
-            for device_id in reader.scan():
-                print(f"Device ID: {device_id}")
-    except KeyboardInterrupt:
-        print("\nExiting NFC reader.")
-        sys.exit(0)
