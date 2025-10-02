@@ -19,6 +19,7 @@ from corekinect.core_cloud.db_orm_v1_0 import (
     Messagesalphahwfailtbl,
     Messagessigma5hwfailtbl,
     Configgpstbl,
+    Configgroundtbl,
 )
 from corekinect.utils import Serializable
 from corekinect.utils.bits.ops import extract_bits
@@ -400,7 +401,7 @@ class ConfMsgBase(MsgBase):
                 raise ValueError(f"{type(self).__name__}: device_id is required for API payload")
             device_id = self.device_id
 
-        payload: Dict[str, Any] = {"deviceId": self._device_id_to_hex_str(device_id)}
+        payload: Dict[str, Any] = {"deviceIds": [self._device_id_to_hex_str(device_id)]}
 
         # Map dataclass attributes to API names
         for attr, api_name in self.api_field_map.items():
@@ -557,6 +558,92 @@ class GPSConfMsg(ConfMsgBase):
             raise ValueError("target_fix_accuracy must be > 0")
         if self.target_fix_pdop is not None and self.target_fix_pdop <= 0:
             raise ValueError("target_fix_pdop must be > 0")
+
+    def _validate_for_send(self) -> None:
+        super(type(self), self)._validate_for_send()
+        self._extra_validate()
+
+
+# ----------------------------------------  UID 538
+@dataclass(frozen=True, slots=True)
+class GroundModeConfigV2(ConfMsgBase):
+    gps_heartbeat_period_minutes: int = None
+    continuous_motion_period_seconds: int = None
+    stop_motion_timeout_seconds: int = None
+    heartbeat_acquisition_timeout_seconds: int = None
+    stop_motion_acquisition_timeout_seconds: int = None
+    motion_acceleration_threshold: int = None
+    motion_acceleration_duration: int = None
+    start_motion_window_start_seconds: int = None
+    start_motion_window_end_seconds: int = None
+    motion_acquisition_on_time_seconds: int = None
+    motion_initial_acquisition_on_time_seconds: int = None
+
+    __type__: ClassVar[str] = "UID_538"
+    orm_model = Configgroundtbl
+
+    api_set_endpoint: ClassVar[tuple[str, str]] = ("PUT", "/System/Devices/Configurations/GroundModeV2")
+
+    api_field_map: ClassVar[Dict[str, str]] = {
+        "gps_heartbeat_period_minutes": "gpsHeartbeatPeriod",
+        "continuous_motion_period_seconds": "continuousMotionPeriod",
+        "stop_motion_timeout_seconds": "stopMotionTimeout",
+        "heartbeat_acquisition_timeout_seconds": "heartbeatAcquisitionTimeout",
+        "stop_motion_acquisition_timeout_seconds": "motionAcquisitionTimeout",
+        "motion_acceleration_threshold": "xlrMotionThreshold",
+        "motion_acceleration_duration": "xlrMotionDuration",
+        "start_motion_window_start_seconds": "startMotionWindowStart",
+        "start_motion_window_end_seconds": "startMotionWindowEnd",
+        "motion_acquisition_on_time_seconds": "motionAcquisitionOnTime",
+        "motion_initial_acquisition_on_time_seconds": "motionInitialAcquisitionOnTime",
+    }
+
+    api_types: ClassVar[Dict[str, type]] = {
+        "gpsHeartbeatPeriod": int,
+        "continuousMotionPeriod": int,
+        "stopMotionTimeout": int,
+        "heartbeatAcquisitionTimeout": int,
+        "motionAcquisitionTimeout": int,
+        "motionAccelerationThreshold": int,
+        "motionAccelerationDuration": int,
+        "startMotionWindowStart": int,
+        "startMotionWindowEnd": int,
+    }
+
+    uid = 538
+    message_length = None
+    packed_format = None
+    packed_struct = None
+
+    def _extra_validate(self) -> None:
+        if self.gps_heartbeat_period_minutes is not None and self.gps_heartbeat_period_minutes < 0:
+            raise ValueError("gps_heartbeat_period_minutes must be >= 0")
+        if self.continuous_motion_period_seconds is not None and self.continuous_motion_period_seconds < 0:
+            raise ValueError("continuous_motion_period_seconds must be >= 0")
+        if self.stop_motion_timeout_seconds is not None and self.stop_motion_timeout_seconds < 0:
+            raise ValueError("stop_motion_timeout_seconds must be >= 0")
+        if self.heartbeat_acquisition_timeout_seconds is not None and self.heartbeat_acquisition_timeout_seconds < 0:
+            raise ValueError("heartbeat_acquisition_timeout_seconds must be >= 0")
+        if (
+            self.stop_motion_acquisition_timeout_seconds is not None
+            and self.stop_motion_acquisition_timeout_seconds < 0
+        ):
+            raise ValueError("motion_acquisition_timeout_seconds must be >= 0")
+        if self.motion_acceleration_threshold is not None and self.motion_acceleration_threshold < 0:
+            raise ValueError("motion_acceleration_threshold must be >= 0")
+        if self.motion_acceleration_duration is not None and self.motion_acceleration_duration < 0:
+            raise ValueError("motion_acceleration_duration must be >= 0")
+        if self.start_motion_window_start_seconds is not None and self.start_motion_window_start_seconds < 0:
+            raise ValueError("start_motion_window_start_seconds must be >= 0")
+        if self.start_motion_window_end_seconds is not None and self.start_motion_window_end_seconds < 0:
+            raise ValueError("start_motion_window_end_seconds must be >= 0")
+        if self.motion_acquisition_on_time_seconds is not None and self.motion_acquisition_on_time_seconds < 0:
+            raise ValueError("motion_acquisition_on_time_seconds must be >= 0")
+        if (
+            self.motion_initial_acquisition_on_time_seconds is not None
+            and self.motion_initial_acquisition_on_time_seconds < 0
+        ):
+            raise ValueError("motion_initial_acquisition_on_time_seconds must be >= 0")
 
     def _validate_for_send(self) -> None:
         super(type(self), self)._validate_for_send()
@@ -1504,9 +1591,34 @@ if __name__ == "__main__":
         target_fix_accuracy=10,
         target_fix_pdop=30,
     )
+    gndconf = GroundModeConfigV2(
+        gps_heartbeat_period_minutes=60,
+        continuous_motion_period_seconds=6,
+        stop_motion_timeout_seconds=60,
+        heartbeat_acquisition_timeout_seconds=60,
+        stop_motion_acquisition_timeout_seconds=60,
+        motion_acceleration_threshold=3,
+        motion_acceleration_duration=4,
+        start_motion_window_start_seconds=3,
+        start_motion_window_end_seconds=60,
+        motion_acquisition_on_time_seconds=6,
+        motion_initial_acquisition_on_time_seconds=60,
+    ).send_via_rest(device_id=0x70B3D584C01E149B, env_namespace="DEV_1_0")
 
-    res = cfg.send_via_rest(device_id=0x70B3D584C020038F, env_namespace="VAL_1_0")
+    # res = gndconf.send_via_rest(device_id=0x70B3D584C01E149B, env_namespace="DEV_1_0")
+    exit()
 
+    for device_id in [
+        0x70B3D584C01E15E5,
+        0x70B3D584C01E164B,
+        0x70B3D584C01E1666,
+        0x70B3D584C01E1701,
+        0x70B3D584C01E174F,
+    ]:
+        pos = PositionMsgV6.last(device_id, db_env="DEV_1_0")
+        print(
+            f"Device ID: {device_id:X}, batt: {pos.batt_percent}% @ {pos.batt_voltage}; {pos.update_reason_str}; {pos.time_of_record}"
+        )
     ths = PositionMsgV6.last(0x70B3D584C01E147B, db_env="DEV_1_0")
     print(ths.device_id_str)
     print(ths.temperature_celsius)
