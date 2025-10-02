@@ -1,0 +1,127 @@
+# All the applications we want to run on a single MTIB hardware instance
+# are defined here
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mtib-server
+  labels:
+    app: mtib-server
+spec:
+  replicas: 6 # <- 1 replica per MTIB host in the cluster
+  selector:
+    matchLabels:
+      app: mtib-server
+  strategy:
+    # When we update the deployment we want to terminate the current
+    # instance of this container in a host, and then start the new one
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        app: mtib-server
+    spec:
+      # Allow the app 1 second to end "gracefully", and then force terminate
+      terminationGracePeriodSeconds: 1
+      # Init container to remount /sys as writable
+      initContainers:
+      - name: remount-sys
+        image: busybox:latest
+        command: ['sh', '-c', 'mount -o remount,rw /sys']
+        securityContext:
+          privileged: true
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              # This allows us to deploy exactly 1 container in each host
+              # in the cluster, as we've setup the hostnames of each host
+              # to match the physical slot where they're located
+              - key: "kubernetes.io/hostname"
+                operator: In
+                values:
+                - "verdin-imx8mm-15005658" # slot-1
+                - "verdin-imx8mm-15005689" # slot-2
+                - "verdin-imx8mm-15005817" # slot-3
+                - "verdin-imx8mm-15005816" # slot-4
+                - "verdin-imx8mm-15005665" # slot-5
+                - "verdin-imx8mm-15005679" # slot-6
+      containers:
+      - name: mtib-server
+        image: containers.ad.corekinect.com/concord-mtib-server:latest  # <- The image we want to deploy
+        imagePullPolicy: Always                         # Guarantees a fresh 'docker pull' every time
+
+        # The container makes use of a lot of hardware on the host,
+        # so we set it to priviledged to prevent permission issues
+        securityContext:
+          privileged: true
+
+        # The port in which we serve the MtibRunner gRPC service, as
+        # defined in the .proto file for this service
+        ports:
+        - containerPort: 50053
+          hostPort: 50053
+
+        # Application configuration
+        env:
+        - name: HARDWARE_VERSION
+          value: "REV1.1"
+        - name: LOG_LEVEL             # Log level of the stdout logs. 4 = DEBUG, 1 = ERROR
+          value: "4"
+        - name: LOG_PATH              # Path where the service will store its logs
+          value: "/var/log"
+        - name: SERVER_PORT      # Port that this app uses to serve the MtibRunner service
+          value: "50053"
+        - name: ASSETS_PATH      # Path where this app will store uploaded firmware files
+          value: "assets"
+        - name: METRICS_ENABLED
+          value: "true"
+        - name: METRICS_BROKER_URL
+          value: "mqtt://kubecop.ad.corekinect.com:1883"
+      
+        # What volumes we mount from the pod onto this container
+        volumeMounts:
+        - name: devices
+          mountPath: /dev
+        - name: logs
+          mountPath: /var/log/runner
+        - name: fw-files
+          mountPath: /var/fw_files/
+        - name: gpio
+          mountPath: /sys/class/gpio
+        - name: sys-bus-iio
+          mountPath: /sys/bus/iio
+
+        # The resource definition below is telling k8s 'hey please
+        # give me at least what I've `requested` and let me consume
+        # up to the `limit`' "
+        resources:
+          requests:
+            cpu: "1000m"
+            memory: "1000Mi"
+          limits:
+            cpu: "2000m"
+            memory: "2000Mi"
+            
+      # We mount volumes from the host onto a pod. Since a pod can have more than 1
+      # container in it, each container will have to mount the specific containers 
+      # needed onto itself
+      volumes:
+      - name: devices
+        hostPath:
+          path: /dev
+      - name: logs
+        hostPath:
+          path: /var/log/runner
+      - name: fw-files
+        hostPath:
+          path: /var/fw_files/
+      - name: gpio
+        hostPath:
+          path: /sys/class/gpio
+      - name: sys-bus-iio
+        hostPath:
+          path: /sys/bus/iio

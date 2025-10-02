@@ -1,0 +1,102 @@
+networks:
+  concord_network:
+    name: concord_network
+    driver: bridge
+    external: true
+
+volumes:
+  grafana_plugins_volume:
+  clickhouse_data_volume:
+  postgres_data_volume:
+  redis_data_volume:
+  minio_data_volume:
+
+
+services:
+  http-api:
+    image: concord-http-api:development
+    ports:
+      - "9001:9001"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - concord_network
+    env_file:
+      - .env
+    environment:
+      - ENVIRONMENT=development # Override the .env environment variable
+    user: root
+    depends_on:
+      - vault
+      - db
+    restart: "no"
+
+  vault:
+    image: concord-vault:latest
+    ports:
+      - "8200:8200"
+    cap_add:
+      - IPC_LOCK
+    volumes:
+      - ${CONCORD_MONOREPO_ROOT}/deploy/cloud/development/config/vault/config/vault.hcl:/vault/config/vault.hcl
+      - ${CONCORD_MONOREPO_ROOT}/deploy/cloud/development/config/vault/storage:/mnt/vault/storage
+      - ${CONCORD_MONOREPO_ROOT}/deploy/cloud/development/config/vault/file:/mnt/vault/file
+    networks:
+      - concord_network
+
+  # grafana:
+  #   profiles:
+  #     - dev
+  #     - run
+  #   image: grafana/grafana:latest
+  #   volumes:
+  #     - grafana_plugins_volume:/var/lib/grafana/plugins
+  #     - ${USR_MONOREPO_ROOT}/deploy/engine/local/config/grafana/grafana-datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml
+  #     - ${USR_MONOREPO_ROOT}/deploy/engine/local/config/grafana/dashboards:/etc/grafana/provisioning/dashboards
+  #   environment:
+  #     - GF_PLUGINS_DIR=/var/lib/grafana/plugins
+  #     - GF_AUTH_ANONYMOUS_ENABLED=true
+  #     - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+  #     - GF_AUTH_DISABLE_LOGIN_FORM=true
+  #     - GF_FEATURE_TOGGLES_ENABLE=traceqlEditor
+  #     - GF_DASHBOARDS_MIN_REFRESH_INTERVAL=500ms
+  #   entrypoint: /bin/sh
+  #   command: -c " grafana cli plugins install grafana-clickhouse-datasource || true && sleep 5 && grafana-server --homepath=/usr/share/grafana"
+  #   ports:
+  #     - "3000:3000"
+  #   networks:
+  #     - concord_network
+  # minio:
+  #   profiles:
+  #     - dev
+  #     - run
+  #   image: minio/minio:latest
+  #   environment:
+  #     MINIO_ROOT_USER: concord
+  #     MINIO_ROOT_PASSWORD: concordstorage!
+  #   ports:
+  #     - "8675:8675"
+  #     - "8676:8676"
+  #   command: server /data --address ":8675" --console-address ":8676"
+  #   volumes:
+  #     - minio_data_volume:/data
+  #   networks:
+  #     - concord_network
+
+  db:
+    image: postgres:latest
+    environment:
+      POSTGRES_USER: concord
+      POSTGRES_PASSWORD: concord
+      POSTGRES_DB: concord
+      POSTGRES_MAX_CONNECTIONS: 200 # Default is usually 100
+    command:
+      - "postgres"
+      - "-c"
+      - "max_connections=200"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data_volume:/var/lib/postgresql/data
+    networks:
+      - concord_network

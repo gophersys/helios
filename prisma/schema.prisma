@@ -1,0 +1,122 @@
+// generator go {
+//     provider        = "go run github.com/steebchen/prisma-client-go"
+//     previewFeatures = ["fullTextSearch", "multiSchema"]
+// }
+
+generator python {
+    provider             = "prisma-client-py"
+    output               = "../libs/python/corekinect/database"
+    interface            = "sync"
+    previewFeatures      = ["fullTextSearch", "multiSchema"]
+    recursive_type_depth = 5
+    binaryTargets        = ["debian-openssl-3.0.x"]
+}
+
+datasource db {
+    provider  = "postgresql"
+    url       = env("DATABASE_URL")
+    directUrl = env("DIRECT_URL")
+    schemas   = ["app"]
+}
+
+// Enums
+enum ClusterType {
+    MANUFACTURING
+
+    @@schema("app")
+}
+
+enum ClusterStatus {
+    HEALTHY
+    UNHEALTHY
+    UNKNOWN
+
+    @@schema("app")
+}
+
+// Main Cluster model
+model Cluster {
+    id                String      @id @default(cuid())
+    name              String      @unique
+    type              ClusterType
+    uuid              String      @unique
+    registered        Boolean     @default(false)
+    createdAt         DateTime    @default(now())
+    updatedAt         DateTime    @updatedAt
+    currentDeployment String? // UUID of current deployment
+
+    // Relationships
+    deployments    Deployment[]
+    testExecutions TestExecution[]
+
+    @@index([uuid])
+    @@index([name])
+    @@index([type])
+    @@map("clusters")
+    @@schema("app")
+}
+
+// Deployment model
+model Deployment {
+    id        String   @id @default(cuid())
+    name      String
+    uuid      String   @unique
+    createdAt DateTime @default(now())
+    config    Json? // Store deployment configuration as JSON
+
+    // Foreign key
+    clusterId String
+    cluster   Cluster @relation(fields: [clusterId], references: [id], onDelete: Cascade)
+
+    @@index([uuid])
+    @@index([clusterId])
+    @@map("deployments")
+    @@schema("app")
+}
+
+// Test Execution model
+model TestExecution {
+    id             String    @id @default(cuid())
+    uuid           String    @unique
+    testName       String
+    deploymentUuid String? // Reference to deployment UUID
+    testConfig     String? // Test configuration as string
+    testNodes      String[] // Array of test node identifiers
+    startedAt      DateTime  @default(now())
+    finishedAt     DateTime?
+    error          String?
+    stopped        Boolean   @default(false)
+    uploaded       Boolean   @default(false)
+    createdAt      DateTime  @default(now())
+
+    // Foreign key
+    clusterId String
+    cluster   Cluster @relation(fields: [clusterId], references: [id], onDelete: Cascade)
+
+    // Relationships
+    testResults TestResult[]
+
+    @@index([uuid])
+    @@index([clusterId])
+    @@index([testName])
+    @@index([startedAt])
+    @@map("test_executions")
+    @@schema("app")
+}
+
+// Test Result model for storing individual test step results
+model TestResult {
+    id         String @id @default(cuid())
+    stepIndex  Int // Index within the result group
+    groupIndex Int // Index of the result group
+    resultData Json // Store the protobuf TestStepResult as JSON
+
+    // Foreign key
+    testExecutionId String
+    testExecution   TestExecution @relation(fields: [testExecutionId], references: [id], onDelete: Cascade)
+
+    @@index([testExecutionId])
+    @@index([groupIndex, stepIndex])
+    @@map("test_results")
+    @@schema("app")
+}

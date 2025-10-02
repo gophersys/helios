@@ -18,7 +18,8 @@
             "options": {
                 "commands": [
                     "nx run devcontainer-mtib:build",
-                    "nx run devcontainer-ncs:build"
+                    "nx run devcontainer-ncs:build",
+                    "nx run devcontainer-ui:build"
                 ]
             }
         },
@@ -30,7 +31,8 @@
             "options": {
                 "commands": [
                     "nx run devcontainer-mtib:push",
-                    "nx run devcontainer-ncs:push"
+                    "nx run devcontainer-ncs:push",
+                    "nx run devcontainer-ui:push"
                 ]
             }
         }

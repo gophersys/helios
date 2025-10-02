@@ -171,13 +171,13 @@ post_test: Test = Test(
         comms_post_step_1_verify_chip_ids,
         comms_post_step_2_verify_modem_fw,
         comms_post_step_3_verify_imei_iccids,
-        comms_post_step_6_rekey_ipc,
 
         # External Flash
         comms_post_step_4_verify_external_flash,
 
         # Personalize
         comms_post_step_5_personalize,
+        comms_post_step_6_rekey_ipc,
 
         # Ap Protect
         app_post_step_6_enable_app_protect,

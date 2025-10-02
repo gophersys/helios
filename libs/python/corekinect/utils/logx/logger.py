@@ -130,6 +130,10 @@ class Logger:
 
         return Logger(child_config)
 
+    def add_filter(self, filter: logging.Filter):
+        """Add a filter to the logger."""
+        self.logger.addFilter(filter)
+
     def _setup_logger(self):
         """Set up the logger with console and file handlers."""
         self.logger.setLevel(self.config.overall_log_level)

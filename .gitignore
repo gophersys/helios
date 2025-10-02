@@ -91,3 +91,7 @@ venv/
 # nx
 .nx/cache
 .nx/workspace-data
+
+# Prisma
+prisma/db
+libs/python/corekinect/database

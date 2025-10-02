@@ -1,0 +1,23 @@
+{
+	"folders": [
+		{
+			"name": "sigma5-manufacturing",
+			"path": "../"
+		},
+		{
+			"name": "protocols",
+			"path": "../../../../libs/protocols"
+		},
+		{
+			"name": "libs",
+			"path": "../../../../libs/python/corekinect"
+		},
+		{
+			"name": "deploy",
+			"path": "../../../../deploy"
+		},
+	],
+	"settings": {
+		"files.associations": {},
+	}
+}

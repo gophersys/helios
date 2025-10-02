@@ -22,19 +22,18 @@ class EnvConfig:
         self._initialize_from_env(namespace)
 
     def _load_env_file(self) -> None:
+        """
+        Try to load .env file if it exists, but don't fail if it doesn't.
+        This allows the class to work with either .env files or system environment variables.
+        """
         env_file_path = os.getenv("ENV_FILE_PATH")
         env_file_name = os.getenv("ENV_FILE_NAME")
 
         loaded = False
         if env_file_path and env_file_name:
             env_file = os.path.join(env_file_path, env_file_name)
-            if os.path.exists(env_file):
-                if os.path.isfile(env_file):
-                    loaded = load_dotenv(env_file)
-                else:
-                    raise EnvironmentError(f"{env_file} is not a file.")
-            else:
-                raise EnvironmentError(f"{env_file} does not exist.")
+            if os.path.exists(env_file) and os.path.isfile(env_file):
+                loaded = load_dotenv(env_file)
         else:
             # Prefer a local .env if present
             if os.path.exists(".env") and os.path.isfile(".env"):
@@ -45,8 +44,7 @@ class EnvConfig:
                 if found:
                     loaded = load_dotenv(found)
 
-        if not loaded:
-            raise (RuntimeError(f"Environment variable file not found."))
+        # Don't raise an error if no .env file was found - just use system env vars
 
     @staticmethod
     def _is_optional(t) -> bool:

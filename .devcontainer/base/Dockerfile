@@ -144,6 +144,9 @@ ENV PYTHONPATH="/workspaces/concord/libs:/workspaces/concord/libs/python/"
 # Install grpcio-tools
 RUN pip3 install grpcio-tools==1.75.0
 
+# Install prisma client
+RUN pip3 install prisma==0.15.0
+
 # ----------------------------------------------------
 #                                             Protobuf
 # ----------------------------------------------------
@@ -208,6 +211,15 @@ RUN curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/v${HEL
     ./get_helm.sh && \
     rm ./get_helm.sh
 
+# ----------------------------------------------------
+#                                                 Vault
+# ----------------------------------------------------
+RUN wget -O- https://apt.releases.hashicorp.com/gpg | gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+RUN gpg --no-default-keyring --keyring /usr/share/keyrings/hashicorp-archive-keyring.gpg --fingerprint
+RUN echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | tee /etc/apt/sources.list.d/hashicorp.list
+
+# Install vault
+RUN apt-get update -y && apt-get install -y vault
 
 # ----------------------------------------------------
 #                                          Other Tools

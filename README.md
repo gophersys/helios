@@ -18,6 +18,7 @@ Use the `devcontainer` feature of VS Code to develop in a containerized environm
 - `base`: This is the base devcontainer that contains the necessary dependencies for all the other devcontainers. Use if working on the backend. Python, Go, K8s, etc.
 - `mtib`: This is the devcontainer for the MTIB application. Use if working on the MTIB server application. ***This environment runs on the MTIB hardware. (arm64)***
 - `ncs`: This is the devcontainer for the NCS firmware. Use if working on zephyr firmware. `nordic`, `espressif`, `nxp`, `stm32` support is included.
+- `ui`: This is the devcontainer for the Manufacturing UI. Use if working on the Frontend UI.
 
 To find out more about the devcontainers, please refer to the [devcontainer README](.devcontainer/README.md) file.
 
@@ -32,8 +33,8 @@ The monorepo is organized into the following folders:
 - `deploy`: Infrastructure as code, k8s deployments, helm charts, etc. Refer to the [deploy README](deploy/README.md) for more information.
 - `docs`: Useful diagrams, in depth documentation, etc. Refer to the [docs README](docs/README.md) for more information.
 - `libs`: Libraries that are used to build the Concord System. Zepjhyr, Python, Go, Network protocols, etc. Refer to the [libs README](libs/README.md) for more information.
+- `prisma`: Prisma schema for the database. Refer to the [prisma README](prisma/README.md) for more information.
 - `tools`: Tools that are used with the Concord System. Scripts, etc. Refer to the [tools README](tools/README.md) for more information.
-- `workspaces`: VS Code workspaces for each major project. Backend, frontend, manufacturing, validation, etc. Refer to the [workspaces README](workspaces/README.md) for more information.
 
 ## Important files
 - `README.md`: This file. High level overview of the monorepo.
