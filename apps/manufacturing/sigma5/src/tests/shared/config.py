@@ -42,8 +42,8 @@ class Sigma5ManufacturingConfig:
 
     # Firmware flash test
     fw_flash_test_nrf9160_modem_fw_name: str = "mfw_nrf9160_1.3.6.zip"
-    fw_flash_test_nrf9160_app_fw_name: str = "sigma_comm_eng_28.hex"
-    fw_flash_test_nrf52840_app_fw_name: str = "sigma_app_eng_28.hex"
+    fw_flash_test_nrf9160_app_fw_name: str = "sigma_comm_prod_4.hex"
+    fw_flash_test_nrf52840_app_fw_name: str = "sigma_app_prod_4.hex"
 
     # Post test
     post_test_app_accel_chip_id: str = "0x33"
@@ -56,7 +56,7 @@ class Sigma5ManufacturingConfig:
     post_test_app_gps_ublox_constellations: str = "GPS;GLO;GAL;BDS;SBAS;IMES;QZSS"
     post_test_app_accelerometer_error_margin: float = 0.99
     post_test_app_altimeter_pressure_error_margin: float = 0.040
-    post_test_app_altimeter_temperature_error_margin: float = 20.0 # Its hot inside the fixture
+    post_test_app_altimeter_temperature_error_margin: float = 20.0  # Its hot inside the fixture
     post_test_app_external_flash_test_string: str = "Hello, world!0xA54A"
     post_test_app_external_flash_size: int = 8388608
     post_test_app_external_flash_start: str = "0x0000"

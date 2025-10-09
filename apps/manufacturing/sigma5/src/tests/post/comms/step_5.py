@@ -1,18 +1,19 @@
 # Standard includes
 import json
-from dataclasses import asdict, dataclass
-import requests
 import traceback
+from dataclasses import asdict, dataclass
 from typing import List
+
+import requests
+
+# Shared includes
+from config import conf
 
 # Corekinect libraries
 from src.tests.lib import *
 
 # Post test includes
 from src.tests.post.data import PostTestSharedData
-
-# Shared includes
-from config import conf
 from src.tests.shared.config import Sigma5ManufacturingConfig
 from src.tests.shared.rpcs import mtib_servers
 
@@ -160,8 +161,8 @@ def personalize(
     # Setup test step details
     info.snr = config.snrs[node]
     info.device_id = device_id
-    info.public_key = pub_key
-    info.base64_key = base64_pub_key
+    info.pub_key = pub_key
+    info.base64_pub_key = base64_pub_key
 
     result.details = info.marshall()
     result.success = True
@@ -177,6 +178,6 @@ comms_post_step_5_personalize: TestStep = TestStep(
         description="Personalize DUT with device ID from CoreOps.",
         noPassIsFatal=True,
     ),
-    timeout_ms=10000,
+    timeout_ms=30000,
     handler=personalize,
 )

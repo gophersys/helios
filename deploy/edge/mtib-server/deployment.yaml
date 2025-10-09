@@ -78,7 +78,7 @@ spec:
         - name: ASSETS_PATH      # Path where this app will store uploaded firmware files
           value: "assets"
         - name: METRICS_ENABLED
-          value: "true"
+          value: "false"
         - name: METRICS_BROKER_URL
           value: "mqtt://kubecop.ad.corekinect.com:1883"
       
