@@ -49,6 +49,11 @@ spec:
                 - "verdin-imx8mm-15005816" # slot-4
                 - "verdin-imx8mm-15005665" # slot-5
                 - "verdin-imx8mm-15005679" # slot-6
+      tolerations:
+      - key: "role"
+        operator: "Equal"
+        value: "manufacturing"
+        effect: "NoSchedule"
       containers:
       - name: mtib-server
         image: containers.ad.corekinect.com/concord-mtib-server:latest  # <- The image we want to deploy

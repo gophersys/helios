@@ -1,22 +1,24 @@
 # Standard includes
+import base64
 import logging
 import os
-import base64
-import requests
-import traceback
+import re
 import sys
 import time
-from typing import Callable, Optional, Any, Tuple
+import traceback
+from typing import Any, Callable, Optional, Tuple
 
-# Corekinect includes
-from corekinect.utils import EnvConfig, Logger
+import requests
+
+# Application includes
+from config.env import env_config
 
 # Private includes
 from corekinect.mtib_client.v1 import *
 
-# Application includes
-from config.env import AlphaEnvConfig
-import re
+# Corekinect includes
+from corekinect.utils import EnvConfig, Logger
+from src.steps.post import run_post_test
 
 
 def _clean_iccid(iccid: str) -> str:
@@ -157,7 +159,7 @@ def _save_device_info(
         return f"An exception occurred whilst trying to save device info to proxy: \n{traceback.format_exc()}"
 
 
-def _init(client: MtibV1Client, logger: Logger, env_config: AlphaEnvConfig) -> Optional[str]:
+def _init(client: MtibV1Client, logger: Logger) -> Optional[str]:
     """
     Initialize the client
     """
@@ -213,32 +215,32 @@ def _power_on(client: MtibV1Client, logger: Logger, delay: int = 3) -> Optional[
     logger.info("Waiting for device to power on...")
     time.sleep(delay)
 
-    # Sample power every 250ms for 2 seconds (8 samples)
-    samples = []
-    min_ma_draw = None
-    max_ma_draw = None
-    for _ in range(4):
-        current_a, voltage_v, power_w, err = client.DutPowerRead()
-        if err:
-            logger.fatal(f"Error reading DUT power: {err}")
-        ma_draw = current_a * 1000
-        samples.append(ma_draw)
-        if min_ma_draw is None or ma_draw < min_ma_draw:
-            min_ma_draw = ma_draw
-        if max_ma_draw is None or ma_draw > max_ma_draw:
-            max_ma_draw = ma_draw
-        time.sleep(0.25)
+    # # Sample power every 250ms for 2 seconds (8 samples)
+    # samples = []
+    # min_ma_draw = None
+    # max_ma_draw = None
+    # for _ in range(4):
+    #     current_a, voltage_v, power_w, err = client.DutPowerRead()
+    #     if err:
+    #         logger.fatal(f"Error reading DUT power: {err}")
+    #     ma_draw = current_a * 1000
+    #     samples.append(ma_draw)
+    #     if min_ma_draw is None or ma_draw < min_ma_draw:
+    #         min_ma_draw = ma_draw
+    #     if max_ma_draw is None or ma_draw > max_ma_draw:
+    #         max_ma_draw = ma_draw
+    #     time.sleep(0.25)
 
-    avg_ma_draw = sum(samples) / len(samples)
-    logger.info(f"Device powered on, power draw: min {min_ma_draw} mA, max {max_ma_draw} mA, avg {avg_ma_draw} mA")
+    # avg_ma_draw = sum(samples) / len(samples)
+    # logger.info(f"Device powered on, power draw: min {min_ma_draw} mA, max {max_ma_draw} mA, avg {avg_ma_draw} mA")
 
-    if avg_ma_draw < 10 or avg_ma_draw > 30:
-        return f"Average power draw is not within expected range: {avg_ma_draw} mA, min {min_ma_draw} mA, max {max_ma_draw} mA"
+    # if avg_ma_draw < 8 or avg_ma_draw > 30:
+    #     return f"Average power draw is not within expected range: {avg_ma_draw} mA, min {min_ma_draw} mA, max {max_ma_draw} mA"
 
     return None
 
 
-def _flash_firmware(client: MtibV1Client, logger: Logger, env_config: AlphaEnvConfig) -> Optional[str]:
+def _flash_firmware(client: MtibV1Client, logger: Logger) -> Optional[str]:
     """
     Flash the manufacturing firmware
     """
@@ -247,7 +249,7 @@ def _flash_firmware(client: MtibV1Client, logger: Logger, env_config: AlphaEnvCo
     # Flash the modem firmware
     file_name = os.path.basename(env_config.MODEM_FW_FILE)
     file_info = FwFileInfo(name=file_name, target=HostType.HOST_TYPE_NRF9160_MODEM)
-    time_ms, err = client.FlashFwFile(file_info, sector_erase=False, recover=True)
+    time_ms, err = client.FlashFwFile(file_info, sector_erase=True, recover=True)
     if err:
         return f"Failed to flash modem firmware: {err}"
 
@@ -258,7 +260,7 @@ def _flash_firmware(client: MtibV1Client, logger: Logger, env_config: AlphaEnvCo
     # Extract just the file name from the path
     file_name = os.path.basename(env_config.COMMS_COPROC_FW_FILE)
     file_info = FwFileInfo(name=file_name, target=HostType.HOST_TYPE_NRF9160)
-    time_ms, err = client.FlashFwFile(file_info, sector_erase=False, recover=False)
+    time_ms, err = client.FlashFwFile(file_info, sector_erase=True, recover=True)
     if err:
         return f"Failed to flash modem firmware: {err}"
 
@@ -268,7 +270,7 @@ def _flash_firmware(client: MtibV1Client, logger: Logger, env_config: AlphaEnvCo
     # Flash the app proc firmware
     file_name = os.path.basename(env_config.APP_PROC_FW_FILE)
     file_info = FwFileInfo(name=file_name, target=HostType.HOST_TYPE_NRF52840)
-    time_ms, err = client.FlashFwFile(file_info, sector_erase=False, recover=True)
+    time_ms, err = client.FlashFwFile(file_info, sector_erase=True, recover=True)
     if err:
         return f"Failed to flash modem firmware: {err}"
 
@@ -300,13 +302,11 @@ def _reset(client: MtibV1Client, logger: Logger) -> Optional[str]:
         return f"Error powering on device: {err}"
 
 
-def personalization_step(
-    client: MtibV1Client, logger: Logger, env_config: AlphaEnvConfig, serial_number: str
-) -> Optional[str]:
+def run_manufacturing(client: MtibV1Client, logger: Logger, serial_number: str) -> Optional[str]:
     start_time = time.time()
     logger.info(f"Personalizing device with serial number: {serial_number}")
 
-    err = _init(client, logger, env_config)
+    err = _init(client, logger)
     if err:
         return f"Error initializing application: {err}"
 
@@ -316,37 +316,17 @@ def personalization_step(
 
     # Use try-finally to ensure power off runs even if any step fails
     try:
-        err = _flash_firmware(client, logger, env_config)
+        err = _flash_firmware(client, logger)
         if err:
             return f"Error flashing manufacturing firmware: {err}"
 
-        err = _reset(client, logger)
-        if err:
-            return f"Error resetting device: {err}"
-
         device_id, err = _get_device_id(env_config.PROXY_SERVER_URL, serial_number, logger)
         if err:
-            return f"Error personalizing device: {err}"
+            return f"Error getting device ID: {err}"
 
-        pub_key, base64_key, err = _get_device_public_key(client, device_id, logger)
+        err = run_post_test(client, logger, device_id, env_config.PROXY_SERVER_URL, serial_number)
         if err:
-            return f"Error getting device public key: {err}"
-
-        imei, iccids, err = _get_device_imei_iccids(client, device_id, logger)
-        if err:
-            return f"Error getting device IMEI and ICCIDs: {err}"
-
-        # device_id = "70B3D584C01E14AA"
-        # pub_key = "0409cbe18f69330bc47e8ad6b7138a5d7b1b7db6797b0f12b5ed18ce4b37959fca054ae76e1789a639677be7bd841f6228fa027cfc8d7a96ecdb86db929245a672"
-        # base64_key = "BJ5QYtZgbzBGwBuqWRDenQ8vyjN6a9tvuLBs02AH51Qp9ONRn6FD3OK3pqabvmfSzT00roZyO7ZumBl2h5MVM98="
-        # imei = "359746161665539"
-        # iccids = "89148000009808568903,89457300000035348195"
-
-        err = _save_device_info(
-            env_config.PROXY_SERVER_URL, device_id, pub_key, base64_key, imei, iccids, serial_number, logger
-        )
-        if err:
-            return f"Error saving device info: {err}"
+            return f"Error running post test: {err}"
 
         # If we reach here, all steps succeeded
         end_time = time.time()

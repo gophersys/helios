@@ -1,31 +1,32 @@
 # Standard includes
 import inspect
+import os
 import queue
 import struct
 import threading
 import time
-from enum import Enum
 import zlib
-from typing import Optional, Tuple, List, Iterator, Type, Any
 from dataclasses import dataclass
-import os
+from enum import Enum
+from typing import Any, Iterator, List, Optional, Tuple, Type
 
 # 3rd Party includes
 import grpc
-from grpc import insecure_channel, RpcError
+
+# Corekinect includes
+from corekinect.utils import Logger
+from grpc import RpcError, insecure_channel
+
+# Import actual protobuf types for UART streaming
+from protocols.mtib.mtib_pb2 import UartStreamRequest, UartStreamResponse
 
 # Protocol includes
 from protocols.mtib.mtib_pb2_grpc import MtibV1Stub as MtibClientV1
 
-# Corekinect includes
-from corekinect.utils import Logger
+from .config import *
 
 # Private includes
 from .types import *
-from .config import *
-
-# Import actual protobuf types for UART streaming
-from protocols.mtib.mtib_pb2 import UartStreamRequest, UartStreamResponse
 
 
 class MtibV1Client:
@@ -843,7 +844,7 @@ class MtibV1Client:
             yield UartStreamResponse(success=False, message=f"Unexpected error: {str(e)}", target=target)
 
     # -----------------------------------------------
-    #                                        Uart
+    #                              Old Alpha Commands
     # ---------------------------------------------*/
     def alpha_cmd_personalize(
         self, device_id: str, target: HostType
@@ -856,9 +857,10 @@ class MtibV1Client:
         Returns:
             Tuple of (hex_public_key, base64_public_key, error_string)
         """
-        from protocols.mtib.mtib_pb2 import UartStreamRequest
-        import time
         import queue
+        import time
+
+        from protocols.mtib.mtib_pb2 import UartStreamRequest
 
         # Use queues like the working terminal
         input_queue = queue.Queue()
@@ -957,10 +959,6 @@ class MtibV1Client:
         Returns:
             Tuple of (imei, iccids, error_string)
         """
-        from protocols.mtib.mtib_pb2 import UartStreamRequest
-        import time
-        import queue
-
         # Use queues like the working terminal
         input_queue = queue.Queue()
         output_queue = queue.Queue()
@@ -1049,3 +1047,801 @@ class MtibV1Client:
             return imei, iccids, None
         else:
             return None, None, f"Failed to parse IMEI/ICCIDs from response: {full_response}"
+
+    # -----------------------------------------------
+    #                           Comms Coproc Commands
+    # ---------------------------------------------*/
+    def cmd_comms_coproc_lock_shell(self) -> Tuple[Optional[bool], Optional[str]]:
+        """Simplified UART stream listener for lock_shell command
+
+        Args:
+            None
+        Returns:
+            Tuple of (success, error_string)
+        """
+        try:
+            input_queue = queue.Queue()
+
+            # Add commands to input queue
+            input_queue.put(b"\r")  # Hit ENTER to get prompt
+            time.sleep(0.2)
+            input_queue.put(f"lock_shell\r".encode("utf-8"))  # Send command
+
+            def request_iterator():
+                while True:
+                    try:
+                        # Get input from queue (non-blocking)
+                        data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=data)
+                    except queue.Empty:
+                        # No input, send empty request to keep stream alive
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=b"")
+                        time.sleep(0.1)
+
+            # Collect response like the working terminal
+            response_lines = []
+            start_time = time.time()
+            timeout = 10  # 10 second timeout
+
+            target = HostType.HOST_TYPE_NRF9160
+            for resp in self.UartStream(target, request_iterator()):
+                if not resp.success:
+                    return None, f"UartStream error: {resp.message}"
+
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
+
+                    # Check if we got the complete response
+                    full_response = "".join(response_lines)
+                    if "Locking shell mode ON" in full_response:
+                        # Wait for the command to complete - look for the prompt after the lock_shell command
+                        lines = full_response.split("\n")
+                        lock_command_found = False
+                        prompt_found = False
+
+                        for i, line in enumerate(lines):
+                            if "lock_shell" in line:
+                                lock_command_found = True
+                            elif lock_command_found and "Mfg shell:" in line.strip():
+                                prompt_found = True
+                                break
+
+                        if prompt_found:
+                            return True, None
+
+                # Timeout check
+                if time.time() - start_time > timeout:
+                    break
+
+            # If we get here, we didn't find the success message
+            full_response = "".join(response_lines)
+            return False, f"Timeout or no success message found. Response: {full_response[:200]}..."
+
+        except Exception as e:
+            return None, f"Exception in lock_shell: {str(e)}"
+
+    def cmd_comms_coproc_debug_uart_disable(self) -> Tuple[Optional[bool], Optional[str]]:
+        """
+        Simplified UART stream listener for debug_uart_off command
+
+        Args:
+            None
+        Returns:
+            Tuple of (success, error_string)
+        """
+        try:
+            input_queue = queue.Queue()
+
+            # Add commands to input queue
+            input_queue.put(b"\r")  # Hit ENTER to get prompt
+            time.sleep(0.2)
+            input_queue.put(f"debug_enable 0\r".encode("utf-8"))  # Send command
+
+            def request_iterator():
+                while True:
+                    try:
+                        # Get input from queue (non-blocking)
+                        data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=data)
+                    except queue.Empty:
+                        # No input, send empty request to keep stream alive
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=b"")
+                        time.sleep(0.1)
+
+            # Collect response like the working terminal
+            response_lines = []
+            start_time = time.time()
+            timeout = 10  # 10 second timeout
+
+            target = HostType.HOST_TYPE_NRF9160
+            for resp in self.UartStream(target, request_iterator()):
+                if not resp.success:
+                    return None, f"UartStream error: {resp.message}"
+
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
+
+                    # Check if we got the complete response
+                    full_response = "".join(response_lines)
+                    if "Debug is not enabled" in full_response:
+                        # Wait for the command to complete - look for the prompt after the debug_enable command
+                        lines = full_response.split("\n")
+                        debug_command_found = False
+                        prompt_found = False
+
+                        for i, line in enumerate(lines):
+                            if "debug_enable" in line:
+                                debug_command_found = True
+                            elif debug_command_found and "Mfg shell:" in line.strip():
+                                prompt_found = True
+                                break
+
+                        if prompt_found:
+                            return True, None
+
+                # Timeout check
+                if time.time() - start_time > timeout:
+                    break
+
+            # If we get here, we didn't find the success message
+            full_response = "".join(response_lines)
+            return False, f"Timeout or no success message found. Response: {full_response[:200]}..."
+
+        except Exception as e:
+            return None, f"Exception in debug_uart_disable: {str(e)}"
+
+    def cmd_comms_coproc_get_chip_ids(self) -> Tuple[Optional[str], Optional[str]]:
+        """Get chip IDs from the device and return Ext flash chip ID
+
+        Args:
+            None
+        Returns:
+                Tuple of (ext_flash_id, error_string)
+        """
+        target = HostType.HOST_TYPE_NRF9160
+        try:
+            input_queue = queue.Queue()
+
+            # Add commands to input queue
+            input_queue.put(b"\r")  # Hit ENTER to get prompt
+            time.sleep(0.2)
+            input_queue.put(f"get_chip_ids\r".encode("utf-8"))  # Send command
+
+            def request_iterator():
+                while True:
+                    try:
+                        # Get input from queue (non-blocking)
+                        data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=data)
+                    except queue.Empty:
+                        # No input, send empty request to keep stream alive
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=b"")
+                        time.sleep(0.1)
+
+            # Collect response like the working terminal
+            response_lines = []
+            start_time = time.time()
+            timeout = 10  # 10 second timeout
+
+            target = HostType.HOST_TYPE_NRF9160
+            for resp in self.UartStream(target, request_iterator()):
+                if not resp.success:
+                    return None, f"UartStream error: {resp.message}"
+
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
+
+                    # Check if we got the complete response
+                    full_response = "".join(response_lines)
+                    if "Ext flash chip ID:" in full_response:
+                        # Wait for the command to complete - look for the prompt after the get_chip_ids command
+                        lines = full_response.split("\n")
+                        chip_command_found = False
+                        prompt_found = False
+
+                        for i, line in enumerate(lines):
+                            if "get_chip_ids" in line:
+                                chip_command_found = True
+                            elif chip_command_found and "Mfg shell:" in line.strip():
+                                prompt_found = True
+                                break
+
+                        if prompt_found:
+                            # Parse the response
+                            ext_flash_id = None
+                            # Extract Ext flash chip ID
+                            flash_start = full_response.find("Ext flash chip ID:")
+                            if flash_start != -1:
+                                flash_line_start = full_response.rfind("\n", 0, flash_start) + 1
+                                flash_line_end = full_response.find("\n", flash_start)
+                                if flash_line_end == -1:
+                                    flash_line_end = len(full_response)
+                                flash_line = full_response[flash_line_start:flash_line_end].strip()
+                                if ":" in flash_line:
+                                    ext_flash_id = flash_line.split(":", 1)[1].strip()
+
+                            return ext_flash_id, None
+
+                # Timeout check
+                if time.time() - start_time > timeout:
+                    break
+
+            # If we get here, we didn't find the success message
+            full_response = "".join(response_lines)
+            return None, f"Timeout or no success message found. Response: {full_response[:200]}..."
+
+        except Exception as e:
+            return None, f"Exception in get_chip_ids: {str(e)}"
+
+    def cmd_comms_coproc_get_modem_fw_version(self) -> Tuple[Optional[str], Optional[str]]:
+        """Get modem firmware version from the communications co-processor device
+
+        Args:
+            None
+        Returns:
+            Tuple of (fw_version, error_string)
+        """
+        try:
+            # Use queues for UART communication
+            input_queue = queue.Queue()
+
+            # Add commands to input queue
+            input_queue.put(b"\r")  # Hit ENTER to get prompt
+            time.sleep(0.2)
+            input_queue.put(f"get_modem_fw\r".encode("utf-8"))  # Send command
+
+            def request_iterator():
+                while True:
+                    try:
+                        # Get input from queue (non-blocking)
+                        data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=data)
+                    except queue.Empty:
+                        # No input, send empty request to keep stream alive
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=b"")
+                        time.sleep(0.1)
+
+            # Collect response from UART stream
+            response_lines = []
+            start_time = time.time()
+            timeout = 10  # 10 second timeout
+
+            target = HostType.HOST_TYPE_NRF9160
+            for resp in self.UartStream(target, request_iterator()):
+                if not resp.success:
+                    return None, f"UartStream error: {resp.message}"
+
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
+
+                    # Check if we got the complete response
+                    full_response = "".join(response_lines)
+                    if "Modem FW:" in full_response:
+                        # Wait for the command to complete - look for the prompt after the get_modem_fw command
+                        lines = full_response.split("\n")
+                        modem_command_found = False
+                        prompt_found = False
+
+                        for i, line in enumerate(lines):
+                            if "get_modem_fw" in line:
+                                modem_command_found = True
+                            elif modem_command_found and "Mfg shell:" in line.strip():
+                                prompt_found = True
+                                break
+
+                        if prompt_found:
+                            # Parse the response
+                            fw_version = None
+
+                            # Extract Modem FW version - use a more robust approach
+                            modem_start = full_response.find("Modem FW:")
+                            if modem_start != -1:
+                                # Find the end of the line containing "Modem FW:"
+                                line_end = full_response.find("\n", modem_start)
+                                if line_end == -1:
+                                    line_end = len(full_response)
+
+                                # Extract the complete line
+                                modem_line = full_response[modem_start:line_end].strip()
+
+                                # Extract version after the colon
+                                if ":" in modem_line:
+                                    fw_version = modem_line.split(":", 1)[1].strip()
+
+                            return fw_version, None
+
+                # Timeout check
+                if time.time() - start_time > timeout:
+                    break
+
+            # If we get here, we didn't find the success message
+            full_response = "".join(response_lines)
+            return None, f"Timeout or no success message found. Response: {full_response[:200]}..."
+
+        except Exception as e:
+            return None, f"Exception in get_modem_fw_version: {str(e)}"
+
+    def cmd_comms_coproc_get_imei_iccid(self) -> Tuple[Optional[str], Optional[List[str]], Optional[str]]:
+        """Get IMEI and ICCID from the communications co-processor device
+
+        Args:
+            None
+        Returns:
+            Tuple of (imei, iccid_list, error_string)
+        """
+        try:
+            # Use queues like the working terminal
+            input_queue = queue.Queue()
+
+            # Add commands to input queue
+            input_queue.put(b"\r")  # Hit ENTER to get prompt
+            time.sleep(0.2)
+            input_queue.put(f"imei_iccid\r".encode("utf-8"))  # Send command
+
+            def request_iterator():
+                while True:
+                    try:
+                        # Get input from queue (non-blocking)
+                        data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=data)
+                    except queue.Empty:
+                        # No input, send empty request to keep stream alive
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=b"")
+                        time.sleep(0.1)
+
+            # Collect response like the working terminal
+            response_lines = []
+            start_time = time.time()
+            timeout = 10  # 10 second timeout
+
+            target = HostType.HOST_TYPE_NRF9160
+            for resp in self.UartStream(target, request_iterator()):
+                if not resp.success:
+                    return None, None, f"UartStream error: {resp.message}"
+
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
+
+                    # Check if we got the complete response
+                    full_response = "".join(response_lines)
+                    if "IMEI,ICCID0" in full_response:
+                        # Wait for the command to complete - look for the prompt after the imei_iccid command
+                        lines = full_response.split("\n")
+                        imei_command_found = False
+                        prompt_found = False
+
+                        for i, line in enumerate(lines):
+                            if "imei_iccid" in line:
+                                imei_command_found = True
+                            elif imei_command_found and "Mfg shell:" in line.strip():
+                                prompt_found = True
+                                break
+
+                        if prompt_found:
+                            # Parse the response
+                            imei = None
+                            iccid_list = []
+
+                            # Extract IMEI and ICCID data
+                            imei_start = full_response.find("IMEI,ICCID0")
+                            if imei_start != -1:
+                                imei_line_start = full_response.rfind("\n", 0, imei_start) + 1
+                                imei_line_end = full_response.find("\n", imei_start)
+                                if imei_line_end == -1:
+                                    imei_line_end = len(full_response)
+                                imei_line = full_response[imei_line_start:imei_line_end].strip()
+
+                                # Parse format: "IMEI,ICCID0[,ICCID1]: 358447171854988,89148000009808536124,89457300000035352429"
+                                if ":" in imei_line:
+                                    data_part = imei_line.split(":", 1)[1].strip()
+                                    # Split by comma to get IMEI and ICCIDs
+                                    parts = [part.strip() for part in data_part.split(",")]
+                                    if len(parts) >= 2:
+                                        imei = parts[0]  # First part is IMEI
+                                        iccid_list = parts[1:]  # Rest are ICCIDs
+
+                            return imei, iccid_list, None
+
+                # Timeout check
+                if time.time() - start_time > timeout:
+                    break
+
+            # If we get here, we didn't find the success message
+            full_response = "".join(response_lines)
+            return None, None, f"Timeout or no success message found. Response: {full_response[:200]}..."
+
+        except Exception as e:
+            return None, None, f"Exception in get_imei_iccid: {str(e)}"
+
+    def cmd_comms_coproc_personalize(self, device_id: str) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+        """Personalize the communications co-processor device
+
+        Args:
+            device_id: The device ID to personalize
+        Returns:
+            Tuple of (hex_public_key, base64_public_key, error_string)
+        """
+        try:
+            # Use queues for UART communication
+            input_queue = queue.Queue()
+
+            # Add commands to input queue
+            input_queue.put(b"\r")  # Hit ENTER to get prompt
+            time.sleep(0.2)
+            input_queue.put(f"personalize {device_id}\r".encode("utf-8"))  # Send command
+
+            def request_iterator():
+                while True:
+                    try:
+                        # Get input from queue (non-blocking)
+                        data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=data)
+                    except queue.Empty:
+                        # No input, send empty request to keep stream alive
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=b"")
+                        time.sleep(0.1)
+
+            # Collect response from UART stream
+            response_lines = []
+            start_time = time.time()
+            timeout = 10  # 10 second timeout
+
+            target = HostType.HOST_TYPE_NRF9160
+            for resp in self.UartStream(target, request_iterator()):
+                if not resp.success:
+                    return None, None, f"UartStream error: {resp.message}"
+
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
+
+                    # Check if we got the complete response
+                    full_response = "".join(response_lines)
+                    if "Public key (hex)" in full_response and "Public key (base64)" in full_response:
+                        # Wait for the command to complete - look for the prompt after the personalize command
+                        lines = full_response.split("\n")
+                        command_found = False
+                        prompt_found = False
+
+                        for i, line in enumerate(lines):
+                            if "personalize" in line:
+                                command_found = True
+                            elif command_found and "Mfg shell:" in line.strip():
+                                prompt_found = True
+                                break
+
+                        if prompt_found:
+                            # Parse the response to extract both hex and base64 keys
+                            hex_key = None
+                            base64_key = None
+
+                            # Extract hex key
+                            hex_start = full_response.find("Public key (hex)")
+                            if hex_start != -1:
+                                hex_line_end = full_response.find("\n", hex_start)
+                                if hex_line_end == -1:
+                                    hex_line_end = len(full_response)
+                                hex_line = full_response[hex_start:hex_line_end].strip()
+                                if ":" in hex_line:
+                                    hex_key = hex_line.split(":", 1)[1].strip()
+
+                            # Extract base64 key
+                            base64_start = full_response.find("Public key (base64)")
+                            if base64_start != -1:
+                                base64_line_end = full_response.find("\n", base64_start)
+                                if base64_line_end == -1:
+                                    base64_line_end = len(full_response)
+                                base64_line = full_response[base64_start:base64_line_end].strip()
+                                if ":" in base64_line:
+                                    base64_key = base64_line.split(":", 1)[1].strip()
+
+                            return hex_key, base64_key, None
+
+                # Timeout check
+                if time.time() - start_time > timeout:
+                    break
+
+            # If we get here, we didn't find the success message
+            full_response = "".join(response_lines)
+            return None, None, f"Timeout or no success message found. Response: {full_response[:200]}..."
+
+        except Exception as e:
+            return None, None, f"Exception in personalize: {str(e)}"
+
+    def cmd_comms_coproc_read_ext_flash(self, address: str, num_bytes: int) -> Tuple[Optional[str], Optional[str]]:
+        """Read data from external flash
+
+        Args:
+            address: The address to read from
+            num_bytes: The number of bytes to read
+        Returns:
+            Tuple of (hex_data, error_string)
+        """
+        try:
+            # Use queues like the working terminal
+            input_queue = queue.Queue()
+
+            # Add commands to input queue
+            input_queue.put(b"\r")  # Hit ENTER to get prompt
+            time.sleep(0.2)
+            input_queue.put(f"read_ext_flash {address} {num_bytes}\r".encode("utf-8"))  # Send command
+
+            def request_iterator():
+                while True:
+                    try:
+                        # Get input from queue (non-blocking)
+                        data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=data)
+                    except queue.Empty:
+                        # No input, send empty request to keep stream alive
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=b"")
+                        time.sleep(0.1)
+
+            # Collect response like the working terminal
+            response_lines = []
+            start_time = time.time()
+            timeout = 10  # 10 second timeout
+
+            target = HostType.HOST_TYPE_NRF9160
+            for resp in self.UartStream(target, request_iterator()):
+                if not resp.success:
+                    return None, f"UartStream error: {resp.message}"
+
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
+
+                    # Check if we got the complete response
+                    full_response = "".join(response_lines)
+                    if "Reading" in full_response and "bytes from address:" in full_response:
+                        # Wait for the command to complete - look for the prompt after the read command
+                        # Find where the read command output ends and look for prompt after that
+                        lines = full_response.split("\n")
+                        read_command_found = False
+                        prompt_found = False
+
+                        for i, line in enumerate(lines):
+                            if "read_ext_flash" in line:
+                                read_command_found = True
+                            elif read_command_found and "Mfg shell:" in line.strip():
+                                prompt_found = True
+                                break
+
+                        if prompt_found:
+                            # Extract the hex data from the response
+                            hex_data = ""
+                            lines = full_response.split("\n")
+                            for line in lines:
+                                if ":" in line and "|" in line:
+                                    # This is a hex dump line, extract the hex part
+                                    hex_part = line.split("|")[0].strip()
+                                    # Remove the address prefix (e.g., "00000000: ")
+                                    if ":" in hex_part:
+                                        hex_values = hex_part.split(":", 1)[1].strip()
+                                        hex_data += hex_values.replace(" ", "")
+
+                            return hex_data, None
+
+                # Timeout check
+                if time.time() - start_time > timeout:
+                    break
+
+            # If we get here, we didn't find the success message
+            full_response = "".join(response_lines)
+            return None, f"Timeout or no success message found. Response: {full_response[:200]}..."
+
+        except Exception as e:
+            return None, f"Exception in read_ext_flash: {str(e)}"
+
+    def cmd_comms_coproc_erase_ext_flash(self) -> Tuple[Optional[bool], Optional[str]]:
+        """Erase entire external flash
+
+        Args:
+            None
+        Returns:
+            Tuple of (success, error_string)
+        """
+        try:
+            # Use queues like the working terminal
+            input_queue = queue.Queue()
+
+            # Add commands to input queue
+            input_queue.put(b"\r")  # Hit ENTER to get prompt
+            time.sleep(0.2)
+            input_queue.put(f"erase_ext_flash\r".encode("utf-8"))  # Send command
+
+            def request_iterator():
+                while True:
+                    try:
+                        # Get input from queue (non-blocking)
+                        data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=data)
+                    except queue.Empty:
+                        # No input, send empty request to keep stream alive
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=b"")
+                        time.sleep(0.1)
+
+            # Collect response like the working terminal
+            response_lines = []
+            start_time = time.time()
+            timeout = 30  # 30 second timeout (erase can take longer)
+
+            target = HostType.HOST_TYPE_NRF9160
+            for resp in self.UartStream(target, request_iterator()):
+                if not resp.success:
+                    return None, f"UartStream error: {resp.message}"
+
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
+
+                    # Check if we got the complete response
+                    full_response = "".join(response_lines)
+                    if "Erasing flash" in full_response and "pages" in full_response:
+                        # Wait for the command to complete - look for the prompt after the erase command
+                        # Find where the erase command output ends and look for prompt after that
+                        lines = full_response.split("\n")
+                        erase_command_found = False
+                        prompt_found = False
+
+                        for i, line in enumerate(lines):
+                            if "erase_ext_flash" in line:
+                                erase_command_found = True
+                            elif erase_command_found and "Mfg shell:" in line.strip():
+                                prompt_found = True
+                                break
+
+                        if prompt_found:
+                            return True, None
+
+                # Timeout check
+                if time.time() - start_time > timeout:
+                    break
+
+            # If we get here, we didn't find the success message
+            full_response = "".join(response_lines)
+            return False, f"Timeout or no success message found. Response: {full_response[:200]}..."
+
+        except Exception as e:
+            return None, f"Exception in erase_ext_flash: {str(e)}"
+
+    def cmd_comms_coproc_write_ext_flash(
+        self, host: str, address: str, data: str
+    ) -> Tuple[Optional[bool], Optional[str]]:
+        """Write data to external flash (data should be base64 encoded)
+
+        Args:
+            address: The address to write to
+            data: The data to write (base64 encoded)
+        Returns:
+            Tuple of (success, error_string)
+        """
+        try:
+            # Use queues like the working terminal
+            input_queue = queue.Queue()
+
+            # Add commands to input queue
+            input_queue.put(b"\r")  # Hit ENTER to get prompt
+            time.sleep(0.2)
+            input_queue.put(f"write_ext_flash {address} {data}\r".encode("utf-8"))  # Send command
+
+            def request_iterator():
+                while True:
+                    try:
+                        # Get input from queue (non-blocking)
+                        data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=data)
+                    except queue.Empty:
+                        # No input, send empty request to keep stream alive
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=b"")
+                        time.sleep(0.1)
+
+            # Collect response like the working terminal
+            response_lines = []
+            start_time = time.time()
+            timeout = 10  # 10 second timeout
+
+            target = HostType.HOST_TYPE_NRF9160
+            for resp in self.UartStream(target, request_iterator()):
+                if not resp.success:
+                    return None, f"UartStream error: {resp.message}"
+
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
+
+                    # Check if we got the complete response
+                    full_response = "".join(response_lines)
+                    if "Writing" in full_response and "bytes to address:" in full_response:
+                        # Wait for the command to complete - look for the prompt after the write command
+                        # Find where the write command output ends and look for prompt after that
+                        lines = full_response.split("\n")
+                        write_command_found = False
+                        prompt_found = False
+
+                        for i, line in enumerate(lines):
+                            if "write_ext_flash" in line:
+                                write_command_found = True
+                            elif write_command_found and "Mfg shell:" in line.strip():
+                                prompt_found = True
+                                break
+
+                        if prompt_found:
+                            return True, None
+
+                # Timeout check
+                if time.time() - start_time > timeout:
+                    break
+
+            # If we get here, we didn't find the success message
+            full_response = "".join(response_lines)
+            return False, f"Timeout or no success message found. Response: {full_response[:200]}..."
+
+        except Exception as e:
+            return None, f"Exception in write_ext_flash: {str(e)}"
+
+    def cmd_comms_coproc_rekey_ipc(self) -> Tuple[Optional[bool], Optional[str]]:
+        """Rekey IPC
+
+        Args:
+            None
+        Returns:
+            Tuple of (success, error_string)
+        """
+        try:
+            # Use queues like the working terminal
+            input_queue = queue.Queue()
+
+            # Add commands to input queue
+            input_queue.put(b"\r")  # Hit ENTER to get prompt
+            time.sleep(0.2)
+            input_queue.put(f"rekey_ipc\r".encode("utf-8"))  # Send command
+
+            def request_iterator():
+                while True:
+                    try:
+                        # Get input from queue (non-blocking)
+                        data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=data)
+                    except queue.Empty:
+                        # No input, send empty request to keep stream alive
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=b"")
+                        time.sleep(0.1)
+
+            # Collect response like the working terminal
+            response_lines = []
+            start_time = time.time()
+            timeout = 10  # 10 second timeout
+
+            target = HostType.HOST_TYPE_NRF9160
+
+            for resp in self.UartStream(target, request_iterator()):
+                if not resp.success:
+                    return None, f"UartStream error: {resp.message}"
+
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
+
+                    # Check if we got the complete response
+                    full_response = "".join(response_lines)
+                    if "IPC rekey completed successfully" in full_response:
+                        return True, None
+                    elif "IPC rekey failed" in full_response:
+                        return False, "IPC rekey failed"
+
+                # Timeout check
+                if time.time() - start_time > timeout:
+                    break
+
+            # If we get here, we didn't find the success or failure message
+            full_response = "".join(response_lines)
+            return None, f"Timeout or no response found. Response: {full_response[:200]}..."
+
+        except Exception as e:
+            return None, f"Exception in rekey_ipc: {str(e)}"  # type: ignore
