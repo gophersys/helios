@@ -23,7 +23,7 @@ RUN apt-get update && \
 # By installing these first you save a lot of time when making changes to the source code
 # and rebuilding the application
 WORKDIR /app
-COPY apps/manufacturing/sigma5/setup.py setup.py
+COPY apps/manufacturing/theta/setup.py setup.py
 RUN pip install -e . && \
     pip cache purge
 
@@ -32,20 +32,22 @@ RUN pip install -e . && \
 # ---------------------------------------------------------------------------------------------------*/
 WORKDIR /app
 
+# Copy the libraries used by the app
+COPY libs/python /libs/python
+
 # Copy the protocols used by the app
-COPY libs/protos/cluster_test /libs/protos/cluster_test
-COPY libs/protos/cluster_operator /libs/protos/cluster_operator
-COPY libs/protos/mtib_runner /libs/protos/mtib_runner
+COPY libs/protocols/mtib /libs/protocols/mtib
+
+# Set the PYTHONPATH to include the libs directory
+ENV PYTHONPATH="/libs:${PYTHONPATH}"
+ENV PYTHONPATH="/libs/python/:${PYTHONPATH}"
 
 # Import the paths to the python path
 ENV PYTHONPATH="/libs:${PYTHONPATH}"
 
-# Copy any assets we may need
-COPY apps/manufacturing/sigma5_legacy/assets assets
-
 # Copy the app itself
-COPY apps/manufacturing/sigma5_legacy/config config
-COPY apps/manufacturing/sigma5_legacy/src src
+COPY apps/manufacturing/theta/config config
+COPY apps/manufacturing/theta/src src
 
 # Keep the container running
 CMD ["python3", "src/main.py"]

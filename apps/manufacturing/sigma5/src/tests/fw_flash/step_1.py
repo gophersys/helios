@@ -51,6 +51,6 @@ fw_flash_test_step_1: TestStep = TestStep(
         description="Flashes the nrf9160 modem firmware. using the runner API.",
         noPassIsFatal=True,
     ),
-    timeout_ms=60000,
+    timeout_ms=120000,
     handler=fw_flash_test_step_1_handler,
 )

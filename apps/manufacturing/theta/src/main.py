@@ -1,68 +1,114 @@
 # Standard includes
-import asyncio
 import logging
+import signal
 import sys
+import traceback
+from typing import Optional
+
 import urllib3
 
 # Suppress HTTP requests warnings when (verify=False)
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-# App includes
-from config import conf
-from tests.electrical.test import electrical_test
-from tests.post_fw_flash.test import post_fw_flash_test
-from tests.prod_fw_flash.test import prod_fw_flash_test
-from tests.post.test import post_test
+# Private includes
+from corekinect.mtib_client.v1 import *
+
+# Corekinect includes
+from corekinect.utils import Logger
+from config.env import env_config
+from src.steps.personalization import run_manufacturing
 
 
-async def wait_for_termination(servers):
-    try:
-        await asyncio.gather(*(server.wait_for_termination() for server in servers))
-    except KeyboardInterrupt:
-        for server in servers:
-            server.teardown()
-        sys.exit(1)
+def graceful_shutdown(client, logger):
+    if client:
+        if err := client.disconnect():
+            if logger:
+                logger.error(f"Error disconnecting from server: {err}")
+            else:
+                print(f"Error disconnecting from server: {err}")
 
 
 if __name__ == "__main__":
-    logging.debug(f"Test app environment configuration: \n{conf}")
+    logger: Optional[Logger] = None
+    client = None
 
-    # Run test
-    # nodes = ["slot-1", "slot-2", "slot-3", "slot-4", "slot-5"]
-    # nodes = ["slot-6.lan"]
+    def handle_signal(signum, frame):
+        print("\n")
+        if logger:
+            logger.info("Received shutdown signal. Disconnecting client...")
+        graceful_shutdown(client, logger)
+        sys.exit(0)
 
-    # # if error := fw_flash_test.run(nodes):
-    # #     logging.error(f"Could not run firmware flash test: {error}")
-    # #     sys.exit(1)
+    signal.signal(signal.SIGINT, handle_signal)
+    signal.signal(signal.SIGTERM, handle_signal)
 
-    # if error := post_test.run(nodes):
-    #     logging.error(f"Could not run POST test: {error}")
-    #     sys.exit(1)
+    try:
+        # Setup logging
+        log_config = Logger.Config(
+            logger_name="alpha-manufacturing",
+            log_directory=env_config.LOG_PATH,
+            overall_log_level=env_config.LOG_LEVEL,
+            console_log_level=env_config.LOG_LEVEL,
+            file_log_level=logging.DEBUG,  # Always log everything to file
+            enable_log_color=True,
+        )
+        logger = Logger(log_config)
 
-    # Electrical test
-    if error := electrical_test.setup(conf.ELECTRICAL_TEST_UUID, conf.ELECTRICAL_TEST_PORT, conf.OPERATOR_URL):
-        logging.error(f"Could not setup electrical test: {error}")
+        client = MtibV1Client(
+            config=MtibV1Client.Config(
+                net=NetConfig(
+                    addr=env_config.MTIB_SERVER_HOST,
+                    port=env_config.MTIB_SERVER_PORT,
+                )
+            ),
+            logger=logger,
+        )
+
+        if err := client.connect():
+            logger.error(f"Error connecting to server: {err}")
+            sys.exit(1)
+
+        ready, errors, error = client.HealthCheck()
+        if error or not ready:
+            logger.error(f"Error checking health: {error}")
+            sys.exit(1)
+
+        logger.info(
+            "Health check passed for server at %s:%d", env_config.MTIB_SERVER_HOST, env_config.MTIB_SERVER_PORT
+        )
+
+        # Turn off everything
+        if err := client.DutPowerDisable():
+            logger.fatal(f"Error disabling DUT power: {err}")
+
+        if err := client.DutChargePowerDisable():
+            logger.fatal(f"Error disabling DUT charge power: {err}")
+
+        # Main
+        while True:
+            try:
+                # We need the serial number to be able to run the manufacturing
+                serial_number = input("\033[92mScan or enter serial number:\033[0m ")
+                if not serial_number.strip():
+                    print("\033[91mNo serial number entered. Please try again.\033[0m")
+                    continue
+
+                # Run the manufacturing logic (tests, flashing, etc.)
+                err = run_manufacturing(client, logger, serial_number)
+                if err is not None:
+                    print(f"\033[91mError: {err}\033[0m")
+                else:
+                    print("\033[92mManufacturing successful!\033[0m")
+            except KeyboardInterrupt:
+                print("\nExiting...")
+                break
+    except Exception as e:
+        if logger:
+            # Print the entire traceback
+            logger.error(f"Failed to run the sample: {e}")
+            logger.error(traceback.format_exc())
+        else:
+            print(f"Failed to run the sample: {e}\n{traceback.format_exc()}")
         sys.exit(1)
-
-    # POST Firmware flashing test
-    if error := post_fw_flash_test.setup(
-        conf.POST_FW_FLASH_TEST_UUID, conf.POST_FW_FLASH_TEST_PORT, conf.OPERATOR_URL
-    ):
-        logging.error(f"Could not setup post firmware flash test: {error}")
-        sys.exit(1)
-
-    # POST Test
-    if error := post_test.setup(conf.POST_TEST_UUID, conf.POST_TEST_PORT, conf.OPERATOR_URL):
-        logging.error(f"Could not setup POST test: {error}")
-        sys.exit(1)
-
-    # Production Firmware flashing test
-    if error := prod_fw_flash_test.setup(
-        conf.PROD_FW_FLASH_TEST_UUID, conf.PROD_FW_FLASH_TEST_PORT, conf.OPERATOR_URL
-    ):
-        logging.error(f"Could not setup production firmware flash test: {error}")
-        sys.exit(1)
-
-    # Await program termination
-    servers = [electrical_test.server, post_fw_flash_test.server, post_test.server, prod_fw_flash_test.server]
-    asyncio.run(wait_for_termination(servers))
+    finally:
+        graceful_shutdown(client, logger)
