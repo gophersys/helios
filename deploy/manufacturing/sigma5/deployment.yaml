@@ -23,6 +23,12 @@ spec:
     spec:
       # Allow the app 1 second to end "gracefully", and then force terminate
       terminationGracePeriodSeconds: 1
+      # Tolerate the cloud role taint to allow scheduling on orangepizero3
+      tolerations:
+      - key: "role"
+        operator: "Equal"
+        value: "cloud"
+        effect: "NoSchedule"
       affinity:
         nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:

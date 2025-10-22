@@ -1,0 +1,26 @@
+{
+	"folders": [
+		{
+			"name": "theta-manufacturing",
+			"path": "../"
+		},
+		{
+			"name": "protocols",
+			"path": "../../../../libs/protocols"
+		},
+		{
+			"name": "libs",
+			"path": "../../../../libs/python/corekinect"
+		},
+		{
+			"name": "deploy",
+			"path": "../../../../deploy"
+		},
+		{
+			"path": "../../../edge/mtib-server"
+		}
+	],
+	"settings": {
+		"files.associations": {},
+	}
+}
