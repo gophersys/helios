@@ -22,6 +22,7 @@ print(
 ```
 
 Example – send a GPS configuration via REST
+
 ```python
 from corekinect.core_cloud.msg_def_v1_0 import GPSConfMsg
 
@@ -32,7 +33,7 @@ cfg = GPSConfMsg(
     target_fix_accuracy=10,
     target_fix_pdop=30,
 )
-resp = cfg.send_via_rest(device_id=0x70B3D584C020038F, env_namespace="VAL_1_0", raise_for_status=True)
+resp = cfg.send(device_id=0x70B3D584C020038F, env_namespace="VAL_1_0", raise_for_status=True)
 
 ```
 
