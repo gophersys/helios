@@ -10,6 +10,22 @@ IMAGE_BASENAME = "CoreKinect-MTIB"
 IMAGE_CLASSES += "image_type_tezi"
 TEZI_IMAGE_NAME = "${IMAGE_BASENAME}"
 
+# Enable k3s and virtualization features
+DISTRO_FEATURES:append = " k3s"
+DISTRO_FEATURES:append = " seccomp"
+DISTRO_FEATURES:append = " virtualization"
+
+# Use systemd as init manager for k3s
+INIT_MANAGER = "systemd"
+
+# Allocate additional space for containers (2GB)
+IMAGE_ROOTFS_EXTRA_SPACE = "2097152"
+
+# Add k3s packages to the image
+IMAGE_INSTALL:append = " packagegroup-k3s-node"
+IMAGE_INSTALL:append = " ca-certificates"
+IMAGE_INSTALL:append = " kernel-modules"
+
 # This is disabled for now because the system is not booting
 # when the container preloading is enabled
 # TODO: Enable this again when the system is stable

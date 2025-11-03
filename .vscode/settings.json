@@ -13,5 +13,6 @@
         ".env.example": "env",
         "*.conf": "bitbake",
         "*.inc": "bitbake"
-    }
+    },
+    "git.ignoreLimitWarning": true
 }
