@@ -89,7 +89,7 @@ class db_translation:
         - This is metadata only - it doesn't validate against actual database schemas
     """
 
-    def __init__(self, **by_schema: str) -> None:
+    def __init__(self, **by_schema: str | None) -> None:
         """
         Initialize database column name mappings for multiple schemas.
 
@@ -162,7 +162,7 @@ class RepositorySchemaConfig:
         )
 
         # Use in a query
-        with CoreCloudDBInterface(db_env="VAL_1_0") as session:
+        with CoreCloudDBInterface(env="VAL_1_0") as session:
             query = session.query(config.model).filter(
                 config.device_id_col(config.model) == device_id
             )
@@ -229,14 +229,14 @@ def message_mapper(domain_type: Type[Any], schema: Schema):
         convert_row = message_mapper(DevicePosition, "V1_0")
 
         # Use in a query
-        with CoreCloudDBInterface(db_env="VAL_1_0") as session:
+        with CoreCloudDBInterface(env="VAL_1_0") as session:
             rows = session.query(Messagespositionv5tbl).filter(...).all()
             positions = [convert_row(row) for row in rows]
             # positions is now a list of DevicePosition instances
 
         # The same dataclass works with V0_9 schema
         convert_row_v09 = message_mapper(DevicePosition, "V0_9")
-        with CoreCloudDBInterface(db_env="VAL_0_9") as session:
+        with CoreCloudDBInterface(env="VAL_0_9") as session:
             rows = session.query(PositionV6MsgTbl).filter(...).all()
             positions = [convert_row_v09(row) for row in rows]
         ```

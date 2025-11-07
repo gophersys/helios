@@ -173,7 +173,7 @@ class MsgBase(Serializable, ABC):
     @classmethod
     def _query_records(cls, dut_id: int, extra_filters: list | None = None, order_by=None, first: bool = False):
         """Query records for a given device ID with optional filters and ordering."""
-        with CoreCloudDBInterface(db_env="DEV_0_9") as db:
+        with CoreCloudDBInterface(env="DEV_0_9") as db:
             model = cls.orm_model
             query = db.query(model).filter(model.DeviceId == dut_id)
 
@@ -348,7 +348,7 @@ class ConfMsgBase(MsgBase):
 
         # Get last downlink id for this device
         last_id = 0
-        with CoreCloudDBInterface(db_env="DEV_0_9") as db:
+        with CoreCloudDBInterface(env="DEV_0_9") as db:
             last = (
                 db.query(DownlinkMessagesTbl)
                 .filter(DownlinkMessagesTbl.DeviceId == device_id)
@@ -371,7 +371,7 @@ class ConfMsgBase(MsgBase):
             Message=msg,
             AccountId=account_id,
         )
-        with CoreCloudDBInterface(db_env="DEV_0_9") as db:
+        with CoreCloudDBInterface(env="DEV_0_9") as db:
             db.add(row)
             db.commit()
 
@@ -380,7 +380,7 @@ class ConfMsgBase(MsgBase):
         found = False
         new_row = None
         while not found and time() < end_time:
-            with CoreCloudDBInterface(db_env="DEV_0_9") as db:
+            with CoreCloudDBInterface(env="DEV_0_9") as db:
                 candidates = (
                     db.query(DownlinkMessagesTbl)
                     .filter(

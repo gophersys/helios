@@ -56,15 +56,15 @@ class MsgBase(Serializable, ABC):
             Get the reason string from a bit mask value.
         _convert_orm_obj_to_msg(orm_obj):
             Convert ORM object to message instance.
-        _query_records(dut_id: int, extra_filters: list = None, order_by=None, first: bool = False, *, db_env="VAL_1_0"):
+        _query_records(dut_id: int, extra_filters: list = None, order_by=None, first: bool = False, *, env="VAL_1_0"):
             Query records from the database and return message instances.
-        last(dut_id, *, db_env="VAL_1_0"):
+        last(dut_id, *, env="VAL_1_0"):
             Get the last message for a device.
-        since_server_time(dut_id: int, start_time: datetime, end_time: datetime = None, *, db_env="VAL_1_0"):
+        since_server_time(dut_id: int, start_time: datetime, end_time: datetime = None, *, env="VAL_1_0"):
             Get messages since a specific server time.
-        since_device_time(dut_id: int, start_time: datetime, end_time: Optional[datetime] = None, *, db_env="VAL_1_0"):
+        since_device_time(dut_id: int, start_time: datetime, end_time: Optional[datetime] = None, *, env="VAL_1_0"):
             Get messages since a specific device time.
-        since_record_id(dut_id: int, start_record_id: int, end_record_id: int = None, *, db_env="VAL_1_0"):
+        since_record_id(dut_id: int, start_record_id: int, end_record_id: int = None, *, env="VAL_1_0"):
             Get messages since a specific record ID.
 
 
@@ -188,7 +188,7 @@ class MsgBase(Serializable, ABC):
 
     @classmethod
     def _query_records(
-        cls, dut_id: int, extra_filters: list = None, order_by=None, first: bool = False, *, db_env="VAL_1_0"
+        cls, dut_id: int, extra_filters: list = None, order_by=None, first: bool = False, *, env="VAL_1_0"
     ) -> Optional[Self] | List[Self]:
         """
         Query records from the database and return message instances.
@@ -198,13 +198,13 @@ class MsgBase(Serializable, ABC):
             extra_filters (list): Additional filters to apply to the query.
             order_by (Any): SQLAlchemy order_by clause to sort results.
             first (bool): If True, return the first result only; otherwise, return all results.
-            db_env (str): Database environment to use for the query.
+            env (str): Database environment to use for the query.
 
         Returns:
             Self | List[Self]: A single message instance if `first` is True, or a list of message instances.
 
         """
-        with CoreCloudDBInterface(db_env=db_env) as db:
+        with CoreCloudDBInterface(env=env) as db:
             # Use class's ORM model
             model = cls.orm_model
             query = db.query(model).filter(model.deviceid == dut_id)
@@ -225,22 +225,22 @@ class MsgBase(Serializable, ABC):
 
     # Common API for DB queries
     @classmethod
-    def last(cls, dut_id, *, db_env="VAL_1_0") -> Optional[Self]:
+    def last(cls, dut_id, *, env="VAL_1_0") -> Optional[Self]:
         """
         Get the last record for a given device ID.
 
         Args:
             dut_id (int): Device ID to filter records.`
-            db_env (str): Database environment to use for the query.
+            env (str): Database environment to use for the query.
 
         Returns:
             Optional[Self]: The last message instance for the device, or None if no records found.
         """
-        return cls._query_records(dut_id, order_by=cls.orm_model.recordid.desc(), first=True, db_env=db_env)
+        return cls._query_records(dut_id, order_by=cls.orm_model.recordid.desc(), first=True, env=env)
 
     @classmethod
     def since_server_time(
-        cls, dut_id: int, start_time: datetime, end_time: datetime = None, *, db_env="VAL_1_0"
+        cls, dut_id: int, start_time: datetime, end_time: datetime = None, *, env="VAL_1_0"
     ) -> List[Self]:
         """
         Query records since, not including, a specific server time. Optionally, up to, and including, an end server time.
@@ -249,7 +249,7 @@ class MsgBase(Serializable, ABC):
             dut_id (int): Device ID to filter records.
             start_time (datetime): Start time for filtering records.
             end_time (datetime, optional): End time for filtering records. Defaults to None.
-            db_env (str): Database environment to use for the query.
+            env (str): Database environment to use for the query.
 
         Returns:
             List[Self]: A list of message instances since the specified start time, optionally up to the end time.
@@ -257,11 +257,11 @@ class MsgBase(Serializable, ABC):
         filters = [cls.orm_model.timeofrecord > start_time]
         if end_time is not None:
             filters.append(cls.orm_model.timeofrecord <= end_time)
-        return cls._query_records(dut_id, extra_filters=filters, db_env=db_env)
+        return cls._query_records(dut_id, extra_filters=filters, env=env)
 
     @classmethod
     def since_device_time(
-        cls, dut_id: int, start_time: datetime, end_time: Optional[datetime] = None, *, db_env="VAL_1_0"
+        cls, dut_id: int, start_time: datetime, end_time: Optional[datetime] = None, *, env="VAL_1_0"
     ) -> List[Self]:
         """
         Query records since, not including, a specific device time. Optionally, up to, and including, an end device time.
@@ -270,7 +270,7 @@ class MsgBase(Serializable, ABC):
             dut_id (int): Device ID to filter records.
             start_time (datetime): Start time for filtering records.
             end_time (datetime, optional): End time for filtering records. Defaults to None.
-            db_env (str): Database environment to use for the query.
+            env (str): Database environment to use for the query.
 
         Returns:
             List[Self]: A list of message instances since the specified device time, optionally up to the end time.
@@ -281,7 +281,7 @@ class MsgBase(Serializable, ABC):
         filters = [dev_time_field > start_time]
         if end_time is not None:
             filters.append(dev_time_field <= end_time)
-        return cls._query_records(dut_id, extra_filters=filters, db_env=db_env)
+        return cls._query_records(dut_id, extra_filters=filters, env=env)
 
     @classmethod
     def since_record_id(
@@ -302,7 +302,7 @@ class MsgBase(Serializable, ABC):
         filters = [cls.orm_model.recordid > start_record_id]
         if end_record_id is not None:
             filters.append(cls.orm_model.recordid <= end_record_id)
-        return cls._query_records(dut_id, extra_filters=filters, db_env=db_env)
+        return cls._query_records(dut_id, extra_filters=filters, env=db_env)
 
 
 # ----------------------------------------  Config Base
@@ -540,13 +540,13 @@ class DeviceMessageLog(MsgBase):
         interface_str (str): Returns a string representation of the interface type.
 
     Methods:
-        last(dut_id, *, db_env="VAL_1_0"):
+        last(dut_id, *, env="VAL_1_0"):
             Get the last message for a device.
-        since_server_time(dut_id: int, start_time: datetime, end_time: datetime = None, *, db_env="VAL_1_0"):
+        since_server_time(dut_id: int, start_time: datetime, end_time: datetime = None, *, env="VAL_1_0"):
             Get messages since a specific server time.
-        since_device_time(dut_id: int, start_time: datetime, end_time: Optional[datetime] = None, *, db_env="VAL_1_0"):
+        since_device_time(dut_id: int, start_time: datetime, end_time: Optional[datetime] = None, *, env="VAL_1_0"):
             Get messages since a specific device time.
-        since_record_id(dut_id: int, start_record_id: int, end_record_id: int = None, *, db_env="VAL_1_0"):
+        since_record_id(dut_id: int, start_record_id: int, end_record_id: int = None, *, env="VAL_1_0"):
             Get messages since a specific record ID.
     """
 
@@ -1458,13 +1458,13 @@ class PositionMsgV6(MsgBase):
         orm_field_map (Dict[str, str]): Mapping of class fields to ORM fields.
 
     Methods:
-        last(dut_id, *, db_env="VAL_1_0"):
+        last(dut_id, *, env="VAL_1_0"):
             Get the last message for a device.
-        since_server_time(dut_id: int, start_time: datetime, end_time: datetime = None, *, db_env="VAL_1_0"):
+        since_server_time(dut_id: int, start_time: datetime, end_time: datetime = None, *, env="VAL_1_0"):
             Get messages since a specific server time.
-        since_device_time(dut_id: int, start_time: datetime, end_time: Optional[datetime] = None, *, db_env="VAL_1_0"):
+        since_device_time(dut_id: int, start_time: datetime, end_time: Optional[datetime] = None, *, env="VAL_1_0"):
             Get messages since a specific device time.
-        since_record_id(dut_id: int, start_record_id: int, end_record_id: int = None, *, db_env="VAL_1_0"):
+        since_record_id(dut_id: int, start_record_id: int, end_record_id: int = None, *, env="VAL_1_0"):
             Get messages since a specific record ID.
 
     """

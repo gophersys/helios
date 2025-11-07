@@ -13,7 +13,7 @@ Key Features:
 """
 
 from datetime import datetime
-from typing import Iterable, Optional, Protocol, Type, Any, TypeVar, Generic
+from typing import Iterable, Optional, Protocol, Type, Any, TypeVar, Generic, Dict
 
 from .db_map import Env, Schema, SCHEMA_BY_ENV, RepositorySchemaConfig
 from corekinect.core_cloud.db_interface import CoreCloudDBInterface
@@ -38,8 +38,12 @@ class MessageReaderProtocol(Protocol):
     """
 
     def last(self, dut_id: int) -> Optional[Any]: ...
-    def since_server_time(self, dut_id: int, start: datetime, end: datetime | None = None) -> Iterable[Any]: ...
-    def since_device_time(self, dut_id: int, start: datetime, end: datetime | None = None) -> Iterable[Any]: ...
+    def since_server_time(
+        self, dut_id: int, start_time: datetime, end_time: datetime | None = None
+    ) -> Iterable[Any]: ...
+    def since_device_time(
+        self, dut_id: int, start_time: datetime, end_time: datetime | None = None
+    ) -> Iterable[Any]: ...
     def since_record_id(self, dut_id: int, start_id: int, end_id: int | None = None) -> Iterable[Any]: ...
 
 
@@ -100,14 +104,14 @@ def _default_schema_config_for(message_class: Type[Any], environment: Env) -> Re
         server_time_column_accessor = lambda Model: getattr(Model, "timeofrecord")
         record_id_column_accessor = lambda Model: getattr(Model, "recordid")
         use_timezone_aware_timestamps = False
-        device_time_field_names = getattr(message_class, "device_time_fields", "timeoffix")
+        device_time_field_names = getattr(message_class, "_device_time_fields", "timeoffix")
     else:
         # V0_9 uses PascalCase column names and timezone-aware timestamps
         device_id_column_accessor = lambda Model: getattr(Model, "DeviceId")
         server_time_column_accessor = lambda Model: getattr(Model, "TimeReceived")
         record_id_column_accessor = lambda Model: getattr(Model, "CheckinId")
         use_timezone_aware_timestamps = True
-        device_time_field_names = getattr(message_class, "device_time_fields", "TimeOfFix")
+        device_time_field_names = getattr(message_class, "_device_time_fields", "TimeOfFix")
 
     # Build and return the configuration object
     return RepositorySchemaConfig(
@@ -281,8 +285,8 @@ class MessageBase(Generic[TMsg]):
         return query_result  # type: ignore[return-value]
 
     @classmethod
-    def get_since_server_time(
-        cls: Type[TMsg], *, dut_id: int, start: datetime, end: datetime | None = None, env: Env = "VAL_1_0"
+    def since_server_time(
+        cls: Type[TMsg], *, dut_id: int, start_time: datetime, end_time: datetime | None = None, env: Env = "VAL_1_0"
     ) -> list[TMsg]:
         """
         Query messages received by the server within a specific time range.
@@ -298,9 +302,9 @@ class MessageBase(Generic[TMsg]):
 
         Args:
             dut_id: Device unique identifier.
-            start: Starting timestamp (exclusive). Messages received after this time
+            start_time: Starting timestamp (exclusive). Messages received after this time
                   are included in results.
-            end: Optional ending timestamp (inclusive). Messages received on or before
+            end_time: Optional ending timestamp (inclusive). Messages received on or before
                 this time are included. If None, no upper bound is applied.
             env: Deployment environment identifier. Default: "VAL_1_0".
 
@@ -315,8 +319,8 @@ class MessageBase(Generic[TMsg]):
             # Query all positions received in January 2025
             positions = PositionMsgV6.get_since_server_time(
                 dut_id=0x70B3D584C01E1445,
-                start=datetime(2025, 1, 1, tzinfo=timezone.utc),
-                end=datetime(2025, 1, 31, 23, 59, 59, tzinfo=timezone.utc),
+                start_time=datetime(2025, 1, 1, tzinfo=timezone.utc),
+                end_time=datetime(2025, 1, 31, 23, 59, 59, tzinfo=timezone.utc),
                 env="VAL_1_0"
             )
 
@@ -341,12 +345,12 @@ class MessageBase(Generic[TMsg]):
               spanning long periods
         """
         message_reader = _get_message_reader(cls, env)
-        query_results = message_reader.since_server_time(dut_id, start, end)
+        query_results = message_reader.since_server_time(dut_id, start_time, end_time)
         return list(query_results)  # type: ignore[return-value]
 
     @classmethod
-    def get_since_device_time(
-        cls: Type[TMsg], *, dut_id: int, start: datetime, end: datetime | None = None, env: Env = "VAL_1_0"
+    def since_device_time(
+        cls: Type[TMsg], *, dut_id: int, start_time: datetime, end_time: datetime | None = None, env: Env = "VAL_1_0"
     ) -> list[TMsg]:
         """
         Query messages based on device-recorded timestamps (not server receipt times).
@@ -362,9 +366,9 @@ class MessageBase(Generic[TMsg]):
 
         Args:
             dut_id: Device unique identifier.
-            start: Starting device timestamp (exclusive). Messages recorded after
+            start_time: Starting device timestamp (exclusive). Messages recorded after
                   this time are included.
-            end: Optional ending device timestamp (inclusive). Messages recorded on
+            end_time: Optional ending device timestamp (inclusive). Messages recorded on
                 or before this time are included. If None, no upper bound is applied.
             env: Deployment environment identifier. Default: "VAL_1_0".
 
@@ -382,8 +386,8 @@ class MessageBase(Generic[TMsg]):
 
             positions = PositionMsgV6.get_since_device_time(
                 dut_id=0x70B3D584C01E1445,
-                start=mission_start,
-                end=mission_end,
+                start_time=mission_start,
+                end_time=mission_end,
                 env="VAL_1_0"
             )
 
@@ -416,11 +420,11 @@ class MessageBase(Generic[TMsg]):
             - May be slower than server time queries for large datasets
         """
         message_reader = _get_message_reader(cls, env)
-        query_results = message_reader.since_device_time(dut_id, start, end)
+        query_results = message_reader.since_device_time(dut_id, start_time, end_time)
         return list(query_results)  # type: ignore[return-value]
 
     @classmethod
-    def get_since_record_id(
+    def since_record_id(
         cls: Type[TMsg], *, dut_id: int, start_id: int, end_id: int | None = None, env: Env = "VAL_1_0"
     ) -> list[TMsg]:
         """
@@ -513,3 +517,10 @@ class MessageBase(Generic[TMsg]):
         message_reader = _get_message_reader(cls, env)
         query_results = message_reader.since_record_id(dut_id, start_id, end_id)
         return list(query_results)  # type: ignore[return-value]
+
+    @classmethod
+    def _get_reason_from_mapping(cls, value: Optional[int], mapping: Dict[int, str]) -> str:
+        """Get the reason string from a bit mask value."""
+        if value is None:
+            return "No value provided"
+        return mapping.get(value, f"Unknown: {value}")

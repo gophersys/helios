@@ -11,10 +11,11 @@ Use `msg_def_v1_0` for current systems. Each message type exposes classmethods f
 (e.g., latest record, ranges by time or record ID).
 
 Example – fetch last Position message and print key fields
+
 ```python
 from corekinect.core_cloud.msg_def_v1_0 import PositionMsgV6
 
-last_pos = PositionMsgV6.last(0x70B3D584C02002FE, db_env="DEV_1_0")
+last_pos = PositionMsgV6.last(0x70B3D584C02002FE, env="DEV_1_0")
 print(
     f"lat,lon: {last_pos.latitude},{last_pos.longitude}; "
     f"Alt: pressure={last_pos.pressure_altitude_feet} ft, gps={last_pos.gps_altitude_feet} ft"

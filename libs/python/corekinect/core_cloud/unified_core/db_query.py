@@ -95,7 +95,7 @@ class DbQueryBase:
         config = self._cfg
 
         # Open a database session using context manager (auto-cleanup)
-        with CoreCloudDBInterface(db_env=self._env) as session:
+        with CoreCloudDBInterface(env=self._env) as session:
             # Query: filter by device ID, order by record ID descending, take first
             result_row = (
                 session.query(orm_model)
@@ -149,7 +149,7 @@ class DbQueryBase:
         orm_model = self._cfg.model
         config = self._cfg
 
-        with CoreCloudDBInterface(db_env=self._env) as session:
+        with CoreCloudDBInterface(env=self._env) as session:
             # Get the server timestamp column accessor
             server_time_column = config.server_time_col(orm_model)
 
@@ -215,9 +215,9 @@ class DbQueryBase:
         orm_model = self._cfg.model
         config = self._cfg
 
-        with CoreCloudDBInterface(db_env=self._env) as session:
+        with CoreCloudDBInterface(env=self._env) as session:
             # Build device time expression (handles both simple and composite timestamps)
-            device_time_expression = config.device_time_expr(orm_model, config.device_time_fields)
+            device_time_expression = config.device_time_expr(orm_model, config.device_time_fields[self._schema])
 
             # Adjust start time based on schema's timezone awareness
             start_time_adjusted = start.astimezone(timezone.utc) if config.tz_aware_server_time else start
@@ -289,7 +289,7 @@ class DbQueryBase:
         orm_model = self._cfg.model
         config = self._cfg
 
-        with CoreCloudDBInterface(db_env=self._env) as session:
+        with CoreCloudDBInterface(env=self._env) as session:
             # Get the record ID column accessor
             record_id_column = config.record_id_col(orm_model)
 

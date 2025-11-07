@@ -32,7 +32,7 @@ def ground_config():
 
 
 def position_message():
-    msg = PositionMsgV6.last(0x70B3D584C01E1445, db_env="VAL_1_0")
+    msg = PositionMsgV6.last(0x70B3D584C01E1445, env="VAL_1_0")
     print(msg.device_id_str)
     print(msg.temperature_celsius)
     print(msg.pressure_altitude_meters)
@@ -42,7 +42,7 @@ def scratchpad_message():
     from zoneinfo import ZoneInfo
 
     start_time = datetime(2025, 10, 23, 16, 0, 0, tzinfo=ZoneInfo("America/Phoenix"))
-    msgs = ScratchpadMsg.since_server_time(0x70B3D584C01E1445, start_time=start_time, db_env="VAL_1_0")
+    msgs = ScratchpadMsg.since_server_time(0x70B3D584C01E1445, start_time=start_time, env="VAL_1_0")
     breakpoint
     for message in msgs:
         print(message.payload_as_string)
