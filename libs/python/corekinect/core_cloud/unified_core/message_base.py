@@ -13,13 +13,13 @@ Key Features:
 """
 
 from datetime import datetime
-from typing import Iterable, Optional, Protocol, Type, Any, TypeVar, Generic, Dict
+from typing import Iterable, Optional, Protocol, Type, Any, TypeVar, Generic, Dict, List
 
-from .db_map import Env, Schema, SCHEMA_BY_ENV, RepositorySchemaConfig
 from corekinect.core_cloud.db_interface import CoreCloudDBInterface
+from .db_map import Env, Schema, SCHEMA_BY_ENV, RepositorySchemaConfig
 from .db_query import DbQueryBase
 
-# Type variable bound to MessageBase for generic typing
+# Needed for generic typing
 TMsg = TypeVar("TMsg", bound="MessageBase")
 
 
@@ -38,13 +38,28 @@ class MessageReaderProtocol(Protocol):
     """
 
     def last(self, dut_id: int) -> Optional[Any]: ...
+
     def since_server_time(
         self, dut_id: int, start_time: datetime, end_time: datetime | None = None
     ) -> Iterable[Any]: ...
+
     def since_device_time(
         self, dut_id: int, start_time: datetime, end_time: datetime | None = None
     ) -> Iterable[Any]: ...
+
     def since_record_id(self, dut_id: int, start_id: int, end_id: int | None = None) -> Iterable[Any]: ...
+
+    def since_server_time_multi(
+        self, dut_ids: Iterable[int], start_time: datetime, end_time: datetime | None = None
+    ) -> dict[int, list[Any]]: ...
+
+    def since_device_time_multi(
+        self, dut_ids: Iterable[int], start_time: datetime, end_time: datetime | None = None
+    ) -> dict[int, list[Any]]: ...
+
+    def since_record_id_multi(
+        self, dut_ids: Iterable[int], start_id: int, end_id: int | None = None
+    ) -> dict[int, list[Any]]: ...
 
 
 # Global cache: (message_class, environment) -> MessageReaderProtocol instance
@@ -260,25 +275,6 @@ class MessageBase(Generic[TMsg]):
         Returns:
             The most recent message instance for the device, or None if no records
             exist in the database.
-
-        Example:
-            ```python
-            # Get the latest position message from validation environment
-            latest_position = PositionMsgV6.get_last(
-                dut_id=0x70B3D584C01E1445,
-                env="VAL_1_0"
-            )
-
-            if latest_position:
-                print(f"Last known location: {latest_position.latitude}, {latest_position.longitude}")
-                print(f"Recorded at: {latest_position.time_of_fix}")
-            else:
-                print("No position messages found for this device")
-            ```
-
-        Performance:
-            - Uses an index on (device_id, record_id) for efficient queries
-            - Returns only one row, so very fast even for devices with many messages
         """
         message_reader = _get_message_reader(cls, env)
         query_result = message_reader.last(dut_id)
@@ -287,7 +283,7 @@ class MessageBase(Generic[TMsg]):
     @classmethod
     def since_server_time(
         cls: Type[TMsg], *, dut_id: int, start_time: datetime, end_time: datetime | None = None, env: Env = "VAL_1_0"
-    ) -> list[TMsg]:
+    ) -> List[TMsg]:
         """
         Query messages received by the server within a specific time range.
 
@@ -311,38 +307,6 @@ class MessageBase(Generic[TMsg]):
         Returns:
             A list of message instances within the specified time range. Returns an
             empty list if no messages match the criteria.
-
-        Example:
-            ```python
-            from datetime import datetime, timezone
-
-            # Query all positions received in January 2025
-            positions = PositionMsgV6.get_since_server_time(
-                dut_id=0x70B3D584C01E1445,
-                start_time=datetime(2025, 1, 1, tzinfo=timezone.utc),
-                end_time=datetime(2025, 1, 31, 23, 59, 59, tzinfo=timezone.utc),
-                env="VAL_1_0"
-            )
-
-            print(f"Device sent {len(positions)} positions in January")
-
-            # Analyze communication delays
-            for pos in positions:
-                delay = pos.time_of_record - pos.time_of_fix
-                print(f"Message delay: {delay.total_seconds()} seconds")
-            ```
-
-        Timezone Handling:
-            - V1_0 schemas: Timestamps are stored as naive UTC. If you pass a
-              timezone-aware datetime, the timezone info is stripped and the time
-              is treated as UTC.
-            - V0_9 schemas: Timestamps are timezone-aware. If you pass a naive
-              datetime, it's assumed to be UTC and converted to timezone-aware.
-
-        Performance:
-            - Uses an index on (device_id, server_time) for efficient range queries
-            - Can return large result sets; consider adding an end time for queries
-              spanning long periods
         """
         message_reader = _get_message_reader(cls, env)
         query_results = message_reader.since_server_time(dut_id, start_time, end_time)
@@ -350,8 +314,8 @@ class MessageBase(Generic[TMsg]):
 
     @classmethod
     def since_device_time(
-        cls: Type[TMsg], *, dut_id: int, start_time: datetime, end_time: datetime | None = None, env: Env = "VAL_1_0"
-    ) -> list[TMsg]:
+        cls: Type[TMsg], dut_id: int, start_time: datetime, end_time: datetime | None = None, *, env: Env = "VAL_1_0"
+    ) -> List[TMsg]:
         """
         Query messages based on device-recorded timestamps (not server receipt times).
 
@@ -375,49 +339,6 @@ class MessageBase(Generic[TMsg]):
         Returns:
             A list of message instances within the device time range. Returns an
             empty list if no messages match the criteria.
-
-        Example:
-            ```python
-            from datetime import datetime, timezone
-
-            # Get all positions recorded by device during a mission window
-            mission_start = datetime(2025, 1, 15, 8, 0, tzinfo=timezone.utc)
-            mission_end = datetime(2025, 1, 15, 16, 30, tzinfo=timezone.utc)
-
-            positions = PositionMsgV6.get_since_device_time(
-                dut_id=0x70B3D584C01E1445,
-                start_time=mission_start,
-                end_time=mission_end,
-                env="VAL_1_0"
-            )
-
-            print(f"Device recorded {len(positions)} positions during mission")
-
-            # Analyze movement during the mission
-            for i, pos in enumerate(positions):
-                print(f"Position {i+1} at {pos.time_of_fix}: "
-                      f"({pos.latitude}, {pos.longitude})")
-            ```
-
-        Device Time Fields:
-            The device time is determined by the message class's device_time_fields
-            attribute. This can be:
-            - A single field name (e.g., "timeoffix" for position messages)
-            - Multiple field names for composite timestamps
-            - Defaults: "timeoffix" (V1_0), "TimeOfFix" (V0_9)
-
-        Important Notes:
-            - Device timestamps may not be reliable if:
-              * The device's clock is not synchronized
-              * GPS time is unavailable (no fix)
-              * The device's RTC battery is dead
-            - Consider using get_since_server_time() for mission-critical queries
-              where timestamp reliability is paramount
-            - Device time may be in the future if the device clock is ahead
-
-        Performance:
-            - Performance depends on whether device time fields are indexed
-            - May be slower than server time queries for large datasets
         """
         message_reader = _get_message_reader(cls, env)
         query_results = message_reader.since_device_time(dut_id, start_time, end_time)
@@ -426,7 +347,7 @@ class MessageBase(Generic[TMsg]):
     @classmethod
     def since_record_id(
         cls: Type[TMsg], *, dut_id: int, start_id: int, end_id: int | None = None, env: Env = "VAL_1_0"
-    ) -> list[TMsg]:
+    ) -> List[TMsg]:
         """
         Query messages based on database record IDs (primary keys).
 
@@ -448,74 +369,68 @@ class MessageBase(Generic[TMsg]):
             env: Deployment environment identifier. Default: "VAL_1_0".
 
         Returns:
-            A list of message instances within the record ID range, ordered by record ID
-            (typically chronological). Returns an empty list if no messages match.
-
-        Example - Batch Processing:
-            ```python
-            # Process all messages for a device in batches of 100
-            batch_size = 100
-            last_processed_id = 0
-
-            while True:
-                batch = PositionMsgV6.get_since_record_id(
-                    dut_id=0x70B3D584C01E1445,
-                    start_id=last_processed_id,
-                    end_id=last_processed_id + batch_size,
-                    env="VAL_1_0"
-                )
-
-                if not batch:
-                    break  # No more messages to process
-
-                # Process the batch
-                for msg in batch:
-                    analyze_position(msg)
-
-                # Update for next iteration
-                last_processed_id = batch[-1].record_id
-            ```
-
-        Example - Resumable Processing:
-            ```python
-            # Save progress and resume later
-            def process_messages(device_id, checkpoint_file):
-                # Load last processed ID from checkpoint
-                with open(checkpoint_file, 'r') as f:
-                    last_id = int(f.read().strip() or '0')
-
-                # Get next batch of messages
-                messages = PositionMsgV6.get_since_record_id(
-                    dut_id=device_id,
-                    start_id=last_id,
-                    env="VAL_1_0"
-                )
-
-                # Process messages
-                for msg in messages:
-                    process(msg)
-
-                    # Save checkpoint after each message
-                    with open(checkpoint_file, 'w') as f:
-                        f.write(str(msg.record_id))
-            ```
-
-        Important Notes:
-            - Record IDs may have gaps due to:
-              * Deleted records
-              * Different message types sharing the same table
-              * Database operations that don't use auto-increment
-            - This method guarantees ordering but NOT contiguous IDs
-            - Record IDs are database-specific and not portable across environments
-            - Never assume specific record ID values or ranges
-
-        Performance:
-            - Very efficient for batch processing (uses indexed primary key lookups)
-            - Ideal for paginated queries or streaming large datasets
-            - Faster than time-based queries for sequential access patterns
+            A list of message instances within the record ID range, ordered by record ID.
+            Returns an empty list if no messages match.
         """
         message_reader = _get_message_reader(cls, env)
         query_results = message_reader.since_record_id(dut_id, start_id, end_id)
+        return list(query_results)  # type: ignore[return-value]
+
+    @classmethod
+    def since_server_time_multi(
+        cls: Type[TMsg],
+        dut_ids: Iterable[int],
+        start_time: datetime,
+        end_time: datetime | None = None,
+        *,
+        env: Env = "VAL_1_0",
+    ) -> List[TMsg]:
+        """
+        Multi-device variant of since_server_time.
+
+        Returns:
+            { device_id: [messages...] }
+        """
+        reader = _get_message_reader(cls, env)
+        query_results = reader.since_server_time_multi(dut_ids, start_time, end_time)
+        return list(query_results)  # type: ignore[return-value]
+
+    @classmethod
+    def since_device_time_multi(
+        cls: Type[TMsg],
+        dut_ids: Iterable[int],
+        start_time: datetime,
+        end_time: datetime | None = None,
+        *,
+        env: Env = "VAL_1_0",
+    ) -> List[TMsg]:
+        """
+        Multi-device variant of since_device_time.
+
+        Returns:
+            { device_id: [messages...] }
+        """
+        reader = _get_message_reader(cls, env)
+        query_results = reader.since_device_time_multi(dut_ids, start_time, end_time)
+        return list(query_results)  # type: ignore[return-value]
+
+    @classmethod
+    def since_record_id_multi(
+        cls: Type[TMsg],
+        *,
+        dut_ids: Iterable[int],
+        start_id: int,
+        end_id: int | None = None,
+        env: Env = "VAL_1_0",
+    ) -> List[TMsg]:
+        """
+        Multi-device variant of since_record_id.
+
+        Returns:
+            { device_id: [messages...] }
+        """
+        reader = _get_message_reader(cls, env)
+        query_results = reader.since_record_id_multi(dut_ids, start_id, end_id)
         return list(query_results)  # type: ignore[return-value]
 
     @classmethod

@@ -1,8 +1,8 @@
 from datetime import datetime, timezone
 from typing import Iterable, Optional, Type, Any
 
-from .db_map import Env, Schema, SCHEMA_BY_ENV, RepositorySchemaConfig, message_mapper
 from corekinect.core_cloud.db_interface import CoreCloudDBInterface
+from .db_map import Env, Schema, SCHEMA_BY_ENV, RepositorySchemaConfig, message_mapper
 
 
 class DbQueryBase:
@@ -81,14 +81,6 @@ class DbQueryBase:
             Optional[Any]: The most recent message instance for the device, or None if
                           no records exist. The return type is the message_type provided
                           during initialization.
-
-        Example:
-            ```python
-            query = DbQueryBase(PositionMsgV6, "VAL_1_0", config)
-            latest_position = query.last(dut_id=0x70B3D584C01E1445)
-            if latest_position:
-                print(f"Last known position: {latest_position.latitude}, {latest_position.longitude}")
-            ```
         """
         # Extract ORM model and configuration for this schema
         orm_model = self._cfg.model
@@ -130,21 +122,6 @@ class DbQueryBase:
         Returns:
             Iterable[Any]: List of message instances within the time range, in the order
                           returned by the database (typically chronological by record ID).
-
-        Example:
-            ```python
-            from datetime import datetime, timezone
-
-            query = DbQueryBase(PositionMsgV6, "VAL_1_0", config)
-
-            # Get all messages from January 2025
-            messages = query.since_server_time(
-                dut_id=0x70B3D584C01E1445,
-                start=datetime(2025, 1, 1, tzinfo=timezone.utc),
-                end=datetime(2025, 1, 31, 23, 59, 59, tzinfo=timezone.utc)
-            )
-            print(f"Found {len(messages)} messages in January")
-            ```
         """
         orm_model = self._cfg.model
         config = self._cfg
@@ -191,26 +168,6 @@ class DbQueryBase:
 
         Returns:
             Iterable[Any]: List of message instances within the device time range.
-
-        Example:
-            ```python
-            from datetime import datetime, timezone
-
-            query = DbQueryBase(PositionMsgV6, "VAL_1_0", config)
-
-            # Get positions recorded by device during a specific window
-            positions = query.since_device_time(
-                dut_id=0x70B3D584C01E1445,
-                start=datetime(2025, 1, 15, 12, 0, tzinfo=timezone.utc),
-                end=datetime(2025, 1, 15, 18, 0, tzinfo=timezone.utc)
-            )
-            print(f"Device recorded {len(positions)} positions in that 6-hour window")
-            ```
-
-        Note:
-            Device timestamps may not be reliable if the device's clock is not synchronized
-            or if GPS time is unavailable. Consider using since_server_time() for
-            mission-critical time-based queries.
         """
         orm_model = self._cfg.model
         config = self._cfg
@@ -255,36 +212,6 @@ class DbQueryBase:
         Returns:
             Iterable[Any]: List of message instances within the record ID range, ordered
                           by record ID (typically chronological).
-
-        Example:
-            ```python
-            query = DbQueryBase(PositionMsgV6, "VAL_1_0", config)
-
-            # Process messages in batches of 100 for a specific device
-            batch_size = 100
-            last_id = 0
-
-            while True:
-                batch = query.since_record_id(
-                    dut_id=0x70B3D584C01E1445,
-                    start_id=last_id,
-                    end_id=last_id + batch_size
-                )
-
-                if not batch:
-                    break  # No more records
-
-                # Process the batch
-                for msg in batch:
-                    process_message(msg)
-
-                # Update for next iteration
-                last_id += batch_size
-            ```
-
-        Note:
-            Record IDs may have gaps (deleted records, different message types sharing
-            the table, etc.). This method guarantees ordering but not contiguous IDs.
         """
         orm_model = self._cfg.model
         config = self._cfg
@@ -300,6 +227,96 @@ class DbQueryBase:
 
             # Add optional end ID filter (inclusive)
             if end_id is not None:
+                query = query.filter(record_id_column <= end_id)
+
+            # Execute query and convert all results to domain objects
+            result_rows = query.all()
+            return [self._from_row(row) for row in result_rows]
+
+    def since_server_time_multi(
+        self,
+        dut_ids: Iterable[int],
+        start: datetime,
+        end: datetime | None = None,
+    ) -> Iterable[Any]:
+        orm_model = self._cfg.model
+        config = self._cfg
+
+        with CoreCloudDBInterface(env=self._env) as session:
+            # Get the server timestamp column
+            server_time_column = config.server_time_col(orm_model)
+
+            # Adjust start time based on schema's timezone awareness
+            start_time_adjusted = start.astimezone(timezone.utc) if config.tz_aware_server_time else start
+
+            # Build base query: filter by device ID and device start time (exclusive)
+            query = session.query(orm_model).filter(
+                config.device_id_col(orm_model).in_(dut_ids), server_time_column > start_time_adjusted
+            )
+
+            # Add optional end time filter (inclusive)
+            if end:
+                end_time_adjusted = end.astimezone(timezone.utc) if config.tz_aware_server_time else end
+                query = query.filter(server_time_column <= end_time_adjusted)
+
+            # Execute query and convert all results to domain objects
+            result_rows = query.all()
+            return [self._from_row(row) for row in result_rows]
+
+    def since_device_time_multi(
+        self,
+        dut_ids: Iterable[int],
+        start: datetime,
+        end: datetime | None = None,
+    ) -> Iterable[Any]:
+        orm_model = self._cfg.model
+        config = self._cfg
+
+        with CoreCloudDBInterface(env=self._env) as session:
+            # Build device time expression (handles both simple and composite timestamps)
+            device_time_expression = config.device_time_expr(orm_model, config.device_time_fields[self._schema])
+
+            # Adjust start time based on schema's timezone awareness
+            start_time_adjusted = start.astimezone(timezone.utc) if config.tz_aware_server_time else start
+
+            # Build base query: filter by device ID and device start time (exclusive)
+            query = session.query(orm_model).filter(
+                config.device_id_col(orm_model).in_(dut_ids), device_time_expression > start_time_adjusted
+            )
+
+            # Add optional end time filter (inclusive)
+            if end:
+                end_time_adjusted = end.astimezone(timezone.utc) if config.tz_aware_server_time else end
+                query = query.filter(device_time_expression <= end_time_adjusted)
+
+            # Execute query and convert all results to domain objects
+            result_rows = query.all()
+            return [self._from_row(row) for row in result_rows]
+
+    def since_record_id_multi(
+        self,
+        dut_ids: Iterable[int],
+        start_id: int,
+        end_id: int | None = None,
+    ) -> Iterable[Any]:
+        ids = self._normalize_ids(dut_ids)
+        if not ids:
+            return {}
+
+        orm_model = self._cfg.model
+        config = self._cfg
+
+        with CoreCloudDBInterface(env=self._env) as session:
+            # Get the record ID column accessor
+            record_id_column = config.record_id_col(orm_model)
+
+            # Build base query: filter by device ID and device start time (exclusive)
+            query = session.query(orm_model).filter(
+                config.device_id_col(orm_model).in_(dut_ids), record_id_column > start_id
+            )
+
+            # Add optional end time filter (inclusive)
+            if end_id:
                 query = query.filter(record_id_column <= end_id)
 
             # Execute query and convert all results to domain objects
