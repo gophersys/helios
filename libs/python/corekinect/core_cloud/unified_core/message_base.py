@@ -110,7 +110,7 @@ class MessageBase(Generic[TMsg]):
             return None
 
         if timestamp.tzinfo is None:
-            return timestamp.astimezone(timezone.utc)
+            return timestamp.replace(tzinfo=timezone.utc)
 
         # Force UTC but as naive datetime
         return timestamp.astimezone(timezone.utc).replace(tzinfo=None)
