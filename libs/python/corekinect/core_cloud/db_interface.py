@@ -121,6 +121,7 @@ class CoreCloudDBInterface(metaclass=SingletonThreadSafeMeta):
         env: Optional[Literal["VAL_1_0", "DEV_1_0", "DEV_0_9"]] = "VAL_1_0",
         *,
         test_query: Optional[str] = "SELECT 1",
+        sql_echo: bool = False,
     ):
         self._depth = 0
 
@@ -128,6 +129,9 @@ class CoreCloudDBInterface(metaclass=SingletonThreadSafeMeta):
         _apply_namespace_env(env)
 
         self.db = db or DBConfig(namespace=env)
+        if sql_echo:
+            self.db.echo = sql_echo
+
         self.ssh = ssh or SSHConfig(namespace=env)
         self.test_query = test_query
 
