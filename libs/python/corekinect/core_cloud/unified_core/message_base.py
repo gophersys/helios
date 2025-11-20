@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 from functools import lru_cache
 from typing import Any, ClassVar, Dict, Generic, Iterable, List, Optional, Type, TypeVar
 
+from corekinect.utils.timeutil.tzutils import dt_to_utc
 from corekinect.core_cloud.db_interface import CoreCloudDBInterface
 from .db_map import Env, Schema, SCHEMA_BY_ENV, RepositorySchemaConfig, message_mapper
 
@@ -102,19 +103,6 @@ class MessageBase(Generic[TMsg]):
         schema_version: Schema = SCHEMA_BY_ENV[env]
         return message_mapper(cls, schema_version)
 
-    # ----------------------------------------  Base helpers
-
-    @staticmethod
-    def _to_utc(timestamp: datetime) -> datetime | None:
-        if timestamp is None:
-            return None
-
-        if timestamp.tzinfo is None:
-            return timestamp.replace(tzinfo=timezone.utc)
-
-        # Force UTC but as naive datetime
-        return timestamp.astimezone(timezone.utc).replace(tzinfo=None)
-
     # ----------------------------------------  Message implementer facing helpers
 
     @classmethod
@@ -176,8 +164,8 @@ class MessageBase(Generic[TMsg]):
         row_to_message = cls._get_message_mapper(env)
         model = config.model
 
-        start_time = cls._to_utc(start_time)
-        end_time = cls._to_utc(end_time)
+        start_time = dt_to_utc(start_time)
+        end_time = dt_to_utc(end_time)
 
         with CoreCloudDBInterface(env=env) as session:
             query = session.query(model).filter(
@@ -218,8 +206,8 @@ class MessageBase(Generic[TMsg]):
         row_to_message = cls._get_message_mapper(env)
         model = config.model
 
-        start_time = cls._to_utc(start_time)
-        end_time = cls._to_utc(end_time)
+        start_time = dt_to_utc(start_time)
+        end_time = dt_to_utc(end_time)
 
         device_time_col = config.device_time_expr(model, config.device_time_fields)
 
@@ -306,8 +294,8 @@ class MessageBase(Generic[TMsg]):
         row_to_message = cls._get_message_mapper(env)
         model = config.model
 
-        start_time = cls._to_utc(start_time)
-        end_time = cls._to_utc(end_time)
+        start_time = dt_to_utc(start_time)
+        end_time = dt_to_utc(end_time)
 
         with CoreCloudDBInterface(env=env) as session:
             query = session.query(model).filter(
@@ -353,8 +341,8 @@ class MessageBase(Generic[TMsg]):
         row_to_message = cls._get_message_mapper(env)
         model = config.model
 
-        start_time = cls._to_utc(start_time)
-        end_time = cls._to_utc(end_time)
+        start_time = dt_to_utc(start_time)
+        end_time = dt_to_utc(end_time)
 
         device_time_col = config.device_time_expr(model, config.device_time_fields)
 
