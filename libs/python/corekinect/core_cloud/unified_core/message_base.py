@@ -1,10 +1,29 @@
-from datetime import datetime, timezone
+import csv
+from dataclasses import fields
+from datetime import datetime
 from functools import lru_cache
-from typing import Any, ClassVar, Dict, Generic, Iterable, List, Optional, Type, TypeVar
+from pathlib import Path
+from typing import (
+    Any,
+    ClassVar,
+    Dict,
+    Generic,
+    Iterable,
+    List,
+    Optional,
+    Type,
+    TypeVar,
+    Annotated,
+    get_args,
+    get_origin,
+    get_type_hints,
+)
 
-from corekinect.utils.timeutil.tzutils import dt_to_utc
 from corekinect.core_cloud.db_interface import CoreCloudDBInterface
-from .db_map import Env, Schema, SCHEMA_BY_ENV, RepositorySchemaConfig, message_mapper
+from corekinect.utils import Logger
+from corekinect.utils.serde import convert_str_to_type
+from corekinect.utils.timeutil.tzutils import dt_to_utc
+from .db_map import Env, Schema, SCHEMA_BY_ENV, RepositorySchemaConfig, message_mapper, db_translation
 
 # Needed for generic typing
 TMsg = TypeVar("TMsg", bound="MessageBase")
@@ -51,7 +70,7 @@ class MessageBase(Generic[TMsg]):
     _schema: ClassVar[Dict[Schema, Any]] = None
     _device_time_fields: ClassVar[Dict[Schema, Any]] = None
 
-    # ----------------------------------------  Schema config stuff, cached for less overhead on MTIB
+    # --------------------------------------------------|  Schema config stuff, cached for less overhead on MTIB  |----------
     @classmethod
     @lru_cache(maxsize=64)
     def _schema_config(cls, env: Env) -> RepositorySchemaConfig:
@@ -103,7 +122,7 @@ class MessageBase(Generic[TMsg]):
         schema_version: Schema = SCHEMA_BY_ENV[env]
         return message_mapper(cls, schema_version)
 
-    # ----------------------------------------  Message implementer facing helpers
+    # --------------------------------------------------|  Message implementer helpers  |----------
 
     @classmethod
     def _get_reason_from_mapping(cls, value: Optional[int], mapping: Dict[int, str]) -> str:
@@ -112,7 +131,7 @@ class MessageBase(Generic[TMsg]):
             return "No value provided"
         return mapping.get(value, f"Unknown: {value}")
 
-    # ---------------------------------------- User facing APIs
+    # --------------------------------------------------|  Load from Database  |----------
 
     @classmethod
     def last(cls: Type[TMsg], *, dut_id: int, env: Env = "VAL_1_0") -> Optional[TMsg]:
@@ -360,3 +379,80 @@ class MessageBase(Generic[TMsg]):
             result_rows = query.all()
 
         return [row_to_message(row) for row in result_rows]
+
+    # --------------------------------------------------|  Load from CSV   |----------
+    @classmethod
+    def from_csv_file(cls, csv_file_path: str | Path, *, env: Env = "VAL_1_0") -> List[TMsg]:
+        """
+        Get messages from an SQL query dumped to a CSV file.
+
+        Args:
+            csv_file_path: Path to the CSV file.
+            env: Environment to use. Valid options: "DEV_1_0", "VAL_1_0", "DEV_0_9".
+
+        Returns:
+            A list of messages from the specified CSV file.
+        """
+        log = Logger(log_name=cls.from_csv_file.__name__)
+        csv_file_path = Path(csv_file_path)
+        schema = SCHEMA_BY_ENV[env]
+        messages: list[TMsg] = []
+
+        type_hints = get_type_hints(cls, include_extras=True)
+
+        # --------------------|  Get field + type to column name mappings  |--------------------
+        field_defs: list[tuple[str, Any, str]] = []
+
+        for field in fields(cls):
+            if not field.init:
+                continue  # skip non-init fields
+
+            field_type = type_hints.get(field.name, field.type)
+            column_name: str | None = None
+
+            # Get field mapping to correct schema ORM column name
+            if get_origin(field_type) is Annotated:
+                meta_items = get_args(field_type)[1:]
+                for meta in meta_items:
+                    if isinstance(meta, db_translation):
+                        mapped = meta.by_schema.get(schema)
+                        if mapped:
+                            column_name = mapped
+                        break
+
+            # if not found we stop
+            if column_name is None:
+                msg = f"No db_translation mapping for field {field.name=} in {schema=}."
+                log.warning(msg)
+                # raise ValueError(msg)
+
+            field_defs.append((field.name, field_type, column_name))
+
+        # --------------------|  Read messages in from CSV  |--------------------
+        with csv_file_path.open("r", encoding="utf-8", newline="") as f:
+            reader = csv.DictReader(f)
+
+            # Check this file has the columns we are expecting
+            csv_columns = set(reader.fieldnames or [])
+            expected_columns = {col for _, _, col in field_defs if col is not None}
+            missing = expected_columns - csv_columns
+
+            if missing:
+                msg = f"CSV file '{csv_file_path}' is missing required columns for {schema=}, {sorted(missing)}"
+                log.critical(msg)
+                raise ValueError(msg)
+
+            # Build messages
+            for row in reader:
+                msg_kwargs: dict[str, Any] = {}
+
+                for field_name, field_type, column_name in field_defs:
+                    raw_value = row.get(column_name)
+                    if raw_value == "NULL":
+                        raw_value = None
+
+                    msg_kwargs[field_name] = convert_str_to_type(raw_value, field_type)
+
+                messages.append(cls(**msg_kwargs))
+
+        return messages

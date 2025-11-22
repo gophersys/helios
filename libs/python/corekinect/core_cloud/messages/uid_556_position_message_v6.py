@@ -61,8 +61,8 @@ class PositionMsgV6(MessageBase, MessageCodec):
 
     # Power/telemetry
     batt_voltage: Annotated[int, db_translation(V1_0="battvoltage", V0_9="BatteryVoltage")] = None
-    air_pressure: Annotated[float, db_translation(V1_0="airpressure", V0_9=None)] = None
-    air_pressure_inhg: Annotated[float, db_translation(V1_0=None, V0_9="AirPressureInHg")] = None
+    # air_pressure: Annotated[float, db_translation(V1_0="airpressure", V0_9=None)] = None
+    air_pressure_inhg: Annotated[float, db_translation(V1_0="airpressure", V0_9="AirPressureInHg")] = None
     temperature: Annotated[float, db_translation(V1_0="temperature", V0_9="Temperature")] = None
     avg_force: Annotated[float, db_translation(V1_0="avgforce", V0_9="AverageForce")] = None
     max_force: Annotated[float, db_translation(V1_0="maxforce", V0_9="MaxForce")] = None
