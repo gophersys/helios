@@ -8,8 +8,17 @@ from corekinect.utils import Logger
 from flask import Flask
 from flask_socketio import SocketIO
 
-# V2 Routes
+from .firmware.appid.create import v2_firmware_appid_create_bp
+from .firmware.appid.delete import v2_firmware_appid_delete_bp
+from .firmware.appid.get import v2_firmware_appid_get_bp
+from .firmware.appid.list import v2_firmware_appid_list_bp
+from .firmware.appid.update import v2_firmware_appid_update_bp
 from .healthcheck import v2_healthcheck_bp
+from .mtib.get import v2_mtib_get_bp
+from .mtib.list import v2_mtib_list_bp
+from .mtib.register import v2_mtib_register_bp
+from .mtib.unregister import v2_mtib_unregister_bp
+from .validation.tests.run import v2_validation_tests_run_bp
 
 
 # -------------------------------------------------
@@ -43,4 +52,21 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     # Add a log filter to avoid spamming the logs with commonly hit routes
     logger.add_filter(LogFilter())
 
+    # Healthcheck
     server.register_blueprint(v2_healthcheck_bp)  # GET /v2/healthcheck
+
+    # MTIB
+    server.register_blueprint(v2_mtib_list_bp)  # GET /v2/mtib/list
+    server.register_blueprint(v2_mtib_get_bp)  # GET /v2/mtib/get
+    server.register_blueprint(v2_mtib_register_bp)  # POST /v2/mtib/register
+    server.register_blueprint(v2_mtib_unregister_bp)  # POST /v2/mtib/unregister
+
+    # Firmware
+    server.register_blueprint(v2_firmware_appid_create_bp)  # POST /v2/firmware/appid
+    server.register_blueprint(v2_firmware_appid_delete_bp)  # DELETE /v2/firmware/appid/<appId>
+    server.register_blueprint(v2_firmware_appid_get_bp)  # GET /v2/firmware/appid/<appId>
+    server.register_blueprint(v2_firmware_appid_list_bp)  # GET /v2/firmware/appid
+    server.register_blueprint(v2_firmware_appid_update_bp)  # PUT /v2/firmware/appid/<appId>
+
+    # Validation
+    server.register_blueprint(v2_validation_tests_run_bp)  # POST /v2/validation/tests/run

@@ -9,7 +9,7 @@ from typing import Dict, Iterator, Optional, Tuple
 
 import grpc
 from corekinect.utils import Logger
-from src.types.protocols import *
+from src.shared.types import *
 
 
 class FirmwareHandler:
@@ -385,6 +385,56 @@ class FirmwareHandler:
         except Exception as e:
             self.logger.error(f"Error flashing firmware: {e}")
             return FlashFwFileResponse(success=False, message=f"Failed to flash firmware: {str(e)}", time_ms=0)
+
+    def erase_flash(self, request: EraseFlashRequest, context: grpc.ServicerContext) -> EraseFlashResponse:
+        """Erase the flash memory on a target device.
+
+        Based on nrfjprog documentation:
+        - --chiperase: Erases all available non-volatile memory and UICR
+        - --recover: Erases all user flash memory, UICR, and readback protection mechanism
+        """
+        self.logger.info(f"EraseFlash request received for {request.target}, recover={request.recover}")
+        try:
+            # Re-scan and update programmer assignments before erasing flash
+            # Use force_recovery=True when recover flag is set, otherwise False
+            self._assign_jlinks(force_recovery=request.recover)
+
+            # Find a suitable programmer
+            programmer = None
+            for serial, (host_type, is_connected) in self.programmers.items():
+                if not is_connected:
+                    continue
+                if host_type == request.target:
+                    programmer = serial
+                    break
+
+            if not programmer:
+                return EraseFlashResponse(
+                    success=False, message=f"No suitable programmer found for target {request.target}"
+                )
+
+            # Choose the appropriate erase command based on recover flag
+            # --chiperase: Erases all non-volatile memory and UICR (when recover=False)
+            # --recover: Erases everything including readback protection (when recover=True)
+            if request.recover:
+                cmd = ["nrfjprog", "--recover", "--snr", programmer]
+                self.logger.info(f"Running recover erase: {' '.join(cmd)}")
+            else:
+                cmd = ["nrfjprog", "--chiperase", "--snr", programmer]
+                self.logger.info(f"Running chip erase: {' '.join(cmd)}")
+
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                check=True,
+                timeout=60,  # 1 minute timeout
+            )
+            self.logger.info(f"Successfully erased flash (recover={request.recover})")
+            return EraseFlashResponse(success=True, message="")
+        except Exception as e:
+            self.logger.error(f"Error erasing flash: {e}")
+            return EraseFlashResponse(success=False, message=f"Failed to erase flash: {str(e)}")
 
     def enable_app_protect(
         self, request: EnableAppProtectRequest, context: grpc.ServicerContext

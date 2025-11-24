@@ -17,8 +17,13 @@ import grpc
 from corekinect.utils import Logger
 from grpc import RpcError, insecure_channel
 
-# Import actual protobuf types for UART streaming
-from protocols.mtib.mtib_pb2 import UartStreamRequest, UartStreamResponse
+# Import actual protobuf types for UART streaming and motion streaming
+from protocols.mtib.mtib_pb2 import (
+    MotionStartRequest,
+    MotionStartResponse,
+    UartStreamRequest,
+    UartStreamResponse,
+)
 
 # Protocol includes
 from protocols.mtib.mtib_pb2_grpc import MtibV1Stub as MtibClientV1
@@ -28,22 +33,68 @@ from .config import *
 # Private includes
 from .types import *
 
+# Global timeout constant for all gRPC calls (in seconds)
+# This prevents functions from hanging forever if the server dies or disconnects
+DEFAULT_GRPC_TIMEOUT_SECONDS = 10
+
 
 class MtibV1Client:
+    """gRPC client for communicating with MTIB (Motion Test Interface Board) devices.
+
+    This client provides a high-level interface for controlling and monitoring
+    MTIB hardware including GPIO, ADC, power management, sensors, motion control,
+    firmware operations, and UART communication.
+
+    Attributes:
+        config: Client configuration containing network settings
+        logger: Logger instance for debugging and error reporting
+
+    Example:
+        ```python
+        from corekinect.mtib_client.v1 import MtibV1Client, NetConfig
+
+        config = MtibV1Client.Config(net=NetConfig(addr="192.168.1.100", port=50051))
+        client = MtibV1Client(config)
+        error = client.connect()
+        if error:
+            print(f"Connection failed: {error}")
+        else:
+            # Use client methods...
+            client.disconnect()
+        ```
+    """
+
     # -----------------------------------------------
     #                                          Config
     # ---------------------------------------------*/
     class Config:
+        """Configuration for the MTIB client.
+
+        Attributes:
+            net: Network configuration for gRPC connection
+        """
+
         def __init__(
             self,
             net: NetConfig = NetConfig(),
         ):
+            """Initialize client configuration.
+
+            Args:
+                net: Network configuration with address and port. Defaults to localhost:50051.
+            """
             self.net: NetConfig = net
 
     # -----------------------------------------------
     #                                          Init
     # ---------------------------------------------*/
     def __init__(self, config: Config, logger: Logger = None):
+        """Initialize the MTIB client.
+
+        Args:
+            config: Client configuration containing network settings
+            logger: Optional logger instance. If None, creates a new logger with name "mtib_client_v1"
+        """
         self.config: self.Config = config
 
         if logger is None:
@@ -63,6 +114,11 @@ class MtibV1Client:
     #                                         Helpers
     # ---------------------------------------------*/
     def _get_func_name(self) -> str:
+        """Get the name of the calling function for error messages.
+
+        Returns:
+            str: Name of the calling function
+        """
         return inspect.currentframe().f_back.f_code.co_name
 
     def _grpc_call(self, func, request, *, return_value: bool = False):
@@ -142,6 +198,21 @@ class MtibV1Client:
     #                             Connection Handlers
     # ---------------------------------------------*/
     def connect(self) -> Optional[str]:
+        """Establish a connection to the MTIB device.
+
+        Creates a gRPC channel and performs a health check to verify connectivity.
+        The connection must be established before calling any other methods.
+
+        Returns:
+            Optional[str]: None on success, error message string on failure
+
+        Example:
+            ```python
+            error = client.connect()
+            if error:
+                print(f"Failed to connect: {error}")
+            ```
+        """
         try:
             # Create a gRPC channel
             self.channel = insecure_channel(f"{self.config.net.addr}:{self.config.net.port}")
@@ -150,7 +221,7 @@ class MtibV1Client:
             self.client = MtibClientV1(self.channel)
 
             # Health check
-            ready, errors, error = self.HealthCheck()
+            ready, errors, error = self.HealthCheck(DEFAULT_GRPC_TIMEOUT_SECONDS)
             if error:
                 return error
 
@@ -171,6 +242,20 @@ class MtibV1Client:
             return f"Unexpected error when connecting to MTIB at {self.config.net.addr}:{self.config.net.port}. Error: {str(e)}"
 
     def disconnect(self) -> Optional[str]:
+        """Close the connection to the MTIB device.
+
+        Closes the gRPC channel. Safe to call even if not connected.
+
+        Returns:
+            Optional[str]: None on success, error message string on failure
+
+        Example:
+            ```python
+            error = client.disconnect()
+            if error:
+                print(f"Error disconnecting: {error}")
+            ```
+        """
         try:
             if self.channel:
                 # Close the gRPC channel if it's open
@@ -185,16 +270,33 @@ class MtibV1Client:
     # -----------------------------------------------
     #                                          Health
     # ---------------------------------------------*/
-    def HealthCheck(self) -> Tuple[Optional[bool], Optional[List[str]], Optional[str]]:
+    def HealthCheck(
+        self, timeout: int = DEFAULT_GRPC_TIMEOUT_SECONDS
+    ) -> Tuple[Optional[bool], Optional[List[str]], Optional[str]]:
         """Check the health status of the MTIB device.
 
+        Args:
+            timeout: Timeout in seconds for the health check. Defaults to DEFAULT_GRPC_TIMEOUT_SECONDS.
+
         Returns:
-            Tuple of (ready status, list of errors if any, error string if failed)
-            - On success: (ready, errors, None)
-            - On failure: (None, None, error_string)
+            Tuple[Optional[bool], Optional[List[str]], Optional[str]]: A tuple containing:
+                - ready (Optional[bool]): True if device is ready, False if not ready, None on error
+                - errors (Optional[List[str]]): List of error messages if device reports issues, None on error
+                - error (Optional[str]): Error message string if the check failed, None on success
+
+        Example:
+            ```python
+            ready, errors, error = client.HealthCheck(timeout=5)
+            if error:
+                print(f"Health check failed: {error}")
+            elif not ready:
+                print(f"Device not ready. Errors: {errors}")
+            else:
+                print("Device is healthy")
+            ```
         """
         try:
-            response = self.client.HealthCheck(Empty())
+            response = self.client.HealthCheck(Empty(), timeout=timeout)
             return response.ready, response.errors, None
         except grpc.RpcError as e:
             return None, None, f"gRPC error for HealthCheck at {self.config.net.addr}. Error: {str(e.details())}"
@@ -209,14 +311,31 @@ class MtibV1Client:
 
         Args:
             gpio: Pin number to configure
-            direction: Input or output mode
+            direction: Input or output mode (GpioDirection.GPIO_DIRECTION_INPUT or GpioDirection.GPIO_DIRECTION_OUTPUT)
             resistor: Pull-up, pull-down, or no resistor configuration
+                (GpioResistorConfig.GPIO_RESISTOR_PULL_UP, GpioResistorConfig.GPIO_RESISTOR_PULL_DOWN, or GpioResistorConfig.GPIO_RESISTOR_NONE)
 
         Returns:
-            None on success, error string on failure
+            Optional[str]: None on success, error message string on failure
+
+        Example:
+            ```python
+            from corekinect.mtib_client.v1 import GpioDirection, GpioResistorConfig
+
+            error = client.GpioConfig(
+                gpio=5,
+                direction=GpioDirection.GPIO_DIRECTION_OUTPUT,
+                resistor=GpioResistorConfig.GPIO_RESISTOR_NONE
+            )
+            if error:
+                print(f"GPIO config failed: {error}")
+            ```
         """
         try:
-            response = self.client.GpioConfig(GpioConfigRequest(gpio=gpio, direction=direction, resistor=resistor))
+            response = self.client.GpioConfig(
+                GpioConfigRequest(gpio=gpio, direction=direction, resistor=resistor),
+                timeout=DEFAULT_GRPC_TIMEOUT_SECONDS,
+            )
             if not response.success:
                 return f"GpioConfig error: {response.message}"
             return None
@@ -230,13 +349,22 @@ class MtibV1Client:
 
         Args:
             gpio: Pin number to write to
-            state: True for high, False for low
+            state: True for high (logic 1), False for low (logic 0)
 
         Returns:
-            None on success, error string on failure
+            Optional[str]: None on success, error message string on failure
+
+        Example:
+            ```python
+            error = client.GpioWrite(gpio=5, state=True)
+            if error:
+                print(f"GPIO write failed: {error}")
+            ```
         """
         try:
-            response = self.client.GpioWrite(GpioWriteRequest(gpio=gpio, state=state))
+            response = self.client.GpioWrite(
+                GpioWriteRequest(gpio=gpio, state=state), timeout=DEFAULT_GRPC_TIMEOUT_SECONDS
+            )
             if not response.success:
                 return f"GpioWrite error: {response.message}"
             return None
@@ -252,12 +380,21 @@ class MtibV1Client:
             gpio: Pin number to read from
 
         Returns:
-            Tuple of (pin state, error if any)
-            - On success: (state, None)
-            - On failure: (None, error_string)
+            Tuple[Optional[bool], Optional[str]]: A tuple containing:
+                - state (Optional[bool]): True if pin is high, False if low, None on error
+                - error (Optional[str]): Error message string if read failed, None on success
+
+        Example:
+            ```python
+            state, error = client.GpioRead(gpio=5)
+            if error:
+                print(f"GPIO read failed: {error}")
+            else:
+                print(f"GPIO pin 5 state: {state}")
+            ```
         """
         try:
-            response = self.client.GpioRead(GpioReadRequest(gpio=gpio))
+            response = self.client.GpioRead(GpioReadRequest(gpio=gpio), timeout=DEFAULT_GRPC_TIMEOUT_SECONDS)
             if not response.success:
                 return None, f"GpioRead error: {response.message}"
             return response.state, None
@@ -276,10 +413,21 @@ class MtibV1Client:
             channel: ADC channel number to read from
 
         Returns:
-            Tuple of (voltage in volts, error if any)
+            Tuple[Optional[float], Optional[str]]: A tuple containing:
+                - voltage_v (Optional[float]): Voltage reading in volts, None on error
+                - error (Optional[str]): Error message string if read failed, None on success
+
+        Example:
+            ```python
+            voltage, error = client.AdcRead(channel=0)
+            if error:
+                print(f"ADC read failed: {error}")
+            else:
+                print(f"Channel 0 voltage: {voltage}V")
+            ```
         """
         try:
-            response = self.client.AdcRead(AdcReadRequest(channel=channel))
+            response = self.client.AdcRead(AdcReadRequest(channel=channel), timeout=DEFAULT_GRPC_TIMEOUT_SECONDS)
             if not response.success:
                 return None, f"AdcRead error: {response.message}"
             return response.voltage_v, None
@@ -292,10 +440,22 @@ class MtibV1Client:
         """Read voltage from all ADC channels.
 
         Returns:
-            Tuple of (list of voltages in volts, error if any)
+            Tuple[Optional[List[float]], Optional[str]]: A tuple containing:
+                - voltages_v (Optional[List[float]]): List of voltage readings in volts (one per channel), None on error
+                - error (Optional[str]): Error message string if read failed, None on success
+
+        Example:
+            ```python
+            voltages, error = client.AdcReadAll()
+            if error:
+                print(f"ADC read all failed: {error}")
+            else:
+                for i, voltage in enumerate(voltages):
+                    print(f"Channel {i}: {voltage}V")
+            ```
         """
         try:
-            response = self.client.AdcReadAll(Empty())
+            response = self.client.AdcReadAll(Empty(), timeout=DEFAULT_GRPC_TIMEOUT_SECONDS)
             if not response.success:
                 return None, f"AdcReadAll error: {response.message}"
             return response.voltages_v, None
@@ -314,10 +474,19 @@ class MtibV1Client:
             voltage_v: Voltage to apply in volts
 
         Returns:
-            None on success, error string on failure
+            Optional[str]: None on success, error message string on failure
+
+        Example:
+            ```python
+            error = client.DutPowerEnable(voltage_v=3.3)
+            if error:
+                print(f"Power enable failed: {error}")
+            ```
         """
         try:
-            response = self.client.DutPowerEnable(DutPowerRequest(voltage_v=voltage_v))
+            response = self.client.DutPowerEnable(
+                DutPowerRequest(voltage_v=voltage_v), timeout=DEFAULT_GRPC_TIMEOUT_SECONDS
+            )
             if not response.success:
                 return f"DutPowerEnable error: {response.message}"
             return None
@@ -330,10 +499,17 @@ class MtibV1Client:
         """Disable power to the device under test (DUT).
 
         Returns:
-            None on success, error string on failure
+            Optional[str]: None on success, error message string on failure
+
+        Example:
+            ```python
+            error = client.DutPowerDisable()
+            if error:
+                print(f"Power disable failed: {error}")
+            ```
         """
         try:
-            response = self.client.DutPowerDisable(Empty())
+            response = self.client.DutPowerDisable(Empty(), timeout=DEFAULT_GRPC_TIMEOUT_SECONDS)
             if not response.success:
                 return f"DutPowerDisable error: {response.message}"
             return None
@@ -346,10 +522,17 @@ class MtibV1Client:
         """Enable charging power to the device under test (DUT).
 
         Returns:
-            None on success, error string on failure
+            Optional[str]: None on success, error message string on failure
+
+        Example:
+            ```python
+            error = client.DutChargePowerEnable()
+            if error:
+                print(f"Charge power enable failed: {error}")
+            ```
         """
         try:
-            response = self.client.DutChargePowerEnable(Empty())
+            response = self.client.DutChargePowerEnable(Empty(), timeout=DEFAULT_GRPC_TIMEOUT_SECONDS)
             if not response.success:
                 return f"DutChargePowerEnable error: {response.message}"
             return None
@@ -362,10 +545,17 @@ class MtibV1Client:
         """Disable charging power to the device under test (DUT).
 
         Returns:
-            None on success, error string on failure
+            Optional[str]: None on success, error message string on failure
+
+        Example:
+            ```python
+            error = client.DutChargePowerDisable()
+            if error:
+                print(f"Charge power disable failed: {error}")
+            ```
         """
         try:
-            response = self.client.DutChargePowerDisable(Empty())
+            response = self.client.DutChargePowerDisable(Empty(), timeout=DEFAULT_GRPC_TIMEOUT_SECONDS)
             if not response.success:
                 return f"DutChargePowerDisable error: {response.message}"
             return None
@@ -381,10 +571,23 @@ class MtibV1Client:
         """Read the power consumption of the device under test (DUT).
 
         Returns:
-            Tuple of (current in amps, voltage in volts, power in watts, error if any)
+            Tuple[Optional[float], Optional[float], Optional[float], Optional[str]]: A tuple containing:
+                - current_a (Optional[float]): Current consumption in amps, None on error
+                - voltage_v (Optional[float]): Voltage in volts, None on error
+                - power_w (Optional[float]): Power consumption in watts, None on error
+                - error (Optional[str]): Error message string if read failed, None on success
+
+        Example:
+            ```python
+            current, voltage, power, error = client.DutPowerRead()
+            if error:
+                print(f"Power read failed: {error}")
+            else:
+                print(f"Current: {current}A, Voltage: {voltage}V, Power: {power}W")
+            ```
         """
         try:
-            response = self.client.DutPowerRead(Empty())
+            response = self.client.DutPowerRead(Empty(), timeout=DEFAULT_GRPC_TIMEOUT_SECONDS)
             if not response.success:
                 return None, None, None, f"DutPowerRead error: {response.message}"
             return response.current_a, response.voltage_v, response.power_w, None
@@ -402,10 +605,23 @@ class MtibV1Client:
         """Read the charging power consumption of the device under test (DUT).
 
         Returns:
-            Tuple of (current in amps, voltage in volts, power in watts, error if any)
+            Tuple[Optional[float], Optional[float], Optional[float], Optional[str]]: A tuple containing:
+                - current_a (Optional[float]): Charging current in amps, None on error
+                - voltage_v (Optional[float]): Charging voltage in volts, None on error
+                - power_w (Optional[float]): Charging power in watts, None on error
+                - error (Optional[str]): Error message string if read failed, None on success
+
+        Example:
+            ```python
+            current, voltage, power, error = client.DutChargePowerRead()
+            if error:
+                print(f"Charge power read failed: {error}")
+            else:
+                print(f"Charge Current: {current}A, Voltage: {voltage}V, Power: {power}W")
+            ```
         """
         try:
-            response = self.client.DutChargePowerRead(Empty())
+            response = self.client.DutChargePowerRead(Empty(), timeout=DEFAULT_GRPC_TIMEOUT_SECONDS)
             if not response.success:
                 return None, None, None, f"DutChargePowerRead error: {response.message}"
             return response.current_a, response.voltage_v, response.power_w, None
@@ -426,10 +642,23 @@ class MtibV1Client:
         """Read data from the altimeter sensor.
 
         Returns:
-            Tuple of (temperature in °F, pressure in Hg, altitude in feet, error if any)
+            Tuple[Optional[float], Optional[float], Optional[float], Optional[str]]: A tuple containing:
+                - temperature_f (Optional[float]): Temperature in Fahrenheit, None on error
+                - pressure_hg (Optional[float]): Pressure in inches of mercury (Hg), None on error
+                - altitude_ft (Optional[float]): Altitude in feet, None on error
+                - error (Optional[str]): Error message string if read failed, None on success
+
+        Example:
+            ```python
+            temp, pressure, altitude, error = client.AltimeterRead()
+            if error:
+                print(f"Altimeter read failed: {error}")
+            else:
+                print(f"Temp: {temp}°F, Pressure: {pressure}Hg, Altitude: {altitude}ft")
+            ```
         """
         try:
-            response = self.client.AltimeterRead(Empty())
+            response = self.client.AltimeterRead(Empty(), timeout=DEFAULT_GRPC_TIMEOUT_SECONDS)
             if not response.success:
                 return None, None, None, f"AltimeterRead error: {response.message}"
             return response.temperature_f, response.pressure_hg, response.altitude_ft, None
@@ -447,10 +676,23 @@ class MtibV1Client:
         """Read data from the accelerometer sensor.
 
         Returns:
-            Tuple of (x acceleration in g, y acceleration in g, z acceleration in g, error if any)
+            Tuple[Optional[float], Optional[float], Optional[float], Optional[str]]: A tuple containing:
+                - x_g (Optional[float]): X-axis acceleration in g-force, None on error
+                - y_g (Optional[float]): Y-axis acceleration in g-force, None on error
+                - z_g (Optional[float]): Z-axis acceleration in g-force, None on error
+                - error (Optional[str]): Error message string if read failed, None on success
+
+        Example:
+            ```python
+            x, y, z, error = client.AccelRead()
+            if error:
+                print(f"Accelerometer read failed: {error}")
+            else:
+                print(f"Acceleration: X={x}g, Y={y}g, Z={z}g")
+            ```
         """
         try:
-            response = self.client.AccelRead(Empty())
+            response = self.client.AccelRead(Empty(), timeout=DEFAULT_GRPC_TIMEOUT_SECONDS)
             if not response.success:
                 return None, None, None, f"AccelRead error: {response.message}"
             return response.x_g, response.y_g, response.z_g, None
@@ -460,163 +702,29 @@ class MtibV1Client:
             return None, None, None, f"Unexpected error in AccelRead at {self.config.net.addr}: {str(e)}"
 
     # -----------------------------------------------
-    #                                    FluidNc Config
-    # ---------------------------------------------*/
-    def GetFluidNcConfig(self) -> Tuple[Optional[str], Optional[str]]:
-        """Get the current FluidNC configuration.
-
-        Returns:
-            Tuple of (YAML configuration string, error if any)
-        """
-        try:
-            response = self.client.GetFluidNcConfig(Empty())
-            if not response.success:
-                return None, f"GetFluidNcConfig error: {response.message}"
-            return response.config_yaml, None
-        except grpc.RpcError as e:
-            return None, f"gRPC error for GetFluidNcConfig at {self.config.net.addr}. Error: {str(e.details())}"
-        except Exception as e:
-            return None, f"Unexpected error in GetFluidNcConfig at {self.config.net.addr}: {str(e)}"
-
-    def UpdateFluidNcConfig(self, config_yaml: str) -> Optional[str]:
-        """Update the FluidNC configuration.
-
-        Args:
-            config_yaml: New configuration in YAML format
-
-        Returns:
-            None on success, error string on failure
-        """
-        return self._grpc_call(self.client.UpdateFluidNcConfig, UpdateFluidNcConfigRequest(config_yaml=config_yaml))
-
-    # -----------------------------------------------
-    #                                         Gcode
-    # ---------------------------------------------*/
-    def SendGcode(self, command: str) -> Tuple[Optional[str], Optional[str]]:
-        """Send a G-code command to the device.
-
-        Args:
-            command: G-code command string to send
-
-        Returns:
-            Tuple of (device response, error if any)
-        """
-        try:
-            response = self.client.SendGcode(GcodeRequest(command=command))
-            if not response.success:
-                return None, f"SendGcode error: {response.message}"
-            return response.response, None
-        except grpc.RpcError as e:
-            return None, f"gRPC error for SendGcode at {self.config.net.addr}. Error: {str(e.details())}"
-        except Exception as e:
-            return None, f"Unexpected error in SendGcode at {self.config.net.addr}: {str(e)}"
-
-    # -----------------------------------------------
-    #                                  Motion Profiles
-    # ---------------------------------------------*/
-    def UploadMotionProfile(self, profile: MotionProfile) -> Optional[str]:
-        """Upload a new motion profile to the device.
-
-        Args:
-            profile: Motion profile containing name, description, and G-code commands
-
-        Returns:
-            None on success, error string on failure
-        """
-        try:
-            response = self.client.UploadMotionProfile(MotionProfileRequest(profile=profile))
-            if not response.success:
-                return f"UploadMotionProfile error: {response.message}"
-            return None
-        except grpc.RpcError as e:
-            return f"gRPC error for UploadMotionProfile at {self.config.net.addr}. Error: {str(e.details())}"
-        except Exception as e:
-            return f"Unexpected error in UploadMotionProfile at {self.config.net.addr}: {str(e)}"
-
-    def ListMotionProfiles(self) -> Tuple[Optional[List[MotionProfile]], Optional[str]]:
-        """Get a list of all available motion profiles.
-
-        Returns:
-            Tuple of (list of motion profiles, error if any)
-        """
-        try:
-            response = self.client.ListMotionProfiles(Empty())
-            if not response.success:
-                return None, f"ListMotionProfiles error: {response.message}"
-            return response.profiles, None
-        except grpc.RpcError as e:
-            return None, f"gRPC error for ListMotionProfiles at {self.config.net.addr}. Error: {str(e.details())}"
-        except Exception as e:
-            return None, f"Unexpected error in ListMotionProfiles at {self.config.net.addr}: {str(e)}"
-
-    def ExecuteMotionProfile(self, profile_name: str) -> Optional[str]:
-        """Execute a motion profile by name.
-
-        Args:
-            profile_name: Name of the profile to execute
-
-        Returns:
-            None on success, error string on failure
-        """
-        try:
-            response = self.client.ExecuteMotionProfile(ExecuteProfileRequest(profile_name=profile_name))
-            if not response.success:
-                return f"ExecuteMotionProfile error: {response.message}"
-            return None
-        except grpc.RpcError as e:
-            return f"gRPC error for ExecuteMotionProfile at {self.config.net.addr}. Error: {str(e.details())}"
-        except Exception as e:
-            return f"Unexpected error in ExecuteMotionProfile at {self.config.net.addr}: {str(e)}"
-
-    def DeleteMotionProfile(self, profile_name: str) -> Optional[str]:
-        """Delete a motion profile by name.
-
-        Args:
-            profile_name: Name of the profile to delete
-
-        Returns:
-            None on success, error string on failure
-        """
-        try:
-            response = self.client.DeleteMotionProfile(DeleteProfileRequest(profile_name=profile_name))
-            if not response.success:
-                return f"DeleteMotionProfile error: {response.message}"
-            return None
-        except grpc.RpcError as e:
-            return f"gRPC error for DeleteMotionProfile at {self.config.net.addr}. Error: {str(e.details())}"
-        except Exception as e:
-            return f"Unexpected error in DeleteMotionProfile at {self.config.net.addr}: {str(e)}"
-
-    def SetDefaultMotionProfile(self, profile_name: str) -> Optional[str]:
-        """Set the default motion profile.
-
-        Args:
-            profile_name: Name of the profile to set as default
-
-        Returns:
-            None on success, error string on failure
-        """
-        try:
-            response = self.client.SetDefaultMotionProfile(SetDefaultProfileRequest(profile_name=profile_name))
-            if not response.success:
-                return f"SetDefaultMotionProfile error: {response.message}"
-            return None
-        except grpc.RpcError as e:
-            return f"gRPC error for SetDefaultMotionProfile at {self.config.net.addr}. Error: {str(e.details())}"
-        except Exception as e:
-            return f"Unexpected error in SetDefaultMotionProfile at {self.config.net.addr}: {str(e)}"
-
-    # -----------------------------------------------
     #                                        Motion
     # ---------------------------------------------*/
     def GetMotionStatus(self) -> Tuple[Optional[MotionStatus], Optional[str]]:
         """Get the current status of the motion system.
 
         Returns:
-            Tuple of (motion status enum, error if any)
+            Tuple[Optional[MotionStatus], Optional[str]]: A tuple containing:
+                - status (Optional[MotionStatus]): Current motion status (IDLE, MOVING, ERRORED), None on error
+                - error (Optional[str]): Error message string if read failed, None on success
+
+        Example:
+            ```python
+            from corekinect.mtib_client.v1.client.types import MotionStatus
+
+            status, error = client.GetMotionStatus()
+            if error:
+                print(f"Get motion status failed: {error}")
+            elif status == MotionStatus.MOVING:
+                print("Motion system is currently moving")
+            ```
         """
         try:
-            response = self.client.GetMotionStatus(GetMotionStatusRequest())
+            response = self.client.GetMotionStatus(Empty(), timeout=DEFAULT_GRPC_TIMEOUT_SECONDS)
             if not response.success:
                 return None, f"GetMotionStatus error: {response.message}"
             return response.status, None
@@ -625,35 +733,97 @@ class MtibV1Client:
         except Exception as e:
             return None, f"Unexpected error in GetMotionStatus at {self.config.net.addr}: {str(e)}"
 
-    def MotionStart(self) -> Optional[str]:
-        """Start the default motion profile. If no default profile is set, an error will be returned.
+    def MotionStart(
+        self,
+        duration_seconds: int,
+        dwell_seconds: int,
+        speed_mm_s: int,
+        distance_mm: float = 0.0,
+        accel_mm_s2: int = 600,
+    ) -> Iterator[MotionStartResponse]:
+        """Start the motion system with streaming progress updates.
 
-        Note: This will block until the motion is complete.
+        This method returns an iterator that yields progress updates during motion.
+        The first message contains success status, and subsequent messages contain
+        progress information while the motion is running.
 
-        Returns:
-            None on success, error string on failure
+        Args:
+            duration_seconds: Duration of motion in seconds (ignored if distance_mm > 0)
+            dwell_seconds: Dwell time in seconds (pause time at end of motion)
+            speed_mm_s: Speed in millimeters per second
+            distance_mm: Optional distance override in mm. If > 0, overrides duration-based calculation
+            accel_mm_s2: Acceleration in mm/s². Defaults to 600
+
+        Yields:
+            Iterator[MotionStartResponse]: Iterator of MotionStartResponse objects containing:
+                - success (bool): True if motion started successfully
+                - message (str): Status or error message
+                - progress information (if available in response)
+
+        Example:
+            ```python
+            for response in client.MotionStart(
+                duration_seconds=10,
+                dwell_seconds=2,
+                speed_mm_s=100,
+                accel_mm_s2=600
+            ):
+                if not response.success:
+                    print(f"Motion error: {response.message}")
+                    break
+                print(f"Motion progress: {response.message}")
+            ```
         """
         try:
-            response = self.client.MotionStart(Empty())
-            if not response.success:
-                return f"MotionStart error: {response.message}"
-            return None
+            # Make the streaming call
+            # Handle oneof: if distance_mm > 0, use distance-based, otherwise use duration-based
+            if distance_mm > 0:
+                request = MotionStartRequest(
+                    dwell_seconds=dwell_seconds,
+                    speed_mm_s=speed_mm_s,
+                    distance_mm=int(distance_mm),
+                    accel_mm_s2=accel_mm_s2,
+                )
+            else:
+                request = MotionStartRequest(
+                    duration_seconds=int(duration_seconds),
+                    dwell_seconds=dwell_seconds,
+                    speed_mm_s=speed_mm_s,
+                    accel_mm_s2=accel_mm_s2,
+                )
+
+            response_iterator = self.client.MotionStart(request)
+
+            for response in response_iterator:
+                yield response
+
         except grpc.RpcError as e:
-            return f"gRPC error for MotionStart at {self.config.net.addr}. Error: {str(e.details())}"
+            self.logger.error(f"gRPC error for MotionStart at {self.config.net.addr}. Error: {str(e.details())}")
+            yield MotionStartResponse(success=False, message=f"gRPC error: {str(e.details())}")
         except Exception as e:
-            return f"Unexpected error in MotionStart at {self.config.net.addr}: {str(e)}"
+            self.logger.error(f"Unexpected error in MotionStart at {self.config.net.addr}: {str(e)}")
+            yield MotionStartResponse(success=False, message=f"Unexpected error: {str(e)}")
 
     def MotionHome(self) -> Optional[str]:
         """Home the motion system to its reference position.
 
-        Note: This will block until the motion is complete.
-        Note: MotionStop() will be called automatically if the system is moving.
+        This method blocks until the motion is complete. If the system is already
+        moving, MotionStop() will be called automatically before homing.
 
         Returns:
-            None on success, error string on failure
+            Optional[str]: None on success, error message string on failure
+
+        Example:
+            ```python
+            error = client.MotionHome()
+            if error:
+                print(f"Motion home failed: {error}")
+            else:
+                print("Motion system homed successfully")
+            ```
         """
         try:
-            response = self.client.MotionHome(Empty())
+            response = self.client.MotionHome(Empty(), timeout=DEFAULT_GRPC_TIMEOUT_SECONDS)
             if not response.success:
                 return f"MotionHome error: {response.message}"
             return None
@@ -663,13 +833,20 @@ class MtibV1Client:
             return f"Unexpected error in MotionHome at {self.config.net.addr}: {str(e)}"
 
     def MotionStop(self) -> Optional[str]:
-        """Stop any ongoing motion.
+        """Stop any ongoing motion immediately.
 
         Returns:
-            None on success, error string on failure
+            Optional[str]: None on success, error message string on failure
+
+        Example:
+            ```python
+            error = client.MotionStop()
+            if error:
+                print(f"Motion stop failed: {error}")
+            ```
         """
         try:
-            response = self.client.MotionStop(Empty())
+            response = self.client.MotionStop(Empty(), timeout=DEFAULT_GRPC_TIMEOUT_SECONDS)
             if not response.success:
                 return f"MotionStop error: {response.message}"
             return None
@@ -685,10 +862,22 @@ class MtibV1Client:
         """Get a list of available firmware programmers.
 
         Returns:
-            Tuple of (list of programmer devices, error if any)
+            Tuple[Optional[List[Programmer]], Optional[str]]: A tuple containing:
+                - programmers (Optional[List[Programmer]]): List of available programmer devices, None on error
+                - error (Optional[str]): Error message string if read failed, None on success
+
+        Example:
+            ```python
+            programmers, error = client.ListProgrammers()
+            if error:
+                print(f"List programmers failed: {error}")
+            else:
+                for prog in programmers:
+                    print(f"Programmer: {prog.type}, Host: {prog.host}")
+            ```
         """
         try:
-            response = self.client.ListProgrammers(Empty())
+            response = self.client.ListProgrammers(Empty(), timeout=DEFAULT_GRPC_TIMEOUT_SECONDS)
             if not response.success:
                 return None, f"ListProgrammers error: {response.message}"
             return response.programmers, None
@@ -701,10 +890,22 @@ class MtibV1Client:
         """Get a list of available firmware files.
 
         Returns:
-            Tuple of (list of firmware file info, error if any)
+            Tuple[Optional[List[FwFileInfo]], Optional[str]]: A tuple containing:
+                - files (Optional[List[FwFileInfo]]): List of firmware file information, None on error
+                - error (Optional[str]): Error message string if read failed, None on success
+
+        Example:
+            ```python
+            files, error = client.ListFwFiles()
+            if error:
+                print(f"List firmware files failed: {error}")
+            else:
+                for fw_file in files:
+                    print(f"Firmware: {fw_file.name}, Size: {fw_file.size}")
+            ```
         """
         try:
-            response = self.client.ListFwFiles(Empty())
+            response = self.client.ListFwFiles(Empty(), timeout=DEFAULT_GRPC_TIMEOUT_SECONDS)
             if not response.success:
                 return None, f"ListFwFiles error: {response.message}"
             return response.files, None
@@ -716,12 +917,31 @@ class MtibV1Client:
     def UploadFwFile(self, file_path: str, target: HostType) -> Optional[str]:
         """Upload a firmware file to the device using streaming.
 
+        The file is uploaded in chunks to avoid loading the entire file into memory.
+        This method uses gRPC streaming for efficient file transfer.
+
         Args:
             file_path: Path to the firmware file to upload
-            target: Target host type for the firmware
+            target: Target host type for the firmware (e.g., HostType.HOST_TYPE_NRF9160)
 
         Returns:
-            None on success, error string on failure
+            Optional[str]: None on success, error message string on failure
+
+        Raises:
+            FileNotFoundError: If the file does not exist (caught and returned as error string)
+            PermissionError: If file cannot be read (caught and returned as error string)
+
+        Example:
+            ```python
+            from protocols.mtib.mtib_pb2 import HostType
+
+            error = client.UploadFwFile(
+                file_path="/path/to/firmware.hex",
+                target=HostType.HOST_TYPE_NRF9160
+            )
+            if error:
+                print(f"Upload failed: {error}")
+            ```
         """
         try:
             # Get file info first
@@ -774,13 +994,24 @@ class MtibV1Client:
         """Delete a firmware file from the device.
 
         Args:
-            file_info: Information about the file to delete
+            file_info: Information about the file to delete (obtained from ListFwFiles)
 
         Returns:
-            None on success, error string on failure
+            Optional[str]: None on success, error message string on failure
+
+        Example:
+            ```python
+            files, error = client.ListFwFiles()
+            if not error and files:
+                error = client.DeleteFwFile(files[0])
+                if error:
+                    print(f"Delete failed: {error}")
+            ```
         """
         try:
-            response = self.client.DeleteFwFile(DeleteFwFileRequest(file_info=file_info))
+            response = self.client.DeleteFwFile(
+                DeleteFwFileRequest(file_info=file_info), timeout=DEFAULT_GRPC_TIMEOUT_SECONDS
+            )
             if not response.success:
                 return f"DeleteFwFile error: {response.message}"
             return None
@@ -795,16 +1026,29 @@ class MtibV1Client:
         """Flash a firmware file to the device.
 
         Args:
-            file_info: Information about the firmware file to flash
-            sector_erase: Whether to perform sector erase before flashing
-            recover: Whether to recover the device before flashing
+            file_info: Information about the firmware file to flash (obtained from ListFwFiles)
+            sector_erase: Whether to perform sector erase before flashing. Defaults to False
+            recover: Whether to recover the device before flashing. Defaults to False
 
         Returns:
-            Tuple of (flash time in milliseconds, error if any)
+            Tuple[Optional[int], Optional[str]]: A tuple containing:
+                - time_ms (Optional[int]): Flash operation time in milliseconds, None on error
+                - error (Optional[str]): Error message string if flash failed, None on success
+
+        Example:
+            ```python
+            files, error = client.ListFwFiles()
+            if not error and files:
+                time_ms, error = client.FlashFwFile(files[0], sector_erase=True)
+                if error:
+                    print(f"Flash failed: {error}")
+                else:
+                    print(f"Flash completed in {time_ms}ms")
+            ```
         """
         try:
             response = self.client.FlashFwFile(
-                FlashFwFileRequest(file_info=file_info, sector_erase=sector_erase, recover=recover)
+                FlashFwFileRequest(file_info=file_info, sector_erase=sector_erase, recover=recover),
             )
             if not response.success:
                 return None, f"FlashFwFile error: {response.message}"
@@ -814,6 +1058,67 @@ class MtibV1Client:
         except Exception as e:
             return None, f"Unexpected error in FlashFwFile at {self.config.net.addr}: {str(e)}"
 
+    def EraseFlash(self, target: HostType, recover: bool = False) -> Optional[str]:
+        """Erase the flash memory on a target device.
+
+        Args:
+            target: Target host type (e.g., HostType.HOST_TYPE_NRF9160)
+            recover: If True, uses --recover which erases all user flash memory, UICR,
+                    and readback protection mechanism. If False, uses --chiperase which
+                    erases all available non-volatile memory and UICR. Defaults to False
+
+        Returns:
+            Optional[str]: None on success, error message string on failure
+
+        Example:
+            ```python
+            from protocols.mtib.mtib_pb2 import HostType
+
+            error = client.EraseFlash(target=HostType.HOST_TYPE_NRF9160, recover=False)
+            if error:
+                print(f"Erase flash failed: {error}")
+            ```
+        """
+        try:
+            response = self.client.EraseFlash(EraseFlashRequest(target=target, recover=recover))
+            if not response.success:
+                return f"EraseFlash error: {response.message}"
+            return None
+        except grpc.RpcError as e:
+            return f"gRPC error for EraseFlash at {self.config.net.addr}. Error: {str(e.details())}"
+        except Exception as e:
+            return f"Unexpected error in EraseFlash at {self.config.net.addr}: {str(e)}"
+
+    def EnableAppProtect(self, target: HostType) -> Tuple[Optional[bool], Optional[str]]:
+        """Enable App Protect on a target device.
+
+        Args:
+            target: Target host type (e.g., HostType.HOST_TYPE_NRF9160)
+
+        Returns:
+            Tuple[Optional[bool], Optional[str]]: A tuple containing:
+                - success (Optional[bool]): True if App Protect was enabled, None on error
+                - error (Optional[str]): Error message string if operation failed, None on success
+
+        Example:
+            ```python
+            from protocols.mtib.mtib_pb2 import HostType
+
+            success, error = client.EnableAppProtect(target=HostType.HOST_TYPE_NRF9160)
+            if error:
+                print(f"Enable App Protect failed: {error}")
+            ```
+        """
+        try:
+            response = self.client.EnableAppProtect(EnableAppProtectRequest(target=target))
+            if not response.success:
+                return None, f"EnableAppProtect error: {response.message}"
+            return response.success, None
+        except grpc.RpcError as e:
+            return None, f"gRPC error for EnableAppProtect at {self.config.net.addr}. Error: {str(e.details())}"
+        except Exception as e:
+            return None, f"Unexpected error in EnableAppProtect at {self.config.net.addr}: {str(e)}"
+
     # -----------------------------------------------
     #                                        Uart
     # ---------------------------------------------*/
@@ -822,12 +1127,33 @@ class MtibV1Client:
     ) -> Iterator[UartStreamResponse]:
         """Stream UART data to/from a target device using a custom request iterator.
 
+        This is a low-level method for bidirectional UART communication. For higher-level
+        command methods, see the cmd_* methods in this class.
+
         Args:
-            target: Target host type (NRF9160, NRF52840, etc.)
-            request_iterator: Iterator that yields UartStreamRequest objects
+            target: Target host type (e.g., HostType.HOST_TYPE_NRF9160, HostType.HOST_TYPE_NRF52840)
+            request_iterator: Iterator that yields UartStreamRequest objects containing data to send
 
         Yields:
-            UartStreamResponse objects containing received data or status
+            Iterator[UartStreamResponse]: Iterator of UartStreamResponse objects containing:
+                - success (bool): True if operation succeeded
+                - message (str): Status or error message
+                - data (bytes): Received UART data
+                - target (HostType): Target device type
+
+        Example:
+            ```python
+            from protocols.mtib.mtib_pb2 import UartStreamRequest, HostType
+
+            def request_gen():
+                yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=b"AT\\r\\n")
+
+            for response in client.UartStream(HostType.HOST_TYPE_NRF9160, request_gen()):
+                if response.data:
+                    print(f"Received: {response.data.decode()}")
+                if not response.success:
+                    break
+            ```
         """
         try:
             # Make the streaming call with the provided request iterator
@@ -849,13 +1175,32 @@ class MtibV1Client:
     def alpha_cmd_personalize(
         self, device_id: str, target: HostType
     ) -> Tuple[Optional[str], Optional[str], Optional[str]]:
-        """
-        Send a UART command to personalize the device using the given device_id.
+        """Send a UART command to personalize the device using the given device_id.
+
         Opens a new UART stream, hits ENTER to get prompt, then sends the personalize command,
         and parses the response to extract the public key data.
 
+        Args:
+            device_id: Device ID to use for personalization
+            target: Target host type (e.g., HostType.HOST_TYPE_NRF9160)
+
         Returns:
-            Tuple of (hex_public_key, base64_public_key, error_string)
+            Tuple[Optional[str], Optional[str], Optional[str]]: A tuple containing:
+                - hex_public_key (Optional[str]): Public key in hexadecimal format, None on error
+                - base64_public_key (Optional[str]): Public key in base64 format, None on error
+                - error (Optional[str]): Error message string if operation failed, None on success
+
+        Example:
+            ```python
+            from protocols.mtib.mtib_pb2 import HostType
+
+            hex_key, b64_key, error = client.alpha_cmd_personalize(
+                device_id="device123",
+                target=HostType.HOST_TYPE_NRF9160
+            )
+            if error:
+                print(f"Personalize failed: {error}")
+            ```
         """
         import queue
         import time
@@ -951,13 +1296,32 @@ class MtibV1Client:
     def alpha_cmd_get_imei_iccids(
         self, device_id: str, target: HostType
     ) -> Tuple[Optional[str], Optional[str], Optional[str]]:
-        """
-        Send a UART command to get the device IMEI and ICCIDs.
+        """Send a UART command to get the device IMEI and ICCIDs.
+
         Opens a new UART stream, hits ENTER to get prompt, then sends the imei_ccid command,
         and parses the response to extract the IMEI and ICCIDs.
 
+        Args:
+            device_id: Device ID (unused, kept for compatibility)
+            target: Target host type (e.g., HostType.HOST_TYPE_NRF9160)
+
         Returns:
-            Tuple of (imei, iccids, error_string)
+            Tuple[Optional[str], Optional[str], Optional[str]]: A tuple containing:
+                - imei (Optional[str]): IMEI number, None on error
+                - iccids (Optional[str]): Comma-separated ICCID numbers, None on error
+                - error (Optional[str]): Error message string if operation failed, None on success
+
+        Example:
+            ```python
+            from protocols.mtib.mtib_pb2 import HostType
+
+            imei, iccids, error = client.alpha_cmd_get_imei_iccids(
+                device_id="",
+                target=HostType.HOST_TYPE_NRF9160
+            )
+            if error:
+                print(f"Get IMEI/ICCIDs failed: {error}")
+            ```
         """
         # Use queues like the working terminal
         input_queue = queue.Queue()
@@ -1052,12 +1416,23 @@ class MtibV1Client:
     #                           Comms Coproc Commands
     # ---------------------------------------------*/
     def cmd_comms_coproc_lock_shell(self) -> Tuple[Optional[bool], Optional[str]]:
-        """Simplified UART stream listener for lock_shell command
+        """Lock shell mode for the communications co-processor device.
 
-        Args:
-            None
+        Sends a UART command to lock the shell mode on the NRF9160 device.
+
         Returns:
-            Tuple of (success, error_string)
+            Tuple[Optional[bool], Optional[str]]: A tuple containing:
+                - success (Optional[bool]): True if shell was locked successfully, False on timeout, None on error
+                - error (Optional[str]): Error message string if operation failed, None on success
+
+        Example:
+            ```python
+            success, error = client.cmd_comms_coproc_lock_shell()
+            if error:
+                print(f"Lock shell failed: {error}")
+            elif success:
+                print("Shell locked successfully")
+            ```
         """
         try:
             input_queue = queue.Queue()
@@ -1122,13 +1497,21 @@ class MtibV1Client:
             return None, f"Exception in lock_shell: {str(e)}"
 
     def cmd_comms_coproc_debug_uart_disable(self) -> Tuple[Optional[bool], Optional[str]]:
-        """
-        Simplified UART stream listener for debug_uart_off command
+        """Disable debug UART for the communications co-processor device.
 
-        Args:
-            None
+        Sends a UART command to disable debug UART on the NRF9160 device.
+
         Returns:
-            Tuple of (success, error_string)
+            Tuple[Optional[bool], Optional[str]]: A tuple containing:
+                - success (Optional[bool]): True if debug UART was disabled, False on timeout, None on error
+                - error (Optional[str]): Error message string if operation failed, None on success
+
+        Example:
+            ```python
+            success, error = client.cmd_comms_coproc_debug_uart_disable()
+            if error:
+                print(f"Disable debug UART failed: {error}")
+            ```
         """
         try:
             input_queue = queue.Queue()
@@ -1192,13 +1575,25 @@ class MtibV1Client:
         except Exception as e:
             return None, f"Exception in debug_uart_disable: {str(e)}"
 
-    def cmd_comms_coproc_get_chip_ids(self) -> Tuple[Optional[str], Optional[str]]:
-        """Get chip IDs from the device and return Ext flash chip ID
+    def cmd_comms_coproc_get_chip_ids(self) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+        """Get chip IDs from the communications co-processor device.
 
-        Args:
-            None
+        Returns the LoRa hardware availability status and external flash chip ID from the NRF9160 device.
+
         Returns:
-                Tuple of (ext_flash_id, error_string)
+            Tuple[Optional[str], Optional[str], Optional[str]]: A tuple containing:
+                - lora_available (Optional[str]): LoRa hardware availability status, None if not present
+                - ext_flash_id (Optional[str]): External flash chip ID, None on error
+                - error (Optional[str]): Error message string if operation failed, None on success
+
+        Example:
+            ```python
+            lora_available, ext_flash_id, error = client.cmd_comms_coproc_get_chip_ids()
+            if error:
+                print(f"Get chip IDs failed: {error}")
+            else:
+                print(f"LoRa available: {lora_available}, Ext flash chip ID: {ext_flash_id}")
+            ```
         """
         target = HostType.HOST_TYPE_NRF9160
         try:
@@ -1228,13 +1623,14 @@ class MtibV1Client:
             target = HostType.HOST_TYPE_NRF9160
             for resp in self.UartStream(target, request_iterator()):
                 if not resp.success:
-                    return None, f"UartStream error: {resp.message}"
+                    return None, None, f"UartStream error: {resp.message}"
 
                 if resp.data and len(resp.data) > 0:
                     line = resp.data.decode("utf-8", errors="ignore")
                     response_lines.append(line)
 
                     # Check if we got the complete response
+                    # Ext flash chip ID should always be present, LoRa hardware available is optional
                     full_response = "".join(response_lines)
                     if "Ext flash chip ID:" in full_response:
                         # Wait for the command to complete - look for the prompt after the get_chip_ids command
@@ -1251,8 +1647,21 @@ class MtibV1Client:
 
                         if prompt_found:
                             # Parse the response
+                            lora_status = None
                             ext_flash_id = None
-                            # Extract Ext flash chip ID
+
+                            # Extract LoRa status (optional - may not be present depending on app configuration)
+                            lora_start = full_response.find("LoRa hardware available:")
+                            if lora_start != -1:
+                                lora_line_start = full_response.rfind("\n", 0, lora_start) + 1
+                                lora_line_end = full_response.find("\n", lora_start)
+                                if lora_line_end == -1:
+                                    lora_line_end = len(full_response)
+                                lora_line = full_response[lora_line_start:lora_line_end].strip()
+                                if ":" in lora_line:
+                                    lora_status = lora_line.split(":", 1)[1].strip()
+
+                            # Extract Ext flash chip ID (should always be present)
                             flash_start = full_response.find("Ext flash chip ID:")
                             if flash_start != -1:
                                 flash_line_start = full_response.rfind("\n", 0, flash_start) + 1
@@ -1263,7 +1672,7 @@ class MtibV1Client:
                                 if ":" in flash_line:
                                     ext_flash_id = flash_line.split(":", 1)[1].strip()
 
-                            return ext_flash_id, None
+                            return lora_status, ext_flash_id, None
 
                 # Timeout check
                 if time.time() - start_time > timeout:
@@ -1271,10 +1680,10 @@ class MtibV1Client:
 
             # If we get here, we didn't find the success message
             full_response = "".join(response_lines)
-            return None, f"Timeout or no success message found. Response: {full_response[:200]}..."
+            return None, None, f"Timeout or no success message found. Response: {full_response[:200]}..."
 
         except Exception as e:
-            return None, f"Exception in get_chip_ids: {str(e)}"
+            return None, None, f"Exception in get_chip_ids: {str(e)}"
 
     def cmd_comms_coproc_get_modem_fw_version(self) -> Tuple[Optional[str], Optional[str]]:
         """Get modem firmware version from the communications co-processor device
@@ -1710,9 +2119,7 @@ class MtibV1Client:
         except Exception as e:
             return None, f"Exception in erase_ext_flash: {str(e)}"
 
-    def cmd_comms_coproc_write_ext_flash(
-        self, host: str, address: str, data: str
-    ) -> Tuple[Optional[bool], Optional[str]]:
+    def cmd_comms_coproc_write_ext_flash(self, address: str, data: str) -> Tuple[Optional[bool], Optional[str]]:
         """Write data to external flash (data should be base64 encoded)
 
         Args:
@@ -1845,3 +2252,647 @@ class MtibV1Client:
 
         except Exception as e:
             return None, f"Exception in rekey_ipc: {str(e)}"  # type: ignore
+
+    # -----------------------------------------------
+    #                                 Sigma5 Commands
+    # ---------------------------------------------*/
+    def cmd_sigma5_app_lock_shell(self) -> Tuple[Optional[bool], Optional[str]]:
+        """Lock shell mode for the app processor device
+
+        Args:
+            None
+        Returns:
+            Tuple of (success, error_string)
+        """
+        target = HostType.HOST_TYPE_NRF52840
+        try:
+            input_queue = queue.Queue()
+
+            # Add commands to input queue
+            input_queue.put(b"\r")  # Hit ENTER to get prompt
+            time.sleep(0.2)
+            input_queue.put(f"lock_shell\r".encode("utf-8"))  # Send command
+
+            def request_iterator():
+                while True:
+                    try:
+                        # Get input from queue (non-blocking)
+                        data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=data)
+                    except queue.Empty:
+                        # No input, send empty request to keep stream alive
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=b"")
+                        time.sleep(0.1)
+
+            # Collect response like the working terminal
+            response_lines = []
+            start_time = time.time()
+            timeout = 10  # 10 second timeout
+
+            target = HostType.HOST_TYPE_NRF52840
+            for resp in self.UartStream(target, request_iterator()):
+                if not resp.success:
+                    return None, f"UartStream error: {resp.message}"
+
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
+
+                    # Check if we got the complete response
+                    full_response = "".join(response_lines)
+                    if "Locking shell mode ON" in full_response:
+                        # Wait for the command to complete - look for the prompt after the lock_shell command
+                        lines = full_response.split("\n")
+                        lock_command_found = False
+                        prompt_found = False
+
+                        for i, line in enumerate(lines):
+                            if "lock_shell" in line:
+                                lock_command_found = True
+                            elif lock_command_found and "Mfg shell:" in line.strip():
+                                prompt_found = True
+                                break
+
+                        if prompt_found:
+                            return True, None
+
+                # Timeout check
+                if time.time() - start_time > timeout:
+                    break
+
+            # If we get here, we didn't find the success message
+            full_response = "".join(response_lines)
+            return False, f"Timeout or no success message found. Response: {full_response[:200]}..."
+
+        except Exception as e:
+            return None, f"Exception in lock_shell: {str(e)}"
+
+    def cmd_sigma5_app_debug_uart_disable(self) -> Tuple[Optional[bool], Optional[str]]:
+        """Disable debug UART for the app processor device
+
+        Args:
+            None
+        Returns:
+            Tuple of (success, error_string)
+        """
+        target = HostType.HOST_TYPE_NRF52840
+        try:
+            input_queue = queue.Queue()
+
+            # Add commands to input queue
+            input_queue.put(b"\r")  # Hit ENTER to get prompt
+            time.sleep(0.2)
+            input_queue.put(f"debug_enable 0\r".encode("utf-8"))  # Send command
+
+            def request_iterator():
+                while True:
+                    try:
+                        # Get input from queue (non-blocking)
+                        data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=data)
+                    except queue.Empty:
+                        # No input, send empty request to keep stream alive
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=b"")
+                        time.sleep(0.1)
+
+            # Collect response like the working terminal
+            response_lines = []
+            start_time = time.time()
+            timeout = 10  # 10 second timeout
+
+            target = HostType.HOST_TYPE_NRF52840
+            for resp in self.UartStream(target, request_iterator()):
+                if not resp.success:
+                    return None, f"UartStream error: {resp.message}"
+
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
+
+                    # Check if we got the complete response
+                    full_response = "".join(response_lines)
+                    if "Debug is not enabled" in full_response:
+                        # Wait for the command to complete - look for the prompt after the debug_enable command
+                        lines = full_response.split("\n")
+                        debug_command_found = False
+                        prompt_found = False
+
+                        for i, line in enumerate(lines):
+                            if "debug_enable" in line:
+                                debug_command_found = True
+                            elif debug_command_found and "Mfg shell:" in line.strip():
+                                prompt_found = True
+                                break
+
+                        if prompt_found:
+                            return True, None
+
+                # Timeout check
+                if time.time() - start_time > timeout:
+                    break
+
+            # If we get here, we didn't find the success message
+            full_response = "".join(response_lines)
+            return False, f"Timeout or no success message found. Response: {full_response[:200]}..."
+
+        except Exception as e:
+            return None, f"Exception in debug_uart_disable: {str(e)}"
+
+    def cmd_sigma5_app_get_chip_ids(
+        self,
+    ) -> Tuple[Optional[str], Optional[str], Optional[str], Optional[str], Optional[str], Optional[str]]:
+        """Get chip IDs from the app processor device
+
+        Args:
+            None
+        Returns:
+            Tuple of (accel_id, altimeter_id, ext_flash_id, gps_hw_version, ble_mac, error_string)
+        """
+        target = HostType.HOST_TYPE_NRF52840
+        try:
+            input_queue = queue.Queue()
+
+            # Add commands to input queue
+            input_queue.put(b"\r")  # Hit ENTER to get prompt
+            time.sleep(0.2)
+            input_queue.put(f"get_chip_ids\r".encode("utf-8"))  # Send command
+
+            def request_iterator():
+                while True:
+                    try:
+                        # Get input from queue (non-blocking)
+                        data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=data)
+                    except queue.Empty:
+                        # No input, send empty request to keep stream alive
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=b"")
+                        time.sleep(0.1)
+
+            # Collect response like the working terminal
+            response_lines = []
+            start_time = time.time()
+            timeout = 10  # 10 second timeout
+
+            target = HostType.HOST_TYPE_NRF52840
+            for resp in self.UartStream(target, request_iterator()):
+                if not resp.success:
+                    return None, None, None, None, None, f"UartStream error: {resp.message}"
+
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
+
+                    # Check if we got the complete response
+                    full_response = "".join(response_lines)
+                    if (
+                        "Accel chip ID:" in full_response
+                        and "Altimeter chip ID:" in full_response
+                        and "Ext flash chip ID:" in full_response
+                        and "GPS HW version:" in full_response
+                        and "BLE MAC:" in full_response
+                    ):
+                        # Wait for the command to complete - look for the prompt after the get_chip_ids command
+                        lines = full_response.split("\n")
+                        chip_command_found = False
+                        prompt_found = False
+
+                        for i, line in enumerate(lines):
+                            if "get_chip_ids" in line:
+                                chip_command_found = True
+                            elif chip_command_found and "Mfg shell:" in line.strip():
+                                prompt_found = True
+                                break
+
+                        if prompt_found:
+                            # Parse the response
+                            accel_id = None
+                            altimeter_id = None
+                            ext_flash_id = None
+                            gps_hw_version = None
+                            ble_mac = None
+
+                            # Extract Accel chip ID
+                            accel_start = full_response.find("Accel chip ID:")
+                            if accel_start != -1:
+                                accel_line_start = full_response.rfind("\n", 0, accel_start) + 1
+                                accel_line_end = full_response.find("\n", accel_start)
+                                if accel_line_end == -1:
+                                    accel_line_end = len(full_response)
+                                accel_line = full_response[accel_line_start:accel_line_end].strip()
+                                if ":" in accel_line:
+                                    accel_id = accel_line.split(":", 1)[1].strip()
+
+                            # Extract Altimeter chip ID
+                            altimeter_start = full_response.find("Altimeter chip ID:")
+                            if altimeter_start != -1:
+                                altimeter_line_start = full_response.rfind("\n", 0, altimeter_start) + 1
+                                altimeter_line_end = full_response.find("\n", altimeter_start)
+                                if altimeter_line_end == -1:
+                                    altimeter_line_end = len(full_response)
+                                altimeter_line = full_response[altimeter_line_start:altimeter_line_end].strip()
+                                if ":" in altimeter_line:
+                                    altimeter_id = altimeter_line.split(":", 1)[1].strip()
+
+                            # Extract Ext flash chip ID
+                            flash_start = full_response.find("Ext flash chip ID:")
+                            if flash_start != -1:
+                                flash_line_start = full_response.rfind("\n", 0, flash_start) + 1
+                                flash_line_end = full_response.find("\n", flash_start)
+                                if flash_line_end == -1:
+                                    flash_line_end = len(full_response)
+                                flash_line = full_response[flash_line_start:flash_line_end].strip()
+                                if ":" in flash_line:
+                                    ext_flash_id = flash_line.split(":", 1)[1].strip()
+
+                            # Extract GPS HW version
+                            gps_start = full_response.find("GPS HW version:")
+                            if gps_start != -1:
+                                gps_line_start = full_response.rfind("\n", 0, gps_start) + 1
+                                gps_line_end = full_response.find("\n", gps_start)
+                                if gps_line_end == -1:
+                                    gps_line_end = len(full_response)
+                                gps_line = full_response[gps_line_start:gps_line_end].strip()
+                                if ":" in gps_line:
+                                    gps_hw_version = gps_line.split(":", 1)[1].strip()
+
+                            # Extract BLE MAC
+                            ble_start = full_response.find("BLE MAC:")
+                            if ble_start != -1:
+                                ble_line_start = full_response.rfind("\n", 0, ble_start) + 1
+                                ble_line_end = full_response.find("\n", ble_start)
+                                if ble_line_end == -1:
+                                    ble_line_end = len(full_response)
+                                ble_line = full_response[ble_line_start:ble_line_end].strip()
+                                if ":" in ble_line:
+                                    ble_mac = ble_line.split(":", 1)[1].strip()
+
+                            return accel_id, altimeter_id, ext_flash_id, gps_hw_version, ble_mac, None
+
+                # Timeout check
+                if time.time() - start_time > timeout:
+                    break
+
+            # If we get here, we didn't find the success message
+            full_response = "".join(response_lines)
+            return (
+                None,
+                None,
+                None,
+                None,
+                None,
+                f"Timeout or no success message found. Response: {full_response[:200]}...",
+            )
+
+        except Exception as e:
+            return None, None, None, None, None, f"Exception in get_chip_ids: {str(e)}"
+
+    def cmd_sigma5_app_get_ublox_version_info(
+        self,
+    ) -> Tuple[Optional[str], Optional[str], Optional[str], Optional[str], Optional[str], Optional[str]]:
+        """Get ublox version info from the app processor device
+
+        Args:
+            None
+        Returns:
+            Tuple of (hw_version, fw_version, sw_version, proto_version, constellations, error_string)
+        """
+        target = HostType.HOST_TYPE_NRF52840
+        try:
+            input_queue = queue.Queue()
+
+            # Add commands to input queue
+            input_queue.put(b"\r")  # Hit ENTER to get prompt
+            time.sleep(0.2)
+            input_queue.put(f"get_ublox\r".encode("utf-8"))  # Send command
+
+            def request_iterator():
+                while True:
+                    try:
+                        # Get input from queue (non-blocking)
+                        data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=data)
+                    except queue.Empty:
+                        # No input, send empty request to keep stream alive
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=b"")
+                        time.sleep(0.1)
+
+            # Collect response like the working terminal
+            response_lines = []
+            start_time = time.time()
+            timeout = 10  # 10 second timeout
+
+            target = HostType.HOST_TYPE_NRF52840
+            for resp in self.UartStream(target, request_iterator()):
+                if not resp.success:
+                    return None, None, None, None, None, f"UartStream error: {resp.message}"
+
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
+
+                    # Check if we got the complete response
+                    full_response = "".join(response_lines)
+                    if (
+                        "GPS HW version:" in full_response
+                        and "GPS FW version:" in full_response
+                        and "GPS SW version:" in full_response
+                        and "GPS protocol version:" in full_response
+                        and "GPS constellations:" in full_response
+                    ):
+                        # Wait for the command to complete - look for the prompt after the get_ublox command
+                        lines = full_response.split("\n")
+                        ublox_command_found = False
+                        prompt_found = False
+
+                        for i, line in enumerate(lines):
+                            if "get_ublox" in line:
+                                ublox_command_found = True
+                            elif ublox_command_found and "Mfg shell:" in line.strip():
+                                prompt_found = True
+                                break
+
+                        if prompt_found:
+                            # Parse the response
+                            hw_version = None
+                            fw_version = None
+                            sw_version = None
+                            proto_version = None
+                            constellations = None
+
+                            # Extract HW version
+                            hw_start = full_response.find("GPS HW version:")
+                            if hw_start != -1:
+                                hw_line_start = full_response.rfind("\n", 0, hw_start) + 1
+                                hw_line_end = full_response.find("\n", hw_start)
+                                if hw_line_end == -1:
+                                    hw_line_end = len(full_response)
+                                hw_line = full_response[hw_line_start:hw_line_end].strip()
+                                if ":" in hw_line:
+                                    hw_version = hw_line.split(":", 1)[1].strip()
+
+                            # Extract FW version
+                            fw_start = full_response.find("GPS FW version:")
+                            if fw_start != -1:
+                                fw_line_start = full_response.rfind("\n", 0, fw_start) + 1
+                                fw_line_end = full_response.find("\n", fw_start)
+                                if fw_line_end == -1:
+                                    fw_line_end = len(full_response)
+                                fw_line = full_response[fw_line_start:fw_line_end].strip()
+                                if ":" in fw_line:
+                                    fw_version = fw_line.split(":", 1)[1].strip()
+
+                            # Extract SW version
+                            sw_start = full_response.find("GPS SW version:")
+                            if sw_start != -1:
+                                sw_line_start = full_response.rfind("\n", 0, sw_start) + 1
+                                sw_line_end = full_response.find("\n", sw_start)
+                                if sw_line_end == -1:
+                                    sw_line_end = len(full_response)
+                                sw_line = full_response[sw_line_start:sw_line_end].strip()
+                                if ":" in sw_line:
+                                    sw_version = sw_line.split(":", 1)[1].strip()
+
+                            # Extract Protocol version
+                            proto_start = full_response.find("GPS protocol version:")
+                            if proto_start != -1:
+                                proto_line_start = full_response.rfind("\n", 0, proto_start) + 1
+                                proto_line_end = full_response.find("\n", proto_start)
+                                if proto_line_end == -1:
+                                    proto_line_end = len(full_response)
+                                proto_line = full_response[proto_line_start:proto_line_end].strip()
+                                if ":" in proto_line:
+                                    proto_version = proto_line.split(":", 1)[1].strip()
+
+                            # Extract Constellations
+                            constellations_start = full_response.find("GPS constellations:")
+                            if constellations_start != -1:
+                                constellations_line_start = full_response.rfind("\n", 0, constellations_start) + 1
+                                constellations_line_end = full_response.find("\n", constellations_start)
+                                if constellations_line_end == -1:
+                                    constellations_line_end = len(full_response)
+                                constellations_line = full_response[
+                                    constellations_line_start:constellations_line_end
+                                ].strip()
+                                if ":" in constellations_line:
+                                    constellations = constellations_line.split(":", 1)[1].strip()
+
+                            return hw_version, fw_version, sw_version, proto_version, constellations, None
+
+                # Timeout check
+                if time.time() - start_time > timeout:
+                    break
+
+            # If we get here, we didn't find the success message
+            full_response = "".join(response_lines)
+            return (
+                None,
+                None,
+                None,
+                None,
+                None,
+                f"Timeout or no success message found. Response: {full_response[:200]}...",
+            )
+
+        except Exception as e:
+            return None, None, None, None, None, f"Exception in get_ublox: {str(e)}"
+
+    def cmd_sigma5_app_read_accel(
+        self,
+    ) -> Tuple[Optional[float], Optional[float], Optional[float], Optional[float], Optional[str]]:
+        """Get accelerometer values from the app processor device
+
+        Args:
+            None
+        Returns:
+            Tuple of (x_raw, y_raw, z_raw, temp, error_string)
+        """
+        target = HostType.HOST_TYPE_NRF52840
+        try:
+            input_queue = queue.Queue()
+
+            # Add commands to input queue
+            input_queue.put(b"\r")  # Hit ENTER to get prompt
+            time.sleep(0.2)
+            input_queue.put(f"read_accel\r".encode("utf-8"))  # Send command
+
+            def request_iterator():
+                while True:
+                    try:
+                        # Get input from queue (non-blocking)
+                        data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=data)
+                    except queue.Empty:
+                        # No input, send empty request to keep stream alive
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=b"")
+                        time.sleep(0.1)
+
+            # Collect response like the working terminal
+            response_lines = []
+            start_time = time.time()
+            timeout = 10  # 10 second timeout
+
+            target = HostType.HOST_TYPE_NRF52840
+            for resp in self.UartStream(target, request_iterator()):
+                if not resp.success:
+                    return None, None, None, None, f"UartStream error: {resp.message}"
+
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
+
+                    # Check if we got the complete response
+                    full_response = "".join(response_lines)
+                    if "Accelerometer values:" in full_response:
+                        # Wait for the command to complete - look for the prompt after the read_accel command
+                        lines = full_response.split("\n")
+                        accel_command_found = False
+                        prompt_found = False
+
+                        for i, line in enumerate(lines):
+                            if "read_accel" in line:
+                                accel_command_found = True
+                            elif accel_command_found and "Mfg shell:" in line.strip():
+                                prompt_found = True
+                                break
+
+                        if prompt_found:
+                            # Parse the response
+                            x_value = None
+                            y_value = None
+                            z_value = None
+                            temp_value = None
+
+                            # Extract accelerometer values
+                            accel_start = full_response.find("Accelerometer values:")
+                            if accel_start != -1:
+                                accel_line_start = full_response.rfind("\n", 0, accel_start) + 1
+                                accel_line_end = full_response.find("\n", accel_start)
+                                if accel_line_end == -1:
+                                    accel_line_end = len(full_response)
+                                accel_line = full_response[accel_line_start:accel_line_end].strip()
+
+                                # Parse the format: "Accelerometer values: (x, y, z, temp): 0.890625, -0.015625, 0.437500, 31.000000"
+                                if ":" in accel_line:
+                                    values_part = accel_line.split(":", 1)[1].strip()
+                                    # Remove the "(x, y, z, temp):" part and get just the values
+                                    if ":" in values_part:
+                                        values_str = values_part.split(":", 1)[1].strip()
+                                        try:
+                                            # Split by comma and convert to float
+                                            values = [float(v.strip()) for v in values_str.split(",")]
+                                            if len(values) >= 4:
+                                                x_value = values[0]
+                                                y_value = values[1]
+                                                z_value = values[2]
+                                                temp_value = values[3]
+                                        except ValueError:
+                                            pass
+
+                            return x_value, y_value, z_value, temp_value, None
+
+                # Timeout check
+                if time.time() - start_time > timeout:
+                    break
+
+            # If we get here, we didn't find the success message
+            full_response = "".join(response_lines)
+            return None, None, None, None, f"Timeout or no success message found. Response: {full_response[:200]}..."
+
+        except Exception as e:
+            return None, None, None, None, f"Exception in read_accel: {str(e)}"
+
+    def cmd_sigma5_app_read_altimeter(self) -> Tuple[Optional[float], Optional[float], Optional[str]]:
+        """Get altimeter values from the app processor device
+
+        Args:
+            None
+        Returns:
+            Tuple of (pressure_hg, temperature_c, error_string)
+        """
+        target = HostType.HOST_TYPE_NRF52840
+        try:
+            input_queue = queue.Queue()
+
+            # Add commands to input queue
+            input_queue.put(b"\r")  # Hit ENTER to get prompt
+            time.sleep(0.2)
+            input_queue.put(f"read_alt\r".encode("utf-8"))  # Send command
+
+            def request_iterator():
+                while True:
+                    try:
+                        # Get input from queue (non-blocking)
+                        data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=data)
+                    except queue.Empty:
+                        # No input, send empty request to keep stream alive
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=b"")
+                        time.sleep(0.1)
+
+            # Collect response like the working terminal
+            response_lines = []
+            start_time = time.time()
+            timeout = 5  # 5 second timeout (reduced from 10)
+
+            target = HostType.HOST_TYPE_NRF52840
+            for resp in self.UartStream(target, request_iterator()):
+                if not resp.success:
+                    return None, None, f"UartStream error: {resp.message}"
+
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
+
+                    # Check if we got the complete response
+                    full_response = "".join(response_lines)
+                    if "Altimeter values" in full_response:
+                        # Wait for the command to complete - look for the prompt after the read_alt command
+                        lines = full_response.split("\n")
+                        alt_command_found = False
+                        prompt_found = False
+
+                        for i, line in enumerate(lines):
+                            if "read_alt" in line:
+                                alt_command_found = True
+                            elif alt_command_found and "Mfg shell:" in line.strip():
+                                prompt_found = True
+                                break
+
+                        if prompt_found:
+                            # Parse the response
+                            pressure_value = None
+                            temp_value = None
+
+                            # Extract altimeter values
+                            alt_start = full_response.find("Altimeter values")
+                            if alt_start != -1:
+                                alt_line_start = full_response.rfind("\n", 0, alt_start) + 1
+                                alt_line_end = full_response.find("\n", alt_start)
+                                if alt_line_end == -1:
+                                    alt_line_end = len(full_response)
+                                alt_line = full_response[alt_line_start:alt_line_end].strip()
+
+                                # Parse the format: "Altimeter values (pressure, temp): 28.722524, 25.412672"
+                                if ":" in alt_line:
+                                    values_part = alt_line.split(":", 1)[1].strip()
+                                    try:
+                                        # Split by comma and convert to float
+                                        values = [float(v.strip()) for v in values_part.split(",")]
+                                        if len(values) >= 2:
+                                            pressure_value = values[0]
+                                            temp_value = values[1]
+                                    except ValueError:
+                                        pass
+
+                            return pressure_value, temp_value, None
+
+                # Timeout check
+                if time.time() - start_time > timeout:
+                    break
+
+            # If we get here, we didn't find the success message
+            full_response = "".join(response_lines)
+            return None, None, f"Timeout or no success message found. Response: {full_response[:200]}..."
+
+        except Exception as e:
+            return None, None, f"Exception in read_altimeter: {str(e)}"

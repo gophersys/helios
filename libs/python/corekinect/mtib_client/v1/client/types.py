@@ -27,29 +27,13 @@ from protocols.mtib.mtib_pb2 import (
     # Sensor types
     AltimeterReadResponse,
     AccelReadResponse,
-    # FluidNC types
-    FluidNcConfigResponse,
-    UpdateFluidNcConfigRequest,
-    UpdateFluidNcConfigResponse,
     # Motion types
     MotionStatus,
-    MotionPosition,
     GetMotionStatusResponse,
+    MotionStartRequest,
     MotionStartResponse,
     MotionHomeResponse,
     MotionStopResponse,
-    GcodeRequest,
-    GcodeResponse,
-    # Motion Profile types
-    MotionProfileRequest,
-    MotionProfileResponse,
-    ListMotionProfilesResponse,
-    ExecuteProfileRequest,
-    ExecuteProfileResponse,
-    DeleteProfileRequest,
-    DeleteProfileResponse,
-    SetDefaultProfileRequest,
-    SetDefaultProfileResponse,
     # Firmware types
     HostType,
     FwFileInfo,
@@ -61,6 +45,10 @@ from protocols.mtib.mtib_pb2 import (
     DeleteFwFileResponse,
     FlashFwFileRequest,
     FlashFwFileResponse,
+    EraseFlashRequest,
+    EraseFlashResponse,
+    EnableAppProtectRequest,
+    EnableAppProtectResponse,
     # UART types
     UartStreamRequest,
     UartStreamResponse,
@@ -172,7 +160,6 @@ class GetMotionStatusResponse:
     success: bool = False
     message: str = ""
     status: MotionStatus = MotionStatus.UNDEFINED
-    position: MotionPosition = MotionPosition.UNDEFINED
 
 
 @dataclass
@@ -188,57 +175,6 @@ class MotionStopResponse:
 
 
 @dataclass
-class MotionProfile:
-    name: str = ""
-    description: str = ""
-    gcode_commands: List[str] = None
-
-
-@dataclass
-class MotionProfileRequest:
-    profile: MotionProfile = None
-
-
-@dataclass
-class MotionProfileResponse:
-    success: bool = False
-    message: str = ""
-
-
-@dataclass
-class ListMotionProfilesResponse:
-    profiles: List[MotionProfile] = None
-
-
-@dataclass
-class ExecuteProfileRequest:
-    profile_name: str = ""
-
-
-@dataclass
-class ExecuteProfileResponse:
-    success: bool = False
-    message: str = ""
-
-
-@dataclass
-class FluidNcConfigResponse:
-    success: bool = False
-    message: str = ""
-    config_yaml: str = ""
-
-
-@dataclass
-class UpdateFluidNcConfigRequest:
-    config_yaml: str = ""
-
-
-@dataclass
-class UpdateFluidNcConfigResponse:
-    success: bool = False
-    message: str = ""
-
-
 class ProgrammerType(IntEnum):
     UNDEFINED = 0
     JLINK = 1
@@ -257,6 +193,7 @@ class ListProgrammersResponse:
     message: str = ""
     programmers: List[Programmer] = None
 
+
 @dataclass
 class ListFwFilesResponse:
     success: bool = False
@@ -269,7 +206,6 @@ class UploadFwFileResponse:
     success: bool = False
     message: str = ""
     sha256_digest: str = ""
-
 
 
 @dataclass

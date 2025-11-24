@@ -18,7 +18,7 @@ from corekinect.utils import Logger
 
 # Protocol imports
 from protocols.mtib.mtib_pb2_grpc import MtibV1Servicer
-from src.types.protocols import *
+from src.shared.types import *
 
 # Function handlers makes it easier to write service handlers
 from .handlers.adc import AdcHandler
@@ -46,6 +46,10 @@ HARDWARE_REV_1_1_GPIO_PIN_MAP = {
     8: Pin.SODIMM_16,  # PWM_2 - available on gpiochip4, line 12
 }
 
+# Where the serial port is located
+HARDWARE_REV_1_1_SERIAL_PORT: str = "/dev/ttyUSB0"
+HARDWARE_REV_1_1_RESET_PIN: Pin = Pin.SODIMM_36
+
 HARDWARE_REV_1_2_GPIO_PIN_MAP = {
     # Main connector
     0: Pin.SODIMM_206,  # GPIO_0 - available on gpiochip2, line 4
@@ -59,6 +63,9 @@ HARDWARE_REV_1_2_GPIO_PIN_MAP = {
     7: Pin.SODIMM_15,  # PWM_1 - available on gpiochip4, line 10
     8: Pin.SODIMM_16,  # PWM_2 - available on gpiochip4, line 12
 }
+
+HARDWARE_REV_1_2_SERIAL_PORT: str = "/dev/ttyUSB0"
+HARDWARE_REV_1_2_RESET_PIN: Pin = Pin.SODIMM_36
 
 # -------------------------------------------------
 #                             gRPC Method Decorator
@@ -118,6 +125,9 @@ class MtibV1ProviderConfig:
 
     # Where the metrics broker is located
     METRICS_BROKER_URL: str
+
+    # Whether to enable motion
+    MOTION_ENABLED: bool
 
 
 # -----------------------------------------------------
@@ -208,7 +218,19 @@ class MtibV1Provider(MtibV1Servicer):
         self._firmware_handlers = FirmwareHandler(self.logger)
         self._sensors_handlers = SensorsHandler(self.logger)
         self._uart_handlers = UartHandler(self.logger)
-        self._motion_handlers = MotionHandler(self.logger)
+
+        # Initialize the motion handler based on the hardware version
+        if self.config.MOTION_ENABLED:
+            if self.config.HARDWARE_VERSION == "REV1.1":
+                self._motion_handlers = MotionHandler(
+                    self.logger, self.config.ASSETS_DIR, HARDWARE_REV_1_1_SERIAL_PORT, HARDWARE_REV_1_1_RESET_PIN
+                )
+            elif self.config.HARDWARE_VERSION == "REV1.2":
+                self._motion_handlers = MotionHandler(
+                    self.logger, self.config.ASSETS_DIR, HARDWARE_REV_1_2_SERIAL_PORT, HARDWARE_REV_1_2_RESET_PIN
+                )
+            else:
+                return f"Unsupported hardware version: {self.config.HARDWARE_VERSION}"
 
         return None
 
@@ -458,73 +480,30 @@ class MtibV1Provider(MtibV1Servicer):
         return self._sensors_handlers.read_accel(request, context)
 
     # -------------------------------------------------
-    #                                           FluidNC
-    # -------------------------------------------------
-    @grpc_method
-    def GetFluidNcConfig(self, request: Empty, context: grpc.ServicerContext) -> FluidNcConfigResponse:
-        return self._motion_handlers.get_config(request, context)
-
-    @grpc_method
-    def UpdateFluidNcConfig(
-        self, request: UpdateFluidNcConfigRequest, context: grpc.ServicerContext
-    ) -> UpdateFluidNcConfigResponse:
-        return self._motion_handlers.update_config(request, context)
-
-    # -------------------------------------------------
-    #                                             Gcode
-    # -------------------------------------------------
-    @grpc_method
-    def SendGcode(self, request: GcodeRequest, context: grpc.ServicerContext) -> GcodeResponse:
-        return self._motion_handlers.send_gcode(request, context)
-
-    # -------------------------------------------------
-    #                                   Motion Profiles
-    # -------------------------------------------------
-    @grpc_method
-    def UploadMotionProfile(
-        self, request: MotionProfileRequest, context: grpc.ServicerContext
-    ) -> MotionProfileResponse:
-        return self._motion_handlers.upload_profile(request, context)
-
-    @grpc_method
-    def ListMotionProfiles(self, request: Empty, context: grpc.ServicerContext) -> ListMotionProfilesResponse:
-        return self._motion_handlers.list_profiles(request, context)
-
-    @grpc_method
-    def ExecuteMotionProfile(
-        self, request: ExecuteProfileRequest, context: grpc.ServicerContext
-    ) -> ExecuteProfileResponse:
-        return self._motion_handlers.execute_profile(request, context)
-
-    @grpc_method
-    def DeleteMotionProfile(
-        self, request: DeleteProfileRequest, context: grpc.ServicerContext
-    ) -> DeleteProfileResponse:
-        return self._motion_handlers.delete_profile(request, context)
-
-    @grpc_method
-    def SetDefaultMotionProfile(
-        self, request: SetDefaultProfileRequest, context: grpc.ServicerContext
-    ) -> SetDefaultProfileResponse:
-        return self._motion_handlers.set_default_profile(request, context)
-
-    # -------------------------------------------------
     #                                            Motion
     # -------------------------------------------------
     @grpc_method
     def GetMotionStatus(self, request: Empty, context: grpc.ServicerContext) -> GetMotionStatusResponse:
+        if not self.config.MOTION_ENABLED:
+            return GetMotionStatusResponse(success=False, message="Motion is not enabled")
         return self._motion_handlers.get_status(request, context)
 
     @grpc_method
-    def MotionStart(self, request: Empty, context: grpc.ServicerContext) -> MotionStartResponse:
+    def MotionStart(self, request: MotionStartRequest, context: grpc.ServicerContext) -> MotionStartResponse:
+        if not self.config.MOTION_ENABLED:
+            return MotionStartResponse(success=False, message="Motion is not enabled")
         return self._motion_handlers.start(request, context)
 
     @grpc_method
     def MotionHome(self, request: Empty, context: grpc.ServicerContext) -> MotionHomeResponse:
+        if not self.config.MOTION_ENABLED:
+            return MotionHomeResponse(success=False, message="Motion is not enabled")
         return self._motion_handlers.home(request, context)
 
     @grpc_method
     def MotionStop(self, request: Empty, context: grpc.ServicerContext) -> MotionStopResponse:
+        if not self.config.MOTION_ENABLED:
+            return MotionStopResponse(success=False, message="Motion is not enabled")
         return self._motion_handlers.stop(request, context)
 
     # -------------------------------------------------
@@ -551,6 +530,10 @@ class MtibV1Provider(MtibV1Servicer):
     @grpc_method
     def FlashFwFile(self, request: FlashFwFileRequest, context: grpc.ServicerContext) -> FlashFwFileResponse:
         return self._firmware_handlers.flash_fw_file(request, context)
+
+    @grpc_method
+    def EraseFlash(self, request: EraseFlashRequest, context: grpc.ServicerContext) -> EraseFlashResponse:
+        return self._firmware_handlers.erase_flash(request, context)
 
     @grpc_method
     def EnableAppProtect(

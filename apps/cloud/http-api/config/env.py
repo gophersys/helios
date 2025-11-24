@@ -34,5 +34,14 @@ class ProxyConfig(EnvConfig):
     # Core Cloud/Ops
     COREOPS_SERVER_URL: str
 
+    # Assets
+    ASSETS_FOLDER: str
+
+    # Storage (MinIO/S3)
+    STORAGE_URL: str
+    STORAGE_ACCESS_KEY: str
+    STORAGE_SECRET_ACCESS_KEY: str
+    STORAGE_FIRMWARE_BUCKET_NAME: str
+
 
 env_config = ProxyConfig(namespace=None, auto_load_env=True)

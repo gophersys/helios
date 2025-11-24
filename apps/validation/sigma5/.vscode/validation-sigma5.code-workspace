@@ -1,0 +1,37 @@
+{
+	"folders": [
+		{
+			"name": "http-api",
+			"path": "../../../cloud/http-api"
+		},
+		{
+			"name": "validation-sigma5",
+			"path": ".."
+		},
+		{
+			"name": "protocols",
+			"path": "../../../../libs/protocols"
+		},
+		{
+			"name": "libs",
+			"path": "../../../../libs"
+		},
+		{
+			"name": "deploy",
+			"path": "../../../../deploy"
+		},
+		{
+			"path": "../../../edge/mtib-server"
+		},
+		{
+			"path": "../../../../docs"
+		},
+		{
+			"name": "manufacturing-sigma5",
+			"path": "../../../manufacturing/sigma5"
+		}
+	],
+	"settings": {
+		"files.associations": {},
+	}
+}

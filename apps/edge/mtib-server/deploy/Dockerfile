@@ -104,13 +104,16 @@ COPY apps/edge/mtib-server/setup.py setup.py
 RUN pip install -e . && \
     pip cache purge
 
-# Copy the assets
-COPY apps/edge/mtib-server/assets /app/assets
+# Copy only the ctl.sh script first (without config.yaml)
+COPY apps/edge/mtib-server/assets/ctl.sh /app/assets/ctl.sh
 WORKDIR /app/assets
 
-# Generate the fluidnc firmware assets
+# Generate the fluidnc firmware assets (this is expensive and should be cached)
 RUN chmod +x ctl.sh && \
     ./ctl.sh
+
+# Copy config.yaml separately (this will be fast and won't invalidate FluidNC cache)
+COPY apps/edge/mtib-server/assets/config.yaml /app/assets/config.yaml
 
 # Copy the libraries used by the app
 COPY libs/python /libs/python

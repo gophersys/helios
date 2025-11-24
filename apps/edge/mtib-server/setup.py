@@ -12,10 +12,11 @@ setup(
         "pyserial==3.5",
         "termcolor==2.3.0",
         "gpiod==2.2.3",
-        "xmodem",
+        "xmodem==0.4.7",
         "cryptography",
         "smbus",
         "reedsolo",
         "paho-mqtt==2.1.0",
+        "PyYAML==6.0.3",
     ],
 )

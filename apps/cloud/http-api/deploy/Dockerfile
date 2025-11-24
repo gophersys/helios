@@ -141,8 +141,12 @@ ENV PYTHONPATH="/libs:/libs/python/"
 ENV PRISMA_BINARY_CACHE_DIR="/root/.cache/prisma-python/binaries"
 
 # Copy the app itself
+COPY ./apps/cloud/http-api/assets assets
 COPY ./apps/cloud/http-api/config config
 COPY ./apps/cloud/http-api/src src
+
+# Copy the kubernetes config for now
+COPY ./apps/cloud/http-api/deploy/kube-config /root/.kube/config
 
 # Keep the container running
 CMD ["python3", "src/main.py"]

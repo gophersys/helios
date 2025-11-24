@@ -9,10 +9,10 @@ import gpiod
 # 3rd party imports
 import grpc
 from corekinect.utils import Logger
-from src.lib.mcp4017 import MCP4017
+from src.services.mcp4017 import MCP4017
 
 # Private imports
-from src.types.protocols import *
+from src.shared.types import *
 
 from .gpio import Gpio, Pin
 

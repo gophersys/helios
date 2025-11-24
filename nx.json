@@ -5,7 +5,7 @@
   "cacheDirectory": ".nx/cache",
   "defaultBase": "main",
   "tui": {
-    "enabled": true,
+    "enabled": false,
     "autoExit": true
   },
   "targetDefaults": {

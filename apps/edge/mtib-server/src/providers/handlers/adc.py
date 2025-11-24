@@ -3,7 +3,7 @@ import grpc
 import os
 import glob
 from corekinect.utils import Logger
-from src.types.protocols import *
+from src.shared.types import *
 
 
 class AdcHandler:

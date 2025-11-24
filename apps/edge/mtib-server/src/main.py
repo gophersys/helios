@@ -42,6 +42,8 @@ class MtibEnvConfig(EnvConfig):
     METRICS_ENABLED: bool
     METRICS_BROKER_URL: str
 
+    MOTION_ENABLED: bool
+
 
 # -------------------------------------------------
 #                                          Shutdown
@@ -92,6 +94,7 @@ if __name__ == "__main__":
                 ASSETS_DIR=env_config.ASSETS_PATH,
                 METRICS_ENABLED=env_config.METRICS_ENABLED,
                 METRICS_BROKER_URL=env_config.METRICS_BROKER_URL,
+                MOTION_ENABLED=env_config.MOTION_ENABLED,
             ),
             logger=logger,
         )

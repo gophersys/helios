@@ -1,0 +1,86 @@
+# Vault Helm Chart Value Overrides
+global:
+  enabled: true
+
+ui:
+  enabled: true
+  serviceType: "LoadBalancer"
+  externalPort: 8200
+  targetPort: 8200
+  annotations:
+    # service.beta.kubernetes.io/aws-load-balancer-backend-protocol: "http"
+    # service.beta.kubernetes.io/aws-load-balancer-ssl-cert: "" # This value is set in the ctl.sh script
+    # service.beta.kubernetes.io/aws-load-balancer-ssl-ports: "443"
+
+injector:
+  enabled: true
+  nodeSelector:
+    role: "cloud"
+  tolerations:
+    - key: "role"
+      operator: "Equal"
+      value: "cloud"
+      effect: "NoSchedule"
+  # Use the vault K8s Image
+  image:
+    repository: "hashicorp/vault-k8s"
+    tag: "latest"
+  
+  # We've commented out resources for now, as this requires more in depth understanding
+  # of the overall system resource requirements
+  resources:
+    requests:
+      memory: 256Mi
+      cpu: 250m
+    limits:  # Corrected typo here
+      memory: 256Mi
+      cpu: 250m
+
+server:
+  nodeSelector:
+    role: "cloud"
+  tolerations:
+    - key: "role"
+      operator: "Equal"
+      value: "cloud"
+      effect: "NoSchedule"
+  # This configures the Vault Statefulset to create a PVC for data storage
+  dataStorage:
+    enabled: true
+    size: 5Gi
+    mountPath: "/vault/data"
+    storageClass: null
+    accessMode: ReadWriteOnce
+    annotations: {}
+
+  # Use the Community Edition Vault image
+  image:
+    repository: "hashicorp/vault"
+    tag: "latest"
+
+  # We've commented out resources for now, as this requires more in depth understanding
+  # of the overall system resource requirements
+  resources:
+    requests:
+      memory: 256Mi
+      cpu: 250m
+    limits:
+      memory: 512Mi
+      cpu: 250m
+
+  readinessProbe:
+    enabled: true
+    path: "/v1/sys/health?standbyok=true&sealedcode=204&uninitcode=204"
+  livenessProbe:
+    enabled: true
+    path: "/v1/sys/health?standbyok=true"
+    initialDelaySeconds: 60
+
+  auditStorage:
+    enable: true
+    
+  standalone:
+    enabled: true
+
+  ha:
+    enabled: false

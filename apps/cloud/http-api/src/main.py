@@ -23,6 +23,9 @@ from flask import Flask
 from flask_socketio import SocketIO
 from src.middleware.permissions import AuthMiddlewareConfig, authMiddleware
 from src.services.database.prisma import init_postgres_client
+from src.services.kubernetes.client import init_kubernetes_client
+from src.services.log.logger import init_logger
+from src.services.storage.client import init_storage_client
 from src.services.proxy import ProxyServerConfiguration, appProxyServer
 
 # -------------------------------------------------
@@ -50,8 +53,17 @@ if __name__ == "__main__":
         )
         logger: Logger = Logger(log_config)
 
+        # Initialize the storage client
+        init_storage_client()
+
         # Initialize the database client
         init_postgres_client()
+
+        # Initialize the Kubernetes client
+        init_kubernetes_client()
+
+        # Initialize the logger
+        init_logger(log_config)
 
         # Initiate the middleware layer
         middleware_config: AuthMiddlewareConfig = AuthMiddlewareConfig(

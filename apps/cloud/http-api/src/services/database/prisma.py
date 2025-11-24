@@ -1,6 +1,6 @@
 from typing import Optional
 
-from corekinect.db import Prisma
+from corekinect.database import Prisma
 
 # Global database client instance
 appPostgresClient: Optional[Prisma] = None

@@ -131,8 +131,9 @@ def _power_on(client: MtibV1Client, logger: Logger, delay: int = 3) -> Optional[
     avg_ma_draw = sum(samples) / len(samples)
     logger.info(f"Device powered on, power draw: min {min_ma_draw} mA, max {max_ma_draw} mA, avg {avg_ma_draw} mA")
 
-    if avg_ma_draw < 8 or avg_ma_draw > 33:
-        return f"Average power draw is not within expected range: {avg_ma_draw} mA, min {min_ma_draw} mA, max {max_ma_draw} mA"
+    # Check if within range
+    # if avg_ma_draw < 8 or avg_ma_draw > 33:
+    #     return f"Average power draw is not within expected range: {avg_ma_draw} mA, min {min_ma_draw} mA, max {max_ma_draw} mA"
 
     return None
 

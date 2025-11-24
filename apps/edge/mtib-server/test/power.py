@@ -139,13 +139,18 @@ def sample(client: MtibV1Client, logger: Logger) -> None:
 
         time.sleep(2)
 
+        # Set all GPIOs to input
+        for gpio in range(0, 8):
+            if err := client.GpioConfig(gpio=gpio, direction=GpioDirection.INPUT, resistor=GpioResistorConfig.NONE):
+                logger.fatal(f"Error configuring GPIO: {err}")
+
         # Turn on the DUT power (connected to the battery)
         voltage_v = 4.0
         if err := client.DutPowerEnable(voltage_v):
             logger.fatal(f"Error enabling DUT power: {err}")
 
-        if err := client.DutChargePowerEnable():
-            logger.fatal(f"Error enabling DUT charge power: {err}")
+        # if err := client.DutChargePowerEnable():
+        #     logger.fatal(f"Error enabling DUT charge power: {err}")
 
         # Display the readings for a few seconds
         count = 0
@@ -169,6 +174,7 @@ def sample(client: MtibV1Client, logger: Logger) -> None:
             count += 1
 
     finally:
+        pass
         # Always cleanup power when exiting the function
         cleanup_power(client, logger)
 

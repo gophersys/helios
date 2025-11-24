@@ -4,8 +4,8 @@ import time
 
 import grpc
 from corekinect.utils import Logger
-from src.lib.bme280 import BME280
-from src.types.protocols import *
+from src.services.bme280 import BME280
+from src.shared.types import *
 
 
 class SensorsHandler:

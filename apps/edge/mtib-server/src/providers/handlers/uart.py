@@ -9,7 +9,7 @@ from typing import Dict, Iterator, Optional, Set
 import grpc
 import serial
 from corekinect.utils import Logger
-from src.types.protocols import *
+from src.shared.types import *
 
 
 class UartHandler:

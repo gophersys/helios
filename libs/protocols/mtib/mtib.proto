@@ -36,28 +36,9 @@ service MtibV1 {
   rpc AltimeterRead(Empty) returns (AltimeterReadResponse) {}
   rpc AccelRead(Empty) returns (AccelReadResponse) {}
 
-  // FluidNc config
-  rpc GetFluidNcConfig(Empty) returns (FluidNcConfigResponse) {}
-  rpc UpdateFluidNcConfig(UpdateFluidNcConfigRequest)
-      returns (UpdateFluidNcConfigResponse) {}
-
-  // Gcode
-  rpc SendGcode(GcodeRequest) returns (GcodeResponse) {}
-
-  // Motion Profiles
-  rpc UploadMotionProfile(MotionProfileRequest)
-      returns (MotionProfileResponse) {}
-  rpc ListMotionProfiles(Empty) returns (ListMotionProfilesResponse) {}
-  rpc ExecuteMotionProfile(ExecuteProfileRequest)
-      returns (ExecuteProfileResponse) {}
-  rpc DeleteMotionProfile(DeleteProfileRequest)
-      returns (DeleteProfileResponse) {}
-  rpc SetDefaultMotionProfile(SetDefaultProfileRequest)
-      returns (SetDefaultProfileResponse) {}
-
   // Motion
   rpc GetMotionStatus(Empty) returns (GetMotionStatusResponse) {}
-  rpc MotionStart(Empty) returns (MotionStartResponse) {}
+  rpc MotionStart(MotionStartRequest) returns (stream MotionStartResponse) {}
   rpc MotionHome(Empty) returns (MotionHomeResponse) {}
   rpc MotionStop(Empty) returns (MotionStopResponse) {}
 
@@ -67,6 +48,7 @@ service MtibV1 {
   rpc UploadFwFile(stream UploadFwFileRequest) returns (UploadFwFileResponse) {}
   rpc DeleteFwFile(DeleteFwFileRequest) returns (DeleteFwFileResponse) {}
   rpc FlashFwFile(FlashFwFileRequest) returns (FlashFwFileResponse) {}
+  rpc EraseFlash(EraseFlashRequest) returns (EraseFlashResponse) {}
   rpc EnableAppProtect(EnableAppProtectRequest)
       returns (EnableAppProtectResponse) {}
 
@@ -179,21 +161,6 @@ message AccelReadResponse {
   double z_g = 5;
 }
 
-// FluidNc config
-message FluidNcConfigResponse {
-  bool success = 1;
-  string message = 2;
-
-  string config_yaml = 3;
-}
-
-message UpdateFluidNcConfigRequest { string config_yaml = 1; }
-
-message UpdateFluidNcConfigResponse {
-  bool success = 1;
-  string message = 2;
-}
-
 // Motion
 enum MotionStatus {
   MOTION_STATUS_UNDEFINED = 0;
@@ -202,15 +169,38 @@ enum MotionStatus {
   MOTION_STATUS_ERRORED = 3;
 }
 
-enum MotionPosition {
-  MOTION_POSITION_UNDEFINED = 0;
-  MOTION_POSITION_HOME = 1;
-  MOTION_POSITION_USER = 2;
+message MotionStartRequest {
+  // How long to dwell at the end of each move. (both forward and backward)
+  float dwell_seconds = 2;
+
+  // Acceleration in mm/s^2.
+  float accel_mm_s2 = 5;
+
+  // Speed in mm/s.
+  float speed_mm_s = 3;
+
+  oneof move_type {
+    // If duration is given, the default speed and acceleration will be used.
+    // and the device will move back and forth until the duration is reached.
+    float duration_seconds = 1;
+
+    // Distance in mm. If this is greater than 0, the device will move the given distance.
+    float distance_mm = 4;
+  }
 }
 
 message MotionStartResponse {
   bool success = 1;
   string message = 2;
+  
+  // Progress information (subsequent messages after the first)
+  MotionStatus status = 3;
+  optional int64 time_elapsed_seconds = 4;     // Time the motion has been running
+  optional double distance_covered_mm = 5;      // Total distance covered so far
+  optional double distance_remaining_mm = 6;     // Distance left to cover (if distance-based)
+  optional int64 time_remaining_seconds = 7;   // Time remaining (if duration-based)
+  optional int32 target_duration_seconds = 8;   // What was requested
+  optional int32 target_distance_mm = 9;        // What was requested
 }
 
 message MotionHomeResponse {
@@ -228,51 +218,16 @@ message GetMotionStatusResponse {
   string message = 2;
 
   MotionStatus status = 3;
-  MotionPosition position = 4;
-}
-
-message GcodeRequest { string command = 1; }
-
-message GcodeResponse {
-  bool success = 1;
-  string message = 2;
-  string response = 3;
-}
-
-message MotionProfile {
-  string name = 1;
-  string description = 2;
-  repeated string gcode_commands = 3;
-}
-
-message MotionProfileRequest { MotionProfile profile = 1; }
-
-message MotionProfileResponse {
-  bool success = 1;
-  string message = 2;
-}
-
-message ListMotionProfilesResponse { repeated MotionProfile profiles = 1; }
-
-message ExecuteProfileRequest { string profile_name = 1; }
-
-message ExecuteProfileResponse {
-  bool success = 1;
-  string message = 2;
-}
-
-message DeleteProfileRequest { string profile_name = 1; }
-
-message DeleteProfileResponse {
-  bool success = 1;
-  string message = 2;
-}
-
-message SetDefaultProfileRequest { string profile_name = 1; }
-
-message SetDefaultProfileResponse {
-  bool success = 1;
-  string message = 2;
+  
+  // Progress information (only populated when status is MOVING)
+  optional int64 time_elapsed_seconds = 4;  // Time the motion has been running
+  optional double distance_covered_mm = 5;   // Total distance covered so far
+  optional double distance_remaining_mm = 6; // Distance left to cover (if distance-based)
+  optional int64 time_remaining_seconds = 7; // Time remaining (if duration-based)
+  
+  // Target information (what was requested)
+  optional int32 target_duration_seconds = 8; // What was requested
+  optional int32 target_distance_mm = 9;       // What was requested
 }
 
 // Firmware
@@ -354,6 +309,16 @@ message FlashFwFileResponse {
 message EnableAppProtectRequest { HostType target = 1; }
 
 message EnableAppProtectResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message EraseFlashRequest {
+  HostType target = 1; 
+  bool recover = 2;
+}
+
+message EraseFlashResponse {
   bool success = 1;
   string message = 2;
 }

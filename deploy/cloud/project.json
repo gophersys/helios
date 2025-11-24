@@ -34,10 +34,10 @@
             "defaultConfiguration": "staging",
             "configurations": {
                 "staging": {
-                    "command": "nx run-many --target=push --projects=http-api -c staging --skip-nx-cache"
+                    "command": "nx run-many --target=push --projects=http-api,validation-sigma5 -c staging --skip-nx-cache"
                 },
                 "production": {
-                    "command": "nx run-many --target=push --projects=http-api -c production --skip-nx-cache"
+                    "command": "nx run-many --target=push --projects=http-api,validation-sigma5 -c production --skip-nx-cache"
                 }
             }
         },
@@ -66,31 +66,24 @@
                     ]
                 },
                 "staging": {
+                    "cwd": "{projectRoot}/production",
                     "commands": [
-                        {
-                            "command": "nx run infra:context:staging"
-                        },
+                        // {
+                        //     "command": "nx run-many --target=push --projects=http-api,validation-sigma5 -c staging --skip-nx-cache"
+                        // },
                         {
                             "command": "chmod +x ctl.sh && ./ctl.sh start --env=staging"
-                        },
-                        {
-                            "command": "nx run lb-updater:update-engine"
                         }
                     ]
                 },
                 "production": {
+                    "cwd": "{projectRoot}/production",
                     "commands": [
-                        {
-                            "command": "nx run infra:context:production"
-                        },
-                        {
-                            "command": "nx run-many --target=push --projects=http-api,runtime,orchestrator,collector -c production --skip-nx-cache"
-                        },
+                        // {
+                        //     "command": "nx run-many --target=push --projects=http-api,validation-sigma5 -c production --skip-nx-cache"
+                        // },
                         {
                             "command": "chmod +x ctl.sh && ./ctl.sh start --env=production"
-                        },
-                        {
-                            "command": "nx run lb-updater:update-engine"
                         }
                     ]
                 }
@@ -172,20 +165,16 @@
                     ]
                 },
                 "staging": {
+                    "cwd": "{projectRoot}/production",
                     "commands": [
-                        {
-                            "command": "nx run infra:context:staging"
-                        },
                         {
                             "command": "chmod +x ctl.sh && ./ctl.sh stop --env=staging"
                         }
                     ]
                 },
                 "production": {
+                    "cwd": "{projectRoot}/production",
                     "commands": [
-                        {
-                            "command": "nx run infra:context:production"
-                        },
                         {
                             "command": "chmod +x ctl.sh && ./ctl.sh stop --env=production"
                         }

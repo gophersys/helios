@@ -1,0 +1,22 @@
+meta {
+  name: list
+  type: http
+  seq: 3
+}
+
+get {
+  url: http://localhost:9001/v2/firmware/appid
+  body: none
+  auth: inherit
+}
+
+params:query {
+  chipset: Sigma 5 Cx
+  target: nRF9160
+  limit: 10
+  offset: 0
+}
+
+settings {
+  encodeUrl: true
+}

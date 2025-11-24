@@ -25,6 +25,9 @@
         },
         {
             "path": "../../../../docs"
+        },
+        {
+            "path": "../../../validation/sigma5"
         }
     ],
     "settings": {

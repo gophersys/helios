@@ -6,6 +6,7 @@ from typing import List, Optional, Tuple
 
 import requests
 from corekinect.mtib_client.v1.client.core import MtibV1Client
+from corekinect.mtib_client.v1.client.types import HostType
 from corekinect.utils import Logger
 
 # -------------------------------------------------
@@ -383,6 +384,24 @@ def _personalize_device(
     return None
 
 
+def _set_ap_protect(client: MtibV1Client, logger: Logger) -> Optional[str]:
+    # Set AP protect to 1
+    success, err = client.EnableAppProtect(HostType.HOST_TYPE_NRF52840)
+    if err:
+        return f"Error setting AP protect: {err}"
+    if not success:
+        return "Failed to set AP protect"
+
+    success, err = client.EnableAppProtect(HostType.HOST_TYPE_NRF9160)
+    if err:
+        return f"Error setting AP protect: {err}"
+    if not success:
+        return "Failed to set AP protect"
+
+    logger.info("AP protect set successfully")
+    return None
+
+
 def run_post_test(
     client: MtibV1Client, logger: Logger, device_id: str = None, proxy_server_url: str = None, snr: str = None
 ) -> Optional[str]:
@@ -401,21 +420,21 @@ def run_post_test(
     """
     logger.info("Starting post test suite...")
 
-     # Turn off power
+    # Turn off power
     error = client.DutPowerDisable()
     if error:
         return f"Could not disable device power: {error}"
 
-     # Await some time for the power to be off
+    # Await some time for the power to be off
     time.sleep(2)
 
-        # Turn on the device
+    # Turn on the device
     error = client.DutPowerEnable(4.0)
     if error:
         return f"Could not set VBAT: {error}"
 
     # Await some time for boot
-    time.sleep(2)   
+    time.sleep(2)
 
     # Setup the shell for the comms processor
     locked, error = client.cmd_comms_coproc_lock_shell()
@@ -462,6 +481,9 @@ def run_post_test(
         )
 
     # 6. Run app protect for both processors
+    err = _set_ap_protect(client, logger)
+    if err:
+        return f"Error setting AP protect: {err}"
 
     logger.info("Post test suite completed successfully")
     return None

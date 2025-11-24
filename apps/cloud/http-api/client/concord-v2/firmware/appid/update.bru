@@ -1,0 +1,24 @@
+meta {
+  name: update
+  type: http
+  seq: 4
+}
+
+put {
+  url: http://localhost:9001/v2/firmware/appid/101
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "name": "Comms Updated",
+    "chipset": "Sigma 5 Cx Pro",
+    "target": "nRF9160-SICA",
+    "notes": "Updated firmware appid with new specifications"
+  }
+}
+
+settings {
+  encodeUrl: true
+}

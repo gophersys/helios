@@ -8,6 +8,9 @@
             "path": "../"
         },
         {
+            "path": "../../../../apps/validation/sigma5"
+        },
+        {
             "name": "protocols",
             "path": "../../../../libs/protocols"
         },

@@ -82,6 +82,12 @@
             "command": "python3 -m venv .venv"
           },
           {
+            "command": "nx create protocols"
+          },
+          {
+            "command": "nx generate-client database"
+          },
+          {
             "command": "bash -c 'source .venv/bin/activate && pip install -e .'"
           },
           {
