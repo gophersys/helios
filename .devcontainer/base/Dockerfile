@@ -37,7 +37,6 @@ RUN DEBIAN_FRONTEND=noninteractive apt update && apt upgrade -y && \
     gettext \
     jq \
     iputils-ping \
-    unzip \
     htop \
     speedtest-cli \
     wget \
@@ -47,11 +46,14 @@ RUN DEBIAN_FRONTEND=noninteractive apt update && apt upgrade -y && \
     python3 \
     python3-pip \
     python3-venv \
-    lsb-release 
+    lsb-release \
+    vim \
+    btop \
+    sudo && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Setup shell - ensure zsh is properly installed
-RUN apt-get update && apt-get install -y zsh && \
-    sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended && \
+# Setup shell - install Oh My Zsh
+RUN sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended && \
     chsh -s $(which zsh)
 
 # Verify zsh is installed and switch to it for subsequent RUN commands
@@ -64,6 +66,8 @@ WORKDIR /tmp
 # ----------------------------------------------------
 #                                             Node, Nx
 # ----------------------------------------------------
+ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+
 RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v${NVM_VERSION}/install.sh | bash && \
     source ~/.zshrc && \
     nvm install v${NODE_VERSION} && \
@@ -141,11 +145,9 @@ RUN mkdir -p "$GOPATH/src" "$GOPATH/bin" && chmod -R 777 "$GOPATH"
 # Set the PYTHONPATH to include the libs directory
 ENV PYTHONPATH="/workspaces/concord/libs:/workspaces/concord/libs/python/"
 
-# Install grpcio-tools
-RUN pip3 install grpcio-tools==1.75.0
-
-# Install prisma client
-RUN pip3 install prisma==0.15.0
+# Install Python packages
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip3 install grpcio-tools==1.75.0 prisma==0.15.0
 
 # ----------------------------------------------------
 #                                             Protobuf
@@ -219,13 +221,55 @@ RUN gpg --no-default-keyring --keyring /usr/share/keyrings/hashicorp-archive-key
 RUN echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | tee /etc/apt/sources.list.d/hashicorp.list
 
 # Install vault
-RUN apt-get update -y && apt-get install -y vault
+RUN apt-get update -y && apt-get install -y vault && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # ----------------------------------------------------
-#                                          Other Tools
+#                                              DevUser
 # ----------------------------------------------------
-RUN apt-get update && \
-    apt-get install -y vim \
-    btop && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+# Create non-root user for development (e.g., for claude --dangerously-skip-permissions)
+RUN groupadd --gid 10001 devuser \
+    && useradd --uid 10001 --gid 10001 -m devuser -s /usr/bin/zsh \
+    && echo "devuser ALL=(root) NOPASSWD:ALL" > /etc/sudoers.d/devuser \
+    && chmod 0440 /etc/sudoers.d/devuser
+
+# Script to fix docker socket permissions at runtime (called from postStartCommand)
+# This handles varying docker GIDs across different host systems
+RUN echo '#!/bin/bash\n\
+if [ -S /var/run/docker.sock ]; then\n\
+    DOCKER_GID=$(stat -c "%g" /var/run/docker.sock)\n\
+    # Add devuser to the appropriate group\n\
+    EXISTING_GROUP=$(getent group $DOCKER_GID | cut -d: -f1)\n\
+    if [ -n "$EXISTING_GROUP" ]; then\n\
+        sudo usermod -aG "$EXISTING_GROUP" devuser 2>/dev/null || true\n\
+    else\n\
+        sudo groupadd -g $DOCKER_GID docker 2>/dev/null || true\n\
+        sudo usermod -aG docker devuser 2>/dev/null || true\n\
+        EXISTING_GROUP="docker"\n\
+    fi\n\
+    # Also set ACL for immediate access without requiring new shell\n\
+    if command -v setfacl &> /dev/null; then\n\
+        sudo setfacl -m u:devuser:rw /var/run/docker.sock 2>/dev/null || true\n\
+    fi\n\
+    # Fallback: make socket group-writable if we have permission\n\
+    sudo chmod 666 /var/run/docker.sock 2>/dev/null || true\n\
+    echo "Docker socket permissions configured (GID: $DOCKER_GID)"\n\
+fi' > /usr/local/bin/fix-docker-permissions \
+    && chmod +x /usr/local/bin/fix-docker-permissions
+
+# Install ACL tools for docker socket permissions
+RUN apt-get update && apt-get install -y acl && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Copy root's shell config to devuser
+RUN cp -r /root/.oh-my-zsh /home/devuser/.oh-my-zsh \
+    && cp /root/.zshrc /home/devuser/.zshrc \
+    && chown -R devuser:devuser /home/devuser/.oh-my-zsh \
+    && chown devuser:devuser /home/devuser/.zshrc \
+    && sed -i "s|/root|/home/devuser|g" /home/devuser/.zshrc
+
+# Set up node/npm for devuser
+RUN mkdir -p /home/devuser/.nvm \
+    && cp -r /root/.nvm/* /home/devuser/.nvm/ \
+    && chown -R devuser:devuser /home/devuser/.nvm \
+    && echo 'export NVM_DIR="$HOME/.nvm"' >> /home/devuser/.zshrc \
+    && echo '[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"' >> /home/devuser/.zshrc

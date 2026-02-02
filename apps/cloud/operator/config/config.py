@@ -26,6 +26,7 @@ class Config:
     KUBECONFIG_PATH: str
     NODES_HOSTNAMES: List[str]
     NODES_MGMT_ENABLED: bool
+    GRPC_SERVER_HOST: str
 
     def __new__(cls: Type["Config"]) -> "Config":
         """
@@ -92,6 +93,7 @@ class Config:
         self.KUBECONFIG_PATH = self._get_env_var("KUBECONFIG_PATH", str)
         self.NODES_HOSTNAMES = self._get_env_var_list("NODES_HOSTNAMES", str, delimiter=",")
         self.NODES_MGMT_ENABLED = self._get_env_var("NODES_MGMT_ENABLED", bool)
+        self.GRPC_SERVER_HOST = self._get_env_var("GRPC_SERVER_HOST", str)
 
     def _get_env_var(self, var_name: str, expected_type: type, default: Optional[Any] = None) -> type:
         """

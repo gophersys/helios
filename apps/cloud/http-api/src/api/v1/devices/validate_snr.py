@@ -35,7 +35,7 @@ def devices_snr_validate_handler():
 
         # Call Manufacturing server
         snr_is_valid = False
-        snr_references = [None] * 5
+        snr_references = [None] * 4
         try:
             # Create auth headers
             token_error, server_token = authMiddleware.get_server_token()
@@ -57,12 +57,15 @@ def devices_snr_validate_handler():
                 panel_serial_number = response_data.get("panelSerialNumber")
                 boards = response_data.get("boards", [])
 
-                if panel_serial_number and len(boards) == 5:
+                # Singleton devices have 1 board, panels have 4
+                if singleton and len(boards) >= 1:
+                    snr_is_valid = True
+                elif panel_serial_number and len(boards) == 4:
                     snr_is_valid = True
                     for board in boards:
                         position = board.get("panelPosition")
                         serial_number = board.get("boardSerialNumber")
-                        if 0 <= position < 5:
+                        if 0 <= position < 4:
                             snr_references[position] = serial_number
                 else:
                     return jsonify({"error": "Invalid response structure from Manufacturing server."}), 500
@@ -88,6 +91,7 @@ def devices_snr_validate_handler():
 
         # Form response
         if singleton and snr_is_valid:
+            # Sigma5 app
             response = {
                 "snrs": OrderedDict(
                     [
@@ -95,6 +99,15 @@ def devices_snr_validate_handler():
                     ]
                 ),
             }
+
+            # # Theta app
+            # response = {
+            #     "snrs": OrderedDict(
+            #         [
+            #             ("verdin-imx8mm-15702161", snr),
+            #         ]
+            #     ),
+            # }
 
             return jsonify(response), 200
 
@@ -121,14 +134,39 @@ def devices_snr_validate_handler():
         # Use the actual sorted array
         sorted_snrs = sorted(valid_snrs)
 
+        # Sigma 5
+        # response = {
+        #     "snrs": OrderedDict(
+        #         [
+        #             ("verdin-imx8mm-15005658", sorted_snrs[4]),  # 05AU - .11 // 9160 yes, 52840 yes, POST yes
+        #             ("verdin-imx8mm-15005689", sorted_snrs[3]),  # 05AV - .9  // 9160 yes, 52840 yes, POST yes
+        #             ("verdin-imx8mm-15005817", sorted_snrs[2]),  # 05AW - .13 // 9160 yes, 52840 yes, POST yes
+        #             ("verdin-imx8mm-15005816", sorted_snrs[1]),  # 05AX - .10 // 9160 yes, 52840 yes, POST yes // cook
+        #             ("verdin-imx8mm-15005665", sorted_snrs[0]),  # 05AY - .6  // 9160 yes, 52840 yes, POST yes
+        #         ]
+        #     ),
+        # }
+
+        # # Theta
+        # response = {
+        #     "snrs": OrderedDict(
+        #         [
+        #             ("verdin-imx8mm-15005816", sorted_snrs[2]),  # Slot 1 - .33
+        #             ("verdin-imx8mm-15005817", sorted_snrs[3]),  # Slot 2 - .34
+        #             ("verdin-imx8mm-15005658", sorted_snrs[0]),  # Slot 3 - .35
+        #             ("verdin-imx8mm-15005689", sorted_snrs[1]),  # Slot 4 - .36
+        #         ]
+        #     ),
+        # }
+
+        # Alpha
         response = {
             "snrs": OrderedDict(
                 [
-                    ("verdin-imx8mm-15005658", sorted_snrs[4]),  # 05AU - .11 // 9160 yes, 52840 yes, POST yes
-                    ("verdin-imx8mm-15005689", sorted_snrs[3]),  # 05AV - .9  // 9160 yes, 52840 yes, POST yes
-                    ("verdin-imx8mm-15005817", sorted_snrs[2]),  # 05AW - .13 // 9160 yes, 52840 yes, POST yes
-                    ("verdin-imx8mm-15005816", sorted_snrs[1]),  # 05AX - .10 // 9160 yes, 52840 yes, POST yes // cook
-                    ("verdin-imx8mm-15005665", sorted_snrs[0]),  # 05AY - .6  // 9160 yes, 52840 yes, POST yes
+                    ("verdin-imx8mm-15005816", sorted_snrs[1]),  # Slot 1 - .33
+                    ("verdin-imx8mm-15005817", sorted_snrs[0]),  # Slot 2 - .34
+                    ("verdin-imx8mm-15005658", sorted_snrs[3]),  # Slot 3 - .35
+                    ("verdin-imx8mm-15005689", sorted_snrs[2]),  # Slot 4 - .36
                 ]
             ),
         }

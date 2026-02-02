@@ -82,15 +82,15 @@ def _init(client: MtibV1Client, logger: Logger) -> Optional[str]:
     else:
         logger.info("No firmware files found on server!")
 
-    # Upload the modem firmware file
+    # Upload the modem firmware file (theta uses nRF9151 modem)
     if err := client.UploadFwFile(
         os.path.join(assets_dir, env_config.MODEM_FW_FILE), HostType.HOST_TYPE_NRF9160_MODEM
     ):
         logger.fatal(f"Error uploading modem firmware file: {err}")
 
-    # Upload the comms coproc firmware file
+    # Upload the comms coproc firmware file (theta uses nRF9151)
     if err := client.UploadFwFile(
-        os.path.join(assets_dir, env_config.COMMS_COPROC_FW_FILE), HostType.HOST_TYPE_NRF9160
+        os.path.join(assets_dir, env_config.COMMS_COPROC_FW_FILE), HostType.HOST_TYPE_NRF9151
     ):
         logger.fatal(f"Error uploading comms coproc firmware file: {err}")
 
@@ -142,7 +142,7 @@ def _flash_firmware(client: MtibV1Client, logger: Logger) -> Optional[str]:
     """
     Flash the manufacturing firmware
     """
-    logger.info(f"Flashing modem firmware, this will take a while...")
+    logger.info("Flashing modem firmware, this will take a while...")
 
     # Flash the modem firmware
     file_name = os.path.basename(env_config.MODEM_FW_FILE)
@@ -152,25 +152,24 @@ def _flash_firmware(client: MtibV1Client, logger: Logger) -> Optional[str]:
         return f"Failed to flash modem firmware: {err}"
 
     logger.info(f"Successfully flashed modem firmware in {time_ms}ms")
-    logger.info(f"Flashing comms coproc firmware...")
+    logger.info("Flashing comms coproc firmware...")
 
-    # Flash the comms coproc firmware
-    # Extract just the file name from the path
+    # Flash the comms coproc firmware (theta uses nRF9151)
     file_name = os.path.basename(env_config.COMMS_COPROC_FW_FILE)
-    file_info = FwFileInfo(name=file_name, target=HostType.HOST_TYPE_NRF9160)
+    file_info = FwFileInfo(name=file_name, target=HostType.HOST_TYPE_NRF9151)
     time_ms, err = client.FlashFwFile(file_info, sector_erase=True, recover=True)
     if err:
-        return f"Failed to flash modem firmware: {err}"
+        return f"Failed to flash comms firmware: {err}"
 
     logger.info(f"Successfully flashed comms coproc firmware in {time_ms}ms")
-    logger.info(f"Flashing app proc firmware...")
+    logger.info("Flashing app proc firmware...")
 
     # Flash the app proc firmware
     file_name = os.path.basename(env_config.APP_PROC_FW_FILE)
     file_info = FwFileInfo(name=file_name, target=HostType.HOST_TYPE_NRF52840)
     time_ms, err = client.FlashFwFile(file_info, sector_erase=True, recover=True)
     if err:
-        return f"Failed to flash modem firmware: {err}"
+        return f"Failed to flash app firmware: {err}"
 
     logger.info(f"Successfully flashed app proc firmware in {time_ms}ms")
 
@@ -214,9 +213,9 @@ def run_manufacturing(client: MtibV1Client, logger: Logger, serial_number: str) 
 
     # Use try-finally to ensure power off runs even if any step fails
     try:
-        err = _flash_firmware(client, logger)
-        if err:
-            return f"Error flashing manufacturing firmware: {err}"
+        # err = _flash_firmware(client, logger)
+        # if err:
+        #     return f"Error flashing manufacturing firmware: {err}"
 
         device_id, err = _get_device_id(env_config.PROXY_SERVER_URL, serial_number, logger)
         if err:

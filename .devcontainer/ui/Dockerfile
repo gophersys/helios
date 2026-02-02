@@ -8,7 +8,7 @@ ARG TARGETPLATFORM
 ARG BUILDPLATFORM
 
 # Environment versions
-ARG FLUTTER_VERSION=3.35.4
+ARG FLUTTER_VERSION=3.40.0-0.2.pre
 
 # ----------------------------------------------------
 #                                    Prerequisites & Tools
@@ -21,6 +21,7 @@ RUN apt update && apt install -y \
   zip \
   libglu1-mesa \
   openjdk-17-jdk \
+  openjdk-11-jdk-headless \
   wget \
   socat \
   lcov \
@@ -28,12 +29,8 @@ RUN apt update && apt install -y \
   cmake \
   ninja-build \
   pkg-config \
-  --no-install-recommends
-
-# ----------------------------------------------------
-#                                             nrfjprog
-# ----------------------------------------------------
-RUN apt install -y openjdk-11-jdk-headless --no-install-recommends
+  --no-install-recommends && \
+  apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # ----------------------------------------------------
 #                                        Android SDK Setup
@@ -44,9 +41,9 @@ ENV ANDROID_SDK_ROOT=/opt/android/sdk
 
 # Set up Android SDK
 ENV CMDLINE_TOOLS_VERSION=6858069
-RUN wget -O sdk-tools.zip https://dl.google.com/android/repository/commandlinetools-linux-${CMDLINE_TOOLS_VERSION}_latest.zip
-RUN unzip sdk-tools.zip && rm sdk-tools.zip
-RUN mv cmdline-tools /opt/android/sdk/cmdline-tools/latest
+RUN wget -O sdk-tools.zip https://dl.google.com/android/repository/commandlinetools-linux-${CMDLINE_TOOLS_VERSION}_latest.zip && \
+  unzip sdk-tools.zip && rm sdk-tools.zip && \
+  mv cmdline-tools /opt/android/sdk/cmdline-tools/latest
 ENV PATH="$PATH:$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/cmdline-tools/tools/bin"
 ENV PATH="$PATH:/opt/android/sdk/platform-tools"
 RUN yes | sdkmanager --licenses
@@ -56,9 +53,8 @@ RUN sdkmanager "build-tools;28.0.3" "build-tools;35.0.1" "platform-tools" "platf
 #                                        Flutter SDK Setup
 # ----------------------------------------------------
 # Download Flutter SDK beta release
-RUN wget -O flutter.tar.xz https://storage.googleapis.com/flutter_infra_release/releases/beta/linux/flutter_linux_3.37.0-0.1.pre-beta.tar.xz
-RUN tar xf flutter.tar.xz -C /opt/
-RUN rm flutter.tar.xz
+RUN wget -O flutter.tar.xz https://storage.googleapis.com/flutter_infra_release/releases/beta/linux/flutter_linux_${FLUTTER_VERSION}-beta.tar.xz && \
+  tar xf flutter.tar.xz -C /opt/ && rm flutter.tar.xz
 ENV PATH="$PATH:/opt/flutter/bin"
 
 # Fix Git ownership issues for Flutter
@@ -73,6 +69,9 @@ RUN flutter doctor --android-licenses
 
 # Configure Flutter for web development
 RUN flutter config --enable-web
+
+# Make Flutter cache writable by devuser (from base image)
+RUN chmod -R 777 /opt/flutter/bin/cache || true
 
 # ----------------------------------------------------
 #                                    Chrome Setup for Web Development
@@ -90,15 +89,13 @@ ENV CHROME_EXECUTABLE=/usr/bin/google-chrome-stable
 # ----------------------------------------------------
 #                                    Flutter Tools Setup
 # ----------------------------------------------------
-# Setup flutterfire cli
-RUN dart pub global activate flutterfire_cli
-RUN mkdir -p /opt/bin
-RUN cd /opt/bin && wget -O firebase https://firebase.tools/bin/linux/latest && chmod +x firebase
+# Setup dart CLI tools
+RUN dart pub global activate flutterfire_cli && \
+  dart pub global activate fvm
+RUN mkdir -p /opt/bin && \
+  cd /opt/bin && wget -O firebase https://firebase.tools/bin/linux/latest && chmod +x firebase
 ENV PATH="$PATH:/root/.pub-cache/bin"
 ENV PATH="$PATH:/opt/bin"
-
-# Setup FVM
-RUN dart pub global activate fvm
 
 # This is part of a workaround mentioned in https://github.com/flutter/flutter/issues/61604#issuecomment-739885494
 # The dart VM service has problems connecting to the real device by default so we need to use socat to forward the connection.

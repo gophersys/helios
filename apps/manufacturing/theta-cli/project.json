@@ -1,0 +1,38 @@
+{
+  "name": "manufacturing-theta-cli",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/manufacturing/theta-cli",
+  "projectType": "application",
+  "targets": {
+    "setup": {
+      "executor": "nx:run-commands",
+      "cwd": "{projectRoot}",
+      "options": {
+        "cwd": "{projectRoot}",
+        "commands": [
+          {
+            "command": "python3 -m venv .venv"
+          },
+          {
+            "command": "bash -c 'source .venv/bin/activate && pip install -e .'"
+          },
+          {
+            "command": "cp .env.example .env"
+          }
+        ],
+        "parallel": false
+      }
+    },
+    "start": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{projectRoot}",
+        "commands": [
+          {
+            "command": "bash -c 'source .venv/bin/activate && source .env && python3 -m src.main --panel'"
+          }
+        ]
+      }
+    }
+  }
+}

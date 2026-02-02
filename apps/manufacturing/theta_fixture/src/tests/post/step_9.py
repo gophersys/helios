@@ -1,4 +1,5 @@
 # Standard includes
+import json
 import logging
 from typing import Dict
 
@@ -148,7 +149,14 @@ def post_step_9_handler(
     logging.debug(f"Personalize PASS: Device {device_id} personalized and saved to CoreOps")
 
     result.success = True
-    result.details = f"device_id={device_id}"
+    result.details = json.dumps({
+        "snr": snr,
+        "device_id": device_id,
+        "pub_key_hex": hex_key,
+        "pub_key_base64": base64_key,
+        "imei": imei,
+        "iccids": iccids,
+    })
     return result
 
 

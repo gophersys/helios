@@ -582,6 +582,9 @@ class Test:
             if self.status is not TestStatus.IDLE:
                 return f"Test is already running. Cannot reinitialize. Status: {self.status}"
 
+            # HARDCODED: Override nodes for quick panel test
+            nodes = ["verdin-imx8mm-15005679"]
+
             # Check that the nodes list passed makes sense
             if len(nodes) == 0:
                 return "List of nodes passed has 0 items, test needs at least 1 node to execute on"

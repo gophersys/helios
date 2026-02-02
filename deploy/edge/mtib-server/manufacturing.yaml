@@ -43,11 +43,11 @@ spec:
               - key: "kubernetes.io/hostname"
                 operator: In
                 values:
-                - "verdin-imx8mm-15005658" # slot-1
-                - "verdin-imx8mm-15005689" # slot-2
-                - "verdin-imx8mm-15005817" # slot-3
-                - "verdin-imx8mm-15005816" # slot-4
-                - "verdin-imx8mm-15005665" # slot-5
+                - "verdin-imx8mm-15005679" # Stand Alone .32
+                - "verdin-imx8mm-15005658" # Slot 1 .35
+                - "verdin-imx8mm-15005689" # Slot 2 .36
+                - "verdin-imx8mm-15005816" # Slot 3 .33
+                - "verdin-imx8mm-15005817" # Slot 4 .34
       tolerations:
       - key: "role"
         operator: "Equal"

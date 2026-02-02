@@ -1,0 +1,41 @@
+{
+    "name": "alpha-charge-fixture",
+    "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+    "sourceRoot": "apps/firmware/alpha-charge-fixture",
+    "projectType": "application",
+    "targets": {
+        "build": {
+            "executor": "nx:run-commands",
+            "options": {
+                "cwd": "apps/firmware/alpha-charge-fixture",
+                "commands": [
+                    "west build -b esp32_devkitc_wroom/esp32/procpu -p auto"
+                ],
+                "env": {
+                    "ZEPHYR_BASE": "/ncs/zephyr",
+                    "ZEPHYR_TOOLCHAIN_VARIANT": "zephyr",
+                    "ZEPHYR_SDK_INSTALL_DIR": "/usr/local/zephyr-sdk-0.17.4"
+                }
+            }
+        },
+        "flash": {
+            "executor": "nx:run-commands",
+            "dependsOn": ["build"],
+            "options": {
+                "cwd": "apps/firmware/alpha-charge-fixture",
+                "commands": [
+                    "bash flash.sh /dev/ttyUSB0"
+                ]
+            }
+        },
+        "monitor": {
+            "executor": "nx:run-commands",
+            "options": {
+                "cwd": "apps/firmware/alpha-charge-fixture",
+                "commands": [
+                    "python3 serial_monitor.py /dev/ttyUSB0 115200"
+                ]
+            }
+        }
+    }
+}

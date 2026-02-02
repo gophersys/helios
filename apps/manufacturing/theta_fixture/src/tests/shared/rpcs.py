@@ -798,22 +798,85 @@ class ThetaMtibServers:
     def theta_app_cmd_get_chip_ids(self, host: str) -> Tuple[Optional[str], Optional[str], Optional[str]]:
         """
         Get chip IDs from the app processor (nRF52840).
-        Returns (accel_id, alt_id, error)
+        Supports both legacy Theta (Accel/Altimeter) and Alpha (Ext flash/BLE MAC) responses.
+        Returns (id_1, id_2, error)
         """
-        response, error = self._send_app_uart_command(host, "get_chip_ids", ["Accel:"], timeout=10)
-        if error:
-            return None, None, error
+        # Send command and wait for prompt completion without requiring specific response patterns.
+        # The _send_app_uart_command prompt detection will match once the command echo
+        # and a subsequent "Mfg shell:" prompt are both found.
+        try:
+            input_queue = queue.Queue()
+            input_queue.put(b"\r")
+            time.sleep(0.2)
+            input_queue.put(b"get_chip_ids\r")
 
-        accel_id = None
-        alt_id = None
+            def request_iterator():
+                while True:
+                    try:
+                        data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=THETA_APP_UART_TARGET, data=data)
+                    except queue.Empty:
+                        yield UartStreamRequest(target=THETA_APP_UART_TARGET, data=b"")
+                        time.sleep(0.1)
 
-        for line in response.split("\n"):
-            if "Accel:" in line:
-                accel_id = line.split(":", 1)[1].strip()
-            elif "Altimeter" in line and ":" in line:
-                alt_id = line.split(":", 1)[1].strip()
+            response_lines = []
+            start_time = time.time()
+            timeout = 10
 
-        return accel_id, alt_id, None
+            for resp in self.UartStream(host, THETA_APP_UART_TARGET, request_iterator()):
+                if not resp.success:
+                    return None, None, f"UartStream error: {resp.message}"
+
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
+
+                    full_response = "".join(response_lines)
+
+                    # Check for prompt after command output
+                    lines = full_response.split("\n")
+                    command_found = False
+                    prompt_found = False
+                    for ln in lines:
+                        if "get_chip_ids" in ln:
+                            command_found = True
+                        elif command_found and "Mfg shell:" in ln.strip():
+                            prompt_found = True
+                            break
+
+                    if prompt_found:
+                        # Alpha firmware format: Ext flash chip ID + BLE MAC
+                        if "Ext flash chip ID:" in full_response or "BLE MAC:" in full_response:
+                            ext_flash_id = None
+                            ble_mac = None
+                            for ln in lines:
+                                if "Ext flash chip ID:" in ln:
+                                    ext_flash_id = ln.split(":", 1)[1].strip()
+                                elif "BLE MAC:" in ln:
+                                    ble_mac = ln.split(":", 1)[1].strip()
+                            return ext_flash_id, ble_mac, None
+
+                        # Legacy Theta firmware format: Accel + Altimeter
+                        if "Accel:" in full_response:
+                            accel_id = None
+                            alt_id = None
+                            for ln in lines:
+                                if "Accel:" in ln:
+                                    accel_id = ln.split(":", 1)[1].strip()
+                                elif "Altimeter" in ln and ":" in ln:
+                                    alt_id = ln.split(":", 1)[1].strip()
+                            return accel_id, alt_id, None
+
+                        return None, None, f"Unrecognized response format: {full_response[:200]}..."
+
+                if time.time() - start_time > timeout:
+                    break
+
+            full_response = "".join(response_lines)
+            return None, None, f"Timeout. Response: {full_response[:200]}..."
+
+        except Exception as e:
+            return None, None, f"Exception: {str(e)}"
 
     def theta_app_cmd_test_bms(self, host: str) -> Tuple[Optional[Dict], Optional[str]]:
         """

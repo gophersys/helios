@@ -53,10 +53,20 @@ class ThetaFixtureConfig:
     # Electrical test - General
     electrical_stabilization_period_s: int = 30
 
-    # Firmware flash test
+    # Firmware flash testi w
     fw_flash_nrf9151_modem_fw_name: str = "mfw_nrf91x1_2.0.2.zip"
-    fw_flash_nrf9151_app_fw_name: str = "theta_comm_eng_12.hex"
-    fw_flash_nrf52840_app_fw_name: str = "theta_app_eng_12.hex"
+
+    # Theta private att
+    # fw_flash_nrf9151_app_fw_name: str = "theta_comm_eng_12.hex"
+    # fw_flash_nrf52840_app_fw_name: str = "theta_app_eng_12.hex"
+
+    # Theta verizon
+    # fw_flash_nrf9151_app_fw_name: str = "theta_comm_prod_2.hex"
+    # fw_flash_nrf52840_app_fw_name: str = "theta_app_prod_2.hex"
+
+    # Alpha
+    fw_flash_nrf9151_app_fw_name: str = "alpha_comm_prod_1.hex"
+    fw_flash_nrf52840_app_fw_name: str = "alpha_app_prod_1.hex"
 
     # POST test - External flash
     post_ext_flash_test_pattern: str = "ALPHA_POST_TEST_PATTERN_2024"

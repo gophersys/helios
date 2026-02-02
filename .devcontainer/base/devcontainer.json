@@ -1,6 +1,7 @@
 {
   "name": "Base Dev Environment",
   "image": "containers.ad.corekinect.com/concord-devcontainer-base:latest",
+  "remoteUser": "devuser",
   "postCreateCommand": "chmod +x .devcontainer/ctl.sh && ./.devcontainer/ctl.sh create",
   "postStartCommand": "chmod +x .devcontainer/ctl.sh && ./.devcontainer/ctl.sh start",
   "runArgs": [
@@ -17,13 +18,13 @@
     // Docker in Docker requires the dev container to have access to the host's Docker socket
     "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind",
     // Docker in Docker requires the dev container to have access to the host's Docker socket
-    "source=${localEnv:HOME}/.kube,target=/root/.kube,type=bind,readonly",
+    "source=${localEnv:HOME}/.kube,target=/home/devuser/.kube,type=bind,readonly",
     // Access to host's devices
     "source=/dev,target=/dev,type=bind",
     // Access to host's mount points (Windows drive access)
     "source=/mnt,target=/mnt,type=bind",
     // Access to host's ssh credentials for bitbucket access
-    "source=${localEnv:HOME}/.ssh-devcontainer,target=/root/.ssh,type=bind"
+    "source=${localEnv:HOME}/.ssh-devcontainer,target=/home/devuser/.ssh,type=bind"
   ],
   // Vs Code Customizations
   "customizations": {

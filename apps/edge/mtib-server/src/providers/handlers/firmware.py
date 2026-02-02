@@ -13,6 +13,8 @@ from src.shared.types import *
 
 
 class FirmwareHandler:
+    JLINK_CLOCKSPEED_KHZ = 10000  # Default is 2000 kHz, doubled for faster programming
+
     def __init__(self, logger: Logger):
         self.logger = logger
 
@@ -47,7 +49,8 @@ class FirmwareHandler:
         """Try to detect device type for a J-Link serial number. Returns True if successful."""
         try:
             result = subprocess.check_output(
-                ["nrfjprog", "--snr", serial, "--deviceversion"], stderr=subprocess.STDOUT
+                ["nrfjprog", "--snr", serial, "--deviceversion", "--clockspeed", str(self.JLINK_CLOCKSPEED_KHZ)],
+                stderr=subprocess.STDOUT,
             ).decode()
 
             # Log the raw output for debugging
@@ -86,7 +89,7 @@ class FirmwareHandler:
         try:
             self.logger.info(f"Attempting recovery for J-Link {serial}...")
             recover_result = subprocess.run(
-                ["nrfjprog", "--snr", serial, "--recover"],
+                ["nrfjprog", "--snr", serial, "--recover", "--clockspeed", str(self.JLINK_CLOCKSPEED_KHZ)],
                 capture_output=True,
                 text=True,
                 timeout=60,  # 30s + buffer
@@ -118,7 +121,7 @@ class FirmwareHandler:
             host_type = HostType.HOST_TYPE_NRF52840
         elif "NRF5340" in result_upper:
             host_type = HostType.HOST_TYPE_NRF5340
-        elif "NRF9151" in result_upper:
+        elif "NRF9151" in result_upper or "NRF9120" in result_upper:
             host_type = HostType.HOST_TYPE_NRF9151
 
         if host_type:
@@ -286,9 +289,9 @@ class FirmwareHandler:
             for serial, (host_type, is_connected) in self.programmers.items():
                 if not is_connected:
                     continue
-                # Allow NRF9160 programmer for both NRF9160 and NRF9160_MODEM targets
+                # Allow NRF9160 or NRF9151 programmer for NRF9160_MODEM targets
                 if request.file_info.target in [HostType.HOST_TYPE_NRF9160, HostType.HOST_TYPE_NRF9160_MODEM]:
-                    if host_type == HostType.HOST_TYPE_NRF9160:
+                    if host_type in [HostType.HOST_TYPE_NRF9160, HostType.HOST_TYPE_NRF9151]:
                         programmer = serial
                         break
                 else:
@@ -308,7 +311,14 @@ class FirmwareHandler:
             # Step 1: Recover if requested
             if request.recover:
                 try:
-                    recover_cmd = ["nrfjprog", "--recover", "--snr", programmer]
+                    recover_cmd = [
+                        "nrfjprog",
+                        "--recover",
+                        "--snr",
+                        programmer,
+                        "--clockspeed",
+                        str(self.JLINK_CLOCKSPEED_KHZ),
+                    ]
                     self.logger.info(f"Running recover: {' '.join(recover_cmd)}")
                     subprocess.run(
                         recover_cmd,
@@ -337,7 +347,16 @@ class FirmwareHandler:
                     return FlashFwFileResponse(success=False, message=error_msg, time_ms=0)
 
             # Step 2: Build the nrfjprog programming command
-            cmd = ["nrfjprog", "--program", str(file_path), "--verify", "--snr", programmer]
+            cmd = [
+                "nrfjprog",
+                "--program",
+                str(file_path),
+                "--verify",
+                "--snr",
+                programmer,
+                "--clockspeed",
+                str(self.JLINK_CLOCKSPEED_KHZ),
+            ]
             if request.sector_erase:
                 cmd.append("--sectorerase")
 
@@ -353,7 +372,15 @@ class FirmwareHandler:
             time_ms = int((time.time() - start_time) * 1000)
 
             # Step 4: Run the verify command
-            cmd = ["nrfjprog", "--verify", str(file_path), "--snr", programmer]
+            cmd = [
+                "nrfjprog",
+                "--verify",
+                str(file_path),
+                "--snr",
+                programmer,
+                "--clockspeed",
+                str(self.JLINK_CLOCKSPEED_KHZ),
+            ]
 
             # Step 3: Run the programming command
             self.logger.info(f"Running program: {' '.join(cmd)}")
@@ -417,10 +444,10 @@ class FirmwareHandler:
             # --chiperase: Erases all non-volatile memory and UICR (when recover=False)
             # --recover: Erases everything including readback protection (when recover=True)
             if request.recover:
-                cmd = ["nrfjprog", "--recover", "--snr", programmer]
+                cmd = ["nrfjprog", "--recover", "--snr", programmer, "--clockspeed", str(self.JLINK_CLOCKSPEED_KHZ)]
                 self.logger.info(f"Running recover erase: {' '.join(cmd)}")
             else:
-                cmd = ["nrfjprog", "--chiperase", "--snr", programmer]
+                cmd = ["nrfjprog", "--chiperase", "--snr", programmer, "--clockspeed", str(self.JLINK_CLOCKSPEED_KHZ)]
                 self.logger.info(f"Running chip erase: {' '.join(cmd)}")
 
             result = subprocess.run(
@@ -451,9 +478,9 @@ class FirmwareHandler:
             for serial, (host_type, is_connected) in self.programmers.items():
                 if not is_connected:
                     continue
-                # Allow NRF9160 programmer for both NRF9160 and NRF9160_MODEM targets
+                # Allow NRF9160 or NRF9151 programmer for NRF9160_MODEM targets
                 if request.target in [HostType.HOST_TYPE_NRF9160, HostType.HOST_TYPE_NRF9160_MODEM]:
-                    if host_type == HostType.HOST_TYPE_NRF9160:
+                    if host_type in [HostType.HOST_TYPE_NRF9160, HostType.HOST_TYPE_NRF9151]:
                         programmer = serial
                         break
                 else:
@@ -500,6 +527,8 @@ class FirmwareHandler:
                     protect_val,
                     "--snr",
                     programmer,
+                    "--clockspeed",
+                    str(self.JLINK_CLOCKSPEED_KHZ),
                 ]
                 self.logger.info(f"Running App Protect write: {' '.join(protect_cmd)}")
                 subprocess.run(
@@ -531,7 +560,14 @@ class FirmwareHandler:
 
             # Step 2: Reset MCU to apply protection
             try:
-                reset_cmd = ["nrfjprog", "--reset", "--snr", programmer]
+                reset_cmd = [
+                    "nrfjprog",
+                    "--reset",
+                    "--snr",
+                    programmer,
+                    "--clockspeed",
+                    str(self.JLINK_CLOCKSPEED_KHZ),
+                ]
                 self.logger.info(f"Running reset: {' '.join(reset_cmd)}")
                 result = subprocess.run(
                     reset_cmd,
@@ -570,7 +606,19 @@ class FirmwareHandler:
 
             # Step 4: Verify protection is active
             try:
-                verify_cmd = ["nrfjprog", "--family", family, "--memrd", "0x00000000", "--n", "4", "--snr", programmer]
+                verify_cmd = [
+                    "nrfjprog",
+                    "--family",
+                    family,
+                    "--memrd",
+                    "0x00000000",
+                    "--n",
+                    "4",
+                    "--snr",
+                    programmer,
+                    "--clockspeed",
+                    str(self.JLINK_CLOCKSPEED_KHZ),
+                ]
                 self.logger.info(f"Running protection verification: {' '.join(verify_cmd)}")
                 result = subprocess.run(
                     verify_cmd,

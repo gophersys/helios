@@ -1,6 +1,7 @@
 {
   "name": "MTIB Dev Environment",
   "image": "containers.ad.corekinect.com/concord-devcontainer-mtib:latest",
+  "remoteUser": "devuser",
   "postCreateCommand": "chmod +x .devcontainer/ctl.sh && ./.devcontainer/ctl.sh create",
   "postStartCommand": "chmod +x .devcontainer/ctl.sh && ./.devcontainer/ctl.sh start",
   "runArgs": [
@@ -21,7 +22,7 @@
     // Access to host device drivers
     "source=/sys,target=/sys,type=bind",
     // Access to host's ssh credentials for bitbucket access
-    "source=${localEnv:HOME}/.ssh-devcontainer,target=/root/.ssh,type=bind,readonly"
+    "source=${localEnv:HOME}/.ssh-devcontainer,target=/home/devuser/.ssh,type=bind,readonly"
   ],
   // Vs Code Customizations
   "customizations": {

@@ -10,7 +10,7 @@ from protocols.cluster_test.cluster_test_pb2 import TestInfo
 # Corekinect libraries
 from corekinect.mtib_client.v1.client.core import MtibV1Client
 from corekinect.mtib_client.v1.client.config import NetConfig
-from corekinect.mtib_client.v1.client.types import HostType
+from corekinect.mtib_client.v1.client.types import *
 from tests.lib import *
 
 # Shared includes
@@ -73,6 +73,12 @@ def fw_flash_test_init(
         if error:
             return f"Could not upload nRF52840 app fw file to node {node}: {error}"
 
+        client.GpioConfig(0, GpioDirection.OUTPUT, GpioResistorConfig.NONE)
+        client.GpioConfig(1, GpioDirection.OUTPUT, GpioResistorConfig.NONE)
+        client.GpioWrite(0, False)
+        client.GpioWrite(1, False)
+
+
         return None
 
     # Run all hosts init in parallel
@@ -83,7 +89,7 @@ def fw_flash_test_init(
             if error:
                 return error
 
-    time.sleep(1)
+    time.sleep(5)
     return ""
 
 

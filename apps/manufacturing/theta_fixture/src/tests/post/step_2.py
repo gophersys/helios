@@ -19,24 +19,24 @@ def post_step_2_handler(
 ) -> TestStepResult:
     """
     Step 2: Verify app processor chip IDs.
-    Theta has accelerometer (LIS2DW12), no altimeter.
+    Supports both legacy Theta (accelerometer/altimeter) and Alpha (ext flash/BLE MAC) responses.
     """
     result: TestStepResult = TestStepResult(success=False)
     client = usr_data[node].client
 
-    accel_id, alt_id, error = client.cmd_theta_app_get_chip_ids()
+    id_1, id_2, error = client.cmd_theta_app_get_chip_ids()
     if error:
         result.error = f"Failed to get app chip IDs: {error}"
         return result
 
-    if not accel_id:
-        result.reason = "Accelerometer chip ID is missing"
+    if not id_1:
+        result.reason = "Primary chip ID is missing"
         return result
 
-    logging.debug(f"POST Step 2 PASS: Accel ID={accel_id}, Alt ID={alt_id}")
+    logging.debug(f"POST Step 2 PASS: ID1={id_1}, ID2={id_2}")
 
     result.success = True
-    result.details = f"accel_id={accel_id}"
+    result.details = f"id_1={id_1}, id_2={id_2}"
     return result
 
 

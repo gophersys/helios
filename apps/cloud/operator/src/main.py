@@ -48,7 +48,7 @@ if __name__ == "__main__":
         proxy_url=conf.PROXY_SERVER_URL,
         registry_host="10.4.45.2",
         registry_port=conf.LOCAL_REGISTRY_PORT,
-        grpc_server_url=f"10.4.45.7:{conf.GRPC_SERVER_PORT}",
+        grpc_server_url=f"{conf.GRPC_SERVER_HOST}:{conf.GRPC_SERVER_PORT}",
         nodes_hostnames=conf.NODES_HOSTNAMES,
         kubeconfig_path=conf.KUBECONFIG_PATH,
         deployments_path="/var/lib/deployments",

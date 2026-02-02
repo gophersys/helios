@@ -22,6 +22,8 @@ from .step_2 import fw_flash_test_step_2
 #                                                                              Init
 # -------------------------------------------------------------------------------*/
 def fw_flash_test_init(config: Sigma5ManufacturingConfig, nodes: List[str], usr_data: None) -> str:
+    # HARDCODED: Override nodes for quick panel test
+    nodes = ["verdin-imx8mm-15005679"]
 
     # Initialize the runners required to run this test
     error = mtib_servers.init(nodes)

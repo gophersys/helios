@@ -32,6 +32,7 @@ from src.services.proxy import ProxyServerConfiguration, appProxyServer
 #                                            Server
 # -------------------------------------------------
 server = Flask(__name__)
+server.json.sort_keys = False
 socketio = SocketIO(server, debug=True, cors_allowed_origins="*", async_mode="eventlet", logger=True)
 
 

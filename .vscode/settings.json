@@ -13,5 +13,6 @@
         ".env.example": "env",
         "*.conf": "bitbake",
         "*.inc": "bitbake"
-    }
+    },
+    "cmake.sourceDirectory": "/workspaces/concord/libs/zephyr/wifi/zephyr"
 }

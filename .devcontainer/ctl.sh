@@ -26,9 +26,46 @@ log_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
+# Fix USB device permissions for J-Link and Nordic devices
+fix_usb_permissions() {
+    # SEGGER J-Link vendor ID: 1366
+    # Nordic Semiconductor vendor ID: 1915
+    local fixed=0
+    for dev in /dev/bus/usb/*/*; do
+        if [ -c "$dev" ]; then
+            # Get bus and device numbers
+            local busnum=$(basename $(dirname $dev))
+            local devnum=$(basename $dev)
+
+            # Use lsusb to check if device is J-Link or Nordic
+            if lsusb -s "${busnum}:${devnum}" 2>/dev/null | grep -qE "1366:|1915:"; then
+                if [ ! -w "$dev" ]; then
+                    sudo chmod 666 "$dev" 2>/dev/null && fixed=$((fixed + 1))
+                fi
+            fi
+        fi
+    done
+    if [ $fixed -gt 0 ]; then
+        log_success "Fixed permissions for $fixed USB device(s) (J-Link/Nordic)"
+    fi
+}
+
 # Start the container
 start_container() {
     log_info "Starting the container"
+
+    # Fix docker socket permissions for devuser
+    if [ -x /usr/local/bin/fix-docker-permissions ]; then
+        /usr/local/bin/fix-docker-permissions
+    fi
+
+    # Fix USB permissions for J-Link and Nordic devices
+    fix_usb_permissions
+
+    # Fix git safe directory for Flutter (if present)
+    if [ -d /opt/flutter ]; then
+        git config --global --add safe.directory /opt/flutter 2>/dev/null || true
+    fi
 
     # Install dependencies
     yarn
@@ -37,6 +74,11 @@ start_container() {
 # Create action for the devcontainers
 create_action() {
     log_info "Creating action for the devcontainers"
+
+    # Fix docker socket permissions for devuser
+    if [ -x /usr/local/bin/fix-docker-permissions ]; then
+        /usr/local/bin/fix-docker-permissions
+    fi
 
     # Check if CONCORD_MONOREPO_ROOT is set to the correct path
     if [ "$CONCORD_MONOREPO_ROOT" = "/path/to/concord" ]; then

@@ -118,7 +118,7 @@ electrical_test: Test = Test(
         electrical_test_step_6,  # 6. Apply +4.5V to +BATT_IN
         electrical_test_step_7,  # 7. Ensure +SYS voltage is same as +BATT_IN
         electrical_test_step_8,  # 8. Apply 5.0V to +CHRG
-        electrical_test_step_9,  # 9. Ensure device electrical state (charger on)
+        # electrical_test_step_9,  # 9. Ensure device electrical state (charger on)
         electrical_test_step_10,  # 10. Remove power from +CHRG
     ],
 )

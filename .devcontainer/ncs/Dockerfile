@@ -1,5 +1,9 @@
 FROM containers.ad.corekinect.com/concord-devcontainer-base:latest
 
+# Prevent interactive prompts during package installation
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=UTC
+
 # ----------------------------------------------------
 #                                      Build Arguments
 # ----------------------------------------------------
@@ -9,7 +13,7 @@ ARG BUILDPLATFORM
 
 # Environment versions
 ARG NRF_CLI_VERSION=10.24.2
-ARG JLINK_VERSION=V794e
+ARG JLINK_VERSION=V872a
 ARG ZEPHYR_SDK_VERSION=0.17.4
 
 # ----------------------------------------------------
@@ -74,13 +78,8 @@ RUN ARCH="$(uname -m)" && \
 # ----------------------------------------------------
 #                                          Other Tools
 # ----------------------------------------------------
-RUN apt-get update && \
-  apt-get upgrade -y && \
-  apt-get install -y minicom &&\
-  apt-get clean && \
-  rm -rf /var/lib/apt/lists/*
-
-RUN pip3 install esptool==4.7.0
+RUN --mount=type=cache,target=/root/.cache/pip \
+  pip3 install esptool==4.7.0
 
 # ----------------------------------------------------
 #                                         Zephyr & NCS
@@ -125,16 +124,17 @@ RUN apt-get update && apt-get upgrade -y && apt-get autoremove -y && \
   libxkbcommon-x11-0 \
   udev \
   expect \
-  screen && \
-  ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+  screen \
+  minicom && \
+  ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone && \
+  apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Install the west tool and add it to the system's path
-RUN pip install --user west && \
-  echo 'export PATH=~/.local/bin:"$PATH"' >> ~/.zshrc && \
-  /bin/zsh -c "source ~/.zshrc"
+# Install the west tool system-wide
+RUN --mount=type=cache,target=/root/.cache/pip \
+  pip install west
 
-# Update PATH to include our newly installed west tool
-ENV PATH="${PATH}:/root/.local/bin"
+# Update PATH to include pip installed binaries
+ENV PATH="${PATH}:/usr/local/bin"
 
 # Download the Zephyr SDK and verify a succesful  download
 WORKDIR /usr/local
@@ -195,16 +195,18 @@ RUN west update && \
 # Modify the anytree version in requirements-extras.txt
 RUN sed -i 's/anytree*/anytree==2.8.0/' /ncs/zephyr/scripts/requirements-extras.txt
 
-# Install additional Python dependencies 
-RUN pip3 install --user -r zephyr/scripts/requirements.txt
-RUN pip3 install --user -r nrf/scripts/requirements.txt
-RUN pip3 install --user -r bootloader/mcuboot/scripts/requirements.txt
+# Install additional Python dependencies
+RUN --mount=type=cache,target=/root/.cache/pip \
+  pip3 install --user -r zephyr/scripts/requirements.txt \
+                      -r nrf/scripts/requirements.txt \
+                      -r bootloader/mcuboot/scripts/requirements.txt
 
 # Add OpenOCD binaries to the PATH
-ENV PATH="/usr/home/zephyr-sdk-0.16.8/sysroots/x86_64-pokysdk-linux/usr/bin:${PATH}"
+# Note: OpenOCD binary path - update if ZEPHYR_SDK_VERSION ARG changes
+ENV PATH="/usr/local/zephyr-sdk-0.17.4/sysroots/x86_64-pokysdk-linux/usr/bin:${PATH}"
 
-# We DONT Install udev rules, as passing a device to a container will automatically carry over its
-# persimissions. Documentation on how to pass a device correctly to the container will be provided
+# USB device permissions are fixed at runtime by ctl.sh (fix_usb_permissions function)
+# which sets 666 permissions on J-Link (1366) and Nordic (1915) USB devices
 
 # Fetch espressif blobs
 RUN west blobs fetch hal_espressif
@@ -217,7 +219,8 @@ RUN echo 'source /ncs/zephyr/zephyr-env.sh' >> ~/.profile && \
 #                                              Locales
 # ----------------------------------------------------
 # This package is required to set up and generate locales in Debian/Ubuntu.
-RUN apt update && apt install -y locales
+RUN apt update && apt install -y locales && \
+  apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # The locale-gen command reads the /etc/locale.gen file to determine which locales to generate.
 # Uncommenting a specific locale in this file and then running locale-gen will generate that locale.
@@ -225,6 +228,30 @@ RUN sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && locale-gen
 
 # Setting these environment variables will ensure that processes run in the container use the desired locale.
 # This can prevent issues with software that expects specific locales.
-ENV LANG=en_US.UTF-8  
-ENV LANGUAGE=en_US:en  
-ENV LC_ALL=en_US.UTF-8 
+ENV LANG=en_US.UTF-8
+ENV LANGUAGE=en_US:en
+ENV LC_ALL=en_US.UTF-8
+
+# ----------------------------------------------------
+#                                   DevUser NCS Setup
+# ----------------------------------------------------
+# Make /ncs accessible to devuser
+RUN chown -R devuser:devuser /ncs
+
+# Set ZEPHYR_BASE as a persistent environment variable
+# This ensures west build commands work in all contexts
+ENV ZEPHYR_BASE=/ncs/zephyr
+
+# Set up Zephyr environment for devuser
+RUN echo 'source /ncs/zephyr/zephyr-env.sh' >> /home/devuser/.profile && \
+  echo 'source /ncs/zephyr/zephyr-env.sh' >> /home/devuser/.zshrc
+
+# Install Python requirements for devuser
+RUN --mount=type=cache,target=/home/devuser/.cache/pip \
+  chown -R devuser:devuser /home/devuser/.cache 2>/dev/null || true && \
+  su devuser -c "pip3 install --user -r /ncs/zephyr/scripts/requirements.txt \
+                                      -r /ncs/nrf/scripts/requirements.txt \
+                                      -r /ncs/bootloader/mcuboot/scripts/requirements.txt"
+
+# Add devuser's local bin to PATH
+ENV PATH="/home/devuser/.local/bin:${PATH}"

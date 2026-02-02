@@ -1,5 +1,9 @@
 FROM containers.ad.corekinect.com/concord-devcontainer-base:latest
 
+# Prevent interactive prompts during package installation
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=UTC
+
 # ----------------------------------------------------
 #                                      Build Arguments
 # ----------------------------------------------------
@@ -36,8 +40,7 @@ WORKDIR /tmp
 # Install common dependencies
 RUN apt-get update && \
     apt-get upgrade -y && \
-    apt-get install -y x11-common && \
-    apt-get install -y \
+    apt-get install -y x11-common \
     libxcb-icccm4 \
     libxcb-image0 \
     libxcb-keysyms1 \
@@ -48,7 +51,11 @@ RUN apt-get update && \
     curl \
     libudev-dev \
     udev \
-    libice6 || apt-get --fix-broken install -y && \
+    libice6 \
+    minicom \
+    i2c-tools \
+    gpiod \
+    python3-tk || apt-get --fix-broken install -y && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
@@ -73,13 +80,5 @@ RUN ARCH="$(uname -m)" && \
 # ----------------------------------------------------
 #                                          Other Tools
 # ----------------------------------------------------
-RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
-    DEBIAN_FRONTEND=noninteractive apt-get upgrade -y && \
-    DEBIAN_FRONTEND=noninteractive apt-get install -y minicom \
-    i2c-tools \
-    gpiod \
-    python3-tk && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
-
-RUN pip3 install esptool==4.7.0
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip3 install esptool==4.7.0

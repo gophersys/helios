@@ -23,6 +23,12 @@
                 "push": false,
                 "tags": [
                     "containers.ad.corekinect.com/concord-devcontainer-ncs:latest"
+                ],
+                "cache-from": [
+                    "type=registry,ref=containers.ad.corekinect.com/concord-devcontainer-ncs:cache"
+                ],
+                "cache-to": [
+                    "type=registry,ref=containers.ad.corekinect.com/concord-devcontainer-ncs:cache,mode=max"
                 ]
             }
         },
@@ -39,6 +45,12 @@
                 "push": true,
                 "tags": [
                     "containers.ad.corekinect.com/concord-devcontainer-ncs:latest"
+                ],
+                "cache-from": [
+                    "type=registry,ref=containers.ad.corekinect.com/concord-devcontainer-ncs:cache"
+                ],
+                "cache-to": [
+                    "type=registry,ref=containers.ad.corekinect.com/concord-devcontainer-ncs:cache,mode=max"
                 ]
             }
         }

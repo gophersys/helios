@@ -1,6 +1,7 @@
 {
-  "name": "NCS Dev Environment",
-  "image": "containers.ad.corekinect.com/concord-devcontainer-ncs:latest",
+  "name": "UI/UX Dev Environment",
+  "image": "containers.ad.corekinect.com/concord-devcontainer-ui:latest",
+  "remoteUser": "devuser",
   "postCreateCommand": "chmod +x .devcontainer/ctl.sh && ./.devcontainer/ctl.sh create",
   "postStartCommand": "chmod +x .devcontainer/ctl.sh && ./.devcontainer/ctl.sh start",
   "runArgs": [
@@ -21,7 +22,7 @@
     // Access to host's mount points (Windows drive access)
     "source=/mnt,target=/mnt,type=bind",
     // Access to host's ssh credentials for bitbucket access
-    "source=${localEnv:HOME}/.ssh-devcontainer,target=/root/.ssh,type=bind,readonly",
+    "source=${localEnv:HOME}/.ssh-devcontainer,target=/home/devuser/.ssh,type=bind,readonly",
   ],
   // Vs Code Customizations
   "customizations": {

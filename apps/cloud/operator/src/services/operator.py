@@ -147,7 +147,11 @@ class ClusterOperator:
         self.config = config
         self.status = ClusterStatus.STARTING
 
-        self.docker_client: docker.DockerClient = docker.from_env()
+        try:
+            self.docker_client: docker.DockerClient = docker.from_env()
+        except Exception as e:
+            logging.warning(f"Docker client not available (not required when NODES_MGMT_ENABLED=false): {e}")
+            self.docker_client = None
         self.kubernetes_client: kubernetes.client = kubernetes.client
 
         # Ensure the deployments directory exists
@@ -160,7 +164,16 @@ class ClusterOperator:
             self._nodes_mgmt_thread_handle = threading.Thread(target=self._nodes_mgmt_thread, daemon=True)
             self._nodes_mgmt_thread_handle.start()
         else:
-            # Cluster is ready to go!
+            # Cluster is ready to go without node management
+            try:
+                kubernetes.config.load_incluster_config()
+                self.control_plane_available = True
+            except Exception:
+                try:
+                    kubernetes.config.load_kube_config(self.config.kubeconfig_path)
+                    self.control_plane_available = True
+                except Exception as e:
+                    logging.warning(f"Could not load kubeconfig (nodes info will be unavailable): {e}")
             self.status = ClusterStatus.READY
 
         # We attempt to register so that proxy has immediate visibility of us

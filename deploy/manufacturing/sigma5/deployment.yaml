@@ -40,7 +40,7 @@ spec:
               - key: "kubernetes.io/hostname"
                 operator: In
                 values:
-                - "orangepizero3"
+                - "concordagent02"
       containers:
         # Sigma5 Manufacturing Tests Runner Application
       - name: manufacturing-sigma5
@@ -67,10 +67,10 @@ spec:
           value: "4"
         - name: LOG_PATH              # Path where the service will store its logs
           value: "/var/log"
-        - name: OPERATOR_URL          # The operator resides in the same machine
-          value: "10.4.45.7:50052"
-        - name: PROXY_SERVER_URL     
-          value: "https://10.4.45.3:443"
+        - name: OPERATOR_URL
+          value: "10.4.45.22:50052"
+        - name: PROXY_SERVER_URL
+          value: "http://10.4.45.30:8001"
         - name: ELECTRICAL_TEST_PORT
           value: "50060"
         - name: ELECTRICAL_TEST_UUID     

@@ -30,6 +30,9 @@ from .step_7 import electrical_test_step_7
 def electrical_test_init(
     config: Sigma5ManufacturingConfig, nodes: List[str], usr_data: Dict[str, ElectricalTestSharedData]
 ) -> str:
+    # HARDCODED: Override nodes for quick panel test
+    nodes = ["verdin-imx8mm-15005679"]
+
     # Initialize the runners required to run this test
     error = mtib_servers.init(nodes)
     if error:

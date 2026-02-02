@@ -40,6 +40,9 @@ from .data import PostTestSharedData, post_test_shared_data
 def post_test_init(
     config: Sigma5ManufacturingConfig, nodes: List[str], usr_data: Dict[str, PostTestSharedData]
 ) -> str:
+    # HARDCODED: Override nodes for quick panel test
+    nodes = ["verdin-imx8mm-15005679"]
+
     # Initialize the runners required to run this test
     error = mtib_servers.init(nodes)
     if error:

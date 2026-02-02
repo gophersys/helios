@@ -2,6 +2,7 @@
 import inspect
 import os
 import queue
+import re
 import struct
 import threading
 import time
@@ -1415,7 +1416,9 @@ class MtibV1Client:
     # -----------------------------------------------
     #                           Comms Coproc Commands
     # ---------------------------------------------*/
-    def cmd_comms_coproc_lock_shell(self) -> Tuple[Optional[bool], Optional[str]]:
+    def cmd_comms_coproc_lock_shell(
+        self, target: HostType = HostType.HOST_TYPE_NRF9160
+    ) -> Tuple[Optional[bool], Optional[str]]:
         """Lock shell mode for the communications co-processor device.
 
         Sends a UART command to lock the shell mode on the NRF9160 device.
@@ -1447,10 +1450,10 @@ class MtibV1Client:
                     try:
                         # Get input from queue (non-blocking)
                         data = input_queue.get_nowait()
-                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=data)
+                        yield UartStreamRequest(target=target, data=data)
                     except queue.Empty:
                         # No input, send empty request to keep stream alive
-                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=b"")
+                        yield UartStreamRequest(target=target, data=b"")
                         time.sleep(0.1)
 
             # Collect response like the working terminal
@@ -1458,7 +1461,7 @@ class MtibV1Client:
             start_time = time.time()
             timeout = 10  # 10 second timeout
 
-            target = HostType.HOST_TYPE_NRF9160
+            # target parameter is used
             for resp in self.UartStream(target, request_iterator()):
                 if not resp.success:
                     return None, f"UartStream error: {resp.message}"
@@ -1478,7 +1481,7 @@ class MtibV1Client:
                         for i, line in enumerate(lines):
                             if "lock_shell" in line:
                                 lock_command_found = True
-                            elif lock_command_found and "Mfg shell:" in line.strip():
+                            elif lock_command_found and ("Mfg shell:" in line.strip() or "Comms Mfg:" in line.strip()):
                                 prompt_found = True
                                 break
 
@@ -1496,7 +1499,9 @@ class MtibV1Client:
         except Exception as e:
             return None, f"Exception in lock_shell: {str(e)}"
 
-    def cmd_comms_coproc_debug_uart_disable(self) -> Tuple[Optional[bool], Optional[str]]:
+    def cmd_comms_coproc_debug_uart_disable(
+        self, target: HostType = HostType.HOST_TYPE_NRF9160
+    ) -> Tuple[Optional[bool], Optional[str]]:
         """Disable debug UART for the communications co-processor device.
 
         Sends a UART command to disable debug UART on the NRF9160 device.
@@ -1526,10 +1531,10 @@ class MtibV1Client:
                     try:
                         # Get input from queue (non-blocking)
                         data = input_queue.get_nowait()
-                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=data)
+                        yield UartStreamRequest(target=target, data=data)
                     except queue.Empty:
                         # No input, send empty request to keep stream alive
-                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=b"")
+                        yield UartStreamRequest(target=target, data=b"")
                         time.sleep(0.1)
 
             # Collect response like the working terminal
@@ -1537,7 +1542,7 @@ class MtibV1Client:
             start_time = time.time()
             timeout = 10  # 10 second timeout
 
-            target = HostType.HOST_TYPE_NRF9160
+            # target parameter is used
             for resp in self.UartStream(target, request_iterator()):
                 if not resp.success:
                     return None, f"UartStream error: {resp.message}"
@@ -1557,7 +1562,9 @@ class MtibV1Client:
                         for i, line in enumerate(lines):
                             if "debug_enable" in line:
                                 debug_command_found = True
-                            elif debug_command_found and "Mfg shell:" in line.strip():
+                            elif debug_command_found and (
+                                "Mfg shell:" in line.strip() or "Comms Mfg:" in line.strip()
+                            ):
                                 prompt_found = True
                                 break
 
@@ -1575,7 +1582,9 @@ class MtibV1Client:
         except Exception as e:
             return None, f"Exception in debug_uart_disable: {str(e)}"
 
-    def cmd_comms_coproc_get_chip_ids(self) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+    def cmd_comms_coproc_get_chip_ids(
+        self, target: HostType = HostType.HOST_TYPE_NRF9160
+    ) -> Tuple[Optional[str], Optional[str], Optional[str]]:
         """Get chip IDs from the communications co-processor device.
 
         Returns the LoRa hardware availability status and external flash chip ID from the NRF9160 device.
@@ -1595,7 +1604,7 @@ class MtibV1Client:
                 print(f"LoRa available: {lora_available}, Ext flash chip ID: {ext_flash_id}")
             ```
         """
-        target = HostType.HOST_TYPE_NRF9160
+        # target parameter is used
         try:
             input_queue = queue.Queue()
 
@@ -1609,10 +1618,10 @@ class MtibV1Client:
                     try:
                         # Get input from queue (non-blocking)
                         data = input_queue.get_nowait()
-                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=data)
+                        yield UartStreamRequest(target=target, data=data)
                     except queue.Empty:
                         # No input, send empty request to keep stream alive
-                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=b"")
+                        yield UartStreamRequest(target=target, data=b"")
                         time.sleep(0.1)
 
             # Collect response like the working terminal
@@ -1620,7 +1629,7 @@ class MtibV1Client:
             start_time = time.time()
             timeout = 10  # 10 second timeout
 
-            target = HostType.HOST_TYPE_NRF9160
+            # target parameter is used
             for resp in self.UartStream(target, request_iterator()):
                 if not resp.success:
                     return None, None, f"UartStream error: {resp.message}"
@@ -1641,7 +1650,7 @@ class MtibV1Client:
                         for i, line in enumerate(lines):
                             if "get_chip_ids" in line:
                                 chip_command_found = True
-                            elif chip_command_found and "Mfg shell:" in line.strip():
+                            elif chip_command_found and ("Mfg shell:" in line.strip() or "Comms Mfg:" in line.strip()):
                                 prompt_found = True
                                 break
 
@@ -1685,7 +1694,9 @@ class MtibV1Client:
         except Exception as e:
             return None, None, f"Exception in get_chip_ids: {str(e)}"
 
-    def cmd_comms_coproc_get_modem_fw_version(self) -> Tuple[Optional[str], Optional[str]]:
+    def cmd_comms_coproc_get_modem_fw_version(
+        self, target: HostType = HostType.HOST_TYPE_NRF9160
+    ) -> Tuple[Optional[str], Optional[str]]:
         """Get modem firmware version from the communications co-processor device
 
         Args:
@@ -1707,10 +1718,10 @@ class MtibV1Client:
                     try:
                         # Get input from queue (non-blocking)
                         data = input_queue.get_nowait()
-                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=data)
+                        yield UartStreamRequest(target=target, data=data)
                     except queue.Empty:
                         # No input, send empty request to keep stream alive
-                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=b"")
+                        yield UartStreamRequest(target=target, data=b"")
                         time.sleep(0.1)
 
             # Collect response from UART stream
@@ -1718,7 +1729,7 @@ class MtibV1Client:
             start_time = time.time()
             timeout = 10  # 10 second timeout
 
-            target = HostType.HOST_TYPE_NRF9160
+            # target parameter is used
             for resp in self.UartStream(target, request_iterator()):
                 if not resp.success:
                     return None, f"UartStream error: {resp.message}"
@@ -1738,7 +1749,9 @@ class MtibV1Client:
                         for i, line in enumerate(lines):
                             if "get_modem_fw" in line:
                                 modem_command_found = True
-                            elif modem_command_found and "Mfg shell:" in line.strip():
+                            elif modem_command_found and (
+                                "Mfg shell:" in line.strip() or "Comms Mfg:" in line.strip()
+                            ):
                                 prompt_found = True
                                 break
 
@@ -1774,7 +1787,9 @@ class MtibV1Client:
         except Exception as e:
             return None, f"Exception in get_modem_fw_version: {str(e)}"
 
-    def cmd_comms_coproc_get_imei_iccid(self) -> Tuple[Optional[str], Optional[List[str]], Optional[str]]:
+    def cmd_comms_coproc_get_imei_iccid(
+        self, target: HostType = HostType.HOST_TYPE_NRF9160
+    ) -> Tuple[Optional[str], Optional[List[str]], Optional[str]]:
         """Get IMEI and ICCID from the communications co-processor device
 
         Args:
@@ -1796,10 +1811,10 @@ class MtibV1Client:
                     try:
                         # Get input from queue (non-blocking)
                         data = input_queue.get_nowait()
-                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=data)
+                        yield UartStreamRequest(target=target, data=data)
                     except queue.Empty:
                         # No input, send empty request to keep stream alive
-                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=b"")
+                        yield UartStreamRequest(target=target, data=b"")
                         time.sleep(0.1)
 
             # Collect response like the working terminal
@@ -1807,7 +1822,7 @@ class MtibV1Client:
             start_time = time.time()
             timeout = 10  # 10 second timeout
 
-            target = HostType.HOST_TYPE_NRF9160
+            # target parameter is used
             for resp in self.UartStream(target, request_iterator()):
                 if not resp.success:
                     return None, None, f"UartStream error: {resp.message}"
@@ -1827,7 +1842,7 @@ class MtibV1Client:
                         for i, line in enumerate(lines):
                             if "imei_iccid" in line:
                                 imei_command_found = True
-                            elif imei_command_found and "Mfg shell:" in line.strip():
+                            elif imei_command_found and ("Mfg shell:" in line.strip() or "Comms Mfg:" in line.strip()):
                                 prompt_found = True
                                 break
 
@@ -1867,7 +1882,9 @@ class MtibV1Client:
         except Exception as e:
             return None, None, f"Exception in get_imei_iccid: {str(e)}"
 
-    def cmd_comms_coproc_personalize(self, device_id: str) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+    def cmd_comms_coproc_personalize(
+        self, device_id: str, target: HostType = HostType.HOST_TYPE_NRF9160
+    ) -> Tuple[Optional[str], Optional[str], Optional[str]]:
         """Personalize the communications co-processor device
 
         Args:
@@ -1889,10 +1906,10 @@ class MtibV1Client:
                     try:
                         # Get input from queue (non-blocking)
                         data = input_queue.get_nowait()
-                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=data)
+                        yield UartStreamRequest(target=target, data=data)
                     except queue.Empty:
                         # No input, send empty request to keep stream alive
-                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=b"")
+                        yield UartStreamRequest(target=target, data=b"")
                         time.sleep(0.1)
 
             # Collect response from UART stream
@@ -1900,7 +1917,7 @@ class MtibV1Client:
             start_time = time.time()
             timeout = 10  # 10 second timeout
 
-            target = HostType.HOST_TYPE_NRF9160
+            # target parameter is used
             for resp in self.UartStream(target, request_iterator()):
                 if not resp.success:
                     return None, None, f"UartStream error: {resp.message}"
@@ -1920,7 +1937,7 @@ class MtibV1Client:
                         for i, line in enumerate(lines):
                             if "personalize" in line:
                                 command_found = True
-                            elif command_found and "Mfg shell:" in line.strip():
+                            elif command_found and ("Mfg shell:" in line.strip() or "Comms Mfg:" in line.strip()):
                                 prompt_found = True
                                 break
 
@@ -1962,7 +1979,9 @@ class MtibV1Client:
         except Exception as e:
             return None, None, f"Exception in personalize: {str(e)}"
 
-    def cmd_comms_coproc_read_ext_flash(self, address: str, num_bytes: int) -> Tuple[Optional[str], Optional[str]]:
+    def cmd_comms_coproc_read_ext_flash(
+        self, address: str, num_bytes: int, target: HostType = HostType.HOST_TYPE_NRF9160
+    ) -> Tuple[Optional[str], Optional[str]]:
         """Read data from external flash
 
         Args:
@@ -1985,10 +2004,10 @@ class MtibV1Client:
                     try:
                         # Get input from queue (non-blocking)
                         data = input_queue.get_nowait()
-                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=data)
+                        yield UartStreamRequest(target=target, data=data)
                     except queue.Empty:
                         # No input, send empty request to keep stream alive
-                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=b"")
+                        yield UartStreamRequest(target=target, data=b"")
                         time.sleep(0.1)
 
             # Collect response like the working terminal
@@ -1996,7 +2015,7 @@ class MtibV1Client:
             start_time = time.time()
             timeout = 10  # 10 second timeout
 
-            target = HostType.HOST_TYPE_NRF9160
+            # target parameter is used
             for resp in self.UartStream(target, request_iterator()):
                 if not resp.success:
                     return None, f"UartStream error: {resp.message}"
@@ -2017,7 +2036,7 @@ class MtibV1Client:
                         for i, line in enumerate(lines):
                             if "read_ext_flash" in line:
                                 read_command_found = True
-                            elif read_command_found and "Mfg shell:" in line.strip():
+                            elif read_command_found and ("Mfg shell:" in line.strip() or "Comms Mfg:" in line.strip()):
                                 prompt_found = True
                                 break
 
@@ -2047,7 +2066,9 @@ class MtibV1Client:
         except Exception as e:
             return None, f"Exception in read_ext_flash: {str(e)}"
 
-    def cmd_comms_coproc_erase_ext_flash(self) -> Tuple[Optional[bool], Optional[str]]:
+    def cmd_comms_coproc_erase_ext_flash(
+        self, target: HostType = HostType.HOST_TYPE_NRF9160
+    ) -> Tuple[Optional[bool], Optional[str]]:
         """Erase entire external flash
 
         Args:
@@ -2069,10 +2090,10 @@ class MtibV1Client:
                     try:
                         # Get input from queue (non-blocking)
                         data = input_queue.get_nowait()
-                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=data)
+                        yield UartStreamRequest(target=target, data=data)
                     except queue.Empty:
                         # No input, send empty request to keep stream alive
-                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=b"")
+                        yield UartStreamRequest(target=target, data=b"")
                         time.sleep(0.1)
 
             # Collect response like the working terminal
@@ -2080,7 +2101,7 @@ class MtibV1Client:
             start_time = time.time()
             timeout = 30  # 30 second timeout (erase can take longer)
 
-            target = HostType.HOST_TYPE_NRF9160
+            # target parameter is used
             for resp in self.UartStream(target, request_iterator()):
                 if not resp.success:
                     return None, f"UartStream error: {resp.message}"
@@ -2101,7 +2122,9 @@ class MtibV1Client:
                         for i, line in enumerate(lines):
                             if "erase_ext_flash" in line:
                                 erase_command_found = True
-                            elif erase_command_found and "Mfg shell:" in line.strip():
+                            elif erase_command_found and (
+                                "Mfg shell:" in line.strip() or "Comms Mfg:" in line.strip()
+                            ):
                                 prompt_found = True
                                 break
 
@@ -2119,7 +2142,9 @@ class MtibV1Client:
         except Exception as e:
             return None, f"Exception in erase_ext_flash: {str(e)}"
 
-    def cmd_comms_coproc_write_ext_flash(self, address: str, data: str) -> Tuple[Optional[bool], Optional[str]]:
+    def cmd_comms_coproc_write_ext_flash(
+        self, address: str, data: str, target: HostType = HostType.HOST_TYPE_NRF9160
+    ) -> Tuple[Optional[bool], Optional[str]]:
         """Write data to external flash (data should be base64 encoded)
 
         Args:
@@ -2142,10 +2167,10 @@ class MtibV1Client:
                     try:
                         # Get input from queue (non-blocking)
                         data = input_queue.get_nowait()
-                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=data)
+                        yield UartStreamRequest(target=target, data=data)
                     except queue.Empty:
                         # No input, send empty request to keep stream alive
-                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=b"")
+                        yield UartStreamRequest(target=target, data=b"")
                         time.sleep(0.1)
 
             # Collect response like the working terminal
@@ -2153,7 +2178,7 @@ class MtibV1Client:
             start_time = time.time()
             timeout = 10  # 10 second timeout
 
-            target = HostType.HOST_TYPE_NRF9160
+            # target parameter is used
             for resp in self.UartStream(target, request_iterator()):
                 if not resp.success:
                     return None, f"UartStream error: {resp.message}"
@@ -2174,7 +2199,9 @@ class MtibV1Client:
                         for i, line in enumerate(lines):
                             if "write_ext_flash" in line:
                                 write_command_found = True
-                            elif write_command_found and "Mfg shell:" in line.strip():
+                            elif write_command_found and (
+                                "Mfg shell:" in line.strip() or "Comms Mfg:" in line.strip()
+                            ):
                                 prompt_found = True
                                 break
 
@@ -2192,7 +2219,9 @@ class MtibV1Client:
         except Exception as e:
             return None, f"Exception in write_ext_flash: {str(e)}"
 
-    def cmd_comms_coproc_rekey_ipc(self) -> Tuple[Optional[bool], Optional[str]]:
+    def cmd_comms_coproc_rekey_ipc(
+        self, target: HostType = HostType.HOST_TYPE_NRF9160
+    ) -> Tuple[Optional[bool], Optional[str]]:
         """Rekey IPC
 
         Args:
@@ -2214,10 +2243,10 @@ class MtibV1Client:
                     try:
                         # Get input from queue (non-blocking)
                         data = input_queue.get_nowait()
-                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=data)
+                        yield UartStreamRequest(target=target, data=data)
                     except queue.Empty:
                         # No input, send empty request to keep stream alive
-                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9160, data=b"")
+                        yield UartStreamRequest(target=target, data=b"")
                         time.sleep(0.1)
 
             # Collect response like the working terminal
@@ -2225,7 +2254,7 @@ class MtibV1Client:
             start_time = time.time()
             timeout = 10  # 10 second timeout
 
-            target = HostType.HOST_TYPE_NRF9160
+            # target parameter is used
 
             for resp in self.UartStream(target, request_iterator()):
                 if not resp.success:
@@ -2309,7 +2338,7 @@ class MtibV1Client:
                         for i, line in enumerate(lines):
                             if "lock_shell" in line:
                                 lock_command_found = True
-                            elif lock_command_found and "Mfg shell:" in line.strip():
+                            elif lock_command_found and ("Mfg shell:" in line.strip() or "Comms Mfg:" in line.strip()):
                                 prompt_found = True
                                 break
 
@@ -2380,7 +2409,9 @@ class MtibV1Client:
                         for i, line in enumerate(lines):
                             if "debug_enable" in line:
                                 debug_command_found = True
-                            elif debug_command_found and "Mfg shell:" in line.strip():
+                            elif debug_command_found and (
+                                "Mfg shell:" in line.strip() or "Comms Mfg:" in line.strip()
+                            ):
                                 prompt_found = True
                                 break
 
@@ -2459,7 +2490,7 @@ class MtibV1Client:
                         for i, line in enumerate(lines):
                             if "get_chip_ids" in line:
                                 chip_command_found = True
-                            elif chip_command_found and "Mfg shell:" in line.strip():
+                            elif chip_command_found and ("Mfg shell:" in line.strip() or "Comms Mfg:" in line.strip()):
                                 prompt_found = True
                                 break
 
@@ -2607,7 +2638,9 @@ class MtibV1Client:
                         for i, line in enumerate(lines):
                             if "get_ublox" in line:
                                 ublox_command_found = True
-                            elif ublox_command_found and "Mfg shell:" in line.strip():
+                            elif ublox_command_found and (
+                                "Mfg shell:" in line.strip() or "Comms Mfg:" in line.strip()
+                            ):
                                 prompt_found = True
                                 break
 
@@ -2751,7 +2784,9 @@ class MtibV1Client:
                         for i, line in enumerate(lines):
                             if "read_accel" in line:
                                 accel_command_found = True
-                            elif accel_command_found and "Mfg shell:" in line.strip():
+                            elif accel_command_found and (
+                                "Mfg shell:" in line.strip() or "Comms Mfg:" in line.strip()
+                            ):
                                 prompt_found = True
                                 break
 
@@ -2854,7 +2889,7 @@ class MtibV1Client:
                         for i, line in enumerate(lines):
                             if "read_alt" in line:
                                 alt_command_found = True
-                            elif alt_command_found and "Mfg shell:" in line.strip():
+                            elif alt_command_found and ("Mfg shell:" in line.strip() or "Comms Mfg:" in line.strip()):
                                 prompt_found = True
                                 break
 
@@ -2896,3 +2931,1333 @@ class MtibV1Client:
 
         except Exception as e:
             return None, None, f"Exception in read_altimeter: {str(e)}"
+
+    # ===============================================
+    #         THETA APP PROCESSOR COMMANDS
+    # ===============================================
+    #
+    # Commands specific to Theta manufacturing firmware
+    # App Processor: nRF52840 (HOST_TYPE_NRF52840) with "Mfg shell: " prompt
+    #
+    # ===============================================
+
+    def cmd_theta_app_lock_shell(self) -> Tuple[Optional[bool], Optional[str]]:
+        """Lock shell on theta app processor
+
+        Retries sending the lock_shell command periodically until success or timeout.
+
+        Returns:
+            Tuple of (success, error_string)
+        """
+        try:
+            input_queue = queue.Queue()
+            last_send_time = 0
+            retry_interval = 2.0  # Retry every 2 seconds
+
+            def request_iterator():
+                nonlocal last_send_time
+                while True:
+                    current_time = time.time()
+                    # Send command initially and retry every retry_interval seconds
+                    if current_time - last_send_time >= retry_interval:
+                        input_queue.put(b"\r")
+                        input_queue.put(b"lock_shell\r")
+                        last_send_time = current_time
+
+                    try:
+                        data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=data)
+                    except queue.Empty:
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=b"")
+                        time.sleep(0.1)
+
+            response_lines = []
+            start_time = time.time()
+            timeout = 30
+
+            for resp in self.UartStream(HostType.HOST_TYPE_NRF52840, request_iterator()):
+                if not resp.success:
+                    return None, f"UartStream error: {resp.message}"
+
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
+
+                    full_response = "".join(response_lines)
+                    if "Shell locked" in full_response or "Locking shell mode" in full_response:
+                        if (
+                            "Mfg shell:"
+                            in full_response.split(
+                                "Shell locked" if "Shell locked" in full_response else "Locking shell mode"
+                            )[-1]
+                        ):
+                            return True, None
+
+                if time.time() - start_time > timeout:
+                    break
+
+            full_response = "".join(response_lines)
+            return None, f"Timeout. Response: {full_response[:200]}..."
+
+        except Exception as e:
+            return None, f"Exception: {str(e)}"
+
+    def cmd_theta_app_debug_uart_disable(self) -> Tuple[Optional[bool], Optional[str]]:
+        """Disable debug UART on theta app processor
+
+        Returns:
+            Tuple of (success, error_string)
+        """
+        try:
+            input_queue = queue.Queue()
+            input_queue.put(b"\r")
+            time.sleep(0.2)
+            input_queue.put(b"debug_enable 0\r")
+
+            def request_iterator():
+                while True:
+                    try:
+                        data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=data)
+                    except queue.Empty:
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=b"")
+                        time.sleep(0.1)
+
+            response_lines = []
+            start_time = time.time()
+            timeout = 10
+
+            for resp in self.UartStream(HostType.HOST_TYPE_NRF52840, request_iterator()):
+                if not resp.success:
+                    return None, f"UartStream error: {resp.message}"
+
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
+
+                    full_response = "".join(response_lines)
+                    if (
+                        "Debug disabled" in full_response
+                        or "Debug output disabled" in full_response
+                        or "Debug is not enabled" in full_response
+                    ) and "Mfg shell:" in full_response:
+                        return True, None
+
+                if time.time() - start_time > timeout:
+                    break
+
+            full_response = "".join(response_lines)
+            return None, f"Timeout. Response: {full_response[:200]}..."
+
+        except Exception as e:
+            return None, f"Exception: {str(e)}"
+
+    def cmd_theta_app_get_chip_ids(self) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+        """Get chip IDs from theta app processor.
+
+        Supports two firmware response formats:
+        - Legacy (Theta): Returns accelerometer and altimeter chip IDs
+        - Alpha: Returns external flash chip ID and BLE MAC address
+
+        Returns:
+            Tuple of (id_1, id_2, error_string) where:
+                - Legacy: (accel_id, alt_id, error)
+                - Alpha: (ext_flash_id, ble_mac, error)
+        """
+        try:
+            input_queue = queue.Queue()
+            input_queue.put(b"\r")
+            time.sleep(0.2)
+            input_queue.put(b"get_chip_ids\r")
+
+            def request_iterator():
+                while True:
+                    try:
+                        data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=data)
+                    except queue.Empty:
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=b"")
+                        time.sleep(0.1)
+
+            response_lines = []
+            start_time = time.time()
+            timeout = 10
+
+            for resp in self.UartStream(HostType.HOST_TYPE_NRF52840, request_iterator()):
+                if not resp.success:
+                    return None, None, f"UartStream error: {resp.message}"
+
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
+
+                    full_response = "".join(response_lines)
+
+                    # Check for prompt after command output
+                    lines = full_response.split("\n")
+                    command_found = False
+                    prompt_found = False
+                    for ln in lines:
+                        if "get_chip_ids" in ln:
+                            command_found = True
+                        elif command_found and "Mfg shell:" in ln.strip():
+                            prompt_found = True
+                            break
+
+                    if not prompt_found:
+                        if time.time() - start_time > timeout:
+                            break
+                        continue
+
+                    # Alpha firmware format: Ext flash chip ID + BLE MAC
+                    if "Ext flash chip ID:" in full_response or "BLE MAC:" in full_response:
+                        ext_flash_id = None
+                        ble_mac = None
+
+                        for ln in lines:
+                            if "Ext flash chip ID:" in ln:
+                                ext_flash_id = ln.split(":", 1)[1].strip()
+                            elif "BLE MAC:" in ln:
+                                ble_mac = ln.split(":", 1)[1].strip()
+
+                        return ext_flash_id, ble_mac, None
+
+                    # Legacy Theta firmware format: Accel + Altimeter
+                    if "Accel:" in full_response:
+                        accel_id = None
+                        alt_id = None
+
+                        for ln in lines:
+                            if "Accel:" in ln:
+                                accel_id = ln.split(":", 1)[1].strip()
+                            elif "Altimeter" in ln and ":" in ln:
+                                alt_id = ln.split(":", 1)[1].strip()
+
+                        return accel_id, alt_id, None
+
+                    # Prompt found but no recognized chip ID fields
+                    return None, None, f"Unrecognized response format: {full_response[:200]}..."
+
+                if time.time() - start_time > timeout:
+                    break
+
+            full_response = "".join(response_lines)
+            return None, None, f"Timeout. Response: {full_response[:200]}..."
+
+        except Exception as e:
+            return None, None, f"Exception: {str(e)}"
+
+    def cmd_theta_app_read_accel(
+        self,
+    ) -> Tuple[Optional[float], Optional[float], Optional[float], Optional[float], Optional[str]]:
+        """Read accelerometer from theta app processor
+
+        Returns:
+            Tuple of (x_g, y_g, z_g, temp_c, error_string)
+        """
+        try:
+            input_queue = queue.Queue()
+            input_queue.put(b"\r")
+            time.sleep(0.2)
+            input_queue.put(b"read_accel\r")
+
+            def request_iterator():
+                while True:
+                    try:
+                        data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=data)
+                    except queue.Empty:
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=b"")
+                        time.sleep(0.1)
+
+            response_lines = []
+            start_time = time.time()
+            timeout = 10
+
+            for resp in self.UartStream(HostType.HOST_TYPE_NRF52840, request_iterator()):
+                if not resp.success:
+                    return None, None, None, None, f"UartStream error: {resp.message}"
+
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
+
+                    full_response = "".join(response_lines)
+                    if (
+                        "Accelerometer values" in full_response
+                        and "Mfg shell:" in full_response.split("Accelerometer values")[-1]
+                    ):
+                        # Parse format: "Accelerometer values: (x, y, z, temp): 0.890625, -0.015625, 0.437500, 31.000000"
+                        for line in full_response.split("\n"):
+                            if "Accelerometer values" in line and ":" in line:
+                                try:
+                                    values_part = line.split(":", 2)[-1].strip()
+                                    values = [float(v.strip()) for v in values_part.split(",")]
+                                    if len(values) >= 4:
+                                        return values[0], values[1], values[2], values[3], None
+                                except (ValueError, IndexError):
+                                    pass
+
+                if time.time() - start_time > timeout:
+                    break
+
+            full_response = "".join(response_lines)
+            return None, None, None, None, f"Timeout. Response: {full_response[:200]}..."
+
+        except Exception as e:
+            return None, None, None, None, f"Exception: {str(e)}"
+
+    def cmd_theta_app_read_alt(self) -> Tuple[Optional[float], Optional[float], Optional[str]]:
+        """Read altimeter from theta app processor
+
+        Returns:
+            Tuple of (pressure_hg, temperature_c, error_string)
+        """
+        try:
+            input_queue = queue.Queue()
+            input_queue.put(b"\r")
+            time.sleep(0.2)
+            input_queue.put(b"read_alt\r")
+
+            def request_iterator():
+                while True:
+                    try:
+                        data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=data)
+                    except queue.Empty:
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=b"")
+                        time.sleep(0.1)
+
+            response_lines = []
+            start_time = time.time()
+            timeout = 10
+
+            for resp in self.UartStream(HostType.HOST_TYPE_NRF52840, request_iterator()):
+                if not resp.success:
+                    return None, None, f"UartStream error: {resp.message}"
+
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
+
+                    full_response = "".join(response_lines)
+                    if (
+                        "Altimeter values" in full_response
+                        and "Mfg shell:" in full_response.split("Altimeter values")[-1]
+                    ):
+                        # Parse format: "Altimeter values (pressure, temp): 28.722524, 25.412672"
+                        for line in full_response.split("\n"):
+                            if "Altimeter values" in line and ":" in line:
+                                try:
+                                    values_part = line.split(":", 1)[-1].strip()
+                                    values = [float(v.strip()) for v in values_part.split(",")]
+                                    if len(values) >= 2:
+                                        return values[0], values[1], None
+                                except (ValueError, IndexError):
+                                    pass
+
+                if time.time() - start_time > timeout:
+                    break
+
+            full_response = "".join(response_lines)
+            return None, None, f"Timeout. Response: {full_response[:200]}..."
+
+        except Exception as e:
+            return None, None, f"Exception: {str(e)}"
+
+    def cmd_theta_app_drone_test(
+        self, timeout_ms: int = 10000
+    ) -> Tuple[Optional[bool], Optional[int], Optional[int], Optional[str]]:
+        """Run drone detection test on theta app processor
+
+        Args:
+            timeout_ms: Test timeout in milliseconds
+
+        Returns:
+            Tuple of (success, detected_freq_hz, amplitude_mg, error_string)
+        """
+        try:
+            input_queue = queue.Queue()
+            input_queue.put(b"\r")
+            time.sleep(0.2)
+            input_queue.put(f"drone_test {timeout_ms}\r".encode("utf-8"))
+
+            def request_iterator():
+                while True:
+                    try:
+                        data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=data)
+                    except queue.Empty:
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=b"")
+                        time.sleep(0.1)
+
+            response_lines = []
+            start_time = time.time()
+            timeout = (timeout_ms / 1000) + 5
+
+            for resp in self.UartStream(HostType.HOST_TYPE_NRF52840, request_iterator()):
+                if not resp.success:
+                    return None, None, None, f"UartStream error: {resp.message}"
+
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
+
+                    full_response = "".join(response_lines)
+                    if (
+                        "Drone test" in full_response or "Drone detection" in full_response
+                    ) and "Mfg shell:" in full_response:
+                        success = "PASS" in full_response or "detected" in full_response.lower()
+                        detected_freq = None
+                        amplitude = None
+
+                        for line in full_response.split("\n"):
+                            if "Frequency" in line or "frequency" in line:
+                                try:
+                                    freq_match = re.search(r"(\d+\.?\d*)\s*Hz", line)
+                                    if freq_match:
+                                        detected_freq = int(float(freq_match.group(1)))
+                                except (ValueError, AttributeError):
+                                    pass
+                            if "Amplitude" in line or "amplitude" in line:
+                                try:
+                                    amp_match = re.search(r"(\d+\.?\d*)\s*mg", line)
+                                    if amp_match:
+                                        amplitude = int(float(amp_match.group(1)))
+                                except (ValueError, AttributeError):
+                                    pass
+
+                        return success, detected_freq, amplitude, None
+
+                if time.time() - start_time > timeout:
+                    break
+
+            full_response = "".join(response_lines)
+            return None, None, None, f"Timeout. Response: {full_response[:200]}..."
+
+        except Exception as e:
+            return None, None, None, f"Exception: {str(e)}"
+
+    def cmd_theta_app_meas_bat_voltage(self) -> Tuple[Optional[float], Optional[str]]:
+        """Measure battery voltage on theta app processor
+
+        Returns:
+            Tuple of (voltage_v, error_string)
+        """
+        try:
+            input_queue = queue.Queue()
+            input_queue.put(b"\r")
+            time.sleep(0.2)
+            input_queue.put(b"meas_bat_voltage\r")
+
+            def request_iterator():
+                while True:
+                    try:
+                        data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=data)
+                    except queue.Empty:
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=b"")
+                        time.sleep(0.1)
+
+            response_lines = []
+            start_time = time.time()
+            timeout = 10
+
+            for resp in self.UartStream(HostType.HOST_TYPE_NRF52840, request_iterator()):
+                if not resp.success:
+                    return None, f"UartStream error: {resp.message}"
+
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
+
+                    full_response = "".join(response_lines)
+                    if "Battery voltage" in full_response or "Voltage" in full_response:
+                        if "Mfg shell:" in full_response:
+                            for line in full_response.split("\n"):
+                                if ("Battery voltage" in line or "Voltage" in line) and ":" in line:
+                                    try:
+                                        voltage_str = line.split(":", 1)[1].strip().rstrip("V").strip()
+                                        return float(voltage_str), None
+                                    except (ValueError, IndexError):
+                                        pass
+
+                if time.time() - start_time > timeout:
+                    break
+
+            full_response = "".join(response_lines)
+            return None, f"Timeout. Response: {full_response[:200]}..."
+
+        except Exception as e:
+            return None, f"Exception: {str(e)}"
+
+    def cmd_theta_app_membrane_test(self) -> Tuple[Optional[dict], Optional[str]]:
+        """Run complete membrane board test on theta app processor
+
+        Returns:
+            Tuple of (results_dict, error_string)
+            results_dict contains test results for: bme280, gpio_expander, leds, vibration
+        """
+        try:
+            input_queue = queue.Queue()
+            input_queue.put(b"\r")
+            time.sleep(0.2)
+            input_queue.put(b"membrane_test\r")
+
+            def request_iterator():
+                while True:
+                    try:
+                        data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=data)
+                    except queue.Empty:
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=b"")
+                        time.sleep(0.1)
+
+            response_lines = []
+            start_time = time.time()
+            timeout = 15
+
+            for resp in self.UartStream(HostType.HOST_TYPE_NRF52840, request_iterator()):
+                if not resp.success:
+                    return None, f"UartStream error: {resp.message}"
+
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
+
+                    full_response = "".join(response_lines)
+                    if "Membrane test" in full_response and "Mfg shell:" in full_response.split("Membrane test")[-1]:
+                        results = {}
+                        for line in full_response.split("\n"):
+                            line_lower = line.lower()
+                            if "bme280" in line_lower:
+                                results["bme280"] = "pass" in line_lower or "ok" in line_lower
+                            if "gpio" in line_lower or "pca9536" in line_lower:
+                                results["gpio_expander"] = "pass" in line_lower or "ok" in line_lower
+                            if "led" in line_lower:
+                                results["leds"] = "pass" in line_lower or "ok" in line_lower
+                            if "vibration" in line_lower or "motor" in line_lower:
+                                results["vibration"] = "pass" in line_lower or "ok" in line_lower
+                        return results, None
+
+                if time.time() - start_time > timeout:
+                    break
+
+            full_response = "".join(response_lines)
+            return None, f"Timeout. Response: {full_response[:200]}..."
+
+        except Exception as e:
+            return None, f"Exception: {str(e)}"
+
+    def cmd_theta_app_env_test(self) -> Tuple[Optional[dict], Optional[str]]:
+        """Read BME280 environmental sensors on theta app processor
+
+        Returns:
+            Tuple of (readings_dict, error_string)
+            readings_dict contains: temperature_c, humidity_pct, pressure_pa
+        """
+        try:
+            input_queue = queue.Queue()
+            input_queue.put(b"\r")
+            time.sleep(0.2)
+            input_queue.put(b"env_test\r")
+
+            def request_iterator():
+                while True:
+                    try:
+                        data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=data)
+                    except queue.Empty:
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=b"")
+                        time.sleep(0.1)
+
+            response_lines = []
+            start_time = time.time()
+            timeout = 10
+
+            for resp in self.UartStream(HostType.HOST_TYPE_NRF52840, request_iterator()):
+                if not resp.success:
+                    return None, f"UartStream error: {resp.message}"
+
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
+
+                    full_response = "".join(response_lines)
+                    if "Temperature" in full_response and "Humidity" in full_response and "Pressure" in full_response:
+                        if "Mfg shell:" in full_response:
+                            readings = {}
+
+                            for line in full_response.split("\n"):
+                                if "Temperature" in line and ":" in line:
+                                    try:
+                                        temp_str = line.split(":", 1)[1].strip()
+                                        temp_str = re.sub(r"[^0-9.-]", "", temp_str)
+                                        readings["temperature_c"] = float(temp_str)
+                                    except (ValueError, IndexError):
+                                        pass
+                                if "Humidity" in line and ":" in line:
+                                    try:
+                                        humidity_str = line.split(":", 1)[1].strip()
+                                        humidity_str = re.sub(r"[^0-9.-]", "", humidity_str)
+                                        readings["humidity_pct"] = float(humidity_str)
+                                    except (ValueError, IndexError):
+                                        pass
+                                if "Pressure" in line and ":" in line:
+                                    try:
+                                        pressure_str = line.split(":", 1)[1].strip()
+                                        pressure_str = re.sub(r"[^0-9.-]", "", pressure_str)
+                                        readings["pressure_pa"] = float(pressure_str)
+                                    except (ValueError, IndexError):
+                                        pass
+
+                            return readings, None
+
+                if time.time() - start_time > timeout:
+                    break
+
+            full_response = "".join(response_lines)
+            return None, f"Timeout. Response: {full_response[:200]}..."
+
+        except Exception as e:
+            return None, f"Exception: {str(e)}"
+
+    def cmd_theta_app_vib_test(self, duration_ms: int = 200) -> Tuple[Optional[bool], Optional[str]]:
+        """Test vibration motor on theta app processor
+
+        Args:
+            duration_ms: Vibration duration in milliseconds (default 200ms, max 2000ms)
+
+        Returns:
+            Tuple of (success, error_string)
+        """
+        try:
+            input_queue = queue.Queue()
+            input_queue.put(b"\r")
+            time.sleep(0.2)
+            input_queue.put(f"vib_test {duration_ms}\r".encode("utf-8"))
+
+            def request_iterator():
+                while True:
+                    try:
+                        data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=data)
+                    except queue.Empty:
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=b"")
+                        time.sleep(0.1)
+
+            response_lines = []
+            start_time = time.time()
+            timeout = (duration_ms / 1000) + 5
+
+            for resp in self.UartStream(HostType.HOST_TYPE_NRF52840, request_iterator()):
+                if not resp.success:
+                    return None, f"UartStream error: {resp.message}"
+
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
+
+                    full_response = "".join(response_lines)
+                    if ("Vibration" in full_response or "Motor" in full_response) and "Mfg shell:" in full_response:
+                        return True, None
+
+                if time.time() - start_time > timeout:
+                    break
+
+            full_response = "".join(response_lines)
+            return None, f"Timeout. Response: {full_response[:200]}..."
+
+        except Exception as e:
+            return None, f"Exception: {str(e)}"
+
+    def cmd_theta_app_gps_status(self) -> Tuple[Optional[dict], Optional[str]]:
+        """Get GPS status from theta app processor
+
+        Returns:
+            Tuple of (status_dict, error_string)
+        """
+        try:
+            input_queue = queue.Queue()
+            input_queue.put(b"\r")
+            time.sleep(0.2)
+            input_queue.put(b"gps status\r")
+
+            def request_iterator():
+                while True:
+                    try:
+                        data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=data)
+                    except queue.Empty:
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=b"")
+                        time.sleep(0.1)
+
+            response_lines = []
+            start_time = time.time()
+            timeout = 10
+
+            for resp in self.UartStream(HostType.HOST_TYPE_NRF52840, request_iterator()):
+                if not resp.success:
+                    return None, f"UartStream error: {resp.message}"
+
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
+
+                    full_response = "".join(response_lines)
+                    if "GPS" in full_response and "Mfg shell:" in full_response:
+                        status = {}
+                        for line in full_response.split("\n"):
+                            if ":" in line and not line.strip().startswith("Mfg shell:"):
+                                try:
+                                    key, value = line.split(":", 1)
+                                    status[key.strip().lower().replace(" ", "_")] = value.strip()
+                                except ValueError:
+                                    pass
+                        return status, None
+
+                if time.time() - start_time > timeout:
+                    break
+
+            full_response = "".join(response_lines)
+            return None, f"Timeout. Response: {full_response[:200]}..."
+
+        except Exception as e:
+            return None, f"Exception: {str(e)}"
+
+    def cmd_theta_app_gps_start(self) -> Tuple[Optional[bool], Optional[str]]:
+        """Start GPS tracking on theta app processor
+
+        Returns:
+            Tuple of (success, error_string)
+        """
+        try:
+            input_queue = queue.Queue()
+            input_queue.put(b"\r")
+            time.sleep(0.2)
+            input_queue.put(b"gps start\r")
+
+            def request_iterator():
+                while True:
+                    try:
+                        data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=data)
+                    except queue.Empty:
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=b"")
+                        time.sleep(0.1)
+
+            response_lines = []
+            start_time = time.time()
+            timeout = 10
+
+            for resp in self.UartStream(HostType.HOST_TYPE_NRF52840, request_iterator()):
+                if not resp.success:
+                    return None, f"UartStream error: {resp.message}"
+
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
+
+                    full_response = "".join(response_lines)
+                    if (
+                        "GPS started" in full_response
+                        or "GPS tracking started" in full_response
+                        or "Starting GPS" in full_response
+                    ) and "Mfg shell:" in full_response:
+                        return True, None
+
+                if time.time() - start_time > timeout:
+                    break
+
+            full_response = "".join(response_lines)
+            return None, f"Timeout. Response: {full_response[:200]}..."
+
+        except Exception as e:
+            return None, f"Exception: {str(e)}"
+
+    def cmd_theta_app_gps_stop(self) -> Tuple[Optional[bool], Optional[str]]:
+        """Stop GPS tracking on theta app processor
+
+        Returns:
+            Tuple of (success, error_string)
+        """
+        try:
+            input_queue = queue.Queue()
+            input_queue.put(b"\r")
+            time.sleep(0.2)
+            input_queue.put(b"gps stop\r")
+
+            def request_iterator():
+                while True:
+                    try:
+                        data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=data)
+                    except queue.Empty:
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=b"")
+                        time.sleep(0.1)
+
+            response_lines = []
+            start_time = time.time()
+            timeout = 10
+
+            for resp in self.UartStream(HostType.HOST_TYPE_NRF52840, request_iterator()):
+                if not resp.success:
+                    return None, f"UartStream error: {resp.message}"
+
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
+
+                    full_response = "".join(response_lines)
+                    if (
+                        "GPS stopped" in full_response
+                        or "GPS tracking stopped" in full_response
+                        or "Stopping GPS" in full_response
+                    ) and "Mfg shell:" in full_response:
+                        return True, None
+
+                if time.time() - start_time > timeout:
+                    break
+
+            full_response = "".join(response_lines)
+            return None, f"Timeout. Response: {full_response[:200]}..."
+
+        except Exception as e:
+            return None, f"Exception: {str(e)}"
+
+    def cmd_theta_app_get_ublox(self) -> Tuple[Optional[dict], Optional[str]]:
+        """Get u-blox GPS info from theta app processor
+
+        Returns:
+            Tuple of (info_dict, error_string)
+        """
+        try:
+            input_queue = queue.Queue()
+            input_queue.put(b"\r")
+            time.sleep(0.2)
+            input_queue.put(b"get_ublox\r")
+
+            def request_iterator():
+                while True:
+                    try:
+                        data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=data)
+                    except queue.Empty:
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=b"")
+                        time.sleep(0.1)
+
+            response_lines = []
+            start_time = time.time()
+            timeout = 10
+
+            for resp in self.UartStream(HostType.HOST_TYPE_NRF52840, request_iterator()):
+                if not resp.success:
+                    return None, f"UartStream error: {resp.message}"
+
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
+
+                    full_response = "".join(response_lines)
+                    if (
+                        "u-blox" in full_response.lower() or "ublox" in full_response.lower()
+                    ) and "Mfg shell:" in full_response:
+                        info = {}
+                        for line in full_response.split("\n"):
+                            if ":" in line and not line.strip().startswith("Mfg shell:"):
+                                try:
+                                    key, value = line.split(":", 1)
+                                    info[key.strip().lower().replace(" ", "_")] = value.strip()
+                                except ValueError:
+                                    pass
+                        return info, None
+
+                if time.time() - start_time > timeout:
+                    break
+
+            full_response = "".join(response_lines)
+            return None, f"Timeout. Response: {full_response[:200]}..."
+
+        except Exception as e:
+            return None, f"Exception: {str(e)}"
+
+    def cmd_theta_app_set_gps_power(self, enable: bool) -> Tuple[Optional[bool], Optional[str]]:
+        """Set GPS power state on theta app processor
+
+        Args:
+            enable: True to enable GPS power, False to disable
+
+        Returns:
+            Tuple of (success, error_string)
+        """
+        try:
+            input_queue = queue.Queue()
+            input_queue.put(b"\r")
+            time.sleep(0.2)
+            power_val = "1" if enable else "0"
+            input_queue.put(f"set_gps_power {power_val}\r".encode("utf-8"))
+
+            def request_iterator():
+                while True:
+                    try:
+                        data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=data)
+                    except queue.Empty:
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=b"")
+                        time.sleep(0.1)
+
+            response_lines = []
+            start_time = time.time()
+            timeout = 10
+
+            for resp in self.UartStream(HostType.HOST_TYPE_NRF52840, request_iterator()):
+                if not resp.success:
+                    return None, f"UartStream error: {resp.message}"
+
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
+
+                    full_response = "".join(response_lines)
+                    if "GPS power" in full_response and "Mfg shell:" in full_response:
+                        return True, None
+
+                if time.time() - start_time > timeout:
+                    break
+
+            full_response = "".join(response_lines)
+            return None, f"Timeout. Response: {full_response[:200]}..."
+
+        except Exception as e:
+            return None, f"Exception: {str(e)}"
+
+    def cmd_theta_app_test_ble(self) -> Tuple[Optional[bool], Optional[str]]:
+        """Test BLE advertising on theta app processor
+
+        Returns:
+            Tuple of (success, error_string)
+        """
+        try:
+            input_queue = queue.Queue()
+            input_queue.put(b"\r")
+            time.sleep(0.2)
+            input_queue.put(b"test_ble\r")
+
+            def request_iterator():
+                while True:
+                    try:
+                        data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=data)
+                    except queue.Empty:
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=b"")
+                        time.sleep(0.1)
+
+            response_lines = []
+            start_time = time.time()
+            timeout = 10
+
+            for resp in self.UartStream(HostType.HOST_TYPE_NRF52840, request_iterator()):
+                if not resp.success:
+                    return None, f"UartStream error: {resp.message}"
+
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
+
+                    full_response = "".join(response_lines)
+                    if "BLE" in full_response and (
+                        "started" in full_response.lower()
+                        or "success" in full_response.lower()
+                        or "ok" in full_response.lower()
+                    ):
+                        if "Mfg shell:" in full_response:
+                            return True, None
+
+                if time.time() - start_time > timeout:
+                    break
+
+            full_response = "".join(response_lines)
+            return None, f"Timeout. Response: {full_response[:200]}..."
+
+        except Exception as e:
+            return None, f"Exception: {str(e)}"
+
+    def cmd_theta_app_test_bms(self) -> Tuple[Optional[dict], Optional[str]]:
+        """Test BMS (gas gauge) chip on theta app processor
+
+        Returns:
+            Tuple of (bms_data_dict, error_string)
+            bms_data_dict contains: connected, chip_id, charge_percent, capacity_mah, temp_c
+        """
+        try:
+            input_queue = queue.Queue()
+            input_queue.put(b"\r")
+            time.sleep(0.2)
+            input_queue.put(b"test_bms\r")
+
+            def request_iterator():
+                while True:
+                    try:
+                        data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=data)
+                    except queue.Empty:
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=b"")
+                        time.sleep(0.1)
+
+            response_lines = []
+            start_time = time.time()
+            timeout = 10
+
+            for resp in self.UartStream(HostType.HOST_TYPE_NRF52840, request_iterator()):
+                if not resp.success:
+                    return None, f"UartStream error: {resp.message}"
+
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
+
+                    full_response = "".join(response_lines)
+                    # Wait for Temperature: (last field) to ensure complete response
+                    if "BMS connected:" in full_response and "Temperature:" in full_response:
+                        result = {}
+                        for line in full_response.split("\n"):
+                            if "BMS connected:" in line:
+                                result["connected"] = "yes" in line.lower()
+                            elif "BMS chip ID:" in line:
+                                result["chip_id"] = line.split(":", 1)[1].strip()
+                            elif "Charge:" in line:
+                                try:
+                                    result["charge_percent"] = int(line.split(":")[1].strip().replace("%", ""))
+                                except:
+                                    pass
+                            elif "Capacity:" in line:
+                                try:
+                                    result["capacity_mah"] = int(line.split(":")[1].strip().split()[0])
+                                except:
+                                    pass
+                            elif "Temperature:" in line:
+                                try:
+                                    result["temp_c"] = int(line.split(":")[1].strip().split()[0])
+                                except:
+                                    pass
+                        return result, None
+
+                if time.time() - start_time > timeout:
+                    break
+
+            full_response = "".join(response_lines)
+            return None, f"Timeout. Response: {full_response[:200]}..."
+
+        except Exception as e:
+            return None, f"Exception: {str(e)}"
+
+    def cmd_theta_app_test_charger(self) -> Tuple[Optional[dict], Optional[str]]:
+        """Test battery charger chip on theta app processor
+
+        Returns:
+            Tuple of (charger_data_dict, error_string)
+            charger_data_dict contains: chip_id, on_charger, charging, charge_done, voltage_mv
+        """
+        try:
+            input_queue = queue.Queue()
+            input_queue.put(b"\r")
+            time.sleep(0.2)
+            input_queue.put(b"test_charger\r")
+
+            def request_iterator():
+                while True:
+                    try:
+                        data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=data)
+                    except queue.Empty:
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=b"")
+                        time.sleep(0.1)
+
+            response_lines = []
+            start_time = time.time()
+            timeout = 10
+
+            for resp in self.UartStream(HostType.HOST_TYPE_NRF52840, request_iterator()):
+                if not resp.success:
+                    return None, f"UartStream error: {resp.message}"
+
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
+
+                    full_response = "".join(response_lines)
+                    # Wait for Battery voltage: (last field) to ensure complete response
+                    if "Charger chip ID:" in full_response and "Battery voltage:" in full_response:
+                        result = {}
+                        for line in full_response.split("\n"):
+                            if "Charger chip ID:" in line:
+                                result["chip_id"] = line.split(":", 1)[1].strip().split()[0]
+                            elif "On charger:" in line:
+                                result["on_charger"] = "yes" in line.lower()
+                            elif "Charging:" in line and "On" not in line:
+                                result["charging"] = "yes" in line.lower()
+                            elif "Charge done:" in line:
+                                result["charge_done"] = "yes" in line.lower()
+                            elif "Battery voltage:" in line:
+                                try:
+                                    result["voltage_mv"] = int(line.split(":")[1].strip().split()[0])
+                                except:
+                                    pass
+                        return result, None
+
+                if time.time() - start_time > timeout:
+                    break
+
+            full_response = "".join(response_lines)
+            return None, f"Timeout. Response: {full_response[:200]}..."
+
+        except Exception as e:
+            return None, f"Exception: {str(e)}"
+
+    def cmd_theta_app_test_gps(self) -> Tuple[Optional[dict], Optional[str]]:
+        """Test GPS (GNSS) module on theta app processor
+
+        Returns:
+            Tuple of (gps_data_dict, error_string)
+            gps_data_dict contains: shutdown, tracking, comms_ok
+        """
+        try:
+            input_queue = queue.Queue()
+            input_queue.put(b"\r")
+            time.sleep(0.2)
+            input_queue.put(b"test_gps\r")
+
+            def request_iterator():
+                while True:
+                    try:
+                        data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=data)
+                    except queue.Empty:
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=b"")
+                        time.sleep(0.1)
+
+            response_lines = []
+            start_time = time.time()
+            timeout = 10
+
+            for resp in self.UartStream(HostType.HOST_TYPE_NRF52840, request_iterator()):
+                if not resp.success:
+                    return None, f"UartStream error: {resp.message}"
+
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
+
+                    full_response = "".join(response_lines)
+                    # Wait for GPS comms: (last field) to ensure complete response
+                    if "GPS shutdown:" in full_response and "GPS comms:" in full_response:
+                        result = {}
+                        for line in full_response.split("\n"):
+                            if "GPS shutdown:" in line:
+                                result["shutdown"] = "yes" in line.lower()
+                            elif "GPS tracking:" in line:
+                                result["tracking"] = "yes" in line.lower()
+                            elif "GPS comms:" in line:
+                                result["comms_ok"] = "OK" in line
+                        return result, None
+
+                if time.time() - start_time > timeout:
+                    break
+
+            full_response = "".join(response_lines)
+            return None, f"Timeout. Response: {full_response[:200]}..."
+
+        except Exception as e:
+            return None, f"Exception: {str(e)}"
+
+    def cmd_theta_app_read_ext_flash(
+        self, address: str, num_bytes: int
+    ) -> Tuple[Optional[str], Optional[str]]:
+        """Read data from app processor external flash
+
+        Args:
+            address: The address to read from
+            num_bytes: The number of bytes to read
+        Returns:
+            Tuple of (hex_data, error_string)
+        """
+        try:
+            input_queue = queue.Queue()
+            input_queue.put(b"\r")
+            time.sleep(0.2)
+            input_queue.put(f"read_ext_flash {address} {num_bytes}\r".encode("utf-8"))
+
+            def request_iterator():
+                while True:
+                    try:
+                        data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=data)
+                    except queue.Empty:
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=b"")
+                        time.sleep(0.1)
+
+            response_lines = []
+            start_time = time.time()
+            timeout = 10
+
+            for resp in self.UartStream(HostType.HOST_TYPE_NRF52840, request_iterator()):
+                if not resp.success:
+                    return None, f"UartStream error: {resp.message}"
+
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
+
+                    full_response = "".join(response_lines)
+                    if "Reading" in full_response and "bytes from address:" in full_response:
+                        lines = full_response.split("\n")
+                        read_command_found = False
+                        prompt_found = False
+
+                        for i, line in enumerate(lines):
+                            if "read_ext_flash" in line:
+                                read_command_found = True
+                            elif read_command_found and "Mfg shell:" in line.strip():
+                                prompt_found = True
+                                break
+
+                        if prompt_found:
+                            hex_data = ""
+                            lines = full_response.split("\n")
+                            for line in lines:
+                                if ":" in line and "|" in line:
+                                    hex_part = line.split("|")[0].strip()
+                                    if ":" in hex_part:
+                                        hex_values = hex_part.split(":", 1)[1].strip()
+                                        hex_data += hex_values.replace(" ", "")
+                            return hex_data, None
+
+                if time.time() - start_time > timeout:
+                    break
+
+            full_response = "".join(response_lines)
+            return None, f"Timeout. Response: {full_response[:200]}..."
+
+        except Exception as e:
+            return None, f"Exception in read_ext_flash: {str(e)}"
+
+    def cmd_theta_app_write_ext_flash(
+        self, address: str, data: str
+    ) -> Tuple[Optional[bool], Optional[str]]:
+        """Write data to app processor external flash (data should be base64 encoded)
+
+        Args:
+            address: The address to write to
+            data: The data to write (base64 encoded)
+        Returns:
+            Tuple of (success, error_string)
+        """
+        try:
+            input_queue = queue.Queue()
+            input_queue.put(b"\r")
+            time.sleep(0.2)
+            input_queue.put(f"write_ext_flash {address} {data}\r".encode("utf-8"))
+
+            def request_iterator():
+                while True:
+                    try:
+                        cmd_data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=cmd_data)
+                    except queue.Empty:
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=b"")
+                        time.sleep(0.1)
+
+            response_lines = []
+            start_time = time.time()
+            timeout = 10
+
+            for resp in self.UartStream(HostType.HOST_TYPE_NRF52840, request_iterator()):
+                if not resp.success:
+                    return None, f"UartStream error: {resp.message}"
+
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
+
+                    full_response = "".join(response_lines)
+                    if "Writing" in full_response and "bytes to address:" in full_response:
+                        lines = full_response.split("\n")
+                        write_command_found = False
+                        prompt_found = False
+
+                        for i, line in enumerate(lines):
+                            if "write_ext_flash" in line:
+                                write_command_found = True
+                            elif write_command_found and "Mfg shell:" in line.strip():
+                                prompt_found = True
+                                break
+
+                        if prompt_found:
+                            return True, None
+
+                if time.time() - start_time > timeout:
+                    break
+
+            full_response = "".join(response_lines)
+            return False, f"Timeout. Response: {full_response[:200]}..."
+
+        except Exception as e:
+            return None, f"Exception in write_ext_flash: {str(e)}"
+
+    def cmd_theta_app_erase_ext_flash(self) -> Tuple[Optional[bool], Optional[str]]:
+        """Erase app processor external flash
+
+        Returns:
+            Tuple of (success, error_string)
+        """
+        try:
+            input_queue = queue.Queue()
+            input_queue.put(b"\r")
+            time.sleep(0.2)
+            input_queue.put(b"erase_ext_flash\r")
+
+            def request_iterator():
+                while True:
+                    try:
+                        data = input_queue.get_nowait()
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=data)
+                    except queue.Empty:
+                        yield UartStreamRequest(target=HostType.HOST_TYPE_NRF52840, data=b"")
+                        time.sleep(0.1)
+
+            response_lines = []
+            start_time = time.time()
+            timeout = 30  # Erase can take longer
+
+            for resp in self.UartStream(HostType.HOST_TYPE_NRF52840, request_iterator()):
+                if not resp.success:
+                    return None, f"UartStream error: {resp.message}"
+
+                if resp.data and len(resp.data) > 0:
+                    line = resp.data.decode("utf-8", errors="ignore")
+                    response_lines.append(line)
+
+                    full_response = "".join(response_lines)
+                    if "Erasing flash" in full_response and "pages" in full_response:
+                        lines = full_response.split("\n")
+                        erase_command_found = False
+                        prompt_found = False
+
+                        for i, line in enumerate(lines):
+                            if "erase_ext_flash" in line:
+                                erase_command_found = True
+                            elif erase_command_found and "Mfg shell:" in line.strip():
+                                prompt_found = True
+                                break
+
+                        if prompt_found:
+                            return True, None
+
+                if time.time() - start_time > timeout:
+                    break
+
+            full_response = "".join(response_lines)
+            return False, f"Timeout. Response: {full_response[:200]}..."
+
+        except Exception as e:
+            return None, f"Exception in erase_ext_flash: {str(e)}"
