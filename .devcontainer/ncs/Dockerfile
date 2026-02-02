@@ -232,26 +232,6 @@ ENV LANG=en_US.UTF-8
 ENV LANGUAGE=en_US:en
 ENV LC_ALL=en_US.UTF-8
 
-# ----------------------------------------------------
-#                                   DevUser NCS Setup
-# ----------------------------------------------------
-# Make /ncs accessible to devuser
-RUN chown -R devuser:devuser /ncs
-
 # Set ZEPHYR_BASE as a persistent environment variable
 # This ensures west build commands work in all contexts
 ENV ZEPHYR_BASE=/ncs/zephyr
-
-# Set up Zephyr environment for devuser
-RUN echo 'source /ncs/zephyr/zephyr-env.sh' >> /home/devuser/.profile && \
-  echo 'source /ncs/zephyr/zephyr-env.sh' >> /home/devuser/.zshrc
-
-# Install Python requirements for devuser
-RUN --mount=type=cache,target=/home/devuser/.cache/pip \
-  chown -R devuser:devuser /home/devuser/.cache 2>/dev/null || true && \
-  su devuser -c "pip3 install --user -r /ncs/zephyr/scripts/requirements.txt \
-                                      -r /ncs/nrf/scripts/requirements.txt \
-                                      -r /ncs/bootloader/mcuboot/scripts/requirements.txt"
-
-# Add devuser's local bin to PATH
-ENV PATH="/home/devuser/.local/bin:${PATH}"

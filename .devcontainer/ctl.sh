@@ -54,11 +54,6 @@ fix_usb_permissions() {
 start_container() {
     log_info "Starting the container"
 
-    # Fix docker socket permissions for devuser
-    if [ -x /usr/local/bin/fix-docker-permissions ]; then
-        /usr/local/bin/fix-docker-permissions
-    fi
-
     # Fix USB permissions for J-Link and Nordic devices
     fix_usb_permissions
 
@@ -74,11 +69,6 @@ start_container() {
 # Create action for the devcontainers
 create_action() {
     log_info "Creating action for the devcontainers"
-
-    # Fix docker socket permissions for devuser
-    if [ -x /usr/local/bin/fix-docker-permissions ]; then
-        /usr/local/bin/fix-docker-permissions
-    fi
 
     # Check if CONCORD_MONOREPO_ROOT is set to the correct path
     if [ "$CONCORD_MONOREPO_ROOT" = "/path/to/concord" ]; then

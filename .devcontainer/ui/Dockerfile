@@ -70,7 +70,7 @@ RUN flutter doctor --android-licenses
 # Configure Flutter for web development
 RUN flutter config --enable-web
 
-# Make Flutter cache writable by devuser (from base image)
+# Make Flutter cache writable
 RUN chmod -R 777 /opt/flutter/bin/cache || true
 
 # ----------------------------------------------------
