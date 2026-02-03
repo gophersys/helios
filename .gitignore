@@ -62,7 +62,7 @@ venv/
 # Pytest
 .pytest_cache/
 
-# Firmware files 
+# Firmware files
 *.hex
 *.zip
 
@@ -93,5 +93,6 @@ venv/
 .nx/workspace-data
 
 # Prisma
-prisma/db
-libs/python/corekinect/database
+libs/python/database
+vite.config.*.timestamp*
+vitest.config.*.timestamp*
