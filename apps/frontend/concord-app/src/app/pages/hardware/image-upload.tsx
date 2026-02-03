@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { Upload, X } from 'lucide-react';
+import { Upload } from 'lucide-react';
 
 interface ImageUploadProps {
   currentUrl?: string | null;
@@ -18,6 +18,7 @@ export function ImageUpload({ currentUrl, onUpload, disabled }: ImageUploadProps
       if (!ext || !['png', 'jpg', 'jpeg', 'webp'].includes(ext)) {
         return;
       }
+      if (preview) URL.revokeObjectURL(preview);
       setPreview(URL.createObjectURL(file));
       setUploading(true);
       try {
@@ -26,7 +27,7 @@ export function ImageUpload({ currentUrl, onUpload, disabled }: ImageUploadProps
         setUploading(false);
       }
     },
-    [onUpload]
+    [onUpload, preview]
   );
 
   const handleDrop = useCallback(

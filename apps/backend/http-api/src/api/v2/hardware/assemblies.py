@@ -1,4 +1,4 @@
-from datetime import timedelta
+from io import BytesIO
 
 from flask import jsonify, request
 
@@ -9,25 +9,13 @@ from src.lib.types import ApiResponse
 from src.services.database.prisma import get_db_client
 from src.services.storage.client import get_hardware_bucket_name, get_storage_client
 
+from .shared import ALLOWED_IMAGE_EXTENSIONS, MIME_TYPES, presigned_url
 from .types import (
     AssemblyCreateRequest,
     AssemblyRevisionCreateRequest,
     AssemblyRevisionUpdateRequest,
     AssemblyUpdateRequest,
 )
-
-ALLOWED_IMAGE_EXTENSIONS = {"png", "jpg", "jpeg", "webp"}
-
-
-def _presigned_url(image_key: str | None) -> str | None:
-    if not image_key:
-        return None
-    client = get_storage_client()
-    return client.presigned_get_object(
-        get_hardware_bucket_name(),
-        image_key,
-        expires=timedelta(hours=1),
-    )
 
 
 def _serialize_assembly(a, include_revisions=False) -> dict:
@@ -36,7 +24,7 @@ def _serialize_assembly(a, include_revisions=False) -> dict:
         "name": a.name,
         "description": a.description,
         "imageKey": a.imageKey,
-        "imageUrl": _presigned_url(a.imageKey),
+        "imageUrl": presigned_url(a.imageKey),
         "createdAt": a.createdAt.isoformat(),
         "updatedAt": a.updatedAt.isoformat(),
     }
@@ -115,26 +103,23 @@ def list_assemblies():
 
 @require_permissions(Permissions.ADMIN_HARDWARE_MANAGE)
 def create_assembly():
-    try:
-        data, error = AssemblyCreateRequest.from_json(request.get_json())
-        if error:
-            return bad_request(error)
+    data, error = AssemblyCreateRequest.from_json(request.get_json())
+    if error:
+        return bad_request(error)
 
-        db = get_db_client()
-        existing = db.assembly.find_unique(where={"name": data.name})
-        if existing:
-            return conflict("Assembly with this name already exists")
+    db = get_db_client()
+    existing = db.assembly.find_unique(where={"name": data.name})
+    if existing:
+        return conflict("Assembly with this name already exists")
 
-        assembly = db.assembly.create(
-            data={
-                "name": data.name,
-                "description": data.description,
-            },
-            include={"revisions": True},
-        )
-        return jsonify(ApiResponse.ok(_serialize_assembly(assembly)).to_dict()), 201
-    except Exception as e:
-        return internal_error(str(e))
+    assembly = db.assembly.create(
+        data={
+            "name": data.name,
+            "description": data.description,
+        },
+        include={"revisions": True},
+    )
+    return jsonify(ApiResponse.ok(_serialize_assembly(assembly)).to_dict()), 201
 
 
 @require_permissions(Permissions.ADMIN_HARDWARE_VIEW)
@@ -156,29 +141,26 @@ def get_assembly(assembly_id: str):
 
 @require_permissions(Permissions.ADMIN_HARDWARE_MANAGE)
 def update_assembly(assembly_id: str):
-    try:
-        data, error = AssemblyUpdateRequest.from_json(request.get_json())
-        if error:
-            return bad_request(error)
+    data, error = AssemblyUpdateRequest.from_json(request.get_json())
+    if error:
+        return bad_request(error)
 
-        db = get_db_client()
-        existing = db.assembly.find_unique(where={"id": assembly_id})
-        if not existing:
-            return not_found("Assembly not found")
+    db = get_db_client()
+    existing = db.assembly.find_unique(where={"id": assembly_id})
+    if not existing:
+        return not_found("Assembly not found")
 
-        if data.name and data.name != existing.name:
-            dup = db.assembly.find_unique(where={"name": data.name})
-            if dup:
-                return conflict("Assembly with this name already exists")
+    if data.name and data.name != existing.name:
+        dup = db.assembly.find_unique(where={"name": data.name})
+        if dup:
+            return conflict("Assembly with this name already exists")
 
-        assembly = db.assembly.update(
-            where={"id": assembly_id},
-            data=data.to_update_data(),
-            include={"revisions": True},
-        )
-        return jsonify(ApiResponse.ok(_serialize_assembly(assembly)).to_dict()), 200
-    except Exception as e:
-        return internal_error(str(e))
+    assembly = db.assembly.update(
+        where={"id": assembly_id},
+        data=data.to_update_data(),
+        include={"revisions": True},
+    )
+    return jsonify(ApiResponse.ok(_serialize_assembly(assembly)).to_dict()), 200
 
 
 @require_permissions(Permissions.ADMIN_HARDWARE_MANAGE)
@@ -233,13 +215,12 @@ def upload_assembly_image(assembly_id: str):
                 pass
 
         file_data = file.read()
-        from io import BytesIO
         client.put_object(
             bucket,
             object_key,
             BytesIO(file_data),
             length=len(file_data),
-            content_type=file.content_type or f"image/{ext}",
+            content_type=MIME_TYPES.get(ext, "application/octet-stream"),
         )
 
         updated = db.assembly.update(
@@ -257,116 +238,108 @@ def upload_assembly_image(assembly_id: str):
 
 @require_permissions(Permissions.ADMIN_HARDWARE_MANAGE)
 def create_assembly_revision(assembly_id: str):
-    try:
-        db = get_db_client()
-        assembly = db.assembly.find_unique(where={"id": assembly_id})
-        if not assembly:
-            return not_found("Assembly not found")
+    db = get_db_client()
+    assembly = db.assembly.find_unique(where={"id": assembly_id})
+    if not assembly:
+        return not_found("Assembly not found")
 
-        data, error = AssemblyRevisionCreateRequest.from_json(request.get_json())
-        if error:
-            return bad_request(error)
+    data, error = AssemblyRevisionCreateRequest.from_json(request.get_json())
+    if error:
+        return bad_request(error)
 
-        existing = db.assemblyrevision.find_first(
+    existing = db.assemblyrevision.find_first(
+        where={"assemblyId": assembly_id, "version": data.version}
+    )
+    if existing:
+        return conflict(f"Revision '{data.version}' already exists for this assembly")
+
+    # Validate BOM hardware revision IDs exist
+    if data.bom:
+        hr_ids = [item.hardwareRevisionId for item in data.bom]
+        found = db.hardwarerevision.find_many(where={"id": {"in": hr_ids}})
+        found_ids = {r.id for r in found}
+        missing = [rid for rid in hr_ids if rid not in found_ids]
+        if missing:
+            return bad_request(f"Hardware revision(s) not found: {', '.join(missing)}")
+
+    revision = db.assemblyrevision.create(
+        data={
+            "assemblyId": assembly_id,
+            "version": data.version,
+            "status": data.status,
+            "releaseNotes": data.releaseNotes,
+            "components": {
+                "create": [
+                    {
+                        "hardwareRevisionId": item.hardwareRevisionId,
+                        "quantity": item.quantity,
+                    }
+                    for item in (data.bom or [])
+                ]
+            },
+        },
+        include=_REVISION_INCLUDE,
+    )
+    return jsonify(ApiResponse.ok(_serialize_assembly_revision(revision)).to_dict()), 201
+
+
+@require_permissions(Permissions.ADMIN_HARDWARE_MANAGE)
+def update_assembly_revision(assembly_id: str, revision_id: str):
+    db = get_db_client()
+    revision = db.assemblyrevision.find_first(
+        where={"id": revision_id, "assemblyId": assembly_id}
+    )
+    if not revision:
+        return not_found("Assembly revision not found")
+
+    data, error = AssemblyRevisionUpdateRequest.from_json(request.get_json())
+    if error:
+        return bad_request(error)
+
+    if data.version and data.version != revision.version:
+        dup = db.assemblyrevision.find_first(
             where={"assemblyId": assembly_id, "version": data.version}
         )
-        if existing:
+        if dup:
             return conflict(f"Revision '{data.version}' already exists for this assembly")
 
-        # Validate BOM hardware revision IDs exist
-        if data.bom:
-            hr_ids = [item.hardwareRevisionId for item in data.bom]
+    # Validate BOM before any writes
+    if data._has_bom and data.bom is not None:
+        hr_ids = [item.hardwareRevisionId for item in data.bom]
+        if hr_ids:
             found = db.hardwarerevision.find_many(where={"id": {"in": hr_ids}})
             found_ids = {r.id for r in found}
             missing = [rid for rid in hr_ids if rid not in found_ids]
             if missing:
                 return bad_request(f"Hardware revision(s) not found: {', '.join(missing)}")
 
-        revision = db.assemblyrevision.create(
-            data={
-                "assemblyId": assembly_id,
-                "version": data.version,
-                "status": data.status,
-                "releaseNotes": data.releaseNotes,
-                "components": {
-                    "create": [
-                        {
-                            "hardwareRevisionId": item.hardwareRevisionId,
-                            "quantity": item.quantity,
-                        }
-                        for item in (data.bom or [])
-                    ]
-                },
-            },
-            include=_REVISION_INCLUDE,
-        )
-        return jsonify(ApiResponse.ok(_serialize_assembly_revision(revision)).to_dict()), 201
-    except Exception as e:
-        return internal_error(str(e))
-
-
-@require_permissions(Permissions.ADMIN_HARDWARE_MANAGE)
-def update_assembly_revision(assembly_id: str, revision_id: str):
-    try:
-        db = get_db_client()
-        revision = db.assemblyrevision.find_first(
-            where={"id": revision_id, "assemblyId": assembly_id}
-        )
-        if not revision:
-            return not_found("Assembly revision not found")
-
-        data, error = AssemblyRevisionUpdateRequest.from_json(request.get_json())
-        if error:
-            return bad_request(error)
-
-        if data.version and data.version != revision.version:
-            dup = db.assemblyrevision.find_first(
-                where={"assemblyId": assembly_id, "version": data.version}
-            )
-            if dup:
-                return conflict(f"Revision '{data.version}' already exists for this assembly")
-
-        # Update revision fields
-        update_data = data.to_update_data()
-        if update_data:
-            db.assemblyrevision.update(
-                where={"id": revision_id},
-                data=update_data,
-            )
-
-        # Replace BOM atomically if provided
-        if data._has_bom and data.bom is not None:
-            # Validate hardware revision IDs
-            hr_ids = [item.hardwareRevisionId for item in data.bom]
-            if hr_ids:
-                found = db.hardwarerevision.find_many(where={"id": {"in": hr_ids}})
-                found_ids = {r.id for r in found}
-                missing = [rid for rid in hr_ids if rid not in found_ids]
-                if missing:
-                    return bad_request(f"Hardware revision(s) not found: {', '.join(missing)}")
-
-            # Delete old BOM entries
-            db.assemblyrevisioncomponent.delete_many(
-                where={"assemblyRevisionId": revision_id}
-            )
-
-            # Create new BOM entries
-            for item in data.bom:
-                db.assemblyrevisioncomponent.create(
-                    data={
-                        "assemblyRevisionId": revision_id,
-                        "hardwareRevisionId": item.hardwareRevisionId,
-                        "quantity": item.quantity,
-                    }
-                )
-
-        updated = db.assemblyrevision.find_unique(
+    # Update revision fields
+    update_data = data.to_update_data()
+    if update_data:
+        db.assemblyrevision.update(
             where={"id": revision_id},
-            include=_REVISION_INCLUDE,
+            data=update_data,
         )
-        return jsonify(ApiResponse.ok(_serialize_assembly_revision(updated)).to_dict()), 200
-    except Exception as e:
-        return internal_error(str(e))
+
+    # Replace BOM after validation
+    if data._has_bom and data.bom is not None:
+        db.assemblyrevisioncomponent.delete_many(
+            where={"assemblyRevisionId": revision_id}
+        )
+        for item in data.bom:
+            db.assemblyrevisioncomponent.create(
+                data={
+                    "assemblyRevisionId": revision_id,
+                    "hardwareRevisionId": item.hardwareRevisionId,
+                    "quantity": item.quantity,
+                }
+            )
+
+    updated = db.assemblyrevision.find_unique(
+        where={"id": revision_id},
+        include=_REVISION_INCLUDE,
+    )
+    return jsonify(ApiResponse.ok(_serialize_assembly_revision(updated)).to_dict()), 200
 
 
 @require_permissions(Permissions.ADMIN_HARDWARE_MANAGE)

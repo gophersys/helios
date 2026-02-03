@@ -1,4 +1,4 @@
-from datetime import timedelta
+from io import BytesIO
 
 from flask import jsonify, request
 
@@ -9,20 +9,8 @@ from src.lib.types import ApiResponse
 from src.services.database.prisma import get_db_client
 from src.services.storage.client import get_hardware_bucket_name, get_storage_client
 
+from .shared import ALLOWED_IMAGE_EXTENSIONS, MIME_TYPES, presigned_url
 from .types import ComponentCreateRequest, ComponentUpdateRequest, RevisionCreateRequest, RevisionUpdateRequest
-
-ALLOWED_IMAGE_EXTENSIONS = {"png", "jpg", "jpeg", "webp"}
-
-
-def _presigned_url(image_key: str | None) -> str | None:
-    if not image_key:
-        return None
-    client = get_storage_client()
-    return client.presigned_get_object(
-        get_hardware_bucket_name(),
-        image_key,
-        expires=timedelta(hours=1),
-    )
 
 
 def _serialize_component(c, include_revisions=False) -> dict:
@@ -34,7 +22,7 @@ def _serialize_component(c, include_revisions=False) -> dict:
         "manufacturer": c.manufacturer,
         "partNumber": c.partNumber,
         "imageKey": c.imageKey,
-        "imageUrl": _presigned_url(c.imageKey),
+        "imageUrl": presigned_url(c.imageKey),
         "createdAt": c.createdAt.isoformat(),
         "updatedAt": c.updatedAt.isoformat(),
     }
@@ -72,33 +60,30 @@ def list_components():
 
 @require_permissions(Permissions.ADMIN_HARDWARE_MANAGE)
 def create_component():
-    try:
-        data, error = ComponentCreateRequest.from_json(request.get_json())
-        if error:
-            return bad_request(error)
+    data, error = ComponentCreateRequest.from_json(request.get_json())
+    if error:
+        return bad_request(error)
 
-        db = get_db_client()
+    db = get_db_client()
 
-        existing = db.hardwarecomponent.find_first(
-            where={"OR": [{"name": data.name}, {"partNumber": data.partNumber}]}
-        )
-        if existing:
-            field = "name" if existing.name == data.name else "part number"
-            return conflict(f"Component with this {field} already exists")
+    existing = db.hardwarecomponent.find_first(
+        where={"OR": [{"name": data.name}, {"partNumber": data.partNumber}]}
+    )
+    if existing:
+        field = "name" if existing.name == data.name else "part number"
+        return conflict(f"Component with this {field} already exists")
 
-        component = db.hardwarecomponent.create(
-            data={
-                "name": data.name,
-                "description": data.description,
-                "category": data.category,
-                "manufacturer": data.manufacturer,
-                "partNumber": data.partNumber,
-            },
-            include={"revisions": True},
-        )
-        return jsonify(ApiResponse.ok(_serialize_component(component)).to_dict()), 201
-    except Exception as e:
-        return internal_error(str(e))
+    component = db.hardwarecomponent.create(
+        data={
+            "name": data.name,
+            "description": data.description,
+            "category": data.category,
+            "manufacturer": data.manufacturer,
+            "partNumber": data.partNumber,
+        },
+        include={"revisions": True},
+    )
+    return jsonify(ApiResponse.ok(_serialize_component(component)).to_dict()), 201
 
 
 @require_permissions(Permissions.ADMIN_HARDWARE_VIEW)
@@ -115,42 +100,51 @@ def get_component(component_id: str):
 
 @require_permissions(Permissions.ADMIN_HARDWARE_MANAGE)
 def update_component(component_id: str):
-    try:
-        data, error = ComponentUpdateRequest.from_json(request.get_json())
-        if error:
-            return bad_request(error)
+    data, error = ComponentUpdateRequest.from_json(request.get_json())
+    if error:
+        return bad_request(error)
 
-        db = get_db_client()
-        existing = db.hardwarecomponent.find_unique(where={"id": component_id})
-        if not existing:
-            return not_found("Component not found")
+    db = get_db_client()
+    existing = db.hardwarecomponent.find_unique(where={"id": component_id})
+    if not existing:
+        return not_found("Component not found")
 
-        # Check uniqueness for name/partNumber
-        if data.name and data.name != existing.name:
-            dup = db.hardwarecomponent.find_unique(where={"name": data.name})
-            if dup:
-                return conflict("Component with this name already exists")
-        if data.partNumber and data.partNumber != existing.partNumber:
-            dup = db.hardwarecomponent.find_unique(where={"partNumber": data.partNumber})
-            if dup:
-                return conflict("Component with this part number already exists")
+    # Check uniqueness for name/partNumber
+    if data.name and data.name != existing.name:
+        dup = db.hardwarecomponent.find_unique(where={"name": data.name})
+        if dup:
+            return conflict("Component with this name already exists")
+    if data.partNumber and data.partNumber != existing.partNumber:
+        dup = db.hardwarecomponent.find_unique(where={"partNumber": data.partNumber})
+        if dup:
+            return conflict("Component with this part number already exists")
 
-        component = db.hardwarecomponent.update(
-            where={"id": component_id},
-            data=data.to_update_data(),
-            include={"revisions": True},
-        )
-        return jsonify(ApiResponse.ok(_serialize_component(component)).to_dict()), 200
-    except Exception as e:
-        return internal_error(str(e))
+    component = db.hardwarecomponent.update(
+        where={"id": component_id},
+        data=data.to_update_data(),
+        include={"revisions": True},
+    )
+    return jsonify(ApiResponse.ok(_serialize_component(component)).to_dict()), 200
 
 
 @require_permissions(Permissions.ADMIN_HARDWARE_MANAGE)
 def delete_component(component_id: str):
     db = get_db_client()
-    existing = db.hardwarecomponent.find_unique(where={"id": component_id})
+    existing = db.hardwarecomponent.find_unique(
+        where={"id": component_id},
+        include={"revisions": True},
+    )
     if not existing:
         return not_found("Component not found")
+
+    # Check if any revisions are referenced in assembly BOMs
+    if existing.revisions:
+        rev_ids = [r.id for r in existing.revisions]
+        bom_refs = db.assemblyrevisioncomponent.find_first(
+            where={"hardwareRevisionId": {"in": rev_ids}}
+        )
+        if bom_refs:
+            return conflict("Cannot delete component: one or more revisions are referenced in assembly BOMs")
 
     # Delete image from MinIO if exists
     if existing.imageKey:
@@ -199,13 +193,12 @@ def upload_component_image(component_id: str):
                 pass
 
         file_data = file.read()
-        from io import BytesIO
         client.put_object(
             bucket,
             object_key,
             BytesIO(file_data),
             length=len(file_data),
-            content_type=file.content_type or f"image/{ext}",
+            content_type=MIME_TYPES.get(ext, "application/octet-stream"),
         )
 
         updated = db.hardwarecomponent.update(
@@ -223,65 +216,59 @@ def upload_component_image(component_id: str):
 
 @require_permissions(Permissions.ADMIN_HARDWARE_MANAGE)
 def create_revision(component_id: str):
-    try:
-        db = get_db_client()
-        component = db.hardwarecomponent.find_unique(where={"id": component_id})
-        if not component:
-            return not_found("Component not found")
+    db = get_db_client()
+    component = db.hardwarecomponent.find_unique(where={"id": component_id})
+    if not component:
+        return not_found("Component not found")
 
-        data, error = RevisionCreateRequest.from_json(request.get_json())
-        if error:
-            return bad_request(error)
+    data, error = RevisionCreateRequest.from_json(request.get_json())
+    if error:
+        return bad_request(error)
 
-        # Check duplicate version
-        existing = db.hardwarerevision.find_first(
-            where={"componentId": component_id, "version": data.version}
-        )
-        if existing:
-            return conflict(f"Revision '{data.version}' already exists for this component")
+    # Check duplicate version
+    existing = db.hardwarerevision.find_first(
+        where={"componentId": component_id, "version": data.version}
+    )
+    if existing:
+        return conflict(f"Revision '{data.version}' already exists for this component")
 
-        revision = db.hardwarerevision.create(
-            data={
-                "componentId": component_id,
-                "version": data.version,
-                "status": data.status,
-                "releaseNotes": data.releaseNotes,
-            }
-        )
-        return jsonify(ApiResponse.ok(_serialize_revision(revision)).to_dict()), 201
-    except Exception as e:
-        return internal_error(str(e))
+    revision = db.hardwarerevision.create(
+        data={
+            "componentId": component_id,
+            "version": data.version,
+            "status": data.status,
+            "releaseNotes": data.releaseNotes,
+        }
+    )
+    return jsonify(ApiResponse.ok(_serialize_revision(revision)).to_dict()), 201
 
 
 @require_permissions(Permissions.ADMIN_HARDWARE_MANAGE)
 def update_revision(component_id: str, revision_id: str):
-    try:
-        db = get_db_client()
-        revision = db.hardwarerevision.find_first(
-            where={"id": revision_id, "componentId": component_id}
+    db = get_db_client()
+    revision = db.hardwarerevision.find_first(
+        where={"id": revision_id, "componentId": component_id}
+    )
+    if not revision:
+        return not_found("Revision not found")
+
+    data, error = RevisionUpdateRequest.from_json(request.get_json())
+    if error:
+        return bad_request(error)
+
+    # Check version uniqueness if changing
+    if data.version and data.version != revision.version:
+        dup = db.hardwarerevision.find_first(
+            where={"componentId": component_id, "version": data.version}
         )
-        if not revision:
-            return not_found("Revision not found")
+        if dup:
+            return conflict(f"Revision '{data.version}' already exists for this component")
 
-        data, error = RevisionUpdateRequest.from_json(request.get_json())
-        if error:
-            return bad_request(error)
-
-        # Check version uniqueness if changing
-        if data.version and data.version != revision.version:
-            dup = db.hardwarerevision.find_first(
-                where={"componentId": component_id, "version": data.version}
-            )
-            if dup:
-                return conflict(f"Revision '{data.version}' already exists for this component")
-
-        updated = db.hardwarerevision.update(
-            where={"id": revision_id},
-            data=data.to_update_data(),
-        )
-        return jsonify(ApiResponse.ok(_serialize_revision(updated)).to_dict()), 200
-    except Exception as e:
-        return internal_error(str(e))
+    updated = db.hardwarerevision.update(
+        where={"id": revision_id},
+        data=data.to_update_data(),
+    )
+    return jsonify(ApiResponse.ok(_serialize_revision(updated)).to_dict()), 200
 
 
 @require_permissions(Permissions.ADMIN_HARDWARE_MANAGE)
@@ -292,6 +279,13 @@ def delete_revision(component_id: str, revision_id: str):
     )
     if not revision:
         return not_found("Revision not found")
+
+    # Check if revision is referenced in any assembly BOM
+    bom_ref = db.assemblyrevisioncomponent.find_first(
+        where={"hardwareRevisionId": revision_id}
+    )
+    if bom_ref:
+        return conflict("Cannot delete revision: it is referenced in an assembly BOM")
 
     db.hardwarerevision.delete(where={"id": revision_id})
     return jsonify(ApiResponse.ok({"deleted": True}).to_dict()), 200

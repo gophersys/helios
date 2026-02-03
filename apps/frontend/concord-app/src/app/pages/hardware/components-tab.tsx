@@ -147,11 +147,15 @@ export function ComponentsTab() {
   };
 
   const handleImageUpload = async (componentId: string, file: File) => {
-    const formData = new FormData();
-    formData.append('file', file);
-    await apiUpload(`/v2/hardware/components/${componentId}/image`, formData);
-    fetchComponents();
-    if (selectedComponent?.id === componentId) fetchDetail(componentId);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      await apiUpload(`/v2/hardware/components/${componentId}/image`, formData);
+      fetchComponents();
+      if (selectedComponent?.id === componentId) fetchDetail(componentId);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to upload image');
+    }
   };
 
   const handleCreateRevision = async (e: React.FormEvent) => {
@@ -180,6 +184,7 @@ export function ComponentsTab() {
 
   const handleDeleteRevision = async (revisionId: string) => {
     if (!selectedComponent) return;
+    if (!confirm('Delete this revision? This cannot be undone.')) return;
     try {
       await api(
         `/v2/hardware/components/${selectedComponent.id}/revisions/${revisionId}`,

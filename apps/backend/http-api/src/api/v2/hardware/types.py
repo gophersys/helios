@@ -55,6 +55,8 @@ class ComponentUpdateRequest:
         name = data.get("name")
         if name is not None:
             name = name.strip()
+            if not name:
+                return None, "Name cannot be empty"
         category = data.get("category")
         if category is not None:
             category = category.strip()
@@ -63,9 +65,13 @@ class ComponentUpdateRequest:
         manufacturer = data.get("manufacturer")
         if manufacturer is not None:
             manufacturer = manufacturer.strip()
+            if not manufacturer:
+                return None, "Manufacturer cannot be empty"
         part_number = data.get("partNumber")
         if part_number is not None:
             part_number = part_number.strip()
+            if not part_number:
+                return None, "Part number cannot be empty"
         description = data.get("description")
         has_description = "description" in data
 
@@ -137,6 +143,8 @@ class RevisionUpdateRequest:
         version = data.get("version")
         if version is not None:
             version = version.strip()
+            if not version:
+                return None, "Version cannot be empty"
         status = data.get("status")
         if status is not None:
             status = status.strip()
@@ -201,6 +209,8 @@ class AssemblyUpdateRequest:
         name = data.get("name")
         if name is not None:
             name = name.strip()
+            if not name:
+                return None, "Name cannot be empty"
         description = data.get("description")
         has_description = "description" in data
 
@@ -253,10 +263,14 @@ class AssemblyRevisionCreateRequest:
         if bom_raw:
             if not isinstance(bom_raw, list):
                 return None, "BOM must be an array"
+            seen_ids: set = set()
             for item in bom_raw:
                 hr_id = item.get("hardwareRevisionId")
                 if not hr_id:
                     return None, "Each BOM item must have hardwareRevisionId"
+                if hr_id in seen_ids:
+                    return None, f"Duplicate hardwareRevisionId in BOM: {hr_id}"
+                seen_ids.add(hr_id)
                 qty = item.get("quantity", 1)
                 if not isinstance(qty, int) or qty < 1:
                     return None, "Quantity must be a positive integer"
@@ -287,6 +301,8 @@ class AssemblyRevisionUpdateRequest:
         version = data.get("version")
         if version is not None:
             version = version.strip()
+            if not version:
+                return None, "Version cannot be empty"
         status = data.get("status")
         if status is not None:
             status = status.strip()
@@ -302,10 +318,14 @@ class AssemblyRevisionUpdateRequest:
             if not isinstance(bom_raw, list):
                 return None, "BOM must be an array"
             bom_items = []
+            seen_ids: set = set()
             for item in bom_raw:
                 hr_id = item.get("hardwareRevisionId")
                 if not hr_id:
                     return None, "Each BOM item must have hardwareRevisionId"
+                if hr_id in seen_ids:
+                    return None, f"Duplicate hardwareRevisionId in BOM: {hr_id}"
+                seen_ids.add(hr_id)
                 qty = item.get("quantity", 1)
                 if not isinstance(qty, int) or qty < 1:
                     return None, "Quantity must be a positive integer"

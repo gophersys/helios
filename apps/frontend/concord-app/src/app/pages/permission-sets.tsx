@@ -1,6 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
-import { Plus, X, Pencil, Trash2, Check } from 'lucide-react';
+import {
+  Plus,
+  X,
+  Pencil,
+  Trash2,
+  Check,
+  ChevronRight,
+  ChevronDown,
+} from 'lucide-react';
 import { useAuth } from '../auth-provider';
 import { api } from '../api';
 import { PageHeader } from '../components/ui/page-header';
@@ -10,28 +18,448 @@ interface AvailablePermission {
   name: string;
 }
 
+interface PermissionSetUser {
+  id: string;
+  name: string;
+  email: string;
+}
+
 interface PermissionSet {
   id: string;
   name: string;
   description: string | null;
   permissions: string[];
   userCount: number;
+  users: PermissionSetUser[];
   createdAt: string;
   updatedAt: string;
 }
 
-// Group permissions by their category prefix for the checkbox UI
-function groupPermissions(permissions: AvailablePermission[]) {
-  const groups: Record<string, AvailablePermission[]> = {};
-  for (const p of permissions) {
-    // e.g. "Concord.Firmware.AppID.Create" → "Firmware"
-    const parts = p.key.split('.');
-    const group = parts.length >= 3 ? parts[1] : 'Other';
-    if (!groups[group]) groups[group] = [];
-    groups[group].push(p);
-  }
-  return groups;
+// ── Action color mapping ──────────────────────────────────────
+
+const ACTION_COLORS: Record<
+  string,
+  { bg: string; text: string; dot: string }
+> = {
+  Create: {
+    bg: 'bg-success-muted',
+    text: 'text-success',
+    dot: 'bg-success',
+  },
+  View: { bg: 'bg-info-muted', text: 'text-info', dot: 'bg-info' },
+  Read: { bg: 'bg-info-muted', text: 'text-info', dot: 'bg-info' },
+  Update: {
+    bg: 'bg-warning-muted',
+    text: 'text-warning',
+    dot: 'bg-warning',
+  },
+  Delete: {
+    bg: 'bg-error-muted',
+    text: 'text-error',
+    dot: 'bg-error',
+  },
+  Manage: {
+    bg: 'bg-accent-muted',
+    text: 'text-accent',
+    dot: 'bg-accent',
+  },
+  Run: {
+    bg: 'bg-accent-muted',
+    text: 'text-accent',
+    dot: 'bg-accent',
+  },
+};
+
+const DEFAULT_COLOR = {
+  bg: 'bg-surface-2',
+  text: 'text-text-secondary',
+  dot: 'bg-text-tertiary',
+};
+
+function getActionColor(action: string) {
+  return ACTION_COLORS[action] || DEFAULT_COLOR;
 }
+
+// ── Tree data structure ───────────────────────────────────────
+
+interface TreeNode {
+  label: string;
+  permKey?: string; // set only on leaf nodes (the full permission key)
+  children: TreeNode[];
+}
+
+/** Build a nested tree from flat permission keys like "Concord.Firmware.AppID.Create" */
+function buildTree(permissions: AvailablePermission[]): TreeNode[] {
+  const root: TreeNode = { label: 'root', children: [] };
+
+  for (const p of permissions) {
+    // Skip the "Concord" prefix — start from index 1
+    const parts = p.key.split('.');
+    const segments = parts.slice(1); // ["Firmware", "AppID", "Create"]
+
+    let current = root;
+    for (let i = 0; i < segments.length; i++) {
+      const seg = segments[i];
+      const isLeaf = i === segments.length - 1;
+
+      let child = current.children.find((c) => c.label === seg);
+      if (!child) {
+        child = {
+          label: seg,
+          children: [],
+          ...(isLeaf ? { permKey: p.key } : {}),
+        };
+        current.children.push(child);
+      }
+      if (isLeaf) {
+        child.permKey = p.key;
+      }
+      current = child;
+    }
+  }
+
+  return root.children;
+}
+
+/** Collect all permission keys under a tree node */
+function collectKeys(node: TreeNode): string[] {
+  if (node.permKey) return [node.permKey];
+  return node.children.flatMap(collectKeys);
+}
+
+// ── Tree checkbox component (for form) ────────────────────────
+
+function TreeCheckboxNode({
+  node,
+  selectedPerms,
+  onToggle,
+  onToggleAll,
+  depth,
+}: {
+  node: TreeNode;
+  selectedPerms: Set<string>;
+  onToggle: (key: string) => void;
+  onToggleAll: (keys: string[], selected: boolean) => void;
+  depth: number;
+}) {
+  const [expanded, setExpanded] = useState(true);
+  const isLeaf = !!node.permKey;
+  const allKeys = collectKeys(node);
+  const checkedCount = allKeys.filter((k) => selectedPerms.has(k)).length;
+  const allChecked = checkedCount === allKeys.length;
+  const someChecked = checkedCount > 0 && !allChecked;
+
+  if (isLeaf) {
+    const color = getActionColor(node.label);
+    return (
+      <label
+        className="flex items-center gap-2.5 py-0.5 cursor-pointer group"
+        style={{ paddingLeft: `${depth * 20}px` }}
+      >
+        <input
+          type="checkbox"
+          checked={selectedPerms.has(node.permKey!)}
+          onChange={() => onToggle(node.permKey!)}
+          className="rounded border-border text-accent focus:ring-accent"
+        />
+        <span
+          className={[
+            'inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-2xs font-medium transition-opacity',
+            color.bg,
+            color.text,
+            selectedPerms.has(node.permKey!)
+              ? 'opacity-100'
+              : 'opacity-50',
+          ].join(' ')}
+        >
+          <span className={['h-1.5 w-1.5 rounded-full', color.dot].join(' ')} />
+          {node.label}
+        </span>
+      </label>
+    );
+  }
+
+  return (
+    <div>
+      <div
+        className="flex items-center gap-1 py-1 cursor-pointer select-none"
+        style={{ paddingLeft: `${depth * 20}px` }}
+      >
+        <button
+          type="button"
+          onClick={() => setExpanded(!expanded)}
+          className="flex h-5 w-5 items-center justify-center rounded text-text-tertiary hover:text-text-primary"
+        >
+          {expanded ? (
+            <ChevronDown size={14} strokeWidth={2} />
+          ) : (
+            <ChevronRight size={14} strokeWidth={2} />
+          )}
+        </button>
+        <input
+          type="checkbox"
+          checked={allChecked}
+          ref={(el) => {
+            if (el) el.indeterminate = someChecked;
+          }}
+          onChange={() => onToggleAll(allKeys, !allChecked)}
+          className="rounded border-border text-accent focus:ring-accent"
+        />
+        <span className="text-xs font-semibold text-text-primary">
+          {node.label}
+        </span>
+        <span className="text-2xs text-text-tertiary ml-1">
+          {checkedCount}/{allKeys.length}
+        </span>
+      </div>
+      {expanded && (
+        <div>
+          {node.children.map((child) => (
+            <TreeCheckboxNode
+              key={child.label}
+              node={child}
+              selectedPerms={selectedPerms}
+              onToggle={onToggle}
+              onToggleAll={onToggleAll}
+              depth={depth + 1}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Read-only tree display (for list cards) ───────────────────
+
+function TreeDisplayNode({
+  node,
+  enabledPerms,
+  depth,
+}: {
+  node: TreeNode;
+  enabledPerms: Set<string>;
+  depth: number;
+}) {
+  const isLeaf = !!node.permKey;
+
+  if (isLeaf) {
+    const enabled = enabledPerms.has(node.permKey!);
+    const color = getActionColor(node.label);
+    return (
+      <span
+        className={[
+          'inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-2xs font-medium',
+          enabled ? color.bg : 'bg-transparent',
+          enabled ? color.text : 'text-text-tertiary line-through opacity-40',
+        ].join(' ')}
+      >
+        <span
+          className={[
+            'h-1.5 w-1.5 rounded-full',
+            enabled ? color.dot : 'bg-text-tertiary opacity-40',
+          ].join(' ')}
+        />
+        {node.label}
+      </span>
+    );
+  }
+
+  const childKeys = collectKeys(node);
+  const enabledCount = childKeys.filter((k) => enabledPerms.has(k)).length;
+
+  // Collect leaf actions for this node
+  const leafChildren = node.children.filter((c) => c.permKey);
+  const branchChildren = node.children.filter((c) => !c.permKey);
+
+  return (
+    <div style={{ paddingLeft: depth > 0 ? '16px' : '0' }}>
+      <div className="flex items-center gap-2 py-1">
+        <span
+          className={[
+            'text-2xs font-semibold',
+            enabledCount > 0 ? 'text-text-primary' : 'text-text-tertiary opacity-60',
+          ].join(' ')}
+        >
+          {node.label}
+        </span>
+        {/* Render leaf actions inline */}
+        {leafChildren.length > 0 && (
+          <div className="flex flex-wrap gap-1">
+            {leafChildren.map((child) => (
+              <TreeDisplayNode
+                key={child.label}
+                node={child}
+                enabledPerms={enabledPerms}
+                depth={0}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+      {/* Render branch children below */}
+      {branchChildren.map((child) => (
+        <TreeDisplayNode
+          key={child.label}
+          node={child}
+          enabledPerms={enabledPerms}
+          depth={depth + 1}
+        />
+      ))}
+    </div>
+  );
+}
+
+// ── Collapsible permission set card ───────────────────────────
+
+function PermissionSetCard({
+  ps,
+  tree,
+  canManage,
+  onEdit,
+  onDelete,
+}: {
+  ps: PermissionSet;
+  tree: TreeNode[];
+  canManage: boolean;
+  onEdit: (ps: PermissionSet) => void;
+  onDelete: (id: string) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const enabledPerms = new Set(ps.permissions);
+  const allKeys = tree.flatMap(collectKeys);
+  const totalCount = allKeys.length;
+
+  return (
+    <div className="rounded-xl border border-border bg-surface-1">
+      {/* Header — always visible, clickable to toggle */}
+      <button
+        type="button"
+        onClick={() => setExpanded(!expanded)}
+        className="flex w-full items-center gap-3 px-4 py-3.5 text-left"
+      >
+        <div className="flex h-5 w-5 shrink-0 items-center justify-center text-text-tertiary">
+          {expanded ? (
+            <ChevronDown size={16} strokeWidth={2} />
+          ) : (
+            <ChevronRight size={16} strokeWidth={2} />
+          )}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <h4 className="text-sm font-semibold text-text-primary">
+              {ps.name}
+            </h4>
+            <span className="rounded-full bg-accent-muted px-2 py-0.5 text-2xs font-medium text-accent">
+              {ps.permissions.length}/{totalCount}
+            </span>
+          </div>
+          {ps.description && (
+            <p className="mt-0.5 text-2xs text-text-tertiary">
+              {ps.description}
+            </p>
+          )}
+        </div>
+        <div className="flex shrink-0 items-center gap-3">
+          {ps.users.length > 0 ? (
+            <div className="flex items-center gap-1.5">
+              <div className="flex -space-x-1.5">
+                {ps.users.slice(0, 5).map((u) => (
+                  <div
+                    key={u.id}
+                    title={`${u.name} (${u.email})`}
+                    className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-surface-1 bg-accent-muted text-2xs font-semibold text-accent"
+                  >
+                    {u.name.charAt(0).toUpperCase()}
+                  </div>
+                ))}
+                {ps.users.length > 5 && (
+                  <div className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-surface-1 bg-surface-2 text-2xs font-medium text-text-tertiary">
+                    +{ps.users.length - 5}
+                  </div>
+                )}
+              </div>
+              <span className="text-2xs text-text-tertiary">
+                {ps.userCount} user{ps.userCount !== 1 ? 's' : ''}
+              </span>
+            </div>
+          ) : (
+            <span className="text-2xs text-text-tertiary">No users</span>
+          )}
+          {canManage && (
+            <div
+              className="flex items-center gap-1"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                onClick={() => onEdit(ps)}
+                className="rounded-lg p-2 text-text-tertiary transition-colors hover:bg-surface-2 hover:text-text-primary"
+                title="Edit"
+              >
+                <Pencil size={14} />
+              </button>
+              <button
+                onClick={() => onDelete(ps.id)}
+                className="rounded-lg p-2 text-text-tertiary transition-colors hover:bg-error-muted hover:text-error"
+                title="Delete"
+              >
+                <Trash2 size={14} />
+              </button>
+            </div>
+          )}
+        </div>
+      </button>
+
+      {/* Collapsible body */}
+      {expanded && (
+        <div className="border-t border-border-subtle">
+          {/* Users list */}
+          {ps.users.length > 0 && (
+            <div className="border-b border-border-subtle px-4 py-3">
+              <div className="mb-2 text-2xs font-medium text-text-tertiary">
+                Assigned users
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {ps.users.map((u) => (
+                  <div
+                    key={u.id}
+                    className="flex items-center gap-2 rounded-lg bg-surface-2 px-2.5 py-1.5"
+                  >
+                    <div className="flex h-5 w-5 items-center justify-center rounded-full bg-accent-muted text-2xs font-semibold text-accent">
+                      {u.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <div className="text-2xs font-medium text-text-primary">
+                        {u.name}
+                      </div>
+                      <div className="text-2xs text-text-tertiary">
+                        {u.email}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Permissions tree */}
+          <div className="px-4 py-3">
+            {tree.map((node) => (
+              <TreeDisplayNode
+                key={node.label}
+                node={node}
+                enabledPerms={enabledPerms}
+                depth={0}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Main page component ───────────────────────────────────────
 
 export function PermissionSetsPage() {
   const { hasPermission } = useAuth();
@@ -87,7 +515,7 @@ export function PermissionSetsPage() {
   }
 
   const canManage = hasPermission('Concord.Admin.PermissionSets.Manage');
-  const permGroups = groupPermissions(availablePerms);
+  const tree = buildTree(availablePerms);
 
   const resetForm = () => {
     setFormName('');
@@ -108,25 +536,18 @@ export function PermissionSetsPage() {
   const togglePermission = (key: string) => {
     setFormPermissions((prev) => {
       const next = new Set(prev);
-      if (next.has(key)) {
-        next.delete(key);
-      } else {
-        next.add(key);
-      }
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
       return next;
     });
   };
 
-  const toggleGroup = (groupPerms: AvailablePermission[]) => {
+  const toggleAll = (keys: string[], selected: boolean) => {
     setFormPermissions((prev) => {
       const next = new Set(prev);
-      const allSelected = groupPerms.every((p) => next.has(p.key));
-      for (const p of groupPerms) {
-        if (allSelected) {
-          next.delete(p.key);
-        } else {
-          next.add(p.key);
-        }
+      for (const k of keys) {
+        if (selected) next.add(k);
+        else next.delete(k);
       }
       return next;
     });
@@ -190,7 +611,7 @@ export function PermissionSetsPage() {
                   resetForm();
                   setShowForm(true);
                 }}
-                className="flex items-center gap-2 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-surface-0 transition-colors hover:bg-accent-hover"
+                className="flex items-center gap-2 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-hover"
               >
                 <Plus size={16} />
                 New set
@@ -250,64 +671,22 @@ export function PermissionSetsPage() {
               </div>
             </div>
 
-            {/* Permissions checkboxes */}
+            {/* Permissions tree */}
             <div className="mb-4">
               <label className="mb-2 block text-2xs font-medium text-text-tertiary">
                 Permissions
               </label>
-              <div className="rounded-lg border border-border bg-surface-0 p-4">
-                <div className="grid grid-cols-2 gap-4">
-                  {Object.entries(permGroups).map(([group, perms]) => {
-                    const allChecked = perms.every((p) =>
-                      formPermissions.has(p.key),
-                    );
-                    const someChecked = perms.some((p) =>
-                      formPermissions.has(p.key),
-                    );
-                    return (
-                      <div key={group}>
-                        <label className="mb-1.5 flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            checked={allChecked}
-                            ref={(el) => {
-                              if (el)
-                                el.indeterminate = someChecked && !allChecked;
-                            }}
-                            onChange={() => toggleGroup(perms)}
-                            className="rounded border-border text-accent focus:ring-accent"
-                          />
-                          <span className="text-xs font-semibold text-text-primary">
-                            {group}
-                          </span>
-                        </label>
-                        <div className="ml-5 space-y-1">
-                          {perms.map((p) => {
-                            // Extract the last part as a readable label
-                            const parts = p.key.split('.');
-                            const label = parts[parts.length - 1];
-                            return (
-                              <label
-                                key={p.key}
-                                className="flex items-center gap-2"
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={formPermissions.has(p.key)}
-                                  onChange={() => togglePermission(p.key)}
-                                  className="rounded border-border text-accent focus:ring-accent"
-                                />
-                                <span className="text-2xs text-text-secondary">
-                                  {label}
-                                </span>
-                              </label>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+              <div className="rounded-lg border border-border bg-surface-0 p-3">
+                {tree.map((node) => (
+                  <TreeCheckboxNode
+                    key={node.label}
+                    node={node}
+                    selectedPerms={formPermissions}
+                    onToggle={togglePermission}
+                    onToggleAll={toggleAll}
+                    depth={0}
+                  />
+                ))}
               </div>
             </div>
 
@@ -315,7 +694,7 @@ export function PermissionSetsPage() {
               <button
                 type="submit"
                 disabled={formPermissions.size === 0}
-                className="flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-surface-0 transition-colors hover:bg-accent-hover disabled:opacity-50"
+                className="flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
               >
                 <Check size={14} />
                 {editingId ? 'Save changes' : 'Create'}
@@ -340,66 +719,14 @@ export function PermissionSetsPage() {
       ) : (
         <div className="space-y-3">
           {sets.map((ps) => (
-            <div
+            <PermissionSetCard
               key={ps.id}
-              className="rounded-xl border border-border bg-surface-1 p-4"
-            >
-              <div className="flex items-start justify-between">
-                <div>
-                  <h4 className="text-sm font-semibold text-text-primary">
-                    {ps.name}
-                  </h4>
-                  {ps.description && (
-                    <p className="mt-0.5 text-2xs text-text-tertiary">
-                      {ps.description}
-                    </p>
-                  )}
-                  <div className="mt-2 flex items-center gap-3 text-2xs text-text-tertiary">
-                    <span>
-                      {ps.permissions.length} permission
-                      {ps.permissions.length !== 1 ? 's' : ''}
-                    </span>
-                    <span>
-                      {ps.userCount} user{ps.userCount !== 1 ? 's' : ''}
-                    </span>
-                  </div>
-                </div>
-                {canManage && (
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => startEdit(ps)}
-                      className="rounded-lg p-2 text-text-tertiary transition-colors hover:bg-surface-2 hover:text-text-primary"
-                      title="Edit"
-                    >
-                      <Pencil size={14} />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(ps.id)}
-                      className="rounded-lg p-2 text-text-tertiary transition-colors hover:bg-error-muted hover:text-error"
-                      title="Delete"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Permissions chips */}
-              <div className="mt-3 flex flex-wrap gap-1.5">
-                {ps.permissions.map((perm) => {
-                  const parts = perm.split('.');
-                  const short = parts.slice(1).join('.');
-                  return (
-                    <span
-                      key={perm}
-                      className="rounded-full bg-surface-2 px-2 py-0.5 text-2xs text-text-secondary"
-                    >
-                      {short}
-                    </span>
-                  );
-                })}
-              </div>
-            </div>
+              ps={ps}
+              tree={tree}
+              canManage={canManage}
+              onEdit={startEdit}
+              onDelete={handleDelete}
+            />
           ))}
         </div>
       )}

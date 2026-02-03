@@ -263,20 +263,24 @@ export function Sidebar({
                   Admin
                 </span>
               )}
-              <SidebarLink
-                to="/users"
-                icon={Users}
-                label="Users"
-                collapsed={collapsed}
-                onDoubleClick={onToggle}
-              />
-              <SidebarLink
-                to="/permission-sets"
-                icon={ShieldCheck}
-                label="Permission Sets"
-                collapsed={collapsed}
-                onDoubleClick={onToggle}
-              />
+              {hasPermission('Concord.Admin.Users.View') && (
+                <SidebarLink
+                  to="/users"
+                  icon={Users}
+                  label="Users"
+                  collapsed={collapsed}
+                  onDoubleClick={onToggle}
+                />
+              )}
+              {hasPermission('Concord.Admin.Users.View') && (
+                <SidebarLink
+                  to="/permission-sets"
+                  icon={ShieldCheck}
+                  label="Permission Sets"
+                  collapsed={collapsed}
+                  onDoubleClick={onToggle}
+                />
+              )}
               {hasPermission('Concord.Admin.Hardware.View') && (
                 <SidebarLink
                   to="/hardware"

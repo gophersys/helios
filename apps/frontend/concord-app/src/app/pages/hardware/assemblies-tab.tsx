@@ -201,11 +201,15 @@ export function AssembliesTab() {
   };
 
   const handleImageUpload = async (assemblyId: string, file: File) => {
-    const formData = new FormData();
-    formData.append('file', file);
-    await apiUpload(`/v2/hardware/assemblies/${assemblyId}/image`, formData);
-    fetchAssemblies();
-    if (selectedAssembly?.id === assemblyId) fetchDetail(assemblyId);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      await apiUpload(`/v2/hardware/assemblies/${assemblyId}/image`, formData);
+      fetchAssemblies();
+      if (selectedAssembly?.id === assemblyId) fetchDetail(assemblyId);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to upload image');
+    }
   };
 
   const handleCreateRevision = async (e: React.FormEvent) => {
@@ -236,6 +240,7 @@ export function AssembliesTab() {
 
   const handleDeleteRevision = async (revisionId: string) => {
     if (!selectedAssembly) return;
+    if (!confirm('Delete this revision? This cannot be undone.')) return;
     try {
       await api(
         `/v2/hardware/assemblies/${selectedAssembly.id}/revisions/${revisionId}`,

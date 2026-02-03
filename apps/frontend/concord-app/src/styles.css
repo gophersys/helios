@@ -5,20 +5,20 @@
 
 @layer base {
   :root {
-    /* Surfaces — clean neutral whites */
-    --surface-0: #FAFAFA;
-    --surface-1: #F5F5F5;
-    --surface-2: #EBEBEB;
-    --surface-3: #E0E0E0;
+    /* Surfaces — subtle off-white bg, white cards */
+    --surface-0: #F5F5F7;
+    --surface-1: #FFFFFF;
+    --surface-2: #F0F0F3;
+    --surface-3: #E6E6EB;
 
     /* Borders */
-    --border: #E0E0E0;
-    --border-subtle: #EBEBEB;
+    --border: #DCDCE2;
+    --border-subtle: #E8E8ED;
 
     /* Text — neutral */
     --text-primary: #1A1A1A;
-    --text-secondary: #6B6B6B;
-    --text-tertiary: #A0A0A0;
+    --text-secondary: #636370;
+    --text-tertiary: #9494A0;
 
     /* Accent — coral-orange, from CoreKinect logo slash */
     --accent: #CF6A3E;
@@ -27,10 +27,10 @@
     --accent-subtle: rgba(207, 106, 62, 0.14);
 
     /* Sidebar */
-    --sidebar-bg: #F5F5F5;
+    --sidebar-bg: #F8F8FA;
     --sidebar-active-bg: rgba(207, 106, 62, 0.06);
     --sidebar-active-border: #CF6A3E;
-    --sidebar-hover-bg: #EBEBEB;
+    --sidebar-hover-bg: #EDEDF1;
 
     /* Status */
     --success: #3D8B4D;
@@ -51,20 +51,20 @@
   }
 
   .dark {
-    /* Surfaces — true neutral darks */
-    --surface-0: #0A0A0A;
-    --surface-1: #121212;
-    --surface-2: #1A1A1A;
-    --surface-3: #232323;
+    /* Surfaces — softer grey darks with card contrast */
+    --surface-0: #151518;
+    --surface-1: #1E1E23;
+    --surface-2: #27272E;
+    --surface-3: #313139;
 
-    /* Borders — neutral */
-    --border: #272727;
-    --border-subtle: #1E1E1E;
+    /* Borders — visible separation */
+    --border: #2F2F38;
+    --border-subtle: #25252C;
 
-    /* Text — clean whites and greys */
-    --text-primary: #F0F0F0;
-    --text-secondary: #8A8A8A;
-    --text-tertiary: #5C5C5C;
+    /* Text — lighter greys for readability */
+    --text-primary: #EDEDF0;
+    --text-secondary: #9898A3;
+    --text-tertiary: #6A6A76;
 
     /* Accent — coral-orange, brighter for dark backgrounds */
     --accent: #E8845C;
@@ -73,10 +73,10 @@
     --accent-subtle: rgba(232, 132, 92, 0.18);
 
     /* Sidebar */
-    --sidebar-bg: #0E0E0E;
+    --sidebar-bg: #131316;
     --sidebar-active-bg: rgba(232, 132, 92, 0.08);
     --sidebar-active-border: #E8845C;
-    --sidebar-hover-bg: #181818;
+    --sidebar-hover-bg: #1C1C22;
 
     /* Status */
     --success: #5FA86A;

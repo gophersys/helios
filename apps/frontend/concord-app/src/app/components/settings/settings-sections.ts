@@ -13,7 +13,7 @@ export interface SettingsSection {
 }
 
 export const settingsSections: SettingsSection[] = [
+  { id: 'system', label: 'System', icon: Monitor, component: SystemSection },
   { id: 'permissions', label: 'My Permissions', icon: Shield, component: PermissionsSection },
   { id: 'api-keys', label: 'API Keys', icon: KeyRound, component: ApiKeysSection },
-  { id: 'system', label: 'System', icon: Monitor, component: SystemSection },
 ];

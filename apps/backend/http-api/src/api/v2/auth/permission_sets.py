@@ -28,6 +28,10 @@ def list_permission_sets():
                     "description": s.description,
                     "permissions": s.permissions,
                     "userCount": len(s.users) if s.users else 0,
+                    "users": [
+                        {"id": u.id, "name": u.name, "email": u.email}
+                        for u in (s.users or [])
+                    ],
                     "createdAt": s.createdAt.isoformat(),
                     "updatedAt": s.updatedAt.isoformat(),
                 }

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Boxes, Pencil, Trash2, ChevronDown } from 'lucide-react';
 
 interface BomItem {
@@ -58,6 +58,10 @@ export function AssemblyCard({
   const [selectedRev, setSelectedRev] = useState<AssemblyRevision | null>(
     revisions[0] || null
   );
+
+  useEffect(() => {
+    setSelectedRev((assembly.revisions || [])[0] || null);
+  }, [assembly.revisions]);
 
   const currentBom = selectedRev?.bom || [];
 

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Cpu, Pencil, Trash2, ChevronDown } from 'lucide-react';
 
 interface Revision {
@@ -49,6 +49,10 @@ export function ComponentCard({
   const [selectedRev, setSelectedRev] = useState<Revision | null>(
     component.revisions?.[0] || null
   );
+
+  useEffect(() => {
+    setSelectedRev(component.revisions?.[0] || null);
+  }, [component.revisions]);
 
   const revisions = component.revisions || [];
 
