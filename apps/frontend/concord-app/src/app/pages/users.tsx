@@ -1,21 +1,16 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
-import { UserPlus, Shield, Eye, Wrench, X, Check } from 'lucide-react';
+import { UserPlus, X, Check } from 'lucide-react';
 import { useAuth, User } from '../auth-provider';
 import { api } from '../api';
 import { PageHeader } from '../components/ui/page-header';
 
-const ROLE_ICON = {
-  ADMIN: Shield,
-  OPERATOR: Wrench,
-  VIEWER: Eye,
-} as const;
-
-const ROLE_LABEL = {
-  ADMIN: 'Admin',
-  OPERATOR: 'Operator',
-  VIEWER: 'Viewer',
-} as const;
+interface PermissionSet {
+  id: string;
+  name: string;
+  description: string | null;
+  permissions: string[];
+}
 
 interface FullUser extends User {
   active: boolean;
@@ -25,17 +20,16 @@ interface FullUser extends User {
 }
 
 export function UsersPage() {
-  const { user: currentUser } = useAuth();
+  const { user: currentUser, hasPermission } = useAuth();
   const [users, setUsers] = useState<FullUser[]>([]);
+  const [permissionSets, setPermissionSets] = useState<PermissionSet[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [formEmail, setFormEmail] = useState('');
   const [formName, setFormName] = useState('');
-  const [formRole, setFormRole] = useState<'ADMIN' | 'OPERATOR' | 'VIEWER'>(
-    'VIEWER'
-  );
+  const [formPermissionSetId, setFormPermissionSetId] = useState('');
 
   const fetchUsers = useCallback(async () => {
     try {
@@ -48,13 +42,30 @@ export function UsersPage() {
     }
   }, []);
 
+  const fetchPermissionSets = useCallback(async () => {
+    try {
+      const data = await api<{ data: PermissionSet[] }>('/v2/auth/permission-sets');
+      setPermissionSets(data.data);
+      if (data.data.length > 0 && !formPermissionSetId) {
+        // Default to the first non-admin set, or just the first one
+        const viewerSet = data.data.find((s) => s.name === 'Viewer');
+        setFormPermissionSetId(viewerSet?.id || data.data[0].id);
+      }
+    } catch {
+      // Permission sets might not be accessible if user doesn't have permission
+    }
+  }, [formPermissionSetId]);
+
   useEffect(() => {
     fetchUsers();
-  }, [fetchUsers]);
+    fetchPermissionSets();
+  }, [fetchUsers, fetchPermissionSets]);
 
-  if (currentUser?.role !== 'ADMIN') {
+  if (!hasPermission('Concord.Admin.Users.View')) {
     return <Navigate to="/" replace />;
   }
+
+  const canManage = hasPermission('Concord.Admin.Users.Manage');
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,12 +76,13 @@ export function UsersPage() {
         body: JSON.stringify({
           email: formEmail,
           name: formName,
-          role: formRole,
+          permissionSetId: formPermissionSetId || null,
         }),
       });
       setFormEmail('');
       setFormName('');
-      setFormRole('VIEWER');
+      const viewerSet = permissionSets.find((s) => s.name === 'Viewer');
+      setFormPermissionSetId(viewerSet?.id || permissionSets[0]?.id || '');
       setShowCreate(false);
       fetchUsers();
     } catch (err: unknown) {
@@ -90,15 +102,15 @@ export function UsersPage() {
     }
   };
 
-  const handleRoleChange = async (userId: string, role: string) => {
+  const handlePermissionSetChange = async (userId: string, permissionSetId: string) => {
     try {
       await api(`/v2/auth/users/${userId}`, {
         method: 'PUT',
-        body: JSON.stringify({ role }),
+        body: JSON.stringify({ permissionSetId: permissionSetId || null }),
       });
       fetchUsers();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to update role');
+      setError(err instanceof Error ? err.message : 'Failed to update permission set');
     }
   };
 
@@ -118,13 +130,15 @@ export function UsersPage() {
           title="Users"
           description="Manage who can access Concord."
           actions={
-            <button
-              onClick={() => setShowCreate(!showCreate)}
-              className="flex items-center gap-2 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-surface-0 transition-colors hover:bg-accent-hover"
-            >
-              {showCreate ? <X size={16} /> : <UserPlus size={16} />}
-              {showCreate ? 'Cancel' : 'Add user'}
-            </button>
+            canManage ? (
+              <button
+                onClick={() => setShowCreate(!showCreate)}
+                className="flex items-center gap-2 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-surface-0 transition-colors hover:bg-accent-hover"
+              >
+                {showCreate ? <X size={16} /> : <UserPlus size={16} />}
+                {showCreate ? 'Cancel' : 'Add user'}
+              </button>
+            ) : undefined
           }
         />
       </div>
@@ -136,7 +150,7 @@ export function UsersPage() {
       )}
 
       {/* Create form */}
-      {showCreate && (
+      {showCreate && canManage && (
         <form
           onSubmit={handleCreate}
           className="mb-6 rounded-xl border border-border bg-surface-1 p-4"
@@ -170,21 +184,20 @@ export function UsersPage() {
             </div>
             <div>
               <label className="mb-1 block text-2xs font-medium text-text-tertiary">
-                Role
+                Permission Set
               </label>
               <div className="flex gap-2">
                 <select
-                  value={formRole}
-                  onChange={(e) =>
-                    setFormRole(
-                      e.target.value as 'ADMIN' | 'OPERATOR' | 'VIEWER'
-                    )
-                  }
+                  value={formPermissionSetId}
+                  onChange={(e) => setFormPermissionSetId(e.target.value)}
                   className="flex-1 rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none"
                 >
-                  <option value="VIEWER">Viewer</option>
-                  <option value="OPERATOR">Operator</option>
-                  <option value="ADMIN">Admin</option>
+                  <option value="">None</option>
+                  {permissionSets.map((ps) => (
+                    <option key={ps.id} value={ps.id}>
+                      {ps.name}
+                    </option>
+                  ))}
                 </select>
                 <button
                   type="submit"
@@ -212,7 +225,7 @@ export function UsersPage() {
                   User
                 </th>
                 <th className="px-4 py-3 text-left text-2xs font-medium uppercase tracking-wider text-text-tertiary">
-                  Role
+                  Permission Set
                 </th>
                 <th className="px-4 py-3 text-left text-2xs font-medium uppercase tracking-wider text-text-tertiary">
                   Status
@@ -227,7 +240,6 @@ export function UsersPage() {
             </thead>
             <tbody>
               {users.map((u) => {
-                const RoleIcon = ROLE_ICON[u.role];
                 const isSelf = u.id === currentUser?.id;
                 return (
                   <tr
@@ -248,22 +260,24 @@ export function UsersPage() {
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      {isSelf ? (
+                      {isSelf || !canManage ? (
                         <span className="inline-flex items-center gap-1.5 text-text-secondary">
-                          <RoleIcon size={14} />
-                          {ROLE_LABEL[u.role]}
+                          {u.permissionSetName || 'None'}
                         </span>
                       ) : (
                         <select
-                          value={u.role}
+                          value={u.permissionSetId || ''}
                           onChange={(e) =>
-                            handleRoleChange(u.id, e.target.value)
+                            handlePermissionSetChange(u.id, e.target.value)
                           }
                           className="rounded border border-border bg-surface-0 px-2 py-1 text-sm text-text-primary focus:border-accent focus:outline-none"
                         >
-                          <option value="VIEWER">Viewer</option>
-                          <option value="OPERATOR">Operator</option>
-                          <option value="ADMIN">Admin</option>
+                          <option value="">None</option>
+                          {permissionSets.map((ps) => (
+                            <option key={ps.id} value={ps.id}>
+                              {ps.name}
+                            </option>
+                          ))}
                         </select>
                       )}
                     </td>
@@ -282,7 +296,7 @@ export function UsersPage() {
                       {formatDate(u.lastSeenAt)}
                     </td>
                     <td className="px-4 py-3 text-right">
-                      {!isSelf && (
+                      {!isSelf && canManage && (
                         <button
                           onClick={() => handleToggleActive(u.id, u.active)}
                           className={`rounded-lg px-3 py-1 text-2xs font-medium transition-colors ${

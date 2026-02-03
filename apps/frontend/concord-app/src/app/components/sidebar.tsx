@@ -10,6 +10,7 @@ import {
   BarChart3,
   Settings,
   Users,
+  ShieldCheck,
   LogOut,
   PanelLeftClose,
 } from 'lucide-react';
@@ -148,7 +149,7 @@ export function Sidebar({
   onSettingsClick: () => void;
 }) {
   const { theme } = useTheme();
-  const { user, logout } = useAuth();
+  const { user, logout, hasPermission } = useAuth();
   const navigate = useNavigate();
   const [mode, setMode] = useState<Mode>(getInitialMode);
 
@@ -163,6 +164,8 @@ export function Sidebar({
     logout();
     navigate('/login');
   };
+
+  const isAdmin = hasPermission('Concord.Admin.Users.View');
 
   return (
     <aside
@@ -245,7 +248,7 @@ export function Sidebar({
         ))}
 
         {/* Admin section */}
-        {user?.role === 'ADMIN' && (
+        {isAdmin && (
           <div className="pt-4">
             <div
               className={[
@@ -263,6 +266,13 @@ export function Sidebar({
                 to="/users"
                 icon={Users}
                 label="Users"
+                collapsed={collapsed}
+                onDoubleClick={onToggle}
+              />
+              <SidebarLink
+                to="/permission-sets"
+                icon={ShieldCheck}
+                label="Permission Sets"
                 collapsed={collapsed}
                 onDoubleClick={onToggle}
               />
@@ -304,7 +314,7 @@ export function Sidebar({
               className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent-muted text-2xs font-semibold text-accent"
               title={
                 collapsed
-                  ? `${user.name} (${user.role.charAt(0) + user.role.slice(1).toLowerCase()})`
+                  ? `${user.name} (${user.permissionSetName || 'No role'})`
                   : undefined
               }
             >
@@ -317,7 +327,7 @@ export function Sidebar({
                     {user.name}
                   </div>
                   <div className="truncate text-2xs text-text-tertiary">
-                    {user.role.charAt(0) + user.role.slice(1).toLowerCase()}
+                    {user.permissionSetName || 'No role'}
                   </div>
                 </div>
                 <button

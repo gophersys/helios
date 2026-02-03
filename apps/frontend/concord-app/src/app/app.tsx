@@ -7,6 +7,7 @@ import { LoginPage } from './pages/login';
 import { DashboardPage } from './pages/dashboard';
 import { PlaceholderPage } from './pages/placeholder';
 import { UsersPage } from './pages/users';
+import { PermissionSetsPage } from './pages/permission-sets';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
@@ -45,6 +46,7 @@ function AppRoutes() {
         <Route path="logs" element={<PlaceholderPage />} />
         <Route path="statistics" element={<PlaceholderPage />} />
         <Route path="users" element={<UsersPage />} />
+        <Route path="permission-sets" element={<PermissionSetsPage />} />
       </Route>
     </Routes>
   );

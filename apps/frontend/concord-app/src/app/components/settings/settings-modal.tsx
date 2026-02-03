@@ -5,19 +5,15 @@ import { useAuth } from '../../auth-provider';
 import { settingsSections } from './settings-sections';
 
 export function SettingsModal({ onClose }: { onClose: () => void }) {
-  const { user } = useAuth();
+  const { hasPermission } = useAuth();
 
   const visibleSections = useMemo(
     () =>
       settingsSections.filter((s) => {
-        if (!s.requiredRole) return true;
-        if (!user) return false;
-        if (s.requiredRole === 'ADMIN') return user.role === 'ADMIN';
-        if (s.requiredRole === 'OPERATOR')
-          return user.role === 'ADMIN' || user.role === 'OPERATOR';
-        return false;
+        if (!s.requiredPermission) return true;
+        return hasPermission(s.requiredPermission);
       }),
-    [user],
+    [hasPermission],
   );
 
   const [activeId, setActiveId] = useState(visibleSections[0]?.id ?? '');
