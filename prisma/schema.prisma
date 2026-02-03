@@ -1,89 +1,431 @@
-// generator go {
-//     provider        = "go run github.com/steebchen/prisma-client-go"
-//     previewFeatures = ["fullTextSearch", "multiSchema"]
-// }
-
 generator python {
     provider             = "prisma-client-py"
-    output               = "../libs/python/corekinect/database"
+    output               = "../libs/python/database"
     interface            = "sync"
-    previewFeatures      = ["fullTextSearch", "multiSchema"]
     recursive_type_depth = 5
     binaryTargets        = ["debian-openssl-3.0.x"]
 }
 
 datasource db {
-    provider  = "postgresql"
-    url       = env("DATABASE_URL")
-    directUrl = env("DIRECT_URL")
-    schemas   = ["app"]
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
 }
 
-// -------------------------------------------------
-//                                          Firmware
-// -------------------------------------------------
-model AppId {
-    appId     Int      @id // The numeric application ID (100, 101, 102, etc.) - used as primary key
-    name      String // Application name (Comms, Sigma5 V2, etc.)
-    chipset   String // Chipset (Sigma5 Cx, Alpha Ax, etc.)
-    target    String // Target microcontroller (nRF9160, nRF52840, etc.)
-    notes     String? // Optional notes field
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
+// ─────────────────────────────────────────────────────────────
+//                                                        Enums
+// ─────────────────────────────────────────────────────────────
 
-    // Relations
-    mtibMappings MtibAppIdMapping[]
-
-    @@map("app_ids")
-    @@schema("app")
+enum UserRole {
+    ADMIN
+    OPERATOR
+    VIEWER
 }
 
-// -------------------------------------------------
-//                                              MTIB
-// -------------------------------------------------
+enum NodeStatus {
+    ONLINE
+    OFFLINE
+    MAINTENANCE
+    ERROR
+}
 
-enum MtibType {
-    VALIDATION
+enum NodeType {
     MANUFACTURING
-
-    @@schema("app")
+    VALIDATION
 }
 
-enum MtibFeature {
-    JOULESCOPE
-    MOTION
-
-    @@schema("app")
+enum DeploymentStatus {
+    PENDING
+    RUNNING
+    STOPPED
+    FAILED
 }
 
-model Mtib {
-    id        String        @id // The hostname of the MTIB (verdin-imx8mm-150006879) - used as primary key
-    name      String // The display name of the MTIB
-    type      MtibType // The type of MTIB (validation, manufacturing)
-    features  MtibFeature[] // The features supported by the MTIB (Joulescope, Motion, etc.)
-    createdAt DateTime      @default(now())
-    updatedAt DateTime      @updatedAt
-
-    // Relations
-    appIdMappings MtibAppIdMapping[]
-
-    @@map("mtib")
-    @@schema("app")
+enum SessionStatus {
+    ACTIVE
+    PAUSED
+    COMPLETED
+    CANCELLED
 }
 
-model MtibAppIdMapping {
+enum DeviceStatus {
+    PENDING
+    IN_PROGRESS
+    PASSED
+    FAILED
+}
+
+enum TestExecutionStatus {
+    QUEUED
+    RUNNING
+    PASSED
+    FAILED
+    CANCELLED
+    ERROR
+}
+
+enum LogLevel {
+    DEBUG
+    INFO
+    WARN
+    ERROR
+    FATAL
+}
+
+// ─────────────────────────────────────────────────────────────
+//                                               Users & Audit
+// ─────────────────────────────────────────────────────────────
+
+/// Lightweight mirror of the CoreOps Auth Server user.
+/// Not used for authentication — the auth server handles that.
+/// Exists so we can display names, track who did what, and
+/// enforce role-based UI without round-tripping to auth on
+/// every request.
+model User {
+    id         String    @id @default(cuid())
+    externalId String?   @unique /// Google sub ID, set on first login
+    email      String    @unique
+    name       String
+    role       UserRole  @default(VIEWER)
+    active     Boolean   @default(true)
+    lastSeenAt DateTime?
+    createdAt  DateTime  @default(now())
+    updatedAt  DateTime  @updatedAt
+
+    sessions       Session[]
+    deployments    Deployment[]
+    testExecutions TestExecution[]
+    auditLogs      AuditLog[]
+
+    @@map("users")
+}
+
+/// Append-only log of every significant mutation in the system.
+/// userId is nullable for system-initiated actions.
+model AuditLog {
+    id         String   @id @default(cuid())
+    userId     String?
+    action     String /// dot-notation verb: "session.create", "node.update", etc.
+    entityType String /// model name: "Session", "Node", "Test", etc.
+    entityId   String?
+    details    Json? /// freeform context — before/after snapshots, params, etc.
+    ipAddress  String?
+    createdAt  DateTime @default(now())
+
+    user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+    @@index([createdAt])
+    @@index([entityType, entityId])
+    @@index([userId])
+    @@map("audit_logs")
+}
+
+// ─────────────────────────────────────────────────────────────
+//                                       Products & Fixtures
+// ─────────────────────────────────────────────────────────────
+
+/// A hardware product that Concord tests: Sigma5, Theta, Alpha, etc.
+/// Everything flows from here — fixtures, tests, sessions.
+model Product {
+    id          String   @id @default(cuid())
+    name        String   @unique
+    description String?
+    active      Boolean  @default(true)
+    metadata    Json? /// chipset info, firmware paths, product-specific config
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+
+    fixtures    Fixture[]
+    tests       Test[]
+    sessions    Session[]
+    deployments Deployment[]
+
+    @@map("products")
+}
+
+/// A physical test fixture for a product. Manufacturing fixtures
+/// hold multi-panel arrays (4+ DUT slots). Validation fixtures
+/// hold individual units.
+model Fixture {
+    id          String   @id @default(cuid())
+    name        String /// "Theta MFG Fixture 1", "Sigma5 Validation Bench A"
+    productId   String
+    type        NodeType /// MANUFACTURING or VALIDATION
+    description String?
+    active      Boolean  @default(true)
+    metadata    Json? /// physical location, rack position, etc.
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+
+    product  Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
+    slots    FixtureSlot[]
+    sessions Session[]
+
+    @@map("fixtures")
+}
+
+/// A physical slot/position in a fixture. Each slot maps to one
+/// MTIB node. The @unique on nodeId ensures a node can only be
+/// assigned to one slot at a time (NULL is exempt from uniqueness,
+/// so empty slots are fine).
+model FixtureSlot {
     id        String   @id @default(cuid())
-    mtibId    String // Reference to the MTIB
-    jlink     Int // JLINK number (0, 1, etc.)
-    appId     Int // Reference to the AppId
+    fixtureId String
+    slotIndex Int /// 0-based position in the fixture
+    label     String? /// human-readable: "Slot 1", "Stand Alone"
+    nodeId    String?  @unique
+    active    Boolean  @default(true)
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
 
-    // Relations
-    mtib Mtib  @relation(fields: [mtibId], references: [id], onDelete: Cascade)
-    app  AppId @relation(fields: [appId], references: [appId], onDelete: Cascade)
+    fixture        Fixture         @relation(fields: [fixtureId], references: [id], onDelete: Cascade)
+    node           Node?           @relation(fields: [nodeId], references: [id], onDelete: SetNull)
+    testExecutions TestExecution[]
 
-    @@unique([mtibId, jlink]) // Each MTIB can only have one mapping per JLINK
-    @@map("mtib_app_id_mappings")
-    @@schema("app")
+    @@unique([fixtureId, slotIndex])
+    @@map("fixture_slots")
+}
+
+// ─────────────────────────────────────────────────────────────
+//                                             Infrastructure
+// ─────────────────────────────────────────────────────────────
+
+/// A compute node managed by Concord — typically an MTIB
+/// (Verdin iMX8MM + Mallow + MTIB carrier board) running
+/// as an edge node in the K3s cluster.
+///
+/// Nodes with TestExecution history cannot be deleted
+/// (default Restrict behavior). Decommission by setting
+/// status = MAINTENANCE and unassigning from fixture slot.
+model Node {
+    id               String     @id @default(cuid())
+    name             String
+    hostname         String     @unique /// K8s node name / OS hostname
+    type             NodeType
+    status           NodeStatus @default(OFFLINE)
+    ipAddress        String?
+    hardwareRevision String? /// "REV1.1", "REV1.2"
+    metadata         Json? /// K8s labels, capabilities, gRPC port, etc.
+    createdAt        DateTime   @default(now())
+    updatedAt        DateTime   @updatedAt
+
+    fixtureSlot    FixtureSlot? /// one-to-one via @unique on FixtureSlot.nodeId
+    testExecutions TestExecution[]
+
+    @@map("nodes")
+}
+
+/// A software deployment tracked by Concord — test runners,
+/// operators, MTIB servers, etc. The actual K8s state is
+/// queried live; this table records intent and history.
+model Deployment {
+    id          String           @id @default(cuid())
+    name        String
+    productId   String?
+    status      DeploymentStatus @default(PENDING)
+    config      Json? /// K8s manifest, image tags, env overrides
+    version     String?
+    createdById String?
+    createdAt   DateTime         @default(now())
+    updatedAt   DateTime         @updatedAt
+
+    product   Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+    createdBy User?    @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+    @@index([productId])
+    @@map("deployments")
+}
+
+// ─────────────────────────────────────────────────────────────
+//                                        Sessions & Devices
+// ─────────────────────────────────────────────────────────────
+
+/// An operational session: "Manufacture 100 Theta units today"
+/// or "Validate Sigma5 firmware v2.3". Every test execution
+/// happens within a session, giving full traceability.
+///
+/// The count fields are denormalized for dashboard performance.
+/// They are updated by the API when devices complete testing
+/// and can always be recomputed from Device statuses.
+model Session {
+    id             String        @id @default(cuid())
+    name           String
+    productId      String
+    fixtureId      String? /// null for ad-hoc or validation sessions not tied to a fixture
+    status         SessionStatus @default(ACTIVE)
+    config         Json? /// firmware versions, test parameters, thresholds
+    targetCount    Int? /// target number of devices (null = open-ended)
+    completedCount Int           @default(0)
+    passedCount    Int           @default(0)
+    failedCount    Int           @default(0)
+    startedAt      DateTime      @default(now())
+    finishedAt     DateTime?
+    notes          String?
+    createdById    String
+    createdAt      DateTime      @default(now())
+    updatedAt      DateTime      @updatedAt
+
+    product   Product  @relation(fields: [productId], references: [id])
+    fixture   Fixture? @relation(fields: [fixtureId], references: [id], onDelete: SetNull)
+    createdBy User     @relation(fields: [createdById], references: [id])
+    devices   Device[]
+
+    @@index([productId])
+    @@index([status])
+    @@map("sessions")
+}
+
+/// An individual device (DUT) going through testing within
+/// a session. Tracks serial number, overall pass/fail status,
+/// and links to all test executions run on this device.
+///
+/// The same serial number may appear in different sessions
+/// (e.g., a device that failed and was retested later).
+/// The compound unique on [serialNumber, sessionId] enforces
+/// one entry per device per session.
+///
+/// Device status is updated by the API:
+///   PENDING     → device registered, no tests started
+///   IN_PROGRESS → at least one execution running
+///   PASSED      → all required tests passed
+///   FAILED      → any test failed
+model Device {
+    id           String       @id @default(cuid())
+    serialNumber String
+    sessionId    String
+    status       DeviceStatus @default(PENDING)
+    metadata     Json? /// IMEI, ICCID, hardware info, calibration data
+    createdAt    DateTime     @default(now())
+    updatedAt    DateTime     @updatedAt
+
+    session    Session         @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+    executions TestExecution[]
+
+    @@unique([serialNumber, sessionId])
+    @@index([serialNumber])
+    @@map("devices")
+}
+
+// ─────────────────────────────────────────────────────────────
+//                                                      Testing
+// ─────────────────────────────────────────────────────────────
+
+/// A test definition for a product. Defines WHAT to test,
+/// not a specific run. Tests are grouped by category
+/// (e.g., "electrical", "firmware", "post") and ordered
+/// by sortOrder for sequential execution.
+///
+/// Tests with execution history cannot be deleted (default
+/// Restrict). Disable with enabled = false instead.
+model Test {
+    id          String   @id @default(cuid())
+    name        String
+    productId   String
+    description String?
+    category    String? /// "electrical", "firmware", "post", etc.
+    sortOrder   Int      @default(0)
+    config      Json? /// default config template (can be overridden per-execution)
+    enabled     Boolean  @default(true)
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+
+    product    Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+    executions TestExecution[]
+
+    @@unique([productId, name])
+    @@map("tests")
+}
+
+/// A single run of a test on a node for a device.
+///
+/// Links to: Test (what), Node (where), Device (who/what DUT),
+/// FixtureSlot (which slot), User (triggered by).
+///
+/// deviceId is optional for system-level or ad-hoc tests that
+/// don't target a specific device.
+///
+/// On cascade behavior:
+///   - test/node: Restrict (cannot delete test/node with history)
+///   - device:    Cascade  (session cleanup cascades through)
+///   - slot/user: SetNull  (preserve execution if slot/user removed)
+model TestExecution {
+    id            String              @id @default(cuid())
+    testId        String
+    nodeId        String
+    deviceId      String?
+    slotId        String?
+    status        TestExecutionStatus @default(QUEUED)
+    config        Json? /// execution-specific config overrides
+    triggeredById String?
+    startedAt     DateTime?
+    finishedAt    DateTime?
+    createdAt     DateTime            @default(now())
+    updatedAt     DateTime            @updatedAt
+
+    test        Test          @relation(fields: [testId], references: [id])
+    node        Node          @relation(fields: [nodeId], references: [id])
+    device      Device?       @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+    slot        FixtureSlot?  @relation(fields: [slotId], references: [id], onDelete: SetNull)
+    triggeredBy User?         @relation(fields: [triggeredById], references: [id], onDelete: SetNull)
+    results     TestResult[]
+    logs        Log[]
+
+    @@index([status])
+    @@index([testId])
+    @@index([nodeId])
+    @@index([deviceId])
+    @@map("test_executions")
+}
+
+/// A single step result within a test execution. Tests are
+/// composed of ordered steps (e.g., "apply 3.7V", "measure
+/// current", "verify IMEI"). Each step produces a result.
+///
+/// groupIndex supports batched/parallel steps within the
+/// same execution (e.g., multi-channel ADC readings).
+model TestResult {
+    id          String   @id @default(cuid())
+    executionId String
+    stepIndex   Int
+    groupIndex  Int      @default(0)
+    passed      Boolean
+    result      Json /// step-specific data: measurements, thresholds, errors
+    createdAt   DateTime @default(now())
+
+    execution TestExecution @relation(fields: [executionId], references: [id], onDelete: Cascade)
+
+    @@index([executionId])
+    @@map("test_results")
+}
+
+// ─────────────────────────────────────────────────────────────
+//                                                       System
+// ─────────────────────────────────────────────────────────────
+
+/// System and execution logs. Can be free-standing (system
+/// events) or linked to a specific test execution.
+model Log {
+    id          String    @id @default(cuid())
+    level       LogLevel  @default(INFO)
+    message     String
+    source      String? /// service name, module path, etc.
+    executionId String?
+    createdAt   DateTime  @default(now())
+
+    execution TestExecution? @relation(fields: [executionId], references: [id], onDelete: SetNull)
+
+    @@index([createdAt])
+    @@index([level])
+    @@map("logs")
+}
+
+/// Key-value configuration store for system-wide settings
+/// (thresholds, feature flags, UI preferences, etc.).
+model Setting {
+    key         String   @id
+    value       String
+    description String?
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+
+    @@map("settings")
 }

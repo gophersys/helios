@@ -4,24 +4,6 @@
     "sourceRoot": "prisma",
     "projectType": "application",
     "targets": {
-        "setup": {
-            "executor": "nx:run-commands",
-            "options": {
-                "commands": [
-                    {
-                        "command": "nx run database:generate-client"
-                    },
-                    {
-                        "command": "nx run database:push"
-                    },
-                    // {
-                    //     "command": "nx run database:seed"
-                    // }
-                ],
-                "cwd": "{workspaceRoot}",
-                "parallel": false
-            }
-        },
         "generate-client": {
             "executor": "nx:run-commands",
             "options": {
@@ -46,17 +28,55 @@
                 "parallel": false
             }
         },
-        "seed": {
+        "setup": {
             "executor": "nx:run-commands",
-            "defaultConfiguration": "docker",
             "options": {
-                "cwd": "{projectRoot}/seed",
-                "parallel": false,
                 "commands": [
                     {
-                        "command": "/bin/zsh -c 'echo \"Seeding database...\"'"
+                        "command": "nx run database:generate-client"
+                    },
+                    {
+                        "command": "nx run database:push"
                     }
-                ]
+                ],
+                "cwd": "{workspaceRoot}",
+                "parallel": false
+            }
+        },
+        "reset": {
+            "executor": "nx:run-commands",
+            "options": {
+                "commands": [
+                    {
+                        "command": "yarn prisma db push --force-reset"
+                    }
+                ],
+                "cwd": "{projectRoot}",
+                "parallel": false
+            }
+        },
+        "seed": {
+            "executor": "nx:run-commands",
+            "options": {
+                "commands": [
+                    {
+                        "command": "python3 seed.py"
+                    }
+                ],
+                "cwd": "{projectRoot}",
+                "parallel": false
+            }
+        },
+        "studio": {
+            "executor": "nx:run-commands",
+            "options": {
+                "commands": [
+                    {
+                        "command": "yarn prisma studio"
+                    }
+                ],
+                "cwd": "{projectRoot}",
+                "parallel": false
             }
         }
     },
