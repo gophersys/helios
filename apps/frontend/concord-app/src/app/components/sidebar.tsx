@@ -314,7 +314,7 @@ export function Sidebar({
               className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent-muted text-2xs font-semibold text-accent"
               title={
                 collapsed
-                  ? `${user.name} (${user.permissionSetName || 'No role'})`
+                  ? `${user.name}${user.permissionSetName ? ` (${user.permissionSetName})` : ''}`
                   : undefined
               }
             >
@@ -327,7 +327,7 @@ export function Sidebar({
                     {user.name}
                   </div>
                   <div className="truncate text-2xs text-text-tertiary">
-                    {user.permissionSetName || 'No role'}
+                    {user.permissionSetName || user.email}
                   </div>
                 </div>
                 <button
