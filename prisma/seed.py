@@ -15,8 +15,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "libs", "python
 
 from database import Prisma
 
-# Default permission sets
-ADMIN_PERMISSIONS = [
+# Every permission that exists in the system
+ALL_PERMISSIONS = [
     "Concord.Firmware.AppID.Create",
     "Concord.Firmware.AppID.View",
     "Concord.Firmware.AppID.Update",
@@ -30,6 +30,19 @@ ADMIN_PERMISSIONS = [
     "Concord.Admin.PermissionSets.Manage",
     "Concord.Admin.ApiKeys.View",
     "Concord.Admin.ApiKeys.Manage",
+]
+
+# Default permission sets
+ADMIN_PERMISSIONS = [
+    "Concord.Firmware.AppID.Create",
+    "Concord.Firmware.AppID.View",
+    "Concord.Firmware.AppID.Update",
+    "Concord.Firmware.AppID.Delete",
+    "Concord.Cluster.Read",
+    "Concord.Cluster.Manage",
+    "Concord.Validation.Tests.Run",
+    "Concord.Admin.Users.View",
+    "Concord.Admin.Users.Manage",
 ]
 
 OPERATOR_PERMISSIONS = [
@@ -57,15 +70,29 @@ def seed():
 
     try:
         # Create default permission sets
+        super_admin_set = db.permissionset.upsert(
+            where={"name": "Super Admin"},
+            create={
+                "name": "Super Admin",
+                "description": "Unrestricted access — all permissions",
+                "permissions": ALL_PERMISSIONS,
+            },
+            update={
+                "description": "Unrestricted access — all permissions",
+                "permissions": ALL_PERMISSIONS,
+            },
+        )
+        print(f"Permission set 'Super Admin' ready (id: {super_admin_set.id})")
+
         admin_set = db.permissionset.upsert(
             where={"name": "Admin"},
             create={
                 "name": "Admin",
-                "description": "Full access to all features",
+                "description": "Admin access to users and day-to-day operations",
                 "permissions": ADMIN_PERMISSIONS,
             },
             update={
-                "description": "Full access to all features",
+                "description": "Admin access to users and day-to-day operations",
                 "permissions": ADMIN_PERMISSIONS,
             },
         )
@@ -109,29 +136,28 @@ def seed():
             )
             print(f"Assigned '{user.email}' to Viewer permission set")
 
-        # Create admin user if email provided
+        # Create super admin user if email provided
         if email:
             existing = db.user.find_unique(where={"email": email.lower()})
             if existing:
-                # Ensure existing admin has the Admin permission set
-                if existing.permissionSetId != admin_set.id:
+                if existing.permissionSetId != super_admin_set.id:
                     db.user.update(
                         where={"id": existing.id},
-                        data={"permissionSetId": admin_set.id},
+                        data={"permissionSetId": super_admin_set.id},
                     )
-                    print(f"Updated admin user '{existing.email}' to Admin permission set")
+                    print(f"Updated '{existing.email}' to Super Admin permission set")
                 else:
-                    print(f"Admin user already exists: {existing.email}")
+                    print(f"Super admin user already exists: {existing.email}")
             else:
                 user = db.user.create(
                     data={
                         "email": email.lower(),
                         "name": name,
-                        "permissionSetId": admin_set.id,
+                        "permissionSetId": super_admin_set.id,
                         "active": True,
                     }
                 )
-                print(f"Created admin user: {user.email} (id: {user.id})")
+                print(f"Created super admin user: {user.email} (id: {user.id})")
         else:
             print("SEED_ADMIN_EMAIL not set. Skipping admin user creation.")
             print("Usage: SEED_ADMIN_EMAIL=you@company.com python3 seed.py")
