@@ -1,0 +1,138 @@
+@import '@fontsource-variable/inter';
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Surfaces — clean neutral whites */
+    --surface-0: #FAFAFA;
+    --surface-1: #F5F5F5;
+    --surface-2: #EBEBEB;
+    --surface-3: #E0E0E0;
+
+    /* Borders */
+    --border: #E0E0E0;
+    --border-subtle: #EBEBEB;
+
+    /* Text — neutral */
+    --text-primary: #1A1A1A;
+    --text-secondary: #6B6B6B;
+    --text-tertiary: #A0A0A0;
+
+    /* Accent — coral-orange, from CoreKinect logo slash */
+    --accent: #CF6A3E;
+    --accent-hover: #BE5E35;
+    --accent-muted: rgba(207, 106, 62, 0.08);
+    --accent-subtle: rgba(207, 106, 62, 0.14);
+
+    /* Sidebar */
+    --sidebar-bg: #F5F5F5;
+    --sidebar-active-bg: rgba(207, 106, 62, 0.06);
+    --sidebar-active-border: #CF6A3E;
+    --sidebar-hover-bg: #EBEBEB;
+
+    /* Status */
+    --success: #3D8B4D;
+    --success-muted: rgba(61, 139, 77, 0.08);
+    --warning: #B8922F;
+    --warning-muted: rgba(184, 146, 47, 0.08);
+    --error: #B93A2A;
+    --error-muted: rgba(185, 58, 42, 0.08);
+    --info: #4A729B;
+    --info-muted: rgba(74, 114, 155, 0.08);
+
+    /* Interactive */
+    --focus-ring: rgba(207, 106, 62, 0.4);
+    --overlay: rgba(20, 20, 20, 0.4);
+
+    /* Card */
+    --card-glow: rgba(207, 106, 62, 0.04);
+  }
+
+  .dark {
+    /* Surfaces — true neutral darks */
+    --surface-0: #0A0A0A;
+    --surface-1: #121212;
+    --surface-2: #1A1A1A;
+    --surface-3: #232323;
+
+    /* Borders — neutral */
+    --border: #272727;
+    --border-subtle: #1E1E1E;
+
+    /* Text — clean whites and greys */
+    --text-primary: #F0F0F0;
+    --text-secondary: #8A8A8A;
+    --text-tertiary: #5C5C5C;
+
+    /* Accent — coral-orange, brighter for dark backgrounds */
+    --accent: #E8845C;
+    --accent-hover: #EE9570;
+    --accent-muted: rgba(232, 132, 92, 0.10);
+    --accent-subtle: rgba(232, 132, 92, 0.18);
+
+    /* Sidebar */
+    --sidebar-bg: #0E0E0E;
+    --sidebar-active-bg: rgba(232, 132, 92, 0.08);
+    --sidebar-active-border: #E8845C;
+    --sidebar-hover-bg: #181818;
+
+    /* Status */
+    --success: #5FA86A;
+    --success-muted: rgba(95, 168, 106, 0.10);
+    --warning: #D4A853;
+    --warning-muted: rgba(212, 168, 83, 0.10);
+    --error: #D44C3C;
+    --error-muted: rgba(212, 76, 60, 0.10);
+    --info: #6B8EB5;
+    --info-muted: rgba(107, 142, 181, 0.10);
+
+    /* Interactive */
+    --focus-ring: rgba(232, 132, 92, 0.4);
+    --overlay: rgba(5, 5, 5, 0.6);
+
+    /* Card */
+    --card-glow: rgba(232, 132, 92, 0.03);
+  }
+
+  * {
+    border-color: var(--border);
+  }
+
+  body {
+    @apply bg-surface-0 text-text-primary font-sans antialiased;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  }
+
+  /* Scrollbar styling */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 3px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--text-tertiary);
+  }
+
+  /* Selection */
+  ::selection {
+    background: var(--accent-subtle);
+    color: var(--text-primary);
+  }
+
+  /* Focus visible */
+  :focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
+}
