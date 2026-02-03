@@ -1,0 +1,15 @@
+meta {
+  name: delete
+  type: http
+  seq: 5
+}
+
+delete {
+  url: http://localhost:9001/v2/firmware/appid/101
+  body: none
+  auth: inherit
+}
+
+settings {
+  encodeUrl: true
+}

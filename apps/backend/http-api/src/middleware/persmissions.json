@@ -1,0 +1,72 @@
+[
+    {
+        "key": "Concord.Cluster.Create",
+        "name": "Create a new compute cluster",
+        "description": "Creates a new entry in the proxy server for a Kubernetes cluster."
+    },
+    {
+        "key": "Concord.Cluster.Read",
+        "name": "Read info about compute clusters",
+        "description": "Allows user to see details of a computer cluster in the system."
+    },
+    {
+        "key": "Concord.Cluster.Delete",
+        "name": "Deletes a compute cluster",
+        "description": "Allows user to delete all information about a cluster from the server."
+    },
+    {
+        "key": "Concord.Devices.Read",
+        "name": "Read devices serial numbers",
+        "description": "Allows user to look up a serial number array for a panel."
+    },
+    {
+        "key": "Concord.Cluster.Tests.Read",
+        "name": "Read test information",
+        "description": "Allows user to list available tests in a cluster, as well as test metadata."
+    },
+    {
+        "key": "Concord.Cluster.Tests.Execute",
+        "name": "Execute test",
+        "description": "Allows user to start a test execution."
+    },
+    {
+        "key": "Concord.Cluster.Tests.Stop",
+        "name": "Stops test exection",
+        "description": "Allows user to stop a test execution."
+    },
+    {
+        "key": "Concord.Cluster.Deployment.Create",
+        "name": "Create a kubernetes deployment for cluster",
+        "description": "Allows user to create a new deployment entry in the server."
+    },
+    {
+        "key": "Concord.Cluster.Deployment.Read",
+        "name": "Read info about a kubernetes deployment",
+        "description": "Allows user or cluster to list and view kubernetes deployments."
+    },
+    {
+        "key": "Concord.Cluster.Deployment.Apply",
+        "name": "Apply a kubernetes deployment to a cluster",
+        "description": "Allows user to override and apply a custom kubernetes deployment to a cluster."
+    },
+    {
+        "key": "Concord.Cluster.Deployment.Update",
+        "name": "Update a currently deployed kubernetes deployment",
+        "description": "Allows the user to modify a deployment without deleting it and re applying it."
+    },
+    {
+        "key": "Concord.Cluster.Deployment.Delete",
+        "name": "Deletes a kubernetes deployment",
+        "description": "Allows user to delete a deployment from a cluster. An active deployment cant be deleted."
+    },
+    {
+        "key": "Concord.Cluster.Executions.Read",
+        "name": "Read test execution results",
+        "description": "Allows the user to list and view test executions results and metadata."
+    },
+    {
+        "key": "Concord.Cluster.Executions.Delete",
+        "name": "Delete test executions results",
+        "description": "Allows the user to delete execution results from. This operation is non reversible."
+    }
+]

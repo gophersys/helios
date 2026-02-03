@@ -1,0 +1,9 @@
+{
+  "version": "1",
+  "name": "concord-v2",
+  "type": "collection",
+  "ignore": [
+    "node_modules",
+    ".git"
+  ]
+}
