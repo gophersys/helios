@@ -65,8 +65,8 @@ class ThetaFixtureConfig:
     # fw_flash_nrf52840_app_fw_name: str = "theta_app_prod_2.hex"
 
     # Alpha
-    fw_flash_nrf9151_app_fw_name: str = "alpha_comm_prod_1.hex"
-    fw_flash_nrf52840_app_fw_name: str = "alpha_app_prod_1.hex"
+    fw_flash_nrf9151_app_fw_name: str = "alpha_comm_prod_8.hex"
+    fw_flash_nrf52840_app_fw_name: str = "alpha_app_prod_8.hex"
 
     # POST test - External flash
     post_ext_flash_test_pattern: str = "ALPHA_POST_TEST_PATTERN_2024"
