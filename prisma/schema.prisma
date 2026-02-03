@@ -65,6 +65,18 @@ enum LogLevel {
     FATAL
 }
 
+enum HardwareCategory {
+    SOM
+    CARRIER_BOARD
+    ACCESSORY
+}
+
+enum RevisionStatus {
+    ACTIVE
+    DEPRECATED
+    EOL
+}
+
 // ─────────────────────────────────────────────────────────────
 //                                               Users & Audit
 // ─────────────────────────────────────────────────────────────
@@ -447,4 +459,88 @@ model Setting {
     updatedAt   DateTime @updatedAt
 
     @@map("settings")
+}
+
+// ─────────────────────────────────────────────────────────────
+//                                          Hardware Catalog
+// ─────────────────────────────────────────────────────────────
+
+/// An individual hardware component — SoM, carrier board, accessory, etc.
+model HardwareComponent {
+    id           String           @id @default(cuid())
+    name         String           @unique
+    description  String?
+    category     HardwareCategory
+    manufacturer String
+    partNumber   String           @unique
+    imageKey     String? /// MinIO object key for hero image
+    createdAt    DateTime         @default(now())
+    updatedAt    DateTime         @updatedAt
+
+    revisions HardwareRevision[]
+
+    @@map("hardware_components")
+}
+
+/// A specific revision/version of a hardware component (e.g. REV1.0, REV1.1).
+model HardwareRevision {
+    id           String         @id @default(cuid())
+    componentId  String
+    version      String /// e.g. "REV1.0", "REV1.1"
+    status       RevisionStatus @default(ACTIVE)
+    releaseNotes String?
+    createdAt    DateTime       @default(now())
+    updatedAt    DateTime       @updatedAt
+
+    component             HardwareComponent           @relation(fields: [componentId], references: [id], onDelete: Cascade)
+    assemblyRevisionItems AssemblyRevisionComponent[]
+
+    @@unique([componentId, version])
+    @@map("hardware_revisions")
+}
+
+/// An assembly — a combination of hardware components
+/// (e.g. MTIB = Verdin SoM + Mallow + MTIB Carrier Board).
+model Assembly {
+    id          String   @id @default(cuid())
+    name        String   @unique
+    description String?
+    imageKey    String? /// MinIO object key for hero image
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+
+    revisions AssemblyRevision[]
+
+    @@map("assemblies")
+}
+
+/// A specific revision of an assembly with its own BOM.
+model AssemblyRevision {
+    id           String         @id @default(cuid())
+    assemblyId   String
+    version      String
+    status       RevisionStatus @default(ACTIVE)
+    releaseNotes String?
+    createdAt    DateTime       @default(now())
+    updatedAt    DateTime       @updatedAt
+
+    assembly   Assembly                    @relation(fields: [assemblyId], references: [id], onDelete: Cascade)
+    components AssemblyRevisionComponent[]
+
+    @@unique([assemblyId, version])
+    @@map("assembly_revisions")
+}
+
+/// BOM line item — links an assembly revision to a specific hardware revision with quantity.
+model AssemblyRevisionComponent {
+    id                 String @id @default(cuid())
+    assemblyRevisionId String
+    hardwareRevisionId String
+    quantity           Int    @default(1)
+
+    assemblyRevision AssemblyRevision @relation(fields: [assemblyRevisionId], references: [id], onDelete: Cascade)
+    hardwareRevision HardwareRevision @relation(fields: [hardwareRevisionId], references: [id], onDelete: Cascade)
+
+    @@unique([assemblyRevisionId, hardwareRevisionId])
+    @@map("assembly_revision_components")
 }

@@ -43,3 +43,36 @@ export async function api<T = unknown>(
 
   return data as T;
 }
+
+export async function apiUpload<T = unknown>(
+  path: string,
+  formData: FormData
+): Promise<T> {
+  const token = getToken();
+
+  const headers: Record<string, string> = {};
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  // Do NOT set Content-Type — browser sets it with boundary for multipart
+
+  const res = await fetch(path, {
+    method: 'POST',
+    headers,
+    body: formData,
+  });
+
+  if (res.status === 401) {
+    clearToken();
+    window.location.href = '/login';
+    throw new Error('Session expired');
+  }
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(data.error || data.errors?.[0]?.message || `Request failed (${res.status})`);
+  }
+
+  return data as T;
+}

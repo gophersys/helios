@@ -25,8 +25,9 @@ def init_storage_client() -> Minio:
             secure=secure,
         )
 
-        # Ensure firmware bucket exists
+        # Ensure buckets exist
         _ensure_firmware_bucket_exists()
+        _ensure_hardware_bucket_exists()
 
     return appStorageClient
 
@@ -60,6 +61,26 @@ def close_storage_client() -> None:
     appStorageClient = None
 
 
+def _ensure_hardware_bucket_exists() -> None:
+    """Ensure the hardware bucket exists, create it if it doesn't"""
+    bucket_name = env_config.STORAGE_HARDWARE_BUCKET_NAME
+
+    try:
+        if not appStorageClient.bucket_exists(bucket_name):
+            appStorageClient.make_bucket(bucket_name)
+            print(f"✓ Created hardware bucket: {bucket_name}")
+        else:
+            print(f"✓ Hardware bucket already exists: {bucket_name}")
+    except Exception as e:
+        print(f"⚠ Warning: Could not ensure hardware bucket exists: {e}")
+        raise RuntimeError(f"Failed to ensure hardware bucket '{bucket_name}' exists: {e}") from e
+
+
 def get_firmware_bucket_name() -> str:
     """Get the configured firmware bucket name"""
     return env_config.STORAGE_FIRMWARE_BUCKET_NAME
+
+
+def get_hardware_bucket_name() -> str:
+    """Get the configured hardware bucket name"""
+    return env_config.STORAGE_HARDWARE_BUCKET_NAME

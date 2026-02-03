@@ -11,6 +11,7 @@ import {
   Settings,
   Users,
   ShieldCheck,
+  Cpu,
   LogOut,
   PanelLeftClose,
 } from 'lucide-react';
@@ -165,7 +166,7 @@ export function Sidebar({
     navigate('/login');
   };
 
-  const isAdmin = hasPermission('Concord.Admin.Users.View');
+  const isAdmin = hasPermission('Concord.Admin.Users.View') || hasPermission('Concord.Admin.Hardware.View');
 
   return (
     <aside
@@ -276,6 +277,15 @@ export function Sidebar({
                 collapsed={collapsed}
                 onDoubleClick={onToggle}
               />
+              {hasPermission('Concord.Admin.Hardware.View') && (
+                <SidebarLink
+                  to="/hardware"
+                  icon={Cpu}
+                  label="Hardware"
+                  collapsed={collapsed}
+                  onDoubleClick={onToggle}
+                />
+              )}
             </div>
           </div>
         )}

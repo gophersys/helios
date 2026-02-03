@@ -34,6 +34,31 @@ from .mtib.list import list_mtibs
 from .mtib.register import register_mtib
 from .mtib.unregister import unregister_mtib
 
+# Hardware handlers
+from .hardware.components import (
+    create_component,
+    create_revision,
+    delete_component,
+    delete_revision,
+    get_component,
+    list_components,
+    update_component,
+    update_revision,
+    upload_component_image,
+)
+from .hardware.assemblies import (
+    create_assembly,
+    create_assembly_revision,
+    delete_assembly,
+    delete_assembly_revision,
+    get_assembly,
+    list_assemblies,
+    update_assembly,
+    update_assembly_revision,
+    upload_assembly_image,
+)
+from .hardware.image import get_hardware_image
+
 # Validation handlers
 from .validation.tests.run import run_tests
 
@@ -106,6 +131,31 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     v2.add_url_rule("/firmware/appid/<int:appId>", view_func=get_appid,     methods=["GET"])
     v2.add_url_rule("/firmware/appid/<int:appId>", view_func=update_appid,  methods=["PUT"])
     v2.add_url_rule("/firmware/appid/<int:appId>", view_func=delete_appid,  methods=["DELETE"])
+
+    # Hardware - Components
+    v2.add_url_rule("/hardware/components",                                          view_func=list_components,        methods=["GET"])
+    v2.add_url_rule("/hardware/components",                                          view_func=create_component,       methods=["POST"])
+    v2.add_url_rule("/hardware/components/<component_id>",                           view_func=get_component,          methods=["GET"])
+    v2.add_url_rule("/hardware/components/<component_id>",                           view_func=update_component,       methods=["PUT"])
+    v2.add_url_rule("/hardware/components/<component_id>",                           view_func=delete_component,       methods=["DELETE"])
+    v2.add_url_rule("/hardware/components/<component_id>/image",                     view_func=upload_component_image, methods=["POST"])
+    v2.add_url_rule("/hardware/components/<component_id>/revisions",                 view_func=create_revision,        methods=["POST"])
+    v2.add_url_rule("/hardware/components/<component_id>/revisions/<revision_id>",   view_func=update_revision,        methods=["PUT"])
+    v2.add_url_rule("/hardware/components/<component_id>/revisions/<revision_id>",   view_func=delete_revision,        methods=["DELETE"])
+
+    # Hardware - Assemblies
+    v2.add_url_rule("/hardware/assemblies",                                          view_func=list_assemblies,            methods=["GET"])
+    v2.add_url_rule("/hardware/assemblies",                                          view_func=create_assembly,            methods=["POST"])
+    v2.add_url_rule("/hardware/assemblies/<assembly_id>",                            view_func=get_assembly,               methods=["GET"])
+    v2.add_url_rule("/hardware/assemblies/<assembly_id>",                            view_func=update_assembly,            methods=["PUT"])
+    v2.add_url_rule("/hardware/assemblies/<assembly_id>",                            view_func=delete_assembly,            methods=["DELETE"])
+    v2.add_url_rule("/hardware/assemblies/<assembly_id>/image",                      view_func=upload_assembly_image,      methods=["POST"])
+    v2.add_url_rule("/hardware/assemblies/<assembly_id>/revisions",                  view_func=create_assembly_revision,   methods=["POST"])
+    v2.add_url_rule("/hardware/assemblies/<assembly_id>/revisions/<revision_id>",    view_func=update_assembly_revision,   methods=["PUT"])
+    v2.add_url_rule("/hardware/assemblies/<assembly_id>/revisions/<revision_id>",    view_func=delete_assembly_revision,   methods=["DELETE"])
+
+    # Hardware - Image serving
+    v2.add_url_rule("/hardware/image/<path:key>",                                    view_func=get_hardware_image,         methods=["GET"])
 
     # Validation
     v2.add_url_rule("/validation/tests/run", view_func=run_tests,       methods=["POST"])

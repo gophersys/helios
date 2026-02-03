@@ -24,6 +24,10 @@ class Permissions:
     ADMIN_API_KEYS_VIEW = "Concord.Admin.ApiKeys.View"
     ADMIN_API_KEYS_MANAGE = "Concord.Admin.ApiKeys.Manage"
 
+    # Admin - Hardware
+    ADMIN_HARDWARE_VIEW = "Concord.Admin.Hardware.View"
+    ADMIN_HARDWARE_MANAGE = "Concord.Admin.Hardware.Manage"
+
     @classmethod
     def all(cls) -> list[dict]:
         """Return all permissions as a list for the /permissions endpoint."""

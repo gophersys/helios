@@ -39,6 +39,7 @@ class ProxyConfig(EnvConfig):
     STORAGE_ACCESS_KEY: str
     STORAGE_SECRET_ACCESS_KEY: str
     STORAGE_FIRMWARE_BUCKET_NAME: str
+    STORAGE_HARDWARE_BUCKET_NAME: str
 
 
 env_config = ProxyConfig(namespace=None, auto_load_env=True)
