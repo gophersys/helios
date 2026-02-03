@@ -1,47 +1,23 @@
-# Standard includes
-import logging
+from flask import jsonify, request
 
-from corekinect.http.response import ConcordHttpResponse
-from corekinect.utils import Logger
-
-# 3rd party includes
-from flask import Blueprint, jsonify, request
-
-# App includes
-from src.middleware.permissions import authMiddleware
+from src.lib.decorators import require_permissions
+from src.lib.errors import bad_request, internal_error, not_found
+from src.lib.permissions import Permissions
+from src.lib.types import ApiResponse
 from src.services.database.prisma import get_db_client
 from src.services.log.logger import get_logger
 
-# Flask Route
-v2_mtib_get_bp = Blueprint("mtib_get", __name__)
 
-
-# -------------------------------------------------
-#                                           Handler
-# -------------------------------------------------
-@v2_mtib_get_bp.route("/v2/mtib/get", methods=["GET"])
-@authMiddleware.check_permissions(["Concord.Cluster.Read"])
-def mtib_get_handler():
-    """
-    Get detailed information for a specific MTIB node
-
-    Query Parameters:
-    - hostname: The hostname of the MTIB to retrieve
-    """
-    logger: Logger = get_logger()
+@require_permissions(Permissions.MTIB_READ)
+def get_mtib():
+    """Get detailed information for a specific MTIB node."""
+    logger = get_logger()
 
     try:
         # Get hostname from query parameters
         hostname = request.args.get("hostname")
         if not hostname:
-            return (
-                jsonify(
-                    ConcordHttpResponse(
-                        data=None, errors=[{"message": "Query parameter 'hostname' is required"}]
-                    ).to_dict()
-                ),
-                400,
-            )
+            return bad_request("Query parameter 'hostname' is required")
 
         logger.info(f"Getting MTIB details for: {hostname}")
 
@@ -51,14 +27,7 @@ def mtib_get_handler():
         )
 
         if not mtib:
-            return (
-                jsonify(
-                    ConcordHttpResponse(
-                        data=None, errors=[{"message": f"MTIB with hostname '{hostname}' not found"}]
-                    ).to_dict()
-                ),
-                404,
-            )
+            return not_found(f"MTIB with hostname '{hostname}' not found")
 
         # Format appId mappings
         app_id_mappings = []
@@ -74,12 +43,11 @@ def mtib_get_handler():
                 }
             )
 
-        # Format response data
         response_data = {
             "hostname": mtib.id,
             "name": mtib.name,
-            "type": mtib.type.lower(),  # Convert VALIDATION/MANUFACTURING to lowercase
-            "features": [feature.lower() for feature in mtib.features],  # Convert to lowercase
+            "type": mtib.type.lower(),
+            "features": [feature.lower() for feature in mtib.features],
             "appIds": app_id_mappings,
             "createdAt": mtib.createdAt.isoformat(),
             "updatedAt": mtib.updatedAt.isoformat(),
@@ -87,13 +55,8 @@ def mtib_get_handler():
 
         logger.info(f"Retrieved MTIB details for: {hostname}")
 
-        return jsonify(ConcordHttpResponse.new_get_response(response_data).to_dict()), 200
+        return jsonify(ApiResponse.ok(response_data).to_dict()), 200
 
     except Exception as e:
         logger.error(f"An error occurred while getting MTIB details: {str(e)}")
-        return (
-            jsonify(
-                ConcordHttpResponse(data=None, errors=[{"message": f"Internal server error: {str(e)}"}]).to_dict()
-            ),
-            500,
-        )
+        return internal_error(f"Internal server error: {str(e)}")

@@ -1,4 +1,4 @@
-"""Seed the database with the initial admin user.
+"""Seed the database with default permission sets and initial admin user.
 
 Usage:
     SEED_ADMIN_EMAIL=you@company.com SEED_ADMIN_NAME="Your Name" python3 seed.py
@@ -15,35 +15,127 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "libs", "python
 
 from database import Prisma
 
+# Default permission sets
+ADMIN_PERMISSIONS = [
+    "Concord.Firmware.AppID.Create",
+    "Concord.Firmware.AppID.View",
+    "Concord.Firmware.AppID.Update",
+    "Concord.Firmware.AppID.Delete",
+    "Concord.Cluster.Read",
+    "Concord.Cluster.Manage",
+    "Concord.Validation.Tests.Run",
+    "Concord.Admin.Users.View",
+    "Concord.Admin.Users.Manage",
+    "Concord.Admin.PermissionSets.View",
+    "Concord.Admin.PermissionSets.Manage",
+    "Concord.Admin.ApiKeys.View",
+    "Concord.Admin.ApiKeys.Manage",
+]
+
+OPERATOR_PERMISSIONS = [
+    "Concord.Firmware.AppID.Create",
+    "Concord.Firmware.AppID.View",
+    "Concord.Firmware.AppID.Update",
+    "Concord.Firmware.AppID.Delete",
+    "Concord.Cluster.Read",
+    "Concord.Cluster.Manage",
+    "Concord.Validation.Tests.Run",
+]
+
+VIEWER_PERMISSIONS = [
+    "Concord.Firmware.AppID.View",
+    "Concord.Cluster.Read",
+]
+
 
 def seed():
     email = os.environ.get("SEED_ADMIN_EMAIL", "").strip()
     name = os.environ.get("SEED_ADMIN_NAME", "Admin").strip()
 
-    if not email:
-        print("SEED_ADMIN_EMAIL not set. Skipping seed.")
-        print("Usage: SEED_ADMIN_EMAIL=you@company.com python3 seed.py")
-        return
-
     db = Prisma()
     db.connect()
 
     try:
-        # Check if any admin already exists
-        existing = db.user.find_first(where={"role": "ADMIN"})
-        if existing:
-            print(f"Admin user already exists: {existing.email}")
-            return
-
-        user = db.user.create(
-            data={
-                "email": email.lower(),
-                "name": name,
-                "role": "ADMIN",
-                "active": True,
-            }
+        # Create default permission sets
+        admin_set = db.permissionset.upsert(
+            where={"name": "Admin"},
+            create={
+                "name": "Admin",
+                "description": "Full access to all features",
+                "permissions": ADMIN_PERMISSIONS,
+            },
+            update={
+                "description": "Full access to all features",
+                "permissions": ADMIN_PERMISSIONS,
+            },
         )
-        print(f"Created admin user: {user.email} (id: {user.id})")
+        print(f"Permission set 'Admin' ready (id: {admin_set.id})")
+
+        operator_set = db.permissionset.upsert(
+            where={"name": "Operator"},
+            create={
+                "name": "Operator",
+                "description": "Operational access without admin capabilities",
+                "permissions": OPERATOR_PERMISSIONS,
+            },
+            update={
+                "description": "Operational access without admin capabilities",
+                "permissions": OPERATOR_PERMISSIONS,
+            },
+        )
+        print(f"Permission set 'Operator' ready (id: {operator_set.id})")
+
+        viewer_set = db.permissionset.upsert(
+            where={"name": "Viewer"},
+            create={
+                "name": "Viewer",
+                "description": "Read-only access",
+                "permissions": VIEWER_PERMISSIONS,
+            },
+            update={
+                "description": "Read-only access",
+                "permissions": VIEWER_PERMISSIONS,
+            },
+        )
+        print(f"Permission set 'Viewer' ready (id: {viewer_set.id})")
+
+        # Backfill existing users that have no permission set
+        users_without_set = db.user.find_many(where={"permissionSetId": None})
+        for user in users_without_set:
+            # Default unassigned users to Viewer
+            db.user.update(
+                where={"id": user.id},
+                data={"permissionSetId": viewer_set.id},
+            )
+            print(f"Assigned '{user.email}' to Viewer permission set")
+
+        # Create admin user if email provided
+        if email:
+            existing = db.user.find_unique(where={"email": email.lower()})
+            if existing:
+                # Ensure existing admin has the Admin permission set
+                if existing.permissionSetId != admin_set.id:
+                    db.user.update(
+                        where={"id": existing.id},
+                        data={"permissionSetId": admin_set.id},
+                    )
+                    print(f"Updated admin user '{existing.email}' to Admin permission set")
+                else:
+                    print(f"Admin user already exists: {existing.email}")
+            else:
+                user = db.user.create(
+                    data={
+                        "email": email.lower(),
+                        "name": name,
+                        "permissionSetId": admin_set.id,
+                        "active": True,
+                    }
+                )
+                print(f"Created admin user: {user.email} (id: {user.id})")
+        else:
+            print("SEED_ADMIN_EMAIL not set. Skipping admin user creation.")
+            print("Usage: SEED_ADMIN_EMAIL=you@company.com python3 seed.py")
+
     finally:
         db.disconnect()
 

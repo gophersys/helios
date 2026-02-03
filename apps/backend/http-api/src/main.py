@@ -9,8 +9,7 @@ import eventlet
 
 eventlet.monkey_patch(socket=True, select=False, time=False, os=False, thread=False)
 
-from api.v1.register import register_v1_routes
-from api.v2.register import register_v2_routes
+from api.v2.router import register_v2_routes
 
 # App includes
 from config import env_config
@@ -22,7 +21,6 @@ from corekinect.utils import EnvConfig, Logger
 from flask import Flask
 from flask_cors import CORS
 from flask_socketio import SocketIO
-from src.middleware.permissions import AuthMiddlewareConfig, authMiddleware
 from src.services.database.prisma import init_postgres_client
 from src.services.kubernetes.client import init_kubernetes_client
 from src.services.log.logger import init_logger
@@ -68,18 +66,6 @@ if __name__ == "__main__":
         # Initialize the logger
         init_logger(log_config)
 
-        # Initiate the middleware layer
-        middleware_config: AuthMiddlewareConfig = AuthMiddlewareConfig(
-            cc_auth_server_url=env_config.AUTH_SERVER_URL,
-            server_api_key=env_config.AUTH_SERVER_API_KEY,
-            server_client_id=env_config.AUTH_SERVER_CREDENTIALS_USER,
-            server_client_secret=env_config.AUTH_SERVER_CREDENTIALS_PASS,
-        )
-        error = authMiddleware.init(logger=logger, auth_enabled=env_config.AUTH_ENABLED, config=middleware_config)
-        if error:
-            logger.error(f"Could not initialize middleware: {error}")
-            sys.exit(1)
-
         # Instantiate server with desired configuration
         app_config: ProxyServerConfiguration = ProxyServerConfiguration(
             logger=logger,
@@ -90,7 +76,6 @@ if __name__ == "__main__":
         appProxyServer.init(app_config)
 
         # Routes
-        register_v1_routes(logger, server, socketio)
         register_v2_routes(logger, server, socketio)
 
         logger.info(f"Server initialized on port {env_config.SERVER_PORT}, in {env_config.ENVIRONMENT} environment")

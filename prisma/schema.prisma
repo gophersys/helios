@@ -15,12 +15,6 @@ datasource db {
 //                                                        Enums
 // ─────────────────────────────────────────────────────────────
 
-enum UserRole {
-    ADMIN
-    OPERATOR
-    VIEWER
-}
-
 enum NodeStatus {
     ONLINE
     OFFLINE
@@ -75,22 +69,48 @@ enum LogLevel {
 //                                               Users & Audit
 // ─────────────────────────────────────────────────────────────
 
-/// Lightweight mirror of the CoreOps Auth Server user.
-/// Not used for authentication — the auth server handles that.
-/// Exists so we can display names, track who did what, and
-/// enforce role-based UI without round-tripping to auth on
-/// every request.
-model User {
-    id         String    @id @default(cuid())
-    externalId String?   @unique /// Google sub ID, set on first login
-    email      String    @unique
-    name       String
-    role       UserRole  @default(VIEWER)
-    active     Boolean   @default(true)
-    lastSeenAt DateTime?
-    createdAt  DateTime  @default(now())
-    updatedAt  DateTime  @updatedAt
+model PermissionSet {
+    id          String   @id @default(cuid())
+    name        String   @unique
+    description String?
+    permissions String[] /// e.g. ["Concord.Firmware.AppID.Create", "Concord.Cluster.Read"]
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
 
+    users   User[]
+    apiKeys ApiKey[]
+
+    @@map("permission_sets")
+}
+
+model ApiKey {
+    id         String    @id @default(cuid())
+    name       String
+    keyHash    String    @unique /// SHA-256 hash of the actual key (never store plaintext)
+    keyPrefix  String /// First 8 chars of key for display ("ck_live_a1b2...")
+    userId     String
+    expiresAt  DateTime?
+    lastUsedAt DateTime?
+    createdAt  DateTime  @default(now())
+
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@map("api_keys")
+}
+
+model User {
+    id              String    @id @default(cuid())
+    externalId      String?   @unique /// Google sub ID, set on first login
+    email           String    @unique
+    name            String
+    permissionSetId String?
+    active          Boolean   @default(true)
+    lastSeenAt      DateTime?
+    createdAt       DateTime  @default(now())
+    updatedAt       DateTime  @updatedAt
+
+    permissionSet  PermissionSet? @relation(fields: [permissionSetId], references: [id])
+    apiKeys        ApiKey[]
     sessions       Session[]
     deployments    Deployment[]
     testExecutions TestExecution[]

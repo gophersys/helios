@@ -1,17 +1,17 @@
-from flask import Blueprint, g, jsonify
+from flask import g, jsonify
 
-from src.middleware.auth import require_auth
+from src.lib.decorators import require_auth
 from src.services.database.prisma import get_db_client
 
-v2_auth_me_bp = Blueprint("v2_auth_me", __name__)
 
-
-@v2_auth_me_bp.route("/v2/auth/me", methods=["GET"])
 @require_auth
-def v2_auth_me():
+def me():
     """Return the full profile of the authenticated user."""
     db = get_db_client()
-    user = db.user.find_unique(where={"id": g.current_user["sub"]})
+    user = db.user.find_unique(
+        where={"id": g.current_user["sub"]},
+        include={"permissionSet": True},
+    )
 
     if not user:
         return jsonify({"error": "User not found"}), 404
@@ -22,7 +22,9 @@ def v2_auth_me():
                 "id": user.id,
                 "email": user.email,
                 "name": user.name,
-                "role": user.role,
+                "permissionSetId": user.permissionSetId,
+                "permissionSetName": user.permissionSet.name if user.permissionSet else None,
+                "permissions": user.permissionSet.permissions if user.permissionSet else [],
                 "active": user.active,
                 "lastSeenAt": user.lastSeenAt.isoformat() if user.lastSeenAt else None,
                 "createdAt": user.createdAt.isoformat(),

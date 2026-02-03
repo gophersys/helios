@@ -24,13 +24,6 @@ class ProxyConfig(EnvConfig):
     # V1 Registry
     SUPPORTED_REGISTRIES: List[str]
 
-    # Auth (legacy CoreOps)
-    AUTH_ENABLED: bool
-    AUTH_SERVER_URL: str
-    AUTH_SERVER_API_KEY: str
-    AUTH_SERVER_CREDENTIALS_USER: str
-    AUTH_SERVER_CREDENTIALS_PASS: str
-
     # Auth (Google OAuth)
     GOOGLE_CLIENT_ID: str = ""
     JWT_SECRET_KEY: str = "concord-dev-jwt-secret-change-in-production"

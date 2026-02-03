@@ -1,61 +1,25 @@
-# Standard includes
 import os
 import re
 import shutil
 import tempfile
 import uuid
 import zipfile
-from dataclasses import dataclass
 from typing import Dict, Optional, Tuple
 
 import yaml
 from config.env import env_config
-from corekinect.http.response import ConcordHttpResponse
-from corekinect.utils import Logger
+from flask import jsonify, request
+from werkzeug.utils import secure_filename
 
-# 3rd party includes
-from flask import Blueprint, jsonify, request
-
-# App includes
-from src.middleware.permissions import authMiddleware
+from src.lib.decorators import require_permissions
+from src.lib.errors import bad_request, internal_error
+from src.lib.permissions import Permissions
+from src.lib.types import ApiResponse
 from src.services.kubernetes.client import get_batch_v1_api
 from src.services.log.logger import get_logger
 from src.services.storage.client import get_firmware_bucket_name, get_storage_client
-from werkzeug.utils import secure_filename
 
-# Flask Route
-v2_validation_tests_run_bp = Blueprint("v2_validation_tests_run", __name__)
-
-# -------------------------------------------------
-#                                             Input
-# -------------------------------------------------
-
-
-@dataclass
-class ValidationTestsRunRequest:
-    """Request structure for running a validation test"""
-
-    product: str
-    zip_file_path: str
-    additional_fields: Dict[str, str]
-
-    @classmethod
-    def from_form_data(cls, form_data: dict, zip_file_path: str) -> Tuple["ValidationTestsRunRequest", Optional[str]]:
-        """Parse form data into request object with validation"""
-        if not form_data:
-            return None, "Request must contain form data"
-
-        product = form_data.get("product")
-        if not product:
-            return None, "Field 'product' is required"
-
-        # Extract additional fields (excluding name, product, and file)
-        additional_fields = {}
-        for key, value in form_data.items():
-            if key not in ["product", "file"] and value:
-                additional_fields[key] = value
-
-        return cls(product=product, zip_file_path=zip_file_path, additional_fields=additional_fields), None
+from .types import ValidationTestsRunRequest
 
 
 # -------------------------------------------------
@@ -173,7 +137,7 @@ def extract_and_validate_firmware(zip_file_path: str) -> Tuple[Optional[str], Op
 
 def upload_firmware_to_bucket(zip_file_path: str, job_id: str, product: str) -> Tuple[Optional[str], Optional[str]]:
     """Upload the firmware to the bucket and return the bucket path"""
-    logger: Logger = get_logger()
+    logger = get_logger()
 
     # Create a unique path for this firmware upload
     firmware_filename = f"{product}-{job_id}.zip"
@@ -213,19 +177,8 @@ def create_kubernetes_job(
     The job will be scheduled automatically by Kubernetes on any available node
     that matches the nodeSelector and tolerations, with pod anti-affinity ensuring
     only one validation job per node.
-
-    Args:
-        product: Product name
-        job_id: Job ID (UUID)
-        firmware_path: Path to firmware in storage bucket
-        test_type: Test type identifier (from product YAML config)
-        test_enable: Dict of test enable flags from product YAML config
-        required_features: Optional dict of required feature labels
-
-    Returns:
-        Kubernetes job name if successful, None if error
     """
-    logger: Logger = get_logger()
+    logger = get_logger()
     logger.info(f"Creating kubernetes job for product: {product}, job_id: {job_id} (will be scheduled automatically)")
 
     try:
@@ -283,28 +236,24 @@ def create_kubernetes_job(
 # -------------------------------------------------
 #                                           Handler
 # -------------------------------------------------
-@v2_validation_tests_run_bp.route("/v2/validation/tests/run", methods=["POST"])
-@authMiddleware.check_permissions(["Concord.Validation.Tests.Run"])
-def validation_tests_run_handler():
-    logger: Logger = get_logger()
+@require_permissions(Permissions.VALIDATION_TESTS_RUN)
+def run_tests():
+    logger = get_logger()
     zip_file_path = None
     temp_dir = None
 
     try:
         # Check if file is present in the request
         if "file" not in request.files:
-            return jsonify(ConcordHttpResponse(data=None, errors=[{"message": "No file provided"}]).to_dict()), 400
+            return bad_request("No file provided")
 
         file = request.files["file"]
         if file.filename == "":
-            return jsonify(ConcordHttpResponse(data=None, errors=[{"message": "No file selected"}]).to_dict()), 400
+            return bad_request("No file selected")
 
         # Validate file extension
         if not file.filename.lower().endswith(".zip"):
-            return (
-                jsonify(ConcordHttpResponse(data=None, errors=[{"message": "File must be a zip archive"}]).to_dict()),
-                400,
-            )
+            return bad_request("File must be a zip archive")
 
         # Save uploaded file to temporary location
         filename = secure_filename(file.filename)
@@ -317,16 +266,15 @@ def validation_tests_run_handler():
         # Validate zip file
         try:
             with zipfile.ZipFile(zip_file_path, "r") as zip_ref:
-                # Test if zip file is valid
                 zip_ref.testzip()
         except zipfile.BadZipFile:
-            return jsonify(ConcordHttpResponse(data=None, errors=[{"message": "Invalid zip file"}]).to_dict()), 400
+            return bad_request("Invalid zip file")
 
         # Parse form data
         form_data = request.form.to_dict()
         data, error = ValidationTestsRunRequest.from_form_data(form_data, zip_file_path)
         if error:
-            return jsonify(ConcordHttpResponse(data=None, errors=[{"message": error}]).to_dict()), 400
+            return bad_request(error)
 
         # Generate unique job ID using UUID
         job_id = str(uuid.uuid4())
@@ -339,14 +287,14 @@ def validation_tests_run_handler():
         # 1. Extract and validate the zip file
         error, firmware_version = extract_and_validate_firmware(zip_file_path)
         if error:
-            return jsonify(ConcordHttpResponse(data=None, errors=[{"message": error}]).to_dict()), 400
+            return bad_request(error)
 
         logger.info(f"Extracted firmware version: {firmware_version}")
 
         # 2. Upload the firmware to the bucket
         firmware_path, error = upload_firmware_to_bucket(zip_file_path, job_id, data.product)
         if error:
-            return jsonify(ConcordHttpResponse(data=None, errors=[{"message": error}]).to_dict()), 400
+            return bad_request(error)
 
         # 3. Create 3 Kubernetes jobs directly - one for each test type (skip database)
         job_statuses = []
@@ -422,30 +370,15 @@ def validation_tests_run_handler():
                 "additional_fields": data.additional_fields,
             }
 
-            return (
-                jsonify(ConcordHttpResponse.new_create_response(data=response_data).to_dict()),
-                201,
-            )
+            return jsonify(ApiResponse.created(response_data).to_dict()), 201
 
         except Exception as e:
             logger.error(f"Error creating Kubernetes jobs: {str(e)}")
-            return (
-                jsonify(
-                    ConcordHttpResponse(
-                        data=None, errors=[{"message": f"Error creating Kubernetes jobs: {str(e)}"}]
-                    ).to_dict()
-                ),
-                500,
-            )
+            return internal_error(f"Error creating Kubernetes jobs: {str(e)}")
 
     except Exception as e:
         logger.error(f"An error occurred while running validation test: {str(e)}")
-        return (
-            jsonify(
-                ConcordHttpResponse(data=None, errors=[{"message": f"Internal server error: {str(e)}"}]).to_dict()
-            ),
-            500,
-        )
+        return internal_error(f"Internal server error: {str(e)}")
     finally:
         # Clean up temporary directory and all its contents
         if temp_dir and os.path.exists(temp_dir):
