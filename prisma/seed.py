@@ -72,56 +72,64 @@ def seed():
         # Create default permission sets
         super_admin_set = db.permissionset.upsert(
             where={"name": "Super Admin"},
-            create={
-                "name": "Super Admin",
-                "description": "Unrestricted access — all permissions",
-                "permissions": ALL_PERMISSIONS,
-            },
-            update={
-                "description": "Unrestricted access — all permissions",
-                "permissions": ALL_PERMISSIONS,
+            data={
+                "create": {
+                    "name": "Super Admin",
+                    "description": "Unrestricted access — all permissions",
+                    "permissions": ALL_PERMISSIONS,
+                },
+                "update": {
+                    "description": "Unrestricted access — all permissions",
+                    "permissions": ALL_PERMISSIONS,
+                },
             },
         )
         print(f"Permission set 'Super Admin' ready (id: {super_admin_set.id})")
 
         admin_set = db.permissionset.upsert(
             where={"name": "Admin"},
-            create={
-                "name": "Admin",
-                "description": "Admin access to users and day-to-day operations",
-                "permissions": ADMIN_PERMISSIONS,
-            },
-            update={
-                "description": "Admin access to users and day-to-day operations",
-                "permissions": ADMIN_PERMISSIONS,
+            data={
+                "create": {
+                    "name": "Admin",
+                    "description": "Admin access to users and day-to-day operations",
+                    "permissions": ADMIN_PERMISSIONS,
+                },
+                "update": {
+                    "description": "Admin access to users and day-to-day operations",
+                    "permissions": ADMIN_PERMISSIONS,
+                },
             },
         )
         print(f"Permission set 'Admin' ready (id: {admin_set.id})")
 
         operator_set = db.permissionset.upsert(
             where={"name": "Operator"},
-            create={
-                "name": "Operator",
-                "description": "Operational access without admin capabilities",
-                "permissions": OPERATOR_PERMISSIONS,
-            },
-            update={
-                "description": "Operational access without admin capabilities",
-                "permissions": OPERATOR_PERMISSIONS,
+            data={
+                "create": {
+                    "name": "Operator",
+                    "description": "Operational access without admin capabilities",
+                    "permissions": OPERATOR_PERMISSIONS,
+                },
+                "update": {
+                    "description": "Operational access without admin capabilities",
+                    "permissions": OPERATOR_PERMISSIONS,
+                },
             },
         )
         print(f"Permission set 'Operator' ready (id: {operator_set.id})")
 
         viewer_set = db.permissionset.upsert(
             where={"name": "Viewer"},
-            create={
-                "name": "Viewer",
-                "description": "Read-only access",
-                "permissions": VIEWER_PERMISSIONS,
-            },
-            update={
-                "description": "Read-only access",
-                "permissions": VIEWER_PERMISSIONS,
+            data={
+                "create": {
+                    "name": "Viewer",
+                    "description": "Read-only access",
+                    "permissions": VIEWER_PERMISSIONS,
+                },
+                "update": {
+                    "description": "Read-only access",
+                    "permissions": VIEWER_PERMISSIONS,
+                },
             },
         )
         print(f"Permission set 'Viewer' ready (id: {viewer_set.id})")

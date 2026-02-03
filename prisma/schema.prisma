@@ -77,8 +77,7 @@ model PermissionSet {
     createdAt   DateTime @default(now())
     updatedAt   DateTime @updatedAt
 
-    users   User[]
-    apiKeys ApiKey[]
+    users User[]
 
     @@map("permission_sets")
 }
