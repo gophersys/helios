@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Boxes, Pencil, Trash2, ChevronDown } from 'lucide-react';
+import { StatusBadge } from '../../components/ui/status-badge';
 
 interface BomItem {
   id: string;
@@ -33,12 +34,6 @@ interface Assembly {
   revisionCount: number;
   revisions?: AssemblyRevision[];
 }
-
-const STATUS_COLORS: Record<string, string> = {
-  ACTIVE: 'bg-success-muted text-success',
-  DEPRECATED: 'bg-warning-muted text-warning',
-  EOL: 'bg-error-muted text-error',
-};
 
 export function AssemblyCard({
   assembly,
@@ -103,14 +98,7 @@ export function AssemblyCard({
             >
               <span className="flex items-center gap-1.5">
                 <span className="font-medium">{selectedRev?.version || revisions[0].version}</span>
-                <span
-                  className={[
-                    'rounded-full px-1.5 py-0.5 text-2xs font-medium',
-                    STATUS_COLORS[(selectedRev || revisions[0]).status] || '',
-                  ].join(' ')}
-                >
-                  {(selectedRev || revisions[0]).status}
-                </span>
+                <StatusBadge status={(selectedRev || revisions[0]).status} />
               </span>
               <ChevronDown size={12} />
             </button>
@@ -134,14 +122,7 @@ export function AssemblyCard({
                       <span className="font-medium text-text-primary">
                         {rev.version}
                       </span>
-                      <span
-                        className={[
-                          'rounded-full px-1.5 py-0.5 font-medium',
-                          STATUS_COLORS[rev.status] || '',
-                        ].join(' ')}
-                      >
-                        {rev.status}
-                      </span>
+                      <StatusBadge status={rev.status} />
                     </button>
                   ))}
                 </div>

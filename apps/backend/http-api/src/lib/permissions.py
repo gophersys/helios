@@ -1,10 +1,4 @@
 class Permissions:
-    # Firmware
-    FIRMWARE_APPID_CREATE = "Concord.Firmware.AppID.Create"
-    FIRMWARE_APPID_VIEW = "Concord.Firmware.AppID.View"
-    FIRMWARE_APPID_UPDATE = "Concord.Firmware.AppID.Update"
-    FIRMWARE_APPID_DELETE = "Concord.Firmware.AppID.Delete"
-
     # Cluster / MTIB
     MTIB_READ = "Concord.Cluster.Read"
     MTIB_MANAGE = "Concord.Cluster.Manage"
@@ -27,6 +21,13 @@ class Permissions:
     # Admin - Hardware
     ADMIN_HARDWARE_VIEW = "Concord.Admin.Hardware.View"
     ADMIN_HARDWARE_MANAGE = "Concord.Admin.Hardware.Manage"
+
+    # Admin - Codebases
+    ADMIN_CODEBASES_VIEW = "Concord.Admin.Codebases.View"
+    ADMIN_CODEBASES_MANAGE = "Concord.Admin.Codebases.Manage"
+
+    # Admin - History
+    ADMIN_HISTORY_VIEW = "Concord.Admin.History.View"
 
     @classmethod
     def all(cls) -> list[dict]:

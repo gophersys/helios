@@ -1,6 +1,7 @@
 from flask import jsonify, request
 from kubernetes import client as k8s_client
 
+from src.lib.audit import log_audit
 from src.lib.decorators import require_permissions
 from src.lib.errors import bad_request, conflict, internal_error
 from src.lib.permissions import Permissions
@@ -86,6 +87,7 @@ def register_mtib():
                 )
 
         logger.info(f"Successfully registered MTIB: {data.name} with {len(data.appIds)} appId mappings")
+        log_audit("node.register", "Node", mtib.id, {"name": data.name, "type": mtib_type, "hostname": data.hostname})
 
         response_data = {
             "id": mtib.id,

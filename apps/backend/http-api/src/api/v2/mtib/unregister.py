@@ -1,5 +1,6 @@
 from flask import jsonify, request
 
+from src.lib.audit import log_audit
 from src.lib.decorators import require_permissions
 from src.lib.errors import bad_request, internal_error, not_found
 from src.lib.permissions import Permissions
@@ -32,6 +33,7 @@ def unregister_mtib():
         get_db_client().mtib.delete(where={"id": data.hostname})
 
         logger.info(f"Successfully unregistered MTIB: {data.hostname}")
+        log_audit("node.unregister", "Node", data.hostname, {"name": existing_mtib.name, "hostname": data.hostname})
 
         response_data = {
             "hostname": data.hostname,

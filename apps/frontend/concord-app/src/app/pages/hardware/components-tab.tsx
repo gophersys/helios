@@ -2,6 +2,12 @@ import { useCallback, useEffect, useState } from 'react';
 import { Plus, X, Check } from 'lucide-react';
 import { api, apiUpload } from '../../api';
 import { useAuth } from '../../auth-provider';
+import { ConfirmDeleteDialog } from '../../components/ui/confirm-delete-dialog';
+import { StatusBadge } from '../../components/ui/status-badge';
+import { ErrorAlert } from '../../components/ui/error-alert';
+import { EmptyState } from '../../components/ui/empty-state';
+import { LoadingState } from '../../components/ui/loading-state';
+import { ApiResponse } from '../../types';
 import { ComponentCard } from './component-card';
 import { ImageUpload } from './image-upload';
 
@@ -30,10 +36,6 @@ interface Component {
   updatedAt: string;
 }
 
-interface ApiResponse<T> {
-  data: T;
-}
-
 export function ComponentsTab() {
   const { hasPermission } = useAuth();
   const canManage = hasPermission('Concord.Admin.Hardware.Manage');
@@ -50,6 +52,10 @@ export function ComponentsTab() {
   const [formCategory, setFormCategory] = useState('SOM');
   const [formManufacturer, setFormManufacturer] = useState('');
   const [formPartNumber, setFormPartNumber] = useState('');
+
+  // Delete confirmation state
+  const [deleteTarget, setDeleteTarget] = useState<{id: string, name: string} | null>(null);
+  const [deleteRevTarget, setDeleteRevTarget] = useState<{id: string, name: string} | null>(null);
 
   // Detail / revision state
   const [selectedComponent, setSelectedComponent] = useState<Component | null>(null);
@@ -134,8 +140,12 @@ export function ComponentsTab() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Delete this component and all its revisions?')) return;
+  const handleDelete = (id: string) => {
+    const target = components.find(c => c.id === id);
+    setDeleteTarget({ id, name: target?.name || '' });
+  };
+
+  const doDelete = async (id: string) => {
     setError(null);
     try {
       await api(`/v2/hardware/components/${id}`, { method: 'DELETE' });
@@ -182,9 +192,14 @@ export function ComponentsTab() {
     }
   };
 
-  const handleDeleteRevision = async (revisionId: string) => {
+  const handleDeleteRevision = (revisionId: string) => {
     if (!selectedComponent) return;
-    if (!confirm('Delete this revision? This cannot be undone.')) return;
+    const rev = selectedComponent.revisions?.find((r: any) => r.id === revisionId);
+    setDeleteRevTarget({ id: revisionId, name: rev?.version || '' });
+  };
+
+  const doDeleteRevision = async (revisionId: string) => {
+    if (!selectedComponent) return;
     try {
       await api(
         `/v2/hardware/components/${selectedComponent.id}/revisions/${revisionId}`,
@@ -198,11 +213,7 @@ export function ComponentsTab() {
   };
 
   if (loading) {
-    return (
-      <div className="py-12 text-center text-sm text-text-tertiary">
-        Loading components...
-      </div>
-    );
+    return <LoadingState message="Loading components..." />;
   }
 
   // Detail view
@@ -369,18 +380,7 @@ export function ComponentsTab() {
                           {rev.version}
                         </td>
                         <td className="px-3 py-2">
-                          <span
-                            className={[
-                              'inline-flex rounded-full px-2 py-0.5 text-2xs font-medium',
-                              rev.status === 'ACTIVE'
-                                ? 'bg-success-muted text-success'
-                                : rev.status === 'DEPRECATED'
-                                  ? 'bg-warning-muted text-warning'
-                                  : 'bg-error-muted text-error',
-                            ].join(' ')}
-                          >
-                            {rev.status}
-                          </span>
+                          <StatusBadge status={rev.status} />
                         </td>
                         <td className="px-3 py-2 text-text-secondary">
                           {rev.releaseNotes || '-'}
@@ -413,11 +413,7 @@ export function ComponentsTab() {
 
   return (
     <div>
-      {error && (
-        <div className="mb-4 rounded-lg bg-error-muted px-3 py-2 text-sm text-error">
-          {error}
-        </div>
-      )}
+      <ErrorAlert message={error} />
 
       {/* Create/Edit form */}
       {showForm && canManage && (
@@ -542,9 +538,7 @@ export function ComponentsTab() {
 
       {/* Grid */}
       {components.length === 0 ? (
-        <div className="py-12 text-center text-sm text-text-tertiary">
-          No hardware components yet
-        </div>
+        <EmptyState message="No hardware components yet" />
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {components.map((c) => (
@@ -559,6 +553,21 @@ export function ComponentsTab() {
           ))}
         </div>
       )}
+
+      <ConfirmDeleteDialog
+        open={!!deleteTarget}
+        entityType="component"
+        entityName={deleteTarget?.name || ''}
+        onConfirm={() => { doDelete(deleteTarget!.id); setDeleteTarget(null); }}
+        onCancel={() => setDeleteTarget(null)}
+      />
+      <ConfirmDeleteDialog
+        open={!!deleteRevTarget}
+        entityType="revision"
+        entityName={deleteRevTarget?.name || ''}
+        onConfirm={() => { doDeleteRevision(deleteRevTarget!.id); setDeleteRevTarget(null); }}
+        onCancel={() => setDeleteRevTarget(null)}
+      />
     </div>
   );
 }

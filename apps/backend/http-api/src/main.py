@@ -24,6 +24,7 @@ from flask_socketio import SocketIO
 from src.services.database.prisma import init_postgres_client
 from src.services.kubernetes.client import init_kubernetes_client
 from src.services.log.logger import init_logger
+from src.services.scheduler import start_scheduler
 from src.services.storage.client import init_storage_client
 from src.services.proxy import ProxyServerConfiguration, appProxyServer
 
@@ -65,6 +66,9 @@ if __name__ == "__main__":
 
         # Initialize the logger
         init_logger(log_config)
+
+        # Start background scheduler (audit log cleanup)
+        start_scheduler()
 
         # Instantiate server with desired configuration
         app_config: ProxyServerConfiguration = ProxyServerConfiguration(

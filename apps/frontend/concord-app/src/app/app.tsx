@@ -9,6 +9,9 @@ import { PlaceholderPage } from './pages/placeholder';
 import { UsersPage } from './pages/users';
 import { PermissionSetsPage } from './pages/permission-sets';
 import { HardwareCatalogPage } from './pages/hardware/hardware-catalog';
+import { CodebasesPage } from './pages/codebases/codebases-page';
+import { GuidesPage } from './pages/guides/guides-page';
+import { HistoryPage } from './pages/history/history-page';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
@@ -49,6 +52,9 @@ function AppRoutes() {
         <Route path="users" element={<UsersPage />} />
         <Route path="permission-sets" element={<PermissionSetsPage />} />
         <Route path="hardware" element={<HardwareCatalogPage />} />
+        <Route path="codebases" element={<CodebasesPage />} />
+        <Route path="guides" element={<GuidesPage />} />
+        <Route path="history" element={<HistoryPage />} />
       </Route>
     </Routes>
   );

@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Plus, Trash2, Copy, Check } from 'lucide-react';
 import { api } from '../../../api';
+import { ConfirmDeleteDialog } from '../../ui/confirm-delete-dialog';
+import { ErrorAlert } from '../../ui/error-alert';
+import { formatDate } from '../../../utils/formatting';
 
 interface ApiKey {
   id: string;
@@ -18,6 +21,7 @@ export function ApiKeysSection() {
   const [error, setError] = useState<string | null>(null);
   const [newKey, setNewKey] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{id: string, name: string} | null>(null);
 
   const [formName, setFormName] = useState('');
   const [formExpiresAt, setFormExpiresAt] = useState('');
@@ -62,7 +66,12 @@ export function ApiKeysSection() {
     }
   };
 
-  const handleDelete = async (keyId: string) => {
+  const handleDelete = (keyId: string) => {
+    const target = keys.find(k => k.id === keyId);
+    setDeleteTarget({ id: keyId, name: target?.name || '' });
+  };
+
+  const doDelete = async (keyId: string) => {
     try {
       await api(`/v2/auth/api-keys/${keyId}`, { method: 'DELETE' });
       fetchKeys();
@@ -77,15 +86,6 @@ export function ApiKeysSection() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const formatDate = (iso: string | null) => {
-    if (!iso) return 'Never';
-    return new Date(iso).toLocaleDateString(undefined, {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
-  };
-
   return (
     <div>
       <p className="mb-4 text-sm text-text-secondary">
@@ -93,11 +93,7 @@ export function ApiKeysSection() {
         inherit your permissions.
       </p>
 
-      {error && (
-        <div className="mb-4 rounded-lg bg-error-muted px-3 py-2 text-sm text-error">
-          {error}
-        </div>
-      )}
+      <ErrorAlert message={error} />
 
       {/* New key display */}
       {newKey && (
@@ -225,6 +221,14 @@ export function ApiKeysSection() {
           ))}
         </div>
       )}
+
+      <ConfirmDeleteDialog
+        open={!!deleteTarget}
+        entityType="API key"
+        entityName={deleteTarget?.name || ''}
+        onConfirm={() => { doDelete(deleteTarget!.id); setDeleteTarget(null); }}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }

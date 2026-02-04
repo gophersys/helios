@@ -2,6 +2,7 @@ from io import BytesIO
 
 from flask import jsonify, request
 
+from src.lib.audit import log_audit
 from src.lib.decorators import require_permissions
 from src.lib.errors import bad_request, conflict, internal_error, not_found
 from src.lib.permissions import Permissions
@@ -83,6 +84,7 @@ def create_component():
         },
         include={"revisions": True},
     )
+    log_audit("component.create", "HardwareComponent", component.id, {"name": data.name, "category": data.category})
     return jsonify(ApiResponse.ok(_serialize_component(component)).to_dict()), 201
 
 
@@ -124,6 +126,7 @@ def update_component(component_id: str):
         data=data.to_update_data(),
         include={"revisions": True},
     )
+    log_audit("component.update", "HardwareComponent", component_id, {"name": existing.name, "changes": data.to_update_data()})
     return jsonify(ApiResponse.ok(_serialize_component(component)).to_dict()), 200
 
 
@@ -155,6 +158,7 @@ def delete_component(component_id: str):
             pass  # Best effort
 
     db.hardwarecomponent.delete(where={"id": component_id})
+    log_audit("component.delete", "HardwareComponent", component_id, {"name": existing.name, "category": existing.category})
     return jsonify(ApiResponse.ok({"deleted": True}).to_dict()), 200
 
 
@@ -206,6 +210,7 @@ def upload_component_image(component_id: str):
             data={"imageKey": object_key},
             include={"revisions": True},
         )
+        log_audit("component.imageUpload", "HardwareComponent", component_id, {"name": component.name})
         return jsonify(ApiResponse.ok(_serialize_component(updated)).to_dict()), 200
     except Exception as e:
         return internal_error(f"Failed to upload image: {str(e)}")
@@ -240,6 +245,7 @@ def create_revision(component_id: str):
             "releaseNotes": data.releaseNotes,
         }
     )
+    log_audit("revision.create", "HardwareRevision", revision.id, {"componentName": component.name, "version": data.version, "status": data.status})
     return jsonify(ApiResponse.ok(_serialize_revision(revision)).to_dict()), 201
 
 
@@ -268,6 +274,7 @@ def update_revision(component_id: str, revision_id: str):
         where={"id": revision_id},
         data=data.to_update_data(),
     )
+    log_audit("revision.update", "HardwareRevision", revision_id, {"version": revision.version, "changes": data.to_update_data()})
     return jsonify(ApiResponse.ok(_serialize_revision(updated)).to_dict()), 200
 
 
@@ -288,4 +295,5 @@ def delete_revision(component_id: str, revision_id: str):
         return conflict("Cannot delete revision: it is referenced in an assembly BOM")
 
     db.hardwarerevision.delete(where={"id": revision_id})
+    log_audit("revision.delete", "HardwareRevision", revision_id, {"version": revision.version})
     return jsonify(ApiResponse.ok({"deleted": True}).to_dict()), 200

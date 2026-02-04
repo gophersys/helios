@@ -2,6 +2,7 @@ from io import BytesIO
 
 from flask import jsonify, request
 
+from src.lib.audit import log_audit
 from src.lib.decorators import require_permissions
 from src.lib.errors import bad_request, conflict, internal_error, not_found
 from src.lib.permissions import Permissions
@@ -119,6 +120,7 @@ def create_assembly():
         },
         include={"revisions": True},
     )
+    log_audit("assembly.create", "Assembly", assembly.id, {"name": data.name})
     return jsonify(ApiResponse.ok(_serialize_assembly(assembly)).to_dict()), 201
 
 
@@ -160,6 +162,7 @@ def update_assembly(assembly_id: str):
         data=data.to_update_data(),
         include={"revisions": True},
     )
+    log_audit("assembly.update", "Assembly", assembly_id, {"name": existing.name, "changes": data.to_update_data()})
     return jsonify(ApiResponse.ok(_serialize_assembly(assembly)).to_dict()), 200
 
 
@@ -178,6 +181,7 @@ def delete_assembly(assembly_id: str):
             pass
 
     db.assembly.delete(where={"id": assembly_id})
+    log_audit("assembly.delete", "Assembly", assembly_id, {"name": existing.name})
     return jsonify(ApiResponse.ok({"deleted": True}).to_dict()), 200
 
 
@@ -228,6 +232,7 @@ def upload_assembly_image(assembly_id: str):
             data={"imageKey": object_key},
             include={"revisions": True},
         )
+        log_audit("assembly.imageUpload", "Assembly", assembly_id, {"name": assembly.name})
         return jsonify(ApiResponse.ok(_serialize_assembly(updated)).to_dict()), 200
     except Exception as e:
         return internal_error(f"Failed to upload image: {str(e)}")
@@ -280,6 +285,7 @@ def create_assembly_revision(assembly_id: str):
         },
         include=_REVISION_INCLUDE,
     )
+    log_audit("assemblyRevision.create", "AssemblyRevision", revision.id, {"assemblyName": assembly.name, "version": data.version, "status": data.status})
     return jsonify(ApiResponse.ok(_serialize_assembly_revision(revision)).to_dict()), 201
 
 
@@ -339,6 +345,7 @@ def update_assembly_revision(assembly_id: str, revision_id: str):
         where={"id": revision_id},
         include=_REVISION_INCLUDE,
     )
+    log_audit("assemblyRevision.update", "AssemblyRevision", revision_id, {"version": revision.version, "changes": data.to_update_data()})
     return jsonify(ApiResponse.ok(_serialize_assembly_revision(updated)).to_dict()), 200
 
 
@@ -352,4 +359,5 @@ def delete_assembly_revision(assembly_id: str, revision_id: str):
         return not_found("Assembly revision not found")
 
     db.assemblyrevision.delete(where={"id": revision_id})
+    log_audit("assemblyRevision.delete", "AssemblyRevision", revision_id, {"version": revision.version})
     return jsonify(ApiResponse.ok({"deleted": True}).to_dict()), 200

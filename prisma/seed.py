@@ -17,10 +17,6 @@ from database import Prisma
 
 # Every permission that exists in the system
 ALL_PERMISSIONS = [
-    "Concord.Firmware.AppID.Create",
-    "Concord.Firmware.AppID.View",
-    "Concord.Firmware.AppID.Update",
-    "Concord.Firmware.AppID.Delete",
     "Concord.Cluster.Read",
     "Concord.Cluster.Manage",
     "Concord.Validation.Tests.Run",
@@ -32,14 +28,13 @@ ALL_PERMISSIONS = [
     "Concord.Admin.ApiKeys.Manage",
     "Concord.Admin.Hardware.View",
     "Concord.Admin.Hardware.Manage",
+    "Concord.Admin.Codebases.View",
+    "Concord.Admin.Codebases.Manage",
+    "Concord.Admin.History.View",
 ]
 
 # Default permission sets
 ADMIN_PERMISSIONS = [
-    "Concord.Firmware.AppID.Create",
-    "Concord.Firmware.AppID.View",
-    "Concord.Firmware.AppID.Update",
-    "Concord.Firmware.AppID.Delete",
     "Concord.Cluster.Read",
     "Concord.Cluster.Manage",
     "Concord.Validation.Tests.Run",
@@ -47,20 +42,18 @@ ADMIN_PERMISSIONS = [
     "Concord.Admin.Users.Manage",
     "Concord.Admin.Hardware.View",
     "Concord.Admin.Hardware.Manage",
+    "Concord.Admin.Codebases.View",
+    "Concord.Admin.Codebases.Manage",
+    "Concord.Admin.History.View",
 ]
 
 OPERATOR_PERMISSIONS = [
-    "Concord.Firmware.AppID.Create",
-    "Concord.Firmware.AppID.View",
-    "Concord.Firmware.AppID.Update",
-    "Concord.Firmware.AppID.Delete",
     "Concord.Cluster.Read",
     "Concord.Cluster.Manage",
     "Concord.Validation.Tests.Run",
 ]
 
 VIEWER_PERMISSIONS = [
-    "Concord.Firmware.AppID.View",
     "Concord.Cluster.Read",
 ]
 

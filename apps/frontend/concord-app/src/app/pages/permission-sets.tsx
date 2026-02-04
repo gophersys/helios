@@ -12,6 +12,9 @@ import {
 import { useAuth } from '../auth-provider';
 import { api } from '../api';
 import { PageHeader } from '../components/ui/page-header';
+import { ConfirmDeleteDialog } from '../components/ui/confirm-delete-dialog';
+import { ErrorAlert } from '../components/ui/error-alert';
+import { LoadingState } from '../components/ui/loading-state';
 
 interface AvailablePermission {
   key: string;
@@ -478,6 +481,7 @@ export function PermissionSetsPage() {
   const [formPermissions, setFormPermissions] = useState<Set<string>>(
     new Set(),
   );
+  const [deleteTarget, setDeleteTarget] = useState<{id: string, name: string} | null>(null);
 
   const fetchSets = useCallback(async () => {
     try {
@@ -584,7 +588,7 @@ export function PermissionSetsPage() {
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const doDelete = async (id: string) => {
     setError(null);
     try {
       await api(`/v2/auth/permission-sets/${id}`, { method: 'DELETE' });
@@ -596,6 +600,11 @@ export function PermissionSetsPage() {
           : 'Failed to delete permission set',
       );
     }
+  };
+
+  const handleDelete = (id: string) => {
+    const target = sets.find(s => s.id === id);
+    setDeleteTarget({ id, name: target?.name || '' });
   };
 
   return (
@@ -621,11 +630,7 @@ export function PermissionSetsPage() {
         />
       </div>
 
-      {error && (
-        <div className="mb-4 rounded-lg bg-error-muted px-3 py-2 text-sm text-error">
-          {error}
-        </div>
-      )}
+      <ErrorAlert message={error} />
 
       {/* Create/Edit form */}
       {showForm && canManage && (
@@ -713,9 +718,7 @@ export function PermissionSetsPage() {
 
       {/* Permission sets list */}
       {loading ? (
-        <div className="py-12 text-center text-sm text-text-tertiary">
-          Loading permission sets...
-        </div>
+        <LoadingState message="Loading permission sets..." />
       ) : (
         <div className="space-y-3">
           {sets.map((ps) => (
@@ -730,6 +733,14 @@ export function PermissionSetsPage() {
           ))}
         </div>
       )}
+
+      <ConfirmDeleteDialog
+        open={!!deleteTarget}
+        entityType="permission set"
+        entityName={deleteTarget?.name || ''}
+        onConfirm={() => { doDelete(deleteTarget!.id); setDeleteTarget(null); }}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }

@@ -77,6 +77,17 @@ enum RevisionStatus {
     EOL
 }
 
+enum ReleaseStatus {
+    DRAFT
+    RELEASED
+    DEPRECATED
+}
+
+enum ArtifactType {
+    UPLOAD
+    EXTERNAL
+}
+
 // ─────────────────────────────────────────────────────────────
 //                                               Users & Audit
 // ─────────────────────────────────────────────────────────────
@@ -543,4 +554,65 @@ model AssemblyRevisionComponent {
 
     @@unique([assemblyRevisionId, hardwareRevisionId])
     @@map("assembly_revision_components")
+}
+
+// ─────────────────────────────────────────────────────────────
+//                                       Codebases & Releases
+// ─────────────────────────────────────────────────────────────
+
+/// A software repository tracked by Concord — Concord App, Concord OS, etc.
+model Codebase {
+    id            String   @id @default(cuid())
+    name          String   @unique
+    description   String?
+    repoUrl       String?
+    defaultBranch String   @default("main")
+    imageKey      String? /// MinIO object key for logo image
+    createdAt     DateTime @default(now())
+    updatedAt     DateTime @updatedAt
+
+    releases Release[]
+
+    @@map("codebases")
+}
+
+/// A versioned release of a codebase.
+model Release {
+    id           String        @id @default(cuid())
+    codebaseId   String
+    version      String
+    status       ReleaseStatus @default(DRAFT)
+    releaseNotes String?
+    tagName      String? /// Bitbucket tag name for linking
+    releasedAt   DateTime? /// When the release was published (separate from createdAt)
+    createdAt    DateTime      @default(now())
+    updatedAt    DateTime      @updatedAt
+
+    codebase  Codebase          @relation(fields: [codebaseId], references: [id], onDelete: Cascade)
+    artifacts ReleaseArtifact[]
+
+    @@unique([codebaseId, version])
+    @@index([codebaseId, status])
+    @@map("releases")
+}
+
+/// A downloadable artifact for a release — either uploaded to MinIO or linked via external URL.
+model ReleaseArtifact {
+    id          String       @id @default(cuid())
+    releaseId   String
+    name        String
+    filename    String?
+    type        ArtifactType
+    storageKey  String? /// MinIO object key (for UPLOAD type)
+    externalUrl String? /// External download URL (for EXTERNAL type)
+    sizeBytes   BigInt? /// File size; BigInt to support files > 2GB
+    checksum    String? /// SHA-256 hex digest
+    contentType String?
+    createdAt   DateTime     @default(now())
+    updatedAt   DateTime     @updatedAt
+
+    release Release @relation(fields: [releaseId], references: [id], onDelete: Cascade)
+
+    @@index([releaseId])
+    @@map("release_artifacts")
 }

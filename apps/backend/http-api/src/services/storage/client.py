@@ -28,6 +28,7 @@ def init_storage_client() -> Minio:
         # Ensure buckets exist
         _ensure_firmware_bucket_exists()
         _ensure_hardware_bucket_exists()
+        _ensure_codebases_bucket_exists()
 
     return appStorageClient
 
@@ -84,3 +85,23 @@ def get_firmware_bucket_name() -> str:
 def get_hardware_bucket_name() -> str:
     """Get the configured hardware bucket name"""
     return env_config.STORAGE_HARDWARE_BUCKET_NAME
+
+
+def _ensure_codebases_bucket_exists() -> None:
+    """Ensure the codebases bucket exists, create it if it doesn't"""
+    bucket_name = env_config.STORAGE_CODEBASES_BUCKET_NAME
+
+    try:
+        if not appStorageClient.bucket_exists(bucket_name):
+            appStorageClient.make_bucket(bucket_name)
+            print(f"✓ Created codebases bucket: {bucket_name}")
+        else:
+            print(f"✓ Codebases bucket already exists: {bucket_name}")
+    except Exception as e:
+        print(f"⚠ Warning: Could not ensure codebases bucket exists: {e}")
+        raise RuntimeError(f"Failed to ensure codebases bucket '{bucket_name}' exists: {e}") from e
+
+
+def get_codebases_bucket_name() -> str:
+    """Get the configured codebases bucket name"""
+    return env_config.STORAGE_CODEBASES_BUCKET_NAME

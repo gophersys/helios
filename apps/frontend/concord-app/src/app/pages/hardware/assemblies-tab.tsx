@@ -2,8 +2,14 @@ import { useCallback, useEffect, useState } from 'react';
 import { Plus, X, Check } from 'lucide-react';
 import { api, apiUpload } from '../../api';
 import { useAuth } from '../../auth-provider';
+import { ConfirmDeleteDialog } from '../../components/ui/confirm-delete-dialog';
+import { StatusBadge } from '../../components/ui/status-badge';
+import { ErrorAlert } from '../../components/ui/error-alert';
+import { EmptyState } from '../../components/ui/empty-state';
+import { LoadingState } from '../../components/ui/loading-state';
 import { AssemblyCard } from './assembly-card';
 import { ImageUpload } from './image-upload';
+import { ApiResponse } from '../../types';
 import { BomEditor } from './bom-editor';
 
 interface BomItem {
@@ -69,10 +75,6 @@ interface ComponentData {
   }[];
 }
 
-interface ApiResponse<T> {
-  data: T;
-}
-
 export function AssembliesTab() {
   const { hasPermission } = useAuth();
   const canManage = hasPermission('Concord.Admin.Hardware.Manage');
@@ -87,6 +89,10 @@ export function AssembliesTab() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formName, setFormName] = useState('');
   const [formDescription, setFormDescription] = useState('');
+
+  // Delete confirmation state
+  const [deleteTarget, setDeleteTarget] = useState<{id: string, name: string} | null>(null);
+  const [deleteRevTarget, setDeleteRevTarget] = useState<{id: string, name: string} | null>(null);
 
   // Detail view
   const [selectedAssembly, setSelectedAssembly] = useState<Assembly | null>(null);
@@ -188,8 +194,12 @@ export function AssembliesTab() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Delete this assembly and all its revisions?')) return;
+  const handleDelete = (id: string) => {
+    const target = assemblies.find(a => a.id === id);
+    setDeleteTarget({ id, name: target?.name || '' });
+  };
+
+  const doDelete = async (id: string) => {
     setError(null);
     try {
       await api(`/v2/hardware/assemblies/${id}`, { method: 'DELETE' });
@@ -238,9 +248,14 @@ export function AssembliesTab() {
     }
   };
 
-  const handleDeleteRevision = async (revisionId: string) => {
+  const handleDeleteRevision = (revisionId: string) => {
     if (!selectedAssembly) return;
-    if (!confirm('Delete this revision? This cannot be undone.')) return;
+    const rev = selectedAssembly.revisions?.find((r: any) => r.id === revisionId);
+    setDeleteRevTarget({ id: revisionId, name: rev?.version || '' });
+  };
+
+  const doDeleteRevision = async (revisionId: string) => {
+    if (!selectedAssembly) return;
     try {
       await api(
         `/v2/hardware/assemblies/${selectedAssembly.id}/revisions/${revisionId}`,
@@ -254,11 +269,7 @@ export function AssembliesTab() {
   };
 
   if (loading) {
-    return (
-      <div className="py-12 text-center text-sm text-text-tertiary">
-        Loading assemblies...
-      </div>
-    );
+    return <LoadingState message="Loading assemblies..." />;
   }
 
   // Detail view
@@ -395,18 +406,7 @@ export function AssembliesTab() {
                         <span className="text-sm font-semibold text-text-primary">
                           {rev.version}
                         </span>
-                        <span
-                          className={[
-                            'rounded-full px-2 py-0.5 text-2xs font-medium',
-                            rev.status === 'ACTIVE'
-                              ? 'bg-success-muted text-success'
-                              : rev.status === 'DEPRECATED'
-                                ? 'bg-warning-muted text-warning'
-                                : 'bg-error-muted text-error',
-                          ].join(' ')}
-                        >
-                          {rev.status}
-                        </span>
+                        <StatusBadge status={rev.status} />
                         {rev.releaseNotes && (
                           <span className="text-2xs text-text-tertiary">
                             {rev.releaseNotes}
@@ -461,11 +461,7 @@ export function AssembliesTab() {
 
   return (
     <div>
-      {error && (
-        <div className="mb-4 rounded-lg bg-error-muted px-3 py-2 text-sm text-error">
-          {error}
-        </div>
-      )}
+      <ErrorAlert message={error} />
 
       {showForm && canManage && (
         <div className="mb-6 rounded-xl border border-border bg-surface-1 p-5">
@@ -545,9 +541,7 @@ export function AssembliesTab() {
       )}
 
       {assemblies.length === 0 ? (
-        <div className="py-12 text-center text-sm text-text-tertiary">
-          No assemblies yet
-        </div>
+        <EmptyState message="No assemblies yet" />
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {assemblies.map((a) => (
@@ -562,6 +556,21 @@ export function AssembliesTab() {
           ))}
         </div>
       )}
+
+      <ConfirmDeleteDialog
+        open={!!deleteTarget}
+        entityType="assembly"
+        entityName={deleteTarget?.name || ''}
+        onConfirm={() => { doDelete(deleteTarget!.id); setDeleteTarget(null); }}
+        onCancel={() => setDeleteTarget(null)}
+      />
+      <ConfirmDeleteDialog
+        open={!!deleteRevTarget}
+        entityType="revision"
+        entityName={deleteRevTarget?.name || ''}
+        onConfirm={() => { doDeleteRevision(deleteRevTarget!.id); setDeleteRevTarget(null); }}
+        onCancel={() => setDeleteRevTarget(null)}
+      />
     </div>
   );
 }

@@ -12,6 +12,9 @@ import {
   Users,
   ShieldCheck,
   Cpu,
+  GitBranch,
+  BookOpen,
+  History,
   LogOut,
   PanelLeftClose,
 } from 'lucide-react';
@@ -166,7 +169,7 @@ export function Sidebar({
     navigate('/login');
   };
 
-  const isAdmin = hasPermission('Concord.Admin.Users.View') || hasPermission('Concord.Admin.Hardware.View');
+  const isAdmin = hasPermission('Concord.Admin.Users.View') || hasPermission('Concord.Admin.Hardware.View') || hasPermission('Concord.Admin.Codebases.View') || hasPermission('Concord.Admin.History.View');
 
   return (
     <aside
@@ -263,6 +266,40 @@ export function Sidebar({
                   Admin
                 </span>
               )}
+              {hasPermission('Concord.Admin.Hardware.View') && (
+                <SidebarLink
+                  to="/hardware"
+                  icon={Cpu}
+                  label="Hardware"
+                  collapsed={collapsed}
+                  onDoubleClick={onToggle}
+                />
+              )}
+              {hasPermission('Concord.Admin.Codebases.View') && (
+                <SidebarLink
+                  to="/codebases"
+                  icon={GitBranch}
+                  label="Codebases"
+                  collapsed={collapsed}
+                  onDoubleClick={onToggle}
+                />
+              )}
+              {hasPermission('Concord.Admin.History.View') && (
+                <SidebarLink
+                  to="/history"
+                  icon={History}
+                  label="History"
+                  collapsed={collapsed}
+                  onDoubleClick={onToggle}
+                />
+              )}
+              <SidebarLink
+                to="/guides"
+                icon={BookOpen}
+                label="Guides"
+                collapsed={collapsed}
+                onDoubleClick={onToggle}
+              />
               {hasPermission('Concord.Admin.Users.View') && (
                 <SidebarLink
                   to="/users"
@@ -277,15 +314,6 @@ export function Sidebar({
                   to="/permission-sets"
                   icon={ShieldCheck}
                   label="Permission Sets"
-                  collapsed={collapsed}
-                  onDoubleClick={onToggle}
-                />
-              )}
-              {hasPermission('Concord.Admin.Hardware.View') && (
-                <SidebarLink
-                  to="/hardware"
-                  icon={Cpu}
-                  label="Hardware"
                   collapsed={collapsed}
                   onDoubleClick={onToggle}
                 />
