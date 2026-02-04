@@ -3,8 +3,9 @@ import time
 from datetime import datetime, timezone
 from functools import wraps
 
-from flask import g, jsonify, request
+from flask import g, request
 
+from src.lib.errors import forbidden, unauthorized
 from src.services.auth.jwt import verify_token
 from src.services.database.prisma import get_db_client
 
@@ -44,13 +45,13 @@ def require_auth(f):
     def decorated(*args, **kwargs):
         auth_header = request.headers.get("Authorization")
         if not auth_header:
-            return jsonify({"error": "Missing authorization header"}), 401
+            return unauthorized("Missing authorization header")
 
         if auth_header.startswith("Bearer "):
             token = auth_header.split(" ", 1)[1]
             payload, error = verify_token(token)
             if error:
-                return jsonify({"error": error}), 401
+                return unauthorized(error)
             g.current_user = payload
 
         elif auth_header.startswith("ApiKey "):
@@ -64,13 +65,13 @@ def require_auth(f):
             )
 
             if not api_key:
-                return jsonify({"error": "Invalid API key"}), 401
+                return unauthorized("Invalid API key")
 
             if api_key.expiresAt and api_key.expiresAt.timestamp() < time.time():
-                return jsonify({"error": "API key expired"}), 401
+                return unauthorized("API key expired")
 
             if not api_key.user.active:
-                return jsonify({"error": "User account deactivated"}), 403
+                return forbidden("User account deactivated")
 
             # Update lastUsedAt
             db.apikey.update(
@@ -86,7 +87,7 @@ def require_auth(f):
             }
 
         else:
-            return jsonify({"error": "Invalid authorization header format"}), 401
+            return unauthorized("Invalid authorization header format")
 
         return f(*args, **kwargs)
 
@@ -103,19 +104,19 @@ def require_permissions(*permission_strings):
         def decorated(*args, **kwargs):
             user = getattr(g, "current_user", None)
             if not user:
-                return jsonify({"error": "Unauthorized"}), 401
+                return unauthorized("Unauthorized")
 
             perm_set_id = user.get("permissionSetId")
             if not perm_set_id:
-                return jsonify({"error": "No permission set assigned"}), 403
+                return forbidden("No permission set assigned")
 
             permissions = _get_permissions_for_set(perm_set_id)
             if permissions is None:
-                return jsonify({"error": "Permission set not found"}), 403
+                return forbidden("Permission set not found")
 
             for perm in permission_strings:
                 if perm not in permissions:
-                    return jsonify({"error": "Forbidden"}), 403
+                    return forbidden("Forbidden")
 
             return f(*args, **kwargs)
 

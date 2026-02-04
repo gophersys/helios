@@ -1,6 +1,8 @@
 from flask import g, jsonify
 
 from src.lib.decorators import require_auth
+from src.lib.errors import not_found
+from src.lib.types import ApiResponse
 from src.services.database.prisma import get_db_client
 
 
@@ -14,20 +16,18 @@ def me():
     )
 
     if not user:
-        return jsonify({"error": "User not found"}), 404
+        return not_found("User not found")
 
-    return jsonify(
+    return jsonify(ApiResponse.ok(
         {
-            "user": {
-                "id": user.id,
-                "email": user.email,
-                "name": user.name,
-                "permissionSetId": user.permissionSetId,
-                "permissionSetName": user.permissionSet.name if user.permissionSet else None,
-                "permissions": user.permissionSet.permissions if user.permissionSet else [],
-                "active": user.active,
-                "lastSeenAt": user.lastSeenAt.isoformat() if user.lastSeenAt else None,
-                "createdAt": user.createdAt.isoformat(),
-            }
+            "id": user.id,
+            "email": user.email,
+            "name": user.name,
+            "permissionSetId": user.permissionSetId,
+            "permissionSetName": user.permissionSet.name if user.permissionSet else None,
+            "permissions": user.permissionSet.permissions if user.permissionSet else [],
+            "active": user.active,
+            "lastSeenAt": user.lastSeenAt.isoformat() if user.lastSeenAt else None,
+            "createdAt": user.createdAt.isoformat(),
         }
-    ), 200
+    ).to_dict()), 200

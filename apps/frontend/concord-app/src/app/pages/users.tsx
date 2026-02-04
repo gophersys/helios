@@ -4,6 +4,9 @@ import { UserPlus, X, Check } from 'lucide-react';
 import { useAuth, User } from '../auth-provider';
 import { api } from '../api';
 import { PageHeader } from '../components/ui/page-header';
+import { ErrorAlert } from '../components/ui/error-alert';
+import { LoadingState } from '../components/ui/loading-state';
+import { formatDate } from '../utils/formatting';
 
 interface PermissionSet {
   id: string;
@@ -33,8 +36,8 @@ export function UsersPage() {
 
   const fetchUsers = useCallback(async () => {
     try {
-      const data = await api<{ users: FullUser[] }>('/v2/auth/users');
-      setUsers(data.users);
+      const data = await api<{ data: FullUser[]; errors: unknown[] }>('/v2/auth/users');
+      setUsers(data.data);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to load users');
     } finally {
@@ -114,15 +117,6 @@ export function UsersPage() {
     }
   };
 
-  const formatDate = (iso: string | null) => {
-    if (!iso) return 'Never';
-    return new Date(iso).toLocaleDateString(undefined, {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
-  };
-
   return (
     <div className="animate-fade-in">
       <div className="mb-6">
@@ -143,11 +137,7 @@ export function UsersPage() {
         />
       </div>
 
-      {error && (
-        <div className="mb-4 rounded-lg bg-error-muted px-3 py-2 text-sm text-error">
-          {error}
-        </div>
-      )}
+      <ErrorAlert message={error} />
 
       {/* Create form */}
       {showCreate && canManage && (
@@ -213,9 +203,7 @@ export function UsersPage() {
 
       {/* Users table */}
       {loading ? (
-        <div className="py-12 text-center text-sm text-text-tertiary">
-          Loading users...
-        </div>
+        <LoadingState message="Loading users..." />
       ) : (
         <div className="overflow-hidden rounded-xl border border-border">
           <table className="w-full text-sm">

@@ -24,5 +24,7 @@ setup(
         "google-auth>=2.0.0",
         "PyJWT>=2.0.0",
         "flask-cors>=5.0.0",
+        "apispec>=6.0.0",
+        "apispec-webframeworks>=1.0.0",
     ],
 )

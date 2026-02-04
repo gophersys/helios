@@ -1,7 +1,10 @@
 from flask import jsonify, request
 
+from src.lib.audit import log_audit
 from src.lib.decorators import invalidate_permission_set_cache, require_permissions
+from src.lib.errors import bad_request, conflict, not_found
 from src.lib.permissions import Permissions
+from src.lib.types import ApiResponse
 from src.services.database.prisma import get_db_client
 
 from .types import PermissionSetCreateRequest, PermissionSetUpdateRequest
@@ -19,49 +22,45 @@ def list_permission_sets():
         include={"users": True},
     )
 
-    return jsonify(
+    return jsonify(ApiResponse.ok([
         {
-            "data": [
-                {
-                    "id": s.id,
-                    "name": s.name,
-                    "description": s.description,
-                    "permissions": s.permissions,
-                    "userCount": len(s.users) if s.users else 0,
-                    "users": [
-                        {"id": u.id, "name": u.name, "email": u.email}
-                        for u in (s.users or [])
-                    ],
-                    "createdAt": s.createdAt.isoformat(),
-                    "updatedAt": s.updatedAt.isoformat(),
-                }
-                for s in sets
-            ]
+            "id": s.id,
+            "name": s.name,
+            "description": s.description,
+            "permissions": s.permissions,
+            "userCount": len(s.users) if s.users else 0,
+            "users": [
+                {"id": u.id, "name": u.name, "email": u.email}
+                for u in (s.users or [])
+            ],
+            "createdAt": s.createdAt.isoformat(),
+            "updatedAt": s.updatedAt.isoformat(),
         }
-    ), 200
+        for s in sets
+    ]).to_dict()), 200
 
 
 @require_permissions(Permissions.ADMIN_PERMISSION_SETS_MANAGE)
 def create_permission_set():
     """Create a new permission set.
 
-    Body: { "name": "...", "description?": "...", "permissions": ["Concord.Firmware.AppID.View", ...] }
+    Body: { "name": "...", "description?": "...", "permissions": ["Concord.Cluster.Read", ...] }
     """
     data, error = PermissionSetCreateRequest.from_json(request.get_json())
     if error:
-        return jsonify({"error": error}), 400
+        return bad_request(error)
 
     # Validate permission strings
     invalid = [p for p in data.permissions if p not in _VALID_PERMISSIONS]
     if invalid:
-        return jsonify({"error": f"Invalid permission(s): {', '.join(invalid)}"}), 400
+        return bad_request(f"Invalid permission(s): {', '.join(invalid)}")
 
     db = get_db_client()
 
     # Check for duplicate name
     existing = db.permissionset.find_unique(where={"name": data.name})
     if existing:
-        return jsonify({"error": f"Permission set '{data.name}' already exists"}), 409
+        return conflict(f"Permission set '{data.name}' already exists")
 
     create_data = {
         "name": data.name,
@@ -71,19 +70,16 @@ def create_permission_set():
         create_data["description"] = data.description
 
     perm_set = db.permissionset.create(data=create_data)
+    log_audit("permissionSet.create", "PermissionSet", perm_set.id, {"name": data.name, "permissionCount": len(data.permissions)})
 
-    return jsonify(
-        {
-            "data": {
-                "id": perm_set.id,
-                "name": perm_set.name,
-                "description": perm_set.description,
-                "permissions": perm_set.permissions,
-                "createdAt": perm_set.createdAt.isoformat(),
-                "updatedAt": perm_set.updatedAt.isoformat(),
-            }
-        }
-    ), 201
+    return jsonify(ApiResponse.created({
+        "id": perm_set.id,
+        "name": perm_set.name,
+        "description": perm_set.description,
+        "permissions": perm_set.permissions,
+        "createdAt": perm_set.createdAt.isoformat(),
+        "updatedAt": perm_set.updatedAt.isoformat(),
+    }).to_dict()), 201
 
 
 @require_permissions(Permissions.ADMIN_PERMISSION_SETS_MANAGE)
@@ -94,19 +90,19 @@ def update_permission_set(set_id: str):
     """
     data, error = PermissionSetUpdateRequest.from_json(request.get_json())
     if error:
-        return jsonify({"error": error}), 400
+        return bad_request(error)
 
     db = get_db_client()
 
     existing = db.permissionset.find_unique(where={"id": set_id})
     if not existing:
-        return jsonify({"error": "Permission set not found"}), 404
+        return not_found("Permission set not found")
 
     # Validate permission strings if provided
     if data.permissions is not None:
         invalid = [p for p in data.permissions if p not in _VALID_PERMISSIONS]
         if invalid:
-            return jsonify({"error": f"Invalid permission(s): {', '.join(invalid)}"}), 400
+            return bad_request(f"Invalid permission(s): {', '.join(invalid)}")
 
     update_data = {}
     if data.name is not None:
@@ -114,7 +110,7 @@ def update_permission_set(set_id: str):
         if data.name != existing.name:
             dup = db.permissionset.find_unique(where={"name": data.name})
             if dup:
-                return jsonify({"error": f"Permission set '{data.name}' already exists"}), 409
+                return conflict(f"Permission set '{data.name}' already exists")
         update_data["name"] = data.name
     if data._has_description:
         update_data["description"] = data.description
@@ -126,18 +122,16 @@ def update_permission_set(set_id: str):
     # Invalidate cache
     invalidate_permission_set_cache(set_id)
 
-    return jsonify(
-        {
-            "data": {
-                "id": perm_set.id,
-                "name": perm_set.name,
-                "description": perm_set.description,
-                "permissions": perm_set.permissions,
-                "createdAt": perm_set.createdAt.isoformat(),
-                "updatedAt": perm_set.updatedAt.isoformat(),
-            }
-        }
-    ), 200
+    log_audit("permissionSet.update", "PermissionSet", set_id, {"before": {"name": existing.name, "permissions": existing.permissions}, "after": update_data})
+
+    return jsonify(ApiResponse.ok({
+        "id": perm_set.id,
+        "name": perm_set.name,
+        "description": perm_set.description,
+        "permissions": perm_set.permissions,
+        "createdAt": perm_set.createdAt.isoformat(),
+        "updatedAt": perm_set.updatedAt.isoformat(),
+    }).to_dict()), 200
 
 
 @require_permissions(Permissions.ADMIN_PERMISSION_SETS_MANAGE)
@@ -150,14 +144,15 @@ def delete_permission_set(set_id: str):
         include={"users": True},
     )
     if not existing:
-        return jsonify({"error": "Permission set not found"}), 404
+        return not_found("Permission set not found")
 
     if existing.users and len(existing.users) > 0:
-        return jsonify({"error": "Cannot delete permission set with assigned users"}), 409
+        return conflict("Cannot delete permission set with assigned users")
 
     db.permissionset.delete(where={"id": set_id})
 
     # Invalidate cache
     invalidate_permission_set_cache(set_id)
 
-    return jsonify({"message": "Permission set deleted"}), 200
+    log_audit("permissionSet.delete", "PermissionSet", set_id, {"name": existing.name})
+    return jsonify(ApiResponse.deleted().to_dict()), 200

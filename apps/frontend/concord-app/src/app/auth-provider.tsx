@@ -50,26 +50,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    api<{ user: User }>('/v2/auth/me')
-      .then((data) => setUser(data.user))
+    api<{ data: User; errors: unknown[] }>('/v2/auth/me')
+      .then((res) => setUser(res.data))
       .catch(() => clearToken())
       .finally(() => setIsLoading(false));
   }, []);
 
   const login = useCallback(async (googleCredential: string) => {
     const loginData = await api<{
-      token: string;
-      user: { id: string; email: string; name: string; permissionSetId: string | null; permissionSetName: string | null };
+      data: {
+        token: string;
+        user: { id: string; email: string; name: string; permissionSetId: string | null; permissionSetName: string | null };
+      };
+      errors: unknown[];
     }>('/v2/auth/login', {
       method: 'POST',
       body: JSON.stringify({ credential: googleCredential }),
     });
 
-    setToken(loginData.token);
+    setToken(loginData.data.token);
 
     // Fetch full user profile with permissions
-    const meData = await api<{ user: User }>('/v2/auth/me');
-    setUser(meData.user);
+    const meData = await api<{ data: User; errors: unknown[] }>('/v2/auth/me');
+    setUser(meData.data);
   }, []);
 
   const logout = useCallback(() => {

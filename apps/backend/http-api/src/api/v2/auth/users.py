@@ -1,7 +1,10 @@
 from flask import g, jsonify, request
 
-from src.lib.decorators import require_auth, require_permissions
+from src.lib.audit import log_audit
+from src.lib.decorators import require_permissions
+from src.lib.errors import bad_request, conflict, not_found
 from src.lib.permissions import Permissions
+from src.lib.types import ApiResponse
 from src.services.database.prisma import get_db_client
 
 from .types import UserCreateRequest, UserResponse, UserUpdateRequest
@@ -19,7 +22,7 @@ def users_list():
         order={"createdAt": "asc"},
         include={"permissionSet": True},
     )
-    return jsonify({"users": [_user_to_dict(u) for u in users]}), 200
+    return jsonify(ApiResponse.ok([_user_to_dict(u) for u in users]).to_dict()), 200
 
 
 @require_permissions(Permissions.ADMIN_USERS_MANAGE)
@@ -30,19 +33,19 @@ def users_create():
     """
     data, error = UserCreateRequest.from_json(request.get_json())
     if error:
-        return jsonify({"error": error}), 400
+        return bad_request(error)
 
     db = get_db_client()
 
     existing = db.user.find_unique(where={"email": data.email})
     if existing:
-        return jsonify({"error": f"User with email {data.email} already exists"}), 409
+        return conflict(f"User with email {data.email} already exists")
 
     # Validate permission set exists if provided
     if data.permissionSetId:
         perm_set = db.permissionset.find_unique(where={"id": data.permissionSetId})
         if not perm_set:
-            return jsonify({"error": "Permission set not found"}), 400
+            return bad_request("Permission set not found")
 
     create_data = {"email": data.email, "name": data.name, "active": True}
     if data.permissionSetId:
@@ -52,7 +55,8 @@ def users_create():
         data=create_data,
         include={"permissionSet": True},
     )
-    return jsonify({"user": _user_to_dict(user)}), 201
+    log_audit("user.create", "User", user.id, {"name": data.name, "email": data.email})
+    return jsonify(ApiResponse.created(_user_to_dict(user)).to_dict()), 201
 
 
 @require_permissions(Permissions.ADMIN_USERS_MANAGE)
@@ -63,22 +67,22 @@ def users_update(user_id: str):
     """
     data, error = UserUpdateRequest.from_json(request.get_json())
     if error:
-        return jsonify({"error": error}), 400
+        return bad_request(error)
 
     db = get_db_client()
     user = db.user.find_unique(where={"id": user_id})
     if not user:
-        return jsonify({"error": "User not found"}), 404
+        return not_found("User not found")
 
     # Prevent admins from deactivating themselves
     if user_id == g.current_user["sub"] and data.active is False:
-        return jsonify({"error": "Cannot deactivate your own account"}), 400
+        return bad_request("Cannot deactivate your own account")
 
     # Validate permission set exists if provided
     if data._has_permission_set_id and data.permissionSetId:
         perm_set = db.permissionset.find_unique(where={"id": data.permissionSetId})
         if not perm_set:
-            return jsonify({"error": "Permission set not found"}), 400
+            return bad_request("Permission set not found")
 
     update_data = data.to_update_data()
     updated = db.user.update(
@@ -86,7 +90,8 @@ def users_update(user_id: str):
         data=update_data,
         include={"permissionSet": True},
     )
-    return jsonify({"user": _user_to_dict(updated)}), 200
+    log_audit("user.update", "User", user_id, {"before": {"name": user.name, "email": user.email, "active": user.active, "permissionSetId": user.permissionSetId}, "after": update_data})
+    return jsonify(ApiResponse.ok(_user_to_dict(updated)).to_dict()), 200
 
 
 @require_permissions(Permissions.ADMIN_USERS_MANAGE)
@@ -95,10 +100,11 @@ def users_delete(user_id: str):
     db = get_db_client()
     user = db.user.find_unique(where={"id": user_id})
     if not user:
-        return jsonify({"error": "User not found"}), 404
+        return not_found("User not found")
 
     if user_id == g.current_user["sub"]:
-        return jsonify({"error": "Cannot deactivate your own account"}), 400
+        return bad_request("Cannot deactivate your own account")
 
     db.user.update(where={"id": user_id}, data={"active": False})
-    return jsonify({"message": "User deactivated"}), 200
+    log_audit("user.deactivate", "User", user_id, {"name": user.name, "email": user.email})
+    return jsonify(ApiResponse.deleted().to_dict()), 200

@@ -18,13 +18,6 @@ from .auth.permission_sets import (
 from .auth.permissions_list import list_permissions
 from .auth.users import users_create, users_delete, users_list, users_update
 
-# Firmware handlers
-from .firmware.appid.create import create_appid
-from .firmware.appid.delete import delete_appid
-from .firmware.appid.get import get_appid
-from .firmware.appid.list import list_appids
-from .firmware.appid.update import update_appid
-
 # Health
 from .healthcheck import healthcheck
 
@@ -58,6 +51,34 @@ from .hardware.assemblies import (
     upload_assembly_image,
 )
 from .hardware.image import get_hardware_image
+
+# Codebases handlers
+from .codebases.codebases import (
+    create_codebase,
+    delete_codebase,
+    get_codebase,
+    list_codebases,
+    update_codebase,
+    upload_codebase_image,
+)
+from .codebases.releases import (
+    create_release,
+    delete_release,
+    update_release,
+)
+from .codebases.artifacts import (
+    create_artifact,
+    delete_artifact,
+    download_artifact,
+    list_artifacts,
+    upload_artifact,
+)
+
+# Admin handlers
+from .admin.history import get_history_entry, list_history
+
+# Docs
+from .docs import openapi_spec, swagger_ui
 
 # Validation handlers
 from .validation.tests.run import run_tests
@@ -125,13 +146,6 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     v2.add_url_rule("/mtib/register",        view_func=register_mtib,   methods=["POST"])
     v2.add_url_rule("/mtib/unregister",      view_func=unregister_mtib, methods=["POST"])
 
-    # Firmware
-    v2.add_url_rule("/firmware/appid",             view_func=list_appids,   methods=["GET"])
-    v2.add_url_rule("/firmware/appid",             view_func=create_appid,  methods=["POST"])
-    v2.add_url_rule("/firmware/appid/<int:appId>", view_func=get_appid,     methods=["GET"])
-    v2.add_url_rule("/firmware/appid/<int:appId>", view_func=update_appid,  methods=["PUT"])
-    v2.add_url_rule("/firmware/appid/<int:appId>", view_func=delete_appid,  methods=["DELETE"])
-
     # Hardware - Components
     v2.add_url_rule("/hardware/components",                                          view_func=list_components,        methods=["GET"])
     v2.add_url_rule("/hardware/components",                                          view_func=create_component,       methods=["POST"])
@@ -157,10 +171,34 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     # Hardware - Image serving
     v2.add_url_rule("/hardware/image/<path:key>",                                    view_func=get_hardware_image,         methods=["GET"])
 
+    # Codebases
+    v2.add_url_rule("/codebases",                                                                     view_func=list_codebases,        methods=["GET"])
+    v2.add_url_rule("/codebases",                                                                     view_func=create_codebase,       methods=["POST"])
+    v2.add_url_rule("/codebases/<codebase_id>",                                                       view_func=get_codebase,          methods=["GET"])
+    v2.add_url_rule("/codebases/<codebase_id>",                                                       view_func=update_codebase,       methods=["PUT"])
+    v2.add_url_rule("/codebases/<codebase_id>",                                                       view_func=delete_codebase,       methods=["DELETE"])
+    v2.add_url_rule("/codebases/<codebase_id>/image",                                                 view_func=upload_codebase_image, methods=["POST"])
+    v2.add_url_rule("/codebases/<codebase_id>/releases",                                              view_func=create_release,        methods=["POST"])
+    v2.add_url_rule("/codebases/<codebase_id>/releases/<release_id>",                                 view_func=update_release,        methods=["PUT"])
+    v2.add_url_rule("/codebases/<codebase_id>/releases/<release_id>",                                 view_func=delete_release,        methods=["DELETE"])
+    v2.add_url_rule("/codebases/<codebase_id>/releases/<release_id>/artifacts",                       view_func=list_artifacts,        methods=["GET"])
+    v2.add_url_rule("/codebases/<codebase_id>/releases/<release_id>/artifacts",                       view_func=create_artifact,       methods=["POST"])
+    v2.add_url_rule("/codebases/<codebase_id>/releases/<release_id>/artifacts/upload",                view_func=upload_artifact,       methods=["POST"])
+    v2.add_url_rule("/codebases/<codebase_id>/releases/<release_id>/artifacts/<artifact_id>",         view_func=delete_artifact,       methods=["DELETE"])
+    v2.add_url_rule("/codebases/artifacts/<artifact_id>/download",                                    view_func=download_artifact,     methods=["GET"])
+
+    # Admin - History
+    v2.add_url_rule("/admin/history",              view_func=list_history,      methods=["GET"])
+    v2.add_url_rule("/admin/history/<entry_id>",   view_func=get_history_entry, methods=["GET"])
+
     # Validation
     v2.add_url_rule("/validation/tests/run", view_func=run_tests,       methods=["POST"])
 
     # Health
     v2.add_url_rule("/healthcheck",          view_func=healthcheck,     methods=["GET"])
+
+    # Docs
+    v2.add_url_rule("/openapi.json",         view_func=openapi_spec,    methods=["GET"])
+    v2.add_url_rule("/docs",                 view_func=swagger_ui,      methods=["GET"])
 
     server.register_blueprint(v2)
