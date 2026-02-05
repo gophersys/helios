@@ -7,7 +7,7 @@ metadata:
   labels:
     app: mtib-server-validation
 spec:
-  replicas: 2 # <- 1 replica per MTIB host in the cluster
+  replicas: 1 # <- 1 replica per MTIB host labeled corekinect.com/purpose=validation
   selector:
     matchLabels:
       app: mtib-server-validation
@@ -16,7 +16,7 @@ spec:
     # instance of this container in a host, and then start the new one
     type: RollingUpdate
     rollingUpdate:
-      maxSurge: 1
+      maxSurge: 0
       maxUnavailable: 1
   template:
     metadata:
@@ -37,18 +37,18 @@ spec:
           requiredDuringSchedulingIgnoredDuringExecution:
             nodeSelectorTerms:
             - matchExpressions:
-              # This allows us to deploy exactly 1 container in each host
-              # in the cluster, as we've setup the hostnames of each host
-              # to match the physical slot where they're located
-              - key: "kubernetes.io/hostname"
+              - key: "corekinect.com/role"
                 operator: In
                 values:
-                - "verdin-imx8mm-15005679" # sigma5
-                - "verdin-imx8mm-15702161" # sigma5
+                - "edge"
+              - key: "corekinect.com/purpose"
+                operator: In
+                values:
+                - "validation"
       tolerations:
-      - key: "corekinect.com/validation"
+      - key: "corekinect.com/role"
         operator: "Equal"
-        value: "true"
+        value: "edge"
         effect: "NoSchedule"
       containers:
       - name: mtib-server-validation  

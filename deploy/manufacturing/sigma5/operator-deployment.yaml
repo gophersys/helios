@@ -22,6 +22,11 @@ spec:
       terminationGracePeriodSeconds: 1
       # Use host network so operator can reach test runners via localhost:hostPort
       hostNetwork: true
+      tolerations:
+      - key: "corekinect.com/role"
+        operator: "Equal"
+        value: "agent"
+        effect: "PreferNoSchedule"
       affinity:
         nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:

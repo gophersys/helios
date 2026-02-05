@@ -26,26 +26,26 @@ def init_storage_client() -> Optional[str]:
                 secure=secure,
             )
 
-            # Ensure firmware bucket exists
-            error = _ensure_firmware_bucket_exists()
+            # Ensure storage bucket exists
+            error = _ensure_bucket_exists()
             if error:
-                return f"Failed to ensure firmware bucket exists: {error}"
+                return f"Failed to ensure storage bucket exists: {error}"
     except Exception as e:
         return f"Failed to initialize storage client: {e}"
 
     return None
 
 
-def _ensure_firmware_bucket_exists() -> Optional[str]:
-    """Ensure the firmware bucket exists, create it if it doesn't"""
-    bucket_name = "firmware"
+def _ensure_bucket_exists() -> Optional[str]:
+    """Ensure the storage bucket exists"""
+    bucket_name = env_config.STORAGE_BUCKET_NAME
 
     try:
         if not appStorageClient.bucket_exists(bucket_name):
-            return f"Firmware bucket does not exist: {bucket_name}"
+            return f"Storage bucket does not exist: {bucket_name}"
         return None
     except Exception as e:
-        return f"Failed to ensure firmware bucket '{bucket_name}' exists: {e}"
+        return f"Failed to ensure storage bucket '{bucket_name}' exists: {e}"
 
 
 def get_storage_client() -> Minio:

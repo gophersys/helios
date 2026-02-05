@@ -1,0 +1,14 @@
+# Ephemeral storage class for scratch volumes, build caches, temp data.
+# 1 replica, Delete reclaim policy - data is NOT preserved.
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: longhorn-ephemeral
+provisioner: driver.longhorn.io
+allowVolumeExpansion: true
+reclaimPolicy: Delete
+volumeBindingMode: Immediate
+parameters:
+  numberOfReplicas: "1"
+  staleReplicaTimeout: "2880"
+  dataLocality: disabled

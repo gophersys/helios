@@ -1,0 +1,58 @@
+# Default resource boundaries for pods that don't specify their own.
+# Applied identically across all three namespaces.
+
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: concord-limits
+  namespace: production
+spec:
+  limits:
+    - type: Container
+      default:
+        cpu: 250m
+        memory: 256Mi
+      defaultRequest:
+        cpu: 100m
+        memory: 128Mi
+      max:
+        cpu: "2"
+        memory: 2Gi
+
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: concord-limits
+  namespace: staging
+spec:
+  limits:
+    - type: Container
+      default:
+        cpu: 250m
+        memory: 256Mi
+      defaultRequest:
+        cpu: 100m
+        memory: 128Mi
+      max:
+        cpu: "2"
+        memory: 2Gi
+
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: concord-limits
+  namespace: dev
+spec:
+  limits:
+    - type: Container
+      default:
+        cpu: 250m
+        memory: 256Mi
+      defaultRequest:
+        cpu: 100m
+        memory: 128Mi
+      max:
+        cpu: "2"
+        memory: 2Gi

@@ -6,10 +6,9 @@ networks:
 
 volumes:
   grafana_plugins_volume:
-  clickhouse_data_volume:
   postgres_data_volume:
-  redis_data_volume:
   minio_data_volume:
+  influxdb_data_volume:
 
 
 services:
@@ -101,5 +100,42 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data_volume:/var/lib/postgresql/data
+    networks:
+      - concord_network
+
+  pgbouncer:
+    image: edoburu/pgbouncer:latest
+    ports:
+      - "6432:6432"
+    environment:
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_USER: concord
+      DB_PASSWORD: concord
+      DB_NAME: concord
+      POOL_MODE: transaction
+      DEFAULT_POOL_SIZE: "20"
+      MAX_CLIENT_CONN: "200"
+      LISTEN_PORT: "6432"
+      AUTH_TYPE: scram-sha-256
+    depends_on:
+      - db
+    networks:
+      - concord_network
+
+  influxdb:
+    image: influxdb:2
+    ports:
+      - "8086:8086"
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME: concord
+      DOCKER_INFLUXDB_INIT_PASSWORD: concordinflux!
+      DOCKER_INFLUXDB_INIT_ORG: concord
+      DOCKER_INFLUXDB_INIT_BUCKET: telemetry_raw
+      DOCKER_INFLUXDB_INIT_RETENTION: 90d
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: concord-influxdb-dev-token
+    volumes:
+      - influxdb_data_volume:/var/lib/influxdb2
     networks:
       - concord_network

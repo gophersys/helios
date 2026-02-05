@@ -19,9 +19,9 @@ spec:
       terminationGracePeriodSeconds: 30
       # Add tolerations for validation node taints
       tolerations:
-      - key: "corekinect.com/validation"
+      - key: "corekinect.com/role"
         operator: "Equal"
-        value: "true"
+        value: "edge"
         effect: "NoSchedule"
       nodeSelector:
         corekinect.com/validation-product: {{PRODUCT}}

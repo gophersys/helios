@@ -21,10 +21,10 @@ spec:
     spec:
       terminationGracePeriodSeconds: 1
       tolerations:
-      - key: "role"
+      - key: "corekinect.com/role"
         operator: "Equal"
-        value: "cloud"
-        effect: "NoSchedule"
+        value: "agent"
+        effect: "PreferNoSchedule"
       affinity:
         nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:

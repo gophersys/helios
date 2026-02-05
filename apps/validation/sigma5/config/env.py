@@ -29,6 +29,7 @@ class Config(EnvConfig):
     STORAGE_URL: str
     STORAGE_ACCESS_KEY: str
     STORAGE_SECRET_ACCESS_KEY: str
+    STORAGE_BUCKET_NAME: str
 
     # Logs
     LOKI_URL: str

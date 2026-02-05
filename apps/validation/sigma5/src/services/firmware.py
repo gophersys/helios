@@ -7,6 +7,7 @@ from corekinect.utils.logx import Logger
 from corekinect.mtib_client.v1 import HostType, FwFileInfo
 from minio import Minio
 
+from config.env import env_config
 from services.mtib import get_mtib_client
 from services.storage import get_storage_client
 
@@ -26,9 +27,10 @@ def download_firmware_from_storage(
         logger.info(f"Local file path: {local_file_path}")
 
         # Download firmware from the specific path in the bucket
+        object_name = f"firmware/raw/{file_path}" if not file_path.startswith("firmware/") else file_path
         storage_client.fget_object(
-            bucket_name="firmware",
-            object_name=file_path,
+            bucket_name=env_config.STORAGE_BUCKET_NAME,
+            object_name=object_name,
             file_path=local_file_path,
         )
         logger.info(f"Successfully downloaded firmware to: {local_file_path}")

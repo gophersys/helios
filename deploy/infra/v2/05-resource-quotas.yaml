@@ -1,0 +1,49 @@
+# Production - highest resource allowance
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: concord-quota
+  namespace: production
+spec:
+  hard:
+    requests.cpu: "4"
+    requests.memory: 8Gi
+    limits.cpu: "8"
+    limits.memory: 16Gi
+    persistentvolumeclaims: "10"
+    requests.storage: 40Gi
+    pods: "30"
+
+---
+# Staging - moderate resources
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: concord-quota
+  namespace: staging
+spec:
+  hard:
+    requests.cpu: "2"
+    requests.memory: 4Gi
+    limits.cpu: "4"
+    limits.memory: 8Gi
+    persistentvolumeclaims: "5"
+    requests.storage: 20Gi
+    pods: "20"
+
+---
+# Dev - limited resources
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: concord-quota
+  namespace: dev
+spec:
+  hard:
+    requests.cpu: "2"
+    requests.memory: 4Gi
+    limits.cpu: "4"
+    limits.memory: 8Gi
+    persistentvolumeclaims: "5"
+    requests.storage: 10Gi
+    pods: "20"
