@@ -1,10 +1,13 @@
 """Background scheduler for periodic tasks."""
 
+import logging
 import threading
 from datetime import datetime, timedelta, timezone
 
 from src.services.database.prisma import get_db_client
 from src.services.log.logger import get_logger
+
+logger = logging.getLogger(__name__)
 
 
 _CLEANUP_INTERVAL_HOURS = 24
@@ -25,11 +28,7 @@ def _cleanup_old_audit_logs():
         if result > 0:
             logger.info(f"Audit log cleanup: deleted {result} entries older than {_RETENTION_DAYS} days")
     except Exception as e:
-        try:
-            logger = get_logger()
-            logger.error(f"Audit log cleanup failed: {e}")
-        except Exception:
-            pass
+        logger.error("Audit log cleanup failed: %s", e)
 
 
 def _scheduler_loop():

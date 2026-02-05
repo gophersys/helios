@@ -6,10 +6,14 @@ Usage:
     log_audit("user.create", "User", user.id, {"name": user.name, "email": user.email})
 """
 
+import logging
+
 from database import Json
 from flask import g, request
 
 from src.services.database.prisma import get_db_client
+
+logger = logging.getLogger(__name__)
 
 
 def log_audit(
@@ -22,7 +26,7 @@ def log_audit(
 
     Args:
         action:      dot-notation verb, e.g. "user.create", "component.delete"
-        entity_type: model name, e.g. "User", "HardwareComponent"
+        entity_type: model name, e.g. "User", "InventoryComponent"
         entity_id:   primary key of the affected entity (nullable for bulk ops)
         details:     freeform context — label, before/after, changed fields, etc.
     """
@@ -41,9 +45,11 @@ def log_audit(
         if details is not None:
             data["details"] = Json(details)
         if request:
-            data["ipAddress"] = request.remote_addr
+            # Prefer the client IP from X-Forwarded-For when behind a reverse proxy
+            forwarded = request.headers.get("X-Forwarded-For", "").split(",")[0].strip()
+            data["ipAddress"] = forwarded or request.remote_addr
 
         db.auditlog.create(data=data)
-    except Exception:
+    except Exception as e:
         # Audit logging should never break the request
-        pass
+        logger.warning("Failed to write audit log for action '%s': %s", action, e)

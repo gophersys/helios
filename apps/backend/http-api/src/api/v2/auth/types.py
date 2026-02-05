@@ -31,7 +31,7 @@ class UserResponse:
     @classmethod
     def from_user(cls, user) -> "UserResponse":
         perm_set_name = None
-        if hasattr(user, "permissionSet") and user.permissionSet:
+        if hasattr(user, "permissionSet") and user.permissionSet is not None:
             perm_set_name = user.permissionSet.name
         return cls(
             id=user.id,
@@ -42,7 +42,7 @@ class UserResponse:
             active=user.active,
             lastSeenAt=user.lastSeenAt.isoformat() if user.lastSeenAt else None,
             createdAt=user.createdAt.isoformat(),
-            updatedAt=user.updatedAt.isoformat() if hasattr(user, "updatedAt") and user.updatedAt else None,
+            updatedAt=user.updatedAt.isoformat() if hasattr(user, "updatedAt") and user.updatedAt is not None else None,
         )
 
     def to_dict(self) -> Dict[str, Any]:
@@ -175,6 +175,16 @@ class PermissionSetUpdateRequest:
             return None, "No fields to update"
 
         return cls(name=name, description=description, permissions=permissions, _has_description=has_description), None
+
+    def to_update_data(self) -> Dict[str, Any]:
+        update_data: Dict[str, Any] = {}
+        if self.name is not None:
+            update_data["name"] = self.name
+        if self._has_description:
+            update_data["description"] = self.description
+        if self.permissions is not None:
+            update_data["permissions"] = self.permissions
+        return update_data
 
 
 @dataclass

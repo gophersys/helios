@@ -1,4 +1,6 @@
-from flask import jsonify
+import math
+
+from flask import jsonify, request
 
 from src.lib.decorators import require_permissions
 from src.lib.errors import internal_error
@@ -16,12 +18,22 @@ def list_mtibs():
     try:
         logger.info("Listing all MTIB nodes")
 
-        # Get all MTIBs from database
-        mtibs = get_db_client().mtib.find_many(include={"appIdMappings": {"include": {"app": True}}})
+        db = get_db_client()
 
-        response_data = []
+        page = max(1, request.args.get("page", 1, type=int))
+        limit = min(max(1, request.args.get("limit", 50, type=int)), 100)
+        skip = (page - 1) * limit
+
+        total = db.mtib.count()
+        mtibs = db.mtib.find_many(
+            skip=skip,
+            take=limit,
+            include={"appIdMappings": {"include": {"app": True}}},
+        )
+
+        data = []
         for mtib in mtibs:
-            response_data.append(
+            data.append(
                 {
                     "hostname": mtib.id,
                     "name": mtib.name,
@@ -33,10 +45,18 @@ def list_mtibs():
                 }
             )
 
-        logger.info(f"Found {len(response_data)} MTIB nodes")
+        logger.info(f"Found {total} MTIB nodes")
 
-        return jsonify(ApiResponse.ok(response_data).to_dict()), 200
+        return jsonify(ApiResponse.ok({
+            "data": data,
+            "pagination": {
+                "page": page,
+                "limit": limit,
+                "total": total,
+                "pages": math.ceil(total / limit) if limit > 0 else 0,
+            },
+        }).to_dict()), 200
 
     except Exception as e:
         logger.error(f"An error occurred while listing MTIB nodes: {str(e)}")
-        return internal_error(f"Internal server error: {str(e)}")
+        return internal_error("Internal server error")

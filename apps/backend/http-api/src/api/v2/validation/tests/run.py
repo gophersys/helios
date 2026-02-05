@@ -11,13 +11,14 @@ from config.env import env_config
 from flask import jsonify, request
 from werkzeug.utils import secure_filename
 
+from src.lib.audit import log_audit
 from src.lib.decorators import require_permissions
 from src.lib.errors import bad_request, internal_error
 from src.lib.permissions import Permissions
 from src.lib.types import ApiResponse
 from src.services.kubernetes.client import get_batch_v1_api
 from src.services.log.logger import get_logger
-from src.services.storage.client import get_firmware_bucket_name, get_storage_client
+from src.services.storage.client import get_bucket_name, get_storage_client, StoragePrefixes, storage_key
 
 from .types import ValidationTestsRunRequest
 
@@ -108,6 +109,14 @@ def extract_and_validate_firmware(zip_file_path: str) -> Tuple[Optional[str], Op
 
             # Create extraction directory (parent directory of the zip file)
             extract_dir = os.path.dirname(zip_file_path)
+
+            # Path traversal prevention: ensure no entry escapes the extraction directory
+            real_extract_dir = os.path.realpath(extract_dir)
+            for member in zip_ref.namelist():
+                member_path = os.path.realpath(os.path.join(extract_dir, member))
+                if not member_path.startswith(real_extract_dir + os.sep) and member_path != real_extract_dir:
+                    return "Zip file contains invalid path entries", None
+
             zip_ref.extractall(extract_dir)
 
             # Try to extract firmware version from extracted folder structure
@@ -141,14 +150,14 @@ def upload_firmware_to_bucket(zip_file_path: str, job_id: str, product: str) -> 
 
     # Create a unique path for this firmware upload
     firmware_filename = f"{product}-{job_id}.zip"
-    bucket_path = f"{product}/{job_id}/{firmware_filename}"
+    bucket_path = storage_key(StoragePrefixes.FIRMWARE_RAW, f"{product}/{job_id}/{firmware_filename}")
 
     logger.info(f"Uploading firmware to bucket: {zip_file_path} -> {bucket_path}")
 
     try:
         # Get the storage client and bucket name
         storage_client = get_storage_client()
-        bucket_name = get_firmware_bucket_name()
+        bucket_name = get_bucket_name()
 
         # Upload the file to MinIO
         storage_client.fput_object(
@@ -160,7 +169,7 @@ def upload_firmware_to_bucket(zip_file_path: str, job_id: str, product: str) -> 
         return bucket_path, None
     except Exception as e:
         logger.error(f"An error occurred while uploading the firmware to the bucket: {str(e)}")
-        return None, f"An error occurred while uploading the firmware to the bucket: {str(e)}"
+        return None, "An error occurred while uploading the firmware to the bucket"
 
 
 def create_kubernetes_job(
@@ -202,7 +211,7 @@ def create_kubernetes_job(
         job_yaml = job_yaml.replace("{{FIRMWARE_PATH}}", firmware_path)
         job_yaml = job_yaml.replace("{{JOB_NAME}}", job_name)
         job_yaml = job_yaml.replace("{{ENVIRONMENT}}", env_config.ENVIRONMENT)
-        job_yaml = job_yaml.replace("{{MTIB_PORT}}", "50053")
+        job_yaml = job_yaml.replace("{{MTIB_PORT}}", str(env_config.MTIB_PORT))
         job_yaml = job_yaml.replace("{{TEST_ENABLE_ELECTRICAL}}", test_enable_electrical)
         job_yaml = job_yaml.replace("{{TEST_ENABLE_APP_POST}}", test_enable_app_post)
         job_yaml = job_yaml.replace("{{TEST_ENABLE_COMM_POST}}", test_enable_comm_post)
@@ -370,15 +379,22 @@ def run_tests():
                 "additional_fields": data.additional_fields,
             }
 
+            log_audit("validation.run", "ValidationTest", job_id, {
+                "product": data.product,
+                "firmwareVersion": firmware_version,
+                "jobCount": len(job_statuses),
+                "jobs": [{"id": j["job_id"], "type": j["test_type"], "status": j["status"]} for j in job_statuses],
+            })
+
             return jsonify(ApiResponse.created(response_data).to_dict()), 201
 
         except Exception as e:
             logger.error(f"Error creating Kubernetes jobs: {str(e)}")
-            return internal_error(f"Error creating Kubernetes jobs: {str(e)}")
+            return internal_error("Failed to create validation jobs. Please try again or contact support.")
 
     except Exception as e:
         logger.error(f"An error occurred while running validation test: {str(e)}")
-        return internal_error(f"Internal server error: {str(e)}")
+        return internal_error("Internal server error")
     finally:
         # Clean up temporary directory and all its contents
         if temp_dir and os.path.exists(temp_dir):

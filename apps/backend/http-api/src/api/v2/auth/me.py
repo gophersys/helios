@@ -1,12 +1,12 @@
 from flask import g, jsonify
 
-from src.lib.decorators import require_auth
+from src.lib.decorators import require_permissions
 from src.lib.errors import not_found
 from src.lib.types import ApiResponse
 from src.services.database.prisma import get_db_client
 
 
-@require_auth
+@require_permissions()
 def me():
     """Return the full profile of the authenticated user."""
     db = get_db_client()

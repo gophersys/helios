@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 
 from flask import jsonify, request
 
+from src.lib.audit import log_audit
 from src.lib.errors import bad_request, forbidden, unauthorized
 from src.lib.types import ApiResponse
 from src.services.auth.google import verify_google_token
@@ -50,6 +51,8 @@ def login():
 
     # Issue a Concord JWT
     token = create_token(user.id, user.email, user.name, user.permissionSetId)
+
+    log_audit("login", "User", user.id, {"email": user.email, "name": user.name})
 
     return jsonify(ApiResponse.ok(
         {

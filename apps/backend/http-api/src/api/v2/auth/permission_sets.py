@@ -1,3 +1,5 @@
+import math
+
 from flask import jsonify, request
 
 from src.lib.audit import log_audit
@@ -17,27 +19,43 @@ _VALID_PERMISSIONS = {p["key"] for p in Permissions.all()}
 def list_permission_sets():
     """List all permission sets."""
     db = get_db_client()
+
+    page = max(1, request.args.get("page", 1, type=int))
+    limit = min(max(1, request.args.get("limit", 50, type=int)), 100)
+    skip = (page - 1) * limit
+
+    total = db.permissionset.count()
     sets = db.permissionset.find_many(
+        skip=skip,
+        take=limit,
         order={"createdAt": "asc"},
         include={"users": True},
     )
 
-    return jsonify(ApiResponse.ok([
-        {
-            "id": s.id,
-            "name": s.name,
-            "description": s.description,
-            "permissions": s.permissions,
-            "userCount": len(s.users) if s.users else 0,
-            "users": [
-                {"id": u.id, "name": u.name, "email": u.email}
-                for u in (s.users or [])
-            ],
-            "createdAt": s.createdAt.isoformat(),
-            "updatedAt": s.updatedAt.isoformat(),
-        }
-        for s in sets
-    ]).to_dict()), 200
+    return jsonify(ApiResponse.ok({
+        "data": [
+            {
+                "id": s.id,
+                "name": s.name,
+                "description": s.description,
+                "permissions": s.permissions,
+                "userCount": len(s.users) if s.users else 0,
+                "users": [
+                    {"id": u.id, "name": u.name, "email": u.email}
+                    for u in (s.users or [])
+                ],
+                "createdAt": s.createdAt.isoformat(),
+                "updatedAt": s.updatedAt.isoformat(),
+            }
+            for s in sets
+        ],
+        "pagination": {
+            "page": page,
+            "limit": limit,
+            "total": total,
+            "pages": math.ceil(total / limit) if limit > 0 else 0,
+        },
+    }).to_dict()), 200
 
 
 @require_permissions(Permissions.ADMIN_PERMISSION_SETS_MANAGE)
@@ -104,19 +122,13 @@ def update_permission_set(set_id: str):
         if invalid:
             return bad_request(f"Invalid permission(s): {', '.join(invalid)}")
 
-    update_data = {}
-    if data.name is not None:
-        # Check for duplicate name
-        if data.name != existing.name:
-            dup = db.permissionset.find_unique(where={"name": data.name})
-            if dup:
-                return conflict(f"Permission set '{data.name}' already exists")
-        update_data["name"] = data.name
-    if data._has_description:
-        update_data["description"] = data.description
-    if data.permissions is not None:
-        update_data["permissions"] = data.permissions
+    # Check for duplicate name
+    if data.name is not None and data.name != existing.name:
+        dup = db.permissionset.find_unique(where={"name": data.name})
+        if dup:
+            return conflict(f"Permission set '{data.name}' already exists")
 
+    update_data = data.to_update_data()
     perm_set = db.permissionset.update(where={"id": set_id}, data=update_data)
 
     # Invalidate cache

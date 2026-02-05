@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timezone
 
 from flask import jsonify, request
@@ -8,12 +9,16 @@ from src.lib.errors import bad_request, conflict, not_found
 from src.lib.permissions import Permissions
 from src.lib.types import ApiResponse
 from src.services.database.prisma import get_db_client
-from src.services.storage.client import get_codebases_bucket_name, get_storage_client
+from src.services.storage.client import get_bucket_name, get_storage_client
+
+logger = logging.getLogger(__name__)
 
 from .types import ReleaseCreateRequest, ReleaseUpdateRequest
 
+from typing import Any
 
-def _serialize_release(r, include_artifacts=False) -> dict:
+
+def _serialize_release(r: Any, include_artifacts: bool = False) -> dict:
     data = {
         "id": r.id,
         "codebaseId": r.codebaseId,
@@ -32,7 +37,7 @@ def _serialize_release(r, include_artifacts=False) -> dict:
     return data
 
 
-def _serialize_artifact(a) -> dict:
+def _serialize_artifact(a: Any) -> dict:
     return {
         "id": a.id,
         "releaseId": a.releaseId,
@@ -135,15 +140,15 @@ def delete_release(codebase_id: str, release_id: str):
     # Clean up MinIO objects for UPLOAD artifacts
     try:
         client = get_storage_client()
-        bucket = get_codebases_bucket_name()
+        bucket = get_bucket_name()
         for artifact in release.artifacts:
             if artifact.type == "UPLOAD" and artifact.storageKey:
                 try:
                     client.remove_object(bucket, artifact.storageKey)
-                except Exception:
-                    pass
-    except Exception:
-        pass
+                except Exception as e:
+                    logger.warning("Failed to remove artifact object %s: %s", artifact.storageKey, e)
+    except Exception as e:
+        logger.warning("Failed to clean up storage objects for release %s: %s", release_id, e)
 
     db.release.delete(where={"id": release_id})
     log_audit("release.delete", "Release", release_id, {"version": release.version, "artifactCount": len(release.artifacts)})

@@ -104,4 +104,4 @@ def register_mtib():
 
     except Exception as e:
         logger.error(f"An error occurred while registering MTIB: {str(e)}")
-        return internal_error(f"Internal server error: {str(e)}")
+        return internal_error("Internal server error")

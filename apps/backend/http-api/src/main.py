@@ -22,6 +22,7 @@ from flask import Flask
 from flask_cors import CORS
 from flask_socketio import SocketIO
 from src.services.database.prisma import init_postgres_client
+from src.services.influxdb.client import init_influxdb_client
 from src.services.kubernetes.client import init_kubernetes_client
 from src.services.log.logger import init_logger
 from src.services.scheduler import start_scheduler
@@ -33,8 +34,11 @@ from src.services.proxy import ProxyServerConfiguration, appProxyServer
 # -------------------------------------------------
 server = Flask(__name__)
 server.json.sort_keys = False
-CORS(server, origins=["http://localhost:4200"])
-socketio = SocketIO(server, debug=True, cors_allowed_origins="*", async_mode="eventlet", logger=True)
+server.config["MAX_CONTENT_LENGTH"] = 100 * 1024 * 1024  # 100 MB upload limit
+
+_cors_origins = [o.strip() for o in env_config.CORS_ORIGINS.split(",") if o.strip()]
+CORS(server, origins=_cors_origins)
+socketio = SocketIO(server, debug=(env_config.ENVIRONMENT == "development"), cors_allowed_origins=_cors_origins, async_mode="eventlet", logger=(env_config.ENVIRONMENT == "development"))
 
 
 # -------------------------------------------------
@@ -60,6 +64,9 @@ if __name__ == "__main__":
 
         # Initialize the database client
         init_postgres_client()
+
+        # Initialize the InfluxDB client
+        init_influxdb_client()
 
         # Initialize the Kubernetes client
         init_kubernetes_client()

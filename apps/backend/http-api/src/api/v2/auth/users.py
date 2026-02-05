@@ -1,3 +1,5 @@
+import math
+
 from flask import g, jsonify, request
 
 from src.lib.audit import log_audit
@@ -18,11 +20,27 @@ def _user_to_dict(user) -> dict:
 def users_list():
     """List all users."""
     db = get_db_client()
+
+    page = max(1, request.args.get("page", 1, type=int))
+    limit = min(max(1, request.args.get("limit", 50, type=int)), 100)
+    skip = (page - 1) * limit
+
+    total = db.user.count()
     users = db.user.find_many(
+        skip=skip,
+        take=limit,
         order={"createdAt": "asc"},
         include={"permissionSet": True},
     )
-    return jsonify(ApiResponse.ok([_user_to_dict(u) for u in users]).to_dict()), 200
+    return jsonify(ApiResponse.ok({
+        "data": [_user_to_dict(u) for u in users],
+        "pagination": {
+            "page": page,
+            "limit": limit,
+            "total": total,
+            "pages": math.ceil(total / limit) if limit > 0 else 0,
+        },
+    }).to_dict()), 200
 
 
 @require_permissions(Permissions.ADMIN_USERS_MANAGE)

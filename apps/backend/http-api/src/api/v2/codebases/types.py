@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from typing import Any, Dict, Optional, Tuple
+from urllib.parse import urlparse
 
 
 @dataclass
@@ -21,10 +22,16 @@ class CodebaseCreateRequest:
         if not name:
             return None, "Name is required"
 
+        if repo_url:
+            repo_url = repo_url.strip()
+            parsed = urlparse(repo_url)
+            if parsed.scheme not in ("http", "https"):
+                return None, "Repository URL must use http or https protocol"
+
         return cls(
             name=name,
             description=description.strip() if description else None,
-            repoUrl=repo_url.strip() if repo_url else None,
+            repoUrl=repo_url if repo_url else None,
             defaultBranch=default_branch,
         ), None
 
@@ -58,13 +65,19 @@ class CodebaseUpdateRequest:
             if not default_branch:
                 return None, "Default branch cannot be empty"
 
+        if repo_url:
+            repo_url = repo_url.strip()
+            parsed = urlparse(repo_url)
+            if parsed.scheme not in ("http", "https"):
+                return None, "Repository URL must use http or https protocol"
+
         if name is None and not has_description and not has_repo_url and default_branch is None:
             return None, "No fields to update"
 
         return cls(
             name=name,
             description=description.strip() if description else description,
-            repoUrl=repo_url.strip() if repo_url else repo_url,
+            repoUrl=repo_url if repo_url else repo_url,
             defaultBranch=default_branch,
             _has_description=has_description,
             _has_repo_url=has_repo_url,
@@ -182,5 +195,10 @@ class ArtifactCreateRequest:
             return None, "Name is required"
         if not external_url:
             return None, "External URL is required"
+
+        # SSRF prevention: only allow http and https protocols
+        parsed = urlparse(external_url)
+        if parsed.scheme not in ("http", "https"):
+            return None, "External URL must use http or https protocol"
 
         return cls(name=name, externalUrl=external_url), None

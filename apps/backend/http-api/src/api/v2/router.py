@@ -27,8 +27,8 @@ from .mtib.list import list_mtibs
 from .mtib.register import register_mtib
 from .mtib.unregister import unregister_mtib
 
-# Hardware handlers
-from .hardware.components import (
+# Inventory handlers
+from .inventory.components import (
     create_component,
     create_revision,
     delete_component,
@@ -39,7 +39,7 @@ from .hardware.components import (
     update_revision,
     upload_component_image,
 )
-from .hardware.assemblies import (
+from .inventory.assemblies import (
     create_assembly,
     create_assembly_revision,
     delete_assembly,
@@ -50,7 +50,7 @@ from .hardware.assemblies import (
     update_assembly_revision,
     upload_assembly_image,
 )
-from .hardware.image import get_hardware_image
+from .inventory.image import get_inventory_image
 
 # Codebases handlers
 from .codebases.codebases import (
@@ -74,8 +74,49 @@ from .codebases.artifacts import (
     upload_artifact,
 )
 
+# Products handlers
+from .products.products import (
+    create_product,
+    delete_product,
+    get_product,
+    get_supported_chipsets,
+    list_products,
+    update_product,
+)
+from .products.board_revisions import (
+    create_board_revision,
+    delete_board_revision,
+    update_board_revision,
+)
+from .products.firmware_apps import (
+    create_firmware_app,
+    delete_firmware_app,
+    update_firmware_app,
+)
+from .products.firmware_builds import (
+    delete_firmware_build,
+    download_firmware_build,
+    list_firmware_builds,
+    update_firmware_build,
+    upload_firmware_build,
+)
+
 # Admin handlers
 from .admin.history import get_history_entry, list_history
+
+# System Monitor handlers
+from .system.cluster import get_cluster, get_namespaces
+from .system.nodes import list_nodes, get_node
+from .system.events import get_events
+from .system.pods import list_pods, get_pod, delete_pod
+from .system.deployments import list_deployments, get_deployment, scale_deployment, restart_deployment
+from .system.services_api import list_services, get_service
+from .system.jobs import list_jobs, get_job, delete_job
+from .system.config import list_configmaps, get_configmap, list_secrets, get_secret
+from .system.logs import register_log_handlers
+from .system.resources import get_resource_yaml, apply_resource_yaml, delete_resource
+from .system.rbac import list_roles, list_cluster_roles, list_role_bindings, list_cluster_role_bindings, list_service_accounts
+from .system.exec import register_exec_handlers
 
 # Docs
 from .docs import openapi_spec, swagger_ui
@@ -146,30 +187,30 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     v2.add_url_rule("/mtib/register",        view_func=register_mtib,   methods=["POST"])
     v2.add_url_rule("/mtib/unregister",      view_func=unregister_mtib, methods=["POST"])
 
-    # Hardware - Components
-    v2.add_url_rule("/hardware/components",                                          view_func=list_components,        methods=["GET"])
-    v2.add_url_rule("/hardware/components",                                          view_func=create_component,       methods=["POST"])
-    v2.add_url_rule("/hardware/components/<component_id>",                           view_func=get_component,          methods=["GET"])
-    v2.add_url_rule("/hardware/components/<component_id>",                           view_func=update_component,       methods=["PUT"])
-    v2.add_url_rule("/hardware/components/<component_id>",                           view_func=delete_component,       methods=["DELETE"])
-    v2.add_url_rule("/hardware/components/<component_id>/image",                     view_func=upload_component_image, methods=["POST"])
-    v2.add_url_rule("/hardware/components/<component_id>/revisions",                 view_func=create_revision,        methods=["POST"])
-    v2.add_url_rule("/hardware/components/<component_id>/revisions/<revision_id>",   view_func=update_revision,        methods=["PUT"])
-    v2.add_url_rule("/hardware/components/<component_id>/revisions/<revision_id>",   view_func=delete_revision,        methods=["DELETE"])
+    # Inventory - Components
+    v2.add_url_rule("/inventory/components",                                          view_func=list_components,        methods=["GET"])
+    v2.add_url_rule("/inventory/components",                                          view_func=create_component,       methods=["POST"])
+    v2.add_url_rule("/inventory/components/<component_id>",                           view_func=get_component,          methods=["GET"])
+    v2.add_url_rule("/inventory/components/<component_id>",                           view_func=update_component,       methods=["PUT"])
+    v2.add_url_rule("/inventory/components/<component_id>",                           view_func=delete_component,       methods=["DELETE"])
+    v2.add_url_rule("/inventory/components/<component_id>/image",                     view_func=upload_component_image, methods=["POST"])
+    v2.add_url_rule("/inventory/components/<component_id>/revisions",                 view_func=create_revision,        methods=["POST"])
+    v2.add_url_rule("/inventory/components/<component_id>/revisions/<revision_id>",   view_func=update_revision,        methods=["PUT"])
+    v2.add_url_rule("/inventory/components/<component_id>/revisions/<revision_id>",   view_func=delete_revision,        methods=["DELETE"])
 
-    # Hardware - Assemblies
-    v2.add_url_rule("/hardware/assemblies",                                          view_func=list_assemblies,            methods=["GET"])
-    v2.add_url_rule("/hardware/assemblies",                                          view_func=create_assembly,            methods=["POST"])
-    v2.add_url_rule("/hardware/assemblies/<assembly_id>",                            view_func=get_assembly,               methods=["GET"])
-    v2.add_url_rule("/hardware/assemblies/<assembly_id>",                            view_func=update_assembly,            methods=["PUT"])
-    v2.add_url_rule("/hardware/assemblies/<assembly_id>",                            view_func=delete_assembly,            methods=["DELETE"])
-    v2.add_url_rule("/hardware/assemblies/<assembly_id>/image",                      view_func=upload_assembly_image,      methods=["POST"])
-    v2.add_url_rule("/hardware/assemblies/<assembly_id>/revisions",                  view_func=create_assembly_revision,   methods=["POST"])
-    v2.add_url_rule("/hardware/assemblies/<assembly_id>/revisions/<revision_id>",    view_func=update_assembly_revision,   methods=["PUT"])
-    v2.add_url_rule("/hardware/assemblies/<assembly_id>/revisions/<revision_id>",    view_func=delete_assembly_revision,   methods=["DELETE"])
+    # Inventory - Assemblies
+    v2.add_url_rule("/inventory/assemblies",                                          view_func=list_assemblies,            methods=["GET"])
+    v2.add_url_rule("/inventory/assemblies",                                          view_func=create_assembly,            methods=["POST"])
+    v2.add_url_rule("/inventory/assemblies/<assembly_id>",                            view_func=get_assembly,               methods=["GET"])
+    v2.add_url_rule("/inventory/assemblies/<assembly_id>",                            view_func=update_assembly,            methods=["PUT"])
+    v2.add_url_rule("/inventory/assemblies/<assembly_id>",                            view_func=delete_assembly,            methods=["DELETE"])
+    v2.add_url_rule("/inventory/assemblies/<assembly_id>/image",                      view_func=upload_assembly_image,      methods=["POST"])
+    v2.add_url_rule("/inventory/assemblies/<assembly_id>/revisions",                  view_func=create_assembly_revision,   methods=["POST"])
+    v2.add_url_rule("/inventory/assemblies/<assembly_id>/revisions/<revision_id>",    view_func=update_assembly_revision,   methods=["PUT"])
+    v2.add_url_rule("/inventory/assemblies/<assembly_id>/revisions/<revision_id>",    view_func=delete_assembly_revision,   methods=["DELETE"])
 
-    # Hardware - Image serving
-    v2.add_url_rule("/hardware/image/<path:key>",                                    view_func=get_hardware_image,         methods=["GET"])
+    # Inventory - Image serving
+    v2.add_url_rule("/inventory/image/<path:key>",                                    view_func=get_inventory_image,         methods=["GET"])
 
     # Codebases
     v2.add_url_rule("/codebases",                                                                     view_func=list_codebases,        methods=["GET"])
@@ -187,6 +228,31 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     v2.add_url_rule("/codebases/<codebase_id>/releases/<release_id>/artifacts/<artifact_id>",         view_func=delete_artifact,       methods=["DELETE"])
     v2.add_url_rule("/codebases/artifacts/<artifact_id>/download",                                    view_func=download_artifact,     methods=["GET"])
 
+    # Products
+    v2.add_url_rule("/products/chipsets",                                                          view_func=get_supported_chipsets,  methods=["GET"])
+    v2.add_url_rule("/products",                                                                  view_func=list_products,          methods=["GET"])
+    v2.add_url_rule("/products",                                                                  view_func=create_product,         methods=["POST"])
+    v2.add_url_rule("/products/<product_id>",                                                     view_func=get_product,            methods=["GET"])
+    v2.add_url_rule("/products/<product_id>",                                                     view_func=update_product,         methods=["PUT"])
+    v2.add_url_rule("/products/<product_id>",                                                     view_func=delete_product,         methods=["DELETE"])
+
+    # Products - Board Revisions
+    v2.add_url_rule("/products/<product_id>/board-revisions",                                     view_func=create_board_revision,  methods=["POST"])
+    v2.add_url_rule("/products/<product_id>/board-revisions/<revision_id>",                       view_func=update_board_revision,  methods=["PUT"])
+    v2.add_url_rule("/products/<product_id>/board-revisions/<revision_id>",                       view_func=delete_board_revision,  methods=["DELETE"])
+
+    # Products - Firmware Applications
+    v2.add_url_rule("/products/<product_id>/firmware-apps",                                       view_func=create_firmware_app,    methods=["POST"])
+    v2.add_url_rule("/products/<product_id>/firmware-apps/<app_id>",                              view_func=update_firmware_app,    methods=["PUT"])
+    v2.add_url_rule("/products/<product_id>/firmware-apps/<app_id>",                              view_func=delete_firmware_app,    methods=["DELETE"])
+
+    # Products - Firmware Builds
+    v2.add_url_rule("/products/<product_id>/firmware-builds",                                     view_func=list_firmware_builds,   methods=["GET"])
+    v2.add_url_rule("/products/<product_id>/firmware-builds/upload",                              view_func=upload_firmware_build,  methods=["POST"])
+    v2.add_url_rule("/products/<product_id>/firmware-builds/<build_id>",                          view_func=update_firmware_build,  methods=["PUT"])
+    v2.add_url_rule("/products/<product_id>/firmware-builds/<build_id>",                          view_func=delete_firmware_build,  methods=["DELETE"])
+    v2.add_url_rule("/products/firmware-builds/<build_id>/download",                              view_func=download_firmware_build, methods=["GET"])
+
     # Admin - History
     v2.add_url_rule("/admin/history",              view_func=list_history,      methods=["GET"])
     v2.add_url_rule("/admin/history/<entry_id>",   view_func=get_history_entry, methods=["GET"])
@@ -194,11 +260,56 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     # Validation
     v2.add_url_rule("/validation/tests/run", view_func=run_tests,       methods=["POST"])
 
+    # System Monitor: Cluster
+    v2.add_url_rule("/system/cluster",              view_func=get_cluster,     methods=["GET"])
+    v2.add_url_rule("/system/namespaces",            view_func=get_namespaces,  methods=["GET"])
+    v2.add_url_rule("/system/nodes",                 view_func=list_nodes,      methods=["GET"])
+    v2.add_url_rule("/system/nodes/<node_name>",     view_func=get_node,        methods=["GET"])
+    v2.add_url_rule("/system/events",                view_func=get_events,      methods=["GET"])
+
+    # System Monitor: Resources
+    v2.add_url_rule("/system/pods",                                      view_func=list_pods,          methods=["GET"])
+    v2.add_url_rule("/system/pods/<namespace>/<name>",                   view_func=get_pod,            methods=["GET"])
+    v2.add_url_rule("/system/pods/<namespace>/<name>",                   view_func=delete_pod,         methods=["DELETE"])
+
+    v2.add_url_rule("/system/deployments",                               view_func=list_deployments,   methods=["GET"])
+    v2.add_url_rule("/system/deployments/<namespace>/<name>",            view_func=get_deployment,     methods=["GET"])
+    v2.add_url_rule("/system/deployments/<namespace>/<name>/scale",      view_func=scale_deployment,   methods=["POST"])
+    v2.add_url_rule("/system/deployments/<namespace>/<name>/restart",    view_func=restart_deployment, methods=["POST"])
+
+    v2.add_url_rule("/system/services",                                  view_func=list_services,      methods=["GET"])
+    v2.add_url_rule("/system/services/<namespace>/<name>",               view_func=get_service,        methods=["GET"])
+
+    v2.add_url_rule("/system/jobs",                                      view_func=list_jobs,          methods=["GET"])
+    v2.add_url_rule("/system/jobs/<namespace>/<name>",                   view_func=get_job,            methods=["GET"])
+    v2.add_url_rule("/system/jobs/<namespace>/<name>",                   view_func=delete_job,         methods=["DELETE"])
+
+    v2.add_url_rule("/system/configmaps",                                view_func=list_configmaps,    methods=["GET"])
+    v2.add_url_rule("/system/configmaps/<namespace>/<name>",             view_func=get_configmap,      methods=["GET"])
+    v2.add_url_rule("/system/secrets",                                   view_func=list_secrets,       methods=["GET"])
+    v2.add_url_rule("/system/secrets/<namespace>/<name>",                view_func=get_secret,         methods=["GET"])
+
     # Health
     v2.add_url_rule("/healthcheck",          view_func=healthcheck,     methods=["GET"])
 
     # Docs
     v2.add_url_rule("/openapi.json",         view_func=openapi_spec,    methods=["GET"])
     v2.add_url_rule("/docs",                 view_func=swagger_ui,      methods=["GET"])
+
+    # System Monitor: Resource YAML
+    v2.add_url_rule("/system/resources/<kind>/<namespace>/<name>",       view_func=get_resource_yaml,       methods=["GET"])
+    v2.add_url_rule("/system/resources/<kind>/<namespace>/<name>",       view_func=apply_resource_yaml,     methods=["PUT"])
+    v2.add_url_rule("/system/resources/<kind>/<namespace>/<name>",       view_func=delete_resource,         methods=["DELETE"])
+
+    # System Monitor: RBAC
+    v2.add_url_rule("/system/rbac/roles",                               view_func=list_roles,              methods=["GET"])
+    v2.add_url_rule("/system/rbac/clusterroles",                        view_func=list_cluster_roles,      methods=["GET"])
+    v2.add_url_rule("/system/rbac/bindings",                            view_func=list_role_bindings,      methods=["GET"])
+    v2.add_url_rule("/system/rbac/clusterrolebindings",                 view_func=list_cluster_role_bindings, methods=["GET"])
+    v2.add_url_rule("/system/rbac/serviceaccounts",                     view_func=list_service_accounts,   methods=["GET"])
+
+    # System Monitor: Log Streaming + Pod Exec
+    register_log_handlers(socketio)
+    register_exec_handlers(socketio)
 
     server.register_blueprint(v2)

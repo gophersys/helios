@@ -1,3 +1,5 @@
+import logging
+import math
 from io import BytesIO
 
 from flask import jsonify, request
@@ -8,13 +10,17 @@ from src.lib.errors import bad_request, conflict, internal_error, not_found
 from src.lib.permissions import Permissions
 from src.lib.types import ApiResponse
 from src.services.database.prisma import get_db_client
-from src.services.storage.client import get_codebases_bucket_name, get_storage_client
+from src.services.storage.client import get_bucket_name, get_storage_client, StoragePrefixes, storage_key
+
+logger = logging.getLogger(__name__)
 
 from .shared import ALLOWED_IMAGE_EXTENSIONS, MIME_TYPES, presigned_url
 from .types import CodebaseCreateRequest, CodebaseUpdateRequest
 
+from typing import Any
 
-def _serialize_codebase(c, include_releases=False) -> dict:
+
+def _serialize_codebase(c: Any, include_releases: bool = False) -> dict:
     data = {
         "id": c.id,
         "name": c.name,
@@ -47,7 +53,7 @@ def _serialize_codebase(c, include_releases=False) -> dict:
     return data
 
 
-def _serialize_artifact(a) -> dict:
+def _serialize_artifact(a: Any) -> dict:
     return {
         "id": a.id,
         "releaseId": a.releaseId,
@@ -64,7 +70,7 @@ def _serialize_artifact(a) -> dict:
     }
 
 
-def _serialize_release(r, include_artifact_count=False, include_artifacts=False) -> dict:
+def _serialize_release(r: Any, include_artifact_count: bool = False, include_artifacts: bool = False) -> dict:
     data = {
         "id": r.id,
         "codebaseId": r.codebaseId,
@@ -90,11 +96,27 @@ def _serialize_release(r, include_artifact_count=False, include_artifacts=False)
 @require_permissions(Permissions.ADMIN_CODEBASES_VIEW)
 def list_codebases():
     db = get_db_client()
+
+    page = max(1, request.args.get("page", 1, type=int))
+    limit = min(max(1, request.args.get("limit", 50, type=int)), 100)
+    skip = (page - 1) * limit
+
+    total = db.codebase.count()
     codebases = db.codebase.find_many(
+        skip=skip,
+        take=limit,
         order={"name": "asc"},
         include={"releases": {"include": {"artifacts": True}}},
     )
-    return jsonify(ApiResponse.ok([_serialize_codebase(c) for c in codebases]).to_dict()), 200
+    return jsonify(ApiResponse.ok({
+        "data": [_serialize_codebase(c) for c in codebases],
+        "pagination": {
+            "page": page,
+            "limit": limit,
+            "total": total,
+            "pages": math.ceil(total / limit) if limit > 0 else 0,
+        },
+    }).to_dict()), 200
 
 
 @require_permissions(Permissions.ADMIN_CODEBASES_MANAGE)
@@ -172,22 +194,22 @@ def delete_codebase(codebase_id: str):
     # Clean up MinIO objects for all UPLOAD artifacts
     try:
         client = get_storage_client()
-        bucket = get_codebases_bucket_name()
+        bucket = get_bucket_name()
         for release in existing.releases:
             for artifact in release.artifacts:
                 if artifact.type == "UPLOAD" and artifact.storageKey:
                     try:
                         client.remove_object(bucket, artifact.storageKey)
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.warning("Failed to remove artifact object %s: %s", artifact.storageKey, e)
         # Remove codebase image
         if existing.imageKey:
             try:
                 client.remove_object(bucket, existing.imageKey)
-            except Exception:
-                pass
-    except Exception:
-        pass
+            except Exception as e:
+                logger.warning("Failed to remove codebase image %s: %s", existing.imageKey, e)
+    except Exception as e:
+        logger.warning("Failed to clean up storage objects for codebase %s: %s", codebase_id, e)
 
     db.codebase.delete(where={"id": codebase_id})
     log_audit("codebase.delete", "Codebase", codebase_id, {"name": existing.name})
@@ -215,17 +237,17 @@ def upload_codebase_image(codebase_id: str):
     if ext not in ALLOWED_IMAGE_EXTENSIONS:
         return bad_request(f"Invalid file type. Allowed: {', '.join(ALLOWED_IMAGE_EXTENSIONS)}")
 
-    object_key = f"codebases/{codebase_id}/logo.{ext}"
+    object_key = storage_key(StoragePrefixes.CODEBASES, f"{codebase_id}/logo.{ext}")
 
     try:
         client = get_storage_client()
-        bucket = get_codebases_bucket_name()
+        bucket = get_bucket_name()
 
         if codebase.imageKey and codebase.imageKey != object_key:
             try:
                 client.remove_object(bucket, codebase.imageKey)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("Failed to remove old codebase image %s: %s", codebase.imageKey, e)
 
         file_data = file.read()
         client.put_object(
@@ -244,4 +266,5 @@ def upload_codebase_image(codebase_id: str):
         log_audit("codebase.imageUpload", "Codebase", codebase_id, {"name": codebase.name})
         return jsonify(ApiResponse.ok(_serialize_codebase(updated)).to_dict()), 200
     except Exception as e:
-        return internal_error(f"Failed to upload image: {str(e)}")
+        logger.error("Failed to upload codebase image: %s", e)
+        return internal_error("Failed to upload image")

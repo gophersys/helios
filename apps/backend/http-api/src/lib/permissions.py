@@ -18,9 +18,9 @@ class Permissions:
     ADMIN_API_KEYS_VIEW = "Concord.Admin.ApiKeys.View"
     ADMIN_API_KEYS_MANAGE = "Concord.Admin.ApiKeys.Manage"
 
-    # Admin - Hardware
-    ADMIN_HARDWARE_VIEW = "Concord.Admin.Hardware.View"
-    ADMIN_HARDWARE_MANAGE = "Concord.Admin.Hardware.Manage"
+    # Admin - Inventory
+    ADMIN_INVENTORY_VIEW = "Concord.Admin.Inventory.View"
+    ADMIN_INVENTORY_MANAGE = "Concord.Admin.Inventory.Manage"
 
     # Admin - Codebases
     ADMIN_CODEBASES_VIEW = "Concord.Admin.Codebases.View"
@@ -28,6 +28,14 @@ class Permissions:
 
     # Admin - History
     ADMIN_HISTORY_VIEW = "Concord.Admin.History.View"
+
+    # Admin - Products
+    ADMIN_PRODUCTS_VIEW = "Concord.Admin.Products.View"
+    ADMIN_PRODUCTS_MANAGE = "Concord.Admin.Products.Manage"
+
+    # Admin - System
+    ADMIN_SYSTEM_VIEW = "Concord.Admin.System.View"
+    ADMIN_SYSTEM_MANAGE = "Concord.Admin.System.Manage"
 
     @classmethod
     def all(cls) -> list[dict]:

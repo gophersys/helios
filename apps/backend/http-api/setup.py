@@ -4,6 +4,9 @@ setup(
     name="http-api",
     version="1.0",
     packages=find_packages(),
+    extras_require={
+        "test": ["pytest>=8.0", "pytest-cov>=6.0"],
+    },
     install_requires=[
         "grpcio>=1.75.0",
         "grpcio-tools>=1.75.0",
@@ -24,6 +27,7 @@ setup(
         "google-auth>=2.0.0",
         "PyJWT>=2.0.0",
         "flask-cors>=5.0.0",
+        "influxdb-client>=1.36.0",
         "apispec>=6.0.0",
         "apispec-webframeworks>=1.0.0",
     ],

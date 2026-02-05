@@ -1,4 +1,5 @@
 import hashlib
+import threading
 import time
 from datetime import datetime, timezone
 from functools import wraps
@@ -11,30 +12,34 @@ from src.services.database.prisma import get_db_client
 
 # In-memory permission set cache: {permissionSetId: (permissions_list, fetched_at)}
 _permission_set_cache: dict[str, tuple[list[str], float]] = {}
+_cache_lock = threading.Lock()
 _CACHE_TTL_SECONDS = 60
 
 
 def invalidate_permission_set_cache(permission_set_id: str | None = None):
     """Invalidate cached permission set(s). Call on update/delete."""
-    if permission_set_id:
-        _permission_set_cache.pop(permission_set_id, None)
-    else:
-        _permission_set_cache.clear()
+    with _cache_lock:
+        if permission_set_id:
+            _permission_set_cache.pop(permission_set_id, None)
+        else:
+            _permission_set_cache.clear()
 
 
 def _get_permissions_for_set(permission_set_id: str) -> list[str] | None:
     """Load permission set permissions from cache or DB."""
     now = time.time()
-    cached = _permission_set_cache.get(permission_set_id)
-    if cached and (now - cached[1]) < _CACHE_TTL_SECONDS:
-        return cached[0]
+    with _cache_lock:
+        cached = _permission_set_cache.get(permission_set_id)
+        if cached and (now - cached[1]) < _CACHE_TTL_SECONDS:
+            return cached[0]
 
     db = get_db_client()
     perm_set = db.permissionset.find_unique(where={"id": permission_set_id})
     if not perm_set:
         return None
 
-    _permission_set_cache[permission_set_id] = (perm_set.permissions, now)
+    with _cache_lock:
+        _permission_set_cache[permission_set_id] = (perm_set.permissions, now)
     return perm_set.permissions
 
 

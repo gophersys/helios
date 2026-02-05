@@ -6,7 +6,7 @@ from dateutil import parser as dateutil_parser
 from flask import g, jsonify, request
 
 from src.lib.audit import log_audit
-from src.lib.decorators import require_auth, require_permissions
+from src.lib.decorators import require_permissions
 from src.lib.errors import bad_request, forbidden, not_found
 from src.lib.permissions import Permissions
 from src.lib.types import ApiResponse
@@ -18,47 +18,47 @@ KEY_PREFIX_FORMAT = "ck_live_"
 KEY_RANDOM_LENGTH = 32
 
 
-@require_auth
+@require_permissions(Permissions.ADMIN_API_KEYS_VIEW)
 def list_api_keys():
-    """List API keys. Users see their own; admins with ApiKeys.View see all."""
+    """List all API keys (requires ADMIN_API_KEYS_VIEW permission)."""
     db = get_db_client()
-    user = g.current_user
 
-    # Check if user has admin view permission
-    perm_set_id = user.get("permissionSetId")
-    is_admin = False
-    if perm_set_id:
-        perm_set = db.permissionset.find_unique(where={"id": perm_set_id})
-        if perm_set and Permissions.ADMIN_API_KEYS_VIEW in perm_set.permissions:
-            is_admin = True
+    page = max(1, request.args.get("page", 1, type=int))
+    limit = min(max(1, request.args.get("limit", 50, type=int)), 100)
+    skip = (page - 1) * limit
 
-    if is_admin:
-        keys = db.apikey.find_many(
-            order={"createdAt": "desc"},
-            include={"user": True},
-        )
-    else:
-        keys = db.apikey.find_many(
-            where={"userId": user["sub"]},
-            order={"createdAt": "desc"},
-        )
+    total = db.apikey.count()
+    keys = db.apikey.find_many(
+        skip=skip,
+        take=limit,
+        order={"createdAt": "desc"},
+        include={"user": True},
+    )
 
-    return jsonify(ApiResponse.ok([
-        {
-            "id": k.id,
-            "name": k.name,
-            "keyPrefix": k.keyPrefix,
-            "userId": k.userId,
-            "userName": k.user.name if hasattr(k, "user") and k.user else None,
-            "expiresAt": k.expiresAt.isoformat() if k.expiresAt else None,
-            "lastUsedAt": k.lastUsedAt.isoformat() if k.lastUsedAt else None,
-            "createdAt": k.createdAt.isoformat(),
-        }
-        for k in keys
-    ]).to_dict()), 200
+    return jsonify(ApiResponse.ok({
+        "data": [
+            {
+                "id": k.id,
+                "name": k.name,
+                "keyPrefix": k.keyPrefix,
+                "userId": k.userId,
+                "userName": k.user.name if hasattr(k, "user") and k.user is not None else None,
+                "expiresAt": k.expiresAt.isoformat() if k.expiresAt else None,
+                "lastUsedAt": k.lastUsedAt.isoformat() if k.lastUsedAt else None,
+                "createdAt": k.createdAt.isoformat(),
+            }
+            for k in keys
+        ],
+        "pagination": {
+            "page": page,
+            "limit": limit,
+            "total": total,
+            "pages": (total + limit - 1) // limit if limit > 0 else 0,
+        },
+    }).to_dict()), 200
 
 
-@require_auth
+@require_permissions(Permissions.ADMIN_API_KEYS_MANAGE)
 def create_api_key():
     """Create a new API key for the authenticated user.
 
@@ -107,29 +107,14 @@ def create_api_key():
     }).to_dict()), 201
 
 
-@require_auth
+@require_permissions(Permissions.ADMIN_API_KEYS_MANAGE)
 def delete_api_key(key_id: str):
-    """Delete an API key. Owner can delete their own; admin can delete any."""
+    """Delete an API key (requires ADMIN_API_KEYS_MANAGE permission)."""
     db = get_db_client()
 
     api_key = db.apikey.find_unique(where={"id": key_id})
     if not api_key:
         return not_found("API key not found")
-
-    user = g.current_user
-    is_owner = api_key.userId == user["sub"]
-
-    if not is_owner:
-        # Check if user has admin manage permission
-        perm_set_id = user.get("permissionSetId")
-        is_admin = False
-        if perm_set_id:
-            perm_set = db.permissionset.find_unique(where={"id": perm_set_id})
-            if perm_set and Permissions.ADMIN_API_KEYS_MANAGE in perm_set.permissions:
-                is_admin = True
-
-        if not is_admin:
-            return forbidden("Forbidden")
 
     db.apikey.delete(where={"id": key_id})
     log_audit("apiKey.delete", "ApiKey", key_id, {"name": api_key.name})
