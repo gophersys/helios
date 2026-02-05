@@ -1,7 +1,10 @@
+import logging
 from typing import Optional
 
 from kubernetes import client as k8s_client
 from kubernetes import config as k8s_config
+
+logger = logging.getLogger(__name__)
 
 # Global Kubernetes client instance
 appKubernetesClient: Optional[k8s_client.ApiClient] = None
@@ -18,7 +21,7 @@ def init_kubernetes_client() -> Optional[k8s_client.ApiClient]:
         try:
             k8s_config.load_kube_config()
         except k8s_config.ConfigException:
-            print("⚠ Kubernetes config not found — K8s features disabled")
+            logger.warning("Kubernetes config not found — K8s features disabled")
             return None
 
     client = k8s_client.ApiClient()
@@ -55,3 +58,8 @@ def get_batch_v1_api() -> k8s_client.BatchV1Api:
 def get_networking_v1_api() -> k8s_client.NetworkingV1Api:
     """Get Networking V1 API client using the global Kubernetes client"""
     return k8s_client.NetworkingV1Api(get_k8s_client())
+
+
+def get_rbac_v1_api() -> k8s_client.RbacAuthorizationV1Api:
+    """Get RBAC V1 API client using the global Kubernetes client"""
+    return k8s_client.RbacAuthorizationV1Api(get_k8s_client())
