@@ -1,25 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Cpu, Pencil, Trash2, ChevronDown } from 'lucide-react';
 import { StatusBadge } from '../../components/ui/status-badge';
-
-interface Revision {
-  id: string;
-  version: string;
-  status: string;
-  releaseNotes: string | null;
-}
-
-interface Component {
-  id: string;
-  name: string;
-  description: string | null;
-  category: string;
-  manufacturer: string;
-  partNumber: string;
-  imageUrl: string | null;
-  revisionCount: number;
-  revisions?: Revision[];
-}
+import { InventoryComponent as Component, InventoryRevision as Revision } from '../../types/models';
 
 const CATEGORY_LABELS: Record<string, string> = {
   SOM: 'SoM',
@@ -145,6 +127,7 @@ export function ComponentCard({
             onClick={() => onEdit(component)}
             className="rounded-lg bg-surface-1/90 p-1.5 text-text-tertiary shadow-sm backdrop-blur hover:text-text-primary"
             title="Edit"
+            aria-label="Edit"
           >
             <Pencil size={13} />
           </button>
@@ -152,6 +135,7 @@ export function ComponentCard({
             onClick={() => onDelete(component.id)}
             className="rounded-lg bg-surface-1/90 p-1.5 text-text-tertiary shadow-sm backdrop-blur hover:text-error"
             title="Delete"
+            aria-label="Delete"
           >
             <Trash2 size={13} />
           </button>

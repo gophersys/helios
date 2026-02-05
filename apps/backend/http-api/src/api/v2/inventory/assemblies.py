@@ -1,3 +1,5 @@
+import logging
+import math
 from io import BytesIO
 
 from flask import jsonify, request
@@ -8,7 +10,9 @@ from src.lib.errors import bad_request, conflict, internal_error, not_found
 from src.lib.permissions import Permissions
 from src.lib.types import ApiResponse
 from src.services.database.prisma import get_db_client
-from src.services.storage.client import get_hardware_bucket_name, get_storage_client
+from src.services.storage.client import get_bucket_name, get_storage_client, StoragePrefixes, storage_key
+
+logger = logging.getLogger(__name__)
 
 from .shared import ALLOWED_IMAGE_EXTENSIONS, MIME_TYPES, presigned_url
 from .types import (
@@ -18,8 +22,10 @@ from .types import (
     AssemblyUpdateRequest,
 )
 
+from typing import Any
 
-def _serialize_assembly(a, include_revisions=False) -> dict:
+
+def _serialize_assembly(a: Any, include_revisions: bool = False) -> dict:
     data = {
         "id": a.id,
         "name": a.name,
@@ -36,7 +42,7 @@ def _serialize_assembly(a, include_revisions=False) -> dict:
     return data
 
 
-def _serialize_assembly_revision(r) -> dict:
+def _serialize_assembly_revision(r: Any) -> dict:
     data = {
         "id": r.id,
         "assemblyId": r.assemblyId,
@@ -51,22 +57,22 @@ def _serialize_assembly_revision(r) -> dict:
     return data
 
 
-def _serialize_bom_item(item) -> dict:
+def _serialize_bom_item(item: Any) -> dict:
     data = {
         "id": item.id,
-        "hardwareRevisionId": item.hardwareRevisionId,
+        "inventoryRevisionId": item.inventoryRevisionId,
         "quantity": item.quantity,
     }
-    if hasattr(item, "hardwareRevision") and item.hardwareRevision is not None:
-        hr = item.hardwareRevision
-        data["hardwareRevision"] = {
+    if hasattr(item, "inventoryRevision") and item.inventoryRevision is not None:
+        hr = item.inventoryRevision
+        data["inventoryRevision"] = {
             "id": hr.id,
             "version": hr.version,
             "status": hr.status,
             "componentId": hr.componentId,
         }
         if hasattr(hr, "component") and hr.component is not None:
-            data["hardwareRevision"]["component"] = {
+            data["inventoryRevision"]["component"] = {
                 "id": hr.component.id,
                 "name": hr.component.name,
                 "category": hr.component.category,
@@ -79,7 +85,7 @@ def _serialize_bom_item(item) -> dict:
 _REVISION_INCLUDE = {
     "components": {
         "include": {
-            "hardwareRevision": {
+            "inventoryRevision": {
                 "include": {
                     "component": True,
                 }
@@ -92,17 +98,33 @@ _REVISION_INCLUDE = {
 # ── Assembly CRUD ────────────────────────────────────────────
 
 
-@require_permissions(Permissions.ADMIN_HARDWARE_VIEW)
+@require_permissions(Permissions.ADMIN_INVENTORY_VIEW)
 def list_assemblies():
     db = get_db_client()
+
+    page = max(1, request.args.get("page", 1, type=int))
+    limit = min(max(1, request.args.get("limit", 50, type=int)), 100)
+    skip = (page - 1) * limit
+
+    total = db.assembly.count()
     assemblies = db.assembly.find_many(
+        skip=skip,
+        take=limit,
         order={"name": "asc"},
         include={"revisions": True},
     )
-    return jsonify(ApiResponse.ok([_serialize_assembly(a) for a in assemblies]).to_dict()), 200
+    return jsonify(ApiResponse.ok({
+        "data": [_serialize_assembly(a) for a in assemblies],
+        "pagination": {
+            "page": page,
+            "limit": limit,
+            "total": total,
+            "pages": math.ceil(total / limit) if limit > 0 else 0,
+        },
+    }).to_dict()), 200
 
 
-@require_permissions(Permissions.ADMIN_HARDWARE_MANAGE)
+@require_permissions(Permissions.ADMIN_INVENTORY_MANAGE)
 def create_assembly():
     data, error = AssemblyCreateRequest.from_json(request.get_json())
     if error:
@@ -124,7 +146,7 @@ def create_assembly():
     return jsonify(ApiResponse.ok(_serialize_assembly(assembly)).to_dict()), 201
 
 
-@require_permissions(Permissions.ADMIN_HARDWARE_VIEW)
+@require_permissions(Permissions.ADMIN_INVENTORY_VIEW)
 def get_assembly(assembly_id: str):
     db = get_db_client()
     assembly = db.assembly.find_unique(
@@ -141,7 +163,7 @@ def get_assembly(assembly_id: str):
     return jsonify(ApiResponse.ok(_serialize_assembly(assembly, include_revisions=True)).to_dict()), 200
 
 
-@require_permissions(Permissions.ADMIN_HARDWARE_MANAGE)
+@require_permissions(Permissions.ADMIN_INVENTORY_MANAGE)
 def update_assembly(assembly_id: str):
     data, error = AssemblyUpdateRequest.from_json(request.get_json())
     if error:
@@ -166,7 +188,7 @@ def update_assembly(assembly_id: str):
     return jsonify(ApiResponse.ok(_serialize_assembly(assembly)).to_dict()), 200
 
 
-@require_permissions(Permissions.ADMIN_HARDWARE_MANAGE)
+@require_permissions(Permissions.ADMIN_INVENTORY_MANAGE)
 def delete_assembly(assembly_id: str):
     db = get_db_client()
     existing = db.assembly.find_unique(where={"id": assembly_id})
@@ -176,9 +198,9 @@ def delete_assembly(assembly_id: str):
     if existing.imageKey:
         try:
             client = get_storage_client()
-            client.remove_object(get_hardware_bucket_name(), existing.imageKey)
-        except Exception:
-            pass
+            client.remove_object(get_bucket_name(), existing.imageKey)
+        except Exception as e:
+            logger.warning("Failed to remove assembly image %s: %s", existing.imageKey, e)
 
     db.assembly.delete(where={"id": assembly_id})
     log_audit("assembly.delete", "Assembly", assembly_id, {"name": existing.name})
@@ -188,7 +210,7 @@ def delete_assembly(assembly_id: str):
 # ── Image upload ─────────────────────────────────────────────
 
 
-@require_permissions(Permissions.ADMIN_HARDWARE_MANAGE)
+@require_permissions(Permissions.ADMIN_INVENTORY_MANAGE)
 def upload_assembly_image(assembly_id: str):
     db = get_db_client()
     assembly = db.assembly.find_unique(where={"id": assembly_id})
@@ -206,17 +228,17 @@ def upload_assembly_image(assembly_id: str):
     if ext not in ALLOWED_IMAGE_EXTENSIONS:
         return bad_request(f"Invalid file type. Allowed: {', '.join(ALLOWED_IMAGE_EXTENSIONS)}")
 
-    object_key = f"assemblies/{assembly_id}/hero.{ext}"
+    object_key = storage_key(StoragePrefixes.INVENTORY, f"assemblies/{assembly_id}/hero.{ext}")
 
     try:
         client = get_storage_client()
-        bucket = get_hardware_bucket_name()
+        bucket = get_bucket_name()
 
         if assembly.imageKey and assembly.imageKey != object_key:
             try:
                 client.remove_object(bucket, assembly.imageKey)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("Failed to remove old assembly image %s: %s", assembly.imageKey, e)
 
         file_data = file.read()
         client.put_object(
@@ -235,13 +257,14 @@ def upload_assembly_image(assembly_id: str):
         log_audit("assembly.imageUpload", "Assembly", assembly_id, {"name": assembly.name})
         return jsonify(ApiResponse.ok(_serialize_assembly(updated)).to_dict()), 200
     except Exception as e:
-        return internal_error(f"Failed to upload image: {str(e)}")
+        logger.error("Failed to upload assembly image: %s", e)
+        return internal_error("Failed to upload image")
 
 
 # ── Assembly Revisions ───────────────────────────────────────
 
 
-@require_permissions(Permissions.ADMIN_HARDWARE_MANAGE)
+@require_permissions(Permissions.ADMIN_INVENTORY_MANAGE)
 def create_assembly_revision(assembly_id: str):
     db = get_db_client()
     assembly = db.assembly.find_unique(where={"id": assembly_id})
@@ -258,14 +281,14 @@ def create_assembly_revision(assembly_id: str):
     if existing:
         return conflict(f"Revision '{data.version}' already exists for this assembly")
 
-    # Validate BOM hardware revision IDs exist
+    # Validate BOM inventory revision IDs exist
     if data.bom:
-        hr_ids = [item.hardwareRevisionId for item in data.bom]
-        found = db.hardwarerevision.find_many(where={"id": {"in": hr_ids}})
+        hr_ids = [item.inventoryRevisionId for item in data.bom]
+        found = db.inventoryrevision.find_many(where={"id": {"in": hr_ids}})
         found_ids = {r.id for r in found}
         missing = [rid for rid in hr_ids if rid not in found_ids]
         if missing:
-            return bad_request(f"Hardware revision(s) not found: {', '.join(missing)}")
+            return bad_request(f"Inventory revision(s) not found: {', '.join(missing)}")
 
     revision = db.assemblyrevision.create(
         data={
@@ -276,7 +299,7 @@ def create_assembly_revision(assembly_id: str):
             "components": {
                 "create": [
                     {
-                        "hardwareRevisionId": item.hardwareRevisionId,
+                        "inventoryRevisionId": item.inventoryRevisionId,
                         "quantity": item.quantity,
                     }
                     for item in (data.bom or [])
@@ -289,7 +312,7 @@ def create_assembly_revision(assembly_id: str):
     return jsonify(ApiResponse.ok(_serialize_assembly_revision(revision)).to_dict()), 201
 
 
-@require_permissions(Permissions.ADMIN_HARDWARE_MANAGE)
+@require_permissions(Permissions.ADMIN_INVENTORY_MANAGE)
 def update_assembly_revision(assembly_id: str, revision_id: str):
     db = get_db_client()
     revision = db.assemblyrevision.find_first(
@@ -311,13 +334,13 @@ def update_assembly_revision(assembly_id: str, revision_id: str):
 
     # Validate BOM before any writes
     if data._has_bom and data.bom is not None:
-        hr_ids = [item.hardwareRevisionId for item in data.bom]
+        hr_ids = [item.inventoryRevisionId for item in data.bom]
         if hr_ids:
-            found = db.hardwarerevision.find_many(where={"id": {"in": hr_ids}})
+            found = db.inventoryrevision.find_many(where={"id": {"in": hr_ids}})
             found_ids = {r.id for r in found}
             missing = [rid for rid in hr_ids if rid not in found_ids]
             if missing:
-                return bad_request(f"Hardware revision(s) not found: {', '.join(missing)}")
+                return bad_request(f"Inventory revision(s) not found: {', '.join(missing)}")
 
     # Update revision fields
     update_data = data.to_update_data()
@@ -336,7 +359,7 @@ def update_assembly_revision(assembly_id: str, revision_id: str):
             db.assemblyrevisioncomponent.create(
                 data={
                     "assemblyRevisionId": revision_id,
-                    "hardwareRevisionId": item.hardwareRevisionId,
+                    "inventoryRevisionId": item.inventoryRevisionId,
                     "quantity": item.quantity,
                 }
             )
@@ -349,7 +372,7 @@ def update_assembly_revision(assembly_id: str, revision_id: str):
     return jsonify(ApiResponse.ok(_serialize_assembly_revision(updated)).to_dict()), 200
 
 
-@require_permissions(Permissions.ADMIN_HARDWARE_MANAGE)
+@require_permissions(Permissions.ADMIN_INVENTORY_MANAGE)
 def delete_assembly_revision(assembly_id: str, revision_id: str):
     db = get_db_client()
     revision = db.assemblyrevision.find_first(

@@ -234,7 +234,7 @@ class AssemblyUpdateRequest:
 
 @dataclass
 class BomItem:
-    hardwareRevisionId: str
+    inventoryRevisionId: str
     quantity: int = 1
 
 
@@ -265,16 +265,16 @@ class AssemblyRevisionCreateRequest:
                 return None, "BOM must be an array"
             seen_ids: set = set()
             for item in bom_raw:
-                hr_id = item.get("hardwareRevisionId")
+                hr_id = item.get("inventoryRevisionId")
                 if not hr_id:
-                    return None, "Each BOM item must have hardwareRevisionId"
+                    return None, "Each BOM item must have inventoryRevisionId"
                 if hr_id in seen_ids:
-                    return None, f"Duplicate hardwareRevisionId in BOM: {hr_id}"
+                    return None, f"Duplicate inventoryRevisionId in BOM: {hr_id}"
                 seen_ids.add(hr_id)
                 qty = item.get("quantity", 1)
-                if not isinstance(qty, int) or qty < 1:
-                    return None, "Quantity must be a positive integer"
-                bom_items.append(BomItem(hardwareRevisionId=hr_id, quantity=qty))
+                if not isinstance(qty, int) or qty < 1 or qty > 1_000_000:
+                    return None, "Quantity must be between 1 and 1,000,000"
+                bom_items.append(BomItem(inventoryRevisionId=hr_id, quantity=qty))
 
         return cls(
             version=version,
@@ -320,16 +320,16 @@ class AssemblyRevisionUpdateRequest:
             bom_items = []
             seen_ids: set = set()
             for item in bom_raw:
-                hr_id = item.get("hardwareRevisionId")
+                hr_id = item.get("inventoryRevisionId")
                 if not hr_id:
-                    return None, "Each BOM item must have hardwareRevisionId"
+                    return None, "Each BOM item must have inventoryRevisionId"
                 if hr_id in seen_ids:
-                    return None, f"Duplicate hardwareRevisionId in BOM: {hr_id}"
+                    return None, f"Duplicate inventoryRevisionId in BOM: {hr_id}"
                 seen_ids.add(hr_id)
                 qty = item.get("quantity", 1)
-                if not isinstance(qty, int) or qty < 1:
-                    return None, "Quantity must be a positive integer"
-                bom_items.append(BomItem(hardwareRevisionId=hr_id, quantity=qty))
+                if not isinstance(qty, int) or qty < 1 or qty > 1_000_000:
+                    return None, "Quantity must be between 1 and 1,000,000"
+                bom_items.append(BomItem(inventoryRevisionId=hr_id, quantity=qty))
 
         if version is None and status is None and not has_release_notes and not has_bom:
             return None, "No fields to update"

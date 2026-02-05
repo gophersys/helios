@@ -1,24 +1,16 @@
 import { useState } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
-
-interface HardwareRevisionOption {
-  id: string;
-  version: string;
-  status: string;
-  componentId: string;
-  componentName: string;
-  category: string;
-}
+import { InventoryRevisionOption } from '../../types/models';
 
 interface BomEntry {
-  hardwareRevisionId: string;
+  inventoryRevisionId: string;
   quantity: number;
 }
 
 interface BomEditorProps {
   bom: BomEntry[];
   onChange: (bom: BomEntry[]) => void;
-  availableRevisions: HardwareRevisionOption[];
+  availableRevisions: InventoryRevisionOption[];
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -44,25 +36,25 @@ export function BomEditor({ bom, onChange, availableRevisions }: BomEditorProps)
       acc[key].revisions.push(rev);
       return acc;
     },
-    {} as Record<string, { componentName: string; category: string; revisions: HardwareRevisionOption[] }>
+    {} as Record<string, { componentName: string; category: string; revisions: InventoryRevisionOption[] }>
   );
 
-  const selectedIds = new Set(bom.map((b) => b.hardwareRevisionId));
+  const selectedIds = new Set(bom.map((b) => b.inventoryRevisionId));
 
   const addItem = (revisionId: string) => {
     if (!selectedIds.has(revisionId)) {
-      onChange([...bom, { hardwareRevisionId: revisionId, quantity: 1 }]);
+      onChange([...bom, { inventoryRevisionId: revisionId, quantity: 1 }]);
     }
   };
 
   const removeItem = (revisionId: string) => {
-    onChange(bom.filter((b) => b.hardwareRevisionId !== revisionId));
+    onChange(bom.filter((b) => b.inventoryRevisionId !== revisionId));
   };
 
   const updateQuantity = (revisionId: string, quantity: number) => {
     onChange(
       bom.map((b) =>
-        b.hardwareRevisionId === revisionId ? { ...b, quantity: Math.max(1, quantity) } : b
+        b.inventoryRevisionId === revisionId ? { ...b, quantity: Math.max(1, quantity) } : b
       )
     );
   };
@@ -93,25 +85,27 @@ export function BomEditor({ bom, onChange, availableRevisions }: BomEditorProps)
         <div className="mb-3 space-y-1.5">
           {bom.map((item) => (
             <div
-              key={item.hardwareRevisionId}
+              key={item.inventoryRevisionId}
               className="flex items-center gap-2 rounded-lg border border-border bg-surface-0 px-3 py-2"
             >
               <span className="flex-1 text-xs text-text-primary">
-                {getRevisionLabel(item.hardwareRevisionId)}
+                {getRevisionLabel(item.inventoryRevisionId)}
               </span>
               <input
                 type="number"
                 min={1}
                 value={item.quantity}
                 onChange={(e) =>
-                  updateQuantity(item.hardwareRevisionId, parseInt(e.target.value) || 1)
+                  updateQuantity(item.inventoryRevisionId, parseInt(e.target.value) || 1)
                 }
                 className="w-16 rounded border border-border bg-surface-1 px-2 py-1 text-center text-xs text-text-primary focus:border-accent focus:outline-none"
               />
               <button
                 type="button"
-                onClick={() => removeItem(item.hardwareRevisionId)}
+                onClick={() => removeItem(item.inventoryRevisionId)}
                 className="rounded p-1 text-text-tertiary hover:text-error"
+                title="Remove"
+                aria-label="Remove"
               >
                 <Trash2 size={13} />
               </button>

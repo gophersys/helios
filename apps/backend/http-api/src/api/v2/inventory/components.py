@@ -1,3 +1,5 @@
+import logging
+import math
 from io import BytesIO
 
 from flask import jsonify, request
@@ -8,13 +10,17 @@ from src.lib.errors import bad_request, conflict, internal_error, not_found
 from src.lib.permissions import Permissions
 from src.lib.types import ApiResponse
 from src.services.database.prisma import get_db_client
-from src.services.storage.client import get_hardware_bucket_name, get_storage_client
+from src.services.storage.client import get_bucket_name, get_storage_client, StoragePrefixes, storage_key
+
+logger = logging.getLogger(__name__)
 
 from .shared import ALLOWED_IMAGE_EXTENSIONS, MIME_TYPES, presigned_url
 from .types import ComponentCreateRequest, ComponentUpdateRequest, RevisionCreateRequest, RevisionUpdateRequest
 
+from typing import Any
 
-def _serialize_component(c, include_revisions=False) -> dict:
+
+def _serialize_component(c: Any, include_revisions: bool = False) -> dict:
     data = {
         "id": c.id,
         "name": c.name,
@@ -34,7 +40,7 @@ def _serialize_component(c, include_revisions=False) -> dict:
     return data
 
 
-def _serialize_revision(r) -> dict:
+def _serialize_revision(r: Any) -> dict:
     return {
         "id": r.id,
         "componentId": r.componentId,
@@ -49,17 +55,33 @@ def _serialize_revision(r) -> dict:
 # ── Components CRUD ─────────────────────────────────────────
 
 
-@require_permissions(Permissions.ADMIN_HARDWARE_VIEW)
+@require_permissions(Permissions.ADMIN_INVENTORY_VIEW)
 def list_components():
     db = get_db_client()
-    components = db.hardwarecomponent.find_many(
+
+    page = max(1, request.args.get("page", 1, type=int))
+    limit = min(max(1, request.args.get("limit", 50, type=int)), 100)
+    skip = (page - 1) * limit
+
+    total = db.inventorycomponent.count()
+    components = db.inventorycomponent.find_many(
+        skip=skip,
+        take=limit,
         order={"name": "asc"},
         include={"revisions": True},
     )
-    return jsonify(ApiResponse.ok([_serialize_component(c) for c in components]).to_dict()), 200
+    return jsonify(ApiResponse.ok({
+        "data": [_serialize_component(c) for c in components],
+        "pagination": {
+            "page": page,
+            "limit": limit,
+            "total": total,
+            "pages": math.ceil(total / limit) if limit > 0 else 0,
+        },
+    }).to_dict()), 200
 
 
-@require_permissions(Permissions.ADMIN_HARDWARE_MANAGE)
+@require_permissions(Permissions.ADMIN_INVENTORY_MANAGE)
 def create_component():
     data, error = ComponentCreateRequest.from_json(request.get_json())
     if error:
@@ -67,14 +89,14 @@ def create_component():
 
     db = get_db_client()
 
-    existing = db.hardwarecomponent.find_first(
+    existing = db.inventorycomponent.find_first(
         where={"OR": [{"name": data.name}, {"partNumber": data.partNumber}]}
     )
     if existing:
         field = "name" if existing.name == data.name else "part number"
         return conflict(f"Component with this {field} already exists")
 
-    component = db.hardwarecomponent.create(
+    component = db.inventorycomponent.create(
         data={
             "name": data.name,
             "description": data.description,
@@ -84,14 +106,14 @@ def create_component():
         },
         include={"revisions": True},
     )
-    log_audit("component.create", "HardwareComponent", component.id, {"name": data.name, "category": data.category})
+    log_audit("component.create", "InventoryComponent", component.id, {"name": data.name, "category": data.category})
     return jsonify(ApiResponse.ok(_serialize_component(component)).to_dict()), 201
 
 
-@require_permissions(Permissions.ADMIN_HARDWARE_VIEW)
+@require_permissions(Permissions.ADMIN_INVENTORY_VIEW)
 def get_component(component_id: str):
     db = get_db_client()
-    component = db.hardwarecomponent.find_unique(
+    component = db.inventorycomponent.find_unique(
         where={"id": component_id},
         include={"revisions": {"order_by": {"version": "asc"}}},
     )
@@ -100,40 +122,40 @@ def get_component(component_id: str):
     return jsonify(ApiResponse.ok(_serialize_component(component, include_revisions=True)).to_dict()), 200
 
 
-@require_permissions(Permissions.ADMIN_HARDWARE_MANAGE)
+@require_permissions(Permissions.ADMIN_INVENTORY_MANAGE)
 def update_component(component_id: str):
     data, error = ComponentUpdateRequest.from_json(request.get_json())
     if error:
         return bad_request(error)
 
     db = get_db_client()
-    existing = db.hardwarecomponent.find_unique(where={"id": component_id})
+    existing = db.inventorycomponent.find_unique(where={"id": component_id})
     if not existing:
         return not_found("Component not found")
 
     # Check uniqueness for name/partNumber
     if data.name and data.name != existing.name:
-        dup = db.hardwarecomponent.find_unique(where={"name": data.name})
+        dup = db.inventorycomponent.find_unique(where={"name": data.name})
         if dup:
             return conflict("Component with this name already exists")
     if data.partNumber and data.partNumber != existing.partNumber:
-        dup = db.hardwarecomponent.find_unique(where={"partNumber": data.partNumber})
+        dup = db.inventorycomponent.find_unique(where={"partNumber": data.partNumber})
         if dup:
             return conflict("Component with this part number already exists")
 
-    component = db.hardwarecomponent.update(
+    component = db.inventorycomponent.update(
         where={"id": component_id},
         data=data.to_update_data(),
         include={"revisions": True},
     )
-    log_audit("component.update", "HardwareComponent", component_id, {"name": existing.name, "changes": data.to_update_data()})
+    log_audit("component.update", "InventoryComponent", component_id, {"name": existing.name, "changes": data.to_update_data()})
     return jsonify(ApiResponse.ok(_serialize_component(component)).to_dict()), 200
 
 
-@require_permissions(Permissions.ADMIN_HARDWARE_MANAGE)
+@require_permissions(Permissions.ADMIN_INVENTORY_MANAGE)
 def delete_component(component_id: str):
     db = get_db_client()
-    existing = db.hardwarecomponent.find_unique(
+    existing = db.inventorycomponent.find_unique(
         where={"id": component_id},
         include={"revisions": True},
     )
@@ -144,7 +166,7 @@ def delete_component(component_id: str):
     if existing.revisions:
         rev_ids = [r.id for r in existing.revisions]
         bom_refs = db.assemblyrevisioncomponent.find_first(
-            where={"hardwareRevisionId": {"in": rev_ids}}
+            where={"inventoryRevisionId": {"in": rev_ids}}
         )
         if bom_refs:
             return conflict("Cannot delete component: one or more revisions are referenced in assembly BOMs")
@@ -153,22 +175,22 @@ def delete_component(component_id: str):
     if existing.imageKey:
         try:
             client = get_storage_client()
-            client.remove_object(get_hardware_bucket_name(), existing.imageKey)
-        except Exception:
-            pass  # Best effort
+            client.remove_object(get_bucket_name(), existing.imageKey)
+        except Exception as e:
+            logger.warning("Failed to remove component image %s: %s", existing.imageKey, e)
 
-    db.hardwarecomponent.delete(where={"id": component_id})
-    log_audit("component.delete", "HardwareComponent", component_id, {"name": existing.name, "category": existing.category})
+    db.inventorycomponent.delete(where={"id": component_id})
+    log_audit("component.delete", "InventoryComponent", component_id, {"name": existing.name, "category": existing.category})
     return jsonify(ApiResponse.ok({"deleted": True}).to_dict()), 200
 
 
 # ── Image upload ─────────────────────────────────────────────
 
 
-@require_permissions(Permissions.ADMIN_HARDWARE_MANAGE)
+@require_permissions(Permissions.ADMIN_INVENTORY_MANAGE)
 def upload_component_image(component_id: str):
     db = get_db_client()
-    component = db.hardwarecomponent.find_unique(where={"id": component_id})
+    component = db.inventorycomponent.find_unique(where={"id": component_id})
     if not component:
         return not_found("Component not found")
 
@@ -183,18 +205,18 @@ def upload_component_image(component_id: str):
     if ext not in ALLOWED_IMAGE_EXTENSIONS:
         return bad_request(f"Invalid file type. Allowed: {', '.join(ALLOWED_IMAGE_EXTENSIONS)}")
 
-    object_key = f"components/{component_id}/hero.{ext}"
+    object_key = storage_key(StoragePrefixes.INVENTORY, f"components/{component_id}/hero.{ext}")
 
     try:
         client = get_storage_client()
-        bucket = get_hardware_bucket_name()
+        bucket = get_bucket_name()
 
         # Remove old image if exists with different extension
         if component.imageKey and component.imageKey != object_key:
             try:
                 client.remove_object(bucket, component.imageKey)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("Failed to remove old component image %s: %s", component.imageKey, e)
 
         file_data = file.read()
         client.put_object(
@@ -205,24 +227,25 @@ def upload_component_image(component_id: str):
             content_type=MIME_TYPES.get(ext, "application/octet-stream"),
         )
 
-        updated = db.hardwarecomponent.update(
+        updated = db.inventorycomponent.update(
             where={"id": component_id},
             data={"imageKey": object_key},
             include={"revisions": True},
         )
-        log_audit("component.imageUpload", "HardwareComponent", component_id, {"name": component.name})
+        log_audit("component.imageUpload", "InventoryComponent", component_id, {"name": component.name})
         return jsonify(ApiResponse.ok(_serialize_component(updated)).to_dict()), 200
     except Exception as e:
-        return internal_error(f"Failed to upload image: {str(e)}")
+        logger.error("Failed to upload component image: %s", e)
+        return internal_error("Failed to upload image")
 
 
 # ── Revisions ────────────────────────────────────────────────
 
 
-@require_permissions(Permissions.ADMIN_HARDWARE_MANAGE)
+@require_permissions(Permissions.ADMIN_INVENTORY_MANAGE)
 def create_revision(component_id: str):
     db = get_db_client()
-    component = db.hardwarecomponent.find_unique(where={"id": component_id})
+    component = db.inventorycomponent.find_unique(where={"id": component_id})
     if not component:
         return not_found("Component not found")
 
@@ -231,13 +254,13 @@ def create_revision(component_id: str):
         return bad_request(error)
 
     # Check duplicate version
-    existing = db.hardwarerevision.find_first(
+    existing = db.inventoryrevision.find_first(
         where={"componentId": component_id, "version": data.version}
     )
     if existing:
         return conflict(f"Revision '{data.version}' already exists for this component")
 
-    revision = db.hardwarerevision.create(
+    revision = db.inventoryrevision.create(
         data={
             "componentId": component_id,
             "version": data.version,
@@ -245,14 +268,14 @@ def create_revision(component_id: str):
             "releaseNotes": data.releaseNotes,
         }
     )
-    log_audit("revision.create", "HardwareRevision", revision.id, {"componentName": component.name, "version": data.version, "status": data.status})
+    log_audit("revision.create", "InventoryRevision", revision.id, {"componentName": component.name, "version": data.version, "status": data.status})
     return jsonify(ApiResponse.ok(_serialize_revision(revision)).to_dict()), 201
 
 
-@require_permissions(Permissions.ADMIN_HARDWARE_MANAGE)
+@require_permissions(Permissions.ADMIN_INVENTORY_MANAGE)
 def update_revision(component_id: str, revision_id: str):
     db = get_db_client()
-    revision = db.hardwarerevision.find_first(
+    revision = db.inventoryrevision.find_first(
         where={"id": revision_id, "componentId": component_id}
     )
     if not revision:
@@ -264,24 +287,24 @@ def update_revision(component_id: str, revision_id: str):
 
     # Check version uniqueness if changing
     if data.version and data.version != revision.version:
-        dup = db.hardwarerevision.find_first(
+        dup = db.inventoryrevision.find_first(
             where={"componentId": component_id, "version": data.version}
         )
         if dup:
             return conflict(f"Revision '{data.version}' already exists for this component")
 
-    updated = db.hardwarerevision.update(
+    updated = db.inventoryrevision.update(
         where={"id": revision_id},
         data=data.to_update_data(),
     )
-    log_audit("revision.update", "HardwareRevision", revision_id, {"version": revision.version, "changes": data.to_update_data()})
+    log_audit("revision.update", "InventoryRevision", revision_id, {"version": revision.version, "changes": data.to_update_data()})
     return jsonify(ApiResponse.ok(_serialize_revision(updated)).to_dict()), 200
 
 
-@require_permissions(Permissions.ADMIN_HARDWARE_MANAGE)
+@require_permissions(Permissions.ADMIN_INVENTORY_MANAGE)
 def delete_revision(component_id: str, revision_id: str):
     db = get_db_client()
-    revision = db.hardwarerevision.find_first(
+    revision = db.inventoryrevision.find_first(
         where={"id": revision_id, "componentId": component_id}
     )
     if not revision:
@@ -289,11 +312,11 @@ def delete_revision(component_id: str, revision_id: str):
 
     # Check if revision is referenced in any assembly BOM
     bom_ref = db.assemblyrevisioncomponent.find_first(
-        where={"hardwareRevisionId": revision_id}
+        where={"inventoryRevisionId": revision_id}
     )
     if bom_ref:
         return conflict("Cannot delete revision: it is referenced in an assembly BOM")
 
-    db.hardwarerevision.delete(where={"id": revision_id})
-    log_audit("revision.delete", "HardwareRevision", revision_id, {"version": revision.version})
+    db.inventoryrevision.delete(where={"id": revision_id})
+    log_audit("revision.delete", "InventoryRevision", revision_id, {"version": revision.version})
     return jsonify(ApiResponse.ok({"deleted": True}).to_dict()), 200

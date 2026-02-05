@@ -1,39 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Boxes, Pencil, Trash2, ChevronDown } from 'lucide-react';
 import { StatusBadge } from '../../components/ui/status-badge';
-
-interface BomItem {
-  id: string;
-  hardwareRevisionId: string;
-  quantity: number;
-  hardwareRevision?: {
-    id: string;
-    version: string;
-    status: string;
-    component?: {
-      id: string;
-      name: string;
-      category: string;
-    };
-  };
-}
-
-interface AssemblyRevision {
-  id: string;
-  version: string;
-  status: string;
-  releaseNotes: string | null;
-  bom?: BomItem[];
-}
-
-interface Assembly {
-  id: string;
-  name: string;
-  description: string | null;
-  imageUrl: string | null;
-  revisionCount: number;
-  revisions?: AssemblyRevision[];
-}
+import { Assembly, AssemblyRevision } from '../../types/models';
 
 export function AssemblyCard({
   assembly,
@@ -144,9 +112,9 @@ export function AssemblyCard({
                 className="text-2xs text-text-secondary"
               >
                 {item.quantity}x{' '}
-                {item.hardwareRevision?.component?.name || 'Unknown'}{' '}
+                {item.inventoryRevision?.component?.name || 'Unknown'}{' '}
                 <span className="text-text-tertiary">
-                  ({item.hardwareRevision?.version || '?'})
+                  ({item.inventoryRevision?.version || '?'})
                 </span>
               </div>
             ))}
@@ -164,6 +132,7 @@ export function AssemblyCard({
             onClick={() => onEdit(assembly)}
             className="rounded-lg bg-surface-1/90 p-1.5 text-text-tertiary shadow-sm backdrop-blur hover:text-text-primary"
             title="Edit"
+            aria-label="Edit"
           >
             <Pencil size={13} />
           </button>
@@ -171,6 +140,7 @@ export function AssemblyCard({
             onClick={() => onDelete(assembly.id)}
             className="rounded-lg bg-surface-1/90 p-1.5 text-text-tertiary shadow-sm backdrop-blur hover:text-error"
             title="Delete"
+            aria-label="Delete"
           >
             <Trash2 size={13} />
           </button>

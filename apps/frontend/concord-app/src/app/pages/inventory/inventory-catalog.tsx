@@ -7,11 +7,11 @@ import { AssembliesTab } from './assemblies-tab';
 
 type Tab = 'components' | 'assemblies';
 
-export function HardwareCatalogPage() {
+export function InventoryCatalogPage() {
   const { hasPermission } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>('components');
 
-  if (!hasPermission('Concord.Admin.Hardware.View')) {
+  if (!hasPermission('Concord.Admin.Inventory.View')) {
     return <Navigate to="/" replace />;
   }
 
@@ -19,8 +19,8 @@ export function HardwareCatalogPage() {
     <div className="animate-fade-in">
       <div className="mb-6">
         <PageHeader
-          title="Hardware Catalog"
-          description="Manage hardware components, assemblies, and their revisions."
+          title="Inventory"
+          description="Manage inventory components, assemblies, and their revisions."
         />
       </div>
 

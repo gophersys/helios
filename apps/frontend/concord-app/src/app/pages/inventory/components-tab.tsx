@@ -2,221 +2,150 @@ import { useCallback, useEffect, useState } from 'react';
 import { Plus, X, Check } from 'lucide-react';
 import { api, apiUpload } from '../../api';
 import { useAuth } from '../../auth-provider';
+import { BackButton } from '../../components/ui/back-button';
 import { ConfirmDeleteDialog } from '../../components/ui/confirm-delete-dialog';
 import { StatusBadge } from '../../components/ui/status-badge';
 import { ErrorAlert } from '../../components/ui/error-alert';
 import { EmptyState } from '../../components/ui/empty-state';
 import { LoadingState } from '../../components/ui/loading-state';
-import { AssemblyCard } from './assembly-card';
-import { ImageUpload } from './image-upload';
 import { ApiResponse } from '../../types';
-import { BomEditor } from './bom-editor';
+import { InventoryComponent as Component, InventoryRevision as Revision } from '../../types/models';
+import { ComponentCard } from './component-card';
+import { ImageUpload } from './image-upload';
+import { Select } from '../../components/ui/select';
 
-interface BomItem {
-  id: string;
-  hardwareRevisionId: string;
-  quantity: number;
-  hardwareRevision?: {
-    id: string;
-    version: string;
-    status: string;
-    componentId: string;
-    component?: {
-      id: string;
-      name: string;
-      category: string;
-      manufacturer: string;
-      partNumber: string;
-    };
-  };
-}
-
-interface AssemblyRevision {
-  id: string;
-  assemblyId: string;
-  version: string;
-  status: string;
-  releaseNotes: string | null;
-  bom?: BomItem[];
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface Assembly {
-  id: string;
-  name: string;
-  description: string | null;
-  imageKey: string | null;
-  imageUrl: string | null;
-  revisionCount: number;
-  revisions?: AssemblyRevision[];
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface HardwareRevisionOption {
-  id: string;
-  version: string;
-  status: string;
-  componentId: string;
-  componentName: string;
-  category: string;
-}
-
-interface ComponentData {
-  id: string;
-  name: string;
-  category: string;
-  revisions?: {
-    id: string;
-    version: string;
-    status: string;
-    componentId: string;
-  }[];
-}
-
-export function AssembliesTab() {
+export function ComponentsTab() {
   const { hasPermission } = useAuth();
-  const canManage = hasPermission('Concord.Admin.Hardware.Manage');
+  const canManage = hasPermission('Concord.Admin.Inventory.Manage');
 
-  const [assemblies, setAssemblies] = useState<Assembly[]>([]);
+  const [components, setComponents] = useState<Component[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [availableRevisions, setAvailableRevisions] = useState<HardwareRevisionOption[]>([]);
 
   // Form state
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formName, setFormName] = useState('');
   const [formDescription, setFormDescription] = useState('');
+  const [formCategory, setFormCategory] = useState('SOM');
+  const [formManufacturer, setFormManufacturer] = useState('');
+  const [formPartNumber, setFormPartNumber] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   // Delete confirmation state
   const [deleteTarget, setDeleteTarget] = useState<{id: string, name: string} | null>(null);
   const [deleteRevTarget, setDeleteRevTarget] = useState<{id: string, name: string} | null>(null);
 
-  // Detail view
-  const [selectedAssembly, setSelectedAssembly] = useState<Assembly | null>(null);
-
-  // Revision form
-  const [showRevForm, setShowRevForm] = useState(false);
+  // Detail / revision state
+  const [selectedComponent, setSelectedComponent] = useState<Component | null>(null);
   const [revVersion, setRevVersion] = useState('');
   const [revStatus, setRevStatus] = useState('ACTIVE');
   const [revNotes, setRevNotes] = useState('');
-  const [revBom, setRevBom] = useState<{ hardwareRevisionId: string; quantity: number }[]>([]);
+  const [showRevForm, setShowRevForm] = useState(false);
+  const [revSubmitting, setRevSubmitting] = useState(false);
 
-  const fetchAssemblies = useCallback(async () => {
+  const fetchComponents = useCallback(async () => {
     try {
-      const res = await api<ApiResponse<Assembly[]>>('/v2/hardware/assemblies');
-      setAssemblies(res.data);
+      const res = await api<ApiResponse<Component[]>>('/v2/inventory/components');
+      setComponents(res.data);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to load assemblies');
+      setError(err instanceof Error ? err.message : 'Failed to load components');
     } finally {
       setLoading(false);
     }
   }, []);
 
-  const fetchAvailableRevisions = useCallback(async () => {
-    try {
-      const res = await api<ApiResponse<ComponentData[]>>('/v2/hardware/components');
-      const revisions: HardwareRevisionOption[] = [];
-      for (const comp of res.data) {
-        for (const rev of comp.revisions || []) {
-          revisions.push({
-            id: rev.id,
-            version: rev.version,
-            status: rev.status,
-            componentId: comp.id,
-            componentName: comp.name,
-            category: comp.category,
-          });
-        }
-      }
-      setAvailableRevisions(revisions);
-    } catch {
-      // ignore
-    }
-  }, []);
-
   useEffect(() => {
-    fetchAssemblies();
-    fetchAvailableRevisions();
-  }, [fetchAssemblies, fetchAvailableRevisions]);
+    fetchComponents();
+  }, [fetchComponents]);
 
   const fetchDetail = useCallback(async (id: string) => {
     try {
-      const res = await api<ApiResponse<Assembly>>(`/v2/hardware/assemblies/${id}`);
-      setSelectedAssembly(res.data);
+      const res = await api<ApiResponse<Component>>(`/v2/inventory/components/${id}`);
+      setSelectedComponent(res.data);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to load assembly');
+      setError(err instanceof Error ? err.message : 'Failed to load component');
     }
   }, []);
 
   const resetForm = () => {
     setFormName('');
     setFormDescription('');
+    setFormCategory('SOM');
+    setFormManufacturer('');
+    setFormPartNumber('');
     setEditingId(null);
     setShowForm(false);
   };
 
-  const startEdit = (a: Assembly) => {
-    setFormName(a.name);
-    setFormDescription(a.description || '');
-    setEditingId(a.id);
+  const startEdit = (c: Component) => {
+    setFormName(c.name);
+    setFormDescription(c.description || '');
+    setFormCategory(c.category);
+    setFormManufacturer(c.manufacturer);
+    setFormPartNumber(c.partNumber);
+    setEditingId(c.id);
     setShowForm(true);
-    setSelectedAssembly(null);
+    setSelectedComponent(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setSubmitting(true);
 
     const body = {
       name: formName,
       description: formDescription || null,
+      category: formCategory,
+      manufacturer: formManufacturer,
+      partNumber: formPartNumber,
     };
 
     try {
       if (editingId) {
-        await api(`/v2/hardware/assemblies/${editingId}`, {
+        await api(`/v2/inventory/components/${editingId}`, {
           method: 'PUT',
           body: JSON.stringify(body),
         });
       } else {
-        await api('/v2/hardware/assemblies', {
+        await api('/v2/inventory/components', {
           method: 'POST',
           body: JSON.stringify(body),
         });
       }
       resetForm();
-      fetchAssemblies();
+      fetchComponents();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to save assembly');
+      setError(err instanceof Error ? err.message : 'Failed to save component');
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  const handleDelete = (id: string) => {
-    const target = assemblies.find(a => a.id === id);
+  const promptDelete = (id: string) => {
+    const target = components.find(c => c.id === id);
     setDeleteTarget({ id, name: target?.name || '' });
   };
 
-  const doDelete = async (id: string) => {
+  const handleDelete = async (id: string) => {
     setError(null);
     try {
-      await api(`/v2/hardware/assemblies/${id}`, { method: 'DELETE' });
-      if (selectedAssembly?.id === id) setSelectedAssembly(null);
-      fetchAssemblies();
+      await api(`/v2/inventory/components/${id}`, { method: 'DELETE' });
+      if (selectedComponent?.id === id) setSelectedComponent(null);
+      fetchComponents();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to delete');
     }
   };
 
-  const handleImageUpload = async (assemblyId: string, file: File) => {
+  const handleImageUpload = async (componentId: string, file: File) => {
     try {
       const formData = new FormData();
       formData.append('file', file);
-      await apiUpload(`/v2/hardware/assemblies/${assemblyId}/image`, formData);
-      fetchAssemblies();
-      if (selectedAssembly?.id === assemblyId) fetchDetail(assemblyId);
+      await apiUpload(`/v2/inventory/components/${componentId}/image`, formData);
+      fetchComponents();
+      if (selectedComponent?.id === componentId) fetchDetail(componentId);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to upload image');
     }
@@ -224,83 +153,100 @@ export function AssembliesTab() {
 
   const handleCreateRevision = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedAssembly) return;
+    if (!selectedComponent) return;
     setError(null);
+    setRevSubmitting(true);
     try {
-      await api(`/v2/hardware/assemblies/${selectedAssembly.id}/revisions`, {
+      await api(`/v2/inventory/components/${selectedComponent.id}/revisions`, {
         method: 'POST',
         body: JSON.stringify({
           version: revVersion,
           status: revStatus,
           releaseNotes: revNotes || null,
-          bom: revBom,
         }),
       });
       setRevVersion('');
       setRevStatus('ACTIVE');
       setRevNotes('');
-      setRevBom([]);
       setShowRevForm(false);
-      fetchDetail(selectedAssembly.id);
-      fetchAssemblies();
+      fetchDetail(selectedComponent.id);
+      fetchComponents();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to create revision');
+    } finally {
+      setRevSubmitting(false);
     }
   };
 
-  const handleDeleteRevision = (revisionId: string) => {
-    if (!selectedAssembly) return;
-    const rev = selectedAssembly.revisions?.find((r: any) => r.id === revisionId);
+  const promptDeleteRevision = (revisionId: string) => {
+    if (!selectedComponent) return;
+    const rev = selectedComponent.revisions?.find((r: Revision) => r.id === revisionId);
     setDeleteRevTarget({ id: revisionId, name: rev?.version || '' });
   };
 
-  const doDeleteRevision = async (revisionId: string) => {
-    if (!selectedAssembly) return;
+  const handleDeleteRevision = async (revisionId: string) => {
+    if (!selectedComponent) return;
     try {
       await api(
-        `/v2/hardware/assemblies/${selectedAssembly.id}/revisions/${revisionId}`,
+        `/v2/inventory/components/${selectedComponent.id}/revisions/${revisionId}`,
         { method: 'DELETE' }
       );
-      fetchDetail(selectedAssembly.id);
-      fetchAssemblies();
+      fetchDetail(selectedComponent.id);
+      fetchComponents();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to delete revision');
     }
   };
 
   if (loading) {
-    return <LoadingState message="Loading assemblies..." />;
+    return <LoadingState message="Loading components..." />;
   }
 
   // Detail view
-  if (selectedAssembly) {
+  if (selectedComponent) {
     return (
       <div className="animate-fade-in">
-        <button
-          onClick={() => setSelectedAssembly(null)}
-          className="mb-4 text-sm text-accent hover:underline"
-        >
-          &larr; Back to assemblies
-        </button>
+        <BackButton label="Back to components" onClick={() => setSelectedComponent(null)} />
 
         <div className="rounded-xl border border-border bg-surface-1 p-5">
           <div className="flex gap-6">
+            {/* Image */}
             <div className="w-48 shrink-0">
               <ImageUpload
-                currentUrl={selectedAssembly.imageUrl}
-                onUpload={(file) => handleImageUpload(selectedAssembly.id, file)}
+                currentUrl={selectedComponent.imageUrl}
+                onUpload={(file) => handleImageUpload(selectedComponent.id, file)}
                 disabled={!canManage}
               />
             </div>
+
+            {/* Info */}
             <div className="flex-1">
               <h2 className="text-lg font-semibold text-text-primary">
-                {selectedAssembly.name}
+                {selectedComponent.name}
               </h2>
-              {selectedAssembly.description && (
+              {selectedComponent.description && (
                 <p className="mt-1 text-sm text-text-secondary">
-                  {selectedAssembly.description}
+                  {selectedComponent.description}
                 </p>
               )}
+              <div className="mt-3 flex gap-4 text-2xs text-text-tertiary">
+                <span>
+                  <strong className="text-text-secondary">Category:</strong>{' '}
+                  {selectedComponent.category === 'CARRIER_BOARD'
+                    ? 'Carrier Board'
+                    : selectedComponent.category === 'SOM'
+                      ? 'SoM'
+                      : 'Accessory'}
+                </span>
+                <span>
+                  <strong className="text-text-secondary">Manufacturer:</strong>{' '}
+                  {selectedComponent.manufacturer}
+                </span>
+                <span>
+                  <strong className="text-text-secondary">Part #:</strong>{' '}
+                  {selectedComponent.partNumber}
+                </span>
+              </div>
             </div>
           </div>
 
@@ -324,7 +270,7 @@ export function AssembliesTab() {
                 onSubmit={handleCreateRevision}
                 className="mb-4 rounded-lg border border-border bg-surface-0 p-3"
               >
-                <div className="mb-3 grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-3 gap-3">
                   <div>
                     <label className="mb-1 block text-2xs font-medium text-text-tertiary">
                       Version
@@ -342,15 +288,14 @@ export function AssembliesTab() {
                     <label className="mb-1 block text-2xs font-medium text-text-tertiary">
                       Status
                     </label>
-                    <select
+                    <Select
                       value={revStatus}
                       onChange={(e) => setRevStatus(e.target.value)}
-                      className="w-full rounded-lg border border-border bg-surface-1 px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none"
                     >
                       <option value="ACTIVE">Active</option>
                       <option value="DEPRECATED">Deprecated</option>
                       <option value="EOL">End of Life</option>
-                    </select>
+                    </Select>
                   </div>
                   <div>
                     <label className="mb-1 block text-2xs font-medium text-text-tertiary">
@@ -365,27 +310,18 @@ export function AssembliesTab() {
                     />
                   </div>
                 </div>
-
-                <BomEditor
-                  bom={revBom}
-                  onChange={setRevBom}
-                  availableRevisions={availableRevisions}
-                />
-
                 <div className="mt-3 flex gap-2">
                   <button
                     type="submit"
-                    className="flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-white hover:bg-accent-hover"
+                    disabled={revSubmitting}
+                    className="flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-white hover:bg-accent-hover disabled:opacity-50"
                   >
                     <Check size={13} />
-                    Create
+                    {revSubmitting ? 'Creating...' : 'Create'}
                   </button>
                   <button
                     type="button"
-                    onClick={() => {
-                      setShowRevForm(false);
-                      setRevBom([]);
-                    }}
+                    onClick={() => setShowRevForm(false)}
                     className="rounded-lg px-3 py-1.5 text-xs font-medium text-text-secondary hover:bg-surface-2"
                   >
                     Cancel
@@ -394,59 +330,56 @@ export function AssembliesTab() {
               </form>
             )}
 
-            {selectedAssembly.revisions && selectedAssembly.revisions.length > 0 ? (
-              <div className="space-y-3">
-                {selectedAssembly.revisions.map((rev) => (
-                  <div
-                    key={rev.id}
-                    className="rounded-lg border border-border bg-surface-0 p-3"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-semibold text-text-primary">
-                          {rev.version}
-                        </span>
-                        <StatusBadge status={rev.status} />
-                        {rev.releaseNotes && (
-                          <span className="text-2xs text-text-tertiary">
-                            {rev.releaseNotes}
-                          </span>
-                        )}
-                      </div>
+            {selectedComponent.revisions && selectedComponent.revisions.length > 0 ? (
+              <div className="overflow-hidden rounded-lg border border-border">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border bg-surface-2">
+                      <th className="px-3 py-2 text-left text-2xs font-medium uppercase tracking-wider text-text-tertiary">
+                        Version
+                      </th>
+                      <th className="px-3 py-2 text-left text-2xs font-medium uppercase tracking-wider text-text-tertiary">
+                        Status
+                      </th>
+                      <th className="px-3 py-2 text-left text-2xs font-medium uppercase tracking-wider text-text-tertiary">
+                        Notes
+                      </th>
                       {canManage && (
-                        <button
-                          onClick={() => handleDeleteRevision(rev.id)}
-                          className="rounded px-2 py-1 text-2xs text-error hover:bg-error-muted"
-                        >
-                          Delete
-                        </button>
+                        <th className="px-3 py-2 text-right text-2xs font-medium uppercase tracking-wider text-text-tertiary">
+                          Actions
+                        </th>
                       )}
-                    </div>
-
-                    {/* BOM */}
-                    {rev.bom && rev.bom.length > 0 && (
-                      <div className="mt-2 border-t border-border-subtle pt-2">
-                        <div className="mb-1 text-2xs font-medium text-text-tertiary">
-                          Bill of Materials
-                        </div>
-                        <div className="space-y-0.5">
-                          {rev.bom.map((item) => (
-                            <div
-                              key={item.id}
-                              className="text-2xs text-text-secondary"
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedComponent.revisions.map((rev) => (
+                      <tr
+                        key={rev.id}
+                        className="border-b border-border-subtle last:border-0 hover:bg-surface-1"
+                      >
+                        <td className="px-3 py-2 font-medium text-text-primary">
+                          {rev.version}
+                        </td>
+                        <td className="px-3 py-2">
+                          <StatusBadge status={rev.status} />
+                        </td>
+                        <td className="px-3 py-2 text-text-secondary">
+                          {rev.releaseNotes || '-'}
+                        </td>
+                        {canManage && (
+                          <td className="px-3 py-2 text-right">
+                            <button
+                              onClick={() => promptDeleteRevision(rev.id)}
+                              className="rounded px-2 py-1 text-2xs text-error hover:bg-error-muted"
                             >
-                              {item.quantity}x{' '}
-                              {item.hardwareRevision?.component?.name || 'Unknown'}{' '}
-                              <span className="text-text-tertiary">
-                                ({item.hardwareRevision?.version || '?'})
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ))}
+                              Delete
+                            </button>
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             ) : (
               <div className="py-6 text-center text-sm text-text-tertiary">
@@ -463,11 +396,12 @@ export function AssembliesTab() {
     <div>
       <ErrorAlert message={error} />
 
+      {/* Create/Edit form */}
       {showForm && canManage && (
         <div className="mb-6 rounded-xl border border-border bg-surface-1 p-5">
           <div className="mb-4 flex items-center justify-between">
             <h3 className="text-sm font-semibold text-text-primary">
-              {editingId ? 'Edit assembly' : 'New assembly'}
+              {editingId ? 'Edit component' : 'New component'}
             </h3>
             <button
               onClick={resetForm}
@@ -488,30 +422,72 @@ export function AssembliesTab() {
                   required
                   value={formName}
                   onChange={(e) => setFormName(e.target.value)}
-                  placeholder="e.g. MTIB Assembly"
+                  placeholder="e.g. Verdin iMX8MM"
                   className="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
                 />
               </div>
               <div>
                 <label className="mb-1 block text-2xs font-medium text-text-tertiary">
-                  Description
+                  Category
+                </label>
+                <Select
+                  value={formCategory}
+                  onChange={(e) => setFormCategory(e.target.value)}
+                >
+                  <option value="SOM">SoM</option>
+                  <option value="CARRIER_BOARD">Carrier Board</option>
+                  <option value="ACCESSORY">Accessory</option>
+                </Select>
+              </div>
+            </div>
+            <div className="mb-3 grid grid-cols-2 gap-3">
+              <div>
+                <label className="mb-1 block text-2xs font-medium text-text-tertiary">
+                  Manufacturer
                 </label>
                 <input
                   type="text"
-                  value={formDescription}
-                  onChange={(e) => setFormDescription(e.target.value)}
-                  placeholder="Optional description"
+                  required
+                  value={formManufacturer}
+                  onChange={(e) => setFormManufacturer(e.target.value)}
+                  placeholder="e.g. Toradex"
+                  className="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-2xs font-medium text-text-tertiary">
+                  Part Number
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={formPartNumber}
+                  onChange={(e) => setFormPartNumber(e.target.value)}
+                  placeholder="e.g. 0074"
                   className="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
                 />
               </div>
             </div>
+            <div className="mb-4">
+              <label className="mb-1 block text-2xs font-medium text-text-tertiary">
+                Description
+              </label>
+              <input
+                type="text"
+                value={formDescription}
+                onChange={(e) => setFormDescription(e.target.value)}
+                placeholder="Optional description"
+                className="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
+              />
+            </div>
             <div className="flex gap-2">
               <button
                 type="submit"
-                className="flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover"
+                disabled={submitting}
+                className="flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover disabled:opacity-50"
               >
                 <Check size={14} />
-                {editingId ? 'Save changes' : 'Create'}
+                {submitting ? 'Saving...' : editingId ? 'Save changes' : 'Create'}
               </button>
               <button
                 type="button"
@@ -525,6 +501,7 @@ export function AssembliesTab() {
         </div>
       )}
 
+      {/* Add button */}
       {canManage && !showForm && (
         <div className="mb-4 flex justify-end">
           <button
@@ -535,23 +512,24 @@ export function AssembliesTab() {
             className="flex items-center gap-2 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-white hover:bg-accent-hover"
           >
             <Plus size={16} />
-            New assembly
+            New component
           </button>
         </div>
       )}
 
-      {assemblies.length === 0 ? (
-        <EmptyState message="No assemblies yet" />
+      {/* Grid */}
+      {components.length === 0 ? (
+        <EmptyState message="No inventory components yet" />
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {assemblies.map((a) => (
-            <AssemblyCard
-              key={a.id}
-              assembly={a}
+          {components.map((c) => (
+            <ComponentCard
+              key={c.id}
+              component={c}
               canManage={canManage}
               onEdit={startEdit}
-              onDelete={handleDelete}
-              onSelect={(asm) => fetchDetail(asm.id)}
+              onDelete={promptDelete}
+              onSelect={(comp) => fetchDetail(comp.id)}
             />
           ))}
         </div>
@@ -559,16 +537,16 @@ export function AssembliesTab() {
 
       <ConfirmDeleteDialog
         open={!!deleteTarget}
-        entityType="assembly"
+        entityType="component"
         entityName={deleteTarget?.name || ''}
-        onConfirm={() => { doDelete(deleteTarget!.id); setDeleteTarget(null); }}
+        onConfirm={() => { handleDelete(deleteTarget!.id); setDeleteTarget(null); }}
         onCancel={() => setDeleteTarget(null)}
       />
       <ConfirmDeleteDialog
         open={!!deleteRevTarget}
         entityType="revision"
         entityName={deleteRevTarget?.name || ''}
-        onConfirm={() => { doDeleteRevision(deleteRevTarget!.id); setDeleteRevTarget(null); }}
+        onConfirm={() => { handleDeleteRevision(deleteRevTarget!.id); setDeleteRevTarget(null); }}
         onCancel={() => setDeleteRevTarget(null)}
       />
     </div>
