@@ -1,56 +1,16 @@
 import { useState } from 'react';
 import { Plus, ExternalLink, ChevronDown, ChevronRight, Pencil, Trash2 } from 'lucide-react';
 import { api } from '../../api';
+import { BackButton } from '../../components/ui/back-button';
 import { ConfirmDeleteDialog } from '../../components/ui/confirm-delete-dialog';
 import { ErrorAlert } from '../../components/ui/error-alert';
 import { StatusBadge } from '../../components/ui/status-badge';
-import { ImageUpload } from '../hardware/image-upload';
+import { ImageUpload } from '../inventory/image-upload';
 import { ReleaseForm } from './release-form';
 import { ApiResponse } from '../../types';
 import { ArtifactList } from './artifact-list';
-
-interface Artifact {
-  id: string;
-  releaseId: string;
-  name: string;
-  filename: string | null;
-  type: string;
-  storageKey: string | null;
-  externalUrl: string | null;
-  sizeBytes: string | null;
-  checksum: string | null;
-  contentType: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface Release {
-  id: string;
-  codebaseId: string;
-  version: string;
-  status: string;
-  releaseNotes: string | null;
-  tagName: string | null;
-  releasedAt: string | null;
-  artifactCount: number;
-  artifacts?: Artifact[];
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface Codebase {
-  id: string;
-  name: string;
-  description: string | null;
-  repoUrl: string | null;
-  defaultBranch: string;
-  imageKey: string | null;
-  imageUrl: string | null;
-  releaseCount: number;
-  releases?: Release[];
-  createdAt: string;
-  updatedAt: string;
-}
+import { Codebase, Release } from '../../types/models';
+import { isSafeUrl } from '../../utils/url';
 
 export function CodebaseDetail({
   codebase,
@@ -124,12 +84,12 @@ export function CodebaseDetail({
     }
   };
 
-  const handleDeleteRelease = (releaseId: string) => {
-    const rel = releases.find((r: any) => r.id === releaseId);
+  const promptDeleteRelease = (releaseId: string) => {
+    const rel = releases.find((r: Release) => r.id === releaseId);
     setDeleteTarget({ id: releaseId, name: rel?.version || '' });
   };
 
-  const doDeleteRelease = async (releaseId: string) => {
+  const handleDeleteRelease = async (releaseId: string) => {
     setError(null);
     try {
       await api(`/v2/codebases/${codebase.id}/releases/${releaseId}`, {
@@ -145,12 +105,7 @@ export function CodebaseDetail({
 
   return (
     <div className="animate-fade-in">
-      <button
-        onClick={onBack}
-        className="mb-4 text-sm text-accent hover:underline"
-      >
-        &larr; Back to codebases
-      </button>
+      <BackButton label="Back to codebases" onClick={onBack} />
 
       <ErrorAlert message={error} />
 
@@ -180,7 +135,7 @@ export function CodebaseDetail({
                 <strong className="text-text-secondary">Branch:</strong>{' '}
                 {codebase.defaultBranch}
               </span>
-              {codebase.repoUrl && (
+              {codebase.repoUrl && isSafeUrl(codebase.repoUrl) && (
                 <a
                   href={codebase.repoUrl}
                   target="_blank"
@@ -268,13 +223,15 @@ export function CodebaseDetail({
                             onClick={() => setEditingRelease(release)}
                             className="rounded p-1 text-text-tertiary hover:bg-surface-2 hover:text-text-primary"
                             title="Edit release"
+                            aria-label="Edit release"
                           >
                             <Pencil size={13} />
                           </button>
                           <button
-                            onClick={() => handleDeleteRelease(release.id)}
+                            onClick={() => promptDeleteRelease(release.id)}
                             className="rounded p-1 text-text-tertiary hover:bg-error-muted hover:text-error"
                             title="Delete release"
+                            aria-label="Delete release"
                           >
                             <Trash2 size={13} />
                           </button>
@@ -335,7 +292,7 @@ export function CodebaseDetail({
         open={!!deleteTarget}
         entityType="release"
         entityName={deleteTarget?.name || ''}
-        onConfirm={() => { doDeleteRelease(deleteTarget!.id); setDeleteTarget(null); }}
+        onConfirm={() => { handleDeleteRelease(deleteTarget!.id); setDeleteTarget(null); }}
         onCancel={() => setDeleteTarget(null)}
       />
     </div>

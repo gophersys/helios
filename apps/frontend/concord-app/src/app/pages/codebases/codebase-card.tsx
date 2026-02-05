@@ -1,26 +1,7 @@
 import { GitBranch, Pencil, Trash2, ExternalLink } from 'lucide-react';
 import { StatusBadge } from '../../components/ui/status-badge';
-
-interface LatestRelease {
-  id: string;
-  version: string;
-  status: string;
-  releasedAt: string | null;
-}
-
-interface Codebase {
-  id: string;
-  name: string;
-  description: string | null;
-  repoUrl: string | null;
-  defaultBranch: string;
-  imageKey: string | null;
-  imageUrl: string | null;
-  releaseCount: number;
-  latestRelease: LatestRelease | null;
-  createdAt: string;
-  updatedAt: string;
-}
+import { Codebase } from '../../types/models';
+import { isSafeUrl } from '../../utils/url';
 
 export function CodebaseCard({
   codebase,
@@ -66,7 +47,7 @@ export function CodebaseCard({
           </p>
         )}
 
-        {codebase.repoUrl && (
+        {codebase.repoUrl && isSafeUrl(codebase.repoUrl) && (
           <div className="mb-2" onClick={(e) => e.stopPropagation()}>
             <a
               href={codebase.repoUrl}
@@ -109,6 +90,7 @@ export function CodebaseCard({
             onClick={() => onEdit(codebase)}
             className="rounded-lg bg-surface-1/90 p-1.5 text-text-tertiary shadow-sm backdrop-blur hover:text-text-primary"
             title="Edit"
+            aria-label="Edit"
           >
             <Pencil size={13} />
           </button>
@@ -116,6 +98,7 @@ export function CodebaseCard({
             onClick={() => onDelete(codebase.id)}
             className="rounded-lg bg-surface-1/90 p-1.5 text-text-tertiary shadow-sm backdrop-blur hover:text-error"
             title="Delete"
+            aria-label="Delete"
           >
             <Trash2 size={13} />
           </button>

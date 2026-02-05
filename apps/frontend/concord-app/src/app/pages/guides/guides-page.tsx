@@ -12,34 +12,28 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { PageHeader } from '../../components/ui/page-header';
-
-interface GuideSection {
-  id: string;
-  title: string;
-  icon: React.ComponentType<{ size: number; strokeWidth: number; className?: string }>;
-  steps: { title: string; description: string }[];
-}
+import { GuideSection } from '../../types/models';
 
 const guides: GuideSection[] = [
   {
-    id: 'hardware',
-    title: 'Hardware Catalog',
+    id: 'inventory',
+    title: 'Inventory',
     icon: Cpu,
     steps: [
       {
         title: 'Adding a component',
         description:
-          'Navigate to Hardware in the sidebar. Click "New component", fill in the name, category (SoM, Carrier Board, or Accessory), manufacturer, and part number. Click Create. You can then click the card to open the detail view and upload a hero image.',
+          'Navigate to Inventory in the sidebar. Click "New component", fill in the name, category (SoM, Carrier Board, or Accessory), manufacturer, and part number. Click Create. You can then click the card to open the detail view and upload a hero image.',
       },
       {
         title: 'Managing revisions',
         description:
-          'Open a component\'s detail view by clicking its card. Use "Add revision" to create hardware revisions (e.g. REV1.0, REV1.1). Each revision has a status: Active, Deprecated, or End of Life.',
+          'Open a component\'s detail view by clicking its card. Use "Add revision" to create inventory revisions (e.g. REV1.0, REV1.1). Each revision has a status: Active, Deprecated, or End of Life.',
       },
       {
         title: 'Creating assemblies',
         description:
-          'Switch to the Assemblies tab on the Hardware page. Create an assembly (e.g. "MTIB"), then add revisions with a bill of materials linking specific component revisions and quantities.',
+          'Switch to the Assemblies tab on the Inventory page. Create an assembly (e.g. "MTIB"), then add revisions with a bill of materials linking specific component revisions and quantities.',
       },
     ],
   },
@@ -112,7 +106,7 @@ const guides: GuideSection[] = [
       {
         title: 'Registering a node',
         description:
-          'Nodes represent compute hardware in the cluster (typically MTIB boards). Each node has a hostname (must be unique), type (Manufacturing or Validation), IP address, and hardware revision info.',
+          'Nodes represent compute hardware in the cluster (typically MTIB boards). Each node has a hostname (must be unique), type (Manufacturing or Validation), IP address, and inventory revision info.',
       },
       {
         title: 'Assigning to fixtures',
@@ -134,7 +128,7 @@ const guides: GuideSection[] = [
       {
         title: 'Filtering entries',
         description:
-          'Use the search box to filter by action name (e.g. "create", "delete") or the entity type dropdown to narrow results to a specific model (User, HardwareComponent, Release, etc.). Filters apply immediately and reset pagination to page 1.',
+          'Use the search box to filter by action name (e.g. "create", "delete") or the entity type dropdown to narrow results to a specific model (User, InventoryComponent, Release, etc.). Filters apply immediately and reset pagination to page 1.',
       },
       {
         title: 'Viewing details',
@@ -225,7 +219,7 @@ export function GuidesPage() {
                 <div className="border-t border-border px-5 py-4">
                   <ol className="space-y-4">
                     {guide.steps.map((step, i) => (
-                      <li key={i} className="flex gap-3">
+                      <li key={step.title || `step-${i}`} className="flex gap-3">
                         <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent-muted text-2xs font-semibold text-accent">
                           {i + 1}
                         </span>

@@ -12,11 +12,13 @@ import {
   Users,
   ShieldCheck,
   Cpu,
+  Package,
   GitBranch,
   BookOpen,
   History,
   LogOut,
   PanelLeftClose,
+  Monitor,
 } from 'lucide-react';
 import { useTheme } from '../theme-provider';
 import { useAuth } from '../auth-provider';
@@ -169,7 +171,7 @@ export function Sidebar({
     navigate('/login');
   };
 
-  const isAdmin = hasPermission('Concord.Admin.Users.View') || hasPermission('Concord.Admin.Hardware.View') || hasPermission('Concord.Admin.Codebases.View') || hasPermission('Concord.Admin.History.View');
+  const isAdmin = hasPermission('Concord.Admin.Users.View') || hasPermission('Concord.Admin.Inventory.View') || hasPermission('Concord.Admin.Codebases.View') || hasPermission('Concord.Admin.Products.View') || hasPermission('Concord.Admin.History.View') || hasPermission('Concord.Admin.System.View');
 
   return (
     <aside
@@ -189,6 +191,7 @@ export function Sidebar({
           <button
             onClick={onToggle}
             title="Expand sidebar"
+            aria-label="Expand sidebar"
             className="flex items-center justify-center"
           >
             <img
@@ -212,6 +215,7 @@ export function Sidebar({
             <button
               onClick={onToggle}
               title="Collapse sidebar"
+              aria-label="Collapse sidebar"
               className="flex h-7 w-7 items-center justify-center rounded-lg text-text-tertiary transition-colors hover:bg-sidebar-hover hover:text-text-primary"
             >
               <PanelLeftClose size={16} strokeWidth={1.75} />
@@ -266,11 +270,20 @@ export function Sidebar({
                   Admin
                 </span>
               )}
-              {hasPermission('Concord.Admin.Hardware.View') && (
+              {hasPermission('Concord.Admin.System.View') && (
                 <SidebarLink
-                  to="/hardware"
+                  to="/system"
+                  icon={Monitor}
+                  label="System"
+                  collapsed={collapsed}
+                  onDoubleClick={onToggle}
+                />
+              )}
+              {hasPermission('Concord.Admin.Inventory.View') && (
+                <SidebarLink
+                  to="/inventory"
                   icon={Cpu}
-                  label="Hardware"
+                  label="Inventory"
                   collapsed={collapsed}
                   onDoubleClick={onToggle}
                 />
@@ -280,6 +293,15 @@ export function Sidebar({
                   to="/codebases"
                   icon={GitBranch}
                   label="Codebases"
+                  collapsed={collapsed}
+                  onDoubleClick={onToggle}
+                />
+              )}
+              {hasPermission('Concord.Admin.Products.View') && (
+                <SidebarLink
+                  to="/products"
+                  icon={Package}
+                  label="Products"
                   collapsed={collapsed}
                   onDoubleClick={onToggle}
                 />
@@ -375,6 +397,7 @@ export function Sidebar({
                 <button
                   onClick={handleLogout}
                   title="Sign out"
+                  aria-label="Log out"
                   className="shrink-0 rounded p-1 text-text-tertiary transition-colors hover:bg-sidebar-hover hover:text-text-primary"
                 >
                   <LogOut size={14} strokeWidth={1.75} />

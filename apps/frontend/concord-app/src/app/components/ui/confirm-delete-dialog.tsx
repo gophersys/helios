@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { AlertTriangle, X } from 'lucide-react';
 
 interface ConfirmDeleteDialogProps {
@@ -45,7 +46,7 @@ export function ConfirmDeleteDialog({
     if (matches) onConfirm();
   };
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* Backdrop */}
       <div
@@ -108,12 +109,13 @@ export function ConfirmDeleteDialog({
           <button
             type="submit"
             disabled={!matches}
-            className="rounded-lg bg-error px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded-lg bg-error px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-error-hover disabled:cursor-not-allowed disabled:opacity-40"
           >
             Delete
           </button>
         </div>
       </form>
-    </div>
+    </div>,
+    document.body,
   );
 }

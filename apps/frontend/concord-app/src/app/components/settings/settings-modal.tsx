@@ -92,6 +92,7 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
               </h3>
               <button
                 onClick={onClose}
+                aria-label="Close settings"
                 className="flex h-7 w-7 items-center justify-center rounded-lg text-text-tertiary transition-colors hover:bg-surface-2 hover:text-text-primary"
               >
                 <X size={16} strokeWidth={1.75} />

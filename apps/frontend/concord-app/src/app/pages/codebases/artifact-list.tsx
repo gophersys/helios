@@ -1,26 +1,13 @@
 import { useState } from 'react';
 import { Download, Trash2, Plus, Check, X, Link } from 'lucide-react';
-import { api } from '../../api';
+import { api, apiUploadRaw } from '../../api';
 import { ConfirmDeleteDialog } from '../../components/ui/confirm-delete-dialog';
+import { ErrorAlert } from '../../components/ui/error-alert';
 import { StatusBadge } from '../../components/ui/status-badge';
 import { ApiResponse } from '../../types';
 import { formatSize } from '../../utils/formatting';
 import { ArtifactUpload } from './artifact-upload';
-
-interface Artifact {
-  id: string;
-  releaseId: string;
-  name: string;
-  filename: string | null;
-  type: string;
-  storageKey: string | null;
-  externalUrl: string | null;
-  sizeBytes: string | null;
-  checksum: string | null;
-  contentType: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
+import { Artifact } from '../../types/models';
 
 export function ArtifactList({
   codebaseId,
@@ -41,13 +28,14 @@ export function ArtifactList({
   const [showUpload, setShowUpload] = useState(false);
   const [extName, setExtName] = useState('');
   const [extUrl, setExtUrl] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleDelete = (artifactId: string) => {
-    const art = artifacts.find((a: any) => a.id === artifactId);
+  const promptDelete = (artifactId: string) => {
+    const art = artifacts.find((a: Artifact) => a.id === artifactId);
     setDeleteTarget({ id: artifactId, name: art?.name || '' });
   };
 
-  const doDelete = async (artifactId: string) => {
+  const handleDelete = async (artifactId: string) => {
     setError(null);
     try {
       await api(
@@ -74,6 +62,7 @@ export function ArtifactList({
   const handleCreateExternal = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setSubmitting(true);
     try {
       await api(`/v2/codebases/${codebaseId}/releases/${releaseId}/artifacts`, {
         method: 'POST',
@@ -85,6 +74,8 @@ export function ArtifactList({
       onRefresh();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to create artifact');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -94,25 +85,10 @@ export function ArtifactList({
       const formData = new FormData();
       formData.append('file', file);
 
-      const token = localStorage.getItem('concord-token');
-      const headers: Record<string, string> = {};
-      if (token) headers['Authorization'] = `Bearer ${token}`;
-
-      const res = await fetch(
+      await apiUploadRaw(
         `/v2/codebases/${codebaseId}/releases/${releaseId}/artifacts/upload`,
-        { method: 'POST', headers, body: formData }
+        formData
       );
-
-      if (res.status === 401) {
-        localStorage.removeItem('concord-token');
-        window.location.href = '/login';
-        return;
-      }
-
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.errors?.[0]?.message || data.error || 'Upload failed');
-      }
 
       setShowUpload(false);
       onRefresh();
@@ -123,11 +99,7 @@ export function ArtifactList({
 
   return (
     <div className="mt-2">
-      {error && (
-        <div className="mb-2 rounded-lg bg-error-muted px-3 py-1.5 text-2xs text-error">
-          {error}
-        </div>
-      )}
+      <ErrorAlert message={error} />
 
       {artifacts.length > 0 && (
         <div className="overflow-hidden rounded-lg border border-border">
@@ -172,14 +144,16 @@ export function ArtifactList({
                         onClick={() => handleDownload(a.id)}
                         className="rounded p-1 text-text-tertiary hover:bg-surface-2 hover:text-accent"
                         title="Download"
+                        aria-label="Download"
                       >
                         <Download size={14} />
                       </button>
                       {canManage && (
                         <button
-                          onClick={() => handleDelete(a.id)}
+                          onClick={() => promptDelete(a.id)}
                           className="rounded p-1 text-text-tertiary hover:bg-error-muted hover:text-error"
                           title="Delete"
+                          aria-label="Delete"
                         >
                           <Trash2 size={14} />
                         </button>
@@ -271,10 +245,11 @@ export function ArtifactList({
           <div className="mt-2 flex gap-2">
             <button
               type="submit"
-              className="flex items-center gap-1 rounded-lg bg-accent px-2.5 py-1.5 text-2xs font-medium text-white hover:bg-accent-hover"
+              disabled={submitting}
+              className="flex items-center gap-1 rounded-lg bg-accent px-2.5 py-1.5 text-2xs font-medium text-white hover:bg-accent-hover disabled:opacity-50"
             >
               <Check size={12} />
-              Add
+              {submitting ? 'Adding...' : 'Add'}
             </button>
             <button
               type="button"
@@ -296,7 +271,7 @@ export function ArtifactList({
         open={!!deleteTarget}
         entityType="artifact"
         entityName={deleteTarget?.name || ''}
-        onConfirm={() => { doDelete(deleteTarget!.id); setDeleteTarget(null); }}
+        onConfirm={() => { handleDelete(deleteTarget!.id); setDeleteTarget(null); }}
         onCancel={() => setDeleteTarget(null)}
       />
     </div>

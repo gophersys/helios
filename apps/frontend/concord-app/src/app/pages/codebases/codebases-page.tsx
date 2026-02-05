@@ -11,57 +11,7 @@ import { PageHeader } from '../../components/ui/page-header';
 import { CodebaseCard } from './codebase-card';
 import { ApiResponse } from '../../types';
 import { CodebaseDetail } from './codebase-detail';
-
-interface Artifact {
-  id: string;
-  releaseId: string;
-  name: string;
-  filename: string | null;
-  type: string;
-  storageKey: string | null;
-  externalUrl: string | null;
-  sizeBytes: string | null;
-  checksum: string | null;
-  contentType: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface Release {
-  id: string;
-  codebaseId: string;
-  version: string;
-  status: string;
-  releaseNotes: string | null;
-  tagName: string | null;
-  releasedAt: string | null;
-  artifactCount: number;
-  artifacts?: Artifact[];
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface LatestRelease {
-  id: string;
-  version: string;
-  status: string;
-  releasedAt: string | null;
-}
-
-interface Codebase {
-  id: string;
-  name: string;
-  description: string | null;
-  repoUrl: string | null;
-  defaultBranch: string;
-  imageKey: string | null;
-  imageUrl: string | null;
-  releaseCount: number;
-  latestRelease: LatestRelease | null;
-  releases?: Release[];
-  createdAt: string;
-  updatedAt: string;
-}
+import { Codebase } from '../../types/models';
 
 export function CodebasesPage() {
   const { hasPermission } = useAuth();
@@ -78,6 +28,8 @@ export function CodebasesPage() {
   const [formDescription, setFormDescription] = useState('');
   const [formRepoUrl, setFormRepoUrl] = useState('');
   const [formDefaultBranch, setFormDefaultBranch] = useState('main');
+
+  const [submitting, setSubmitting] = useState(false);
 
   // Delete confirmation state
   const [deleteTarget, setDeleteTarget] = useState<{id: string, name: string} | null>(null);
@@ -135,6 +87,7 @@ export function CodebasesPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setSubmitting(true);
 
     const body = {
       name: formName,
@@ -159,15 +112,17 @@ export function CodebasesPage() {
       fetchCodebases();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to save codebase');
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  const handleDelete = (id: string) => {
+  const promptDelete = (id: string) => {
     const target = codebases.find(c => c.id === id);
     setDeleteTarget({ id, name: target?.name || '' });
   };
 
-  const doDelete = async (id: string) => {
+  const handleDelete = async (id: string) => {
     setError(null);
     try {
       await api(`/v2/codebases/${id}`, { method: 'DELETE' });
@@ -306,10 +261,11 @@ export function CodebasesPage() {
             <div className="flex gap-2">
               <button
                 type="submit"
-                className="flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover"
+                disabled={submitting}
+                className="flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover disabled:opacity-50"
               >
                 <Check size={14} />
-                {editingId ? 'Save changes' : 'Create'}
+                {submitting ? 'Saving...' : editingId ? 'Save changes' : 'Create'}
               </button>
               <button
                 type="button"
@@ -350,7 +306,7 @@ export function CodebasesPage() {
               codebase={c}
               canManage={canManage}
               onEdit={startEdit}
-              onDelete={handleDelete}
+              onDelete={promptDelete}
               onSelect={(cb) => fetchDetail(cb.id)}
             />
           ))}
@@ -361,7 +317,7 @@ export function CodebasesPage() {
         open={!!deleteTarget}
         entityType="codebase"
         entityName={deleteTarget?.name || ''}
-        onConfirm={() => { doDelete(deleteTarget!.id); setDeleteTarget(null); }}
+        onConfirm={() => { handleDelete(deleteTarget!.id); setDeleteTarget(null); }}
         onCancel={() => setDeleteTarget(null)}
       />
     </div>

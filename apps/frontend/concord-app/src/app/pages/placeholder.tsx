@@ -7,7 +7,7 @@ export function PlaceholderPage() {
   const title = name.charAt(0).toUpperCase() + name.slice(1);
 
   return (
-    <div className="space-y-8">
+    <div className="animate-fade-in space-y-8">
       <PageHeader
         title={title || 'Page'}
         description="This section is coming soon."

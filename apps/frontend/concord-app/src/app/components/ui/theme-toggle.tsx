@@ -15,7 +15,7 @@ export function ThemeToggle({
       title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
       className={[
         'relative flex h-6 w-11 shrink-0 items-center rounded-full transition-colors duration-300',
-        isDark ? 'bg-indigo-950' : 'bg-amber-300',
+        isDark ? 'bg-surface-2' : 'bg-warning',
       ].join(' ')}
     >
       <div
@@ -25,9 +25,9 @@ export function ThemeToggle({
         ].join(' ')}
       >
         {isDark ? (
-          <Moon size={10} strokeWidth={2.5} className="text-indigo-950" />
+          <Moon size={10} strokeWidth={2.5} className="text-text-primary" />
         ) : (
-          <Sun size={10} strokeWidth={2.5} className="text-amber-600" />
+          <Sun size={10} strokeWidth={2.5} className="text-warning" />
         )}
       </div>
     </button>

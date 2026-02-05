@@ -25,7 +25,7 @@ interface AuthContextValue {
   hasPermission: (...perms: string[]) => boolean;
 }
 
-const AuthContext = createContext<AuthContextValue>({
+export const AuthContext = createContext<AuthContextValue>({
   user: null,
   isAuthenticated: false,
   isLoading: true,

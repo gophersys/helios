@@ -1,4 +1,5 @@
 import { useAuth } from '../../../auth-provider';
+import { TreeNode } from '../../../types/models';
 
 // ── Action color mapping ──────────────────────────────────────
 
@@ -26,12 +27,6 @@ function getActionColor(action: string) {
 }
 
 // ── Tree structure ────────────────────────────────────────────
-
-interface TreeNode {
-  label: string;
-  permKey?: string;
-  children: TreeNode[];
-}
 
 function buildTree(permissions: string[]): TreeNode[] {
   const root: TreeNode = { label: 'root', children: [] };

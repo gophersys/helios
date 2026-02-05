@@ -15,28 +15,7 @@ import { PageHeader } from '../components/ui/page-header';
 import { ConfirmDeleteDialog } from '../components/ui/confirm-delete-dialog';
 import { ErrorAlert } from '../components/ui/error-alert';
 import { LoadingState } from '../components/ui/loading-state';
-
-interface AvailablePermission {
-  key: string;
-  name: string;
-}
-
-interface PermissionSetUser {
-  id: string;
-  name: string;
-  email: string;
-}
-
-interface PermissionSet {
-  id: string;
-  name: string;
-  description: string | null;
-  permissions: string[];
-  userCount: number;
-  users: PermissionSetUser[];
-  createdAt: string;
-  updatedAt: string;
-}
+import { AvailablePermission, PermissionSet, PermissionSetUser, TreeNode } from '../types/models';
 
 // ── Action color mapping ──────────────────────────────────────
 
@@ -84,12 +63,6 @@ function getActionColor(action: string) {
 }
 
 // ── Tree data structure ───────────────────────────────────────
-
-interface TreeNode {
-  label: string;
-  permKey?: string; // set only on leaf nodes (the full permission key)
-  children: TreeNode[];
-}
 
 /** Build a nested tree from flat permission keys like "Concord.Firmware.AppID.Create" */
 function buildTree(permissions: AvailablePermission[]): TreeNode[] {
@@ -332,6 +305,7 @@ function PermissionSetCard({
   const enabledPerms = new Set(ps.permissions);
   const allKeys = tree.flatMap(collectKeys);
   const totalCount = allKeys.length;
+  const users = ps.users ?? [];
 
   return (
     <div className="rounded-xl border border-border bg-surface-1">
@@ -364,10 +338,10 @@ function PermissionSetCard({
           )}
         </div>
         <div className="flex shrink-0 items-center gap-3">
-          {ps.users.length > 0 ? (
+          {users.length > 0 ? (
             <div className="flex items-center gap-1.5">
               <div className="flex -space-x-1.5">
-                {ps.users.slice(0, 5).map((u) => (
+                {users.slice(0, 5).map((u) => (
                   <div
                     key={u.id}
                     title={`${u.name} (${u.email})`}
@@ -376,14 +350,14 @@ function PermissionSetCard({
                     {u.name.charAt(0).toUpperCase()}
                   </div>
                 ))}
-                {ps.users.length > 5 && (
+                {users.length > 5 && (
                   <div className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-surface-1 bg-surface-2 text-2xs font-medium text-text-tertiary">
-                    +{ps.users.length - 5}
+                    +{users.length - 5}
                   </div>
                 )}
               </div>
               <span className="text-2xs text-text-tertiary">
-                {ps.userCount} user{ps.userCount !== 1 ? 's' : ''}
+                {ps.userCount ?? 0} user{(ps.userCount ?? 0) !== 1 ? 's' : ''}
               </span>
             </div>
           ) : (
@@ -398,6 +372,7 @@ function PermissionSetCard({
                 onClick={() => onEdit(ps)}
                 className="rounded-lg p-2 text-text-tertiary transition-colors hover:bg-surface-2 hover:text-text-primary"
                 title="Edit"
+                aria-label="Edit"
               >
                 <Pencil size={14} />
               </button>
@@ -405,6 +380,7 @@ function PermissionSetCard({
                 onClick={() => onDelete(ps.id)}
                 className="rounded-lg p-2 text-text-tertiary transition-colors hover:bg-error-muted hover:text-error"
                 title="Delete"
+                aria-label="Delete"
               >
                 <Trash2 size={14} />
               </button>
@@ -417,13 +393,13 @@ function PermissionSetCard({
       {expanded && (
         <div className="border-t border-border-subtle">
           {/* Users list */}
-          {ps.users.length > 0 && (
+          {users.length > 0 && (
             <div className="border-b border-border-subtle px-4 py-3">
               <div className="mb-2 text-2xs font-medium text-text-tertiary">
                 Assigned users
               </div>
               <div className="flex flex-wrap gap-2">
-                {ps.users.map((u) => (
+                {users.map((u) => (
                   <div
                     key={u.id}
                     className="flex items-center gap-2 rounded-lg bg-surface-2 px-2.5 py-1.5"
@@ -481,6 +457,7 @@ export function PermissionSetsPage() {
   const [formPermissions, setFormPermissions] = useState<Set<string>>(
     new Set(),
   );
+  const [submitting, setSubmitting] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{id: string, name: string} | null>(null);
 
   const fetchSets = useCallback(async () => {
@@ -504,8 +481,8 @@ export function PermissionSetsPage() {
         '/v2/auth/permissions',
       );
       setAvailablePerms(data.data);
-    } catch {
-      // ignore
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to load permissions');
     }
   }, []);
 
@@ -560,6 +537,7 @@ export function PermissionSetsPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setSubmitting(true);
 
     const body = {
       name: formName,
@@ -585,10 +563,12 @@ export function PermissionSetsPage() {
       setError(
         err instanceof Error ? err.message : 'Failed to save permission set',
       );
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  const doDelete = async (id: string) => {
+  const handleDelete = async (id: string) => {
     setError(null);
     try {
       await api(`/v2/auth/permission-sets/${id}`, { method: 'DELETE' });
@@ -602,7 +582,7 @@ export function PermissionSetsPage() {
     }
   };
 
-  const handleDelete = (id: string) => {
+  const promptDelete = (id: string) => {
     const target = sets.find(s => s.id === id);
     setDeleteTarget({ id, name: target?.name || '' });
   };
@@ -698,11 +678,11 @@ export function PermissionSetsPage() {
             <div className="flex gap-2">
               <button
                 type="submit"
-                disabled={formPermissions.size === 0}
+                disabled={formPermissions.size === 0 || submitting}
                 className="flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
               >
                 <Check size={14} />
-                {editingId ? 'Save changes' : 'Create'}
+                {submitting ? 'Saving...' : editingId ? 'Save changes' : 'Create'}
               </button>
               <button
                 type="button"
@@ -728,7 +708,7 @@ export function PermissionSetsPage() {
               tree={tree}
               canManage={canManage}
               onEdit={startEdit}
-              onDelete={handleDelete}
+              onDelete={promptDelete}
             />
           ))}
         </div>
@@ -738,7 +718,7 @@ export function PermissionSetsPage() {
         open={!!deleteTarget}
         entityType="permission set"
         entityName={deleteTarget?.name || ''}
-        onConfirm={() => { doDelete(deleteTarget!.id); setDeleteTarget(null); }}
+        onConfirm={() => { handleDelete(deleteTarget!.id); setDeleteTarget(null); }}
         onCancel={() => setDeleteTarget(null)}
       />
     </div>

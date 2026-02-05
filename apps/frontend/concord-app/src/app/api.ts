@@ -44,6 +44,37 @@ export async function api<T = unknown>(
   return data as T;
 }
 
+export async function apiUploadRaw(
+  path: string,
+  formData: FormData
+): Promise<Response> {
+  const token = getToken();
+
+  const headers: Record<string, string> = {};
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const res = await fetch(path, {
+    method: 'POST',
+    headers,
+    body: formData,
+  });
+
+  if (res.status === 401) {
+    clearToken();
+    window.location.href = '/login';
+    throw new Error('Session expired');
+  }
+
+  if (!res.ok) {
+    const data = await res.json();
+    throw new Error(data.error || data.errors?.[0]?.message || `Upload failed (${res.status})`);
+  }
+
+  return res;
+}
+
 export async function apiUpload<T = unknown>(
   path: string,
   formData: FormData

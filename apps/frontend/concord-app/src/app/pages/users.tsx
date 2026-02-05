@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { UserPlus, X, Check } from 'lucide-react';
 import { useAuth, User } from '../auth-provider';
@@ -7,20 +7,8 @@ import { PageHeader } from '../components/ui/page-header';
 import { ErrorAlert } from '../components/ui/error-alert';
 import { LoadingState } from '../components/ui/loading-state';
 import { formatDate } from '../utils/formatting';
-
-interface PermissionSet {
-  id: string;
-  name: string;
-  description: string | null;
-  permissions: string[];
-}
-
-interface FullUser extends User {
-  active: boolean;
-  lastSeenAt: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
+import { Select } from '../components/ui/select';
+import { FullUser, PermissionSet } from '../types/models';
 
 export function UsersPage() {
   const { user: currentUser, hasPermission } = useAuth();
@@ -33,6 +21,8 @@ export function UsersPage() {
   const [formEmail, setFormEmail] = useState('');
   const [formName, setFormName] = useState('');
   const [formPermissionSetId, setFormPermissionSetId] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const defaultSetApplied = useRef(false);
 
   const fetchUsers = useCallback(async () => {
     try {
@@ -49,15 +39,16 @@ export function UsersPage() {
     try {
       const data = await api<{ data: PermissionSet[] }>('/v2/auth/permission-sets');
       setPermissionSets(data.data);
-      if (data.data.length > 0 && !formPermissionSetId) {
-        // Default to the first non-admin set, or just the first one
+      // Set default selection only once
+      if (data.data.length > 0 && !defaultSetApplied.current) {
+        defaultSetApplied.current = true;
         const viewerSet = data.data.find((s) => s.name === 'Viewer');
         setFormPermissionSetId(viewerSet?.id || data.data[0].id);
       }
-    } catch {
-      // Permission sets might not be accessible if user doesn't have permission
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to load permission sets');
     }
-  }, [formPermissionSetId]);
+  }, []);
 
   useEffect(() => {
     fetchUsers();
@@ -73,6 +64,7 @@ export function UsersPage() {
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setSubmitting(true);
     try {
       await api('/v2/auth/users', {
         method: 'POST',
@@ -90,6 +82,8 @@ export function UsersPage() {
       fetchUsers();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to create user');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -177,10 +171,10 @@ export function UsersPage() {
                 Permission Set
               </label>
               <div className="flex gap-2">
-                <select
+                <Select
                   value={formPermissionSetId}
                   onChange={(e) => setFormPermissionSetId(e.target.value)}
-                  className="flex-1 rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none"
+                  className="flex-1"
                 >
                   <option value="">None</option>
                   {permissionSets.map((ps) => (
@@ -188,12 +182,13 @@ export function UsersPage() {
                       {ps.name}
                     </option>
                   ))}
-                </select>
+                </Select>
                 <button
                   type="submit"
-                  className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-surface-0 transition-colors hover:bg-accent-hover"
+                  disabled={submitting}
+                  className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-surface-0 transition-colors hover:bg-accent-hover disabled:opacity-50"
                 >
-                  <Check size={16} />
+                  {submitting ? '...' : <Check size={16} />}
                 </button>
               </div>
             </div>
@@ -253,12 +248,12 @@ export function UsersPage() {
                           {u.permissionSetName || 'None'}
                         </span>
                       ) : (
-                        <select
+                        <Select
+                          compact
                           value={u.permissionSetId || ''}
                           onChange={(e) =>
                             handlePermissionSetChange(u.id, e.target.value)
                           }
-                          className="rounded border border-border bg-surface-0 px-2 py-1 text-sm text-text-primary focus:border-accent focus:outline-none"
                         >
                           <option value="">None</option>
                           {permissionSets.map((ps) => (
@@ -266,7 +261,7 @@ export function UsersPage() {
                               {ps.name}
                             </option>
                           ))}
-                        </select>
+                        </Select>
                       )}
                     </td>
                     <td className="px-4 py-3">

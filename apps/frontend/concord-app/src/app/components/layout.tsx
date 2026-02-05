@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { Sidebar } from './sidebar';
 import { SettingsModal } from './settings/settings-modal';
+import { ErrorBoundary } from './ui/error-boundary';
 
 export function Layout() {
   const [collapsed, setCollapsed] = useState(() => {
@@ -29,7 +30,9 @@ export function Layout() {
         style={{ marginLeft: collapsed ? 64 : 260 }}
       >
         <div className="mx-auto max-w-6xl px-8 py-8">
-          <Outlet />
+          <ErrorBoundary>
+            <Outlet />
+          </ErrorBoundary>
         </div>
       </main>
       {settingsOpen && <SettingsModal onClose={() => setSettingsOpen(false)} />}

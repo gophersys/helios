@@ -25,6 +25,7 @@ export function ApiKeysSection() {
 
   const [formName, setFormName] = useState('');
   const [formExpiresAt, setFormExpiresAt] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   const fetchKeys = useCallback(async () => {
     try {
@@ -44,6 +45,7 @@ export function ApiKeysSection() {
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setSubmitting(true);
     try {
       const body: Record<string, string> = { name: formName };
       if (formExpiresAt) {
@@ -63,6 +65,8 @@ export function ApiKeysSection() {
       fetchKeys();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to create API key');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -71,7 +75,7 @@ export function ApiKeysSection() {
     setDeleteTarget({ id: keyId, name: target?.name || '' });
   };
 
-  const doDelete = async (keyId: string) => {
+  const handleDeleteConfirmed = async (keyId: string) => {
     try {
       await api(`/v2/auth/api-keys/${keyId}`, { method: 'DELETE' });
       fetchKeys();
@@ -157,9 +161,10 @@ export function ApiKeysSection() {
             <div className="mt-3 flex gap-2">
               <button
                 type="submit"
-                className="rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-surface-0 transition-colors hover:bg-accent-hover"
+                disabled={submitting}
+                className="rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-surface-0 transition-colors hover:bg-accent-hover disabled:opacity-50"
               >
-                Create key
+                {submitting ? 'Creating...' : 'Create key'}
               </button>
               <button
                 type="button"
@@ -214,6 +219,7 @@ export function ApiKeysSection() {
                 onClick={() => handleDelete(k.id)}
                 className="shrink-0 rounded-lg p-2 text-text-tertiary transition-colors hover:bg-error-muted hover:text-error"
                 title="Delete key"
+                aria-label="Delete key"
               >
                 <Trash2 size={14} />
               </button>
@@ -226,7 +232,7 @@ export function ApiKeysSection() {
         open={!!deleteTarget}
         entityType="API key"
         entityName={deleteTarget?.name || ''}
-        onConfirm={() => { doDelete(deleteTarget!.id); setDeleteTarget(null); }}
+        onConfirm={() => { handleDeleteConfirmed(deleteTarget!.id); setDeleteTarget(null); }}
         onCancel={() => setDeleteTarget(null)}
       />
     </div>

@@ -13,42 +13,20 @@ import { api } from '../../api';
 import { ApiResponse } from '../../types';
 import { formatTimeAgo, formatDateTime } from '../../utils/formatting';
 import { EmptyState } from '../../components/ui/empty-state';
+import { ErrorAlert } from '../../components/ui/error-alert';
 import { LoadingState } from '../../components/ui/loading-state';
 import { PageHeader } from '../../components/ui/page-header';
-
-interface AuditUser {
-  id: string;
-  name: string;
-  email: string;
-}
-
-interface AuditEntry {
-  id: string;
-  userId: string | null;
-  action: string;
-  entityType: string;
-  entityId: string | null;
-  details: Record<string, unknown> | null;
-  ipAddress: string | null;
-  createdAt: string;
-  user: AuditUser | null;
-}
-
-interface Pagination {
-  page: number;
-  limit: number;
-  total: number;
-  pages: number;
-}
+import { Select } from '../../components/ui/select';
+import { AuditEntry, Pagination } from '../../types/models';
 
 const ENTITY_TYPES = [
   'User',
   'PermissionSet',
   'ApiKey',
   'MTIB',
-  'HardwareComponent',
+  'InventoryComponent',
   'ComponentRevision',
-  'HardwareAssembly',
+  'InventoryAssembly',
   'AssemblyRevision',
   'Codebase',
   'Release',
@@ -110,6 +88,7 @@ export function HistoryPage() {
     pages: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   // Filters
@@ -132,8 +111,8 @@ export function HistoryPage() {
 
       setEntries(res.data.entries);
       setPagination(res.data.pagination);
-    } catch {
-      // silently fail
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to load history');
     } finally {
       setLoading(false);
     }
@@ -165,6 +144,8 @@ export function HistoryPage() {
         />
       </div>
 
+      <ErrorAlert message={error} />
+
       {/* Filters */}
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <div className="relative">
@@ -180,10 +161,10 @@ export function HistoryPage() {
             className="rounded-lg border border-border bg-surface-0 py-2 pl-8 pr-3 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
           />
         </div>
-        <select
+        <Select
           value={entityType}
           onChange={(e) => setEntityType(e.target.value)}
-          className="rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none"
+          className="w-auto"
         >
           <option value="">All entity types</option>
           {ENTITY_TYPES.map((t) => (
@@ -191,7 +172,7 @@ export function HistoryPage() {
               {t}
             </option>
           ))}
-        </select>
+        </Select>
         <span className="ml-auto text-2xs text-text-tertiary">
           {pagination.total} entries
         </span>
@@ -351,6 +332,7 @@ export function HistoryPage() {
             <button
               onClick={() => setPage(1)}
               disabled={page <= 1}
+              aria-label="First page"
               className="rounded-lg p-2 text-text-secondary transition-colors hover:bg-surface-1 disabled:opacity-30 disabled:hover:bg-transparent"
             >
               <ChevronsLeft size={14} />
@@ -358,6 +340,7 @@ export function HistoryPage() {
             <button
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page <= 1}
+              aria-label="Previous page"
               className="rounded-lg p-2 text-text-secondary transition-colors hover:bg-surface-1 disabled:opacity-30 disabled:hover:bg-transparent"
             >
               <ChevronLeft size={14} />
@@ -365,6 +348,7 @@ export function HistoryPage() {
             <button
               onClick={() => setPage((p) => Math.min(pagination.pages, p + 1))}
               disabled={page >= pagination.pages}
+              aria-label="Next page"
               className="rounded-lg p-2 text-text-secondary transition-colors hover:bg-surface-1 disabled:opacity-30 disabled:hover:bg-transparent"
             >
               <ChevronRight size={14} />
@@ -372,6 +356,7 @@ export function HistoryPage() {
             <button
               onClick={() => setPage(pagination.pages)}
               disabled={page >= pagination.pages}
+              aria-label="Last page"
               className="rounded-lg p-2 text-text-secondary transition-colors hover:bg-surface-1 disabled:opacity-30 disabled:hover:bg-transparent"
             >
               <ChevronsRight size={14} />

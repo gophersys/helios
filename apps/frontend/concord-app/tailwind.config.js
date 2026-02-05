@@ -44,10 +44,12 @@ module.exports = {
         },
         warning: {
           DEFAULT: 'var(--warning)',
+          hover: 'var(--warning-hover)',
           muted: 'var(--warning-muted)',
         },
         error: {
           DEFAULT: 'var(--error)',
+          hover: 'var(--error-hover)',
           muted: 'var(--error-muted)',
         },
         info: {

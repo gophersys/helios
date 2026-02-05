@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Check, X } from 'lucide-react';
+import { Select } from '../../components/ui/select';
 
 interface ReleaseFormProps {
   onSubmit: (data: {
@@ -62,15 +63,14 @@ export function ReleaseForm({ onSubmit, onCancel, initial }: ReleaseFormProps) {
           <label className="mb-1 block text-2xs font-medium text-text-tertiary">
             Status
           </label>
-          <select
+          <Select
             value={status}
             onChange={(e) => setStatus(e.target.value)}
-            className="w-full rounded-lg border border-border bg-surface-1 px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none"
           >
             <option value="DRAFT">Draft</option>
             <option value="RELEASED">Released</option>
             <option value="DEPRECATED">Deprecated</option>
-          </select>
+          </Select>
         </div>
         <div>
           <label className="mb-1 block text-2xs font-medium text-text-tertiary">
