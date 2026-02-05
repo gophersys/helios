@@ -7,8 +7,9 @@ generator python {
 }
 
 datasource db {
-    provider = "postgresql"
-    url      = env("DATABASE_URL")
+    provider  = "postgresql"
+    url       = env("DATABASE_URL")
+    directUrl = env("DIRECT_DATABASE_URL")
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -65,7 +66,7 @@ enum LogLevel {
     FATAL
 }
 
-enum HardwareCategory {
+enum InventoryCategory {
     SOM
     CARRIER_BOARD
     ACCESSORY
@@ -86,6 +87,12 @@ enum ReleaseStatus {
 enum ArtifactType {
     UPLOAD
     EXTERNAL
+}
+
+enum FirmwareBuildStatus {
+    DRAFT
+    RELEASED
+    DEPRECATED
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -176,12 +183,86 @@ model Product {
     createdAt   DateTime @default(now())
     updatedAt   DateTime @updatedAt
 
-    fixtures    Fixture[]
-    tests       Test[]
-    sessions    Session[]
-    deployments Deployment[]
+    fixtures             Fixture[]
+    tests                Test[]
+    sessions             Session[]
+    deployments          Deployment[]
+    boardRevisions       ProductBoardRevision[]
+    firmwareApplications FirmwareApplication[]
+    firmwareBuilds       FirmwareBuild[]
 
     @@map("products")
+}
+
+/// A board revision for a product (e.g. A0, B0, B1).
+model ProductBoardRevision {
+    id        String         @id @default(cuid())
+    productId String
+    version   String /// e.g. "A0", "B0", "B1"
+    chipsets   String[] /// e.g. ["nRF5340", "nRF9160"]
+    status    RevisionStatus @default(ACTIVE)
+    notes     String?
+    createdAt DateTime       @default(now())
+    updatedAt DateTime       @updatedAt
+
+    product        Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+    firmwareBuilds FirmwareBuild[]
+
+    @@unique([productId, version])
+    @@map("product_board_revisions")
+}
+
+/// A firmware application definition for a product (from Application ID table).
+model FirmwareApplication {
+    id                   String   @id @default(cuid())
+    productId            String
+    applicationId        Int /// Application ID number
+    name                 String /// e.g. "Bootloader", "Main App", "Modem FW"
+    targetMcu            String? /// e.g. "nRF5340 App Core", "nRF9160"
+    chipset              String? /// e.g. "nRF5340", "nRF9160"
+    coreCloudDeviceType  String? /// Core Cloud device type identifier
+    coreCloudVariant     String? /// Core Cloud variant
+    notes                String?
+    createdAt            DateTime @default(now())
+    updatedAt            DateTime @updatedAt
+
+    product        Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+    firmwareBuilds FirmwareBuild[]
+
+    @@unique([productId, applicationId])
+    @@map("firmware_applications")
+}
+
+/// An uploaded firmware build file with version metadata.
+model FirmwareBuild {
+    id               String              @id @default(cuid())
+    productId        String
+    applicationId    String /// FK to FirmwareApplication
+    boardRevisionId  String? /// FK to ProductBoardRevision (optional)
+    version          String /// Semantic version string "1.0.0"
+    majorVersion     Int
+    minorVersion     Int
+    buildNumber      Int
+    bootloaderId     String? /// Reference to bootloader build
+    isManufacturing  Boolean             @default(false)
+    storageKey       String /// MinIO object key
+    filename         String
+    sizeBytes        BigInt
+    checksum         String /// SHA-256 hex digest
+    contentType      String?
+    status           FirmwareBuildStatus @default(DRAFT)
+    notes            String?
+    createdAt        DateTime            @default(now())
+    updatedAt        DateTime            @updatedAt
+
+    product        Product               @relation(fields: [productId], references: [id], onDelete: Cascade)
+    application    FirmwareApplication   @relation(fields: [applicationId], references: [id])
+    boardRevision  ProductBoardRevision? @relation(fields: [boardRevisionId], references: [id], onDelete: SetNull)
+
+    @@unique([applicationId, version])
+    @@index([productId])
+    @@index([applicationId])
+    @@map("firmware_builds")
 }
 
 /// A physical test fixture for a product. Manufacturing fixtures
@@ -473,28 +554,28 @@ model Setting {
 }
 
 // ─────────────────────────────────────────────────────────────
-//                                          Hardware Catalog
+//                                          Inventory Catalog
 // ─────────────────────────────────────────────────────────────
 
-/// An individual hardware component — SoM, carrier board, accessory, etc.
-model HardwareComponent {
-    id           String           @id @default(cuid())
-    name         String           @unique
+/// An individual inventory component — SoM, carrier board, accessory, etc.
+model InventoryComponent {
+    id           String            @id @default(cuid())
+    name         String            @unique
     description  String?
-    category     HardwareCategory
+    category     InventoryCategory
     manufacturer String
-    partNumber   String           @unique
+    partNumber   String            @unique
     imageKey     String? /// MinIO object key for hero image
-    createdAt    DateTime         @default(now())
-    updatedAt    DateTime         @updatedAt
+    createdAt    DateTime          @default(now())
+    updatedAt    DateTime          @updatedAt
 
-    revisions HardwareRevision[]
+    revisions InventoryRevision[]
 
-    @@map("hardware_components")
+    @@map("inventory_components")
 }
 
-/// A specific revision/version of a hardware component (e.g. REV1.0, REV1.1).
-model HardwareRevision {
+/// A specific revision/version of an inventory component (e.g. REV1.0, REV1.1).
+model InventoryRevision {
     id           String         @id @default(cuid())
     componentId  String
     version      String /// e.g. "REV1.0", "REV1.1"
@@ -503,11 +584,11 @@ model HardwareRevision {
     createdAt    DateTime       @default(now())
     updatedAt    DateTime       @updatedAt
 
-    component             HardwareComponent           @relation(fields: [componentId], references: [id], onDelete: Cascade)
+    component             InventoryComponent          @relation(fields: [componentId], references: [id], onDelete: Cascade)
     assemblyRevisionItems AssemblyRevisionComponent[]
 
     @@unique([componentId, version])
-    @@map("hardware_revisions")
+    @@map("inventory_revisions")
 }
 
 /// An assembly — a combination of hardware components
@@ -542,17 +623,17 @@ model AssemblyRevision {
     @@map("assembly_revisions")
 }
 
-/// BOM line item — links an assembly revision to a specific hardware revision with quantity.
+/// BOM line item — links an assembly revision to a specific inventory revision with quantity.
 model AssemblyRevisionComponent {
-    id                 String @id @default(cuid())
-    assemblyRevisionId String
-    hardwareRevisionId String
-    quantity           Int    @default(1)
+    id                  String @id @default(cuid())
+    assemblyRevisionId  String
+    inventoryRevisionId String
+    quantity            Int    @default(1)
 
-    assemblyRevision AssemblyRevision @relation(fields: [assemblyRevisionId], references: [id], onDelete: Cascade)
-    hardwareRevision HardwareRevision @relation(fields: [hardwareRevisionId], references: [id], onDelete: Cascade)
+    assemblyRevision  AssemblyRevision  @relation(fields: [assemblyRevisionId], references: [id], onDelete: Cascade)
+    inventoryRevision InventoryRevision @relation(fields: [inventoryRevisionId], references: [id], onDelete: Cascade)
 
-    @@unique([assemblyRevisionId, hardwareRevisionId])
+    @@unique([assemblyRevisionId, inventoryRevisionId])
     @@map("assembly_revision_components")
 }
 

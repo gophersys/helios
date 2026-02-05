@@ -16,12 +16,24 @@
                 "parallel": false
             }
         },
-        "push": {
+        "migrate": {
             "executor": "nx:run-commands",
             "options": {
                 "commands": [
                     {
-                        "command": "yarn prisma db push --skip-generate"
+                        "command": "yarn prisma migrate dev"
+                    }
+                ],
+                "cwd": "{projectRoot}",
+                "parallel": false
+            }
+        },
+        "migrate-deploy": {
+            "executor": "nx:run-commands",
+            "options": {
+                "commands": [
+                    {
+                        "command": "yarn prisma migrate deploy"
                     }
                 ],
                 "cwd": "{projectRoot}",
@@ -36,7 +48,7 @@
                         "command": "nx run database:generate-client"
                     },
                     {
-                        "command": "nx run database:push"
+                        "command": "nx run database:migrate"
                     }
                 ],
                 "cwd": "{workspaceRoot}",
@@ -48,7 +60,7 @@
             "options": {
                 "commands": [
                     {
-                        "command": "yarn prisma db push --force-reset"
+                        "command": "yarn prisma migrate reset --force"
                     }
                 ],
                 "cwd": "{projectRoot}",

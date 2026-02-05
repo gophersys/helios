@@ -26,11 +26,15 @@ ALL_PERMISSIONS = [
     "Concord.Admin.PermissionSets.Manage",
     "Concord.Admin.ApiKeys.View",
     "Concord.Admin.ApiKeys.Manage",
-    "Concord.Admin.Hardware.View",
-    "Concord.Admin.Hardware.Manage",
+    "Concord.Admin.Inventory.View",
+    "Concord.Admin.Inventory.Manage",
     "Concord.Admin.Codebases.View",
     "Concord.Admin.Codebases.Manage",
+    "Concord.Admin.Products.View",
+    "Concord.Admin.Products.Manage",
     "Concord.Admin.History.View",
+    "Concord.Admin.System.View",
+    "Concord.Admin.System.Manage",
 ]
 
 # Default permission sets
@@ -40,11 +44,14 @@ ADMIN_PERMISSIONS = [
     "Concord.Validation.Tests.Run",
     "Concord.Admin.Users.View",
     "Concord.Admin.Users.Manage",
-    "Concord.Admin.Hardware.View",
-    "Concord.Admin.Hardware.Manage",
+    "Concord.Admin.Inventory.View",
+    "Concord.Admin.Inventory.Manage",
     "Concord.Admin.Codebases.View",
     "Concord.Admin.Codebases.Manage",
+    "Concord.Admin.Products.View",
+    "Concord.Admin.Products.Manage",
     "Concord.Admin.History.View",
+    "Concord.Admin.System.View",
 ]
 
 OPERATOR_PERMISSIONS = [
