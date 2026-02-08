@@ -1,0 +1,138 @@
+{
+  "name": "concord-ui",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/frontend/concord-app-svelte/src",
+  "projectType": "application",
+  "tags": ["scope:frontend", "type:app"],
+  "targets": {
+    "dev": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/frontend/concord-app-svelte",
+        "command": "npx vite dev --port 4200"
+      }
+    },
+    "build": {
+      "executor": "nx:run-commands",
+      "defaultConfiguration": "development",
+      "options": {
+        "cwd": "apps/frontend/concord-app-svelte",
+        "command": "npx vite build"
+      },
+      "configurations": {
+        "development": {
+          "command": "PUBLIC_APP_ENVIRONMENT=development npx vite build"
+        },
+        "staging": {
+          "command": "nx run concord-ui:containerize -c staging"
+        },
+        "production": {
+          "command": "nx run concord-ui:containerize -c production"
+        }
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/frontend/concord-app-svelte",
+        "command": "npx svelte-kit sync && npx tsc --noEmit"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/frontend/concord-app-svelte",
+        "command": "npx vitest run"
+      }
+    },
+    "containerize": {
+      "executor": "@nx-tools/nx-container:build",
+      "defaultConfiguration": "development",
+      "options": {
+        "context": "{workspaceRoot}",
+        "cwd": "{workspaceRoot}",
+        "file": "apps/frontend/concord-app-svelte/deploy/Dockerfile",
+        "push": false,
+        "load": true
+      },
+      "configurations": {
+        "development": {
+          "tags": ["concord/frontend:development"],
+          "build-args": [
+            "PUBLIC_APP_ENVIRONMENT=development",
+            "PUBLIC_APP_VERSION=dev",
+            "GIT_COMMIT",
+            "GIT_BRANCH",
+            "GIT_DIRTY",
+            "BUILD_TIME",
+            "BUILD_HOST"
+          ],
+          "platforms": []
+        },
+        "staging": {
+          "tags": [
+            "concord/frontend:staging",
+            "containers.ad.corekinect.com/concord-frontend:staging"
+          ],
+          "build-args": [
+            "PUBLIC_APP_ENVIRONMENT",
+            "PUBLIC_APP_VERSION",
+            "GIT_COMMIT",
+            "GIT_BRANCH",
+            "GIT_DIRTY",
+            "BUILD_TIME",
+            "BUILD_HOST"
+          ]
+        },
+        "production": {
+          "tags": [
+            "concord/frontend:production",
+            "containers.ad.corekinect.com/concord-frontend:production"
+          ],
+          "build-args": [
+            "PUBLIC_APP_ENVIRONMENT",
+            "PUBLIC_APP_VERSION",
+            "GIT_COMMIT",
+            "GIT_BRANCH",
+            "GIT_DIRTY",
+            "BUILD_TIME",
+            "BUILD_HOST"
+          ],
+          "platforms": ["linux/amd64"]
+        }
+      }
+    },
+    "push": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["build"],
+      "options": {
+        "cwd": "{workspaceRoot}"
+      },
+      "defaultConfiguration": "staging",
+      "configurations": {
+        "staging": {
+          "command": "docker push containers.ad.corekinect.com/concord-frontend:staging"
+        },
+        "production": {
+          "command": "docker push containers.ad.corekinect.com/concord-frontend:production"
+        }
+      }
+    },
+    "deploy": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["build"],
+      "defaultConfiguration": "staging",
+      "options": {
+        "cwd": "{workspaceRoot}"
+      },
+      "configurations": {
+        "staging": {
+          "command": "./deploy/ctl.sh staging deploy"
+        },
+        "production": {
+          "command": "./deploy/ctl.sh production deploy"
+        }
+      }
+    }
+  }
+}

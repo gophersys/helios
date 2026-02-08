@@ -1,0 +1,445 @@
+@import '@fontsource-variable/inter';
+@import '@fontsource/poppins/400.css';
+@import '@fontsource/poppins/500.css';
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   DESIGN SYSTEM - Concord Application
+
+   Principles:
+   - 4px/8px base grid for all spacing
+   - Major Third (1.25) typography scale
+   - Consistent component heights (32/40/48px)
+   - Golden ratio proportions where applicable
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@layer base {
+  :root {
+    /* ─────────────────────────────────────────────────────────────────────
+       SPACING TOKENS (CSS variables for reference)
+       ───────────────────────────────────────────────────────────────────── */
+    --space-unit: 4px;
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 20px;
+    --space-6: 24px;
+    --space-8: 32px;
+    --space-10: 40px;
+    --space-12: 48px;
+    --space-16: 64px;
+
+    /* ─────────────────────────────────────────────────────────────────────
+       LAYOUT TOKENS
+       ───────────────────────────────────────────────────────────────────── */
+    --sidebar-width: 256px;
+    --sidebar-collapsed-width: 64px;
+    --header-height: 64px;
+    --content-max-width: 1280px;
+    --content-padding: 24px;
+
+    /* ─────────────────────────────────────────────────────────────────────
+       SURFACES - Light Theme (subtle off-white bg, white cards)
+       ───────────────────────────────────────────────────────────────────── */
+    --surface-0: #F5F5F7;
+    --surface-1: #FFFFFF;
+    --surface-2: #F0F0F3;
+    --surface-3: #E6E6EB;
+
+    /* Borders */
+    --border: #DCDCE2;
+    --border-subtle: #E8E8ED;
+
+    /* Text - neutral */
+    --text-primary: #1A1A1A;
+    --text-secondary: #636370;
+    --text-tertiary: #9494A0;
+
+    /* Accent - coral-orange, from CoreKinect logo slash */
+    --accent: #CF6A3E;
+    --accent-hover: #BE5E35;
+    --accent-muted: rgba(207, 106, 62, 0.08);
+    --accent-subtle: rgba(207, 106, 62, 0.14);
+
+    /* Sidebar */
+    --sidebar-bg: #F8F8FA;
+    --sidebar-active-bg: rgba(207, 106, 62, 0.06);
+    --sidebar-active-border: #CF6A3E;
+    --sidebar-hover-bg: #EDEDF1;
+
+    /* Status */
+    --success: #3D8B4D;
+    --success-muted: rgba(61, 139, 77, 0.08);
+    --warning: #B8922F;
+    --warning-hover: #A68329;
+    --warning-muted: rgba(184, 146, 47, 0.08);
+    --error: #B93A2A;
+    --error-hover: #A33224;
+    --error-muted: rgba(185, 58, 42, 0.08);
+    --info: #4A729B;
+    --info-muted: rgba(74, 114, 155, 0.08);
+
+    /* Interactive */
+    --focus-ring: rgba(207, 106, 62, 0.4);
+    --overlay: rgba(20, 20, 20, 0.4);
+
+    /* Card */
+    --card-glow: rgba(207, 106, 62, 0.04);
+  }
+
+  .dark {
+    /* Surfaces - softer grey darks with card contrast */
+    --surface-0: #151518;
+    --surface-1: #1E1E23;
+    --surface-2: #27272E;
+    --surface-3: #313139;
+
+    /* Borders - visible separation */
+    --border: #2F2F38;
+    --border-subtle: #25252C;
+
+    /* Text - lighter greys for readability */
+    --text-primary: #EDEDF0;
+    --text-secondary: #9898A3;
+    --text-tertiary: #6A6A76;
+
+    /* Accent - coral-orange, brighter for dark backgrounds */
+    --accent: #E8845C;
+    --accent-hover: #EE9570;
+    --accent-muted: rgba(232, 132, 92, 0.10);
+    --accent-subtle: rgba(232, 132, 92, 0.18);
+
+    /* Sidebar */
+    --sidebar-bg: #131316;
+    --sidebar-active-bg: rgba(232, 132, 92, 0.08);
+    --sidebar-active-border: #E8845C;
+    --sidebar-hover-bg: #1C1C22;
+
+    /* Status */
+    --success: #5FA86A;
+    --success-muted: rgba(95, 168, 106, 0.10);
+    --warning: #D4A853;
+    --warning-hover: #C09A48;
+    --warning-muted: rgba(212, 168, 83, 0.10);
+    --error: #D44C3C;
+    --error-hover: #C04434;
+    --error-muted: rgba(212, 76, 60, 0.10);
+    --info: #6B8EB5;
+    --info-muted: rgba(107, 142, 181, 0.10);
+
+    /* Interactive */
+    --focus-ring: rgba(232, 132, 92, 0.4);
+    --overlay: rgba(5, 5, 5, 0.6);
+
+    /* Card */
+    --card-glow: rgba(232, 132, 92, 0.03);
+  }
+
+  * {
+    border-color: var(--border);
+  }
+
+  body {
+    @apply bg-surface-0 text-text-primary font-sans antialiased;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  }
+
+  /* Scrollbar styling */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 3px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--text-tertiary);
+  }
+
+  /* Selection */
+  ::selection {
+    background: var(--accent-subtle);
+    color: var(--text-primary);
+  }
+
+  /* Focus visible */
+  :focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   COMPONENT LAYER - Reusable component styles
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@layer components {
+  /* ─────────────────────────────────────────────────────────────────────
+     BUTTONS - Consistent sizing aligned to 8px grid
+     ───────────────────────────────────────────────────────────────────── */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 font-medium rounded-md
+           transition-colors duration-150 ease-out
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-sm {
+    @apply h-8 px-3 text-sm;  /* 32px height */
+  }
+
+  .btn-md {
+    @apply h-10 px-4 text-sm;  /* 40px height */
+  }
+
+  .btn-lg {
+    @apply h-12 px-6 text-base;  /* 48px height */
+  }
+
+  .btn-primary {
+    @apply bg-accent text-white hover:bg-accent-hover;
+  }
+
+  .btn-secondary {
+    @apply bg-surface-2 text-text-primary hover:bg-surface-3;
+  }
+
+  .btn-ghost {
+    @apply bg-transparent text-text-secondary hover:bg-surface-2 hover:text-text-primary;
+  }
+
+  .btn-danger {
+    @apply bg-error text-white hover:bg-error-hover;
+  }
+
+  .btn-icon {
+    @apply p-0 aspect-square;
+  }
+
+  /* ─────────────────────────────────────────────────────────────────────
+     BRAND TEXT - Geometric font for branding
+     ───────────────────────────────────────────────────────────────────── */
+  .brand-text {
+    font-family: 'Poppins', sans-serif;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+  }
+
+  /* ─────────────────────────────────────────────────────────────────────
+     INPUTS - Consistent sizing aligned to 8px grid
+     ───────────────────────────────────────────────────────────────────── */
+  .input {
+    @apply w-full rounded-md border border-border bg-surface-1 text-text-primary
+           placeholder:text-text-tertiary
+           focus:outline-none focus:border-accent
+           transition-colors duration-150;
+    &:focus {
+      box-shadow: 0 0 0 3px var(--accent-muted);
+    }
+  }
+
+  .input-sm {
+    @apply h-8 px-3 text-sm;  /* 32px height */
+  }
+
+  .input-md {
+    @apply h-10 px-3 text-sm;  /* 40px height */
+  }
+
+  .input-lg {
+    @apply h-12 px-4 text-base;  /* 48px height */
+  }
+
+  /* ─────────────────────────────────────────────────────────────────────
+     CARDS - Consistent padding and rounded corners
+     ───────────────────────────────────────────────────────────────────── */
+  .card {
+    @apply rounded-lg border border-border bg-surface-1;
+  }
+
+  .card-sm {
+    @apply p-4;  /* 16px */
+  }
+
+  .card-md {
+    @apply p-5;  /* 20px */
+  }
+
+  .card-lg {
+    @apply p-6;  /* 24px */
+  }
+
+  .card-interactive {
+    @apply transition-all duration-150 hover:shadow-card-hover hover:border-border-subtle cursor-pointer;
+  }
+
+  /* ─────────────────────────────────────────────────────────────────────
+     BADGES/CHIPS - Small labels and status indicators
+     ───────────────────────────────────────────────────────────────────── */
+  .badge {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded text-2xs font-medium;
+  }
+
+  .badge-accent {
+    @apply bg-accent-muted text-accent;
+  }
+
+  .badge-success {
+    @apply bg-success-muted text-success;
+  }
+
+  .badge-warning {
+    @apply bg-warning-muted text-warning;
+  }
+
+  .badge-error {
+    @apply bg-error-muted text-error;
+  }
+
+  .badge-info {
+    @apply bg-info-muted text-info;
+  }
+
+  .badge-neutral {
+    @apply bg-surface-2 text-text-secondary;
+  }
+
+  /* ─────────────────────────────────────────────────────────────────────
+     TABLE STYLES - Consistent cell padding and row heights
+     All table rows should be exactly 48px height (h-12) for uniformity
+     ───────────────────────────────────────────────────────────────────── */
+  .table-wrapper {
+    @apply rounded-lg border border-border overflow-hidden;
+  }
+
+  .table {
+    @apply w-full;
+  }
+
+  .table-header {
+    @apply h-10 px-4 text-left text-2xs font-medium uppercase tracking-wide text-text-tertiary bg-surface-2;
+  }
+
+  .table-cell {
+    @apply h-12 px-4 text-sm align-middle;
+  }
+
+  .table-row {
+    @apply border-b border-border bg-surface-1 transition-colors;
+  }
+
+  .table-row-interactive {
+    @apply cursor-pointer hover:bg-surface-2;
+  }
+
+  .table-row:last-child {
+    @apply border-b-0;
+  }
+
+  .table-empty {
+    @apply h-32 text-center text-sm text-text-tertiary;
+  }
+
+  /* ─────────────────────────────────────────────────────────────────────
+     SECTION/PAGE STRUCTURE
+     ───────────────────────────────────────────────────────────────────── */
+  .page-header {
+    @apply mb-6;
+  }
+
+  .page-title {
+    @apply text-xl font-semibold text-text-primary;
+  }
+
+  .page-subtitle {
+    @apply text-sm text-text-secondary mt-1;
+  }
+
+  .section {
+    @apply space-y-4;
+  }
+
+  .section-title {
+    @apply text-lg font-semibold text-text-primary;
+  }
+
+  /* ─────────────────────────────────────────────────────────────────────
+     ICON SIZING - Consistent icon sizes to pair with text
+     ───────────────────────────────────────────────────────────────────── */
+  .icon-xs { @apply w-3 h-3; }      /* 12px - with text-2xs */
+  .icon-sm { @apply w-4 h-4; }      /* 16px - with text-xs/sm */
+  .icon-md { @apply w-5 h-5; }      /* 20px - with text-base */
+  .icon-lg { @apply w-6 h-6; }      /* 24px - standalone or headers */
+  .icon-xl { @apply w-8 h-8; }      /* 32px - feature icons */
+
+  /* ─────────────────────────────────────────────────────────────────────
+     FORM LAYOUT
+     ───────────────────────────────────────────────────────────────────── */
+  .form-group {
+    @apply space-y-1.5;
+  }
+
+  .form-label {
+    @apply block text-sm font-medium text-text-primary;
+  }
+
+  .form-hint {
+    @apply text-xs text-text-tertiary;
+  }
+
+  .form-error {
+    @apply text-xs text-error;
+  }
+
+  /* ─────────────────────────────────────────────────────────────────────
+     UTILITY SHORTCUTS
+     ───────────────────────────────────────────────────────────────────── */
+  .text-primary { @apply text-text-primary; }
+  .text-secondary { @apply text-text-secondary; }
+  .text-tertiary { @apply text-text-tertiary; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   UTILITIES LAYER - Additional utility classes
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@layer utilities {
+  /* Truncate with ellipsis */
+  .truncate-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .truncate-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  /* Hide scrollbar but keep functionality */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Smooth scrolling */
+  .scroll-smooth {
+    scroll-behavior: smooth;
+  }
+}

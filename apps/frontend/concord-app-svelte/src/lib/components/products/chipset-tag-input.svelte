@@ -1,0 +1,76 @@
+<script lang="ts">
+  import { X, ChevronDown } from 'lucide-svelte';
+
+  interface Props {
+    selected: string[];
+    options: string[];
+    onchange: (values: string[]) => void;
+    placeholder?: string;
+  }
+
+  let { selected, options, onchange, placeholder = 'Select chipsets...' }: Props = $props();
+
+  let open = $state(false);
+  let inputRef = $state<HTMLDivElement | null>(null);
+
+  const available = $derived(options.filter((o) => !selected.includes(o)));
+
+  function add(value: string) {
+    if (!selected.includes(value)) {
+      onchange([...selected, value]);
+    }
+    open = false;
+  }
+
+  function remove(value: string) {
+    onchange(selected.filter((v) => v !== value));
+  }
+</script>
+
+<svelte:window onclick={(e) => {
+  if (inputRef && !inputRef.contains(e.target as Node)) {
+    open = false;
+  }
+}} />
+
+<div class="relative" bind:this={inputRef}>
+  <div
+    role="button"
+    tabindex="0"
+    onclick={() => (open = !open)}
+    onkeydown={(e) => e.key === 'Enter' && (open = !open)}
+    class="flex min-h-[38px] flex-wrap items-center gap-1 rounded-lg border border-border bg-surface-1 px-2 py-1.5 text-sm"
+  >
+    {#each selected as chip}
+      <span class="inline-flex items-center gap-1 rounded-full bg-accent-muted px-2 py-0.5 text-2xs font-medium text-accent">
+        {chip}
+        <button
+          type="button"
+          onclick={(e) => { e.stopPropagation(); remove(chip); }}
+          class="hover:text-error"
+          aria-label="Remove {chip}"
+        >
+          <X size={12} />
+        </button>
+      </span>
+    {/each}
+    {#if selected.length === 0}
+      <span class="text-text-tertiary">{placeholder}</span>
+    {/if}
+    <ChevronDown size={16} class="ml-auto text-text-tertiary" />
+  </div>
+
+  {#if open && available.length > 0}
+    <div class="absolute left-0 right-0 top-full z-20 mt-1 max-h-48 overflow-y-auto rounded-lg border border-border bg-surface-1 py-1 shadow-card">
+      {#each available as opt}
+        <button
+          type="button"
+          onclick={() => add(opt)}
+          class="w-full px-3 py-1.5 text-left text-sm text-text-primary hover:bg-surface-2"
+        >
+          {opt}
+        </button>
+      {/each}
+    </div>
+  {/if}
+</div>
