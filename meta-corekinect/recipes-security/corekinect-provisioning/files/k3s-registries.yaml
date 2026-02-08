@@ -1,0 +1,4 @@
+mirrors:
+  "containers.ad.corekinect.com":
+    endpoint:
+      - "https://containers.ad.corekinect.com"

@@ -1,0 +1,3 @@
+secrets/*.crt
+secrets/k3s-token
+secrets/k3s-server-url

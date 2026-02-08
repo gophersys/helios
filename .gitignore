@@ -1,7 +1,7 @@
 .repo
 build
 downloads
-layers/*
+torizon/layers/*
 !layers/meta-corekienct
 sstate-cache
 setup-environment
