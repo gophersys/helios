@@ -44,10 +44,22 @@ def _get_permissions_for_set(permission_set_id: str) -> list[str] | None:
 
 
 def require_auth(f):
-    """Verify JWT or API key and attach current_user to Flask g."""
+    """Verify JWT or API key and attach current_user to Flask g.
+    When AUTH_ENABLED is false, all requests get a default admin identity."""
 
     @wraps(f)
     def decorated(*args, **kwargs):
+        from config import env_config
+
+        if not env_config.AUTH_ENABLED:
+            g.current_user = {
+                "sub": "00000000-0000-0000-0000-000000000000",
+                "email": "admin@concord.local",
+                "name": "Admin (auth disabled)",
+                "permissionSetId": None,
+            }
+            return f(*args, **kwargs)
+
         auth_header = request.headers.get("Authorization")
         if not auth_header:
             return unauthorized("Missing authorization header")
@@ -107,6 +119,11 @@ def require_permissions(*permission_strings):
         @wraps(f)
         @require_auth
         def decorated(*args, **kwargs):
+            from config import env_config
+
+            if not env_config.AUTH_ENABLED:
+                return f(*args, **kwargs)
+
             user = getattr(g, "current_user", None)
             if not user:
                 return unauthorized("Unauthorized")

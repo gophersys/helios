@@ -15,7 +15,7 @@ from api.v2.router import register_v2_routes
 from config import env_config
 
 # Corekinect includes
-from corekinect.utils import EnvConfig, Logger
+from corekinect.utils import EnvConfig, Logger, print_banner
 
 # 3rd party includes
 from flask import Flask
@@ -89,7 +89,12 @@ if __name__ == "__main__":
         # Routes
         register_v2_routes(logger, server, socketio)
 
-        logger.info(f"Server initialized on port {env_config.SERVER_PORT}, in {env_config.ENVIRONMENT} environment")
+        # Print startup banner with build metadata
+        print_banner(
+            "concord-http-api",
+            logger=logger,
+            Port=str(env_config.SERVER_PORT),
+        )
 
         # Start the server
         socketio.run(

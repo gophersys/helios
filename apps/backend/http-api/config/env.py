@@ -27,11 +27,16 @@ class ProxyConfig(EnvConfig):
     # V1 Registry
     SUPPORTED_REGISTRIES: List[str]
 
-    # Auth (Google OAuth)
+    # Auth
+    AUTH_ENABLED: bool = True
     GOOGLE_CLIENT_ID: str = ""
     # WARNING: The default JWT secret is for development only.
     # In production, set JWT_SECRET_KEY to a strong, unique value.
     JWT_SECRET_KEY: str = "concord-dev-jwt-secret-change-in-production"
+
+    # Core Cloud auth server (email/password login)
+    AUTH_SERVER_URL: str = ""
+    AUTH_SERVER_API_KEY: str = ""
 
     # Core Cloud/Ops
     COREOPS_SERVER_URL: str

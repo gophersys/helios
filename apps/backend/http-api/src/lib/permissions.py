@@ -37,6 +37,18 @@ class Permissions:
     ADMIN_SYSTEM_VIEW = "Concord.Admin.System.View"
     ADMIN_SYSTEM_MANAGE = "Concord.Admin.System.Manage"
 
+    # Admin - Nodes
+    ADMIN_NODES_VIEW = "Concord.Admin.Nodes.View"
+    ADMIN_NODES_MANAGE = "Concord.Admin.Nodes.Manage"
+
+    # Admin - Fixtures
+    ADMIN_FIXTURES_VIEW = "Concord.Admin.Fixtures.View"
+    ADMIN_FIXTURES_MANAGE = "Concord.Admin.Fixtures.Manage"
+
+    # Admin - Deployments
+    ADMIN_DEPLOYMENTS_VIEW = "Concord.Admin.Deployments.View"
+    ADMIN_DEPLOYMENTS_MANAGE = "Concord.Admin.Deployments.Manage"
+
     @classmethod
     def all(cls) -> list[dict]:
         """Return all permissions as a list for the /permissions endpoint."""

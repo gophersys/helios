@@ -23,6 +23,7 @@ def pytest_configure(config):
         "LOG_LEVEL": "10",
         "LOG_PATH": "/tmp/concord-test.log",
         "SERVER_PORT": "9001",
+        "AUTH_ENABLED": "true",
         "CORS_ORIGINS": "http://localhost:4200",
         "DB_STORAGE_PATH": "/tmp/concord-test-storage",
         "DB_STORAGE_LIMIT_GB": "1",
@@ -40,6 +41,8 @@ def pytest_configure(config):
         "INFLUXDB_ORG": "test-org",
         "INFLUXDB_BUCKET_TELEMETRY": "test-telemetry",
         "INFLUXDB_BUCKET_METRICS": "test-metrics",
+        "AUTH_SERVER_URL": "",
+        "AUTH_SERVER_API_KEY": "",
     }
     for key, value in env_vars.items():
         os.environ.setdefault(key, value)

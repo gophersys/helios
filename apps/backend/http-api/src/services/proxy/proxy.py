@@ -163,8 +163,12 @@ class ProxyServer:
 
         self.logger.info(f"{len(self.clusters)} clusters are being managed by the server")
 
-        # Services we use
-        self.docker_client = docker.from_env()
+        # Services we use (Docker may not be available in K8s)
+        try:
+            self.docker_client = docker.from_env()
+        except docker.errors.DockerException:
+            self.logger.warning("Docker client not available — container management features disabled")
+            self.docker_client = None
 
         # Start server threads
         self.health_check_thread = threading.Thread(target=self._cluster_healthchecks_thread, daemon=True)
