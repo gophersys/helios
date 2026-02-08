@@ -67,9 +67,11 @@ enum LogLevel {
 }
 
 enum InventoryCategory {
-    SOM
-    CARRIER_BOARD
+    HARDWARE
+    MECHANICAL
+    CABLE
     ACCESSORY
+    OTHER
 }
 
 enum RevisionStatus {
