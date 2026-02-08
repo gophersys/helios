@@ -22,9 +22,9 @@ def test_list_components(authed_client, mock_db):
     mock_db.inventorycomponent.find_many.return_value = [
         make_obj(
             id="comp-1",
-            name="Sigma5 SOM",
-            description="Sigma5 system-on-module",
-            category="SOM",
+            name="Sigma5 Module",
+            description="Sigma5 hardware module",
+            category="HARDWARE",
             manufacturer="CoreKinect",
             partNumber="SK-SIG5-001",
             imageKey=None,
@@ -46,7 +46,7 @@ def test_list_components(authed_client, mock_db):
             id="comp-2",
             name="Alpha Carrier",
             description="Alpha carrier board",
-            category="CARRIER_BOARD",
+            category="MECHANICAL",
             manufacturer="CoreKinect",
             partNumber="CK-ALPHA-CB-001",
             imageKey=None,
@@ -73,9 +73,9 @@ def test_create_component(authed_client, mock_db):
 
     mock_db.inventorycomponent.create.return_value = make_obj(
         id="comp-new",
-        name="New SOM",
-        description="A new system-on-module",
-        category="SOM",
+        name="New Module",
+        description="A new hardware module",
+        category="HARDWARE",
         manufacturer="CoreKinect",
         partNumber="CK-NEW-001",
         imageKey=None,
@@ -90,7 +90,7 @@ def test_create_component(authed_client, mock_db):
             data=json.dumps({
                 "name": "New SOM",
                 "description": "A new system-on-module",
-                "category": "SOM",
+                "category": "HARDWARE",
                 "manufacturer": "CoreKinect",
                 "partNumber": "CK-NEW-001",
             }),
@@ -98,7 +98,7 @@ def test_create_component(authed_client, mock_db):
 
     assert response.status_code == 201
     data = json.loads(response.data)
-    assert data["data"]["name"] == "New SOM"
+    assert data["data"]["name"] == "New Module"
     assert data["data"]["partNumber"] == "CK-NEW-001"
 
 
@@ -106,9 +106,9 @@ def test_create_component_duplicate_name(authed_client, mock_db):
     """Test creating component with duplicate name returns 409."""
     mock_db.inventorycomponent.find_first.return_value = make_obj(
         id="existing-comp",
-        name="Existing SOM",
+        name="Existing Module",
         description="",
-        category="SOM",
+        category="HARDWARE",
         manufacturer="CoreKinect",
         partNumber="CK-PART-001",
         imageKey=None,
@@ -120,7 +120,7 @@ def test_create_component_duplicate_name(authed_client, mock_db):
         "/v2/inventory/components",
         data=json.dumps({
             "name": "Existing SOM",
-            "category": "SOM",
+            "category": "HARDWARE",
             "manufacturer": "CoreKinect",
             "partNumber": "CK-PART-002",
         }),
@@ -135,9 +135,9 @@ def test_get_component(authed_client, mock_db):
     """Test getting a single component."""
     mock_db.inventorycomponent.find_unique.return_value = make_obj(
         id="comp-123",
-        name="Test SOM",
-        description="A test system-on-module",
-        category="SOM",
+        name="Test Module",
+        description="A test hardware module",
+        category="HARDWARE",
         manufacturer="CoreKinect",
         partNumber="CK-TEST-123",
         imageKey=None,
@@ -170,7 +170,7 @@ def test_get_component(authed_client, mock_db):
 
     data = json.loads(response.data)
     assert data["data"]["id"] == "comp-123"
-    assert data["data"]["name"] == "Test SOM"
+    assert data["data"]["name"] == "Test Module"
     assert "revisions" in data["data"]
     assert len(data["data"]["revisions"]) == 2
 
@@ -181,7 +181,7 @@ def test_update_component(authed_client, mock_db):
         id="comp-update",
         name="Old Name",
         description="Old description",
-        category="SOM",
+        category="HARDWARE",
         manufacturer="Old Mfg",
         partNumber="OLD-123",
         imageKey=None,
@@ -194,7 +194,7 @@ def test_update_component(authed_client, mock_db):
         id="comp-update",
         name="Old Name",
         description="New description",
-        category="CARRIER_BOARD",
+        category="MECHANICAL",
         manufacturer="New Mfg",
         partNumber="OLD-123",
         imageKey=None,
@@ -208,7 +208,7 @@ def test_update_component(authed_client, mock_db):
             "/v2/inventory/components/comp-update",
             data=json.dumps({
                 "description": "New description",
-                "category": "CARRIER_BOARD",
+                "category": "MECHANICAL",
                 "manufacturer": "New Mfg",
             }),
         )
@@ -216,7 +216,7 @@ def test_update_component(authed_client, mock_db):
     assert response.status_code == 200
     data = json.loads(response.data)
     assert data["data"]["description"] == "New description"
-    assert data["data"]["category"] == "CARRIER_BOARD"
+    assert data["data"]["category"] == "MECHANICAL"
 
 
 def test_delete_component(authed_client, mock_db):
@@ -225,7 +225,7 @@ def test_delete_component(authed_client, mock_db):
         id="comp-delete",
         name="Component to Delete",
         description="",
-        category="SOM",
+        category="HARDWARE",
         manufacturer="CoreKinect",
         partNumber="CK-DEL-123",
         imageKey="inventory/components/comp-delete/hero.png",
@@ -267,7 +267,7 @@ def test_delete_component_with_bom_refs(authed_client, mock_db):
         id="comp-has-refs",
         name="Component with Refs",
         description="",
-        category="SOM",
+        category="HARDWARE",
         manufacturer="CoreKinect",
         partNumber="CK-REF-123",
         imageKey=None,

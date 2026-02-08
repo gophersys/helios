@@ -7,7 +7,7 @@ from flask_socketio import SocketIO
 
 # Auth handlers
 from .auth.api_keys import create_api_key, delete_api_key, list_api_keys
-from .auth.login import login
+from .auth.login import login, login_corecloud
 from .auth.me import me
 from .auth.permission_sets import (
     create_permission_set,
@@ -105,11 +105,17 @@ from .products.firmware_builds import (
 from .admin.history import get_history_entry, list_history
 
 # System Monitor handlers
+from .system.info import get_system_info
 from .system.cluster import get_cluster, get_namespaces
-from .system.nodes import list_nodes, get_node
+from .system.nodes import list_nodes as list_system_nodes, get_node as get_system_node
 from .system.events import get_events
 from .system.pods import list_pods, get_pod, delete_pod
-from .system.deployments import list_deployments, get_deployment, scale_deployment, restart_deployment
+from .system.deployments import (
+    list_deployments as list_system_deployments,
+    get_deployment as get_system_deployment,
+    scale_deployment,
+    restart_deployment as restart_system_deployment,
+)
 from .system.services_api import list_services, get_service
 from .system.jobs import list_jobs, get_job, delete_job
 from .system.config import list_configmaps, get_configmap, list_secrets, get_secret
@@ -117,6 +123,44 @@ from .system.logs import register_log_handlers
 from .system.resources import get_resource_yaml, apply_resource_yaml, delete_resource
 from .system.rbac import list_roles, list_cluster_roles, list_role_bindings, list_cluster_role_bindings, list_service_accounts
 from .system.exec import register_exec_handlers
+
+# Node management handlers
+from .nodes.nodes import (
+    list_nodes as list_managed_nodes,
+    create_node,
+    sync_nodes_from_k8s,
+    get_node as get_managed_node,
+    update_node,
+    delete_node,
+    check_node_health,
+    register_node,
+)
+
+# Fixture management handlers
+from .fixtures.fixtures import (
+    dashboard_overview,
+    list_fixtures,
+    create_fixture as create_managed_fixture,
+    get_fixture,
+    update_fixture,
+    delete_fixture,
+    create_slot,
+    update_slot,
+    delete_slot,
+    assign_slot_node,
+)
+
+# Deployment management handlers
+from .deployments.deployments import (
+    create_deployment,
+    delete_deployment,
+    deploy_fixture,
+    get_deployment,
+    get_deployment_status,
+    list_deployments as list_managed_deployments,
+    restart_deployment as restart_managed_deployment,
+    stop_deployment,
+)
 
 # Docs
 from .docs import openapi_spec, swagger_ui
@@ -161,6 +205,7 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
 
     # Auth
     v2.add_url_rule("/auth/login",           view_func=login,          methods=["POST"])
+    v2.add_url_rule("/auth/login/corecloud", view_func=login_corecloud, methods=["POST"])
     v2.add_url_rule("/auth/me",              view_func=me,             methods=["GET"])
     v2.add_url_rule("/auth/users",           view_func=users_list,     methods=["GET"])
     v2.add_url_rule("/auth/users",           view_func=users_create,   methods=["POST"])
@@ -260,11 +305,48 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     # Validation
     v2.add_url_rule("/validation/tests/run", view_func=run_tests,       methods=["POST"])
 
+    # Dashboard
+    v2.add_url_rule("/dashboard/overview",                           endpoint="dashboard_overview",          view_func=dashboard_overview,         methods=["GET"])
+
+    # Deployments (managed MTIB deployments)
+    v2.add_url_rule("/deployments",                                 endpoint="list_managed_deployments",    view_func=list_managed_deployments,   methods=["GET"])
+    v2.add_url_rule("/deployments",                                 endpoint="create_managed_deployment",   view_func=create_deployment,          methods=["POST"])
+    v2.add_url_rule("/deployments/<deployment_id>",                 endpoint="get_managed_deployment",      view_func=get_deployment,             methods=["GET"])
+    v2.add_url_rule("/deployments/<deployment_id>",                 endpoint="delete_managed_deployment",   view_func=delete_deployment,          methods=["DELETE"])
+    v2.add_url_rule("/deployments/<deployment_id>/deploy",          endpoint="deploy_managed_fixture",      view_func=deploy_fixture,             methods=["POST"])
+    v2.add_url_rule("/deployments/<deployment_id>/stop",            endpoint="stop_managed_deployment",     view_func=stop_deployment,            methods=["POST"])
+    v2.add_url_rule("/deployments/<deployment_id>/restart",         endpoint="restart_managed_deployment",  view_func=restart_managed_deployment, methods=["POST"])
+    v2.add_url_rule("/deployments/<deployment_id>/status",          endpoint="get_managed_deployment_status", view_func=get_deployment_status,    methods=["GET"])
+
+    # Nodes (managed MTIB nodes)
+    v2.add_url_rule("/nodes",                                            endpoint="list_managed_nodes",      view_func=list_managed_nodes,   methods=["GET"])
+    v2.add_url_rule("/nodes",                                            endpoint="create_managed_node",     view_func=create_node,          methods=["POST"])
+    v2.add_url_rule("/nodes/sync",                                       endpoint="sync_nodes_from_k8s",     view_func=sync_nodes_from_k8s,  methods=["POST"])
+    v2.add_url_rule("/nodes/<node_id>",                                  endpoint="get_managed_node",        view_func=get_managed_node,     methods=["GET"])
+    v2.add_url_rule("/nodes/<node_id>",                                  endpoint="update_managed_node",     view_func=update_node,          methods=["PUT"])
+    v2.add_url_rule("/nodes/<node_id>",                                  endpoint="delete_managed_node",     view_func=delete_node,          methods=["DELETE"])
+    v2.add_url_rule("/nodes/<node_id>/health",                           endpoint="check_managed_node_health", view_func=check_node_health,  methods=["POST"])
+    v2.add_url_rule("/nodes/<node_id>/register",                         endpoint="register_managed_node",   view_func=register_node,        methods=["POST"])
+
+    # Fixtures (managed fixtures)
+    v2.add_url_rule("/fixtures",                                         endpoint="list_fixtures",           view_func=list_fixtures,            methods=["GET"])
+    v2.add_url_rule("/fixtures",                                         endpoint="create_fixture",          view_func=create_managed_fixture,   methods=["POST"])
+    v2.add_url_rule("/fixtures/<fixture_id>",                            endpoint="get_fixture",             view_func=get_fixture,              methods=["GET"])
+    v2.add_url_rule("/fixtures/<fixture_id>",                            endpoint="update_fixture",          view_func=update_fixture,           methods=["PUT"])
+    v2.add_url_rule("/fixtures/<fixture_id>",                            endpoint="delete_fixture",          view_func=delete_fixture,           methods=["DELETE"])
+    v2.add_url_rule("/fixtures/<fixture_id>/slots",                      endpoint="create_slot",             view_func=create_slot,              methods=["POST"])
+    v2.add_url_rule("/fixtures/<fixture_id>/slots/<slot_id>",            endpoint="update_slot",             view_func=update_slot,              methods=["PUT"])
+    v2.add_url_rule("/fixtures/<fixture_id>/slots/<slot_id>",            endpoint="delete_slot",             view_func=delete_slot,              methods=["DELETE"])
+    v2.add_url_rule("/fixtures/<fixture_id>/slots/<slot_id>/assign",     endpoint="assign_slot_node",        view_func=assign_slot_node,         methods=["POST"])
+
+    # System: Build info (no auth required — useful for debugging)
+    v2.add_url_rule("/system/info",                 view_func=get_system_info, methods=["GET"])
+
     # System Monitor: Cluster
     v2.add_url_rule("/system/cluster",              view_func=get_cluster,     methods=["GET"])
     v2.add_url_rule("/system/namespaces",            view_func=get_namespaces,  methods=["GET"])
-    v2.add_url_rule("/system/nodes",                 view_func=list_nodes,      methods=["GET"])
-    v2.add_url_rule("/system/nodes/<node_name>",     view_func=get_node,        methods=["GET"])
+    v2.add_url_rule("/system/nodes",                 view_func=list_system_nodes,      methods=["GET"])
+    v2.add_url_rule("/system/nodes/<node_name>",     view_func=get_system_node,        methods=["GET"])
     v2.add_url_rule("/system/events",                view_func=get_events,      methods=["GET"])
 
     # System Monitor: Resources
@@ -272,10 +354,10 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     v2.add_url_rule("/system/pods/<namespace>/<name>",                   view_func=get_pod,            methods=["GET"])
     v2.add_url_rule("/system/pods/<namespace>/<name>",                   view_func=delete_pod,         methods=["DELETE"])
 
-    v2.add_url_rule("/system/deployments",                               view_func=list_deployments,   methods=["GET"])
-    v2.add_url_rule("/system/deployments/<namespace>/<name>",            view_func=get_deployment,     methods=["GET"])
+    v2.add_url_rule("/system/deployments",                               view_func=list_system_deployments,   methods=["GET"])
+    v2.add_url_rule("/system/deployments/<namespace>/<name>",            view_func=get_system_deployment,     methods=["GET"])
     v2.add_url_rule("/system/deployments/<namespace>/<name>/scale",      view_func=scale_deployment,   methods=["POST"])
-    v2.add_url_rule("/system/deployments/<namespace>/<name>/restart",    view_func=restart_deployment, methods=["POST"])
+    v2.add_url_rule("/system/deployments/<namespace>/<name>/restart",    view_func=restart_system_deployment, methods=["POST"])
 
     v2.add_url_rule("/system/services",                                  view_func=list_services,      methods=["GET"])
     v2.add_url_rule("/system/services/<namespace>/<name>",               view_func=get_service,        methods=["GET"])

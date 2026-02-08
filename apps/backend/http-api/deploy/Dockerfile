@@ -106,7 +106,7 @@ RUN apt-get update && \
 # By installing these first you save a lot of time when making changes to the source code
 # and rebuilding the application
 WORKDIR /app
-COPY ./apps/cloud/http-api/setup.py setup.py
+COPY ./apps/backend/http-api/setup.py setup.py
 RUN pip3 install -e . && \
     pip3 install prisma==0.15.0 && \
     pip3 cache purge
@@ -140,13 +140,26 @@ ENV PYTHONPATH="/libs:/libs/python/"
 # Set Prisma binary cache directory
 ENV PRISMA_BINARY_CACHE_DIR="/root/.cache/prisma-python/binaries"
 
-# Copy the app itself
-COPY ./apps/cloud/http-api/assets assets
-COPY ./apps/cloud/http-api/config config
-COPY ./apps/cloud/http-api/src src
+# Build metadata (injected by ctl.sh / Nx containerize)
+ARG APP_VERSION=0.0.0
+ARG GIT_COMMIT=unknown
+ARG GIT_BRANCH=unknown
+ARG GIT_DIRTY=false
+ARG BUILD_TIME=unknown
+ARG BUILD_HOST=unknown
+ARG ENVIRONMENT=development
+ENV APP_VERSION=${APP_VERSION}
+ENV GIT_COMMIT=${GIT_COMMIT}
+ENV GIT_BRANCH=${GIT_BRANCH}
+ENV GIT_DIRTY=${GIT_DIRTY}
+ENV BUILD_TIME=${BUILD_TIME}
+ENV BUILD_HOST=${BUILD_HOST}
+ENV ENVIRONMENT=${ENVIRONMENT}
 
-# Copy the kubernetes config for now
-COPY ./apps/cloud/http-api/deploy/kube-config /root/.kube/config
+# Copy the app itself
+COPY ./apps/backend/http-api/assets assets
+COPY ./apps/backend/http-api/config config
+COPY ./apps/backend/http-api/src src
 
 # Keep the container running
 CMD ["python3", "src/main.py"]

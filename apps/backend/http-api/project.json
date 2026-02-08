@@ -3,6 +3,7 @@
   "$schema": "../../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "apps/backend/http-api",
   "projectType": "application",
+  "tags": ["scope:backend", "type:app"],
   "targets": {
     "build": {
       "executor": "nx:run-commands",
@@ -22,24 +23,6 @@
         }
       }
     },
-    "push": {
-      "executor": "nx:run-commands",
-      "dependsOn": [
-        "build"
-      ],
-      "options": {
-        "cwd": "{workspaceRoot}"
-      },
-      "defaultConfiguration": "staging",
-      "configurations": {
-        "staging": {
-          "command": "docker push containers.ad.corekinect.com/concord-http-api:latest"
-        },
-        "production": {
-          "command": "docker push containers.ad.corekinect.com/concord-http-api:latest"
-        }
-      }
-    },
     "containerize": {
       "executor": "@nx-tools/nx-container:build",
       "defaultConfiguration": "development",
@@ -48,66 +31,95 @@
         "cwd": "{workspaceRoot}",
         "file": "apps/backend/http-api/deploy/Dockerfile",
         "push": false,
-        "load": true
+        "load": true,
+        "build-args": [
+          "APP_VERSION",
+          "ENVIRONMENT",
+          "GIT_COMMIT",
+          "GIT_BRANCH",
+          "GIT_DIRTY",
+          "BUILD_TIME",
+          "BUILD_HOST"
+        ]
       },
       "configurations": {
         "development": {
-          "tags": [
-            "concord-http-api:development"
-          ],
+          "tags": ["concord/http-api:development"],
           "platforms": []
         },
         "staging": {
           "tags": [
+            "concord/http-api:staging",
             "containers.ad.corekinect.com/concord-http-api:staging"
           ]
         },
         "production": {
           "tags": [
-            "containers.ad.corekinect.com/concord-http-api:latest"
+            "concord/http-api:production",
+            "containers.ad.corekinect.com/concord-http-api:production"
           ],
-          "platforms": [
-            "linux/amd64"
-          ]
+          "platforms": ["linux/amd64"]
         }
       }
     },
-    "setup": {
+    "push": {
       "executor": "nx:run-commands",
-      "cwd": "{projectRoot}",
+      "dependsOn": ["build"],
       "options": {
-        "cwd": "{projectRoot}",
-        "commands": [
-          {
-            "command": "python3 -m venv .venv"
-          },
-          {
-            "command": "nx create protocols"
-          },
-          {
-            "command": "nx generate-client database"
-          },
-          {
-            "command": "bash -c 'source .venv/bin/activate && pip install -e .'"
-          },
-          {
-            "command": "cp -n .env.example .env"
-          }
-        ],
-        "parallel": false
+        "cwd": "{workspaceRoot}"
+      },
+      "defaultConfiguration": "staging",
+      "configurations": {
+        "staging": {
+          "command": "docker push containers.ad.corekinect.com/concord-http-api:staging"
+        },
+        "production": {
+          "command": "docker push containers.ad.corekinect.com/concord-http-api:production"
+        }
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/backend/http-api",
+        "command": "PYTHONPATH=src:$(pwd)/../../../libs/python:$(pwd)/../../../libs:. pytest tests/ -v"
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/backend/http-api",
+        "command": "python3 -c \"import py_compile,glob;[py_compile.compile(f,doraise=True) for f in glob.glob('src/**/*.py',recursive=True)]\""
       }
     },
     "serve": {
       "executor": "nx:run-commands",
-      "cwd": "{projectRoot}",
       "options": {
-        "cwd": "{projectRoot}",
-        "commands": [
-          {
-            "command": "bash -c 'source .venv/bin/activate && source .env && python3 src/main.py'"
-          }
-        ],
-        "parallel": false
+        "cwd": "apps/backend/http-api",
+        "command": "PYTHONPATH=src:$(pwd)/../../../libs/python:$(pwd)/../../../libs:. python3 -m src.main"
+      }
+    },
+    "deploy": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["build"],
+      "defaultConfiguration": "staging",
+      "options": {
+        "cwd": "{workspaceRoot}"
+      },
+      "configurations": {
+        "staging": {
+          "command": "./deploy/ctl.sh staging deploy"
+        },
+        "production": {
+          "command": "./deploy/ctl.sh production deploy"
+        }
+      }
+    },
+    "db:push": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{workspaceRoot}",
+        "command": "npx prisma db push --schema=prisma/schema.prisma --skip-generate"
       }
     }
   }

@@ -125,7 +125,7 @@ def _build_spec() -> APISpec:
             "id": {"type": "string"},
             "name": {"type": "string"},
             "description": {"type": "string", "nullable": True},
-            "category": {"type": "string", "enum": ["SOM", "CARRIER_BOARD", "ACCESSORY"]},
+            "category": {"type": "string", "enum": ["HARDWARE", "MECHANICAL", "CABLE", "ACCESSORY", "OTHER"]},
             "manufacturer": {"type": "string"},
             "partNumber": {"type": "string"},
             "imageKey": {"type": "string", "nullable": True},
@@ -355,6 +355,99 @@ def _build_spec() -> APISpec:
             }},
         },
     })
+    spec.components.schema("ConcordNode", {
+        "type": "object",
+        "properties": {
+            "id": {"type": "string"},
+            "name": {"type": "string"},
+            "hostname": {"type": "string"},
+            "type": {"type": "string", "enum": ["MANUFACTURING", "VALIDATION"]},
+            "status": {"type": "string", "enum": ["ONLINE", "OFFLINE", "MAINTENANCE", "ERROR"]},
+            "ipAddress": {"type": "string", "nullable": True},
+            "hardwareRevision": {"type": "string", "nullable": True},
+            "metadata": {"type": "object", "nullable": True},
+            "fixtureSlot": {"nullable": True, "type": "object", "properties": {
+                "id": {"type": "string"}, "fixtureId": {"type": "string"},
+                "slotIndex": {"type": "integer"}, "label": {"type": "string", "nullable": True},
+                "fixtureName": {"type": "string"},
+            }},
+            "createdAt": {"type": "string", "format": "date-time"},
+            "updatedAt": {"type": "string", "format": "date-time"},
+        },
+    })
+    spec.components.schema("FixtureSlot", {
+        "type": "object",
+        "properties": {
+            "id": {"type": "string"},
+            "fixtureId": {"type": "string"},
+            "slotIndex": {"type": "integer"},
+            "label": {"type": "string", "nullable": True},
+            "nodeId": {"type": "string", "nullable": True},
+            "active": {"type": "boolean"},
+            "node": {"nullable": True, "type": "object", "properties": {
+                "id": {"type": "string"}, "name": {"type": "string"},
+                "hostname": {"type": "string"}, "type": {"type": "string"}, "status": {"type": "string"},
+            }},
+            "createdAt": {"type": "string", "format": "date-time"},
+            "updatedAt": {"type": "string", "format": "date-time"},
+        },
+    })
+    spec.components.schema("Fixture", {
+        "type": "object",
+        "properties": {
+            "id": {"type": "string"},
+            "name": {"type": "string"},
+            "productId": {"type": "string"},
+            "type": {"type": "string", "enum": ["MANUFACTURING", "VALIDATION"]},
+            "description": {"type": "string", "nullable": True},
+            "active": {"type": "boolean"},
+            "metadata": {"type": "object", "nullable": True},
+            "slotCount": {"type": "integer"},
+            "productName": {"type": "string"},
+            "slots": {"type": "array", "items": {"$ref": "#/components/schemas/FixtureSlot"}},
+            "createdAt": {"type": "string", "format": "date-time"},
+            "updatedAt": {"type": "string", "format": "date-time"},
+        },
+    })
+    spec.components.schema("ConcordDeployment", {
+        "type": "object",
+        "properties": {
+            "id": {"type": "string"},
+            "name": {"type": "string"},
+            "productId": {"type": "string", "nullable": True},
+            "fixtureId": {"type": "string", "nullable": True},
+            "status": {"type": "string", "enum": ["PENDING", "RUNNING", "STOPPED", "FAILED"]},
+            "config": {"type": "object", "nullable": True},
+            "version": {"type": "string", "nullable": True},
+            "fixtureName": {"type": "string"},
+            "productName": {"type": "string"},
+            "createdBy": {"nullable": True, "type": "object", "properties": {
+                "id": {"type": "string"}, "name": {"type": "string"},
+            }},
+            "createdAt": {"type": "string", "format": "date-time"},
+            "updatedAt": {"type": "string", "format": "date-time"},
+        },
+    })
+    spec.components.schema("DashboardFixture", {
+        "type": "object",
+        "properties": {
+            "id": {"type": "string"},
+            "name": {"type": "string"},
+            "type": {"type": "string", "enum": ["MANUFACTURING", "VALIDATION"]},
+            "active": {"type": "boolean"},
+            "productName": {"type": "string", "nullable": True},
+            "productId": {"type": "string"},
+            "slotCount": {"type": "integer"},
+            "assignedCount": {"type": "integer"},
+            "nodesOnline": {"type": "integer"},
+            "nodesOffline": {"type": "integer"},
+            "nodesError": {"type": "integer"},
+            "health": {"type": "string", "enum": ["HEALTHY", "DEGRADED", "ERROR", "UNASSIGNED", "EMPTY", "UNKNOWN"]},
+            "hasActiveDeployment": {"type": "boolean"},
+            "activeDeploymentStatus": {"type": "string", "nullable": True},
+            "updatedAt": {"type": "string", "format": "date-time"},
+        },
+    })
 
     # ── Reusable responses ──────────────────────────────────────
     def _err_resp(desc):
@@ -407,7 +500,9 @@ def _build_spec() -> APISpec:
         "Auth", "Users", "Permission Sets", "API Keys", "Permissions",
         "Inventory Components", "Inventory Assemblies", "Inventory Image",
         "Products", "Board Revisions", "Firmware Applications", "Firmware Builds",
-        "Codebases", "Releases", "Artifacts", "System", "MTIB", "Admin", "Validation", "Health",
+        "Codebases", "Releases", "Artifacts", "System", "MTIB", "Admin",
+        "Nodes", "Fixtures", "Fixture Slots", "Deployments",
+        "Validation", "Health",
     ]:
         spec.tag({"name": tag})
 
@@ -565,7 +660,7 @@ def _build_spec() -> APISpec:
             "requestBody": {"required": True, "content": {"application/json": {"schema": {
                 "type": "object", "required": ["name", "category", "manufacturer", "partNumber"],
                 "properties": {
-                    "name": {"type": "string"}, "category": {"type": "string", "enum": ["SOM", "CARRIER_BOARD", "ACCESSORY"]},
+                    "name": {"type": "string"}, "category": {"type": "string", "enum": ["HARDWARE", "MECHANICAL", "CABLE", "ACCESSORY", "OTHER"]},
                     "manufacturer": {"type": "string"}, "partNumber": {"type": "string"}, "description": {"type": "string"},
                 },
             }}}},
@@ -585,7 +680,7 @@ def _build_spec() -> APISpec:
             "tags": ["Inventory Components"], "summary": "Update a component", "security": _auth_security,
             "requestBody": {"required": True, "content": {"application/json": {"schema": {
                 "type": "object", "properties": {
-                    "name": {"type": "string"}, "category": {"type": "string", "enum": ["SOM", "CARRIER_BOARD", "ACCESSORY"]},
+                    "name": {"type": "string"}, "category": {"type": "string", "enum": ["HARDWARE", "MECHANICAL", "CABLE", "ACCESSORY", "OTHER"]},
                     "manufacturer": {"type": "string"}, "partNumber": {"type": "string"}, "description": {"type": "string"},
                 },
             }}}},
@@ -1544,6 +1639,271 @@ def _build_spec() -> APISpec:
         get={
             "tags": ["Admin"], "summary": "Get a single audit log entry", "security": _auth_security,
             "responses": {"200": _ok("AuditLogEntry"), "404": _404},
+        },
+    )
+
+    # ── Nodes ──────────────────────────────────────────────────
+    path("/nodes",
+        get={
+            "tags": ["Nodes"], "summary": "List registered nodes", "security": _auth_security,
+            "parameters": _pagination_params + [
+                {"name": "type", "in": "query", "schema": {"type": "string", "enum": ["MANUFACTURING", "VALIDATION"]}},
+            ],
+            "responses": {"200": _paginated("ConcordNode"), "401": _401, "403": _403},
+        },
+        post={
+            "tags": ["Nodes"], "summary": "Create a node", "security": _auth_security,
+            "requestBody": {"required": True, "content": {"application/json": {"schema": {
+                "type": "object", "required": ["name", "hostname", "type"],
+                "properties": {
+                    "name": {"type": "string"}, "hostname": {"type": "string"},
+                    "type": {"type": "string", "enum": ["MANUFACTURING", "VALIDATION"]},
+                    "ipAddress": {"type": "string"}, "hardwareRevision": {"type": "string"},
+                    "metadata": {"type": "object"},
+                },
+            }}}},
+            "responses": {"201": _ok("ConcordNode"), "400": _400, "409": _409},
+        },
+    )
+    path("/nodes/sync", post={
+        "tags": ["Nodes"], "summary": "Sync nodes from K8s cluster", "security": _auth_security,
+        "responses": {"200": _ok({"type": "object", "properties": {
+            "registered": {"type": "array", "items": {"type": "object"}},
+            "discovered": {"type": "array", "items": {"type": "object", "properties": {
+                "hostname": {"type": "string"}, "ip": {"type": "string"},
+                "arch": {"type": "string"}, "labels": {"type": "object"},
+            }}},
+            "offline": {"type": "array", "items": {"type": "object"}},
+        }}), "401": _401, "403": _403},
+    })
+    path("/nodes/{node_id}",
+        parameters=[{"name": "node_id", "in": "path", "required": True, "schema": {"type": "string"}}],
+        get={
+            "tags": ["Nodes"], "summary": "Get a node", "security": _auth_security,
+            "responses": {"200": _ok("ConcordNode"), "404": _404},
+        },
+        put={
+            "tags": ["Nodes"], "summary": "Update a node", "security": _auth_security,
+            "requestBody": {"required": True, "content": {"application/json": {"schema": {
+                "type": "object", "properties": {
+                    "name": {"type": "string"},
+                    "type": {"type": "string", "enum": ["MANUFACTURING", "VALIDATION"]},
+                    "status": {"type": "string", "enum": ["ONLINE", "OFFLINE", "MAINTENANCE", "ERROR"]},
+                    "ipAddress": {"type": "string", "nullable": True},
+                    "hardwareRevision": {"type": "string", "nullable": True},
+                    "metadata": {"type": "object", "nullable": True},
+                },
+            }}}},
+            "responses": {"200": _ok("ConcordNode"), "400": _400, "404": _404},
+        },
+        delete={
+            "tags": ["Nodes"], "summary": "Delete a node", "security": _auth_security,
+            "responses": {"200": _deleted_resp, "404": _404, "409": _409},
+        },
+    )
+    path("/nodes/{node_id}/health",
+        parameters=[{"name": "node_id", "in": "path", "required": True, "schema": {"type": "string"}}],
+        post={
+            "tags": ["Nodes"], "summary": "Check node health via gRPC", "security": _auth_security,
+            "responses": {"200": _ok({"type": "object", "properties": {
+                "nodeId": {"type": "string"}, "healthy": {"type": "boolean"},
+                "status": {"type": "string"}, "details": {"type": "object"},
+            }}), "404": _404},
+        },
+    )
+    path("/nodes/{node_id}/register",
+        parameters=[{"name": "node_id", "in": "path", "required": True, "schema": {"type": "string"}}],
+        post={
+            "tags": ["Nodes"], "summary": "Register a discovered node (apply K8s labels)", "security": _auth_security,
+            "requestBody": {"required": True, "content": {"application/json": {"schema": {
+                "type": "object", "required": ["hostname", "type"],
+                "properties": {
+                    "hostname": {"type": "string"},
+                    "type": {"type": "string", "enum": ["MANUFACTURING", "VALIDATION"]},
+                    "name": {"type": "string"}, "ip": {"type": "string"},
+                },
+            }}}},
+            "responses": {"201": _ok("ConcordNode"), "400": _400, "409": _409},
+        },
+    )
+
+    # ── Fixtures ───────────────────────────────────────────────
+    path("/fixtures",
+        get={
+            "tags": ["Fixtures"], "summary": "List fixtures", "security": _auth_security,
+            "parameters": _pagination_params + [
+                {"name": "type", "in": "query", "schema": {"type": "string", "enum": ["MANUFACTURING", "VALIDATION"]}},
+                {"name": "productId", "in": "query", "schema": {"type": "string"}},
+            ],
+            "responses": {"200": _paginated("Fixture"), "401": _401, "403": _403},
+        },
+        post={
+            "tags": ["Fixtures"], "summary": "Create a fixture", "security": _auth_security,
+            "requestBody": {"required": True, "content": {"application/json": {"schema": {
+                "type": "object", "required": ["name", "productId", "type"],
+                "properties": {
+                    "name": {"type": "string"}, "productId": {"type": "string"},
+                    "type": {"type": "string", "enum": ["MANUFACTURING", "VALIDATION"]},
+                    "description": {"type": "string"}, "metadata": {"type": "object"},
+                    "slots": {"type": "array", "items": {"type": "object", "properties": {
+                        "slotIndex": {"type": "integer"}, "label": {"type": "string"},
+                    }}},
+                },
+            }}}},
+            "responses": {"201": _ok("Fixture"), "400": _400, "404": _404, "409": _409},
+        },
+    )
+    path("/fixtures/{fixture_id}",
+        parameters=[{"name": "fixture_id", "in": "path", "required": True, "schema": {"type": "string"}}],
+        get={
+            "tags": ["Fixtures"], "summary": "Get a fixture with slots", "security": _auth_security,
+            "responses": {"200": _ok("Fixture"), "404": _404},
+        },
+        put={
+            "tags": ["Fixtures"], "summary": "Update a fixture", "security": _auth_security,
+            "requestBody": {"required": True, "content": {"application/json": {"schema": {
+                "type": "object", "properties": {
+                    "name": {"type": "string"}, "description": {"type": "string", "nullable": True},
+                    "active": {"type": "boolean"}, "metadata": {"type": "object", "nullable": True},
+                },
+            }}}},
+            "responses": {"200": _ok("Fixture"), "400": _400, "404": _404, "409": _409},
+        },
+        delete={
+            "tags": ["Fixtures"], "summary": "Delete a fixture", "security": _auth_security,
+            "responses": {"200": _deleted_resp, "404": _404, "409": _409},
+        },
+    )
+    path("/fixtures/{fixture_id}/slots",
+        parameters=[{"name": "fixture_id", "in": "path", "required": True, "schema": {"type": "string"}}],
+        post={
+            "tags": ["Fixture Slots"], "summary": "Create a slot", "security": _auth_security,
+            "requestBody": {"required": True, "content": {"application/json": {"schema": {
+                "type": "object", "required": ["slotIndex"],
+                "properties": {
+                    "slotIndex": {"type": "integer", "minimum": 0},
+                    "label": {"type": "string"},
+                },
+            }}}},
+            "responses": {"201": _ok("FixtureSlot"), "400": _400, "404": _404, "409": _409},
+        },
+    )
+    path("/fixtures/{fixture_id}/slots/{slot_id}",
+        parameters=[
+            {"name": "fixture_id", "in": "path", "required": True, "schema": {"type": "string"}},
+            {"name": "slot_id", "in": "path", "required": True, "schema": {"type": "string"}},
+        ],
+        put={
+            "tags": ["Fixture Slots"], "summary": "Update a slot", "security": _auth_security,
+            "requestBody": {"required": True, "content": {"application/json": {"schema": {
+                "type": "object", "properties": {
+                    "label": {"type": "string", "nullable": True},
+                    "active": {"type": "boolean"},
+                },
+            }}}},
+            "responses": {"200": _ok("FixtureSlot"), "400": _400, "404": _404},
+        },
+        delete={
+            "tags": ["Fixture Slots"], "summary": "Delete a slot", "security": _auth_security,
+            "responses": {"200": _deleted_resp, "404": _404, "409": _409},
+        },
+    )
+    path("/fixtures/{fixture_id}/slots/{slot_id}/assign",
+        parameters=[
+            {"name": "fixture_id", "in": "path", "required": True, "schema": {"type": "string"}},
+            {"name": "slot_id", "in": "path", "required": True, "schema": {"type": "string"}},
+        ],
+        post={
+            "tags": ["Fixture Slots"], "summary": "Assign or unassign a node to a slot", "security": _auth_security,
+            "requestBody": {"required": True, "content": {"application/json": {"schema": {
+                "type": "object", "properties": {
+                    "nodeId": {"type": "string", "nullable": True, "description": "Node ID to assign, or null to unassign"},
+                },
+            }}}},
+            "responses": {"200": _ok("FixtureSlot"), "400": _400, "404": _404, "409": _409},
+        },
+    )
+
+    # ── Dashboard ──────────────────────────────────────────────
+    path("/dashboard/overview", get={
+        "tags": ["Dashboard"], "summary": "Get dashboard overview with all fixtures and computed health", "security": _auth_security,
+        "responses": {"200": _ok("DashboardFixture", array=True), "401": _401, "403": _403},
+    })
+
+    # ── Deployments (managed) ──────────────────────────────────
+    path("/deployments",
+        get={
+            "tags": ["Deployments"], "summary": "List managed deployments", "security": _auth_security,
+            "parameters": _pagination_params + [
+                {"name": "fixtureId", "in": "query", "schema": {"type": "string"}, "description": "Filter by fixture ID"},
+            ],
+            "responses": {"200": _paginated("ConcordDeployment"), "401": _401, "403": _403},
+        },
+        post={
+            "tags": ["Deployments"], "summary": "Create a deployment", "security": _auth_security,
+            "requestBody": {"required": True, "content": {"application/json": {"schema": {
+                "type": "object", "required": ["name", "fixtureId"],
+                "properties": {
+                    "name": {"type": "string"}, "fixtureId": {"type": "string"},
+                    "config": {"type": "object"}, "version": {"type": "string"},
+                },
+            }}}},
+            "responses": {"201": _ok("ConcordDeployment"), "400": _400, "404": _404},
+        },
+    )
+    path("/deployments/{deployment_id}",
+        parameters=[{"name": "deployment_id", "in": "path", "required": True, "schema": {"type": "string"}}],
+        get={
+            "tags": ["Deployments"], "summary": "Get a deployment", "security": _auth_security,
+            "responses": {"200": _ok("ConcordDeployment"), "404": _404},
+        },
+        delete={
+            "tags": ["Deployments"], "summary": "Delete a deployment", "security": _auth_security,
+            "responses": {"200": _deleted_resp, "404": _404, "409": _409},
+        },
+    )
+    path("/deployments/{deployment_id}/deploy",
+        parameters=[{"name": "deployment_id", "in": "path", "required": True, "schema": {"type": "string"}}],
+        post={
+            "tags": ["Deployments"], "summary": "Deploy a fixture to K8s", "security": _auth_security,
+            "responses": {"200": _ok("ConcordDeployment"), "400": _400, "404": _404, "409": _409},
+        },
+    )
+    path("/deployments/{deployment_id}/stop",
+        parameters=[{"name": "deployment_id", "in": "path", "required": True, "schema": {"type": "string"}}],
+        post={
+            "tags": ["Deployments"], "summary": "Stop a running deployment", "security": _auth_security,
+            "responses": {"200": _ok("ConcordDeployment"), "404": _404, "409": _409},
+        },
+    )
+    path("/deployments/{deployment_id}/restart",
+        parameters=[{"name": "deployment_id", "in": "path", "required": True, "schema": {"type": "string"}}],
+        post={
+            "tags": ["Deployments"], "summary": "Restart a running deployment", "security": _auth_security,
+            "responses": {"200": _ok("ConcordDeployment"), "404": _404, "409": _409},
+        },
+    )
+    path("/deployments/{deployment_id}/status",
+        parameters=[{"name": "deployment_id", "in": "path", "required": True, "schema": {"type": "string"}}],
+        get={
+            "tags": ["Deployments"], "summary": "Get deployment status with K8s pod info", "security": _auth_security,
+            "responses": {"200": _ok({"allOf": [
+                {"$ref": "#/components/schemas/ConcordDeployment"},
+                {"type": "object", "properties": {
+                    "k8sStatus": {"type": "array", "items": {"type": "object", "properties": {
+                        "name": {"type": "string"}, "slotIndex": {"type": "integer"},
+                        "status": {"nullable": True, "type": "object", "properties": {
+                            "name": {"type": "string"}, "replicas": {"type": "integer"},
+                            "readyReplicas": {"type": "integer"}, "availableReplicas": {"type": "integer"},
+                            "pods": {"type": "array", "items": {"type": "object", "properties": {
+                                "name": {"type": "string"}, "nodeName": {"type": "string"},
+                                "status": {"type": "string"}, "ready": {"type": "boolean"},
+                                "restarts": {"type": "integer"},
+                            }}},
+                        }},
+                    }}},
+                }},
+            ]}), "404": _404},
         },
     )
 

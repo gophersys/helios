@@ -22,8 +22,8 @@ class ComponentCreateRequest:
 
         if not name:
             return None, "Name is required"
-        if category not in ("SOM", "CARRIER_BOARD", "ACCESSORY"):
-            return None, "Category must be SOM, CARRIER_BOARD, or ACCESSORY"
+        if category not in ("HARDWARE", "MECHANICAL", "CABLE", "ACCESSORY", "OTHER"):
+            return None, "Category must be HARDWARE, MECHANICAL, CABLE, ACCESSORY, or OTHER"
         if not manufacturer:
             return None, "Manufacturer is required"
         if not part_number:
@@ -60,8 +60,8 @@ class ComponentUpdateRequest:
         category = data.get("category")
         if category is not None:
             category = category.strip()
-            if category not in ("SOM", "CARRIER_BOARD", "ACCESSORY"):
-                return None, "Category must be SOM, CARRIER_BOARD, or ACCESSORY"
+            if category not in ("HARDWARE", "MECHANICAL", "CABLE", "ACCESSORY", "OTHER"):
+                return None, "Category must be HARDWARE, MECHANICAL, CABLE, ACCESSORY, or OTHER"
         manufacturer = data.get("manufacturer")
         if manufacturer is not None:
             manufacturer = manufacturer.strip()

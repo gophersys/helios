@@ -11,27 +11,27 @@ def test_component_create_valid():
     from src.api.v2.inventory.types import ComponentCreateRequest
 
     data = {
-        "name": "nRF9160 SOM",
-        "category": "SOM",
+        "name": "nRF9160 Module",
+        "category": "HARDWARE",
         "manufacturer": "Nordic",
         "partNumber": "NRF9160-SICA",
-        "description": "LTE-M/NB-IoT SoM",
+        "description": "LTE-M/NB-IoT module",
     }
     req, err = ComponentCreateRequest.from_json(data)
 
     assert err is None
     assert req is not None
-    assert req.name == "nRF9160 SOM"
-    assert req.category == "SOM"
+    assert req.name == "nRF9160 Module"
+    assert req.category == "HARDWARE"
     assert req.manufacturer == "Nordic"
     assert req.partNumber == "NRF9160-SICA"
-    assert req.description == "LTE-M/NB-IoT SoM"
+    assert req.description == "LTE-M/NB-IoT module"
 
 
 def test_component_create_missing_name():
     from src.api.v2.inventory.types import ComponentCreateRequest
 
-    data = {"category": "SOM", "manufacturer": "Nordic", "partNumber": "ABC123"}
+    data = {"category": "HARDWARE", "manufacturer": "Nordic", "partNumber": "ABC123"}
     req, err = ComponentCreateRequest.from_json(data)
 
     assert req is None
@@ -50,13 +50,13 @@ def test_component_create_invalid_category():
     req, err = ComponentCreateRequest.from_json(data)
 
     assert req is None
-    assert err == "Category must be SOM, CARRIER_BOARD, or ACCESSORY"
+    assert err == "Category must be HARDWARE, MECHANICAL, CABLE, ACCESSORY, or OTHER"
 
 
 def test_component_create_missing_manufacturer():
     from src.api.v2.inventory.types import ComponentCreateRequest
 
-    data = {"name": "Component", "category": "SOM", "partNumber": "ABC123"}
+    data = {"name": "Component", "category": "HARDWARE", "partNumber": "ABC123"}
     req, err = ComponentCreateRequest.from_json(data)
 
     assert req is None
@@ -66,7 +66,7 @@ def test_component_create_missing_manufacturer():
 def test_component_create_missing_part_number():
     from src.api.v2.inventory.types import ComponentCreateRequest
 
-    data = {"name": "Component", "category": "SOM", "manufacturer": "Nordic"}
+    data = {"name": "Component", "category": "HARDWARE", "manufacturer": "Nordic"}
     req, err = ComponentCreateRequest.from_json(data)
 
     assert req is None
@@ -118,7 +118,7 @@ def test_component_update_invalid_category():
     req, err = ComponentUpdateRequest.from_json(data)
 
     assert req is None
-    assert err == "Category must be SOM, CARRIER_BOARD, or ACCESSORY"
+    assert err == "Category must be HARDWARE, MECHANICAL, CABLE, ACCESSORY, or OTHER"
 
 
 def test_component_update_to_update_data():
