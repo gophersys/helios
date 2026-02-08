@@ -101,7 +101,6 @@ vitest.config.*.timestamp*
 deploy/helm/values-*-secrets.yaml
 deploy/local/.env
 
-# Claude Code
 
 # SvelteKit build artifacts
 .svelte-kit/
