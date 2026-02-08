@@ -1,6 +1,7 @@
 import hashlib
 import logging
 from io import BytesIO
+from typing import Any
 
 from flask import jsonify, request
 
@@ -12,12 +13,10 @@ from src.lib.types import ApiResponse
 from src.services.database.prisma import get_db_client
 from src.services.storage.client import get_bucket_name, get_storage_client, StoragePrefixes, storage_key
 
-logger = logging.getLogger(__name__)
-
 from .shared import ALLOWED_FIRMWARE_EXTENSIONS, MIME_TYPES, presigned_url
 from .types import FirmwareBuildUpdateRequest
 
-from typing import Any
+logger = logging.getLogger(__name__)
 
 
 def _serialize_build(b: Any) -> dict:

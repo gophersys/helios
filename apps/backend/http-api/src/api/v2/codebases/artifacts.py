@@ -2,6 +2,7 @@ import hashlib
 import logging
 import math
 from io import BytesIO
+from typing import Any
 
 from flask import jsonify, request
 
@@ -13,12 +14,10 @@ from src.lib.types import ApiResponse
 from src.services.database.prisma import get_db_client
 from src.services.storage.client import get_bucket_name, get_storage_client, StoragePrefixes, storage_key
 
-logger = logging.getLogger(__name__)
-
 from .shared import ALLOWED_ARTIFACT_EXTENSIONS, presigned_url
 from .types import ArtifactCreateRequest
 
-from typing import Any
+logger = logging.getLogger(__name__)
 
 
 def _serialize_artifact(a: Any) -> dict:

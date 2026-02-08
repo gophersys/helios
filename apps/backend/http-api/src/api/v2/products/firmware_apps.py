@@ -1,3 +1,5 @@
+from typing import Any
+
 from flask import jsonify, request
 
 from src.lib.audit import log_audit
@@ -8,8 +10,6 @@ from src.lib.types import ApiResponse
 from src.services.database.prisma import get_db_client
 
 from .types import FirmwareAppCreateRequest, FirmwareAppUpdateRequest
-
-from typing import Any
 
 
 def _serialize_firmware_app(a: Any) -> dict:

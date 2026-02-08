@@ -1,5 +1,6 @@
 import logging
 import math
+from typing import Any
 
 from flask import jsonify, request
 
@@ -10,12 +11,10 @@ from src.lib.permissions import Permissions
 from src.lib.types import ApiResponse
 from src.services.database.prisma import get_db_client
 
-logger = logging.getLogger(__name__)
-
 from .shared import SUPPORTED_CHIPSETS, SUPPORTED_SOCS
 from .types import ProductCreateRequest, ProductUpdateRequest
 
-from typing import Any
+logger = logging.getLogger(__name__)
 
 
 # ── Chipset Configuration ────────────────────────────────

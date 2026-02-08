@@ -1,5 +1,6 @@
 import logging
 from datetime import datetime, timezone
+from typing import Any
 
 from flask import jsonify, request
 
@@ -11,11 +12,9 @@ from src.lib.types import ApiResponse
 from src.services.database.prisma import get_db_client
 from src.services.storage.client import get_bucket_name, get_storage_client
 
-logger = logging.getLogger(__name__)
-
 from .types import ReleaseCreateRequest, ReleaseUpdateRequest
 
-from typing import Any
+logger = logging.getLogger(__name__)
 
 
 def _serialize_release(r: Any, include_artifacts: bool = False) -> dict:

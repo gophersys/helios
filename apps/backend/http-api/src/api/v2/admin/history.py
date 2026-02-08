@@ -1,4 +1,5 @@
-from datetime import datetime, timezone
+from datetime import datetime
+from typing import Any
 
 from flask import jsonify, request
 
@@ -7,9 +8,6 @@ from src.lib.errors import bad_request, not_found
 from src.lib.permissions import Permissions
 from src.lib.types import ApiResponse
 from src.services.database.prisma import get_db_client
-
-
-from typing import Any
 
 
 def _serialize_audit_log(entry: Any) -> dict:
