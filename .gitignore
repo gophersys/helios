@@ -96,3 +96,14 @@ venv/
 libs/python/database
 vite.config.*.timestamp*
 vitest.config.*.timestamp*
+
+# Helm secrets (never commit real credentials)
+deploy/helm/values-*-secrets.yaml
+deploy/local/.env
+
+# Claude Code
+
+# SvelteKit build artifacts
+.svelte-kit/
+apps/frontend/concord-app-svelte/coverage/
+apps/frontend/concord-app-svelte/dist/
