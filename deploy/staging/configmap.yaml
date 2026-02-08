@@ -1,0 +1,46 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: concord-config
+  namespace: staging
+  labels:
+    app.kubernetes.io/part-of: concord
+    app.kubernetes.io/managed-by: concord-ctl
+data:
+  ENVIRONMENT: "staging"
+  SERVER_PORT: "9001"
+  LOG_LEVEL: "4"
+  LOG_PATH: "logs"
+  DB_STORAGE_PATH: "db"
+  DB_STORAGE_LIMIT_GB: "64"
+  AUTH_ENABLED: "true"
+  ASSETS_FOLDER: "assets"
+  CORS_ORIGINS: "https://staging.concord.local,http://staging.concord.local"
+  SUPPORTED_REGISTRIES: ""
+  MTIB_PORT: "50053"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: concord-secrets
+  namespace: staging
+  labels:
+    app.kubernetes.io/part-of: concord
+    app.kubernetes.io/managed-by: concord-ctl
+type: Opaque
+stringData:
+  # ── IMPORTANT: Replace these placeholder values before deploying ──
+  DATABASE_URL: "postgresql://concord:CHANGE_ME@postgres.staging.svc.cluster.local:5432/concord_staging"
+  STORAGE_URL: "minio.staging.svc.cluster.local:9000"
+  STORAGE_ACCESS_KEY: "CHANGE_ME"
+  STORAGE_SECRET_ACCESS_KEY: "CHANGE_ME"
+  STORAGE_BUCKET_NAME: "concord-staging"
+  INFLUXDB_URL: "http://influxdb.staging.svc.cluster.local:8086"
+  INFLUXDB_TOKEN: "CHANGE_ME"
+  INFLUXDB_ORG: "concord"
+  INFLUXDB_BUCKET_TELEMETRY: "telemetry_raw"
+  INFLUXDB_BUCKET_METRICS: "telemetry_metrics"
+  JWT_SECRET_KEY: "CHANGE_ME_TO_STRONG_RANDOM_SECRET"
+  GOOGLE_CLIENT_ID: "CHANGE_ME"
+  COREOPS_SERVER_URL: ""
+  DELETE_ALL_KEY: "CHANGE_ME"

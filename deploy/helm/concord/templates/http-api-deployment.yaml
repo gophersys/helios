@@ -1,0 +1,52 @@
+{{- if .Values.httpApi.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: concord-http-api
+  labels:
+    {{- include "concord.labels" . | nindent 4 }}
+    {{- include "concord.httpApi.selectorLabels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.httpApi.replicas }}
+  selector:
+    matchLabels:
+      {{- include "concord.httpApi.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "concord.labels" . | nindent 8 }}
+        {{- include "concord.httpApi.selectorLabels" . | nindent 8 }}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        checksum/secret: {{ include (print $.Template.BasePath "/secrets.yaml") . | sha256sum }}
+    spec:
+      {{- if .Values.httpApi.serviceAccount.create }}
+      serviceAccountName: {{ .Values.httpApi.serviceAccount.name }}
+      {{- end }}
+      containers:
+        - name: http-api
+          image: "{{ .Values.httpApi.image.repository }}:{{ .Values.httpApi.image.tag }}"
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.httpApi.port }}
+              name: http
+          envFrom:
+            - configMapRef:
+                name: concord-config
+            - secretRef:
+                name: concord-secrets
+          resources:
+            {{- toYaml .Values.httpApi.resources | nindent 12 }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.httpApi.probes.readiness.path }}
+              port: {{ .Values.httpApi.port }}
+            initialDelaySeconds: {{ .Values.httpApi.probes.readiness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.httpApi.probes.readiness.periodSeconds }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.httpApi.probes.liveness.path }}
+              port: {{ .Values.httpApi.port }}
+            initialDelaySeconds: {{ .Values.httpApi.probes.liveness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.httpApi.probes.liveness.periodSeconds }}
+{{- end }}

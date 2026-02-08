@@ -1,0 +1,78 @@
+# Staging environment overrides
+# Usage: helm upgrade --install concord ./deploy/helm/concord -n staging -f ./deploy/helm/values-staging.yaml
+
+global:
+  environment: staging
+  imagePullPolicy: Always
+
+# Enable in-cluster infrastructure for staging
+infrastructure:
+  postgres:
+    enabled: true
+    user: concord
+    password: concord-staging
+    database: concord
+    storage: 5Gi
+  minio:
+    enabled: true
+    rootUser: minioadmin
+    rootPassword: minioadmin-staging
+    storage: 5Gi
+  influxdb:
+    enabled: true
+    user: admin
+    password: concord-staging
+    org: concord
+    bucket: telemetry_raw
+    token: concord-influx-staging-token
+    storage: 5Gi
+
+httpApi:
+  replicas: 1
+  image:
+    repository: containers.ad.corekinect.com/concord-http-api
+    tag: staging
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+frontend:
+  replicas: 1
+  image:
+    repository: containers.ad.corekinect.com/concord-frontend
+    tag: staging
+
+ingress:
+  enabled: true
+  host: staging.concord.local
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+
+config:
+  SERVER_PORT: "9001"
+  LOG_LEVEL: "4"
+  AUTH_ENABLED: "false"
+  CORS_ORIGINS: "https://staging.concord.local,http://staging.concord.local,http://localhost:4200"
+  SUPPORTED_REGISTRIES: "none"
+
+secrets:
+  DATABASE_URL: "postgresql://concord:concord-staging@concord-postgres:5432/concord"
+  STORAGE_URL: "http://concord-minio:9000"
+  STORAGE_ACCESS_KEY: "minioadmin"
+  STORAGE_SECRET_ACCESS_KEY: "minioadmin-staging"
+  STORAGE_BUCKET_NAME: "concord"
+  INFLUXDB_URL: "http://concord-influxdb:8086"
+  INFLUXDB_TOKEN: "concord-influx-staging-token"
+  INFLUXDB_ORG: "concord"
+  INFLUXDB_BUCKET_TELEMETRY: "telemetry_raw"
+  INFLUXDB_BUCKET_METRICS: "telemetry_metrics"
+  JWT_SECRET_KEY: "concord-staging-jwt-secret-key-2026"
+  GOOGLE_CLIENT_ID: "none"
+  COREOPS_SERVER_URL: "none"
+  AUTH_SERVER_URL: "https://auth.office.corekinect.cloud:2013"
+  AUTH_SERVER_API_KEY: "LWh0dHBzOi8vY29yZW9wcy5vZmZpY2UuY29yZWtpbmVjdC5jbG91ZDoyMDEzLwAUAAAAAAAAAAMAAAAAAAAAAmh//0ARflK7w17yvqU8VDyvJsfWFKnXJGKYZIRyzKjKEJD63QHu16/+BGn5EAK6ezr71bqOxlMML5GK60sL3HnY4eSR"
+  DELETE_ALL_KEY: "staging-delete-key"

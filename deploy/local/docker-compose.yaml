@@ -1,0 +1,131 @@
+# Concord — Local Environment
+# All services containerized for integration testing.
+# Usage:
+#   cd deploy/local
+#   docker compose up --build
+#
+# Or from repo root:
+#   ./deploy/ctl.sh local up
+
+networks:
+  concord:
+    name: concord-local
+    driver: bridge
+
+volumes:
+  postgres_data:
+  minio_data:
+  influxdb_data:
+
+services:
+  # ────────────────────────────────── Infrastructure ──
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: concord
+      POSTGRES_PASSWORD: concord
+      POSTGRES_DB: concord
+    command: ["postgres", "-c", "max_connections=200"]
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - concord
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U concord"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  minio:
+    image: minio/minio:latest
+    environment:
+      MINIO_ROOT_USER: concord
+      MINIO_ROOT_PASSWORD: concordstorage!
+    command: server /data --address ":8675" --console-address ":8676"
+    ports:
+      - "8675:8675"
+      - "8676:8676"
+    volumes:
+      - minio_data:/data
+    networks:
+      - concord
+
+  influxdb:
+    image: influxdb:2
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME: concord
+      DOCKER_INFLUXDB_INIT_PASSWORD: concordinflux!
+      DOCKER_INFLUXDB_INIT_ORG: concord
+      DOCKER_INFLUXDB_INIT_BUCKET: telemetry_raw
+      DOCKER_INFLUXDB_INIT_RETENTION: 90d
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: concord-influxdb-dev-token
+    ports:
+      - "8086:8086"
+    volumes:
+      - influxdb_data:/var/lib/influxdb2
+    networks:
+      - concord
+
+  # ────────────────────────────────── Application ──
+  http-api:
+    build:
+      context: ../..
+      dockerfile: apps/backend/http-api/deploy/Dockerfile
+      args:
+        APP_VERSION: ${APP_VERSION:-local}
+        ENVIRONMENT: local
+        GIT_COMMIT: ${GIT_COMMIT:-unknown}
+        GIT_BRANCH: ${GIT_BRANCH:-unknown}
+        GIT_DIRTY: ${GIT_DIRTY:-false}
+        BUILD_TIME: ${BUILD_TIME:-unknown}
+        BUILD_HOST: ${BUILD_HOST:-unknown}
+    ports:
+      - "9001:9001"
+    env_file:
+      - .env
+    environment:
+      ENVIRONMENT: local
+      DATABASE_URL: postgresql://concord:concord@db:5432/concord
+      STORAGE_URL: http://minio:8675
+      STORAGE_ACCESS_KEY: concord
+      STORAGE_SECRET_ACCESS_KEY: concordstorage!
+      STORAGE_BUCKET_NAME: concord
+      INFLUXDB_URL: http://influxdb:8086
+      INFLUXDB_TOKEN: concord-influxdb-dev-token
+      INFLUXDB_ORG: concord
+      INFLUXDB_BUCKET_TELEMETRY: telemetry_raw
+      INFLUXDB_BUCKET_METRICS: telemetry_metrics
+    depends_on:
+      db:
+        condition: service_healthy
+      minio:
+        condition: service_started
+    networks:
+      - concord
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ../..
+      dockerfile: apps/frontend/concord-app-svelte/deploy/Dockerfile
+      args:
+        PUBLIC_APP_VERSION: ${APP_VERSION:-local}
+        PUBLIC_APP_ENVIRONMENT: local
+        GIT_COMMIT: ${GIT_COMMIT:-unknown}
+        GIT_BRANCH: ${GIT_BRANCH:-unknown}
+        GIT_DIRTY: ${GIT_DIRTY:-false}
+        BUILD_TIME: ${BUILD_TIME:-unknown}
+        BUILD_HOST: ${BUILD_HOST:-unknown}
+    ports:
+      - "3000:80"
+    environment:
+      API_HOST: http-api
+      API_PORT: "9001"
+    depends_on:
+      - http-api
+    networks:
+      - concord
+    restart: unless-stopped

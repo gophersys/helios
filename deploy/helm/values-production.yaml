@@ -1,0 +1,83 @@
+# Production environment overrides
+# Usage: helm upgrade --install concord ./deploy/helm/concord -n production -f ./deploy/helm/values-production.yaml
+
+global:
+  environment: production
+  imagePullPolicy: Always
+
+# In-cluster infrastructure (swap to managed services later)
+infrastructure:
+  postgres:
+    enabled: true
+    user: concord
+    password: concord-prod-2026
+    database: concord
+    storage: 10Gi
+  minio:
+    enabled: true
+    rootUser: concordadmin
+    rootPassword: concord-minio-prod-2026
+    storage: 10Gi
+  influxdb:
+    enabled: true
+    user: admin
+    password: concord-influx-prod-2026
+    org: concord
+    bucket: telemetry_raw
+    token: concord-influx-prod-token-2026
+    storage: 10Gi
+
+httpApi:
+  replicas: 1
+  image:
+    repository: containers.ad.corekinect.com/concord-http-api
+    tag: production
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: "1Gi"
+
+frontend:
+  replicas: 1
+  image:
+    repository: containers.ad.corekinect.com/concord-frontend
+    tag: production
+
+ingress:
+  enabled: true
+  host: concord.local
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+
+config:
+  SERVER_PORT: "9001"
+  LOG_LEVEL: "2"
+  LOG_PATH: "logs"
+  DB_STORAGE_PATH: "db"
+  DB_STORAGE_LIMIT_GB: "64"
+  AUTH_ENABLED: "false"
+  ASSETS_FOLDER: "assets"
+  CORS_ORIGINS: "https://concord.local,http://concord.local"
+  SUPPORTED_REGISTRIES: "none"
+  MTIB_PORT: "50053"
+
+secrets:
+  DATABASE_URL: "postgresql://concord:concord-prod-2026@concord-postgres:5432/concord"
+  STORAGE_URL: "http://concord-minio:9000"
+  STORAGE_ACCESS_KEY: "concordadmin"
+  STORAGE_SECRET_ACCESS_KEY: "concord-minio-prod-2026"
+  STORAGE_BUCKET_NAME: "concord"
+  INFLUXDB_URL: "http://concord-influxdb:8086"
+  INFLUXDB_TOKEN: "concord-influx-prod-token-2026"
+  INFLUXDB_ORG: "concord"
+  INFLUXDB_BUCKET_TELEMETRY: "telemetry_raw"
+  INFLUXDB_BUCKET_METRICS: "telemetry_metrics"
+  JWT_SECRET_KEY: "concord-prod-jwt-secret-key-2026"
+  GOOGLE_CLIENT_ID: "none"
+  COREOPS_SERVER_URL: "none"
+  AUTH_SERVER_URL: "https://auth.office.corekinect.cloud:2013"
+  AUTH_SERVER_API_KEY: "LWh0dHBzOi8vY29yZW9wcy5vZmZpY2UuY29yZWtpbmVjdC5jbG91ZDoyMDEzLwAUAAAAAAAAAAMAAAAAAAAAAmh//0ARflK7w17yvqU8VDyvJsfWFKnXJGKYZIRyzKjKEJD63QHu16/+BGn5EAK6ezr71bqOxlMML5GK60sL3HnY4eSR"
+  DELETE_ALL_KEY: "prod-delete-key-2026"
