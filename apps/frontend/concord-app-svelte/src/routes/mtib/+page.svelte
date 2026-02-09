@@ -6,7 +6,7 @@
   import { apiFetch, api } from '$lib/api';
   import { PageHeader, ErrorAlert, EmptyState, LoadingState, ConfirmDeleteDialog, Select, FormCard } from '$lib/components/ui';
   import DiscoveredNodeRow from '$lib/components/nodes/discovered-node-row.svelte';
-  import type { ConcordNode, DiscoveredNode, NodeSyncResult } from '$lib/types/models';
+  import type { ConcordNode, DiscoveredNode, NodeSyncResult, FleetObservabilityResponse } from '$lib/types/models';
   import type { ApiResponse } from '$lib/types';
 
   const auth = getAuth();
@@ -105,9 +105,9 @@
 
   async function fetchFleetObs() {
     try {
-      const res = await apiFetch<ApiResponse<{ nodes: any[]; summary: any }>>('/v2/mtibs/observability');
+      const res = await apiFetch<ApiResponse<FleetObservabilityResponse>>('/v2/mtibs/observability');
       const payload = res.data;
-      const fleetNodes = (payload as any)?.nodes || payload || [];
+      const fleetNodes = payload?.nodes || [];
       if (!Array.isArray(fleetNodes)) return;
       const m: Record<string, NodeMetrics> = {};
       for (const n of fleetNodes) {
@@ -289,7 +289,7 @@
       if (pod?.name) {
         goto(`/system/pods/default/${pod.name}`);
       } else {
-        const deployName = (n as any).metadata?.deployment_name || n.deploymentStatus?.name;
+        const deployName = (n.metadata?.deployment_name as string) || n.deploymentStatus?.name;
         if (deployName) {
           goto(`/system/deployments/default/${deployName}`);
         }

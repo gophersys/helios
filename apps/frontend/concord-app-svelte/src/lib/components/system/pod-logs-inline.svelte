@@ -230,7 +230,7 @@
       <!-- Log content -->
       <div
         bind:this={logsContainer}
-        class="h-64 overflow-auto font-mono text-xs leading-relaxed bg-[#0d1117] text-[#c9d1d9]"
+        class="h-64 overflow-auto font-mono text-xs leading-relaxed bg-surface-0 text-text-secondary"
       >
         {#if error}
           <div class="p-3 flex flex-col items-center justify-center h-full gap-2">

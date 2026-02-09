@@ -442,8 +442,8 @@
             <button
               onclick={() => theme.toggle()}
               class="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors {theme.theme === 'dark'
-                ? 'bg-amber-500/20 text-amber-500 hover:bg-amber-500/30 border border-amber-500/30'
-                : 'bg-violet-500/20 text-violet-500 hover:bg-violet-500/30 border border-violet-500/30'}"
+                ? 'bg-warning-muted text-warning hover:bg-warning/20 border border-warning/30'
+                : 'bg-accent-muted text-accent hover:bg-accent/20 border border-accent/30'}"
             >
               {#if theme.theme === 'dark'}
                 <Sun size={16} strokeWidth={1.75} />

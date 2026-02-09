@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, onDestroy } from 'svelte';
+  import { onMount, onDestroy, tick } from 'svelte';
   import { beforeNavigate } from '$app/navigation';
   import { page } from '$app/stores';
   import { goto } from '$app/navigation';
@@ -127,6 +127,11 @@
         terminal.lines = updated.length > MAX_UART_LINES
           ? updated.slice(updated.length - MAX_UART_LINES)
           : updated;
+        // Auto-scroll terminal to bottom
+        tick().then(() => {
+          const el = document.getElementById(`uart-${portName}`);
+          if (el) el.scrollTop = el.scrollHeight;
+        });
       },
       (message: string) => {
         const terminal = uartTerminals[portName];
@@ -400,14 +405,12 @@
     <!-- Main observability grid — compact -->
     <div class="grid grid-cols-1 gap-3 lg:grid-cols-2">
 
-      <!-- System Metrics (clickable → K8s node) -->
+      <!-- System Metrics (clickable → K8s node when available) -->
       <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <!-- svelte-ignore a11y_click_events_have_key_events -->
       <div
+        onclick={() => k8sNodeName && goto(`/system/nodes/${k8sNodeName}`)}
         class="card px-3 py-2.5 {k8sNodeName ? 'hover:bg-surface-1 transition-colors cursor-pointer group' : ''}"
-        role={k8sNodeName ? 'link' : undefined}
-        tabindex={k8sNodeName ? 0 : undefined}
-        onclick={() => { if (k8sNodeName) goto(`/system/nodes/${k8sNodeName}`); }}
-        onkeydown={(e) => { if (k8sNodeName && (e.key === 'Enter' || e.key === ' ')) goto(`/system/nodes/${k8sNodeName}`); }}
       >
         <div class="flex items-center gap-2 mb-2">
           <Monitor size={12} class="text-accent" />

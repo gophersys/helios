@@ -38,8 +38,13 @@
   }
 </script>
 
-<button
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+<div
   onclick={handleCardClick}
+  onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleCardClick(); }}
+  role={isServerOnline || deployState === 'deploying' ? 'link' : undefined}
+  tabindex={isServerOnline || deployState === 'deploying' ? 0 : -1}
   class="card group relative flex flex-col overflow-hidden text-left w-full transition-all duration-200
     {isServerOnline ? 'hover:ring-2 hover:ring-accent/50 cursor-pointer' : deployState === 'deploying' ? 'hover:ring-2 hover:ring-warning/50 cursor-pointer' : ''}"
 >
@@ -138,4 +143,4 @@
       </button>
     </div>
   {/if}
-</button>
+</div>

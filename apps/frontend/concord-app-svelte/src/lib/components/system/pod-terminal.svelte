@@ -256,8 +256,7 @@
     <div
       bind:this={terminalContainer}
       onclick={focusTerminal}
-      class="flex-1 min-h-0 cursor-text"
-      style="background: #0d1117; padding: 8px;"
+      class="flex-1 min-h-0 cursor-text bg-surface-0 p-2"
     ></div>
 
     <!-- Status bar -->

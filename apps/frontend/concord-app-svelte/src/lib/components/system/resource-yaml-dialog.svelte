@@ -139,7 +139,7 @@
             <span class="text-text-secondary">Loading...</span>
           </div>
         {:else if error}
-          <div class="p-3 rounded bg-error/10 text-error text-sm">{error}</div>
+          <div class="p-3 rounded bg-error-muted text-error text-sm">{error}</div>
         {:else if editMode}
           <div class="space-y-3">
             <textarea

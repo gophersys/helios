@@ -167,7 +167,7 @@
     <!-- Log content -->
     <div
       bind:this={logsContainer}
-      class="flex-1 overflow-auto font-mono text-xs leading-relaxed bg-[#0d1117] text-[#c9d1d9]"
+      class="flex-1 overflow-auto font-mono text-xs leading-relaxed bg-surface-0 text-text-secondary"
     >
       {#if error}
         <div class="p-4 text-error">{error}</div>
