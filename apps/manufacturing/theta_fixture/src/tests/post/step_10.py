@@ -1,8 +1,6 @@
 # Standard includes
 from typing import Dict
 
-# Corekinect libraries
-from corekinect.mtib_client.v1.client.types import HostType
 from tests.lib import *
 
 # Shared includes
@@ -10,9 +8,6 @@ from ..shared.config import ThetaFixtureConfig
 
 # Test includes
 from .data import PostTestSharedData
-
-# Theta uses nRF9151 for comms processor
-THETA_COMMS_TARGET = HostType.HOST_TYPE_NRF9151
 
 
 # ---------------------------------------------------------------------------------
@@ -26,9 +21,8 @@ def post_step_10_handler(
     Replace hard coded keys with device-specific keys.
     """
     result: TestStepResult = TestStepResult(success=False)
-    client = usr_data[node].client
 
-    success, error = client.cmd_comms_coproc_rekey_ipc(target=THETA_COMMS_TARGET)
+    success, error = usr_data[node].comms_cmds.rekey_ipc()
     if error:
         result.error = f"IPC rekey failed: {error}"
         return result

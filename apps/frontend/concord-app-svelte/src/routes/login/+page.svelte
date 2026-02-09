@@ -393,7 +393,7 @@
             <label for="email" class="block text-sm font-medium text-text-secondary mb-1">Email</label>
             <input
               id="email"
-              type="email"
+              type="text"
               bind:value={email}
               placeholder="you@company.com"
               required

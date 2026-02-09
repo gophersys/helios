@@ -216,7 +216,7 @@
         </div>
 
         <form onsubmit={handleSubmit}>
-          <div class="mb-3 grid grid-cols-2 gap-3">
+          <div class="mb-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Select
               bind:value={formFixtureId}
               label="Fixture"

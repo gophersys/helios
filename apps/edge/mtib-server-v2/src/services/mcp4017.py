@@ -22,7 +22,7 @@ class MCP4017:
     # Constants
     MAX_VALUE = 127  # 7-bit resolution
     DEFAULT_ADDRESS = 0x2F
-    DEFAULT_BUS = 3  # Based on your i2cdetect output
+    DEFAULT_BUS = 3  # /dev/i2c-3 = Verdin I2C_1 (main bus on TorizonOS)
 
     def scan_bus(self, bus: int = DEFAULT_BUS) -> Dict[int, bool]:
         """Scan the I2C bus for devices.

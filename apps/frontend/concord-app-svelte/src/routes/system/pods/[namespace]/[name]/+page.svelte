@@ -75,7 +75,7 @@
   async function fetchPod() {
     loading = true;
     try {
-      const res = await api.get<{ data: PodDetailData }>(`/v2/system/pods/${namespace}/${podName}`);
+      const res = await api.get<{ data: PodDetailData }>(`/v2/kubernetes/pods/${namespace}/${podName}`);
       if (res?.data) pod = res.data;
       error = null;
     } catch (e) {
@@ -89,7 +89,7 @@
     deleting = true;
     mutationError = null;
     try {
-      await api.delete(`/v2/system/pods/${namespace}/${podName}`);
+      await api.delete(`/v2/kubernetes/pods/${namespace}/${podName}`);
       goto('/system/pods');
     } catch (e) {
       mutationError = e instanceof Error ? e.message : 'Failed to delete pod';

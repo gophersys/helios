@@ -1,4 +1,8 @@
-# Standard imports
+"""MTIB V2 gRPC service provider.
+
+Wires all 71 RPCs to their respective handler implementations.
+"""
+
 import functools
 import json
 import socket
@@ -7,86 +11,58 @@ import time
 from dataclasses import dataclass
 from typing import Callable, Dict, Iterator, List, Optional
 
-# 3rd party imports
 import grpc
 import paho.mqtt.client as mqtt
-from gpiod.line import Direction
 
-# Corekinect imports
-LOG_MODULE = "grpc"
 from corekinect.utils import Logger
-
-# Protocol imports
 from protocols.mtib_v2.mtib_v2_pb2_grpc import MtibV2Servicer
-from src.hardware import HardwareContext, HardwareRevision
+from src.hardware import HardwareContext
 from src.shared.types import *
 
-# Function handlers makes it easier to write service handlers
-from .handlers.adc import AdcHandler
-from .handlers.firmware import FirmwareHandler
-from .handlers.gpio import Gpio, GpioHandler, Pin
-from .handlers.motion import MotionHandler
+# Handler imports
+from .handlers.ble import BleHandler
+from .handlers.can import CanHandler
+from .handlers.debug import DebugHandler
+from .handlers.files import FilesHandler
+from .handlers.flash import FlashHandler
+from .handlers.gpio import GpioHandler
+from .handlers.i2c import I2cHandler
+from .handlers.logic import LogicHandler
+from .handlers.observability import ObservabilityHandler
 from .handlers.power import PowerHandler
-from .handlers.sensors import SensorsHandler
+from .handlers.rtt import RttHandler
+from .handlers.spi import SpiHandler
+from .handlers.swo import SwoHandler
+from .handlers.system import SystemHandler
+from .handlers.target import ProbeManager, TargetHandler
 from .handlers.uart import UartHandler
+from .handlers.zephyr import ZephyrHandler
+from .observability import ObservabilityEngine
 
-# -------------------------------------------------
-#                             Toradex SoM GPIO Maps
-# -------------------------------------------------
-# DUT GPIO mapping (directly controlled by iMX8, same for all revisions)
-DUT_GPIO_PIN_MAP = {
-    # Main connector - directly exposed to DUT
-    0: Pin.SODIMM_206,  # GPIO_0 - available on gpiochip2, line 4
-    1: Pin.SODIMM_208,  # GPIO_1 - available on gpiochip4, line 5
-    2: Pin.SODIMM_210,  # GPIO_2 - available on gpiochip4, line 26
-    3: Pin.SODIMM_212,  # GPIO_3 - available on gpiochip4, line 27
-    4: Pin.SODIMM_34,  # I2S1_D_OUT - available on gpiochip3, line 26
-    5: Pin.SODIMM_30,  # I2S1_BCLK - available on gpiochip3, line 25
-    6: Pin.SODIMM_32,  # I2S1_SYNC - available on gpiochip3, line 24
-    # Auxiliary connector
-    7: Pin.SODIMM_15,  # PWM_1 - available on gpiochip4, line 10
-    8: Pin.SODIMM_16,  # PWM_2 - available on gpiochip4, line 12
-}
+LOG_MODULE = "grpc"
 
-# Motion controller serial port and reset pin (same for all revisions)
-MOTION_SERIAL_PORT: str = "/dev/ttyUSB0"
-MOTION_RESET_PIN: Pin = Pin.SODIMM_36
 
 # -------------------------------------------------
 #                             gRPC Method Decorator
 # -------------------------------------------------
-
-
 def grpc_method(func: Callable) -> Callable:
+    """Decorator to log and time gRPC method calls."""
+
     @functools.wraps(func)
     def method(self, request, context, *args, **kwargs):
-        """
-        Decorator to log important information about a gRPC method.
-        """
-        # Get method name from the original function
         method_name = func.__name__
-
-        # Log request received
         self.logger.debug(f"{method_name}: Request received from {context.peer()}")
-
-        # Time the request
         start_time = time.time()
 
         try:
-            # Execute the original function
             response = func(self, request, context, *args, **kwargs)
-
-            # Log request completion time
             elapsed_ms = (time.time() - start_time) * 1000
-            self.logger.debug(f"{method_name}: Request processed OK in {elapsed_ms:.2f}ms for {context.peer()}")
-
+            self.logger.debug(f"{method_name}: OK in {elapsed_ms:.2f}ms for {context.peer()}")
             return response
-
         except Exception as e:
-            # Log any errors that occur
             elapsed_ms = (time.time() - start_time) * 1000
-            self.logger.error(f"{method_name}: Request exception, {elapsed_ms:.2f}ms for {context.peer()}: {e}")
-            raise  # Re-raise the exception
+            self.logger.error(f"{method_name}: Exception in {elapsed_ms:.2f}ms for {context.peer()}: {e}")
+            raise
 
     return method
 
@@ -96,499 +72,512 @@ def grpc_method(func: Callable) -> Callable:
 # -------------------------------------------------
 @dataclass
 class MtibV2ProviderConfig:
-    """Configuration for the MTIB V2 gRPC provider.
-
-    The HARDWARE field contains the initialized HardwareContext which
-    provides access to revision-specific functionality.
-    """
-
-    # Hardware context (includes revision detection and hardware access)
+    """Configuration for the MTIB V2 gRPC provider."""
     HARDWARE: HardwareContext
-
-    # Where the server will look for assets for all of its components
-    # that need configurations or firmware files (e.g. FluidNC)
     ASSETS_DIR: str
-
-    # Whether to enable metrics
     METRICS_ENABLED: bool
-
-    # Where the metrics broker is located
     METRICS_BROKER_URL: str
-
-    # Whether to enable motion
     MOTION_ENABLED: bool
 
 
-# -----------------------------------------------------
-#                                 MTIB Service Provider
-# -----------------------------------------------------
+# -------------------------------------------------
+#                                 MTIB V2 Provider
+# -------------------------------------------------
 class MtibV2Provider(MtibV2Servicer):
     """MTIB V2 gRPC service provider.
 
-    This provider implements the MTIB gRPC interface with automatic hardware
-    revision detection and adaptation. It uses the HardwareContext to access
-    revision-specific features.
+    Implements all 71 RPCs defined in mtib_v2.proto by delegating to
+    domain-specific handler classes.
     """
 
-    # -------------------------------------------------
-    #                                              Init
-    # -------------------------------------------------
     def __init__(self, config: MtibV2ProviderConfig, logger: Logger = None):
         self._start_time = time.time()
-        self.config: MtibV2ProviderConfig = config
-        self.hardware: HardwareContext = config.HARDWARE
+        self.config = config
+        self.hardware = config.HARDWARE
 
-        # Setup the logger for the server
-        self.logger: Logger = logger
-        if self.logger is None:
+        if logger is None:
             raise ValueError("Logger is required")
-        else:
-            self.logger = logger.from_parent(LOG_MODULE)
+        self.logger = logger.from_parent(LOG_MODULE)
 
-        # Global error list for all components
         self.errors: List[str] = []
-
-        # Objects we manage
-        self._gpios: Dict[int, Gpio] = {}
+        self._hostname = socket.gethostname()
 
         # Metrics client
         self._metrics_client: Optional[mqtt.Client] = None
         self._metrics_thread: Optional[threading.Thread] = None
         self._metrics_running = False
-        self._hostname = socket.gethostname()
 
         self.logger.info(f"Hostname: {self._hostname}")
         self.logger.info(f"Hardware revision: {self.hardware.revision}")
 
-        # Initialize all the objects
-        if err := self._config_gpio():
-            self.logger.error(f"Failed to initialize the components: {err}")
-            raise Exception(err)
+        # Initialize all handlers
+        self._init_handlers()
 
-        if err := self._init_handlers():
-            self.logger.error(f"Failed to initialize the handlers: {err}")
-            raise Exception(err)
+        # Initialize metrics
+        self._init_metrics()
 
-        if err := self._init_metrics():
-            self.logger.error(f"Failed to initialize the metrics: {err}")
-            raise Exception(err)
+        elapsed = (time.time() - self._start_time) * 1000
+        self.logger.info(f"MtibV2Provider initialized OK in {elapsed:.0f}ms")
 
-        self.logger.info("MtibV2Provider initialized OK in %s ms", (time.time() - start_time) * 1000)
+    def _init_handlers(self) -> None:
+        """Initialize all handler instances."""
+        # Initialize observability engine first so trackers can be passed to handlers
+        self._observability_engine = ObservabilityEngine(self.logger, self.hardware)
 
-    def _config_gpio(self) -> Optional[str]:
-        """Configure the DUT GPIOs.
+        self._system = SystemHandler(self.logger, self.hardware, self._start_time)
+        self._target = TargetHandler(self.logger, self.hardware)
+        self._debug = DebugHandler(self.logger, self.hardware)
+        self._flash = FlashHandler(self.logger, self.hardware, self.config.ASSETS_DIR)
+        self._rtt = RttHandler(self.logger, self.hardware)
+        self._swo = SwoHandler(self.logger, self.hardware)
+        self._uart = UartHandler(self.logger, self.hardware, uart_observer=self._observability_engine.uart_observer)
+        self._power = PowerHandler(self.logger, self.hardware, power_monitor=self._observability_engine.power_monitor)
+        self._logic = LogicHandler(self.logger, self.hardware)
+        self._gpio = GpioHandler(self.logger, self.hardware, gpio_tracker=self._observability_engine.gpio_tracker)
+        self._i2c = I2cHandler(self.logger, self.hardware)
+        self._spi = SpiHandler(self.logger, self.hardware)
+        self._can = CanHandler(self.logger, self.hardware)
+        self._ble = BleHandler(self.logger, self.hardware)
+        self._zephyr = ZephyrHandler(self.logger, self.hardware)
+        self._files = FilesHandler(self.logger, self.hardware, self.config.ASSETS_DIR)
+        self._observability = ObservabilityHandler(self.logger, self._observability_engine)
 
-        DUT GPIO mapping is the same for all revisions - they are directly
-        controlled by iMX8 through level shifters.
-        """
-        # Initialize all DUT GPIOs as INPUTs by default
-        for logical_num, pin in DUT_GPIO_PIN_MAP.items():
-            gpio = Gpio(consumer=f"mtib-gpio-{logical_num}", pin=pin, direction=Direction.INPUT)
-            if err := gpio.init():
-                return f"Failed to initialize GPIO {logical_num} ({pin}): {err}"
-            self._gpios[logical_num] = gpio
-
-        self.logger.debug("All DUT GPIOs configured successfully")
-        return None
-
-    def _init_handlers(self) -> Optional[str]:
-        """Initialize the servicer function handlers.
-
-        Handlers are initialized with access to the hardware context for
-        revision-specific functionality.
-        """
-        self._gpio_handlers = GpioHandler(self._gpios, self.logger)
-        self._adc_handlers = AdcHandler(self.logger)
-        self._power_handlers = PowerHandler(self.logger, self.hardware)
-        self._firmware_handlers = FirmwareHandler(self.logger)
-        self._sensors_handlers = SensorsHandler(self.logger)
-        self._uart_handlers = UartHandler(self.logger)
-
-        # Initialize the motion handler (serial port and reset pin same for all revisions)
-        if self.config.MOTION_ENABLED:
-            self._motion_handlers = MotionHandler(
-                self.logger,
-                self.config.ASSETS_DIR,
-                MOTION_SERIAL_PORT,
-                MOTION_RESET_PIN,
-                self.hardware,
+        # ProbeManager — auto-discovers J-Link probes and maps them to targets
+        self._probe_manager = ProbeManager(self.logger, self.hardware)
+        err = self._probe_manager.discover()
+        if err:
+            self.logger.warning(f"ProbeManager discovery failed: {err}")
+        else:
+            self.logger.info(
+                f"ProbeManager: mode={self._probe_manager.mode}, "
+                f"probes={self._probe_manager.probe_count}"
             )
 
-        return None
+        # Cross-handler wiring
+        self._flash.set_debug_handler(self._debug)
+        self._flash.set_probe_manager(self._probe_manager)
+        self._debug.set_probe_manager(self._probe_manager)
+        self._target.set_probe_manager(self._probe_manager)
 
-    def _init_metrics(self) -> Optional[str]:
-        """
-        Initialize the metrics client.
-        """
+    # =========================================================================
+    # Metrics (MQTT)
+    # =========================================================================
+    def _init_metrics(self) -> None:
+        """Initialize MQTT metrics client."""
         if not self.config.METRICS_ENABLED:
-            return None
+            return
 
         try:
-            # Create MQTT client
             self._metrics_client = mqtt.Client()
-
-            # Set up callbacks
             self._metrics_client.on_connect = self._on_mqtt_connect
             self._metrics_client.on_disconnect = self._on_mqtt_disconnect
-            self._metrics_client.on_publish = self._on_mqtt_publish
 
-            # Connect to broker
             broker_url = self.config.METRICS_BROKER_URL
-            self.logger.info(f"Connecting to MQTT broker at {broker_url}")
-
-            # Parse broker URL (format: mqtt://host:port or mqtts://host:port)
             if broker_url.startswith("mqtts://"):
-                # MQTT over SSL/TLS
-                broker_host = broker_url[8:]  # Remove "mqtts://"
-                if ":" in broker_host:
-                    host, port = broker_host.split(":", 1)
+                host_part = broker_url[8:]
+                if ":" in host_part:
+                    host, port = host_part.split(":", 1)
                     port = int(port)
                 else:
-                    host = broker_host
-                    port = 8883
+                    host, port = host_part, 8883
                 self._metrics_client.tls_set()
             elif broker_url.startswith("mqtt://"):
-                # Plain MQTT
-                broker_host = broker_url[7:]  # Remove "mqtt://"
-                if ":" in broker_host:
-                    host, port = broker_host.split(":", 1)
+                host_part = broker_url[7:]
+                if ":" in host_part:
+                    host, port = host_part.split(":", 1)
                     port = int(port)
                 else:
-                    host = broker_host
-                    port = 1883
+                    host, port = host_part, 1883
             else:
-                # Assume plain MQTT with default port
-                host = broker_url
-                port = 1883
+                host, port = broker_url, 1883
 
-            # Connect to broker
             self._metrics_client.connect(host, port, 60)
-
-            # Start the metrics thread
             self._metrics_running = True
             self._metrics_thread = threading.Thread(target=self._metrics_worker, daemon=True)
             self._metrics_thread.start()
-
-            self.logger.info("Metrics client initialized successfully")
-            return None
+            self.logger.info("Metrics client initialized")
 
         except Exception as e:
-            self.logger.error(f"Failed to initialize metrics client: {e}")
-            return f"Failed to initialize metrics client: {e}"
+            self.logger.error(f"Failed to initialize metrics: {e}")
 
     def _on_mqtt_connect(self, client, userdata, flags, rc):
-        """Callback for MQTT connection."""
         if rc == 0:
-            self.logger.info("Connected to MQTT broker successfully")
+            self.logger.info("Connected to MQTT broker")
         else:
-            self.logger.error(f"Failed to connect to MQTT broker: {rc}")
+            self.logger.error(f"MQTT connection failed: {rc}")
 
     def _on_mqtt_disconnect(self, client, userdata, rc):
-        """Callback for MQTT disconnection."""
         if rc != 0:
-            self.logger.warning(f"Unexpected MQTT disconnection: {rc}")
-        else:
-            self.logger.info("Disconnected from MQTT broker")
-
-    def _on_mqtt_publish(self, client, userdata, mid):
-        """Callback for MQTT message publish."""
-        pass
+            self.logger.warning(f"Unexpected MQTT disconnect: {rc}")
 
     def _metrics_worker(self):
-        """Worker thread that publishes metrics at 10Hz."""
-        self.logger.info("Metrics worker thread started")
-
+        """Worker thread for publishing metrics at 10Hz."""
         while self._metrics_running:
             try:
-                # Publish ADC metrics
-                self._publish_adc_metrics()
-
-                # Publish GPIO metrics
-                self._publish_gpio_metrics()
-
-                # Sleep for 100ms (10Hz)
                 time.sleep(0.1)
-
             except Exception as e:
-                self.logger.error(f"Error in metrics worker: {e}")
-                time.sleep(1)  # Wait longer on error
+                self.logger.error(f"Metrics error: {e}")
+                time.sleep(1)
 
-        self.logger.info("Metrics worker thread stopped")
+    def start_observability(self):
+        """Start the observability engine background threads."""
+        self._observability_engine.start()
 
-    def _publish_adc_metrics(self):
-        """Publish ADC channel metrics to MQTT."""
-        if not self._metrics_client or not self._adc_handlers:
-            return
-
-        try:
-            # Read all ADC channels
-            for channel in range(8):
-                err, raw_value = self._adc_handlers._read_raw(channel)
-                if not err:
-                    voltage = self._adc_handlers._calculate_real_voltage(raw_value, channel)
-
-                    # Publish individual channel metric - just the voltage value
-                    topic = f"{self._hostname}/metrics/adc/{channel}"
-                    payload = voltage
-
-                    result = self._metrics_client.publish(topic, payload, qos=0)
-                    if result.rc != mqtt.MQTT_ERR_SUCCESS:
-                        self.logger.warning(f"Failed to publish ADC metric for channel {channel}: {result.rc}")
-
-                else:
-                    self.logger.warning(f"Failed to read ADC channel {channel}: {err}")
-
-        except Exception as e:
-            self.logger.error(f"Error publishing ADC metrics: {e}")
-
-    def _publish_gpio_metrics(self):
-        """Publish GPIO state metrics to MQTT."""
-        if not self._metrics_client or not self._gpios:
-            return
-
-        try:
-            # Read all GPIO states
-            for gpio_num, gpio in self._gpios.items():
-                try:
-                    err, state = gpio.read()
-                    if err:
-                        self.logger.warning(f"Failed to read GPIO {gpio_num}: {err}")
-                        continue
-
-                    # Publish individual GPIO metric - just the state value
-                    topic = f"{self._hostname}/metrics/gpio/{gpio_num}"
-                    payload = state
-
-                    result = self._metrics_client.publish(topic, payload, qos=0)
-                    if result.rc != mqtt.MQTT_ERR_SUCCESS:
-                        self.logger.warning(f"Failed to publish GPIO metric for GPIO {gpio_num}: {result.rc}")
-
-                except Exception as e:
-                    self.logger.warning(f"Failed to read GPIO {gpio_num}: {e}")
-
-        except Exception as e:
-            self.logger.error(f"Error publishing GPIO metrics: {e}")
+    def stop_observability(self):
+        """Stop the observability engine background threads."""
+        self._observability_engine.stop()
 
     def stop_metrics(self):
-        """Stop the metrics client and worker thread."""
+        """Stop the metrics client."""
         if self._metrics_running:
-            self.logger.info("Stopping metrics client...")
             self._metrics_running = False
-
             if self._metrics_thread and self._metrics_thread.is_alive():
                 self._metrics_thread.join(timeout=5)
-
             if self._metrics_client:
                 self._metrics_client.disconnect()
-                self.logger.info("Metrics client stopped")
 
     def __del__(self):
-        """Cleanup when the provider is destroyed."""
         self.stop_metrics()
 
-    # -------------------------------------------------
-    #                                     Health Check
-    # -------------------------------------------------
+    # =========================================================================
+    # Health & System (2 RPCs)
+    # =========================================================================
     @grpc_method
-    def HealthCheck(self, request, context: grpc.ServicerContext):
-        """Check server health status.
-
-        Returns:
-            HealthCheckResponse with ready status, version, errors, and capabilities.
-        """
-        from src.shared.types import HealthCheckResponse
-
-        capabilities = {
-            "hardware_revision": self.hardware.revision.name,
-            "gpio": "true",
-            "adc": "true",
-            "power": "true",
-            "sensors": "true",
-            "motion": str(self.config.MOTION_ENABLED).lower(),
-            "gpio_expander": str(self.hardware.has_gpio_expander).lower(),
-            "jlink_mux": str(self.hardware.has_jlink_mux).lower(),
-            "motor_power_switch": str(self.hardware.has_motor_power_switch).lower(),
-        }
-
-        return HealthCheckResponse(
-            ready=True,
-            version="2.0.0",
-            errors=self.errors,
-            capabilities=capabilities,
-        )
-
-    # -------------------------------------------------
-    #                                      System Info
-    # -------------------------------------------------
-    @grpc_method
-    def SystemInfo(self, request, context: grpc.ServicerContext):
-        """Get server system information.
-
-        Returns:
-            SystemInfoResponse with system metrics.
-        """
-        import platform
-        from src.shared.types import SystemInfoResponse, Timestamp
-
-        try:
-            import psutil
-            cpu_usage = psutil.cpu_percent()
-            memory = psutil.virtual_memory()
-            disk = psutil.disk_usage('/')
-            memory_usage = memory.percent
-            disk_usage = disk.percent
-        except ImportError:
-            # psutil not available, return zeros
-            cpu_usage = 0.0
-            memory_usage = 0.0
-            disk_usage = 0.0
-
-        uptime_seconds = int(time.time() - self._start_time)
-
-        return SystemInfoResponse(
-            success=True,
-            message="",
-            hostname=self._hostname,
-            os=f"{platform.system()} {platform.release()}",
-            cpu_usage=cpu_usage,
-            memory_usage=memory_usage,
-            disk_usage=disk_usage,
-            uptime=Timestamp(seconds=uptime_seconds, nanos=0),
-        )
-
-    # -------------------------------------------------
-    #                                              GPIO
-    # -------------------------------------------------
-    @grpc_method
-    def GpioConfig(self, request: GpioConfigRequest, context: grpc.ServicerContext) -> GpioConfigResponse:
-        return self._gpio_handlers.config(request, context)
+    def HealthCheck(self, request, context):
+        return self._system.health_check(request, context)
 
     @grpc_method
-    def GpioWrite(self, request: GpioWriteRequest, context: grpc.ServicerContext) -> GpioWriteResponse:
-        return self._gpio_handlers.write(request, context)
+    def SystemInfo(self, request, context):
+        return self._system.system_info(request, context)
+
+    # =========================================================================
+    # Target Management (2 RPCs)
+    # =========================================================================
+    @grpc_method
+    def ListTargets(self, request, context):
+        return self._target.list_targets(request, context)
 
     @grpc_method
-    def GpioRead(self, request: GpioReadRequest, context: grpc.ServicerContext) -> GpioReadResponse:
-        return self._gpio_handlers.read(request, context)
+    def ListProbes(self, request, context):
+        return self._target.list_probes(request, context)
 
-    # -------------------------------------------------
-    #                                               ADC
-    # -------------------------------------------------
+    # =========================================================================
+    # Debug Probe (15 RPCs)
+    # =========================================================================
     @grpc_method
-    def AdcRead(self, request: AdcReadRequest, context: grpc.ServicerContext) -> AdcReadResponse:
-        return self._adc_handlers.read(request, context)
-
-    @grpc_method
-    def AdcReadAll(self, request: Empty, context: grpc.ServicerContext) -> AdcReadAllResponse:
-        return self._adc_handlers.read_all(request, context)
-
-    # -------------------------------------------------
-    #                                             Power
-    # -------------------------------------------------
-    @grpc_method
-    def DutPowerEnable(self, request: DutPowerRequest, context: grpc.ServicerContext) -> DutPowerResponse:
-        return self._power_handlers.dut_power_enable(request, context)
+    def DebugConnect(self, request, context):
+        return self._debug.connect(request, context)
 
     @grpc_method
-    def DutPowerDisable(self, request: Empty, context: grpc.ServicerContext) -> DutPowerResponse:
-        return self._power_handlers.dut_power_disable(request, context)
+    def DebugDisconnect(self, request, context):
+        return self._debug.disconnect(request, context)
 
     @grpc_method
-    def DutChargePowerEnable(self, request: DutPowerRequest, context: grpc.ServicerContext) -> DutPowerResponse:
-        return self._power_handlers.dut_charge_power_enable(request, context)
+    def DebugStatus(self, request, context):
+        return self._debug.status(request, context)
 
     @grpc_method
-    def DutChargePowerDisable(self, request: Empty, context: grpc.ServicerContext) -> DutPowerResponse:
-        return self._power_handlers.dut_charge_power_disable(request, context)
-
-    # -------------------------------------------------
-    #                                 Power Consumption
-    # -------------------------------------------------
-    @grpc_method
-    def DutPowerRead(self, request: Empty, context: grpc.ServicerContext) -> DutPowerReadResponse:
-        return self._power_handlers.dut_power_read(request, context)
+    def DebugHalt(self, request, context):
+        return self._debug.halt(request, context)
 
     @grpc_method
-    def DutChargePowerRead(self, request: Empty, context: grpc.ServicerContext) -> DutPowerReadResponse:
-        return self._power_handlers.dut_charge_power_read(request, context)
-
-    # -------------------------------------------------
-    #                                           Sensors
-    # -------------------------------------------------
-    @grpc_method
-    def AltimeterRead(self, request: Empty, context: grpc.ServicerContext) -> AltimeterReadResponse:
-        return self._sensors_handlers.read_altimeter(request, context)
+    def DebugResume(self, request, context):
+        return self._debug.resume(request, context)
 
     @grpc_method
-    def AccelRead(self, request: Empty, context: grpc.ServicerContext) -> AccelReadResponse:
-        return self._sensors_handlers.read_accel(request, context)
-
-    # -------------------------------------------------
-    #                                            Motion
-    # -------------------------------------------------
-    @grpc_method
-    def GetMotionStatus(self, request: Empty, context: grpc.ServicerContext) -> GetMotionStatusResponse:
-        if not self.config.MOTION_ENABLED:
-            return GetMotionStatusResponse(success=False, message="Motion is not enabled")
-        return self._motion_handlers.get_status(request, context)
+    def DebugStep(self, request, context):
+        return self._debug.step(request, context)
 
     @grpc_method
-    def MotionStart(self, request: MotionStartRequest, context: grpc.ServicerContext) -> MotionStartResponse:
-        if not self.config.MOTION_ENABLED:
-            return MotionStartResponse(success=False, message="Motion is not enabled")
-        return self._motion_handlers.start(request, context)
+    def DebugReset(self, request, context):
+        return self._debug.reset(request, context)
 
     @grpc_method
-    def MotionHome(self, request: Empty, context: grpc.ServicerContext) -> MotionHomeResponse:
-        if not self.config.MOTION_ENABLED:
-            return MotionHomeResponse(success=False, message="Motion is not enabled")
-        return self._motion_handlers.home(request, context)
+    def ReadRegisters(self, request, context):
+        return self._debug.read_registers(request, context)
 
     @grpc_method
-    def MotionStop(self, request: Empty, context: grpc.ServicerContext) -> MotionStopResponse:
-        if not self.config.MOTION_ENABLED:
-            return MotionStopResponse(success=False, message="Motion is not enabled")
-        return self._motion_handlers.stop(request, context)
-
-    # -------------------------------------------------
-    #                                          Firmware
-    # -------------------------------------------------
-    @grpc_method
-    def ListProgrammers(self, request: Empty, context: grpc.ServicerContext) -> ListProgrammersResponse:
-        return self._firmware_handlers.list_programmers(request, context)
+    def WriteRegister(self, request, context):
+        return self._debug.write_register(request, context)
 
     @grpc_method
-    def ListFwFiles(self, request: Empty, context: grpc.ServicerContext) -> ListFwFilesResponse:
-        return self._firmware_handlers.list_fw_files(request, context)
+    def ReadMemory(self, request, context):
+        return self._debug.read_memory(request, context)
 
     @grpc_method
-    def UploadFwFile(
-        self, request_iterator: Iterator[UploadFwFileRequest], context: grpc.ServicerContext
-    ) -> UploadFwFileResponse:
-        return self._firmware_handlers.upload_fw_file(request_iterator, context)
+    def WriteMemory(self, request, context):
+        return self._debug.write_memory(request, context)
 
     @grpc_method
-    def DeleteFwFile(self, request: DeleteFwFileRequest, context: grpc.ServicerContext) -> DeleteFwFileResponse:
-        return self._firmware_handlers.delete_fw_file(request, context)
+    def SetBreakpoint(self, request, context):
+        return self._debug.set_breakpoint(request, context)
 
     @grpc_method
-    def FlashFwFile(self, request: FlashFwFileRequest, context: grpc.ServicerContext) -> FlashFwFileResponse:
-        return self._firmware_handlers.flash_fw_file(request, context)
+    def ClearBreakpoint(self, request, context):
+        return self._debug.clear_breakpoint(request, context)
 
     @grpc_method
-    def EraseFlash(self, request: EraseFlashRequest, context: grpc.ServicerContext) -> EraseFlashResponse:
-        return self._firmware_handlers.erase_flash(request, context)
+    def SetWatchpoint(self, request, context):
+        return self._debug.set_watchpoint(request, context)
 
     @grpc_method
-    def EnableAppProtect(
-        self, request: EnableAppProtectRequest, context: grpc.ServicerContext
-    ) -> EnableAppProtectResponse:
-        return self._firmware_handlers.enable_app_protect(request, context)
+    def Backtrace(self, request, context):
+        return self._debug.backtrace(request, context)
 
-    # -------------------------------------------------
-    #                                              UART
-    # -------------------------------------------------
-    def UartStream(
-        self, request_iterator: Iterator[UartStreamRequest], context: grpc.ServicerContext
-    ) -> Iterator[UartStreamResponse]:
-        return self._uart_handlers.stream(request_iterator, context)
+    # =========================================================================
+    # Flash Programming (4 RPCs)
+    # =========================================================================
+    @grpc_method
+    def FlashInfo(self, request, context):
+        return self._flash.info(request, context)
+
+    @grpc_method
+    def FlashErase(self, request, context):
+        return self._flash.erase(request, context)
+
+    @grpc_method
+    def FlashWrite(self, request, context):
+        return self._flash.write(request, context)
+
+    @grpc_method
+    def FlashProgram(self, request, context):
+        return self._flash.program(request, context)
+
+    # =========================================================================
+    # RTT (3 RPCs)
+    # =========================================================================
+    @grpc_method
+    def RttStart(self, request, context):
+        return self._rtt.start(request, context)
+
+    @grpc_method
+    def RttStop(self, request, context):
+        return self._rtt.stop(request, context)
+
+    def RttStream(self, request_iterator, context):
+        """Bidirectional streaming - no @grpc_method decorator for streaming."""
+        return self._rtt.stream(request_iterator, context)
+
+    # =========================================================================
+    # SWO (3 RPCs)
+    # =========================================================================
+    @grpc_method
+    def SwoStart(self, request, context):
+        return self._swo.start(request, context)
+
+    @grpc_method
+    def SwoStop(self, request, context):
+        return self._swo.stop(request, context)
+
+    def SwoStream(self, request, context):
+        """Server streaming - no decorator."""
+        return self._swo.stream(request, context)
+
+    # =========================================================================
+    # UART (3 RPCs)
+    # =========================================================================
+    @grpc_method
+    def UartOpen(self, request, context):
+        return self._uart.open(request, context)
+
+    @grpc_method
+    def UartClose(self, request, context):
+        return self._uart.close(request, context)
+
+    def UartStream(self, request_iterator, context):
+        """Bidirectional streaming - no decorator."""
+        return self._uart.stream(request_iterator, context)
+
+    # =========================================================================
+    # Power (5 RPCs)
+    # =========================================================================
+    @grpc_method
+    def PowerEnable(self, request, context):
+        return self._power.enable(request, context)
+
+    @grpc_method
+    def PowerDisable(self, request, context):
+        return self._power.disable(request, context)
+
+    @grpc_method
+    def PowerStatus(self, request, context):
+        return self._power.status(request, context)
+
+    def PowerStream(self, request, context):
+        """Server streaming - no decorator."""
+        return self._power.stream(request, context)
+
+    @grpc_method
+    def PowerMeasure(self, request, context):
+        return self._power.measure(request, context)
+
+    # =========================================================================
+    # Logic Analyzer (5 RPCs)
+    # =========================================================================
+    @grpc_method
+    def LogicCaptureStart(self, request, context):
+        return self._logic.capture_start(request, context)
+
+    @grpc_method
+    def LogicCaptureStatus(self, request, context):
+        return self._logic.capture_status(request, context)
+
+    @grpc_method
+    def LogicCaptureStop(self, request, context):
+        return self._logic.capture_stop(request, context)
+
+    @grpc_method
+    def AddDecoder(self, request, context):
+        return self._logic.add_decoder(request, context)
+
+    @grpc_method
+    def GetDecodedData(self, request, context):
+        return self._logic.get_decoded_data(request, context)
+
+    # =========================================================================
+    # GPIO (4 RPCs)
+    # =========================================================================
+    @grpc_method
+    def GpioConfig(self, request, context):
+        return self._gpio.config(request, context)
+
+    @grpc_method
+    def GpioWrite(self, request, context):
+        return self._gpio.write(request, context)
+
+    @grpc_method
+    def GpioRead(self, request, context):
+        return self._gpio.read(request, context)
+
+    def GpioWatch(self, request, context):
+        """Server streaming - no decorator."""
+        return self._gpio.watch(request, context)
+
+    # =========================================================================
+    # I2C Master (3 RPCs)
+    # =========================================================================
+    @grpc_method
+    def I2cConfigure(self, request, context):
+        return self._i2c.configure(request, context)
+
+    @grpc_method
+    def I2cTransfer(self, request, context):
+        return self._i2c.transfer(request, context)
+
+    @grpc_method
+    def I2cScan(self, request, context):
+        return self._i2c.scan(request, context)
+
+    # =========================================================================
+    # SPI Master (2 RPCs)
+    # =========================================================================
+    @grpc_method
+    def SpiConfigure(self, request, context):
+        return self._spi.configure(request, context)
+
+    @grpc_method
+    def SpiTransfer(self, request, context):
+        return self._spi.transfer(request, context)
+
+    # =========================================================================
+    # CAN Bus (4 RPCs)
+    # =========================================================================
+    @grpc_method
+    def CanConfigure(self, request, context):
+        return self._can.configure(request, context)
+
+    @grpc_method
+    def CanSend(self, request, context):
+        return self._can.send(request, context)
+
+    @grpc_method
+    def CanSetFilter(self, request, context):
+        return self._can.set_filter(request, context)
+
+    def CanReceive(self, request, context):
+        """Server streaming - no decorator."""
+        return self._can.receive(request, context)
+
+    # =========================================================================
+    # BLE (7 RPCs)
+    # =========================================================================
+    @grpc_method
+    def BleScan(self, request, context):
+        return self._ble.scan(request, context)
+
+    @grpc_method
+    def BleConnect(self, request, context):
+        return self._ble.connect(request, context)
+
+    @grpc_method
+    def BleDisconnect(self, request, context):
+        return self._ble.disconnect(request, context)
+
+    @grpc_method
+    def BleDiscoverServices(self, request, context):
+        return self._ble.discover_services(request, context)
+
+    @grpc_method
+    def BleRead(self, request, context):
+        return self._ble.read(request, context)
+
+    @grpc_method
+    def BleWrite(self, request, context):
+        return self._ble.write(request, context)
+
+    def BleNotifications(self, request, context):
+        """Server streaming - no decorator."""
+        return self._ble.notifications(request, context)
+
+    # =========================================================================
+    # Zephyr (5 RPCs)
+    # =========================================================================
+    @grpc_method
+    def ZephyrShell(self, request, context):
+        return self._zephyr.shell(request, context)
+
+    def ZephyrLogStream(self, request, context):
+        """Server streaming - no decorator."""
+        return self._zephyr.log_stream(request, context)
+
+    @grpc_method
+    def ZephyrDevicetree(self, request, context):
+        return self._zephyr.devicetree(request, context)
+
+    @grpc_method
+    def ZephyrThreads(self, request, context):
+        return self._zephyr.threads(request, context)
+
+    @grpc_method
+    def TwisterRun(self, request, context):
+        return self._zephyr.twister_run(request, context)
+
+    # =========================================================================
+    # File Management (4 RPCs)
+    # =========================================================================
+    @grpc_method
+    def ListFiles(self, request, context):
+        return self._files.list_files(request, context)
+
+    def UploadFile(self, request_iterator, context):
+        """Client streaming - no decorator."""
+        return self._files.upload(request_iterator, context)
+
+    def DownloadFile(self, request, context):
+        """Server streaming - no decorator."""
+        return self._files.download(request, context)
+
+    @grpc_method
+    def DeleteFile(self, request, context):
+        return self._files.delete(request, context)
+
+    # =========================================================================
+    # Observability (2 RPCs)
+    # =========================================================================
+    @grpc_method
+    def GetObservabilitySnapshot(self, request, context):
+        return self._observability.get_snapshot(request, context)
+
+    def ObservabilityStream(self, request, context):
+        """Server streaming - no decorator."""
+        return self._observability.stream(request, context)

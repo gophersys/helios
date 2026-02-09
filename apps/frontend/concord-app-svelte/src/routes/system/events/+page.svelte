@@ -31,8 +31,8 @@
   async function fetchEvents() {
     try {
       const url = namespace
-        ? `/v2/system/events?limit=200&namespace=${namespace}`
-        : '/v2/system/events?limit=200';
+        ? `/v2/kubernetes/events?limit=200&namespace=${namespace}`
+        : '/v2/kubernetes/events?limit=200';
       const res = await api.get<{ data: K8sEvent[] }>(url);
       if (res?.data) events = res.data;
       error = null;

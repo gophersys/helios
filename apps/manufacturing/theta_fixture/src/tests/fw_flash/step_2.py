@@ -2,9 +2,6 @@
 import logging
 from typing import Dict
 
-# Corekinect libraries
-from corekinect.mtib_client.v1.client.types import HostType
-from protocols.mtib.mtib_pb2 import FwFileInfo
 from tests.lib import *
 
 # Shared includes
@@ -21,24 +18,33 @@ def fw_flash_test_step_2_handler(
     config: ThetaFixtureConfig, node: str, usr_data: Dict[str, FwFlashTestSharedData]
 ) -> TestStepResult:
     """
-    Step 3 from test plan:
-    3. When modem firmware is complete, flash nRF9151 with manufacturing firmware.
+    Flash nRF9151 with manufacturing application firmware via debug session.
     """
     result: TestStepResult = TestStepResult(success=False)
     client = usr_data[node].client
 
     # Flash nRF9151 application firmware
-    file_info = FwFileInfo(
-        name=config.fw_flash_nrf9151_app_fw_name,
-        target=HostType.HOST_TYPE_NRF9151,
-    )
-
-    time_ms, error = client.FlashFwFile(file_info, sector_erase=True, recover=True)
-    if error:
-        result.error = f"nRF9151 app flash failed: {error}"
+    err, session = client.debug_connect(target_id="nrf9151", probe_id="")
+    if err:
+        result.error = f"nRF9151 debug connect failed: {err}"
         return result
 
-    logging.debug(f"nRF9151 {config.fw_flash_nrf9151_app_fw_name} app firmware flashed in {time_ms}ms")
+    err, flash_result = client.flash_program(
+        session_id=session.session_id,
+        filename=config.fw_flash_nrf9151_app_fw_name,
+        erase_before=True,
+        verify_after=True,
+        reset_after=True,
+    )
+    client.debug_disconnect(session.session_id)
+
+    if err:
+        result.error = f"nRF9151 app flash failed: {err}"
+        return result
+
+    logging.debug(
+        f"nRF9151 {config.fw_flash_nrf9151_app_fw_name} app firmware flashed in {flash_result.time_ms}ms"
+    )
 
     result.success = True
     return result

@@ -1,8 +1,8 @@
 from setuptools import find_packages, setup
 
 setup(
-    name="mtib-server",
-    version="1.0",
+    name="mtib-server-v2",
+    version="2.0.0",
     packages=find_packages(),
     install_requires=[
         "grpcio>=1.74.0",
@@ -15,8 +15,10 @@ setup(
         "xmodem==0.4.7",
         "cryptography",
         "smbus",
+        "smbus2",
         "reedsolo",
         "paho-mqtt==2.1.0",
         "PyYAML==6.0.3",
+        "psutil",
     ],
 )

@@ -15,10 +15,10 @@
       "defaultConfiguration": "staging",
       "configurations": {
         "staging": {
-          "command": "docker push containers.ad.corekinect.com/concord-mtib-server:latest"
+          "command": "docker push containers.ad.corekinect.com/concord-mtib-server-v2:latest"
         },
         "production": {
-          "command": "docker push containers.ad.corekinect.com/concord-mtib-server:latest"
+          "command": "docker push containers.ad.corekinect.com/concord-mtib-server-v2:latest"
         }
       }
     },
@@ -46,14 +46,14 @@
       "options": {
         "context": "{workspaceRoot}",
         "cwd": "{workspaceRoot}",
-        "file": "apps/edge/mtib-server/deploy/Dockerfile",
+        "file": "apps/edge/mtib-server-v2/deploy/Dockerfile",
         "push": false,
         "load": true
       },
       "configurations": {
         "development": {
           "tags": [
-            "concord-mtib-server:development"
+            "concord-mtib-server-v2:development"
           ],
           "platforms": [
             "linux/arm64"
@@ -61,7 +61,7 @@
         },
         "staging": {
           "tags": [
-            "containers.ad.corekinect.com/concord-mtib-server:staging"
+            "containers.ad.corekinect.com/concord-mtib-server-v2:staging"
           ],
           "platforms": [
             "linux/arm64"
@@ -69,7 +69,7 @@
         },
         "production": {
           "tags": [
-            "containers.ad.corekinect.com/concord-mtib-server:latest"
+            "containers.ad.corekinect.com/concord-mtib-server-v2:latest"
           ],
           "platforms": [
             "linux/arm64"

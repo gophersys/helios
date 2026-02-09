@@ -18,6 +18,12 @@ export interface ExecSession {
   command?: string[];
 }
 
+export interface UartSubscription {
+  nodeId: string;
+  portName: string;
+  baud?: number;
+}
+
 /**
  * Get or create the Socket.IO connection to /system namespace.
  * Authenticates with JWT token.
@@ -41,9 +47,9 @@ export function getSystemSocket(): Socket | null {
   }
 
   // Create new socket connection
-  systemSocket = io('/system', {
+  systemSocket = io('/kubernetes', {
     auth: { token },
-    transports: ['websocket'],
+    transports: ['polling', 'websocket'],
     reconnection: true,
     reconnectionAttempts: 5,
     reconnectionDelay: 1000,
@@ -80,7 +86,8 @@ export function disconnectSystemSocket(): void {
 export function subscribeLogs(
   subscription: LogSubscription,
   onLine: (line: string) => void,
-  onError: (message: string) => void
+  onError: (message: string) => void,
+  onConnected?: () => void
 ): () => void {
   const socket = getSystemSocket();
   if (!socket) {
@@ -96,25 +103,59 @@ export function subscribeLogs(
     onError(data.message);
   };
 
+  const connectErrorHandler = (err: Error) => {
+    onError(`Connection failed: ${err.message}`);
+  };
+
+  const disconnectHandler = (reason: string) => {
+    if (reason !== 'io client disconnect') {
+      onError(`Disconnected: ${reason}`);
+    }
+  };
+
+  const connectHandler = () => {
+    onConnected?.();
+    // Emit subscribe after connection is established
+    socket.emit('subscribe_logs', {
+      namespace: subscription.namespace,
+      pod: subscription.pod,
+      container: subscription.container,
+      tailLines: subscription.tailLines ?? 100,
+    });
+  };
+
   socket.on('log_line', lineHandler);
   socket.on('log_error', errorHandler);
+  socket.on('connect_error', connectErrorHandler);
+  socket.on('disconnect', disconnectHandler);
 
-  socket.emit('subscribe_logs', {
-    namespace: subscription.namespace,
-    pod: subscription.pod,
-    container: subscription.container,
-    tailLines: subscription.tailLines ?? 100,
-  });
+  // If already connected, subscribe immediately
+  if (socket.connected) {
+    onConnected?.();
+    socket.emit('subscribe_logs', {
+      namespace: subscription.namespace,
+      pod: subscription.pod,
+      container: subscription.container,
+      tailLines: subscription.tailLines ?? 100,
+    });
+  } else {
+    socket.on('connect', connectHandler);
+  }
 
   // Return unsubscribe function
   return () => {
     socket.off('log_line', lineHandler);
     socket.off('log_error', errorHandler);
-    socket.emit('unsubscribe_logs', {
-      namespace: subscription.namespace,
-      pod: subscription.pod,
-      container: subscription.container,
-    });
+    socket.off('connect_error', connectErrorHandler);
+    socket.off('disconnect', disconnectHandler);
+    socket.off('connect', connectHandler);
+    if (socket.connected) {
+      socket.emit('unsubscribe_logs', {
+        namespace: subscription.namespace,
+        pod: subscription.pod,
+        container: subscription.container,
+      });
+    }
   };
 }
 
@@ -177,5 +218,68 @@ export function startExec(
       socket.off('exec_error', errorHandler);
       socket.emit('exec_stop');
     },
+  };
+}
+
+/**
+ * Subscribe to live UART data from an MTIB node.
+ * Filters events by portName so multiple ports can share one socket.
+ */
+export function subscribeUart(
+  subscription: UartSubscription,
+  onData: (data: string) => void,
+  onError: (message: string) => void,
+  onOpened?: () => void
+): () => void {
+  const socket = getSystemSocket();
+  if (!socket) {
+    onError('WebSocket not available');
+    return () => {};
+  }
+
+  const { nodeId, portName } = subscription;
+
+  const dataHandler = (event: { portName: string; data: string }) => {
+    if (event.portName === portName) onData(event.data);
+  };
+
+  const errorHandler = (event: { portName: string; message: string }) => {
+    if (event.portName === portName) onError(event.message);
+  };
+
+  const openedHandler = (event: { portName: string; streamId: string }) => {
+    if (event.portName === portName) onOpened?.();
+  };
+
+  socket.on('uart_data', dataHandler);
+  socket.on('uart_error', errorHandler);
+  socket.on('uart_opened', openedHandler);
+
+  const emitSubscribe = () => {
+    socket.emit('subscribe_uart', {
+      nodeId,
+      portName,
+      baud: subscription.baud ?? 115200,
+    });
+  };
+
+  const connectHandler = () => {
+    emitSubscribe();
+  };
+
+  if (socket.connected) {
+    emitSubscribe();
+  } else {
+    socket.on('connect', connectHandler);
+  }
+
+  return () => {
+    socket.off('uart_data', dataHandler);
+    socket.off('uart_error', errorHandler);
+    socket.off('uart_opened', openedHandler);
+    socket.off('connect', connectHandler);
+    if (socket.connected) {
+      socket.emit('unsubscribe_uart', { nodeId, portName });
+    }
   };
 }

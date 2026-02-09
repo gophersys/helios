@@ -2,8 +2,6 @@
 import time
 from typing import Dict, List
 
-# Corekinect libraries
-from corekinect.mtib_client.v1.client.types import HostType
 from tests.lib import *
 
 # Shared includes
@@ -11,9 +9,6 @@ from ..shared.config import ThetaFixtureConfig
 
 # Test includes
 from .data import PostTestSharedData
-
-# Theta uses nRF9151 for comms processor
-THETA_COMMS_TARGET = HostType.HOST_TYPE_NRF9151
 
 
 # ---------------------------------------------------------------------------------
@@ -76,7 +71,6 @@ def post_step_7_handler(
     Validates format and Luhn checksums.
     """
     result: TestStepResult = TestStepResult(success=False)
-    client = usr_data[node].client
 
     max_retries = 5
     retry_delay = 3
@@ -84,7 +78,7 @@ def post_step_7_handler(
     iccids = None
 
     for attempt in range(max_retries):
-        imei, iccids, error = client.cmd_comms_coproc_get_imei_iccid(target=THETA_COMMS_TARGET)
+        imei, iccids, error = usr_data[node].comms_cmds.get_imei_iccid()
         if error:
             result.error = f"IMEI/ICCID query failed: {error}"
             return result

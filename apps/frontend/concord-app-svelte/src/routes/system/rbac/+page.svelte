@@ -53,7 +53,7 @@
     loading = true;
     error = null;
     try {
-      let url = `/v2/system/rbac/${tab}`;
+      let url = `/v2/kubernetes/rbac/${tab}`;
       if (isNamespaced && namespace) {
         url += `?namespace=${namespace}`;
       }

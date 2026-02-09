@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from typing import Any, Dict, Optional, Tuple
 
+from database import Json
+
 
 @dataclass
 class NodeCreateRequest:
@@ -106,5 +108,5 @@ class NodeUpdateRequest:
         if self._has_revision:
             update_data["hardwareRevision"] = self.hardwareRevision
         if self._has_metadata:
-            update_data["metadata"] = self.metadata
+            update_data["metadata"] = Json(self.metadata) if self.metadata is not None else None
         return update_data

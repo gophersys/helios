@@ -1,9 +1,11 @@
 # Standard includes
-import time
+import logging
 from typing import Dict
 
 # Corekinect libraries
-from corekinect.mtib_client.v1.client.types import HostType
+from corekinect.mtib_client.v2.client.shell import boot_and_lock_shells
+from corekinect.mtib_client.v2.client.cmd_comms import CommsShellCommands
+from corekinect.mtib_client.v2.client.cmd_alpha_app import AlphaAppShellCommands
 from tests.lib import *
 
 # Shared includes
@@ -11,9 +13,6 @@ from ..shared.config import ThetaFixtureConfig
 
 # Test includes
 from .data import PostTestSharedData
-
-# Theta uses nRF9151 for comms processor
-THETA_COMMS_TARGET = HostType.HOST_TYPE_NRF9151
 
 
 # ---------------------------------------------------------------------------------
@@ -23,57 +22,41 @@ def post_step_0_handler(
     config: ThetaFixtureConfig, node: str, usr_data: Dict[str, PostTestSharedData]
 ) -> TestStepResult:
     """
-    Step 0: Power cycle device and lock shells.
-    Power off, wait, power on at 4.0V, wait for boot, lock comms + app shells.
+    Step 0: Power cycle device and lock shells using V2 boot_and_lock_shells().
+
+    This replaces the V1 manual power-cycle + lock + debug_disable sequence.
+    boot_and_lock_shells() handles:
+    - Power cycling with UART-before-power-on race
+    - Parallel lock_shell on both UARTs
+    - J-Link debug reset on first attempt for clean boot
+    - TX backlog drain
+    - debug_enable 0 to silence noise
+    - Retries on failure
     """
     result: TestStepResult = TestStepResult(success=False)
     client = usr_data[node].client
 
-    # Power cycle the device to get a clean boot with manufacturing firmware
-    error = client.DutPowerDisable()
-    if error:
-        result.error = f"Could not disable device power: {error}"
+    # Configure GPIO for SWD level shifter (output, drive low)
+    client.gpio_config(pin=0, direction=1)
+    client.gpio_config(pin=1, direction=1)
+    client.gpio_write(pin=0, value=False)
+    client.gpio_write(pin=1, value=False)
+
+    # Boot and lock both shells — handles power cycle, lock race, TX drain
+    app_shell, comms_shell, err = boot_and_lock_shells(
+        client, app_port="uart1", comms_port="uart0"
+    )
+    if err:
+        result.error = f"Failed to boot and lock shells: {err}"
         return result
 
-    error = client.DutChargePowerDisable()
-    if error:
-        result.error = f"Could not disable charging power: {error}"
-        return result
+    # Store persistent shells and command wrappers in shared data
+    usr_data[node].app_shell = app_shell
+    usr_data[node].comms_shell = comms_shell
+    usr_data[node].app_cmds = AlphaAppShellCommands(app_shell)
+    usr_data[node].comms_cmds = CommsShellCommands(comms_shell)
 
-    time.sleep(2)
-
-    # Turn on the device at 4.0V
-    error = client.DutPowerEnable(4.0)
-    if error:
-        result.error = f"Could not enable power: {error}"
-        return result
-
-    # Wait for shell to be ready (must lock before debug messages flood after ~8s)
-    time.sleep(5)
-
-    # Lock shell and disable debug UART on comms processor (nRF9151)
-    locked, error = client.cmd_comms_coproc_lock_shell(target=THETA_COMMS_TARGET)
-    if error or not locked:
-        result.error = f"Could not lock comms shell: {error}"
-        return result
-
-    disabled, error = client.cmd_comms_coproc_debug_uart_disable(target=THETA_COMMS_TARGET)
-    if error or not disabled:
-        result.error = f"Could not disable comms debug UART: {error}"
-        return result
-
-    # Lock shell and disable debug UART on app processor (nRF52840)
-    locked, error = client.cmd_theta_app_lock_shell()
-    if error or not locked:
-        result.error = f"Could not lock app shell: {error}"
-        return result
-
-    disabled, error = client.cmd_theta_app_debug_uart_disable()
-    if error or not disabled:
-        result.error = f"Could not disable app debug UART: {error}"
-        return result
-
-    logging.debug(f"POST Step 0 PASS: Device booted and shells locked")
+    logging.debug("POST Step 0 PASS: Device booted and shells locked")
 
     result.success = True
     return result
@@ -85,9 +68,10 @@ def post_step_0_handler(
 post_step_0_boot_and_lock: TestStep = TestStep(
     info=StepInfo(
         name="Boot device and lock shells",
-        description="Power cycles the device, waits for boot, and locks comms + app UART shells.",
+        description="Power cycles the device, waits for boot, and locks comms + app UART shells "
+        "using V2 boot_and_lock_shells() with automatic retry and TX backlog drain.",
         noPassIsFatal=True,
     ),
-    timeout_ms=60000,
+    timeout_ms=600000,  # 10 minutes — includes TX backlog drain which can take 3-5 mins
     handler=post_step_0_handler,
 )

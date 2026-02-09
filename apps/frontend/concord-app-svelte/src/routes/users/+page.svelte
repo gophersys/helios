@@ -142,7 +142,7 @@
       onsubmit={handleCreate}
       class="mb-6 card card-sm"
     >
-      <div class="grid grid-cols-3 gap-3">
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <label>
           <span class="mb-1 block text-2xs font-medium text-text-tertiary">
             Email

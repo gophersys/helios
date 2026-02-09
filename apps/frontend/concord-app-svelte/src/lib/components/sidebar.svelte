@@ -76,9 +76,9 @@
   });
 
   const adminItems: NavItem[] = [
-    { to: '/nodes', icon: Server, label: 'Nodes', permission: 'Concord.Admin.Nodes.View' },
+    { to: '/mtib', icon: Cpu, label: 'MTIB', permission: 'Concord.Admin.Nodes.View' },
     { to: '/system', icon: Monitor, label: 'System', permission: 'Concord.Admin.System.View' },
-    { to: '/inventory', icon: Cpu, label: 'Inventory', permission: 'Concord.Admin.Inventory.View' },
+    { to: '/inventory', icon: Server, label: 'Inventory', permission: 'Concord.Admin.Inventory.View' },
     { to: '/codebases', icon: GitBranch, label: 'Codebases', permission: 'Concord.Admin.Codebases.View' },
     { to: '/products', icon: Package, label: 'Products', permission: 'Concord.Admin.Products.View' },
     { to: '/history', icon: History, label: 'History', permission: 'Concord.Admin.History.View' },
@@ -184,14 +184,14 @@
   <div class="border-t border-border" class:mx-2={collapsed} class:mx-4={!collapsed}></div>
 
   <div
-    class="flex rounded-lg bg-surface-2 p-0.5"
+    class="flex overflow-hidden rounded-lg bg-surface-2 p-0.5"
     class:mx-2={collapsed}
     class:mt-3={true}
     class:mx-4={!collapsed}
   >
     <button
       onclick={() => handleModeChange('manufacturing')}
-      class="flex-1 rounded-md text-center text-2xs font-medium transition-all"
+      class="flex-1 min-w-0 truncate rounded-md text-center text-2xs font-medium transition-all"
       class:px-1={collapsed}
       class:py-1.5={true}
       class:px-2={!collapsed}
@@ -205,7 +205,7 @@
     </button>
     <button
       onclick={() => handleModeChange('validation')}
-      class="flex-1 rounded-md text-center text-2xs font-medium transition-all"
+      class="flex-1 min-w-0 truncate rounded-md text-center text-2xs font-medium transition-all"
       class:px-1={collapsed}
       class:py-1.5={true}
       class:px-2={!collapsed}

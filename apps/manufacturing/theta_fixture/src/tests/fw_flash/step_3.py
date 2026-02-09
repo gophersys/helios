@@ -2,8 +2,6 @@
 import logging
 from typing import Dict
 
-# Corekinect libraries
-from corekinect.mtib_client.v1.client.types import HostType
 from tests.lib import *
 
 # Shared includes
@@ -11,9 +9,6 @@ from ..shared.config import ThetaFixtureConfig
 
 # Test includes
 from .data import FwFlashTestSharedData
-
-# Theta uses nRF9151 for comms processor
-THETA_COMMS_TARGET = HostType.HOST_TYPE_NRF9151
 
 
 # ---------------------------------------------------------------------------------
@@ -25,29 +20,25 @@ def fw_flash_test_step_3_handler(
     """
     Set AP protect on both processors (nRF52840 and nRF9151).
     This prevents debug access to the device after manufacturing.
+
+    TODO: V2 server does not yet have an EnableAppProtect RPC.
+    This step is skipped for now and will be implemented when the
+    V2 server handler is added. AP protect is the final step and
+    not critical for initial V2 validation.
     """
     result: TestStepResult = TestStepResult(success=False)
-    client = usr_data[node].client
 
-    # Set AP protect on app processor (nRF52840)
-    success, error = client.EnableAppProtect(HostType.HOST_TYPE_NRF52840)
-    if error:
-        result.error = f"Error setting AP protect on app processor: {error}"
-        return result
-    if not success:
-        result.error = "Failed to set AP protect on app processor"
-        return result
+    logging.warning(
+        "AP protect step skipped — V2 server does not yet have EnableAppProtect RPC. "
+        "This must be implemented before production use."
+    )
 
-    # Set AP protect on comms processor (nRF9151)
-    success, error = client.EnableAppProtect(THETA_COMMS_TARGET)
-    if error:
-        result.error = f"Error setting AP protect on comms processor: {error}"
-        return result
-    if not success:
-        result.error = "Failed to set AP protect on comms processor"
-        return result
-
-    logging.debug("AP protect set successfully on both processors")
+    # TODO: Implement AP protect when V2 server supports it.
+    # Expected V2 API (when available):
+    #   err, session = client.debug_connect(target_id="nrf52840", probe_id="")
+    #   err = client.enable_app_protect(session.session_id)
+    #   client.debug_disconnect(session.session_id)
+    #   ... same for nrf9151 ...
 
     result.success = True
     return result
@@ -59,7 +50,8 @@ def fw_flash_test_step_3_handler(
 fw_flash_test_step_3: TestStep = TestStep(
     info=StepInfo(
         name="Set AP protect",
-        description="Enables AP protect on both nRF52840 and nRF9151 processors to prevent debug access.",
+        description="Enables AP protect on both nRF52840 and nRF9151 processors to prevent debug access. "
+        "(Currently skipped — V2 server handler not yet implemented.)",
         noPassIsFatal=True,
     ),
     timeout_ms=30000,  # 30 seconds

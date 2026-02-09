@@ -16,6 +16,7 @@
   let selectedContainer = $state(untrack(() => containers[0] || ''));
   let lines = $state<string[]>([]);
   let error = $state<string | null>(null);
+  let connected = $state(false);
   let paused = $state(false);
   let tailLines = $state(100);
   let autoScroll = $state(true);
@@ -87,11 +88,13 @@
     lines = [];
     pausedBuffer = [];
     paused = false;
+    connected = false;
 
     unsubscribe = subscribeLogs(
       { namespace, pod, container: selectedContainer, tailLines },
       handleLine,
-      handleError
+      handleError,
+      () => { connected = true; }
     );
   }
 
@@ -241,7 +244,9 @@
             </button>
           </div>
         {:else if lines.length === 0}
-          <div class="p-3 text-text-tertiary">Connecting to log stream...</div>
+          <div class="p-3 text-text-tertiary">
+            {connected ? 'Connected — waiting for log output...' : 'Connecting to log stream...'}
+          </div>
         {:else}
           <pre class="p-3 whitespace-pre-wrap break-all">{lines.join('\n')}</pre>
         {/if}

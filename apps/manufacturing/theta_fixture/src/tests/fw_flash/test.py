@@ -8,20 +8,20 @@ from typing import Dict, List
 from protocols.cluster_test.cluster_test_pb2 import TestInfo
 
 # Corekinect libraries
-from corekinect.mtib_client.v1.client.core import MtibV1Client
-from corekinect.mtib_client.v1.client.config import NetConfig
-from corekinect.mtib_client.v1.client.types import *
+from corekinect.mtib_client.v2 import MtibV2Client, ClientConfig, NetConfig
 from tests.lib import *
 
 # Shared includes
 from ..shared.config import ThetaFixtureConfig
-from ..shared.rpcs import MTIB_SERVICE_GRPC_SERVER_PORT
 
 # Test includes
 from .data import FwFlashTestSharedData, fw_flash_test_shared_data
 from .step_1 import fw_flash_test_step_1
 from .step_2 import fw_flash_test_step_2
 from .step_3 import fw_flash_test_step_3
+
+# V2 gRPC server port
+MTIB_V2_PORT = 50052
 
 
 # ---------------------------------------------------------------------------------
@@ -31,9 +31,9 @@ def fw_flash_test_init(
     config: ThetaFixtureConfig, nodes: List[str], usr_data: Dict[str, FwFlashTestSharedData]
 ) -> str:
     def init_node(node: str) -> str:
-        # Create and connect MtibV1Client for this node
-        client_config = MtibV1Client.Config(net=NetConfig(addr=node, port=MTIB_SERVICE_GRPC_SERVER_PORT))
-        client = MtibV1Client(client_config)
+        # Create and connect MtibV2Client for this node
+        client_config = ClientConfig(net=NetConfig(addr=node, port=MTIB_V2_PORT))
+        client = MtibV2Client(client_config)
         error = client.connect()
         if error:
             return f"Could not connect to mtib on host {node}: {error}"
@@ -42,13 +42,13 @@ def fw_flash_test_init(
         usr_data[node] = FwFlashTestSharedData()
         usr_data[node].client = client
 
-        # Turn on power for flashing
-        error = client.DutPowerEnable(4.0)
+        # Turn on power for flashing — 4.5V required for Alpha B0 (BQ25180 UVLO)
+        error = client.power_enable(channel=0, voltage_v=4.5)
         if error:
             return f"Could not enable device power in host {node}: {error}"
 
         # Turn on charging power (modem firmware flash may need extra power)
-        error = client.DutChargePowerEnable()
+        error = client.power_enable(channel=1)
         if error:
             return f"Could not enable charging power in host {node}: {error}"
 
@@ -56,28 +56,34 @@ def fw_flash_test_init(
         assets_folder = "assets"
 
         # Upload modem firmware
-        modem_fw_file = os.path.abspath(os.path.join(assets_folder, config.fw_flash_nrf9151_modem_fw_name))
-        error = client.UploadFwFile(modem_fw_file, HostType.HOST_TYPE_NRF9160_MODEM)
+        modem_fw_path = os.path.abspath(os.path.join(assets_folder, config.fw_flash_nrf9151_modem_fw_name))
+        with open(modem_fw_path, "rb") as f:
+            modem_fw_data = f.read()
+        error, _ = client.upload_file(config.fw_flash_nrf9151_modem_fw_name, modem_fw_data)
         if error:
             return f"Could not upload modem fw file to node {node}: {error}"
 
         # Upload nRF9151 app firmware
-        comms_fw_file = os.path.abspath(os.path.join(assets_folder, config.fw_flash_nrf9151_app_fw_name))
-        error = client.UploadFwFile(comms_fw_file, HostType.HOST_TYPE_NRF9151)
+        comms_fw_path = os.path.abspath(os.path.join(assets_folder, config.fw_flash_nrf9151_app_fw_name))
+        with open(comms_fw_path, "rb") as f:
+            comms_fw_data = f.read()
+        error, _ = client.upload_file(config.fw_flash_nrf9151_app_fw_name, comms_fw_data)
         if error:
             return f"Could not upload nRF9151 app fw file to node {node}: {error}"
 
         # Upload nRF52840 app firmware
-        app_fw_file = os.path.abspath(os.path.join(assets_folder, config.fw_flash_nrf52840_app_fw_name))
-        error = client.UploadFwFile(app_fw_file, HostType.HOST_TYPE_NRF52840)
+        app_fw_path = os.path.abspath(os.path.join(assets_folder, config.fw_flash_nrf52840_app_fw_name))
+        with open(app_fw_path, "rb") as f:
+            app_fw_data = f.read()
+        error, _ = client.upload_file(config.fw_flash_nrf52840_app_fw_name, app_fw_data)
         if error:
             return f"Could not upload nRF52840 app fw file to node {node}: {error}"
 
-        client.GpioConfig(0, GpioDirection.OUTPUT, GpioResistorConfig.NONE)
-        client.GpioConfig(1, GpioDirection.OUTPUT, GpioResistorConfig.NONE)
-        client.GpioWrite(0, False)
-        client.GpioWrite(1, False)
-
+        # Configure GPIO for SWD level shifter (output, drive low)
+        client.gpio_config(pin=0, direction=1)
+        client.gpio_config(pin=1, direction=1)
+        client.gpio_write(pin=0, value=False)
+        client.gpio_write(pin=1, value=False)
 
         return None
 
@@ -107,29 +113,13 @@ def fw_flash_test_deinit(
         client = node_data.client
 
         # Delete firmware files from MTIB server
-        from protocols.mtib.mtib_pb2 import FwFileInfo as FwFileInfoProto
-
-        error = client.DeleteFwFile(
-            FwFileInfoProto(name=config.fw_flash_nrf9151_modem_fw_name, target=HostType.HOST_TYPE_NRF9160_MODEM)
-        )
-        if error:
-            return f"Could not delete modem fw file from node {node}: {error}"
-
-        error = client.DeleteFwFile(
-            FwFileInfoProto(name=config.fw_flash_nrf9151_app_fw_name, target=HostType.HOST_TYPE_NRF9151)
-        )
-        if error:
-            return f"Could not delete nRF9151 app fw file from node {node}: {error}"
-
-        error = client.DeleteFwFile(
-            FwFileInfoProto(name=config.fw_flash_nrf52840_app_fw_name, target=HostType.HOST_TYPE_NRF52840)
-        )
-        if error:
-            return f"Could not delete nRF52840 app fw file from node {node}: {error}"
+        client.delete_file(config.fw_flash_nrf9151_modem_fw_name)
+        client.delete_file(config.fw_flash_nrf9151_app_fw_name)
+        client.delete_file(config.fw_flash_nrf52840_app_fw_name)
 
         # Turn off power
-        client.DutChargePowerDisable()
-        client.DutPowerDisable()
+        client.power_disable(channel=1)
+        client.power_disable(channel=0)
 
         # Disconnect client
         client.disconnect()

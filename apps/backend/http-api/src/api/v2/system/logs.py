@@ -20,7 +20,7 @@ MAX_TAIL_LINES = 10000
 
 def register_log_handlers(socketio: SocketIO):
 
-    @socketio.on("connect", namespace="/system")
+    @socketio.on("connect", namespace="/kubernetes")
     def handle_system_connect(auth):
         """Validate JWT token and permissions at connection time. Reject unauthorized clients."""
         if not auth or not auth.get("token"):
@@ -44,7 +44,7 @@ def register_log_handlers(socketio: SocketIO):
             return False
         # Connection accepted — socket is authenticated and authorized
 
-    @socketio.on("subscribe_logs", namespace="/system")
+    @socketio.on("subscribe_logs", namespace="/kubernetes")
     def handle_subscribe_logs(data):
         ns = data.get("namespace")
         pod = data.get("pod")
@@ -97,7 +97,7 @@ def register_log_handlers(socketio: SocketIO):
                         "log_line",
                         {"line": decoded},
                         room=room,
-                        namespace="/system",
+                        namespace="/kubernetes",
                     )
             except Exception as e:
                 logger.error("Log stream error: %s", e)
@@ -105,7 +105,7 @@ def register_log_handlers(socketio: SocketIO):
                     "log_error",
                     {"message": "Log stream error occurred"},
                     room=room,
-                    namespace="/system",
+                    namespace="/kubernetes",
                 )
             finally:
                 if log_stream is not None:
@@ -118,7 +118,7 @@ def register_log_handlers(socketio: SocketIO):
 
         socketio.start_background_task(stream_logs)
 
-    @socketio.on("unsubscribe_logs", namespace="/system")
+    @socketio.on("unsubscribe_logs", namespace="/kubernetes")
     def handle_unsubscribe_logs(data):
         ns = data.get("namespace", "")
         pod = data.get("pod", "")
@@ -134,7 +134,7 @@ def register_log_handlers(socketio: SocketIO):
 
         leave_room(room)
 
-    @socketio.on("disconnect", namespace="/system")
+    @socketio.on("disconnect", namespace="/kubernetes")
     def handle_disconnect():
         sid = request.sid
         # Clean up log streams
@@ -147,3 +147,6 @@ def register_log_handlers(socketio: SocketIO):
         # Clean up exec sessions
         from .exec import cleanup_exec_session
         cleanup_exec_session(sid)
+        # Clean up UART sessions
+        from .uart import cleanup_uart_sessions
+        cleanup_uart_sessions(sid)

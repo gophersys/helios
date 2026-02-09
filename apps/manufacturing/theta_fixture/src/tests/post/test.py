@@ -7,14 +7,11 @@ from typing import Dict, List
 from protocols.cluster_test.cluster_test_pb2 import TestInfo
 
 # Corekinect libraries
-from corekinect.mtib_client.v1.client.core import MtibV1Client
-from corekinect.mtib_client.v1.client.config import NetConfig
-from corekinect.mtib_client.v1.client.types import HostType
+from corekinect.mtib_client.v2 import MtibV2Client, ClientConfig, NetConfig
 from tests.lib import *
 
 # Shared includes
 from ..shared.config import ThetaFixtureConfig
-from ..shared.rpcs import MTIB_SERVICE_GRPC_SERVER_PORT
 
 # Test includes
 from .data import PostTestSharedData, post_test_shared_data
@@ -30,8 +27,8 @@ from .step_8 import post_step_8_ext_flash
 from .step_9 import post_step_9_personalize
 from .step_10 import post_step_10_rekey_ipc
 
-# Theta uses nRF9151 for comms processor
-THETA_COMMS_TARGET = HostType.HOST_TYPE_NRF9151
+# V2 gRPC server port
+MTIB_V2_PORT = 50052
 
 
 # ---------------------------------------------------------------------------------
@@ -41,11 +38,9 @@ def post_test_init(
     config: ThetaFixtureConfig, nodes: List[str], usr_data: Dict[str, PostTestSharedData]
 ) -> str:
     def init_node(node: str) -> str:
-        # Create and connect MtibV1Client for this node
-        client_config = MtibV1Client.Config(
-            net=NetConfig(addr=node, port=MTIB_SERVICE_GRPC_SERVER_PORT)
-        )
-        client = MtibV1Client(client_config)
+        # Create and connect MtibV2Client for this node
+        client_config = ClientConfig(net=NetConfig(addr=node, port=MTIB_V2_PORT))
+        client = MtibV2Client(client_config)
         error = client.connect()
         if error:
             return f"Could not connect to mtib on host {node}: {error}"
@@ -75,9 +70,18 @@ def post_test_deinit(
 ) -> str:
     def deinit_node(node: str) -> str:
         node_data = usr_data.get(node)
-        if node_data and node_data.client:
-            node_data.client.DutChargePowerDisable()
-            node_data.client.DutPowerDisable()
+        if not node_data:
+            return None
+
+        # Close persistent shells
+        if node_data.app_shell:
+            node_data.app_shell.close()
+        if node_data.comms_shell:
+            node_data.comms_shell.close()
+
+        if node_data.client:
+            node_data.client.power_disable(channel=1)
+            node_data.client.power_disable(channel=0)
             node_data.client.disconnect()
 
         usr_data[node] = None

@@ -211,14 +211,14 @@ class HardwareRevision(Enum):
         return cls.from_string(env_value)
 
     @classmethod
-    def detect(cls, bus_num: int = 1) -> HardwareRevision:
+    def detect(cls, bus_num: int = 3) -> HardwareRevision:
         """Auto-detect the hardware revision by probing I2C devices.
 
         Probes for revision-specific I2C devices to determine which
         board revision is present.
 
         Args:
-            bus_num: I2C bus number to probe (default: 1)
+            bus_num: I2C bus number to probe (default: 3, Verdin I2C_1 on TorizonOS)
 
         Returns:
             Detected HardwareRevision (defaults to REV_1_1 if detection fails)
@@ -249,9 +249,11 @@ class HardwareRevision(Enum):
             Detected HardwareRevision
         """
         # Check for REV 1.2 specific devices
+        # Use force=True because kernel gpio-pca953x driver claims the TCA9534A
+        # address (0x38), causing regular reads to fail with EBUSY
         for device in I2CDevices.TCA9534A, I2CDevices.AT24C02C:
             try:
-                bus.read_byte(device.address)
+                bus.read_byte_data(device.address, 0x00, force=True)
                 return cls.REV_1_2
             except OSError:
                 continue
@@ -260,7 +262,7 @@ class HardwareRevision(Enum):
         return cls.REV_1_1
 
     @classmethod
-    def resolve(cls, bus_num: int = 1) -> HardwareRevision:
+    def resolve(cls, bus_num: int = 3) -> HardwareRevision:
         """Resolve the hardware revision using env var or auto-detection.
 
         Priority:
@@ -269,7 +271,7 @@ class HardwareRevision(Enum):
         3. Default to REV_1_1
 
         Args:
-            bus_num: I2C bus number for auto-detection
+            bus_num: I2C bus number for auto-detection (default: 3, Verdin I2C_1 on TorizonOS)
 
         Returns:
             Resolved HardwareRevision

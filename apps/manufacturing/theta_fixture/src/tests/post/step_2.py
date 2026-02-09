@@ -1,7 +1,6 @@
 # Standard includes
 from typing import Dict
 
-# Corekinect libraries
 from tests.lib import *
 
 # Shared includes
@@ -22,9 +21,8 @@ def post_step_2_handler(
     Supports both legacy Theta (accelerometer/altimeter) and Alpha (ext flash/BLE MAC) responses.
     """
     result: TestStepResult = TestStepResult(success=False)
-    client = usr_data[node].client
 
-    id_1, id_2, error = client.cmd_theta_app_get_chip_ids()
+    id_1, id_2, error = usr_data[node].app_cmds.get_chip_ids()
     if error:
         result.error = f"Failed to get app chip IDs: {error}"
         return result

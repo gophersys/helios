@@ -1,7 +1,6 @@
 # Standard includes
 from typing import Dict
 
-# Corekinect libraries
 from tests.lib import *
 
 # Shared includes
@@ -21,9 +20,8 @@ def post_step_4_handler(
     Step 4: Verify battery charger chip.
     """
     result: TestStepResult = TestStepResult(success=False)
-    client = usr_data[node].client
 
-    charger_data, error = client.cmd_theta_app_test_charger()
+    charger_data, error = usr_data[node].app_cmds.test_charger()
     if error:
         result.error = f"Charger test failed: {error}"
         return result

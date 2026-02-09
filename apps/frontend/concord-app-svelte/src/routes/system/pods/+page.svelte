@@ -28,7 +28,7 @@
 
   async function fetchPods() {
     try {
-      const url = namespace ? `/v2/system/pods?namespace=${namespace}` : '/v2/system/pods';
+      const url = namespace ? `/v2/kubernetes/pods?namespace=${namespace}` : '/v2/kubernetes/pods';
       const res = await api.get<{ data: PodSummary[] }>(url);
       if (res?.data) pods = res.data;
       error = null;

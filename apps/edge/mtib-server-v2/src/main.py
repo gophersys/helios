@@ -55,11 +55,16 @@ class MtibEnvConfig(EnvConfig):
 def handle_shutdown(signum, frame, server, logger):
     """Handle graceful shutdown on SIGINT and SIGTERM"""
     signal_name = "SIGTERM" if signum == signal.SIGTERM else "SIGINT"
-    logger.info(f"Received {signal_name}. Initiating graceful shutdown...")
 
-    # Stop accepting new requests
-    server.stop(grace=5)  # 5 seconds grace period for ongoing requests
-    logger.info("Server shutdown complete")
+    if logger:
+        logger.info(f"Received {signal_name}. Initiating graceful shutdown...")
+
+    if server:
+        server.stop(grace=5)  # 5 seconds grace period for ongoing requests
+
+    if logger:
+        logger.info("Server shutdown complete")
+
     sys.exit(0)
 
 
@@ -70,6 +75,7 @@ if __name__ == "__main__":
     logger: Logger = None
     server: grpc.Server = None
     hardware: HardwareContext = None
+    provider: MtibV2Provider = None
 
     try:
         # Try to handle shutdown gracefully
@@ -94,11 +100,12 @@ if __name__ == "__main__":
 
         # Resolve hardware revision (from env var or auto-detect)
         # Priority: MTIB_HARDWARE_REVISION env var > auto-detection > default (REV 1.1)
+        # IMPORTANT: TorizonOS maps Verdin I2C_1 to /dev/i2c-3 (bus 3)
         if env_config.HARDWARE_REVISION:
             revision = HardwareRevision.from_string(env_config.HARDWARE_REVISION)
             logger.info(f"Using hardware revision from config: {revision}")
         else:
-            revision = HardwareRevision.resolve()
+            revision = HardwareRevision.resolve(bus_num=3)
             logger.info(f"Auto-detected hardware revision: {revision}")
 
         # Initialize hardware context
@@ -123,6 +130,9 @@ if __name__ == "__main__":
             logger=logger,
         )
 
+        # Start observability engine before gRPC server
+        provider.start_observability()
+
         server = grpc.server(futures.ThreadPoolExecutor(max_workers=50))
         mtib_v2_pb2_grpc.add_MtibV2Servicer_to_server(provider, server)
         server.add_insecure_port(f"[::]:{env_config.SERVER_PORT}")
@@ -140,6 +150,10 @@ if __name__ == "__main__":
             print(f"Failed to initialize or run the MtibServer: {e}\n{traceback.format_exc()}")
 
     finally:
+        # Stop observability engine
+        if provider:
+            provider.stop_observability()
+
         # Ensure hardware is properly closed
         if hardware:
             hardware.close()

@@ -526,6 +526,13 @@ export interface ConcordNode {
   ipAddress: string | null;
   hardwareRevision: string | null;
   metadata: Record<string, unknown> | null;
+  deploymentStatus?: {
+    name: string;
+    replicas: number;
+    readyReplicas: number;
+    availableReplicas: number;
+    pods: { name: string; nodeName: string | null; status: string; ready: boolean; restarts: number }[];
+  } | null;
   fixtureSlot?: {
     id: string;
     fixtureId: string;
@@ -604,6 +611,105 @@ export interface DashboardFixture {
   hasActiveDeployment: boolean;
   activeDeploymentStatus: string | null;
   updatedAt: string;
+}
+
+// ── MTIB Observability types ────────────────────────────────
+
+export interface PowerReading {
+  channel: number;
+  voltage_v: number;
+  current_ma: number;
+  power_mw: number;
+  enabled: boolean;
+  timestamp: string;
+}
+
+export interface GpioState {
+  pin: number;
+  direction: number;
+  value: boolean;
+  configured: boolean;
+  last_changed: string;
+}
+
+export interface UartPortStatus {
+  port_name: string;
+  is_open: boolean;
+  baud_rate: number;
+  bytes_received: number;
+  bytes_sent: number;
+  client_count: number;
+  recent_lines: string[];
+}
+
+export interface SystemMetrics {
+  cpu_percent: number;
+  memory_percent: number;
+  disk_percent: number;
+  uptime_seconds: number;
+  hostname: string;
+  os_info: string;
+  hardware_revision: string;
+  server_version: string;
+  grpc_active_connections: number;
+  grpc_total_requests: number;
+}
+
+export interface ClientInfo {
+  client_id: string;
+  remote_addr: string;
+  connected_since: string;
+  active_rpcs: string[];
+}
+
+export interface AdcReading {
+  channel: number;
+  voltage_v: number;
+  raw_value: number;
+}
+
+export interface ObservabilitySnapshot {
+  timestamp: string;
+  power_readings: PowerReading[];
+  gpio_states: GpioState[];
+  uart_ports: UartPortStatus[];
+  system_metrics: SystemMetrics;
+  connected_clients: ClientInfo[];
+  adc_readings: AdcReading[];
+}
+
+export interface MtibDeploymentStatus {
+  status: 'running' | 'pending' | 'failed' | 'not_deployed';
+  replicas: number;
+  ready: number;
+  pod_name: string;
+  restart_count: number;
+}
+
+export interface ObservabilityNode {
+  id: string;
+  name: string;
+  hostname: string;
+  type: string;
+  status: string;
+  ip_address: string | null;
+  hardware_revision: string | null;
+  deployment_status: MtibDeploymentStatus | null;
+  snapshot: ObservabilitySnapshot | null;
+  last_seen: string | null;
+  online: boolean;
+}
+
+export interface ObservabilitySummary {
+  total: number;
+  online: number;
+  offline: number;
+  total_power_mw: number;
+}
+
+export interface FleetObservabilityResponse {
+  nodes: ObservabilityNode[];
+  summary: ObservabilitySummary;
 }
 
 // ── Deployment types ───────────────────────────────────────

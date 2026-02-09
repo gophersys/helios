@@ -28,7 +28,7 @@
     loading = true;
     error = null;
     try {
-      const res = await api.get<{ data: { yaml: string } }>(`/v2/system/resources/${kind}/${namespace}/${name}`);
+      const res = await api.get<{ data: { yaml: string } }>(`/v2/kubernetes/resources/${kind}/${namespace}/${name}`);
       if (res?.data) {
         yaml = res.data.yaml;
         editValue = res.data.yaml;
@@ -44,7 +44,7 @@
     saving = true;
     error = null;
     try {
-      await api.put(`/v2/system/resources/${kind}/${namespace}/${name}`, { yaml: editValue });
+      await api.put(`/v2/kubernetes/resources/${kind}/${namespace}/${name}`, { yaml: editValue });
       yaml = editValue;
       editMode = false;
     } catch (e) {
@@ -92,7 +92,7 @@
   <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
   <!-- svelte-ignore a11y_click_events_have_key_events -->
   <div
-    class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+    class="fixed inset-0 bg-black/50 z-modal-backdrop flex items-center justify-center p-4"
     onclick={onclose}
     role="dialog"
     aria-modal="true"

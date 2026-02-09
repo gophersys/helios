@@ -42,6 +42,11 @@ logger = logging.getLogger(__name__)
 # TODO: REMOVE THIS ENTIRE BLOCK ON MONDAY — dev/test accounts only
 # ---------------------------------------------------------------------------
 DEV_USERS = {
+    "admin": {
+        "password": "admin",
+        "name": "Admin User",
+        "role": "superadmin",
+    },
     "mateo@concord.local": {
         "password": "admin",
         "name": "Mateo Segura",

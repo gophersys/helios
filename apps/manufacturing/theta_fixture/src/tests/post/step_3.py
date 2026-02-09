@@ -1,7 +1,6 @@
 # Standard includes
 from typing import Dict
 
-# Corekinect libraries
 from tests.lib import *
 
 # Shared includes
@@ -22,9 +21,8 @@ def post_step_3_handler(
     Check MAX17263 chip connected with valid chip ID (0x4037).
     """
     result: TestStepResult = TestStepResult(success=False)
-    client = usr_data[node].client
 
-    bms_data, error = client.cmd_theta_app_test_bms()
+    bms_data, error = usr_data[node].app_cmds.test_bms()
     if error:
         result.error = f"BMS test failed: {error}"
         return result

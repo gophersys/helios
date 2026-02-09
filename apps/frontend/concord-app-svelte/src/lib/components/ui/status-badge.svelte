@@ -21,6 +21,9 @@
     // Type badges
     MANUFACTURING: 'bg-accent-muted text-accent',
     VALIDATION: 'bg-info-muted text-info',
+    // Lifecycle states
+    REGISTERED: 'bg-info-muted text-info',
+    ASSIGNED: 'bg-success-muted text-success',
     // Health statuses
     HEALTHY: 'bg-success-muted text-success',
     DEGRADED: 'bg-warning-muted text-warning',

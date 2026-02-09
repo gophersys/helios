@@ -64,7 +64,7 @@ class HardwareContext:
         cls,
         revision: Optional[HardwareRevision] = None,
         logger: Optional[Logger] = None,
-        i2c_bus: int = 1,
+        i2c_bus: int = 3,  # /dev/i2c-3 = Verdin I2C_1 (main bus on TorizonOS)
     ) -> HardwareContext:
         """Create a hardware context with optional revision override.
 

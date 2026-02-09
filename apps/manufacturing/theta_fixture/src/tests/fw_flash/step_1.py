@@ -2,9 +2,6 @@
 import logging
 from typing import Dict
 
-# Corekinect libraries
-from corekinect.mtib_client.v1.client.types import HostType
-from protocols.mtib.mtib_pb2 import FwFileInfo
 from tests.lib import *
 
 # Shared includes
@@ -22,60 +19,85 @@ def fw_flash_test_step_1_handler(
 ) -> TestStepResult:
     """
     Flash all firmware serially:
-    1. Flash nRF9151 modem firmware
-    2. Flash nRF52840 app firmware
+    1. Flash nRF52840 app firmware via debug session
+    2. Flash nRF9151 modem firmware via debug session
     """
 
     result: TestStepResult = TestStepResult(success=False)
     client = usr_data[node].client
 
-    voltage_A0, error = client.AdcRead(0)
-    if result.error:
-        return result
-
-    voltage_A1, error = client.AdcRead(1)
-    if result.error:
-        return result
-
-    voltage_A2, error = client.AdcRead(2)
-    if result.error:
-        return result
-
-    voltage_A3, error = client.AdcRead(3)
-    if result.error:
-        return result
-
-    logging.debug(
-        f"Node {node} 3.3V rail voltage before flashing: {voltage_A0}V {voltage_A1}V {voltage_A2}V {voltage_A3}V"
-    )
+    # Log power status before flashing
+    err, power_status = client.power_status(channel=0)
+    if not err and power_status:
+        logging.debug(
+            f"Node {node} power before flashing: {power_status.voltage_v:.2f}V, {power_status.current_ma:.1f}mA"
+        )
 
     time.sleep(5)
 
     # Flash nRF52840 app firmware (retry once on failure)
-    file_info = FwFileInfo(
-        name=config.fw_flash_nrf52840_app_fw_name,
-        target=HostType.HOST_TYPE_NRF52840,
-    )
-    time_ms, error = client.FlashFwFile(file_info, sector_erase=True, recover=True)
-    if error:
-        logging.warning(f"nRF52840 flash failed on first attempt: {error}, retrying...")
-        time.sleep(2)
-        time_ms, error = client.FlashFwFile(file_info, sector_erase=True, recover=True)
-        if error:
-            result.error = f"nRF52840 flash failed after retry: {error}"
-            return result
-    logging.debug(f"nRF52840 app firmware {config.fw_flash_nrf52840_app_fw_name} flashed in {time_ms}ms")
-
-    # Flash modem firmware first
-    file_info = FwFileInfo(
-        name=config.fw_flash_nrf9151_modem_fw_name,
-        target=HostType.HOST_TYPE_NRF9160_MODEM,
-    )
-    time_ms, error = client.FlashFwFile(file_info, sector_erase=True, recover=True)
-    if error:
-        result.error = f"Modem flash failed: {error}"
+    err, session = client.debug_connect(target_id="nrf52840", probe_id="")
+    if err:
+        result.error = f"nRF52840 debug connect failed: {err}"
         return result
-    logging.debug(f"Modem firmware {config.fw_flash_nrf9151_modem_fw_name} flashed in {time_ms}ms")
+
+    err, flash_result = client.flash_program(
+        session_id=session.session_id,
+        filename=config.fw_flash_nrf52840_app_fw_name,
+        erase_before=True,
+        verify_after=True,
+        reset_after=True,
+    )
+    client.debug_disconnect(session.session_id)
+
+    if err:
+        logging.warning(f"nRF52840 flash failed on first attempt: {err}, retrying...")
+        time.sleep(2)
+
+        err, session = client.debug_connect(target_id="nrf52840", probe_id="")
+        if err:
+            result.error = f"nRF52840 debug connect failed on retry: {err}"
+            return result
+
+        err, flash_result = client.flash_program(
+            session_id=session.session_id,
+            filename=config.fw_flash_nrf52840_app_fw_name,
+            erase_before=True,
+            verify_after=True,
+            reset_after=True,
+        )
+        client.debug_disconnect(session.session_id)
+
+        if err:
+            result.error = f"nRF52840 flash failed after retry: {err}"
+            return result
+
+    logging.debug(
+        f"nRF52840 app firmware {config.fw_flash_nrf52840_app_fw_name} flashed in {flash_result.time_ms}ms"
+    )
+
+    # Flash modem firmware
+    err, session = client.debug_connect(target_id="nrf9151", probe_id="")
+    if err:
+        result.error = f"nRF9151 modem debug connect failed: {err}"
+        return result
+
+    err, flash_result = client.flash_program(
+        session_id=session.session_id,
+        filename=config.fw_flash_nrf9151_modem_fw_name,
+        erase_before=True,
+        verify_after=True,
+        reset_after=True,
+    )
+    client.debug_disconnect(session.session_id)
+
+    if err:
+        result.error = f"Modem flash failed: {err}"
+        return result
+
+    logging.debug(
+        f"Modem firmware {config.fw_flash_nrf9151_modem_fw_name} flashed in {flash_result.time_ms}ms"
+    )
 
     result.success = True
     return result

@@ -1,7 +1,6 @@
 # Standard includes
 from typing import Dict
 
-# Corekinect libraries
 from tests.lib import *
 
 # Shared includes
@@ -22,9 +21,8 @@ def post_step_5_handler(
     Ensure GPS is not in shutdown and comms are OK.
     """
     result: TestStepResult = TestStepResult(success=False)
-    client = usr_data[node].client
 
-    gps_data, error = client.cmd_theta_app_test_gps()
+    gps_data, error = usr_data[node].app_cmds.test_gps()
     if error:
         result.error = f"GPS test failed: {error}"
         return result

@@ -30,7 +30,7 @@
 
   async function fetchAvailableNodes() {
     try {
-      const res = await apiFetch<ApiResponse<{ data: ConcordNode[] }>>('/v2/nodes');
+      const res = await apiFetch<ApiResponse<{ data: ConcordNode[] }>>('/v2/mtibs');
       const allNodes = res.data.data || res.data;
       availableNodes = (allNodes as ConcordNode[]).filter(
         n => n.type === fixture.type && !n.fixtureSlot

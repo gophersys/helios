@@ -27,6 +27,7 @@ from src.services.kubernetes.client import init_kubernetes_client
 from src.services.log.logger import init_logger
 from src.services.scheduler import start_scheduler
 from src.services.storage.client import init_storage_client
+from src.services.mtib_observability import init_observability_service
 from src.services.proxy import ProxyServerConfiguration, appProxyServer
 
 # -------------------------------------------------
@@ -85,6 +86,9 @@ if __name__ == "__main__":
             supported_registries=env_config.SUPPORTED_REGISTRIES,
         )
         appProxyServer.init(app_config)
+
+        # Start observability polling service
+        init_observability_service(poll_interval_s=5)
 
         # Routes
         register_v2_routes(logger, server, socketio)

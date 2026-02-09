@@ -273,7 +273,7 @@
 
 <!-- Overlay -->
 <div
-  class="fixed inset-0 z-50 bg-overlay animate-overlay-in"
+  class="fixed inset-0 z-modal-backdrop bg-overlay animate-overlay-in"
   onclick={onClose}
   onkeydown={(e) => e.key === 'Escape' && onClose()}
   role="button"
@@ -281,17 +281,17 @@
 ></div>
 
 <!-- Centered container -->
-<div class="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
+<div class="fixed inset-0 z-modal flex items-center justify-center p-4 pointer-events-none">
   <div
-    class="pointer-events-auto flex w-full max-w-[900px] h-full max-h-[680px] rounded-xl border border-border bg-surface-0 shadow-xl animate-modal-in"
+    class="pointer-events-auto flex w-full max-w-[900px] sm:h-full max-h-[90vh] sm:max-h-[680px] flex-col sm:flex-row rounded-xl border border-border bg-surface-0 shadow-xl animate-modal-in"
     onclick={(e) => e.stopPropagation()}
     onkeydown={() => {}}
     role="dialog"
     aria-modal="true"
     tabindex="-1"
   >
-    <!-- Left nav -->
-    <div class="flex w-56 shrink-0 flex-col rounded-l-xl border-r border-border bg-surface-1">
+    <!-- Left nav (side on sm+, top tabs on mobile) -->
+    <div class="hidden sm:flex w-56 shrink-0 flex-col rounded-l-xl border-r border-border bg-surface-1">
       <div class="px-5 pt-5 pb-4">
         <h2 class="text-sm font-semibold text-text-primary">Settings</h2>
       </div>
@@ -312,12 +312,29 @@
       </nav>
     </div>
 
+    <!-- Mobile top tabs (visible below sm) -->
+    <div class="flex sm:hidden border-b border-border bg-surface-1 rounded-t-xl overflow-x-auto shrink-0">
+      {#each sections as section}
+        {@const Icon = section.icon}
+        {@const isActive = section.id === activeId}
+        <button
+          onclick={() => (activeId = section.id)}
+          class="flex items-center gap-1.5 whitespace-nowrap px-4 py-3 text-xs font-medium transition-colors border-b-2 {isActive
+            ? 'border-accent text-accent'
+            : 'border-transparent text-text-secondary hover:text-text-primary'}"
+        >
+          <Icon size={14} strokeWidth={1.75} class="shrink-0" />
+          {section.label}
+        </button>
+      {/each}
+    </div>
+
     <!-- Right panel -->
     <div class="flex flex-1 flex-col min-w-0">
       <!-- Header -->
-      <div class="flex items-center justify-between border-b border-border px-6 py-4">
+      <div class="flex items-center justify-between border-b border-border px-4 sm:px-6 py-4">
         <h3 class="text-sm font-semibold text-text-primary">
-          {sections.find((s) => s.id === activeId)?.label}
+          <span class="sm:hidden">Settings — </span>{sections.find((s) => s.id === activeId)?.label}
         </h3>
         <button
           onclick={onClose}
@@ -329,7 +346,7 @@
       </div>
 
       <!-- Content -->
-      <div class="flex-1 overflow-y-auto px-6 py-5">
+      <div class="flex-1 overflow-y-auto px-4 sm:px-6 py-5">
         {#if activeId === 'system'}
           <!-- System Section -->
 

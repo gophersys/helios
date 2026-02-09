@@ -318,11 +318,11 @@
      All table rows should be exactly 48px height (h-12) for uniformity
      ───────────────────────────────────────────────────────────────────── */
   .table-wrapper {
-    @apply rounded-lg border border-border overflow-hidden;
+    @apply rounded-lg border border-border overflow-x-auto;
   }
 
   .table {
-    @apply w-full;
+    @apply w-full min-w-[640px];
   }
 
   .table-header {

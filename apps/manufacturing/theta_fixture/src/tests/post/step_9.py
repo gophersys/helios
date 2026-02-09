@@ -5,8 +5,6 @@ from typing import Dict
 
 import requests
 
-# Corekinect libraries
-from corekinect.mtib_client.v1.client.types import HostType
 from tests.lib import *
 
 # Shared includes
@@ -17,9 +15,6 @@ from config import conf
 
 # Test includes
 from .data import PostTestSharedData
-
-# Theta uses nRF9151 for comms processor
-THETA_COMMS_TARGET = HostType.HOST_TYPE_NRF9151
 
 
 # ---------------------------------------------------------------------------------
@@ -94,7 +89,6 @@ def post_step_9_handler(
     Get device ID from CoreOps, personalize via UART, save keys/IMEI/ICCIDs.
     """
     result: TestStepResult = TestStepResult(success=False)
-    client = usr_data[node].client
 
     # Get the serial number for this node from config
     snr = config.snrs.get(node)
@@ -128,8 +122,8 @@ def post_step_9_handler(
 
     logging.debug(f"Got device ID: {device_id} for SNR: {snr}")
 
-    # Personalize the device via UART
-    hex_key, base64_key, error = client.cmd_comms_coproc_personalize(device_id, target=THETA_COMMS_TARGET)
+    # Personalize the device via UART using V2 shell commands
+    hex_key, base64_key, error = usr_data[node].comms_cmds.personalize(device_id)
     if error:
         result.error = f"Personalization failed: {error}"
         return result

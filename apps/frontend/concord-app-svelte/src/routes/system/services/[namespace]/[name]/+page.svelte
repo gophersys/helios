@@ -45,7 +45,7 @@
   async function fetchService() {
     loading = true;
     try {
-      const res = await api.get<{ data: ServiceDetailData }>(`/v2/system/services/${namespace}/${serviceName}`);
+      const res = await api.get<{ data: ServiceDetailData }>(`/v2/kubernetes/services/${namespace}/${serviceName}`);
       if (res?.data) service = res.data;
       error = null;
     } catch (e) {

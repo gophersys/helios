@@ -1134,6 +1134,107 @@ message SystemInfoResponse {
 }
 
 // =============================================================================
+// Observability - Always-On Monitoring
+// =============================================================================
+
+// Power reading from a single channel at a point in time
+message ObservabilityPowerReading {
+  PowerChannel channel = 1;
+  float voltage_v = 2;
+  float current_ma = 3;
+  float power_mw = 4;
+  bool enabled = 5;
+  Timestamp timestamp = 6;
+}
+
+// State of a single GPIO pin
+message ObservabilityGpioState {
+  uint32 pin = 1;
+  GpioDirection direction = 2;
+  bool value = 3;
+  bool configured = 4;
+  Timestamp last_changed = 5;
+}
+
+// Status of a single UART port
+message ObservabilityUartStatus {
+  string port_name = 1;
+  bool is_open = 2;
+  uint32 baud_rate = 3;
+  uint64 bytes_received = 4;
+  uint64 bytes_sent = 5;
+  uint32 client_count = 6;
+  repeated string recent_lines = 7;     // Last N lines of output (ring buffer)
+}
+
+// System-level metrics
+message ObservabilitySystemMetrics {
+  float cpu_percent = 1;
+  float memory_percent = 2;
+  float disk_percent = 3;
+  float uptime_seconds = 4;
+  string hostname = 5;
+  string os_info = 6;
+  string hardware_revision = 7;
+  string server_version = 8;
+  uint32 grpc_active_connections = 9;
+  uint32 grpc_total_requests = 10;
+}
+
+// Info about a connected gRPC client
+message ObservabilityClientInfo {
+  string client_id = 1;
+  string remote_addr = 2;
+  Timestamp connected_since = 3;
+  repeated string active_rpcs = 4;
+}
+
+message ObservabilityAdcReading {
+  int32 channel = 1;           // 0-7
+  double voltage_v = 2;        // Voltage after divider compensation
+  double raw_value = 3;        // Raw ADC count
+}
+
+// Full observability snapshot — complete state dump
+message ObservabilitySnapshot {
+  Timestamp timestamp = 1;
+
+  // Power state per channel
+  repeated ObservabilityPowerReading power_readings = 2;
+
+  // GPIO states for all configured pins
+  repeated ObservabilityGpioState gpio_states = 3;
+
+  // UART port statuses
+  repeated ObservabilityUartStatus uart_ports = 4;
+
+  // System metrics
+  ObservabilitySystemMetrics system_metrics = 5;
+
+  // Connected clients
+  repeated ObservabilityClientInfo connected_clients = 6;
+
+  // ADC readings (8 channels, 2x ADS1115)
+  repeated ObservabilityAdcReading adc_readings = 7;
+}
+
+// Request for streaming observability data
+message ObservabilityStreamRequest {
+  uint32 interval_ms = 1;              // Sampling interval (minimum 100ms)
+  bool include_power = 2;
+  bool include_gpio = 3;
+  bool include_uart = 4;
+  bool include_system = 5;
+  bool include_clients = 6;
+  bool include_uart_output = 7;        // Include recent UART lines (more data)
+}
+
+// Streamed observability update
+message ObservabilityStreamResponse {
+  ObservabilitySnapshot snapshot = 1;
+}
+
+// =============================================================================
 // Service Definition
 // =============================================================================
 
@@ -1240,4 +1341,8 @@ service MtibV2 {
   rpc UploadFile(stream UploadFileRequest) returns (UploadFileResponse);
   rpc DownloadFile(DownloadFileRequest) returns (stream DownloadFileResponse);
   rpc DeleteFile(DeleteFileRequest) returns (Response);
+
+  // Observability
+  rpc GetObservabilitySnapshot(Empty) returns (ObservabilitySnapshot);
+  rpc ObservabilityStream(ObservabilityStreamRequest) returns (stream ObservabilityStreamResponse);
 }

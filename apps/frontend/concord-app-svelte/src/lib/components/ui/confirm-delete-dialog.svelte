@@ -47,7 +47,7 @@
 {#if open}
   <!-- Overlay -->
   <div
-    class="fixed inset-0 z-50 bg-overlay animate-overlay-in"
+    class="fixed inset-0 z-modal-backdrop bg-overlay animate-overlay-in"
     onclick={handleCancel}
     onkeydown={handleKeydown}
     role="button"
@@ -55,7 +55,7 @@
   ></div>
 
   <!-- Dialog -->
-  <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
+  <div class="fixed inset-0 z-modal flex items-center justify-center p-4">
     <div
       class="w-full max-w-md animate-modal-in rounded-xl border border-border bg-surface-1 shadow-xl"
       role="dialog"

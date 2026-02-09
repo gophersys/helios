@@ -35,6 +35,12 @@ ALL_PERMISSIONS = [
     "Concord.Admin.History.View",
     "Concord.Admin.System.View",
     "Concord.Admin.System.Manage",
+    "Concord.Admin.Nodes.View",
+    "Concord.Admin.Nodes.Manage",
+    "Concord.Admin.Fixtures.View",
+    "Concord.Admin.Fixtures.Manage",
+    "Concord.Admin.Deployments.View",
+    "Concord.Admin.Deployments.Manage",
 ]
 
 # Default permission sets
@@ -52,6 +58,12 @@ ADMIN_PERMISSIONS = [
     "Concord.Admin.Products.Manage",
     "Concord.Admin.History.View",
     "Concord.Admin.System.View",
+    "Concord.Admin.Nodes.View",
+    "Concord.Admin.Nodes.Manage",
+    "Concord.Admin.Fixtures.View",
+    "Concord.Admin.Fixtures.Manage",
+    "Concord.Admin.Deployments.View",
+    "Concord.Admin.Deployments.Manage",
 ]
 
 OPERATOR_PERMISSIONS = [

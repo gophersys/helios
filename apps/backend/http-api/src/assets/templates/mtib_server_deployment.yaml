@@ -46,17 +46,15 @@ spec:
         securityContext:
           privileged: true
         ports:
-        - containerPort: 50053
-          hostPort: 50053
+        - containerPort: 50052
+          hostPort: 50052
         env:
-        - name: HARDWARE_VERSION
-          value: "REV1.1"
         - name: LOG_LEVEL
           value: "{{LOG_LEVEL}}"
         - name: LOG_PATH
           value: "/var/log"
         - name: SERVER_PORT
-          value: "50053"
+          value: "50052"
         - name: ASSETS_PATH
           value: "assets"
         - name: METRICS_ENABLED
@@ -74,6 +72,8 @@ spec:
           mountPath: /var/fw_files/
         - name: gpio
           mountPath: /sys/class/gpio
+        - name: hwmon
+          mountPath: /sys/class/hwmon
         - name: sys-bus-iio
           mountPath: /sys/bus/iio
         resources:
@@ -96,6 +96,9 @@ spec:
       - name: gpio
         hostPath:
           path: /sys/class/gpio
+      - name: hwmon
+        hostPath:
+          path: /sys/class/hwmon
       - name: sys-bus-iio
         hostPath:
           path: /sys/bus/iio

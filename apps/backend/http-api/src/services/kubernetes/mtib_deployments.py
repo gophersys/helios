@@ -43,7 +43,7 @@ def create_mtib_deployment(
     if len(deploy_name) > 63:
         deploy_name = deploy_name[:63].rstrip("-")
 
-    image = config.get("image", "containers.ad.corekinect.com/concord-mtib-server:latest")
+    image = config.get("image", "containers.ad.corekinect.com/concord-mtib-server-v2:latest")
 
     # Build env vars
     env_config = config.get("env", {})
@@ -53,10 +53,10 @@ def create_mtib_deployment(
 
     # Resource limits
     resources = config.get("resources", {})
-    cpu_req = resources.get("requests", {}).get("cpu", "1000m")
-    mem_req = resources.get("requests", {}).get("memory", "1000Mi")
+    cpu_req = resources.get("requests", {}).get("cpu", "250m")
+    mem_req = resources.get("requests", {}).get("memory", "256Mi")
     cpu_lim = resources.get("limits", {}).get("cpu", "2000m")
-    mem_lim = resources.get("limits", {}).get("memory", "2000Mi")
+    mem_lim = resources.get("limits", {}).get("memory", "1024Mi")
 
     # Substitute variables
     manifest = template
@@ -151,3 +151,32 @@ def get_mtib_deployment_status(deploy_name: str) -> Optional[dict]:
             return None
         logger.error("Failed to get deployment status %s: %s", deploy_name, e.reason)
         return None
+
+
+def list_mtib_deployments() -> list:
+    """List all MTIB deployments managed by concord-api."""
+    try:
+        from src.services.kubernetes.client import get_apps_v1_api
+    except ImportError:
+        return []
+
+    try:
+        apps_v1 = get_apps_v1_api()
+        deps = apps_v1.list_namespaced_deployment(
+            namespace="default",
+            label_selector="corekinect.com/managed-by=concord",
+        )
+        results = []
+        for dep in deps.items:
+            results.append({
+                "name": dep.metadata.name,
+                "replicas": dep.status.replicas or 0,
+                "readyReplicas": dep.status.ready_replicas or 0,
+                "availableReplicas": dep.status.available_replicas or 0,
+                "nodeHostname": (dep.spec.template.spec.node_selector or {}).get("kubernetes.io/hostname", ""),
+                "labels": dep.metadata.labels or {},
+            })
+        return results
+    except Exception as e:
+        logger.error("Failed to list MTIB deployments: %s", e)
+        return []

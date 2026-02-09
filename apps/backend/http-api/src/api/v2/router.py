@@ -123,6 +123,7 @@ from .system.logs import register_log_handlers
 from .system.resources import get_resource_yaml, apply_resource_yaml, delete_resource
 from .system.rbac import list_roles, list_cluster_roles, list_role_bindings, list_cluster_role_bindings, list_service_accounts
 from .system.exec import register_exec_handlers
+from .system.uart import register_uart_handlers
 
 # Node management handlers
 from .nodes.nodes import (
@@ -134,6 +135,8 @@ from .nodes.nodes import (
     delete_node,
     check_node_health,
     register_node,
+    deploy_node,
+    undeploy_node,
 )
 
 # Fixture management handlers
@@ -160,6 +163,16 @@ from .deployments.deployments import (
     list_deployments as list_managed_deployments,
     restart_deployment as restart_managed_deployment,
     stop_deployment,
+)
+
+# Observability handlers
+from .observability.observability import (
+    get_fleet_observability,
+    get_node_observability,
+    get_node_power,
+    get_node_gpio,
+    get_node_uart,
+    get_node_system,
 )
 
 # Docs
@@ -318,15 +331,25 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     v2.add_url_rule("/deployments/<deployment_id>/restart",         endpoint="restart_managed_deployment",  view_func=restart_managed_deployment, methods=["POST"])
     v2.add_url_rule("/deployments/<deployment_id>/status",          endpoint="get_managed_deployment_status", view_func=get_deployment_status,    methods=["GET"])
 
-    # Nodes (managed MTIB nodes)
-    v2.add_url_rule("/nodes",                                            endpoint="list_managed_nodes",      view_func=list_managed_nodes,   methods=["GET"])
-    v2.add_url_rule("/nodes",                                            endpoint="create_managed_node",     view_func=create_node,          methods=["POST"])
-    v2.add_url_rule("/nodes/sync",                                       endpoint="sync_nodes_from_k8s",     view_func=sync_nodes_from_k8s,  methods=["POST"])
-    v2.add_url_rule("/nodes/<node_id>",                                  endpoint="get_managed_node",        view_func=get_managed_node,     methods=["GET"])
-    v2.add_url_rule("/nodes/<node_id>",                                  endpoint="update_managed_node",     view_func=update_node,          methods=["PUT"])
-    v2.add_url_rule("/nodes/<node_id>",                                  endpoint="delete_managed_node",     view_func=delete_node,          methods=["DELETE"])
-    v2.add_url_rule("/nodes/<node_id>/health",                           endpoint="check_managed_node_health", view_func=check_node_health,  methods=["POST"])
-    v2.add_url_rule("/nodes/<node_id>/register",                         endpoint="register_managed_node",   view_func=register_node,        methods=["POST"])
+    # MTIBs (managed MTIB test bench nodes)
+    v2.add_url_rule("/mtibs",                                            endpoint="list_managed_mtibs",      view_func=list_managed_nodes,   methods=["GET"])
+    v2.add_url_rule("/mtibs",                                            endpoint="create_managed_mtib",     view_func=create_node,          methods=["POST"])
+    v2.add_url_rule("/mtibs/discover",                                   endpoint="discover_managed_mtibs",  view_func=sync_nodes_from_k8s,  methods=["POST"])
+    v2.add_url_rule("/mtibs/<node_id>",                                  endpoint="get_managed_mtib",        view_func=get_managed_node,     methods=["GET"])
+    v2.add_url_rule("/mtibs/<node_id>",                                  endpoint="update_managed_mtib",     view_func=update_node,          methods=["PUT"])
+    v2.add_url_rule("/mtibs/<node_id>",                                  endpoint="delete_managed_mtib",     view_func=delete_node,          methods=["DELETE"])
+    v2.add_url_rule("/mtibs/<node_id>/health",                           endpoint="check_managed_mtib_health", view_func=check_node_health,  methods=["POST"])
+    v2.add_url_rule("/mtibs/<node_id>/register",                         endpoint="register_managed_mtib",   view_func=register_node,        methods=["POST"])
+    v2.add_url_rule("/mtibs/<node_id>/deploy",                           endpoint="deploy_managed_mtib",     view_func=deploy_node,          methods=["POST"])
+    v2.add_url_rule("/mtibs/<node_id>/undeploy",                         endpoint="undeploy_managed_mtib",   view_func=undeploy_node,        methods=["POST"])
+
+    # MTIBs - Observability
+    v2.add_url_rule("/mtibs/observability",                                  endpoint="fleet_observability",        view_func=get_fleet_observability,   methods=["GET"])
+    v2.add_url_rule("/mtibs/<node_id>/observability",                        endpoint="node_observability",         view_func=get_node_observability,    methods=["GET"])
+    v2.add_url_rule("/mtibs/<node_id>/observability/power",                  endpoint="node_observability_power",   view_func=get_node_power,            methods=["GET"])
+    v2.add_url_rule("/mtibs/<node_id>/observability/gpio",                   endpoint="node_observability_gpio",    view_func=get_node_gpio,             methods=["GET"])
+    v2.add_url_rule("/mtibs/<node_id>/observability/uart",                   endpoint="node_observability_uart",    view_func=get_node_uart,             methods=["GET"])
+    v2.add_url_rule("/mtibs/<node_id>/observability/system",                 endpoint="node_observability_system",  view_func=get_node_system,           methods=["GET"])
 
     # Fixtures (managed fixtures)
     v2.add_url_rule("/fixtures",                                         endpoint="list_fixtures",           view_func=list_fixtures,            methods=["GET"])
@@ -342,34 +365,34 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     # System: Build info (no auth required — useful for debugging)
     v2.add_url_rule("/system/info",                 view_func=get_system_info, methods=["GET"])
 
-    # System Monitor: Cluster
-    v2.add_url_rule("/system/cluster",              view_func=get_cluster,     methods=["GET"])
-    v2.add_url_rule("/system/namespaces",            view_func=get_namespaces,  methods=["GET"])
-    v2.add_url_rule("/system/nodes",                 view_func=list_system_nodes,      methods=["GET"])
-    v2.add_url_rule("/system/nodes/<node_name>",     view_func=get_system_node,        methods=["GET"])
-    v2.add_url_rule("/system/events",                view_func=get_events,      methods=["GET"])
+    # Kubernetes: Cluster
+    v2.add_url_rule("/kubernetes/cluster",              view_func=get_cluster,     methods=["GET"])
+    v2.add_url_rule("/kubernetes/namespaces",            view_func=get_namespaces,  methods=["GET"])
+    v2.add_url_rule("/kubernetes/nodes",                 view_func=list_system_nodes,      methods=["GET"])
+    v2.add_url_rule("/kubernetes/nodes/<node_name>",     view_func=get_system_node,        methods=["GET"])
+    v2.add_url_rule("/kubernetes/events",                view_func=get_events,      methods=["GET"])
 
-    # System Monitor: Resources
-    v2.add_url_rule("/system/pods",                                      view_func=list_pods,          methods=["GET"])
-    v2.add_url_rule("/system/pods/<namespace>/<name>",                   view_func=get_pod,            methods=["GET"])
-    v2.add_url_rule("/system/pods/<namespace>/<name>",                   view_func=delete_pod,         methods=["DELETE"])
+    # Kubernetes: Resources
+    v2.add_url_rule("/kubernetes/pods",                                      view_func=list_pods,          methods=["GET"])
+    v2.add_url_rule("/kubernetes/pods/<namespace>/<name>",                   view_func=get_pod,            methods=["GET"])
+    v2.add_url_rule("/kubernetes/pods/<namespace>/<name>",                   view_func=delete_pod,         methods=["DELETE"])
 
-    v2.add_url_rule("/system/deployments",                               view_func=list_system_deployments,   methods=["GET"])
-    v2.add_url_rule("/system/deployments/<namespace>/<name>",            view_func=get_system_deployment,     methods=["GET"])
-    v2.add_url_rule("/system/deployments/<namespace>/<name>/scale",      view_func=scale_deployment,   methods=["POST"])
-    v2.add_url_rule("/system/deployments/<namespace>/<name>/restart",    view_func=restart_system_deployment, methods=["POST"])
+    v2.add_url_rule("/kubernetes/deployments",                               view_func=list_system_deployments,   methods=["GET"])
+    v2.add_url_rule("/kubernetes/deployments/<namespace>/<name>",            view_func=get_system_deployment,     methods=["GET"])
+    v2.add_url_rule("/kubernetes/deployments/<namespace>/<name>/scale",      view_func=scale_deployment,   methods=["POST"])
+    v2.add_url_rule("/kubernetes/deployments/<namespace>/<name>/restart",    view_func=restart_system_deployment, methods=["POST"])
 
-    v2.add_url_rule("/system/services",                                  view_func=list_services,      methods=["GET"])
-    v2.add_url_rule("/system/services/<namespace>/<name>",               view_func=get_service,        methods=["GET"])
+    v2.add_url_rule("/kubernetes/services",                                  view_func=list_services,      methods=["GET"])
+    v2.add_url_rule("/kubernetes/services/<namespace>/<name>",               view_func=get_service,        methods=["GET"])
 
-    v2.add_url_rule("/system/jobs",                                      view_func=list_jobs,          methods=["GET"])
-    v2.add_url_rule("/system/jobs/<namespace>/<name>",                   view_func=get_job,            methods=["GET"])
-    v2.add_url_rule("/system/jobs/<namespace>/<name>",                   view_func=delete_job,         methods=["DELETE"])
+    v2.add_url_rule("/kubernetes/jobs",                                      view_func=list_jobs,          methods=["GET"])
+    v2.add_url_rule("/kubernetes/jobs/<namespace>/<name>",                   view_func=get_job,            methods=["GET"])
+    v2.add_url_rule("/kubernetes/jobs/<namespace>/<name>",                   view_func=delete_job,         methods=["DELETE"])
 
-    v2.add_url_rule("/system/configmaps",                                view_func=list_configmaps,    methods=["GET"])
-    v2.add_url_rule("/system/configmaps/<namespace>/<name>",             view_func=get_configmap,      methods=["GET"])
-    v2.add_url_rule("/system/secrets",                                   view_func=list_secrets,       methods=["GET"])
-    v2.add_url_rule("/system/secrets/<namespace>/<name>",                view_func=get_secret,         methods=["GET"])
+    v2.add_url_rule("/kubernetes/configmaps",                                view_func=list_configmaps,    methods=["GET"])
+    v2.add_url_rule("/kubernetes/configmaps/<namespace>/<name>",             view_func=get_configmap,      methods=["GET"])
+    v2.add_url_rule("/kubernetes/secrets",                                   view_func=list_secrets,       methods=["GET"])
+    v2.add_url_rule("/kubernetes/secrets/<namespace>/<name>",                view_func=get_secret,         methods=["GET"])
 
     # Health
     v2.add_url_rule("/healthcheck",          view_func=healthcheck,     methods=["GET"])
@@ -378,20 +401,21 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     v2.add_url_rule("/openapi.json",         view_func=openapi_spec,    methods=["GET"])
     v2.add_url_rule("/docs",                 view_func=swagger_ui,      methods=["GET"])
 
-    # System Monitor: Resource YAML
-    v2.add_url_rule("/system/resources/<kind>/<namespace>/<name>",       view_func=get_resource_yaml,       methods=["GET"])
-    v2.add_url_rule("/system/resources/<kind>/<namespace>/<name>",       view_func=apply_resource_yaml,     methods=["PUT"])
-    v2.add_url_rule("/system/resources/<kind>/<namespace>/<name>",       view_func=delete_resource,         methods=["DELETE"])
+    # Kubernetes: Resource YAML
+    v2.add_url_rule("/kubernetes/resources/<kind>/<namespace>/<name>",       view_func=get_resource_yaml,       methods=["GET"])
+    v2.add_url_rule("/kubernetes/resources/<kind>/<namespace>/<name>",       view_func=apply_resource_yaml,     methods=["PUT"])
+    v2.add_url_rule("/kubernetes/resources/<kind>/<namespace>/<name>",       view_func=delete_resource,         methods=["DELETE"])
 
-    # System Monitor: RBAC
-    v2.add_url_rule("/system/rbac/roles",                               view_func=list_roles,              methods=["GET"])
-    v2.add_url_rule("/system/rbac/clusterroles",                        view_func=list_cluster_roles,      methods=["GET"])
-    v2.add_url_rule("/system/rbac/bindings",                            view_func=list_role_bindings,      methods=["GET"])
-    v2.add_url_rule("/system/rbac/clusterrolebindings",                 view_func=list_cluster_role_bindings, methods=["GET"])
-    v2.add_url_rule("/system/rbac/serviceaccounts",                     view_func=list_service_accounts,   methods=["GET"])
+    # Kubernetes: RBAC
+    v2.add_url_rule("/kubernetes/rbac/roles",                               view_func=list_roles,              methods=["GET"])
+    v2.add_url_rule("/kubernetes/rbac/clusterroles",                        view_func=list_cluster_roles,      methods=["GET"])
+    v2.add_url_rule("/kubernetes/rbac/bindings",                            view_func=list_role_bindings,      methods=["GET"])
+    v2.add_url_rule("/kubernetes/rbac/clusterrolebindings",                 view_func=list_cluster_role_bindings, methods=["GET"])
+    v2.add_url_rule("/kubernetes/rbac/serviceaccounts",                     view_func=list_service_accounts,   methods=["GET"])
 
-    # System Monitor: Log Streaming + Pod Exec
+    # Kubernetes: Log Streaming + Pod Exec
     register_log_handlers(socketio)
     register_exec_handlers(socketio)
+    register_uart_handlers(socketio)
 
     server.register_blueprint(v2)

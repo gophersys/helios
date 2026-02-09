@@ -1,307 +1,332 @@
-# Corekinect imports
+"""Power management handler for V2 protocol."""
+
 import glob
 import os
 import time
-from typing import TYPE_CHECKING, Optional, Tuple
+from typing import TYPE_CHECKING, Iterator, Optional, Tuple
 
 import gpiod
 
-# 3rd party imports
-import grpc
 from corekinect.utils import Logger
+from src.services.gpio import Gpio, Pin
 from src.services.mcp4017 import MCP4017
-
-# Private imports
-from src.shared.types import *
-
-from .gpio import Gpio, Pin
+from src.shared.types import (
+    PowerChannel,
+    PowerDisableRequest,
+    PowerEnableRequest,
+    PowerMeasureRequest,
+    PowerMeasureResponse,
+    PowerSample,
+    PowerStatusRequest,
+    PowerStatusResponse,
+    PowerStreamRequest,
+    PowerStreamResponse,
+    Response,
+    Timestamp,
+)
 
 if TYPE_CHECKING:
     from src.hardware import HardwareContext
 
+# INA219 hwmon channel mapping
+# POWER_MAIN (DUT power) -> INA219 @ 0x40
+# POWER_VBAT (charge power) -> INA219 @ 0x41
+CHANNEL_INA_MAP = {
+    PowerChannel.POWER_MAIN: 0x40,
+    PowerChannel.POWER_VBAT: 0x41,
+}
 
-# The EN FETs in the carrier board are connected to the following pins:
-# - DUT_PWR_EN_1V8 is connected to IMX8_I2C1_DSI_SCL_1V8 (SODIMM_53)
-# - DUT_CHG_EN_1V8 is connected to IMX8_I2C1_DSI_SDA_1V8 (SODIMM_55)
-#
-# There's also a 1/2 voltage divider on the device power voltage, so that we,
-# can implement a feedback loop to control the device power voltage, and get as close as we can to the
-# target voltage, by adjusting a I2C wiper potentiometer, which is connected to the buck converter that
-# outputs the device power voltage.
-#
-# - DUT_PWR_SENSE_2V5 is connected to IMX8_ADC1_3V3
-# - MCP4017T is connected to IMX8_I2C1_SDA_3V3 & IMX8_I2C1_SCL_3V3 with address 0101111 (0x2F)
-#
-# There are current measurements ICs, one for the DUT power and one for the DUT charging power.
-# - INA219 for DUT power is connected to IMX8_I2C1_SDA_3V3 & IMX8_I2C1_SCL_3V3 with address 1000000 (0x40)
-# - INA219 for DUT charging power is connected to IMX8_I2C1_SDA_3V3 & IMX8_I2C1_SCL_3V3 with address 1000001 (0x41)
+
 class PowerHandler:
-    def __init__(self, logger: Logger, hardware: "HardwareContext" = None):
+    """Handles V2 power RPCs."""
+
+    def __init__(self, logger: Logger, hardware: "HardwareContext", power_monitor=None):
         self.logger = logger
         self.hardware = hardware
         self.mcp4017 = MCP4017(logger=logger)
+        self._power_monitor = power_monitor  # ObservabilityEngine's PowerMonitor (for cached reads)
 
-        # Find the ADS1015 ADC device
-        self.adc_path = None
-        for device in glob.glob("/sys/bus/iio/devices/iio:device*"):
-            try:
-                with open(os.path.join(device, "name"), "r") as f:
-                    if f.read().strip() == "ads1015":
-                        self.adc_path = device
-                        # Read the scale factor for voltage3
-                        with open(os.path.join(device, "in_voltage3_scale"), "r") as sf:
-                            self.adc_scale = float(sf.read().strip())
-                        self.logger.info(f"Found ADS1015 ADC at {device} with scale {self.adc_scale}")
-                        break
-            except Exception as e:
-                self.logger.warning(f"Error checking IIO device {device}: {e}")
-                continue
-
-        if not self.adc_path:
-            self.logger.error("Failed to find ADS1015 ADC device")
-            raise Exception("Required ADS1015 ADC device not found")
-
-        # Voltage divider ratio (actual voltage is 2x the ADC reading)
-        self.voltage_divider_ratio = 2.0
-
-        # Initialize INA219 power monitoring devices
-        self.power_ina_path = None  # Will store path for INA219 at 0x40 (DUT power)
-        self.chg_power_ina_path = None  # Will store path for INA219 at 0x41 (DUT charging power)
-
-        # Scan hwmon devices to find our INA219s
+        # Discover INA219 hwmon paths
+        self._ina_paths: dict[int, str] = {}  # i2c_addr -> hwmon path
         for hwmon in glob.glob("/sys/class/hwmon/hwmon*"):
             try:
                 with open(os.path.join(hwmon, "name"), "r") as f:
                     if f.read().strip() != "ina219":
                         continue
-
-                # Read the I2C address from the device tree
                 with open(os.path.join(hwmon, "device/of_node/reg"), "rb") as f:
                     reg = int.from_bytes(f.read(), byteorder="big")
-                    if reg == 0x40:
-                        self.power_ina_path = hwmon
-                        self.logger.info(f"Found DUT power INA219 at {hwmon}")
-                    elif reg == 0x41:
-                        self.chg_power_ina_path = hwmon
-                        self.logger.info(f"Found DUT charging power INA219 at {hwmon}")
-            except Exception as e:
-                self.logger.warning(f"Error checking hwmon device {hwmon}: {e}")
+                    self._ina_paths[reg] = hwmon
+                    self.logger.info(f"Found INA219 at 0x{reg:02X}: {hwmon}")
+            except Exception:
                 continue
 
-        if not self.power_ina_path or not self.chg_power_ina_path:
-            self.logger.error("Failed to find both INA219 power monitoring devices")
-            raise Exception("Required INA219 power monitoring devices not found")
+        # Power enable GPIOs
+        # DUT_PWR_EN on SODIMM_55, DUT_CHG_EN on SODIMM_53
+        self._pwr_en = Gpio(consumer="mtib-dut-pwr-en", pin=Pin.SODIMM_55, direction=gpiod.line.Direction.OUTPUT)
+        self._chg_en = Gpio(consumer="mtib-dut-chg-en", pin=Pin.SODIMM_53, direction=gpiod.line.Direction.OUTPUT)
 
-        # We use GPIOs to control the power to the DUT and the charging power to the DUT.
-        # - DUT_PWR_EN_1V8 is connected to IMX8_I2C1_DSI_SCL_1V8 (SODIMM_53)
-        # - DUT_CHG_EN_1V8 is connected to IMX8_I2C1_DSI_SDA_1V8 (SODIMM_55)
-        self.dut_pwr_en = Gpio(consumer="mtib-dut-pwr-en", pin=Pin.SODIMM_55, direction=gpiod.line.Direction.OUTPUT)
-        if err := self.dut_pwr_en.init():
-            self.logger.error(f"Failed to initialize DUT power enable GPIO: {err}")
-            raise Exception(err)
+        self._gpio_available = True
+        if err := self._pwr_en.init():
+            self.logger.warning(f"DUT power enable GPIO not available: {err}")
+            self._gpio_available = False
+        if err := self._chg_en.init():
+            self.logger.warning(f"DUT charge enable GPIO not available: {err}")
+            self._gpio_available = False
 
-        self.dut_chg_en = Gpio(consumer="mtib-dut-chg-en", pin=Pin.SODIMM_53, direction=gpiod.line.Direction.OUTPUT)
-        if err := self.dut_chg_en.init():
-            self.logger.error(f"Failed to initialize DUT charge power enable GPIO: {err}")
-            raise Exception(err)
+        # Start with power off
+        if self._gpio_available:
+            self._pwr_en.write(False)
+            self._chg_en.write(False)
+        self._pwr_enabled = False
+        self._chg_enabled = False
 
-        # Turn off the DUT power and charging power
-        if err := self.dut_pwr_en.write(False):
-            self.logger.error(f"Failed to disable DUT power: {err}")
-            raise Exception(err)
+    def _get_ina_path(self, channel: int) -> Optional[str]:
+        """Get INA219 hwmon path for a power channel."""
+        addr = CHANNEL_INA_MAP.get(channel)
+        if addr is None:
+            return None
+        return self._ina_paths.get(addr)
 
-        if err := self.dut_chg_en.write(False):
-            self.logger.error(f"Failed to disable DUT charging power: {err}")
-            raise Exception(err)
+    def _read_ina219(self, hwmon_path: str) -> Tuple[float, float, float]:
+        """Read voltage (V), current (mA), power (mW) from INA219 hwmon."""
+        with open(os.path.join(hwmon_path, "in1_input"), "r") as f:
+            voltage_v = float(f.read().strip()) / 1000.0
+        with open(os.path.join(hwmon_path, "curr1_input"), "r") as f:
+            current_ma = float(f.read().strip())
+        with open(os.path.join(hwmon_path, "power1_input"), "r") as f:
+            power_mw = float(f.read().strip()) / 1000.0  # uW -> mW
+        return voltage_v, current_ma, power_mw
 
-    def _read_adc_voltage(self) -> Tuple[Optional[float], Optional[str]]:
-        """Read voltage from ADS1015 ADC channel 3.
+    def _set_voltage(self, target_v: float) -> Optional[str]:
+        """Set DUT power voltage via MCP4017 with feedback loop.
 
-        The ADC is connected through a 2:1 voltage divider, so the actual voltage
-        is twice the measured voltage.
-
-        Returns:
-            Actual voltage in volts (after accounting for voltage divider)
+        Uses binary search across the full MCP4017 range (0-127) with INA219
+        voltage feedback. Starts from midpoint like V1 server.
         """
+        MAX_ATTEMPTS = 10
+        VOLTAGE_TOLERANCE = 0.05
+        STEP_DELAY = 0.2
+
         try:
+            # Full-range binary search starting from midpoint
+            min_step = 0
+            max_step = MCP4017.MAX_VALUE  # 127
+            current_step = max_step // 2  # Start at 63
+
             voltage_v = 0.0
-
-            # Read bus voltage (in mV) and convert to V
-            with open(os.path.join(self.power_ina_path, "in1_input"), "r") as f:
-                voltage_v = float(f.read().strip()) / 1000.0  # Convert mV to V
-
-            return voltage_v, None
-        except Exception as e:
-            self.logger.error(f"Error reading ADC voltage: {e}")
-            return None, str(e)
-
-    def _set_dut_power_voltage(self, target_voltage_v: float) -> Optional[str]:
-        """Set the DUT power voltage by adjusting the MCP4017 wiper potentiometer.
-
-        Uses binary search to find the wiper position that gives closest voltage to target.
-        Uses ADS1015 ADC for voltage measurement.
-        Returns None on success, error message on failure.
-
-        The initial wiper position is calculated based on hardware revision:
-        - REV 1.1: 100kΩ pot, 30kΩ fixed resistor
-        - REV 1.2: 10kΩ pot, 3kΩ fixed resistor
-        """
-        try:
-            # Constants for voltage control
-            MAX_ATTEMPTS = 10  # Maximum number of adjustment attempts
-            VOLTAGE_TOLERANCE = 0.05  # Acceptable voltage error in V
-            STEP_DELAY = 0.2  # Delay between adjustments in seconds
-
-            # Calculate initial wiper position based on hardware revision
-            if self.hardware is not None:
-                initial_step = self.hardware.calculate_voltage_wiper(target_voltage_v)
-                self.logger.debug(
-                    f"Calculated initial wiper position {initial_step} for {target_voltage_v}V "
-                    f"(revision: {self.hardware.revision.id})"
-                )
-            else:
-                initial_step = int(MCP4017.MAX_VALUE / 2)  # Fallback to middle
-
-            # Binary search bounds (start closer to calculated position)
-            min_step = max(0, initial_step - 20)
-            max_step = min(MCP4017.MAX_VALUE, initial_step + 20)
-            current_step = initial_step
-
             for _ in range(MAX_ATTEMPTS):
-                # Set the wiper position
                 self.mcp4017.set_step(current_step)
-                time.sleep(STEP_DELAY)  # Wait for voltage to settle
+                time.sleep(STEP_DELAY)
 
-                # Read current voltage from ADC
-                current_voltage_v, error = self._read_adc_voltage()
-                if error or current_voltage_v is None:
-                    return error
+                ina_path = self._get_ina_path(PowerChannel.POWER_MAIN)
+                if not ina_path:
+                    return "DUT power INA219 not found"
+                voltage_v, _, _ = self._read_ina219(ina_path)
 
-                # Check if we're close enough
-                if abs(current_voltage_v - target_voltage_v) <= VOLTAGE_TOLERANCE:
-                    self.logger.info(f"Voltage control achieved: {current_voltage_v}V (target: {target_voltage_v}V)")
+                if abs(voltage_v - target_v) <= VOLTAGE_TOLERANCE:
+                    self.logger.info(f"Voltage set: {voltage_v:.3f}V (target: {target_v}V, step: {current_step})")
                     return None
 
-                # Adjust wiper position based on voltage
-                if current_voltage_v > target_voltage_v:
-                    # Voltage too high, increase wiper value (decrease voltage)
+                # Higher wiper step = higher resistance = lower voltage (MCP4017 is R2)
+                if voltage_v > target_v:
                     min_step = current_step
                     current_step = (current_step + max_step + 1) // 2
                 else:
-                    # Voltage too low, decrease wiper value (increase voltage)
                     max_step = current_step
                     current_step = (min_step + current_step) // 2
 
-                # If we've converged to a single step, we're done
                 if min_step == max_step:
                     break
 
-            # If we get here, we didn't achieve target voltage within tolerance
-            final_voltage = current_voltage_v
-            self.logger.warning(
-                f"Voltage control did not converge: final={final_voltage}V, target={target_voltage_v}V"
-            )
-            return f"Could not achieve target voltage. Final voltage: {final_voltage}V"
-
+            return f"Voltage did not converge: {voltage_v:.3f}V (target: {target_v}V)"
         except Exception as e:
-            self.logger.error(f"Error in voltage control: {e}")
             return str(e)
 
-    def dut_power_enable(self, request: DutPowerRequest, context: grpc.ServicerContext) -> DutPowerResponse:
-        """Enable DUT power with specified voltage."""
-        self.logger.info(f"DutPowerEnable request received with voltage {request.voltage_v}V")
-
-        # Enable the DUT power
-        if err := self.dut_pwr_en.write(True):
-            return DutPowerResponse(success=False, message=f"Error enabling DUT power: {err}")
-
-        if err := self._set_dut_power_voltage(request.voltage_v):
-            return DutPowerResponse(success=False, message=f"Error setting DUT power voltage: {err}")
-
-        return DutPowerResponse(success=True)
-
-    def dut_power_disable(self, request: Empty, context: grpc.ServicerContext) -> DutPowerResponse:
-        """Disable DUT power."""
-        self.logger.info("DutPowerDisable request received")
-
-        # Disable the DUT power
-        if err := self.dut_pwr_en.write(False):
-            return DutPowerResponse(success=False, message=f"Error disabling DUT power: {err}")
-
-        return DutPowerResponse(success=True)
-
-    def dut_charge_power_enable(self, request: Empty, context: grpc.ServicerContext) -> DutPowerResponse:
-        """Enable DUT charging power."""
-        self.logger.info("DutChargePowerEnable request received")
-
-        # Enable the DUT charging power
-        if err := self.dut_chg_en.write(True):
-            return DutPowerResponse(success=False, message=f"Error enabling DUT charging power: {err}")
-
-        return DutPowerResponse(success=True)
-
-    def dut_charge_power_disable(self, request: Empty, context: grpc.ServicerContext) -> DutPowerResponse:
-        """Disable DUT charging power."""
-        self.logger.info("DutChargePowerDisable request received")
-
-        # Disable the DUT charging power
-        if err := self.dut_chg_en.write(False):
-            return DutPowerResponse(success=False, message=f"Error disabling DUT charging power: {err}")
-
-        return DutPowerResponse(success=True)
-
-    def dut_power_read(self, request: Empty, context: grpc.ServicerContext) -> DutPowerReadResponse:
-        """Read DUT power measurements."""
-        self.logger.info("DutPowerRead request received")
-
+    def enable(self, request: PowerEnableRequest, context) -> Response:
+        """Enable power on a channel."""
         try:
-            # Read bus voltage (in mV) and convert to V
-            with open(os.path.join(self.power_ina_path, "in1_input"), "r") as f:
-                voltage_v = float(f.read().strip()) / 1000.0  # Convert mV to V
+            config = request.config
+            channel = config.channel
 
-            # Read current (in mA) and convert to A
-            with open(os.path.join(self.power_ina_path, "curr1_input"), "r") as f:
-                current_a = float(f.read().strip()) / 1000.0  # Convert mA to A
+            if channel == PowerChannel.POWER_MAIN:
+                if err := self._pwr_en.write(True):
+                    return Response(success=False, message=f"GPIO error: {err}")
+                self._pwr_enabled = True
 
-            # Read power (in µW) and convert to W
-            with open(os.path.join(self.power_ina_path, "power1_input"), "r") as f:
-                power_w = float(f.read().strip()) / 1000000.0  # Convert µW to W
+                if config.voltage_v > 0:
+                    if err := self._set_voltage(config.voltage_v):
+                        return Response(success=False, message=f"Voltage error: {err}")
 
-            return DutPowerReadResponse(success=True, current_a=current_a, voltage_v=voltage_v, power_w=power_w)
+            elif channel == PowerChannel.POWER_VBAT:
+                if err := self._chg_en.write(True):
+                    return Response(success=False, message=f"GPIO error: {err}")
+                self._chg_enabled = True
+            else:
+                return Response(success=False, message=f"Unsupported channel: {channel}")
+
+            return Response(success=True, message="Power enabled")
         except Exception as e:
-            self.logger.error(f"Error reading DUT power measurements: {e}")
-            return DutPowerReadResponse(
-                success=False,
-                message=f"Error reading power measurements: {e}",
-                current_a=0.0,
-                voltage_v=0.0,
-                power_w=0.0,
+            return Response(success=False, message=str(e))
+
+    def disable(self, request: PowerDisableRequest, context) -> Response:
+        """Disable power on a channel."""
+        try:
+            if request.channel == PowerChannel.POWER_MAIN:
+                if err := self._pwr_en.write(False):
+                    return Response(success=False, message=f"GPIO error: {err}")
+                self._pwr_enabled = False
+            elif request.channel == PowerChannel.POWER_VBAT:
+                if err := self._chg_en.write(False):
+                    return Response(success=False, message=f"GPIO error: {err}")
+                self._chg_enabled = False
+            else:
+                return Response(success=False, message=f"Unsupported channel: {request.channel}")
+
+            return Response(success=True, message="Power disabled")
+        except Exception as e:
+            return Response(success=False, message=str(e))
+
+    def status(self, request: PowerStatusRequest, context) -> PowerStatusResponse:
+        """Read power status for a channel.
+
+        Uses the PowerMonitor cache when available (at most 100ms stale at 10Hz)
+        to avoid redundant I2C traffic. Falls back to direct hwmon read.
+        """
+        try:
+            # Try cached read from PowerMonitor first (avoids duplicate I2C bus hits)
+            channel_idx = 0 if request.channel == PowerChannel.POWER_MAIN else 1
+            if self._power_monitor:
+                cached = self._power_monitor.get_reading(channel_idx)
+                if cached:
+                    enabled = (
+                        self._pwr_enabled if request.channel == PowerChannel.POWER_MAIN
+                        else self._chg_enabled
+                    )
+                    return PowerStatusResponse(
+                        success=True,
+                        message="",
+                        enabled=enabled,
+                        voltage_v=cached["voltage_v"],
+                        current_ma=cached["current_ma"],
+                        power_mw=cached["power_mw"],
+                    )
+
+            # Fallback: direct hwmon read
+            ina_path = self._get_ina_path(request.channel)
+            if not ina_path:
+                return PowerStatusResponse(
+                    success=False,
+                    message=f"No INA219 for channel {request.channel}",
+                )
+
+            voltage_v, current_ma, power_mw = self._read_ina219(ina_path)
+            enabled = (
+                self._pwr_enabled if request.channel == PowerChannel.POWER_MAIN
+                else self._chg_enabled
             )
 
-    def dut_charge_power_read(self, request: Empty, context: grpc.ServicerContext) -> DutPowerReadResponse:
-        """Read DUT charging power measurements."""
-        self.logger.info("DutChargePowerRead request received")
-
-        try:
-            # Read bus voltage (in mV) and convert to V
-            with open(os.path.join(self.chg_power_ina_path, "in1_input"), "r") as f:
-                voltage_v = float(f.read().strip()) / 1000.0  # Convert mV to V
-
-            # Read current (in mA) and convert to A
-            with open(os.path.join(self.chg_power_ina_path, "curr1_input"), "r") as f:
-                current_a = float(f.read().strip()) / 1000.0  # Convert mA to A
-
-            # Read power (in µW) and convert to W
-            with open(os.path.join(self.chg_power_ina_path, "power1_input"), "r") as f:
-                power_w = float(f.read().strip()) / 1000000.0  # Convert µW to W
-
-            return DutPowerReadResponse(success=True, current_a=current_a, voltage_v=voltage_v, power_w=power_w)
-        except Exception as e:
-            self.logger.error(f"Error reading DUT charging power measurements: {e}")
-            return DutPowerReadResponse(
-                success=False,
-                message=f"Error reading charging power measurements: {e}",
-                current_a=0.0,
-                voltage_v=0.0,
-                power_w=0.0,
+            return PowerStatusResponse(
+                success=True,
+                message="",
+                enabled=enabled,
+                voltage_v=voltage_v,
+                current_ma=current_ma,
+                power_mw=power_mw,
             )
+        except Exception as e:
+            return PowerStatusResponse(success=False, message=str(e))
+
+    def stream(self, request: PowerStreamRequest, context) -> Iterator[PowerStreamResponse]:
+        """Server-streaming power samples at requested rate."""
+        ina_path = self._get_ina_path(request.channel)
+        if not ina_path:
+            yield PowerStreamResponse(
+                success=False,
+                message=f"No INA219 for channel {request.channel}",
+            )
+            return
+
+        sample_rate = max(1, min(request.sample_rate_hz, 1000))
+        interval = 1.0 / sample_rate
+
+        self.logger.info(f"Power stream started: channel={request.channel}, rate={sample_rate}Hz")
+        try:
+            while context.is_active():
+                start = time.time()
+                try:
+                    voltage_v, current_ma, _ = self._read_ina219(ina_path)
+                    now = time.time()
+                    sample = PowerSample(
+                        timestamp=Timestamp(seconds=int(now), nanos=int((now % 1) * 1e9)),
+                        current_ua=current_ma * 1000.0,
+                        voltage_mv=voltage_v * 1000.0,
+                    )
+                    yield PowerStreamResponse(success=True, message="", samples=[sample])
+                except Exception as e:
+                    yield PowerStreamResponse(success=False, message=str(e))
+
+                elapsed = time.time() - start
+                sleep_time = interval - elapsed
+                if sleep_time > 0:
+                    time.sleep(sleep_time)
+        finally:
+            self.logger.info("Power stream ended")
+
+    def measure(self, request: PowerMeasureRequest, context) -> PowerMeasureResponse:
+        """Measure power over a duration and compute statistics."""
+        try:
+            ina_path = self._get_ina_path(request.channel)
+            if not ina_path:
+                return PowerMeasureResponse(
+                    success=False,
+                    message=f"No INA219 for channel {request.channel}",
+                )
+
+            sample_rate = max(1, min(request.sample_rate_hz, 1000))
+            interval = 1.0 / sample_rate
+            duration = request.duration_s
+            samples = []
+
+            start_time = time.time()
+            while (time.time() - start_time) < duration:
+                sample_start = time.time()
+                voltage_v, current_ma, _ = self._read_ina219(ina_path)
+                now = time.time()
+                samples.append(PowerSample(
+                    timestamp=Timestamp(seconds=int(now), nanos=int((now % 1) * 1e9)),
+                    current_ua=current_ma * 1000.0,
+                    voltage_mv=voltage_v * 1000.0,
+                ))
+                elapsed = time.time() - sample_start
+                sleep_time = interval - elapsed
+                if sleep_time > 0:
+                    time.sleep(sleep_time)
+
+            if not samples:
+                return PowerMeasureResponse(success=False, message="No samples collected")
+
+            # Compute statistics
+            currents = [s.current_ua for s in samples]
+            voltages = [s.voltage_mv for s in samples]
+            avg_current = sum(currents) / len(currents)
+            min_current = min(currents)
+            max_current = max(currents)
+
+            # Energy = sum(V * I * dt) in microjoules
+            actual_duration = time.time() - start_time
+            dt = actual_duration / len(samples) if samples else 0
+            energy_uj = sum(v * i * dt / 1e6 for v, i in zip(voltages, currents))
+
+            return PowerMeasureResponse(
+                success=True,
+                message="",
+                duration_s=actual_duration,
+                average_ua=avg_current,
+                min_ua=min_current,
+                max_ua=max_current,
+                energy_uj=energy_uj,
+                sample_count=len(samples),
+                samples=samples,
+            )
+        except Exception as e:
+            return PowerMeasureResponse(success=False, message=str(e))

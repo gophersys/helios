@@ -1,73 +1,184 @@
-# Standard library imports
-from enum import Enum
-from typing import Dict, Optional, Tuple
+"""GPIO handler for V2 protocol."""
 
-# Third party imports
-import gpiod
-import grpc
+import time
+from typing import TYPE_CHECKING, Dict, Iterator, Optional
 
-# Corekinect imports
 from corekinect.utils import Logger
-from gpiod.line import Direction, Value
-
-# Protocol imports
 from src.services.gpio import Gpio, Pin
-from src.shared.types import *
+
+try:
+    from gpiod.line import Direction, Value
+except ImportError:
+    # gpiod not available (e.g., in test/CI environments)
+    # Provide fallback constants so handler can still be imported
+    class Direction:
+        INPUT = "input"
+        OUTPUT = "output"
+    class Value:
+        ACTIVE = 1
+        INACTIVE = 0
+from src.shared.types import (
+    GpioConfigRequest,
+    GpioDirection,
+    GpioEventResponse,
+    GpioPull,
+    GpioReadRequest,
+    GpioReadResponse,
+    GpioWatchRequest,
+    GpioWriteRequest,
+    Response,
+    Timestamp,
+)
+
+if TYPE_CHECKING:
+    from src.hardware import HardwareContext
+    from src.providers.observability.gpio_tracker import GpioStateTracker
+
+# DUT GPIO pin mapping (same for all revisions)
+DUT_GPIO_PIN_MAP = {
+    0: Pin.SODIMM_206,
+    1: Pin.SODIMM_208,
+    2: Pin.SODIMM_210,
+    3: Pin.SODIMM_212,
+    4: Pin.SODIMM_34,
+    5: Pin.SODIMM_30,
+    6: Pin.SODIMM_32,
+    7: Pin.SODIMM_15,
+    8: Pin.SODIMM_16,
+}
 
 
-# -------------------------------------------------
-#                                 GPIO gRPC Handler
-# -------------------------------------------------
 class GpioHandler:
-    def __init__(self, gpios: Dict[int, Gpio], logger: Logger):
-        self.gpios = gpios
+    """Handles V2 GPIO RPCs."""
+
+    def __init__(self, logger: Logger, hardware: "HardwareContext", gpio_tracker: Optional["GpioStateTracker"] = None):
         self.logger = logger
+        self.hardware = hardware
+        self._gpios: Dict[int, Gpio] = {}
+        self._tracker = gpio_tracker
 
-    def config(self, request: GpioConfigRequest, context: grpc.ServicerContext) -> GpioConfigResponse:
-        """Configure a GPIO pin's direction and resistor settings."""
-        self.logger.info(f"GpioConfig request received for GPIO {request.gpio}")
+        # Initialize all DUT GPIOs as inputs by default
+        for logical_num, pin in DUT_GPIO_PIN_MAP.items():
+            gpio = Gpio(consumer=f"mtib-gpio-{logical_num}", pin=pin, direction=Direction.INPUT)
+            if err := gpio.init():
+                self.logger.error(f"Failed to init GPIO {logical_num} ({pin}): {err}")
+                continue
+            self._gpios[logical_num] = gpio
 
-        # Validate GPIO number
-        if request.gpio not in self.gpios:
-            return GpioConfigResponse(success=False, message=f"Invalid GPIO number {request.gpio}. GPIO not found.")
+            # Seed tracker with initial state so observability shows all pins from boot
+            if self._tracker:
+                self._tracker.update_config(logical_num, GpioDirection.GPIO_INPUT)
+                err_r, value = gpio.read()
+                if not err_r:
+                    self._tracker.update_value(logical_num, bool(value))
 
-        gpio = self.gpios[request.gpio]
+        # Register live-read callback so observability always gets fresh values
+        if self._tracker:
+            self._tracker.set_refresh_callback(self._refresh_all_pins)
+
+        self.logger.debug("All DUT GPIOs configured")
+
+    def _refresh_all_pins(self) -> None:
+        """Read all GPIO pin values and update the tracker."""
+        for logical_num, gpio in self._gpios.items():
+            err, value = gpio.read()
+            if not err and self._tracker:
+                self._tracker.update_value(logical_num, bool(value))
+
+    def config(self, request: GpioConfigRequest, context) -> Response:
+        """Configure a GPIO pin's direction and pull settings."""
+        pin = request.pin
+        if pin not in self._gpios:
+            return Response(success=False, message=f"Invalid GPIO pin {pin}")
+
+        gpio = self._gpios[pin]
         gpio.deinit()
 
-        # Update the GPIO direction before reinitializing
-        direction = Direction.OUTPUT if request.direction == GpioDirection.GPIO_DIRECTION_OUTPUT else Direction.INPUT
+        direction = Direction.OUTPUT if request.direction == GpioDirection.GPIO_OUTPUT else Direction.INPUT
         gpio.direction = direction
 
         if err := gpio.init():
-            return GpioConfigResponse(success=False, message=f"Failed to configure GPIO: {err}")
+            return Response(success=False, message=f"Failed to configure GPIO: {err}")
 
-        return GpioConfigResponse(success=True, message="")
+        if self._tracker:
+            self._tracker.update_config(pin, request.direction)
 
-    def write(self, request: GpioWriteRequest, context: grpc.ServicerContext) -> GpioWriteResponse:
+        return Response(success=True, message="")
+
+    def write(self, request: GpioWriteRequest, context) -> Response:
         """Write a value to a GPIO pin."""
-        self.logger.info(f"GpioWrite request received for GPIO {request.gpio}, state: {request.state}")
+        pin = request.pin
+        if pin not in self._gpios:
+            return Response(success=False, message=f"Invalid GPIO pin {pin}")
 
-        if request.gpio not in self.gpios:
-            return GpioWriteResponse(success=False, message=f"Invalid GPIO number {request.gpio}. GPIO not found.")
+        gpio = self._gpios[pin]
+        if err := gpio.write(1 if request.value else 0):
+            return Response(success=False, message=str(err))
 
-        gpio = self.gpios[request.gpio]
-        if err := gpio.write(1 if request.state else 0):
-            return GpioWriteResponse(success=False, message=f"{err}")
+        if self._tracker:
+            self._tracker.update_value(pin, request.value)
 
-        return GpioWriteResponse(success=True, message="")
+        return Response(success=True, message="")
 
-    def read(self, request: GpioReadRequest, context: grpc.ServicerContext) -> GpioReadResponse:
+    def read(self, request: GpioReadRequest, context) -> GpioReadResponse:
         """Read a value from a GPIO pin."""
-        self.logger.info(f"GpioRead request received for GPIO {request.gpio}")
+        pin = request.pin
+        if pin not in self._gpios:
+            return GpioReadResponse(success=False, message=f"Invalid GPIO pin {pin}", value=False)
 
-        if request.gpio not in self.gpios:
-            return GpioReadResponse(
-                success=False, message=f"Invalid GPIO number {request.gpio}. GPIO not found.", state=False
-            )
-
-        gpio = self.gpios[request.gpio]
+        gpio = self._gpios[pin]
         err, value = gpio.read()
         if err:
-            return GpioReadResponse(success=False, message=f"Failed to read GPIO: {err}", state=False)
+            return GpioReadResponse(success=False, message=str(err), value=False)
 
-        return GpioReadResponse(success=True, message="", state=bool(value))
+        if self._tracker:
+            self._tracker.update_value(pin, bool(value))
+
+        return GpioReadResponse(success=True, message="", value=bool(value))
+
+    def watch(self, request: GpioWatchRequest, context) -> Iterator[GpioEventResponse]:
+        """Server-streaming GPIO edge event watcher."""
+        pin = request.pin
+        if pin not in DUT_GPIO_PIN_MAP:
+            return
+
+        gpio_pin = DUT_GPIO_PIN_MAP[pin]
+        self.logger.info(f"GPIO watch started: pin={pin}, edge={request.edge}")
+
+        try:
+            # Poll-based edge detection (gpiod v2 edge events need specific setup)
+            last_value = None
+            while context.is_active():
+                gpio = self._gpios.get(pin)
+                if gpio is None:
+                    break
+
+                err, current_value = gpio.read()
+                if err:
+                    break
+
+                if last_value is not None and current_value != last_value:
+                    # Edge detected
+                    is_rising = current_value == 1
+                    edge = request.edge
+                    # GpioWatchRequest.Edge: EDGE_RISING=0, EDGE_FALLING=1, EDGE_BOTH=2
+                    should_report = (
+                        edge == 2  # EDGE_BOTH
+                        or (edge == 0 and is_rising)  # EDGE_RISING
+                        or (edge == 1 and not is_rising)  # EDGE_FALLING
+                    )
+                    if should_report:
+                        now = time.time()
+                        yield GpioEventResponse(
+                            pin=pin,
+                            value=bool(current_value),
+                            timestamp=Timestamp(seconds=int(now), nanos=int((now % 1) * 1e9)),
+                        )
+
+                last_value = current_value
+                time.sleep(0.001)  # 1ms polling interval
+
+        except Exception as e:
+            self.logger.error(f"GPIO watch error: {e}")
+        finally:
+            self.logger.info(f"GPIO watch ended: pin={pin}")

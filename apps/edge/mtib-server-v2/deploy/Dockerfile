@@ -56,7 +56,6 @@ RUN ARCH="$(uname -m)" && \
     dpkg -i nrf-cli-tools.deb || true && \
     apt-get install -f -y && \
     # Install the required J-Link dependency for nrf command line tools
-    # Check what J-Link deb files are available and install the appropriate one
     if [ -f "/opt/nrf-command-line-tools/share/JLink_Linux_V794e_arm64.deb" ]; then \
     apt install /opt/nrf-command-line-tools/share/JLink_Linux_V794e_arm64.deb --fix-broken || true; \
     elif [ -f "/opt/nrf-command-line-tools/share/JLink_Linux_V794e_x86_64.deb" ]; then \
@@ -67,7 +66,6 @@ RUN ARCH="$(uname -m)" && \
     fi && \
     echo "Installed nrf-command-line-tools" && \
     rm nrf-cli-tools.deb && \
-    # Verify nrfjprog is properly installed and accessible
     which nrfjprog && \
     nrfjprog --version && \
     echo "nrfjprog verification successful"
@@ -75,9 +73,8 @@ RUN ARCH="$(uname -m)" && \
 WORKDIR /root
 
 # ----------------------------------------------------------------------------------
-#                                                            App python dependencies
+#                                                            System dependencies
 # --------------------------------------------------------------------------------*/
-# Install other dependencies
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && \
     apt-get install -y \
@@ -85,50 +82,50 @@ RUN apt-get update && \
     python3-tk \
     libgpiod-dev \
     python3-libgpiod \
-    python3.10-venv && \
+    python3.10-venv \
+    i2c-tools \
+    vim && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-RUN apt update && apt install -y \
-    i2c-tools vim 
-
 # ----------------------------------------------------------------------------------
-#                                                            App python dependencies
+#                                                            Python dependencies
 # --------------------------------------------------------------------------------*/
-
 WORKDIR /app
 
-# By installing these first you save a lot of time when making changes to the source code
-# and rebuilding the application
-COPY apps/edge/mtib-server/setup.py setup.py
+# Install Python dependencies first (cached layer)
+COPY apps/edge/mtib-server-v2/setup.py setup.py
 RUN pip install -e . && \
     pip cache purge
 
-# Copy only the ctl.sh script first (without config.yaml)
-COPY apps/edge/mtib-server/assets/ctl.sh /app/assets/ctl.sh
+# Copy FluidNC assets (for motion support)
+COPY apps/edge/mtib-server-v2/assets/ctl.sh /app/assets/ctl.sh
 WORKDIR /app/assets
-
-# Generate the fluidnc firmware assets (this is expensive and should be cached)
 RUN chmod +x ctl.sh && \
     ./ctl.sh
+COPY apps/edge/mtib-server-v2/assets/config.yaml /app/assets/config.yaml
 
-# Copy config.yaml separately (this will be fast and won't invalidate FluidNC cache)
-COPY apps/edge/mtib-server/assets/config.yaml /app/assets/config.yaml
-
-# Copy the libraries used by the app
+# ----------------------------------------------------------------------------------
+#                                                            Application code
+# --------------------------------------------------------------------------------*/
+# Copy shared Python libraries (corekinect)
 COPY libs/python /libs/python
 
-# Copy the protocols used by the app
-COPY libs/protocols/mtib /libs/protocols/mtib
+# Copy V2 protocol stubs
+COPY libs/protocols/mtib_v2 /libs/protocols/mtib_v2
 
-# Set the PYTHONPATH to include the libs directory
+# Python namespace packages (PEP 420) - no __init__.py needed
+
+# Set PYTHONPATH for library imports
 ENV PYTHONPATH="/libs:${PYTHONPATH}"
 ENV PYTHONPATH="/libs/python/:${PYTHONPATH}"
 
 WORKDIR /app
 
-# Copy the app itself
-COPY apps/edge/mtib-server/src src
+# Copy the V2 server source
+COPY apps/edge/mtib-server-v2/src src
 
-# Keep the container running
+# gRPC server port
+EXPOSE 50052
+
 ENTRYPOINT ["python3", "src/main.py"]

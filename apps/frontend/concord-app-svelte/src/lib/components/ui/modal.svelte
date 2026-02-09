@@ -56,7 +56,7 @@
 {#if open}
   <!-- Backdrop -->
   <div
-    class="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
+    class="fixed inset-0 z-modal-backdrop bg-black/50 backdrop-blur-sm"
     in:fade={overlayIn}
     out:fade={overlayOut}
     onclick={handleBackdropClick}
@@ -65,7 +65,7 @@
 
   <!-- Modal Container -->
   <div
-    class="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none"
+    class="fixed inset-0 z-modal flex items-center justify-center p-4 pointer-events-none"
     role="dialog"
     aria-modal="true"
     aria-labelledby={title ? 'modal-title' : undefined}

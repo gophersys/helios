@@ -69,7 +69,7 @@
   async function fetchNode() {
     loading = true;
     try {
-      const res = await api.get<{ data: NodeDetailData }>(`/v2/system/nodes/${nodeName}`);
+      const res = await api.get<{ data: NodeDetailData }>(`/v2/kubernetes/nodes/${nodeName}`);
       if (res?.data) node = res.data;
       error = null;
     } catch (e) {

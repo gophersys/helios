@@ -4,8 +4,11 @@ services:
     pull_policy: always
     privileged: true
     ports:
-      - 50053:50053
+      - 50052:50052
     env_file:
       - ../.env
     volumes:
       - /dev:/dev
+      - /sys/class/hwmon:/sys/class/hwmon
+      - /sys/class/gpio:/sys/class/gpio
+      - /sys/bus/iio:/sys/bus/iio

@@ -4,9 +4,6 @@ import random
 import concurrent.futures
 from typing import Dict, Optional
 
-# Corekinect libraries
-from corekinect.mtib_client.v1.client.core import MtibV1Client
-from corekinect.mtib_client.v1.client.types import HostType
 from tests.lib import *
 
 # Shared includes
@@ -14,9 +11,6 @@ from ..shared.config import ThetaFixtureConfig
 
 # Test includes
 from .data import PostTestSharedData
-
-# Theta uses nRF9151 for comms processor
-THETA_COMMS_TARGET = HostType.HOST_TYPE_NRF9151
 
 
 # ---------------------------------------------------------------------------------
@@ -85,7 +79,7 @@ def _run_flash_test_operations(
     return None
 
 
-def _verify_comms_flash(client: MtibV1Client, config: ThetaFixtureConfig) -> Optional[str]:
+def _verify_comms_flash(comms_cmds, config: ThetaFixtureConfig) -> Optional[str]:
     """Verify comms processor external flash functionality."""
     test_string = config.post_ext_flash_test_pattern
     test_data_b64 = base64.b64encode(test_string.encode("utf-8")).decode("utf-8")
@@ -95,10 +89,10 @@ def _verify_comms_flash(client: MtibV1Client, config: ThetaFixtureConfig) -> Opt
     random_middle_address = f"0x{random.randint(middle_start_int, middle_end_int):06X}"
 
     def write_func(addr, data):
-        return client.cmd_comms_coproc_write_ext_flash(addr, data, target=THETA_COMMS_TARGET)
+        return comms_cmds.write_ext_flash(addr, data)
 
     def read_func(addr, length):
-        return client.cmd_comms_coproc_read_ext_flash(addr, length, target=THETA_COMMS_TARGET)
+        return comms_cmds.read_ext_flash(addr, length)
 
     # Try without erasing first
     err = _run_flash_test_operations(
@@ -109,12 +103,12 @@ def _verify_comms_flash(client: MtibV1Client, config: ThetaFixtureConfig) -> Opt
 
     if not err:
         # Cleanup erase
-        client.cmd_comms_coproc_erase_ext_flash(target=THETA_COMMS_TARGET)
+        comms_cmds.erase_ext_flash()
         return None
 
     # Erase and retry
     logging.debug(f"[Comms] First attempt failed: {err}. Erasing and retrying...")
-    erase_success, erase_err = client.cmd_comms_coproc_erase_ext_flash(target=THETA_COMMS_TARGET)
+    erase_success, erase_err = comms_cmds.erase_ext_flash()
     if not erase_success or erase_err:
         return f"[Comms] Failed to erase flash for retry: {erase_err}"
 
@@ -128,11 +122,11 @@ def _verify_comms_flash(client: MtibV1Client, config: ThetaFixtureConfig) -> Opt
         return f"[Comms] Flash test failed after retry: {err}"
 
     # Cleanup erase
-    client.cmd_comms_coproc_erase_ext_flash(target=THETA_COMMS_TARGET)
+    comms_cmds.erase_ext_flash()
     return None
 
 
-def _verify_app_flash(client: MtibV1Client, config: ThetaFixtureConfig) -> Optional[str]:
+def _verify_app_flash(app_cmds, config: ThetaFixtureConfig) -> Optional[str]:
     """Verify app processor external flash functionality."""
     test_string = config.post_ext_flash_test_pattern
     test_data_b64 = base64.b64encode(test_string.encode("utf-8")).decode("utf-8")
@@ -142,10 +136,10 @@ def _verify_app_flash(client: MtibV1Client, config: ThetaFixtureConfig) -> Optio
     random_middle_address = f"0x{random.randint(middle_start_int, middle_end_int):06X}"
 
     def write_func(addr, data):
-        return client.cmd_theta_app_write_ext_flash(addr, data)
+        return app_cmds.write_ext_flash(addr, data)
 
     def read_func(addr, length):
-        return client.cmd_theta_app_read_ext_flash(addr, length)
+        return app_cmds.read_ext_flash(addr, length)
 
     # Try without erasing first
     err = _run_flash_test_operations(
@@ -156,12 +150,12 @@ def _verify_app_flash(client: MtibV1Client, config: ThetaFixtureConfig) -> Optio
 
     if not err:
         # Cleanup erase
-        client.cmd_theta_app_erase_ext_flash()
+        app_cmds.erase_ext_flash()
         return None
 
     # Erase and retry
     logging.debug(f"[App] First attempt failed: {err}. Erasing and retrying...")
-    erase_success, erase_err = client.cmd_theta_app_erase_ext_flash()
+    erase_success, erase_err = app_cmds.erase_ext_flash()
     if not erase_success or erase_err:
         return f"[App] Failed to erase flash for retry: {erase_err}"
 
@@ -175,7 +169,7 @@ def _verify_app_flash(client: MtibV1Client, config: ThetaFixtureConfig) -> Optio
         return f"[App] Flash test failed after retry: {err}"
 
     # Cleanup erase
-    client.cmd_theta_app_erase_ext_flash()
+    app_cmds.erase_ext_flash()
     return None
 
 
@@ -190,14 +184,16 @@ def post_step_8_handler(
     Write/read/verify pattern at start, end, and random middle address.
     """
     result: TestStepResult = TestStepResult(success=False)
-    client = usr_data[node].client
+
+    comms_cmds = usr_data[node].comms_cmds
+    app_cmds = usr_data[node].app_cmds
 
     errors = []
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
         futures = {
-            executor.submit(_verify_comms_flash, client, config): "comms",
-            executor.submit(_verify_app_flash, client, config): "app",
+            executor.submit(_verify_comms_flash, comms_cmds, config): "comms",
+            executor.submit(_verify_app_flash, app_cmds, config): "app",
         }
 
         for future in concurrent.futures.as_completed(futures):

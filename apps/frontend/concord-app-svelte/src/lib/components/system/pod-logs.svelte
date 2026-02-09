@@ -95,7 +95,7 @@
   });
 </script>
 
-<div class="fixed inset-0 z-50 flex items-center justify-center bg-overlay">
+<div class="fixed inset-0 z-modal flex items-center justify-center bg-overlay">
   <div class="w-[90vw] h-[80vh] max-w-6xl bg-surface-1 rounded-lg border border-border flex flex-col shadow-xl">
     <!-- Header -->
     <div class="flex items-center justify-between px-4 py-3 border-b border-border">

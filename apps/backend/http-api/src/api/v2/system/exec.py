@@ -25,7 +25,7 @@ MAX_CONCURRENT_EXEC = 10
 def register_exec_handlers(socketio: SocketIO):
     """Register SocketIO event handlers for pod exec."""
 
-    @socketio.on("exec_start", namespace="/system")
+    @socketio.on("exec_start", namespace="/kubernetes")
     def handle_exec_start(data):
         """
         Start an interactive exec session.
@@ -119,17 +119,17 @@ def register_exec_handlers(socketio: SocketIO):
                         continue
 
                     if msg_type == "output":
-                        socketio.emit("exec_output", {"data": data}, room=sid, namespace="/system")
+                        socketio.emit("exec_output", {"data": data}, room=sid, namespace="/kubernetes")
                     elif msg_type == "exit":
-                        socketio.emit("exec_exit", {"code": data}, room=sid, namespace="/system")
+                        socketio.emit("exec_exit", {"code": data}, room=sid, namespace="/kubernetes")
                         break
                     elif msg_type == "error":
-                        socketio.emit("exec_error", {"message": "Exec error occurred"}, room=sid, namespace="/system")
+                        socketio.emit("exec_error", {"message": "Exec error occurred"}, room=sid, namespace="/kubernetes")
                         break
             except Exception as e:
                 logger.error("Exec error: %s", e)
                 traceback.print_exc()
-                socketio.emit("exec_error", {"message": "Exec error occurred"}, room=sid, namespace="/system")
+                socketio.emit("exec_error", {"message": "Exec error occurred"}, room=sid, namespace="/kubernetes")
             finally:
                 stop_event.set()
                 reader.join(timeout=5)
@@ -139,7 +139,7 @@ def register_exec_handlers(socketio: SocketIO):
 
         socketio.start_background_task(run_exec)
 
-    @socketio.on("exec_input", namespace="/system")
+    @socketio.on("exec_input", namespace="/kubernetes")
     def handle_exec_input(data):
         """Forward keyboard input to the exec stream."""
         sid = request.sid
@@ -152,7 +152,7 @@ def register_exec_handlers(socketio: SocketIO):
             except Exception:
                 pass
 
-    @socketio.on("exec_resize", namespace="/system")
+    @socketio.on("exec_resize", namespace="/kubernetes")
     def handle_exec_resize(data):
         """Resize the exec terminal."""
         sid = request.sid
@@ -169,7 +169,7 @@ def register_exec_handlers(socketio: SocketIO):
             except Exception:
                 pass
 
-    @socketio.on("exec_stop", namespace="/system")
+    @socketio.on("exec_stop", namespace="/kubernetes")
     def handle_exec_stop():
         """Stop the exec session."""
         sid = request.sid

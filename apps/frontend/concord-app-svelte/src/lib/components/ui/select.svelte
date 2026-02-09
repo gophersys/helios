@@ -91,7 +91,29 @@
   {#if label}
     <label for={selectId} class="mb-1 block text-2xs font-medium text-text-tertiary">{label}</label>
   {/if}
-  <div class="relative">
+  <div class="relative grid">
+    <!-- Invisible sizer: renders every option label so the grid cell (and trigger) is always as wide as the longest one -->
+    <span
+      class="pointer-events-none col-start-1 row-start-1 flex items-center border border-transparent"
+      class:px-3={!compact}
+      class:py-2={!compact}
+      class:px-2={compact}
+      class:py-1={compact}
+      aria-hidden="true"
+      style="visibility:hidden;height:0;overflow-y:clip"
+    >
+      <span class="text-sm" class:text-xs={compact}>
+        {#each options as opt}
+          <span class="block whitespace-nowrap">{opt.label}</span>
+        {/each}
+        {#if placeholder}
+          <span class="block whitespace-nowrap">{placeholder}</span>
+        {/if}
+      </span>
+      <ChevronDown size={compact ? 14 : 16} class="ml-1 shrink-0" strokeWidth={1.75} />
+    </span>
+
+    <!-- Trigger button -->
     <button
       id={selectId}
       bind:this={triggerEl}
@@ -99,7 +121,7 @@
       {disabled}
       onclick={toggle}
       onkeydown={handleKeydown}
-      class="flex w-full cursor-pointer items-center justify-between rounded-lg border bg-surface-0 text-left text-sm transition-colors hover:border-text-tertiary focus:border-accent focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 {open ? 'border-accent ring-1 ring-accent/30' : 'border-border'}"
+      class="col-start-1 row-start-1 flex w-full min-w-0 cursor-pointer items-center justify-between border bg-surface-0 text-left text-sm transition-colors hover:border-text-tertiary focus:border-accent focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 {open ? 'rounded-t-lg border-accent ring-1 ring-accent/30' : 'rounded-lg border-border'}"
       class:px-3={!compact}
       class:py-2={!compact}
       class:px-2={compact}
@@ -122,7 +144,7 @@
 
     {#if open}
       <div
-        class="absolute z-50 mt-1 max-h-48 w-full overflow-auto rounded-lg border border-border bg-surface-1 py-1 shadow-lg"
+        class="absolute top-full z-dropdown -mt-px max-h-48 min-w-full w-max overflow-auto rounded-b-lg border border-t-0 border-border bg-surface-1 py-1 shadow-lg"
         role="listbox"
       >
         {#if placeholder}
@@ -138,7 +160,7 @@
             <span class="w-4 shrink-0">
               {#if !value}<Check size={14} class="text-accent" />{/if}
             </span>
-            {placeholder}
+            <span class="whitespace-nowrap">{placeholder}</span>
           </button>
         {/if}
         {#each options as option}
@@ -156,7 +178,7 @@
             <span class="w-4 shrink-0">
               {#if String(value) === option.value}<Check size={14} class="text-accent" />{/if}
             </span>
-            {option.label}
+            <span class="whitespace-nowrap">{option.label}</span>
           </button>
         {/each}
       </div>

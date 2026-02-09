@@ -22,6 +22,8 @@
     "source=/mnt,target=/mnt,type=bind",
     // Access to host's ssh credentials for bitbucket access
     "source=${localEnv:HOME}/.ssh-devcontainer,target=/root/.ssh,type=bind,readonly",
+    // Access to host's kubeconfig for Kubernetes cluster access
+    "source=${localEnv:HOME}/.kube,target=/root/.kube,type=bind,consistency=cached",
   ],
   // Vs Code Customizations
   "customizations": {

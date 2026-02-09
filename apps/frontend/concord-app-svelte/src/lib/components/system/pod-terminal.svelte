@@ -200,7 +200,7 @@
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <!-- svelte-ignore a11y_click_events_have_key_events -->
-<div class="fixed inset-0 z-50 flex items-center justify-center bg-overlay">
+<div class="fixed inset-0 z-modal flex items-center justify-center bg-overlay">
   <div class="w-[90vw] h-[80vh] max-w-6xl bg-surface-1 rounded-lg border border-border flex flex-col shadow-xl overflow-hidden">
     <!-- Header -->
     <div class="flex items-center justify-between px-4 py-3 border-b border-border bg-surface-0 shrink-0">

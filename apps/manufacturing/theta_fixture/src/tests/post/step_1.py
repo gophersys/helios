@@ -1,8 +1,6 @@
 # Standard includes
 from typing import Dict
 
-# Corekinect libraries
-from corekinect.mtib_client.v1.client.types import HostType
 from tests.lib import *
 
 # Shared includes
@@ -10,9 +8,6 @@ from ..shared.config import ThetaFixtureConfig
 
 # Test includes
 from .data import PostTestSharedData
-
-# Theta uses nRF9151 for comms processor
-THETA_COMMS_TARGET = HostType.HOST_TYPE_NRF9151
 
 
 # ---------------------------------------------------------------------------------
@@ -26,9 +21,8 @@ def post_step_1_handler(
     Check external flash chip ID (W25Q64 = 0xef 0x40 0x17).
     """
     result: TestStepResult = TestStepResult(success=False)
-    client = usr_data[node].client
 
-    lora_available, ext_flash_id, error = client.cmd_comms_coproc_get_chip_ids(target=THETA_COMMS_TARGET)
+    lora_available, ext_flash_id, error = usr_data[node].comms_cmds.get_chip_ids()
     if error:
         result.error = f"Failed to get comms chip IDs: {error}"
         return result

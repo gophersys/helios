@@ -1,527 +1,409 @@
-import os
-import queue
+"""UART handler for V2 protocol.
+
+Provides real-time, event-driven UART communication with multi-client
+support.  Architecture mirrors the proven V1 UART handler:
+
+- UartConnection: Shared serial port per physical device.  A background
+  RX thread continuously reads bytes and broadcasts them to every
+  registered client queue — zero polling delay.
+- UartHandler: Manages the connection pool, client registration, and
+  the three gRPC RPCs (Open / Close / Stream).
+- Stream RPC: TX runs in a background thread (so client writes never
+  block the RX path).  The main generator thread yields RX data the
+  instant it arrives in the per-client queue — true event-driven
+  delivery with no added latency.
+
+Multiple clients can subscribe to the same physical port simultaneously.
+Data flows as fast as the UART produces it.
+"""
+
 import threading
 import time
-import weakref
-from queue import Queue
-from typing import Dict, Iterator, Optional, Set
+import uuid
+from queue import Empty as QueueEmpty, Full as QueueFull, Queue
+from typing import TYPE_CHECKING, Dict, Iterator, Optional
 
-import grpc
-import serial
 from corekinect.utils import Logger
-from src.shared.types import *
+from src.shared.types import (
+    Parity as ProtoParity,
+    FlowControl as ProtoFlowControl,
+    Response,
+    StopBits as ProtoStopBits,
+    Timestamp,
+    UartCloseRequest,
+    UartOpenRequest,
+    UartOpenResponse,
+    UartStreamRequest,
+    UartStreamResponse,
+)
+
+if TYPE_CHECKING:
+    from src.hardware import HardwareContext
+    from src.providers.observability.uart_observer import UartObserver
+
+# Known UART device mappings
+UART_DEVICE_MAP = {
+    "uart0": "/dev/verdin-uart1",
+    "uart1": "/dev/verdin-uart2",
+    "cdc_acm": "/dev/ttyACM0",
+}
+
+# Maximum queued RX chunks per client before dropping the oldest.
+RX_QUEUE_MAX = 10000
 
 
-class UartHandler:
-    def __init__(self, logger: Logger):
+# ---------------------------------------------------------------------------
+# UartConnection — shared serial port with broadcast RX
+# ---------------------------------------------------------------------------
+class UartConnection:
+    """Shared serial port with background RX broadcasting.
+
+    One RX thread reads from the physical UART and pushes every chunk to
+    every registered client queue.  Multiple gRPC clients can share the
+    same underlying serial port without interference.
+    """
+
+    def __init__(self, device_path: str, port, logger: Logger):
+        self.device_path = device_path
+        self.port = port
         self.logger = logger
+        self._clients: Dict[str, Queue] = {}
+        self._lock = threading.Lock()
+        self._stop = threading.Event()
+        self._rx_thread = threading.Thread(
+            target=self._rx_loop, daemon=True, name=f"uart-rx-{device_path}"
+        )
+        self._rx_thread.start()
 
-        # Map HostType to UART device paths
-        # Theta board: nRF52840 (app proc) on uart1, nRF9151 (comms coproc) on uart2
-        self.uart_devices = {
-            HostType.HOST_TYPE_NRF9160: "/dev/verdin-uart1",
-            HostType.HOST_TYPE_NRF52840: "/dev/verdin-uart2",  # Theta app proc on uart1
-            HostType.HOST_TYPE_NRF5340: "/dev/verdin-uart1",  # Using uart1 for NRF5340
-            HostType.HOST_TYPE_NRF9151: "/dev/verdin-uart1",  # Theta comms coproc on uart2
-        }
+    # -- RX ------------------------------------------------------------------
 
-        # Device-specific UART configurations
-        self.uart_configs = {
-            HostType.HOST_TYPE_NRF9160: {
-                "baudrate": 115200,
-                "bytesize": serial.EIGHTBITS,
-                "parity": serial.PARITY_NONE,
-                "stopbits": serial.STOPBITS_ONE,
-                "timeout": 1,
-                "write_timeout": 1,  # Increased write timeout
-                "xonxoff": False,
-                "rtscts": False,
-                "dsrdtr": False,
-            },
-            HostType.HOST_TYPE_NRF52840: {
-                "baudrate": 115200,
-                "bytesize": serial.EIGHTBITS,
-                "parity": serial.PARITY_NONE,
-                "stopbits": serial.STOPBITS_ONE,
-                "timeout": 1,
-                "write_timeout": 1,
-                "xonxoff": False,
-                "rtscts": False,
-                "dsrdtr": False,
-            },
-            HostType.HOST_TYPE_NRF5340: {
-                "baudrate": 115200,
-                "bytesize": serial.EIGHTBITS,
-                "parity": serial.PARITY_NONE,
-                "stopbits": serial.STOPBITS_ONE,
-                "timeout": 1,
-                "write_timeout": 5,
-                "xonxoff": False,
-                "rtscts": False,
-                "dsrdtr": False,
-            },
-            HostType.HOST_TYPE_NRF9151: {
-                "baudrate": 115200,
-                "bytesize": serial.EIGHTBITS,
-                "parity": serial.PARITY_NONE,
-                "stopbits": serial.STOPBITS_ONE,
-                "timeout": 1,
-                "write_timeout": 5,
-                "xonxoff": False,
-                "rtscts": False,
-                "dsrdtr": False,
-            },
-        }
-
-        # Active UART connections
-        self.active_connections: Dict[HostType, serial.Serial] = {}
-        self.connection_locks: Dict[HostType, threading.Lock] = {}
-
-        # Multi-client support
-        self.client_streams: Dict[HostType, Set[weakref.ref]] = {}
-        self.client_locks: Dict[HostType, threading.Lock] = {}
-
-        # TX queue for each device (commands to send to device)
-        self.tx_queues: Dict[HostType, Queue] = {}
-
-        # RX thread for each device (reads from device and broadcasts to all clients)
-        self.rx_threads: Dict[HostType, threading.Thread] = {}
-        self.tx_threads: Dict[HostType, threading.Thread] = {}
-        self.rx_stop_events: Dict[HostType, threading.Event] = {}
-
-        # Device state
-        self.device_active: Dict[HostType, bool] = {}
-
-    def _get_uart_device(self, target: HostType) -> Optional[str]:
-        """Get the UART device path for a given target."""
-        return self.uart_devices.get(target)
-
-    def _get_uart_config(self, target: HostType) -> Optional[dict]:
-        """Get the UART configuration for a given target."""
-        return self.uart_configs.get(target)
-
-    def test_uart_connection(self, target: HostType) -> str:
-        """Test UART connection by sending a simple test pattern."""
-        try:
-            # Ensure connection exists
-            if err := self._ensure_connection(target):
-                return f"Failed to establish connection: {err}"
-
-            uart = self.active_connections[target]
-
-            # Send a simple test pattern
-            test_data = b"\r\n"
-            self.logger.info(f"Testing UART connection for {target} by sending: {test_data.hex()}")
-
-            # Queue the test data
-            self.tx_queues[target].put(test_data)
-
-            # Wait a bit for the data to be sent
-            time.sleep(0.1)
-
-            return f"Test data queued for {target}"
-
-        except Exception as e:
-            return f"UART test failed for {target}: {str(e)}"
-
-    def get_uart_status(self, target: HostType) -> dict:
-        """Get the current status of a UART connection."""
-        status = {
-            "target": target,
-            "connected": False,
-            "device_path": None,
-            "config": None,
-            "queue_size": 0,
-            "threads_running": False,
-            "active_clients": 0,
-            "device_active": False,
-        }
-
-        try:
-            if target in self.active_connections:
-                uart = self.active_connections[target]
-                status["connected"] = uart.is_open
-                status["device_path"] = uart.port
-                status["config"] = {
-                    "baudrate": uart.baudrate,
-                    "bytesize": uart.bytesize,
-                    "parity": uart.parity,
-                    "stopbits": uart.stopbits,
-                    "timeout": uart.timeout,
-                    "write_timeout": uart.write_timeout,
-                }
-
-            if target in self.tx_queues:
-                status["queue_size"] = self.tx_queues[target].qsize()
-
-            if target in self.rx_threads and target in self.tx_threads:
-                status["threads_running"] = self.rx_threads[target].is_alive() and self.tx_threads[target].is_alive()
-
-            if target in self.client_streams:
-                status["active_clients"] = len(self.client_streams[target])
-
-            if target in self.device_active:
-                status["device_active"] = self.device_active[target]
-
-        except Exception as e:
-            status["error"] = str(e)
-
-        return status
-
-    def reset_uart_connection(self, target: HostType) -> str:
-        """Force reset a UART connection for a target."""
-        try:
-            self.logger.info(f"Force resetting UART connection for {target}")
-            self._close_connection(target)
-            time.sleep(0.1)  # Small delay to ensure cleanup
-
-            # Try to re-establish connection
-            if err := self._ensure_connection(target):
-                return f"Failed to re-establish connection: {err}"
-
-            return f"Successfully reset UART connection for {target}"
-
-        except Exception as e:
-            return f"Failed to reset UART connection for {target}: {str(e)}"
-
-    def _ensure_connection(self, target: HostType) -> Optional[str]:
-        """Ensure a UART connection is established for the target."""
-        if target not in self.connection_locks:
-            self.connection_locks[target] = threading.Lock()
-
-        with self.connection_locks[target]:
-            # Check if connection exists and is still valid
-            if target in self.active_connections:
-                uart = self.active_connections[target]
-                if uart.is_open:
-                    # Test if the connection is still working
-                    try:
-                        # Try to read any pending data to test connection
-                        uart.read(uart.in_waiting)
-                        return None  # Connection is valid
-                    except Exception as e:
-                        self.logger.warning(f"Existing UART connection for {target} is broken, reconnecting: {e}")
-                        # Close broken connection
-                        try:
-                            uart.close()
-                        except:
-                            pass
-                        del self.active_connections[target]
-                else:
-                    # Connection exists but is closed, remove it
-                    del self.active_connections[target]
-
-            device_path = self._get_uart_device(target)
-            if not device_path:
-                return f"Unknown target {target}"
-
-            # Check if device exists
-            if not os.path.exists(device_path):
-                return f"UART device {device_path} does not exist"
-
-            config = self._get_uart_config(target)
-            if not config:
-                return f"No UART configuration for target {target}"
-
+    def _rx_loop(self) -> None:
+        """Continuously read UART and broadcast to all clients."""
+        while not self._stop.is_set():
             try:
-                # Open UART connection with device-specific settings
-                # Note: Removed stty sane reset as it can interfere with pyserial settings
-                uart = serial.Serial(port=device_path, **config)
-                self.logger.info(f"Opened UART {device_path} for {target}")
-
-                # Test the connection by trying to read any pending data
-                uart.reset_input_buffer()
-                uart.reset_output_buffer()
-
-                # Test if UART is actually working by sending a test byte
-                try:
-                    test_byte = b"\r"
-                    uart.write(test_byte)
-                    uart.flush()
-                    time.sleep(0.01)  # Small delay
-                    self.logger.debug(f"UART test write successful for {target}")
-                except Exception as e:
-                    self.logger.error(f"UART test write failed for {target}: {e}")
-                    uart.close()
-                    return f"UART test write failed for {target}: {str(e)}"
-
-                self.active_connections[target] = uart
-                self.logger.info(f"UART connection established for {target} on {device_path} with config: {config}")
-
-                # Initialize multi-client support
-                if target not in self.client_streams:
-                    self.client_streams[target] = set()
-                if target not in self.client_locks:
-                    self.client_locks[target] = threading.Lock()
-                if target not in self.tx_queues:
-                    self.tx_queues[target] = Queue()
-                if target not in self.rx_stop_events:
-                    self.rx_stop_events[target] = threading.Event()
-
-                # Start RX and TX threads for this connection
-                self._start_rx_thread(target)
-                self._start_tx_thread(target)
-
-                # Mark device as active
-                self.device_active[target] = True
-
-                return None
-
-            except Exception as e:
-                return f"Failed to open UART device {device_path}: {str(e)}"
-
-    def _start_rx_thread(self, target: HostType):
-        """Start a background thread to read from UART and broadcast to all clients."""
-        # Stop existing thread if running
-        if target in self.rx_threads and self.rx_threads[target].is_alive():
-            self.rx_stop_events[target].set()
-            self.rx_threads[target].join(timeout=1.0)
-
-        # Reset stop event
-        self.rx_stop_events[target].clear()
-
-        def rx_worker():
-            uart = self.active_connections[target]
-            self.logger.info(f"RX thread started for {target}, waiting for data...")
-            last_log_time = time.time()
-            while not self.rx_stop_events[target].is_set():
-                try:
-                    # Use read() with timeout instead of checking in_waiting
-                    data = uart.read(1)  # Read one byte at a time
-                    if data:
-                        # Read any additional data available
-                        additional_data = uart.read(uart.in_waiting)
-                        if additional_data:
-                            data += additional_data
-
-                        self.logger.debug(f"Received {len(data)} bytes from {target}: {data.hex()}")
-                        # Broadcast to all clients
-                        self._broadcast_to_clients(target, data)
-                    else:
-                        time.sleep(0.01)  # Small delay to prevent busy waiting
-
-                    # Log every 10 seconds that RX thread is alive
-                    current_time = time.time()
-                    if current_time - last_log_time > 10:
-                        self.logger.debug(f"RX thread for {target} is alive, waiting for data...")
-                        last_log_time = current_time
-
-                except Exception as e:
-                    if not self.rx_stop_events[target].is_set():
-                        self.logger.error(f"Error reading from UART {target}: {str(e)}")
-                    break
-
-        self.rx_threads[target] = threading.Thread(target=rx_worker, daemon=True)
-        self.rx_threads[target].start()
-
-    def _start_tx_thread(self, target: HostType):
-        """Start a background thread to send data from TX queue to device."""
-        # Stop existing thread if running
-        if target in self.tx_threads and self.tx_threads[target].is_alive():
-            self.rx_stop_events[target].set()  # Use same stop event for both threads
-            self.tx_threads[target].join(timeout=1.0)
-
-        def tx_worker():
-            uart = self.active_connections[target]
-            consecutive_errors = 0
-            max_errors = 3
-
-            while not self.rx_stop_events[target].is_set():
-                try:
-                    # Get data from TX queue
-                    data = self.tx_queues[target].get(timeout=0.1)
-                    if data and not self.rx_stop_events[target].is_set():
-                        # Write data and verify it was sent
-                        bytes_written = uart.write(data)
-                        uart.flush()
-
-                        if bytes_written != len(data):
-                            self.logger.error(
-                                f"Failed to write all data to {target}: wrote {bytes_written}/{len(data)} bytes"
-                            )
-                            consecutive_errors += 1
-                        else:
-                            self.logger.debug(f"Successfully sent {bytes_written} bytes to {target}: {data.hex()}")
-                            consecutive_errors = 0  # Reset error counter on success
-
-                        # Small delay to ensure data is processed
-                        time.sleep(0.001)
-
-                        # If we've had too many consecutive errors, try to recover
-                        if consecutive_errors >= max_errors:
-                            self.logger.error(f"Too many consecutive UART errors for {target}, attempting recovery...")
-                            try:
-                                # Try to reset the UART
-                                uart.reset_output_buffer()
-                                uart.reset_input_buffer()
-                                # Send a test byte
-                                test_byte = b"\r"
-                                uart.write(test_byte)
-                                uart.flush()
-                                time.sleep(0.01)
-                                consecutive_errors = 0
-                                self.logger.info(f"UART recovery successful for {target}")
-                            except Exception as recovery_error:
-                                self.logger.error(f"UART recovery failed for {target}: {recovery_error}")
-                                # Close connection and let it be re-established
-                                break
-
-                except queue.Empty:
-                    continue
-                except Exception as e:
-                    if not self.rx_stop_events[target].is_set():
-                        self.logger.error(f"Error writing to UART {target}: {str(e)}")
-                        consecutive_errors += 1
-
-                        # If it's a hardware error, try to recover
-                        if "PortNotOpenError" in str(e) or "OSError" in str(e):
-                            self.logger.error(f"Hardware UART error for {target}, closing connection")
-                            break
-                    break
-
-        self.tx_threads[target] = threading.Thread(target=tx_worker, daemon=True)
-        self.tx_threads[target].start()
-
-    def _broadcast_to_clients(self, target: HostType, data: bytes):
-        """Broadcast data to all connected clients for this target."""
-        with self.client_locks[target]:
-            # Clean up dead references
-            dead_refs = set()
-            for client_ref in list(self.client_streams[target]):  # Use list() to avoid modification during iteration
-                client = client_ref()
-                if client is None:
-                    dead_refs.add(client_ref)
+                data = self.port.read(1)
+                if data:
+                    # Grab everything else already buffered
+                    more = self.port.read(self.port.in_waiting)
+                    if more:
+                        data += more
+                    self._broadcast(data)
                 else:
-                    try:
-                        client.put(data)
-                    except Exception as e:
-                        self.logger.debug(f"Failed to send data to client: {e}")
-                        dead_refs.add(client_ref)
+                    time.sleep(0.001)  # Prevent busy-wait on timeout-read
+            except Exception as e:
+                if not self._stop.is_set():
+                    self.logger.error(f"UART RX error on {self.device_path}: {e}")
+                break
 
-            # Remove dead references
-            self.client_streams[target] -= dead_refs
-
-    def _close_connection(self, target: HostType):
-        """Close UART connection for a target."""
-        with self.connection_locks[target]:
-            # Set stop event first
-            if target in self.rx_stop_events:
-                self.rx_stop_events[target].set()
-
-            # Wait for threads to finish
-            if target in self.rx_threads and self.rx_threads[target].is_alive():
-                self.rx_threads[target].join(timeout=2.0)
-
-            if target in self.tx_threads and self.tx_threads[target].is_alive():
-                self.tx_threads[target].join(timeout=2.0)
-
-            # Close UART connection
-            if target in self.active_connections:
+    def _broadcast(self, data: bytes) -> None:
+        """Push *data* to every registered client queue."""
+        with self._lock:
+            for q in self._clients.values():
                 try:
-                    self.active_connections[target].close()
-                except Exception as e:
-                    self.logger.debug(f"Error closing UART connection: {e}")
-                del self.active_connections[target]
-
-            # Clear client streams and queues
-            if target in self.client_streams:
-                self.client_streams[target].clear()
-            if target in self.tx_queues:
-                # Clear any pending data
-                while not self.tx_queues[target].empty():
+                    q.put_nowait(data)
+                except QueueFull:
+                    # Client not consuming fast enough — drop oldest chunk
                     try:
-                        self.tx_queues[target].get_nowait()
-                    except queue.Empty:
-                        break
+                        q.get_nowait()
+                        q.put_nowait(data)
+                    except (QueueEmpty, QueueFull):
+                        pass
 
-            # Mark device as inactive
-            self.device_active[target] = False
+    # -- TX ------------------------------------------------------------------
 
-            self.logger.info(f"UART connection closed for {target}")
+    def write(self, data: bytes) -> None:
+        """Write data to the serial port (thread-safe via pyserial lock)."""
+        self.port.write(data)
+        self.port.flush()
+
+    # -- Client management ---------------------------------------------------
+
+    def register(self, stream_id: str) -> Queue:
+        """Register a client and return its dedicated RX queue."""
+        q: Queue = Queue(maxsize=RX_QUEUE_MAX)
+        with self._lock:
+            self._clients[stream_id] = q
+        return q
+
+    def unregister(self, stream_id: str) -> None:
+        """Remove a client from the broadcast list."""
+        with self._lock:
+            self._clients.pop(stream_id, None)
+
+    @property
+    def client_count(self) -> int:
+        with self._lock:
+            return len(self._clients)
+
+    # -- Lifecycle -----------------------------------------------------------
+
+    def close(self) -> None:
+        """Stop RX thread and close the serial port."""
+        self._stop.set()
+        if self._rx_thread.is_alive():
+            self._rx_thread.join(timeout=2.0)
+        try:
+            self.port.close()
+        except Exception:
+            pass
+
+
+# ---------------------------------------------------------------------------
+# UartHandler — gRPC RPC implementation
+# ---------------------------------------------------------------------------
+class UartHandler:
+    """Handles V2 UART RPCs with shared connections and multi-client broadcast."""
+
+    def __init__(self, logger: Logger, hardware: "HardwareContext", uart_observer: Optional["UartObserver"] = None):
+        self.logger = logger
+        self.hardware = hardware
+        self._connections: Dict[str, UartConnection] = {}  # device_path → conn
+        self._streams: Dict[str, "_StreamInfo"] = {}       # stream_id  → info
+        self._port_names: Dict[str, str] = {}              # device_path → port_name
+        self._lock = threading.Lock()
+        self._observer = uart_observer
+
+    # -- Helpers -------------------------------------------------------------
+
+    def _resolve_parity(self, parity: int) -> str:
+        import serial
+        mapping = {
+            ProtoParity.PARITY_NONE: serial.PARITY_NONE,
+            ProtoParity.PARITY_ODD: serial.PARITY_ODD,
+            ProtoParity.PARITY_EVEN: serial.PARITY_EVEN,
+        }
+        return mapping.get(parity, serial.PARITY_NONE)
+
+    def _resolve_stopbits(self, stop_bits: int) -> float:
+        import serial
+        mapping = {
+            ProtoStopBits.STOP_BITS_1: serial.STOPBITS_ONE,
+            ProtoStopBits.STOP_BITS_1_5: serial.STOPBITS_ONE_POINT_FIVE,
+            ProtoStopBits.STOP_BITS_2: serial.STOPBITS_TWO,
+        }
+        return mapping.get(stop_bits, serial.STOPBITS_ONE)
+
+    # -- RPCs ----------------------------------------------------------------
+
+    def open(self, request: UartOpenRequest, context) -> UartOpenResponse:
+        """Open a UART connection (reuses existing connection for same port)."""
+        try:
+            import serial as pyserial
+
+            port_name = request.port_name
+            device_path = UART_DEVICE_MAP.get(port_name, port_name)
+            config = request.config
+            baudrate = config.baud if config.baud > 0 else 115200
+
+            with self._lock:
+                # Reuse existing connection or create a new one
+                conn = self._connections.get(device_path)
+                if conn is None:
+                    data_bits = config.data_bits if config.data_bits > 0 else 8
+                    ser = pyserial.Serial(
+                        port=device_path,
+                        baudrate=baudrate,
+                        bytesize=data_bits,
+                        parity=self._resolve_parity(config.parity),
+                        stopbits=self._resolve_stopbits(config.stop_bits),
+                        xonxoff=False,
+                        rtscts=False,
+                        dsrdtr=False,
+                        timeout=1,
+                        write_timeout=1,
+                    )
+                    # Reset buffers on open (matches V1 behavior)
+                    ser.reset_input_buffer()
+                    ser.reset_output_buffer()
+                    conn = UartConnection(
+                        device_path=device_path, port=ser, logger=self.logger
+                    )
+                    self._connections[device_path] = conn
+                    self._port_names[device_path] = port_name
+                    self.logger.info(
+                        f"UART opened: {device_path} @ {baudrate}bps"
+                    )
+
+                    if self._observer:
+                        self._observer.attach(port_name, conn)
+
+                stream_id = str(uuid.uuid4())
+                rx_queue = conn.register(stream_id)
+                self._streams[stream_id] = _StreamInfo(
+                    device_path=device_path, rx_queue=rx_queue
+                )
+
+            self.logger.info(
+                f"UART client registered: stream={stream_id[:8]}… "
+                f"on {device_path} ({conn.client_count} client(s))"
+            )
+            return UartOpenResponse(success=True, message="", stream_id=stream_id)
+
+        except Exception as e:
+            self.logger.error(f"Failed to open UART: {e}")
+            return UartOpenResponse(success=False, message=str(e), stream_id="")
+
+    def close(self, request: UartCloseRequest, context) -> Response:
+        """Close a UART client stream.  Closes device when last client leaves."""
+        with self._lock:
+            info = self._streams.pop(request.stream_id, None)
+            if info is None:
+                return Response(
+                    success=False,
+                    message=f"Unknown stream: {request.stream_id}",
+                )
+
+            conn = self._connections.get(info.device_path)
+            if conn:
+                conn.unregister(request.stream_id)
+                remaining = conn.client_count
+                if remaining == 0:
+                    port_name = self._port_names.pop(info.device_path, None)
+                    if self._observer and port_name:
+                        self._observer.detach(port_name)
+                    conn.close()
+                    del self._connections[info.device_path]
+                    self.logger.info(
+                        f"UART device closed: {info.device_path} (last client)"
+                    )
+                else:
+                    self.logger.info(
+                        f"UART client removed: {info.device_path} "
+                        f"({remaining} client(s) remaining)"
+                    )
+
+        return Response(success=True, message="UART closed")
 
     def stream(
-        self, request_iterator: Iterator[UartStreamRequest], context: grpc.ServicerContext
+        self,
+        request_iterator: Iterator[UartStreamRequest],
+        context,
     ) -> Iterator[UartStreamResponse]:
-        """Handle bidirectional UART streaming with multi-client support."""
-        current_target = None
-        client_queue = Queue()
+        """Bidirectional UART streaming — event-driven, real-time.
+
+        TX: A background thread consumes the client request iterator and
+            writes data to the serial port immediately.
+        RX: The main thread blocks on the per-client queue and yields a
+            response the instant data arrives — no polling delay.
+        """
+        info: Optional[_StreamInfo] = None
+        conn: Optional[UartConnection] = None
+        stop = threading.Event()
+        init_error: list = []
+
+        # -- TX background thread --------------------------------------------
+        def tx_worker():
+            nonlocal info, conn
+            try:
+                for request in request_iterator:
+                    if not context.is_active() or stop.is_set():
+                        break
+
+                    # Resolve stream on first request
+                    if info is None:
+                        with self._lock:
+                            info = self._streams.get(request.stream_id)
+                            if info:
+                                conn = self._connections.get(info.device_path)
+                        if info is None:
+                            init_error.append(
+                                f"Unknown stream: {request.stream_id}"
+                            )
+                            return
+
+                    # Write TX data to UART
+                    if request.data and conn:
+                        try:
+                            conn.write(request.data)
+                            if self._observer and info:
+                                port_name = self._port_names.get(info.device_path)
+                                if port_name:
+                                    self._observer.record_tx(port_name, len(request.data))
+                        except Exception as e:
+                            self.logger.error(f"UART write error: {e}")
+            except Exception as e:
+                if not stop.is_set():
+                    self.logger.error(f"UART TX worker error: {e}")
+            finally:
+                stop.set()
+
+        tx_thread = threading.Thread(target=tx_worker, daemon=True, name="uart-tx")
+        tx_thread.start()
 
         try:
-            self.logger.info("UART stream started")
-            # Process incoming requests and handle TX/RX
-            for request in request_iterator:
-                if not context.is_active():
-                    break
-
-                # Set current target from first request
-                if current_target is None:
-                    current_target = request.target
-                    self.logger.info(
-                        f"Starting UART stream for target {current_target} (type: {type(current_target)})"
+            # Wait for the TX thread to resolve the stream info
+            deadline = time.time() + 5.0
+            while info is None and not stop.is_set() and time.time() < deadline:
+                if init_error:
+                    yield UartStreamResponse(
+                        success=False, message=init_error[0]
                     )
+                    return
+                time.sleep(0.01)
 
-                    # Ensure connection is established
-                    if err := self._ensure_connection(current_target):
-                        context.set_code(grpc.StatusCode.INTERNAL)
-                        context.set_details(f"Failed to establish UART connection: {err}")
-                        return
+            if info is None:
+                msg = init_error[0] if init_error else "Stream resolution timeout"
+                yield UartStreamResponse(success=False, message=msg)
+                return
 
-                    # Register this client
-                    with self.client_locks[current_target]:
-                        self.client_streams[current_target].add(weakref.ref(client_queue))
-
-                # Handle TX data (queue for sending to device)
-                if request.data:
-                    try:
-                        self.tx_queues[current_target].put(request.data)
-                        self.logger.debug(
-                            f"Queued {len(request.data)} bytes for {current_target}: {request.data.hex()}"
-                        )
-                    except Exception as e:
-                        error_msg = f"Failed to queue data for {current_target}: {str(e)}"
-                        self.logger.error(error_msg)
-                        yield UartStreamResponse(success=False, message=error_msg, target=current_target)
-                        continue
-
-                # Handle RX data (check client queue for received data)
+            # Drain stale data accumulated between stream calls.
+            # This matches V1's behavior where data between streams is
+            # dropped (no registered clients).  Without this drain, the
+            # client would receive old data queued since the last stream
+            # closed, which breaks prompt-based completion detection.
+            stale = 0
+            while True:
                 try:
-                    # Non-blocking read from client queue
-                    data = client_queue.get_nowait()
-                    if data:
-                        yield UartStreamResponse(success=True, message="", target=current_target, data=data)
-                except queue.Empty:
-                    # No data available, send empty response to keep stream alive
-                    yield UartStreamResponse(success=True, message="", target=current_target)
+                    info.rx_queue.get_nowait()
+                    stale += 1
+                except QueueEmpty:
+                    break
+            if stale:
+                self.logger.debug(
+                    f"Drained {stale} stale RX chunks from queue"
+                )
 
-        except grpc.RpcError as e:
-            # Handle gRPC errors (client disconnection, etc.)
-            if e.code() == grpc.StatusCode.CANCELLED:
-                self.logger.info("UART stream cancelled by client")
-            else:
-                self.logger.error(f"UART stream gRPC error: {e.code()} - {e.details()}")
-        except Exception as e:
-            error_msg = f"UART stream error: {str(e)}"
-            self.logger.error(error_msg)
-            context.set_code(grpc.StatusCode.INTERNAL)
-            context.set_details(error_msg)
-
-        finally:
-            # Clean up client registration
-            if current_target:
-                with self.client_locks[current_target]:
-                    # Remove this client's queue reference
-                    for ref in list(self.client_streams[current_target]):
-                        if ref() == client_queue:
-                            self.client_streams[current_target].discard(ref)
-                            break
-
-                # Close connection if no more clients
-                if not self.client_streams[current_target]:
-                    self.logger.info(f"No more clients for {current_target}, closing connection")
-                    self._close_connection(current_target)
-                else:
-                    self.logger.info(
-                        f"Client disconnected from {current_target}, {len(self.client_streams[current_target])} clients remaining"
+            # -- RX event loop -----------------------------------------------
+            # Block on the client queue and yield data the instant it arrives.
+            while context.is_active() and not stop.is_set():
+                try:
+                    data = info.rx_queue.get(timeout=0.5)
+                    now = time.time()
+                    yield UartStreamResponse(
+                        success=True,
+                        message="",
+                        data=data,
+                        timestamp=Timestamp(
+                            seconds=int(now), nanos=int((now % 1) * 1e9)
+                        ),
                     )
+                except QueueEmpty:
+                    # Yield empty keepalive to flush gRPC HTTP/2 write
+                    # buffer.  Without this, server-side responses can
+                    # be held in the HTTP/2 framing buffer until the
+                    # next client-to-server frame triggers a flush —
+                    # causing multi-second latency on UART data delivery.
+                    yield UartStreamResponse(
+                        success=True, message="", data=b""
+                    )
+                    continue
 
-                self.logger.info(f"UART stream ended for target {current_target}")
+        except Exception as e:
+            self.logger.error(f"UART stream error: {e}")
+        finally:
+            stop.set()
+            tx_thread.join(timeout=2.0)
+            self.logger.debug("UART stream ended")
+
+
+# ---------------------------------------------------------------------------
+# Internal types
+# ---------------------------------------------------------------------------
+class _StreamInfo:
+    """Per-client bookkeeping."""
+
+    __slots__ = ("device_path", "rx_queue")
+
+    def __init__(self, device_path: str, rx_queue: Queue):
+        self.device_path = device_path
+        self.rx_queue = rx_queue

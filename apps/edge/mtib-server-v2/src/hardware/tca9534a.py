@@ -22,6 +22,7 @@ Usage:
 
 from __future__ import annotations
 
+import threading
 from dataclasses import dataclass
 from enum import IntEnum
 from typing import Optional
@@ -83,7 +84,7 @@ class TCA9534A:
     """
 
     DEFAULT_ADDRESS = 0x38
-    DEFAULT_BUS = 1
+    DEFAULT_BUS = 3  # /dev/i2c-3 = Verdin I2C_1 (main bus on TorizonOS)
 
     def __init__(
         self,
@@ -100,11 +101,13 @@ class TCA9534A:
         self._address = address
         self._bus: Optional[smbus2.SMBus] = None
         self._output_cache: int = 0x00  # Cache of output register
+        self._lock = threading.Lock()  # Protect read-modify-write on _output_cache
 
     def init(self) -> None:
         """Initialize the GPIO expander.
 
         Configures all pins as outputs and sets them to low.
+        Uses force=True to bypass kernel driver claim (gpio-pca953x).
 
         Raises:
             OSError: If I2C communication fails
@@ -112,11 +115,12 @@ class TCA9534A:
         self._bus = smbus2.SMBus(self._bus_num)
 
         # Configure all pins as outputs (0 = output)
-        self._bus.write_byte_data(self._address, TCA9534ARegister.CONFIG, 0x00)
+        # force=True because kernel gpio-pca953x driver claims this address
+        self._bus.write_byte_data(self._address, TCA9534ARegister.CONFIG, 0x00, force=True)
 
         # Set all outputs low
         self._output_cache = 0x00
-        self._bus.write_byte_data(self._address, TCA9534ARegister.OUTPUT, self._output_cache)
+        self._bus.write_byte_data(self._address, TCA9534ARegister.OUTPUT, self._output_cache, force=True)
 
     def close(self) -> None:
         """Close the I2C bus connection."""
@@ -142,12 +146,13 @@ class TCA9534A:
         """
         self._ensure_open()
 
-        if value:
-            self._output_cache |= pin.mask
-        else:
-            self._output_cache &= ~pin.mask
+        with self._lock:
+            if value:
+                self._output_cache |= pin.mask
+            else:
+                self._output_cache &= ~pin.mask
 
-        self._bus.write_byte_data(self._address, TCA9534ARegister.OUTPUT, self._output_cache)
+            self._bus.write_byte_data(self._address, TCA9534ARegister.OUTPUT, self._output_cache, force=True)
 
     def get_pin(self, pin: TCA9534APin) -> bool:
         """Get the current output value of a pin.
@@ -176,8 +181,9 @@ class TCA9534A:
         """
         self._ensure_open()
 
-        self._output_cache = (self._output_cache & ~mask) | (values & mask)
-        self._bus.write_byte_data(self._address, TCA9534ARegister.OUTPUT, self._output_cache)
+        with self._lock:
+            self._output_cache = (self._output_cache & ~mask) | (values & mask)
+            self._bus.write_byte_data(self._address, TCA9534ARegister.OUTPUT, self._output_cache, force=True)
 
     def read_output(self) -> int:
         """Read the current output register value.
@@ -187,9 +193,10 @@ class TCA9534A:
         """
         self._ensure_open()
 
-        # Read from device to ensure cache is synchronized
-        self._output_cache = self._bus.read_byte_data(self._address, TCA9534ARegister.OUTPUT)
-        return self._output_cache
+        with self._lock:
+            # Read from device to ensure cache is synchronized
+            self._output_cache = self._bus.read_byte_data(self._address, TCA9534ARegister.OUTPUT, force=True)
+            return self._output_cache
 
     def read_input(self) -> int:
         """Read the actual pin states from the input register.
@@ -201,7 +208,7 @@ class TCA9534A:
             Input register value (0-255)
         """
         self._ensure_open()
-        return self._bus.read_byte_data(self._address, TCA9534ARegister.INPUT)
+        return self._bus.read_byte_data(self._address, TCA9534ARegister.INPUT, force=True)
 
     def get_state(self) -> TCA9534AState:
         """Get the current state of all registers.
@@ -211,9 +218,10 @@ class TCA9534A:
         """
         self._ensure_open()
 
-        output = self._bus.read_byte_data(self._address, TCA9534ARegister.OUTPUT)
-        config = self._bus.read_byte_data(self._address, TCA9534ARegister.CONFIG)
-        self._output_cache = output
+        with self._lock:
+            output = self._bus.read_byte_data(self._address, TCA9534ARegister.OUTPUT, force=True)
+            config = self._bus.read_byte_data(self._address, TCA9534ARegister.CONFIG, force=True)
+            self._output_cache = output
 
         return TCA9534AState(output=output, config=config)
 

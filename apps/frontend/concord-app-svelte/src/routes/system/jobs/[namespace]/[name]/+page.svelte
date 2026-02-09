@@ -61,7 +61,7 @@
   async function fetchJob() {
     loading = true;
     try {
-      const res = await api.get<{ data: JobDetailData }>(`/v2/system/jobs/${namespace}/${jobName}`);
+      const res = await api.get<{ data: JobDetailData }>(`/v2/kubernetes/jobs/${namespace}/${jobName}`);
       if (res?.data) job = res.data;
       error = null;
     } catch (e) {
@@ -75,7 +75,7 @@
     deleting = true;
     mutationError = null;
     try {
-      await api.delete(`/v2/system/jobs/${namespace}/${jobName}`);
+      await api.delete(`/v2/kubernetes/jobs/${namespace}/${jobName}`);
       goto('/system/jobs');
     } catch (e) {
       mutationError = e instanceof Error ? e.message : 'Failed to delete job';
