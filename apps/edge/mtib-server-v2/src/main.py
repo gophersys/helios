@@ -77,10 +77,16 @@ if __name__ == "__main__":
     hardware: HardwareContext = None
     provider: MtibV2Provider = None
 
+    # Use a mutable container so the signal handler always sees the latest values
+    _shutdown_state = {"server": None, "logger": None}
+
+    def _shutdown_handler(signum, frame):
+        handle_shutdown(signum, frame, _shutdown_state["server"], _shutdown_state["logger"])
+
     try:
-        # Try to handle shutdown gracefully
+        # Register signal handlers before creating server/logger
         for sig in (signal.SIGTERM, signal.SIGINT):
-            signal.signal(sig, lambda signum, frame: handle_shutdown(signum, frame, server, logger))
+            signal.signal(sig, _shutdown_handler)
 
         # Load any environment variables
         env_config = MtibEnvConfig()
@@ -96,7 +102,8 @@ if __name__ == "__main__":
             file_log_level=logging.DEBUG,  # Always log everything to file
             enable_log_color=True,
         )
-        logger: Logger = Logger(log_config)
+        logger = Logger(log_config)
+        _shutdown_state["logger"] = logger
 
         # Resolve hardware revision (from env var or auto-detect)
         # Priority: MTIB_HARDWARE_REVISION env var > auto-detection > default (REV 1.1)
@@ -134,6 +141,7 @@ if __name__ == "__main__":
         provider.start_observability()
 
         server = grpc.server(futures.ThreadPoolExecutor(max_workers=50))
+        _shutdown_state["server"] = server
         mtib_v2_pb2_grpc.add_MtibV2Servicer_to_server(provider, server)
         server.add_insecure_port(f"[::]:{env_config.SERVER_PORT}")
 

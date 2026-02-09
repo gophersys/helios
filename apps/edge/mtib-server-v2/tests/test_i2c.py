@@ -32,7 +32,7 @@ class TestI2cScan:
         """Test scan with a mocked smbus2."""
         mock_bus = MagicMock()
         # Simulate devices at 0x19, 0x2F
-        def mock_read_byte(addr):
+        def mock_read_byte(addr, force=False):
             if addr in (0x19, 0x2F):
                 return 0
             raise OSError("Remote I/O error")

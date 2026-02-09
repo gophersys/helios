@@ -127,3 +127,75 @@ class TestDeleteFile:
     def test_delete_nonexistent_file(self, files_handler, context):
         response = files_handler.delete(DeleteFileRequest(filename="nonexistent.bin"), context)
         assert response.success is False
+
+
+class TestPathTraversal:
+    """Security tests for path traversal prevention."""
+
+    def test_upload_sanitizes_traversal_filename(self, files_handler, context):
+        """Upload should strip path traversal to just the basename."""
+        chunks = [
+            UploadFileRequest(filename="../../../etc/passwd", chunk=b"safe data", final_chunk=True),
+        ]
+        response = files_handler.upload(iter(chunks), context)
+        assert response.success is True
+        # Should be stored as just "passwd" (basename), not traversing to /etc/
+        assert (files_handler.ram_storage / "passwd").exists()
+        assert not os.path.exists("/etc/passwd_mtib_test")
+
+    def test_upload_rejects_dotfile(self, files_handler, context):
+        """Upload should reject hidden (dot) files."""
+        chunks = [
+            UploadFileRequest(filename=".bashrc", chunk=b"malicious", final_chunk=True),
+        ]
+        response = files_handler.upload(iter(chunks), context)
+        assert response.success is False
+
+    def test_upload_rejects_empty_filename(self, files_handler, context):
+        """Upload should reject empty filenames."""
+        chunks = [
+            UploadFileRequest(filename="", chunk=b"data", final_chunk=True),
+        ]
+        response = files_handler.upload(iter(chunks), context)
+        assert response.success is False
+
+    def test_download_sanitizes_traversal_filename(self, files_handler, context):
+        """Download should strip path traversal to just the basename."""
+        # Create a file with the sanitized name
+        (files_handler.ram_storage / "shadow").write_bytes(b"test data")
+        chunks = list(files_handler.download(
+            DownloadFileRequest(filename="../../../etc/shadow"),
+            context,
+        ))
+        assert len(chunks) > 0
+        # Should find the file as "shadow" (basename) in ram_storage
+        assert chunks[0].success is True
+
+    def test_download_traversal_no_file_found(self, files_handler, context):
+        """Download with traversal should not escape to filesystem."""
+        chunks = list(files_handler.download(
+            DownloadFileRequest(filename="../../../etc/nonexistent_test"),
+            context,
+        ))
+        assert len(chunks) > 0
+        assert chunks[0].success is False
+
+    def test_delete_sanitizes_traversal_filename(self, files_handler, context):
+        """Delete should strip path traversal to just the basename."""
+        # Since "important_file" doesn't exist, this should return "File not found"
+        response = files_handler.delete(
+            DeleteFileRequest(filename="../../important_file"),
+            context,
+        )
+        assert response.success is False
+        assert "File not found" in response.message
+
+    def test_upload_strips_directory_components(self, files_handler, context):
+        """Upload with subdirectory in filename should only use the basename."""
+        chunks = [
+            UploadFileRequest(filename="subdir/firmware.hex", chunk=b"data", final_chunk=True),
+        ]
+        response = files_handler.upload(iter(chunks), context)
+        assert response.success is True
+        # Should be stored as just "firmware.hex", not "subdir/firmware.hex"
+        assert (files_handler.ram_storage / "firmware.hex").exists()

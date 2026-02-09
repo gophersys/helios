@@ -210,12 +210,16 @@ class BleHandler:
         """Server-streaming BLE notifications."""
         # This uses BleConnectRequest (address) as per proto definition
         # First connect, then subscribe
+        loop = None
+        thread = None
         try:
             import asyncio
             import queue
+            import threading
+            import time
             from bleak import BleakClient
 
-            notification_queue = queue.Queue()
+            notification_queue: queue.Queue = queue.Queue()
 
             async def notification_handler(sender, data):
                 notification_queue.put((sender, data))
@@ -233,11 +237,9 @@ class BleHandler:
                         await asyncio.sleep(0.01)
 
             loop = asyncio.new_event_loop()
-            import threading
             thread = threading.Thread(target=loop.run_until_complete, args=(run_notifications(),), daemon=True)
             thread.start()
 
-            import time
             while context.is_active():
                 try:
                     sender, data = notification_queue.get(timeout=0.1)
@@ -255,3 +257,10 @@ class BleHandler:
             self.logger.error("bleak not available for BLE notifications")
         except Exception as e:
             self.logger.error(f"BLE notification error: {e}")
+        finally:
+            if loop is not None:
+                loop.call_soon_threadsafe(loop.stop)
+            if thread is not None:
+                thread.join(timeout=5.0)
+            if loop is not None:
+                loop.close()

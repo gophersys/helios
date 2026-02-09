@@ -33,6 +33,14 @@ class CanHandler:
         try:
             import can
 
+            # Close existing bus before reconfiguring
+            if self._bus is not None:
+                try:
+                    self._bus.shutdown()
+                except Exception:
+                    pass
+                self._bus = None
+
             interface = f"can{request.bus}" if request.bus >= 0 else "can0"
             self._bus = can.interface.Bus(
                 channel=interface,

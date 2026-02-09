@@ -3,7 +3,7 @@
 import hashlib
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING, Iterator
+from typing import TYPE_CHECKING, Iterator, Optional
 
 from corekinect.utils import Logger
 from src.shared.types import (
@@ -37,6 +37,19 @@ class FilesHandler:
         # RAM storage for firmware files
         self.ram_storage = Path("/dev/shm/mtib_fw_files")
         self.ram_storage.mkdir(exist_ok=True)
+
+    def _sanitize_filename(self, filename: str) -> Optional[str]:
+        """Sanitize a filename to prevent path traversal.
+
+        Returns the sanitized basename, or None if the filename is invalid.
+        """
+        if not filename:
+            return None
+        # Strip directory components and path traversal sequences
+        basename = os.path.basename(filename)
+        if not basename or basename.startswith("."):
+            return None
+        return basename
 
     def _resolve_dir(self, directory: str) -> Path:
         """Resolve a directory path relative to assets dir."""
@@ -92,6 +105,7 @@ class FilesHandler:
 
     def upload(self, request_iterator: Iterator[UploadFileRequest], context) -> UploadFileResponse:
         """Client-streaming file upload (chunked)."""
+        f = None
         try:
             filename = None
             file_path = None
@@ -99,26 +113,35 @@ class FilesHandler:
 
             for chunk in request_iterator:
                 if filename is None:
-                    filename = chunk.filename
+                    safe_name = self._sanitize_filename(chunk.filename)
+                    if safe_name is None:
+                        return UploadFileResponse(
+                            success=False,
+                            message=f"Invalid filename: {chunk.filename}",
+                            sha256="",
+                        )
+                    filename = safe_name
                     # Store in RAM storage for firmware files
                     file_path = self.ram_storage / filename
                     self.logger.info(f"Uploading file: {filename}")
-                    # Open file for writing (truncate if exists)
                     f = open(file_path, "wb")
 
-                if chunk.chunk:
+                if chunk.chunk and f is not None:
                     f.write(chunk.chunk)
                     sha.update(chunk.chunk)
 
                 if chunk.final_chunk:
-                    f.close()
+                    if f is not None:
+                        f.close()
+                        f = None
                     digest = sha.hexdigest()
                     self.logger.info(f"Upload complete: {filename} (sha256={digest})")
                     return UploadFileResponse(success=True, message="", sha256=digest)
 
             # If we get here without final_chunk, close the file
-            if file_path and not f.closed:
+            if f is not None and not f.closed:
                 f.close()
+                f = None
                 digest = sha.hexdigest()
                 return UploadFileResponse(success=True, message="", sha256=digest)
 
@@ -127,14 +150,26 @@ class FilesHandler:
         except Exception as e:
             self.logger.error(f"Upload error: {e}")
             return UploadFileResponse(success=False, message=str(e), sha256="")
+        finally:
+            if f is not None and not f.closed:
+                f.close()
 
     def download(self, request: DownloadFileRequest, context) -> Iterator[DownloadFileResponse]:
         """Server-streaming file download (chunked)."""
         try:
+            safe_name = self._sanitize_filename(request.filename)
+            if safe_name is None:
+                yield DownloadFileResponse(
+                    success=False,
+                    message=f"Invalid filename: {request.filename}",
+                    eof=True,
+                )
+                return
+
             # Try RAM storage first, then assets dir
-            file_path = self.ram_storage / request.filename
+            file_path = self.ram_storage / safe_name
             if not file_path.exists():
-                file_path = self.assets_dir / request.filename
+                file_path = self.assets_dir / safe_name
             if not file_path.exists():
                 yield DownloadFileResponse(
                     success=False,
@@ -168,10 +203,14 @@ class FilesHandler:
     def delete(self, request: DeleteFileRequest, context) -> Response:
         """Delete a file."""
         try:
+            safe_name = self._sanitize_filename(request.filename)
+            if safe_name is None:
+                return Response(success=False, message=f"Invalid filename: {request.filename}")
+
             # Try RAM storage first, then assets dir
-            file_path = self.ram_storage / request.filename
+            file_path = self.ram_storage / safe_name
             if not file_path.exists():
-                file_path = self.assets_dir / request.filename
+                file_path = self.assets_dir / safe_name
             if not file_path.exists():
                 return Response(success=False, message=f"File not found: {request.filename}")
 

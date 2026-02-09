@@ -54,9 +54,11 @@ class SwoHandler:
                 # For now, sleep to avoid busy-waiting
                 time.sleep(0.01)
 
-                # Yield trace data when available
-                # TODO: Actual SWO data from pyocd/pylink
+                # TODO: Yield actual SWO data from pyocd/pylink when available
         except Exception as e:
             self.logger.error(f"SWO stream error: {e}")
         finally:
             self.logger.info("SWO stream ended")
+        # Ensure this is a generator function even when no data is yielded
+        return
+        yield  # pragma: no cover

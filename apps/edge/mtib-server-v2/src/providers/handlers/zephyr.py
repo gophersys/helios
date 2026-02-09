@@ -95,6 +95,15 @@ class ZephyrHandler:
                 cmd.extend(["-p", request.target_id])
             if request.test_path:
                 cmd.extend(["-T", request.test_path])
+            # Validate extra_args: reject shell metacharacters
+            for arg in request.extra_args:
+                if any(c in arg for c in [";", "|", "&", "$", "`", "(", ")", "{", "}"]):
+                    return TwisterRunResponse(
+                        success=False,
+                        message=f"Invalid character in extra_args: {arg}",
+                        results=[],
+                        full_log="",
+                    )
             cmd.extend(list(request.extra_args))
 
             timeout = request.timeout_s or 300.0

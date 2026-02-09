@@ -3,10 +3,9 @@ I2C communication library for raw register reads and writes.
 Provides low-level I2C operations for sensor communication.
 """
 
-import os
-import struct
-import time
-from typing import Optional, List
+import subprocess
+from typing import Optional
+
 from corekinect.utils import Logger
 
 
@@ -27,10 +26,6 @@ class I2CDevice:
         self.logger = logger
         self.device_path = f"/dev/i2c-{bus_number}"
 
-        # Check if I2C device exists
-        if not os.path.exists(self.device_path):
-            raise FileNotFoundError(f"I2C device {self.device_path} not found")
-
         if self.logger:
             self.logger.debug(f"I2C device initialized: {self.device_path}, address 0x{device_address:02x}")
 
@@ -46,29 +41,40 @@ class I2CDevice:
             Raw bytes read from the register
         """
         try:
-            if length == 1:
-                # Single byte read
-                cmd = f"i2cget -y {self.bus_number} 0x{self.device_address:02x} 0x{register:02x}"
-                result = os.popen(cmd).read().strip()
+            data = []
+            for i in range(length):
+                result = subprocess.run(
+                    [
+                        "i2cget", "-y",
+                        str(self.bus_number),
+                        f"0x{self.device_address:02x}",
+                        f"0x{(register + i):02x}",
+                    ],
+                    capture_output=True,
+                    text=True,
+                    timeout=5,
+                )
 
-                if not result:
-                    raise IOError(f"No data received from register 0x{register:02x}")
+                if result.returncode != 0:
+                    raise IOError(
+                        f"i2cget failed for register 0x{(register + i):02x}: "
+                        f"{result.stderr.strip()}"
+                    )
 
-                return bytes([int(result, 16)])
-            else:
-                # Multi-byte read - read each byte individually
-                data = []
-                for i in range(length):
-                    cmd = f"i2cget -y {self.bus_number} 0x{self.device_address:02x} 0x{register + i:02x}"
-                    result = os.popen(cmd).read().strip()
+                output = result.stdout.strip()
+                if not output:
+                    raise IOError(f"No data received from register 0x{(register + i):02x}")
 
-                    if not result:
-                        raise IOError(f"No data received from register 0x{register + i:02x}")
+                data.append(int(output, 16))
 
-                    data.append(int(result, 16))
+            return bytes(data)
 
-                return bytes(data)
-
+        except subprocess.TimeoutExpired:
+            raise IOError(f"Timeout reading register 0x{register:02x}")
+        except ValueError as e:
+            raise IOError(f"Invalid data from register 0x{register:02x}: {e}")
+        except IOError:
+            raise
         except Exception as e:
             if self.logger:
                 self.logger.error(f"Error reading register 0x{register:02x}: {e}")
@@ -83,15 +89,28 @@ class I2CDevice:
             data: Data bytes to write
         """
         try:
-            # Convert data to hex string
-            data_hex = " ".join([f"0x{b:02x}" for b in data])
-            cmd = f"i2cset -y {self.bus_number} 0x{self.device_address:02x} 0x{register:02x} {data_hex}"
+            cmd = [
+                "i2cset", "-y",
+                str(self.bus_number),
+                f"0x{self.device_address:02x}",
+                f"0x{register:02x}",
+            ]
+            cmd.extend(f"0x{b:02x}" for b in data)
 
-            result = os.popen(cmd).read().strip()
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
 
-            if result and "Error" in result:
-                raise IOError(f"i2cset error: {result}")
+            if result.returncode != 0:
+                raise IOError(f"i2cset error: {result.stderr.strip()}")
 
+        except subprocess.TimeoutExpired:
+            raise IOError(f"Timeout writing to register 0x{register:02x}")
+        except IOError:
+            raise
         except Exception as e:
             if self.logger:
                 self.logger.error(f"Error writing to register 0x{register:02x}: {e}")
@@ -140,9 +159,7 @@ class I2CDevice:
             True if device responds, False otherwise
         """
         try:
-            # Try to read any register to test connectivity
-            # Use a simple register that most devices have
             self.read_register_uint8(0x00)
             return True
-        except:
+        except (IOError, OSError):
             return False
