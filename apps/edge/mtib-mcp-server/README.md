@@ -45,7 +45,7 @@ Set `MTIB_HOST` and `MTIB_PORT` to point at the MTIB server, then run:
 MTIB_HOST=192.168.1.100 MTIB_PORT=50054 mtib-mcp
 ```
 
-Or configure in your MCP client settings (`mcp_config.json`):
+Or configure in your MCP client settings (e.g. `mcp_config.json`):
 
 ```json
 {

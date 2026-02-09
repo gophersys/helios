@@ -101,7 +101,6 @@ vitest.config.*.timestamp*
 deploy/helm/values-*-secrets.yaml
 deploy/local/.env
 
-
 # SvelteKit build artifacts
 .svelte-kit/
 apps/frontend/concord-app-svelte/coverage/

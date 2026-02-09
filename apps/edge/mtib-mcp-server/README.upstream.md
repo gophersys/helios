@@ -14,7 +14,7 @@ pip install -e .
 
 ## MCP Client Configuration
 
-Add to `.mcp.json`:
+Add to your MCP client config (`.mcp.json`):
 
 ```json
 {
