@@ -3,8 +3,6 @@ import logging
 import sys
 import time
 import traceback
-from typing import List
-
 import eventlet
 
 eventlet.monkey_patch(socket=True, select=False, time=False, os=False, thread=False)

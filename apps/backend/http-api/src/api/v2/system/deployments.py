@@ -27,10 +27,10 @@ def list_deployments():
     except ApiException as e:
         if e.status == 404:
             return not_found("Deployments not found")
-        return internal_error(f"Kubernetes API error")
+        return internal_error("Kubernetes API error")
     except Exception as e:
         logger.error("Unexpected error: %s", e)
-        return internal_error(f"Failed to list deployments")
+        return internal_error("Failed to list deployments")
 
 
 @require_permissions(Permissions.ADMIN_SYSTEM_VIEW)
@@ -47,10 +47,10 @@ def get_deployment(namespace: str, name: str):
     except ApiException as e:
         if e.status == 404:
             return not_found("Deployment not found")
-        return internal_error(f"Kubernetes API error")
+        return internal_error("Kubernetes API error")
     except Exception as e:
         logger.error("Unexpected error: %s", e)
-        return internal_error(f"Failed to get deployment")
+        return internal_error("Failed to get deployment")
 
 
 @require_permissions(Permissions.ADMIN_SYSTEM_MANAGE)
@@ -72,10 +72,10 @@ def scale_deployment(namespace: str, name: str):
     except ApiException as e:
         if e.status == 404:
             return not_found("Deployment not found")
-        return internal_error(f"Kubernetes API error")
+        return internal_error("Kubernetes API error")
     except Exception as e:
         logger.error("Unexpected error: %s", e)
-        return internal_error(f"Failed to scale deployment")
+        return internal_error("Failed to scale deployment")
 
 
 @require_permissions(Permissions.ADMIN_SYSTEM_MANAGE)
@@ -93,7 +93,7 @@ def restart_deployment(namespace: str, name: str):
     except ApiException as e:
         if e.status == 404:
             return not_found("Deployment not found")
-        return internal_error(f"Kubernetes API error")
+        return internal_error("Kubernetes API error")
     except Exception as e:
         logger.error("Unexpected error: %s", e)
-        return internal_error(f"Failed to restart deployment")
+        return internal_error("Failed to restart deployment")

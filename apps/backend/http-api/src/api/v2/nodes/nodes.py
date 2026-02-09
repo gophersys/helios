@@ -153,7 +153,8 @@ def create_node():
     try:
         node = db.node.create(data=create_data, include={"fixtureSlot": True})
     except Exception as e:
-        return internal_error(f"Failed to create MTIB: {e}")
+        logger.error("Failed to create MTIB node: %s", e)
+        return internal_error("Failed to create MTIB")
 
     # Auto-deploy MTIB server
     try:
@@ -315,7 +316,7 @@ def update_node(node_id: str):
                     data={"metadata": meta},
                     include={"fixtureSlot": True},
                 )
-                logger.info("Redeployed MTIB server %s for node %s (type_changed=%s, hw_rev_changed=%s)", deploy_name, node.hostname, type_changed, hw_rev_changed)
+                logger.info("Redeployed MTIB server %s for node %s (type_changed=%s)", deploy_name, node.hostname, type_changed)
             else:
                 logger.warning("Failed to redeploy MTIB server for node %s after config change", node.hostname)
         except Exception as e:
@@ -377,7 +378,8 @@ def check_node_health(node_id: str):
             finally:
                 channel.close()
         except Exception as e:
-            details["grpc"] = str(e)
+            logger.warning("gRPC health check failed for node %s: %s", node_id, e)
+            details["grpc"] = "connection failed"
     else:
         details["grpc"] = "no IP address configured"
 

@@ -25,10 +25,10 @@ def list_configmaps():
     except ApiException as e:
         if e.status == 404:
             return not_found("ConfigMaps not found")
-        return internal_error(f"Kubernetes API error")
+        return internal_error("Kubernetes API error")
     except Exception as e:
         logger.error("Unexpected error: %s", e)
-        return internal_error(f"Failed to list configmaps")
+        return internal_error("Failed to list configmaps")
 
 
 @require_permissions(Permissions.ADMIN_SYSTEM_VIEW)
@@ -45,10 +45,10 @@ def get_configmap(namespace: str, name: str):
     except ApiException as e:
         if e.status == 404:
             return not_found("ConfigMap not found")
-        return internal_error(f"Kubernetes API error")
+        return internal_error("Kubernetes API error")
     except Exception as e:
         logger.error("Unexpected error: %s", e)
-        return internal_error(f"Failed to get configmap")
+        return internal_error("Failed to get configmap")
 
 
 @require_permissions(Permissions.ADMIN_SYSTEM_VIEW)
@@ -62,10 +62,10 @@ def list_secrets():
     except ApiException as e:
         if e.status == 404:
             return not_found("Secrets not found")
-        return internal_error(f"Kubernetes API error")
+        return internal_error("Kubernetes API error")
     except Exception as e:
         logger.error("Unexpected error: %s", e)
-        return internal_error(f"Failed to list secrets")
+        return internal_error("Failed to list secrets")
 
 
 @require_permissions(Permissions.ADMIN_SYSTEM_VIEW)
@@ -83,7 +83,7 @@ def get_secret(namespace: str, name: str):
     except ApiException as e:
         if e.status == 404:
             return not_found("Secret not found")
-        return internal_error(f"Kubernetes API error")
+        return internal_error("Kubernetes API error")
     except Exception as e:
         logger.error("Unexpected error: %s", e)
-        return internal_error(f"Failed to get secret")
+        return internal_error("Failed to get secret")

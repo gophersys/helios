@@ -25,10 +25,10 @@ def list_pods():
     except ApiException as e:
         if e.status == 404:
             return not_found("Pods not found")
-        return internal_error(f"Kubernetes API error")
+        return internal_error("Kubernetes API error")
     except Exception as e:
         logger.error("Unexpected error: %s", e)
-        return internal_error(f"Failed to list pods")
+        return internal_error("Failed to list pods")
 
 
 @require_permissions(Permissions.ADMIN_SYSTEM_VIEW)
@@ -45,10 +45,10 @@ def get_pod(namespace: str, name: str):
     except ApiException as e:
         if e.status == 404:
             return not_found("Pod not found")
-        return internal_error(f"Kubernetes API error")
+        return internal_error("Kubernetes API error")
     except Exception as e:
         logger.error("Unexpected error: %s", e)
-        return internal_error(f"Failed to get pod")
+        return internal_error("Failed to get pod")
 
 
 @require_permissions(Permissions.ADMIN_SYSTEM_MANAGE)
@@ -66,7 +66,7 @@ def delete_pod(namespace: str, name: str):
     except ApiException as e:
         if e.status == 404:
             return not_found("Pod not found")
-        return internal_error(f"Kubernetes API error")
+        return internal_error("Kubernetes API error")
     except Exception as e:
         logger.error("Unexpected error: %s", e)
-        return internal_error(f"Failed to delete pod")
+        return internal_error("Failed to delete pod")

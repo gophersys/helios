@@ -185,6 +185,7 @@ class MtibObservabilityService:
                     }
             except Exception as e:
                 # Failure — increment backoff, invalidate channel
+                logger.debug("Observability poll failed for %s: %s", node.ipAddress, e)
                 self._fail_counts[node.ipAddress] = self._fail_counts.get(node.ipAddress, 0) + 1
                 self._last_fail[node.ipAddress] = time.time()
                 self._invalidate_channel(node.ipAddress)
@@ -192,7 +193,7 @@ class MtibObservabilityService:
                     self._snapshots[node_id] = {
                         "snapshot": None,
                         "lastUpdated": time.time(),
-                        "error": str(e),
+                        "error": "Connection failed",
                         "nodeId": node_id,
                         "nodeName": node.name,
                         "hostname": node.hostname,

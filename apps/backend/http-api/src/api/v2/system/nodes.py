@@ -20,10 +20,10 @@ def list_nodes():
     except ApiException as e:
         if e.status == 404:
             return not_found("Nodes not found")
-        return internal_error(f"Kubernetes API error")
+        return internal_error("Kubernetes API error")
     except Exception as e:
         logger.error("Unexpected error: %s", e)
-        return internal_error(f"Failed to list nodes")
+        return internal_error("Failed to list nodes")
 
 
 @require_permissions(Permissions.ADMIN_SYSTEM_VIEW)
@@ -36,7 +36,7 @@ def get_node(node_name: str):
     except ApiException as e:
         if e.status == 404:
             return not_found("Node not found")
-        return internal_error(f"Kubernetes API error")
+        return internal_error("Kubernetes API error")
     except Exception as e:
         logger.error("Unexpected error: %s", e)
-        return internal_error(f"Failed to get node")
+        return internal_error("Failed to get node")

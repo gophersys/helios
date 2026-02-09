@@ -127,7 +127,8 @@ def register_uart_handlers(socketio: SocketIO):
                 if not stop_event.is_set():
                     code = e.code() if hasattr(e, "code") else None
                     if code != grpc.StatusCode.CANCELLED:
-                        output_q.put(("error", f"UART stream error: {e.details() if hasattr(e, 'details') else str(e)}"))
+                        logger.error("UART gRPC error for %s/%s: %s", node_id, port_name, e)
+                        output_q.put(("error", "UART stream connection lost"))
             except Exception as e:
                 if not stop_event.is_set():
                     logger.error("UART reader error: %s", e)

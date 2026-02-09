@@ -23,10 +23,10 @@ def list_roles():
     except ApiException as e:
         if e.status == 404:
             return not_found("Roles not found")
-        return internal_error(f"Kubernetes API error")
+        return internal_error("Kubernetes API error")
     except Exception as e:
         logger.error("Unexpected error: %s", e)
-        return internal_error(f"Failed to list roles")
+        return internal_error("Failed to list roles")
 
 
 @require_permissions(Permissions.ADMIN_SYSTEM_VIEW)
@@ -39,10 +39,10 @@ def list_cluster_roles():
     except ApiException as e:
         if e.status == 404:
             return not_found("Cluster roles not found")
-        return internal_error(f"Kubernetes API error")
+        return internal_error("Kubernetes API error")
     except Exception as e:
         logger.error("Unexpected error: %s", e)
-        return internal_error(f"Failed to list cluster roles")
+        return internal_error("Failed to list cluster roles")
 
 
 @require_permissions(Permissions.ADMIN_SYSTEM_VIEW)
@@ -56,10 +56,10 @@ def list_role_bindings():
     except ApiException as e:
         if e.status == 404:
             return not_found("Role bindings not found")
-        return internal_error(f"Kubernetes API error")
+        return internal_error("Kubernetes API error")
     except Exception as e:
         logger.error("Unexpected error: %s", e)
-        return internal_error(f"Failed to list role bindings")
+        return internal_error("Failed to list role bindings")
 
 
 @require_permissions(Permissions.ADMIN_SYSTEM_VIEW)
@@ -72,10 +72,10 @@ def list_cluster_role_bindings():
     except ApiException as e:
         if e.status == 404:
             return not_found("Cluster role bindings not found")
-        return internal_error(f"Kubernetes API error")
+        return internal_error("Kubernetes API error")
     except Exception as e:
         logger.error("Unexpected error: %s", e)
-        return internal_error(f"Failed to list cluster role bindings")
+        return internal_error("Failed to list cluster role bindings")
 
 
 @require_permissions(Permissions.ADMIN_SYSTEM_VIEW)
@@ -89,7 +89,7 @@ def list_service_accounts():
     except ApiException as e:
         if e.status == 404:
             return not_found("Service accounts not found")
-        return internal_error(f"Kubernetes API error")
+        return internal_error("Kubernetes API error")
     except Exception as e:
         logger.error("Unexpected error: %s", e)
-        return internal_error(f"Failed to list service accounts")
+        return internal_error("Failed to list service accounts")

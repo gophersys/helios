@@ -25,10 +25,10 @@ def list_jobs():
     except ApiException as e:
         if e.status == 404:
             return not_found("Jobs not found")
-        return internal_error(f"Kubernetes API error")
+        return internal_error("Kubernetes API error")
     except Exception as e:
         logger.error("Unexpected error: %s", e)
-        return internal_error(f"Failed to list jobs")
+        return internal_error("Failed to list jobs")
 
 
 @require_permissions(Permissions.ADMIN_SYSTEM_VIEW)
@@ -45,10 +45,10 @@ def get_job(namespace: str, name: str):
     except ApiException as e:
         if e.status == 404:
             return not_found("Job not found")
-        return internal_error(f"Kubernetes API error")
+        return internal_error("Kubernetes API error")
     except Exception as e:
         logger.error("Unexpected error: %s", e)
-        return internal_error(f"Failed to get job")
+        return internal_error("Failed to get job")
 
 
 @require_permissions(Permissions.ADMIN_SYSTEM_MANAGE)
@@ -66,7 +66,7 @@ def delete_job(namespace: str, name: str):
     except ApiException as e:
         if e.status == 404:
             return not_found("Job not found")
-        return internal_error(f"Kubernetes API error")
+        return internal_error("Kubernetes API error")
     except Exception as e:
         logger.error("Unexpected error: %s", e)
-        return internal_error(f"Failed to delete job")
+        return internal_error("Failed to delete job")

@@ -1,8 +1,12 @@
+import logging
+
 from flask import jsonify
 
 from corekinect.utils import collect_build_info
 from src.lib.errors import internal_error
 from src.lib.types import ApiResponse
+
+logger = logging.getLogger(__name__)
 
 
 def get_system_info():
@@ -23,4 +27,5 @@ def get_system_info():
             "os": info.os_info,
         }).to_dict()), 200
     except Exception as e:
-        return internal_error(str(e))
+        logger.error("Failed to collect build info: %s", e)
+        return internal_error("Failed to retrieve system info")
