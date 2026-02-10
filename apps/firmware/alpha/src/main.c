@@ -37,6 +37,8 @@ static void motion_thread_entry(void* p1, void* p2, void* p3);
 // Global variables
 static vsm_t g_vsm = {0};
 static struct k_sem g_vsm_hw_error_sem;
+static volatile uint32_t g_motion_count = 0;
+static volatile bool g_monitoring_active = false;
 
 static void handle_vsm_callback(const vitals_thread_callback_data_t* data, void* user_data) {
     // Process based on event type
@@ -70,8 +72,8 @@ static void handle_vsm_callback(const vitals_thread_callback_data_t* data, void*
                     break;
 
                 case VITALS_STATE_ACTIVE_MONITORING:
-                    // Active monitoring, do nothing
-                    LOG_WRN("Active monitoring");
+                    g_monitoring_active = true;
+                    LOG_WRN("=== ACTIVE MONITORING — move hand to test ===");
                     break;
 
                 case VITALS_STATE_TOUCH_LOST:
@@ -80,9 +82,8 @@ static void handle_vsm_callback(const vitals_thread_callback_data_t* data, void*
                     break;
 
                 case VITALS_STATE_DESKIN_CONFIRMED:
-                    // Skin contact lost, deactivate monitoring
-                    LOG_WRN("Skin contact lost, deactivating monitoring");
-                    // vsm_deactivate_monitoring(&g_vsm);
+                    g_monitoring_active = false;
+                    LOG_WRN("=== SKIN LOST — monitoring stopped ===");
                     break;
 
                 case VITALS_STATE_SHUTDOWN:
@@ -108,17 +109,15 @@ static void handle_vsm_callback(const vitals_thread_callback_data_t* data, void*
 }
 
 static void process_vitals_metrics(const vitals_output_metrics_t* metrics) {
-    // Check which metrics were updated and process them
-    if (metrics->heart_rate_updated) {
-        LOG_INF("Heart rate updated: %d bpm (quality: %d)", metrics->heart_rate, metrics->heart_rate_quality);
-    }
-
-    if (metrics->spo2_updated) {
-        LOG_INF("SpO2 updated: %d%% (quality: %d)", metrics->spo2, metrics->spo2_quality);
+    if (metrics->heart_rate_updated || metrics->spo2_updated) {
+        LOG_INF("HR: %3d bpm Q:%d | SpO2: %3d%% Q:%d | motion: %u",
+                metrics->heart_rate, metrics->heart_rate_quality,
+                metrics->spo2, metrics->spo2_quality,
+                g_motion_count);
     }
 
     if (metrics->temperature_updated) {
-        LOG_INF("Temperature updated: %.1f°F", (double)metrics->temperature_f);
+        LOG_INF("Temp: %.1f F", (double)metrics->temperature_f);
     }
 }
 
@@ -160,7 +159,7 @@ static void motion_thread_entry(void* p1, void* p2, void* p3) {
         k_sem_take(&motion_sem, K_FOREVER);
 
         motion_count++;
-        LOG_INF("Motion detected! (count: %u)", motion_count);
+        g_motion_count = motion_count;
 
         /*
          * Application can perform actions here such as:
@@ -212,7 +211,7 @@ static int init_motion_detection(void) {
      * The driver internally handles different accelerometer range settings.
      * Typical values: 100-500 mg depending on application sensitivity needs.
      */
-    struct sensor_value threshold = {.val1 = 200, .val2 = 0}; /* 200 mg */
+    struct sensor_value threshold = {.val1 = 100, .val2 = 0}; /* 100 mg */
     ret = sensor_attr_set(imu_dev, SENSOR_CHAN_ACCEL_XYZ,
                           SENSOR_ATTR_SLOPE_TH, &threshold);
     if (ret < 0) {
@@ -224,7 +223,7 @@ static int init_motion_detection(void) {
      * The driver internally converts to ODR cycles based on current sampling rate.
      * Typical values: 0 (instant), 20-60 ms to filter noise.
      */
-    struct sensor_value duration = {.val1 = 40, .val2 = 0}; /* 40 ms */
+    struct sensor_value duration = {.val1 = 0, .val2 = 0}; /* 0 ms = instant */
     ret = sensor_attr_set(imu_dev, SENSOR_CHAN_ACCEL_XYZ,
                           SENSOR_ATTR_SLOPE_DUR, &duration);
     if (ret < 0) {
@@ -258,8 +257,8 @@ int main(void) {
         .p_ppg_enable_gpio = GPIO_DT_SPEC_GET(DT_ALIAS(vsm_enable), gpios),
         .callback = handle_vsm_callback,
         .callback_user_data = NULL,
-        .skin_temp_min_threshold_f = 80.0f,
-        .skin_temp_max_threshold_f = 100.0f,
+        .skin_temp_min_threshold_f = 65.0f,
+        .skin_temp_max_threshold_f = 105.0f,
         .skin_detection_period_ms = 1000,
         .deskin_detection_period_ms = 6000,
     };
