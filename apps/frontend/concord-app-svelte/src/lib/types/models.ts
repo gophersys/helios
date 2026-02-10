@@ -40,30 +40,39 @@ export interface AvailablePermission {
   name: string;
 }
 
-// ── Products types ───────────────────────────────────────────
+// ── Catalog types ────────────────────────────────────────────
+
+export interface Chipset {
+  id: string;
+  name: string;
+  manufacturer: string | null;
+  isModem: boolean;
+  description: string | null;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
 
 export interface BoardRevision {
   id: string;
-  productId: string;
+  boardId: string;
   version: string;
-  chipsets: string[];
+  chipsets: { id: string; name: string; isModem: boolean }[];
+  selectedBuilds: Record<string, string>;
   status: string;
   notes: string | null;
   createdAt: string;
   updatedAt: string;
 }
 
-export interface FirmwareApp {
+export interface Board {
   id: string;
   productId: string;
-  applicationId: number;
   name: string;
-  targetMcu: string | null;
-  chipset: string | null;
-  coreCloudDeviceType: string | null;
-  coreCloudVariant: string | null;
-  notes: string | null;
-  buildCount?: number;
+  description: string | null;
+  active: boolean;
+  revisionCount?: number;
+  revisions?: BoardRevision[];
   createdAt: string;
   updatedAt: string;
 }
@@ -71,13 +80,9 @@ export interface FirmwareApp {
 export interface FirmwareBuild {
   id: string;
   productId: string;
-  applicationId: string;
-  boardRevisionId: string | null;
+  chipsetId: string;
+  chipset: { id: string; name: string; isModem: boolean };
   version: string;
-  majorVersion: number;
-  minorVersion: number;
-  buildNumber: number;
-  bootloaderId: string | null;
   isManufacturing: boolean;
   storageKey: string;
   filename: string;
@@ -86,8 +91,9 @@ export interface FirmwareBuild {
   contentType: string | null;
   status: string;
   notes: string | null;
-  applicationName?: string;
-  boardRevisionVersion?: string | null;
+  modemFilename?: string | null;
+  modemSizeBytes?: string | null;
+  modemChecksum?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -97,12 +103,9 @@ export interface Product {
   name: string;
   description: string | null;
   active: boolean;
-  chipsets?: string[];
-  boardRevisionCount?: number;
-  firmwareAppCount?: number;
+  boardCount?: number;
   firmwareBuildCount?: number;
-  boardRevisions?: BoardRevision[];
-  firmwareApplications?: FirmwareApp[];
+  boards?: Board[];
   firmwareBuilds?: FirmwareBuild[];
   createdAt: string;
   updatedAt: string;
@@ -479,18 +482,6 @@ export interface ResourceYamlData {
   kind: string;
   apiVersion: string;
   yaml: string;
-}
-
-// ── Hooks types ──────────────────────────────────────────────
-
-export interface ChipsetEntry {
-  name: string;
-  targetMcus: string[];
-}
-
-export interface ChipsetConfig {
-  chipsets: ChipsetEntry[];
-  supportedSocs: string[];
 }
 
 // ── UI utility types ─────────────────────────────────────────

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Cpu, Package, Pencil, Trash2 } from 'lucide-svelte';
+  import { Package, Pencil, Trash2 } from 'lucide-svelte';
   import type { Product } from '$lib/types/models';
 
   interface Props {
@@ -11,8 +11,6 @@
   }
 
   let { product, canManage, onEdit, onDelete, onSelect }: Props = $props();
-
-  const chipsets = $derived(product.chipsets || []);
 </script>
 
 <div
@@ -25,16 +23,6 @@
   <!-- Hero -->
   <div class="flex h-36 flex-col items-center justify-center gap-2 bg-surface-2">
     <Package size={32} strokeWidth={1} class="text-text-tertiary opacity-40" />
-    {#if chipsets.length > 0}
-      <div class="flex flex-wrap justify-center gap-1.5">
-        {#each chipsets as c}
-          <span class="inline-flex items-center gap-1 rounded-full bg-accent/10 px-2 py-0.5 text-2xs font-medium text-accent">
-            <Cpu size={12} />
-            {c}
-          </span>
-        {/each}
-      </div>
-    {/if}
   </div>
 
   <!-- Body -->
@@ -61,8 +49,7 @@
     {/if}
 
     <div class="mt-auto flex gap-3 text-2xs text-text-tertiary">
-      <span>{product.boardRevisionCount ?? 0} board rev{(product.boardRevisionCount ?? 0) !== 1 ? 's' : ''}</span>
-      <span>{product.firmwareAppCount ?? 0} fw app{(product.firmwareAppCount ?? 0) !== 1 ? 's' : ''}</span>
+      <span>{product.boardCount ?? 0} board{(product.boardCount ?? 0) !== 1 ? 's' : ''}</span>
       <span>{product.firmwareBuildCount ?? 0} build{(product.firmwareBuildCount ?? 0) !== 1 ? 's' : ''}</span>
     </div>
   </div>

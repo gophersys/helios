@@ -1,44 +1,37 @@
 <script lang="ts">
-  import { Cpu } from 'lucide-svelte';
   import BackButton from '$lib/components/ui/back-button.svelte';
   import ErrorAlert from '$lib/components/ui/error-alert.svelte';
-  import { useChipsetConfig } from '$lib/hooks/use-chipset-config.svelte';
-  import BoardRevisionList from './board-revision-list.svelte';
-  import FirmwareAppList from './firmware-app-list.svelte';
-  import type { Product } from '$lib/types/models';
+  import BoardList from './board-list.svelte';
+  import FirmwareBuildManager from './firmware-app-list.svelte';
+  import type { Product, Chipset } from '$lib/types/models';
 
-  type Tab = 'overview' | 'firmware' | 'usage';
+  type Tab = 'boards' | 'firmware' | 'usage';
 
   interface Props {
     product: Product;
+    chipsets: Chipset[];
     canManage: boolean;
     onBack: () => void;
     onRefresh: () => void;
   }
 
-  let { product, canManage, onBack, onRefresh }: Props = $props();
+  let { product, chipsets, canManage, onBack, onRefresh }: Props = $props();
 
-  let activeTab = $state<Tab>('overview');
+  let activeTab = $state<Tab>('boards');
   let error = $state<string | null>(null);
-  const chipsetState = useChipsetConfig();
 
   const tabs: { key: Tab; label: string }[] = [
-    { key: 'overview', label: 'Overview' },
+    { key: 'boards', label: 'Boards' },
     { key: 'firmware', label: 'Firmware' },
     { key: 'usage', label: 'Usage' },
   ];
 
-  const boardRevisions = $derived(product.boardRevisions || []);
-  const firmwareApps = $derived(product.firmwareApplications || []);
+  const boards = $derived(product.boards || []);
   const firmwareBuilds = $derived(product.firmwareBuilds || []);
-  const chipsets = $derived(
-    product.chipsets ||
-    [...new Set(firmwareApps.map((a) => a.chipset).filter(Boolean) as string[])].sort()
-  );
 </script>
 
 <div class="animate-fade-in">
-  <BackButton label="Back to products" onclick={onBack} />
+  <BackButton label="Back to catalog" onclick={onBack} />
 
   <ErrorAlert message={error} />
 
@@ -65,24 +58,9 @@
           <p class="mt-1 text-sm text-text-secondary">{product.description}</p>
         {/if}
 
-        <!-- Chipset badges -->
-        {#if chipsets.length > 0}
-          <div class="mt-2 flex flex-wrap gap-1.5">
-            {#each chipsets as c}
-              <span class="inline-flex items-center gap-1 rounded-full bg-accent/10 px-2.5 py-1 text-xs font-medium text-accent">
-                <Cpu size={16} />
-                {c}
-              </span>
-            {/each}
-          </div>
-        {/if}
-
         <div class="mt-3 flex gap-4 text-2xs text-text-tertiary">
           <span>
-            <strong class="text-text-secondary">{boardRevisions.length}</strong> board revision{boardRevisions.length !== 1 ? 's' : ''}
-          </span>
-          <span>
-            <strong class="text-text-secondary">{firmwareApps.length}</strong> firmware app{firmwareApps.length !== 1 ? 's' : ''}
+            <strong class="text-text-secondary">{boards.length}</strong> board{boards.length !== 1 ? 's' : ''}
           </span>
           <span>
             <strong class="text-text-secondary">{firmwareBuilds.length}</strong> firmware build{firmwareBuilds.length !== 1 ? 's' : ''}
@@ -110,23 +88,22 @@
 
     <!-- Tab content -->
     <div class="mt-5">
-      {#if activeTab === 'overview'}
-        <BoardRevisionList
+      {#if activeTab === 'boards'}
+        <BoardList
           productId={product.id}
-          revisions={boardRevisions}
-          supportedSocs={chipsetState.data?.supportedSocs || []}
+          {boards}
+          builds={firmwareBuilds}
+          {chipsets}
           {canManage}
           {onRefresh}
         />
       {/if}
 
       {#if activeTab === 'firmware'}
-        <FirmwareAppList
+        <FirmwareBuildManager
           productId={product.id}
-          apps={firmwareApps}
           builds={firmwareBuilds}
-          {boardRevisions}
-          chipsetConfig={chipsetState.data}
+          {chipsets}
           {canManage}
           {onRefresh}
         />

@@ -103,7 +103,7 @@ describe('AuthState', () => {
 
     it('returns true when user has the permission', async () => {
       const mockUser = createMockUser({
-        permissions: ['Concord.Admin.Products.View', 'Concord.Admin.Products.Manage']
+        permissions: ['Concord.Admin.Catalog.View', 'Concord.Admin.Catalog.Manage']
       });
       global.fetch = createMockFetch(createMockApiResponse(mockUser));
       storage._store['concord-token'] = 'valid-token';
@@ -111,12 +111,12 @@ describe('AuthState', () => {
       const auth = createAuthContext();
       await auth.init();
 
-      expect(auth.hasPermission('Concord.Admin.Products.View')).toBe(true);
+      expect(auth.hasPermission('Concord.Admin.Catalog.View')).toBe(true);
     });
 
     it('returns false when user is missing any required permission', async () => {
       const mockUser = createMockUser({
-        permissions: ['Concord.Admin.Products.View']
+        permissions: ['Concord.Admin.Catalog.View']
       });
       global.fetch = createMockFetch(createMockApiResponse(mockUser));
       storage._store['concord-token'] = 'valid-token';
@@ -125,14 +125,14 @@ describe('AuthState', () => {
       await auth.init();
 
       expect(auth.hasPermission(
-        'Concord.Admin.Products.View',
-        'Concord.Admin.Products.Manage'
+        'Concord.Admin.Catalog.View',
+        'Concord.Admin.Catalog.Manage'
       )).toBe(false);
     });
 
     it('returns true when user has all required permissions', async () => {
       const mockUser = createMockUser({
-        permissions: ['Concord.Admin.Products.View', 'Concord.Admin.Products.Manage']
+        permissions: ['Concord.Admin.Catalog.View', 'Concord.Admin.Catalog.Manage']
       });
       global.fetch = createMockFetch(createMockApiResponse(mockUser));
       storage._store['concord-token'] = 'valid-token';
@@ -141,8 +141,8 @@ describe('AuthState', () => {
       await auth.init();
 
       expect(auth.hasPermission(
-        'Concord.Admin.Products.View',
-        'Concord.Admin.Products.Manage'
+        'Concord.Admin.Catalog.View',
+        'Concord.Admin.Catalog.Manage'
       )).toBe(true);
     });
   });

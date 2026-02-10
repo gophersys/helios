@@ -48,7 +48,7 @@ test.describe('Authenticated Navigation', () => {
         id: 'test-user',
         email: 'test@example.com',
         name: 'Test User',
-        permissions: ['Concord.Admin.Products.View', 'Concord.Admin.Products.Manage']
+        permissions: ['Concord.Admin.Catalog.View', 'Concord.Admin.Catalog.Manage']
       }));
     });
   });

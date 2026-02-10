@@ -74,26 +74,34 @@ from .codebases.artifacts import (
     upload_artifact,
 )
 
-# Products handlers
-from .products.products import (
+# Catalog handlers
+from .catalog.chipsets import (
+    create_chipset,
+    delete_chipset,
+    get_chipset,
+    list_chipsets,
+    update_chipset,
+)
+from .catalog.products import (
     create_product,
     delete_product,
     get_product,
-    get_supported_chipsets,
     list_products,
     update_product,
 )
-from .products.board_revisions import (
+from .catalog.boards import (
+    create_board,
+    delete_board,
+    get_board,
+    list_boards,
+    update_board,
+)
+from .catalog.board_revisions import (
     create_board_revision,
     delete_board_revision,
     update_board_revision,
 )
-from .products.firmware_apps import (
-    create_firmware_app,
-    delete_firmware_app,
-    update_firmware_app,
-)
-from .products.firmware_builds import (
+from .catalog.firmware_builds import (
     delete_firmware_build,
     download_firmware_build,
     list_firmware_builds,
@@ -286,30 +294,38 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     v2.add_url_rule("/codebases/<codebase_id>/releases/<release_id>/artifacts/<artifact_id>",         view_func=delete_artifact,       methods=["DELETE"])
     v2.add_url_rule("/codebases/artifacts/<artifact_id>/download",                                    view_func=download_artifact,     methods=["GET"])
 
-    # Products
-    v2.add_url_rule("/products/chipsets",                                                          view_func=get_supported_chipsets,  methods=["GET"])
-    v2.add_url_rule("/products",                                                                  view_func=list_products,          methods=["GET"])
-    v2.add_url_rule("/products",                                                                  view_func=create_product,         methods=["POST"])
-    v2.add_url_rule("/products/<product_id>",                                                     view_func=get_product,            methods=["GET"])
-    v2.add_url_rule("/products/<product_id>",                                                     view_func=update_product,         methods=["PUT"])
-    v2.add_url_rule("/products/<product_id>",                                                     view_func=delete_product,         methods=["DELETE"])
+    # Catalog - Chipsets
+    v2.add_url_rule("/catalog/chipsets",                                                          view_func=list_chipsets,           methods=["GET"])
+    v2.add_url_rule("/catalog/chipsets",                                                          view_func=create_chipset,          methods=["POST"])
+    v2.add_url_rule("/catalog/chipsets/<chipset_id>",                                             view_func=get_chipset,             methods=["GET"])
+    v2.add_url_rule("/catalog/chipsets/<chipset_id>",                                             view_func=update_chipset,          methods=["PUT"])
+    v2.add_url_rule("/catalog/chipsets/<chipset_id>",                                             view_func=delete_chipset,          methods=["DELETE"])
 
-    # Products - Board Revisions
-    v2.add_url_rule("/products/<product_id>/board-revisions",                                     view_func=create_board_revision,  methods=["POST"])
-    v2.add_url_rule("/products/<product_id>/board-revisions/<revision_id>",                       view_func=update_board_revision,  methods=["PUT"])
-    v2.add_url_rule("/products/<product_id>/board-revisions/<revision_id>",                       view_func=delete_board_revision,  methods=["DELETE"])
+    # Catalog - Products
+    v2.add_url_rule("/catalog",                                                                   view_func=list_products,          methods=["GET"])
+    v2.add_url_rule("/catalog",                                                                   view_func=create_product,         methods=["POST"])
+    v2.add_url_rule("/catalog/<product_id>",                                                      view_func=get_product,            methods=["GET"])
+    v2.add_url_rule("/catalog/<product_id>",                                                      view_func=update_product,         methods=["PUT"])
+    v2.add_url_rule("/catalog/<product_id>",                                                      view_func=delete_product,         methods=["DELETE"])
 
-    # Products - Firmware Applications
-    v2.add_url_rule("/products/<product_id>/firmware-apps",                                       view_func=create_firmware_app,    methods=["POST"])
-    v2.add_url_rule("/products/<product_id>/firmware-apps/<app_id>",                              view_func=update_firmware_app,    methods=["PUT"])
-    v2.add_url_rule("/products/<product_id>/firmware-apps/<app_id>",                              view_func=delete_firmware_app,    methods=["DELETE"])
+    # Catalog - Boards
+    v2.add_url_rule("/catalog/<product_id>/boards",                                               view_func=list_boards,            methods=["GET"])
+    v2.add_url_rule("/catalog/<product_id>/boards",                                               view_func=create_board,           methods=["POST"])
+    v2.add_url_rule("/catalog/<product_id>/boards/<board_id>",                                    view_func=get_board,              methods=["GET"])
+    v2.add_url_rule("/catalog/<product_id>/boards/<board_id>",                                    view_func=update_board,           methods=["PUT"])
+    v2.add_url_rule("/catalog/<product_id>/boards/<board_id>",                                    view_func=delete_board,           methods=["DELETE"])
 
-    # Products - Firmware Builds
-    v2.add_url_rule("/products/<product_id>/firmware-builds",                                     view_func=list_firmware_builds,   methods=["GET"])
-    v2.add_url_rule("/products/<product_id>/firmware-builds/upload",                              view_func=upload_firmware_build,  methods=["POST"])
-    v2.add_url_rule("/products/<product_id>/firmware-builds/<build_id>",                          view_func=update_firmware_build,  methods=["PUT"])
-    v2.add_url_rule("/products/<product_id>/firmware-builds/<build_id>",                          view_func=delete_firmware_build,  methods=["DELETE"])
-    v2.add_url_rule("/products/firmware-builds/<build_id>/download",                              view_func=download_firmware_build, methods=["GET"])
+    # Catalog - Board Revisions (nested under boards)
+    v2.add_url_rule("/catalog/<product_id>/boards/<board_id>/revisions",                          view_func=create_board_revision,  methods=["POST"])
+    v2.add_url_rule("/catalog/<product_id>/boards/<board_id>/revisions/<revision_id>",            view_func=update_board_revision,  methods=["PUT"])
+    v2.add_url_rule("/catalog/<product_id>/boards/<board_id>/revisions/<revision_id>",            view_func=delete_board_revision,  methods=["DELETE"])
+
+    # Catalog - Firmware Builds
+    v2.add_url_rule("/catalog/<product_id>/firmware-builds",                                      view_func=list_firmware_builds,   methods=["GET"])
+    v2.add_url_rule("/catalog/<product_id>/firmware-builds/upload",                               view_func=upload_firmware_build,  methods=["POST"])
+    v2.add_url_rule("/catalog/<product_id>/firmware-builds/<build_id>",                           view_func=update_firmware_build,  methods=["PUT"])
+    v2.add_url_rule("/catalog/<product_id>/firmware-builds/<build_id>",                           view_func=delete_firmware_build,  methods=["DELETE"])
+    v2.add_url_rule("/catalog/firmware-builds/<build_id>/download",                               view_func=download_firmware_build, methods=["GET"])
 
     # Admin - History
     v2.add_url_rule("/admin/history",              view_func=list_history,      methods=["GET"])

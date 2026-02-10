@@ -11,25 +11,9 @@ from src.lib.permissions import Permissions
 from src.lib.types import ApiResponse
 from src.services.database.prisma import get_db_client
 
-from .shared import SUPPORTED_CHIPSETS, SUPPORTED_SOCS
 from .types import ProductCreateRequest, ProductUpdateRequest
 
 logger = logging.getLogger(__name__)
-
-
-# ── Chipset Configuration ────────────────────────────────
-
-
-@require_permissions(Permissions.ADMIN_PRODUCTS_VIEW)
-def get_supported_chipsets():
-    data = {
-        "chipsets": [
-            {"name": name, "targetMcus": config["targetMcus"]}
-            for name, config in sorted(SUPPORTED_CHIPSETS.items())
-        ],
-        "supportedSocs": SUPPORTED_SOCS,
-    }
-    return jsonify(ApiResponse.ok(data).to_dict()), 200
 
 
 def _serialize_product(p: Any, include_children: bool = False) -> dict:
@@ -42,22 +26,10 @@ def _serialize_product(p: Any, include_children: bool = False) -> dict:
         "createdAt": p.createdAt.isoformat(),
         "updatedAt": p.updatedAt.isoformat(),
     }
-    all_socs = set()
-    if hasattr(p, "boardRevisions") and p.boardRevisions is not None:
-        data["boardRevisionCount"] = len(p.boardRevisions)
-        for r in p.boardRevisions:
-            if r.chipsets:
-                all_socs.update(r.chipsets)
+    if hasattr(p, "boards") and p.boards is not None:
+        data["boardCount"] = len(p.boards)
         if include_children:
-            data["boardRevisions"] = [_serialize_board_revision(r) for r in p.boardRevisions]
-    if hasattr(p, "firmwareApplications") and p.firmwareApplications is not None:
-        data["firmwareAppCount"] = len(p.firmwareApplications)
-        for a in p.firmwareApplications:
-            if a.targetMcu:
-                all_socs.add(a.targetMcu)
-        if include_children:
-            data["firmwareApplications"] = [_serialize_firmware_app(a) for a in p.firmwareApplications]
-    data["chipsets"] = sorted(all_socs)
+            data["boards"] = [_serialize_board_summary(b) for b in p.boards]
     if hasattr(p, "firmwareBuilds") and p.firmwareBuilds is not None:
         data["firmwareBuildCount"] = len(p.firmwareBuilds)
         if include_children:
@@ -68,49 +40,50 @@ def _serialize_product(p: Any, include_children: bool = False) -> dict:
     return data
 
 
+def _serialize_board_summary(b: Any) -> dict:
+    result = {
+        "id": b.id,
+        "productId": b.productId,
+        "name": b.name,
+        "description": b.description,
+        "active": b.active,
+        "createdAt": b.createdAt.isoformat(),
+        "updatedAt": b.updatedAt.isoformat(),
+    }
+    if hasattr(b, "revisions") and b.revisions is not None:
+        result["revisionCount"] = len(b.revisions)
+        result["revisions"] = [_serialize_board_revision(r) for r in b.revisions]
+    return result
+
+
 def _serialize_board_revision(r: Any) -> dict:
-    return {
+    result = {
         "id": r.id,
-        "productId": r.productId,
+        "boardId": r.boardId,
         "version": r.version,
-        "chipsets": r.chipsets or [],
+        "selectedBuilds": r.selectedBuilds if hasattr(r, "selectedBuilds") and r.selectedBuilds else {},
         "status": r.status,
         "notes": r.notes,
         "createdAt": r.createdAt.isoformat(),
         "updatedAt": r.updatedAt.isoformat(),
     }
-
-
-def _serialize_firmware_app(a: Any) -> dict:
-    data = {
-        "id": a.id,
-        "productId": a.productId,
-        "applicationId": a.applicationId,
-        "name": a.name,
-        "targetMcu": a.targetMcu,
-        "chipset": a.chipset,
-        "coreCloudDeviceType": a.coreCloudDeviceType,
-        "coreCloudVariant": a.coreCloudVariant,
-        "notes": a.notes,
-        "createdAt": a.createdAt.isoformat(),
-        "updatedAt": a.updatedAt.isoformat(),
-    }
-    if hasattr(a, "firmwareBuilds") and a.firmwareBuilds is not None:
-        data["buildCount"] = len(a.firmwareBuilds)
-    return data
+    if hasattr(r, "chipsets") and r.chipsets is not None:
+        result["chipsets"] = [
+            {"id": rc.chipset.id, "name": rc.chipset.name, "isModem": rc.chipset.isModem}
+            for rc in r.chipsets
+            if hasattr(rc, "chipset") and rc.chipset is not None
+        ]
+    else:
+        result["chipsets"] = []
+    return result
 
 
 def _serialize_firmware_build(b: Any) -> dict:
     data = {
         "id": b.id,
         "productId": b.productId,
-        "applicationId": b.applicationId,
-        "boardRevisionId": b.boardRevisionId,
+        "chipsetId": b.chipsetId,
         "version": b.version,
-        "majorVersion": b.majorVersion,
-        "minorVersion": b.minorVersion,
-        "buildNumber": b.buildNumber,
-        "bootloaderId": b.bootloaderId,
         "isManufacturing": b.isManufacturing,
         "storageKey": b.storageKey,
         "filename": b.filename,
@@ -122,17 +95,25 @@ def _serialize_firmware_build(b: Any) -> dict:
         "createdAt": b.createdAt.isoformat(),
         "updatedAt": b.updatedAt.isoformat(),
     }
-    if hasattr(b, "application") and b.application is not None:
-        data["applicationName"] = b.application.name
-    if hasattr(b, "boardRevision") and b.boardRevision is not None:
-        data["boardRevisionVersion"] = b.boardRevision.version
+    if hasattr(b, "chipset") and b.chipset is not None:
+        data["chipset"] = {
+            "id": b.chipset.id,
+            "name": b.chipset.name,
+            "isModem": b.chipset.isModem,
+        }
+    else:
+        data["chipset"] = None
+    if hasattr(b, "modemFilename") and b.modemFilename:
+        data["modemFilename"] = b.modemFilename
+        data["modemSizeBytes"] = str(b.modemSizeBytes) if b.modemSizeBytes is not None else None
+        data["modemChecksum"] = b.modemChecksum
     return data
 
 
 # ── Products CRUD ─────────────────────────────────────────
 
 
-@require_permissions(Permissions.ADMIN_PRODUCTS_VIEW)
+@require_permissions(Permissions.ADMIN_CATALOG_VIEW)
 def list_products():
     db = get_db_client()
 
@@ -146,9 +127,8 @@ def list_products():
         take=limit,
         order={"name": "asc"},
         include={
-            "boardRevisions": True,
-            "firmwareApplications": True,
-            "firmwareBuilds": True,
+            "boards": {"include": {"revisions": True}},
+            "firmwareBuilds": {"include": {"chipset": True}},
         },
     )
     return jsonify(ApiResponse.ok({
@@ -162,7 +142,7 @@ def list_products():
     }).to_dict()), 200
 
 
-@require_permissions(Permissions.ADMIN_PRODUCTS_MANAGE)
+@require_permissions(Permissions.ADMIN_CATALOG_MANAGE)
 def create_product():
     data, error = ProductCreateRequest.from_json(request.get_json())
     if error:
@@ -181,31 +161,35 @@ def create_product():
             "active": data.active,
         },
         include={
-            "boardRevisions": True,
-            "firmwareApplications": True,
-            "firmwareBuilds": True,
+            "boards": {"include": {"revisions": True}},
+            "firmwareBuilds": {"include": {"chipset": True}},
         },
     )
     log_audit("product.create", "Product", product.id, {"name": data.name})
     return jsonify(ApiResponse.ok(_serialize_product(product)).to_dict()), 201
 
 
-@require_permissions(Permissions.ADMIN_PRODUCTS_VIEW)
+@require_permissions(Permissions.ADMIN_CATALOG_VIEW)
 def get_product(product_id: str):
     db = get_db_client()
     product = db.product.find_unique(
         where={"id": product_id},
         include={
-            "boardRevisions": {"order_by": {"version": "asc"}},
-            "firmwareApplications": {
-                "order_by": {"applicationId": "asc"},
-                "include": {"firmwareBuilds": True},
+            "boards": {
+                "order_by": {"name": "asc"},
+                "include": {
+                    "revisions": {
+                        "order_by": {"version": "asc"},
+                        "include": {
+                            "chipsets": {"include": {"chipset": True}},
+                        },
+                    },
+                },
             },
             "firmwareBuilds": {
                 "order_by": {"createdAt": "desc"},
                 "include": {
-                    "application": True,
-                    "boardRevision": True,
+                    "chipset": True,
                 },
             },
         },
@@ -215,7 +199,7 @@ def get_product(product_id: str):
     return jsonify(ApiResponse.ok(_serialize_product(product, include_children=True)).to_dict()), 200
 
 
-@require_permissions(Permissions.ADMIN_PRODUCTS_MANAGE)
+@require_permissions(Permissions.ADMIN_CATALOG_MANAGE)
 def update_product(product_id: str):
     data, error = ProductUpdateRequest.from_json(request.get_json())
     if error:
@@ -235,16 +219,15 @@ def update_product(product_id: str):
         where={"id": product_id},
         data=data.to_update_data(),
         include={
-            "boardRevisions": True,
-            "firmwareApplications": True,
-            "firmwareBuilds": True,
+            "boards": {"include": {"revisions": True}},
+            "firmwareBuilds": {"include": {"chipset": True}},
         },
     )
     log_audit("product.update", "Product", product_id, {"name": existing.name, "changes": data.to_update_data()})
     return jsonify(ApiResponse.ok(_serialize_product(product)).to_dict()), 200
 
 
-@require_permissions(Permissions.ADMIN_PRODUCTS_MANAGE)
+@require_permissions(Permissions.ADMIN_CATALOG_MANAGE)
 def delete_product(product_id: str):
     db = get_db_client()
     existing = db.product.find_unique(where={"id": product_id})

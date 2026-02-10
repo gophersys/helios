@@ -29,9 +29,9 @@ class Permissions:
     # Admin - History
     ADMIN_HISTORY_VIEW = "Concord.Admin.History.View"
 
-    # Admin - Products
-    ADMIN_PRODUCTS_VIEW = "Concord.Admin.Products.View"
-    ADMIN_PRODUCTS_MANAGE = "Concord.Admin.Products.Manage"
+    # Admin - Catalog
+    ADMIN_CATALOG_VIEW = "Concord.Admin.Catalog.View"
+    ADMIN_CATALOG_MANAGE = "Concord.Admin.Catalog.Manage"
 
     # Admin - System
     ADMIN_SYSTEM_VIEW = "Concord.Admin.System.View"

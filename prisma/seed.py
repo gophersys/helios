@@ -30,8 +30,8 @@ ALL_PERMISSIONS = [
     "Concord.Admin.Inventory.Manage",
     "Concord.Admin.Codebases.View",
     "Concord.Admin.Codebases.Manage",
-    "Concord.Admin.Products.View",
-    "Concord.Admin.Products.Manage",
+    "Concord.Admin.Catalog.View",
+    "Concord.Admin.Catalog.Manage",
     "Concord.Admin.History.View",
     "Concord.Admin.System.View",
     "Concord.Admin.System.Manage",
@@ -54,8 +54,8 @@ ADMIN_PERMISSIONS = [
     "Concord.Admin.Inventory.Manage",
     "Concord.Admin.Codebases.View",
     "Concord.Admin.Codebases.Manage",
-    "Concord.Admin.Products.View",
-    "Concord.Admin.Products.Manage",
+    "Concord.Admin.Catalog.View",
+    "Concord.Admin.Catalog.Manage",
     "Concord.Admin.History.View",
     "Concord.Admin.System.View",
     "Concord.Admin.Nodes.View",
@@ -149,6 +149,29 @@ def seed():
             },
         )
         print(f"Permission set 'Viewer' ready (id: {viewer_set.id})")
+
+        # Seed default chipsets
+        default_chipsets = [
+            {"name": "nRF52840", "manufacturer": "Nordic Semiconductor", "isModem": False},
+            {"name": "nRF9151", "manufacturer": "Nordic Semiconductor", "isModem": True},
+            {"name": "nRF9160", "manufacturer": "Nordic Semiconductor", "isModem": True},
+        ]
+        for chip in default_chipsets:
+            chipset = db.chipset.upsert(
+                where={"name": chip["name"]},
+                data={
+                    "create": {
+                        "name": chip["name"],
+                        "manufacturer": chip["manufacturer"],
+                        "isModem": chip["isModem"],
+                    },
+                    "update": {
+                        "manufacturer": chip["manufacturer"],
+                        "isModem": chip["isModem"],
+                    },
+                },
+            )
+            print(f"Chipset '{chip['name']}' ready (id: {chipset.id})")
 
         # Backfill existing users that have no permission set
         users_without_set = db.user.find_many(where={"permissionSetId": None})

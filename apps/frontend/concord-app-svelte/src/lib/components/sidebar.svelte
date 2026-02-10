@@ -5,24 +5,24 @@
   import {
     LayoutDashboard,
     FlaskConical,
-    Server,
+    Warehouse,
     Wrench,
     Settings,
     Users,
-    ShieldCheck,
     Cpu,
     Package,
     GitBranch,
-    BookOpen,
     History,
     LogOut,
     PanelLeftClose,
-    Monitor
+    Monitor,
+    Rocket
   } from 'lucide-svelte';
   import { PUBLIC_APP_VERSION } from '$env/static/public';
   import { getTheme } from '$lib/stores/theme.svelte';
   import { getAuth } from '$lib/stores/auth.svelte';
   import ConcordLogo from '$lib/components/concord-logo.svelte';
+  import KubernetesIcon from '$lib/components/icons/kubernetes-icon.svelte';
 
   interface NavItem {
     to: string;
@@ -77,14 +77,14 @@
 
   const adminItems: NavItem[] = [
     { to: '/mtib', icon: Cpu, label: 'MTIB', permission: 'Concord.Admin.Nodes.View' },
-    { to: '/system', icon: Monitor, label: 'System', permission: 'Concord.Admin.System.View' },
-    { to: '/inventory', icon: Server, label: 'Inventory', permission: 'Concord.Admin.Inventory.View' },
+    { to: '/kubernetes', icon: KubernetesIcon, label: 'Kubernetes', permission: 'Concord.Admin.System.View' },
+    { to: '/deployments', icon: Rocket, label: 'Deployments', permission: 'Concord.Admin.Deployments.View' },
+    { to: '/inventory', icon: Warehouse, label: 'Inventory', permission: 'Concord.Admin.Inventory.View' },
+    { to: '/catalog', icon: Package, label: 'Catalog', permission: 'Concord.Admin.Catalog.View' },
+    { to: '/fixtures', icon: Wrench, label: 'Fixtures', permission: 'Concord.Admin.Fixtures.View' },
     { to: '/codebases', icon: GitBranch, label: 'Codebases', permission: 'Concord.Admin.Codebases.View' },
-    { to: '/products', icon: Package, label: 'Products', permission: 'Concord.Admin.Products.View' },
     { to: '/history', icon: History, label: 'History', permission: 'Concord.Admin.History.View' },
-    { to: '/guides', icon: BookOpen, label: 'Guides' },
     { to: '/users', icon: Users, label: 'Users', permission: 'Concord.Admin.Users.View' },
-    { to: '/permission-sets', icon: ShieldCheck, label: 'Permission Sets', permission: 'Concord.Admin.Users.View' },
   ];
 
   const visibleAdminItems = $derived(

@@ -1,5 +1,5 @@
 """
-Unit tests for product types validation in src/api/v2/products/types.py.
+Unit tests for catalog types validation in src/api/v2/catalog/types.py.
 
 Tests all from_json() methods and to_update_data() methods.
 """
@@ -7,8 +7,11 @@ Tests all from_json() methods and to_update_data() methods.
 import pytest
 
 
+# ── Product Types ──────────────────────────────────────
+
+
 def test_product_create_valid():
-    from src.api.v2.products.types import ProductCreateRequest
+    from src.api.v2.catalog.types import ProductCreateRequest
 
     data = {"name": "Sigma5 Device", "description": "IoT sensor", "active": True}
     req, err = ProductCreateRequest.from_json(data)
@@ -21,7 +24,7 @@ def test_product_create_valid():
 
 
 def test_product_create_missing_name():
-    from src.api.v2.products.types import ProductCreateRequest
+    from src.api.v2.catalog.types import ProductCreateRequest
 
     data = {"description": "IoT sensor"}
     req, err = ProductCreateRequest.from_json(data)
@@ -31,7 +34,7 @@ def test_product_create_missing_name():
 
 
 def test_product_create_empty_body():
-    from src.api.v2.products.types import ProductCreateRequest
+    from src.api.v2.catalog.types import ProductCreateRequest
 
     req, err = ProductCreateRequest.from_json(None)
     assert req is None
@@ -48,7 +51,7 @@ def test_product_create_empty_body():
 
 
 def test_product_create_active_non_bool():
-    from src.api.v2.products.types import ProductCreateRequest
+    from src.api.v2.catalog.types import ProductCreateRequest
 
     data = {"name": "Product", "active": "true"}
     req, err = ProductCreateRequest.from_json(data)
@@ -58,7 +61,7 @@ def test_product_create_active_non_bool():
 
 
 def test_product_update_valid():
-    from src.api.v2.products.types import ProductUpdateRequest
+    from src.api.v2.catalog.types import ProductUpdateRequest
 
     data = {"name": "Updated Product", "active": False}
     req, err = ProductUpdateRequest.from_json(data)
@@ -73,7 +76,7 @@ def test_product_update_valid():
 
 
 def test_product_update_no_fields():
-    from src.api.v2.products.types import ProductUpdateRequest
+    from src.api.v2.catalog.types import ProductUpdateRequest
 
     req, err = ProductUpdateRequest.from_json(None)
     assert req is None
@@ -86,7 +89,7 @@ def test_product_update_no_fields():
 
 
 def test_product_update_empty_name():
-    from src.api.v2.products.types import ProductUpdateRequest
+    from src.api.v2.catalog.types import ProductUpdateRequest
 
     data = {"name": "   "}
     req, err = ProductUpdateRequest.from_json(data)
@@ -96,7 +99,7 @@ def test_product_update_empty_name():
 
 
 def test_product_update_to_update_data():
-    from src.api.v2.products.types import ProductUpdateRequest
+    from src.api.v2.catalog.types import ProductUpdateRequest
 
     data = {"description": None, "active": True}
     req, err = ProductUpdateRequest.from_json(data)
@@ -111,23 +114,185 @@ def test_product_update_to_update_data():
     assert "name" not in update_data
 
 
-def test_board_revision_create_valid():
-    from src.api.v2.products.types import BoardRevisionCreateRequest
+# ── Chipset Types ──────────────────────────────────────
 
-    data = {"version": "v1.2", "chipsets": ["nRF9160", "nRF52840"], "status": "ACTIVE"}
+
+def test_chipset_create_valid():
+    from src.api.v2.catalog.types import ChipsetCreateRequest
+
+    data = {"name": "nRF52840", "manufacturer": "Nordic Semiconductor", "isModem": False}
+    req, err = ChipsetCreateRequest.from_json(data)
+
+    assert err is None
+    assert req is not None
+    assert req.name == "nRF52840"
+    assert req.manufacturer == "Nordic Semiconductor"
+    assert req.isModem is False
+    assert req.active is True
+
+
+def test_chipset_create_missing_name():
+    from src.api.v2.catalog.types import ChipsetCreateRequest
+
+    data = {"manufacturer": "Nordic"}
+    req, err = ChipsetCreateRequest.from_json(data)
+
+    assert req is None
+    assert err == "Name is required"
+
+
+def test_chipset_create_empty_body():
+    from src.api.v2.catalog.types import ChipsetCreateRequest
+
+    req, err = ChipsetCreateRequest.from_json(None)
+    assert req is None
+    assert err == "Request body must contain JSON data"
+
+
+def test_chipset_create_invalid_is_modem():
+    from src.api.v2.catalog.types import ChipsetCreateRequest
+
+    data = {"name": "nRF9160", "isModem": "yes"}
+    req, err = ChipsetCreateRequest.from_json(data)
+
+    assert req is None
+    assert err == "isModem must be a boolean"
+
+
+def test_chipset_update_valid():
+    from src.api.v2.catalog.types import ChipsetUpdateRequest
+
+    data = {"name": "nRF9151", "isModem": True}
+    req, err = ChipsetUpdateRequest.from_json(data)
+
+    assert err is None
+    assert req is not None
+    assert req.name == "nRF9151"
+    assert req.isModem is True
+
+    update_data = req.to_update_data()
+    assert update_data == {"name": "nRF9151", "isModem": True}
+
+
+def test_chipset_update_no_fields():
+    from src.api.v2.catalog.types import ChipsetUpdateRequest
+
+    req, err = ChipsetUpdateRequest.from_json({})
+    assert req is None
+    assert err == "Request body must contain JSON data"
+
+
+def test_chipset_update_empty_name():
+    from src.api.v2.catalog.types import ChipsetUpdateRequest
+
+    data = {"name": "   "}
+    req, err = ChipsetUpdateRequest.from_json(data)
+
+    assert req is None
+    assert err == "Name cannot be empty"
+
+
+def test_chipset_update_to_update_data_nullable():
+    from src.api.v2.catalog.types import ChipsetUpdateRequest
+
+    data = {"manufacturer": None, "description": None}
+    req, err = ChipsetUpdateRequest.from_json(data)
+
+    assert err is None
+    update_data = req.to_update_data()
+    assert "manufacturer" in update_data
+    assert update_data["manufacturer"] is None
+    assert "description" in update_data
+    assert update_data["description"] is None
+
+
+# ── Board Types ────────────────────────────────────────
+
+
+def test_board_create_valid():
+    from src.api.v2.catalog.types import BoardCreateRequest
+
+    data = {"name": "Main Board", "description": "Primary PCB", "active": True}
+    req, err = BoardCreateRequest.from_json(data)
+
+    assert err is None
+    assert req is not None
+    assert req.name == "Main Board"
+    assert req.description == "Primary PCB"
+    assert req.active is True
+
+
+def test_board_create_missing_name():
+    from src.api.v2.catalog.types import BoardCreateRequest
+
+    data = {"description": "A board"}
+    req, err = BoardCreateRequest.from_json(data)
+
+    assert req is None
+    assert err == "Name is required"
+
+
+def test_board_create_empty_body():
+    from src.api.v2.catalog.types import BoardCreateRequest
+
+    req, err = BoardCreateRequest.from_json(None)
+    assert req is None
+    assert err == "Request body must contain JSON data"
+
+
+def test_board_update_valid():
+    from src.api.v2.catalog.types import BoardUpdateRequest
+
+    data = {"name": "Updated Board", "active": False}
+    req, err = BoardUpdateRequest.from_json(data)
+
+    assert err is None
+    assert req is not None
+    assert req.name == "Updated Board"
+    assert req.active is False
+
+    update_data = req.to_update_data()
+    assert update_data == {"name": "Updated Board", "active": False}
+
+
+def test_board_update_no_fields():
+    from src.api.v2.catalog.types import BoardUpdateRequest
+
+    req, err = BoardUpdateRequest.from_json({})
+    assert req is None
+    assert err == "Request body must contain JSON data"
+
+
+def test_board_update_empty_name():
+    from src.api.v2.catalog.types import BoardUpdateRequest
+
+    data = {"name": "   "}
+    req, err = BoardUpdateRequest.from_json(data)
+
+    assert req is None
+    assert err == "Name cannot be empty"
+
+
+# ── Board Revision Types ──────────────────────────────
+
+
+def test_board_revision_create_valid():
+    from src.api.v2.catalog.types import BoardRevisionCreateRequest
+
+    data = {"version": "v1.2", "chipsetIds": ["chip-1", "chip-2"], "status": "ACTIVE"}
     req, err = BoardRevisionCreateRequest.from_json(data)
 
     assert err is None
     assert req is not None
     assert req.version == "v1.2"
-    assert req.chipsets == ["nRF9160", "nRF52840"]
+    assert req.chipsetIds == ["chip-1", "chip-2"]
     assert req.status == "ACTIVE"
 
 
 def test_board_revision_create_missing_version():
-    from src.api.v2.products.types import BoardRevisionCreateRequest
+    from src.api.v2.catalog.types import BoardRevisionCreateRequest
 
-    data = {"chipsets": ["nRF9160"]}
+    data = {"chipsetIds": ["chip-1"]}
     req, err = BoardRevisionCreateRequest.from_json(data)
 
     assert req is None
@@ -135,7 +300,7 @@ def test_board_revision_create_missing_version():
 
 
 def test_board_revision_create_invalid_status():
-    from src.api.v2.products.types import BoardRevisionCreateRequest
+    from src.api.v2.catalog.types import BoardRevisionCreateRequest
 
     data = {"version": "v1.0", "status": "INVALID_STATUS"}
     req, err = BoardRevisionCreateRequest.from_json(data)
@@ -144,18 +309,18 @@ def test_board_revision_create_invalid_status():
     assert err == "Status must be ACTIVE, DEPRECATED, or EOL"
 
 
-def test_board_revision_create_invalid_chipset():
-    from src.api.v2.products.types import BoardRevisionCreateRequest
+def test_board_revision_create_invalid_chipset_ids():
+    from src.api.v2.catalog.types import BoardRevisionCreateRequest
 
-    data = {"version": "v1.0", "chipsets": ["InvalidChipset"]}
+    data = {"version": "v1.0", "chipsetIds": "not-an-array"}
     req, err = BoardRevisionCreateRequest.from_json(data)
 
     assert req is None
-    assert "Unsupported SoC(s): InvalidChipset" in err
+    assert err == "chipsetIds must be an array of strings"
 
 
 def test_board_revision_update_valid():
-    from src.api.v2.products.types import BoardRevisionUpdateRequest
+    from src.api.v2.catalog.types import BoardRevisionUpdateRequest
 
     data = {"version": "v2.0", "status": "DEPRECATED"}
     req, err = BoardRevisionUpdateRequest.from_json(data)
@@ -171,7 +336,7 @@ def test_board_revision_update_valid():
 
 
 def test_board_revision_update_no_fields():
-    from src.api.v2.products.types import BoardRevisionUpdateRequest
+    from src.api.v2.catalog.types import BoardRevisionUpdateRequest
 
     req, err = BoardRevisionUpdateRequest.from_json(None)
     assert req is None
@@ -183,147 +348,48 @@ def test_board_revision_update_no_fields():
     assert err == "Request body must contain JSON data"
 
 
-def test_board_revision_update_invalid_chipset():
-    from src.api.v2.products.types import BoardRevisionUpdateRequest
+def test_board_revision_update_chipset_ids():
+    from src.api.v2.catalog.types import BoardRevisionUpdateRequest
 
-    data = {"chipsets": ["InvalidChipset"]}
+    data = {"chipsetIds": ["chip-1", "chip-2"]}
     req, err = BoardRevisionUpdateRequest.from_json(data)
 
-    assert req is None
-    assert "Unsupported SoC(s): InvalidChipset" in err
+    assert err is None
+    assert req._has_chipset_ids is True
+    assert req.chipsetIds == ["chip-1", "chip-2"]
+    # chipsetIds are handled separately, not in to_update_data()
+    update_data = req.to_update_data()
+    assert "chipsetIds" not in update_data
+
+
+def test_board_revision_update_selected_builds():
+    from src.api.v2.catalog.types import BoardRevisionUpdateRequest
+
+    data = {"selectedBuilds": {"chip-1": "build-1", "chip-2": "build-2"}}
+    req, err = BoardRevisionUpdateRequest.from_json(data)
+
+    assert err is None
+    assert req._has_selected_builds is True
+    assert req.selectedBuilds == {"chip-1": "build-1", "chip-2": "build-2"}
 
 
 def test_board_revision_update_to_update_data():
-    from src.api.v2.products.types import BoardRevisionUpdateRequest
+    from src.api.v2.catalog.types import BoardRevisionUpdateRequest
 
-    data = {"notes": None, "chipsets": ["nRF9160"]}
+    data = {"notes": None}
     req, err = BoardRevisionUpdateRequest.from_json(data)
 
     assert err is None
     update_data = req.to_update_data()
     assert "notes" in update_data
     assert update_data["notes"] is None
-    assert update_data["chipsets"] == ["nRF9160"]
 
 
-def test_firmware_app_create_valid():
-    from src.api.v2.products.types import FirmwareAppCreateRequest
-
-    data = {
-        "applicationId": 42,
-        "name": "Sigma5 Main App",
-        "targetMcu": "nRF9160",
-        "chipset": "Sigma5 Cx",
-    }
-    req, err = FirmwareAppCreateRequest.from_json(data)
-
-    assert err is None
-    assert req is not None
-    assert req.applicationId == 42
-    assert req.name == "Sigma5 Main App"
-    assert req.targetMcu == "nRF9160"
-    assert req.chipset == "Sigma5 Cx"
-
-
-def test_firmware_app_create_missing_application_id():
-    from src.api.v2.products.types import FirmwareAppCreateRequest
-
-    data = {"name": "Test App"}
-    req, err = FirmwareAppCreateRequest.from_json(data)
-
-    assert req is None
-    assert err == "Application ID is required"
-
-
-def test_firmware_app_create_negative_application_id():
-    from src.api.v2.products.types import FirmwareAppCreateRequest
-
-    data = {"applicationId": -1, "name": "Test App"}
-    req, err = FirmwareAppCreateRequest.from_json(data)
-
-    assert req is None
-    assert err == "Application ID must be a non-negative integer"
-
-
-def test_firmware_app_create_invalid_chipset():
-    from src.api.v2.products.types import FirmwareAppCreateRequest
-
-    data = {"applicationId": 1, "name": "Test App", "chipset": "InvalidChipset"}
-    req, err = FirmwareAppCreateRequest.from_json(data)
-
-    assert req is None
-    assert "Unsupported chipset: InvalidChipset" in err
-
-
-def test_firmware_app_create_invalid_target_mcu_for_chipset():
-    from src.api.v2.products.types import FirmwareAppCreateRequest
-
-    data = {
-        "applicationId": 1,
-        "name": "Test App",
-        "chipset": "Sigma5 Cx",
-        "targetMcu": "nRF9151",  # Not valid for Sigma5 Cx
-    }
-    req, err = FirmwareAppCreateRequest.from_json(data)
-
-    assert req is None
-    assert "Target MCU 'nRF9151' is not valid for chipset 'Sigma5 Cx'" in err
-
-
-def test_firmware_app_update_valid():
-    from src.api.v2.products.types import FirmwareAppUpdateRequest
-
-    data = {"name": "Updated App", "chipset": "Alpha Bx"}
-    req, err = FirmwareAppUpdateRequest.from_json(data)
-
-    assert err is None
-    assert req is not None
-    assert req.name == "Updated App"
-    assert req.chipset == "Alpha Bx"
-
-    update_data = req.to_update_data()
-    assert update_data["name"] == "Updated App"
-    assert update_data["chipset"] == "Alpha Bx"
-
-
-def test_firmware_app_update_no_fields():
-    from src.api.v2.products.types import FirmwareAppUpdateRequest
-
-    req, err = FirmwareAppUpdateRequest.from_json(None)
-    assert req is None
-    assert err == "Request body must contain JSON data"
-
-    # Empty dict is also falsy, so same error
-    req, err = FirmwareAppUpdateRequest.from_json({})
-    assert req is None
-    assert err == "Request body must contain JSON data"
-
-
-def test_firmware_app_update_invalid_chipset():
-    from src.api.v2.products.types import FirmwareAppUpdateRequest
-
-    data = {"chipset": "InvalidChipset"}
-    req, err = FirmwareAppUpdateRequest.from_json(data)
-
-    assert req is None
-    assert "Unsupported chipset: InvalidChipset" in err
-
-
-def test_firmware_app_update_to_update_data():
-    from src.api.v2.products.types import FirmwareAppUpdateRequest
-
-    data = {"notes": None, "targetMcu": "nRF52840"}
-    req, err = FirmwareAppUpdateRequest.from_json(data)
-
-    assert err is None
-    update_data = req.to_update_data()
-    assert "notes" in update_data
-    assert update_data["notes"] is None
-    assert update_data["targetMcu"] == "nRF52840"
+# ── Firmware Build Types ──────────────────────────────
 
 
 def test_firmware_build_update_valid():
-    from src.api.v2.products.types import FirmwareBuildUpdateRequest
+    from src.api.v2.catalog.types import FirmwareBuildUpdateRequest
 
     data = {"status": "RELEASED", "notes": "Production ready"}
     req, err = FirmwareBuildUpdateRequest.from_json(data)
@@ -339,7 +405,7 @@ def test_firmware_build_update_valid():
 
 
 def test_firmware_build_update_invalid_status():
-    from src.api.v2.products.types import FirmwareBuildUpdateRequest
+    from src.api.v2.catalog.types import FirmwareBuildUpdateRequest
 
     data = {"status": "INVALID_STATUS"}
     req, err = FirmwareBuildUpdateRequest.from_json(data)
@@ -349,7 +415,7 @@ def test_firmware_build_update_invalid_status():
 
 
 def test_firmware_build_update_no_fields():
-    from src.api.v2.products.types import FirmwareBuildUpdateRequest
+    from src.api.v2.catalog.types import FirmwareBuildUpdateRequest
 
     req, err = FirmwareBuildUpdateRequest.from_json(None)
     assert req is None
@@ -362,7 +428,7 @@ def test_firmware_build_update_no_fields():
 
 
 def test_firmware_build_update_to_update_data():
-    from src.api.v2.products.types import FirmwareBuildUpdateRequest
+    from src.api.v2.catalog.types import FirmwareBuildUpdateRequest
 
     data = {"notes": None}
     req, err = FirmwareBuildUpdateRequest.from_json(data)

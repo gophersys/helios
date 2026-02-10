@@ -171,8 +171,26 @@ model AuditLog {
 }
 
 // ─────────────────────────────────────────────────────────────
-//                                       Products & Fixtures
+//                                       Products & Catalog
 // ─────────────────────────────────────────────────────────────
+
+/// A chipset / SoC that can be placed on a board revision.
+/// First-class entity — new chipsets can be added via UI without code changes.
+model Chipset {
+    id           String   @id @default(cuid())
+    name         String   @unique /// "nRF52840", "nRF9151", "ESP32"
+    manufacturer String? /// "Nordic Semiconductor"
+    isModem      Boolean  @default(false)
+    description  String?
+    active       Boolean  @default(true)
+    createdAt    DateTime @default(now())
+    updatedAt    DateTime @updatedAt
+
+    boardRevisionChipsets BoardRevisionChipset[]
+    firmwareBuilds        FirmwareBuild[]
+
+    @@map("chipsets")
+}
 
 /// A hardware product that Concord tests: Sigma5, Theta, Alpha, etc.
 /// Everything flows from here — fixtures, tests, sessions.
@@ -181,89 +199,94 @@ model Product {
     name        String   @unique
     description String?
     active      Boolean  @default(true)
-    metadata    Json? /// chipset info, firmware paths, product-specific config
+    metadata    Json? /// firmware paths, product-specific config
     createdAt   DateTime @default(now())
     updatedAt   DateTime @updatedAt
 
-    fixtures             Fixture[]
-    tests                Test[]
-    sessions             Session[]
-    deployments          Deployment[]
-    boardRevisions       ProductBoardRevision[]
-    firmwareApplications FirmwareApplication[]
-    firmwareBuilds       FirmwareBuild[]
+    fixtures       Fixture[]
+    tests          Test[]
+    sessions       Session[]
+    deployments    Deployment[]
+    boards         Board[]
+    firmwareBuilds FirmwareBuild[]
 
     @@map("products")
 }
 
-/// A board revision for a product (e.g. A0, B0, B1).
-model ProductBoardRevision {
-    id        String         @id @default(cuid())
-    productId String
-    version   String /// e.g. "A0", "B0", "B1"
-    chipsets   String[] /// e.g. ["nRF5340", "nRF9160"]
-    status    RevisionStatus @default(ACTIVE)
-    notes     String?
-    createdAt DateTime       @default(now())
-    updatedAt DateTime       @updatedAt
+/// A distinct PCB design within a product (e.g. "Main Board", "Sensor Board").
+model Board {
+    id          String   @id @default(cuid())
+    productId   String
+    name        String /// "Main Board", "Sensor Board"
+    description String?
+    active      Boolean  @default(true)
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
 
-    product        Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
-    firmwareBuilds FirmwareBuild[]
+    product   Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
+    revisions BoardRevision[]
 
-    @@unique([productId, version])
-    @@map("product_board_revisions")
+    @@unique([productId, name])
+    @@map("boards")
 }
 
-/// A firmware application definition for a product (from Application ID table).
-model FirmwareApplication {
-    id                   String   @id @default(cuid())
-    productId            String
-    applicationId        Int /// Application ID number
-    name                 String /// e.g. "Bootloader", "Main App", "Modem FW"
-    targetMcu            String? /// e.g. "nRF5340 App Core", "nRF9160"
-    chipset              String? /// e.g. "nRF5340", "nRF9160"
-    coreCloudDeviceType  String? /// Core Cloud device type identifier
-    coreCloudVariant     String? /// Core Cloud variant
-    notes                String?
-    createdAt            DateTime @default(now())
-    updatedAt            DateTime @updatedAt
+/// A board revision (e.g. A0, B0, B1) — a specific version of a Board PCB.
+model BoardRevision {
+    id              String         @id @default(cuid())
+    boardId         String
+    version         String /// e.g. "A0", "B0", "B1"
+    selectedBuilds  Json? /// Per-chipset build selection: {"<chipsetId>": "build-id", ...}
+    status          RevisionStatus @default(ACTIVE)
+    notes           String?
+    createdAt       DateTime       @default(now())
+    updatedAt       DateTime       @updatedAt
 
-    product        Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
-    firmwareBuilds FirmwareBuild[]
+    board    Board                  @relation(fields: [boardId], references: [id], onDelete: Cascade)
+    chipsets BoardRevisionChipset[]
 
-    @@unique([productId, applicationId])
-    @@map("firmware_applications")
+    @@unique([boardId, version])
+    @@map("board_revisions")
+}
+
+/// Join table linking board revisions to chipsets (many-to-many).
+model BoardRevisionChipset {
+    id              String @id @default(cuid())
+    boardRevisionId String
+    chipsetId       String
+
+    boardRevision BoardRevision @relation(fields: [boardRevisionId], references: [id], onDelete: Cascade)
+    chipset       Chipset       @relation(fields: [chipsetId], references: [id], onDelete: Restrict)
+
+    @@unique([boardRevisionId, chipsetId])
+    @@map("board_revision_chipsets")
 }
 
 /// An uploaded firmware build file with version metadata.
 model FirmwareBuild {
     id               String              @id @default(cuid())
     productId        String
-    applicationId    String /// FK to FirmwareApplication
-    boardRevisionId  String? /// FK to ProductBoardRevision (optional)
+    chipsetId        String /// FK to Chipset
     version          String /// Semantic version string "1.0.0"
-    majorVersion     Int
-    minorVersion     Int
-    buildNumber      Int
-    bootloaderId     String? /// Reference to bootloader build
     isManufacturing  Boolean             @default(false)
     storageKey       String /// MinIO object key
     filename         String
     sizeBytes        BigInt
     checksum         String /// SHA-256 hex digest
     contentType      String?
+    modemStorageKey  String? /// MinIO key for modem firmware zip (modem targets only)
+    modemFilename    String?
+    modemSizeBytes   BigInt?
+    modemChecksum    String? /// SHA-256 hex digest of modem file
     status           FirmwareBuildStatus @default(DRAFT)
     notes            String?
     createdAt        DateTime            @default(now())
     updatedAt        DateTime            @updatedAt
 
-    product        Product               @relation(fields: [productId], references: [id], onDelete: Cascade)
-    application    FirmwareApplication   @relation(fields: [applicationId], references: [id])
-    boardRevision  ProductBoardRevision? @relation(fields: [boardRevisionId], references: [id], onDelete: SetNull)
+    product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+    chipset Chipset @relation(fields: [chipsetId], references: [id], onDelete: Restrict)
 
-    @@unique([applicationId, version])
+    @@unique([productId, chipsetId, version])
     @@index([productId])
-    @@index([applicationId])
     @@map("firmware_builds")
 }
 

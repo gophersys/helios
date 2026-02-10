@@ -240,6 +240,19 @@ def _build_spec() -> APISpec:
             "updatedAt": {"type": "string", "format": "date-time"},
         },
     })
+    spec.components.schema("Chipset", {
+        "type": "object",
+        "properties": {
+            "id": {"type": "string"},
+            "name": {"type": "string"},
+            "manufacturer": {"type": "string", "nullable": True},
+            "isModem": {"type": "boolean"},
+            "description": {"type": "string", "nullable": True},
+            "active": {"type": "boolean"},
+            "createdAt": {"type": "string", "format": "date-time"},
+            "updatedAt": {"type": "string", "format": "date-time"},
+        },
+    })
     spec.components.schema("Product", {
         "type": "object",
         "properties": {
@@ -248,39 +261,37 @@ def _build_spec() -> APISpec:
             "description": {"type": "string", "nullable": True},
             "active": {"type": "boolean"},
             "metadata": {"type": "object", "nullable": True},
+            "boardCount": {"type": "integer"},
+            "firmwareBuildCount": {"type": "integer"},
             "createdAt": {"type": "string", "format": "date-time"},
             "updatedAt": {"type": "string", "format": "date-time"},
-            "boardRevisionCount": {"type": "integer"},
-            "firmwareAppCount": {"type": "integer"},
-            "firmwareBuildCount": {"type": "integer"},
+        },
+    })
+    spec.components.schema("Board", {
+        "type": "object",
+        "properties": {
+            "id": {"type": "string"},
+            "productId": {"type": "string"},
+            "name": {"type": "string"},
+            "description": {"type": "string", "nullable": True},
+            "active": {"type": "boolean"},
+            "revisionCount": {"type": "integer"},
+            "createdAt": {"type": "string", "format": "date-time"},
+            "updatedAt": {"type": "string", "format": "date-time"},
         },
     })
     spec.components.schema("BoardRevision", {
         "type": "object",
         "properties": {
             "id": {"type": "string"},
-            "productId": {"type": "string"},
+            "boardId": {"type": "string"},
             "version": {"type": "string"},
-            "chipsets": {"type": "array", "items": {"type": "string"}},
+            "chipsets": {"type": "array", "items": {"type": "object", "properties": {
+                "id": {"type": "string"}, "name": {"type": "string"}, "isModem": {"type": "boolean"},
+            }}},
+            "selectedBuilds": {"type": "object"},
             "status": {"type": "string", "enum": ["ACTIVE", "DEPRECATED", "EOL"]},
             "notes": {"type": "string", "nullable": True},
-            "createdAt": {"type": "string", "format": "date-time"},
-            "updatedAt": {"type": "string", "format": "date-time"},
-        },
-    })
-    spec.components.schema("FirmwareApp", {
-        "type": "object",
-        "properties": {
-            "id": {"type": "string"},
-            "productId": {"type": "string"},
-            "applicationId": {"type": "integer"},
-            "name": {"type": "string"},
-            "targetMcu": {"type": "string", "nullable": True},
-            "chipset": {"type": "string", "nullable": True},
-            "coreCloudDeviceType": {"type": "string", "nullable": True},
-            "coreCloudVariant": {"type": "string", "nullable": True},
-            "notes": {"type": "string", "nullable": True},
-            "buildCount": {"type": "integer"},
             "createdAt": {"type": "string", "format": "date-time"},
             "updatedAt": {"type": "string", "format": "date-time"},
         },
@@ -290,13 +301,11 @@ def _build_spec() -> APISpec:
         "properties": {
             "id": {"type": "string"},
             "productId": {"type": "string"},
-            "applicationId": {"type": "string"},
-            "boardRevisionId": {"type": "string", "nullable": True},
+            "chipsetId": {"type": "string"},
+            "chipset": {"type": "object", "nullable": True, "properties": {
+                "id": {"type": "string"}, "name": {"type": "string"}, "isModem": {"type": "boolean"},
+            }},
             "version": {"type": "string"},
-            "majorVersion": {"type": "integer"},
-            "minorVersion": {"type": "integer"},
-            "buildNumber": {"type": "integer"},
-            "bootloaderId": {"type": "string", "nullable": True},
             "isManufacturing": {"type": "boolean"},
             "storageKey": {"type": "string"},
             "filename": {"type": "string"},
@@ -305,8 +314,6 @@ def _build_spec() -> APISpec:
             "contentType": {"type": "string", "nullable": True},
             "status": {"type": "string", "enum": ["DRAFT", "RELEASED", "DEPRECATED"]},
             "notes": {"type": "string", "nullable": True},
-            "applicationName": {"type": "string"},
-            "boardRevisionVersion": {"type": "string", "nullable": True},
             "createdAt": {"type": "string", "format": "date-time"},
             "updatedAt": {"type": "string", "format": "date-time"},
         },
@@ -499,7 +506,7 @@ def _build_spec() -> APISpec:
     for tag in [
         "Auth", "Users", "Permission Sets", "API Keys", "Permissions",
         "Inventory Components", "Inventory Assemblies", "Inventory Image",
-        "Products", "Board Revisions", "Firmware Applications", "Firmware Builds",
+        "Catalog", "Chipsets", "Boards", "Board Revisions", "Firmware Builds",
         "Codebases", "Releases", "Artifacts", "System", "MTIB", "Admin",
         "Nodes", "Fixtures", "Fixture Slots", "Deployments",
         "Validation", "Health",
@@ -978,25 +985,60 @@ def _build_spec() -> APISpec:
         },
     )
 
-    # ── Products ─────────────────────────────────────────────────
-    path("/products/chipsets", get={
-        "tags": ["Products"], "summary": "Get supported chipsets and SoCs", "security": _auth_security,
-        "responses": {"200": _ok({"type": "object", "properties": {
-            "chipsets": {"type": "array", "items": {"type": "object", "properties": {
-                "name": {"type": "string"},
-                "targetMcus": {"type": "array", "items": {"type": "string"}},
-            }}},
-            "supportedSocs": {"type": "array", "items": {"type": "string"}},
-        }}), "401": _401, "403": _403},
-    })
-    path("/products",
+    # ── Catalog ───────────────────────────────────────────────────
+
+    # Chipsets CRUD
+    path("/catalog/chipsets",
         get={
-            "tags": ["Products"], "summary": "List all products", "security": _auth_security,
+            "tags": ["Chipsets"], "summary": "List all chipsets", "security": _auth_security,
+            "parameters": _pagination_params,
+            "responses": {"200": _paginated("Chipset")},
+        },
+        post={
+            "tags": ["Chipsets"], "summary": "Create a chipset", "security": _auth_security,
+            "requestBody": {"required": True, "content": {"application/json": {"schema": {
+                "type": "object", "required": ["name"],
+                "properties": {
+                    "name": {"type": "string"}, "manufacturer": {"type": "string"},
+                    "isModem": {"type": "boolean", "default": False},
+                    "description": {"type": "string"}, "active": {"type": "boolean", "default": True},
+                },
+            }}}},
+            "responses": {"201": _ok("Chipset"), "400": _400, "409": _409},
+        },
+    )
+    path("/catalog/chipsets/{chipset_id}",
+        parameters=[{"name": "chipset_id", "in": "path", "required": True, "schema": {"type": "string"}}],
+        get={
+            "tags": ["Chipsets"], "summary": "Get a chipset", "security": _auth_security,
+            "responses": {"200": _ok("Chipset"), "404": _404},
+        },
+        put={
+            "tags": ["Chipsets"], "summary": "Update a chipset", "security": _auth_security,
+            "requestBody": {"required": True, "content": {"application/json": {"schema": {
+                "type": "object", "properties": {
+                    "name": {"type": "string"}, "manufacturer": {"type": "string"},
+                    "isModem": {"type": "boolean"}, "description": {"type": "string"},
+                    "active": {"type": "boolean"},
+                },
+            }}}},
+            "responses": {"200": _ok("Chipset"), "400": _400, "404": _404, "409": _409},
+        },
+        delete={
+            "tags": ["Chipsets"], "summary": "Delete a chipset", "security": _auth_security,
+            "responses": {"200": _deleted_resp, "404": _404, "409": _409},
+        },
+    )
+
+    # Products
+    path("/catalog",
+        get={
+            "tags": ["Catalog"], "summary": "List all products", "security": _auth_security,
             "parameters": _pagination_params,
             "responses": {"200": _paginated("Product")},
         },
         post={
-            "tags": ["Products"], "summary": "Create a product", "security": _auth_security,
+            "tags": ["Catalog"], "summary": "Create a product", "security": _auth_security,
             "requestBody": {"required": True, "content": {"application/json": {"schema": {
                 "type": "object", "required": ["name"],
                 "properties": {
@@ -1007,21 +1049,20 @@ def _build_spec() -> APISpec:
             "responses": {"201": _ok("Product"), "400": _400, "409": _409},
         },
     )
-    path("/products/{product_id}",
+    path("/catalog/{product_id}",
         parameters=[{"name": "product_id", "in": "path", "required": True, "schema": {"type": "string"}}],
         get={
-            "tags": ["Products"], "summary": "Get a product with children", "security": _auth_security,
+            "tags": ["Catalog"], "summary": "Get a product with children", "security": _auth_security,
             "responses": {"200": _ok({"allOf": [
                 {"$ref": "#/components/schemas/Product"},
                 {"type": "object", "properties": {
-                    "boardRevisions": {"type": "array", "items": {"$ref": "#/components/schemas/BoardRevision"}},
-                    "firmwareApplications": {"type": "array", "items": {"$ref": "#/components/schemas/FirmwareApp"}},
+                    "boards": {"type": "array", "items": {"$ref": "#/components/schemas/Board"}},
                     "firmwareBuilds": {"type": "array", "items": {"$ref": "#/components/schemas/FirmwareBuild"}},
                 }},
             ]}), "404": _404},
         },
         put={
-            "tags": ["Products"], "summary": "Update a product", "security": _auth_security,
+            "tags": ["Catalog"], "summary": "Update a product", "security": _auth_security,
             "requestBody": {"required": True, "content": {"application/json": {"schema": {
                 "type": "object", "properties": {
                     "name": {"type": "string"}, "description": {"type": "string"},
@@ -1031,21 +1072,73 @@ def _build_spec() -> APISpec:
             "responses": {"200": _ok("Product"), "400": _400, "404": _404, "409": _409},
         },
         delete={
-            "tags": ["Products"], "summary": "Delete a product", "security": _auth_security,
+            "tags": ["Catalog"], "summary": "Delete a product", "security": _auth_security,
             "responses": {"200": _deleted_resp, "404": _404, "409": _409},
         },
     )
 
-    # ── Board Revisions ──────────────────────────────────────────
-    path("/products/{product_id}/board-revisions",
+    # ── Boards ───────────────────────────────────────────────────
+    path("/catalog/{product_id}/boards",
         parameters=[{"name": "product_id", "in": "path", "required": True, "schema": {"type": "string"}}],
+        get={
+            "tags": ["Boards"], "summary": "List boards for a product", "security": _auth_security,
+            "responses": {"200": _ok("Board", array=True), "404": _404},
+        },
+        post={
+            "tags": ["Boards"], "summary": "Create a board", "security": _auth_security,
+            "requestBody": {"required": True, "content": {"application/json": {"schema": {
+                "type": "object", "required": ["name"],
+                "properties": {
+                    "name": {"type": "string"}, "description": {"type": "string"},
+                    "active": {"type": "boolean", "default": True},
+                },
+            }}}},
+            "responses": {"201": _ok("Board"), "400": _400, "404": _404, "409": _409},
+        },
+    )
+    path("/catalog/{product_id}/boards/{board_id}",
+        parameters=[
+            {"name": "product_id", "in": "path", "required": True, "schema": {"type": "string"}},
+            {"name": "board_id", "in": "path", "required": True, "schema": {"type": "string"}},
+        ],
+        get={
+            "tags": ["Boards"], "summary": "Get a board with revisions", "security": _auth_security,
+            "responses": {"200": _ok({"allOf": [
+                {"$ref": "#/components/schemas/Board"},
+                {"type": "object", "properties": {
+                    "revisions": {"type": "array", "items": {"$ref": "#/components/schemas/BoardRevision"}},
+                }},
+            ]}), "404": _404},
+        },
+        put={
+            "tags": ["Boards"], "summary": "Update a board", "security": _auth_security,
+            "requestBody": {"required": True, "content": {"application/json": {"schema": {
+                "type": "object", "properties": {
+                    "name": {"type": "string"}, "description": {"type": "string"},
+                    "active": {"type": "boolean"},
+                },
+            }}}},
+            "responses": {"200": _ok("Board"), "400": _400, "404": _404, "409": _409},
+        },
+        delete={
+            "tags": ["Boards"], "summary": "Delete a board", "security": _auth_security,
+            "responses": {"200": _deleted_resp, "404": _404, "409": _409},
+        },
+    )
+
+    # ── Board Revisions (nested under boards) ────────────────────
+    path("/catalog/{product_id}/boards/{board_id}/revisions",
+        parameters=[
+            {"name": "product_id", "in": "path", "required": True, "schema": {"type": "string"}},
+            {"name": "board_id", "in": "path", "required": True, "schema": {"type": "string"}},
+        ],
         post={
             "tags": ["Board Revisions"], "summary": "Create a board revision", "security": _auth_security,
             "requestBody": {"required": True, "content": {"application/json": {"schema": {
                 "type": "object", "required": ["version"],
                 "properties": {
                     "version": {"type": "string"},
-                    "chipsets": {"type": "array", "items": {"type": "string"}},
+                    "chipsetIds": {"type": "array", "items": {"type": "string"}},
                     "status": {"type": "string", "enum": ["ACTIVE", "DEPRECATED", "EOL"], "default": "ACTIVE"},
                     "notes": {"type": "string"},
                 },
@@ -1053,9 +1146,10 @@ def _build_spec() -> APISpec:
             "responses": {"201": _ok("BoardRevision"), "400": _400, "404": _404, "409": _409},
         },
     )
-    path("/products/{product_id}/board-revisions/{revision_id}",
+    path("/catalog/{product_id}/boards/{board_id}/revisions/{revision_id}",
         parameters=[
             {"name": "product_id", "in": "path", "required": True, "schema": {"type": "string"}},
+            {"name": "board_id", "in": "path", "required": True, "schema": {"type": "string"}},
             {"name": "revision_id", "in": "path", "required": True, "schema": {"type": "string"}},
         ],
         put={
@@ -1063,7 +1157,8 @@ def _build_spec() -> APISpec:
             "requestBody": {"required": True, "content": {"application/json": {"schema": {
                 "type": "object", "properties": {
                     "version": {"type": "string"},
-                    "chipsets": {"type": "array", "items": {"type": "string"}},
+                    "chipsetIds": {"type": "array", "items": {"type": "string"}},
+                    "selectedBuilds": {"type": "object"},
                     "status": {"type": "string", "enum": ["ACTIVE", "DEPRECATED", "EOL"]},
                     "notes": {"type": "string"},
                 },
@@ -1072,74 +1167,34 @@ def _build_spec() -> APISpec:
         },
         delete={
             "tags": ["Board Revisions"], "summary": "Delete a board revision", "security": _auth_security,
-            "responses": {"200": _deleted_resp, "404": _404, "409": _409},
-        },
-    )
-
-    # ── Firmware Applications ────────────────────────────────────
-    path("/products/{product_id}/firmware-apps",
-        parameters=[{"name": "product_id", "in": "path", "required": True, "schema": {"type": "string"}}],
-        post={
-            "tags": ["Firmware Applications"], "summary": "Create a firmware application", "security": _auth_security,
-            "requestBody": {"required": True, "content": {"application/json": {"schema": {
-                "type": "object", "required": ["applicationId", "name"],
-                "properties": {
-                    "applicationId": {"type": "integer"}, "name": {"type": "string"},
-                    "targetMcu": {"type": "string"}, "chipset": {"type": "string"},
-                    "coreCloudDeviceType": {"type": "string"}, "coreCloudVariant": {"type": "string"},
-                    "notes": {"type": "string"},
-                },
-            }}}},
-            "responses": {"201": _ok("FirmwareApp"), "400": _400, "404": _404, "409": _409},
-        },
-    )
-    path("/products/{product_id}/firmware-apps/{app_id}",
-        parameters=[
-            {"name": "product_id", "in": "path", "required": True, "schema": {"type": "string"}},
-            {"name": "app_id", "in": "path", "required": True, "schema": {"type": "string"}},
-        ],
-        put={
-            "tags": ["Firmware Applications"], "summary": "Update a firmware application", "security": _auth_security,
-            "requestBody": {"required": True, "content": {"application/json": {"schema": {
-                "type": "object", "properties": {
-                    "name": {"type": "string"}, "targetMcu": {"type": "string"},
-                    "chipset": {"type": "string"}, "coreCloudDeviceType": {"type": "string"},
-                    "coreCloudVariant": {"type": "string"}, "notes": {"type": "string"},
-                },
-            }}}},
-            "responses": {"200": _ok("FirmwareApp"), "400": _400, "404": _404},
-        },
-        delete={
-            "tags": ["Firmware Applications"], "summary": "Delete a firmware application", "security": _auth_security,
-            "responses": {"200": _deleted_resp, "404": _404, "409": _409},
+            "responses": {"200": _deleted_resp, "404": _404},
         },
     )
 
     # ── Firmware Builds ──────────────────────────────────────────
-    path("/products/{product_id}/firmware-builds",
+    path("/catalog/{product_id}/firmware-builds",
         parameters=[{"name": "product_id", "in": "path", "required": True, "schema": {"type": "string"}}],
         get={
             "tags": ["Firmware Builds"], "summary": "List firmware builds for a product", "security": _auth_security,
             "parameters": [
-                {"name": "applicationId", "in": "query", "schema": {"type": "string"}},
+                {"name": "chipsetId", "in": "query", "schema": {"type": "string"}},
                 {"name": "status", "in": "query", "schema": {"type": "string", "enum": ["DRAFT", "RELEASED", "DEPRECATED"]}},
                 {"name": "isManufacturing", "in": "query", "schema": {"type": "boolean"}},
-            ],
+            ] + _pagination_params,
             "responses": {"200": _ok("FirmwareBuild", array=True), "404": _404},
         },
     )
-    path("/products/{product_id}/firmware-builds/upload",
+    path("/catalog/{product_id}/firmware-builds/upload",
         parameters=[{"name": "product_id", "in": "path", "required": True, "schema": {"type": "string"}}],
         post={
             "tags": ["Firmware Builds"], "summary": "Upload a firmware build", "security": _auth_security,
             "requestBody": {"required": True, "content": {"multipart/form-data": {"schema": {
-                "type": "object", "required": ["file", "applicationId", "version"],
+                "type": "object", "required": ["file", "chipsetId", "version"],
                 "properties": {
                     "file": {"type": "string", "format": "binary"},
-                    "applicationId": {"type": "string"}, "version": {"type": "string"},
-                    "majorVersion": {"type": "integer"}, "minorVersion": {"type": "integer"},
-                    "buildNumber": {"type": "integer"}, "boardRevisionId": {"type": "string"},
-                    "bootloaderId": {"type": "string"}, "isManufacturing": {"type": "boolean"},
+                    "modemFile": {"type": "string", "format": "binary"},
+                    "chipsetId": {"type": "string"}, "version": {"type": "string"},
+                    "isManufacturing": {"type": "boolean"},
                     "status": {"type": "string", "enum": ["DRAFT", "RELEASED", "DEPRECATED"]},
                     "notes": {"type": "string"},
                 },
@@ -1147,7 +1202,7 @@ def _build_spec() -> APISpec:
             "responses": {"201": _ok("FirmwareBuild"), "400": _400, "404": _404, "409": _409},
         },
     )
-    path("/products/{product_id}/firmware-builds/{build_id}",
+    path("/catalog/{product_id}/firmware-builds/{build_id}",
         parameters=[
             {"name": "product_id", "in": "path", "required": True, "schema": {"type": "string"}},
             {"name": "build_id", "in": "path", "required": True, "schema": {"type": "string"}},
@@ -1167,7 +1222,7 @@ def _build_spec() -> APISpec:
             "responses": {"200": _deleted_resp, "404": _404},
         },
     )
-    path("/products/firmware-builds/{build_id}/download",
+    path("/catalog/firmware-builds/{build_id}/download",
         parameters=[{"name": "build_id", "in": "path", "required": True, "schema": {"type": "string"}}],
         get={
             "tags": ["Firmware Builds"], "summary": "Get firmware build download URL", "security": _auth_security,

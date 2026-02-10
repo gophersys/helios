@@ -1,50 +1,48 @@
 <script lang="ts">
-  import { Plus, Check, X } from 'lucide-svelte';
+  import { Plus, Check, X, Pencil, Trash2 } from 'lucide-svelte';
   import { api } from '$lib/api';
-  import StatusBadge from '$lib/components/ui/status-badge.svelte';
-  import Select from '$lib/components/ui/select.svelte';
-  import ConfirmDeleteDialog from '$lib/components/ui/confirm-delete-dialog.svelte';
   import ErrorAlert from '$lib/components/ui/error-alert.svelte';
-  import ChipsetTagInput from './chipset-tag-input.svelte';
-  import type { BoardRevision } from '$lib/types/models';
+  import ConfirmDeleteDialog from '$lib/components/ui/confirm-delete-dialog.svelte';
+  import type { Chipset } from '$lib/types/models';
 
   interface Props {
-    productId: string;
-    revisions: BoardRevision[];
-    supportedSocs: string[];
+    chipsets: Chipset[];
     canManage: boolean;
     onRefresh: () => void;
   }
 
-  let { productId, revisions, supportedSocs, canManage, onRefresh }: Props = $props();
+  let { chipsets, canManage, onRefresh }: Props = $props();
 
   let error = $state<string | null>(null);
   let showForm = $state(false);
   let editingId = $state<string | null>(null);
   let submitting = $state(false);
 
-  let formVersion = $state('');
-  let formChipsets = $state<string[]>([]);
-  let formStatus = $state('ACTIVE');
-  let formNotes = $state('');
+  let formName = $state('');
+  let formManufacturer = $state('');
+  let formIsModem = $state(false);
+  let formDescription = $state('');
+  let formActive = $state(true);
 
   let deleteTarget = $state<{ id: string; name: string } | null>(null);
 
   function resetForm() {
-    formVersion = '';
-    formChipsets = [];
-    formStatus = 'ACTIVE';
-    formNotes = '';
+    formName = '';
+    formManufacturer = '';
+    formIsModem = false;
+    formDescription = '';
+    formActive = true;
     editingId = null;
     showForm = false;
   }
 
-  function startEdit(rev: BoardRevision) {
-    formVersion = rev.version;
-    formChipsets = [...rev.chipsets];
-    formStatus = rev.status;
-    formNotes = rev.notes || '';
-    editingId = rev.id;
+  function startEdit(c: Chipset) {
+    formName = c.name;
+    formManufacturer = c.manufacturer || '';
+    formIsModem = c.isModem;
+    formDescription = c.description || '';
+    formActive = c.active;
+    editingId = c.id;
     showForm = true;
   }
 
@@ -54,39 +52,40 @@
     submitting = true;
 
     const body = {
-      version: formVersion,
-      chipsets: formChipsets,
-      status: formStatus,
-      notes: formNotes || null,
+      name: formName,
+      manufacturer: formManufacturer || null,
+      isModem: formIsModem,
+      description: formDescription || null,
+      active: formActive,
     };
 
     try {
       if (editingId) {
-        await api.put(`/v2/products/${productId}/board-revisions/${editingId}`, body);
+        await api.put(`/v2/catalog/chipsets/${editingId}`, body);
       } else {
-        await api.post(`/v2/products/${productId}/board-revisions`, body);
+        await api.post('/v2/catalog/chipsets', body);
       }
       resetForm();
       onRefresh();
     } catch (err) {
-      error = err instanceof Error ? err.message : 'Failed to save revision';
+      error = err instanceof Error ? err.message : 'Failed to save chipset';
     } finally {
       submitting = false;
     }
   }
 
   function promptDelete(id: string) {
-    const rev = revisions.find((r) => r.id === id);
-    deleteTarget = { id, name: rev?.version || '' };
+    const target = chipsets.find((c) => c.id === id);
+    deleteTarget = { id, name: target?.name || '' };
   }
 
   async function handleDelete(id: string) {
     error = null;
     try {
-      await api.delete(`/v2/products/${productId}/board-revisions/${id}`);
+      await api.delete(`/v2/catalog/chipsets/${id}`);
       onRefresh();
     } catch (err) {
-      error = err instanceof Error ? err.message : 'Failed to delete revision';
+      error = err instanceof Error ? err.message : 'Failed to delete chipset';
     }
   }
 </script>
@@ -95,14 +94,14 @@
   <ErrorAlert message={error} />
 
   <div class="mb-3 flex items-center justify-between">
-    <h3 class="text-sm font-semibold text-text-primary">Board Revisions</h3>
+    <h3 class="text-sm font-semibold text-text-primary">Chipsets</h3>
     {#if canManage && !showForm}
       <button
         onclick={() => { resetForm(); showForm = true; }}
         class="flex items-center gap-1.5 rounded-lg bg-accent px-2.5 py-1.5 text-2xs font-medium text-white hover:bg-accent-hover"
       >
         <Plus size={16} />
-        Add revision
+        Add chipset
       </button>
     {/if}
   </div>
@@ -114,41 +113,43 @@
     >
       <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <label>
-          <span class="mb-1 block text-2xs font-medium text-text-tertiary">Version</span>
+          <span class="mb-1 block text-2xs font-medium text-text-tertiary">Name</span>
           <input
             type="text"
             required
-            bind:value={formVersion}
-            placeholder="e.g. REV1.0"
+            bind:value={formName}
+            placeholder="e.g. nRF52840"
             class="w-full rounded-lg border border-border bg-surface-1 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
           />
         </label>
-        <div>
-          <span class="mb-1 block text-2xs font-medium text-text-tertiary">Chipsets</span>
-          <ChipsetTagInput
-            selected={formChipsets}
-            options={supportedSocs}
-            onchange={(v) => (formChipsets = v)}
-          />
-        </div>
-        <Select
-          bind:value={formStatus}
-          label="Status"
-          options={[
-            { value: 'ACTIVE', label: 'Active' },
-            { value: 'DEPRECATED', label: 'Deprecated' },
-            { value: 'EOL', label: 'End of Life' },
-          ]}
-        />
         <label>
-          <span class="mb-1 block text-2xs font-medium text-text-tertiary">Notes</span>
+          <span class="mb-1 block text-2xs font-medium text-text-tertiary">Manufacturer</span>
           <input
             type="text"
-            bind:value={formNotes}
+            bind:value={formManufacturer}
+            placeholder="e.g. Nordic Semiconductor"
+            class="w-full rounded-lg border border-border bg-surface-1 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
+          />
+        </label>
+        <label>
+          <span class="mb-1 block text-2xs font-medium text-text-tertiary">Description</span>
+          <input
+            type="text"
+            bind:value={formDescription}
             placeholder="Optional"
             class="w-full rounded-lg border border-border bg-surface-1 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
           />
         </label>
+        <div class="flex flex-col gap-2 pt-5">
+          <label class="flex items-center gap-2 text-sm text-text-primary">
+            <input type="checkbox" bind:checked={formIsModem} class="rounded border-border" />
+            Modem chipset
+          </label>
+          <label class="flex items-center gap-2 text-sm text-text-primary">
+            <input type="checkbox" bind:checked={formActive} class="rounded border-border" />
+            Active
+          </label>
+        </div>
       </div>
       <div class="mt-3 flex gap-2">
         <button
@@ -170,50 +171,57 @@
     </form>
   {/if}
 
-  {#if revisions.length > 0}
+  {#if chipsets.length > 0}
     <div class="table-wrapper">
       <table class="table">
         <thead>
           <tr class="border-b border-border">
-            <th class="table-header">Version</th>
-            <th class="table-header">Chipsets</th>
+            <th class="table-header">Name</th>
+            <th class="table-header">Manufacturer</th>
+            <th class="table-header">Modem</th>
             <th class="table-header">Status</th>
-            <th class="table-header">Notes</th>
             {#if canManage}
               <th class="table-header text-right">Actions</th>
             {/if}
           </tr>
         </thead>
         <tbody>
-          {#each revisions as rev (rev.id)}
+          {#each chipsets as c (c.id)}
             <tr class="table-row">
-              <td class="table-cell font-medium text-text-primary">{rev.version}</td>
+              <td class="table-cell font-medium text-text-primary">{c.name}</td>
+              <td class="table-cell text-text-secondary">{c.manufacturer || '-'}</td>
               <td class="table-cell">
-                <div class="flex flex-wrap gap-1">
-                  {#each rev.chipsets as chip}
-                    <span class="rounded-full bg-accent-muted px-2 py-0.5 text-2xs font-medium text-accent">
-                      {chip}
-                    </span>
-                  {/each}
-                </div>
+                {#if c.isModem}
+                  <span class="rounded-full bg-accent-muted px-2 py-0.5 text-2xs font-medium text-accent">Modem</span>
+                {:else}
+                  <span class="text-text-tertiary">-</span>
+                {/if}
               </td>
               <td class="table-cell">
-                <StatusBadge status={rev.status} />
+                <span
+                  class={[
+                    'inline-flex items-center rounded-full px-2 py-0.5 text-2xs font-medium',
+                    c.active ? 'bg-success-muted text-success' : 'bg-surface-2 text-text-tertiary'
+                  ].join(' ')}
+                >
+                  {c.active ? 'Active' : 'Inactive'}
+                </span>
               </td>
-              <td class="table-cell text-text-secondary">{rev.notes || '-'}</td>
               {#if canManage}
                 <td class="table-cell text-right">
                   <button
-                    onclick={() => startEdit(rev)}
+                    onclick={() => startEdit(c)}
                     class="mr-2 rounded px-2 py-1 text-2xs text-text-secondary hover:bg-surface-2"
+                    aria-label="Edit"
                   >
-                    Edit
+                    <Pencil size={14} class="inline" />
                   </button>
                   <button
-                    onclick={() => promptDelete(rev.id)}
+                    onclick={() => promptDelete(c.id)}
                     class="rounded px-2 py-1 text-2xs text-error hover:bg-error-muted"
+                    aria-label="Delete"
                   >
-                    Delete
+                    <Trash2 size={14} class="inline" />
                   </button>
                 </td>
               {/if}
@@ -224,13 +232,13 @@
     </div>
   {:else}
     <div class="table-empty">
-      No board revisions yet
+      No chipsets configured yet
     </div>
   {/if}
 
   <ConfirmDeleteDialog
     open={!!deleteTarget}
-    entityType="board revision"
+    entityType="chipset"
     entityName={deleteTarget?.name || ''}
     onConfirm={() => { handleDelete(deleteTarget!.id); deleteTarget = null; }}
     onCancel={() => (deleteTarget = null)}

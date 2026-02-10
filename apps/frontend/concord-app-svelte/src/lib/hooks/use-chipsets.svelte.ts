@@ -1,17 +1,17 @@
-// Hook for fetching chipset configuration
+// Hook for fetching chipsets from the catalog
 import { apiFetch } from '$lib/api';
 import type { ApiResponse } from '$lib/types';
-import type { ChipsetConfig } from '$lib/types/models';
+import type { Chipset } from '$lib/types/models';
 
-interface ChipsetConfigState {
-  data: ChipsetConfig | null;
+interface ChipsetsState {
+  data: Chipset[];
   loading: boolean;
   error: string | null;
   fetch: () => Promise<void>;
 }
 
-export function useChipsetConfig(): ChipsetConfigState {
-  let data = $state<ChipsetConfig | null>(null);
+export function useChipsets(): ChipsetsState {
+  let data = $state<Chipset[]>([]);
   let loading = $state(true);
   let error = $state<string | null>(null);
 
@@ -19,10 +19,10 @@ export function useChipsetConfig(): ChipsetConfigState {
     loading = true;
     error = null;
     try {
-      const res = await apiFetch<ApiResponse<ChipsetConfig>>('/v2/config/chipsets');
-      data = res.data;
+      const res = await apiFetch<ApiResponse<Chipset[]>>('/v2/catalog/chipsets');
+      data = Array.isArray(res.data) ? res.data : [];
     } catch (err) {
-      error = err instanceof Error ? err.message : 'Failed to load chipset config';
+      error = err instanceof Error ? err.message : 'Failed to load chipsets';
     } finally {
       loading = false;
     }

@@ -118,7 +118,7 @@ class TestRequirePermissionsBypass:
         with patch("config.env.env_config.AUTH_ENABLED", False):
             from src.lib.decorators import require_permissions
             app = _make_app_with_route(
-                require_permissions("Concord.Admin.Products.Manage"),
+                require_permissions("Concord.Admin.Catalog.Manage"),
                 route_name="/test-perms-bypass",
             )
             client = app.test_client()
@@ -134,7 +134,7 @@ class TestRequirePermissionsBypass:
             from src.lib.decorators import require_permissions
             app = _make_app_with_route(
                 require_permissions(
-                    "Concord.Admin.Products.Manage",
+                    "Concord.Admin.Catalog.Manage",
                     "Concord.Admin.Users.Manage",
                     "Concord.Admin.System.Manage",
                 ),
@@ -158,7 +158,7 @@ class TestRequirePermissionsBypass:
         with patch("config.env.env_config.AUTH_ENABLED", True):
             from src.lib.decorators import require_permissions
             app = _make_app_with_route(
-                require_permissions("Concord.Admin.Products.Manage"),
+                require_permissions("Concord.Admin.Catalog.Manage"),
                 route_name="/test-perms-enforced",
             )
             client = app.test_client()
@@ -208,7 +208,7 @@ class TestMeEndpointBypass:
             permissionSet=make_obj(
                 id="perm-1",
                 name="Admin",
-                permissions=["Concord.Admin.Products.View"],
+                permissions=["Concord.Admin.Catalog.View"],
             ),
         )
 
