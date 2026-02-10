@@ -70,11 +70,13 @@ class UserCreateRequest:
     @classmethod
     def from_json(cls, data: dict) -> Tuple[Optional["UserCreateRequest"], Optional[str]]:
         if not data:
-            return None, "Request body required"
+            return None, "Request body must contain JSON data"
 
         email = data.get("email", "").strip().lower()
         name = data.get("name", "").strip()
         permission_set_id = data.get("permissionSetId")
+        if isinstance(permission_set_id, str):
+            permission_set_id = permission_set_id.strip() or None
 
         if not email:
             return None, "Email is required"
@@ -94,18 +96,20 @@ class UserUpdateRequest:
     @classmethod
     def from_json(cls, data: dict) -> Tuple[Optional["UserUpdateRequest"], Optional[str]]:
         if not data:
-            return None, "Request body required"
+            return None, "Request body must contain JSON data"
 
         name = data.get("name")
         if name is not None:
             name = name.strip()
+            if not name:
+                return None, "Name cannot be empty"
 
         permission_set_id = data.get("permissionSetId")
         has_permission_set_id = "permissionSetId" in data
 
         active = data.get("active")
-        if active is not None:
-            active = bool(active)
+        if active is not None and not isinstance(active, bool):
+            return None, "Active must be a boolean"
 
         if name is None and not has_permission_set_id and active is None:
             return None, "No fields to update"
@@ -133,7 +137,7 @@ class PermissionSetCreateRequest:
     @classmethod
     def from_json(cls, data: dict) -> Tuple[Optional["PermissionSetCreateRequest"], Optional[str]]:
         if not data:
-            return None, "Request body required"
+            return None, "Request body must contain JSON data"
 
         name = data.get("name", "").strip()
         if not name:
@@ -142,10 +146,17 @@ class PermissionSetCreateRequest:
         permissions = data.get("permissions")
         if not permissions or not isinstance(permissions, list):
             return None, "Permissions must be a non-empty list"
+        permissions = [p.strip() for p in permissions if isinstance(p, str) and p.strip()]
+        if not permissions:
+            return None, "Permissions must contain valid strings"
 
         description = data.get("description")
 
-        return cls(name=name, description=description, permissions=permissions), None
+        return cls(
+            name=name,
+            description=description.strip() if description else None,
+            permissions=permissions,
+        ), None
 
 
 @dataclass
@@ -158,11 +169,13 @@ class PermissionSetUpdateRequest:
     @classmethod
     def from_json(cls, data: dict) -> Tuple[Optional["PermissionSetUpdateRequest"], Optional[str]]:
         if not data:
-            return None, "Request body required"
+            return None, "Request body must contain JSON data"
 
         name = data.get("name")
         if name is not None:
             name = name.strip()
+            if not name:
+                return None, "Name cannot be empty"
 
         description = data.get("description")
         has_description = "description" in data
@@ -170,11 +183,18 @@ class PermissionSetUpdateRequest:
         permissions = data.get("permissions")
         if permissions is not None and not isinstance(permissions, list):
             return None, "Permissions must be a list"
+        if permissions is not None:
+            permissions = [p.strip() for p in permissions if isinstance(p, str) and p.strip()]
 
         if name is None and not has_description and permissions is None:
             return None, "No fields to update"
 
-        return cls(name=name, description=description, permissions=permissions, _has_description=has_description), None
+        return cls(
+            name=name,
+            description=description.strip() if description else description,
+            permissions=permissions,
+            _has_description=has_description,
+        ), None
 
     def to_update_data(self) -> Dict[str, Any]:
         update_data: Dict[str, Any] = {}
@@ -213,7 +233,7 @@ class ApiKeyCreateRequest:
     @classmethod
     def from_json(cls, data: dict) -> Tuple[Optional["ApiKeyCreateRequest"], Optional[str]]:
         if not data:
-            return None, "Request body required"
+            return None, "Request body must contain JSON data"
 
         name = data.get("name", "").strip()
         if not name:

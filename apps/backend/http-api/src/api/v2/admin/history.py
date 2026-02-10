@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime
 from typing import Any
 
@@ -8,6 +9,8 @@ from src.lib.errors import bad_request, not_found
 from src.lib.permissions import Permissions
 from src.lib.types import ApiResponse
 from src.services.database.prisma import get_db_client
+
+logger = logging.getLogger(__name__)
 
 
 def _serialize_audit_log(entry: Any) -> dict:
@@ -83,7 +86,7 @@ def list_history():
     )
 
     return jsonify(ApiResponse.ok({
-        "entries": [_serialize_audit_log(e) for e in entries],
+        "data": [_serialize_audit_log(e) for e in entries],
         "pagination": {
             "page": page,
             "limit": limit,

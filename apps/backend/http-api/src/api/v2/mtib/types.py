@@ -26,7 +26,7 @@ class MtibRegisterRequest:
         if not data:
             return None, "Request body must contain JSON data"
 
-        name = data.get("name")
+        name = (data.get("name") or "").strip()
         if not name:
             return None, "Field 'name' is required"
 
@@ -34,11 +34,11 @@ class MtibRegisterRequest:
         if not name.startswith("verdin-"):
             return None, "MTIB name must start with 'verdin-'"
 
-        hostname = data.get("hostname")
+        hostname = (data.get("hostname") or "").strip()
         if not hostname:
             return None, "Field 'hostname' is required"
 
-        mtib_type = data.get("mtibType")
+        mtib_type = (data.get("mtibType") or "").strip()
         if not mtib_type:
             return None, "Field 'mtibType' is required"
 
@@ -92,7 +92,7 @@ class MtibUnregisterRequest:
         if not data:
             return None, "Request body must contain JSON data"
 
-        hostname = data.get("hostname")
+        hostname = (data.get("hostname") or "").strip()
         if not hostname:
             return None, "Field 'hostname' is required"
 

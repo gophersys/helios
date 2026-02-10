@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from flask import jsonify, request
 
 from src.lib.audit import log_audit
-from src.lib.errors import bad_request, forbidden, internal_error, unauthorized
+from src.lib.errors import bad_request, forbidden, unauthorized
 from src.lib.permissions import Permissions
 from src.lib.types import ApiResponse
 from src.services.auth.corecloud import authenticate_corecloud
@@ -90,8 +90,8 @@ _ROLE_PERMISSIONS = {
         Permissions.ADMIN_INVENTORY_MANAGE,
         Permissions.ADMIN_CODEBASES_VIEW,
         Permissions.ADMIN_CODEBASES_MANAGE,
-        Permissions.ADMIN_PRODUCTS_VIEW,
-        Permissions.ADMIN_PRODUCTS_MANAGE,
+        Permissions.ADMIN_CATALOG_VIEW,
+        Permissions.ADMIN_CATALOG_MANAGE,
         Permissions.ADMIN_HISTORY_VIEW,
         Permissions.ADMIN_SYSTEM_VIEW,
         Permissions.ADMIN_SYSTEM_MANAGE,
@@ -108,7 +108,7 @@ _ROLE_PERMISSIONS = {
     "operator": [
         Permissions.ADMIN_INVENTORY_VIEW,
         Permissions.ADMIN_CODEBASES_VIEW,
-        Permissions.ADMIN_PRODUCTS_VIEW,
+        Permissions.ADMIN_CATALOG_VIEW,
         Permissions.ADMIN_HISTORY_VIEW,
         Permissions.ADMIN_NODES_VIEW,
         Permissions.ADMIN_FIXTURES_VIEW,

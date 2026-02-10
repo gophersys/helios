@@ -1,3 +1,4 @@
+import logging
 import math
 
 from flask import jsonify, request
@@ -10,6 +11,8 @@ from src.lib.types import ApiResponse
 from src.services.database.prisma import get_db_client
 
 from .types import PermissionSetCreateRequest, PermissionSetUpdateRequest
+
+logger = logging.getLogger(__name__)
 
 # All valid permission keys for validation
 _VALID_PERMISSIONS = {p["key"] for p in Permissions.all()}

@@ -313,7 +313,7 @@ def update_node(node_id: str):
                 meta["deployment_name"] = deploy_name
                 node = db.node.update(
                     where={"id": node_id},
-                    data={"metadata": meta},
+                    data={"metadata": Json(meta)},
                     include={"fixtureSlot": True},
                 )
                 logger.info("Redeployed MTIB server %s for node %s (type_changed=%s)", deploy_name, node.hostname, type_changed)

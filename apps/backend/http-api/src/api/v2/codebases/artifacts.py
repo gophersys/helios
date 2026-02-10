@@ -14,6 +14,8 @@ from src.lib.types import ApiResponse
 from src.services.database.prisma import get_db_client
 from src.services.storage.client import get_bucket_name, get_storage_client, StoragePrefixes, storage_key
 
+from werkzeug.utils import secure_filename as _secure_filename
+
 from .shared import ALLOWED_ARTIFACT_EXTENSIONS, presigned_url
 from .types import ArtifactCreateRequest
 
@@ -127,7 +129,8 @@ def upload_artifact(codebase_id: str, release_id: str):
     size_bytes = len(file_data)
     checksum = hashlib.sha256(file_data).hexdigest()
 
-    object_storage_key = storage_key(StoragePrefixes.CODEBASES, f"{codebase_id}/releases/{release_id}/{filename}")
+    safe_filename = _secure_filename(filename)
+    object_storage_key = storage_key(StoragePrefixes.CODEBASES, f"{codebase_id}/releases/{release_id}/{safe_filename}")
 
     try:
         client = get_storage_client()

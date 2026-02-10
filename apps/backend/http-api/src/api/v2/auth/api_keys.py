@@ -1,4 +1,5 @@
 import hashlib
+import logging
 import secrets
 from datetime import datetime
 
@@ -13,6 +14,8 @@ from src.lib.types import ApiResponse
 from src.services.database.prisma import get_db_client
 
 from .types import ApiKeyCreateRequest
+
+logger = logging.getLogger(__name__)
 
 KEY_PREFIX_FORMAT = "ck_live_"
 KEY_RANDOM_LENGTH = 32

@@ -1,3 +1,5 @@
+import logging
+
 from flask import g, jsonify
 
 from config import env_config
@@ -5,6 +7,8 @@ from src.lib.decorators import require_permissions
 from src.lib.errors import not_found
 from src.lib.types import ApiResponse
 from src.services.database.prisma import get_db_client
+
+logger = logging.getLogger(__name__)
 
 
 @require_permissions()

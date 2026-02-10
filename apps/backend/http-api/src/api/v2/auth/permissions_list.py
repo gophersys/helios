@@ -1,8 +1,12 @@
+import logging
+
 from flask import jsonify
 
 from src.lib.decorators import require_permissions
 from src.lib.permissions import Permissions
 from src.lib.types import ApiResponse
+
+logger = logging.getLogger(__name__)
 
 
 @require_permissions(Permissions.ADMIN_PERMISSION_SETS_VIEW)

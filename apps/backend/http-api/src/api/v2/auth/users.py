@@ -1,3 +1,4 @@
+import logging
 import math
 
 from flask import g, jsonify, request
@@ -10,6 +11,8 @@ from src.lib.types import ApiResponse
 from src.services.database.prisma import get_db_client
 
 from .types import UserCreateRequest, UserResponse, UserUpdateRequest
+
+logger = logging.getLogger(__name__)
 
 
 def _user_to_dict(user) -> dict:

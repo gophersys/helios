@@ -1,3 +1,4 @@
+import logging
 import math
 from typing import Any
 
@@ -12,6 +13,8 @@ from src.lib.types import ApiResponse
 from src.services.database.prisma import get_db_client
 
 from .types import DeploymentCreateRequest
+
+logger = logging.getLogger(__name__)
 
 
 def _serialize_deployment(d: Any) -> dict:
