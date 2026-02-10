@@ -48,8 +48,9 @@
 
   async function fetchProducts() {
     try {
-      const res = await apiFetch<ApiResponse<Product[]>>('/v2/products');
-      products = Array.isArray(res.data) ? res.data : [];
+      const res = await apiFetch<ApiResponse<{ data: Product[] }>>('/v2/catalog');
+      const payload = res.data;
+      products = Array.isArray(payload) ? payload : (payload as { data: Product[] }).data || [];
     } catch {
       // Non-critical
     }

@@ -92,7 +92,7 @@
   <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
   <!-- svelte-ignore a11y_click_events_have_key_events -->
   <div
-    class="fixed inset-0 bg-black/50 z-modal-backdrop flex items-center justify-center p-4"
+    class="fixed inset-0 bg-overlay z-modal-backdrop flex items-center justify-center p-4"
     onclick={onclose}
     role="dialog"
     aria-modal="true"

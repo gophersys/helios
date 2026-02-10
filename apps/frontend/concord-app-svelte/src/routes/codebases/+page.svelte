@@ -34,8 +34,9 @@
 
   async function fetchCodebases() {
     try {
-      const res = await apiFetch<ApiResponse<Codebase[]>>('/v2/codebases');
-      codebases = res.data;
+      const res = await apiFetch<ApiResponse<{ data: Codebase[] }>>('/v2/codebases');
+      const payload = res.data;
+      codebases = Array.isArray(payload) ? payload : (payload as { data: Codebase[] }).data || [];
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to load codebases';
     } finally {

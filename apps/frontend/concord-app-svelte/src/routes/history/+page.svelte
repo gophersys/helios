@@ -99,18 +99,14 @@
     fetchHistory();
   });
 
-  // Refetch when filters change
+  // Refetch when page changes (filter changes trigger this via page reset)
   $effect(() => {
-    // Reference the reactive vars to track them
-    const _et = entityType;
-    const _as = actionSearch;
     const _p = page;
     fetchHistory();
   });
 
-  // Reset to page 1 when filters change
+  // Reset to page 1 when filters change (this triggers the page effect above)
   $effect(() => {
-    // Reference the reactive vars
     const _et = entityType;
     const _as = actionSearch;
     page = 1;
@@ -158,6 +154,7 @@
         type="text"
         bind:value={actionSearch}
         placeholder="Search actions..."
+        aria-label="Search actions"
         class="rounded-lg border border-border bg-surface-0 py-2 pl-8 pr-3 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
       />
     </div>

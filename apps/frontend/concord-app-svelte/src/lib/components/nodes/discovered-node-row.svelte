@@ -15,7 +15,7 @@
     </div>
     <div>
       <a
-        href="/system/nodes/{node.hostname}"
+        href="/kubernetes/nodes/{node.hostname}"
         class="text-sm font-medium text-accent hover:underline"
         title="View in Kubernetes"
       >

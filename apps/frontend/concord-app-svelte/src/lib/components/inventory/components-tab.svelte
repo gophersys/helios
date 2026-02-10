@@ -40,8 +40,9 @@
 
   async function fetchComponents() {
     try {
-      const res = await apiFetch<ApiResponse<InventoryComponent[]>>('/v2/inventory/components');
-      components = res.data;
+      const res = await apiFetch<ApiResponse<{ data: InventoryComponent[] }>>('/v2/inventory/components');
+      const payload = res.data;
+      components = Array.isArray(payload) ? payload : (payload as { data: InventoryComponent[] }).data || [];
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to load components';
     } finally {

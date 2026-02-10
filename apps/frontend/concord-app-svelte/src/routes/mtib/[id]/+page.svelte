@@ -245,7 +245,7 @@
       {#if deployStatus?.name}
         <span class="text-text-tertiary">/</span>
         <a
-          href="/system/deployments/default/{deployStatus.name}"
+          href="/kubernetes/deployments/default/{deployStatus.name}"
           class="flex items-center gap-1 rounded-md bg-warning/15 border border-warning/30 px-2 py-0.5 text-2xs font-semibold text-warning hover:bg-warning/25 transition-colors"
         >
           <ExternalLink size={10} />
@@ -339,7 +339,7 @@
           <div class="grid grid-cols-2 gap-3 text-2xs mb-3">
             <div>
               <span class="text-text-tertiary">Deployment</span>
-              <a href="/system/deployments/default/{deployStatus.name}"
+              <a href="/kubernetes/deployments/default/{deployStatus.name}"
                 class="flex items-center gap-1 font-medium text-accent font-mono text-[11px] hover:underline">
                 {deployStatus.name}
                 <ExternalLink size={10} />
@@ -359,7 +359,7 @@
               <div class="space-y-2">
                 {#each deployStatus.pods as pod}
                   <a
-                    href="/system/pods/default/{pod.name}"
+                    href="/kubernetes/pods/default/{pod.name}"
                     class="flex items-center gap-3 rounded-lg bg-surface-1 px-3 py-2 hover:bg-surface-2 transition-colors cursor-pointer group"
                   >
                     <span class="h-2 w-2 rounded-full shrink-0
@@ -409,7 +409,7 @@
       <!-- svelte-ignore a11y_no_static_element_interactions -->
       <!-- svelte-ignore a11y_click_events_have_key_events -->
       <div
-        onclick={() => k8sNodeName && goto(`/system/nodes/${k8sNodeName}`)}
+        onclick={() => k8sNodeName && goto(`/kubernetes/nodes/${k8sNodeName}`)}
         class="card px-3 py-2.5 {k8sNodeName ? 'hover:bg-surface-1 transition-colors cursor-pointer group' : ''}"
       >
         <div class="flex items-center gap-2 mb-2">

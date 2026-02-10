@@ -12,6 +12,14 @@
   let dragOver = $state(false);
   let uploading = $state(false);
   let preview = $state<string | null>(null);
+  let fileInput = $state<HTMLInputElement | null>(null);
+
+  function handleKeydown(e: KeyboardEvent) {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      fileInput?.click();
+    }
+  }
 
   const displayUrl = $derived(preview || currentUrl);
 
@@ -51,6 +59,7 @@
   ondragover={(e) => { e.preventDefault(); dragOver = true; }}
   ondragleave={() => (dragOver = false)}
   ondrop={handleDrop}
+  onkeydown={handleKeydown}
   class={[
     'relative flex flex-col items-center justify-center rounded-lg border-2 border-dashed transition-colors',
     dragOver
@@ -67,12 +76,14 @@
       class="h-full w-full rounded-lg object-contain"
     />
     {#if !disabled}
-      <label class="absolute inset-0 flex cursor-pointer items-center justify-center rounded-lg bg-black/50 opacity-0 transition-opacity hover:opacity-100">
+      <label class="absolute inset-0 flex cursor-pointer items-center justify-center rounded-lg bg-overlay opacity-0 transition-opacity hover:opacity-100">
         <input
+          bind:this={fileInput}
           type="file"
           accept=".png,.jpg,.jpeg,.webp"
           onchange={handleChange}
           class="hidden"
+          aria-label="Upload image"
         />
         <span class="text-xs font-medium text-white">
           {uploading ? 'Uploading...' : 'Replace image'}
@@ -82,10 +93,12 @@
   {:else}
     <label class="flex cursor-pointer flex-col items-center gap-2 p-4">
       <input
+        bind:this={fileInput}
         type="file"
         accept=".png,.jpg,.jpeg,.webp"
         onchange={handleChange}
         class="hidden"
+        aria-label="Upload image"
       />
       <Upload
         size={20}

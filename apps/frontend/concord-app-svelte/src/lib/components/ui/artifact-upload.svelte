@@ -10,6 +10,14 @@
 
   let dragOver = $state(false);
   let uploading = $state(false);
+  let fileInput = $state<HTMLInputElement | null>(null);
+
+  function handleKeydown(e: KeyboardEvent) {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      fileInput?.click();
+    }
+  }
 
   async function handleFile(file: File) {
     uploading = true;
@@ -41,6 +49,7 @@
   ondragover={(e) => { e.preventDefault(); dragOver = true; }}
   ondragleave={() => (dragOver = false)}
   ondrop={handleDrop}
+  onkeydown={handleKeydown}
   class={[
     'flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-4 transition-colors',
     dragOver
@@ -51,10 +60,12 @@
 >
   <label class="flex cursor-pointer flex-col items-center gap-2">
     <input
+      bind:this={fileInput}
       type="file"
       onchange={handleChange}
       class="hidden"
       disabled={disabled || uploading}
+      aria-label="Upload file"
     />
     <Upload
       size={20}

@@ -11,8 +11,12 @@
   import LoadingState from '$lib/components/ui/loading-state.svelte';
   import Select from '$lib/components/ui/select.svelte';
   import { formatDate } from '$lib/utils/formatting';
+  import PermissionSetsTab from '$lib/components/users/permission-sets-tab.svelte';
 
   const auth = getAuth();
+
+  type Tab = 'users' | 'permission-sets';
+  let activeTab = $state<Tab>('users');
 
   let users = $state<FullUser[]>([]);
   let permissionSets = $state<PermissionSet[]>([]);
@@ -26,6 +30,11 @@
   let submitting = $state(false);
 
   const canManage = $derived(auth.hasPermission('Concord.Admin.Users.Manage'));
+
+  const tabs: { key: Tab; label: string }[] = [
+    { key: 'users', label: 'Users' },
+    { key: 'permission-sets', label: 'Permission Sets' },
+  ];
 
   async function fetchUsers(): Promise<void> {
     try {
@@ -113,10 +122,10 @@
   <div class="mb-6">
     <PageHeader
       title="Users"
-      description="Manage who can access Concord."
+      description="Manage users and permission sets."
     >
       {#snippet actions()}
-        {#if canManage}
+        {#if activeTab === 'users' && canManage}
           <button
             onclick={() => (showCreate = !showCreate)}
             class="flex items-center gap-2 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-surface-0 transition-colors hover:bg-accent-hover"
@@ -134,130 +143,153 @@
     </PageHeader>
   </div>
 
-  <ErrorAlert message={error} />
+  <!-- Tabs -->
+  <div class="mb-6 flex gap-1 border-b border-border">
+    {#each tabs as tab}
+      <button
+        onclick={() => (activeTab = tab.key)}
+        class={[
+          'px-4 py-2 text-sm font-medium transition-colors',
+          activeTab === tab.key
+            ? 'border-b-2 border-accent text-accent'
+            : 'text-text-tertiary hover:text-text-secondary'
+        ].join(' ')}
+      >
+        {tab.label}
+      </button>
+    {/each}
+  </div>
 
-  <!-- Create form -->
-  {#if showCreate && canManage}
-    <form
-      onsubmit={handleCreate}
-      class="mb-6 card card-sm"
-    >
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <label>
-          <span class="mb-1 block text-2xs font-medium text-text-tertiary">
-            Email
-          </span>
-          <input
-            type="email"
-            required
-            bind:value={formEmail}
-            placeholder="user@company.com"
-            class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
-          />
-        </label>
-        <label>
-          <span class="mb-1 block text-2xs font-medium text-text-tertiary">
-            Name
-          </span>
-          <input
-            type="text"
-            required
-            bind:value={formName}
-            placeholder="Full name"
-            class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
-          />
-        </label>
-        <div>
-          <span class="mb-1 block text-2xs font-medium text-text-tertiary">
-            Permission Set
-          </span>
-          <div class="flex gap-2">
-            <Select
-              bind:value={formPermissionSetId}
-              class="flex-1"
-              placeholder="None"
-              options={permissionSets.map(ps => ({ value: ps.id, label: ps.name }))}
+  {#if activeTab === 'users'}
+    <ErrorAlert message={error} />
+
+    <!-- Create form -->
+    {#if showCreate && canManage}
+      <form
+        onsubmit={handleCreate}
+        class="mb-6 card card-sm"
+      >
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <label>
+            <span class="mb-1 block text-2xs font-medium text-text-tertiary">
+              Email
+            </span>
+            <input
+              type="email"
+              required
+              bind:value={formEmail}
+              placeholder="user@company.com"
+              class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
             />
-            <button
-              type="submit"
-              disabled={submitting}
-              class="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-surface-0 transition-colors hover:bg-accent-hover disabled:opacity-50"
-            >
-              {#if submitting}
-                ...
-              {:else}
-                <Check size={16} />
-              {/if}
-            </button>
+          </label>
+          <label>
+            <span class="mb-1 block text-2xs font-medium text-text-tertiary">
+              Name
+            </span>
+            <input
+              type="text"
+              required
+              bind:value={formName}
+              placeholder="Full name"
+              class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
+            />
+          </label>
+          <div>
+            <span class="mb-1 block text-2xs font-medium text-text-tertiary">
+              Permission Set
+            </span>
+            <div class="flex gap-2">
+              <Select
+                bind:value={formPermissionSetId}
+                class="flex-1"
+                placeholder="None"
+                options={permissionSets.map(ps => ({ value: ps.id, label: ps.name }))}
+              />
+              <button
+                type="submit"
+                disabled={submitting}
+                class="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-surface-0 transition-colors hover:bg-accent-hover disabled:opacity-50"
+              >
+                {#if submitting}
+                  ...
+                {:else}
+                  <Check size={16} />
+                {/if}
+              </button>
+            </div>
           </div>
         </div>
+      </form>
+    {/if}
+
+    <!-- Users table -->
+    {#if loading}
+      <LoadingState message="Loading users..." />
+    {:else}
+      <div class="table-wrapper">
+        <table class="table">
+          <thead>
+            <tr class="border-b border-border">
+              <th class="table-header">User</th>
+              <th class="table-header">Permission Set</th>
+              <th class="table-header">Status</th>
+              <th class="table-header">Last seen</th>
+              <th class="table-header text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {#each users as u (u.id)}
+              {@const isSelf = u.id === auth.user?.id}
+              <tr class="table-row table-row-interactive">
+                <td class="table-cell">
+                  <div class="font-medium text-text-primary">
+                    {u.name}
+                    {#if isSelf}
+                      <span class="ml-2 text-2xs text-text-tertiary">(you)</span>
+                    {/if}
+                  </div>
+                  <div class="text-2xs text-text-tertiary">{u.email}</div>
+                </td>
+                <td class="table-cell">
+                  {#if isSelf || !canManage}
+                    <span class="text-text-secondary">{u.permissionSetName || 'None'}</span>
+                  {:else}
+                    <Select
+                      compact
+                      bind:value={u.permissionSetId}
+                      placeholder="None"
+                      options={permissionSets.map(ps => ({ value: ps.id, label: ps.name }))}
+                      onchange={() => handlePermissionSetChange(u.id)}
+                    />
+                  {/if}
+                </td>
+                <td class="table-cell">
+                  <span class="badge {u.active ? 'badge-success' : 'badge-error'}">
+                    {u.active ? 'Active' : 'Inactive'}
+                  </span>
+                </td>
+                <td class="table-cell text-text-secondary">
+                  {formatDate(u.lastSeenAt)}
+                </td>
+                <td class="table-cell text-right">
+                  {#if !isSelf && canManage}
+                    <button
+                      onclick={() => handleToggleActive(u.id, u.active)}
+                      class="btn btn-sm btn-ghost {u.active ? 'text-error' : 'text-success'}"
+                    >
+                      {u.active ? 'Deactivate' : 'Activate'}
+                    </button>
+                  {/if}
+                </td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
       </div>
-    </form>
+    {/if}
   {/if}
 
-  <!-- Users table -->
-  {#if loading}
-    <LoadingState message="Loading users..." />
-  {:else}
-    <div class="table-wrapper">
-      <table class="table">
-        <thead>
-          <tr class="border-b border-border">
-            <th class="table-header">User</th>
-            <th class="table-header">Permission Set</th>
-            <th class="table-header">Status</th>
-            <th class="table-header">Last seen</th>
-            <th class="table-header text-right">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {#each users as u (u.id)}
-            {@const isSelf = u.id === auth.user?.id}
-            <tr class="table-row table-row-interactive">
-              <td class="table-cell">
-                <div class="font-medium text-text-primary">
-                  {u.name}
-                  {#if isSelf}
-                    <span class="ml-2 text-2xs text-text-tertiary">(you)</span>
-                  {/if}
-                </div>
-                <div class="text-2xs text-text-tertiary">{u.email}</div>
-              </td>
-              <td class="table-cell">
-                {#if isSelf || !canManage}
-                  <span class="text-text-secondary">{u.permissionSetName || 'None'}</span>
-                {:else}
-                  <Select
-                    compact
-                    bind:value={u.permissionSetId}
-                    placeholder="None"
-                    options={permissionSets.map(ps => ({ value: ps.id, label: ps.name }))}
-                    onchange={() => handlePermissionSetChange(u.id)}
-                  />
-                {/if}
-              </td>
-              <td class="table-cell">
-                <span class="badge {u.active ? 'badge-success' : 'badge-error'}">
-                  {u.active ? 'Active' : 'Inactive'}
-                </span>
-              </td>
-              <td class="table-cell text-text-secondary">
-                {formatDate(u.lastSeenAt)}
-              </td>
-              <td class="table-cell text-right">
-                {#if !isSelf && canManage}
-                  <button
-                    onclick={() => handleToggleActive(u.id, u.active)}
-                    class="btn btn-sm btn-ghost {u.active ? 'text-error' : 'text-success'}"
-                  >
-                    {u.active ? 'Deactivate' : 'Activate'}
-                  </button>
-                {/if}
-              </td>
-            </tr>
-          {/each}
-        </tbody>
-      </table>
-    </div>
+  {#if activeTab === 'permission-sets'}
+    <PermissionSetsTab />
   {/if}
 </div>

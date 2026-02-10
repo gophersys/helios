@@ -41,7 +41,7 @@
   );
 
   // Edit form state
-  let showEditForm = $state(false);
+  let showForm = $state(false);
   let editingId = $state<string | null>(null);
   let formName = $state('');
   let formHostname = $state('');
@@ -165,14 +165,14 @@
 
   // -- Edit --
 
-  function resetEditForm() {
+  function resetForm() {
     formName = '';
     formHostname = '';
     formType = 'MANUFACTURING';
     formIpAddress = '';
     formHardwareRevision = '';
     editingId = null;
-    showEditForm = false;
+    showForm = false;
   }
 
   function startEdit(n: ConcordNode) {
@@ -182,7 +182,7 @@
     formIpAddress = n.ipAddress || '';
     formHardwareRevision = n.hardwareRevision || '';
     editingId = n.id;
-    showEditForm = true;
+    showForm = true;
   }
 
   async function handleEditSubmit(e: Event) {
@@ -198,7 +198,7 @@
         ipAddress: formIpAddress || null,
         hardwareRevision: formHardwareRevision || null,
       });
-      resetEditForm();
+      resetForm();
       await fetchNodes();
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to save MTIB';
@@ -287,11 +287,11 @@
       // Go straight to K8s — pod if available, otherwise deployment
       const pod = n.deploymentStatus?.pods?.[0];
       if (pod?.name) {
-        goto(`/system/pods/default/${pod.name}`);
+        goto(`/kubernetes/pods/default/${pod.name}`);
       } else {
         const deployName = (n.metadata?.deployment_name as string) || n.deploymentStatus?.name;
         if (deployName) {
-          goto(`/system/deployments/default/${deployName}`);
+          goto(`/kubernetes/deployments/default/${deployName}`);
         }
       }
     }
@@ -328,8 +328,8 @@
   {:else}
     <ErrorAlert message={error} />
 
-    {#if showEditForm && canManage}
-      <FormCard title="Edit MTIB" onClose={resetEditForm}>
+    {#if showForm && canManage}
+      <FormCard title="Edit MTIB" onClose={resetForm}>
         <form onsubmit={handleEditSubmit}>
           <div class="mb-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
             <label>
@@ -356,7 +356,7 @@
               <Check size={16} />
               {submitting ? 'Saving...' : 'Save changes'}
             </button>
-            <button type="button" onclick={resetEditForm}
+            <button type="button" onclick={resetForm}
               class="rounded-lg px-4 py-2 text-sm font-medium text-text-secondary hover:bg-surface-2">Cancel</button>
           </div>
         </form>

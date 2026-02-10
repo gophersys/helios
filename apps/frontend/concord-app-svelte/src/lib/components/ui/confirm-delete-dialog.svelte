@@ -50,7 +50,7 @@
     class="fixed inset-0 z-modal-backdrop bg-overlay animate-overlay-in"
     onclick={handleCancel}
     onkeydown={handleKeydown}
-    role="button"
+    role="presentation"
     tabindex="-1"
   ></div>
 

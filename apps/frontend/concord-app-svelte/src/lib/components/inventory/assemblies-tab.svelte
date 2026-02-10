@@ -53,8 +53,9 @@
 
   async function fetchAssemblies() {
     try {
-      const res = await apiFetch<ApiResponse<Assembly[]>>('/v2/inventory/assemblies');
-      assemblies = res.data;
+      const res = await apiFetch<ApiResponse<{ data: Assembly[] }>>('/v2/inventory/assemblies');
+      const payload = res.data;
+      assemblies = Array.isArray(payload) ? payload : (payload as { data: Assembly[] }).data || [];
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to load assemblies';
     } finally {
@@ -64,9 +65,11 @@
 
   async function fetchAvailableRevisions() {
     try {
-      const res = await apiFetch<ApiResponse<ComponentData[]>>('/v2/inventory/components');
+      const res = await apiFetch<ApiResponse<{ data: ComponentData[] }>>('/v2/inventory/components');
+      const compPayload = res.data;
+      const compList = Array.isArray(compPayload) ? compPayload : (compPayload as { data: ComponentData[] }).data || [];
       const revisions: InventoryRevisionOption[] = [];
-      for (const comp of res.data) {
+      for (const comp of compList) {
         for (const rev of comp.revisions || []) {
           revisions.push({
             id: rev.id,

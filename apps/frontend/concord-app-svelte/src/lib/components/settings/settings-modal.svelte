@@ -276,7 +276,7 @@
   class="fixed inset-0 z-modal-backdrop bg-overlay animate-overlay-in"
   onclick={onClose}
   onkeydown={(e) => e.key === 'Escape' && onClose()}
-  role="button"
+  role="presentation"
   tabindex="-1"
 ></div>
 
