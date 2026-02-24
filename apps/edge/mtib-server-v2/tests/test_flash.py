@@ -283,3 +283,115 @@ class TestFlashProbeIntegration:
         flash_handler.program(request, context)
 
         mock_pm.prepare_mux_for_target.assert_called_once_with("nrf52840", "821009543")
+
+
+class TestFlashDirectMode:
+    """Tests for direct mode (no debug session required)."""
+
+    @patch("src.providers.handlers.flash.subprocess.run")
+    def test_program_direct_mode_success(self, mock_run, flash_handler, firmware_file, context):
+        """Program using direct target_id/probe_id without session."""
+        mock_run.return_value = CompletedProcess(args=[], returncode=0, stdout="", stderr="")
+
+        request = FlashProgramRequest(
+            session_id="",  # No session
+            target_id="nrf52840",
+            probe_id="821009543",
+            filename="test_firmware.hex",
+            erase_before=False,
+            verify_after=False,
+            reset_after=False,
+        )
+        response = flash_handler.program(request, context)
+
+        assert response.success is True
+        assert response.bytes_programmed == firmware_file.stat().st_size
+
+    @patch("src.providers.handlers.flash.subprocess.run")
+    def test_program_direct_mode_auto_probe(self, mock_run, flash_handler, firmware_file, context):
+        """Program with probe_id='auto' in direct mode."""
+        mock_run.return_value = CompletedProcess(args=[], returncode=0, stdout="", stderr="")
+
+        request = FlashProgramRequest(
+            session_id="",
+            target_id="nrf9151",
+            probe_id="auto",
+            filename="test_firmware.hex",
+            erase_before=False,
+            verify_after=False,
+            reset_after=False,
+        )
+        response = flash_handler.program(request, context)
+
+        assert response.success is True
+        # Verify --snr flag is NOT in the command (auto probe)
+        cmd = mock_run.call_args[0][0]
+        assert "--snr" not in cmd
+
+    def test_program_requires_target_id(self, flash_handler, firmware_file, context):
+        """Fail if neither session_id nor target_id provided."""
+        request = FlashProgramRequest(
+            session_id="",
+            target_id="",
+            probe_id="",
+            filename="test_firmware.hex",
+            erase_before=False,
+            verify_after=False,
+            reset_after=False,
+        )
+        response = flash_handler.program(request, context)
+
+        assert response.success is False
+        assert "target_id required" in response.message
+
+    @patch("src.providers.handlers.flash.subprocess.run")
+    def test_erase_direct_mode_success(self, mock_run, flash_handler, context):
+        """Erase using direct target_id/probe_id without session."""
+        mock_run.return_value = CompletedProcess(args=[], returncode=0, stdout="", stderr="")
+
+        request = FlashEraseRequest(
+            session_id="",
+            target_id="nrf52840",
+            probe_id="821009543",
+            address=0,
+            size=0,
+        )
+        response = flash_handler.erase(request, context)
+
+        assert response.success is True
+        assert "erased" in response.message.lower()
+
+    def test_erase_requires_target_id(self, flash_handler, context):
+        """Fail if neither session_id nor target_id provided for erase."""
+        request = FlashEraseRequest(
+            session_id="",
+            target_id="",
+            probe_id="",
+            address=0,
+            size=0,
+        )
+        response = flash_handler.erase(request, context)
+
+        assert response.success is False
+        assert "target_id required" in response.message
+
+    @patch("src.providers.handlers.flash.subprocess.run")
+    def test_direct_mode_uses_correct_family(self, mock_run, flash_handler, firmware_file, context):
+        """Verify correct --family flag is used based on target_id."""
+        mock_run.return_value = CompletedProcess(args=[], returncode=0, stdout="", stderr="")
+
+        request = FlashProgramRequest(
+            session_id="",
+            target_id="nrf9151",
+            probe_id="123456",
+            filename="test_firmware.hex",
+            erase_before=False,
+            verify_after=False,
+            reset_after=False,
+        )
+        flash_handler.program(request, context)
+
+        cmd = mock_run.call_args[0][0]
+        assert "--family" in cmd
+        family_idx = cmd.index("--family")
+        assert cmd[family_idx + 1] == "NRF91"

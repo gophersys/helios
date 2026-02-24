@@ -1,6 +1,8 @@
 import { browser } from '$app/environment';
 import { io, Socket } from 'socket.io-client';
 import { getToken } from '$lib/api';
+import type { ObservabilitySnapshot, AnalyzerSample } from '$lib/types/mtib';
+import type { IcleUpdateEvent } from '$lib/types/icle';
 
 let systemSocket: Socket | null = null;
 
@@ -280,6 +282,191 @@ export function subscribeUart(
     socket.off('connect', connectHandler);
     if (socket.connected) {
       socket.emit('unsubscribe_uart', { nodeId, portName });
+    }
+  };
+}
+
+/**
+ * Subscribe to MTIB observability updates (power, GPIO, ADC, system metrics).
+ *
+ * @param nodeId - MTIB node identifier
+ * @param features - Array of features to observe: 'power', 'gpio', 'adc', 'system'
+ * @param onUpdate - Callback for observability updates
+ * @param onError - Optional error callback
+ * @returns Cleanup function to unsubscribe
+ */
+export function subscribeMtibObservability(
+  nodeId: string,
+  features: string[],
+  onUpdate: (data: ObservabilitySnapshot) => void,
+  onError?: (error: string) => void
+): () => void {
+  const socket = getSystemSocket();
+  if (!socket) {
+    onError?.('WebSocket not available');
+    return () => {};
+  }
+
+  const updateHandler = (data: ObservabilitySnapshot) => {
+    onUpdate(data);
+  };
+
+  const errorHandler = (event: { message: string }) => {
+    onError?.(event.message);
+  };
+
+  socket.on('observability_update', updateHandler);
+  socket.on('observability_error', errorHandler);
+
+  const emitSubscribe = () => {
+    socket.emit('subscribe_observability', {
+      nodeId,
+      features,
+    });
+  };
+
+  const connectHandler = () => {
+    emitSubscribe();
+  };
+
+  if (socket.connected) {
+    emitSubscribe();
+  } else {
+    socket.on('connect', connectHandler);
+  }
+
+  return () => {
+    socket.off('observability_update', updateHandler);
+    socket.off('observability_error', errorHandler);
+    socket.off('connect', connectHandler);
+    if (socket.connected) {
+      socket.emit('unsubscribe_observability', { nodeId });
+    }
+  };
+}
+
+/**
+ * Subscribe to logic analyzer capture streaming.
+ * Receives sample chunks as they're captured.
+ *
+ * @param nodeId - MTIB node identifier
+ * @param captureId - Unique capture session identifier
+ * @param onSample - Callback for sample chunks
+ * @param onComplete - Callback when capture completes
+ * @param onError - Optional error callback
+ * @returns Cleanup function to unsubscribe
+ */
+export function subscribeAnalyzer(
+  nodeId: string,
+  captureId: string,
+  onSample: (data: { samples: AnalyzerSample[] }) => void,
+  onComplete: (data: { status: string; totalSamples: number }) => void,
+  onError?: (error: string) => void
+): () => void {
+  const socket = getSystemSocket();
+  if (!socket) {
+    onError?.('WebSocket not available');
+    return () => {};
+  }
+
+  const sampleHandler = (data: { samples: AnalyzerSample[] }) => {
+    onSample(data);
+  };
+
+  const completeHandler = (data: { status: string; totalSamples: number }) => {
+    onComplete(data);
+  };
+
+  const errorHandler = (event: { message: string }) => {
+    onError?.(event.message);
+  };
+
+  socket.on('analyzer_sample_chunk', sampleHandler);
+  socket.on('analyzer_complete', completeHandler);
+  socket.on('analyzer_error', errorHandler);
+
+  const emitSubscribe = () => {
+    socket.emit('subscribe_analyzer', {
+      nodeId,
+      captureId,
+    });
+  };
+
+  const connectHandler = () => {
+    emitSubscribe();
+  };
+
+  if (socket.connected) {
+    emitSubscribe();
+  } else {
+    socket.on('connect', connectHandler);
+  }
+
+  return () => {
+    socket.off('analyzer_sample_chunk', sampleHandler);
+    socket.off('analyzer_complete', completeHandler);
+    socket.off('analyzer_error', errorHandler);
+    socket.off('connect', connectHandler);
+    if (socket.connected) {
+      socket.emit('unsubscribe_analyzer', { nodeId, captureId });
+    }
+  };
+}
+
+/**
+ * Subscribe to ICLE device updates (status, power readings).
+ *
+ * @param deviceId - ICLE device identifier
+ * @param onUpdate - Callback for device updates
+ * @param onError - Optional error callback
+ * @returns Cleanup function to unsubscribe
+ */
+export function subscribeIcle(
+  deviceId: string,
+  onUpdate: (data: IcleUpdateEvent) => void,
+  onError?: (error: string) => void
+): () => void {
+  const socket = getSystemSocket();
+  if (!socket) {
+    onError?.('WebSocket not available');
+    return () => {};
+  }
+
+  const updateHandler = (data: IcleUpdateEvent) => {
+    if (data.deviceId === deviceId) {
+      onUpdate(data);
+    }
+  };
+
+  const errorHandler = (event: { deviceId: string; message: string }) => {
+    if (event.deviceId === deviceId) {
+      onError?.(event.message);
+    }
+  };
+
+  socket.on('icle_update', updateHandler);
+  socket.on('icle_error', errorHandler);
+
+  const emitSubscribe = () => {
+    socket.emit('subscribe_icle', { deviceId });
+  };
+
+  const connectHandler = () => {
+    emitSubscribe();
+  };
+
+  if (socket.connected) {
+    emitSubscribe();
+  } else {
+    socket.on('connect', connectHandler);
+  }
+
+  return () => {
+    socket.off('icle_update', updateHandler);
+    socket.off('icle_error', errorHandler);
+    socket.off('connect', connectHandler);
+    if (socket.connected) {
+      socket.emit('unsubscribe_icle', { deviceId });
     }
   };
 }

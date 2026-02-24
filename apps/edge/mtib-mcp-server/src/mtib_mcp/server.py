@@ -817,6 +817,502 @@ async def mtib_i2c_transfer(
 
 
 # =========================================================================
+# 8. Logic Analyzer
+# =========================================================================
+
+
+@mcp.tool()
+async def mtib_analyzer_list_providers() -> str:
+    """List available logic analyzer backends (Saleae, sigrok, simulation).
+
+    Returns information about each provider: availability, max sample rate,
+    channel count, supported protocols, and detected hardware.
+    """
+    try:
+        resp = await client.stub.ListAnalyzerProviders(
+            pb.ListAnalyzerProvidersRequest()
+        )
+        if not resp.success:
+            return f"Failed to list providers: {resp.message}"
+
+        providers = []
+        for p in resp.providers:
+            providers.append(
+                {
+                    "name": p.name,
+                    "display_name": p.display_name,
+                    "available": p.available,
+                    "max_sample_rate_hz": p.max_sample_rate_hz,
+                    "max_channels": p.max_channels,
+                    "supported_protocols": list(p.supported_protocols),
+                    "supports_streaming": p.supports_streaming,
+                    "supports_triggers": p.supports_triggers,
+                    "hardware_detected": p.hardware_detected or "none",
+                    "supported_export_formats": list(p.supported_export_formats),
+                }
+            )
+        return json.dumps({"providers": providers}, indent=2)
+    except grpc.aio.AioRpcError as e:
+        return _grpc_error(e)
+
+
+@mcp.tool()
+async def mtib_analyzer_capture_start(
+    channels: str,
+    sample_rate_hz: int = 1_000_000,
+    duration_s: float = 1.0,
+    provider: str = "auto",
+    trigger_enabled: bool = False,
+    trigger_channel: int = 0,
+    trigger_edge: str = "rising",
+    pre_trigger_s: float = 0.0,
+    timeout_s: float = 60.0,
+    max_samples: int = 0,
+    max_memory_mb: int = 512,
+) -> str:
+    """Start a logic analyzer capture.
+
+    channels: comma-separated channel definitions like "0:SCL,1:SDA,2:CS"
+    sample_rate_hz: sampling rate (up to 500MHz for some hardware)
+    duration_s: capture duration in seconds
+    provider: "auto", "saleae", "sigrok", or "simulation"
+    trigger_enabled: wait for trigger before capturing
+    trigger_channel: channel index to trigger on
+    trigger_edge: "rising", "falling", or "either"
+    pre_trigger_s: seconds of data to capture before trigger
+    timeout_s: overall operation timeout (default 60s)
+    max_samples: hard limit on total samples (0 = unlimited)
+    max_memory_mb: memory limit (default 512 MB)
+
+    Returns a capture_id for use with other analyzer tools.
+    """
+    # Parse channels
+    channel_configs = []
+    for ch_spec in channels.split(","):
+        ch_spec = ch_spec.strip()
+        if ":" in ch_spec:
+            ch_num, label = ch_spec.split(":", 1)
+            channel_configs.append(
+                pb.AnalyzerChannelConfig(
+                    channel=int(ch_num.strip()),
+                    label=label.strip(),
+                    enabled=True,
+                )
+            )
+        else:
+            channel_configs.append(
+                pb.AnalyzerChannelConfig(
+                    channel=int(ch_spec),
+                    label=f"CH{ch_spec}",
+                    enabled=True,
+                )
+            )
+
+    # Parse provider
+    provider_map = {
+        "auto": pb.PROVIDER_AUTO,
+        "saleae": pb.PROVIDER_SALEAE,
+        "sigrok": pb.PROVIDER_SIGROK,
+        "simulation": pb.PROVIDER_SIMULATION,
+    }
+    prov = provider_map.get(provider.lower())
+    if prov is None:
+        return f"Invalid provider '{provider}'. Use: {', '.join(provider_map)}"
+
+    # Parse trigger edge
+    edge_map = {
+        "rising": pb.AnalyzerCaptureConfig.TRIGGER_RISING,
+        "falling": pb.AnalyzerCaptureConfig.TRIGGER_FALLING,
+        "either": pb.AnalyzerCaptureConfig.TRIGGER_EITHER,
+    }
+    edge = edge_map.get(trigger_edge.lower())
+    if edge is None:
+        return f"Invalid trigger_edge '{trigger_edge}'. Use: {', '.join(edge_map)}"
+
+    try:
+        resp = await client.stub.AnalyzerCaptureStart(
+            pb.AnalyzerCaptureStartRequest(
+                config=pb.AnalyzerCaptureConfig(
+                    channels=channel_configs,
+                    sample_rate_hz=sample_rate_hz,
+                    duration_s=duration_s,
+                    trigger_enabled=trigger_enabled,
+                    trigger_channel=trigger_channel,
+                    trigger_edge=edge,
+                    pre_trigger_s=pre_trigger_s,
+                    timeout_s=timeout_s,
+                    max_samples=max_samples,
+                    max_memory_mb=max_memory_mb,
+                ),
+                prefer_provider=prov,
+            )
+        )
+        if not resp.success:
+            return f"Capture start failed: {resp.message}"
+        return json.dumps(
+            {
+                "capture_id": resp.capture_id,
+                "provider_used": resp.provider_used,
+                "status": "started",
+            },
+            indent=2,
+        )
+    except grpc.aio.AioRpcError as e:
+        return _grpc_error(e)
+
+
+@mcp.tool()
+async def mtib_analyzer_capture_status(capture_id: str) -> str:
+    """Get the status of a running or completed capture.
+
+    Returns: status (waiting_trigger/capturing/complete/error), progress,
+    samples captured, samples dropped, and memory usage.
+    """
+    try:
+        resp = await client.stub.AnalyzerCaptureStatus(
+            pb.AnalyzerCaptureStatusRequest(capture_id=capture_id)
+        )
+        if not resp.success:
+            return f"Status query failed: {resp.message}"
+
+        status_name = pb.AnalyzerCaptureStatusResponse.Status.Name(resp.status)
+        return json.dumps(
+            {
+                "capture_id": capture_id,
+                "status": status_name.replace("STATUS_", "").lower(),
+                "progress": round(resp.progress, 3),
+                "samples_captured": resp.samples_captured,
+                "samples_dropped": resp.samples_dropped,
+                "memory_usage_mb": round(resp.memory_usage_mb, 2),
+            },
+            indent=2,
+        )
+    except grpc.aio.AioRpcError as e:
+        return _grpc_error(e)
+
+
+@mcp.tool()
+async def mtib_analyzer_stream_samples(
+    capture_id: str,
+    max_samples: int = 1000,
+    interval_s: float = 0.1,
+) -> str:
+    """Stream recent samples from an active or completed capture.
+
+    This is a one-shot read, not a persistent stream. Call repeatedly
+    to poll for new samples during capture.
+
+    max_samples: limit samples per call (default 1000)
+    interval_s: internal polling interval for the stream (default 0.1s)
+
+    Returns samples as timestamp + digital values per channel.
+    """
+    try:
+        # The RPC is a server-streaming call, but we'll just consume the
+        # first chunk and return it (one-shot read for MCP simplicity)
+        stream = client.stub.AnalyzerStream(
+            pb.AnalyzerStreamRequest(
+                capture_id=capture_id,
+                max_samples_per_chunk=max_samples,
+                interval_s=interval_s,
+            )
+        )
+
+        # Read first response
+        resp = await stream.read()
+        if resp == grpc.aio.EOF:
+            return json.dumps({"samples": [], "capture_complete": True})
+
+        if not resp.success:
+            return f"Stream failed: {resp.message}"
+
+        samples = []
+        for s in resp.samples:
+            samples.append(
+                {
+                    "timestamp_ns": s.timestamp_ns,
+                    "digital_values": list(s.digital_values),
+                }
+            )
+
+        # Cancel the stream after first read
+        stream.cancel()
+
+        return json.dumps(
+            {
+                "samples": samples,
+                "count": len(samples),
+                "capture_complete": resp.capture_complete,
+                "total_samples": resp.total_samples,
+                "samples_dropped": resp.samples_dropped,
+            },
+            indent=2,
+        )
+    except grpc.aio.AioRpcError as e:
+        return _grpc_error(e)
+
+
+@mcp.tool()
+async def mtib_analyzer_export(
+    capture_id: str,
+    format: str = "csv",
+    output_path: str = "",
+) -> str:
+    """Export a capture to a file.
+
+    format: "csv", "vcd", "native_saleae", or "native_sigrok"
+    output_path: relative path (empty = auto-generate)
+
+    Returns the full path to the exported file.
+    """
+    format_map = {
+        "csv": pb.AnalyzerExportRequest.FORMAT_CSV,
+        "vcd": pb.AnalyzerExportRequest.FORMAT_VCD,
+        "native_saleae": pb.AnalyzerExportRequest.FORMAT_NATIVE_SALEAE,
+        "native_sigrok": pb.AnalyzerExportRequest.FORMAT_NATIVE_SIGROK,
+    }
+    fmt = format_map.get(format.lower())
+    if fmt is None:
+        return f"Invalid format '{format}'. Use: {', '.join(format_map)}"
+
+    try:
+        resp = await client.stub.AnalyzerExport(
+            pb.AnalyzerExportRequest(
+                capture_id=capture_id,
+                format=fmt,
+                output_path=output_path,
+            )
+        )
+        if not resp.success:
+            return f"Export failed: {resp.message}"
+        return json.dumps(
+            {
+                "file_path": resp.file_path,
+                "file_size_bytes": resp.file_size_bytes,
+                "file_size_mb": round(resp.file_size_bytes / (1024 * 1024), 2),
+            },
+            indent=2,
+        )
+    except grpc.aio.AioRpcError as e:
+        return _grpc_error(e)
+
+
+@mcp.tool()
+async def mtib_analyzer_add_decoder(
+    capture_id: str,
+    protocol: str,
+    decoder_name: str = "",
+    config: str = "",
+) -> str:
+    """Add a protocol decoder to a capture.
+
+    protocol: "i2c", "spi", "uart", "can", "jtag", "swd", "1wire", "lin", "i2s", "pwm"
+    decoder_name: optional name (auto-generated if empty)
+    config: JSON config like '{"sda_channel": 0, "scl_channel": 1}' for I2C,
+            '{"rx_channel": 0, "tx_channel": 1, "baud": 115200}' for UART, etc.
+
+    Returns a decoder_id for use with mtib_analyzer_get_decoded_data.
+
+    I2C config keys: sda_channel, scl_channel
+    SPI config keys: clk_channel, mosi_channel, miso_channel, cs_channel, cpol, cpha, bits_per_word, msb_first
+    UART config keys: rx_channel, tx_channel, baud, data_bits, parity ("none"/"even"/"odd")
+    """
+    protocol_map = {
+        "i2c": pb.PROTOCOL_I2C,
+        "spi": pb.PROTOCOL_SPI,
+        "uart": pb.PROTOCOL_UART,
+        "1wire": pb.PROTOCOL_1WIRE,
+        "jtag": pb.PROTOCOL_JTAG,
+        "swd": pb.PROTOCOL_SWD,
+        "can": pb.PROTOCOL_CAN,
+        "lin": pb.PROTOCOL_LIN,
+        "i2s": pb.PROTOCOL_I2S,
+        "pwm": pb.PROTOCOL_PWM,
+    }
+    proto = protocol_map.get(protocol.lower())
+    if proto is None:
+        return f"Invalid protocol '{protocol}'. Use: {', '.join(protocol_map)}"
+
+    # Parse config JSON
+    cfg = {}
+    if config:
+        try:
+            cfg = json.loads(config)
+        except json.JSONDecodeError as e:
+            return f"Invalid JSON config: {e}"
+
+    # Build the decoder request
+    req = pb.AddDecoderRequest(
+        capture_id=capture_id,
+        decoder_name=decoder_name or f"{protocol}_decoder",
+        protocol=proto,
+    )
+
+    # Set protocol-specific config
+    if proto == pb.PROTOCOL_I2C:
+        req.i2c.CopyFrom(
+            pb.I2cDecoderConfig(
+                sda_channel=cfg.get("sda_channel", 0),
+                scl_channel=cfg.get("scl_channel", 1),
+            )
+        )
+    elif proto == pb.PROTOCOL_SPI:
+        req.spi.CopyFrom(
+            pb.SpiDecoderConfig(
+                clk_channel=cfg.get("clk_channel", 0),
+                mosi_channel=cfg.get("mosi_channel", 1),
+                miso_channel=cfg.get("miso_channel", 2),
+                cs_channel=cfg.get("cs_channel", 3),
+                cpol=cfg.get("cpol", False),
+                cpha=cfg.get("cpha", False),
+                bits_per_word=cfg.get("bits_per_word", 8),
+                msb_first=cfg.get("msb_first", True),
+            )
+        )
+    elif proto == pb.PROTOCOL_UART:
+        parity_map = {"none": pb.PARITY_NONE, "even": pb.PARITY_EVEN, "odd": pb.PARITY_ODD}
+        parity_str = cfg.get("parity", "none").lower()
+        parity = parity_map.get(parity_str, pb.PARITY_NONE)
+        req.uart.CopyFrom(
+            pb.UartDecoderConfig(
+                rx_channel=cfg.get("rx_channel", 0),
+                tx_channel=cfg.get("tx_channel", 1),
+                baud=cfg.get("baud", 115200),
+                data_bits=cfg.get("data_bits", 8),
+                parity=parity,
+            )
+        )
+
+    try:
+        resp = await client.stub.AddDecoder(req)
+        if not resp.success:
+            return f"Add decoder failed: {resp.message}"
+        return json.dumps(
+            {
+                "decoder_id": resp.decoder_id,
+                "protocol": protocol,
+            },
+            indent=2,
+        )
+    except grpc.aio.AioRpcError as e:
+        return _grpc_error(e)
+
+
+@mcp.tool()
+async def mtib_analyzer_get_decoded_data(
+    capture_id: str,
+    decoder_id: str = "",
+) -> str:
+    """Get decoded protocol data from a capture.
+
+    decoder_id: specific decoder to query (empty = all decoders)
+
+    Returns decoded transactions (I2C addresses/data, SPI transfers, UART frames, etc.)
+    """
+    try:
+        resp = await client.stub.GetDecodedData(
+            pb.GetDecodedDataRequest(
+                capture_id=capture_id,
+                decoder_id=decoder_id,
+            )
+        )
+        if not resp.success:
+            return f"Get decoded data failed: {resp.message}"
+
+        decoded = []
+        for entry in resp.data:
+            item = {"decoder_id": entry.decoder_id}
+            if entry.HasField("i2c"):
+                item["protocol"] = "i2c"
+                item["data"] = {
+                    "timestamp_ns": entry.i2c.timestamp.nanos,
+                    "address": f"0x{entry.i2c.address:02x}",
+                    "read": entry.i2c.read,
+                    "data_hex": entry.i2c.data.hex(),
+                    "ack": entry.i2c.ack,
+                }
+            elif entry.HasField("spi"):
+                item["protocol"] = "spi"
+                item["data"] = {
+                    "timestamp_ns": entry.spi.timestamp.nanos,
+                    "mosi_hex": entry.spi.mosi_data.hex(),
+                    "miso_hex": entry.spi.miso_data.hex(),
+                }
+            elif entry.HasField("uart"):
+                item["protocol"] = "uart"
+                item["data"] = {
+                    "timestamp_ns": entry.uart.timestamp.nanos,
+                    "is_tx": entry.uart.is_tx,
+                    "data_hex": entry.uart.data.hex(),
+                    "data_ascii": entry.uart.data.decode("ascii", errors="replace"),
+                    "parity_error": entry.uart.parity_error,
+                    "framing_error": entry.uart.framing_error,
+                }
+            elif entry.HasField("can"):
+                item["protocol"] = "can"
+                item["data"] = {
+                    "timestamp_ns": entry.can.timestamp.nanos,
+                    "id": f"0x{entry.can.id:03x}",
+                    "extended_id": entry.can.extended_id,
+                    "rtr": entry.can.rtr,
+                    "data_hex": entry.can.data.hex(),
+                }
+            decoded.append(item)
+
+        return json.dumps(
+            {
+                "capture_id": capture_id,
+                "decoder_id": decoder_id or "all",
+                "count": len(decoded),
+                "decoded": decoded,
+            },
+            indent=2,
+        )
+    except grpc.aio.AioRpcError as e:
+        return _grpc_error(e)
+
+
+@mcp.tool()
+async def mtib_analyzer_stop(capture_id: str) -> str:
+    """Stop an active capture early (before duration expires or trigger).
+
+    The capture will be available for export/decoding after stopping.
+    """
+    try:
+        resp = await client.stub.AnalyzerCaptureStop(
+            pb.AnalyzerCaptureStopRequest(capture_id=capture_id)
+        )
+        return "Capture stopped" if resp.success else f"Stop failed: {resp.message}"
+    except grpc.aio.AioRpcError as e:
+        return _grpc_error(e)
+
+
+@mcp.tool()
+async def mtib_analyzer_cleanup(capture_id: str = "") -> str:
+    """Clean up analyzer resources (memory, files) for inactive captures.
+
+    capture_id: specific capture to clean (empty = clean all inactive)
+
+    Returns list of cleaned captures and memory freed.
+    """
+    try:
+        resp = await client.stub.AnalyzerCleanup(
+            pb.AnalyzerCleanupRequest(capture_id=capture_id)
+        )
+        if not resp.success:
+            return f"Cleanup failed: {resp.message}"
+        return json.dumps(
+            {
+                "cleaned_capture_ids": list(resp.cleaned_capture_ids),
+                "memory_freed_mb": round(resp.memory_freed_mb, 2),
+            },
+            indent=2,
+        )
+    except grpc.aio.AioRpcError as e:
+        return _grpc_error(e)
+
+
+# =========================================================================
 # Entry point
 # =========================================================================
 

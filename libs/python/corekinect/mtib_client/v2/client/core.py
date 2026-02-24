@@ -15,7 +15,8 @@ from .rtt import RttMixin
 from .swo import SwoMixin
 from .uart import UartMixin
 from .power import PowerMixin
-from .logic import LogicMixin
+from .analyzer_legacy import LogicMixin
+from .analyzer import AnalyzerMixin
 from .gpio import GpioMixin
 from .i2c import I2cMixin
 from .spi import SpiMixin
@@ -36,6 +37,7 @@ class MtibV2Client(
     UartMixin,
     PowerMixin,
     LogicMixin,
+    AnalyzerMixin,
     GpioMixin,
     I2cMixin,
     SpiMixin,

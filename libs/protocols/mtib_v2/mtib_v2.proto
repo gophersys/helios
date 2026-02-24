@@ -322,7 +322,11 @@ message FlashInfoResponse {
 }
 
 message FlashEraseRequest {
-  string session_id = 1;
+  // Target identification (use ONE of these approaches):
+  string session_id = 1;            // Option A: Use existing debug session
+  string target_id = 4;             // Option B: Direct - e.g., "nrf52840", "nrf9151"
+  string probe_id = 5;              // Option B: Direct - e.g., "821009543" or "auto"
+
   uint64 address = 2;               // 0 = full chip erase
   uint64 size = 3;                  // 0 = full chip erase
 }
@@ -343,11 +347,15 @@ message FlashWriteResponse {
 
 // Program a firmware file (hex, bin, elf)
 message FlashProgramRequest {
-  string session_id = 1;
+  // Target identification (use ONE of these approaches):
+  string session_id = 1;            // Option A: Use existing debug session
+  string target_id = 6;             // Option B: Direct - e.g., "nrf52840", "nrf9151"
+  string probe_id = 7;              // Option B: Direct - e.g., "821009543" or "auto"
+
   string filename = 2;              // Name of uploaded file
-  bool erase_before = 3;
-  bool verify_after = 4;
-  bool reset_after = 5;
+  bool erase_before = 3;            // Run --recover before programming
+  bool verify_after = 4;            // Verify flash contents after programming
+  bool reset_after = 5;             // Reset target after programming
 }
 
 message FlashProgramResponse {
@@ -547,18 +555,31 @@ message PowerMeasureResponse {
 }
 
 // =============================================================================
-// Logic Analyzer
+// Digital Signal Analyzer (Generic Logic Analyzer Support)
 // =============================================================================
+//
+// Supports any logic analyzer backend: Saleae Logic 2, sigrok/PulseView,
+// DSLogic, Kingst, or simulation. Server auto-detects available providers.
+//
+// This is vendor-neutral: "Logic" was Saleae-specific branding. Now we use
+// generic "Analyzer" terminology to support any digital signal capture tool.
 
-message LogicChannelConfig {
+enum AnalyzerProvider {
+  PROVIDER_AUTO = 0;        // Auto-select best available
+  PROVIDER_SALEAE = 1;      // Saleae Logic 2 automation API
+  PROVIDER_SIGROK = 2;      // libsigrok (fx2lafw, DSLogic, etc.)
+  PROVIDER_SIMULATION = 3;  // Mock data for testing
+}
+
+message AnalyzerChannelConfig {
   uint32 channel = 1;
   string label = 2;
   bool enabled = 3;
 }
 
-message LogicCaptureConfig {
-  repeated LogicChannelConfig channels = 1;
-  uint64 sample_rate_hz = 2;        // Up to 500MHz digital
+message AnalyzerCaptureConfig {
+  repeated AnalyzerChannelConfig channels = 1;
+  uint64 sample_rate_hz = 2;
   float duration_s = 3;
 
   // Trigger
@@ -571,23 +592,34 @@ message LogicCaptureConfig {
   }
   TriggerEdge trigger_edge = 6;
   float pre_trigger_s = 7;
+
+  // Global timeout (NEW)
+  float timeout_s = 8;               // Overall operation timeout (default 60s)
+
+  // Resource limits (NEW)
+  uint64 max_samples = 10;           // Hard limit on total samples
+  uint64 max_memory_mb = 11;         // Memory limit (default 512 MB)
+  bool circular_buffer = 12;         // Overwrite oldest when limit hit
+  bool auto_export_on_stop = 13;     // Save to file when stopped
 }
 
-message LogicCaptureStartRequest {
-  LogicCaptureConfig config = 1;
+message AnalyzerCaptureStartRequest {
+  AnalyzerCaptureConfig config = 1;
+  AnalyzerProvider prefer_provider = 2;  // Optional provider preference
 }
 
-message LogicCaptureStartResponse {
+message AnalyzerCaptureStartResponse {
   bool success = 1;
   string message = 2;
   string capture_id = 3;
+  string provider_used = 4;              // Which provider was used (e.g., "saleae", "sigrok")
 }
 
-message LogicCaptureStatusRequest {
+message AnalyzerCaptureStatusRequest {
   string capture_id = 1;
 }
 
-message LogicCaptureStatusResponse {
+message AnalyzerCaptureStatusResponse {
   bool success = 1;
   string message = 2;
   enum Status {
@@ -598,13 +630,91 @@ message LogicCaptureStatusResponse {
   }
   Status status = 3;
   float progress = 4;               // 0.0 - 1.0
+  uint64 samples_captured = 5;      // Total samples captured so far
+  uint64 samples_dropped = 6;       // Samples dropped due to memory limit
+  float memory_usage_mb = 7;        // Current memory usage
 }
 
-message LogicCaptureStopRequest {
+message AnalyzerCaptureStopRequest {
   string capture_id = 1;
 }
 
-// Protocol decoder configuration
+// NEW: Real-time sample streaming
+message AnalyzerStreamRequest {
+  string capture_id = 1;
+  uint32 max_samples_per_chunk = 2;  // Limit chunk size (default 1000)
+  float interval_s = 3;               // Polling interval (default 0.1s)
+}
+
+message AnalyzerSample {
+  uint64 timestamp_ns = 1;
+  repeated bool digital_values = 2;  // One bool per channel
+}
+
+message AnalyzerStreamResponse {
+  bool success = 1;
+  string message = 2;
+  repeated AnalyzerSample samples = 3;
+  bool capture_complete = 4;
+  uint64 total_samples = 5;
+  uint64 samples_dropped = 6;
+}
+
+// NEW: Query available analyzer providers
+message ListAnalyzerProvidersRequest {}
+
+message AnalyzerProviderInfo {
+  string name = 1;                      // "saleae", "sigrok", "simulation"
+  string display_name = 2;              // "Saleae Logic 2", "sigrok (libsigrok)"
+  bool available = 3;
+  uint64 max_sample_rate_hz = 4;
+  uint32 max_channels = 5;
+  repeated string supported_protocols = 6;
+  bool supports_streaming = 7;
+  bool supports_triggers = 8;
+  string hardware_detected = 9;         // e.g., "Logic 8", "fx2lafw"
+  repeated string supported_export_formats = 10;  // e.g., ["csv", "vcd", "native"]
+}
+
+message ListAnalyzerProvidersResponse {
+  bool success = 1;
+  string message = 2;
+  repeated AnalyzerProviderInfo providers = 3;
+}
+
+// NEW: Export capture to file
+message AnalyzerExportRequest {
+  string capture_id = 1;
+  enum ExportFormat {
+    FORMAT_CSV = 0;           // Raw digital CSV (timestamp, CH0, CH1, ...)
+    FORMAT_VCD = 1;           // Value Change Dump (waveform viewer format)
+    FORMAT_NATIVE_SALEAE = 2; // .sal file (Saleae Logic 2 native)
+    FORMAT_NATIVE_SIGROK = 3; // .sr file (sigrok/PulseView native)
+  }
+  ExportFormat format = 2;
+  string output_path = 3;       // Relative to server export dir
+}
+
+message AnalyzerExportResponse {
+  bool success = 1;
+  string message = 2;
+  string file_path = 3;         // Full path to exported file
+  uint64 file_size_bytes = 4;
+}
+
+// NEW: Manual cleanup of analyzer resources
+message AnalyzerCleanupRequest {
+  string capture_id = 1;        // Empty = clean all inactive captures
+}
+
+message AnalyzerCleanupResponse {
+  bool success = 1;
+  string message = 2;
+  repeated string cleaned_capture_ids = 3;
+  uint64 memory_freed_mb = 4;
+}
+
+// Protocol decoder configuration (unchanged - already generic)
 enum Protocol {
   PROTOCOL_I2C = 0;
   PROTOCOL_SPI = 1;
@@ -674,11 +784,29 @@ message SpiTransaction {
   bytes miso_data = 3;
 }
 
+message UartFrameDecoded {
+  Timestamp timestamp = 1;
+  bool is_tx = 2;            // true = TX, false = RX
+  bytes data = 3;
+  bool parity_error = 4;
+  bool framing_error = 5;
+}
+
+message CanFrameDecoded {
+  Timestamp timestamp = 1;
+  uint32 id = 2;
+  bool extended_id = 3;
+  bool rtr = 4;
+  bytes data = 5;
+}
+
 message DecodedData {
   string decoder_id = 1;
   oneof data {
     I2cTransaction i2c = 10;
     SpiTransaction spi = 11;
+    UartFrameDecoded uart = 12;
+    CanFrameDecoded can = 13;
   }
 }
 
@@ -1292,10 +1420,14 @@ service MtibV2 {
   rpc PowerStream(PowerStreamRequest) returns (stream PowerStreamResponse);
   rpc PowerMeasure(PowerMeasureRequest) returns (PowerMeasureResponse);
 
-  // Logic Analyzer
-  rpc LogicCaptureStart(LogicCaptureStartRequest) returns (LogicCaptureStartResponse);
-  rpc LogicCaptureStatus(LogicCaptureStatusRequest) returns (LogicCaptureStatusResponse);
-  rpc LogicCaptureStop(LogicCaptureStopRequest) returns (Response);
+  // Digital Signal Analyzer (Generic Logic Analyzer) — UPDATED
+  rpc ListAnalyzerProviders(ListAnalyzerProvidersRequest) returns (ListAnalyzerProvidersResponse);
+  rpc AnalyzerCaptureStart(AnalyzerCaptureStartRequest) returns (AnalyzerCaptureStartResponse);
+  rpc AnalyzerCaptureStatus(AnalyzerCaptureStatusRequest) returns (AnalyzerCaptureStatusResponse);
+  rpc AnalyzerCaptureStop(AnalyzerCaptureStopRequest) returns (Response);
+  rpc AnalyzerStream(AnalyzerStreamRequest) returns (stream AnalyzerStreamResponse);
+  rpc AnalyzerExport(AnalyzerExportRequest) returns (AnalyzerExportResponse);
+  rpc AnalyzerCleanup(AnalyzerCleanupRequest) returns (AnalyzerCleanupResponse);
   rpc AddDecoder(AddDecoderRequest) returns (AddDecoderResponse);
   rpc GetDecodedData(GetDecodedDataRequest) returns (GetDecodedDataResponse);
 

@@ -1,45 +1,33 @@
 {
-    "name": "devcontainer-base",
-    "$schema": "../../../node_modules/nx/schemas/project-schema.json",
-    "sourceRoot": ".devcontainer/base",
-    "projectType": "application",
-    "targets": {
-        "build": {
-            "command": "nx run devcontainer-base:containerize"
-        },
-        "push": {
-            "command": "nx run devcontainer-base:containerize-push"
-        },
-        "containerize": {
-            "executor": "@nx-tools/nx-container:build",
-            "cwd": "{projectRoot}",
-            "options": {
-                "context": "{projectRoot}",
-                "file": ".devcontainer/base/Dockerfile",
-                "platforms": [],
-                "load": true,
-                "push": false,
-                "tags": [
-                    "containers.ad.corekinect.com/concord-devcontainer-base:latest"
-                ]
-            }
-        },
-        "containerize-push": {
-            "executor": "@nx-tools/nx-container:build",
-            "cwd": "{projectRoot}",
-            "options": {
-                "context": "{projectRoot}",
-                "file": ".devcontainer/base/Dockerfile",
-                "platforms": [
-                    "linux/amd64",
-                    "linux/arm64"
-                ],
-                "load": false,
-                "push": true,
-                "tags": [
-                    "containers.ad.corekinect.com/concord-devcontainer-base:latest"
-                ]
-            }
-        }
+  "name": "devcontainer-base",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": ".devcontainer/base",
+  "projectType": "application",
+  "tags": ["type:devcontainer"],
+  "targets": {
+    "build": {
+      "executor": "@nx-tools/nx-container:build",
+      "options": {
+        "context": ".devcontainer/base",
+        "file": ".devcontainer/base/Dockerfile",
+        "platforms": [],
+        "load": true,
+        "push": false,
+        "tags": ["containers.ad.corekinect.com/concord-devcontainer-base:latest"]
+      }
+    },
+    "push": {
+      "executor": "@nx-tools/nx-container:build",
+      "options": {
+        "context": ".devcontainer/base",
+        "file": ".devcontainer/base/Dockerfile",
+        "platforms": ["linux/amd64", "linux/arm64"],
+        "load": false,
+        "push": true,
+        "tags": ["containers.ad.corekinect.com/concord-devcontainer-base:latest"],
+        "cache-from": ["type=registry,ref=containers.ad.corekinect.com/concord-devcontainer-base:cache"],
+        "cache-to": ["type=registry,ref=containers.ad.corekinect.com/concord-devcontainer-base:cache,mode=max"]
+      }
     }
+  }
 }

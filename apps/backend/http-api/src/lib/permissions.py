@@ -49,6 +49,10 @@ class Permissions:
     ADMIN_DEPLOYMENTS_VIEW = "Concord.Admin.Deployments.View"
     ADMIN_DEPLOYMENTS_MANAGE = "Concord.Admin.Deployments.Manage"
 
+    # Admin - ICLE Devices
+    ADMIN_ICLE_VIEW = "Concord.Admin.Icle.View"
+    ADMIN_ICLE_MANAGE = "Concord.Admin.Icle.Manage"
+
     @classmethod
     def all(cls) -> list[dict]:
         """Return all permissions as a list for the /permissions endpoint."""

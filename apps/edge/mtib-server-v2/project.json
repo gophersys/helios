@@ -77,6 +77,82 @@
         }
       }
     },
+    "containerize-logic2": {
+      "executor": "@nx-tools/nx-container:build",
+      "defaultConfiguration": "development",
+      "options": {
+        "context": "{workspaceRoot}/apps/edge/mtib-server-v2/deploy",
+        "cwd": "{workspaceRoot}",
+        "file": "apps/edge/mtib-server-v2/deploy/Dockerfile.logic2",
+        "push": false,
+        "load": true
+      },
+      "configurations": {
+        "development": {
+          "tags": [
+            "logic2-sidecar:development"
+          ],
+          "platforms": [
+            "linux/amd64"
+          ]
+        },
+        "staging": {
+          "tags": [
+            "containers.ad.corekinect.com/logic2-sidecar:staging"
+          ],
+          "platforms": [
+            "linux/amd64"
+          ]
+        },
+        "production": {
+          "tags": [
+            "containers.ad.corekinect.com/logic2-sidecar:latest"
+          ],
+          "platforms": [
+            "linux/amd64"
+          ]
+        }
+      }
+    },
+    "build-all": {
+      "executor": "nx:run-commands",
+      "defaultConfiguration": "development",
+      "options": {
+        "cwd": "{workspaceRoot}",
+        "commands": [
+          {
+            "command": "nx run mtib-server-v2:containerize"
+          },
+          {
+            "command": "nx run mtib-server-v2:containerize-logic2"
+          }
+        ],
+        "parallel": false
+      },
+      "configurations": {
+        "development": {},
+        "staging": {},
+        "production": {}
+      }
+    },
+    "push-all": {
+      "executor": "nx:run-commands",
+      "dependsOn": [
+        "build-all"
+      ],
+      "options": {
+        "cwd": "{workspaceRoot}",
+        "commands": [
+          {
+            "command": "docker push containers.ad.corekinect.com/concord-mtib-server-v2:latest"
+          },
+          {
+            "command": "docker push containers.ad.corekinect.com/logic2-sidecar:latest"
+          }
+        ],
+        "parallel": true
+      }
+    },
     "setup": {
       "executor": "nx:run-commands",
       "cwd": "{projectRoot}",

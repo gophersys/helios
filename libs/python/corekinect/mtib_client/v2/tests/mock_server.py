@@ -232,18 +232,18 @@ class MockMtibV2Servicer(pb2_grpc.MtibV2Servicer):
             samples=[],
         )
 
-    # Logic
-    def LogicCaptureStart(self, request, context):
-        return pb2.LogicCaptureStartResponse(
+    # Logic Analyzer (Analyzer* names)
+    def AnalyzerCaptureStart(self, request, context):
+        return pb2.AnalyzerCaptureStartResponse(
             success=True, message="", capture_id="capture-001"
         )
 
-    def LogicCaptureStatus(self, request, context):
-        return pb2.LogicCaptureStatusResponse(
+    def AnalyzerCaptureStatus(self, request, context):
+        return pb2.AnalyzerCaptureStatusResponse(
             success=True, message="", status=2, progress=1.0
         )
 
-    def LogicCaptureStop(self, request, context):
+    def AnalyzerCaptureStop(self, request, context):
         return pb2.Response(success=True, message="")
 
     def AddDecoder(self, request, context):

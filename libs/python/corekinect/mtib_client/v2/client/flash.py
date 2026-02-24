@@ -38,14 +38,26 @@ class FlashMixin(BaseClient):
             return f"flash_info error: {e}", None
 
     def flash_erase(
-        self, session_id: str, address: int = 0, size: int = 0
+        self,
+        session_id: str = "",
+        address: int = 0,
+        size: int = 0,
+        *,
+        target_id: str = "",
+        probe_id: str = "",
     ) -> Optional[str]:
         """Erase flash memory.
 
+        Two modes supported:
+        - Session-based: Provide session_id from debug_connect()
+        - Direct: Provide target_id and probe_id directly (no session needed)
+
         Args:
-            session_id: Active debug session ID.
+            session_id: Active debug session ID (Option A).
             address: Start address (0 for full chip erase).
             size: Size to erase (0 for full chip erase).
+            target_id: Direct target specification, e.g., "nrf52840" (Option B).
+            probe_id: Direct probe specification, e.g., "821009543" or "auto" (Option B).
 
         Returns:
             Error message string, or None on success.
@@ -53,7 +65,13 @@ class FlashMixin(BaseClient):
         try:
             resp = self._call(
                 "FlashErase",
-                FlashEraseRequest(session_id=session_id, address=address, size=size),
+                FlashEraseRequest(
+                    session_id=session_id,
+                    address=address,
+                    size=size,
+                    target_id=target_id,
+                    probe_id=probe_id,
+                ),
             )
             if not resp.success:
                 return resp.message
@@ -90,20 +108,29 @@ class FlashMixin(BaseClient):
 
     def flash_program(
         self,
-        session_id: str,
         filename: str,
+        session_id: str = "",
         erase_before: bool = True,
         verify_after: bool = True,
         reset_after: bool = True,
+        *,
+        target_id: str = "",
+        probe_id: str = "",
     ) -> Tuple[Optional[str], Optional[FlashProgramResult]]:
         """Program a firmware file to flash.
 
+        Two modes supported:
+        - Session-based: Provide session_id from debug_connect()
+        - Direct: Provide target_id and probe_id directly (no session needed)
+
         Args:
-            session_id: Active debug session ID.
             filename: Name of the previously uploaded firmware file.
-            erase_before: Whether to erase before programming.
+            session_id: Active debug session ID (Option A).
+            erase_before: Whether to run --recover before programming.
             verify_after: Whether to verify after programming.
             reset_after: Whether to reset the target after programming.
+            target_id: Direct target specification, e.g., "nrf52840" (Option B).
+            probe_id: Direct probe specification, e.g., "821009543" or "auto" (Option B).
 
         Returns:
             (error, FlashProgramResult) tuple. error is None on success.
@@ -117,6 +144,8 @@ class FlashMixin(BaseClient):
                     erase_before=erase_before,
                     verify_after=verify_after,
                     reset_after=reset_after,
+                    target_id=target_id,
+                    probe_id=probe_id,
                 ),
             )
             if not resp.success:

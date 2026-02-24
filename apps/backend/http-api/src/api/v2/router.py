@@ -132,6 +132,21 @@ from .system.resources import get_resource_yaml, apply_resource_yaml, delete_res
 from .system.rbac import list_roles, list_cluster_roles, list_role_bindings, list_cluster_role_bindings, list_service_accounts
 from .system.exec import register_exec_handlers
 from .system.uart import register_uart_handlers
+from .system.analyzer_stream import register_analyzer_handlers
+from .system.observability_ws import register_observability_handlers, register_icle_handlers
+
+# ICLE device handlers
+from .icle.heartbeat import heartbeat as icle_heartbeat, set_socketio as set_icle_socketio
+from .icle.devices import (
+    list_devices as list_icle_devices,
+    get_device as get_icle_device,
+    update_device as update_icle_device,
+    delete_device as delete_icle_device,
+)
+from .icle.commands import acknowledge_command as ack_icle_command
+from .icle.config import push_config as push_icle_config
+from .icle.ota import trigger_ota as trigger_icle_ota
+from .icle.logs import list_device_logs as list_icle_logs, upload_device_log as upload_icle_log
 
 # Node management handlers
 from .nodes.nodes import (
@@ -429,9 +444,27 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     v2.add_url_rule("/kubernetes/rbac/clusterrolebindings",                 view_func=list_cluster_role_bindings, methods=["GET"])
     v2.add_url_rule("/kubernetes/rbac/serviceaccounts",                     view_func=list_service_accounts,   methods=["GET"])
 
+    # ICLE Devices (ESP32 power monitoring tools)
+    v2.add_url_rule("/icle/heartbeat",                              endpoint="icle_heartbeat",           view_func=icle_heartbeat,       methods=["POST"])
+    v2.add_url_rule("/icle/devices",                                endpoint="list_icle_devices",        view_func=list_icle_devices,    methods=["GET"])
+    v2.add_url_rule("/icle/devices/<device_id>",                    endpoint="get_icle_device",          view_func=get_icle_device,      methods=["GET"])
+    v2.add_url_rule("/icle/devices/<device_id>",                    endpoint="update_icle_device",       view_func=update_icle_device,   methods=["PUT"])
+    v2.add_url_rule("/icle/devices/<device_id>",                    endpoint="delete_icle_device",       view_func=delete_icle_device,   methods=["DELETE"])
+    v2.add_url_rule("/icle/devices/<device_id>/config",             endpoint="push_icle_config",         view_func=push_icle_config,     methods=["PUT"])
+    v2.add_url_rule("/icle/devices/<device_id>/ota",                endpoint="trigger_icle_ota",         view_func=trigger_icle_ota,     methods=["POST"])
+    v2.add_url_rule("/icle/devices/<device_id>/logs",               endpoint="list_icle_logs",           view_func=list_icle_logs,       methods=["GET"])
+    v2.add_url_rule("/icle/devices/<device_id>/logs",               endpoint="upload_icle_log",          view_func=upload_icle_log,      methods=["POST"])
+    v2.add_url_rule("/icle/commands/<command_id>/ack",              endpoint="ack_icle_command",         view_func=ack_icle_command,     methods=["POST"])
+
     # Kubernetes: Log Streaming + Pod Exec
     register_log_handlers(socketio)
     register_exec_handlers(socketio)
     register_uart_handlers(socketio)
+    register_analyzer_handlers(socketio)
+    register_observability_handlers(socketio)
+    register_icle_handlers(socketio)
+
+    # Set SocketIO instance for ICLE WebSocket events
+    set_icle_socketio(socketio)
 
     server.register_blueprint(v2)

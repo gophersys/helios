@@ -3,6 +3,8 @@
   import { X, Download, Trash2, Pause, Play } from 'lucide-svelte';
   import Select from '$lib/components/ui/select.svelte';
   import { subscribeLogs } from '$lib/services/websocket';
+  import { apiFetch } from '$lib/api';
+  import type { ApiResponse } from '$lib/types/api';
 
   interface Props {
     namespace: string;
@@ -13,8 +15,19 @@
 
   let { namespace, pod, container, onclose }: Props = $props();
 
+  interface PodStatus {
+    status: string;
+    containers: Array<{
+      name: string;
+      state: string;
+      ready: boolean;
+    }>;
+  }
+
   let lines = $state<string[]>([]);
   let error = $state<string | null>(null);
+  let podStatus = $state<PodStatus | null>(null);
+  let statusCheckInterval = $state<number | null>(null);
   let paused = $state(false);
   let tailLines = $state(100);
   let autoScroll = $state(true);
@@ -34,8 +47,41 @@
     }
   }
 
+  async function fetchPodStatus() {
+    try {
+      const res = await apiFetch<ApiResponse<PodStatus>>(
+        `/v2/kubernetes/pods/${namespace}/${pod}`
+      );
+      if (res.data) {
+        podStatus = res.data;
+      }
+    } catch (err) {
+      console.error('Failed to fetch pod status:', err);
+    }
+  }
+
   function handleError(message: string) {
+    // When we get an error, fetch pod status to provide better UX
     error = message;
+    fetchPodStatus();
+
+    // If this is a connection error, start checking pod status periodically
+    if (message.includes('transport error') || message.includes('Disconnected')) {
+      if (!statusCheckInterval) {
+        statusCheckInterval = window.setInterval(() => {
+          fetchPodStatus();
+          // If pod is running, try to reconnect
+          if (podStatus?.status === 'Running') {
+            const containerReady = podStatus.containers.find(c => c.name === container)?.ready;
+            if (containerReady) {
+              clearInterval(statusCheckInterval!);
+              statusCheckInterval = null;
+              reconnect();
+            }
+          }
+        }, 3000);
+      }
+    }
   }
 
   function togglePause() {
@@ -85,6 +131,10 @@
   onDestroy(() => {
     if (unsubscribe) {
       unsubscribe();
+    }
+    if (statusCheckInterval) {
+      clearInterval(statusCheckInterval);
+      statusCheckInterval = null;
     }
   });
 
@@ -170,7 +220,56 @@
       class="flex-1 overflow-auto font-mono text-xs leading-relaxed bg-surface-0 text-text-secondary"
     >
       {#if error}
-        <div class="p-4 text-error">{error}</div>
+        {#if podStatus}
+          {#if podStatus.status === 'Pending'}
+            <div class="p-4 text-text-secondary">
+              <div class="flex items-center gap-2 mb-2">
+                <span class="w-2 h-2 rounded-full bg-warning animate-pulse"></span>
+                <span class="font-semibold text-warning">Pod Starting</span>
+              </div>
+              <div class="text-text-tertiary">Waiting for pod to be scheduled...</div>
+            </div>
+          {:else if podStatus.status === 'Running'}
+            {@const containerState = podStatus.containers.find(c => c.name === container)}
+            {#if containerState?.state === 'waiting'}
+              <div class="p-4 text-text-secondary">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="w-2 h-2 rounded-full bg-accent animate-pulse"></span>
+                  <span class="font-semibold text-accent">Container Starting</span>
+                </div>
+                <div class="text-text-tertiary">Pulling container image and initializing...</div>
+              </div>
+            {:else}
+              <div class="p-4 text-error">{error}</div>
+            {/if}
+          {:else if podStatus.status === 'Failed' || podStatus.status === 'CrashLoopBackOff' || podStatus.status === 'Error'}
+            <div class="p-4 text-error">
+              <div class="font-semibold mb-2">Pod Failed</div>
+              <div>{error}</div>
+            </div>
+          {:else if podStatus.status === 'Succeeded'}
+            <div class="p-4 text-text-secondary">
+              <div class="flex items-center gap-2 mb-2">
+                <span class="w-2 h-2 rounded-full bg-success"></span>
+                <span class="font-semibold text-success">Pod Completed</span>
+              </div>
+              <div class="text-text-tertiary">This pod has finished running.</div>
+            </div>
+          {:else}
+            <div class="p-4 text-warning">
+              <div class="font-semibold mb-2">Pod Status: {podStatus.status}</div>
+              <div class="text-text-secondary">{error}</div>
+            </div>
+          {/if}
+        {:else}
+          <div class="p-4 text-text-secondary">
+            <div class="flex items-center gap-2 mb-2">
+              <span class="w-2 h-2 rounded-full bg-accent animate-pulse"></span>
+              <span class="font-semibold text-accent">Connecting</span>
+            </div>
+            <div class="text-text-tertiary">Checking pod status...</div>
+          </div>
+        {/if}
       {:else if lines.length === 0}
         <div class="p-4 text-text-tertiary">Waiting for logs...</div>
       {:else}

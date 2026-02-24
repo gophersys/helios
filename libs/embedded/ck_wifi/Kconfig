@@ -1,0 +1,37 @@
+# SPDX-License-Identifier: Apache-2.0
+# CoreKinect WiFi Library Kconfig
+
+menuconfig CK_WIFI
+	bool "CoreKinect WiFi Library"
+	depends on WIFI
+	depends on NET_L2_WIFI_MGMT
+	help
+	  Enable CoreKinect WiFi helper library
+
+if CK_WIFI
+
+config CK_WIFI_SSID
+	string "WiFi SSID"
+	default ""
+	help
+	  WiFi network SSID to connect to
+
+config CK_WIFI_PSK
+	string "WiFi PSK"
+	default ""
+	help
+	  WiFi network password (WPA2-PSK)
+
+config CK_WIFI_CONNECT_TIMEOUT_MS
+	int "WiFi connection timeout (ms)"
+	default 30000
+	help
+	  Timeout for WiFi connection attempts
+
+config CK_WIFI_LOG_LEVEL
+	int "WiFi library log level"
+	default 3
+	help
+	  Log level for WiFi library (0=off, 1=err, 2=wrn, 3=inf, 4=dbg)
+
+endif # CK_WIFI

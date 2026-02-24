@@ -150,3 +150,9 @@ def register_log_handlers(socketio: SocketIO):
         # Clean up UART sessions
         from .uart import cleanup_uart_sessions
         cleanup_uart_sessions(sid)
+        # Clean up analyzer streams
+        from .analyzer_stream import cleanup_analyzer_streams
+        cleanup_analyzer_streams(sid)
+        # Clean up observability subscriptions
+        from .observability_ws import cleanup_observability_sessions
+        cleanup_observability_sessions(sid)

@@ -27,7 +27,7 @@ from .handlers.files import FilesHandler
 from .handlers.flash import FlashHandler
 from .handlers.gpio import GpioHandler
 from .handlers.i2c import I2cHandler
-from .handlers.logic import LogicHandler
+from .handlers.analyzer import AnalyzerHandler
 from .handlers.observability import ObservabilityHandler
 from .handlers.power import PowerHandler
 from .handlers.rtt import RttHandler
@@ -132,7 +132,7 @@ class MtibV2Provider(MtibV2Servicer):
         self._swo = SwoHandler(self.logger, self.hardware)
         self._uart = UartHandler(self.logger, self.hardware, uart_observer=self._observability_engine.uart_observer)
         self._power = PowerHandler(self.logger, self.hardware, power_monitor=self._observability_engine.power_monitor)
-        self._logic = LogicHandler(self.logger, self.hardware)
+        self._logic = AnalyzerHandler(self.logger, self.hardware)
         self._gpio = GpioHandler(self.logger, self.hardware, gpio_tracker=self._observability_engine.gpio_tracker)
         self._i2c = I2cHandler(self.logger, self.hardware)
         self._spi = SpiHandler(self.logger, self.hardware)
@@ -412,27 +412,43 @@ class MtibV2Provider(MtibV2Servicer):
         return self._power.measure(request, context)
 
     # =========================================================================
-    # Logic Analyzer (5 RPCs)
+    # Analyzer (Logic Analyzer) - 9 RPCs
     # =========================================================================
     @grpc_method
-    def LogicCaptureStart(self, request, context):
-        return self._logic.capture_start(request, context)
+    def ListAnalyzerProviders(self, request, context):
+        return self._logic.ListAnalyzerProviders(request, context)
 
     @grpc_method
-    def LogicCaptureStatus(self, request, context):
-        return self._logic.capture_status(request, context)
+    def AnalyzerCaptureStart(self, request, context):
+        return self._logic.AnalyzerCaptureStart(request, context)
 
     @grpc_method
-    def LogicCaptureStop(self, request, context):
-        return self._logic.capture_stop(request, context)
+    def AnalyzerCaptureStatus(self, request, context):
+        return self._logic.AnalyzerCaptureStatus(request, context)
 
     @grpc_method
-    def AddDecoder(self, request, context):
-        return self._logic.add_decoder(request, context)
+    def AnalyzerCaptureStop(self, request, context):
+        return self._logic.AnalyzerCaptureStop(request, context)
+
+    def AnalyzerStream(self, request, context):
+        """Server streaming - no decorator."""
+        return self._logic.AnalyzerStream(request, context)
 
     @grpc_method
-    def GetDecodedData(self, request, context):
-        return self._logic.get_decoded_data(request, context)
+    def AnalyzerExport(self, request, context):
+        return self._logic.AnalyzerExport(request, context)
+
+    @grpc_method
+    def AnalyzerAddDecoder(self, request, context):
+        return self._logic.AnalyzerAddDecoder(request, context)
+
+    @grpc_method
+    def AnalyzerGetDecodedData(self, request, context):
+        return self._logic.AnalyzerGetDecodedData(request, context)
+
+    @grpc_method
+    def AnalyzerCleanup(self, request, context):
+        return self._logic.AnalyzerCleanup(request, context)
 
     # =========================================================================
     # GPIO (4 RPCs)

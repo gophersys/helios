@@ -1,0 +1,58 @@
+{
+  "name": "NCS v3.2.1 Dev Environment",
+  "image": "containers.ad.corekinect.com/concord-devcontainer-ncs:v3.2.1",
+  "postCreateCommand": "chmod +x .devcontainer/ctl.sh && ./.devcontainer/ctl.sh create",
+  "postStartCommand": "chmod +x .devcontainer/ctl.sh && ./.devcontainer/ctl.sh start",
+  "runArgs": [
+    "--privileged",
+    "--net=host",
+    "--add-host=host.docker.internal:host-gateway",
+    "--env-file=.devcontainer/.env"
+  ],
+  "mounts": [
+    "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind",
+    "source=/dev,target=/dev,type=bind",
+    "source=/mnt,target=/mnt,type=bind",
+    "source=${localEnv:HOME}/.ssh-devcontainer,target=/root/.ssh,type=bind,readonly",
+    "source=${localEnv:HOME}/.kube,target=/root/.kube,type=bind,consistency=cached"
+  ],
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "terminal.integrated.shell.linux": "/usr/bin/zsh",
+        "mcu-debug.rtos-views.showRTOS": false,
+        "[python]": {
+          "editor.codeActionsOnSave": {
+            "source.organizeImports": "explicit"
+          },
+          "editor.rulers": [119],
+          "editor.defaultFormatter": "ms-python.black-formatter",
+          "editor.formatOnSave": true
+        },
+        "black-formatter.args": ["--line-length", "119"],
+        "isort.args": ["--profile", "black"]
+      },
+      "extensions": [
+        "ms-python.isort",
+        "ms-python.black-formatter",
+        "ms-azuretools.vscode-docker",
+        "ms-python.python",
+        "zxh404.vscode-proto3",
+        "nrwl.angular-console",
+        "ms-vscode.cpptools-extension-pack",
+        "mcu-debug.debug-tracker-vscode",
+        "marus25.cortex-debug",
+        "mcu-debug.peripheral-viewer",
+        "ms-vscode.vscode-serial-monitor",
+        "twxs.cmake",
+        "plorefice.devicetree",
+        "cschlosser.doxdocgen",
+        "hediet.vscode-drawio",
+        "IronGeek.vscode-env",
+        "chiehyu.vscode-astyle",
+        "trond-snekvik.kconfig-lang",
+        "golang.go"
+      ]
+    }
+  }
+}

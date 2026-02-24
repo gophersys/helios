@@ -2,8 +2,8 @@
   import { onMount } from 'svelte';
   import { page } from '$app/stores';
   import { goto } from '$app/navigation';
-  import { ArrowLeft, Server, Cpu, MemoryStick, Box, Tag, Shield } from 'lucide-svelte';
-  import { api } from '$lib/api';
+  import { ArrowLeft, Server, Cpu, MemoryStick, Box, Tag, Shield, Zap, ExternalLink, ChevronDown, ChevronUp } from 'lucide-svelte';
+  import { api, apiFetch } from '$lib/api';
   import { getAuth } from '$lib/stores/auth.svelte';
   import StatusIndicator from '$lib/components/system/status-indicator.svelte';
   import ProgressRing from '$lib/components/system/progress-ring.svelte';
@@ -11,6 +11,8 @@
   import LabelList from '$lib/components/system/label-list.svelte';
   import ResourceAge from '$lib/components/system/resource-age.svelte';
   import { formatCpu, formatMem, parseCpuMillis, parseMemoryMi } from '$lib/components/system/k8s-resources';
+  import type { ApiResponse } from '$lib/types';
+  import type { ConcordNode } from '$lib/types/models';
 
   interface NodeCondition {
     type: string;
@@ -60,6 +62,11 @@
   let loading = $state(true);
   let error = $state<string | null>(null);
 
+  // MTIB integration
+  let mtibNode = $state<ConcordNode | null>(null);
+  let mtibExpanded = $state(false);
+  let mtibLoading = $state(false);
+
   // Computed numeric values for display
   const cpuAllocatable = $derived(node ? parseCpuMillis(node.allocatable?.cpu ?? '0') : 0);
   const cpuUsed = $derived(node ? parseCpuMillis(node.allocated?.cpuRequests ?? '0') : 0);
@@ -87,7 +94,29 @@
       return;
     }
     fetchNode();
+    checkMtibCapability();
   });
+
+  // Check if this node has an MTIB pod running
+  async function checkMtibCapability() {
+    mtibLoading = true;
+    try {
+      // Fetch all MTIBs and find one deployed to this node
+      const res = await apiFetch<ApiResponse<{ data: ConcordNode[] }>>('/v2/mtibs');
+      const payload = res.data;
+      const mtibs = Array.isArray(payload) ? payload : (payload as { data: ConcordNode[] }).data || [];
+
+      // Find MTIB with a pod on this node
+      mtibNode = mtibs.find(mtib => {
+        const pods = mtib.deploymentStatus?.pods || [];
+        return pods.some(pod => pod.nodeName === nodeName);
+      }) || null;
+    } catch {
+      // Silently fail - MTIB features are optional
+    } finally {
+      mtibLoading = false;
+    }
+  }
 
   function getConditionColor(condition: NodeCondition): string {
     const healthyConditions = ['Ready'];
@@ -261,6 +290,72 @@
         {/each}
       </div>
     </div>
+
+    <!-- MTIB Features (if available) -->
+    {#if mtibNode}
+      <div>
+        <button
+          onclick={() => (mtibExpanded = !mtibExpanded)}
+          class="w-full flex items-center justify-between mb-3 hover:opacity-80 transition-opacity"
+        >
+          <div class="flex items-center gap-2">
+            <Zap class="w-5 h-5 text-warning" />
+            <h3 class="text-lg font-semibold text-primary">MTIB Features</h3>
+            <span class="px-2 py-0.5 rounded text-xs bg-accent/10 text-accent">Available</span>
+          </div>
+          {#if mtibExpanded}
+            <ChevronUp class="w-5 h-5 text-tertiary" />
+          {:else}
+            <ChevronDown class="w-5 h-5 text-tertiary" />
+          {/if}
+        </button>
+
+        {#if mtibExpanded}
+          {@const isOnline = (mtibNode.deploymentStatus?.readyReplicas ?? 0) > 0}
+          <div class="card card-md">
+            <div class="flex items-center justify-between mb-4">
+              <div>
+                <h4 class="font-semibold text-primary">{mtibNode.name}</h4>
+                <p class="text-xs text-secondary mt-1">{mtibNode.hostname} • {mtibNode.ipAddress || 'No IP'}</p>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="relative flex h-2.5 w-2.5">
+                  <span class="h-2.5 w-2.5 rounded-full {isOnline ? 'bg-success' : 'bg-text-tertiary'}"></span>
+                  {#if isOnline}
+                    <span class="absolute inset-0 rounded-full bg-success animate-ping opacity-40"></span>
+                  {/if}
+                </span>
+                <span class="text-sm font-medium {isOnline ? 'text-success' : 'text-text-tertiary'}">
+                  {isOnline ? 'Online' : 'Offline'}
+                </span>
+              </div>
+            </div>
+
+            <div class="flex flex-col sm:flex-row gap-3">
+              <a
+                href="/mtib/{mtibNode.id}"
+                class="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-accent text-white hover:bg-accent-hover transition-colors"
+              >
+                <ExternalLink class="w-4 h-4" />
+                Open MTIB Dashboard
+              </a>
+              <a
+                href="/mtib/{mtibNode.id}/analyzer/new"
+                class="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-accent text-accent hover:bg-accent-muted transition-colors"
+              >
+                Start Analyzer Capture
+              </a>
+            </div>
+
+            {#if mtibNode.hardwareRevision}
+              <div class="mt-4 pt-4 border-t border-border text-xs text-secondary">
+                Hardware Revision: <span class="font-mono text-primary">{mtibNode.hardwareRevision.replace(/_/g, '.')}</span>
+              </div>
+            {/if}
+          </div>
+        {/if}
+      </div>
+    {/if}
 
     <!-- Pods on Node -->
     <div>

@@ -97,6 +97,15 @@ enum FirmwareBuildStatus {
     DEPRECATED
 }
 
+enum IcleDeviceStatus {
+    ONLINE
+    OFFLINE
+    LOGGING
+    CONFIG
+    BOOT
+    OTA
+}
+
 // ─────────────────────────────────────────────────────────────
 //                                               Users & Audit
 // ─────────────────────────────────────────────────────────────
@@ -721,4 +730,69 @@ model ReleaseArtifact {
 
     @@index([releaseId])
     @@map("release_artifacts")
+}
+
+// ─────────────────────────────────────────────────────────────
+//                                        ICLE Devices (ESP32)
+// ─────────────────────────────────────────────────────────────
+
+/// An ICLE (In-Circuit Loop-back Equipment) device — ESP32-based
+/// power monitoring tool for DUT validation. Devices register
+/// themselves via heartbeat and receive commands in the response.
+model IcleDevice {
+    id              String           @id @default(cuid())
+    deviceId        String           @unique /// Hardware ID from ZMS
+    name            String?
+    ipAddress       String?
+    macAddress      String?
+    firmwareVersion String?
+    status          IcleDeviceStatus @default(OFFLINE)
+    registered      Boolean          @default(false) /// false = discovered, true = registered via UI
+    lastHeartbeat   DateTime?
+    lastStatusData  Json? /// Latest telemetry snapshot (uptime, heap, rssi, etc.)
+    pendingConfig   Json? /// Config to push on next heartbeat
+    metadata        Json?
+    createdAt       DateTime         @default(now())
+    updatedAt       DateTime         @updatedAt
+
+    commands IclePendingCommand[]
+    logs     IcleLog[]
+
+    @@index([status])
+    @@map("icle_devices")
+}
+
+/// A pending command to be delivered to an ICLE device on its
+/// next heartbeat. Commands are acknowledged by the device and
+/// then marked as such.
+model IclePendingCommand {
+    id           String    @id @default(cuid())
+    deviceId     String
+    commandType  String /// config_update, ota_trigger, log_upload, reboot
+    payload      Json
+    priority     Int       @default(0) /// Higher priority = delivered first
+    createdAt    DateTime  @default(now())
+    expiresAt    DateTime?
+    acknowledged Boolean   @default(false)
+
+    device IcleDevice @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+    @@index([deviceId, acknowledged])
+    @@map("icle_pending_commands")
+}
+
+/// A log file uploaded from an ICLE device, stored in MinIO.
+model IcleLog {
+    id         String   @id @default(cuid())
+    deviceId   String
+    filename   String
+    storageKey String /// MinIO object key
+    sizeBytes  BigInt
+    format     String /// "binary" or "csv"
+    uploadedAt DateTime @default(now())
+
+    device IcleDevice @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+    @@unique([deviceId, filename])
+    @@map("icle_logs")
 }

@@ -64,7 +64,7 @@ class MockLogger:
     def warning(self, msg: str, *args) -> None:
         self.messages.append(("warning", msg % args if args else msg))
 
-    def error(self, msg: str, *args) -> None:
+    def error(self, msg: str, *args, exc_info=False) -> None:
         self.messages.append(("error", msg % args if args else msg))
 
     def from_parent(self, name: str) -> "MockLogger":

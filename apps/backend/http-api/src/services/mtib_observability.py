@@ -62,6 +62,10 @@ class MtibObservabilityService:
         # Thread pool for parallel polling
         self._executor = ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix="obsv-poll")
 
+        # WebSocket subscribers: "{sid}:{nodeId}" -> {"sid": str, "nodeId": str, "features": list[str], "emit_fn": callable}
+        self._subscribers = {}
+        self._subscribers_lock = threading.Lock()
+
     def start(self):
         """Start background polling thread."""
         self._thread = threading.Thread(target=self._poll_loop, daemon=True)
@@ -183,6 +187,8 @@ class MtibObservabilityService:
                         "hostname": node.hostname,
                         "ipAddress": node.ipAddress,
                     }
+                # Broadcast to WebSocket subscribers
+                self._broadcast_snapshot(node_id, snapshot_dict)
             except Exception as e:
                 # Failure — increment backoff, invalidate channel
                 logger.debug("Observability poll failed for %s: %s", node.ipAddress, e)
@@ -243,3 +249,93 @@ class MtibObservabilityService:
             "errorNodes": error_count,
             "totalPowerMw": round(total_power_mw, 2),
         }
+
+    def register_subscriber(self, sid: str, node_id: str, features: list[str], emit_fn: callable):
+        """Register a WebSocket client to receive observability updates for a node.
+
+        Args:
+            sid: Socket.IO session ID
+            node_id: MTIB node ID to subscribe to
+            features: List of features to include (e.g., ["power", "gpio", "adc", "system"])
+            emit_fn: Callback function to emit data to the client
+        """
+        session_key = f"{sid}:{node_id}"
+        with self._subscribers_lock:
+            self._subscribers[session_key] = {
+                "sid": sid,
+                "nodeId": node_id,
+                "features": features,
+                "emit_fn": emit_fn,
+            }
+        logger.info("Registered observability subscriber: %s for node %s (features: %s)", sid, node_id, features)
+
+    def unregister_subscriber(self, sid: str, node_id: str):
+        """Unregister a WebSocket client from receiving updates."""
+        session_key = f"{sid}:{node_id}"
+        with self._subscribers_lock:
+            removed = self._subscribers.pop(session_key, None)
+        if removed:
+            logger.info("Unregistered observability subscriber: %s for node %s", sid, node_id)
+
+    def cleanup_subscribers(self, sid: str):
+        """Remove all subscriptions for a disconnected client."""
+        with self._subscribers_lock:
+            keys_to_remove = [k for k in self._subscribers if k.startswith(f"{sid}:")]
+            for key in keys_to_remove:
+                self._subscribers.pop(key, None)
+        if keys_to_remove:
+            logger.info("Cleaned up %d observability subscriptions for sid %s", len(keys_to_remove), sid)
+
+    def get_subscriber_count(self) -> int:
+        """Get the total number of active subscriptions (for resource limit checking)."""
+        with self._subscribers_lock:
+            return len(self._subscribers)
+
+    def _broadcast_snapshot(self, node_id: str, snapshot: dict):
+        """Broadcast a snapshot to all subscribers for this node."""
+        with self._subscribers_lock:
+            subscribers = [
+                sub for key, sub in self._subscribers.items()
+                if sub["nodeId"] == node_id
+            ]
+
+        if not subscribers:
+            return
+
+        timestamp = time.time()
+        for sub in subscribers:
+            try:
+                # Filter snapshot to only include requested features
+                filtered = self._filter_snapshot(snapshot, sub["features"])
+                filtered["nodeId"] = node_id
+                filtered["timestamp"] = timestamp
+
+                # Emit to client using the provided callback
+                emit_fn = sub["emit_fn"]
+                emit_fn(filtered)
+            except Exception as e:
+                logger.error("Failed to broadcast to subscriber %s: %s", sub["sid"], e)
+
+    def _filter_snapshot(self, snapshot: dict, features: list[str]) -> dict:
+        """Filter a snapshot to only include requested features.
+
+        Features: "power", "gpio", "adc", "uart", "system", "clients"
+        """
+        result = {}
+
+        # Map feature names to snapshot keys
+        feature_map = {
+            "power": "powerReadings",
+            "gpio": "gpioStates",
+            "adc": "adcReadings",
+            "uart": "uartPorts",
+            "system": "systemMetrics",
+            "clients": "connectedClients",
+        }
+
+        for feature in features:
+            key = feature_map.get(feature)
+            if key and key in snapshot:
+                result[key] = snapshot[key]
+
+        return result

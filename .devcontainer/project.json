@@ -1,40 +1,53 @@
 {
-    "name": "devcontainer",
-    "$schema": "../../../node_modules/nx/schemas/project-schema.json",
-    "sourceRoot": ".devcontainer",
-    "projectType": "application",
-    "targets": {
-        "create-platform-builder": {
-            "executor": "nx:run-commands",
-            "options": {
-                "command": "mkdir -p ~/.docker/buildx && cp .devcontainer/assets/buildkitd.toml ~/.docker/buildx/ && (docker buildx ls | grep concord-builder || docker buildx create --name concord-builder --use --driver docker-container --config .devcontainer/assets/buildkitd.toml --driver-opt network=host) && docker buildx inspect --bootstrap"
-            }
-        },
-        "build-all": {
-            "executor": "nx:run-commands",
-            "dependsOn": [
-                "devcontainer-base:build"
-            ],
-            "options": {
-                "commands": [
-                    "nx run devcontainer-mtib:build",
-                    "nx run devcontainer-ncs:build",
-                    "nx run devcontainer-ui:build"
-                ]
-            }
-        },
-        "push-all": {
-            "executor": "nx:run-commands",
-            "dependsOn": [
-                "devcontainer-base:push"
-            ],
-            "options": {
-                "commands": [
-                    "nx run devcontainer-mtib:push",
-                    "nx run devcontainer-ncs:push",
-                    "nx run devcontainer-ui:push"
-                ]
-            }
-        }
+  "name": "devcontainer",
+  "$schema": "../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": ".devcontainer",
+  "projectType": "application",
+  "tags": ["type:devcontainer"],
+  "targets": {
+    "create-platform-builder": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "mkdir -p ~/.docker/buildx && cp .devcontainer/assets/buildkitd.toml ~/.docker/buildx/ && (docker buildx rm concord-builder 2>/dev/null || true) && docker buildx create --name concord-builder --driver docker-container --config .devcontainer/assets/buildkitd.toml --driver-opt network=host && docker buildx use concord-builder && docker buildx inspect --bootstrap"
+      }
+    },
+    "build-all": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["devcontainer-base:build"],
+      "options": {
+        "commands": [
+          "nx run devcontainer-mtib:build",
+          "nx run devcontainer-ncs-v2.7.0:build",
+          "nx run devcontainer-ncs-v3.2.1:build",
+          "nx run devcontainer-zephyr-v4.0:build"
+        ],
+        "parallel": true
+      }
+    },
+    "push-all": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["devcontainer-base:push"],
+      "options": {
+        "commands": [
+          "nx run devcontainer-mtib:push",
+          "nx run devcontainer-ncs-v2.7.0:push",
+          "nx run devcontainer-ncs-v3.2.1:push",
+          "nx run devcontainer-zephyr-v4.0:push"
+        ],
+        "parallel": true
+      }
+    },
+    "build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "nx run devcontainer:build-all"
+      }
+    },
+    "push": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "nx run devcontainer:push-all"
+      }
     }
+  }
 }

@@ -69,16 +69,31 @@ class FlashHandler:
         return FlashInfoResponse(success=True, message="", regions=regions)
 
     def erase(self, request: FlashEraseRequest, context) -> Response:
-        """Erase flash memory."""
+        """Erase flash memory.
+
+        Supports two modes:
+        - Session-based: Provide session_id from DebugConnect
+        - Direct: Provide target_id and probe_id directly (no session needed)
+        """
         try:
-            probe_id, target_id = self._get_session_info(request.session_id)
+            probe_id, target_id = self._resolve_target(
+                session_id=request.session_id,
+                target_id=getattr(request, "target_id", ""),
+                probe_id=getattr(request, "probe_id", ""),
+            )
+
+            if not target_id:
+                return Response(
+                    success=False,
+                    message="target_id required (via session_id or direct)",
+                )
 
             # Set MUX via ProbeManager
             self._prepare_mux(target_id, probe_id)
 
             if request.address == 0 and request.size == 0:
                 cmd = ["nrfjprog", "--chiperase"]
-                cmd.extend(self._build_nrfjprog_flags(request.session_id))
+                cmd.extend(self._build_nrfjprog_flags_direct(probe_id, target_id))
 
                 # Per-probe lock
                 lock = self._get_probe_lock(probe_id)
@@ -111,19 +126,46 @@ class FlashHandler:
         except Exception as e:
             return FlashWriteResponse(success=False, message=str(e), bytes_written=0, time_ms=0)
 
-    def _get_session_info(self, session_id: str):
-        """Look up debug session to get probe_id and target_id."""
-        if not self._debug_handler or not session_id:
-            return None, None
-        session = self._debug_handler._sessions.get(session_id)
-        if session is None:
-            return None, None
-        return session.probe_id, session.target_id
+    def _resolve_target(
+        self,
+        session_id: str = "",
+        target_id: str = "",
+        probe_id: str = "",
+    ) -> tuple:
+        """Resolve target_id and probe_id from session or direct specification.
 
-    def _build_nrfjprog_flags(self, session_id: str, include_family: bool = True) -> list:
-        """Build nrfjprog flags from debug session."""
+        Args:
+            session_id: Debug session ID (Option A)
+            target_id: Direct target specification (Option B)
+            probe_id: Direct probe specification (Option B)
+
+        Returns:
+            (probe_id, target_id) tuple. Both may be None if unresolvable.
+
+        Priority: Direct specification > Session lookup
+        """
+        # Option B: Direct specification takes priority
+        if target_id or probe_id:
+            resolved_probe = probe_id if probe_id else "auto"
+            resolved_target = target_id if target_id else None
+            return resolved_probe, resolved_target
+
+        # Option A: Session lookup
+        if session_id and self._debug_handler:
+            session = self._debug_handler._sessions.get(session_id)
+            if session:
+                return session.probe_id, session.target_id
+
+        return None, None
+
+    def _build_nrfjprog_flags_direct(
+        self,
+        probe_id: Optional[str],
+        target_id: Optional[str],
+        include_family: bool = True,
+    ) -> list:
+        """Build nrfjprog flags from direct probe/target IDs."""
         flags = []
-        probe_id, target_id = self._get_session_info(session_id)
         if include_family and target_id:
             family = TARGET_FAMILY_MAP.get(target_id)
             if family:
@@ -149,6 +191,10 @@ class FlashHandler:
     def program(self, request: FlashProgramRequest, context) -> FlashProgramResponse:
         """Program a firmware file to flash.
 
+        Supports two modes:
+        - Session-based: Provide session_id from DebugConnect
+        - Direct: Provide target_id and probe_id directly (no session needed)
+
         When erase_before is set, runs nrfjprog --recover first to clear
         APPROTECT and erase all flash/UICR before programming.
 
@@ -157,7 +203,19 @@ class FlashHandler:
         """
         try:
             start_time = time.time()
-            probe_id, target_id = self._get_session_info(request.session_id)
+            probe_id, target_id = self._resolve_target(
+                session_id=request.session_id,
+                target_id=getattr(request, "target_id", ""),
+                probe_id=getattr(request, "probe_id", ""),
+            )
+
+            if not target_id:
+                return FlashProgramResponse(
+                    success=False,
+                    message="target_id required (via session_id or direct)",
+                    bytes_programmed=0,
+                    time_ms=0,
+                )
 
             # Resolve firmware file path
             fw_path = Path(self.assets_dir) / request.filename
@@ -176,7 +234,7 @@ class FlashHandler:
             # through the same probe lock anyway)
             self._prepare_mux(target_id, probe_id)
 
-            nrfjprog_flags = self._build_nrfjprog_flags(request.session_id)
+            nrfjprog_flags = self._build_nrfjprog_flags_direct(probe_id, target_id)
             lock = self._get_probe_lock(probe_id)
 
             # Acquire per-probe lock for the entire flash sequence
@@ -185,8 +243,8 @@ class FlashHandler:
             with lock:
                 # Step 1: Recover (erase + remove APPROTECT)
                 if request.erase_before:
-                    recover_flags = self._build_nrfjprog_flags(
-                        request.session_id, include_family=False,
+                    recover_flags = self._build_nrfjprog_flags_direct(
+                        probe_id, target_id, include_family=False,
                     )
                     recover_cmd = ["nrfjprog", "--recover"]
                     recover_cmd.extend(recover_flags)

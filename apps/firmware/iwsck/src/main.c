@@ -13,9 +13,12 @@
 #include <zephyr/kernel.h>
 #include <zephyr/shell/shell.h>
 #include <zephyr/drivers/sensor.h>
+#include <zephyr/drivers/clock_control.h>
 
 static const struct device *const temp_dev =
 	DEVICE_DT_GET(DT_NODELABEL(temp));
+static const struct device *const clk_dev =
+	DEVICE_DT_GET(DT_NODELABEL(clock));
 
 static int cmd_board_info(const struct shell *sh, size_t argc, char **argv)
 {
@@ -26,7 +29,7 @@ static int cmd_board_info(const struct shell *sh, size_t argc, char **argv)
 	shell_print(sh, "  Console:    uart30  P0.02/P0.03  115200");
 	shell_print(sh, "  RS232/LEMO: uart20  P1.03/P1.02  115200");
 	shell_print(sh, "  I2C (bb):   i2c_bb  P2.00/P2.01  100kHz");
-	shell_print(sh, "  LEDs:       P2.08(R) P2.09(G) P2.10(B) active-low");
+	shell_print(sh, "  LEDs:       P2.08(G) P2.09(B) P2.10(R) active-low");
 	shell_print(sh, "  Fuel EN:    P0.01 (hog, high)");
 	shell_print(sh, "  Fuel INT:   P0.00 (active-low)");
 	if (device_is_ready(temp_dev)) {
@@ -36,6 +39,8 @@ static int cmd_board_info(const struct shell *sh, size_t argc, char **argv)
 		shell_print(sh, "Die temp:     %d.%d C", val.val1, val.val2 / 100000);
 	}
 	shell_print(sh, "Uptime:       %lld ms", k_uptime_get());
+	shell_print(sh, "HF clock:     HFXO 32MHz %s",
+		    device_is_ready(clk_dev) ? "OK" : "FAIL");
 	shell_print(sh, "LF clock:     RC32K (no LFXO)");
 	return 0;
 }
