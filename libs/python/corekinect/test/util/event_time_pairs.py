@@ -1,14 +1,13 @@
-from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Any, Collection, Dict, Iterable, List, Tuple, TypeVar
 
-T = TypeVar("T")
+MsgObjType = TypeVar("MsgObjType")
 
 
 def get_event_time_pairs(
-    obj_type: type[T],
-    objects: Iterable[T],
+    obj_type: type[MsgObjType],
+    objects: Iterable[MsgObjType],
     *,
     group_attribute: str,
     time_attribute: str,
