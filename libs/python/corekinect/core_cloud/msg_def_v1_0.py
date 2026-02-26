@@ -188,8 +188,15 @@ class MsgBase(Serializable, ABC):
 
     @classmethod
     def _query_records(
-        cls, dut_id: int, extra_filters: list = None, order_by=None, first: bool = False, *, env="VAL_1_0"
-    ) -> Optional[Self] | List[Self]:
+        cls,
+        dut_ids: int | Sequence[int],
+        extra_filters: list = None,
+        order_by=None,
+        reverse_order: bool = False,
+        first: bool = False,
+        *,
+        env="VAL_1_0",
+    ) -> List[Self]:
         """
         Query records from the database and return message instances.
 
@@ -204,26 +211,47 @@ class MsgBase(Serializable, ABC):
             Self | List[Self]: A single message instance if `first` is True, or a list of message instances.
 
         """
+        # Handle IDs
+        is_multi = not isinstance(dut_ids, int)
+        if is_multi:
+            # Convert to list once, in case it's a generator
+            dut_ids = list(dut_ids)
+            if not dut_ids:
+                return []  # nothing to query
+            if first:
+                raise ValueError(
+                    "`first=True` with multiple device IDs is ambiguous; use single ID or a multi helper."
+                )
+
         with CoreCloudDBInterface(env=env) as db:
             # Use class's ORM model
             model = cls.orm_model
-            query = db.query(model).filter(model.deviceid == dut_id)
+            query = db.query(model)
+
+            if is_multi:
+                query = query.filter(model.deviceid.in_(dut_ids))
+            else:
+                query = query.filter(model.deviceid == dut_ids)
 
             if extra_filters:
                 for filt in extra_filters:
                     query = query.filter(filt)
 
             if order_by is not None:
-                query = query.order_by(order_by)
+                if reverse_order:
+                    query = query.order_by(order_by.desc())
+                else:
+                    query = query.order_by(order_by)
 
-            if first:
+            if first and not is_multi:
                 result = query.first()
                 return cls._convert_orm_obj_to_msg(result) if result else None
-            else:
-                results = query.all()
-                return [cls._convert_orm_obj_to_msg(r) for r in results]
 
-    # Common API for DB queries
+            results = query.all()
+            return [cls._convert_orm_obj_to_msg(r) for r in results]
+
+    # ----------------------------------------  Single-device
+
     @classmethod
     def last(cls, dut_id, *, env="VAL_1_0") -> Optional[Self]:
         """
@@ -281,7 +309,8 @@ class MsgBase(Serializable, ABC):
         filters = [dev_time_field > start_time]
         if end_time is not None:
             filters.append(dev_time_field <= end_time)
-        return cls._query_records(dut_id, extra_filters=filters, env=env)
+
+        return cls._query_records(dut_id, extra_filters=filters, order_by=dev_time_field, env=env)
 
     @classmethod
     def since_record_id(
@@ -303,6 +332,67 @@ class MsgBase(Serializable, ABC):
         if end_record_id is not None:
             filters.append(cls.orm_model.recordid <= end_record_id)
         return cls._query_records(dut_id, extra_filters=filters, env=db_env)
+
+    # ----------------------------------------  Multi-device
+
+    @classmethod
+    def since_server_time_multi(
+        cls,
+        dut_ids: Sequence[int],
+        start_time: datetime,
+        end_time: datetime | None = None,
+        *,
+        env: str = "VAL_1_0",
+    ) -> List[Self]:
+        if not dut_ids:
+            return []
+        filters = [cls.orm_model.timeofrecord > start_time]
+        if end_time is not None:
+            filters.append(cls.orm_model.timeofrecord <= end_time)
+        return cls._query_records(dut_ids, extra_filters=filters, env=env)
+
+    @classmethod
+    def since_device_time_multi(
+        cls,
+        dut_ids: Sequence[int],
+        start_time: datetime,
+        end_time: datetime | None = None,
+        *,
+        env: str = "VAL_1_0",
+    ) -> List[Self]:
+        if not dut_ids:
+            return []
+        if not cls.device_time_fields:
+            raise AttributeError(f"{cls.__name__} must define device_time_fields")
+
+        dev_time_field = CoreCloudDBInterface.device_time_expr(cls.orm_model, cls.device_time_fields)
+        filters = [dev_time_field > start_time]
+        if end_time is not None:
+            filters.append(dev_time_field <= end_time)
+
+        return cls._query_records(
+            dut_ids,
+            extra_filters=filters,
+            order_by=dev_time_field,
+            env=env,
+        )
+
+    @classmethod
+    def since_record_id_multi(
+        cls,
+        dut_ids: Sequence[int],
+        start_record_id: int,
+        end_record_id: int | None = None,
+        *,
+        env: str = "VAL_1_0",
+    ) -> List[Self]:
+        if not dut_ids:
+            return []
+        filters = [cls.orm_model.recordid > start_record_id]
+        if end_record_id is not None:
+            filters.append(cls.orm_model.recordid <= end_record_id)
+
+        return cls._query_records(dut_ids, extra_filters=filters, env=env)
 
 
 # ----------------------------------------  Config Base
