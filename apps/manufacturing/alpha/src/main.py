@@ -1,23 +1,22 @@
 # Standard includes
 import logging
-import traceback
-import requests
-import sys
-from typing import Callable, Optional, Any
 import signal
+import sys
+import traceback
+from typing import Optional
+
 import urllib3
 
 # Suppress HTTP requests warnings when (verify=False)
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-# Corekinect includes
-from corekinect.utils import EnvConfig, Logger
-
 # Private includes
 from corekinect.mtib_client.v1 import *
 
-from config.env import AlphaEnvConfig
-from src.steps.personalization import personalization_step
+# Corekinect includes
+from corekinect.utils import Logger
+from config.env import env_config
+from src.steps.personalization import run_manufacturing
 
 
 def graceful_shutdown(client, logger):
@@ -44,7 +43,6 @@ if __name__ == "__main__":
     signal.signal(signal.SIGTERM, handle_signal)
 
     try:
-        env_config = AlphaEnvConfig()
         # Setup logging
         log_config = Logger.Config(
             logger_name="alpha-manufacturing",
@@ -86,23 +84,21 @@ if __name__ == "__main__":
         if err := client.DutChargePowerDisable():
             logger.fatal(f"Error disabling DUT charge power: {err}")
 
-        # err = personalization_step(client, logger, env_config, "1234567890")
-        # if err is not None:
-        #     logger.error(f"Error during personalization: {err}")
-        #     sys.exit(1)
-
-        # Main loop for barcode scanning
+        # Main
         while True:
             try:
+                # We need the serial number to be able to run the manufacturing
                 serial_number = input("\033[92mScan or enter serial number:\033[0m ")
                 if not serial_number.strip():
                     print("\033[91mNo serial number entered. Please try again.\033[0m")
                     continue
-                err = personalization_step(client, logger, env_config, serial_number)
+
+                # Run the manufacturing logic (tests, flashing, etc.)
+                err = run_manufacturing(client, logger, serial_number)
                 if err is not None:
                     print(f"\033[91mError: {err}\033[0m")
                 else:
-                    print("\033[92mPersonalization successful!\033[0m")
+                    print("\033[92mManufacturing successful!\033[0m")
             except KeyboardInterrupt:
                 print("\nExiting...")
                 break

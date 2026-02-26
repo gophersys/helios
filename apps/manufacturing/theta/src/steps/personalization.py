@@ -56,109 +56,6 @@ def _get_device_id(proxy_server_url: str, snr: str, logger: Logger) -> Tuple[Opt
         return None, f"An exception occurred whilst trying to get device id from concord proxy: {str(e)}"
 
 
-def _get_device_public_key(
-    client: MtibV1Client, device_id: str, logger: Logger
-) -> Tuple[Optional[str], Optional[str], Optional[str]]:
-    # Use the MTIB client to programatically get the device public key
-    try:
-        # Get the device public key
-        hex_key, base64_key, err = client.alpha_cmd_personalize(device_id, HostType.HOST_TYPE_NRF9160)
-        if err:
-            return None, None, f"Error getting device public key: {err}"
-
-        # Do a quick check to see if the public key is valid
-        if not hex_key or not base64_key:
-            return None, None, f"Invalid public key: {hex_key} {base64_key}"
-
-        # Verify that the base64 key is valid by decoding it and comparing to hex
-        try:
-            decoded_bytes = base64.b64decode(base64_key)
-            decoded_hex = decoded_bytes.hex()
-            if decoded_hex != hex_key:
-                return (
-                    None,
-                    None,
-                    f"Base64 key does not match hex key: decoded_hex={decoded_hex}, hex_key={hex_key}",
-                )
-        except Exception as e:
-            return None, None, f"Failed to verify base64 key: {e}"
-
-        logger.info(f"Device public key (base64): {base64_key}")
-
-        return hex_key, base64_key, None
-    except Exception as e:
-        return None, None, f"An exception occurred whilst trying to get device public key from concord proxy: {str(e)}"
-
-
-def _get_device_imei_iccids(
-    client: MtibV1Client, device_id: str, logger: Logger
-) -> Tuple[Optional[str], Optional[str], Optional[str]]:
-    # Use the MTIB client to programatically get the device IMEI and ICCIDs
-    try:
-        # Get the device IMEI and ICCIDs
-        imei, iccids, err = client.alpha_cmd_get_imei_iccids(device_id, HostType.HOST_TYPE_NRF9160)
-        if err:
-            return None, None, f"Error getting device IMEI and ICCIDs: {err}"
-
-        logger.info(f"Device IMEI: {imei}")
-        logger.info(f"Device ICCIDs: {iccids}")
-
-        return imei, iccids, None
-    except Exception as e:
-        return None, None, f"An exception occurred whilst trying to get device IMEI and ICCIDs: {str(e)}"
-
-
-def _save_device_info(
-    proxy_server_url: str,
-    device_id: str,
-    pub_key: str,
-    base64_key: str,
-    imei: str,
-    iccids: str,
-    snr: str,
-    logger: Logger,
-) -> Optional[str]:
-    try:
-        # Save Device Public Key
-        body = {"deviceId": device_id, "pubKey": base64_key}
-
-        upload_public_key_url = f"{proxy_server_url}/v1/devices/keys/upload"
-        response: requests.Response = requests.post(url=upload_public_key_url, json=body, verify=False)
-
-        if response.status_code != 200:
-            return f"Call to concord proxy at {upload_public_key_url} upload public key for {device_id} failed with status code ({response.status_code}), body: {response.content}"
-
-        # Save Device IMEI and ICCIDs
-        for iccid in iccids.split(","):
-            # Clean the ICCID to remove ANSI escape sequences and trailing characters
-            cleaned_iccid = _clean_iccid(iccid)
-
-            carrier = ""
-            if cleaned_iccid.startswith("891480"):
-                carrier = "Verizon"
-            elif cleaned_iccid.startswith("8942310"):
-                carrier = "Soracom"
-            elif cleaned_iccid.startswith("894573"):
-                carrier = "Onomondo"
-            else:
-                return f"Invalid ICCID found {cleaned_iccid}"
-
-            # Create the request body
-            body = {"iccid": cleaned_iccid, "carrier": carrier, "snr": snr, "imei": imei}
-
-            # Do request
-            save_iccids_url = f"{proxy_server_url}/v1/devices/iccids/save"
-            response: requests.Response = requests.post(url=save_iccids_url, json=body, verify=False)
-
-            if response.status_code != 200:
-                return f"Call to concord proxy at {save_iccids_url} upload for iccid for {snr} failed with status code ({response.status_code}), body: {response.content}"
-
-        return None
-
-    except Exception as e:
-        return f"An exception occurred whilst trying to save device info to proxy: \n{traceback.format_exc()}"
-
-
 def _init(client: MtibV1Client, logger: Logger) -> Optional[str]:
     """
     Initialize the client
@@ -215,27 +112,27 @@ def _power_on(client: MtibV1Client, logger: Logger, delay: int = 3) -> Optional[
     logger.info("Waiting for device to power on...")
     time.sleep(delay)
 
-    # # Sample power every 250ms for 2 seconds (8 samples)
-    # samples = []
-    # min_ma_draw = None
-    # max_ma_draw = None
-    # for _ in range(4):
-    #     current_a, voltage_v, power_w, err = client.DutPowerRead()
-    #     if err:
-    #         logger.fatal(f"Error reading DUT power: {err}")
-    #     ma_draw = current_a * 1000
-    #     samples.append(ma_draw)
-    #     if min_ma_draw is None or ma_draw < min_ma_draw:
-    #         min_ma_draw = ma_draw
-    #     if max_ma_draw is None or ma_draw > max_ma_draw:
-    #         max_ma_draw = ma_draw
-    #     time.sleep(0.25)
+    # Sample power every 250ms for 2 seconds (8 samples)
+    samples = []
+    min_ma_draw = None
+    max_ma_draw = None
+    for _ in range(4):
+        current_a, voltage_v, power_w, err = client.DutPowerRead()
+        if err:
+            logger.fatal(f"Error reading DUT power: {err}")
+        ma_draw = current_a * 1000
+        samples.append(ma_draw)
+        if min_ma_draw is None or ma_draw < min_ma_draw:
+            min_ma_draw = ma_draw
+        if max_ma_draw is None or ma_draw > max_ma_draw:
+            max_ma_draw = ma_draw
+        time.sleep(0.25)
 
-    # avg_ma_draw = sum(samples) / len(samples)
-    # logger.info(f"Device powered on, power draw: min {min_ma_draw} mA, max {max_ma_draw} mA, avg {avg_ma_draw} mA")
+    avg_ma_draw = sum(samples) / len(samples)
+    logger.info(f"Device powered on, power draw: min {min_ma_draw} mA, max {max_ma_draw} mA, avg {avg_ma_draw} mA")
 
-    # if avg_ma_draw < 8 or avg_ma_draw > 30:
-    #     return f"Average power draw is not within expected range: {avg_ma_draw} mA, min {min_ma_draw} mA, max {max_ma_draw} mA"
+    if avg_ma_draw < 8 or avg_ma_draw > 33:
+        return f"Average power draw is not within expected range: {avg_ma_draw} mA, min {min_ma_draw} mA, max {max_ma_draw} mA"
 
     return None
 

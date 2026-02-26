@@ -1,5 +1,0 @@
-commit cbd2bc157d50503a4260957c232512eb9d93173d
-Author: Chris Burns <chris@corekinect.com>
-Date:   Mon Jul 28 23:13:40 2025 +0000
-
-    Fix for PPG enable signal not being set correctly and a few compile warnings fixed

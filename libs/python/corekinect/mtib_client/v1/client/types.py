@@ -283,17 +283,3 @@ class FlashFwFileResponse:
     success: bool = False
     message: str = ""
     time_ms: int = 0
-
-
-@dataclass
-class UartStreamRequest:
-    target: HostType = HostType.HOST_TYPE_NRF9160_MODEM
-    data: bytes = b""
-
-
-@dataclass
-class UartStreamResponse:
-    success: bool = False
-    message: str = ""
-    target: HostType = HostType.HOST_TYPE_NRF9160_MODEM
-    data: bytes = b""
