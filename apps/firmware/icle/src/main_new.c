@@ -1,5 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
 /*
- * SPDX-License-Identifier: Apache-2.0
  * ICLE Zephyr Firmware - Main Entry Point
  *
  * CoreKinect In-Circuit Loop-back Equipment (ICLE) v1.0
@@ -85,21 +85,18 @@ static int init_subsystems(void)
 
 	/* Initialize configuration manager */
 	ret = icle_config_init();
-	if (ret < 0) {
+	if (ret < 0)
 		LOG_WRN("Config init failed: %d (using defaults)", ret);
-	}
 
 	/* Initialize GPIO controls */
 	ret = icle_gpio_init();
-	if (ret < 0) {
+	if (ret < 0)
 		LOG_WRN("GPIO init failed: %d (continuing)", ret);
-	}
 
 	/* Initialize power monitor */
 	ret = icle_power_init();
-	if (ret < 0 && ret != -ENOTSUP) {
+	if (ret < 0 && ret != -ENOTSUP)
 		LOG_WRN("Power monitor init failed: %d (continuing)", ret);
-	}
 
 	/* Initialize button handler */
 	ret = icle_button_init();
@@ -110,33 +107,28 @@ static int init_subsystems(void)
 
 	/* Initialize WiFi */
 	ret = icle_wifi_init();
-	if (ret < 0) {
+	if (ret < 0)
 		LOG_WRN("WiFi init failed: %d (continuing)", ret);
-	}
 
 	/* Initialize storage - non-critical, may fail if no SD card */
 	ret = icle_storage_init();
-	if (ret < 0) {
+	if (ret < 0)
 		LOG_WRN("Storage init failed: %d (continuing)", ret);
-	}
 
 	/* Initialize log manager */
 	ret = icle_log_init();
-	if (ret < 0) {
+	if (ret < 0)
 		LOG_WRN("Log manager init failed: %d (continuing)", ret);
-	}
 
 	/* Initialize heartbeat service */
 	ret = icle_heartbeat_init();
-	if (ret < 0) {
+	if (ret < 0)
 		LOG_WRN("Heartbeat init failed: %d (continuing)", ret);
-	}
 
 	/* Initialize OTA subsystem */
 	ret = icle_ota_init();
-	if (ret < 0) {
+	if (ret < 0)
 		LOG_WRN("OTA init failed: %d (continuing)", ret);
-	}
 
 	LOG_INF("All subsystems initialized");
 	return 0;
@@ -151,8 +143,9 @@ static int init_subsystems(void)
 int main(void)
 {
 	int ret;
+	enum icle_wake_source wake;
 
-	printk("\n*** ICLE main() starting ***\n");
+	LOG_INF("*** ICLE main() starting ***");
 
 	/*
 	 * Step 1: Initialize PM and detect wake cause.
@@ -160,7 +153,7 @@ int main(void)
 	 * reads esp_sleep_get_wakeup_cause() on ESP32.
 	 */
 	icle_pm_init();
-	enum icle_wake_source wake = icle_pm_detect_wake_cause();
+	wake = icle_pm_detect_wake_cause();
 
 	print_banner(wake);
 

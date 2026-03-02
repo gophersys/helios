@@ -1,5 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
 /*
- * SPDX-License-Identifier: Apache-2.0
  * ICLE GPIO Control Driver
  *
  * Controls MUX lines, power FET gate, ADC inhibit, and LEDs

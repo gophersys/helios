@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: Apache-2.0
 /*
  * ICLE Network Control Service - Internal API
  *
  * Functions shared between netctl.c and interface implementations.
  * NOT part of the public API.
- *
- * SPDX-License-Identifier: Apache-2.0
  */
 
 #ifndef ICLE_SERVICES_NETCTL_INTERNAL_H

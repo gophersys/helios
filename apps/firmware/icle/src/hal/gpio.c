@@ -1,5 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
 /*
- * SPDX-License-Identifier: Apache-2.0
  * ICLE GPIO Control Driver
  */
 
@@ -36,9 +36,8 @@ int icle_gpio_init(void)
 {
 	int ret;
 
-	if (initialized) {
+	if (initialized)
 		return 0;
-	}
 
 	/* Configure MUX control lines as outputs */
 	if (!gpio_is_ready_dt(&mux0) || !gpio_is_ready_dt(&mux1) ||
@@ -119,22 +118,23 @@ int icle_mux_select(enum icle_mux_channel channel)
 {
 	int ret;
 
-	if (!initialized) {
+	if (!initialized)
 		return -ENODEV;
-	}
 
-	if (channel > ICLE_MUX_CH7) {
+	if (channel > ICLE_MUX_CH7)
 		return -EINVAL;
-	}
 
-	ret = gpio_pin_set_dt(&mux0, (channel >> 0) & 0x01);
-	if (ret < 0) return ret;
+	ret = gpio_pin_set_dt(&mux0, (int)((channel >> 0) & 0x01U));
+	if (ret < 0)
+		return ret;
 
-	ret = gpio_pin_set_dt(&mux1, (channel >> 1) & 0x01);
-	if (ret < 0) return ret;
+	ret = gpio_pin_set_dt(&mux1, (int)((channel >> 1) & 0x01U));
+	if (ret < 0)
+		return ret;
 
-	ret = gpio_pin_set_dt(&mux2, (channel >> 2) & 0x01);
-	if (ret < 0) return ret;
+	ret = gpio_pin_set_dt(&mux2, (int)((channel >> 2) & 0x01U));
+	if (ret < 0)
+		return ret;
 
 	current_mux_channel = channel;
 	LOG_DBG("MUX channel set to %d", channel);
@@ -151,9 +151,8 @@ int icle_power_fet_enable(bool enable)
 {
 	int ret;
 
-	if (!initialized) {
+	if (!initialized)
 		return -ENODEV;
-	}
 
 	/* PFET gate is active low */
 	ret = gpio_pin_set_dt(&pfet_gate, !enable);
@@ -177,9 +176,8 @@ int icle_adc_inhibit(bool inhibit)
 {
 	int ret;
 
-	if (!initialized) {
+	if (!initialized)
 		return -ENODEV;
-	}
 
 	ret = gpio_pin_set_dt(&adc_inh, inhibit);
 	if (ret < 0) {
@@ -196,9 +194,8 @@ int icle_led_set(enum icle_led led, bool on)
 	int ret;
 	const struct gpio_dt_spec *led_spec;
 
-	if (!initialized) {
+	if (!initialized)
 		return -ENODEV;
-	}
 
 	switch (led) {
 	case ICLE_LED_GREEN:
@@ -225,9 +222,8 @@ int icle_led_toggle(enum icle_led led)
 	int ret;
 	const struct gpio_dt_spec *led_spec;
 
-	if (!initialized) {
+	if (!initialized)
 		return -ENODEV;
-	}
 
 	switch (led) {
 	case ICLE_LED_GREEN:

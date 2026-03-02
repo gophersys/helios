@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: Apache-2.0
 /*
  * ICLE Network Control Service - Core Implementation
  *
  * Ported from Helios runtime netctl module.
- *
- * SPDX-License-Identifier: Apache-2.0
  */
 
 #include "netctl.h"
@@ -34,28 +33,28 @@ LOG_MODULE_REGISTER(netctl, CONFIG_ICLE_NETCTL_LOG_LEVEL);
 static void netctl_emit_event(netctl_t *ctl, const netctl_event_t *event)
 {
 	for (uint8_t i = 0; i < ctl->subscriber_count; i++) {
-		if (ctl->subscribers[i].cb != NULL) {
+		if (ctl->subscribers[i].cb != NULL)
 			ctl->subscribers[i].cb(event, ctl->subscribers[i].user_data);
-		}
 	}
 }
 
 static void netctl_set_state(netctl_t *ctl, netctl_iface_t iface, netctl_state_t new_state)
 {
-	if (iface >= NETCTL_IFACE_MAX) {
-		return;
-	}
+	netctl_state_t old_state;
+	netctl_event_t event;
 
-	netctl_state_t old_state = ctl->iface_state[iface];
-	if (old_state == new_state) {
+	if (iface >= NETCTL_IFACE_MAX)
 		return;
-	}
+
+	old_state = ctl->iface_state[iface];
+	if (old_state == new_state)
+		return;
 
 	ctl->iface_state[iface] = new_state;
 
 	LOG_DBG("Interface %d: %d -> %d", iface, old_state, new_state);
 
-	netctl_event_t event = {
+	event = (netctl_event_t){
 		.type = NETCTL_EVENT_STATE_CHANGED,
 		.data.state_changed = {
 			.iface = iface,
@@ -74,6 +73,7 @@ static void netctl_thread_entry(void *p1, void *p2, void *p3)
 {
 	netctl_t *ctl = (netctl_t *)p1;
 	netctl_event_t event;
+	int ret;
 
 	ARG_UNUSED(p2);
 	ARG_UNUSED(p3);
@@ -81,10 +81,10 @@ static void netctl_thread_entry(void *p1, void *p2, void *p3)
 	LOG_DBG("Event thread started");
 
 	while (true) {
-		int ret = k_msgq_get(&ctl->event_queue, &event, K_FOREVER);
-		if (ret == 0) {
+		ret = k_msgq_get(&ctl->event_queue, &event, K_FOREVER);
+
+		if (ret == 0)
 			netctl_emit_event(ctl, &event);
-		}
 	}
 }
 
@@ -94,9 +94,12 @@ static void netctl_thread_entry(void *p1, void *p2, void *p3)
 
 int netctl_init(netctl_t *ctl, netctl_event_cb_t cb, void *user_data)
 {
-	if (ctl == NULL) {
+#ifdef CONFIG_ICLE_NETCTL_WIFI
+	int ret;
+#endif
+
+	if (ctl == NULL)
 		return -EINVAL;
-	}
 
 	if (ctl->initialized) {
 		LOG_WRN("Already initialized");
@@ -113,9 +116,8 @@ int netctl_init(netctl_t *ctl, netctl_event_cb_t cb, void *user_data)
 	}
 
 	/* Initialize all interfaces to disabled */
-	for (int i = 0; i < NETCTL_IFACE_MAX; i++) {
+	for (int i = 0; i < NETCTL_IFACE_MAX; i++)
 		ctl->iface_state[i] = NETCTL_STATE_DISABLED;
-	}
 
 	/* Initialize synchronization primitives */
 	k_mutex_init(&ctl->lock);
@@ -139,7 +141,8 @@ int netctl_init(netctl_t *ctl, netctl_event_cb_t cb, void *user_data)
 
 	/* Initialize interface-specific subsystems */
 #ifdef CONFIG_ICLE_NETCTL_WIFI
-	int ret = netctl_wifi_init(ctl);
+	ret = netctl_wifi_init(ctl);
+
 	if (ret < 0) {
 		LOG_ERR("WiFi init failed: %d", ret);
 	} else {
@@ -156,9 +159,8 @@ int netctl_init(netctl_t *ctl, netctl_event_cb_t cb, void *user_data)
 
 int netctl_deinit(netctl_t *ctl)
 {
-	if (ctl == NULL || !ctl->initialized) {
+	if (ctl == NULL || !ctl->initialized)
 		return -EINVAL;
-	}
 
 	/* Disconnect all interfaces */
 	netctl_disconnect_all(ctl);
@@ -182,11 +184,12 @@ int netctl_deinit(netctl_t *ctl)
 
 int netctl_connect(netctl_t *ctl, const char *profile_name)
 {
-	if (ctl == NULL || !ctl->initialized || profile_name == NULL) {
-		return -EINVAL;
-	}
+	const netctl_profile_t *profile;
 
-	const netctl_profile_t *profile = netctl_profile_get(ctl, profile_name);
+	if (ctl == NULL || !ctl->initialized || profile_name == NULL)
+		return -EINVAL;
+
+	profile = netctl_profile_get(ctl, profile_name);
 	if (profile == NULL) {
 		LOG_WRN("Profile not found: %s", profile_name);
 		return -ENOENT;
@@ -197,11 +200,10 @@ int netctl_connect(netctl_t *ctl, const char *profile_name)
 
 int netctl_connect_with_creds(netctl_t *ctl, const netctl_profile_t *profile)
 {
-	if (ctl == NULL || !ctl->initialized || profile == NULL) {
-		return -EINVAL;
-	}
-
 	int ret = -ENOTSUP;
+
+	if (ctl == NULL || !ctl->initialized || profile == NULL)
+		return -EINVAL;
 
 	k_mutex_lock(&ctl->lock, K_FOREVER);
 
@@ -216,9 +218,9 @@ int netctl_connect_with_creds(netctl_t *ctl, const netctl_profile_t *profile)
 		}
 		/* Check arbiter */
 		ret = netctl_arbiter_can_activate_wifi(ctl);
-		if (ret < 0) {
+		if (ret < 0)
 			break;
-		}
+
 		netctl_set_state(ctl, NETCTL_IFACE_WIFI_STA, NETCTL_STATE_CONNECTING);
 		ctl->active_profile = profile;
 		k_mutex_unlock(&ctl->lock);
@@ -245,15 +247,15 @@ int netctl_connect_with_creds(netctl_t *ctl, const netctl_profile_t *profile)
 
 int netctl_disconnect(netctl_t *ctl, netctl_iface_t iface)
 {
-	if (ctl == NULL || !ctl->initialized || iface >= NETCTL_IFACE_MAX) {
-		return -EINVAL;
-	}
-
+	netctl_state_t state;
 	int ret = -ENOTSUP;
+
+	if (ctl == NULL || !ctl->initialized || iface >= NETCTL_IFACE_MAX)
+		return -EINVAL;
 
 	k_mutex_lock(&ctl->lock, K_FOREVER);
 
-	netctl_state_t state = ctl->iface_state[iface];
+	state = ctl->iface_state[iface];
 	if (state != NETCTL_STATE_CONNECTED && state != NETCTL_STATE_CONNECTING) {
 		k_mutex_unlock(&ctl->lock);
 		return -EALREADY;
@@ -268,9 +270,9 @@ int netctl_disconnect(netctl_t *ctl, netctl_iface_t iface)
 		ret = netctl_wifi_disconnect(ctl);
 
 		k_mutex_lock(&ctl->lock, K_FOREVER);
-		if (ret < 0) {
+		if (ret < 0)
 			netctl_set_state(ctl, NETCTL_IFACE_WIFI_STA, NETCTL_STATE_ERROR);
-		}
+
 		k_mutex_unlock(&ctl->lock);
 		return ret;
 #endif
@@ -286,17 +288,18 @@ int netctl_disconnect(netctl_t *ctl, netctl_iface_t iface)
 
 int netctl_disconnect_all(netctl_t *ctl)
 {
-	if (ctl == NULL || !ctl->initialized) {
+	int ret;
+
+	if (ctl == NULL || !ctl->initialized)
 		return -EINVAL;
-	}
 
 	for (int i = 0; i < NETCTL_IFACE_MAX; i++) {
 		if (ctl->iface_state[i] == NETCTL_STATE_CONNECTED ||
 		    ctl->iface_state[i] == NETCTL_STATE_CONNECTING) {
-			int ret = netctl_disconnect(ctl, (netctl_iface_t)i);
-			if (ret < 0 && ret != -EALREADY) {
+			ret = netctl_disconnect(ctl, (netctl_iface_t)i);
+
+			if (ret < 0 && ret != -EALREADY)
 				LOG_WRN("Failed to disconnect iface %d: %d", i, ret);
-			}
 		}
 	}
 
@@ -305,9 +308,8 @@ int netctl_disconnect_all(netctl_t *ctl)
 
 int netctl_reset(netctl_t *ctl, netctl_iface_t iface)
 {
-	if (ctl == NULL || !ctl->initialized || iface >= NETCTL_IFACE_MAX) {
+	if (ctl == NULL || !ctl->initialized || iface >= NETCTL_IFACE_MAX)
 		return -EINVAL;
-	}
 
 	k_mutex_lock(&ctl->lock, K_FOREVER);
 
@@ -331,23 +333,20 @@ int netctl_reset(netctl_t *ctl, netctl_iface_t iface)
 
 netctl_state_t netctl_get_state(netctl_t *ctl, netctl_iface_t iface)
 {
-	if (ctl == NULL || !ctl->initialized || iface >= NETCTL_IFACE_MAX) {
+	if (ctl == NULL || !ctl->initialized || iface >= NETCTL_IFACE_MAX)
 		return NETCTL_STATE_DISABLED;
-	}
 
 	return ctl->iface_state[iface];
 }
 
 bool netctl_is_online(netctl_t *ctl)
 {
-	if (ctl == NULL || !ctl->initialized) {
+	if (ctl == NULL || !ctl->initialized)
 		return false;
-	}
 
 	for (int i = 0; i < NETCTL_IFACE_MAX; i++) {
-		if (ctl->iface_state[i] == NETCTL_STATE_CONNECTED) {
+		if (ctl->iface_state[i] == NETCTL_STATE_CONNECTED)
 			return true;
-		}
 	}
 
 	return false;
@@ -355,14 +354,12 @@ bool netctl_is_online(netctl_t *ctl)
 
 netctl_iface_t netctl_get_active_iface(netctl_t *ctl)
 {
-	if (ctl == NULL || !ctl->initialized) {
+	if (ctl == NULL || !ctl->initialized)
 		return NETCTL_IFACE_MAX;
-	}
 
 	for (int i = 0; i < NETCTL_IFACE_MAX; i++) {
-		if (ctl->iface_state[i] == NETCTL_STATE_CONNECTED) {
+		if (ctl->iface_state[i] == NETCTL_STATE_CONNECTED)
 			return (netctl_iface_t)i;
-		}
 	}
 
 	return NETCTL_IFACE_MAX;
@@ -370,9 +367,8 @@ netctl_iface_t netctl_get_active_iface(netctl_t *ctl)
 
 const netctl_profile_t *netctl_get_active_profile(netctl_t *ctl)
 {
-	if (ctl == NULL || !ctl->initialized) {
+	if (ctl == NULL || !ctl->initialized)
 		return NULL;
-	}
 
 	return ctl->active_profile;
 }
@@ -383,9 +379,11 @@ const netctl_profile_t *netctl_get_active_profile(netctl_t *ctl)
 
 int netctl_request_internet(netctl_t *ctl)
 {
-	if (ctl == NULL || !ctl->initialized) {
+	const netctl_profile_t *best = NULL;
+	uint8_t best_priority = UINT8_MAX;
+
+	if (ctl == NULL || !ctl->initialized)
 		return -EINVAL;
-	}
 
 	if (ctl->profile_count == 0) {
 		LOG_WRN("No profiles registered");
@@ -393,9 +391,6 @@ int netctl_request_internet(netctl_t *ctl)
 	}
 
 	/* Find highest priority (lowest number) profile */
-	const netctl_profile_t *best = NULL;
-	uint8_t best_priority = UINT8_MAX;
-
 	for (int i = 0; i < ctl->profile_count; i++) {
 		if (ctl->profiles[i].priority < best_priority) {
 			best_priority = ctl->profiles[i].priority;
@@ -403,9 +398,8 @@ int netctl_request_internet(netctl_t *ctl)
 		}
 	}
 
-	if (best == NULL) {
+	if (best == NULL)
 		return -ENOENT;
-	}
 
 	return netctl_connect_with_creds(ctl, best);
 }
@@ -416,9 +410,8 @@ int netctl_request_internet(netctl_t *ctl)
 
 int netctl_subscribe(netctl_t *ctl, netctl_event_cb_t cb, void *user_data)
 {
-	if (ctl == NULL || cb == NULL) {
+	if (ctl == NULL || cb == NULL)
 		return -EINVAL;
-	}
 
 	k_mutex_lock(&ctl->lock, K_FOREVER);
 
@@ -445,18 +438,17 @@ int netctl_subscribe(netctl_t *ctl, netctl_event_cb_t cb, void *user_data)
 
 int netctl_unsubscribe(netctl_t *ctl, netctl_event_cb_t cb)
 {
-	if (ctl == NULL || cb == NULL) {
+	if (ctl == NULL || cb == NULL)
 		return -EINVAL;
-	}
 
 	k_mutex_lock(&ctl->lock, K_FOREVER);
 
 	for (uint8_t i = 0; i < ctl->subscriber_count; i++) {
 		if (ctl->subscribers[i].cb == cb) {
 			/* Shift remaining subscribers down */
-			for (uint8_t j = i; j < ctl->subscriber_count - 1; j++) {
+			for (uint8_t j = i; j < ctl->subscriber_count - 1; j++)
 				ctl->subscribers[j] = ctl->subscribers[j + 1];
-			}
+
 			ctl->subscriber_count--;
 			memset(&ctl->subscribers[ctl->subscriber_count], 0,
 			       sizeof(netctl_subscriber_t));
@@ -475,11 +467,13 @@ int netctl_unsubscribe(netctl_t *ctl, netctl_event_cb_t cb)
 
 void netctl_notify_connected(netctl_t *ctl, netctl_iface_t iface)
 {
+	netctl_event_t event;
+
 	k_mutex_lock(&ctl->lock, K_FOREVER);
 	netctl_set_state(ctl, iface, NETCTL_STATE_CONNECTED);
 	k_mutex_unlock(&ctl->lock);
 
-	netctl_event_t event = {
+	event = (netctl_event_t){
 		.type = NETCTL_EVENT_CONNECTED,
 		.data.state_changed = {
 			.iface = iface,
@@ -487,19 +481,20 @@ void netctl_notify_connected(netctl_t *ctl, netctl_iface_t iface)
 			.new_state = NETCTL_STATE_CONNECTED,
 		},
 	};
-	if (k_msgq_put(&ctl->event_queue, &event, K_NO_WAIT) != 0) {
+	if (k_msgq_put(&ctl->event_queue, &event, K_NO_WAIT) != 0)
 		LOG_WRN("Event queue full, dropped event type %d", event.type);
-	}
 }
 
 void netctl_notify_disconnected(netctl_t *ctl, netctl_iface_t iface)
 {
+	netctl_event_t event;
+
 	k_mutex_lock(&ctl->lock, K_FOREVER);
 	netctl_set_state(ctl, iface, NETCTL_STATE_IDLE);
 	ctl->active_profile = NULL;
 	k_mutex_unlock(&ctl->lock);
 
-	netctl_event_t event = {
+	event = (netctl_event_t){
 		.type = NETCTL_EVENT_DISCONNECTED,
 		.data.state_changed = {
 			.iface = iface,
@@ -507,19 +502,20 @@ void netctl_notify_disconnected(netctl_t *ctl, netctl_iface_t iface)
 			.new_state = NETCTL_STATE_IDLE,
 		},
 	};
-	if (k_msgq_put(&ctl->event_queue, &event, K_NO_WAIT) != 0) {
+	if (k_msgq_put(&ctl->event_queue, &event, K_NO_WAIT) != 0)
 		LOG_WRN("Event queue full, dropped event type %d", event.type);
-	}
 }
 
 void netctl_notify_connection_failed(netctl_t *ctl, netctl_iface_t iface, int error_code)
 {
+	netctl_event_t event;
+
 	k_mutex_lock(&ctl->lock, K_FOREVER);
 	netctl_set_state(ctl, iface, NETCTL_STATE_ERROR);
 	ctl->active_profile = NULL;
 	k_mutex_unlock(&ctl->lock);
 
-	netctl_event_t event = {
+	event = (netctl_event_t){
 		.type = NETCTL_EVENT_CONNECTION_FAILED,
 		.data.error = {
 			.iface = iface,
@@ -527,19 +523,19 @@ void netctl_notify_connection_failed(netctl_t *ctl, netctl_iface_t iface, int er
 			.message = NULL,
 		},
 	};
-	if (k_msgq_put(&ctl->event_queue, &event, K_NO_WAIT) != 0) {
+	if (k_msgq_put(&ctl->event_queue, &event, K_NO_WAIT) != 0)
 		LOG_WRN("Event queue full, dropped event type %d", event.type);
-	}
 }
 
 void netctl_notify_ip_acquired(netctl_t *ctl, netctl_iface_t iface,
 			       const char *ip_addr, const char *gateway, const char *netmask)
 {
-	if (ctl == NULL || ip_addr == NULL || gateway == NULL || netmask == NULL) {
-		return;
-	}
+	netctl_event_t event;
 
-	netctl_event_t event = {
+	if (ctl == NULL || ip_addr == NULL || gateway == NULL || netmask == NULL)
+		return;
+
+	event = (netctl_event_t){
 		.type = NETCTL_EVENT_IP_ACQUIRED,
 	};
 
@@ -551,7 +547,6 @@ void netctl_notify_ip_acquired(netctl_t *ctl, netctl_iface_t iface,
 	strncpy(event.data.ip_acquired.netmask, netmask, NETCTL_IPV4_ADDR_LEN - 1);
 	event.data.ip_acquired.netmask[NETCTL_IPV4_ADDR_LEN - 1] = '\0';
 
-	if (k_msgq_put(&ctl->event_queue, &event, K_NO_WAIT) != 0) {
+	if (k_msgq_put(&ctl->event_queue, &event, K_NO_WAIT) != 0)
 		LOG_WRN("Event queue full, dropped event type %d", event.type);
-	}
 }

@@ -1,5 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
 /*
- * SPDX-License-Identifier: Apache-2.0
  * ICLE HTTP Client Service
  *
  * HTTP client for syncing logs to Concord backend.

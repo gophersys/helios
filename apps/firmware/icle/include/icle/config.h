@@ -1,5 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
 /*
- * SPDX-License-Identifier: Apache-2.0
  * ICLE ZMS-backed Configuration
  *
  * Runtime configuration stored in non-volatile storage using

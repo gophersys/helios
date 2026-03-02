@@ -1,7 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
 /*
  * ICLE Network Control Service - Interface Arbiter
- *
- * SPDX-License-Identifier: Apache-2.0
  */
 
 #ifndef ICLE_SERVICES_NETCTL_ARBITER_H

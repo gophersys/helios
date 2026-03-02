@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: Apache-2.0
 /*
  * ICLE Network Control Service - Types
  *
  * Ported from Helios runtime netctl module.
- *
- * SPDX-License-Identifier: Apache-2.0
  */
 
 #ifndef ICLE_SERVICES_NETCTL_TYPES_H
@@ -188,36 +187,39 @@ typedef struct {
 
 /*
  * Main netctl handle
+ *
+ * Field ordering: pointer/struct-sized types first, then arrays, then
+ * smaller scalar types (uint8_t, bool) last to minimise implicit padding.
+ * The compiler must not reorder struct fields; we do it explicitly here.
  */
 typedef struct netctl {
-	/* Initialization state */
-	bool initialized;
-
-	/* Event subscribers */
-	netctl_subscriber_t subscribers[CONFIG_ICLE_NETCTL_MAX_SUBSCRIBERS];
-	uint8_t subscriber_count;
-
-	/* Per-interface state */
-	netctl_state_t iface_state[NETCTL_IFACE_MAX];
-
-	/* Profile storage */
-	netctl_profile_t profiles[CONFIG_ICLE_NETCTL_MAX_PROFILES];
-	uint8_t profile_count;
+	/* Pointer-sized: active profile reference */
 	const netctl_profile_t *active_profile;
 
-	/* Thread */
+	/* Thread — k_thread contains pointer-sized members internally */
 	struct k_thread thread;
 	k_tid_t thread_id;
+
+	/* Stack — must be a struct member via K_KERNEL_STACK_MEMBER */
 	K_KERNEL_STACK_MEMBER(thread_stack, CONFIG_ICLE_NETCTL_THREAD_STACK_SIZE);
 
-	/* Event queue */
+	/* Event queue struct and its backing buffer (4-byte aligned) */
 	struct k_msgq event_queue;
 	char __aligned(4) event_queue_buf[CONFIG_ICLE_NETCTL_EVENT_QUEUE_SIZE * sizeof(netctl_event_t)];
 
-	/* Synchronization */
+	/* Synchronization mutex */
 	struct k_mutex lock;
 
-	/* WiFi-specific */
+	/* Event subscribers array (each entry holds two pointers) */
+	netctl_subscriber_t subscribers[CONFIG_ICLE_NETCTL_MAX_SUBSCRIBERS];
+
+	/* Profile storage */
+	netctl_profile_t profiles[CONFIG_ICLE_NETCTL_MAX_PROFILES];
+
+	/* Per-interface FSM state (enum = int32) */
+	netctl_state_t iface_state[NETCTL_IFACE_MAX];
+
+	/* WiFi-specific — WiFi structs contain pointer-sized fields */
 #ifdef CONFIG_ICLE_NETCTL_WIFI
 	struct net_if *wifi_iface;
 	struct net_mgmt_event_callback wifi_mgmt_cb;
@@ -227,6 +229,15 @@ typedef struct netctl {
 	struct k_sem wifi_disconnect_sem;
 	struct k_sem wifi_ip_sem;
 	struct k_mutex wifi_lock;
+#endif
+
+	/* uint8_t scalars — grouped together to avoid inter-field padding */
+	uint8_t subscriber_count;
+	uint8_t profile_count;
+
+	/* bool fields last — 1-byte types cause least padding at the tail */
+	bool initialized;
+#ifdef CONFIG_ICLE_NETCTL_WIFI
 	bool wifi_connected;
 #endif
 

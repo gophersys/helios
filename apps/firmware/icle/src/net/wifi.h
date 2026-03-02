@@ -1,5 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
 /*
- * SPDX-License-Identifier: Apache-2.0
  * ICLE WiFi Station Manager
  *
  * Manages WiFi STA connection, reconnection, and status.
@@ -22,11 +22,11 @@ extern "C" {
  * @brief WiFi connection state
  */
 enum icle_wifi_state {
-	ICLE_WIFI_STATE_DISABLED,    /* WiFi not initialized */
-	ICLE_WIFI_STATE_DISCONNECTED,/* Initialized but not connected */
-	ICLE_WIFI_STATE_CONNECTING,  /* Connection in progress */
-	ICLE_WIFI_STATE_CONNECTED,   /* Connected to AP */
-	ICLE_WIFI_STATE_ERROR,       /* Error state */
+	ICLE_WIFI_STATE_DISABLED,     /* WiFi not initialized */
+	ICLE_WIFI_STATE_DISCONNECTED, /* Initialized but not connected */
+	ICLE_WIFI_STATE_CONNECTING,   /* Connection in progress */
+	ICLE_WIFI_STATE_CONNECTED,    /* Connected to AP */
+	ICLE_WIFI_STATE_ERROR,        /* Error state */
 };
 
 /**

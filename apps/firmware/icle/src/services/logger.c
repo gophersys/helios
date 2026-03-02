@@ -1,5 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
 /*
- * SPDX-License-Identifier: Apache-2.0
  * ICLE Log Manager
  *
  * Manages power measurement sampling, log entry formatting, queuing,
@@ -102,14 +102,17 @@ static void sampler_work_handler(struct k_work *work);
 static void writer_thread_entry(void *p1, void *p2, void *p3);
 static int queue_entry(const struct icle_log_entry *entry);
 static void notify_callbacks(const struct icle_log_entry *entry);
+static void writer_handle_flush(char *csv_buffer, size_t csv_size);
+static int writer_write_entry(const struct log_queue_entry *qentry,
+			      char *csv_buffer, size_t csv_size);
+static void writer_drain_remaining(char *csv_buffer, size_t csv_size);
 
 int icle_log_init(void)
 {
 	int ret;
 
-	if (log_state.initialized) {
+	if (log_state.initialized)
 		return 0;
-	}
 
 	memset(&log_state, 0, sizeof(log_state));
 
@@ -155,14 +158,12 @@ int icle_log_init(void)
 
 int icle_log_deinit(void)
 {
-	if (!log_state.initialized) {
+	if (!log_state.initialized)
 		return 0;
-	}
 
 	/* Stop sampling if active */
-	if (log_state.sampling_active) {
+	if (log_state.sampling_active)
 		icle_log_stop_sampling();
-	}
 
 	/* Flush remaining queue entries */
 	icle_log_flush(5000);
@@ -172,9 +173,8 @@ int icle_log_deinit(void)
 		log_state.shutdown_requested = true;
 		k_queue_append(&log_state.sample_queue, &shutdown_sentinel);
 
-		if (log_state.writer_tid != NULL) {
+		if (log_state.writer_tid != NULL)
 			k_thread_join(log_state.writer_tid, K_FOREVER);
-		}
 	}
 
 	/* Clear queues */
@@ -182,9 +182,8 @@ int icle_log_deinit(void)
 
 	while ((qentry = k_queue_get(&log_state.sample_queue,
 				     K_NO_WAIT)) != NULL) {
-		if (qentry != &flush_sentinel && qentry != &shutdown_sentinel) {
+		if (qentry != &flush_sentinel && qentry != &shutdown_sentinel)
 			k_mem_slab_free(&log_state.entry_slab, qentry);
-		}
 	}
 
 	log_state.initialized = false;
@@ -195,13 +194,15 @@ int icle_log_deinit(void)
 
 int icle_log_start_sampling(uint32_t interval_ms)
 {
-	if (!log_state.initialized) {
-		return -ENODEV;
-	}
+	char header[128];
+	int ret;
+	int len;
 
-	if (interval_ms < LOG_MIN_INTERVAL_MS || interval_ms > LOG_MAX_INTERVAL_MS) {
+	if (!log_state.initialized)
+		return -ENODEV;
+
+	if (interval_ms < LOG_MIN_INTERVAL_MS || interval_ms > LOG_MAX_INTERVAL_MS)
 		return -EINVAL;
-	}
 
 	k_mutex_lock(&log_state.state_mutex, K_FOREVER);
 
@@ -221,17 +222,15 @@ int icle_log_start_sampling(uint32_t interval_ms)
 
 	/* Create log file if storage is ready */
 	if (icle_storage_is_ready()) {
-		int ret = icle_storage_create_log(log_state.format);
+		ret = icle_storage_create_log(log_state.format);
 
 		if (ret < 0) {
 			LOG_WRN("Failed to create log file: %d", ret);
 		} else if (log_state.format == ICLE_LOG_FORMAT_CSV) {
-			char header[128];
-			int len = icle_log_csv_header(header, sizeof(header));
+			len = icle_log_csv_header(header, sizeof(header));
 
-			if (len > 0) {
+			if (len > 0)
 				icle_storage_write_log(header, len);
-			}
 		}
 	}
 
@@ -265,9 +264,8 @@ int icle_log_start_sampling(uint32_t interval_ms)
 
 int icle_log_stop_sampling(void)
 {
-	if (!log_state.initialized) {
+	if (!log_state.initialized)
 		return -ENODEV;
-	}
 
 	k_mutex_lock(&log_state.state_mutex, K_FOREVER);
 
@@ -295,9 +293,8 @@ bool icle_log_is_sampling(void)
 
 int icle_log_set_interval(uint32_t interval_ms)
 {
-	if (interval_ms < LOG_MIN_INTERVAL_MS || interval_ms > LOG_MAX_INTERVAL_MS) {
+	if (interval_ms < LOG_MIN_INTERVAL_MS || interval_ms > LOG_MAX_INTERVAL_MS)
 		return -EINVAL;
-	}
 
 	k_mutex_lock(&log_state.state_mutex, K_FOREVER);
 	log_state.interval_ms = interval_ms;
@@ -318,9 +315,8 @@ int icle_log_take_sample(struct icle_log_entry *entry)
 	struct icle_power_data power;
 	int ret;
 
-	if (!log_state.initialized) {
+	if (!log_state.initialized)
 		return -ENODEV;
-	}
 
 	/* Read power measurements */
 	ret = icle_power_read(&power);
@@ -346,17 +342,15 @@ int icle_log_take_sample(struct icle_log_entry *entry)
 
 	/* Queue the entry */
 	ret = queue_entry(&local_entry);
-	if (ret < 0) {
+	if (ret < 0)
 		return ret;
-	}
 
 	/* Notify callbacks */
 	notify_callbacks(&local_entry);
 
 	/* Copy to caller if requested */
-	if (entry != NULL) {
+	if (entry != NULL)
 		memcpy(entry, &local_entry, sizeof(*entry));
-	}
 
 	return 0;
 }
@@ -365,22 +359,19 @@ int icle_log_queue_get(struct icle_log_entry *entry, uint32_t timeout_ms)
 {
 	struct log_queue_entry *qentry;
 
-	if (!log_state.initialized || entry == NULL) {
+	if (!log_state.initialized || entry == NULL)
 		return -EINVAL;
-	}
 
 	/* Only K_FOREVER and K_NO_WAIT are safe on ESP32 */
 	k_timeout_t timeout = (timeout_ms == UINT32_MAX) ? K_FOREVER : K_NO_WAIT;
 
 	qentry = k_queue_get(&log_state.sample_queue, timeout);
-	if (qentry == NULL) {
+	if (qentry == NULL)
 		return -ETIMEDOUT;
-	}
 
 	/* Skip sentinel entries */
-	if (qentry == &flush_sentinel || qentry == &shutdown_sentinel) {
+	if (qentry == &flush_sentinel || qentry == &shutdown_sentinel)
 		return -EAGAIN;
-	}
 
 	/* Copy entry and free slab memory */
 	memcpy(entry, &qentry->entry, sizeof(*entry));
@@ -388,9 +379,9 @@ int icle_log_queue_get(struct icle_log_entry *entry, uint32_t timeout_ms)
 
 	/* Update queue depth */
 	k_mutex_lock(&log_state.state_mutex, K_FOREVER);
-	if (log_state.queue_depth > 0) {
+	if (log_state.queue_depth > 0)
 		log_state.queue_depth--;
-	}
+
 	k_mutex_unlock(&log_state.state_mutex);
 
 	return 0;
@@ -403,29 +394,33 @@ uint32_t icle_log_queue_depth(void)
 
 int icle_log_flush(uint32_t timeout_ms)
 {
-	if (!log_state.initialized) {
+	if (!log_state.initialized)
 		return -ENODEV;
-	}
 
-	if (!log_state.writer_active) {
+	if (!log_state.writer_active)
 		return 0;
-	}
 
-	/* Signal writer to flush by enqueueing the flush sentinel.
+	/*
+	 * Signal writer to flush by enqueueing the flush sentinel.
 	 * Writer will drain queue, flush storage, then signal flush_sem
-	 * and post ICLE_EVENT_WRITER_DONE event. */
+	 * and post ICLE_EVENT_WRITER_DONE event.
+	 */
 	k_sem_reset(&log_state.flush_sem);
 	k_queue_append(&log_state.sample_queue, &flush_sentinel);
 
 	if (timeout_ms == 0) {
-		/* Non-blocking: return immediately, caller listens for
+		/*
+		 * Non-blocking: return immediately, caller listens for
 		 * ICLE_EVENT_WRITER_DONE event. Used in shutdown path
-		 * to avoid blocking the event loop. */
+		 * to avoid blocking the event loop.
+		 */
 		return 0;
 	}
 
-	/* Blocking: wait for writer to complete flush.
-	 * K_FOREVER is safe on ESP32. */
+	/*
+	 * Blocking: wait for writer to complete flush.
+	 * K_FOREVER is safe on ESP32.
+	 */
 	k_sem_take(&log_state.flush_sem, K_FOREVER);
 
 	return 0;
@@ -433,9 +428,8 @@ int icle_log_flush(uint32_t timeout_ms)
 
 int icle_log_get_stats(struct icle_log_stats *stats)
 {
-	if (stats == NULL) {
+	if (stats == NULL)
 		return -EINVAL;
-	}
 
 	k_mutex_lock(&log_state.state_mutex, K_FOREVER);
 	memcpy(stats, &log_state.stats, sizeof(*stats));
@@ -457,9 +451,8 @@ void icle_log_reset_stats(void)
 
 int icle_log_register_callback(icle_log_sample_cb_t callback, void *user_data)
 {
-	if (callback == NULL) {
+	if (callback == NULL)
 		return -EINVAL;
-	}
 
 	k_mutex_lock(&log_state.state_mutex, K_FOREVER);
 
@@ -482,9 +475,9 @@ void icle_log_unregister_callback(icle_log_sample_cb_t callback)
 
 	for (int i = 0; i < log_state.callback_count; i++) {
 		if (log_state.callbacks[i].callback == callback) {
-			for (int j = i; j < log_state.callback_count - 1; j++) {
+			for (int j = i; j < log_state.callback_count - 1; j++)
 				log_state.callbacks[j] = log_state.callbacks[j + 1];
-			}
+
 			log_state.callback_count--;
 			break;
 		}
@@ -496,38 +489,38 @@ void icle_log_unregister_callback(icle_log_sample_cb_t callback)
 int icle_log_format_csv(const struct icle_log_entry *entry, char *buffer,
 			size_t buffer_size)
 {
-	if (entry == NULL || buffer == NULL || buffer_size == 0) {
+	int len;
+
+	if (entry == NULL || buffer == NULL || buffer_size == 0)
 		return -EINVAL;
-	}
 
-	int len = snprintf(buffer, buffer_size,
-			   "%u,%u,%d,%d,%d,0x%02x\n",
-			   entry->timestamp_ms,
-			   entry->rtc_time,
-			   entry->voltage_uv,
-			   entry->current_ua,
-			   entry->power_uw,
-			   entry->flags);
+	len = snprintf(buffer, buffer_size,
+		       "%u,%u,%d,%d,%d,0x%02x\n",
+		       entry->timestamp_ms,
+		       entry->rtc_time,
+		       entry->voltage_uv,
+		       entry->current_ua,
+		       entry->power_uw,
+		       entry->flags);
 
-	if (len < 0 || (size_t)len >= buffer_size) {
+	if (len < 0 || (size_t)len >= buffer_size)
 		return -ENOSPC;
-	}
 
 	return len;
 }
 
 int icle_log_csv_header(char *buffer, size_t buffer_size)
 {
-	if (buffer == NULL || buffer_size == 0) {
+	int len;
+
+	if (buffer == NULL || buffer_size == 0)
 		return -EINVAL;
-	}
 
-	int len = snprintf(buffer, buffer_size,
-			   "timestamp_ms,rtc_time,voltage_uv,current_ua,power_uw,flags\n");
+	len = snprintf(buffer, buffer_size,
+		       "timestamp_ms,rtc_time,voltage_uv,current_ua,power_uw,flags\n");
 
-	if (len < 0 || (size_t)len >= buffer_size) {
+	if (len < 0 || (size_t)len >= buffer_size)
 		return -ENOSPC;
-	}
 
 	return len;
 }
@@ -554,9 +547,9 @@ static int queue_entry(const struct icle_log_entry *entry)
 		if (qentry != NULL && qentry != &flush_sentinel &&
 		    qentry != &shutdown_sentinel) {
 			k_mutex_lock(&log_state.state_mutex, K_FOREVER);
-			if (log_state.queue_depth > 0) {
+			if (log_state.queue_depth > 0)
 				log_state.queue_depth--;
-			}
+
 			k_mutex_unlock(&log_state.state_mutex);
 			/* Reuse this entry */
 		} else {
@@ -568,9 +561,8 @@ static int queue_entry(const struct icle_log_entry *entry)
 	memcpy(&qentry->entry, entry, sizeof(*entry));
 
 	/* Mark as overflow if we had to drop */
-	if (ret < 0) {
+	if (ret < 0)
 		qentry->entry.flags |= ICLE_LOG_FLAG_OVERFLOW;
-	}
 
 	/* Add to queue */
 	k_queue_append(&log_state.sample_queue, qentry);
@@ -579,9 +571,9 @@ static int queue_entry(const struct icle_log_entry *entry)
 	k_mutex_lock(&log_state.state_mutex, K_FOREVER);
 	log_state.queue_depth++;
 	log_state.stats.samples_taken++;
-	if (log_state.queue_depth > log_state.max_queue_depth) {
+	if (log_state.queue_depth > log_state.max_queue_depth)
 		log_state.max_queue_depth = log_state.queue_depth;
-	}
+
 	k_mutex_unlock(&log_state.state_mutex);
 
 	return 0;
@@ -609,23 +601,161 @@ static void notify_callbacks(const struct icle_log_entry *entry)
  */
 static void sampler_work_handler(struct k_work *work)
 {
+	int ret;
+
 	ARG_UNUSED(work);
 
-	if (!log_state.sampling_active) {
+	if (!log_state.sampling_active)
 		return;
-	}
 
 	/* Take sample */
-	int ret = icle_log_take_sample(NULL);
+	ret = icle_log_take_sample(NULL);
 
-	if (ret < 0 && ret != -ENOMEM) {
+	if (ret < 0 && ret != -ENOMEM)
 		LOG_WRN("Sample failed: %d", ret);
-	}
 
 	/* Self-reschedule for next sample */
 	if (log_state.sampling_active) {
 		k_work_schedule(&log_state.sampler_work,
 				K_MSEC(log_state.interval_ms));
+	}
+}
+
+/**
+ * @brief Handle the flush sentinel: drain queue, write remaining entries,
+ *        flush storage, and signal completion to waiters.
+ *
+ * Called from writer_thread_entry when a flush_sentinel is dequeued.
+ */
+static void writer_handle_flush(char *csv_buffer, size_t csv_size)
+{
+	struct log_queue_entry *drain;
+	int len;
+
+	while ((drain = k_queue_get(&log_state.sample_queue,
+				    K_NO_WAIT)) != NULL) {
+		if (drain == &flush_sentinel ||
+		    drain == &shutdown_sentinel)
+			continue;
+
+		k_mutex_lock(&log_state.state_mutex, K_FOREVER);
+		if (log_state.queue_depth > 0)
+			log_state.queue_depth--;
+
+		k_mutex_unlock(&log_state.state_mutex);
+
+		if (icle_storage_is_ready()) {
+			if (log_state.format == ICLE_LOG_FORMAT_BINARY) {
+				icle_storage_write_log(
+					&drain->entry,
+					sizeof(drain->entry));
+			} else {
+				len = icle_log_format_csv(
+					&drain->entry,
+					csv_buffer,
+					csv_size);
+				if (len > 0)
+					icle_storage_write_log(
+						csv_buffer, len);
+			}
+		}
+		k_mem_slab_free(&log_state.entry_slab, drain);
+	}
+
+	if (icle_storage_is_ready())
+		icle_storage_flush_log();
+
+	/* Signal flush complete */
+	k_sem_give(&log_state.flush_sem);
+	icle_events_post(ICLE_EVENT_WRITER_DONE);
+}
+
+/**
+ * @brief Write a single normal data entry to storage, including rotation check.
+ *
+ * @param qentry  Pointer to the queue entry to write (must not be a sentinel).
+ * @param csv_buffer  Scratch buffer for CSV formatting.
+ * @param csv_size    Size of csv_buffer in bytes.
+ * @return 0 on success, negative errno on error.
+ */
+static int writer_write_entry(const struct log_queue_entry *qentry,
+			      char *csv_buffer, size_t csv_size)
+{
+	int ret = 0;
+	int len;
+
+	if (!icle_storage_is_ready())
+		return 0;
+
+	/* Check for rotation */
+	if (icle_storage_needs_rotation(LOG_FILE_MAX_SIZE)) {
+		ret = icle_storage_rotate_log(log_state.format);
+		if (ret < 0) {
+			LOG_WRN("Log rotation failed: %d", ret);
+		} else if (log_state.format == ICLE_LOG_FORMAT_CSV) {
+			len = icle_log_csv_header(csv_buffer, csv_size);
+
+			if (len > 0)
+				icle_storage_write_log(csv_buffer, len);
+		}
+	}
+
+	/* Write entry */
+	if (log_state.format == ICLE_LOG_FORMAT_BINARY) {
+		ret = icle_storage_write_log(&qentry->entry,
+					     sizeof(qentry->entry));
+	} else {
+		len = icle_log_format_csv(&qentry->entry,
+					  csv_buffer, csv_size);
+		if (len > 0)
+			ret = icle_storage_write_log(csv_buffer, len);
+		else
+			ret = len;
+	}
+
+	if (ret < 0) {
+		k_mutex_lock(&log_state.state_mutex, K_FOREVER);
+		log_state.stats.write_errors++;
+		k_mutex_unlock(&log_state.state_mutex);
+		LOG_WRN("Write failed: %d", ret);
+	} else {
+		k_mutex_lock(&log_state.state_mutex, K_FOREVER);
+		log_state.stats.samples_written++;
+		k_mutex_unlock(&log_state.state_mutex);
+	}
+
+	return ret;
+}
+
+/**
+ * @brief Drain all remaining entries from the queue on shutdown.
+ *
+ * Called once after the writer loop exits to flush any entries that
+ * arrived between the shutdown_sentinel and the queue becoming empty.
+ */
+static void writer_drain_remaining(char *csv_buffer, size_t csv_size)
+{
+	struct log_queue_entry *qentry;
+	int len;
+
+	while ((qentry = k_queue_get(&log_state.sample_queue,
+				     K_NO_WAIT)) != NULL) {
+		if (qentry == &flush_sentinel || qentry == &shutdown_sentinel)
+			continue;
+
+		if (icle_storage_is_ready()) {
+			if (log_state.format == ICLE_LOG_FORMAT_BINARY) {
+				icle_storage_write_log(&qentry->entry,
+						       sizeof(qentry->entry));
+			} else {
+				len = icle_log_format_csv(&qentry->entry,
+							  csv_buffer,
+							  csv_size);
+				if (len > 0)
+					icle_storage_write_log(csv_buffer, len);
+			}
+		}
+		k_mem_slab_free(&log_state.entry_slab, qentry);
 	}
 }
 
@@ -637,14 +767,17 @@ static void sampler_work_handler(struct k_work *work)
  */
 static void writer_thread_entry(void *p1, void *p2, void *p3)
 {
+	char csv_buffer[128];
+	uint32_t last_flush;
+	uint32_t now;
+
 	ARG_UNUSED(p1);
 	ARG_UNUSED(p2);
 	ARG_UNUSED(p3);
 
 	LOG_INF("Writer thread started");
 
-	uint32_t last_flush = k_uptime_get_32();
-	char csv_buffer[128];
+	last_flush = k_uptime_get_32();
 
 	while (!log_state.shutdown_requested) {
 		struct log_queue_entry *qentry;
@@ -658,144 +791,41 @@ static void writer_thread_entry(void *p1, void *p2, void *p3)
 		}
 
 		/* Check for shutdown sentinel */
-		if (qentry == &shutdown_sentinel) {
+		if (qentry == &shutdown_sentinel)
 			break;
-		}
 
 		/* Check for flush sentinel */
 		if (qentry == &flush_sentinel) {
-			/* Drain remaining queue entries */
-			struct log_queue_entry *drain;
-
-			while ((drain = k_queue_get(&log_state.sample_queue,
-						    K_NO_WAIT)) != NULL) {
-				if (drain == &flush_sentinel ||
-				    drain == &shutdown_sentinel) {
-					continue;
-				}
-
-				k_mutex_lock(&log_state.state_mutex, K_FOREVER);
-				if (log_state.queue_depth > 0) {
-					log_state.queue_depth--;
-				}
-				k_mutex_unlock(&log_state.state_mutex);
-
-				if (icle_storage_is_ready()) {
-					if (log_state.format == ICLE_LOG_FORMAT_BINARY) {
-						icle_storage_write_log(
-							&drain->entry,
-							sizeof(drain->entry));
-					} else {
-						int len = icle_log_format_csv(
-							&drain->entry,
-							csv_buffer,
-							sizeof(csv_buffer));
-						if (len > 0) {
-							icle_storage_write_log(
-								csv_buffer, len);
-						}
-					}
-				}
-				k_mem_slab_free(&log_state.entry_slab, drain);
-			}
-
-			if (icle_storage_is_ready()) {
-				icle_storage_flush_log();
-			}
-
-			/* Signal flush complete */
-			k_sem_give(&log_state.flush_sem);
-			icle_events_post(ICLE_EVENT_WRITER_DONE);
+			writer_handle_flush(csv_buffer, sizeof(csv_buffer));
 			continue;
 		}
 
 		/* Normal data entry - update queue depth */
 		k_mutex_lock(&log_state.state_mutex, K_FOREVER);
-		if (log_state.queue_depth > 0) {
+		if (log_state.queue_depth > 0)
 			log_state.queue_depth--;
-		}
+
 		k_mutex_unlock(&log_state.state_mutex);
 
 		/* Write to storage */
-		if (icle_storage_is_ready()) {
-			int ret;
-
-			/* Check for rotation */
-			if (icle_storage_needs_rotation(LOG_FILE_MAX_SIZE)) {
-				ret = icle_storage_rotate_log(log_state.format);
-				if (ret < 0) {
-					LOG_WRN("Log rotation failed: %d", ret);
-				} else if (log_state.format == ICLE_LOG_FORMAT_CSV) {
-					int len = icle_log_csv_header(
-						csv_buffer, sizeof(csv_buffer));
-					if (len > 0) {
-						icle_storage_write_log(csv_buffer, len);
-					}
-				}
-			}
-
-			/* Write entry */
-			if (log_state.format == ICLE_LOG_FORMAT_BINARY) {
-				ret = icle_storage_write_log(&qentry->entry,
-					sizeof(qentry->entry));
-			} else {
-				int len = icle_log_format_csv(&qentry->entry,
-					csv_buffer, sizeof(csv_buffer));
-				if (len > 0) {
-					ret = icle_storage_write_log(csv_buffer, len);
-				} else {
-					ret = len;
-				}
-			}
-
-			if (ret < 0) {
-				k_mutex_lock(&log_state.state_mutex, K_FOREVER);
-				log_state.stats.write_errors++;
-				k_mutex_unlock(&log_state.state_mutex);
-				LOG_WRN("Write failed: %d", ret);
-			} else {
-				k_mutex_lock(&log_state.state_mutex, K_FOREVER);
-				log_state.stats.samples_written++;
-				k_mutex_unlock(&log_state.state_mutex);
-			}
-		}
+		writer_write_entry(qentry, csv_buffer, sizeof(csv_buffer));
 
 		/* Free slab memory */
 		k_mem_slab_free(&log_state.entry_slab, qentry);
 
 		/* Periodic flush */
-		uint32_t now = k_uptime_get_32();
+		now = k_uptime_get_32();
 
 		if (now - last_flush >= LOG_FLUSH_INTERVAL_MS) {
-			if (icle_storage_is_ready()) {
+			if (icle_storage_is_ready())
 				icle_storage_flush_log();
-			}
+
 			last_flush = now;
 		}
 	}
 
 	/* Final drain on shutdown */
-	struct log_queue_entry *qentry;
-
-	while ((qentry = k_queue_get(&log_state.sample_queue,
-				     K_NO_WAIT)) != NULL) {
-		if (qentry == &flush_sentinel || qentry == &shutdown_sentinel) {
-			continue;
-		}
-		if (icle_storage_is_ready()) {
-			if (log_state.format == ICLE_LOG_FORMAT_BINARY) {
-				icle_storage_write_log(&qentry->entry,
-						       sizeof(qentry->entry));
-			} else {
-				int len = icle_log_format_csv(&qentry->entry,
-					csv_buffer, sizeof(csv_buffer));
-				if (len > 0) {
-					icle_storage_write_log(csv_buffer, len);
-				}
-			}
-		}
-		k_mem_slab_free(&log_state.entry_slab, qentry);
-	}
+	writer_drain_remaining(csv_buffer, sizeof(csv_buffer));
 
 	if (icle_storage_is_ready()) {
 		icle_storage_flush_log();

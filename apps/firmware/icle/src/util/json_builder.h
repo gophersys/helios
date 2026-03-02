@@ -1,5 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
 /*
- * SPDX-License-Identifier: Apache-2.0
  * ICLE Minimal JSON Builder
  *
  * Simple JSON serialization without external dependencies.

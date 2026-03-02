@@ -1,5 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
 /*
- * SPDX-License-Identifier: Apache-2.0
  * ICLE Power Management Implementation
  *
  * Handles deep sleep entry/exit, ZMS state persistence,
@@ -41,9 +41,8 @@ static bool pm_initialized;
 
 int icle_pm_init(void)
 {
-	if (pm_initialized) {
+	if (pm_initialized)
 		return 0;
-	}
 
 	rtc_boot_count++;
 	pm_initialized = true;
@@ -87,11 +86,12 @@ uint32_t icle_pm_get_boot_count(void)
 
 int icle_pm_save_state(const struct icle_pm_persist_state *state)
 {
-	if (state == NULL) {
-		return -EINVAL;
-	}
+	int ret;
 
-	int ret = settings_save_one(PM_ZMS_KEY, state, sizeof(*state));
+	if (state == NULL)
+		return -EINVAL;
+
+	ret = settings_save_one(PM_ZMS_KEY, state, sizeof(*state));
 	if (ret < 0) {
 		LOG_ERR("Failed to save PM state to ZMS: %d", ret);
 		return ret;
@@ -107,12 +107,14 @@ int icle_pm_save_state(const struct icle_pm_persist_state *state)
 
 int icle_pm_restore_state(struct icle_pm_persist_state *state)
 {
-	if (state == NULL) {
-		return -EINVAL;
-	}
+	int len;
+	int ret;
 
-	int len = sizeof(*state);
-	int ret = settings_runtime_get(PM_ZMS_KEY, state, len);
+	if (state == NULL)
+		return -EINVAL;
+
+	len = sizeof(*state);
+	ret = settings_runtime_get(PM_ZMS_KEY, state, len);
 
 	if (ret < 0) {
 		LOG_WRN("No PM state in ZMS (cold boot): %d", ret);

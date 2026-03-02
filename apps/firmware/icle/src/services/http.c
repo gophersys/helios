@@ -1,5 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
 /*
- * SPDX-License-Identifier: Apache-2.0
  * ICLE HTTP Client Implementation
  *
  * HTTP client for syncing logs to Concord backend.
@@ -104,10 +104,6 @@ static int http_recv_response(int sock, struct icle_http_response *response,
 			      char *body_buffer, size_t buffer_size);
 static int http_parse_url(const char *url);
 static void http_sync_thread_fn(void *p1, void *p2, void *p3);
-static int http_do_request_with_retry(const char *method, const char *path,
-				      const char *content_type,
-				      const void *body, size_t body_len,
-				      char *response_body, size_t response_size);
 
 /**
  * @brief State name lookup table
@@ -122,9 +118,8 @@ static const char *state_names[] = {
 
 int icle_http_init(void)
 {
-	if (http_ctx.initialized) {
+	if (http_ctx.initialized)
 		return 0;
-	}
 
 	memset(&http_ctx, 0, sizeof(http_ctx));
 
@@ -157,9 +152,8 @@ int icle_http_init(void)
 
 int icle_http_deinit(void)
 {
-	if (!http_ctx.initialized) {
+	if (!http_ctx.initialized)
 		return 0;
-	}
 
 	/* Cancel any pending sync */
 	icle_http_cancel_sync();
@@ -179,9 +173,8 @@ int icle_http_set_base_url(const char *base_url)
 {
 	int ret;
 
-	if (!base_url || strlen(base_url) >= HTTP_MAX_URL_LEN) {
+	if (!base_url || strlen(base_url) >= HTTP_MAX_URL_LEN)
 		return -EINVAL;
-	}
 
 	k_mutex_lock(&http_ctx.mutex, K_FOREVER);
 
@@ -203,9 +196,8 @@ int icle_http_set_base_url(const char *base_url)
 
 int icle_http_set_device_id(const char *device_id)
 {
-	if (!device_id || strlen(device_id) >= HTTP_MAX_DEVICE_ID_LEN) {
+	if (!device_id || strlen(device_id) >= HTTP_MAX_DEVICE_ID_LEN)
 		return -EINVAL;
-	}
 
 	k_mutex_lock(&http_ctx.mutex, K_FOREVER);
 	strncpy(http_ctx.device_id, device_id, sizeof(http_ctx.device_id) - 1);
@@ -218,9 +210,8 @@ int icle_http_set_device_id(const char *device_id)
 
 int icle_http_set_api_key(const char *api_key)
 {
-	if (!api_key || strlen(api_key) >= HTTP_MAX_API_KEY_LEN) {
+	if (!api_key || strlen(api_key) >= HTTP_MAX_API_KEY_LEN)
 		return -EINVAL;
-	}
 
 	k_mutex_lock(&http_ctx.mutex, K_FOREVER);
 	strncpy(http_ctx.api_key, api_key, sizeof(http_ctx.api_key) - 1);
@@ -260,26 +251,33 @@ static int http_parse_url(const char *url)
 	host_start = p;
 
 	/* Find end of host (port or path) */
-	while (*p && *p != ':' && *p != '/') {
+	while (*p && *p != ':' && *p != '/')
 		p++;
-	}
+
 	host_len = p - host_start;
 
-	if (host_len == 0 || host_len >= sizeof(http_ctx.host)) {
+	if (host_len == 0 || host_len >= sizeof(http_ctx.host))
 		return -EINVAL;
-	}
 
 	memcpy(http_ctx.host, host_start, host_len);
 	http_ctx.host[host_len] = '\0';
 
 	/* Check for port */
 	if (*p == ':') {
+		char *endptr;
+		long port_val;
+
 		p++;
 		port_start = p;
-		while (*p && *p != '/') {
+		while (*p && *p != '/')
 			p++;
-		}
-		http_ctx.port = (uint16_t)atoi(port_start);
+
+		/* Use strtol for safe conversion with error detection */
+		port_val = strtol(port_start, &endptr, 10);
+		if (endptr == port_start || port_val <= 0 || port_val > 65535)
+			return -EINVAL;
+
+		http_ctx.port = (uint16_t)port_val;
 	}
 
 	/* Get path */
@@ -300,6 +298,7 @@ static int http_parse_url(const char *url)
 static int http_connect(int *sock)
 {
 	struct sockaddr_in addr;
+	struct timeval tv;
 	int ret;
 	int fd;
 
@@ -310,19 +309,17 @@ static int http_connect(int *sock)
 	}
 
 	/* Set socket timeout */
-	struct timeval tv;
-	tv.tv_sec = http_ctx.timeout_ms / 1000;
-	tv.tv_usec = (http_ctx.timeout_ms % 1000) * 1000;
+	tv.tv_sec = (time_t)(http_ctx.timeout_ms / 1000U);
+	/* Cast uint32_t operand before multiply to avoid implicit widening */
+	tv.tv_usec = (suseconds_t)((http_ctx.timeout_ms % 1000U) * 1000U);
 
 	ret = zsock_setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
-	if (ret < 0) {
+	if (ret < 0)
 		LOG_WRN("Failed to set receive timeout: %d", errno);
-	}
 
 	ret = zsock_setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
-	if (ret < 0) {
+	if (ret < 0)
 		LOG_WRN("Failed to set send timeout: %d", errno);
-	}
 
 	/* Resolve hostname using DNS or direct IP */
 	memset(&addr, 0, sizeof(addr));
@@ -375,7 +372,7 @@ static int http_send_request(int sock, const char *method, const char *path,
 			     const char *content_type, const void *body,
 			     size_t body_len)
 {
-	int ret;
+	ssize_t send_ret;
 	int len;
 
 	http_ctx.state = ICLE_HTTP_STATE_SENDING;
@@ -389,9 +386,8 @@ static int http_send_request(int sock, const char *method, const char *path,
 		       method, http_ctx.path, path,
 		       http_ctx.host, http_ctx.port);
 
-	if (len < 0 || len >= sizeof(http_ctx.send_buffer)) {
+	if (len < 0 || len >= (int)sizeof(http_ctx.send_buffer))
 		return -ENOMEM;
-	}
 
 	/* Add device ID header if set */
 	if (http_ctx.device_id[0] != '\0') {
@@ -423,17 +419,17 @@ static int http_send_request(int sock, const char *method, const char *path,
 	len += snprintf(http_ctx.send_buffer + len,
 			sizeof(http_ctx.send_buffer) - len, "\r\n");
 
-	/* Send headers */
-	ret = zsock_send(sock, http_ctx.send_buffer, len, 0);
-	if (ret < 0) {
+	/* Send headers — zsock_send returns ssize_t */
+	send_ret = zsock_send(sock, http_ctx.send_buffer, len, 0);
+	if (send_ret < 0) {
 		LOG_ERR("Failed to send headers: %d", errno);
 		return -errno;
 	}
 
 	/* Send body if present */
 	if (body && body_len > 0) {
-		ret = zsock_send(sock, body, body_len, 0);
-		if (ret < 0) {
+		send_ret = zsock_send(sock, body, body_len, 0);
+		if (send_ret < 0) {
 			LOG_ERR("Failed to send body: %d", errno);
 			return -errno;
 		}
@@ -445,39 +441,48 @@ static int http_send_request(int sock, const char *method, const char *path,
 	return 0;
 }
 
-/**
- * @brief Receive and parse HTTP response
+/*
+ * http_recv_response helpers
+ * Each helper handles one logical step of HTTP response parsing.
  */
-static int http_recv_response(int sock, struct icle_http_response *response,
-			      char *body_buffer, size_t buffer_size)
+
+/**
+ * @brief Receive raw bytes from socket into recv_buffer
+ *
+ * Reads until buffer full, connection closed, or timeout after first byte.
+ * Breaks early once all declared body bytes have arrived.
+ *
+ * @param sock         Connected socket fd
+ * @param total_out    Updated with total bytes received on success
+ * @return 0 on success, negative errno on error
+ */
+static int recv_into_buffer(int sock, size_t *total_out)
 {
-	int ret;
+	const char *hend;
+	const char *cl;
+	size_t body_offset;
+	size_t body_received;
 	size_t total_received = 0;
-	char *header_end;
-	char *status_line;
-	char *content_length_str;
-	bool headers_parsed = false;
+	size_t content_length = 0;
+	ssize_t n;
+	char *ep;
+	long v;
+	bool headers_done = false;
 
-	http_ctx.state = ICLE_HTTP_STATE_RECEIVING;
-
-	memset(response, 0, sizeof(*response));
-	memset(http_ctx.recv_buffer, 0, sizeof(http_ctx.recv_buffer));
-
-	/* Receive data */
 	while (total_received < sizeof(http_ctx.recv_buffer) - 1) {
-		ret = zsock_recv(sock, http_ctx.recv_buffer + total_received,
-				 sizeof(http_ctx.recv_buffer) - 1 - total_received,
-				 0);
-		if (ret <= 0) {
-			if (ret == 0) {
-				/* Connection closed */
+		n = zsock_recv(sock,
+			       http_ctx.recv_buffer + total_received,
+			       sizeof(http_ctx.recv_buffer) - 1 - total_received,
+			       0);
+		if (n <= 0) {
+			if (n == 0) {
+				/* Peer closed connection — normal end */
 				break;
 			}
 			if (errno == EAGAIN || errno == EWOULDBLOCK) {
-				/* Timeout */
-				if (total_received > 0) {
+				if (total_received > 0)
 					break;
-				}
+
 				LOG_ERR("Receive timeout");
 				return -ETIMEDOUT;
 			}
@@ -485,164 +490,209 @@ static int http_recv_response(int sock, struct icle_http_response *response,
 			return -errno;
 		}
 
-		total_received += ret;
+		total_received += (size_t)n;
 
-		/* Check for end of headers */
-		if (!headers_parsed) {
-			header_end = strstr(http_ctx.recv_buffer, "\r\n\r\n");
-			if (header_end) {
-				headers_parsed = true;
+		/* Early termination: stop once we have all header + body bytes */
+		if (!headers_done) {
+			hend = strstr(http_ctx.recv_buffer, "\r\n\r\n");
+
+			if (hend != NULL) {
+				headers_done = true;
+
+				/* Peek at Content-Length to know when body is complete */
+				cl = strstr(http_ctx.recv_buffer, "Content-Length:");
+
+				if (!cl)
+					cl = strstr(http_ctx.recv_buffer, "content-length:");
+
+				if (cl) {
+					v = strtol(cl + 15, &ep, 10);
+
+					if (ep != cl + 15 && v >= 0)
+						content_length = (size_t)v;
+				}
 			}
 		}
 
-		/* If we have headers and some body, we might be done */
-		if (headers_parsed && response->content_length > 0) {
-			size_t body_offset = header_end + 4 - http_ctx.recv_buffer;
-			size_t body_received = total_received - body_offset;
-			if (body_received >= response->content_length) {
-				break;
+		if (headers_done && content_length > 0) {
+			hend = strstr(http_ctx.recv_buffer, "\r\n\r\n");
+
+			if (hend != NULL) {
+				body_offset = (size_t)(hend + 4 - http_ctx.recv_buffer);
+				body_received = total_received - body_offset;
+
+				if (body_received >= content_length)
+					break;
 			}
 		}
 	}
 
 	http_ctx.recv_buffer[total_received] = '\0';
+	*total_out = total_received;
+	return 0;
+}
 
-	/* Parse status line */
-	status_line = http_ctx.recv_buffer;
-	if (strncmp(status_line, "HTTP/1.", 7) == 0) {
-		/* Skip to status code */
-		char *code_start = strchr(status_line, ' ');
-		if (code_start) {
-			response->status_code = atoi(code_start + 1);
-		}
-	}
+/**
+ * @brief Parse the HTTP status line and populate response->status_code
+ *
+ * @param response  Response struct to fill
+ */
+static void parse_status_line(struct icle_http_response *response)
+{
+	const char *status_line = http_ctx.recv_buffer;
+	const char *code_start;
+	char *endptr;
+	long code;
 
-	/* Parse Content-Length */
-	content_length_str = strstr(http_ctx.recv_buffer, "Content-Length:");
-	if (!content_length_str) {
-		content_length_str = strstr(http_ctx.recv_buffer, "content-length:");
-	}
-	if (content_length_str) {
-		response->content_length = atoi(content_length_str + 15);
-	}
+	if (strncmp(status_line, "HTTP/1.", 7) != 0)
+		return;
 
-	/* Parse Content-Type */
-	char *content_type_str = strstr(http_ctx.recv_buffer, "Content-Type:");
-	if (!content_type_str) {
-		content_type_str = strstr(http_ctx.recv_buffer, "content-type:");
-	}
-	if (content_type_str) {
-		content_type_str += 13;
-		while (*content_type_str == ' ') content_type_str++;
-		char *end = strstr(content_type_str, "\r\n");
-		if (end) {
-			size_t len = end - content_type_str;
-			if (len >= sizeof(response->content_type)) {
-				len = sizeof(response->content_type) - 1;
-			}
-			memcpy(response->content_type, content_type_str, len);
-			response->content_type[len] = '\0';
-		}
-	}
+	code_start = strchr(status_line, ' ');
 
-	/* Copy body to output buffer if provided */
-	if (body_buffer && buffer_size > 0) {
-		header_end = strstr(http_ctx.recv_buffer, "\r\n\r\n");
-		if (header_end) {
-			char *body_start = header_end + 4;
-			size_t body_len = total_received - (body_start - http_ctx.recv_buffer);
-			if (body_len > buffer_size - 1) {
-				body_len = buffer_size - 1;
-			}
-			memcpy(body_buffer, body_start, body_len);
-			body_buffer[body_len] = '\0';
-			response->body_received = body_len;
-		}
+	if (code_start != NULL) {
+		code = strtol(code_start + 1, &endptr, 10);
+
+		if (endptr != code_start + 1 && code > 0 && code <= 999)
+			response->status_code = (int)code;
 	}
+}
+
+/**
+ * @brief Parse Content-Length header and populate response->content_length
+ *
+ * @param response  Response struct to fill
+ */
+static void parse_content_length(struct icle_http_response *response)
+{
+	const char *cl = strstr(http_ctx.recv_buffer, "Content-Length:");
+
+	if (!cl)
+		cl = strstr(http_ctx.recv_buffer, "content-length:");
+
+	if (cl != NULL) {
+		char *endptr;
+		long v = strtol(cl + 15, &endptr, 10);
+
+		if (endptr != cl + 15 && v >= 0)
+			response->content_length = (size_t)v;
+	}
+}
+
+/**
+ * @brief Parse Content-Type header and populate response->content_type
+ *
+ * @param response  Response struct to fill
+ */
+static void parse_content_type(struct icle_http_response *response)
+{
+	const char *ct;
+	const char *end;
+
+	ct = strstr(http_ctx.recv_buffer, "Content-Type:");
+
+	if (!ct)
+		ct = strstr(http_ctx.recv_buffer, "content-type:");
+
+	if (ct == NULL)
+		return;
+
+	ct += 13; /* skip "Content-Type:" */
+	while (*ct == ' ')
+		ct++;
+
+	end = strstr(ct, "\r\n");
+
+	if (end != NULL) {
+		size_t len = (size_t)(end - ct);
+
+		if (len >= sizeof(response->content_type))
+			len = sizeof(response->content_type) - 1;
+
+		memcpy(response->content_type, ct, len);
+		response->content_type[len] = '\0';
+	}
+}
+
+/**
+ * @brief Extract response body into caller-supplied buffer
+ *
+ * @param response     Response struct (body_received updated)
+ * @param body_buffer  Destination buffer, may be NULL
+ * @param buffer_size  Destination buffer size
+ * @param total_received Total bytes in recv_buffer
+ */
+static void extract_body(struct icle_http_response *response,
+			 char *body_buffer, size_t buffer_size,
+			 size_t total_received)
+{
+	const char *hend;
+	const char *body_start;
+	size_t body_len;
+
+	if (!body_buffer || buffer_size == 0)
+		return;
+
+	hend = strstr(http_ctx.recv_buffer, "\r\n\r\n");
+
+	if (hend == NULL)
+		return;
+
+	body_start = hend + 4;
+	body_len = total_received - (size_t)(body_start - http_ctx.recv_buffer);
+
+	if (body_len > buffer_size - 1)
+		body_len = buffer_size - 1;
+
+	memcpy(body_buffer, body_start, body_len);
+	body_buffer[body_len] = '\0';
+	response->body_received = body_len;
+}
+
+/**
+ * @brief Receive and parse HTTP response
+ *
+ * Coordinator function: delegates each parsing step to a dedicated helper
+ * to keep cyclomatic complexity below 15.
+ *
+ * @param sock         Connected socket fd
+ * @param response     Output: parsed response metadata
+ * @param body_buffer  Optional output buffer for response body
+ * @param buffer_size  Size of body_buffer (0 if not provided)
+ * @return 0 on success, negative errno on error
+ */
+static int http_recv_response(int sock, struct icle_http_response *response,
+			      char *body_buffer, size_t buffer_size)
+{
+	size_t total_received = 0;
+	int ret;
+
+	http_ctx.state = ICLE_HTTP_STATE_RECEIVING;
+
+	memset(response, 0, sizeof(*response));
+	memset(http_ctx.recv_buffer, 0, sizeof(http_ctx.recv_buffer));
+
+	/* Step 1: receive raw bytes */
+	ret = recv_into_buffer(sock, &total_received);
+	if (ret < 0)
+		return ret;
+
+	/* Step 2: parse status line */
+	parse_status_line(response);
+
+	/* Step 3: parse Content-Length */
+	parse_content_length(response);
+
+	/* Step 4: parse Content-Type */
+	parse_content_type(response);
+
+	/* Step 5: extract body into caller buffer */
+	extract_body(response, body_buffer, buffer_size, total_received);
 
 	LOG_DBG("Response: %d, Content-Length: %zu",
 		response->status_code, response->content_length);
 
 	http_ctx.state = ICLE_HTTP_STATE_IDLE;
 	return 0;
-}
-
-/**
- * @brief Perform HTTP request with retry logic
- */
-static int http_do_request_with_retry(const char *method, const char *path,
-				      const char *content_type,
-				      const void *body, size_t body_len,
-				      char *response_body, size_t response_size)
-{
-	int ret;
-	int sock;
-	int attempts = 0;
-	uint32_t backoff = http_ctx.backoff_ms;
-	struct icle_http_response response;
-
-	while (attempts <= http_ctx.max_retries) {
-		attempts++;
-
-		ret = http_connect(&sock);
-		if (ret < 0) {
-			LOG_WRN("Connect failed (attempt %d/%d): %d",
-				attempts, http_ctx.max_retries + 1, ret);
-			goto retry;
-		}
-
-		ret = http_send_request(sock, method, path, content_type,
-					body, body_len);
-		if (ret < 0) {
-			zsock_close(sock);
-			LOG_WRN("Send failed (attempt %d/%d): %d",
-				attempts, http_ctx.max_retries + 1, ret);
-			goto retry;
-		}
-
-		ret = http_recv_response(sock, &response, response_body,
-					 response_size);
-		zsock_close(sock);
-
-		if (ret < 0) {
-			LOG_WRN("Receive failed (attempt %d/%d): %d",
-				attempts, http_ctx.max_retries + 1, ret);
-			goto retry;
-		}
-
-		/* Store last response */
-		memcpy(&http_ctx.last_response, &response, sizeof(response));
-
-		/* Check for server errors (5xx) - retry */
-		if (response.status_code >= 500 && response.status_code < 600) {
-			LOG_WRN("Server error %d (attempt %d/%d)",
-				response.status_code, attempts,
-				http_ctx.max_retries + 1);
-			goto retry;
-		}
-
-		/* Success or client error (don't retry 4xx) */
-		if (response.status_code >= 200 && response.status_code < 300) {
-			return 0;
-		}
-
-		/* Client error - don't retry */
-		LOG_ERR("HTTP error: %d", response.status_code);
-		return response.status_code;
-
-retry:
-		if (attempts <= http_ctx.max_retries) {
-			LOG_INF("Retrying in %d ms...", backoff);
-			/* Use k_busy_wait for short delays since k_sleep
-			 * with timeouts hangs on this ESP32. Cap at 5s. */
-			uint32_t wait_ms = MIN(backoff, 5000);
-			k_busy_wait(wait_ms * 1000);
-			backoff = MIN(backoff * 2, HTTP_MAX_BACKOFF_MS);
-		}
-	}
-
-	http_ctx.state = ICLE_HTTP_STATE_ERROR;
-	return -ETIMEDOUT;
 }
 
 bool icle_http_is_syncing(void)
@@ -688,22 +738,21 @@ void icle_http_set_retry_config(uint8_t max_retries, uint32_t backoff_ms)
 
 const char *icle_http_state_name(enum icle_http_state state)
 {
-	if (state >= ARRAY_SIZE(state_names)) {
+	if (state >= ARRAY_SIZE(state_names))
 		return "unknown";
-	}
+
 	return state_names[state];
 }
 
 int icle_http_ping(uint32_t timeout_ms)
 {
-	int ret;
-	int sock;
 	struct icle_http_response response;
 	uint32_t saved_timeout;
+	int ret;
+	int sock;
 
-	if (!http_ctx.initialized) {
+	if (!http_ctx.initialized)
 		return -ENODEV;
-	}
 
 	saved_timeout = http_ctx.timeout_ms;
 	http_ctx.timeout_ms = timeout_ms;
@@ -726,13 +775,11 @@ int icle_http_ping(uint32_t timeout_ms)
 
 	http_ctx.timeout_ms = saved_timeout;
 
-	if (ret < 0) {
+	if (ret < 0)
 		return ret;
-	}
 
-	if (response.status_code >= 200 && response.status_code < 300) {
+	if (response.status_code >= 200 && response.status_code < 300)
 		return 0;
-	}
 
 	return -EIO;
 }
@@ -742,6 +789,9 @@ int icle_http_ping(uint32_t timeout_ms)
  */
 static void http_sync_thread_fn(void *p1, void *p2, void *p3)
 {
+	char filename[64];
+	int ret;
+
 	ARG_UNUSED(p1);
 	ARG_UNUSED(p2);
 	ARG_UNUSED(p3);
@@ -750,18 +800,17 @@ static void http_sync_thread_fn(void *p1, void *p2, void *p3)
 
 	while (http_ctx.sync_thread_running) {
 		/* Wait for sync request */
-		int ret = k_sem_take(&http_ctx.sync_request_sem, K_FOREVER);
-		if (ret < 0) {
-			continue;
-		}
+		ret = k_sem_take(&http_ctx.sync_request_sem, K_FOREVER);
 
-		if (!http_ctx.sync_thread_running) {
+		if (ret < 0)
+			continue;
+
+		if (!http_ctx.sync_thread_running)
 			break;
-		}
 
 		/* Check if we have a file to sync */
 		k_mutex_lock(&http_ctx.mutex, K_FOREVER);
-		char filename[64];
+
 		if (http_ctx.current_file[0] != '\0') {
 			strncpy(filename, http_ctx.current_file, sizeof(filename) - 1);
 			filename[sizeof(filename) - 1] = '\0';

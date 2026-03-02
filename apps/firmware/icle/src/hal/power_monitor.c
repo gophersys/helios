@@ -1,5 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
 /*
- * SPDX-License-Identifier: Apache-2.0
  * ICLE Power Monitor Driver (INA209)
  */
 
@@ -19,9 +19,8 @@ static bool initialized;
 
 int icle_power_init(void)
 {
-	if (initialized) {
+	if (initialized)
 		return 0;
-	}
 
 	if (!device_is_ready(ina209_dev)) {
 		LOG_ERR("INA209 device not ready");
@@ -38,13 +37,11 @@ int icle_power_read(struct icle_power_data *data)
 	struct sensor_value voltage, current, power;
 	int ret;
 
-	if (!initialized) {
+	if (!initialized)
 		return -ENODEV;
-	}
 
-	if (data == NULL) {
+	if (data == NULL)
 		return -EINVAL;
-	}
 
 	ret = sensor_sample_fetch(ina209_dev);
 	if (ret < 0) {
@@ -89,9 +86,8 @@ int32_t icle_power_get_voltage_uv(void)
 	int ret;
 
 	ret = icle_power_read(&data);
-	if (ret < 0) {
+	if (ret < 0)
 		return ret;
-	}
 
 	return data.voltage_uv;
 }
@@ -102,9 +98,8 @@ int32_t icle_power_get_current_ua(void)
 	int ret;
 
 	ret = icle_power_read(&data);
-	if (ret < 0) {
+	if (ret < 0)
 		return INT32_MIN;
-	}
 
 	return data.current_ua;
 }

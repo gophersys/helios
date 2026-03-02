@@ -1,5 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
 /*
- * SPDX-License-Identifier: Apache-2.0
  * ICLE Event System Implementation
  *
  * Uses atomic flags + k_sem instead of k_event.
@@ -24,9 +24,8 @@ static bool initialized;
 
 int icle_events_init(void)
 {
-	if (initialized) {
+	if (initialized)
 		return 0;
-	}
 
 	atomic_clear(&event_flags);
 	k_sem_init(&event_sem, 0, 1);
@@ -38,9 +37,8 @@ int icle_events_init(void)
 
 void icle_events_post(uint32_t events)
 {
-	if (!initialized) {
+	if (!initialized)
 		return;
-	}
 
 	/* Atomically OR in the event bits - ISR-safe */
 	atomic_or(&event_flags, events);
@@ -51,18 +49,19 @@ void icle_events_post(uint32_t events)
 
 uint32_t icle_events_wait(uint32_t events, bool reset, k_timeout_t timeout)
 {
-	if (!initialized) {
+	uint32_t current;
+	uint32_t matched;
+
+	if (!initialized)
 		return 0;
-	}
 
 	if (K_TIMEOUT_EQ(timeout, K_NO_WAIT)) {
 		/* Non-blocking: just read current flags */
-		uint32_t current = (uint32_t)atomic_get(&event_flags);
-		uint32_t matched = current & events;
+		current = (uint32_t)atomic_get(&event_flags);
+		matched = current & events;
 
-		if (matched && reset) {
+		if (matched && reset)
 			atomic_and(&event_flags, ~matched);
-		}
 
 		return matched;
 	}
@@ -73,27 +72,27 @@ uint32_t icle_events_wait(uint32_t events, bool reset, k_timeout_t timeout)
 	 */
 	for (;;) {
 		/* Check if events are already pending */
-		uint32_t current = (uint32_t)atomic_get(&event_flags);
-		uint32_t matched = current & events;
+		current = (uint32_t)atomic_get(&event_flags);
+		matched = current & events;
 
 		if (matched) {
-			if (reset) {
+			if (reset)
 				atomic_and(&event_flags, ~matched);
-			}
 			return matched;
 		}
 
 		/* Wait for signal from icle_events_post */
 		k_sem_take(&event_sem, timeout);
 
-		/* If timeout was not K_FOREVER, could have timed out.
-		 * Check once more and return. */
+		/*
+		 * If timeout was not K_FOREVER, could have timed out.
+		 * Check once more and return.
+		 */
 		if (!K_TIMEOUT_EQ(timeout, K_FOREVER)) {
 			current = (uint32_t)atomic_get(&event_flags);
 			matched = current & events;
-			if (matched && reset) {
+			if (matched && reset)
 				atomic_and(&event_flags, ~matched);
-			}
 			return matched;
 		}
 	}
@@ -101,18 +100,16 @@ uint32_t icle_events_wait(uint32_t events, bool reset, k_timeout_t timeout)
 
 void icle_events_clear(uint32_t events)
 {
-	if (!initialized) {
+	if (!initialized)
 		return;
-	}
 
 	atomic_and(&event_flags, ~events);
 }
 
 uint32_t icle_events_get(void)
 {
-	if (!initialized) {
+	if (!initialized)
 		return 0;
-	}
 
 	return (uint32_t)atomic_get(&event_flags);
 }

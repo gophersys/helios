@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: Apache-2.0
 /*
  * ICLE Network Control Service - Profile Management
  *
  * Ported from Helios runtime netctl module.
- *
- * SPDX-License-Identifier: Apache-2.0
  */
 
 #include <zephyr/kernel.h>
@@ -21,9 +20,8 @@ LOG_MODULE_DECLARE(netctl, CONFIG_ICLE_NETCTL_LOG_LEVEL);
 
 int netctl_profile_register(netctl_t *ctl, const netctl_profile_t *profile)
 {
-	if (ctl == NULL || !ctl->initialized || profile == NULL) {
+	if (ctl == NULL || !ctl->initialized || profile == NULL)
 		return -EINVAL;
-	}
 
 	if (profile->name[0] == '\0') {
 		LOG_ERR("Profile name cannot be empty");
@@ -62,13 +60,13 @@ int netctl_profile_register(netctl_t *ctl, const netctl_profile_t *profile)
 
 int netctl_profile_unregister(netctl_t *ctl, const char *name)
 {
-	if (ctl == NULL || !ctl->initialized || name == NULL) {
+	int found_idx = -1;
+
+	if (ctl == NULL || !ctl->initialized || name == NULL)
 		return -EINVAL;
-	}
 
 	k_mutex_lock(&ctl->lock, K_FOREVER);
 
-	int found_idx = -1;
 	for (int i = 0; i < ctl->profile_count; i++) {
 		if (strncmp(ctl->profiles[i].name, name,
 			    CONFIG_ICLE_NETCTL_PROFILE_NAME_MAX) == 0) {
@@ -90,9 +88,9 @@ int netctl_profile_unregister(netctl_t *ctl, const char *name)
 	}
 
 	/* Remove by shifting remaining profiles down */
-	for (int i = found_idx; i < ctl->profile_count - 1; i++) {
+	for (int i = found_idx; i < ctl->profile_count - 1; i++)
 		memcpy(&ctl->profiles[i], &ctl->profiles[i + 1], sizeof(netctl_profile_t));
-	}
+
 	ctl->profile_count--;
 
 	memset(&ctl->profiles[ctl->profile_count], 0, sizeof(netctl_profile_t));
@@ -105,9 +103,8 @@ int netctl_profile_unregister(netctl_t *ctl, const char *name)
 
 const netctl_profile_t *netctl_profile_get(netctl_t *ctl, const char *name)
 {
-	if (ctl == NULL || !ctl->initialized || name == NULL) {
+	if (ctl == NULL || !ctl->initialized || name == NULL)
 		return NULL;
-	}
 
 	k_mutex_lock(&ctl->lock, K_FOREVER);
 

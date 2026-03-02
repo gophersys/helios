@@ -1,5 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
 /*
- * SPDX-License-Identifier: Apache-2.0
  * ICLE WiFi Station Manager
  *
  * Thin wrapper around the netctl service (ported from Helios runtime).
@@ -14,6 +14,7 @@
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(icle_wifi, CONFIG_LOG_DEFAULT_LEVEL);
 
+#include <zephyr/sys/atomic.h>
 #include <string.h>
 #include <errno.h>
 
@@ -31,7 +32,8 @@ static struct {
 	/* Stored params for reconnection */
 	char ssid[33];
 	char psk[65];
-	bool auto_reconnect;
+	/* atomic_t: written from API thread, read from reconnect_work callback */
+	atomic_t auto_reconnect;
 
 	/* Callbacks */
 	struct {
@@ -87,7 +89,7 @@ static void netctl_event_cb(const netctl_event_t *event, void *user_data)
 		icle_events_post(ICLE_EVENT_WIFI_DISCONNECTED);
 
 		/* Auto-reconnect if enabled */
-		if (ctx.auto_reconnect && ctx.ssid[0] != '\0') {
+		if (atomic_get(&ctx.auto_reconnect) && ctx.ssid[0] != '\0') {
 			LOG_INF("Scheduling reconnection in %u ms", ctx.reconnect_delay_ms);
 			k_work_schedule(&ctx.reconnect_work,
 					K_MSEC(ctx.reconnect_delay_ms));
@@ -103,7 +105,7 @@ static void netctl_event_cb(const netctl_event_t *event, void *user_data)
 		icle_events_post(ICLE_EVENT_WIFI_CONNECT_FAILED);
 
 		/* Auto-reconnect if enabled */
-		if (ctx.auto_reconnect && ctx.ssid[0] != '\0') {
+		if (atomic_get(&ctx.auto_reconnect) && ctx.ssid[0] != '\0') {
 			/* Reset from ERROR state so we can retry */
 			netctl_reset(&ctx.ctl, NETCTL_IFACE_WIFI_STA);
 			LOG_INF("Scheduling reconnection in %u ms", ctx.reconnect_delay_ms);
@@ -131,39 +133,39 @@ static void netctl_event_cb(const netctl_event_t *event, void *user_data)
  */
 static void reconnect_work_handler(struct k_work *work)
 {
+	netctl_state_t state;
+	netctl_profile_t profile;
+	int ret;
+
 	ARG_UNUSED(work);
 
-	if (!ctx.initialized || !ctx.auto_reconnect || ctx.ssid[0] == '\0') {
+	if (!ctx.initialized || !atomic_get(&ctx.auto_reconnect) ||
+	    ctx.ssid[0] == '\0')
 		return;
-	}
 
-	if (netctl_is_online(&ctx.ctl)) {
+	if (netctl_is_online(&ctx.ctl))
 		return;
-	}
 
-	netctl_state_t state = netctl_get_state(&ctx.ctl, NETCTL_IFACE_WIFI_STA);
-	if (state == NETCTL_STATE_CONNECTING) {
+	state = netctl_get_state(&ctx.ctl, NETCTL_IFACE_WIFI_STA);
+	if (state == NETCTL_STATE_CONNECTING)
 		return;
-	}
 
 	/* Reset from error state if needed */
-	if (state == NETCTL_STATE_ERROR) {
+	if (state == NETCTL_STATE_ERROR)
 		netctl_reset(&ctx.ctl, NETCTL_IFACE_WIFI_STA);
-	}
 
 	LOG_INF("Attempting WiFi reconnection (attempt %u)", ++ctx.reconnect_count);
 
-	netctl_profile_t profile = {
-		.iface = NETCTL_IFACE_WIFI_STA,
-		.priority = 0,
-	};
+	memset(&profile, 0, sizeof(profile));
+	profile.iface = NETCTL_IFACE_WIFI_STA;
+	profile.priority = 0;
 	strncpy(profile.name, WIFI_PROFILE_NAME, sizeof(profile.name) - 1);
 	strncpy(profile.credentials.wifi.ssid, ctx.ssid,
 		sizeof(profile.credentials.wifi.ssid) - 1);
 	strncpy(profile.credentials.wifi.password, ctx.psk,
 		sizeof(profile.credentials.wifi.password) - 1);
 
-	int ret = netctl_connect_with_creds(&ctx.ctl, &profile);
+	ret = netctl_connect_with_creds(&ctx.ctl, &profile);
 	if (ret < 0 && ret != -EBUSY) {
 		LOG_ERR("Reconnection failed: %d", ret);
 		/* netctl_event_cb will handle scheduling the next retry */
@@ -176,9 +178,10 @@ static void reconnect_work_handler(struct k_work *work)
 
 int icle_wifi_init(void)
 {
-	if (ctx.initialized) {
+	int ret;
+
+	if (ctx.initialized)
 		return 0;
-	}
 
 	memset(&ctx, 0, sizeof(ctx));
 
@@ -187,7 +190,7 @@ int icle_wifi_init(void)
 	ctx.reconnect_delay_ms = RECONNECT_BASE_MS;
 
 	/* Initialize netctl */
-	int ret = netctl_init(&ctx.ctl, netctl_event_cb, NULL);
+	ret = netctl_init(&ctx.ctl, netctl_event_cb, NULL);
 	if (ret < 0) {
 		LOG_ERR("netctl init failed: %d", ret);
 		return ret;
@@ -200,9 +203,8 @@ int icle_wifi_init(void)
 
 int icle_wifi_deinit(void)
 {
-	if (!ctx.initialized) {
+	if (!ctx.initialized)
 		return -ENODEV;
-	}
 
 	k_work_cancel_delayable(&ctx.reconnect_work);
 
@@ -215,13 +217,13 @@ int icle_wifi_deinit(void)
 
 int icle_wifi_connect(const struct icle_wifi_params *params)
 {
-	if (!ctx.initialized) {
-		return -ENODEV;
-	}
+	netctl_profile_t profile;
 
-	if (params == NULL || params->ssid == NULL || strlen(params->ssid) == 0) {
+	if (!ctx.initialized)
+		return -ENODEV;
+
+	if (params == NULL || params->ssid == NULL || strlen(params->ssid) == 0)
 		return -EINVAL;
-	}
 
 	/* Store connection parameters for reconnection */
 	strncpy(ctx.ssid, params->ssid, sizeof(ctx.ssid) - 1);
@@ -234,14 +236,13 @@ int icle_wifi_connect(const struct icle_wifi_params *params)
 		ctx.psk[0] = '\0';
 	}
 
-	ctx.auto_reconnect = params->auto_reconnect;
+	atomic_set(&ctx.auto_reconnect, params->auto_reconnect ? 1 : 0);
 	ctx.reconnect_delay_ms = RECONNECT_BASE_MS;
 
 	/* Build a netctl profile and connect */
-	netctl_profile_t profile = {
-		.iface = NETCTL_IFACE_WIFI_STA,
-		.priority = 0,
-	};
+	memset(&profile, 0, sizeof(profile));
+	profile.iface = NETCTL_IFACE_WIFI_STA;
+	profile.priority = 0;
 	strncpy(profile.name, WIFI_PROFILE_NAME, sizeof(profile.name) - 1);
 	strncpy(profile.credentials.wifi.ssid, ctx.ssid,
 		sizeof(profile.credentials.wifi.ssid) - 1);
@@ -270,48 +271,47 @@ int icle_wifi_wait_connected(uint32_t timeout_ms)
 {
 	ARG_UNUSED(timeout_ms);
 
-	if (!ctx.initialized) {
+	if (!ctx.initialized)
 		return -ENODEV;
-	}
 
-	/* Async architecture - no blocking waits.
+	/*
+	 * Async architecture - no blocking waits.
 	 * Just return current state. Callers should use
-	 * ICLE_EVENT_WIFI_IP_ACQUIRED event instead. */
-	if (netctl_is_online(&ctx.ctl)) {
+	 * ICLE_EVENT_WIFI_IP_ACQUIRED event instead.
+	 */
+	if (netctl_is_online(&ctx.ctl))
 		return 0;
-	}
 
 	return -ENOTCONN;
 }
 
 int icle_wifi_disconnect(void)
 {
-	if (!ctx.initialized) {
+	if (!ctx.initialized)
 		return -ENODEV;
-	}
 
 	k_work_cancel_delayable(&ctx.reconnect_work);
-	ctx.auto_reconnect = false;
+	atomic_clear(&ctx.auto_reconnect);
 
 	return netctl_disconnect(&ctx.ctl, NETCTL_IFACE_WIFI_STA);
 }
 
 bool icle_wifi_is_connected(void)
 {
-	if (!ctx.initialized) {
+	if (!ctx.initialized)
 		return false;
-	}
 
 	return netctl_is_online(&ctx.ctl);
 }
 
 enum icle_wifi_state icle_wifi_get_state(void)
 {
-	if (!ctx.initialized) {
-		return ICLE_WIFI_STATE_DISABLED;
-	}
+	netctl_state_t state;
 
-	netctl_state_t state = netctl_get_state(&ctx.ctl, NETCTL_IFACE_WIFI_STA);
+	if (!ctx.initialized)
+		return ICLE_WIFI_STATE_DISABLED;
+
+	state = netctl_get_state(&ctx.ctl, NETCTL_IFACE_WIFI_STA);
 
 	switch (state) {
 	case NETCTL_STATE_DISABLED:
@@ -333,9 +333,8 @@ enum icle_wifi_state icle_wifi_get_state(void)
 
 int icle_wifi_get_status(struct icle_wifi_status *status)
 {
-	if (!ctx.initialized || status == NULL) {
+	if (!ctx.initialized || status == NULL)
 		return -EINVAL;
-	}
 
 	memset(status, 0, sizeof(*status));
 	status->state = icle_wifi_get_state();
@@ -347,9 +346,8 @@ int icle_wifi_get_status(struct icle_wifi_status *status)
 
 int icle_wifi_register_callback(icle_wifi_callback_t callback, void *user_data)
 {
-	if (callback == NULL) {
+	if (callback == NULL)
 		return -EINVAL;
-	}
 
 	for (int i = 0; i < ARRAY_SIZE(ctx.callbacks); i++) {
 		if (ctx.callbacks[i].callback == NULL) {
@@ -365,9 +363,8 @@ int icle_wifi_register_callback(icle_wifi_callback_t callback, void *user_data)
 
 void icle_wifi_unregister_callback(icle_wifi_callback_t callback)
 {
-	if (callback == NULL) {
+	if (callback == NULL)
 		return;
-	}
 
 	for (int i = 0; i < ARRAY_SIZE(ctx.callbacks); i++) {
 		if (ctx.callbacks[i].callback == callback) {
@@ -380,20 +377,18 @@ void icle_wifi_unregister_callback(icle_wifi_callback_t callback)
 
 void icle_wifi_set_auto_reconnect(bool enable)
 {
-	ctx.auto_reconnect = enable;
+	atomic_set(&ctx.auto_reconnect, enable ? 1 : 0);
 
-	if (!enable) {
+	if (!enable)
 		k_work_cancel_delayable(&ctx.reconnect_work);
-	}
 
 	LOG_INF("Auto-reconnect %s", enable ? "enabled" : "disabled");
 }
 
 struct net_if *icle_wifi_get_iface(void)
 {
-	if (!ctx.initialized) {
+	if (!ctx.initialized)
 		return NULL;
-	}
 
 #ifdef CONFIG_ICLE_NETCTL_WIFI
 	return ctx.ctl.wifi_iface;
@@ -412,9 +407,8 @@ const char *icle_wifi_state_name(enum icle_wifi_state state)
 		[ICLE_WIFI_STATE_ERROR] = "error",
 	};
 
-	if (state < ARRAY_SIZE(state_names)) {
+	if (state < ARRAY_SIZE(state_names))
 		return state_names[state];
-	}
 
 	return "unknown";
 }

@@ -1,5 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
 /*
- * SPDX-License-Identifier: Apache-2.0
  * ICLE SD Card Storage Manager
  *
  * Manages SD card mounting, log file operations, and rotation.
@@ -41,6 +41,9 @@ LOG_MODULE_REGISTER(icle_storage, CONFIG_LOG_DEFAULT_LEVEL);
 /* Maximum files to enumerate */
 #define MAX_FILE_ENUM 64
 
+/* Static buffer for file enumeration (protected by storage_mutex) */
+static struct icle_file_entry file_enum_buf[MAX_FILE_ENUM];
+
 /* FatFS mount point structure */
 static FATFS fat_fs;
 
@@ -77,9 +80,8 @@ static int ensure_directory(const char *path)
 
 	ret = fs_stat(path, &entry);
 	if (ret == 0) {
-		if (entry.type == FS_DIR_ENTRY_DIR) {
+		if (entry.type == FS_DIR_ENTRY_DIR)
 			return 0;
-		}
 		LOG_ERR("Path exists but is not a directory: %s", path);
 		return -ENOTDIR;
 	}
@@ -108,21 +110,18 @@ static int init_directory_structure(void)
 
 	/* Create /icle directory */
 	ret = ensure_directory(SD_MOUNT_POINT "/icle");
-	if (ret < 0) {
+	if (ret < 0)
 		return ret;
-	}
 
 	/* Create /icle/logs directory */
 	ret = ensure_directory(LOG_DIR_PATH);
-	if (ret < 0) {
+	if (ret < 0)
 		return ret;
-	}
 
 	/* Create /icle/.synced directory for sync markers */
 	ret = ensure_directory(SYNC_MARKER_DIR);
-	if (ret < 0) {
+	if (ret < 0)
 		return ret;
-	}
 
 	return 0;
 }
@@ -133,21 +132,30 @@ static int init_directory_structure(void)
 static void generate_log_filename(char *buf, size_t buf_size,
 				  enum icle_log_format format)
 {
+	uint32_t uptime_ms;
+	uint32_t hours;
+	uint32_t mins;
+	uint32_t secs;
+	uint32_t day;
+	uint32_t month;
+	uint32_t year;
+	const char *ext;
+
 	/* Use uptime as timestamp since we may not have RTC */
-	uint32_t uptime_ms = k_uptime_get_32();
-	uint32_t hours = (uptime_ms / 3600000) % 24;
-	uint32_t mins = (uptime_ms / 60000) % 60;
-	uint32_t secs = (uptime_ms / 1000) % 60;
+	uptime_ms = k_uptime_get_32();
+	hours = (uptime_ms / 3600000) % 24;
+	mins = (uptime_ms / 60000) % 60;
+	secs = (uptime_ms / 1000) % 60;
 
 	/* Approximate date from boot count (would be replaced with RTC) */
-	uint32_t day = 1;
-	uint32_t month = 1;
-	uint32_t year = 2024;
+	day = 1;
+	month = 1;
+	year = 2024;
 
-	const char *ext = (format == ICLE_LOG_FORMAT_CSV) ? "csv" : "bin";
+	ext = (format == ICLE_LOG_FORMAT_CSV) ? "csv" : "bin";
 
-	snprintf(buf, buf_size, "%s/%04u%02u%02u_%02u%02u%02u.%s",
-		 LOG_DIR_PATH, year, month, day, hours, mins, secs, ext);
+	(void)snprintf(buf, buf_size, "%s/%04u%02u%02u_%02u%02u%02u.%s",
+		       LOG_DIR_PATH, year, month, day, hours, mins, secs, ext);
 }
 
 /**
@@ -158,7 +166,7 @@ static bool is_file_synced(const char *filename)
 	char marker_path[128];
 	struct fs_dirent entry;
 
-	snprintf(marker_path, sizeof(marker_path), "%s/%s", SYNC_MARKER_DIR, filename);
+	(void)snprintf(marker_path, sizeof(marker_path), "%s/%s", SYNC_MARKER_DIR, filename);
 
 	return (fs_stat(marker_path, &entry) == 0);
 }
@@ -169,6 +177,7 @@ static bool is_file_synced(const char *filename)
 static const char *get_filename_from_path(const char *path)
 {
 	const char *name = strrchr(path, '/');
+
 	return name ? (name + 1) : path;
 }
 
@@ -180,12 +189,10 @@ static int compare_file_entries(const void *a, const void *b)
 	const struct icle_file_entry *fa = (const struct icle_file_entry *)a;
 	const struct icle_file_entry *fb = (const struct icle_file_entry *)b;
 
-	if (fa->timestamp < fb->timestamp) {
+	if (fa->timestamp < fb->timestamp)
 		return -1;
-	}
-	if (fa->timestamp > fb->timestamp) {
+	if (fa->timestamp > fb->timestamp)
 		return 1;
-	}
 	return 0;
 }
 
@@ -209,31 +216,30 @@ static int get_log_files_sorted(struct icle_file_entry *entries,
 	}
 
 	while (count < max_entries) {
+		const char *ext;
+		bool synced;
+
 		ret = fs_readdir(&dir, &entry);
 		if (ret < 0) {
 			LOG_ERR("Error reading directory: %d", ret);
 			break;
 		}
 
-		if (entry.name[0] == '\0') {
+		if (entry.name[0] == '\0')
 			break; /* End of directory */
-		}
 
-		if (entry.type != FS_DIR_ENTRY_FILE) {
+		if (entry.type != FS_DIR_ENTRY_FILE)
 			continue;
-		}
 
 		/* Check file extension */
-		const char *ext = strrchr(entry.name, '.');
-		if (!ext || (strcmp(ext, ".bin") != 0 && strcmp(ext, ".csv") != 0)) {
+		ext = strrchr(entry.name, '.');
+		if (!ext || (strcmp(ext, ".bin") != 0 && strcmp(ext, ".csv") != 0))
 			continue;
-		}
 
-		bool synced = is_file_synced(entry.name);
+		synced = is_file_synced(entry.name);
 
-		if (synced_only && !synced) {
+		if (synced_only && !synced)
 			continue;
-		}
 
 		strncpy(entries[count].name, entry.name,
 			sizeof(entries[count].name) - 1);
@@ -242,18 +248,21 @@ static int get_log_files_sorted(struct icle_file_entry *entries,
 		entries[count].synced = synced;
 
 		/* Parse timestamp from filename (YYYYMMDD_HHMMSS) */
-		unsigned int year, month, day, hour, min, sec;
-		if (sscanf(entry.name, "%4u%2u%2u_%2u%2u%2u",
-			   &year, &month, &day, &hour, &min, &sec) == 6) {
-			entries[count].timestamp =
-				((year - 2000) * 365 * 24 * 3600) +
-				(month * 30 * 24 * 3600) +
-				(day * 24 * 3600) +
-				(hour * 3600) +
-				(min * 60) +
-				sec;
-		} else {
-			entries[count].timestamp = 0;
+		{
+			unsigned int year, month, day, hour, min, sec;
+
+			if (sscanf(entry.name, "%4u%2u%2u_%2u%2u%2u",
+				   &year, &month, &day, &hour, &min, &sec) == 6) {
+				entries[count].timestamp =
+					((year - 2000) * 365 * 24 * 3600) +
+					(month * 30 * 24 * 3600) +
+					(day * 24 * 3600) +
+					(hour * 3600) +
+					(min * 60) +
+					sec;
+			} else {
+				entries[count].timestamp = 0;
+			}
 		}
 
 		count++;
@@ -272,11 +281,8 @@ static int get_log_files_sorted(struct icle_file_entry *entries,
 
 int icle_storage_init(void)
 {
-	int ret;
-
-	if (initialized) {
+	if (initialized)
 		return 0;
-	}
 
 	LOG_DBG("Storage init starting...");
 
@@ -295,7 +301,8 @@ int icle_storage_init(void)
 	LOG_INF("Storage subsystem initialized (no SD card mount attempted at boot)");
 
 	/* Don't attempt mount at boot - let application trigger mount when needed
-	 * This avoids blocking if SD card is not present */
+	 * This avoids blocking if SD card is not present
+	 */
 
 	return 0;
 }
@@ -304,14 +311,12 @@ int icle_storage_deinit(void)
 {
 	int ret;
 
-	if (!initialized) {
+	if (!initialized)
 		return 0;
-	}
 
 	/* Close any open log file */
-	if (log_file_open) {
+	if (log_file_open)
 		icle_storage_close_log();
-	}
 
 	/* Unmount SD card */
 	ret = icle_storage_unmount();
@@ -328,9 +333,8 @@ int icle_storage_mount(void)
 	uint32_t block_count;
 	uint32_t block_size;
 
-	if (!initialized) {
+	if (!initialized)
 		return -EINVAL;
-	}
 
 	k_mutex_lock(&storage_mutex, K_FOREVER);
 
@@ -398,9 +402,8 @@ int icle_storage_unmount(void)
 {
 	int ret;
 
-	if (!initialized) {
+	if (!initialized)
 		return -EINVAL;
-	}
 
 	k_mutex_lock(&storage_mutex, K_FOREVER);
 
@@ -445,9 +448,8 @@ int icle_storage_get_stats(struct icle_storage_stats *stats)
 	struct fs_statvfs stat;
 	int ret;
 
-	if (!initialized || stats == NULL) {
+	if (!initialized || stats == NULL)
 		return -EINVAL;
-	}
 
 	k_mutex_lock(&storage_mutex, K_FOREVER);
 
@@ -475,36 +477,39 @@ int icle_storage_get_stats(struct icle_storage_stats *stats)
 	stats->free_bytes = (uint64_t)stat.f_bfree * stat.f_frsize;
 
 	/* Count log files */
-	struct fs_dir_t dir;
-	struct fs_dirent entry;
-	uint32_t file_count = 0;
-	uint32_t pending_count = 0;
+	{
+		struct fs_dir_t dir;
+		struct fs_dirent entry;
+		uint32_t file_count = 0;
+		uint32_t pending_count = 0;
 
-	fs_dir_t_init(&dir);
+		fs_dir_t_init(&dir);
 
-	ret = fs_opendir(&dir, LOG_DIR_PATH);
-	if (ret == 0) {
-		while (fs_readdir(&dir, &entry) == 0 && entry.name[0] != '\0') {
-			if (entry.type == FS_DIR_ENTRY_FILE) {
-				const char *ext = strrchr(entry.name, '.');
-				if (ext && (strcmp(ext, ".bin") == 0 ||
-					    strcmp(ext, ".csv") == 0)) {
-					file_count++;
-					if (!is_file_synced(entry.name)) {
-						pending_count++;
+		ret = fs_opendir(&dir, LOG_DIR_PATH);
+		if (ret == 0) {
+			while (fs_readdir(&dir, &entry) == 0 && entry.name[0] != '\0') {
+				if (entry.type == FS_DIR_ENTRY_FILE) {
+					const char *ext = strrchr(entry.name, '.');
+
+					if (ext && (strcmp(ext, ".bin") == 0 ||
+						    strcmp(ext, ".csv") == 0)) {
+						file_count++;
+						if (!is_file_synced(entry.name))
+							pending_count++;
 					}
 				}
 			}
+			fs_closedir(&dir);
 		}
-		fs_closedir(&dir);
-	}
 
-	stats->log_file_count = file_count;
-	stats->pending_sync_count = pending_count;
+		stats->log_file_count = file_count;
+		stats->pending_sync_count = pending_count;
+	}
 
 	/* Current log file */
 	if (log_file_open && current_log_path[0] != '\0') {
 		const char *name = get_filename_from_path(current_log_path);
+
 		strncpy(stats->current_log_file, name,
 			sizeof(stats->current_log_file) - 1);
 		stats->current_log_file[sizeof(stats->current_log_file) - 1] = '\0';
@@ -516,6 +521,7 @@ int icle_storage_get_stats(struct icle_storage_stats *stats)
 	if (stats->total_bytes > 0) {
 		uint8_t free_percent =
 			(uint8_t)((stats->free_bytes * 100) / stats->total_bytes);
+
 		if (free_percent < MIN_FREE_SPACE_PERCENT) {
 			current_state = ICLE_STORAGE_FULL;
 			stats->state = ICLE_STORAGE_FULL;
@@ -531,9 +537,8 @@ int icle_storage_create_log(enum icle_log_format format)
 	int ret;
 	char filepath[128];
 
-	if (!initialized) {
+	if (!initialized)
 		return -EINVAL;
-	}
 
 	k_mutex_lock(&storage_mutex, K_FOREVER);
 
@@ -571,9 +576,9 @@ int icle_storage_create_log(enum icle_log_format format)
 	if (format == ICLE_LOG_FORMAT_CSV) {
 		const char *header = "timestamp_ms,rtc_time,voltage_uv,current_ua,power_uw,flags\n";
 		ssize_t written = fs_write(&current_log_file, header, strlen(header));
-		if (written > 0) {
+
+		if (written > 0)
 			current_file_size += written;
-		}
 	}
 
 	LOG_INF("Created log file: %s", get_filename_from_path(filepath));
@@ -586,9 +591,8 @@ int icle_storage_write_log(const void *data, size_t len)
 {
 	ssize_t written;
 
-	if (!initialized || data == NULL || len == 0) {
+	if (!initialized || data == NULL || len == 0)
 		return -EINVAL;
-	}
 
 	k_mutex_lock(&storage_mutex, K_FOREVER);
 
@@ -615,9 +619,8 @@ int icle_storage_flush_log(void)
 {
 	int ret;
 
-	if (!initialized) {
+	if (!initialized)
 		return -EINVAL;
-	}
 
 	k_mutex_lock(&storage_mutex, K_FOREVER);
 
@@ -627,9 +630,8 @@ int icle_storage_flush_log(void)
 	}
 
 	ret = fs_sync(&current_log_file);
-	if (ret < 0) {
+	if (ret < 0)
 		LOG_ERR("Failed to flush log: %d", ret);
-	}
 
 	k_mutex_unlock(&storage_mutex);
 	return ret;
@@ -639,9 +641,8 @@ int icle_storage_close_log(void)
 {
 	int ret;
 
-	if (!initialized) {
+	if (!initialized)
 		return -EINVAL;
-	}
 
 	k_mutex_lock(&storage_mutex, K_FOREVER);
 
@@ -651,9 +652,8 @@ int icle_storage_close_log(void)
 	}
 
 	ret = fs_sync(&current_log_file);
-	if (ret < 0) {
+	if (ret < 0)
 		LOG_WRN("Sync before close failed: %d", ret);
-	}
 
 	ret = fs_close(&current_log_file);
 	if (ret < 0) {
@@ -675,9 +675,8 @@ int icle_storage_close_log(void)
 
 bool icle_storage_needs_rotation(uint32_t max_size_bytes)
 {
-	if (!initialized || !log_file_open) {
+	if (!initialized || !log_file_open)
 		return false;
-	}
 
 	return current_file_size >= max_size_bytes;
 }
@@ -686,20 +685,19 @@ int icle_storage_rotate_log(enum icle_log_format format)
 {
 	int ret;
 
-	if (!initialized) {
+	if (!initialized)
 		return -EINVAL;
-	}
 
 	LOG_INF("Rotating log file");
 
 	/* Close current file */
 	ret = icle_storage_close_log();
-	if (ret < 0) {
+	if (ret < 0)
 		return ret;
-	}
 
 	/* Small delay to ensure different filename.
-	 * k_busy_wait instead of k_msleep - timed sleeps hang on ESP32. */
+	 * k_busy_wait instead of k_msleep - timed sleeps hang on ESP32.
+	 */
 	k_busy_wait(10000);
 
 	/* Create new file */
@@ -709,13 +707,11 @@ int icle_storage_rotate_log(enum icle_log_format format)
 int icle_storage_get_pending_files(struct icle_file_entry *entries,
 				   size_t max_entries)
 {
-	struct icle_file_entry all_entries[MAX_FILE_ENUM];
 	int total;
 	int pending_count = 0;
 
-	if (!initialized || entries == NULL || max_entries == 0) {
+	if (!initialized || entries == NULL || max_entries == 0)
 		return -EINVAL;
-	}
 
 	k_mutex_lock(&storage_mutex, K_FOREVER);
 
@@ -724,8 +720,8 @@ int icle_storage_get_pending_files(struct icle_file_entry *entries,
 		return -ENODEV;
 	}
 
-	/* Get all log files sorted by timestamp */
-	total = get_log_files_sorted(all_entries, MAX_FILE_ENUM, false);
+	/* Get all log files sorted by timestamp (uses static file_enum_buf) */
+	total = get_log_files_sorted(file_enum_buf, MAX_FILE_ENUM, false);
 	if (total < 0) {
 		k_mutex_unlock(&storage_mutex);
 		return total;
@@ -733,14 +729,13 @@ int icle_storage_get_pending_files(struct icle_file_entry *entries,
 
 	/* Filter to pending (unsynced) files */
 	for (int i = 0; i < total && pending_count < max_entries; i++) {
-		if (!all_entries[i].synced) {
+		if (!file_enum_buf[i].synced) {
 			/* Skip currently open file */
 			if (log_file_open &&
-			    strcmp(all_entries[i].name,
-				   get_filename_from_path(current_log_path)) == 0) {
+			    strcmp(file_enum_buf[i].name,
+				   get_filename_from_path(current_log_path)) == 0)
 				continue;
-			}
-			entries[pending_count++] = all_entries[i];
+			entries[pending_count++] = file_enum_buf[i];
 		}
 	}
 
@@ -754,9 +749,8 @@ int icle_storage_mark_synced(const char *filename)
 	struct fs_file_t marker;
 	int ret;
 
-	if (!initialized || filename == NULL) {
+	if (!initialized || filename == NULL)
 		return -EINVAL;
-	}
 
 	k_mutex_lock(&storage_mutex, K_FOREVER);
 
@@ -766,8 +760,8 @@ int icle_storage_mark_synced(const char *filename)
 	}
 
 	/* Create empty marker file */
-	snprintf(marker_path, sizeof(marker_path), "%s/%s",
-		 SYNC_MARKER_DIR, filename);
+	(void)snprintf(marker_path, sizeof(marker_path), "%s/%s",
+		       SYNC_MARKER_DIR, filename);
 
 	fs_file_t_init(&marker);
 	ret = fs_open(&marker, marker_path, FS_O_CREATE | FS_O_WRITE);
@@ -793,9 +787,8 @@ int icle_storage_read_file(const char *filename, void *buffer,
 	ssize_t bytes_read;
 	int ret;
 
-	if (!initialized || filename == NULL || buffer == NULL) {
+	if (!initialized || filename == NULL || buffer == NULL)
 		return -EINVAL;
-	}
 
 	k_mutex_lock(&storage_mutex, K_FOREVER);
 
@@ -805,7 +798,7 @@ int icle_storage_read_file(const char *filename, void *buffer,
 	}
 
 	/* Build full path */
-	snprintf(filepath, sizeof(filepath), "%s/%s", LOG_DIR_PATH, filename);
+	(void)snprintf(filepath, sizeof(filepath), "%s/%s", LOG_DIR_PATH, filename);
 
 	fs_file_t_init(&file);
 	ret = fs_open(&file, filepath, FS_O_READ);
@@ -815,9 +808,9 @@ int icle_storage_read_file(const char *filename, void *buffer,
 		return ret;
 	}
 
-	/* Seek to offset */
+	/* Seek to offset — cast size_t to off_t (fs_seek parameter type) */
 	if (offset > 0) {
-		ret = fs_seek(&file, offset, FS_SEEK_SET);
+		ret = fs_seek(&file, (off_t)offset, FS_SEEK_SET);
 		if (ret < 0) {
 			LOG_ERR("Failed to seek: %d", ret);
 			fs_close(&file);
@@ -847,9 +840,8 @@ int icle_storage_delete_file(const char *filename)
 	char marker_path[128];
 	int ret;
 
-	if (!initialized || filename == NULL) {
+	if (!initialized || filename == NULL)
 		return -EINVAL;
-	}
 
 	k_mutex_lock(&storage_mutex, K_FOREVER);
 
@@ -859,7 +851,7 @@ int icle_storage_delete_file(const char *filename)
 	}
 
 	/* Delete log file */
-	snprintf(filepath, sizeof(filepath), "%s/%s", LOG_DIR_PATH, filename);
+	(void)snprintf(filepath, sizeof(filepath), "%s/%s", LOG_DIR_PATH, filename);
 	ret = fs_unlink(filepath);
 	if (ret < 0 && ret != -ENOENT) {
 		LOG_ERR("Failed to delete file %s: %d", filename, ret);
@@ -868,8 +860,8 @@ int icle_storage_delete_file(const char *filename)
 	}
 
 	/* Also delete sync marker if exists */
-	snprintf(marker_path, sizeof(marker_path), "%s/%s",
-		 SYNC_MARKER_DIR, filename);
+	(void)snprintf(marker_path, sizeof(marker_path), "%s/%s",
+		       SYNC_MARKER_DIR, filename);
 	fs_unlink(marker_path); /* Ignore errors */
 
 	LOG_INF("Deleted file: %s", filename);
@@ -880,15 +872,12 @@ int icle_storage_delete_file(const char *filename)
 
 int icle_storage_cleanup(uint8_t min_free_percent)
 {
-	struct icle_file_entry entries[MAX_FILE_ENUM];
 	struct icle_storage_stats stats;
 	int total_files;
 	int deleted = 0;
-	int ret;
 
-	if (!initialized) {
+	if (!initialized)
 		return -EINVAL;
-	}
 
 	k_mutex_lock(&storage_mutex, K_FOREVER);
 
@@ -897,8 +886,11 @@ int icle_storage_cleanup(uint8_t min_free_percent)
 		return -ENODEV;
 	}
 
-	/* Get all synced files (safe to delete) sorted oldest first */
-	total_files = get_log_files_sorted(entries, MAX_FILE_ENUM, true);
+	/*
+	 * Get all synced files (safe to delete) sorted oldest first.
+	 * Uses static file_enum_buf - safe because storage_mutex is held.
+	 */
+	total_files = get_log_files_sorted(file_enum_buf, MAX_FILE_ENUM, true);
 	if (total_files < 0) {
 		k_mutex_unlock(&storage_mutex);
 		return total_files;
@@ -906,19 +898,23 @@ int icle_storage_cleanup(uint8_t min_free_percent)
 
 	k_mutex_unlock(&storage_mutex);
 
-	/* Delete oldest synced files until we have enough space */
+	/*
+	 * Delete oldest synced files until we have enough space.
+	 * file_enum_buf is safe to read here: cleanup and get_pending_files
+	 * are only called from the HTTP sync thread (serialized).
+	 */
 	for (int i = 0; i < total_files; i++) {
-		/* Check current free space */
-		ret = icle_storage_get_stats(&stats);
-		if (ret < 0) {
+		/* Check current free space — declare ret in loop scope */
+		int ret = icle_storage_get_stats(&stats);
+		uint8_t free_percent;
+
+		if (ret < 0)
 			return deleted > 0 ? deleted : ret;
-		}
 
-		if (stats.total_bytes == 0) {
+		if (stats.total_bytes == 0)
 			break;
-		}
 
-		uint8_t free_percent =
+		free_percent =
 			(uint8_t)((stats.free_bytes * 100) / stats.total_bytes);
 
 		if (free_percent >= min_free_percent) {
@@ -928,16 +924,15 @@ int icle_storage_cleanup(uint8_t min_free_percent)
 		}
 
 		/* Delete this file */
-		ret = icle_storage_delete_file(entries[i].name);
+		ret = icle_storage_delete_file(file_enum_buf[i].name);
 		if (ret == 0) {
 			deleted++;
-			LOG_DBG("Cleanup: deleted %s", entries[i].name);
+			LOG_DBG("Cleanup: deleted %s", file_enum_buf[i].name);
 		}
 	}
 
-	if (deleted > 0) {
+	if (deleted > 0)
 		LOG_INF("Storage cleanup: deleted %d old files", deleted);
-	}
 
 	return deleted;
 }

@@ -1,5 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
 /*
- * SPDX-License-Identifier: Apache-2.0
  * ICLE Backend Heartbeat Service
  *
  * Replaced dedicated thread with k_work_delayable.
@@ -44,9 +44,8 @@ static void heartbeat_timer_expiry(struct k_timer *timer);
 
 int icle_heartbeat_init(void)
 {
-	if (hb_ctx.initialized) {
+	if (hb_ctx.initialized)
 		return 0;
-	}
 
 	memset(&hb_ctx, 0, sizeof(hb_ctx));
 
@@ -61,13 +60,11 @@ int icle_heartbeat_init(void)
 
 int icle_heartbeat_deinit(void)
 {
-	if (!hb_ctx.initialized) {
+	if (!hb_ctx.initialized)
 		return 0;
-	}
 
-	if (hb_ctx.running) {
+	if (hb_ctx.running)
 		icle_heartbeat_stop();
-	}
 
 	hb_ctx.initialized = false;
 	LOG_INF("Heartbeat service deinitialized");
@@ -77,9 +74,8 @@ int icle_heartbeat_deinit(void)
 
 int icle_heartbeat_start(uint32_t interval_ms)
 {
-	if (!hb_ctx.initialized) {
+	if (!hb_ctx.initialized)
 		return -ENODEV;
-	}
 
 	if (hb_ctx.running) {
 		/* Update interval - restart timer */
@@ -104,9 +100,8 @@ int icle_heartbeat_start(uint32_t interval_ms)
 
 int icle_heartbeat_stop(void)
 {
-	if (!hb_ctx.initialized || !hb_ctx.running) {
+	if (!hb_ctx.initialized || !hb_ctx.running)
 		return 0;
-	}
 
 	hb_ctx.running = false;
 	k_timer_stop(&hb_ctx.heartbeat_timer);
@@ -138,9 +133,8 @@ int icle_heartbeat_register_callback(icle_heartbeat_cmd_cb_t callback,
 
 int icle_heartbeat_set_interval(uint32_t interval_ms)
 {
-	if (interval_ms < 1000) {
+	if (interval_ms < 1000)
 		return -EINVAL;
-	}
 
 	hb_ctx.interval_ms = interval_ms;
 
@@ -170,9 +164,8 @@ static void heartbeat_timer_expiry(struct k_timer *timer)
 {
 	ARG_UNUSED(timer);
 
-	if (!hb_ctx.running) {
+	if (!hb_ctx.running)
 		return;
-	}
 
 	/* Post event to app event loop - ISR-safe */
 	icle_events_post(ICLE_EVENT_HEARTBEAT_DUE);

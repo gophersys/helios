@@ -1,5 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
 /*
- * SPDX-License-Identifier: Apache-2.0
  * ICLE Application State Machine
  *
  * Fully async event-driven architecture.
@@ -54,8 +54,8 @@ static struct k_timer shutdown_timer;
 static bool initialized;
 static bool wifi_connect_started;
 
-/* State name lookup */
-static const char *state_names[] = {
+/* State name lookup — const pointers in a const array (CONST_ARRAY_QUALIFIER) */
+static const char * const state_names[] = {
 	[ICLE_STATE_BOOT] = "BOOT",
 	[ICLE_STATE_BOOT_DECIDE] = "BOOT_DECIDE",
 	[ICLE_STATE_CONFIG] = "CONFIG",
@@ -72,6 +72,11 @@ static void dispatch_events(uint32_t events);
 static void transition_to(enum icle_app_state new_state);
 static void button_event_handler(enum icle_button_event event,
 				 uint32_t hold_time_ms, void *user_data);
+static void handle_boot_decide_events(uint32_t events);
+static void handle_config_events(uint32_t events);
+static void handle_logger_events(uint32_t events);
+static void handle_shutdown_events(uint32_t events);
+static void handle_error_events(uint32_t events);
 
 /*
  * Timer expiry handlers - run from timer ISR context.
@@ -134,9 +139,8 @@ static void button_event_handler(enum icle_button_event event,
  */
 static void transition_to(enum icle_app_state new_state)
 {
-	if (new_state == app_ctx.state) {
+	if (new_state == app_ctx.state)
 		return;
-	}
 
 	LOG_INF("State transition: %s -> %s",
 		icle_app_state_name(app_ctx.state),
@@ -169,19 +173,21 @@ static void enter_state(enum icle_app_state state)
 		break;
 
 	case ICLE_STATE_BOOT_DECIDE: {
+		struct icle_config config;
+		int ret;
+
 		/* Schedule boot decide timeout via k_timer (ISR context) */
 		k_timer_start(&boot_decide_timer,
 			      K_MSEC(BOOT_DECIDE_TIMEOUT_MS), K_NO_WAIT);
 
 		/* Start WiFi connection (async - returns immediately) */
 		wifi_connect_started = false;
-		struct icle_config config;
 		icle_config_get(&config);
 
 		LOG_INF("WiFi config: SSID='%s'", config.wifi_ssid);
 		LOG_INF("Backend URL: %s", config.backend_url);
 
-		int ret = icle_wifi_connect_simple(
+		ret = icle_wifi_connect_simple(
 			config.wifi_ssid, config.wifi_psk, 0);
 
 		if (ret == 0 || ret == -EINPROGRESS) {
@@ -192,9 +198,8 @@ static void enter_state(enum icle_app_state state)
 		}
 
 		/* Check if button pressed at boot */
-		if (icle_button_is_pressed()) {
+		if (icle_button_is_pressed())
 			LOG_INF("Button pressed at boot - config mode pending");
-		}
 		break;
 	}
 
@@ -211,6 +216,9 @@ static void enter_state(enum icle_app_state state)
 		break;
 
 	case ICLE_STATE_LOGGER: {
+		uint32_t hb_interval;
+		uint32_t sample_interval;
+
 		/* Green LED solid - logging active */
 		icle_led_set(ICLE_LED_GREEN, true);
 		icle_led_set(ICLE_LED_RED, false);
@@ -218,11 +226,11 @@ static void enter_state(enum icle_app_state state)
 		app_ctx.wifi_connected = true;
 
 		/* Start heartbeat service */
-		uint32_t hb_interval = icle_config_get_heartbeat_interval();
+		hb_interval = icle_config_get_heartbeat_interval();
 		icle_heartbeat_start(hb_interval);
 
 		/* Start power sampling */
-		uint32_t sample_interval = icle_config_get_sample_interval();
+		sample_interval = icle_config_get_sample_interval();
 		icle_log_start_sampling(sample_interval);
 
 		LOG_INF("Logger active (sample=%u ms, heartbeat=%u ms)",
@@ -254,11 +262,7 @@ static void enter_state(enum icle_app_state state)
 		break;
 
 	case ICLE_STATE_DEEP_SLEEP: {
-		/* Turn off LEDs */
-		icle_led_set(ICLE_LED_GREEN, false);
-		icle_led_set(ICLE_LED_RED, false);
-
-		/* Save state to ZMS for wake recovery */
+		uint32_t hb_sec;
 		struct icle_pm_persist_state pm_state = {
 			.magic = ICLE_PM_STATE_MAGIC,
 			.version = 1,
@@ -266,13 +270,18 @@ static void enter_state(enum icle_app_state state)
 			.scheduled_action = 0,
 			.wake_count = icle_pm_get_boot_count(),
 		};
+
+		/* Turn off LEDs */
+		icle_led_set(ICLE_LED_GREEN, false);
+		icle_led_set(ICLE_LED_RED, false);
+
+		/* Save state to ZMS for wake recovery */
 		icle_pm_save_state(&pm_state);
 
 		/* Configure wake sources: timer (heartbeat) + button */
-		uint32_t hb_sec = icle_config_get_heartbeat_interval() / 1000;
-		if (hb_sec < 60) {
+		hb_sec = icle_config_get_heartbeat_interval() / 1000;
+		if (hb_sec < 60)
 			hb_sec = 60;
-		}
 		icle_button_configure_wake(true);
 		icle_pm_configure_wakeup(hb_sec, 0);
 
@@ -298,9 +307,10 @@ static void enter_state(enum icle_app_state state)
  */
 static void exit_state(enum icle_app_state state)
 {
-	uint32_t duration = k_uptime_get_32() - app_ctx.state_enter_time;
+	/* Compute duration only when debug logging is active to avoid dead store */
 	LOG_DBG("Exiting state: %s (duration: %u ms)",
-		icle_app_state_name(state), duration);
+		icle_app_state_name(state),
+		(uint32_t)(k_uptime_get_32() - app_ctx.state_enter_time));
 
 	switch (state) {
 	case ICLE_STATE_BOOT_DECIDE:
@@ -323,6 +333,146 @@ static void exit_state(enum icle_app_state state)
 
 	default:
 		break;
+	}
+}
+
+/**
+ * @brief Handle events while in ICLE_STATE_BOOT_DECIDE
+ */
+static void handle_boot_decide_events(uint32_t events)
+{
+	/* Config mode if long press detected */
+	if (events & (ICLE_EVENT_BUTTON_LONG | ICLE_EVENT_BUTTON_CONFIG)) {
+		transition_to(ICLE_STATE_CONFIG);
+		return;
+	}
+
+	/* WiFi connected with IP -> start logging */
+	if (events & (ICLE_EVENT_WIFI_IP_ACQUIRED |
+		      ICLE_EVENT_WIFI_CONNECTED)) {
+		LOG_INF("WiFi connected - starting logger");
+		transition_to(ICLE_STATE_LOGGER);
+		return;
+	}
+
+	/* WiFi connection failed - stay and wait for reconnect */
+	if (events & (ICLE_EVENT_WIFI_CONNECT_FAILED |
+		      ICLE_EVENT_WIFI_CONNECT_TIMEOUT)) {
+		LOG_WRN("WiFi connect failed, auto-reconnect will retry");
+		/* reconnect_work in wifi.c handles the retry */
+	}
+
+	/* Boot decide timeout - proceed without WiFi */
+	if (events & ICLE_EVENT_BOOT_DECIDE_TIMEOUT) {
+		if (icle_wifi_is_connected()) {
+			transition_to(ICLE_STATE_LOGGER);
+		} else {
+			LOG_WRN("Boot decide timeout - no WiFi, starting logger anyway");
+			transition_to(ICLE_STATE_LOGGER);
+		}
+		return;
+	}
+
+	/* Timer wake - send heartbeat and go back to sleep */
+	if (events & ICLE_EVENT_TIMER_WAKE) {
+		LOG_INF("Timer wake - heartbeat mode");
+		/* WiFi connect is already started in enter_state,
+		 * wait for IP acquired then send heartbeat.
+		 */
+	}
+}
+
+/**
+ * @brief Handle events while in ICLE_STATE_CONFIG
+ */
+static void handle_config_events(uint32_t events)
+{
+	/* Exit config on short press */
+	if (events & ICLE_EVENT_BUTTON_SHORT) {
+		transition_to(ICLE_STATE_BOOT_DECIDE);
+		return;
+	}
+
+	/* Config timeout */
+	if (events & ICLE_EVENT_CONFIG_TIMEOUT) {
+		LOG_INF("Config mode timeout");
+		transition_to(ICLE_STATE_BOOT_DECIDE);
+		return;
+	}
+
+	/* WiFi connected while in config */
+	if (events & ICLE_EVENT_WIFI_IP_ACQUIRED) {
+		LOG_INF("WiFi connected in config mode");
+		/* Stay in config - user chose this mode */
+	}
+}
+
+/**
+ * @brief Handle events while in ICLE_STATE_LOGGER
+ */
+static void handle_logger_events(uint32_t events)
+{
+	/* WiFi disconnected */
+	if (events & ICLE_EVENT_WIFI_DISCONNECTED) {
+		LOG_WRN("WiFi disconnected in logger mode");
+		app_ctx.wifi_connected = false;
+		/* Auto-reconnect handles retry, keep logging locally */
+	}
+
+	/* WiFi reconnected */
+	if (events & (ICLE_EVENT_WIFI_IP_ACQUIRED |
+		      ICLE_EVENT_WIFI_CONNECTED)) {
+		LOG_INF("WiFi reconnected");
+		app_ctx.wifi_connected = true;
+	}
+
+	/* Heartbeat due */
+	if (events & ICLE_EVENT_HEARTBEAT_DUE)
+		icle_heartbeat_send();
+
+	/* Storage full */
+	if (events & ICLE_EVENT_STORAGE_FULL)
+		LOG_WRN("Storage full - consider sync or cleanup");
+
+	/* Long press -> config mode */
+	if (events & (ICLE_EVENT_BUTTON_LONG | ICLE_EVENT_BUTTON_CONFIG)) {
+		transition_to(ICLE_STATE_CONFIG);
+		return;
+	}
+
+	/* Sync complete */
+	if (events & ICLE_EVENT_SYNC_COMPLETE)
+		LOG_INF("HTTP sync completed");
+}
+
+/**
+ * @brief Handle events while in ICLE_STATE_SHUTDOWN
+ */
+static void handle_shutdown_events(uint32_t events)
+{
+	/* Writer done flushing */
+	if (events & ICLE_EVENT_WRITER_DONE) {
+		LOG_INF("Log flush complete - ready for sleep");
+		transition_to(ICLE_STATE_DEEP_SLEEP);
+		return;
+	}
+
+	/* Shutdown timeout - force sleep even if flush didn't complete */
+	if (events & ICLE_EVENT_SHUTDOWN_TIMEOUT) {
+		LOG_WRN("Shutdown timeout - forcing deep sleep");
+		transition_to(ICLE_STATE_DEEP_SLEEP);
+	}
+}
+
+/**
+ * @brief Handle events while in ICLE_STATE_ERROR
+ */
+static void handle_error_events(uint32_t events)
+{
+	/* Short press to retry */
+	if (events & ICLE_EVENT_BUTTON_SHORT) {
+		LOG_INF("Retry from error state");
+		transition_to(ICLE_STATE_BOOT);
 	}
 }
 
@@ -370,133 +520,29 @@ static void dispatch_events(uint32_t events)
 		break;
 
 	case ICLE_STATE_BOOT_DECIDE:
-		/* Config mode if long press detected */
-		if (events & (ICLE_EVENT_BUTTON_LONG | ICLE_EVENT_BUTTON_CONFIG)) {
-			transition_to(ICLE_STATE_CONFIG);
-			break;
-		}
-
-		/* WiFi connected with IP -> start logging */
-		if (events & (ICLE_EVENT_WIFI_IP_ACQUIRED |
-			      ICLE_EVENT_WIFI_CONNECTED)) {
-			LOG_INF("WiFi connected - starting logger");
-			transition_to(ICLE_STATE_LOGGER);
-			break;
-		}
-
-		/* WiFi connection failed - stay and wait for reconnect */
-		if (events & (ICLE_EVENT_WIFI_CONNECT_FAILED |
-			      ICLE_EVENT_WIFI_CONNECT_TIMEOUT)) {
-			LOG_WRN("WiFi connect failed, auto-reconnect will retry");
-			/* reconnect_work in wifi.c handles the retry */
-		}
-
-		/* Boot decide timeout - proceed without WiFi */
-		if (events & ICLE_EVENT_BOOT_DECIDE_TIMEOUT) {
-			if (icle_wifi_is_connected()) {
-				transition_to(ICLE_STATE_LOGGER);
-			} else {
-				LOG_WRN("Boot decide timeout - no WiFi, "
-					"starting logger anyway");
-				transition_to(ICLE_STATE_LOGGER);
-			}
-			break;
-		}
-
-		/* Timer wake - send heartbeat and go back to sleep */
-		if (events & ICLE_EVENT_TIMER_WAKE) {
-			LOG_INF("Timer wake - heartbeat mode");
-			/* WiFi connect is already started in enter_state,
-			 * wait for IP acquired then send heartbeat */
-		}
+		handle_boot_decide_events(events);
 		break;
 
 	case ICLE_STATE_CONFIG:
-		/* Exit config on short press */
-		if (events & ICLE_EVENT_BUTTON_SHORT) {
-			transition_to(ICLE_STATE_BOOT_DECIDE);
-			break;
-		}
-
-		/* Config timeout */
-		if (events & ICLE_EVENT_CONFIG_TIMEOUT) {
-			LOG_INF("Config mode timeout");
-			transition_to(ICLE_STATE_BOOT_DECIDE);
-			break;
-		}
-
-		/* WiFi connected while in config */
-		if (events & ICLE_EVENT_WIFI_IP_ACQUIRED) {
-			LOG_INF("WiFi connected in config mode");
-			/* Stay in config - user chose this mode */
-		}
+		handle_config_events(events);
 		break;
 
 	case ICLE_STATE_LOGGER:
-		/* WiFi disconnected */
-		if (events & ICLE_EVENT_WIFI_DISCONNECTED) {
-			LOG_WRN("WiFi disconnected in logger mode");
-			app_ctx.wifi_connected = false;
-			/* Auto-reconnect handles retry, keep logging locally */
-		}
-
-		/* WiFi reconnected */
-		if (events & (ICLE_EVENT_WIFI_IP_ACQUIRED |
-			      ICLE_EVENT_WIFI_CONNECTED)) {
-			LOG_INF("WiFi reconnected");
-			app_ctx.wifi_connected = true;
-		}
-
-		/* Heartbeat due */
-		if (events & ICLE_EVENT_HEARTBEAT_DUE) {
-			icle_heartbeat_send();
-		}
-
-		/* Storage full */
-		if (events & ICLE_EVENT_STORAGE_FULL) {
-			LOG_WRN("Storage full - consider sync or cleanup");
-		}
-
-		/* Long press -> config mode */
-		if (events & (ICLE_EVENT_BUTTON_LONG | ICLE_EVENT_BUTTON_CONFIG)) {
-			transition_to(ICLE_STATE_CONFIG);
-			break;
-		}
-
-		/* Sync complete */
-		if (events & ICLE_EVENT_SYNC_COMPLETE) {
-			LOG_INF("HTTP sync completed");
-		}
+		handle_logger_events(events);
 		break;
 
 	case ICLE_STATE_SHUTDOWN:
-		/* Writer done flushing */
-		if (events & ICLE_EVENT_WRITER_DONE) {
-			LOG_INF("Log flush complete - ready for sleep");
-			transition_to(ICLE_STATE_DEEP_SLEEP);
-			break;
-		}
-
-		/* Shutdown timeout - force sleep even if flush didn't complete */
-		if (events & ICLE_EVENT_SHUTDOWN_TIMEOUT) {
-			LOG_WRN("Shutdown timeout - forcing deep sleep");
-			transition_to(ICLE_STATE_DEEP_SLEEP);
-			break;
-		}
+		handle_shutdown_events(events);
 		break;
 
 	case ICLE_STATE_DEEP_SLEEP:
 		/* Should not receive events here - enter_state calls
-		 * icle_pm_enter_deep_sleep() which never returns */
+		 * icle_pm_enter_deep_sleep() which never returns
+		 */
 		break;
 
 	case ICLE_STATE_ERROR:
-		/* Short press to retry */
-		if (events & ICLE_EVENT_BUTTON_SHORT) {
-			LOG_INF("Retry from error state");
-			transition_to(ICLE_STATE_BOOT);
-			break;
-		}
+		handle_error_events(events);
 		break;
 
 	default:
@@ -512,9 +558,8 @@ static void dispatch_events(uint32_t events)
 
 int icle_app_init(void)
 {
-	if (initialized) {
+	if (initialized)
 		return 0;
-	}
 
 	memset(&app_ctx, 0, sizeof(app_ctx));
 
@@ -549,6 +594,8 @@ void icle_app_run(void)
 	 * No busy waits, no polling, no blocking timeouts.
 	 */
 	for (;;) {
+		uint32_t events;
+
 		/*
 		 * Poll for events with cooperative yield.
 		 *
@@ -561,7 +608,7 @@ void icle_app_run(void)
 		 * or higher priority, then returns. This keeps the system
 		 * responsive while allowing other threads to run.
 		 */
-		uint32_t events = icle_events_wait(
+		events = icle_events_wait(
 			ICLE_EVENT_ALL, true, K_NO_WAIT);
 
 		if (events != 0) {
@@ -618,8 +665,7 @@ int icle_app_shutdown(bool enter_deep_sleep)
 
 const char *icle_app_state_name(enum icle_app_state state)
 {
-	if (state >= ARRAY_SIZE(state_names)) {
+	if (state >= ARRAY_SIZE(state_names))
 		return "UNKNOWN";
-	}
 	return state_names[state];
 }

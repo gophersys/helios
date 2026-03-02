@@ -10,7 +10,7 @@ ESP32-WROOM-32 based power monitoring and logging tool for DUT validation.
 
 ### Build
 ```bash
-cd /workspaces/concord/apps/firmware/icle/icle_zephyr
+cd /workspaces/concord/apps/firmware/icle
 west build -b esp32_devkitc_wroom/procpu
 ```
 
@@ -124,13 +124,19 @@ GPIO32 - ADC inhibit
 ```
 +------------------------------------------------------------------+
 |                         Application Layer                         |
-|  icle_app.h (state machine) | icle_button.h | icle_log.h         |
+|  include/icle/app.h (state machine, events)                      |
 +------------------------------------------------------------------+
 |                         Service Layer                             |
-|  icle_wifi.h | icle_storage.h | icle_http.h                      |
+|  services/logger       services/http        services/shell_cmds  |
+|  services/config_manager  services/ota      services/pm          |
+|  services/netctl (WiFi connection manager)                       |
 +------------------------------------------------------------------+
-|                         Driver Layer                              |
-|  icle_power.h (INA209) | icle_gpio.h (LEDs, MUX, FET)            |
+|                         Network Layer                             |
+|  net/wifi (STA connection)    net/heartbeat (backend ping)        |
++------------------------------------------------------------------+
+|                          HAL Layer                                |
+|  hal/power_monitor (INA209)   hal/storage (SD card FAT)          |
+|  hal/gpio (LED, MUX, P-FET)   hal/button (debounce)              |
 +------------------------------------------------------------------+
 |                      Zephyr RTOS Layer                            |
 +------------------------------------------------------------------+
@@ -140,27 +146,47 @@ GPIO32 - ADC inhibit
 
 | File | Description |
 |------|-------------|
-| `src/main.c` | Main state machine, mode transitions, thread lifecycle |
-| `src/icle_wifi.c` | WiFi STA connection, reconnection with backoff |
-| `src/icle_power_mgmt.c` | Deep sleep, RTC memory, idle timers |
-| `src/icle_button.c` | Debounce, short/long/double press detection |
-| `src/icle_log.c` | Sample queue, SD persistence, CSV/binary format |
-| `src/services/icle_storage.c` | SD card mount, file rotation, sync tracking |
-| `src/services/icle_http.c` | REST client, log upload, config fetch |
-| `src/drivers/icle_gpio.c` | LED, MUX channel, P-FET control |
-| `src/drivers/icle_power.c` | INA209 sensor driver wrapper |
+| `src/main_new.c` | Entry point: initializes subsystems, runs event loop |
+| `src/app/state_machine.c` | Application state machine (BOOT → CONFIG/LOGGER → SLEEP) |
+| `src/app/events.c` | k_event wrappers and event flag definitions |
+| `src/hal/gpio.c` | LED, MUX channel select, P-FET control |
+| `src/hal/power_monitor.c` | INA209 I2C driver wrapper (voltage, current, power) |
+| `src/hal/button.c` | GPIO interrupt debounce, short/long/double press |
+| `src/hal/storage.c` | SD card FAT mount, log file creation and rotation |
+| `src/net/wifi.c` | WiFi STA state machine (thin wrapper over netctl) |
+| `src/net/heartbeat.c` | Periodic HTTP heartbeat to Concord backend |
+| `src/services/config_manager.c` | ZMS-backed configuration persistence |
+| `src/services/logger.c` | Power sampling queue, SD write, CSV/binary format |
+| `src/services/http.c` | REST client for log upload and config fetch |
+| `src/services/ota.c` | OTA firmware update via HTTP |
+| `src/services/pm.c` | Power management: deep sleep entry, wake source |
+| `src/services/shell_cmds.c` | Zephyr shell "icle" command group (NEW) |
+| `src/services/netctl/netctl.c` | Network control arbiter (ported from Helios) |
+| `src/services/netctl/profile.c` | Network profile management |
+| `src/services/netctl/arbiter.c` | WiFi request arbitration |
+| `src/services/netctl/wifi/wifi_sta.c` | WiFi STA bring-up and event handling |
+| `src/util/json_builder.c` | Lightweight JSON serialization helper |
 
 ### Headers
 
 | File | Description |
 |------|-------------|
-| `include/icle_app.h` | App states, events, config structure |
-| `include/icle_wifi.h` | WiFi API, callbacks, status |
-| `include/icle_power_monitor.h` | Power management, sleep, RTC state |
-| `include/icle_storage.h` | SD card API, file operations |
-| `include/icle_log.h` | Log entry format, sampling control |
-| `include/icle_button.h` | Button events, timing config |
-| `include/icle_http.h` | HTTP client, sync API |
+| `include/icle/app.h` | App states, event flags, context struct, public API |
+| `include/icle/config.h` | ZMS configuration API (get/set per-field) |
+| `include/icle/types.h` | Shared data types: power data, log entry, LED, wake source |
+| `include/icle/version.h` | Firmware version constants |
+| `src/hal/storage.h` | SD card storage API and statistics types |
+| `src/hal/power_monitor.h` | INA209 read API |
+| `src/hal/gpio.h` | GPIO abstraction for LEDs, MUX, FET |
+| `src/hal/button.h` | Button press event types and debounce API |
+| `src/net/wifi.h` | WiFi STA API: connect, status, callbacks |
+| `src/net/heartbeat.h` | Heartbeat service API |
+| `src/services/logger.h` | Logger API: start/stop sampling, stats, queue |
+| `src/services/config_manager.h` | Internal config manager implementation header |
+| `src/services/http.h` | HTTP client API |
+| `src/services/ota.h` | OTA update API |
+| `src/services/pm.h` | Power management API |
+| `src/services/shell_cmds.h` | Shell command registration API (NEW) |
 
 ---
 
@@ -267,7 +293,7 @@ Key configurations enabled:
 ### Twister (Zephyr Test Framework)
 ```bash
 # Run all ICLE tests
-west twister -p esp32_devkitc_wroom/procpu -T apps/firmware/icle/icle_zephyr/tests/
+west twister -p esp32_devkitc_wroom/procpu -T apps/firmware/icle/tests/
 
 # Specific test suite
 west twister -p esp32_devkitc_wroom/procpu -s icle.boot.mode_selection
@@ -326,37 +352,49 @@ west build -b esp32_devkitc_wroom/procpu --pristine
 
 ## File Tree
 ```
-apps/firmware/icle/icle_zephyr/
+apps/firmware/icle/
 ├── CMakeLists.txt
 ├── prj.conf
-├── README.md                    # This file
-├── docs/
-│   └── ARCHITECTURE.md          # Detailed architecture doc
-├── include/
-│   ├── icle_app.h
-│   ├── icle_button.h
-│   ├── icle_http.h
-│   ├── icle_log.h
-│   ├── icle_power_monitor.h
-│   ├── icle_storage.h
-│   └── icle_wifi.h
-├── src/
-│   ├── main.c                   # State machine
-│   ├── icle_button.c
-│   ├── icle_log.c
-│   ├── icle_power_mgmt.c
-│   ├── icle_wifi.c
-│   ├── drivers/
-│   │   ├── icle_gpio.c
-│   │   ├── icle_gpio.h
-│   │   ├── icle_power.c
-│   │   └── icle_power.h
-│   └── services/
-│       ├── icle_http.c
-│       └── icle_storage.c
+├── README.md                        # This file
 ├── boards/
 │   └── esp32_devkitc_wroom_procpu.overlay
-└── tests/                       # (TODO: Add Twister tests)
+├── include/
+│   └── icle/
+│       ├── app.h                    # State machine API and event flags
+│       ├── config.h                 # ZMS-backed configuration API
+│       ├── types.h                  # Shared data types
+│       └── version.h                # Firmware version
+└── src/
+    ├── main_new.c                   # Entry point
+    ├── app/
+    │   ├── events.c / events.h      # k_event helpers
+    │   └── state_machine.c / .h     # Application state machine
+    ├── hal/
+    │   ├── button.c / button.h      # Button debounce driver
+    │   ├── gpio.c / gpio.h          # LED, MUX, P-FET control
+    │   ├── power_monitor.c / .h     # INA209 power monitor
+    │   └── storage.c / storage.h   # SD card FAT filesystem
+    ├── net/
+    │   ├── heartbeat.c / heartbeat.h # Backend heartbeat
+    │   └── wifi.c / wifi.h          # WiFi STA manager
+    ├── services/
+    │   ├── config_manager.c / .h    # ZMS config persistence
+    │   ├── http.c / http.h          # HTTP REST client
+    │   ├── logger.c / logger.h      # Power sampling and SD logging
+    │   ├── ota.c / ota.h            # OTA firmware update
+    │   ├── pm.c / pm.h              # Deep sleep / power management
+    │   ├── shell_cmds.c / .h        # Shell "icle" commands (NEW)
+    │   └── netctl/
+    │       ├── netctl.c / netctl.h          # Network arbitration
+    │       ├── arbiter.c / arbiter.h        # Request arbiter
+    │       ├── profile.c / profile.h        # Network profiles
+    │       ├── types.h                      # netctl shared types
+    │       ├── netctl_internal.h            # Internal API
+    │       └── wifi/
+    │           ├── wifi_sta.c               # STA bring-up
+    │           └── wifi.h                   # WiFi netctl API
+    └── util/
+        ├── json_builder.c / .h              # JSON serialization helper
 ```
 
 ---

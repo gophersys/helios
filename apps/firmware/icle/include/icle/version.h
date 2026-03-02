@@ -1,5 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
 /*
- * SPDX-License-Identifier: Apache-2.0
  * ICLE Version Definitions
  */
 
@@ -12,8 +12,8 @@
 
 #define ICLE_VERSION_STRING "1.0.0"
 #define ICLE_VERSION_CODE ((ICLE_VERSION_MAJOR << 16) | \
-                           (ICLE_VERSION_MINOR << 8) | \
-                           ICLE_VERSION_PATCH)
+			   (ICLE_VERSION_MINOR << 8) | \
+			   ICLE_VERSION_PATCH)
 
 #define ICLE_BUILD_DATE __DATE__
 #define ICLE_BUILD_TIME __TIME__

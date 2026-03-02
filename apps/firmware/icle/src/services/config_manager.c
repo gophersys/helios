@@ -1,5 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
 /*
- * SPDX-License-Identifier: Apache-2.0
  * ICLE Configuration Manager Implementation
  *
  * Uses Zephyr settings subsystem with ZMS backend.
@@ -34,55 +34,62 @@ SETTINGS_STATIC_HANDLER_DEFINE(icle, SETTINGS_SUBTREE, NULL,
 			       config_set_handler, NULL,
 			       config_export_handler);
 
+/*
+ * config_set_handler dispatch table
+ *
+ * Each entry maps a settings key name to the config field it populates.
+ * Using a table instead of a long if-else chain keeps CCN <= 15.
+ */
+
+/** One entry in the settings dispatch table */
+struct config_key_entry {
+	const char *key;        /* Settings key name below the subtree */
+	void       *field;      /* Pointer to the field in current_config */
+	size_t      field_size; /* Max bytes to read into field */
+};
+
+/** Dispatch table — order does not matter, linear scan is fine for 7 entries */
+static const struct config_key_entry config_key_table[] = {
+	{ "device_id",          current_config.device_id,
+	  sizeof(current_config.device_id) },
+	{ "wifi_ssid",          current_config.wifi_ssid,
+	  sizeof(current_config.wifi_ssid) },
+	{ "wifi_psk",           current_config.wifi_psk,
+	  sizeof(current_config.wifi_psk) },
+	{ "backend_url",        current_config.backend_url,
+	  sizeof(current_config.backend_url) },
+	{ "sample_interval",    &current_config.sample_interval_ms,
+	  sizeof(current_config.sample_interval_ms) },
+	{ "heartbeat_interval", &current_config.heartbeat_interval_ms,
+	  sizeof(current_config.heartbeat_interval_ms) },
+	{ "log_format",         &current_config.log_format,
+	  sizeof(current_config.log_format) },
+};
+
 /**
  * @brief Settings set handler - called during load
+ *
+ * Dispatches each key via config_key_table to eliminate the long if-else
+ * chain and keep cyclomatic complexity below 15.
  */
 static int config_set_handler(const char *name, size_t len,
 			      settings_read_cb read_cb, void *cb_arg)
 {
 	const char *next;
-	int rc;
+	size_t i;
+	ssize_t rc;
 
-	if (settings_name_steq(name, "device_id", &next) && !next) {
-		rc = read_cb(cb_arg, current_config.device_id,
-			     sizeof(current_config.device_id));
-		return (rc < 0) ? rc : 0;
-	}
+	ARG_UNUSED(len);
 
-	if (settings_name_steq(name, "wifi_ssid", &next) && !next) {
-		rc = read_cb(cb_arg, current_config.wifi_ssid,
-			     sizeof(current_config.wifi_ssid));
-		return (rc < 0) ? rc : 0;
-	}
+	for (i = 0; i < ARRAY_SIZE(config_key_table); i++) {
+		if (!settings_name_steq(name, config_key_table[i].key, &next) || next)
+			continue;
 
-	if (settings_name_steq(name, "wifi_psk", &next) && !next) {
-		rc = read_cb(cb_arg, current_config.wifi_psk,
-			     sizeof(current_config.wifi_psk));
-		return (rc < 0) ? rc : 0;
-	}
+		/* read_cb returns ssize_t — keep as ssize_t to avoid narrowing */
+		rc = read_cb(cb_arg, config_key_table[i].field,
+			     config_key_table[i].field_size);
 
-	if (settings_name_steq(name, "backend_url", &next) && !next) {
-		rc = read_cb(cb_arg, current_config.backend_url,
-			     sizeof(current_config.backend_url));
-		return (rc < 0) ? rc : 0;
-	}
-
-	if (settings_name_steq(name, "sample_interval", &next) && !next) {
-		rc = read_cb(cb_arg, &current_config.sample_interval_ms,
-			     sizeof(current_config.sample_interval_ms));
-		return (rc < 0) ? rc : 0;
-	}
-
-	if (settings_name_steq(name, "heartbeat_interval", &next) && !next) {
-		rc = read_cb(cb_arg, &current_config.heartbeat_interval_ms,
-			     sizeof(current_config.heartbeat_interval_ms));
-		return (rc < 0) ? rc : 0;
-	}
-
-	if (settings_name_steq(name, "log_format", &next) && !next) {
-		rc = read_cb(cb_arg, &current_config.log_format,
-			     sizeof(current_config.log_format));
-		return (rc < 0) ? rc : 0;
+		return (rc < 0) ? (int)rc : 0;
 	}
 
 	return -ENOENT;
@@ -139,9 +146,8 @@ int icle_config_init(void)
 {
 	int ret;
 
-	if (initialized) {
+	if (initialized)
 		return 0;
-	}
 
 	k_mutex_init(&config_mutex);
 
@@ -156,11 +162,10 @@ int icle_config_init(void)
 	} else {
 		/* Load stored settings */
 		ret = settings_load_subtree(SETTINGS_SUBTREE);
-		if (ret < 0) {
+		if (ret < 0)
 			LOG_WRN("Settings load failed: %d (using defaults)", ret);
-		} else {
+		else
 			LOG_INF("Configuration loaded from storage");
-		}
 	}
 
 	initialized = true;
@@ -171,9 +176,8 @@ int icle_config_init(void)
 
 int icle_config_get(struct icle_config *config)
 {
-	if (config == NULL) {
+	if (config == NULL)
 		return -EINVAL;
-	}
 
 	k_mutex_lock(&config_mutex, K_FOREVER);
 	memcpy(config, &current_config, sizeof(*config));
@@ -186,9 +190,8 @@ int icle_config_set(const struct icle_config *config)
 {
 	int ret;
 
-	if (config == NULL) {
+	if (config == NULL)
 		return -EINVAL;
-	}
 
 	k_mutex_lock(&config_mutex, K_FOREVER);
 	memcpy(&current_config, config, sizeof(current_config));
@@ -207,15 +210,16 @@ int icle_config_set(const struct icle_config *config)
 
 int icle_config_reset(void)
 {
+	int ret;
+
 	k_mutex_lock(&config_mutex, K_FOREVER);
 	set_defaults();
 	k_mutex_unlock(&config_mutex);
 
 	/* Save defaults to storage */
-	int ret = settings_save();
-	if (ret < 0) {
+	ret = settings_save();
+	if (ret < 0)
 		LOG_WRN("Failed to save defaults: %d", ret);
-	}
 
 	LOG_INF("Configuration reset to defaults");
 	return 0;
@@ -233,9 +237,8 @@ const char *icle_config_get_wifi_psk(void)
 
 int icle_config_set_wifi(const char *ssid, const char *psk)
 {
-	if (ssid == NULL) {
+	if (ssid == NULL)
 		return -EINVAL;
-	}
 
 	k_mutex_lock(&config_mutex, K_FOREVER);
 
@@ -263,9 +266,8 @@ const char *icle_config_get_device_id(void)
 
 int icle_config_set_device_id(const char *device_id)
 {
-	if (device_id == NULL) {
+	if (device_id == NULL)
 		return -EINVAL;
-	}
 
 	k_mutex_lock(&config_mutex, K_FOREVER);
 	strncpy(current_config.device_id, device_id,
@@ -283,9 +285,8 @@ const char *icle_config_get_backend_url(void)
 
 int icle_config_set_backend_url(const char *url)
 {
-	if (url == NULL) {
+	if (url == NULL)
 		return -EINVAL;
-	}
 
 	k_mutex_lock(&config_mutex, K_FOREVER);
 	strncpy(current_config.backend_url, url,

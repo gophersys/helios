@@ -1,5 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
 /*
- * SPDX-License-Identifier: Apache-2.0
  * ICLE Minimal JSON Builder Implementation
  */
 
@@ -13,11 +13,12 @@
 
 static void append(struct icle_json_builder *jb, const char *str)
 {
-	if (jb->error) {
-		return;
-	}
+	size_t len;
 
-	size_t len = strlen(str);
+	if (jb->error)
+		return;
+
+	len = strlen(str);
 	if (jb->offset + len >= jb->buffer_size) {
 		jb->error = true;
 		return;
@@ -30,9 +31,8 @@ static void append(struct icle_json_builder *jb, const char *str)
 
 static void append_char(struct icle_json_builder *jb, char c)
 {
-	if (jb->error) {
+	if (jb->error)
 		return;
-	}
 
 	if (jb->offset + 1 >= jb->buffer_size) {
 		jb->error = true;
@@ -68,7 +68,9 @@ static void append_escaped_string(struct icle_json_builder *jb, const char *str)
 			if ((unsigned char)*str < 0x20) {
 				/* Control character - escape as hex */
 				char hex[7];
-				snprintf(hex, sizeof(hex), "\\u%04x", (unsigned char)*str);
+
+				/* Buffer is exactly sized for \uXXXX + NUL; truncation impossible */
+				(void)snprintf(hex, sizeof(hex), "\\u%04x", (unsigned char)*str);
 				append(jb, hex);
 			} else {
 				append_char(jb, *str);
@@ -89,9 +91,8 @@ void icle_json_builder_init(struct icle_json_builder *jb, char *buffer, size_t b
 	jb->error = false;
 	jb->depth = 0;
 
-	if (buffer_size > 0) {
+	if (buffer_size > 0)
 		buffer[0] = '\0';
-	}
 }
 
 void icle_json_obj_start(struct icle_json_builder *jb)
@@ -112,9 +113,8 @@ void icle_json_obj_end(struct icle_json_builder *jb)
 	jb->depth--;
 
 	/* Add comma for next sibling */
-	if (jb->depth > 0) {
+	if (jb->depth > 0)
 		append_char(jb, ',');
-	}
 }
 
 void icle_json_arr_start(struct icle_json_builder *jb)
@@ -135,27 +135,28 @@ void icle_json_arr_end(struct icle_json_builder *jb)
 	jb->depth--;
 
 	/* Add comma for next sibling */
-	if (jb->depth > 0) {
+	if (jb->depth > 0)
 		append_char(jb, ',');
-	}
 }
 
 void icle_json_add_str(struct icle_json_builder *jb, const char *key, const char *value)
 {
 	append_escaped_string(jb, key);
 	append_char(jb, ':');
-	if (value != NULL) {
+	if (value != NULL)
 		append_escaped_string(jb, value);
-	} else {
+	else
 		append(jb, "null");
-	}
+
 	append_char(jb, ',');
 }
 
 void icle_json_add_int(struct icle_json_builder *jb, const char *key, int32_t value)
 {
 	char num[16];
-	snprintf(num, sizeof(num), "%d", value);
+
+	/* Buffer is 16 bytes; INT32_MIN is 11 chars — truncation impossible */
+	(void)snprintf(num, sizeof(num), "%d", value);
 
 	append_escaped_string(jb, key);
 	append_char(jb, ':');
@@ -166,7 +167,9 @@ void icle_json_add_int(struct icle_json_builder *jb, const char *key, int32_t va
 void icle_json_add_uint(struct icle_json_builder *jb, const char *key, uint32_t value)
 {
 	char num[16];
-	snprintf(num, sizeof(num), "%u", value);
+
+	/* Buffer is 16 bytes; UINT32_MAX is 10 chars — truncation impossible */
+	(void)snprintf(num, sizeof(num), "%u", value);
 
 	append_escaped_string(jb, key);
 	append_char(jb, ':');
@@ -206,18 +209,20 @@ void icle_json_add_arr(struct icle_json_builder *jb, const char *key)
 
 void icle_json_arr_add_str(struct icle_json_builder *jb, const char *value)
 {
-	if (value != NULL) {
+	if (value != NULL)
 		append_escaped_string(jb, value);
-	} else {
+	else
 		append(jb, "null");
-	}
+
 	append_char(jb, ',');
 }
 
 void icle_json_arr_add_int(struct icle_json_builder *jb, int32_t value)
 {
 	char num[16];
-	snprintf(num, sizeof(num), "%d", value);
+
+	/* Buffer is 16 bytes; INT32_MIN is 11 chars — truncation impossible */
+	(void)snprintf(num, sizeof(num), "%d", value);
 	append(jb, num);
 	append_char(jb, ',');
 }
@@ -230,9 +235,8 @@ int icle_json_builder_finish(struct icle_json_builder *jb)
 		jb->buffer[jb->offset] = '\0';
 	}
 
-	if (jb->error) {
+	if (jb->error)
 		return -1;
-	}
 
 	return (int)jb->offset;
 }

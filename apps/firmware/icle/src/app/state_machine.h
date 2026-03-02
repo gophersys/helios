@@ -1,5 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
 /*
- * SPDX-License-Identifier: Apache-2.0
  * ICLE State Machine Internal API
  *
  * The state machine runs on the main thread via icle_app_run().

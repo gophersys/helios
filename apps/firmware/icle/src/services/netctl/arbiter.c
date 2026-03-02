@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: Apache-2.0
 /*
  * ICLE Network Control Service - Interface Arbiter
  *
  * Simplified for ICLE - no BLE on this platform.
- *
- * SPDX-License-Identifier: Apache-2.0
  */
 
 #include <zephyr/kernel.h>

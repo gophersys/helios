@@ -54,6 +54,7 @@ set(SERVICES_SOURCES
     src/services/ota.c
     src/services/http.c
     src/services/pm.c
+    src/services/shell_cmds.c
 )
 
 # Utilities

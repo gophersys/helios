@@ -1,5 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
 /*
- * SPDX-License-Identifier: Apache-2.0
  * ICLE Button Handler Implementation
  *
  * GPIO interrupt-driven button handling with debouncing and pattern detection.
@@ -114,9 +114,8 @@ static int read_button_state(void)
 	val = gpio_pin_get_dt(&button_spec);
 #else
 	val = gpio_pin_get(button_port, BUTTON_GPIO_PIN);
-	if (val >= 0 && BUTTON_ACTIVE_LOW) {
+	if (val >= 0 && BUTTON_ACTIVE_LOW)
 		val = !val;
-	}
 #endif
 
 	return val;
@@ -144,9 +143,8 @@ static void notify_callbacks(enum icle_button_event event, uint32_t hold_time_ms
  */
 static void post_event(enum icle_button_event event, uint32_t hold_time_ms)
 {
-	if (!btn_state.is_enabled) {
+	if (!btn_state.is_enabled)
 		return;
-	}
 
 	LOG_DBG("Button event: %s (hold=%u ms)",
 		icle_button_event_name(event), hold_time_ms);
@@ -178,16 +176,20 @@ static void gpio_callback_handler(const struct device *dev,
  */
 static void debounce_work_handler(struct k_work *work)
 {
+	int current_state;
+	bool pressed;
+	int64_t now;
+
 	ARG_UNUSED(work);
 
-	int current_state = read_button_state();
+	current_state = read_button_state();
 	if (current_state < 0) {
 		LOG_ERR("Failed to read button state: %d", current_state);
 		return;
 	}
 
-	bool pressed = (current_state == 1);
-	int64_t now = k_uptime_get();
+	pressed = (current_state == 1);
+	now = k_uptime_get();
 
 	if (pressed && !btn_state.is_pressed) {
 		/* Button just pressed (debounced) */
@@ -210,8 +212,9 @@ static void debounce_work_handler(struct k_work *work)
 
 	} else if (!pressed && btn_state.is_pressed) {
 		/* Button just released (debounced) */
-		btn_state.is_pressed = false;
 		uint32_t hold_time = (uint32_t)(now - btn_state.press_start_time);
+
+		btn_state.is_pressed = false;
 
 		/* Cancel scheduled long press and held work */
 		k_work_cancel_delayable(&btn_state.long_press_work);
@@ -237,7 +240,8 @@ static void debounce_work_handler(struct k_work *work)
 				btn_state.press_count = 0;
 			} else {
 				/* Schedule delayed short press event
-				 * (wait for possible second press) */
+				 * (wait for possible second press)
+				 */
 				k_work_schedule(&btn_state.double_press_work,
 						K_MSEC(btn_state.config.double_press_ms));
 			}
@@ -293,7 +297,6 @@ static void double_press_work_handler(struct k_work *work)
 
 	/* If we get here, no second press occurred within the window */
 	if (btn_state.press_count == 1 && !btn_state.is_pressed) {
-		int64_t now = k_uptime_get();
 		uint32_t hold_time = (uint32_t)(btn_state.last_release_time -
 						btn_state.press_start_time);
 
@@ -305,6 +308,7 @@ static void double_press_work_handler(struct k_work *work)
 int icle_button_init(void)
 {
 	int ret;
+	int initial;
 
 	if (btn_state.is_initialized) {
 		LOG_WRN("Button handler already initialized");
@@ -398,7 +402,7 @@ int icle_button_init(void)
 	btn_state.callback_count = 0;
 
 	/* Read initial button state */
-	int initial = read_button_state();
+	initial = read_button_state();
 	if (initial > 0) {
 		LOG_INF("Button is pressed at init");
 		btn_state.is_pressed = true;
@@ -415,9 +419,8 @@ int icle_button_init(void)
 
 int icle_button_deinit(void)
 {
-	if (!btn_state.is_initialized) {
+	if (!btn_state.is_initialized)
 		return -EINVAL;
-	}
 
 	/* Cancel all pending work */
 	k_work_cancel_delayable(&btn_state.debounce_work);
@@ -442,9 +445,8 @@ int icle_button_deinit(void)
 
 int icle_button_set_config(const struct icle_button_config *config)
 {
-	if (!btn_state.is_initialized) {
+	if (!btn_state.is_initialized)
 		return -EINVAL;
-	}
 
 	k_mutex_lock(&btn_state.state_mutex, K_FOREVER);
 
@@ -483,9 +485,8 @@ int icle_button_set_config(const struct icle_button_config *config)
 
 int icle_button_get_config(struct icle_button_config *config)
 {
-	if (config == NULL) {
+	if (config == NULL)
 		return -EINVAL;
-	}
 
 	k_mutex_lock(&btn_state.state_mutex, K_FOREVER);
 	*config = btn_state.config;
@@ -497,9 +498,8 @@ int icle_button_get_config(struct icle_button_config *config)
 int icle_button_register_callback(icle_button_callback_t callback,
 				  void *user_data)
 {
-	if (callback == NULL) {
+	if (callback == NULL)
 		return -EINVAL;
-	}
 
 	k_mutex_lock(&btn_state.state_mutex, K_FOREVER);
 
@@ -530,18 +530,16 @@ int icle_button_register_callback(icle_button_callback_t callback,
 
 void icle_button_unregister_callback(icle_button_callback_t callback)
 {
-	if (callback == NULL) {
+	if (callback == NULL)
 		return;
-	}
 
 	k_mutex_lock(&btn_state.state_mutex, K_FOREVER);
 
 	for (int i = 0; i < btn_state.callback_count; i++) {
 		if (btn_state.callbacks[i].callback == callback) {
 			/* Shift remaining callbacks down */
-			for (int j = i; j < btn_state.callback_count - 1; j++) {
+			for (int j = i; j < btn_state.callback_count - 1; j++)
 				btn_state.callbacks[j] = btn_state.callbacks[j + 1];
-			}
 			btn_state.callback_count--;
 			break;
 		}
@@ -557,11 +555,12 @@ bool icle_button_is_pressed(void)
 
 uint32_t icle_button_get_hold_time(void)
 {
-	if (!btn_state.is_pressed) {
-		return 0;
-	}
+	int64_t now;
 
-	int64_t now = k_uptime_get();
+	if (!btn_state.is_pressed)
+		return 0;
+
+	now = k_uptime_get();
 	return (uint32_t)(now - btn_state.press_start_time);
 }
 
@@ -571,27 +570,24 @@ enum icle_button_event icle_button_wait_event(uint32_t event_mask,
 	uint32_t events;
 	k_timeout_t timeout;
 
-	if (timeout_ms == UINT32_MAX) {
+	if (timeout_ms == UINT32_MAX)
 		timeout = K_FOREVER;
-	} else {
+	else
 		timeout = K_MSEC(timeout_ms);
-	}
 
 	/* Wait for any of the requested events */
 	events = k_event_wait(&btn_state.events, event_mask, false, timeout);
 
-	if (events == 0) {
+	if (events == 0)
 		return ICLE_BTN_EVENT_NONE;
-	}
 
 	/* Clear the events we received */
 	k_event_clear(&btn_state.events, events);
 
 	/* Return the first (lowest bit) event that matched */
 	for (int i = 1; i < 8; i++) {
-		if (events & BIT(i)) {
+		if (events & BIT(i))
 			return (enum icle_button_event)i;
-		}
 	}
 
 	return ICLE_BTN_EVENT_NONE;
@@ -614,11 +610,13 @@ int icle_button_configure_wake(bool enable)
 
 #ifdef CONFIG_SOC_SERIES_ESP32
 	if (enable) {
+		esp_err_t err;
+
 		/*
 		 * ESP32 BOOT button is on GPIO0, active low.
 		 * Configure ext0 wakeup: wake when GPIO0 goes low.
 		 */
-		esp_err_t err = esp_sleep_enable_ext0_wakeup(GPIO_NUM_0, 0);
+		err = esp_sleep_enable_ext0_wakeup(GPIO_NUM_0, 0);
 		if (err != ESP_OK) {
 			LOG_ERR("Failed to enable ext0 wakeup: %d", err);
 			return -EIO;

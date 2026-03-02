@@ -1,5 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
 /*
- * SPDX-License-Identifier: Apache-2.0
  * ICLE OTA Update Service Implementation
  *
  * Uses ESP32 OTA partition scheme.
@@ -30,9 +30,8 @@ static struct {
 
 int icle_ota_init(void)
 {
-	if (ota_ctx.initialized) {
+	if (ota_ctx.initialized)
 		return 0;
-	}
 
 	memset(&ota_ctx, 0, sizeof(ota_ctx));
 	ota_ctx.state = ICLE_OTA_IDLE;
@@ -44,17 +43,14 @@ int icle_ota_init(void)
 
 int icle_ota_start(const char *url)
 {
-	if (!ota_ctx.initialized) {
+	if (!ota_ctx.initialized)
 		return -ENODEV;
-	}
 
-	if (url == NULL || strlen(url) >= sizeof(ota_ctx.url)) {
+	if (url == NULL || strlen(url) >= sizeof(ota_ctx.url))
 		return -EINVAL;
-	}
 
-	if (ota_ctx.state != ICLE_OTA_IDLE) {
+	if (ota_ctx.state != ICLE_OTA_IDLE)
 		return -EBUSY;
-	}
 
 	strncpy(ota_ctx.url, url, sizeof(ota_ctx.url) - 1);
 	ota_ctx.state = ICLE_OTA_DOWNLOADING;
@@ -71,13 +67,11 @@ int icle_ota_start(const char *url)
 
 int icle_ota_cancel(void)
 {
-	if (!ota_ctx.initialized) {
+	if (!ota_ctx.initialized)
 		return -ENODEV;
-	}
 
-	if (ota_ctx.state == ICLE_OTA_IDLE) {
+	if (ota_ctx.state == ICLE_OTA_IDLE)
 		return 0;
-	}
 
 	LOG_INF("OTA update cancelled");
 	ota_ctx.state = ICLE_OTA_IDLE;
@@ -135,9 +129,8 @@ const char *icle_ota_state_name(enum icle_ota_state state)
 
 int icle_ota_mark_valid(void)
 {
-	if (!ota_ctx.initialized) {
+	if (!ota_ctx.initialized)
 		return -ENODEV;
-	}
 
 	/* TODO: Implement ESP32 OTA app valid marking */
 	LOG_INF("OTA: firmware marked as valid");
@@ -147,9 +140,8 @@ int icle_ota_mark_valid(void)
 
 int icle_ota_rollback(void)
 {
-	if (!ota_ctx.initialized) {
+	if (!ota_ctx.initialized)
 		return -ENODEV;
-	}
 
 	/* TODO: Implement ESP32 OTA rollback */
 	LOG_INF("OTA: rollback requested");

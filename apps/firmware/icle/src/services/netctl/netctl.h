@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: Apache-2.0
 /*
  * ICLE Network Control Service - API
  *
  * Ported from Helios runtime netctl module.
- *
- * SPDX-License-Identifier: Apache-2.0
  */
 
 #ifndef ICLE_SERVICES_NETCTL_H
