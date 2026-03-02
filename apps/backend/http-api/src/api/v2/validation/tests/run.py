@@ -180,6 +180,9 @@ def create_kubernetes_job(
     test_enable: Dict[str, bool],
     required_features: Optional[Dict[str, str]] = None,
     firmware_version: Optional[str] = None,
+    run_id: Optional[str] = None,
+    api_key: Optional[str] = None,
+    api_url: Optional[str] = None,
 ) -> Optional[str]:
     """
     Create a new kubernetes job with the new firmware file environment variables.
@@ -215,6 +218,9 @@ def create_kubernetes_job(
         job_yaml = job_yaml.replace("{{TEST_ENABLE_ELECTRICAL}}", test_enable_electrical)
         job_yaml = job_yaml.replace("{{TEST_ENABLE_APP_POST}}", test_enable_app_post)
         job_yaml = job_yaml.replace("{{TEST_ENABLE_COMM_POST}}", test_enable_comm_post)
+        job_yaml = job_yaml.replace("{{CONCORD_RUN_ID}}", run_id or "")
+        job_yaml = job_yaml.replace("{{CONCORD_API_KEY}}", api_key or "")
+        job_yaml = job_yaml.replace("{{CONCORD_API_URL}}", api_url or "http://10.4.45.32:9001")
 
         # Parse the YAML and create the job
         job_spec = yaml.safe_load(job_yaml)

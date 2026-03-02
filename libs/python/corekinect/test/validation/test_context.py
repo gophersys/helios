@@ -12,6 +12,7 @@ from typing import Optional
 from corekinect.mtib_client.v1.client.core import MtibV1Client
 from corekinect.mtib_client.v1.client.config import NetConfig
 
+from .artifact_uploader import ArtifactUploader
 from .cloud_client import CloudClient
 from .fixture_controller import FixtureController, FixtureProfile
 from .power_profiler import PowerProfiler
@@ -50,6 +51,7 @@ class TestContext:
         self.fixture = fixture
         self.uart = uart
         self.power = power
+        self.artifacts = ArtifactUploader()
 
     @classmethod
     def from_env(cls) -> "TestContext":

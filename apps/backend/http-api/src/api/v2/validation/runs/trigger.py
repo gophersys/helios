@@ -77,6 +77,9 @@ def trigger_run(run_id: str):
             test_type="validation",
             test_enable=test_enable if isinstance(test_enable, dict) else {},
             firmware_version=data.firmware_version,
+            run_id=run_id,
+            api_key=api_key,
+            api_url=api_url,
         )
 
         if not job_name:

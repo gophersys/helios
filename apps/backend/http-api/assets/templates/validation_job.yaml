@@ -1,19 +1,19 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: {{JOB_NAME}}
+  name: "{{JOB_NAME}}"
   labels:
-    app: validation-{{PRODUCT}}
-    corekinect.com/validation-product: {{PRODUCT}}
-    corekinect.com/validation-job-id: {{JOB_ID}}
+    app: "validation-{{PRODUCT}}"
+    corekinect.com/validation-product: "{{PRODUCT}}"
+    corekinect.com/validation-job-id: "{{JOB_ID}}"
 spec:
   backoffLimit: 0  # Don't retry on failure
   template:
     metadata:
       labels:
-        app: validation-{{PRODUCT}}
-        corekinect.com/validation-product: {{PRODUCT}}
-        corekinect.com/validation-job-id: {{JOB_ID}}
+        app: "validation-{{PRODUCT}}"
+        corekinect.com/validation-product: "{{PRODUCT}}"
+        corekinect.com/validation-job-id: "{{JOB_ID}}"
     spec:
       restartPolicy: Never
       terminationGracePeriodSeconds: 30
@@ -24,7 +24,7 @@ spec:
         value: "edge"
         effect: "NoSchedule"
       nodeSelector:
-        corekinect.com/validation-product: {{PRODUCT}}
+        corekinect.com/validation-product: "{{PRODUCT}}"
       affinity:
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
@@ -36,8 +36,8 @@ spec:
                 - "{{PRODUCT}}"
             topologyKey: kubernetes.io/hostname
       containers:
-      - name: validation-{{PRODUCT}}
-        image: containers.ad.corekinect.com/concord-validation-{{PRODUCT}}:latest
+      - name: "validation-{{PRODUCT}}"
+        image: "containers.ad.corekinect.com/concord-validation-{{PRODUCT}}:latest"
         imagePullPolicy: Always
         securityContext:
           privileged: true
@@ -56,7 +56,11 @@ spec:
         - name: PRODUCT
           value: "{{PRODUCT}}"
         - name: CONCORD_API_URL
-          value: "http://10.4.45.32:9001"
+          value: "{{CONCORD_API_URL}}"
+        - name: CONCORD_RUN_ID
+          value: "{{CONCORD_RUN_ID}}"
+        - name: CONCORD_API_KEY
+          value: "{{CONCORD_API_KEY}}"
         - name: STORAGE_URL
           value: "http://10.4.45.32:8675"
         - name: STORAGE_ACCESS_KEY
