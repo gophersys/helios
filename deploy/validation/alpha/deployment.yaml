@@ -1,0 +1,150 @@
+# Validation Alpha — K8s Job
+#
+# Runs Stage 4 product validation tests against a live MTIB + DUT.
+# Deployed to concordagent01 (same network as MTIB nodes + CoreOps proxy).
+#
+# The pod runs pytest once on start. After tests complete, the pod exits
+# and preserves logs. Use `kubectl logs` to view results.
+#
+# Run tests:
+#   kubectl apply -f deploy/validation/alpha/deployment.yaml
+#
+# View logs:
+#   kubectl logs -f -l app=validation-alpha
+#
+# Re-run tests (delete old job first):
+#   kubectl delete job validation-alpha --ignore-not-found && \
+#   kubectl apply -f deploy/validation/alpha/deployment.yaml
+#
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: validation-alpha
+  labels:
+    app: validation-alpha
+spec:
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels:
+        app: validation-alpha
+    spec:
+      terminationGracePeriodSeconds: 5
+      restartPolicy: Never
+      tolerations:
+      - key: "corekinect.com/role"
+        operator: "Equal"
+        value: "agent"
+        effect: "PreferNoSchedule"
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: "kubernetes.io/hostname"
+                operator: In
+                values:
+                - "concordagent01"
+      containers:
+      - name: validation-alpha
+        image: containers.ad.corekinect.com/concord-validation-alpha:latest
+        imagePullPolicy: Always
+
+        env:
+        # ── MTIB Connection ──
+        - name: MTIB_HOST
+          value: "10.4.45.33"
+        - name: MTIB_PORT
+          value: "50053"
+
+        # ── Device Identity ──
+        - name: DEVICE_ID
+          value: "70B3D584C01E1FCC"
+        - name: DEVICE_SNR
+          value: "0964"
+
+        # ── Fixture Profile ──
+        - name: FIXTURE_PROFILE_PATH
+          value: "fixtures/alpha_b0.json"
+
+        # ── Firmware Paths (local → auto-uploaded to MTIB before flashing) ──
+        # Paths point to local files in the container. The test framework
+        # uploads them to the MTIB server automatically. To test different
+        # firmware, either:
+        #   1. Rebuild the container with new hex files, or
+        #   2. Mount a host directory to /firmware and update paths below
+        - name: FW_DEBUG_HEX
+          value: "/firmware/alpha_debug_nrf52840.hex"
+        - name: FW_RELEASE_HEX
+          value: "/firmware/alpha_release_nrf52840.hex"
+        - name: FW_DEBUG_COMMS_HEX
+          value: "/firmware/alpha_debug_nrf9151.hex"
+        - name: FW_RELEASE_COMMS_HEX
+          value: "/firmware/alpha_release_nrf9151.hex"
+        - name: FW_MODEM_ZIP
+          value: "/firmware/mfw_nrf91x1_2.0.2.zip"
+
+        # ── CoreOps Re-personalization ──
+        - name: PROXY_SERVER_URL
+          value: "http://10.4.45.30:8001"
+
+        # ── Pre-known device identifiers (skip modem read) ──
+        - name: DEVICE_IMEI
+          value: "355025931735979"
+        - name: DEVICE_ICCIDS
+          value: "89148000008770457338,89012230001000370694"
+
+        # ── CoreCloud Database (fill in when creds available) ──
+        # - name: DEV_1_0_DB_DRIVER
+        #   value: "postgresql+psycopg2"
+        # - name: DEV_1_0_DB_USERNAME
+        #   value: ""
+        # - name: DEV_1_0_DB_PASSWORD
+        #   value: ""
+        # - name: DEV_1_0_DB_HOST
+        #   value: "dmz-pg02.dmz.corekinect.com"
+        # - name: DEV_1_0_DB_PORT
+        #   value: "5432"
+        # - name: DEV_1_0_DB_DATABASE_NAME
+        #   value: ""
+        # - name: DEV_1_0_SSH_HOST
+        #   value: ""
+        # - name: DEV_1_0_SSH_PORT
+        #   value: "22"
+        # - name: DEV_1_0_SSH_USERNAME
+        #   value: ""
+        # - name: DEV_1_0_SSH_PASSWORD
+        #   value: ""
+
+        # ── Test Artifacts ──
+        - name: ARTIFACTS_DIR
+          value: "/var/log/validation"
+
+        # ── Logging ──
+        - name: LOG_LEVEL
+          value: "4"
+
+        volumeMounts:
+        - name: logs
+          mountPath: /var/log/validation
+        # Uncomment to override baked-in firmware with host files:
+        # - name: firmware
+        #   mountPath: /firmware
+
+        resources:
+          requests:
+            cpu: "250m"
+            memory: "200Mi"
+          limits:
+            cpu: "2000m"
+            memory: "2000Mi"
+
+      volumes:
+      - name: logs
+        hostPath:
+          path: /var/log/validation-alpha
+      # Uncomment to mount firmware from host (no container rebuild needed):
+      # - name: firmware
+      #   hostPath:
+      #     path: /opt/firmware/alpha

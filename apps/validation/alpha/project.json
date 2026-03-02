@@ -1,0 +1,70 @@
+{
+  "name": "validation-alpha",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/validation/alpha",
+  "projectType": "application",
+  "targets": {
+    "build": {
+      "command": "nx run validation-alpha:containerize",
+      "cwd": "{workspaceRoot}"
+    },
+    "push": {
+      "dependsOn": [
+        "build"
+      ],
+      "command": "docker push containers.ad.corekinect.com/concord-validation-alpha:latest"
+    },
+    "containerize": {
+      "executor": "@nx-tools/nx-container:build",
+      "cwd": "{workspaceRoot}",
+      "options": {
+        "context": "{workspaceRoot}",
+        "file": "apps/validation/alpha/Dockerfile",
+        "platforms": [
+          "linux/amd64"
+        ],
+        "load": true,
+        "push": false,
+        "tags": [
+          "containers.ad.corekinect.com/concord-validation-alpha:latest"
+        ]
+      }
+    },
+    "deploy": {
+      "dependsOn": [
+        "push"
+      ],
+      "command": "kubectl delete job validation-alpha --ignore-not-found && kubectl apply -f deploy/validation/alpha/deployment.yaml"
+    },
+    "logs": {
+      "command": "kubectl logs -f -l app=validation-alpha --tail=200"
+    },
+    "test": {
+      "command": "PYTHONPATH=../../libs/python:../../libs:../../libs/protocols pytest -v -s",
+      "cwd": "{projectRoot}"
+    },
+    "test:mock": {
+      "command": "PYTHONPATH=../../libs/python:../../libs:../../libs/protocols MOCK_CLOUD=1 pytest -v -s",
+      "cwd": "{projectRoot}"
+    },
+    "setup": {
+      "executor": "nx:run-commands",
+      "cwd": "{projectRoot}",
+      "options": {
+        "cwd": "{projectRoot}",
+        "commands": [
+          {
+            "command": "python3 -m venv .venv"
+          },
+          {
+            "command": "bash -c 'source .venv/bin/activate && pip install -e .'"
+          },
+          {
+            "command": "cp .env.example .env"
+          }
+        ],
+        "parallel": false
+      }
+    }
+  }
+}
