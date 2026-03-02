@@ -18,6 +18,11 @@
     RUNNING: 'bg-success-muted text-success',
     STOPPED: 'bg-surface-2 text-text-secondary',
     FAILED: 'bg-error-muted text-error',
+    CANCELLED: 'bg-surface-2 text-text-tertiary',
+    COMPLETED: 'bg-info-muted text-info',
+    // Execution statuses
+    QUEUED: 'bg-surface-2 text-text-secondary',
+    PASSED: 'bg-success-muted text-success',
     // Type badges
     MANUFACTURING: 'bg-accent-muted text-accent',
     VALIDATION: 'bg-info-muted text-info',

@@ -484,6 +484,76 @@ export interface ResourceYamlData {
   yaml: string;
 }
 
+// ── Validation types ─────────────────────────────────────────
+
+export interface ValidationDevice {
+  id: string;
+  serialNumber: string;
+  sessionId: string;
+  status: string;
+  metadata: Record<string, unknown> | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ValidationTest {
+  id: string;
+  name: string;
+  category: string;
+  enabled: boolean;
+  sortOrder: number;
+}
+
+export interface ValidationResult {
+  id: string;
+  executionId: string;
+  stepIndex: number;
+  groupIndex: number;
+  passed: boolean;
+  result: Record<string, unknown> | null;
+  createdAt: string;
+}
+
+export interface ValidationExecution {
+  id: string;
+  testId: string;
+  nodeId: string;
+  deviceId: string;
+  status: 'QUEUED' | 'RUNNING' | 'PASSED' | 'FAILED' | 'CANCELLED';
+  config: Record<string, unknown> | null;
+  startedAt: string | null;
+  finishedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  test?: ValidationTest;
+  resultCount?: number;
+  resultsPassed?: number;
+  results?: ValidationResult[];
+}
+
+export interface ValidationRun {
+  id: string;
+  name: string;
+  productId: string;
+  fixtureId: string | null;
+  status: 'ACTIVE' | 'COMPLETED' | 'CANCELLED' | 'PAUSED';
+  config: Record<string, unknown> | null;
+  targetCount: number;
+  completedCount: number;
+  passedCount: number;
+  failedCount: number;
+  startedAt: string | null;
+  finishedAt: string | null;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+  product?: { id: string; name: string };
+  createdBy?: { id: string; name: string; email: string };
+  devices?: ValidationDevice[];
+  executions?: ValidationExecution[];
+  executionCount?: number;
+}
+
 // ── UI utility types ─────────────────────────────────────────
 
 export interface TreeNode {

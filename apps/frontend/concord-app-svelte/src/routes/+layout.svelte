@@ -2,7 +2,7 @@
   import '../app.css';
   import { onMount } from 'svelte';
   import { page } from '$app/stores';
-  import { goto } from '$app/navigation';
+  import { goto, afterNavigate } from '$app/navigation';
   import { PUBLIC_APP_ENVIRONMENT } from '$env/static/public';
   import { createAuthContext } from '$lib/stores/auth.svelte';
   import { createThemeContext } from '$lib/stores/theme.svelte';
@@ -23,6 +23,13 @@
     return 'DEV';
   })();
 
+  let routeAnnouncement = $state('');
+
+  afterNavigate(() => {
+    const title = document.title || $page.url.pathname;
+    routeAnnouncement = 'Navigated to ' + title;
+  });
+
   // Initialize auth on mount
   onMount(async () => {
     await auth.init();
@@ -42,6 +49,8 @@
   const isLoginPage = $derived($page.url.pathname === '/login');
 </script>
 
+<a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:rounded focus:bg-surface-1 focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-text-primary focus:shadow-lg focus:ring-2 focus:ring-accent">Skip to main content</a>
+
 <EnvironmentBanner />
 
 {#if auth.isLoading}
@@ -55,3 +64,5 @@
     {@render children()}
   </Layout>
 {/if}
+
+<div aria-live="polite" aria-atomic="true" class="sr-only">{routeAnnouncement}</div>

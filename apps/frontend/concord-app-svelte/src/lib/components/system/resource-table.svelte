@@ -51,7 +51,6 @@
             onclick={() => onRowClick?.(item)}
             onkeydown={(e) => handleKeyDown(e, item)}
             tabindex={onRowClick ? 0 : undefined}
-            role={onRowClick ? 'button' : undefined}
           >
             {#each columns as col}
               <td class="table-cell {col.className ?? ''}">

@@ -61,7 +61,11 @@
   }
 
   function handleTabKey(e: KeyboardEvent) {
-    if (e.key === 'Tab') {
+    if (e.key === 'Escape') {
+      (e.target as HTMLTextAreaElement).blur();
+      return;
+    }
+    if (e.key === 'Tab' && !e.shiftKey) {
       e.preventDefault();
       const target = e.target as HTMLTextAreaElement;
       const start = target.selectionStart;

@@ -60,6 +60,7 @@
   />
 
   <main
+    id="main-content"
     class="flex-1 transition-[margin] duration-200 ease-out"
     style:margin-left={sidebarWidth}
   >

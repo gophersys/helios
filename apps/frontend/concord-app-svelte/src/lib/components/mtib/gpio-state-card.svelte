@@ -19,7 +19,7 @@
   }
 </script>
 
-<div class="bg-surface-1 border border-surface-2 rounded-lg p-4">
+<div class="bg-surface-1 border border-surface-2 rounded-lg p-4" aria-live="polite">
   <div class="flex items-center justify-between mb-4">
     <h3 class="text-lg font-semibold text-text-primary">GPIO State</h3>
     {#if mtibObservabilityStore.isConnected}

@@ -83,6 +83,7 @@
     { to: '/catalog', icon: Package, label: 'Catalog', permission: 'Concord.Admin.Catalog.View' },
     { to: '/fixtures', icon: Wrench, label: 'Fixtures', permission: 'Concord.Admin.Fixtures.View' },
     { to: '/codebases', icon: GitBranch, label: 'Codebases', permission: 'Concord.Admin.Codebases.View' },
+    { to: '/validation/runs', icon: FlaskConical, label: 'Validation', permission: 'Concord.Admin.Validation.View' },
     { to: '/history', icon: History, label: 'History', permission: 'Concord.Admin.History.View' },
     { to: '/users', icon: Users, label: 'Users', permission: 'Concord.Admin.Users.View' },
   ];

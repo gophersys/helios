@@ -239,7 +239,7 @@
   {#if showGradient}
     <div class="gradient-bg"></div>
   {/if}
-  <canvas bind:this={canvas} class="planes-canvas"></canvas>
+  <canvas bind:this={canvas} class="planes-canvas" aria-hidden="true"></canvas>
   {#if message}
     <p class="loader-message">{message}</p>
   {/if}
