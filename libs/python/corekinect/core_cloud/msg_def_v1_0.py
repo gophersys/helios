@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Optional, Sequence, Type, ClassVar, Literal,
 
 from typing_extensions import Self
 from requests import Response
+import logging
 
 from corekinect.core_cloud.db_interface import CoreCloudDBInterface
 from corekinect.core_cloud.api_interface import CoreCloudRestInterface
@@ -19,14 +20,19 @@ from corekinect.core_cloud.db_orm_v1_0 import (
     Messagesalphahwfailtbl,
     Messagessigma5hwfailtbl,
     Configgpstbl,
+    Configgroundtbl,
+    Messagesscratchpadtbl,
 )
+from corekinect.utils import Logger
 from corekinect.utils import Serializable
 from corekinect.utils.bits.ops import extract_bits
 from corekinect.utils.encoding.numbers import int_to_padded_hex
+from corekinect.utils.encoding.byte_str import base64_to_str
 from corekinect.utils.units.length import meters_to_feet, feet_to_meters
 from corekinect.utils.units.temp import celsius_to_fahrenheit
 
 
+# ----------------------------------------  Message Base
 @dataclass(frozen=True, slots=True)
 class MsgBase(Serializable, ABC):
     """
@@ -50,15 +56,15 @@ class MsgBase(Serializable, ABC):
             Get the reason string from a bit mask value.
         _convert_orm_obj_to_msg(orm_obj):
             Convert ORM object to message instance.
-        _query_records(dut_id: int, extra_filters: list = None, order_by=None, first: bool = False, *, db_env="VAL_1_0"):
+        _query_records(dut_id: int, extra_filters: list = None, order_by=None, first: bool = False, *, env="VAL_1_0"):
             Query records from the database and return message instances.
-        last(dut_id, *, db_env="VAL_1_0"):
+        last(dut_id, *, env="VAL_1_0"):
             Get the last message for a device.
-        since_server_time(dut_id: int, start_time: datetime, end_time: datetime = None, *, db_env="VAL_1_0"):
+        since_server_time(dut_id: int, start_time: datetime, end_time: datetime = None, *, env="VAL_1_0"):
             Get messages since a specific server time.
-        since_device_time(dut_id: int, start_time: datetime, end_time: Optional[datetime] = None, *, db_env="VAL_1_0"):
+        since_device_time(dut_id: int, start_time: datetime, end_time: Optional[datetime] = None, *, env="VAL_1_0"):
             Get messages since a specific device time.
-        since_record_id(dut_id: int, start_record_id: int, end_record_id: int = None, *, db_env="VAL_1_0"):
+        since_record_id(dut_id: int, start_record_id: int, end_record_id: int = None, *, env="VAL_1_0"):
             Get messages since a specific record ID.
 
 
@@ -182,8 +188,15 @@ class MsgBase(Serializable, ABC):
 
     @classmethod
     def _query_records(
-        cls, dut_id: int, extra_filters: list = None, order_by=None, first: bool = False, *, db_env="VAL_1_0"
-    ) -> Optional[Self] | List[Self]:
+        cls,
+        dut_ids: int | Sequence[int],
+        extra_filters: list = None,
+        order_by=None,
+        reverse_order: bool = False,
+        first: bool = False,
+        *,
+        env="VAL_1_0",
+    ) -> List[Self]:
         """
         Query records from the database and return message instances.
 
@@ -192,49 +205,70 @@ class MsgBase(Serializable, ABC):
             extra_filters (list): Additional filters to apply to the query.
             order_by (Any): SQLAlchemy order_by clause to sort results.
             first (bool): If True, return the first result only; otherwise, return all results.
-            db_env (str): Database environment to use for the query.
+            env (str): Database environment to use for the query.
 
         Returns:
             Self | List[Self]: A single message instance if `first` is True, or a list of message instances.
 
         """
-        with CoreCloudDBInterface(db_env=db_env) as db:
+        # Handle IDs
+        is_multi = not isinstance(dut_ids, int)
+        if is_multi:
+            # Convert to list once, in case it's a generator
+            dut_ids = list(dut_ids)
+            if not dut_ids:
+                return []  # nothing to query
+            if first:
+                raise ValueError(
+                    "`first=True` with multiple device IDs is ambiguous; use single ID or a multi helper."
+                )
+
+        with CoreCloudDBInterface(env=env) as db:
             # Use class's ORM model
             model = cls.orm_model
-            query = db.query(model).filter(model.deviceid == dut_id)
+            query = db.query(model)
+
+            if is_multi:
+                query = query.filter(model.deviceid.in_(dut_ids))
+            else:
+                query = query.filter(model.deviceid == dut_ids)
 
             if extra_filters:
                 for filt in extra_filters:
                     query = query.filter(filt)
 
             if order_by is not None:
-                query = query.order_by(order_by)
+                if reverse_order:
+                    query = query.order_by(order_by.desc())
+                else:
+                    query = query.order_by(order_by)
 
-            if first:
+            if first and not is_multi:
                 result = query.first()
                 return cls._convert_orm_obj_to_msg(result) if result else None
-            else:
-                results = query.all()
-                return [cls._convert_orm_obj_to_msg(r) for r in results]
 
-    # Common API for DB queries
+            results = query.all()
+            return [cls._convert_orm_obj_to_msg(r) for r in results]
+
+    # ----------------------------------------  Single-device
+
     @classmethod
-    def last(cls, dut_id, *, db_env="VAL_1_0") -> Optional[Self]:
+    def last(cls, dut_id, *, env="VAL_1_0") -> Optional[Self]:
         """
         Get the last record for a given device ID.
 
         Args:
             dut_id (int): Device ID to filter records.`
-            db_env (str): Database environment to use for the query.
+            env (str): Database environment to use for the query.
 
         Returns:
             Optional[Self]: The last message instance for the device, or None if no records found.
         """
-        return cls._query_records(dut_id, order_by=cls.orm_model.recordid.desc(), first=True, db_env=db_env)
+        return cls._query_records(dut_id, order_by=cls.orm_model.recordid.desc(), first=True, env=env)
 
     @classmethod
     def since_server_time(
-        cls, dut_id: int, start_time: datetime, end_time: datetime = None, *, db_env="VAL_1_0"
+        cls, dut_id: int, start_time: datetime, end_time: datetime = None, *, env="VAL_1_0"
     ) -> List[Self]:
         """
         Query records since, not including, a specific server time. Optionally, up to, and including, an end server time.
@@ -243,7 +277,7 @@ class MsgBase(Serializable, ABC):
             dut_id (int): Device ID to filter records.
             start_time (datetime): Start time for filtering records.
             end_time (datetime, optional): End time for filtering records. Defaults to None.
-            db_env (str): Database environment to use for the query.
+            env (str): Database environment to use for the query.
 
         Returns:
             List[Self]: A list of message instances since the specified start time, optionally up to the end time.
@@ -251,11 +285,11 @@ class MsgBase(Serializable, ABC):
         filters = [cls.orm_model.timeofrecord > start_time]
         if end_time is not None:
             filters.append(cls.orm_model.timeofrecord <= end_time)
-        return cls._query_records(dut_id, extra_filters=filters, db_env=db_env)
+        return cls._query_records(dut_id, extra_filters=filters, env=env)
 
     @classmethod
     def since_device_time(
-        cls, dut_id: int, start_time: datetime, end_time: Optional[datetime] = None, *, db_env="VAL_1_0"
+        cls, dut_id: int, start_time: datetime, end_time: Optional[datetime] = None, *, env="VAL_1_0"
     ) -> List[Self]:
         """
         Query records since, not including, a specific device time. Optionally, up to, and including, an end device time.
@@ -264,7 +298,7 @@ class MsgBase(Serializable, ABC):
             dut_id (int): Device ID to filter records.
             start_time (datetime): Start time for filtering records.
             end_time (datetime, optional): End time for filtering records. Defaults to None.
-            db_env (str): Database environment to use for the query.
+            env (str): Database environment to use for the query.
 
         Returns:
             List[Self]: A list of message instances since the specified device time, optionally up to the end time.
@@ -275,7 +309,8 @@ class MsgBase(Serializable, ABC):
         filters = [dev_time_field > start_time]
         if end_time is not None:
             filters.append(dev_time_field <= end_time)
-        return cls._query_records(dut_id, extra_filters=filters, db_env=db_env)
+
+        return cls._query_records(dut_id, extra_filters=filters, order_by=dev_time_field, env=env)
 
     @classmethod
     def since_record_id(
@@ -296,9 +331,71 @@ class MsgBase(Serializable, ABC):
         filters = [cls.orm_model.recordid > start_record_id]
         if end_record_id is not None:
             filters.append(cls.orm_model.recordid <= end_record_id)
-        return cls._query_records(dut_id, extra_filters=filters, db_env=db_env)
+        return cls._query_records(dut_id, extra_filters=filters, env=db_env)
+
+    # ----------------------------------------  Multi-device
+
+    @classmethod
+    def since_server_time_multi(
+        cls,
+        dut_ids: Sequence[int],
+        start_time: datetime,
+        end_time: datetime | None = None,
+        *,
+        env: str = "VAL_1_0",
+    ) -> List[Self]:
+        if not dut_ids:
+            return []
+        filters = [cls.orm_model.timeofrecord > start_time]
+        if end_time is not None:
+            filters.append(cls.orm_model.timeofrecord <= end_time)
+        return cls._query_records(dut_ids, extra_filters=filters, env=env)
+
+    @classmethod
+    def since_device_time_multi(
+        cls,
+        dut_ids: Sequence[int],
+        start_time: datetime,
+        end_time: datetime | None = None,
+        *,
+        env: str = "VAL_1_0",
+    ) -> List[Self]:
+        if not dut_ids:
+            return []
+        if not cls.device_time_fields:
+            raise AttributeError(f"{cls.__name__} must define device_time_fields")
+
+        dev_time_field = CoreCloudDBInterface.device_time_expr(cls.orm_model, cls.device_time_fields)
+        filters = [dev_time_field > start_time]
+        if end_time is not None:
+            filters.append(dev_time_field <= end_time)
+
+        return cls._query_records(
+            dut_ids,
+            extra_filters=filters,
+            order_by=dev_time_field,
+            env=env,
+        )
+
+    @classmethod
+    def since_record_id_multi(
+        cls,
+        dut_ids: Sequence[int],
+        start_record_id: int,
+        end_record_id: int | None = None,
+        *,
+        env: str = "VAL_1_0",
+    ) -> List[Self]:
+        if not dut_ids:
+            return []
+        filters = [cls.orm_model.recordid > start_record_id]
+        if end_record_id is not None:
+            filters.append(cls.orm_model.recordid <= end_record_id)
+
+        return cls._query_records(dut_ids, extra_filters=filters, env=env)
 
 
+# ----------------------------------------  Config Base
 class ConfMsgBase(MsgBase):
     """
     Base for REST-backed configuration messages.
@@ -400,7 +497,7 @@ class ConfMsgBase(MsgBase):
                 raise ValueError(f"{type(self).__name__}: device_id is required for API payload")
             device_id = self.device_id
 
-        payload: Dict[str, Any] = {"deviceId": self._device_id_to_hex_str(device_id)}
+        payload: Dict[str, Any] = {"deviceIds": [self._device_id_to_hex_str(device_id)]}
 
         # Map dataclass attributes to API names
         for attr, api_name in self.api_field_map.items():
@@ -442,7 +539,7 @@ class ConfMsgBase(MsgBase):
                 kwargs[attr] = val
         return cls(**kwargs)  # type: ignore[arg-type]
 
-    def send_via_rest(
+    def send(
         self,
         *,
         device_id: Optional[int | str] = None,
@@ -455,6 +552,7 @@ class ConfMsgBase(MsgBase):
         """
         Send this config to the REST endpoint defined by `api_set_endpoint`.
         """
+        log = Logger(Logger.Config(console_log_level=logging.DEBUG))
         if not type(self).api_set_endpoint:
             raise NotImplementedError(f"{type(self).__name__}: api_set_endpoint is not defined")
 
@@ -466,8 +564,10 @@ class ConfMsgBase(MsgBase):
             resp = client.request(method, path, json=payload, timeout=timeout, headers=headers)
         else:
             with CoreCloudRestInterface(env_namespace=env_namespace) as api:
+                log.debug(f"Sending {method} {path} using {env_namespace!r}")
                 resp = api.request(method, path, json=payload, timeout=timeout, headers=headers)
 
+        log.debug(f"{resp.status_code}: {resp.text}")
         if raise_for_status:
             resp.raise_for_status()
         return resp
@@ -504,7 +604,318 @@ class ConfMsgBase(MsgBase):
             return api.request(method, path, json=body, timeout=timeout, headers=headers)
 
 
-# UID 524
+# ----------------------------------------  None-message reference tables
+@dataclass(frozen=True, slots=True)
+class DeviceMessageLog(MsgBase):
+    """
+    Represents a device message log entry.
+
+    Attributes:
+        record_id (int): Unique identifier for the record.
+        is_uplink (bool): Indicates if the message is an uplink.
+        interface_type (int): Type of interface used by the device.
+        time_of_record (datetime): Timestamp of when the message was recorded.
+        device_id (int): Unique identifier for the device.
+        account_id (int): Unique identifier for the account.
+        message_id (int): Unique identifier for the message.
+        message_uid (int): Unique identifier for the message UID.
+
+    Class variables:
+        __type__ (str): Type identifier for the message.
+        orm_model (Type[Any]): ORM model class for database interaction.
+        orm_field_map (Dict[str, str]): Mapping of class fields to ORM fields.
+
+    Properties:
+        message_name (str): Returns the name of the message based on its UID.
+        interface_str (str): Returns a string representation of the interface type.
+
+    Methods:
+        last(dut_id, *, env="VAL_1_0"):
+            Get the last message for a device.
+        since_server_time(dut_id: int, start_time: datetime, end_time: datetime = None, *, env="VAL_1_0"):
+            Get messages since a specific server time.
+        since_device_time(dut_id: int, start_time: datetime, end_time: Optional[datetime] = None, *, env="VAL_1_0"):
+            Get messages since a specific device time.
+        since_record_id(dut_id: int, start_record_id: int, end_record_id: int = None, *, env="VAL_1_0"):
+            Get messages since a specific record ID.
+    """
+
+    record_id: int = None
+    is_uplink: bool = None
+    interface_type: int = None
+    time_of_record: datetime = None
+    device_id: int = None
+    account_id: int = None
+    message_id: int = None
+    message_uid: int = None
+
+    # Non-ORM fields
+    __type__ = "DMT"
+    orm_model = Devicemessagestbl
+    orm_field_map = {
+        **MsgBase.orm_field_map,
+        "record_id": "recordid",
+        "is_uplink": "isuplink",
+        "interface_type": "interfacetype",
+        "time_of_record": "timeofrecord",
+        "device_id": "deviceid",
+        "account_id": "accountid",
+        "message_id": "messageid",
+        "message_uid": "messageuid",
+    }
+
+    @property
+    def message_name(self) -> str:
+        """Return the name of the message based on its UID."""
+        return self.message_uid_map.get(self.message_uid, f"Unknown UID: {self.message_uid}")
+
+    @property
+    def interface_str(self) -> str:
+        """Return a string representation of the interface type."""
+        return self._get_reason_from_mapping(self.interface_type, self.interface_type_map)
+
+
+# ----------------------------------------  Message Definitions
+
+
+# [501] Ack V1; TODO: Needs to be implemented...
+class AckMsgV1:
+    def __init__(self):
+        raise NotImplementedError(f"[501] Ack Message V1 not supported at this time")
+
+
+# [502] Time Request; TODO: Needs to be implemented...
+class TimeRequestMsgV1:
+    def __init__(self):
+        raise NotImplementedError(f"[502] Time Request Message V1 not supported at this time")
+
+
+# [503] Time Response; TODO: Needs to be implemented...
+class TimeResponseMsgV1:
+    def __init__(self):
+        raise NotImplementedError(f"[503] Time Response Message V1 not supported at this time")
+
+
+# [504] Firmware Update; TODO: Needs to be implemented...
+class FirmwareUpdateMsgV1:
+    def __init__(self):
+        raise NotImplementedError(f"[504] Firmware Update Message V1 not supported at this time")
+
+
+# [505] Firmware Update Response; TODO: Needs to be implemented...
+class FirmwareUpdateResponseMsgV1:
+    def __init__(self):
+        raise NotImplementedError(f"[505] Firmware Update Response Message V1 not supported at this time")
+
+
+# [506] Firmware Update Reset; TODO: Needs to be implemented...
+class FirmwareUpdateResetMsgV1:
+    def __init__(self):
+        raise NotImplementedError(f"[506] Firmware Update Reset Message V1 not supported at this time")
+
+
+# [507] Network Status; TODO: Needs to be implemented...
+class NetworkStatusMsgV1:
+    def __init__(self):
+        raise NotImplementedError(f"[507] Network Status Message V1 not supported at this time")
+
+
+# [508] Network Status V2; TODO: Needs to be implemented...
+class NetworkStatusMsgV2:
+    def __init__(self):
+        raise NotImplementedError(f"[508] Network Status Message V2 not supported at this time")
+
+
+# [509] Network Status V3; TODO: Needs to be implemented...
+class NetworkStatusMsgV3:
+    def __init__(self):
+        raise NotImplementedError(f"[509] Network Status Message V3 not supported at this time")
+
+
+# [510] Firmware Update Prepare; TODO: Needs to be implemented...
+class FirmwareUpdatePrepareMsgV1:
+    def __init__(self):
+        raise NotImplementedError(f"[510] Firmware Update Prepare Message V1 not supported at this time")
+
+
+# [511] Firmware Update V2; TODO: Needs to be implemented...
+class FirmwareUpdateMsgV2:
+    def __init__(self):
+        raise NotImplementedError(f"[511] Firmware Update Message V2 not supported at this time")
+
+
+# [512] Network Status V4
+@dataclass(frozen=True, slots=True)
+class NetworkStatusMsgV4(MsgBase):
+    record_id: int = None
+    time_of_connection: datetime = None
+    did_lte_conn: bool = None
+    did_sock_conn: bool = None
+    send_success: bool = None
+    used_nb_iot: bool = None
+    did_use_sim1: bool = None
+    did_socket_disconnect_early: bool = None
+    did_use_dns_sec: bool = None
+    flags: int = None
+    time_spent: int = None
+    rsrq: float = None
+    rsrp: float = None
+    bytes_sent: int = None
+    bytes_received: int = None
+    band: int = None
+    energy_estimate: int = None
+    network_id: int = None
+
+    # Non-ORM fields
+    __type__ = "UID_512"
+    orm_model = Messagesnetworkstatusv4tbl
+    orm_field_map = {
+        **MsgBase.orm_field_map,
+        "record_id": "recordid",
+        "time_of_connection": "timeofconnection",
+        "did_lte_conn": "didlteconn",
+        "did_sock_conn": "didsockconn",
+        "send_success": "sendsuccess",
+        "used_nb_iot": "usednbiot",
+        "did_use_sim1": "didusesim1",
+        "did_socket_disconnect_early": "didsocketdisconnectearly",
+        "did_use_dns_sec": "didusednssec",
+        "flags": "flags",
+        "time_spent": "timespent",
+        "rsrq": "rsrq",
+        "rsrp": "rsrp",
+        "bytes_sent": "bytessent",
+        "bytes_received": "bytesreceived",
+        "band": "band",
+        "energy_estimate": "energyestimate",
+        "network_id": "networkid",
+    }
+    device_time_fields = "timeofconnection"
+
+    uid: int = 512
+    message_length: int = None
+    packed_format: str = None
+    packed_struct: List[str] = None
+
+    # Flag bits
+    flags_lte_connected_bits = (7, 7)
+    flags_socket_connected_bits = (6, 6)
+    flags_send_success_bits = (5, 5)
+    flags_wireless_technology_bits = (4, 4)
+    flags_active_sim_slot_bits = (3, 3)
+    flags_early_socket_disconnect_bits = (2, 2)
+    flags_dnssec_resolved_bits = (1, 1)
+    flags_reserved_bits = (0, 0)
+
+    wireless_technology_map = {
+        0: "LTE Cat-M",
+        1: "NB-IOT",
+    }
+
+    @property
+    def flags_lte_connected(self) -> bool:
+        return extract_bits(self.flags, self.flags_lte_connected_bits, cast=bool, default=None)
+
+    @property
+    def flags_socket_connected(self) -> bool:
+        return extract_bits(self.flags, self.flags_socket_connected_bits, cast=bool, default=None)
+
+    @property
+    def flags_send_success(self) -> bool:
+        return extract_bits(self.flags, self.flags_send_success_bits, cast=bool, default=None)
+
+    @property
+    def flags_wireless_technology(self) -> int:
+        return extract_bits(self.flags, self.flags_wireless_technology_bits, cast=int, default=None)
+
+    @property
+    def flags_active_sim_slot(self) -> int:
+        return extract_bits(self.flags, self.flags_active_sim_slot_bits, cast=int, default=None)
+
+    @property
+    def flags_early_socket_disconnect(self) -> bool:
+        return extract_bits(self.flags, self.flags_early_socket_disconnect_bits, cast=bool, default=None)
+
+    @property
+    def flags_dnssec_resolved(self) -> bool:
+        return extract_bits(self.flags, self.flags_dnssec_resolved_bits, cast=bool, default=None)
+
+    @property
+    def flags_reserved(self) -> int:
+        return extract_bits(self.flags, self.flags_reserved_bits, cast=int, default=None)
+
+    @property
+    def wireless_technology_str(self):
+        return self._get_reason_from_mapping(self.flags_wireless_technology, self.wireless_technology_map)
+
+
+# [513] Boot Message V1; TODO: Needs to be implemented...
+class BootMsgV1:
+    def __init__(self):
+        raise NotImplementedError(f"[513] Boot Message V1 not supported at this time")
+
+
+# [514] Firmware V2; TODO: Needs to be implemented...
+class FirmwareMsgV2:
+    def __init__(self):
+        raise NotImplementedError(f"[514] Firmware Message V2 not supported at this time")
+
+
+# [515] Reboot V1; TODO: Needs to be implemented...
+class RebootMsgV1:
+    def __init__(self):
+        raise NotImplementedError(f"[515] Reboot Message V1 not supported at this time")
+
+
+# [516] Emergency Mode Config V2; TODO: Needs to be implemented...
+class EmergencyModeConfigMsgV2:
+    def __init__(self):
+        raise NotImplementedError(f"[516] Emergency Mode Config Message V2 not supported at this time")
+
+
+# [517] Ground Mode Config; TODO: Needs to be implemented...
+class GroundModeConfigMsgV1:
+    def __init__(self):
+        raise NotImplementedError(f"[517] Ground Mode Config Message V1 not supported at this time")
+
+
+# [518] Fall Config; TODO: Needs to be implemented...
+class FallConfigMsgV1:
+    def __init__(self):
+        raise NotImplementedError(f"[518] Fall Config Message V1 not supported at this time")
+
+
+# [519] Fall Event; TODO: Needs to be implemented...
+class FallEventMsgV1:
+    def __init__(self):
+        raise NotImplementedError(f"[519] Fall Event Message V1 not supported at this time")
+
+
+# [520] Position V4; TODO: Needs to be implemented...
+class PositionMsgV4:
+    def __init__(self):
+        raise NotImplementedError(f"[520] Position Message V4 not supported at this time")
+
+
+# [521] Hardware Failure V2; TODO: Needs to be implemented...
+class HardwareFailureMsgV2:
+    def __init__(self):
+        raise NotImplementedError(f"[521] Hardware Failure Message V2 not supported at this time")
+
+
+# [522] LoRa Config; TODO: Needs to be implemented...
+class LoRaConfigMsgV1:
+    def __init__(self):
+        raise NotImplementedError(f"[522] LoRa Config Message V1 not supported at this time")
+
+
+# [523] Position V5; TODO: Needs to be implemented...
+class PositionMsgV5:
+    def __init__(self):
+        raise NotImplementedError(f"[523] Position Message V5 not supported at this time")
+
+
+# [524] GPS Config; TODO: Needs to be implemented...
 @dataclass(frozen=True, slots=True)
 class GPSConfMsg(ConfMsgBase):
     is_psm_enabled: bool = None
@@ -563,77 +974,501 @@ class GPSConfMsg(ConfMsgBase):
         self._extra_validate()
 
 
+# [525] Emergency Position; TODO: Needs to be implemented...
+class EmergencyPositionMsgV1:
+    def __init__(self):
+        raise NotImplementedError(f"[525] Emergency Position Message V1 not supported at this time")
+
+
+# [526] Emergency Event Response; TODO: Needs to be implemented...
+class EmergencyEventResponseMsgV1:
+    def __init__(self):
+        raise NotImplementedError(f"[526] Emergency Event Response Message V1 not supported at this time")
+
+
+# [527] BLE Position; TODO: Needs to be implemented...
+class BLEPositionMsgV1:
+    def __init__(self):
+        raise NotImplementedError(f"[527] BLE Position Message V1 not supported at this time")
+
+
+# [528] BLE Beacon Config; TODO: Needs to be implemented...
+class BLEBeaconConfigMsgV1:
+    def __init__(self):
+        raise NotImplementedError(f"[528] BLE Beacon Config Message V1 not supported at this time")
+
+
+# [529] BLE Session Key; TODO: Needs to be implemented...
+class BLESessionKeyMsgV1:
+    def __init__(self):
+        raise NotImplementedError(f"[529] BLE Session Key Message V1 not supported at this time")
+
+
+# [530] Garmin Biometric Data; TODO: Needs to be implemented...
+class GarminBiometricDataMsgV1:
+    def __init__(self):
+        raise NotImplementedError(f"[530] Garmin Biometric Data Message V1 not supported at this time")
+
+
+# [531] U-blox Aiding Request; TODO: Needs to be implemented...
+class UBloxAidingRequestMsgV1:
+    def __init__(self):
+        raise NotImplementedError(f"[531] U-blox Aiding Request Message V1 not supported at this time")
+
+
+# [532] U-blox Ephemeris Aiding; TODO: Needs to be implemented...
+class UBloxEphemerisAidingMsgV1:
+    def __init__(self):
+        raise NotImplementedError(f"[532] U-blox Ephemeris Aiding Message V1 not supported at this time")
+
+
+# [533] U-blox Time Aiding; TODO: Needs to be implemented...
+class UBloxTimeAidingMsgV1:
+    def __init__(self):
+        raise NotImplementedError(f"[533] U-blox Time Aiding Message V1 not supported at this time")
+
+
+# [534] HIPS Sensor Data; TODO: Needs to be implemented...
+class HIPSSensorDataMsgV1:
+    def __init__(self):
+        raise NotImplementedError(f"[534] HIPS Sensor Data Message V1 not supported at this time")
+
+
+# [535] HIPS Config; TODO: Needs to be implemented...
+class HIPSSensorConfigMsgV1:
+    def __init__(self):
+        raise NotImplementedError(f"[535] HIPS Config Message V1 not supported at this time")
+
+
+# [536] SIM Config; TODO: Needs to be implemented...
+class SIMConfigMsgV1:
+    def __init__(self):
+        raise NotImplementedError(f"[536] SIM Config Message V1 not supported at this time")
+
+
+# [537] Socket Server Config; TODO: Needs to be implemented...
+class SocketServerConfigMsgV1:
+    def __init__(self):
+        raise NotImplementedError(f"[537] Socket Server Config Message V1 not supported at this time")
+
+
+# [538] Ground Mode Config V2; TODO: Needs to be implemented...
 @dataclass(frozen=True, slots=True)
-class DeviceMessageLog(MsgBase):
-    """
-    Represents a device message log entry.
+class GroundModeConfigV2(ConfMsgBase):
+    gps_heartbeat_period_minutes: int = None
+    continuous_motion_period_seconds: int = None
+    stop_motion_timeout_seconds: int = None
+    heartbeat_acquisition_timeout_seconds: int = None
+    stop_motion_acquisition_timeout_seconds: int = None
+    motion_acceleration_threshold: int = None
+    motion_acceleration_duration: int = None
+    start_motion_window_start_seconds: int = None
+    start_motion_window_end_seconds: int = None
+    motion_acquisition_on_time_seconds: int = None
+    motion_initial_acquisition_on_time_seconds: int = None
 
-    Attributes:
-        record_id (int): Unique identifier for the record.
-        is_uplink (bool): Indicates if the message is an uplink.
-        interface_type (int): Type of interface used by the device.
-        time_of_record (datetime): Timestamp of when the message was recorded.
-        device_id (int): Unique identifier for the device.
-        account_id (int): Unique identifier for the account.
-        message_id (int): Unique identifier for the message.
-        message_uid (int): Unique identifier for the message UID.
+    __type__: ClassVar[str] = "UID_538"
+    orm_model = Configgroundtbl
 
-    Class variables:
-        __type__ (str): Type identifier for the message.
-        orm_model (Type[Any]): ORM model class for database interaction.
-        orm_field_map (Dict[str, str]): Mapping of class fields to ORM fields.
+    api_set_endpoint: ClassVar[tuple[str, str]] = ("PUT", "/System/Devices/Configurations/GroundModeV2")
 
-    Properties:
-        message_name (str): Returns the name of the message based on its UID.
-        interface_str (str): Returns a string representation of the interface type.
+    api_field_map: ClassVar[Dict[str, str]] = {
+        "gps_heartbeat_period_minutes": "gpsHeartbeatPeriod",
+        "continuous_motion_period_seconds": "continuousMotionPeriod",
+        "stop_motion_timeout_seconds": "stopMotionTimeout",
+        "heartbeat_acquisition_timeout_seconds": "heartbeatAcquisitionTimeout",
+        "stop_motion_acquisition_timeout_seconds": "motionAcquisitionTimeout",
+        "motion_acceleration_threshold": "xlrMotionThreshold",
+        "motion_acceleration_duration": "xlrMotionDuration",
+        "start_motion_window_start_seconds": "startMotionWindowStart",
+        "start_motion_window_end_seconds": "startMotionWindowEnd",
+        "motion_acquisition_on_time_seconds": "motionAcquisitionOnTime",
+        "motion_initial_acquisition_on_time_seconds": "motionInitialAcquisitionOnTime",
+    }
 
-    Methods:
-        last(dut_id, *, db_env="VAL_1_0"):
-            Get the last message for a device.
-        since_server_time(dut_id: int, start_time: datetime, end_time: datetime = None, *, db_env="VAL_1_0"):
-            Get messages since a specific server time.
-        since_device_time(dut_id: int, start_time: datetime, end_time: Optional[datetime] = None, *, db_env="VAL_1_0"):
-            Get messages since a specific device time.
-        since_record_id(dut_id: int, start_record_id: int, end_record_id: int = None, *, db_env="VAL_1_0"):
-            Get messages since a specific record ID.
-    """
+    api_types: ClassVar[Dict[str, type]] = {
+        "gpsHeartbeatPeriod": int,
+        "continuousMotionPeriod": int,
+        "stopMotionTimeout": int,
+        "heartbeatAcquisitionTimeout": int,
+        "motionAcquisitionTimeout": int,
+        "motionAccelerationThreshold": int,
+        "motionAccelerationDuration": int,
+        "startMotionWindowStart": int,
+        "startMotionWindowEnd": int,
+    }
 
+    uid = 538
+    message_length = None
+    packed_format = None
+    packed_struct = None
+
+    def _extra_validate(self) -> None:
+        if self.gps_heartbeat_period_minutes is not None and self.gps_heartbeat_period_minutes < 0:
+            raise ValueError("gps_heartbeat_period_minutes must be >= 0")
+        if self.continuous_motion_period_seconds is not None and self.continuous_motion_period_seconds < 0:
+            raise ValueError("continuous_motion_period_seconds must be >= 0")
+        if self.stop_motion_timeout_seconds is not None and self.stop_motion_timeout_seconds < 0:
+            raise ValueError("stop_motion_timeout_seconds must be >= 0")
+        if self.heartbeat_acquisition_timeout_seconds is not None and self.heartbeat_acquisition_timeout_seconds < 0:
+            raise ValueError("heartbeat_acquisition_timeout_seconds must be >= 0")
+        if (
+            self.stop_motion_acquisition_timeout_seconds is not None
+            and self.stop_motion_acquisition_timeout_seconds < 0
+        ):
+            raise ValueError("motion_acquisition_timeout_seconds must be >= 0")
+        if self.motion_acceleration_threshold is not None and self.motion_acceleration_threshold < 0:
+            raise ValueError("motion_acceleration_threshold must be >= 0")
+        if self.motion_acceleration_duration is not None and self.motion_acceleration_duration < 0:
+            raise ValueError("motion_acceleration_duration must be >= 0")
+        if self.start_motion_window_start_seconds is not None and self.start_motion_window_start_seconds < 0:
+            raise ValueError("start_motion_window_start_seconds must be >= 0")
+        if self.start_motion_window_end_seconds is not None and self.start_motion_window_end_seconds < 0:
+            raise ValueError("start_motion_window_end_seconds must be >= 0")
+        if self.motion_acquisition_on_time_seconds is not None and self.motion_acquisition_on_time_seconds < 0:
+            raise ValueError("motion_acquisition_on_time_seconds must be >= 0")
+        if (
+            self.motion_initial_acquisition_on_time_seconds is not None
+            and self.motion_initial_acquisition_on_time_seconds < 0
+        ):
+            raise ValueError("motion_initial_acquisition_on_time_seconds must be >= 0")
+
+    def _validate_for_send(self) -> None:
+        super(type(self), self)._validate_for_send()
+        self._extra_validate()
+
+
+# [539] Modem Config; TODO: Needs to be implemented...
+class ModemConfigMsgV1:
+    def __init__(self):
+        raise NotImplementedError(f"[539] Modem Config Message V1 not supported at this time")
+
+
+# [540] Manufacturing Test; TODO: Needs to be implemented...
+class ManufacturingTestMsgV1:
+    def __init__(self):
+        raise NotImplementedError(f"[540] Manufacturing Test Message V1 not supported at this time")
+
+
+# [541] Scratchpad
+@dataclass(frozen=True, slots=True)
+class ScratchpadMsg(MsgBase):
+    payload_b64: str = None
+
+    uid: int = 541
+    __type__ = "UID_541"
+    orm_model = Messagesscratchpadtbl
+    orm_field_map = {"payload_b64": "payload"}
+
+    @property
+    def payload_as_string(self) -> str:
+        return base64_to_str(self.payload_b64)
+
+
+# [542] Ack V2; TODO: Needs to be implemented...
+class AckMsgV2:
+    def __init__(self):
+        raise NotImplementedError(f"[542] Ack Message V2 not supported at this time")
+
+
+# [543] Reboot V2; TODO: Needs to be implemented...
+class RebootMsgV2:
+    def __init__(self):
+        raise NotImplementedError(f"[543] Reboot Message V2 not supported at this time")
+
+
+# [544] Firmware V3; TODO: Needs to be implemented...
+class FirmwareMsgV3:
+    def __init__(self):
+        raise NotImplementedError(f"[544] Firmware Message V3 not supported at this time")
+
+
+# [545] Firmware Update V3; TODO: Needs to be implemented...
+class FirmwareUpdateMsgV3:
+    def __init__(self):
+        raise NotImplementedError(f"[545] Firmware Update Message V3 not supported at this time")
+
+
+# [546] Firmware Update Response V2; TODO: Needs to be implemented...
+class FirmwareUpdateResponseMsgV2:
+    def __init__(self):
+        raise NotImplementedError(f"[546] Firmware Update Response Message V2 not supported at this time")
+
+
+# [547] Firmware Update Reset V2; TODO: Needs to be implemented...
+class FirmwareUpdateResetMsgV2:
+    def __init__(self):
+        raise NotImplementedError(f"[547] Firmware Update Reset Message V2 not supported at this time")
+
+
+# [548] Boot V2
+@dataclass(frozen=True, slots=True)
+class BootMsgV2(MsgBase):
     record_id: int = None
-    is_uplink: bool = None
-    interface_type: int = None
-    time_of_record: datetime = None
-    device_id: int = None
-    account_id: int = None
-    message_id: int = None
-    message_uid: int = None
+    time_of_boot: datetime = None
+    flags: int = None
+    # chip_id: int = None
+    # boot_reason: int = None
+    num_exceptions: int = None
 
     # Non-ORM fields
-    __type__ = "DMT"
-    orm_model = Devicemessagestbl
+    __type__ = "UID_548"
+    orm_model = Messagesboottbl
     orm_field_map = {
         **MsgBase.orm_field_map,
         "record_id": "recordid",
-        "is_uplink": "isuplink",
-        "interface_type": "interfacetype",
-        "time_of_record": "timeofrecord",
-        "device_id": "deviceid",
-        "account_id": "accountid",
-        "message_id": "messageid",
-        "message_uid": "messageuid",
+        "time_of_boot": "timeofboot",
+        "flags": "flags",
+        # "chip_id": "chipid",
+        # "boot_reason": "bootreason",
+        "num_exceptions": "numexceptions",
+    }
+    device_time_fields = "timeofboot"
+
+    uid: int = 548
+    message_length: int = None
+    packed_format: str = None
+    packed_struct: List[str] = None
+
+    # Flag bits
+    mcu_type_bits = (6, 7)
+    fw_triggered_bits = (5, 5)
+    boot_reason_bits = (0, 4)
+
+    # Maps
+    mcu_type_map = {
+        0: "Comms Core",
+        1: "App Core",
+    }
+
+    fw_triggered_map = {
+        0: "Soft reset",
+        1: "FW-triggered reset",
+    }
+
+    boot_reason_map = {
+        0: "Normal boot",
+        1: "Reboot due to exception",
+        2: "Reboot due to completing FUOTA",
+        3: "Reboot due to being placed on charger",
+        4: "Reboot due to error",
+        5: "Reboot due to receiving valid reboot message",
+        6: "Reboot due to watchdog timer expiration",
+        7: "Reboot due to user button sequence",
     }
 
     @property
-    def message_name(self) -> str:
-        """Return the name of the message based on its UID."""
-        return self.message_uid_map.get(self.message_uid, f"Unknown UID: {self.message_uid}")
+    def flag_mcu(self) -> int:
+        return extract_bits(self.flags, self.mcu_type_bits, cast=int, default=None)
 
     @property
-    def interface_str(self) -> str:
-        """Return a string representation of the interface type."""
-        return self._get_reason_from_mapping(self.interface_type, self.interface_type_map)
+    def triggered_by(self) -> bool:
+        return extract_bits(self.flags, self.fw_triggered_bits, cast=bool, default=None)
+
+    @property
+    def boot_reason(self) -> int:
+        return extract_bits(self.flags, self.boot_reason_bits, cast=int, default=None)
+
+    @property
+    def coprocessor_str(self) -> str:
+        return self._get_reason_from_mapping(self.flag_mcu, self.mcu_type_map)
+
+    @property
+    def fw_triggered_str(self) -> str:
+        return self._get_reason_from_mapping(self.triggered_by, self.fw_triggered_map)
+
+    @property
+    def boot_reason_str(self) -> str:
+        return self._get_reason_from_mapping(self.boot_reason, self.boot_reason_map)
 
 
-# UID 556
+# [549] Comms Coprocessor HW Failure
+@dataclass(frozen=True, slots=True)
+class CommsHwFailureMsg(MsgBase):
+    record_id: int = None
+    time_of_event: datetime = None
+    sim_fails: int = None
+    lora_fails: int = None
+    ipc_fails: int = None
+    ext_flash_fails: int = None
+    sec_elem_fails: int = None
+    sat_modem_fails: int = None
+
+    # Non-ORM fields
+    __type__ = "UID_549"
+    orm_model = Messagescommshwfailtbl
+    orm_field_map = {
+        **MsgBase.orm_field_map,
+        "record_id": "recordid",
+        "time_of_event": "timeofevent",
+        "sim_fails": "simfails",
+        "lora_fails": "sx1262fails",
+        "ipc_fails": "ipcfails",
+        "ext_flash_fails": "extflashfails",
+        "sec_elem_fails": "secelemfails",
+        "sat_modem_fails": "satmodemfails",
+    }
+    device_time_fields = "timeofevent"
+
+    uid = 549
+    message_length: int = None
+    packed_format: str = None
+    packed_struct: List[str] = None
+
+    map_sim_fails = {
+        7: "SIM slot 0 failure",
+        6: "SIM slot 1 failure",
+    }
+
+    map_lora_fails = {
+        7: "Communications failure",
+        6: "Failed PLL lock",
+    }
+
+    map_ipc_fails = {
+        7: "Communications failure",
+    }
+
+    map_ext_flash_fails = {
+        7: "Communications failure",
+    }
+
+    map_sec_elem_fails = {
+        7: "Communications failure",
+    }
+
+    map_sat_modem_fails = {
+        7: "Communications failure",
+    }
+
+    @property
+    def sim_failure_reason(self):
+        return self._get_reason_from_mapping(self.sim_fails, self.map_sim_fails)
+
+    @property
+    def lora_failure_reason(self):
+        return self._get_reason_from_mapping(self.lora_fails, self.map_lora_fails)
+
+    @property
+    def ipc_failure_reason(self):
+        return self._get_reason_from_mapping(self.ipc_fails, self.map_ipc_fails)
+
+    @property
+    def ext_flash_failure_reason(self):
+        return self._get_reason_from_mapping(self.ext_flash_fails, self.map_ext_flash_fails)
+
+    @property
+    def sec_elem_failure_reason(self):
+        return self._get_reason_from_mapping(self.sec_elem_fails, self.map_sec_elem_fails)
+
+    @property
+    def sat_modem_failure_reason(self):
+        return self._get_reason_from_mapping(self.sat_modem_fails, self.map_sat_modem_fails)
+
+
+# [550] Socket Server Configuration V2; TODO: Needs to be implemented...
+class SocketServerConfigMsgV2:
+    def __init__(self):
+        raise NotImplementedError(f"[550] Socket Server Configuration Message V2 not supported at this time")
+
+
+# [551] Modem Config V2; TODO: Needs to be implemented...
+class ModemConfigMsgV2:
+    def __init__(self):
+        raise NotImplementedError(f"[551] Modem Config Message V2 not supported at this time")
+
+
+# [552] Sigma5 HW Failure
+@dataclass(frozen=True, slots=True)
+class Sigma5HwFailureMsg(MsgBase):
+    xlr_fails: int = None
+    alt_fails: int = None
+    gps_fails: int = None
+    bms_fails: int = None
+    ext_flash_fails: int = None
+
+    __type__ = "UID_552"
+    orm_model = Messagessigma5hwfailtbl
+    orm_field_map = {
+        **MsgBase.orm_field_map,
+        "time_of_event": "timeofevent",
+        "xlr_fails": "xlrfails",
+        "alt_fails": "altfails",
+        "gps_fails": "gpsfails",
+        "bms_fails": "bmsfails",
+        "ext_flash_fails": "extflashfails",
+    }
+    device_time_fields = "timeofevent"
+
+    uid: int = 552
+    message_length: int = None
+    packed_format: str = None
+    packed_struct: List[str] = None
+
+    map_xlr_fails = {
+        7: "Communications failure",
+    }
+
+    map_alt_fails = {
+        7: "Communications failure",
+        6: "Altimeter interrupt failure",
+    }
+
+    map_gps_fails = {
+        7: "Communications failure",
+        6: "Crystal failure",
+        5: "PVT failure",
+        4: "Voltage Backup failure (VBCKP)",
+    }
+
+    map_bms_fails = {
+        7: "Communications failure",
+    }
+
+    map_ext_flash_fails = {
+        7: "Communications failure",
+    }
+
+    @property
+    def xlr_failure_reason(self) -> str:
+        return self._get_reason_from_mapping(self.xlr_fails, self.map_xlr_fails)
+
+    @property
+    def alt_failure_reason(self) -> str:
+        return self._get_reason_from_mapping(self.alt_fails, self.map_alt_fails)
+
+    @property
+    def gps_failure_reason(self) -> str:
+        return self._get_reason_from_mapping(self.gps_fails, self.map_gps_fails)
+
+    @property
+    def bms_failure_reason(self) -> str:
+        return self._get_reason_from_mapping(self.bms_fails, self.map_bms_fails)
+
+    @property
+    def ext_flash_failure_reason(self) -> str:
+        return self._get_reason_from_mapping(self.ext_flash_fails, self.map_ext_flash_fails)
+
+
+# [553] Iridium Config; TODO: Needs to be implemented...
+class IridiumConfigMsgV1:
+    def __init__(self):
+        raise NotImplementedError(f"[553] Iridium Config Message V1 not supported at this time")
+
+
+# [554] Iridium Status; TODO: Needs to be implemented...
+class IridiumStatusMsgV1:
+    def __init__(self):
+        raise NotImplementedError(f"[554] Iridium Status Message V1 not supported at this time")
+
+
+# [555] User Notification
+class UserNotificationMsgV1:
+    def __init__(self):
+        raise NotImplementedError(f"[555] User Notification Message V1 not supported at this time")
+
+
+# [556] Position V6
 @dataclass(frozen=True, slots=True)
 class PositionMsgV6(MsgBase):
     """
@@ -713,13 +1548,13 @@ class PositionMsgV6(MsgBase):
         orm_field_map (Dict[str, str]): Mapping of class fields to ORM fields.
 
     Methods:
-        last(dut_id, *, db_env="VAL_1_0"):
+        last(dut_id, *, env="VAL_1_0"):
             Get the last message for a device.
-        since_server_time(dut_id: int, start_time: datetime, end_time: datetime = None, *, db_env="VAL_1_0"):
+        since_server_time(dut_id: int, start_time: datetime, end_time: datetime = None, *, env="VAL_1_0"):
             Get messages since a specific server time.
-        since_device_time(dut_id: int, start_time: datetime, end_time: Optional[datetime] = None, *, db_env="VAL_1_0"):
+        since_device_time(dut_id: int, start_time: datetime, end_time: Optional[datetime] = None, *, env="VAL_1_0"):
             Get messages since a specific device time.
-        since_record_id(dut_id: int, start_record_id: int, end_record_id: int = None, *, db_env="VAL_1_0"):
+        since_record_id(dut_id: int, start_record_id: int, end_record_id: int = None, *, env="VAL_1_0"):
             Get messages since a specific record ID.
 
     """
@@ -987,7 +1822,7 @@ class PositionMsgV6(MsgBase):
         return celsius_to_fahrenheit(self.temperature) if self.temperature is not None else None
 
 
-# UID 557
+# [557] Biometric Data
 @dataclass(frozen=True, slots=True)
 class BiometricDataMsg(MsgBase):
     record_id: int = None
@@ -1046,277 +1881,13 @@ class BiometricDataMsg(MsgBase):
         return extract_bits(self.flags, self.on_body_bits, cast=bool, default=None)
 
 
-# UID 512
-@dataclass(frozen=True, slots=True)
-class NetworkStatusMsgV4(MsgBase):
-    record_id: int = None
-    time_of_connection: datetime = None
-    did_lte_conn: bool = None
-    did_sock_conn: bool = None
-    send_success: bool = None
-    used_nb_iot: bool = None
-    did_use_sim1: bool = None
-    did_socket_disconnect_early: bool = None
-    did_use_dns_sec: bool = None
-    flags: int = None
-    time_spent: int = None
-    rsrq: float = None
-    rsrp: float = None
-    bytes_sent: int = None
-    bytes_received: int = None
-    band: int = None
-    energy_estimate: int = None
-    network_id: int = None
-
-    # Non-ORM fields
-    __type__ = "UID_512"
-    orm_model = Messagesnetworkstatusv4tbl
-    orm_field_map = {
-        **MsgBase.orm_field_map,
-        "record_id": "recordid",
-        "time_of_connection": "timeofconnection",
-        "did_lte_conn": "didlteconn",
-        "did_sock_conn": "didsockconn",
-        "send_success": "sendsuccess",
-        "used_nb_iot": "usednbiot",
-        "did_use_sim1": "didusesim1",
-        "did_socket_disconnect_early": "didsocketdisconnectearly",
-        "did_use_dns_sec": "didusednssec",
-        "flags": "flags",
-        "time_spent": "timespent",
-        "rsrq": "rsrq",
-        "rsrp": "rsrp",
-        "bytes_sent": "bytessent",
-        "bytes_received": "bytesreceived",
-        "band": "band",
-        "energy_estimate": "energyestimate",
-        "network_id": "networkid",
-    }
-    device_time_fields = "timeofconnection"
-
-    uid: int = 512
-    message_length: int = None
-    packed_format: str = None
-    packed_struct: List[str] = None
-
-    # Flag bits
-    flags_lte_connected_bits = (7, 7)
-    flags_socket_connected_bits = (6, 6)
-    flags_send_success_bits = (5, 5)
-    flags_wireless_technology_bits = (4, 4)
-    flags_active_sim_slot_bits = (3, 3)
-    flags_early_socket_disconnect_bits = (2, 2)
-    flags_dnssec_resolved_bits = (1, 1)
-    flags_reserved_bits = (0, 0)
-
-    wireless_technology_map = {
-        0: "LTE Cat-M",
-        1: "NB-IOT",
-    }
-
-    @property
-    def flags_lte_connected(self) -> bool:
-        return extract_bits(self.flags, self.flags_lte_connected_bits, cast=bool, default=None)
-
-    @property
-    def flags_socket_connected(self) -> bool:
-        return extract_bits(self.flags, self.flags_socket_connected_bits, cast=bool, default=None)
-
-    @property
-    def flags_send_success(self) -> bool:
-        return extract_bits(self.flags, self.flags_send_success_bits, cast=bool, default=None)
-
-    @property
-    def flags_wireless_technology(self) -> int:
-        return extract_bits(self.flags, self.flags_wireless_technology_bits, cast=int, default=None)
-
-    @property
-    def flags_active_sim_slot(self) -> int:
-        return extract_bits(self.flags, self.flags_active_sim_slot_bits, cast=int, default=None)
-
-    @property
-    def flags_early_socket_disconnect(self) -> bool:
-        return extract_bits(self.flags, self.flags_early_socket_disconnect_bits, cast=bool, default=None)
-
-    @property
-    def flags_dnssec_resolved(self) -> bool:
-        return extract_bits(self.flags, self.flags_dnssec_resolved_bits, cast=bool, default=None)
-
-    @property
-    def flags_reserved(self) -> int:
-        return extract_bits(self.flags, self.flags_reserved_bits, cast=int, default=None)
-
-    @property
-    def wireless_technology_str(self):
-        return self._get_reason_from_mapping(self.flags_wireless_technology, self.wireless_technology_map)
+# [558] Biometric Config; TODO: Needs to be implemented...
+class BiometricConfigMsgV1:
+    def __init__(self):
+        raise NotImplementedError(f"[558] Biometric Config Message V1 not supported at this time.")
 
 
-# UID 549
-@dataclass(frozen=True, slots=True)
-class CommsHwFailureMsg(MsgBase):
-    record_id: int = None
-    time_of_event: datetime = None
-    sim_fails: int = None
-    lora_fails: int = None
-    ipc_fails: int = None
-    ext_flash_fails: int = None
-    sec_elem_fails: int = None
-    sat_modem_fails: int = None
-
-    # Non-ORM fields
-    __type__ = "UID_549"
-    orm_model = Messagescommshwfailtbl
-    orm_field_map = {
-        **MsgBase.orm_field_map,
-        "record_id": "recordid",
-        "time_of_event": "timeofevent",
-        "sim_fails": "simfails",
-        "lora_fails": "sx1262fails",
-        "ipc_fails": "ipcfails",
-        "ext_flash_fails": "extflashfails",
-        "sec_elem_fails": "secelemfails",
-        "sat_modem_fails": "satmodemfails",
-    }
-    device_time_fields = "timeofevent"
-
-    uid = 549
-    message_length: int = None
-    packed_format: str = None
-    packed_struct: List[str] = None
-
-    map_sim_fails = {
-        7: "SIM slot 0 failure",
-        6: "SIM slot 1 failure",
-    }
-
-    map_lora_fails = {
-        7: "Communications failure",
-        6: "Failed PLL lock",
-    }
-
-    map_ipc_fails = {
-        7: "Communications failure",
-    }
-
-    map_ext_flash_fails = {
-        7: "Communications failure",
-    }
-
-    map_sec_elem_fails = {
-        7: "Communications failure",
-    }
-
-    map_sat_modem_fails = {
-        7: "Communications failure",
-    }
-
-    @property
-    def sim_failure_reason(self):
-        return self._get_reason_from_mapping(self.sim_fails, self.map_sim_fails)
-
-    @property
-    def lora_failure_reason(self):
-        return self._get_reason_from_mapping(self.lora_fails, self.map_lora_fails)
-
-    @property
-    def ipc_failure_reason(self):
-        return self._get_reason_from_mapping(self.ipc_fails, self.map_ipc_fails)
-
-    @property
-    def ext_flash_failure_reason(self):
-        return self._get_reason_from_mapping(self.ext_flash_fails, self.map_ext_flash_fails)
-
-    @property
-    def sec_elem_failure_reason(self):
-        return self._get_reason_from_mapping(self.sec_elem_fails, self.map_sec_elem_fails)
-
-    @property
-    def sat_modem_failure_reason(self):
-        return self._get_reason_from_mapping(self.sat_modem_fails, self.map_sat_modem_fails)
-
-
-# UID 548
-@dataclass(frozen=True, slots=True)
-class BootMsgV2(MsgBase):
-    record_id: int = None
-    time_of_boot: datetime = None
-    flags: int = None
-    # chip_id: int = None
-    # boot_reason: int = None
-    num_exceptions: int = None
-
-    # Non-ORM fields
-    __type__ = "UID_548"
-    orm_model = Messagesboottbl
-    orm_field_map = {
-        **MsgBase.orm_field_map,
-        "record_id": "recordid",
-        "time_of_boot": "timeofboot",
-        "flags": "flags",
-        # "chip_id": "chipid",
-        # "boot_reason": "bootreason",
-        "num_exceptions": "numexceptions",
-    }
-    device_time_fields = "timeofboot"
-
-    uid: int = 548
-    message_length: int = None
-    packed_format: str = None
-    packed_struct: List[str] = None
-
-    # Flag bits
-    mcu_type_bits = (6, 7)
-    fw_triggered_bits = (5, 5)
-    boot_reason_bits = (0, 4)
-
-    # Maps
-    mcu_type_map = {
-        0: "Comms Core",
-        1: "App Core",
-    }
-
-    fw_triggered_map = {
-        0: "Soft reset",
-        1: "FW-triggered reset",
-    }
-
-    boot_reason_map = {
-        0: "Normal boot",
-        1: "Reboot due to exception",
-        2: "Reboot due to completing FUOTA",
-        3: "Reboot due to being placed on charger",
-        4: "Reboot due to error",
-        5: "Reboot due to receiving valid reboot message",
-        6: "Reboot due to watchdog timer expiration",
-        7: "Reboot due to user button sequence",
-    }
-
-    @property
-    def flag_mcu(self) -> int:
-        return extract_bits(self.flags, self.mcu_type_bits, cast=int, default=None)
-
-    @property
-    def triggered_by(self) -> bool:
-        return extract_bits(self.flags, self.fw_triggered_bits, cast=bool, default=None)
-
-    @property
-    def boot_reason(self) -> int:
-        return extract_bits(self.flags, self.boot_reason_bits, cast=int, default=None)
-
-    @property
-    def coprocessor_str(self) -> str:
-        return self._get_reason_from_mapping(self.flag_mcu, self.mcu_type_map)
-
-    @property
-    def fw_triggered_str(self) -> str:
-        return self._get_reason_from_mapping(self.triggered_by, self.fw_triggered_map)
-
-    @property
-    def boot_reason_str(self) -> str:
-        return self._get_reason_from_mapping(self.boot_reason, self.boot_reason_map)
-
-
-# UID 559
+# [559] Alpha HW Failure
 @dataclass(frozen=True, slots=True)
 class AlphaHwFailureMsg(MsgBase):
     record_id: int = None
@@ -1424,90 +1995,25 @@ class AlphaHwFailureMsg(MsgBase):
         return self._get_reason_from_mapping(self.batt_charger_fails, self.map_batt_charger_fails)
 
 
-# UID 552
-@dataclass(frozen=True, slots=True)
-class Sigma5HwFailureMsg(MsgBase):
-    xlr_fails: int = None
-    alt_fails: int = None
-    gps_fails: int = None
-    bms_fails: int = None
-    ext_flash_fails: int = None
-
-    __type__ = "UID_552"
-    orm_model = Messagessigma5hwfailtbl
-    orm_field_map = {
-        **MsgBase.orm_field_map,
-        "time_of_event": "timeofevent",
-        "xlr_fails": "xlrfails",
-        "alt_fails": "altfails",
-        "gps_fails": "gpsfails",
-        "bms_fails": "bmsfails",
-        "ext_flash_fails": "extflashfails",
-    }
-    device_time_fields = "timeofevent"
-
-    uid: int = 552
-    message_length: int = None
-    packed_format: str = None
-    packed_struct: List[str] = None
-
-    map_xlr_fails = {
-        7: "Communications failure",
-    }
-
-    map_alt_fails = {
-        7: "Communications failure",
-        6: "Altimeter interrupt failure",
-    }
-
-    map_gps_fails = {
-        7: "Communications failure",
-        6: "Crystal failure",
-        5: "PVT failure",
-        4: "Voltage Backup failure (VBCKP)",
-    }
-
-    map_bms_fails = {
-        7: "Communications failure",
-    }
-
-    map_ext_flash_fails = {
-        7: "Communications failure",
-    }
-
-    @property
-    def xlr_failure_reason(self) -> str:
-        return self._get_reason_from_mapping(self.xlr_fails, self.map_xlr_fails)
-
-    @property
-    def alt_failure_reason(self) -> str:
-        return self._get_reason_from_mapping(self.alt_fails, self.map_alt_fails)
-
-    @property
-    def gps_failure_reason(self) -> str:
-        return self._get_reason_from_mapping(self.gps_fails, self.map_gps_fails)
-
-    @property
-    def bms_failure_reason(self) -> str:
-        return self._get_reason_from_mapping(self.bms_fails, self.map_bms_fails)
-
-    @property
-    def ext_flash_failure_reason(self) -> str:
-        return self._get_reason_from_mapping(self.ext_flash_fails, self.map_ext_flash_fails)
+# [560] LoRa Config V2; Needs to be implemented
+class LoRaConfigMsgV2:
+    def __init__(self):
+        raise NotImplementedError(f"[560] LoRa Config Message V2 not supported at this time.")
 
 
-if __name__ == "__main__":
-    cfg = GPSConfMsg(
-        is_psm_enabled=False,
-        is_aiding_enabled=False,
-        gnss_update_freq=0,
-        target_fix_accuracy=10,
-        target_fix_pdop=30,
-    )
+# [561] Binary Image Upload; TODO: Needs to be implemented...
+class BinaryImageUploadMsgV1:
+    def __init__(self):
+        raise NotImplementedError(f"[561] Binary Image Upload Message V1 not supported at this time.")
 
-    res = cfg.send_via_rest(device_id=0x70B3D584C020038F, env_namespace="VAL_1_0")
 
-    ths = PositionMsgV6.last(0x70B3D584C01E147B, db_env="DEV_1_0")
-    print(ths.device_id_str)
-    print(ths.temperature_celsius)
-    print(ths.pressure_altitude_meters)
+# [562] Drone Mode Config; TODO: Needs to be implemented...
+class DroneModeConfigMsgV1:
+    def __init__(self):
+        raise NotImplementedError(f"[562] Drone Mode Config Message V1 not supported at this time.")
+
+
+# [563] Theta HW Failure; TODO: Needs to be implemented...
+class ThetaHwFailureMsgV1:
+    def __init__(self):
+        raise NotImplementedError(f"[563] Theta HW Failure Message V1 not supported at this time.")

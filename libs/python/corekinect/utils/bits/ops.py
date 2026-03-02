@@ -55,10 +55,10 @@ def get_bits_safe(num: Union[int, bool, bytes, bytearray], start: int, end: int)
 
 
 def extract_bits(
-    flags: Union[int, bool, bytes, bytearray],
+    flags: int | bool | bytes | bytearray,
     bit_range: Tuple[int, int],
     *,
-    cast: Union[int, bool, float] = int,
+    cast: type[int] | type[bool] | type[float] = int,
     default: int | bool = None,  # if flags is None
     scale: float = 1.0,
 ) -> int | bool | None:
