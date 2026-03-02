@@ -1,0 +1,96 @@
+{
+  "name": "sigma5-firmware",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "tags": ["scope:firmware", "type:app", "platform:nrf52"],
+  "targets": {
+    "build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{projectRoot}",
+        "command": "bash scripts/build.sh all"
+      },
+      "configurations": {
+        "app": {
+          "command": "bash scripts/build.sh app"
+        },
+        "mfg": {
+          "command": "bash scripts/build.sh mfg"
+        },
+        "pristine": {
+          "command": "bash scripts/build.sh all --pristine"
+        }
+      }
+    },
+    "build:docker": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{projectRoot}/..",
+        "command": "bash ctl.sh build sigma5 --target all"
+      },
+      "configurations": {
+        "app": {
+          "command": "bash ctl.sh build sigma5 --target app"
+        },
+        "mfg": {
+          "command": "bash ctl.sh build sigma5 --target mfg"
+        }
+      }
+    },
+    "build:all-variants": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{projectRoot}/..",
+        "command": "bash ctl.sh build-all sigma5"
+      }
+    },
+    "build:app-fw": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{projectRoot}",
+        "command": "bash scripts/build.sh app"
+      },
+      "configurations": {
+        "nrf52840": {
+          "command": "bash scripts/build.sh app --target nrf52840"
+        },
+        "nrf9160": {
+          "command": "bash scripts/build.sh app --target nrf9160"
+        }
+      }
+    },
+    "build:mfg-fw": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{projectRoot}",
+        "command": "bash scripts/build.sh mfg"
+      },
+      "configurations": {
+        "sigma5_c0": {
+          "command": "bash scripts/build.sh mfg -b sigma5_c0"
+        }
+      }
+    },
+    "collect": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{projectRoot}/..",
+        "command": "bash ctl.sh collect sigma5"
+      }
+    },
+    "clean": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{projectRoot}/..",
+        "command": "bash ctl.sh clean sigma5"
+      }
+    },
+    "artifacts": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{projectRoot}/..",
+        "command": "bash ctl.sh artifacts sigma5"
+      }
+    }
+  }
+}

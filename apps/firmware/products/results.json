@@ -1,0 +1,113 @@
+{
+  "query": {
+    "serials_requested": ["0964", "097D"],
+    "source": "Alpha manufacturing batch archives (Windows Desktop)",
+    "extracted_date": "2026-03-01"
+  },
+  "devices": [
+    {
+      "serial_number": "0964",
+      "manufacturing": {
+        "batch": "manufacturing-alpha-batch-7-020426",
+        "batch_number": 7,
+        "batch_date": "2026-02-04",
+        "batch_total_successful": 86,
+        "batch_total_failed": 25,
+        "device_status": "SUCCESSFUL"
+      },
+      "identity": {
+        "device_id": "70B3D584C01E1FCC",
+        "public_key_hex": "046c13461c14a0b7dcbdf8eeb682580b50e1bc1e2f0cedfe75f3ab8a50289c7cef4ae36f2613f5b0230e6cc8bb75651533ebbc86bb63d3f1f335093ea0479155e5",
+        "public_key_base64": "BGwTRhwUoLfcvfjutoJYC1DhvB4vDO3+dfOrilAonHzvSuNvJhP1sCMObMi7dWUVM+u8hrtj0/HzNQk+oEeRVeU="
+      },
+      "cellular": {
+        "imei": "355025931735979",
+        "iccid1_verizon": "89148000009808558441",
+        "iccid2_onomondo": "89457300000037582833"
+      },
+      "activation": {
+        "verizon": {
+          "activated": true,
+          "imei": "355025931735979",
+          "iccid": "89148000009808558441"
+        },
+        "onomondo": {
+          "activated": true,
+          "imei": "355025931735979",
+          "iccid": "89457300000037582833"
+        }
+      },
+      "personalization": {
+        "note": "Device was personalized during manufacturing with unique EC keypair; default personalization config used as template",
+        "server_url": "dev.office.corekinect.cloud",
+        "rekey_path": "/api/system/devices/sessions/ssv1",
+        "time_port": 2024,
+        "session_port": 2022,
+        "data_port": 2023,
+        "coproc_fw_app_id": 108
+      },
+      "firmware": {
+        "product": "alpha",
+        "version_major": 0,
+        "version_minor": 8,
+        "version_string": "0.8"
+      },
+      "test_results": {
+        "manufacturing_test": "PASS",
+        "notes": "Device present in successful_snrs and successful_full_info; not present in any failed list across all 12 batches"
+      }
+    },
+    {
+      "serial_number": "097D",
+      "manufacturing": {
+        "batch": "manufacturing-alpha-batch-9-021826",
+        "batch_number": 9,
+        "batch_date": "2026-02-18",
+        "batch_total_successful": 100,
+        "batch_total_failed": 0,
+        "device_status": "SUCCESSFUL"
+      },
+      "identity": {
+        "device_id": "70B3D584C01E20A2",
+        "public_key_hex": "042a0808af16fc38b98ab43ea704b03bba5dd9901a0f0a1916e784a46c044c563b3e61b8f3cc5554b765e98c729b71042f1207ccf009507d83398ecc7a5c6fda40",
+        "public_key_base64": "BCoICK8W/Di5irQ+pwSwO7pd2ZAaDwoZFueEpGwETFY7PmG488xVVLdl6Yxym3EELxIHzPAJUH2DOY7Melxv2kA="
+      },
+      "cellular": {
+        "imei": "355025937661526",
+        "iccid1_verizon": "89148000009808567699",
+        "iccid2_onomondo": "89457300000037574012"
+      },
+      "activation": {
+        "verizon": {
+          "activated": true,
+          "imei": "355025937661526",
+          "iccid": "89148000009808567699"
+        },
+        "onomondo": {
+          "activated": true,
+          "imei": "355025937661526",
+          "iccid": "89457300000037574012"
+        }
+      },
+      "personalization": {
+        "note": "Device was personalized during manufacturing with unique EC keypair; default personalization config used as template",
+        "server_url": "dev.office.corekinect.cloud",
+        "rekey_path": "/api/system/devices/sessions/ssv1",
+        "time_port": 2024,
+        "session_port": 2022,
+        "data_port": 2023,
+        "coproc_fw_app_id": 108
+      },
+      "firmware": {
+        "product": "alpha",
+        "version_major": 0,
+        "version_minor": 8,
+        "version_string": "0.8"
+      },
+      "test_results": {
+        "manufacturing_test": "PASS",
+        "notes": "Device present in successful_snrs and successful_full_info; not present in any failed list across all 12 batches. Batch 9 had 100% pass rate (0 failures)."
+      }
+    }
+  ]
+}

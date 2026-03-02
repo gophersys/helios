@@ -9,6 +9,10 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
+# CoreKinect internal registry
+REGISTRY_HOST="containers.ad.corekinect.com"
+REGISTRY_PORT=443
+
 # Logging functions
 log_info() {
     echo -e "${BLUE}[INFO]${NC} $1"
@@ -24,6 +28,112 @@ log_warning() {
 
 log_error() {
     echo -e "${RED}[ERROR]${NC} $1"
+}
+
+# ── CA Certificate Management ─────────────────────────────────
+# The CoreKinect container registry uses HTTPS with an internal CA.
+# This function extracts the CA chain from the live TLS handshake
+# and installs it into the system trust store.
+
+install_registry_certs() {
+    log_info "Checking CoreKinect registry CA certificates..."
+
+    # Skip if already trusted
+    if curl -sf --connect-timeout 5 "https://${REGISTRY_HOST}/v2/" >/dev/null 2>&1; then
+        log_success "Registry CA already trusted"
+        return 0
+    fi
+
+    # Verify the registry is reachable
+    if ! openssl s_client -connect "${REGISTRY_HOST}:${REGISTRY_PORT}" \
+         -servername "${REGISTRY_HOST}" </dev/null >/dev/null 2>&1; then
+        log_warning "Cannot reach ${REGISTRY_HOST}:${REGISTRY_PORT} — skipping CA install"
+        return 0
+    fi
+
+    log_info "Extracting CA chain from ${REGISTRY_HOST}:${REGISTRY_PORT}..."
+
+    local chain_pem
+    chain_pem="$(openssl s_client -showcerts \
+        -connect "${REGISTRY_HOST}:${REGISTRY_PORT}" \
+        -servername "${REGISTRY_HOST}" </dev/null 2>/dev/null)"
+
+    # Extract individual certs (skip the leaf — we only need CA certs)
+    local cert_dir="/usr/local/share/ca-certificates/corekinect"
+    mkdir -p "$cert_dir"
+
+    local cert_index=0
+    local in_cert=false
+    local current_cert=""
+    local installed=0
+
+    while IFS= read -r line; do
+        if [[ "$line" == "-----BEGIN CERTIFICATE-----" ]]; then
+            in_cert=true
+            current_cert="$line"$'\n'
+        elif [[ "$line" == "-----END CERTIFICATE-----" ]]; then
+            current_cert+="$line"$'\n'
+            in_cert=false
+            cert_index=$((cert_index + 1))
+
+            # Skip cert 0 (leaf/server cert) — only install CA certs
+            if [[ $cert_index -gt 1 ]]; then
+                local subject
+                subject="$(echo "$current_cert" | openssl x509 -noout -subject 2>/dev/null | sed 's/.*CN = //')"
+                local cert_file="${cert_dir}/${subject// /_}.crt"
+                echo "$current_cert" > "$cert_file"
+                log_info "  Installed: ${subject}"
+                installed=$((installed + 1))
+            fi
+        elif [[ "$in_cert" == "true" ]]; then
+            current_cert+="$line"$'\n'
+        fi
+    done <<< "$chain_pem"
+
+    if [[ $installed -eq 0 ]]; then
+        log_warning "No CA certificates extracted from ${REGISTRY_HOST}"
+        return 0
+    fi
+
+    # Update the system trust store
+    update-ca-certificates >/dev/null 2>&1
+    log_success "Installed ${installed} CA certificate(s) from ${REGISTRY_HOST}"
+}
+
+# Inject CA certs into the Docker buildx builder container.
+# The buildkit container (Alpine-based) has a separate trust store.
+install_buildkit_certs() {
+    local builder_container="buildx_buildkit_concord-builder0"
+
+    # Check if the builder container exists and is running
+    if ! docker inspect "$builder_container" >/dev/null 2>&1; then
+        return 0
+    fi
+
+    if ! docker inspect -f '{{.State.Running}}' "$builder_container" 2>/dev/null | grep -q true; then
+        return 0
+    fi
+
+    log_info "Injecting CA certs into buildkit container..."
+
+    local cert_dir="/usr/local/share/ca-certificates/corekinect"
+    if [[ ! -d "$cert_dir" ]] || [[ -z "$(ls -A "$cert_dir" 2>/dev/null)" ]]; then
+        log_warning "No CA certs to inject (run install_registry_certs first)"
+        return 0
+    fi
+
+    # Append all CA certs to buildkit's bundle
+    local injected=0
+    for cert in "${cert_dir}"/*.crt; do
+        [[ -f "$cert" ]] || continue
+        docker cp "$cert" "${builder_container}:/tmp/$(basename "$cert")" 2>/dev/null || continue
+        docker exec "$builder_container" sh -c "cat /tmp/$(basename "$cert") >> /etc/ssl/certs/ca-certificates.crt && rm /tmp/$(basename "$cert")" 2>/dev/null || continue
+        injected=$((injected + 1))
+    done
+
+    if [[ $injected -gt 0 ]]; then
+        log_success "Injected ${injected} CA cert(s) into buildkit"
+    fi
 }
 
 # Fix USB device permissions for J-Link and Nordic devices
@@ -54,6 +164,9 @@ fix_usb_permissions() {
 start_container() {
     log_info "Starting the container"
 
+    # Install CoreKinect registry CA certs
+    install_registry_certs
+
     # Fix USB permissions for J-Link and Nordic devices
     fix_usb_permissions
 
@@ -76,11 +189,17 @@ create_action() {
         exit 1
     fi
 
+    # Install CoreKinect registry CA certs before any Docker operations
+    install_registry_certs
+
     # Install dependencies
     yarn
 
     # Create the platform builders
     nx run devcontainer:create-platform-builder
+
+    # Inject CA certs into the newly created buildkit container
+    install_buildkit_certs
 }
 
 # Show help
