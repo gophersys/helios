@@ -204,6 +204,29 @@ from .docs import openapi_spec, swagger_ui
 # Validation handlers
 from .validation.tests.run import run_tests
 
+# Validation runs handlers
+from .validation.runs.runs import (
+    create_run,
+    list_runs,
+    get_run,
+    cancel_run,
+)
+from .validation.runs.executions import (
+    list_executions,
+    list_execution_results,
+)
+from .validation.runs.artifacts import (
+    list_artifacts as list_run_artifacts,
+    download_artifact as download_run_artifact,
+)
+from .validation.runs.reporter import (
+    report_start,
+    report_test_start,
+    report_test_result,
+    report_finish,
+)
+from .validation.runs.trigger import trigger_run
+
 
 # -------------------------------------------------
 #                                        Log Filter
@@ -346,8 +369,27 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     v2.add_url_rule("/admin/history",              view_func=list_history,      methods=["GET"])
     v2.add_url_rule("/admin/history/<entry_id>",   view_func=get_history_entry, methods=["GET"])
 
-    # Validation
+    # Validation — legacy manufacturing test run
     v2.add_url_rule("/validation/tests/run", view_func=run_tests,       methods=["POST"])
+
+    # Validation — Runs (Stage 4)
+    v2.add_url_rule("/validation/runs",                                                                    endpoint="list_validation_runs",         view_func=list_runs,                methods=["GET"])
+    v2.add_url_rule("/validation/runs",                                                                    endpoint="create_validation_run",        view_func=create_run,               methods=["POST"])
+    v2.add_url_rule("/validation/runs/<run_id>",                                                           endpoint="get_validation_run",           view_func=get_run,                  methods=["GET"])
+    v2.add_url_rule("/validation/runs/<run_id>/cancel",                                                    endpoint="cancel_validation_run",        view_func=cancel_run,               methods=["POST"])
+    v2.add_url_rule("/validation/runs/<run_id>/executions",                                                endpoint="list_validation_executions",   view_func=list_executions,          methods=["GET"])
+    v2.add_url_rule("/validation/runs/<run_id>/executions/<execution_id>/results",                         endpoint="list_execution_results",       view_func=list_execution_results,   methods=["GET"])
+    v2.add_url_rule("/validation/runs/<run_id>/artifacts",                                                 endpoint="list_run_artifacts",           view_func=list_run_artifacts,       methods=["GET"])
+    v2.add_url_rule("/validation/runs/<run_id>/artifacts/<path:name>",                                     endpoint="download_run_artifact",        view_func=download_run_artifact,    methods=["GET"])
+
+    # Validation — Trigger
+    v2.add_url_rule("/validation/runs/<run_id>/trigger",                                                    endpoint="trigger_validation_run",       view_func=trigger_run,              methods=["POST"])
+
+    # Validation — Reporter callbacks (called by pytest plugin in K8s Jobs)
+    v2.add_url_rule("/validation/runs/<run_id>/report/start",                                              endpoint="report_run_start",             view_func=report_start,             methods=["POST"])
+    v2.add_url_rule("/validation/runs/<run_id>/report/test-start",                                         endpoint="report_test_start",            view_func=report_test_start,        methods=["POST"])
+    v2.add_url_rule("/validation/runs/<run_id>/report/test-result",                                        endpoint="report_test_result",           view_func=report_test_result,       methods=["POST"])
+    v2.add_url_rule("/validation/runs/<run_id>/report/finish",                                             endpoint="report_run_finish",            view_func=report_finish,            methods=["POST"])
 
     # Dashboard
     v2.add_url_rule("/dashboard/overview",                           endpoint="dashboard_overview",          view_func=dashboard_overview,         methods=["GET"])

@@ -22,6 +22,7 @@ class StoragePrefixes:
     DEVICES_CERTIFICATES = "devices/certificates"
     DEVICES_DIAGNOSTICS = "devices/diagnostics"
     FIRMWARE_BUILDS = "firmware/builds"
+    VALIDATION_ARTIFACTS = "validation/artifacts"
 
 
 def storage_key(prefix: str, relative_path: str) -> str:

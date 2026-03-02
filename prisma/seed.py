@@ -41,6 +41,8 @@ ALL_PERMISSIONS = [
     "Concord.Admin.Fixtures.Manage",
     "Concord.Admin.Deployments.View",
     "Concord.Admin.Deployments.Manage",
+    "Concord.Admin.Validation.View",
+    "Concord.Admin.Validation.Manage",
 ]
 
 # Default permission sets
@@ -64,6 +66,8 @@ ADMIN_PERMISSIONS = [
     "Concord.Admin.Fixtures.Manage",
     "Concord.Admin.Deployments.View",
     "Concord.Admin.Deployments.Manage",
+    "Concord.Admin.Validation.View",
+    "Concord.Admin.Validation.Manage",
 ]
 
 OPERATOR_PERMISSIONS = [

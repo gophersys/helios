@@ -456,6 +456,77 @@ def _build_spec() -> APISpec:
         },
     })
 
+    spec.components.schema("ValidationRun", {
+        "type": "object",
+        "properties": {
+            "id": {"type": "string"},
+            "name": {"type": "string"},
+            "productId": {"type": "string"},
+            "fixtureId": {"type": "string", "nullable": True},
+            "status": {"type": "string", "enum": ["ACTIVE", "COMPLETED", "CANCELLED", "PAUSED"]},
+            "config": {"type": "object", "nullable": True},
+            "targetCount": {"type": "integer"},
+            "completedCount": {"type": "integer"},
+            "passedCount": {"type": "integer"},
+            "failedCount": {"type": "integer"},
+            "startedAt": {"type": "string", "format": "date-time", "nullable": True},
+            "finishedAt": {"type": "string", "format": "date-time", "nullable": True},
+            "notes": {"type": "string", "nullable": True},
+            "createdAt": {"type": "string", "format": "date-time"},
+            "updatedAt": {"type": "string", "format": "date-time"},
+            "product": {"type": "object", "nullable": True, "properties": {
+                "id": {"type": "string"}, "name": {"type": "string"},
+            }},
+            "createdBy": {"type": "object", "nullable": True, "properties": {
+                "id": {"type": "string"}, "name": {"type": "string"}, "email": {"type": "string"},
+            }},
+            "devices": {"type": "array", "items": {"$ref": "#/components/schemas/ValidationDevice"}, "nullable": True},
+            "executions": {"type": "array", "items": {"$ref": "#/components/schemas/ValidationExecution"}, "nullable": True},
+        },
+    })
+    spec.components.schema("ValidationDevice", {
+        "type": "object",
+        "properties": {
+            "id": {"type": "string"},
+            "serialNumber": {"type": "string"},
+            "status": {"type": "string"},
+            "metadata": {"type": "object", "nullable": True},
+            "createdAt": {"type": "string", "format": "date-time"},
+        },
+    })
+    spec.components.schema("ValidationExecution", {
+        "type": "object",
+        "properties": {
+            "id": {"type": "string"},
+            "testId": {"type": "string"},
+            "nodeId": {"type": "string"},
+            "deviceId": {"type": "string"},
+            "status": {"type": "string", "enum": ["QUEUED", "RUNNING", "PASSED", "FAILED", "CANCELLED"]},
+            "startedAt": {"type": "string", "format": "date-time", "nullable": True},
+            "finishedAt": {"type": "string", "format": "date-time", "nullable": True},
+            "durationMs": {"type": "integer", "nullable": True},
+            "errorMessage": {"type": "string", "nullable": True},
+            "createdAt": {"type": "string", "format": "date-time"},
+            "test": {"type": "object", "nullable": True, "properties": {
+                "id": {"type": "string"}, "name": {"type": "string"}, "category": {"type": "string"},
+            }},
+            "resultCount": {"type": "integer", "nullable": True},
+            "resultsPassed": {"type": "integer", "nullable": True},
+        },
+    })
+    spec.components.schema("ValidationResult", {
+        "type": "object",
+        "properties": {
+            "id": {"type": "string"},
+            "executionId": {"type": "string"},
+            "stepIndex": {"type": "integer"},
+            "groupIndex": {"type": "integer"},
+            "passed": {"type": "boolean"},
+            "result": {"type": "object", "nullable": True},
+            "createdAt": {"type": "string", "format": "date-time"},
+        },
+    })
+
     # ── Reusable responses ──────────────────────────────────────
     def _err_resp(desc):
         return {"description": desc, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}}}}
@@ -483,6 +554,7 @@ def _build_spec() -> APISpec:
     _403 = _err_resp("Forbidden")
     _404 = _err_resp("Not found")
     _409 = _err_resp("Conflict")
+    _500 = _err_resp("Internal server error")
     _auth_security = [{"BearerAuth": []}, {"ApiKeyAuth": []}]
 
     # ── Pagination helpers ──────────────────────────────────────
@@ -1981,6 +2053,165 @@ def _build_spec() -> APISpec:
             }}},
         }}), "400": _400},
     })
+
+    # ── Validation Runs ──────────────────────────────────────────
+    path("/validation/runs",
+        get={
+            "tags": ["Validation"], "summary": "List validation runs", "security": _auth_security,
+            "parameters": _pagination_params + [
+                {"name": "status", "in": "query", "schema": {"type": "string", "enum": ["ACTIVE", "COMPLETED", "CANCELLED", "PAUSED"]}},
+            ],
+            "responses": {"200": _paginated("ValidationRun"), "401": _401, "403": _403},
+        },
+        post={
+            "tags": ["Validation"], "summary": "Create a validation run", "security": _auth_security,
+            "requestBody": {"required": True, "content": {"application/json": {"schema": {
+                "type": "object", "required": ["name", "productId", "nodeId", "serialNumber"],
+                "properties": {
+                    "name": {"type": "string"},
+                    "productId": {"type": "string"},
+                    "nodeId": {"type": "string"},
+                    "serialNumber": {"type": "string"},
+                    "firmwareVariant": {"type": "string", "nullable": True},
+                    "config": {"type": "object", "nullable": True},
+                    "notes": {"type": "string", "nullable": True},
+                    "testFilter": {"type": "array", "items": {"type": "string"}, "nullable": True},
+                },
+            }}}},
+            "responses": {"201": _ok("ValidationRun"), "400": _400, "404": _404},
+        },
+    )
+    path("/validation/runs/{run_id}",
+        parameters=[{"name": "run_id", "in": "path", "required": True, "schema": {"type": "string"}}],
+        get={
+            "tags": ["Validation"], "summary": "Get a validation run", "security": _auth_security,
+            "responses": {"200": _ok("ValidationRun"), "401": _401, "404": _404},
+        },
+    )
+    path("/validation/runs/{run_id}/cancel",
+        parameters=[{"name": "run_id", "in": "path", "required": True, "schema": {"type": "string"}}],
+        post={
+            "tags": ["Validation"], "summary": "Cancel a validation run", "security": _auth_security,
+            "responses": {"200": _ok("ValidationRun"), "400": _400, "404": _404, "409": _409},
+        },
+    )
+    path("/validation/runs/{run_id}/trigger",
+        parameters=[{"name": "run_id", "in": "path", "required": True, "schema": {"type": "string"}}],
+        post={
+            "tags": ["Validation"], "summary": "Trigger a K8s validation job", "security": _auth_security,
+            "requestBody": {"required": True, "content": {"application/json": {"schema": {
+                "type": "object", "required": ["firmwareVersion"],
+                "properties": {
+                    "firmwareVersion": {"type": "string", "description": "Firmware version to validate"},
+                    "firmwarePath": {"type": "string", "nullable": True, "description": "MinIO path if already uploaded"},
+                    "config": {"type": "object", "nullable": True, "description": "Override job config"},
+                },
+            }}}},
+            "responses": {
+                "200": _ok({"type": "object", "properties": {
+                    "jobName": {"type": "string"},
+                    "runId": {"type": "string"},
+                }}),
+                "400": _400, "404": _404, "500": _500,
+            },
+        },
+    )
+    path("/validation/runs/{run_id}/executions",
+        parameters=[{"name": "run_id", "in": "path", "required": True, "schema": {"type": "string"}}],
+        get={
+            "tags": ["Validation"], "summary": "List executions for a run", "security": _auth_security,
+            "parameters": _pagination_params,
+            "responses": {"200": _paginated("ValidationExecution"), "401": _401, "404": _404},
+        },
+    )
+    path("/validation/runs/{run_id}/executions/{execution_id}/results",
+        parameters=[
+            {"name": "run_id", "in": "path", "required": True, "schema": {"type": "string"}},
+            {"name": "execution_id", "in": "path", "required": True, "schema": {"type": "string"}},
+        ],
+        get={
+            "tags": ["Validation"], "summary": "List results for an execution", "security": _auth_security,
+            "responses": {"200": _ok("ValidationResult", array=True), "401": _401, "404": _404},
+        },
+    )
+    path("/validation/runs/{run_id}/artifacts",
+        parameters=[{"name": "run_id", "in": "path", "required": True, "schema": {"type": "string"}}],
+        get={
+            "tags": ["Validation"], "summary": "List artifacts for a run", "security": _auth_security,
+            "responses": {"200": _ok({"type": "array", "items": {"type": "object", "properties": {
+                "name": {"type": "string"},
+                "sizeBytes": {"type": "integer"},
+                "lastModified": {"type": "string", "format": "date-time", "nullable": True},
+            }}}), "401": _401, "404": _404},
+        },
+    )
+    path("/validation/runs/{run_id}/artifacts/{name}",
+        parameters=[
+            {"name": "run_id", "in": "path", "required": True, "schema": {"type": "string"}},
+            {"name": "name", "in": "path", "required": True, "schema": {"type": "string"}},
+        ],
+        get={
+            "tags": ["Validation"], "summary": "Download a run artifact", "security": _auth_security,
+            "responses": {"302": {"description": "Redirect to presigned download URL"}, "404": _404},
+        },
+    )
+
+    # ── Validation Reporter (internal, API-key auth) ─────────
+    path("/validation/runs/{run_id}/report/start",
+        parameters=[{"name": "run_id", "in": "path", "required": True, "schema": {"type": "string"}}],
+        post={
+            "tags": ["Validation"], "summary": "Report run started (pytest reporter)", "security": [{"ApiKeyAuth": []}],
+            "responses": {"200": _ok({"type": "object", "properties": {"status": {"type": "string"}}}), "404": _404},
+        },
+    )
+    path("/validation/runs/{run_id}/report/test-start",
+        parameters=[{"name": "run_id", "in": "path", "required": True, "schema": {"type": "string"}}],
+        post={
+            "tags": ["Validation"], "summary": "Report test started (pytest reporter)", "security": [{"ApiKeyAuth": []}],
+            "requestBody": {"required": True, "content": {"application/json": {"schema": {
+                "type": "object", "required": ["testName"],
+                "properties": {
+                    "testName": {"type": "string"},
+                    "module": {"type": "string", "nullable": True},
+                },
+            }}}},
+            "responses": {"200": _ok({"type": "object", "properties": {"executionId": {"type": "string"}, "status": {"type": "string"}}}), "400": _400, "404": _404},
+        },
+    )
+    path("/validation/runs/{run_id}/report/test-result",
+        parameters=[{"name": "run_id", "in": "path", "required": True, "schema": {"type": "string"}}],
+        post={
+            "tags": ["Validation"], "summary": "Report test result (pytest reporter)", "security": [{"ApiKeyAuth": []}],
+            "requestBody": {"required": True, "content": {"application/json": {"schema": {
+                "type": "object", "required": ["testName", "passed"],
+                "properties": {
+                    "testName": {"type": "string"},
+                    "passed": {"type": "boolean"},
+                    "durationS": {"type": "number", "nullable": True},
+                    "errorMessage": {"type": "string", "nullable": True},
+                    "measurements": {"type": "object", "nullable": True},
+                },
+            }}}},
+            "responses": {"200": _ok({"type": "object", "properties": {"resultId": {"type": "string"}, "status": {"type": "string"}}}), "400": _400, "404": _404},
+        },
+    )
+    path("/validation/runs/{run_id}/report/finish",
+        parameters=[{"name": "run_id", "in": "path", "required": True, "schema": {"type": "string"}}],
+        post={
+            "tags": ["Validation"], "summary": "Report run finished (pytest reporter)", "security": [{"ApiKeyAuth": []}],
+            "requestBody": {"required": True, "content": {"application/json": {"schema": {
+                "type": "object", "required": ["total", "passed", "failed"],
+                "properties": {
+                    "total": {"type": "integer", "minimum": 0},
+                    "passed": {"type": "integer", "minimum": 0},
+                    "failed": {"type": "integer", "minimum": 0},
+                    "errors": {"type": "integer", "minimum": 0, "default": 0},
+                    "durationS": {"type": "number", "nullable": True},
+                },
+            }}}},
+            "responses": {"200": _ok({"type": "object", "properties": {"status": {"type": "string"}}}), "400": _400, "404": _404},
+        },
+    )
 
     # ── Health ──────────────────────────────────────────────────
     path("/healthcheck", get={

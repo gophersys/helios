@@ -1,0 +1,321 @@
+import logging
+import math
+from datetime import datetime, timezone
+from typing import Any
+
+from database import Json
+from flask import jsonify, request
+
+from src.lib.audit import log_audit
+from src.lib.decorators import require_permissions
+from src.lib.errors import bad_request, conflict, internal_error, not_found
+from src.lib.permissions import Permissions
+from src.lib.types import ApiResponse
+from src.services.database.prisma import get_db_client
+
+from .types import RunCreateRequest
+
+logger = logging.getLogger(__name__)
+
+
+# -------------------------------------------------
+#                                      Serializers
+# -------------------------------------------------
+
+def _serialize_session(s: Any, include_executions: bool = False) -> dict:
+    data = {
+        "id": s.id,
+        "name": s.name,
+        "productId": s.productId,
+        "fixtureId": s.fixtureId,
+        "status": s.status,
+        "config": s.config,
+        "targetCount": s.targetCount,
+        "completedCount": s.completedCount,
+        "passedCount": s.passedCount,
+        "failedCount": s.failedCount,
+        "startedAt": s.startedAt.isoformat() if s.startedAt else None,
+        "finishedAt": s.finishedAt.isoformat() if s.finishedAt else None,
+        "notes": s.notes,
+        "createdAt": s.createdAt.isoformat(),
+        "updatedAt": s.updatedAt.isoformat(),
+    }
+    if hasattr(s, "product") and s.product is not None:
+        data["product"] = {"id": s.product.id, "name": s.product.name}
+    if hasattr(s, "createdBy") and s.createdBy is not None:
+        data["createdBy"] = {"id": s.createdBy.id, "name": s.createdBy.name, "email": s.createdBy.email}
+    if hasattr(s, "devices") and s.devices is not None:
+        data["devices"] = [_serialize_device(d) for d in s.devices]
+    if include_executions and hasattr(s, "devices") and s.devices is not None:
+        executions = []
+        for d in s.devices:
+            if hasattr(d, "executions") and d.executions is not None:
+                for ex in d.executions:
+                    executions.append(_serialize_execution(ex))
+        data["executions"] = executions
+    return data
+
+
+def _serialize_device(d: Any) -> dict:
+    data = {
+        "id": d.id,
+        "serialNumber": d.serialNumber,
+        "sessionId": d.sessionId,
+        "status": d.status,
+        "metadata": d.metadata,
+        "createdAt": d.createdAt.isoformat(),
+        "updatedAt": d.updatedAt.isoformat(),
+    }
+    return data
+
+
+def _serialize_execution(ex: Any) -> dict:
+    data = {
+        "id": ex.id,
+        "testId": ex.testId,
+        "nodeId": ex.nodeId,
+        "deviceId": ex.deviceId,
+        "status": ex.status,
+        "config": ex.config,
+        "startedAt": ex.startedAt.isoformat() if ex.startedAt else None,
+        "finishedAt": ex.finishedAt.isoformat() if ex.finishedAt else None,
+        "createdAt": ex.createdAt.isoformat(),
+        "updatedAt": ex.updatedAt.isoformat(),
+    }
+    if hasattr(ex, "test") and ex.test is not None:
+        data["test"] = {"id": ex.test.id, "name": ex.test.name, "category": ex.test.category}
+    if hasattr(ex, "results") and ex.results is not None:
+        data["resultCount"] = len(ex.results)
+        data["resultsPassed"] = sum(1 for r in ex.results if r.passed)
+    return data
+
+
+def _serialize_result(r: Any) -> dict:
+    return {
+        "id": r.id,
+        "executionId": r.executionId,
+        "stepIndex": r.stepIndex,
+        "groupIndex": r.groupIndex,
+        "passed": r.passed,
+        "result": r.result,
+        "createdAt": r.createdAt.isoformat(),
+    }
+
+
+# -------------------------------------------------
+#                                 Public Endpoints
+# -------------------------------------------------
+
+@require_permissions(Permissions.ADMIN_VALIDATION_MANAGE)
+def create_run():
+    """POST /v2/validation/runs — Create a new validation run."""
+    from flask import g
+
+    data, error = RunCreateRequest.from_json(request.get_json())
+    if error:
+        return bad_request(error)
+
+    db = get_db_client()
+
+    # Validate product exists
+    product = db.product.find_unique(where={"id": data.product_id})
+    if not product:
+        return not_found("Product not found")
+
+    # Validate node exists
+    node = db.node.find_unique(where={"id": data.node_id})
+    if not node:
+        return not_found("Node not found")
+
+    # Build session config
+    session_config = data.config or {}
+    if data.firmware_variant:
+        session_config["firmwareVariant"] = data.firmware_variant
+    session_config["nodeId"] = data.node_id
+    session_config["serialNumber"] = data.serial_number
+
+    user_id = g.current_user["sub"]
+
+    try:
+        # Create Session
+        session = db.session.create(
+            data={
+                "name": data.name,
+                "productId": data.product_id,
+                "status": "ACTIVE",
+                "config": Json(session_config) if session_config else None,
+                "notes": data.notes,
+                "createdById": user_id,
+            },
+            include={"product": True, "createdBy": True},
+        )
+
+        # Create Device (the DUT being tested)
+        device = db.device.create(
+            data={
+                "serialNumber": data.serial_number,
+                "sessionId": session.id,
+                "status": "PENDING",
+            },
+        )
+
+        # Find enabled tests for this product, optionally filtered
+        test_where = {"productId": data.product_id, "enabled": True}
+        if data.test_filter:
+            test_where["name"] = {"in": data.test_filter}
+
+        tests = db.test.find_many(
+            where=test_where,
+            order={"sortOrder": "asc"},
+        )
+
+        # Create TestExecution for each test
+        executions = []
+        for test in tests:
+            execution = db.testexecution.create(
+                data={
+                    "testId": test.id,
+                    "nodeId": data.node_id,
+                    "deviceId": device.id,
+                    "status": "QUEUED",
+                    "triggeredById": user_id,
+                },
+            )
+            executions.append(execution)
+
+        # Update session target count
+        db.session.update(
+            where={"id": session.id},
+            data={"targetCount": len(executions)},
+        )
+
+        log_audit("validation.run.create", "Session", session.id, {
+            "name": data.name,
+            "productId": data.product_id,
+            "nodeId": data.node_id,
+            "serialNumber": data.serial_number,
+            "testCount": len(executions),
+        })
+
+        result = _serialize_session(session)
+        result["devices"] = [_serialize_device(device)]
+        result["targetCount"] = len(executions)
+        result["executionCount"] = len(executions)
+
+        return jsonify(ApiResponse.created(result).to_dict()), 201
+
+    except Exception as e:
+        logger.error(f"Failed to create validation run: {e}")
+        return internal_error("Failed to create validation run")
+
+
+@require_permissions(Permissions.ADMIN_VALIDATION_VIEW)
+def list_runs():
+    """GET /v2/validation/runs — List validation runs with pagination and filters."""
+    db = get_db_client()
+
+    page = max(1, request.args.get("page", 1, type=int))
+    limit = min(max(1, request.args.get("limit", 50, type=int)), 100)
+    skip = (page - 1) * limit
+
+    # Build filter
+    where = {}
+    status = request.args.get("status")
+    if status:
+        where["status"] = status.upper()
+
+    product_id = request.args.get("productId")
+    if product_id:
+        where["productId"] = product_id
+
+    # Only return sessions that have config (validation runs have nodeId in config)
+    # This distinguishes validation runs from manufacturing sessions
+    where["config"] = {"not": None}
+
+    total = db.session.count(where=where)
+    sessions = db.session.find_many(
+        where=where,
+        skip=skip,
+        take=limit,
+        order={"createdAt": "desc"},
+        include={
+            "product": True,
+            "createdBy": True,
+            "devices": True,
+        },
+    )
+
+    return jsonify(ApiResponse.ok({
+        "data": [_serialize_session(s) for s in sessions],
+        "pagination": {
+            "page": page,
+            "limit": limit,
+            "total": total,
+            "pages": math.ceil(total / limit) if limit > 0 else 0,
+        },
+    }).to_dict()), 200
+
+
+@require_permissions(Permissions.ADMIN_VALIDATION_VIEW)
+def get_run(run_id: str):
+    """GET /v2/validation/runs/<id> — Run detail with devices and executions."""
+    db = get_db_client()
+
+    session = db.session.find_unique(
+        where={"id": run_id},
+        include={
+            "product": True,
+            "createdBy": True,
+            "devices": {
+                "include": {
+                    "executions": {
+                        "include": {
+                            "test": True,
+                            "results": True,
+                        },
+                    },
+                },
+            },
+        },
+    )
+
+    if not session:
+        return not_found("Validation run not found")
+
+    return jsonify(ApiResponse.ok(_serialize_session(session, include_executions=True)).to_dict()), 200
+
+
+@require_permissions(Permissions.ADMIN_VALIDATION_MANAGE)
+def cancel_run(run_id: str):
+    """POST /v2/validation/runs/<id>/cancel — Cancel a running session."""
+    db = get_db_client()
+
+    session = db.session.find_unique(where={"id": run_id})
+    if not session:
+        return not_found("Validation run not found")
+
+    if session.status not in ("ACTIVE", "PAUSED"):
+        return conflict(f"Cannot cancel a run with status {session.status}")
+
+    # Cancel all queued/running executions
+    db.testexecution.update_many(
+        where={
+            "device": {"sessionId": run_id},
+            "status": {"in": ["QUEUED", "RUNNING"]},
+        },
+        data={"status": "CANCELLED"},
+    )
+
+    # Update session
+    session = db.session.update(
+        where={"id": run_id},
+        data={
+            "status": "CANCELLED",
+            "finishedAt": datetime.now(timezone.utc),
+        },
+        include={"product": True, "createdBy": True},
+    )
+
+    log_audit("validation.run.cancel", "Session", run_id, {"previousStatus": "ACTIVE"})
+
+    return jsonify(ApiResponse.ok(_serialize_session(session)).to_dict()), 200
