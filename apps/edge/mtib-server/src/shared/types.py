@@ -1,4 +1,5 @@
 from protocols.mtib.mtib_pb2 import (
+    # Existing types (backward compat)
     AccelReadResponse,
     AdcReadAllResponse,
     AdcReadRequest,
@@ -12,6 +13,8 @@ from protocols.mtib.mtib_pb2 import (
     Empty,
     EnableAppProtectRequest,
     EnableAppProtectResponse,
+    EraseFlashRequest,
+    EraseFlashResponse,
     FlashFwFileRequest,
     FlashFwFileResponse,
     FwFileInfo,
@@ -28,8 +31,6 @@ from protocols.mtib.mtib_pb2 import (
     HostType,
     ListFwFilesResponse,
     ListProgrammersResponse,
-    EraseFlashRequest,
-    EraseFlashResponse,
     MotionHomeResponse,
     MotionStartRequest,
     MotionStartResponse,
@@ -41,6 +42,27 @@ from protocols.mtib.mtib_pb2 import (
     UartStreamResponse,
     UploadFwFileRequest,
     UploadFwFileResponse,
+    # V2 types
+    PowerChannel,
+    PowerEnableRequest,
+    PowerDisableRequest,
+    PowerReadRequest,
+    PowerReadResponse,
+    PowerMeasureRequest,
+    PowerMeasureResponse,
+    PowerSample,
+    PowerStreamRequest,
+    PowerStreamResponse,
+    GpioEdge,
+    GpioWatchRequest,
+    GpioWatchEvent,
+    AdcStreamRequest,
+    AdcStreamSample,
+    AdcStreamResponse,
+    SnapshotPower,
+    SnapshotGpio,
+    SnapshotAdc,
+    GetSnapshotResponse,
 )
 
 # Import gRPC service types

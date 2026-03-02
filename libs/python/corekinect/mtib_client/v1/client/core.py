@@ -18,12 +18,16 @@ import grpc
 from corekinect.utils import Logger
 from grpc import RpcError, insecure_channel
 
-# Import actual protobuf types for UART streaming and motion streaming
+# Import actual protobuf types for streaming RPCs
 from protocols.mtib.mtib_pb2 import (
     MotionStartRequest,
     MotionStartResponse,
     UartStreamRequest,
     UartStreamResponse,
+    # V2 streaming types
+    PowerStreamResponse,
+    GpioWatchEvent,
+    AdcStreamResponse,
 )
 
 # Protocol includes
@@ -635,6 +639,226 @@ class MtibV1Client:
             )
         except Exception as e:
             return None, None, None, f"Unexpected error in DutChargePowerRead at {self.config.net.addr}: {str(e)}"
+
+    # -----------------------------------------------
+    #                             V2 Unified Power
+    # ---------------------------------------------*/
+    def PowerEnable(self, channel: int = 0, voltage_v: float = 0.0) -> Optional[str]:
+        """Enable power on a channel.
+
+        Args:
+            channel: Power channel (0=DUT, 1=CHARGER). Use PowerChannel enum.
+            voltage_v: Voltage to set (only meaningful for DUT channel).
+
+        Returns:
+            Optional[str]: None on success, error message string on failure
+        """
+        try:
+            response = self.client.PowerEnable(
+                PowerEnableRequest(channel=channel, voltage_v=voltage_v),
+                timeout=DEFAULT_GRPC_TIMEOUT_SECONDS,
+            )
+            if not response.success:
+                return f"PowerEnable error: {response.message}"
+            return None
+        except grpc.RpcError as e:
+            return f"gRPC error for PowerEnable at {self.config.net.addr}. Error: {str(e.details())}"
+        except Exception as e:
+            return f"Unexpected error in PowerEnable at {self.config.net.addr}: {str(e)}"
+
+    def PowerDisable(self, channel: int = 0) -> Optional[str]:
+        """Disable power on a channel.
+
+        Args:
+            channel: Power channel (0=DUT, 1=CHARGER). Use PowerChannel enum.
+
+        Returns:
+            Optional[str]: None on success, error message string on failure
+        """
+        try:
+            response = self.client.PowerDisable(
+                PowerDisableRequest(channel=channel),
+                timeout=DEFAULT_GRPC_TIMEOUT_SECONDS,
+            )
+            if not response.success:
+                return f"PowerDisable error: {response.message}"
+            return None
+        except grpc.RpcError as e:
+            return f"gRPC error for PowerDisable at {self.config.net.addr}. Error: {str(e.details())}"
+        except Exception as e:
+            return f"Unexpected error in PowerDisable at {self.config.net.addr}: {str(e)}"
+
+    def PowerRead(self, channel: int = 0) -> Tuple[Optional[PowerReadResult], Optional[str]]:
+        """Read power status for a channel.
+
+        Args:
+            channel: Power channel (0=DUT, 1=CHARGER). Use PowerChannel enum.
+
+        Returns:
+            Tuple of (PowerReadResult, error). Result is None on error.
+        """
+        try:
+            response = self.client.PowerRead(
+                PowerReadRequest(channel=channel),
+                timeout=DEFAULT_GRPC_TIMEOUT_SECONDS,
+            )
+            if not response.success:
+                return None, f"PowerRead error: {response.message}"
+            return PowerReadResult(
+                enabled=response.enabled,
+                voltage_v=response.voltage_v,
+                current_ma=response.current_ma,
+                power_mw=response.power_mw,
+            ), None
+        except grpc.RpcError as e:
+            return None, f"gRPC error for PowerRead at {self.config.net.addr}. Error: {str(e.details())}"
+        except Exception as e:
+            return None, f"Unexpected error in PowerRead at {self.config.net.addr}: {str(e)}"
+
+    def PowerMeasure(self, channel: int = 0, duration_s: float = 1.0) -> Tuple[Optional[PowerMeasureResult], Optional[str]]:
+        """Measure power over a duration and compute statistics.
+
+        Args:
+            channel: Power channel (0=DUT, 1=CHARGER). Use PowerChannel enum.
+            duration_s: Measurement duration in seconds.
+
+        Returns:
+            Tuple of (PowerMeasureResult, error). Result is None on error.
+        """
+        try:
+            response = self.client.PowerMeasure(
+                PowerMeasureRequest(channel=channel, duration_s=duration_s),
+                timeout=max(DEFAULT_GRPC_TIMEOUT_SECONDS, duration_s + 5),
+            )
+            if not response.success:
+                return None, f"PowerMeasure error: {response.message}"
+            return PowerMeasureResult(
+                duration_s=response.duration_s,
+                average_ma=response.average_ma,
+                min_ma=response.min_ma,
+                max_ma=response.max_ma,
+                average_mv=response.average_mv,
+                sample_count=response.sample_count,
+            ), None
+        except grpc.RpcError as e:
+            return None, f"gRPC error for PowerMeasure at {self.config.net.addr}. Error: {str(e.details())}"
+        except Exception as e:
+            return None, f"Unexpected error in PowerMeasure at {self.config.net.addr}: {str(e)}"
+
+    def PowerStream(self, channel: int = 0) -> Iterator[PowerStreamResponse]:
+        """Stream power samples until cancelled.
+
+        Args:
+            channel: Power channel (0=DUT, 1=CHARGER). Use PowerChannel enum.
+
+        Yields:
+            PowerStreamResponse containing samples with timestamp_ms, voltage_mv, current_ma.
+        """
+        try:
+            response_iterator = self.client.PowerStream(PowerStreamRequest(channel=channel))
+            for response in response_iterator:
+                yield response
+        except grpc.RpcError as e:
+            self.logger.error(f"gRPC error for PowerStream at {self.config.net.addr}. Error: {str(e.details())}")
+        except Exception as e:
+            self.logger.error(f"Unexpected error in PowerStream at {self.config.net.addr}: {str(e)}")
+
+    # -----------------------------------------------
+    #                            V2 GPIO Watch
+    # ---------------------------------------------*/
+    def GpioWatch(self, gpio: int, edge: int = 2) -> Iterator[GpioWatchEvent]:
+        """Stream GPIO edge events until cancelled.
+
+        Args:
+            gpio: GPIO pin number to watch.
+            edge: Edge type (0=RISING, 1=FALLING, 2=BOTH). Use GpioEdge enum.
+
+        Yields:
+            GpioWatchEvent containing gpio, state, timestamp_ms.
+        """
+        try:
+            response_iterator = self.client.GpioWatch(GpioWatchRequest(gpio=gpio, edge=edge))
+            for event in response_iterator:
+                yield event
+        except grpc.RpcError as e:
+            self.logger.error(f"gRPC error for GpioWatch at {self.config.net.addr}. Error: {str(e.details())}")
+        except Exception as e:
+            self.logger.error(f"Unexpected error in GpioWatch at {self.config.net.addr}: {str(e)}")
+
+    # -----------------------------------------------
+    #                            V2 ADC Stream
+    # ---------------------------------------------*/
+    def AdcStream(self, channels: List[int] = None, interval_ms: int = 100) -> Iterator[AdcStreamResponse]:
+        """Stream ADC samples at specified interval until cancelled.
+
+        Args:
+            channels: List of channel numbers to read. None = all 8.
+            interval_ms: Sample interval in milliseconds. Default 100 (10 Hz).
+
+        Yields:
+            AdcStreamResponse containing samples with timestamp_ms, channel, voltage_v.
+        """
+        try:
+            request = AdcStreamRequest(
+                channels=channels if channels else [],
+                interval_ms=interval_ms,
+            )
+            response_iterator = self.client.AdcStream(request)
+            for response in response_iterator:
+                yield response
+        except grpc.RpcError as e:
+            self.logger.error(f"gRPC error for AdcStream at {self.config.net.addr}. Error: {str(e.details())}")
+        except Exception as e:
+            self.logger.error(f"Unexpected error in AdcStream at {self.config.net.addr}: {str(e)}")
+
+    # -----------------------------------------------
+    #                        V2 Observability
+    # ---------------------------------------------*/
+    def HealthCheckExtended(
+        self, timeout: int = DEFAULT_GRPC_TIMEOUT_SECONDS
+    ) -> Tuple[Optional[HealthCheckExtendedResponse], Optional[str]]:
+        """Extended health check returning hw_revision and capabilities.
+
+        Args:
+            timeout: Timeout in seconds.
+
+        Returns:
+            Tuple of (HealthCheckExtendedResponse, error). Result is None on error.
+        """
+        try:
+            response = self.client.HealthCheck(Empty(), timeout=timeout)
+            return HealthCheckExtendedResponse(
+                ready=response.ready,
+                errors=list(response.errors),
+                hw_revision=response.hw_revision,
+                capabilities=list(response.capabilities),
+            ), None
+        except grpc.RpcError as e:
+            return None, f"gRPC error for HealthCheckExtended at {self.config.net.addr}. Error: {str(e.details())}"
+        except Exception as e:
+            return None, f"Unexpected error in HealthCheckExtended at {self.config.net.addr}: {str(e)}"
+
+    def GetSnapshot(self) -> Tuple[Optional[SnapshotResult], Optional[str]]:
+        """Get a one-shot system state snapshot.
+
+        Returns:
+            Tuple of (SnapshotResult, error). Result is None on error.
+        """
+        try:
+            response = self.client.GetSnapshot(Empty(), timeout=DEFAULT_GRPC_TIMEOUT_SECONDS)
+            if not response.success:
+                return None, f"GetSnapshot error: {response.message}"
+            return SnapshotResult(
+                timestamp_ms=response.timestamp_ms,
+                hw_revision=response.hw_revision,
+                power=list(response.power),
+                gpio=list(response.gpio),
+                adc=list(response.adc),
+            ), None
+        except grpc.RpcError as e:
+            return None, f"gRPC error for GetSnapshot at {self.config.net.addr}. Error: {str(e.details())}"
+        except Exception as e:
+            return None, f"Unexpected error in GetSnapshot at {self.config.net.addr}: {str(e)}"
 
     # -----------------------------------------------
     #                                        Sensors

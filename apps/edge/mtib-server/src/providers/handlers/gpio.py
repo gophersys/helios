@@ -1,6 +1,7 @@
 # Standard library imports
-from enum import Enum
-from typing import Dict, Optional, Tuple
+import threading
+import time
+from typing import Dict, Iterator, Optional
 
 # Third party imports
 import gpiod
@@ -8,7 +9,7 @@ import grpc
 
 # Corekinect imports
 from corekinect.utils import Logger
-from gpiod.line import Direction, Value
+from gpiod.line import Direction, Edge, Value
 
 # Protocol imports
 from src.services.gpio import Gpio, Pin
@@ -27,14 +28,12 @@ class GpioHandler:
         """Configure a GPIO pin's direction and resistor settings."""
         self.logger.info(f"GpioConfig request received for GPIO {request.gpio}")
 
-        # Validate GPIO number
         if request.gpio not in self.gpios:
             return GpioConfigResponse(success=False, message=f"Invalid GPIO number {request.gpio}. GPIO not found.")
 
         gpio = self.gpios[request.gpio]
         gpio.deinit()
 
-        # Update the GPIO direction before reinitializing
         direction = Direction.OUTPUT if request.direction == GpioDirection.GPIO_DIRECTION_OUTPUT else Direction.INPUT
         gpio.direction = direction
 
@@ -71,3 +70,103 @@ class GpioHandler:
             return GpioReadResponse(success=False, message=f"Failed to read GPIO: {err}", state=False)
 
         return GpioReadResponse(success=True, message="", state=bool(value))
+
+    def watch(self, request: GpioWatchRequest, context: grpc.ServicerContext) -> Iterator[GpioWatchEvent]:
+        """Server-streaming GPIO edge detection (V2 RPC)."""
+        self.logger.info(f"GpioWatch: gpio={request.gpio}, edge={request.edge}")
+
+        if request.gpio not in self.gpios:
+            return
+
+        gpio = self.gpios[request.gpio]
+        pin = gpio.pin
+
+        # Map proto edge enum to gpiod edge
+        edge_map = {
+            GpioEdge.GPIO_EDGE_RISING: Edge.RISING,
+            GpioEdge.GPIO_EDGE_FALLING: Edge.FALLING,
+            GpioEdge.GPIO_EDGE_BOTH: Edge.BOTH,
+        }
+        gpiod_edge = edge_map.get(request.edge, Edge.BOTH)
+
+        # We need to temporarily release the pin from the existing request
+        # and re-request it with edge detection enabled
+        gpio.deinit()
+
+        watch_request = None
+        try:
+            # Find the chip and request with edge detection
+            for chip_num in range(5):
+                try:
+                    chip = gpiod.Chip(f"/dev/gpiochip{chip_num}")
+                    config = {
+                        pin.value: gpiod.LineSettings(
+                            direction=Direction.INPUT,
+                            edge_detection=gpiod_edge,
+                            debounce_period=gpiod.line.clock.Monotonic if hasattr(gpiod.line, 'clock') else None,
+                        )
+                    }
+                    # Try simpler config if the above fails
+                    try:
+                        config = {
+                            pin.value: gpiod.LineSettings(
+                                direction=Direction.INPUT,
+                                edge_detection=gpiod_edge,
+                            )
+                        }
+                        watch_request = chip.request_lines(config=config, consumer="mtib-gpio-watch")
+                    except Exception:
+                        continue
+                    break
+                except Exception:
+                    continue
+
+            if not watch_request:
+                self.logger.error(f"GpioWatch: Could not configure edge detection for GPIO {request.gpio}")
+                return
+
+            self.logger.info(f"GpioWatch: Monitoring GPIO {request.gpio} for {gpiod_edge} edges")
+            start_time = time.time()
+
+            while context.is_active():
+                # Wait for edge events with timeout
+                if watch_request.wait_edge_events(timeout=gpiod.line.clock.Monotonic if hasattr(gpiod.line, 'clock') else None):
+                    pass
+
+                try:
+                    # Use a polling approach that works across gpiod versions
+                    events = watch_request.read_edge_events()
+                    for event in events:
+                        if not context.is_active():
+                            break
+                        elapsed_ms = int((time.time() - start_time) * 1000)
+                        state = event.event_type == gpiod.EdgeEvent.Type.RISING_EDGE
+                        yield GpioWatchEvent(
+                            gpio=request.gpio,
+                            state=state,
+                            timestamp_ms=elapsed_ms,
+                        )
+                except Exception:
+                    # No events available, poll with short sleep
+                    time.sleep(0.01)
+
+        except Exception as e:
+            self.logger.error(f"GpioWatch error: {e}")
+        finally:
+            if watch_request:
+                watch_request.release()
+            # Re-initialize the original GPIO config
+            gpio.init()
+            self.logger.info(f"GpioWatch ended for GPIO {request.gpio}")
+
+    def get_snapshot_data(self) -> list:
+        """Return current GPIO states for GetSnapshot."""
+        result = []
+        for gpio_num, gpio in self.gpios.items():
+            try:
+                err, value = gpio.read()
+                if not err:
+                    result.append(SnapshotGpio(gpio=gpio_num, state=bool(value)))
+            except Exception as e:
+                self.logger.warning(f"Snapshot: failed to read GPIO {gpio_num}: {e}")
+        return result

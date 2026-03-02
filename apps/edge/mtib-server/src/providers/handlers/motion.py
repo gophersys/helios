@@ -1,6 +1,7 @@
 import sys
 import threading
 import time
+from typing import Optional
 
 import grpc
 from corekinect.utils import Logger
@@ -16,6 +17,9 @@ class MotionHandler:
         self.assets_dir = assets_dir
         self.serial_port = serial_port
         self.reset_pin = reset_pin
+
+        # REV 1.2 motor power switch (set via set_gpio_expander)
+        self._gpio_expander = None
 
         # Instantiate the FluidNC object
         self.fluidnc = FluidNC(
@@ -33,6 +37,31 @@ class MotionHandler:
         # Initialize the internal state
         self.state: MotionStatus = MotionStatus.MOTION_STATUS_IDLE
         self.current_motion_data = None  # Store current motion progress data
+
+    def set_gpio_expander(self, gpio_expander) -> None:
+        """Set the TCA9534A GPIO expander for REV 1.2 motor power control.
+
+        On REV 1.2, the motor power MOSFET (VMM_EN) is controlled by TCA9534A P2.
+        It must be enabled before any FluidNC commands. On REV 1.1, the motor is
+        always powered when the system is powered (no MOSFET), so this is a no-op.
+        """
+        self._gpio_expander = gpio_expander
+        self.logger.info("Motor power switch support enabled via TCA9534A")
+
+    def _set_motor_power(self, enable: bool) -> Optional[str]:
+        """Enable/disable motor power on REV 1.2. No-op on REV 1.1.
+
+        Returns error string on failure, None on success.
+        """
+        if self._gpio_expander is None:
+            return None  # REV 1.1: motor always powered
+        try:
+            self._gpio_expander.set_motor_power(enable)
+            self.logger.info(f"Motor power {'enabled' if enable else 'disabled'}")
+            return None
+        except Exception as e:
+            self.logger.error(f"Failed to set motor power: {e}")
+            return f"Failed to set motor power: {e}"
 
     # -------------------------------------------------
     #                                            Motion
@@ -77,6 +106,11 @@ class MotionHandler:
     def start(self, request: MotionStartRequest, context: grpc.ServicerContext):
         """Start motion with streaming progress updates."""
         self.logger.debug(f"MotionStart request received: {request}")
+
+        # Enable motor power on REV 1.2
+        if err := self._set_motor_power(True):
+            yield MotionStartResponse(success=False, message=err)
+            return
 
         # Set initial state
         self.state = MotionStatus.MOTION_STATUS_MOVING
@@ -155,9 +189,18 @@ class MotionHandler:
     def home(self, request: Empty, context: grpc.ServicerContext) -> MotionHomeResponse:
         """Home all axes."""
         self.logger.info("MotionHome request received")
+
+        # Enable motor power on REV 1.2
+        if err := self._set_motor_power(True):
+            return MotionHomeResponse(success=False, message=err)
+
         err = self.fluidnc.home()
         if err:
             return MotionHomeResponse(success=False, message=err)
+
+        # Disable motor power on REV 1.2 (power saving)
+        if err := self._set_motor_power(False):
+            self.logger.warning(f"Failed to disable motor power after home: {err}")
 
         return MotionHomeResponse(success=True, message="Success")
 
@@ -174,5 +217,9 @@ class MotionHandler:
         if err:
             self.state = MotionStatus.MOTION_STATUS_ERRORED
             return MotionStopResponse(success=False, message=err)
+
+        # Disable motor power on REV 1.2 (power saving)
+        if err := self._set_motor_power(False):
+            self.logger.warning(f"Failed to disable motor power after stop: {err}")
 
         return MotionStopResponse(success=True, message="Motion stopped successfully")

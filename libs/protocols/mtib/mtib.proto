@@ -55,6 +55,24 @@ service MtibV1 {
   // Uart streams
   rpc UartStream(stream UartStreamRequest) returns (stream UartStreamResponse) {
   }
+
+  // --- V2 RPCs ---
+
+  // Power (unified)
+  rpc PowerEnable(PowerEnableRequest) returns (DutPowerResponse) {}
+  rpc PowerDisable(PowerDisableRequest) returns (DutPowerResponse) {}
+  rpc PowerRead(PowerReadRequest) returns (PowerReadResponse) {}
+  rpc PowerMeasure(PowerMeasureRequest) returns (PowerMeasureResponse) {}
+  rpc PowerStream(PowerStreamRequest) returns (stream PowerStreamResponse) {}
+
+  // GPIO watch
+  rpc GpioWatch(GpioWatchRequest) returns (stream GpioWatchEvent) {}
+
+  // ADC stream
+  rpc AdcStream(AdcStreamRequest) returns (stream AdcStreamResponse) {}
+
+  // Observability
+  rpc GetSnapshot(Empty) returns (GetSnapshotResponse) {}
 }
 
 // Shared
@@ -64,6 +82,8 @@ message Empty {}
 message HealthCheckResponse {
   bool ready = 1;
   repeated string errors = 2;
+  string hw_revision = 3;           // "REV1.1" or "REV1.2"
+  repeated string capabilities = 4;  // ["power", "gpio", "adc", "uart", "flash", "motion", "observability"]
 }
 
 // Gpio
@@ -78,6 +98,12 @@ enum GpioResistorConfig {
   GPIO_RESISTOR_PULL_UP = 1;
   GPIO_RESISTOR_PULL_DOWN = 2;
   GPIO_RESISTOR_NONE = 3;
+}
+
+enum GpioEdge {
+  GPIO_EDGE_RISING = 0;
+  GPIO_EDGE_FALLING = 1;
+  GPIO_EDGE_BOTH = 2;
 }
 
 message GpioConfigRequest {
@@ -109,6 +135,18 @@ message GpioReadResponse {
   bool state = 3;
 }
 
+// GPIO Watch (V2)
+message GpioWatchRequest {
+  int32 gpio = 1;
+  GpioEdge edge = 2;
+}
+
+message GpioWatchEvent {
+  int32 gpio = 1;
+  bool state = 2;
+  uint64 timestamp_ms = 3;
+}
+
 // Adc
 message AdcReadRequest { int32 channel = 1; }
 
@@ -122,6 +160,22 @@ message AdcReadAllResponse {
   bool success = 1;
   string message = 2;
   repeated double voltages_v = 3;
+}
+
+// ADC Stream (V2)
+message AdcStreamRequest {
+  repeated int32 channels = 1;
+  uint32 interval_ms = 2;   // Default: 100 (10 Hz)
+}
+
+message AdcStreamSample {
+  uint64 timestamp_ms = 1;
+  int32 channel = 2;
+  double voltage_v = 3;
+}
+
+message AdcStreamResponse {
+  repeated AdcStreamSample samples = 1;
 }
 
 // Power
@@ -140,6 +194,64 @@ message DutPowerReadResponse {
   double current_a = 3;
   double voltage_v = 4;
   double power_w = 5;
+}
+
+// Unified Power (V2)
+enum PowerChannel {
+  POWER_CHANNEL_DUT = 0;      // Main DUT power (INA219 @ 0x40, MCP4017)
+  POWER_CHANNEL_CHARGER = 1;  // Charge rail (INA219 @ 0x41)
+}
+
+message PowerEnableRequest {
+  PowerChannel channel = 1;
+  double voltage_v = 2;     // Only meaningful for DUT channel
+}
+
+message PowerDisableRequest {
+  PowerChannel channel = 1;
+}
+
+message PowerReadRequest {
+  PowerChannel channel = 1;
+}
+
+message PowerReadResponse {
+  bool success = 1;
+  string message = 2;
+  bool enabled = 3;
+  double voltage_v = 4;
+  double current_ma = 5;
+  double power_mw = 6;
+}
+
+message PowerMeasureRequest {
+  PowerChannel channel = 1;
+  float duration_s = 2;
+}
+
+message PowerMeasureResponse {
+  bool success = 1;
+  string message = 2;
+  float duration_s = 3;
+  float average_ma = 4;
+  float min_ma = 5;
+  float max_ma = 6;
+  float average_mv = 7;
+  uint32 sample_count = 8;
+}
+
+message PowerSample {
+  uint64 timestamp_ms = 1;
+  float voltage_mv = 2;
+  float current_ma = 3;
+}
+
+message PowerStreamRequest {
+  PowerChannel channel = 1;
+}
+
+message PowerStreamResponse {
+  repeated PowerSample samples = 1;
 }
 
 // Sensors
@@ -321,6 +433,34 @@ message EraseFlashRequest {
 message EraseFlashResponse {
   bool success = 1;
   string message = 2;
+}
+
+// Observability (V2)
+message SnapshotPower {
+  PowerChannel channel = 1;
+  bool enabled = 2;
+  double voltage_v = 3;
+  double current_ma = 4;
+}
+
+message SnapshotGpio {
+  int32 gpio = 1;
+  bool state = 2;
+}
+
+message SnapshotAdc {
+  int32 channel = 1;
+  double voltage_v = 2;
+}
+
+message GetSnapshotResponse {
+  bool success = 1;
+  string message = 2;
+  uint64 timestamp_ms = 3;
+  string hw_revision = 4;
+  repeated SnapshotPower power = 5;
+  repeated SnapshotGpio gpio = 6;
+  repeated SnapshotAdc adc = 7;
 }
 
 // Uart streams

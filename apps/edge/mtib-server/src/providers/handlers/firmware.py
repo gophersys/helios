@@ -13,7 +13,7 @@ from src.shared.types import *
 
 
 class FirmwareHandler:
-    JLINK_CLOCKSPEED_KHZ = 10000  # Default is 2000 kHz, doubled for faster programming
+    JLINK_CLOCKSPEED_KHZ = 4000  # Per hardware rules: always use 4000 for SWD through MTIB mux
 
     def __init__(self, logger: Logger):
         self.logger = logger
@@ -27,6 +27,38 @@ class FirmwareHandler:
 
         # Track active firmware files
         self.active_files: Dict[str, Tuple[Path, HostType]] = {}  # Maps filename to (temp file path, target)
+
+        # REV 1.2 J-Link mux support (set via set_hw_context)
+        self._gpio_expander = None  # TCA9534A instance, None on REV 1.1
+
+    def set_gpio_expander(self, gpio_expander) -> None:
+        """Set the TCA9534A GPIO expander for REV 1.2 J-Link mux control.
+
+        On REV 1.2, the J-Link multiplexer (SN74CBT3257C) is controlled by
+        TCA9534A P0 (JLINK_MUL). P0=LOW selects nRF52840, P0=HIGH selects nRF9151.
+        """
+        self._gpio_expander = gpio_expander
+        self.logger.info("J-Link mux support enabled via TCA9534A")
+
+    def _select_jlink_target(self, target: HostType) -> Optional[str]:
+        """Select the J-Link mux target on REV 1.2 before flash/erase operations.
+
+        Returns error string on failure, None on success.
+        """
+        if self._gpio_expander is None:
+            return None  # REV 1.1: no mux, single target
+
+        try:
+            # Empirically verified: P0=LOW → nRF9151, P0=HIGH → nRF52840
+            # (inverted from original assumption in TCA9534A driver comment)
+            swap = target in (HostType.HOST_TYPE_NRF52840, HostType.HOST_TYPE_NRF5340)
+            self._gpio_expander.set_jlink_mux(swap)
+            target_name = "nRF52840" if swap else "nRF9151"
+            self.logger.info(f"J-Link mux set to {target_name} (P0={'HIGH' if swap else 'LOW'})")
+            return None
+        except Exception as e:
+            self.logger.error(f"Failed to set J-Link mux: {e}")
+            return f"Failed to set J-Link mux: {e}"
 
     def _assign_jlinks(self, force_recovery: bool = False):
         """Detect and assign J-Link programmers to their respective chips."""
@@ -131,6 +163,16 @@ class FirmwareHandler:
             self.logger.warning(f"Unknown device version for serial {serial}")
             self.programmers[serial] = (None, False)
 
+    @staticmethod
+    def _get_family_flag(target: HostType) -> list:
+        """Return the nrfjprog -f family flag for the given target."""
+        if target in (HostType.HOST_TYPE_NRF9160, HostType.HOST_TYPE_NRF9151, HostType.HOST_TYPE_NRF9160_MODEM):
+            return ["-f", "NRF91"]
+        elif target == HostType.HOST_TYPE_NRF5340:
+            return ["-f", "NRF53"]
+        else:
+            return ["-f", "NRF52"]
+
     def _calculate_sha256(self, file_path: Path) -> str:
         """Calculate SHA256 hash of a file."""
         sha256_hash = hashlib.sha256()
@@ -153,6 +195,11 @@ class FirmwareHandler:
         """List available programmers."""
         self.logger.info("ListProgrammers request received")
         try:
+            # Scan for J-Link probes on every call — probes may be
+            # connected/disconnected at any time and the server has no
+            # persistent state about them from startup.
+            self._assign_jlinks(force_recovery=False)
+
             programmers = []
 
             # Create a programmer for each detected J-Link
@@ -264,6 +311,10 @@ class FirmwareHandler:
         """Flash a firmware file from RAM."""
         self.logger.info(f"FlashFwFile request received for {request.file_info.name}")
         try:
+            # Select J-Link mux target on REV 1.2
+            if err := self._select_jlink_target(request.file_info.target):
+                return FlashFwFileResponse(success=False, message=err, time_ms=0)
+
             # Re-scan and update programmer assignments before flashing
             self._assign_jlinks(force_recovery=True)
 
@@ -306,6 +357,9 @@ class FirmwareHandler:
                     time_ms=0,
                 )
 
+            # Determine nrfjprog family flag based on target
+            family_flag = self._get_family_flag(request.file_info.target)
+
             # Flash the firmware
             start_time = time.time()
             # Step 1: Recover if requested
@@ -318,7 +372,7 @@ class FirmwareHandler:
                         programmer,
                         "--clockspeed",
                         str(self.JLINK_CLOCKSPEED_KHZ),
-                    ]
+                    ] + family_flag
                     self.logger.info(f"Running recover: {' '.join(recover_cmd)}")
                     subprocess.run(
                         recover_cmd,
@@ -347,18 +401,32 @@ class FirmwareHandler:
                     return FlashFwFileResponse(success=False, message=error_msg, time_ms=0)
 
             # Step 2: Build the nrfjprog programming command
+            is_nrf91 = request.file_info.target in (
+                HostType.HOST_TYPE_NRF9160,
+                HostType.HOST_TYPE_NRF9151,
+                HostType.HOST_TYPE_NRF9160_MODEM,
+            )
             cmd = [
                 "nrfjprog",
                 "--program",
                 str(file_path),
-                "--verify",
                 "--snr",
                 programmer,
                 "--clockspeed",
                 str(self.JLINK_CLOCKSPEED_KHZ),
-            ]
+            ] + family_flag
+
+            # nRF91 secure firmware enables APPROTECT after programming,
+            # which prevents read-back verification. Skip --verify for nRF91.
+            if not is_nrf91:
+                cmd.append("--verify")
+
             if request.sector_erase:
                 cmd.append("--sectorerase")
+            else:
+                cmd.append("--chiperase")
+
+            cmd.append("--reset")
 
             # Step 3: Run the programming command
             self.logger.info(f"Running program: {' '.join(cmd)}")
@@ -367,29 +435,7 @@ class FirmwareHandler:
                 capture_output=True,
                 text=True,
                 check=True,
-                timeout=60,  # 1 minute timeout
-            )
-            time_ms = int((time.time() - start_time) * 1000)
-
-            # Step 4: Run the verify command
-            cmd = [
-                "nrfjprog",
-                "--verify",
-                str(file_path),
-                "--snr",
-                programmer,
-                "--clockspeed",
-                str(self.JLINK_CLOCKSPEED_KHZ),
-            ]
-
-            # Step 3: Run the programming command
-            self.logger.info(f"Running program: {' '.join(cmd)}")
-            result = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                check=True,
-                timeout=60,  # 1 minute timeout
+                timeout=120,
             )
             time_ms = int((time.time() - start_time) * 1000)
             self.logger.info(f"Successfully flashed firmware in {time_ms}ms")
@@ -422,6 +468,10 @@ class FirmwareHandler:
         """
         self.logger.info(f"EraseFlash request received for {request.target}, recover={request.recover}")
         try:
+            # Select J-Link mux target on REV 1.2
+            if err := self._select_jlink_target(request.target):
+                return EraseFlashResponse(success=False, message=err)
+
             # Re-scan and update programmer assignments before erasing flash
             # Use force_recovery=True when recover flag is set, otherwise False
             self._assign_jlinks(force_recovery=request.recover)
@@ -443,11 +493,12 @@ class FirmwareHandler:
             # Choose the appropriate erase command based on recover flag
             # --chiperase: Erases all non-volatile memory and UICR (when recover=False)
             # --recover: Erases everything including readback protection (when recover=True)
+            family_flag = self._get_family_flag(request.target)
             if request.recover:
-                cmd = ["nrfjprog", "--recover", "--snr", programmer, "--clockspeed", str(self.JLINK_CLOCKSPEED_KHZ)]
+                cmd = ["nrfjprog", "--recover", "--snr", programmer, "--clockspeed", str(self.JLINK_CLOCKSPEED_KHZ)] + family_flag
                 self.logger.info(f"Running recover erase: {' '.join(cmd)}")
             else:
-                cmd = ["nrfjprog", "--chiperase", "--snr", programmer, "--clockspeed", str(self.JLINK_CLOCKSPEED_KHZ)]
+                cmd = ["nrfjprog", "--chiperase", "--snr", programmer, "--clockspeed", str(self.JLINK_CLOCKSPEED_KHZ)] + family_flag
                 self.logger.info(f"Running chip erase: {' '.join(cmd)}")
 
             result = subprocess.run(

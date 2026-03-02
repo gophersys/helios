@@ -122,8 +122,7 @@ COPY libs/python /libs/python
 COPY libs/protocols/mtib /libs/protocols/mtib
 
 # Set the PYTHONPATH to include the libs directory
-ENV PYTHONPATH="/libs:${PYTHONPATH}"
-ENV PYTHONPATH="/libs/python/:${PYTHONPATH}"
+ENV PYTHONPATH="/libs:/libs/protocols:/libs/python/:${PYTHONPATH}"
 
 WORKDIR /app
 

@@ -1,4 +1,6 @@
-from typing import List, Optional, Dict
+import time
+from typing import Dict, Iterator, List, Optional
+
 import grpc
 import os
 import glob
@@ -225,3 +227,53 @@ class AdcHandler:
             voltages.append(real_voltage)
 
         return AdcReadAllResponse(success=True, message="", voltages_v=voltages)
+
+    def stream(self, request: AdcStreamRequest, context: grpc.ServicerContext) -> Iterator[AdcStreamResponse]:
+        """Server-streaming ADC samples at specified interval (V2 RPC)."""
+        channels = list(request.channels) if request.channels else list(range(8))
+        interval_ms = request.interval_ms if request.interval_ms > 0 else 100
+        interval_s = interval_ms / 1000.0
+
+        self.logger.info(f"AdcStream started: channels={channels}, interval={interval_ms}ms")
+        start_time = time.time()
+
+        try:
+            while context.is_active():
+                loop_start = time.time()
+                samples = []
+
+                for channel in channels:
+                    if not (0 <= channel <= 7):
+                        continue
+                    err, raw_value = self._read_raw(channel)
+                    if err:
+                        continue
+                    real_voltage = self._calculate_real_voltage(raw_value, channel)
+                    elapsed_ms = int((time.time() - start_time) * 1000)
+                    samples.append(AdcStreamSample(
+                        timestamp_ms=elapsed_ms,
+                        channel=channel,
+                        voltage_v=real_voltage,
+                    ))
+
+                if samples:
+                    yield AdcStreamResponse(samples=samples)
+
+                elapsed = time.time() - loop_start
+                sleep_time = interval_s - elapsed
+                if sleep_time > 0:
+                    time.sleep(sleep_time)
+        except Exception as e:
+            self.logger.error(f"AdcStream error: {e}")
+        finally:
+            self.logger.info("AdcStream ended")
+
+    def get_snapshot_data(self) -> list:
+        """Return current ADC readings for GetSnapshot."""
+        result = []
+        for channel in range(8):
+            err, raw_value = self._read_raw(channel)
+            if not err:
+                real_voltage = self._calculate_real_voltage(raw_value, channel)
+                result.append(SnapshotAdc(channel=channel, voltage_v=real_voltage))
+        return result

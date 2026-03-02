@@ -130,6 +130,14 @@ class MtibV1ProviderConfig:
     MOTION_ENABLED: bool
 
 
+# -------------------------------------------------
+#                           Capabilities list
+# -------------------------------------------------
+_BASE_CAPABILITIES = ["power", "gpio", "adc", "uart", "flash"]
+_MOTION_CAPABILITY = "motion"
+_OBSERVABILITY_CAPABILITY = "observability"
+
+
 # -----------------------------------------------------
 #                                 MTIB Service Provider
 # -----------------------------------------------------
@@ -154,6 +162,9 @@ class MtibV1Provider(MtibV1Servicer):
         # Objects we manage
         self._gpios: Dict[int, Gpio] = {}
 
+        # TCA9534A GPIO expander (REV 1.2 only)
+        self._gpio_expander = None
+
         # Metrics client
         self._metrics_client: Optional[mqtt.Client] = None
         self._metrics_thread: Optional[threading.Thread] = None
@@ -166,6 +177,10 @@ class MtibV1Provider(MtibV1Servicer):
         if err := self._config_gpio():
             self.logger.error(f"Failed to initialize the components: {err}")
             raise Exception(err)
+
+        if err := self._init_hw_extensions():
+            self.logger.error(f"Failed to initialize hardware extensions: {err}")
+            # Non-fatal: REV 1.2 features just won't be available
 
         if err := self._init_handlers():
             self.logger.error(f"Failed to initialize the handlers: {err}")
@@ -200,9 +215,29 @@ class MtibV1Provider(MtibV1Servicer):
         self.logger.debug("All GPIOs configured successfully")
         return None
 
+    def _init_hw_extensions(self) -> Optional[str]:
+        """Initialize REV 1.2 hardware extensions (TCA9534A GPIO expander)."""
+        if self.config.HARDWARE_VERSION != "REV1.2":
+            self.logger.info("Hardware version is not REV1.2, skipping TCA9534A init")
+            return None
+
+        try:
+            from src.hardware.tca9534a import TCA9534A
+            self._gpio_expander = TCA9534A(bus_num=3)
+            self._gpio_expander.init()
+            self.logger.info("TCA9534A GPIO expander initialized (REV 1.2)")
+            return None
+        except ImportError:
+            self.logger.warning("TCA9534A driver not available, REV 1.2 features disabled")
+            return None
+        except Exception as e:
+            self.logger.warning(f"TCA9534A init failed: {e}. REV 1.2 features disabled.")
+            self._gpio_expander = None
+            return None
+
     def _init_handlers(self) -> Optional[str]:
         """
-        Initialize the servicer function handlers, such as GPIO, ADC, Motion, Power, Sensors, Firmware, and UART.
+        Initialize the servicer function handlers.
         """
         # Determine which GPIO map to use based on the hardware version
         if self.config.HARDWARE_VERSION == "REV1.1":
@@ -219,6 +254,10 @@ class MtibV1Provider(MtibV1Servicer):
         self._sensors_handlers = SensorsHandler(self.logger)
         self._uart_handlers = UartHandler(self.logger)
 
+        # Pass TCA9534A to handlers that need it (REV 1.2 features)
+        if self._gpio_expander is not None:
+            self._firmware_handlers.set_gpio_expander(self._gpio_expander)
+
         # Initialize the motion handler based on the hardware version
         if self.config.MOTION_ENABLED:
             if self.config.HARDWARE_VERSION == "REV1.1":
@@ -229,6 +268,9 @@ class MtibV1Provider(MtibV1Servicer):
                 self._motion_handlers = MotionHandler(
                     self.logger, self.config.ASSETS_DIR, HARDWARE_REV_1_2_SERIAL_PORT, HARDWARE_REV_1_2_RESET_PIN
                 )
+                # Pass TCA9534A for VMM_EN motor power switch
+                if self._gpio_expander is not None:
+                    self._motion_handlers.set_gpio_expander(self._gpio_expander)
             else:
                 return f"Unsupported hardware version: {self.config.HARDWARE_VERSION}"
 
@@ -256,8 +298,7 @@ class MtibV1Provider(MtibV1Servicer):
 
             # Parse broker URL (format: mqtt://host:port or mqtts://host:port)
             if broker_url.startswith("mqtts://"):
-                # MQTT over SSL/TLS
-                broker_host = broker_url[8:]  # Remove "mqtts://"
+                broker_host = broker_url[8:]
                 if ":" in broker_host:
                     host, port = broker_host.split(":", 1)
                     port = int(port)
@@ -266,8 +307,7 @@ class MtibV1Provider(MtibV1Servicer):
                     port = 8883
                 self._metrics_client.tls_set()
             elif broker_url.startswith("mqtt://"):
-                # Plain MQTT
-                broker_host = broker_url[7:]  # Remove "mqtt://"
+                broker_host = broker_url[7:]
                 if ":" in broker_host:
                     host, port = broker_host.split(":", 1)
                     port = int(port)
@@ -275,11 +315,9 @@ class MtibV1Provider(MtibV1Servicer):
                     host = broker_host
                     port = 1883
             else:
-                # Assume plain MQTT with default port
                 host = broker_url
                 port = 1883
 
-            # Connect to broker
             self._metrics_client.connect(host, port, 60)
 
             # Start the metrics thread
@@ -295,21 +333,18 @@ class MtibV1Provider(MtibV1Servicer):
             return f"Failed to initialize metrics client: {e}"
 
     def _on_mqtt_connect(self, client, userdata, flags, rc):
-        """Callback for MQTT connection."""
         if rc == 0:
             self.logger.info("Connected to MQTT broker successfully")
         else:
             self.logger.error(f"Failed to connect to MQTT broker: {rc}")
 
     def _on_mqtt_disconnect(self, client, userdata, rc):
-        """Callback for MQTT disconnection."""
         if rc != 0:
             self.logger.warning(f"Unexpected MQTT disconnection: {rc}")
         else:
             self.logger.info("Disconnected from MQTT broker")
 
     def _on_mqtt_publish(self, client, userdata, mid):
-        """Callback for MQTT message publish."""
         pass
 
     def _metrics_worker(self):
@@ -318,91 +353,75 @@ class MtibV1Provider(MtibV1Servicer):
 
         while self._metrics_running:
             try:
-                # Publish ADC metrics
                 self._publish_adc_metrics()
-
-                # Publish GPIO metrics
                 self._publish_gpio_metrics()
-
-                # Sleep for 100ms (10Hz)
                 time.sleep(0.1)
-
             except Exception as e:
                 self.logger.error(f"Error in metrics worker: {e}")
-                time.sleep(1)  # Wait longer on error
+                time.sleep(1)
 
         self.logger.info("Metrics worker thread stopped")
 
     def _publish_adc_metrics(self):
-        """Publish ADC channel metrics to MQTT."""
         if not self._metrics_client or not self._adc_handlers:
             return
-
         try:
-            # Read all ADC channels
             for channel in range(8):
                 err, raw_value = self._adc_handlers._read_raw(channel)
                 if not err:
                     voltage = self._adc_handlers._calculate_real_voltage(raw_value, channel)
-
-                    # Publish individual channel metric - just the voltage value
                     topic = f"{self._hostname}/metrics/adc/{channel}"
-                    payload = voltage
-
-                    result = self._metrics_client.publish(topic, payload, qos=0)
+                    result = self._metrics_client.publish(topic, voltage, qos=0)
                     if result.rc != mqtt.MQTT_ERR_SUCCESS:
                         self.logger.warning(f"Failed to publish ADC metric for channel {channel}: {result.rc}")
-
-                else:
-                    self.logger.warning(f"Failed to read ADC channel {channel}: {err}")
-
         except Exception as e:
             self.logger.error(f"Error publishing ADC metrics: {e}")
 
     def _publish_gpio_metrics(self):
-        """Publish GPIO state metrics to MQTT."""
         if not self._metrics_client or not self._gpios:
             return
-
         try:
-            # Read all GPIO states
             for gpio_num, gpio in self._gpios.items():
                 try:
                     err, state = gpio.read()
                     if err:
-                        self.logger.warning(f"Failed to read GPIO {gpio_num}: {err}")
                         continue
-
-                    # Publish individual GPIO metric - just the state value
                     topic = f"{self._hostname}/metrics/gpio/{gpio_num}"
-                    payload = state
-
-                    result = self._metrics_client.publish(topic, payload, qos=0)
+                    result = self._metrics_client.publish(topic, state, qos=0)
                     if result.rc != mqtt.MQTT_ERR_SUCCESS:
                         self.logger.warning(f"Failed to publish GPIO metric for GPIO {gpio_num}: {result.rc}")
-
                 except Exception as e:
                     self.logger.warning(f"Failed to read GPIO {gpio_num}: {e}")
-
         except Exception as e:
             self.logger.error(f"Error publishing GPIO metrics: {e}")
 
     def stop_metrics(self):
-        """Stop the metrics client and worker thread."""
         if self._metrics_running:
             self.logger.info("Stopping metrics client...")
             self._metrics_running = False
-
             if self._metrics_thread and self._metrics_thread.is_alive():
                 self._metrics_thread.join(timeout=5)
-
             if self._metrics_client:
                 self._metrics_client.disconnect()
                 self.logger.info("Metrics client stopped")
 
     def __del__(self):
-        """Cleanup when the provider is destroyed."""
         self.stop_metrics()
+        if self._gpio_expander is not None:
+            try:
+                self._gpio_expander.close()
+            except Exception:
+                pass
+
+    # -------------------------------------------------
+    #                          Capabilities helper
+    # -------------------------------------------------
+    def _get_capabilities(self) -> List[str]:
+        caps = list(_BASE_CAPABILITIES)
+        if self.config.MOTION_ENABLED:
+            caps.append(_MOTION_CAPABILITY)
+        caps.append(_OBSERVABILITY_CAPABILITY)
+        return caps
 
     # -------------------------------------------------
     #                                     Health Check
@@ -410,7 +429,12 @@ class MtibV1Provider(MtibV1Servicer):
     @grpc_method
     def HealthCheck(self, request: Empty, context: grpc.ServicerContext) -> HealthCheckResponse:
         self.logger.info("HealthCheck request received")
-        return HealthCheckResponse(ready=True, errors=self.errors)
+        return HealthCheckResponse(
+            ready=True,
+            errors=self.errors,
+            hw_revision=self.config.HARDWARE_VERSION,
+            capabilities=self._get_capabilities(),
+        )
 
     # -------------------------------------------------
     #                                              GPIO
@@ -427,6 +451,10 @@ class MtibV1Provider(MtibV1Servicer):
     def GpioRead(self, request: GpioReadRequest, context: grpc.ServicerContext) -> GpioReadResponse:
         return self._gpio_handlers.read(request, context)
 
+    def GpioWatch(self, request: GpioWatchRequest, context: grpc.ServicerContext) -> Iterator[GpioWatchEvent]:
+        self.logger.debug(f"GpioWatch: Request received from {context.peer()}")
+        return self._gpio_handlers.watch(request, context)
+
     # -------------------------------------------------
     #                                               ADC
     # -------------------------------------------------
@@ -438,8 +466,12 @@ class MtibV1Provider(MtibV1Servicer):
     def AdcReadAll(self, request: Empty, context: grpc.ServicerContext) -> AdcReadAllResponse:
         return self._adc_handlers.read_all(request, context)
 
+    def AdcStream(self, request: AdcStreamRequest, context: grpc.ServicerContext) -> Iterator[AdcStreamResponse]:
+        self.logger.debug(f"AdcStream: Request received from {context.peer()}")
+        return self._adc_handlers.stream(request, context)
+
     # -------------------------------------------------
-    #                                             Power
+    #                                    Power (legacy)
     # -------------------------------------------------
     @grpc_method
     def DutPowerEnable(self, request: DutPowerRequest, context: grpc.ServicerContext) -> DutPowerResponse:
@@ -457,9 +489,6 @@ class MtibV1Provider(MtibV1Servicer):
     def DutChargePowerDisable(self, request: Empty, context: grpc.ServicerContext) -> DutPowerResponse:
         return self._power_handlers.dut_charge_power_disable(request, context)
 
-    # -------------------------------------------------
-    #                                 Power Consumption
-    # -------------------------------------------------
     @grpc_method
     def DutPowerRead(self, request: Empty, context: grpc.ServicerContext) -> DutPowerReadResponse:
         return self._power_handlers.dut_power_read(request, context)
@@ -467,6 +496,29 @@ class MtibV1Provider(MtibV1Servicer):
     @grpc_method
     def DutChargePowerRead(self, request: Empty, context: grpc.ServicerContext) -> DutPowerReadResponse:
         return self._power_handlers.dut_charge_power_read(request, context)
+
+    # -------------------------------------------------
+    #                                      Power (V2)
+    # -------------------------------------------------
+    @grpc_method
+    def PowerEnable(self, request: PowerEnableRequest, context: grpc.ServicerContext) -> DutPowerResponse:
+        return self._power_handlers.power_enable(request, context)
+
+    @grpc_method
+    def PowerDisable(self, request: PowerDisableRequest, context: grpc.ServicerContext) -> DutPowerResponse:
+        return self._power_handlers.power_disable(request, context)
+
+    @grpc_method
+    def PowerRead(self, request: PowerReadRequest, context: grpc.ServicerContext) -> PowerReadResponse:
+        return self._power_handlers.power_read(request, context)
+
+    @grpc_method
+    def PowerMeasure(self, request: PowerMeasureRequest, context: grpc.ServicerContext) -> PowerMeasureResponse:
+        return self._power_handlers.power_measure(request, context)
+
+    def PowerStream(self, request: PowerStreamRequest, context: grpc.ServicerContext) -> Iterator[PowerStreamResponse]:
+        self.logger.debug(f"PowerStream: Request received from {context.peer()}")
+        return self._power_handlers.power_stream(request, context)
 
     # -------------------------------------------------
     #                                           Sensors
@@ -491,8 +543,9 @@ class MtibV1Provider(MtibV1Servicer):
     @grpc_method
     def MotionStart(self, request: MotionStartRequest, context: grpc.ServicerContext) -> MotionStartResponse:
         if not self.config.MOTION_ENABLED:
-            return MotionStartResponse(success=False, message="Motion is not enabled")
-        return self._motion_handlers.start(request, context)
+            yield MotionStartResponse(success=False, message="Motion is not enabled")
+            return
+        yield from self._motion_handlers.start(request, context)
 
     @grpc_method
     def MotionHome(self, request: Empty, context: grpc.ServicerContext) -> MotionHomeResponse:
@@ -548,3 +601,30 @@ class MtibV1Provider(MtibV1Servicer):
         self, request_iterator: Iterator[UartStreamRequest], context: grpc.ServicerContext
     ) -> Iterator[UartStreamResponse]:
         return self._uart_handlers.stream(request_iterator, context)
+
+    # -------------------------------------------------
+    #                                   Observability
+    # -------------------------------------------------
+    @grpc_method
+    def GetSnapshot(self, request: Empty, context: grpc.ServicerContext) -> GetSnapshotResponse:
+        """Return a one-shot system state snapshot (V2 RPC)."""
+        self.logger.info("GetSnapshot request received")
+        try:
+            import time as _time
+            timestamp_ms = int(_time.time() * 1000)
+
+            power_data = self._power_handlers.get_snapshot_data()
+            gpio_data = self._gpio_handlers.get_snapshot_data()
+            adc_data = self._adc_handlers.get_snapshot_data()
+
+            return GetSnapshotResponse(
+                success=True,
+                timestamp_ms=timestamp_ms,
+                hw_revision=self.config.HARDWARE_VERSION,
+                power=power_data,
+                gpio=gpio_data,
+                adc=adc_data,
+            )
+        except Exception as e:
+            self.logger.error(f"GetSnapshot error: {e}")
+            return GetSnapshotResponse(success=False, message=str(e))

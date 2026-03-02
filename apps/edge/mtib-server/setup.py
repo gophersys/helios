@@ -15,6 +15,7 @@ setup(
         "xmodem==0.4.7",
         "cryptography",
         "smbus",
+        "smbus2",
         "reedsolo",
         "paho-mqtt==2.1.0",
         "PyYAML==6.0.3",
