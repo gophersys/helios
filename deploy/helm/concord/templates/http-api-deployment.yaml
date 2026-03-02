@@ -23,6 +23,18 @@ spec:
       {{- if .Values.httpApi.serviceAccount.create }}
       serviceAccountName: {{ .Values.httpApi.serviceAccount.name }}
       {{- end }}
+      {{- if .Values.httpApi.migration.enabled }}
+      initContainers:
+        - name: migrate
+          image: "{{ .Values.httpApi.image.repository }}:{{ .Values.httpApi.image.tag }}"
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          command: ["bash", "-c", "cd /prisma && prisma migrate deploy"]
+          envFrom:
+            - configMapRef:
+                name: concord-config
+            - secretRef:
+                name: concord-secrets
+      {{- end }}
       containers:
         - name: http-api
           image: "{{ .Values.httpApi.image.repository }}:{{ .Values.httpApi.image.tag }}"

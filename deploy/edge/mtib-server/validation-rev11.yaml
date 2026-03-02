@@ -1,0 +1,112 @@
+# MTIB V1 server for validation node — REV 1.1
+# Node: verdin-imx8mm-15702161 (10.4.45.32)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mtib-server-validation-rev11
+  labels:
+    app: mtib-server-validation-rev11
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mtib-server-validation-rev11
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        app: mtib-server-validation-rev11
+    spec:
+      terminationGracePeriodSeconds: 1
+      initContainers:
+      - name: remount-sys
+        image: busybox:latest
+        command: ['sh', '-c', 'mount -o remount,rw /sys']
+        securityContext:
+          privileged: true
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: "corekinect.com/role"
+                operator: In
+                values:
+                - "edge"
+              - key: "corekinect.com/purpose"
+                operator: In
+                values:
+                - "validation"
+              - key: "corekinect.com/mtib-revision"
+                operator: In
+                values:
+                - "1.1"
+      tolerations:
+      - key: "corekinect.com/role"
+        operator: "Equal"
+        value: "edge"
+        effect: "NoSchedule"
+      containers:
+      - name: mtib-server-validation-rev11
+        image: containers.ad.corekinect.com/concord-mtib-server:latest
+        imagePullPolicy: Always
+        securityContext:
+          privileged: true
+        ports:
+        - containerPort: 50053
+          hostPort: 50053
+        env:
+        - name: HARDWARE_VERSION
+          value: "REV1.1"
+        - name: LOG_LEVEL
+          value: "4"
+        - name: LOG_PATH
+          value: "/var/log"
+        - name: SERVER_PORT
+          value: "50053"
+        - name: ASSETS_PATH
+          value: "assets"
+        - name: METRICS_ENABLED
+          value: "false"
+        - name: METRICS_BROKER_URL
+          value: "mqtt://kubecop.ad.corekinect.com:1883"
+        - name: MOTION_ENABLED
+          value: "false"    # Disabled until motion scaffold is verified
+        volumeMounts:
+        - name: devices
+          mountPath: /dev
+        - name: logs
+          mountPath: /var/log/runner
+        - name: fw-files
+          mountPath: /var/fw_files/
+        - name: gpio
+          mountPath: /sys/class/gpio
+        - name: sys-bus-iio
+          mountPath: /sys/bus/iio
+        resources:
+          requests:
+            cpu: "1000m"
+            memory: "1000Mi"
+          limits:
+            cpu: "2000m"
+            memory: "2000Mi"
+      volumes:
+      - name: devices
+        hostPath:
+          path: /dev
+      - name: logs
+        hostPath:
+          path: /var/log/runner
+      - name: fw-files
+        hostPath:
+          path: /var/fw_files/
+      - name: gpio
+        hostPath:
+          path: /sys/class/gpio
+      - name: sys-bus-iio
+        hostPath:
+          path: /sys/bus/iio

@@ -36,6 +36,8 @@ httpApi:
     tag: staging
   replicas: 1
   port: 9001
+  migration:
+    enabled: true
   resources:
     requests:
       cpu: 100m

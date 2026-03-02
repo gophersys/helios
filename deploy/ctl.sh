@@ -270,7 +270,7 @@ cmd_staging() {
 
     destroy)
       warn "Removing all Concord resources from staging namespace..."
-      helm uninstall concord -n staging 2>/dev/null || kubectl delete -f "${SCRIPT_DIR}/staging/" --ignore-not-found
+      helm uninstall concord -n staging
       log "Staging resources removed."
       ;;
 
@@ -298,10 +298,16 @@ cmd_production() {
       # Build images via Nx
       cmd_build all production
 
-      # Push to registry
-      log "Pushing images to registry..."
-      docker push "${REGISTRY_API}:production"
-      docker push "${REGISTRY_FRONTEND}:production"
+      # Import images into K3s if running locally, otherwise push to registry
+      if command -v k3s &>/dev/null; then
+        log "Importing images into K3s..."
+        docker save "${IMAGE_API}:production" | sudo k3s ctr images import - 2>/dev/null || true
+        docker save "${IMAGE_FRONTEND}:production" | sudo k3s ctr images import - 2>/dev/null || true
+      else
+        log "Pushing images to registry..."
+        docker push "${REGISTRY_API}:production"
+        docker push "${REGISTRY_FRONTEND}:production"
+      fi
 
       echo ""
 
@@ -359,6 +365,44 @@ cmd_production() {
   esac
 }
 
+# ─── Diff (Helm) ─────────────────────────────────────────────
+
+cmd_diff() {
+  local env="${1:-staging}"
+  local values_file="${SCRIPT_DIR}/helm/values-${env}.yaml"
+
+  if [[ ! -f "${values_file}" ]]; then
+    err "No values file found for env: ${env}"
+    exit 1
+  fi
+
+  log "Diffing Helm template for ${env}..."
+
+  local helm_args=(
+    diff upgrade concord
+    "${SCRIPT_DIR}/helm/concord"
+    -n "${env}"
+    -f "${values_file}"
+  )
+
+  if [[ -f "${SCRIPT_DIR}/helm/values-${env}-secrets.yaml" ]]; then
+    helm_args+=(-f "${SCRIPT_DIR}/helm/values-${env}-secrets.yaml")
+  fi
+
+  helm "${helm_args[@]}" 2>/dev/null || warn "helm-diff plugin not installed — run: helm plugin install https://github.com/databus23/helm-diff"
+}
+
+# ─── Status (shortcut) ──────────────────────────────────────
+
+cmd_status() {
+  local env="${1:-staging}"
+  case "${env}" in
+    staging)    cmd_staging status ;;
+    production) cmd_production status ;;
+    *)          err "Unknown env: ${env}" ;;
+  esac
+}
+
 # ─── Version ──────────────────────────────────────────────────
 
 cmd_version() {
@@ -404,6 +448,9 @@ ${BOLD}Commands:${NC}
   ${GREEN}production logs [component]${NC}  Tail logs (http-api or frontend)
   ${GREEN}production restart${NC}           Rolling restart of production deployments
 
+  ${GREEN}diff [env]${NC}                   Preview Helm changes before deploying (needs helm-diff)
+  ${GREEN}status [env]${NC}                 Show pods/svc/ingress for an environment
+
   ${GREEN}version${NC}                      Show current version string
 
 ${BOLD}Examples:${NC}
@@ -433,6 +480,8 @@ case "${COMMAND}" in
   build)      cmd_build "$@" ;;
   staging)    cmd_staging "$@" ;;
   production) cmd_production "$@" ;;
+  diff)       cmd_diff "$@" ;;
+  status)     cmd_status "$@" ;;
   version)    cmd_version ;;
   help|-h|--help) usage ;;
   *)

@@ -6,8 +6,10 @@ set -euo pipefail
 # Idempotent - safe to re-run.
 #
 # Labels applied:
-#   corekinect.com/role    = server | agent | edge
-#   corekinect.com/purpose = platform | manufacturing | validation  (per-node)
+#   corekinect.com/role          = server | agent | edge
+#   corekinect.com/purpose       = platform | manufacturing | validation  (per-node)
+#   corekinect.com/mtib-revision = 1.1 | 1.2  (edge nodes only)
+#   node-role.kubernetes.io/edge = ""  (edge nodes — K8s role column)
 #
 # Taints applied (Phase C — only when --with-taints is passed):
 #   server/agent: corekinect.com/role=<role>:PreferNoSchedule
@@ -37,20 +39,23 @@ declare -A NODE_PURPOSE=(
   # Edge — set dynamically below per manufacturing/validation lists
 )
 
-# Edge nodes by purpose (hostnames from deployment manifests)
-EDGE_MANUFACTURING=(
-  "verdin-imx8mm-15005658"
-  "verdin-imx8mm-15005679"
-  "verdin-imx8mm-15005689"
-  "verdin-imx8mm-15005816"
-  "verdin-imx8mm-15005817"
+# MTIB hardware revision mapping for edge nodes.
+# Used by validation deployment manifests (nodeAffinity on mtib-revision).
+declare -A EDGE_MTIB_REVISION=(
+  ["verdin-imx8mm-15005665"]="1.2"    # 10.4.45.33 — TCA9534A, J-Link mux, motor switch
+  ["verdin-imx8mm-15702161"]="1.1"    # 10.4.45.32 — no GPIO expander
 )
+
+# Edge nodes by purpose (hostnames from deployment manifests)
+# Manufacturing edge nodes removed from cluster — array kept for future additions.
+EDGE_MANUFACTURING=()
 EDGE_VALIDATION=(
-  "verdin-imx8mm-15702161"
+  "verdin-imx8mm-15005665"    # REV 1.2 — 10.4.45.33
+  "verdin-imx8mm-15702161"    # REV 1.1 — 10.4.45.32
 )
 
 # Pre-populate edge purpose map
-for node in "${EDGE_MANUFACTURING[@]}"; do
+for node in "${EDGE_MANUFACTURING[@]+"${EDGE_MANUFACTURING[@]}"}"; do
   NODE_PURPOSE["${node}"]="manufacturing"
 done
 for node in "${EDGE_VALIDATION[@]}"; do
@@ -68,6 +73,18 @@ label_node() {
   if [ -n "${purpose}" ]; then
     echo "  Labeling ${node} -> corekinect.com/purpose=${purpose}"
     kubectl label node "${node}" "corekinect.com/purpose=${purpose}" --overwrite
+  fi
+
+  # MTIB hardware revision (edge nodes only)
+  local revision="${EDGE_MTIB_REVISION[${node}]:-}"
+  if [ -n "${revision}" ]; then
+    echo "  Labeling ${node} -> corekinect.com/mtib-revision=${revision}"
+    kubectl label node "${node}" "corekinect.com/mtib-revision=${revision}" --overwrite
+  fi
+
+  # Assign K8s role for edge nodes (shows in kubectl get nodes ROLES column)
+  if [ "${role}" = "edge" ]; then
+    kubectl label node "${node}" "node-role.kubernetes.io/edge=" --overwrite 2>/dev/null || true
   fi
 }
 
@@ -119,4 +136,4 @@ fi
 echo ""
 
 echo "Done. Current node labels:"
-kubectl get nodes -L corekinect.com/role,corekinect.com/purpose
+kubectl get nodes -L corekinect.com/role,corekinect.com/purpose,corekinect.com/mtib-revision

@@ -156,6 +156,10 @@ ENV BUILD_TIME=${BUILD_TIME}
 ENV BUILD_HOST=${BUILD_HOST}
 ENV ENVIRONMENT=${ENVIRONMENT}
 
+# Prisma schema + migrations for init container migration
+COPY ./prisma/schema.prisma /prisma/schema.prisma
+COPY ./prisma/migrations /prisma/migrations
+
 # Copy the app itself
 COPY ./apps/backend/http-api/assets assets
 COPY ./apps/backend/http-api/config config
