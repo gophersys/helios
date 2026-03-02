@@ -166,7 +166,7 @@ class FirmwareHandler:
     @staticmethod
     def _get_family_flag(target: HostType) -> list:
         """Return the nrfjprog -f family flag for the given target."""
-        if target in (HostType.HOST_TYPE_NRF9160, HostType.HOST_TYPE_NRF9151, HostType.HOST_TYPE_NRF9160_MODEM):
+        if target in (HostType.HOST_TYPE_NRF9160, HostType.HOST_TYPE_NRF9151, HostType.HOST_TYPE_NRF9160_MODEM, HostType.HOST_TYPE_NRF9151_MODEM):
             return ["-f", "NRF91"]
         elif target == HostType.HOST_TYPE_NRF5340:
             return ["-f", "NRF53"]
@@ -340,8 +340,8 @@ class FirmwareHandler:
             for serial, (host_type, is_connected) in self.programmers.items():
                 if not is_connected:
                     continue
-                # Allow NRF9160 or NRF9151 programmer for NRF9160_MODEM targets
-                if request.file_info.target in [HostType.HOST_TYPE_NRF9160, HostType.HOST_TYPE_NRF9160_MODEM]:
+                # Allow NRF9160 or NRF9151 programmer for modem targets
+                if request.file_info.target in [HostType.HOST_TYPE_NRF9160, HostType.HOST_TYPE_NRF9160_MODEM, HostType.HOST_TYPE_NRF9151_MODEM]:
                     if host_type in [HostType.HOST_TYPE_NRF9160, HostType.HOST_TYPE_NRF9151]:
                         programmer = serial
                         break
@@ -405,6 +405,7 @@ class FirmwareHandler:
                 HostType.HOST_TYPE_NRF9160,
                 HostType.HOST_TYPE_NRF9151,
                 HostType.HOST_TYPE_NRF9160_MODEM,
+                HostType.HOST_TYPE_NRF9151_MODEM,
             )
             cmd = [
                 "nrfjprog",
@@ -529,8 +530,8 @@ class FirmwareHandler:
             for serial, (host_type, is_connected) in self.programmers.items():
                 if not is_connected:
                     continue
-                # Allow NRF9160 or NRF9151 programmer for NRF9160_MODEM targets
-                if request.target in [HostType.HOST_TYPE_NRF9160, HostType.HOST_TYPE_NRF9160_MODEM]:
+                # Allow NRF9160 or NRF9151 programmer for modem targets
+                if request.target in [HostType.HOST_TYPE_NRF9160, HostType.HOST_TYPE_NRF9160_MODEM, HostType.HOST_TYPE_NRF9151_MODEM]:
                     if host_type in [HostType.HOST_TYPE_NRF9160, HostType.HOST_TYPE_NRF9151]:
                         programmer = serial
                         break
@@ -554,6 +555,7 @@ class FirmwareHandler:
                 HostType.HOST_TYPE_NRF9160,
                 HostType.HOST_TYPE_NRF9160_MODEM,
                 HostType.HOST_TYPE_NRF9151,
+                HostType.HOST_TYPE_NRF9151_MODEM,
             ]:
                 # NRF91 family
                 family = "NRF91"

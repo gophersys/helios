@@ -27,7 +27,7 @@ from typing import List, Optional, Tuple
 import requests
 
 from corekinect.mtib_client.v1.client.core import MtibV1Client
-from corekinect.mtib_client.v1.client.types import GpioDirection, GpioResistorConfig
+from corekinect.mtib_client.v1.client.types import GpioDirection, GpioResistorConfig, PowerChannel
 
 log = logging.getLogger(__name__)
 
@@ -185,10 +185,10 @@ class DevicePersonalizer:
         draws 0mA despite correct voltage.
         """
         log.debug("Power cycling DUT...")
-        err = self._mtib.PowerDisable(channel=0)
+        err = self._mtib.PowerDisable(channel=PowerChannel.DUT)
         if err:
             return err
-        err = self._mtib.PowerDisable(channel=1)
+        err = self._mtib.PowerDisable(channel=PowerChannel.CHARGER)
         if err:
             return err
 
@@ -203,10 +203,10 @@ class DevicePersonalizer:
             if err:
                 return f"GpioWrite({gpio}) failed: {err}"
 
-        err = self._mtib.PowerEnable(channel=0, voltage_v=4.5)
+        err = self._mtib.PowerEnable(channel=PowerChannel.DUT, voltage_v=4.5)
         if err:
             return err
-        err = self._mtib.PowerEnable(channel=1)
+        err = self._mtib.PowerEnable(channel=PowerChannel.CHARGER, voltage_v=5.0)
         if err:
             return err
 

@@ -472,178 +472,7 @@ class MtibV1Client:
     # -----------------------------------------------
     #                                           Power
     # ---------------------------------------------*/
-    def DutPowerEnable(self, voltage_v: float) -> Optional[str]:
-        """Enable power to the device under test (DUT).
-
-        Args:
-            voltage_v: Voltage to apply in volts
-
-        Returns:
-            Optional[str]: None on success, error message string on failure
-
-        Example:
-            ```python
-            error = client.DutPowerEnable(voltage_v=3.3)
-            if error:
-                print(f"Power enable failed: {error}")
-            ```
-        """
-        try:
-            response = self.client.DutPowerEnable(
-                DutPowerRequest(voltage_v=voltage_v), timeout=DEFAULT_GRPC_TIMEOUT_SECONDS
-            )
-            if not response.success:
-                return f"DutPowerEnable error: {response.message}"
-            return None
-        except grpc.RpcError as e:
-            return f"gRPC error for DutPowerEnable at {self.config.net.addr}. Error: {str(e.details())}"
-        except Exception as e:
-            return f"Unexpected error in DutPowerEnable at {self.config.net.addr}: {str(e)}"
-
-    def DutPowerDisable(self) -> Optional[str]:
-        """Disable power to the device under test (DUT).
-
-        Returns:
-            Optional[str]: None on success, error message string on failure
-
-        Example:
-            ```python
-            error = client.DutPowerDisable()
-            if error:
-                print(f"Power disable failed: {error}")
-            ```
-        """
-        try:
-            response = self.client.DutPowerDisable(Empty(), timeout=DEFAULT_GRPC_TIMEOUT_SECONDS)
-            if not response.success:
-                return f"DutPowerDisable error: {response.message}"
-            return None
-        except grpc.RpcError as e:
-            return f"gRPC error for DutPowerDisable at {self.config.net.addr}. Error: {str(e.details())}"
-        except Exception as e:
-            return f"Unexpected error in DutPowerDisable at {self.config.net.addr}: {str(e)}"
-
-    def DutChargePowerEnable(self) -> Optional[str]:
-        """Enable charging power to the device under test (DUT).
-
-        Returns:
-            Optional[str]: None on success, error message string on failure
-
-        Example:
-            ```python
-            error = client.DutChargePowerEnable()
-            if error:
-                print(f"Charge power enable failed: {error}")
-            ```
-        """
-        try:
-            response = self.client.DutChargePowerEnable(Empty(), timeout=DEFAULT_GRPC_TIMEOUT_SECONDS)
-            if not response.success:
-                return f"DutChargePowerEnable error: {response.message}"
-            return None
-        except grpc.RpcError as e:
-            return f"gRPC error for DutChargePowerEnable at {self.config.net.addr}. Error: {str(e.details())}"
-        except Exception as e:
-            return f"Unexpected error in DutChargePowerEnable at {self.config.net.addr}: {str(e)}"
-
-    def DutChargePowerDisable(self) -> Optional[str]:
-        """Disable charging power to the device under test (DUT).
-
-        Returns:
-            Optional[str]: None on success, error message string on failure
-
-        Example:
-            ```python
-            error = client.DutChargePowerDisable()
-            if error:
-                print(f"Charge power disable failed: {error}")
-            ```
-        """
-        try:
-            response = self.client.DutChargePowerDisable(Empty(), timeout=DEFAULT_GRPC_TIMEOUT_SECONDS)
-            if not response.success:
-                return f"DutChargePowerDisable error: {response.message}"
-            return None
-        except grpc.RpcError as e:
-            return f"gRPC error for DutChargePowerDisable at {self.config.net.addr}. Error: {str(e.details())}"
-        except Exception as e:
-            return f"Unexpected error in DutChargePowerDisable at {self.config.net.addr}: {str(e)}"
-
-    # -----------------------------------------------
-    #                                    Power Consumption
-    # ---------------------------------------------*/
-    def DutPowerRead(self) -> Tuple[Optional[float], Optional[float], Optional[float], Optional[str]]:
-        """Read the power consumption of the device under test (DUT).
-
-        Returns:
-            Tuple[Optional[float], Optional[float], Optional[float], Optional[str]]: A tuple containing:
-                - current_a (Optional[float]): Current consumption in amps, None on error
-                - voltage_v (Optional[float]): Voltage in volts, None on error
-                - power_w (Optional[float]): Power consumption in watts, None on error
-                - error (Optional[str]): Error message string if read failed, None on success
-
-        Example:
-            ```python
-            current, voltage, power, error = client.DutPowerRead()
-            if error:
-                print(f"Power read failed: {error}")
-            else:
-                print(f"Current: {current}A, Voltage: {voltage}V, Power: {power}W")
-            ```
-        """
-        try:
-            response = self.client.DutPowerRead(Empty(), timeout=DEFAULT_GRPC_TIMEOUT_SECONDS)
-            if not response.success:
-                return None, None, None, f"DutPowerRead error: {response.message}"
-            return response.current_a, response.voltage_v, response.power_w, None
-        except grpc.RpcError as e:
-            return (
-                None,
-                None,
-                None,
-                f"gRPC error for DutPowerRead at {self.config.net.addr}. Error: {str(e.details())}",
-            )
-        except Exception as e:
-            return None, None, None, f"Unexpected error in DutChargePowerDisable at {self.config.net.addr}: {str(e)}"
-
-    def DutChargePowerRead(self) -> Tuple[Optional[float], Optional[float], Optional[float], Optional[str]]:
-        """Read the charging power consumption of the device under test (DUT).
-
-        Returns:
-            Tuple[Optional[float], Optional[float], Optional[float], Optional[str]]: A tuple containing:
-                - current_a (Optional[float]): Charging current in amps, None on error
-                - voltage_v (Optional[float]): Charging voltage in volts, None on error
-                - power_w (Optional[float]): Charging power in watts, None on error
-                - error (Optional[str]): Error message string if read failed, None on success
-
-        Example:
-            ```python
-            current, voltage, power, error = client.DutChargePowerRead()
-            if error:
-                print(f"Charge power read failed: {error}")
-            else:
-                print(f"Charge Current: {current}A, Voltage: {voltage}V, Power: {power}W")
-            ```
-        """
-        try:
-            response = self.client.DutChargePowerRead(Empty(), timeout=DEFAULT_GRPC_TIMEOUT_SECONDS)
-            if not response.success:
-                return None, None, None, f"DutChargePowerRead error: {response.message}"
-            return response.current_a, response.voltage_v, response.power_w, None
-        except grpc.RpcError as e:
-            return (
-                None,
-                None,
-                None,
-                f"gRPC error for DutChargePowerRead at {self.config.net.addr}. Error: {str(e.details())}",
-            )
-        except Exception as e:
-            return None, None, None, f"Unexpected error in DutChargePowerRead at {self.config.net.addr}: {str(e)}"
-
-    # -----------------------------------------------
-    #                             V2 Unified Power
-    # ---------------------------------------------*/
-    def PowerEnable(self, channel: int = 0, voltage_v: float = 0.0) -> Optional[str]:
+    def PowerEnable(self, channel: "int | PowerChannel" = 0, voltage_v: float = 0.0) -> Optional[str]:
         """Enable power on a channel.
 
         Args:
@@ -666,7 +495,7 @@ class MtibV1Client:
         except Exception as e:
             return f"Unexpected error in PowerEnable at {self.config.net.addr}: {str(e)}"
 
-    def PowerDisable(self, channel: int = 0) -> Optional[str]:
+    def PowerDisable(self, channel: "int | PowerChannel" = 0) -> Optional[str]:
         """Disable power on a channel.
 
         Args:
@@ -688,7 +517,7 @@ class MtibV1Client:
         except Exception as e:
             return f"Unexpected error in PowerDisable at {self.config.net.addr}: {str(e)}"
 
-    def PowerRead(self, channel: int = 0) -> Tuple[Optional[PowerReadResult], Optional[str]]:
+    def PowerRead(self, channel: "int | PowerChannel" = 0) -> Tuple[Optional[PowerReadResult], Optional[str]]:
         """Read power status for a channel.
 
         Args:
@@ -715,7 +544,7 @@ class MtibV1Client:
         except Exception as e:
             return None, f"Unexpected error in PowerRead at {self.config.net.addr}: {str(e)}"
 
-    def PowerMeasure(self, channel: int = 0, duration_s: float = 1.0) -> Tuple[Optional[PowerMeasureResult], Optional[str]]:
+    def PowerMeasure(self, channel: "int | PowerChannel" = 0, duration_s: float = 1.0) -> Tuple[Optional[PowerMeasureResult], Optional[str]]:
         """Measure power over a duration and compute statistics.
 
         Args:
@@ -745,7 +574,7 @@ class MtibV1Client:
         except Exception as e:
             return None, f"Unexpected error in PowerMeasure at {self.config.net.addr}: {str(e)}"
 
-    def PowerStream(self, channel: int = 0) -> Iterator[PowerStreamResponse]:
+    def PowerStream(self, channel: "int | PowerChannel" = 0) -> Iterator[PowerStreamResponse]:
         """Stream power samples until cancelled.
 
         Args:
@@ -925,6 +754,55 @@ class MtibV1Client:
             return None, None, None, f"gRPC error for AccelRead at {self.config.net.addr}. Error: {str(e.details())}"
         except Exception as e:
             return None, None, None, f"Unexpected error in AccelRead at {self.config.net.addr}: {str(e)}"
+
+    # -----------------------------------------------
+    #                                           NFC
+    # ---------------------------------------------*/
+    def NfcPoll(self, timeout_ms: int = 1000) -> Tuple[Optional[bool], Optional[bytes], Optional[str]]:
+        """Poll for an NFC tag on the reader.
+
+        Args:
+            timeout_ms: How long to poll for a tag (default: 1000ms).
+
+        Returns:
+            Tuple of (tag_present, uid_bytes, error).
+        """
+        try:
+            from protocols.mtib.mtib_pb2 import NfcPollRequest
+            response = self.client.NfcPoll(
+                NfcPollRequest(timeout_ms=timeout_ms),
+                timeout=DEFAULT_GRPC_TIMEOUT_SECONDS,
+            )
+            if not response.success:
+                return None, None, f"NfcPoll error: {response.message}"
+            return response.tag_present, bytes(response.uid) if response.uid else b"", None
+        except grpc.RpcError as e:
+            return None, None, f"gRPC error for NfcPoll at {self.config.net.addr}. Error: {str(e.details())}"
+        except Exception as e:
+            return None, None, f"Unexpected error in NfcPoll at {self.config.net.addr}: {str(e)}"
+
+    def NfcReadNdef(self, timeout_ms: int = 1000) -> Tuple[Optional[list], Optional[str]]:
+        """Read NDEF records from an NFC tag.
+
+        Args:
+            timeout_ms: How long to wait for a tag (default: 1000ms).
+
+        Returns:
+            Tuple of (records, error). records is a list of NdefRecord proto objects.
+        """
+        try:
+            from protocols.mtib.mtib_pb2 import NfcReadNdefRequest
+            response = self.client.NfcReadNdef(
+                NfcReadNdefRequest(timeout_ms=timeout_ms),
+                timeout=DEFAULT_GRPC_TIMEOUT_SECONDS,
+            )
+            if not response.success:
+                return None, f"NfcReadNdef error: {response.message}"
+            return list(response.records), None
+        except grpc.RpcError as e:
+            return None, f"gRPC error for NfcReadNdef at {self.config.net.addr}. Error: {str(e.details())}"
+        except Exception as e:
+            return None, f"Unexpected error in NfcReadNdef at {self.config.net.addr}: {str(e)}"
 
     # -----------------------------------------------
     #                                        Motion
@@ -1455,28 +1333,22 @@ class MtibV1Client:
         # Collect response like the working terminal
         response_lines = []
         start_time = time.time()
-        timeout = 10  # 10 second timeout
+        timeout = 15  # 15 second timeout (personalize + key gen takes ~5s)
 
         for resp in self.UartStream(target, request_iterator()):
             if resp.data:
                 line = resp.data.decode("utf-8", errors="ignore")
                 response_lines.append(line)
 
-                # Check if we got the public keys (wait for actual data)
-                full_response = "".join(response_lines)
+                # Strip ANSI escape codes before parsing
+                full_response = re.sub(r"\x1b\[[0-9;]*m", "", "".join(response_lines))
                 if "Public key (hex)" in full_response and "Public key (base64)" in full_response:
-                    # Look for the actual hex key data
-                    hex_pos = full_response.find("Public key (hex)")
-                    if hex_pos != -1:
-                        hex_colon_pos = full_response.find(":", hex_pos)
-                        if hex_colon_pos != -1:
-                            hex_data_start = hex_colon_pos + 1
-                            hex_data_end = full_response.find("\n", hex_data_start)
-                            if hex_data_end != -1:
-                                hex_data = full_response[hex_data_start:hex_data_end].strip()
-                                # Only break if we have actual hex data (not empty)
-                                if hex_data and hex_data != "" and len(hex_data) > 10:
-                                    break
+                    # Check that BOTH hex AND base64 values are fully received.
+                    # EC P-256 public key: hex = 130 chars (04 + 64 bytes), base64 = ~88 chars.
+                    hex_match = re.search(r"Public key \(hex\)\s*:\s*([0-9a-fA-F]{100,})", full_response)
+                    b64_match = re.search(r"Public key \(base64\)\s*:\s*([A-Za-z0-9+/=]{40,})", full_response)
+                    if hex_match and b64_match:
+                        break
 
             if not resp.success:
                 break
@@ -1485,36 +1357,14 @@ class MtibV1Client:
             if time.time() - start_time > timeout:
                 break
 
-        # Parse the response for public keys
-        hex_key = None
-        base64_key = None
+        # Parse the response for public keys (strip ANSI codes)
+        full_response = re.sub(r"\x1b\[[0-9;]*m", "", "".join(response_lines))
 
-        full_response = "".join(response_lines)
+        hex_match = re.search(r"Public key \(hex\)\s*:\s*([0-9a-fA-F]{100,})", full_response)
+        b64_match = re.search(r"Public key \(base64\)\s*:\s*([A-Za-z0-9+/=]{40,})", full_response)
 
-        # Look for hex public key (handle variable spacing)
-        hex_start = full_response.find("Public key (hex)")
-        if hex_start != -1:
-            # Find the colon after "Public key (hex)"
-            colon_pos = full_response.find(":", hex_start)
-            if colon_pos != -1:
-                hex_start = colon_pos + 1
-                hex_end = full_response.find("\n", hex_start)
-                if hex_end != -1:
-                    hex_key = full_response[hex_start:hex_end].strip()
-
-        # Look for base64 public key (handle variable spacing)
-        base64_start = full_response.find("Public key (base64)")
-        if base64_start != -1:
-            # Find the colon after "Public key (base64)"
-            colon_pos = full_response.find(":", base64_start)
-            if colon_pos != -1:
-                base64_start = colon_pos + 1
-                base64_end = full_response.find("\n", base64_start)
-                if base64_end != -1:
-                    base64_key = full_response[base64_start:base64_end].strip()
-
-        if hex_key and base64_key:
-            return hex_key, base64_key, None
+        if hex_match and b64_match:
+            return hex_match.group(1), b64_match.group(1), None
         else:
             return None, None, f"Failed to parse public keys from response: {full_response}"
 

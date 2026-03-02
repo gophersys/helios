@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 from corekinect.mtib_client.v1 import *
+from corekinect.mtib_client.v1.client.types import PowerChannel
 from corekinect.utils.logx import Logger
 from services.mtib import get_mtib_client
 
@@ -99,10 +100,10 @@ def _init(logger: Logger, mtib_client: MtibV1Client) -> Optional[str]:
     logger.info("Motion profile started successfully")
 
     # Setup the right power supply for the test
-    if err := mtib_client.DutChargePowerDisable():
+    if err := mtib_client.PowerDisable(channel=PowerChannel.CHARGER):
         return f"Failed to disable charge power: {err}"
 
-    if err := mtib_client.DutPowerEnable(voltage_v=INIT_POWER_VOLTAGE_V):
+    if err := mtib_client.PowerEnable(channel=PowerChannel.DUT, voltage_v=INIT_POWER_VOLTAGE_V):
         return f"Failed to power on DUT: {err}"
 
     # Ensure a clean hardware state
@@ -144,7 +145,7 @@ def __step_1(logger: Logger, mtib_client: MtibV1Client) -> Optional[str]:
     logger.debug("Step 1: Apply +2.5V to +BATT")
 
     # Apply +2.5V to +BATT test point
-    if err := mtib_client.DutPowerEnable(voltage_v=STEP_1_POWER_VOLTAGE_V):
+    if err := mtib_client.PowerEnable(channel=PowerChannel.DUT, voltage_v=STEP_1_POWER_VOLTAGE_V):
         return f"Step 1 failed to enable power: {err}"
 
     # a. Verify +VIN < 0.3V (using threshold 0.55V from config)
@@ -165,10 +166,11 @@ def __step_1(logger: Logger, mtib_client: MtibV1Client) -> Optional[str]:
         return f"Step 1.a failed: VIN {vin_voltage}V exceeds threshold {STEP_1A_VIN_THRESHOLD_V}V"
 
     # d. Verify +BATT current < 10mA
-    current_a, voltage_v, _, err = mtib_client.DutPowerRead()
+    power_result, err = mtib_client.PowerRead(channel=PowerChannel.DUT)
     if err:
         return f"Step 1.d failed to read current: {err}"
 
+    current_a = power_result.current_ma / 1000.0
     if current_a > STEP_1D_NEAR_ZERO_CURRENT_A:
         return f"Step 1.d failed: Current {current_a}A exceeds threshold {STEP_1D_NEAR_ZERO_CURRENT_A}A"
 
@@ -180,7 +182,7 @@ def __step_2(logger: Logger, mtib_client: MtibV1Client) -> Optional[str]:
     logger.debug("Step 2: Apply +3.2V to +BATT")
 
     # Apply +3.2V to +BATT test point
-    if err := mtib_client.DutPowerEnable(voltage_v=STEP_2_POWER_VOLTAGE_V):
+    if err := mtib_client.PowerEnable(channel=PowerChannel.DUT, voltage_v=STEP_2_POWER_VOLTAGE_V):
         return f"Step 2 failed to enable power: {err}"
 
     # 2.a: Ensure +VIN test point is the same as +BATT
@@ -188,10 +190,11 @@ def __step_2(logger: Logger, mtib_client: MtibV1Client) -> Optional[str]:
     if err:
         return f"Step 2.a failed to read VIN: {err}"
 
-    _, vbatt_voltage, _, err = mtib_client.DutPowerRead()
+    power_result, err = mtib_client.PowerRead(channel=PowerChannel.DUT)
     if err:
         return f"Step 2.a failed to read VBAT: {err}"
 
+    vbatt_voltage = power_result.voltage_v
     if abs(vin_voltage - vbatt_voltage) > STEP_2A_VIN_VBAT_TOLERANCE:
         return (
             f"Step 2.a failed: VIN {vin_voltage}V != VBAT {vbatt_voltage}V (tolerance {STEP_2A_VIN_VBAT_TOLERANCE}V)"
@@ -206,10 +209,11 @@ def __step_2(logger: Logger, mtib_client: MtibV1Client) -> Optional[str]:
         return f"Step 2.b failed: 3V3 {_3v3_voltage}V not in range [{STEP_2B_3V3_MIN}V, {STEP_2B_3V3_MAX}V]"
 
     # 2.e: Ensure proper power consumption (no short circuits)
-    current_a, _, _, err = mtib_client.DutPowerRead()
+    power_result, err = mtib_client.PowerRead(channel=PowerChannel.DUT)
     if err:
         return f"Step 2.e failed to read current: {err}"
 
+    current_a = power_result.current_ma / 1000.0
     if not (STEP_2E_CURRENT_MIN <= current_a <= STEP_2E_CURRENT_MAX):
         return f"Step 2.e failed: Current {current_a}A not in range [{STEP_2E_CURRENT_MIN}A, {STEP_2E_CURRENT_MAX}A]"
 
@@ -221,7 +225,7 @@ def __step_3(logger: Logger, mtib_client: MtibV1Client) -> Optional[str]:
     logger.debug("Step 3: Apply +3.6V to +BATT")
 
     # Apply +3.6V to +BATT test point
-    if err := mtib_client.DutPowerEnable(voltage_v=STEP_3_POWER_VOLTAGE_V):
+    if err := mtib_client.PowerEnable(channel=PowerChannel.DUT, voltage_v=STEP_3_POWER_VOLTAGE_V):
         return f"Step 3 failed to enable power: {err}"
 
     # 3.a: Ensure +VIN test point is the same as +BATT
@@ -229,20 +233,22 @@ def __step_3(logger: Logger, mtib_client: MtibV1Client) -> Optional[str]:
     if err:
         return f"Step 3.a failed to read VIN: {err}"
 
-    _, vbatt_voltage, _, err = mtib_client.DutPowerRead()
+    power_result, err = mtib_client.PowerRead(channel=PowerChannel.DUT)
     if err:
         return f"Step 3.a failed to read VBAT: {err}"
 
+    vbatt_voltage = power_result.voltage_v
     if abs(vin_voltage - vbatt_voltage) > STEP_3A_VIN_VBAT_TOLERANCE:
         return (
             f"Step 3.a failed: VIN {vin_voltage}V != VBAT {vbatt_voltage}V (tolerance {STEP_3A_VIN_VBAT_TOLERANCE}V)"
         )
 
     # 3.b: Verify current consumption
-    current_a, _, _, err = mtib_client.DutPowerRead()
+    power_result, err = mtib_client.PowerRead(channel=PowerChannel.DUT)
     if err:
         return f"Step 3.b failed to read current: {err}"
 
+    current_a = power_result.current_ma / 1000.0
     if not (STEP_3B_CURRENT_MIN <= current_a <= STEP_3B_CURRENT_MAX):
         return f"Step 3.b failed: Current {current_a}A not in range [{STEP_3B_CURRENT_MIN}A, {STEP_3B_CURRENT_MAX}A]"
 
@@ -255,11 +261,11 @@ def __step_3(logger: Logger, mtib_client: MtibV1Client) -> Optional[str]:
 # ---------------------------------------------*/
 def _deinit(logger: Logger, mtib_client: MtibV1Client) -> Optional[str]:
     # Turn off power
-    if err := mtib_client.DutPowerDisable():
+    if err := mtib_client.PowerDisable(channel=PowerChannel.DUT):
         return f"Failed to disable DUT power: {err}"
 
     # Turn off charging power
-    if err := mtib_client.DutChargePowerDisable():
+    if err := mtib_client.PowerDisable(channel=PowerChannel.CHARGER):
         return f"Failed to disable charge power: {err}"
 
     # Stop motion

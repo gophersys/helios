@@ -26,6 +26,7 @@ from .handlers.firmware import FirmwareHandler
 from .handlers.gpio import Gpio, GpioHandler, Pin
 from .handlers.motion import MotionHandler
 from .handlers.power import PowerHandler
+from .handlers.nfc import NfcHandler
 from .handlers.sensors import SensorsHandler
 from .handlers.uart import UartHandler
 
@@ -135,6 +136,7 @@ class MtibV1ProviderConfig:
 # -------------------------------------------------
 _BASE_CAPABILITIES = ["power", "gpio", "adc", "uart", "flash"]
 _MOTION_CAPABILITY = "motion"
+_NFC_CAPABILITY = "nfc"
 _OBSERVABILITY_CAPABILITY = "observability"
 
 
@@ -164,6 +166,9 @@ class MtibV1Provider(MtibV1Servicer):
 
         # TCA9534A GPIO expander (REV 1.2 only)
         self._gpio_expander = None
+
+        # NFC handler (set in _init_handlers, may be None if init fails)
+        self._nfc_handlers = None
 
         # Metrics client
         self._metrics_client: Optional[mqtt.Client] = None
@@ -253,6 +258,7 @@ class MtibV1Provider(MtibV1Servicer):
         self._firmware_handlers = FirmwareHandler(self.logger)
         self._sensors_handlers = SensorsHandler(self.logger)
         self._uart_handlers = UartHandler(self.logger)
+        self._nfc_handlers = NfcHandler(self.logger)
 
         # Pass TCA9534A to handlers that need it (REV 1.2 features)
         if self._gpio_expander is not None:
@@ -420,6 +426,8 @@ class MtibV1Provider(MtibV1Servicer):
         caps = list(_BASE_CAPABILITIES)
         if self.config.MOTION_ENABLED:
             caps.append(_MOTION_CAPABILITY)
+        if self._nfc_handlers and self._nfc_handlers.is_available:
+            caps.append(_NFC_CAPABILITY)
         caps.append(_OBSERVABILITY_CAPABILITY)
         return caps
 
@@ -471,41 +479,14 @@ class MtibV1Provider(MtibV1Servicer):
         return self._adc_handlers.stream(request, context)
 
     # -------------------------------------------------
-    #                                    Power (legacy)
+    #                                            Power
     # -------------------------------------------------
     @grpc_method
-    def DutPowerEnable(self, request: DutPowerRequest, context: grpc.ServicerContext) -> DutPowerResponse:
-        return self._power_handlers.dut_power_enable(request, context)
-
-    @grpc_method
-    def DutPowerDisable(self, request: Empty, context: grpc.ServicerContext) -> DutPowerResponse:
-        return self._power_handlers.dut_power_disable(request, context)
-
-    @grpc_method
-    def DutChargePowerEnable(self, request: DutPowerRequest, context: grpc.ServicerContext) -> DutPowerResponse:
-        return self._power_handlers.dut_charge_power_enable(request, context)
-
-    @grpc_method
-    def DutChargePowerDisable(self, request: Empty, context: grpc.ServicerContext) -> DutPowerResponse:
-        return self._power_handlers.dut_charge_power_disable(request, context)
-
-    @grpc_method
-    def DutPowerRead(self, request: Empty, context: grpc.ServicerContext) -> DutPowerReadResponse:
-        return self._power_handlers.dut_power_read(request, context)
-
-    @grpc_method
-    def DutChargePowerRead(self, request: Empty, context: grpc.ServicerContext) -> DutPowerReadResponse:
-        return self._power_handlers.dut_charge_power_read(request, context)
-
-    # -------------------------------------------------
-    #                                      Power (V2)
-    # -------------------------------------------------
-    @grpc_method
-    def PowerEnable(self, request: PowerEnableRequest, context: grpc.ServicerContext) -> DutPowerResponse:
+    def PowerEnable(self, request: PowerEnableRequest, context: grpc.ServicerContext) -> PowerResponse:
         return self._power_handlers.power_enable(request, context)
 
     @grpc_method
-    def PowerDisable(self, request: PowerDisableRequest, context: grpc.ServicerContext) -> DutPowerResponse:
+    def PowerDisable(self, request: PowerDisableRequest, context: grpc.ServicerContext) -> PowerResponse:
         return self._power_handlers.power_disable(request, context)
 
     @grpc_method
@@ -601,6 +582,17 @@ class MtibV1Provider(MtibV1Servicer):
         self, request_iterator: Iterator[UartStreamRequest], context: grpc.ServicerContext
     ) -> Iterator[UartStreamResponse]:
         return self._uart_handlers.stream(request_iterator, context)
+
+    # -------------------------------------------------
+    #                                            NFC
+    # -------------------------------------------------
+    @grpc_method
+    def NfcPoll(self, request: NfcPollRequest, context: grpc.ServicerContext) -> NfcPollResponse:
+        return self._nfc_handlers.poll(request, context)
+
+    @grpc_method
+    def NfcReadNdef(self, request: NfcReadNdefRequest, context: grpc.ServicerContext) -> NfcReadNdefResponse:
+        return self._nfc_handlers.read_ndef(request, context)
 
     # -------------------------------------------------
     #                                   Observability

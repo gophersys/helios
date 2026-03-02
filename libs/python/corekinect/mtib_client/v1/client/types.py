@@ -20,10 +20,6 @@ from protocols.mtib.mtib_pb2 import (
     AdcReadRequest,
     AdcReadResponse,
     AdcReadAllResponse,
-    # Power types
-    DutPowerRequest,
-    DutPowerResponse,
-    DutPowerReadResponse,
     # Sensor types
     AltimeterReadResponse,
     AccelReadResponse,
@@ -52,8 +48,9 @@ from protocols.mtib.mtib_pb2 import (
     # UART types
     UartStreamRequest,
     UartStreamResponse,
-    # V2 Power types
+    # Power types
     PowerChannel,
+    PowerResponse as PowerResponseProto,
     PowerEnableRequest,
     PowerDisableRequest,
     PowerReadRequest,
@@ -63,15 +60,15 @@ from protocols.mtib.mtib_pb2 import (
     PowerSample,
     PowerStreamRequest,
     PowerStreamResponse,
-    # V2 GPIO types
+    # GPIO watch types
     GpioEdge,
     GpioWatchRequest,
     GpioWatchEvent,
-    # V2 ADC types
+    # ADC stream types
     AdcStreamRequest,
     AdcStreamSample,
     AdcStreamResponse,
-    # V2 Observability types
+    # Observability types
     GetSnapshotResponse as GetSnapshotResponseProto,
     SnapshotPower,
     SnapshotGpio,
@@ -91,6 +88,11 @@ class MtibV1ServerInfo:
     name: str = ""
     version: str = ""
     hardware: Hardware = None
+
+
+class PowerChannel(IntEnum):
+    DUT = 0       # POWER_CHANNEL_DUT
+    CHARGER = 1   # POWER_CHANNEL_CHARGER
 
 
 class GpioDirection(IntEnum):
@@ -144,21 +146,6 @@ class AdcReadAllResponse:
     success: bool = False
     message: str = ""
     voltages_v: List[float] = None
-
-
-@dataclass
-class DutPowerResponse:
-    success: bool = False
-    message: str = ""
-
-
-@dataclass
-class DutPowerReadResponse:
-    success: bool = False
-    message: str = ""
-    current_a: float = 0.0
-    voltage_v: float = 0.0
-    power_w: float = 0.0
 
 
 @dataclass
@@ -244,10 +231,6 @@ class FlashFwFileResponse:
     message: str = ""
     time_ms: int = 0
 
-
-# -------------------------------------------------
-#                           V2 client-side types
-# -------------------------------------------------
 
 @dataclass
 class HealthCheckExtendedResponse:

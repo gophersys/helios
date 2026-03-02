@@ -3,6 +3,7 @@ import time
 import zipfile
 from typing import Optional, List, Dict
 from corekinect.mtib_client.v1 import MtibV1Client
+from corekinect.mtib_client.v1.client.types import PowerChannel
 from corekinect.utils.logx import Logger
 from corekinect.mtib_client.v1 import HostType, FwFileInfo
 from minio import Minio
@@ -135,7 +136,7 @@ def flash_firmware_to_dut(
         logger.info("Flashing firmware files to DUT:")
 
         # Power on the DUT
-        error = mtib_client.DutPowerEnable(voltage_v=voltage_v)
+        error = mtib_client.PowerEnable(channel=PowerChannel.DUT, voltage_v=voltage_v)
         if error:
             logger.error(f"Could not power on DUT: {error}")
             return f"Could not power on DUT: {error}"
@@ -163,7 +164,7 @@ def flash_firmware_to_dut(
     finally:
         # Always power off the DUT if we powered it on
         if dut_powered_on:
-            error = mtib_client.DutPowerDisable()
+            error = mtib_client.PowerDisable(channel=PowerChannel.DUT)
             if error:
                 logger.error(f"Could not power off DUT: {error}")
             else:

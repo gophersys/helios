@@ -52,6 +52,7 @@ class HostType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     HOST_TYPE_NRF52840: _ClassVar[HostType]
     HOST_TYPE_NRF5340: _ClassVar[HostType]
     HOST_TYPE_NRF9151: _ClassVar[HostType]
+    HOST_TYPE_NRF9151_MODEM: _ClassVar[HostType]
 GPIO_DIRECTION_UNDEFINED: GpioDirection
 GPIO_DIRECTION_INPUT: GpioDirection
 GPIO_DIRECTION_OUTPUT: GpioDirection
@@ -77,6 +78,7 @@ HOST_TYPE_NRF9160_MODEM: HostType
 HOST_TYPE_NRF52840: HostType
 HOST_TYPE_NRF5340: HostType
 HOST_TYPE_NRF9151: HostType
+HOST_TYPE_NRF9151_MODEM: HostType
 
 class Empty(_message.Message):
     __slots__ = ()
@@ -212,33 +214,13 @@ class AdcStreamResponse(_message.Message):
     samples: _containers.RepeatedCompositeFieldContainer[AdcStreamSample]
     def __init__(self, samples: _Optional[_Iterable[_Union[AdcStreamSample, _Mapping]]] = ...) -> None: ...
 
-class DutPowerRequest(_message.Message):
-    __slots__ = ("voltage_v",)
-    VOLTAGE_V_FIELD_NUMBER: _ClassVar[int]
-    voltage_v: float
-    def __init__(self, voltage_v: _Optional[float] = ...) -> None: ...
-
-class DutPowerResponse(_message.Message):
+class PowerResponse(_message.Message):
     __slots__ = ("success", "message")
     SUCCESS_FIELD_NUMBER: _ClassVar[int]
     MESSAGE_FIELD_NUMBER: _ClassVar[int]
     success: bool
     message: str
     def __init__(self, success: bool = ..., message: _Optional[str] = ...) -> None: ...
-
-class DutPowerReadResponse(_message.Message):
-    __slots__ = ("success", "message", "current_a", "voltage_v", "power_w")
-    SUCCESS_FIELD_NUMBER: _ClassVar[int]
-    MESSAGE_FIELD_NUMBER: _ClassVar[int]
-    CURRENT_A_FIELD_NUMBER: _ClassVar[int]
-    VOLTAGE_V_FIELD_NUMBER: _ClassVar[int]
-    POWER_W_FIELD_NUMBER: _ClassVar[int]
-    success: bool
-    message: str
-    current_a: float
-    voltage_v: float
-    power_w: float
-    def __init__(self, success: bool = ..., message: _Optional[str] = ..., current_a: _Optional[float] = ..., voltage_v: _Optional[float] = ..., power_w: _Optional[float] = ...) -> None: ...
 
 class PowerEnableRequest(_message.Message):
     __slots__ = ("channel", "voltage_v")
@@ -617,3 +599,47 @@ class UartStreamResponse(_message.Message):
     target: HostType
     data: bytes
     def __init__(self, success: bool = ..., message: _Optional[str] = ..., target: _Optional[_Union[HostType, str]] = ..., data: _Optional[bytes] = ...) -> None: ...
+
+class NfcPollRequest(_message.Message):
+    __slots__ = ("timeout_ms",)
+    TIMEOUT_MS_FIELD_NUMBER: _ClassVar[int]
+    timeout_ms: int
+    def __init__(self, timeout_ms: _Optional[int] = ...) -> None: ...
+
+class NfcPollResponse(_message.Message):
+    __slots__ = ("success", "message", "tag_present", "uid")
+    SUCCESS_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    TAG_PRESENT_FIELD_NUMBER: _ClassVar[int]
+    UID_FIELD_NUMBER: _ClassVar[int]
+    success: bool
+    message: str
+    tag_present: bool
+    uid: bytes
+    def __init__(self, success: bool = ..., message: _Optional[str] = ..., tag_present: bool = ..., uid: _Optional[bytes] = ...) -> None: ...
+
+class NfcReadNdefRequest(_message.Message):
+    __slots__ = ("timeout_ms",)
+    TIMEOUT_MS_FIELD_NUMBER: _ClassVar[int]
+    timeout_ms: int
+    def __init__(self, timeout_ms: _Optional[int] = ...) -> None: ...
+
+class NdefRecord(_message.Message):
+    __slots__ = ("tnf", "type", "payload")
+    TNF_FIELD_NUMBER: _ClassVar[int]
+    TYPE_FIELD_NUMBER: _ClassVar[int]
+    PAYLOAD_FIELD_NUMBER: _ClassVar[int]
+    tnf: int
+    type: bytes
+    payload: bytes
+    def __init__(self, tnf: _Optional[int] = ..., type: _Optional[bytes] = ..., payload: _Optional[bytes] = ...) -> None: ...
+
+class NfcReadNdefResponse(_message.Message):
+    __slots__ = ("success", "message", "records")
+    SUCCESS_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    RECORDS_FIELD_NUMBER: _ClassVar[int]
+    success: bool
+    message: str
+    records: _containers.RepeatedCompositeFieldContainer[NdefRecord]
+    def __init__(self, success: bool = ..., message: _Optional[str] = ..., records: _Optional[_Iterable[_Union[NdefRecord, _Mapping]]] = ...) -> None: ...

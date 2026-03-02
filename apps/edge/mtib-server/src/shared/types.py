@@ -1,5 +1,4 @@
 from protocols.mtib.mtib_pb2 import (
-    # Existing types (backward compat)
     AccelReadResponse,
     AdcReadAllResponse,
     AdcReadRequest,
@@ -7,9 +6,6 @@ from protocols.mtib.mtib_pb2 import (
     AltimeterReadResponse,
     DeleteFwFileRequest,
     DeleteFwFileResponse,
-    DutPowerReadResponse,
-    DutPowerRequest,
-    DutPowerResponse,
     Empty,
     EnableAppProtectRequest,
     EnableAppProtectResponse,
@@ -42,8 +38,8 @@ from protocols.mtib.mtib_pb2 import (
     UartStreamResponse,
     UploadFwFileRequest,
     UploadFwFileResponse,
-    # V2 types
     PowerChannel,
+    PowerResponse,
     PowerEnableRequest,
     PowerDisableRequest,
     PowerReadRequest,
@@ -63,6 +59,12 @@ from protocols.mtib.mtib_pb2 import (
     SnapshotGpio,
     SnapshotAdc,
     GetSnapshotResponse,
+    # NFC types
+    NfcPollRequest,
+    NfcPollResponse,
+    NfcReadNdefRequest,
+    NfcReadNdefResponse,
+    NdefRecord,
 )
 
 # Import gRPC service types

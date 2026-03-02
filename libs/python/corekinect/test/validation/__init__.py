@@ -1,1 +1,1 @@
-"""Stage 4 validation test framework for Alpha B0 product tests."""
+"""Validation test framework — shared infrastructure for product test apps."""

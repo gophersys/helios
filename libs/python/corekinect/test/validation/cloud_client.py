@@ -94,6 +94,13 @@ class CloudClient:
                     for msg in msgs:
                         if predicate is None or predicate(msg):
                             return msg
+            except (TypeError, AttributeError, ImportError) as e:
+                # Non-transient errors (wrong API signature, missing module) —
+                # retrying won't fix these. Fail immediately.
+                raise TimeoutError(
+                    f"Non-transient error polling {msg_class.__name__} for device "
+                    f"{self._device_id:#X}: {e}"
+                ) from e
             except Exception as e:
                 last_err = e
                 log.warning("Poll error for %s: %s", msg_class.__name__, e)

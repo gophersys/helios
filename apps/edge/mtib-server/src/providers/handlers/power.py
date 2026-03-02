@@ -203,108 +203,41 @@ class PowerHandler:
             return str(e)
 
     # -------------------------------------------------
-    #                  Legacy V1 RPCs (aliases)
+    #                        Power RPCs
     # -------------------------------------------------
 
-    def dut_power_enable(self, request: DutPowerRequest, context: grpc.ServicerContext) -> DutPowerResponse:
-        """Enable DUT power with specified voltage (legacy V1 RPC)."""
-        self.logger.info(f"DutPowerEnable request received with voltage {request.voltage_v}V")
-
-        if err := self.dut_pwr_en.write(True):
-            return DutPowerResponse(success=False, message=f"Error enabling DUT power: {err}")
-        self._pwr_enabled = True
-
-        if err := self._set_dut_power_voltage(request.voltage_v):
-            return DutPowerResponse(success=False, message=f"Error setting DUT power voltage: {err}")
-
-        return DutPowerResponse(success=True)
-
-    def dut_power_disable(self, request: Empty, context: grpc.ServicerContext) -> DutPowerResponse:
-        """Disable DUT power (legacy V1 RPC)."""
-        self.logger.info("DutPowerDisable request received")
-        if err := self.dut_pwr_en.write(False):
-            return DutPowerResponse(success=False, message=f"Error disabling DUT power: {err}")
-        self._pwr_enabled = False
-        return DutPowerResponse(success=True)
-
-    def dut_charge_power_enable(self, request: Empty, context: grpc.ServicerContext) -> DutPowerResponse:
-        """Enable DUT charging power (legacy V1 RPC)."""
-        self.logger.info("DutChargePowerEnable request received")
-        if err := self.dut_chg_en.write(True):
-            return DutPowerResponse(success=False, message=f"Error enabling DUT charging power: {err}")
-        self._chg_enabled = True
-        return DutPowerResponse(success=True)
-
-    def dut_charge_power_disable(self, request: Empty, context: grpc.ServicerContext) -> DutPowerResponse:
-        """Disable DUT charging power (legacy V1 RPC)."""
-        self.logger.info("DutChargePowerDisable request received")
-        if err := self.dut_chg_en.write(False):
-            return DutPowerResponse(success=False, message=f"Error disabling DUT charging power: {err}")
-        self._chg_enabled = False
-        return DutPowerResponse(success=True)
-
-    def dut_power_read(self, request: Empty, context: grpc.ServicerContext) -> DutPowerReadResponse:
-        """Read DUT power measurements (legacy V1 RPC)."""
-        self.logger.info("DutPowerRead request received")
-        err, voltage_v, current_ma, power_mw = self._read_ina219(self.power_ina_path)
-        if err:
-            return DutPowerReadResponse(success=False, message=f"Error reading power measurements: {err}")
-        return DutPowerReadResponse(
-            success=True,
-            current_a=current_ma / 1000.0,
-            voltage_v=voltage_v,
-            power_w=power_mw / 1000.0,
-        )
-
-    def dut_charge_power_read(self, request: Empty, context: grpc.ServicerContext) -> DutPowerReadResponse:
-        """Read DUT charging power measurements (legacy V1 RPC)."""
-        self.logger.info("DutChargePowerRead request received")
-        err, voltage_v, current_ma, power_mw = self._read_ina219(self.chg_power_ina_path)
-        if err:
-            return DutPowerReadResponse(success=False, message=f"Error reading charging power measurements: {err}")
-        return DutPowerReadResponse(
-            success=True,
-            current_a=current_ma / 1000.0,
-            voltage_v=voltage_v,
-            power_w=power_mw / 1000.0,
-        )
-
-    # -------------------------------------------------
-    #                       V2 unified RPCs
-    # -------------------------------------------------
-
-    def power_enable(self, request: PowerEnableRequest, context: grpc.ServicerContext) -> DutPowerResponse:
-        """Enable power on a channel (V2 unified RPC)."""
+    def power_enable(self, request: PowerEnableRequest, context: grpc.ServicerContext) -> PowerResponse:
+        """Enable power on a channel."""
         self.logger.info(f"PowerEnable: channel={request.channel}, voltage={request.voltage_v}V")
         try:
             gpio, label = self._get_en_gpio(request.channel)
             if err := gpio.write(True):
-                return DutPowerResponse(success=False, message=f"Error enabling {label} power: {err}")
+                return PowerResponse(success=False, message=f"Error enabling {label} power: {err}")
             self._set_enabled(request.channel, True)
 
             # Set voltage only for DUT channel
             if request.channel == PowerChannel.POWER_CHANNEL_DUT and request.voltage_v > 0:
                 if err := self._set_dut_power_voltage(request.voltage_v):
-                    return DutPowerResponse(success=False, message=f"Error setting voltage: {err}")
+                    return PowerResponse(success=False, message=f"Error setting voltage: {err}")
 
-            return DutPowerResponse(success=True, message=f"{label} power enabled")
+            return PowerResponse(success=True, message=f"{label} power enabled")
         except Exception as e:
-            return DutPowerResponse(success=False, message=str(e))
+            return PowerResponse(success=False, message=str(e))
 
-    def power_disable(self, request: PowerDisableRequest, context: grpc.ServicerContext) -> DutPowerResponse:
-        """Disable power on a channel (V2 unified RPC)."""
+    def power_disable(self, request: PowerDisableRequest, context: grpc.ServicerContext) -> PowerResponse:
+        """Disable power on a channel ."""
         self.logger.info(f"PowerDisable: channel={request.channel}")
         try:
             gpio, label = self._get_en_gpio(request.channel)
             if err := gpio.write(False):
-                return DutPowerResponse(success=False, message=f"Error disabling {label} power: {err}")
+                return PowerResponse(success=False, message=f"Error disabling {label} power: {err}")
             self._set_enabled(request.channel, False)
-            return DutPowerResponse(success=True, message=f"{label} power disabled")
+            return PowerResponse(success=True, message=f"{label} power disabled")
         except Exception as e:
-            return DutPowerResponse(success=False, message=str(e))
+            return PowerResponse(success=False, message=str(e))
 
     def power_read(self, request: PowerReadRequest, context: grpc.ServicerContext) -> PowerReadResponse:
-        """Read power status for a channel (V2 unified RPC)."""
+        """Read power status for a channel ."""
         self.logger.info(f"PowerRead: channel={request.channel}")
         try:
             ina_path = self._get_ina_path(request.channel)
@@ -325,7 +258,7 @@ class PowerHandler:
             return PowerReadResponse(success=False, message=str(e))
 
     def power_measure(self, request: PowerMeasureRequest, context: grpc.ServicerContext) -> PowerMeasureResponse:
-        """Measure power over a duration and compute statistics (V2 RPC)."""
+        """Measure power over a duration and compute statistics ."""
         self.logger.info(f"PowerMeasure: channel={request.channel}, duration={request.duration_s}s")
         try:
             ina_path = self._get_ina_path(request.channel)
@@ -364,7 +297,7 @@ class PowerHandler:
             return PowerMeasureResponse(success=False, message=str(e))
 
     def power_stream(self, request: PowerStreamRequest, context: grpc.ServicerContext) -> Iterator[PowerStreamResponse]:
-        """Server-streaming power samples until client cancels (V2 RPC)."""
+        """Server-streaming power samples until client cancels ."""
         ina_path = self._get_ina_path(request.channel)
         if not ina_path:
             yield PowerStreamResponse(samples=[])

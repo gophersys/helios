@@ -5,6 +5,7 @@ from typing import Optional
 
 from config.env import env_config
 from corekinect.mtib_client.v1 import HostType, MtibV1Client
+from corekinect.mtib_client.v1.client.types import PowerChannel
 from corekinect.utils.logx import Logger
 from services.firmware import flash_firmware_from_storage
 from services.mtib import get_mtib_client
@@ -127,17 +128,17 @@ def _init(logger: Logger, mtib_client: MtibV1Client) -> Optional[str]:
     logger.info("Setting up power")
 
     # Setup power
-    if err := mtib_client.DutChargePowerDisable():
+    if err := mtib_client.PowerDisable(channel=PowerChannel.CHARGER):
         return f"Failed to disable charge power: {err}"
 
-    if err := mtib_client.DutPowerDisable():
+    if err := mtib_client.PowerDisable(channel=PowerChannel.DUT):
         return f"Failed to disable DUT power: {err}"
 
     # Wait for power to be off
     time.sleep(POWER_OFF_DELAY_S)
 
     # Turn on the device
-    if err := mtib_client.DutPowerEnable(voltage_v=DUT_VOLTAGE_V):
+    if err := mtib_client.PowerEnable(channel=PowerChannel.DUT, voltage_v=DUT_VOLTAGE_V):
         return f"Failed to power on DUT: {err}"
 
     # Wait for device to boot
@@ -333,10 +334,10 @@ def __step_5_rekey_ipc(logger: Logger, mtib_client: MtibV1Client) -> Optional[st
 def _deinit(logger: Logger, mtib_client: MtibV1Client) -> Optional[str]:
     """Deinitialize the comm post test"""
     # Turn off power
-    if err := mtib_client.DutPowerDisable():
+    if err := mtib_client.PowerDisable(channel=PowerChannel.DUT):
         return f"Failed to disable DUT power: {err}"
 
-    if err := mtib_client.DutChargePowerDisable():
+    if err := mtib_client.PowerDisable(channel=PowerChannel.CHARGER):
         return f"Failed to disable charge power: {err}"
 
     # Stop motion

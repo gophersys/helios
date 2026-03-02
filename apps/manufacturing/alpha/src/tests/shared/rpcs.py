@@ -15,9 +15,12 @@ from protocols.mtib.mtib_pb2 import (
     AdcReadRequest,
     AdcReadResponse,
     AccelReadResponse,
-    DutPowerReadResponse,
-    DutPowerRequest,
-    DutPowerResponse,
+    PowerResponse,
+    PowerChannel,
+    PowerEnableRequest,
+    PowerDisableRequest,
+    PowerReadRequest,
+    PowerReadResponse,
     GpioConfigRequest,
     GpioConfigResponse,
     GpioDirection,
@@ -128,9 +131,11 @@ class ThetaMtibServers:
 
         try:
             stub = self.mtibs[host]
-            response: DutPowerResponse = stub.DutPowerDisable(Empty())
+            response: PowerResponse = stub.PowerDisable(
+                PowerDisableRequest(channel=PowerChannel.POWER_CHANNEL_DUT)
+            )
             if not response.success:
-                return f"DutPowerDisable Error: {response.message}"
+                return f"PowerDisable(DUT) Error: {response.message}"
             return ""
         except grpc.RpcError as e:
             return f"Failed to disable power for mtib at {host}. Error: {str(e.details())}"
@@ -141,9 +146,11 @@ class ThetaMtibServers:
 
         try:
             stub = self.mtibs[host]
-            response: DutPowerResponse = stub.DutChargePowerDisable(Empty())
+            response: PowerResponse = stub.PowerDisable(
+                PowerDisableRequest(channel=PowerChannel.POWER_CHANNEL_CHARGER)
+            )
             if not response.success:
-                return f"DutChargePowerDisable Error: {response.message}"
+                return f"PowerDisable(CHARGER) Error: {response.message}"
             return ""
         except grpc.RpcError as e:
             return f"Failed to disable charge power for mtib at {host}. Error: {str(e.details())}"
@@ -154,9 +161,11 @@ class ThetaMtibServers:
 
         try:
             stub = self.mtibs[host]
-            response: DutPowerResponse = stub.DutPowerEnable(DutPowerRequest(voltage_v=voltage))
+            response: PowerResponse = stub.PowerEnable(
+                PowerEnableRequest(channel=PowerChannel.POWER_CHANNEL_DUT, voltage_v=voltage)
+            )
             if not response.success:
-                return f"DutPowerEnable Error: {response.message}"
+                return f"PowerEnable(DUT) Error: {response.message}"
             return ""
         except grpc.RpcError as e:
             return f"Failed to enable power for mtib at {host}. Error: {str(e.details())}"
@@ -167,9 +176,11 @@ class ThetaMtibServers:
 
         try:
             stub = self.mtibs[host]
-            response: DutPowerResponse = stub.DutChargePowerEnable(Empty())
+            response: PowerResponse = stub.PowerEnable(
+                PowerEnableRequest(channel=PowerChannel.POWER_CHANNEL_CHARGER)
+            )
             if not response.success:
-                return f"DutChargePowerEnable Error: {response.message}"
+                return f"PowerEnable(CHARGER) Error: {response.message}"
             return ""
         except grpc.RpcError as e:
             return f"Failed to enable charge power for mtib at {host}. Error: {str(e.details())}"
@@ -208,10 +219,12 @@ class ThetaMtibServers:
 
         try:
             stub = self.mtibs[host]
-            response: DutPowerReadResponse = stub.DutPowerRead(Empty())
+            response: PowerReadResponse = stub.PowerRead(
+                PowerReadRequest(channel=PowerChannel.POWER_CHANNEL_DUT)
+            )
             if not response.success:
-                return f"DutPowerRead Error: {response.message}", None
-            return "", float(response.current_a)
+                return f"PowerRead(DUT) Error: {response.message}", None
+            return "", float(response.current_ma / 1000.0)
         except grpc.RpcError as e:
             return f"Failed to read current for mtib at {host}. Error: {str(e.details())}", None
 

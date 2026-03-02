@@ -27,9 +27,12 @@ from protocols.mtib.mtib_pb2 import (
     # DeleteFwFileRequest,
     # DeleteFwFileResponse,
     # DeviceType,
-    DutPowerReadResponse,
-    DutPowerRequest,
-    DutPowerResponse,
+    PowerResponse,
+    PowerChannel,
+    PowerEnableRequest,
+    PowerDisableRequest,
+    PowerReadRequest,
+    PowerReadResponse,
     # DutVoltageReadRequest,
     # DutVoltageReadResponse,
     # FlashHexFileRequest,
@@ -216,9 +219,11 @@ class Sigma5MtibServers:
 
         try:
             stub = self.mtibs[host]
-            response: DutPowerResponse = stub.DutPowerDisable(Empty())
+            response: PowerResponse = stub.PowerDisable(
+                PowerDisableRequest(channel=PowerChannel.POWER_CHANNEL_DUT)
+            )
             if not response.success:
-                return f"DutPowerDisable Error: {response.message}"
+                return f"PowerDisable(DUT) Error: {response.message}"
             return ""
         except grpc.RpcError as e:
             return f"Failed to disable power for mtib at {host}. Error: {str(e.details())}"
@@ -229,23 +234,29 @@ class Sigma5MtibServers:
 
         try:
             stub = self.mtibs[host]
-            response: DutPowerResponse = stub.DutChargePowerDisable(Empty())
+            response: PowerResponse = stub.PowerDisable(
+                PowerDisableRequest(channel=PowerChannel.POWER_CHANNEL_CHARGER)
+            )
             if not response.success:
-                return f"DutChargePowerDisable Error: {response.message}"
+                return f"PowerDisable(CHARGER) Error: {response.message}"
             return ""
         except grpc.RpcError as e:
             return f"Failed to disable charge power for mtib at {host}. Error: {str(e.details())}"
 
     def enable_power(self, host: str, voltage: float) -> str:
+        if host not in self.mtibs:
+            return f"No mtib found for host {host}"
+
         try:
             stub = self.mtibs[host]
-            response: DutPowerResponse = stub.DutPowerEnable(DutPowerRequest(voltage_v=voltage))
+            response: PowerResponse = stub.PowerEnable(
+                PowerEnableRequest(channel=PowerChannel.POWER_CHANNEL_DUT, voltage_v=voltage)
+            )
             if not response.success:
-                return f"DutVoltageSet Error: {response.message}"
-
+                return f"PowerEnable(DUT) Error: {response.message}"
             return ""
         except grpc.RpcError as e:
-            return f"Failed to set VBAT for mtib at {host}. Error: {str(e.details())}"
+            return f"Failed to enable power for mtib at {host}. Error: {str(e.details())}"
 
     def enable_charge_power(self, host: str) -> str:
         if host not in self.mtibs:
@@ -253,9 +264,11 @@ class Sigma5MtibServers:
 
         try:
             stub = self.mtibs[host]
-            response: DutPowerResponse = stub.DutChargePowerEnable(Empty())
+            response: PowerResponse = stub.PowerEnable(
+                PowerEnableRequest(channel=PowerChannel.POWER_CHANNEL_CHARGER)
+            )
             if not response.success:
-                return f"DutChargePowerEnable failed Error: {response.message}"
+                return f"PowerEnable(CHARGER) Error: {response.message}"
             return ""
         except grpc.RpcError as e:
             return f"Failed to enable charge power for mtib at {host}. Error: {str(e.details())}"
@@ -346,10 +359,12 @@ class Sigma5MtibServers:
 
         try:
             stub = self.mtibs[host]
-            response: DutPowerReadResponse = stub.DutPowerRead(Empty())
+            response: PowerReadResponse = stub.PowerRead(
+                PowerReadRequest(channel=PowerChannel.POWER_CHANNEL_DUT)
+            )
             if not response.success:
-                return f"DutPowerRead Error: {response.message}", None
-            return "", float(response.current_a)
+                return f"PowerRead(DUT) Error: {response.message}", None
+            return "", float(response.current_ma / 1000.0)
         except grpc.RpcError as e:
             return f"Failed to read current for mtib at {host}. Error: {str(e.details())}", None
 
@@ -359,9 +374,11 @@ class Sigma5MtibServers:
 
         try:
             stub = self.mtibs[host]
-            response: DutPowerReadResponse = stub.DutPowerRead(Empty())
+            response: PowerReadResponse = stub.PowerRead(
+                PowerReadRequest(channel=PowerChannel.POWER_CHANNEL_DUT)
+            )
             if not response.success:
-                return f"DutPowerRead Error: {response.message}", None
+                return f"PowerRead(DUT) Error: {response.message}", None
             return "", float(response.voltage_v)
         except grpc.RpcError as e:
             return f"Failed to read VBAT for mtib at {host}. Error: {str(e.details())}", None

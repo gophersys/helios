@@ -101,14 +101,14 @@ def cleanup_power(client: MtibV1Client, logger: Logger) -> None:
     """
     logger.info("Cleaning up - turning off all power")
 
-    # Turn off DUT charge power
-    if err := client.DutChargePowerDisable():
-        logger.error(f"Error disabling DUT charge power during cleanup: {err}")
+    # Turn off charger power
+    if err := client.PowerDisable(channel=PowerChannel.CHARGER):
+        logger.error(f"Error disabling charger power during cleanup: {err}")
     else:
-        logger.info("DUT charge power disabled")
+        logger.info("Charger power disabled")
 
     # Turn off DUT power
-    if err := client.DutPowerDisable():
+    if err := client.PowerDisable(channel=PowerChannel.DUT):
         logger.error(f"Error disabling DUT power during cleanup: {err}")
     else:
         logger.info("DUT power disabled")
@@ -130,12 +130,12 @@ def sample(client: MtibV1Client, logger: Logger) -> None:
     signal.signal(signal.SIGTERM, signal_handler)  # Termination signal
 
     try:
-        # # Turn off everything
-        if err := client.DutPowerDisable():
+        # Turn off everything
+        if err := client.PowerDisable(channel=PowerChannel.DUT):
             logger.fatal(f"Error disabling DUT power: {err}")
 
-        if err := client.DutChargePowerDisable():
-            logger.fatal(f"Error disabling DUT charge power: {err}")
+        if err := client.PowerDisable(channel=PowerChannel.CHARGER):
+            logger.fatal(f"Error disabling charger power: {err}")
 
         time.sleep(2)
 
@@ -146,27 +146,25 @@ def sample(client: MtibV1Client, logger: Logger) -> None:
 
         # Turn on the DUT power (connected to the battery)
         voltage_v = 4.0
-        if err := client.DutPowerEnable(voltage_v):
+        if err := client.PowerEnable(channel=PowerChannel.DUT, voltage_v=voltage_v):
             logger.fatal(f"Error enabling DUT power: {err}")
-
-        # if err := client.DutChargePowerEnable():
-        #     logger.fatal(f"Error enabling DUT charge power: {err}")
 
         # Display the readings for a few seconds
         count = 0
         while True:
-            # Normal Power
-            current_a, voltage_v, power_w, err = client.DutPowerRead()
+            # DUT Power
+            dut_result, err = client.PowerRead(channel=PowerChannel.DUT)
             if err:
                 logger.fatal(f"Error reading DUT power: {err}")
 
-            # Charge Power
-            chg_current_a, chg_voltage_v, chg_power_w, err = client.DutChargePowerRead()
+            # Charger Power
+            chg_result, err = client.PowerRead(channel=PowerChannel.CHARGER)
             if err:
-                logger.fatal(f"Error reading DUT charge power: {err}")
+                logger.fatal(f"Error reading charger power: {err}")
 
             logger.info(
-                f"DUT  power: {power_w} W, current: {current_a} A, voltage: {voltage_v} V charge power: {chg_power_w} W, current: {chg_current_a} A, voltage: {chg_voltage_v} V"
+                f"DUT: {dut_result.power_mw:.1f}mW, {dut_result.current_ma:.1f}mA, {dut_result.voltage_v:.2f}V | "
+                f"CHG: {chg_result.power_mw:.1f}mW, {chg_result.current_ma:.1f}mA, {chg_result.voltage_v:.2f}V"
             )
 
             # Wait a bit

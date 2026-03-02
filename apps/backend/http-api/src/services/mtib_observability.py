@@ -5,13 +5,13 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import grpc
 
-from protocols.mtib_v2.mtib_v2_pb2 import Empty
-from protocols.mtib_v2.mtib_v2_pb2_grpc import MtibV2Stub
+from protocols.mtib.mtib_pb2 import Empty
+from protocols.mtib.mtib_pb2_grpc import MtibV1Stub
 
 logger = logging.getLogger(__name__)
 
-# gRPC port for MTIB V2 servers
-MTIB_GRPC_PORT = 50052
+# gRPC port for MTIB servers
+MTIB_GRPC_PORT = 50053
 
 # Module-level singleton
 _service = None
@@ -31,9 +31,29 @@ def get_observability_service():
 
 
 def _snapshot_to_dict(snapshot) -> dict:
-    """Convert an ObservabilitySnapshot protobuf to a plain dict."""
-    from corekinect.mtib_client.v2.client.observability import _snapshot_to_dict as convert
-    return convert(snapshot)
+    """Convert a GetSnapshotResponse protobuf to a plain dict."""
+    return {
+        "timestamp_ms": snapshot.timestamp_ms,
+        "hw_revision": snapshot.hw_revision,
+        "powerReadings": [
+            {
+                "channel": p.channel,
+                "enabled": p.enabled,
+                "voltage_v": p.voltage_v,
+                "current_ma": p.current_ma,
+                "power_mw": p.voltage_v * p.current_ma if p.enabled else 0.0,
+            }
+            for p in snapshot.power
+        ],
+        "gpioStates": [
+            {"gpio": g.gpio, "state": g.state}
+            for g in snapshot.gpio
+        ],
+        "adcReadings": [
+            {"channel": a.channel, "voltage_v": a.voltage_v}
+            for a in snapshot.adc
+        ],
+    }
 
 
 class MtibObservabilityService:
@@ -52,7 +72,7 @@ class MtibObservabilityService:
 
         # Persistent gRPC channels — keyed by ip_address
         self._channels = {}  # ip_address -> grpc.Channel
-        self._stubs = {}     # ip_address -> MtibV2Stub
+        self._stubs = {}     # ip_address -> MtibV1Stub
         self._channel_lock = threading.Lock()
 
         # Backoff tracking for down nodes — avoids hammering unreachable nodes
@@ -91,7 +111,7 @@ class MtibObservabilityService:
             self._channels.clear()
             self._stubs.clear()
 
-    def _get_stub(self, ip_address: str) -> MtibV2Stub:
+    def _get_stub(self, ip_address: str) -> MtibV1Stub:
         """Get or create a persistent gRPC stub for an MTIB server."""
         with self._channel_lock:
             if ip_address not in self._channels:
@@ -103,7 +123,7 @@ class MtibObservabilityService:
                     ("grpc.max_reconnect_backoff_ms", 5000),
                 ])
                 self._channels[ip_address] = channel
-                self._stubs[ip_address] = MtibV2Stub(channel)
+                self._stubs[ip_address] = MtibV1Stub(channel)
             return self._stubs[ip_address]
 
     def _invalidate_channel(self, ip_address: str):
@@ -209,7 +229,9 @@ class MtibObservabilityService:
     def _fetch_snapshot(self, ip_address: str) -> dict:
         """Fetch a single observability snapshot using persistent channel."""
         stub = self._get_stub(ip_address)
-        resp = stub.GetObservabilitySnapshot(Empty(), timeout=3)
+        resp = stub.GetSnapshot(Empty(), timeout=3)
+        if not resp.success:
+            raise RuntimeError(f"GetSnapshot failed: {resp.message}")
         return _snapshot_to_dict(resp)
 
     def get_all_snapshots(self) -> dict:
