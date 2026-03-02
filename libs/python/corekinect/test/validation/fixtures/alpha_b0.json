@@ -1,0 +1,42 @@
+{
+  "product": "alpha",
+  "board": "alpha_b0",
+  "button": {
+    "gpio_pin": 2,
+    "active_low": true
+  },
+  "on_skin": {
+    "gpio_pin": 3,
+    "active_high": true
+  },
+  "peltier": {
+    "gpio_pin": 4,
+    "sensor_adc_channel": 7
+  },
+  "charger_relay": {
+    "gpio_pin": 5,
+    "active_high": true
+  },
+  "led_sensor": {
+    "red_adc_channel": 4,
+    "green_adc_channel": 5,
+    "blue_adc_channel": 6
+  },
+  "nfc_reader": {
+    "interface": "i2c",
+    "bus": 1
+  },
+  "motion": {},
+  "power": {
+    "dut_voltage": 4.5,
+    "charger_voltage": 5.0,
+    "boot_settle_s": 3
+  },
+  "_notes": {
+    "swd_gpios": "GPIO 0+1 are RESERVED for SWD level shifter enable (always output LOW). Do NOT assign any fixture channel to pin 0 or 1.",
+    "gpio_pins": "Pins 2-6 available for Stage 4 stimulus. Assignments are PROVISIONAL — verify against actual fixture wiring when hardware arrives. Button=2, on_skin=3, peltier=4, charger_relay=5.",
+    "led_adc_channels": "Channels 4-6 are Stage 4 additions for photodiode RGB LED sensing.",
+    "manufacturing_adc": "ch0=power rail (~4.5V), ch1=battery divider (~2.5V), ch2=backup rail (~4.5V), ch3=SYS (~0V unused), ch7=3.3V ref",
+    "peltier_adc": "Using ch7 (3.3V ref) as temp sensor channel placeholder. Actual NTC thermistor channel TBD."
+  }
+}
