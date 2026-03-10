@@ -2212,6 +2212,192 @@ def _build_spec() -> APISpec:
             "responses": {"200": _ok({"type": "object", "properties": {"status": {"type": "string"}}}), "400": _400, "404": _404},
         },
     )
+    path("/validation/runs/{run_id}/report/log-chunk",
+        parameters=[{"name": "run_id", "in": "path", "required": True, "schema": {"type": "string"}}],
+        post={
+            "tags": ["Validation"], "summary": "Report log chunk (pytest reporter)", "security": [{"ApiKeyAuth": []}],
+            "description": "Receive log chunks from test runner, store in MinIO, and broadcast via WebSocket.",
+            "requestBody": {"required": True, "content": {"application/json": {"schema": {
+                "type": "object", "required": ["file", "offset", "data"],
+                "properties": {
+                    "file": {"type": "string", "description": "Relative log file path (e.g., tests/test_boot/output.log)"},
+                    "offset": {"type": "integer", "minimum": 0, "description": "Byte offset for this chunk"},
+                    "data": {"type": "string", "description": "Base64-encoded log data"},
+                    "timestamp": {"type": "integer", "nullable": True, "description": "Unix timestamp in milliseconds"},
+                },
+            }}}},
+            "responses": {"200": _ok({"type": "object", "properties": {"received": {"type": "boolean"}}}), "400": _400, "404": _404},
+        },
+    )
+    path("/validation/runs/{run_id}/logs/{file_path}",
+        parameters=[
+            {"name": "run_id", "in": "path", "required": True, "schema": {"type": "string"}},
+            {"name": "file_path", "in": "path", "required": True, "schema": {"type": "string"}, "description": "Relative log file path"},
+            {"name": "offset", "in": "query", "schema": {"type": "integer", "default": 0}, "description": "Byte offset for partial read"},
+        ],
+        get={
+            "tags": ["Validation"], "summary": "Get log file with offset support",
+            "description": "Fetch log file with optional offset for reconnection scenarios. Returns raw bytes with X-Offset and X-Total-Size headers.",
+            "responses": {
+                "200": {"description": "Log file content", "content": {"text/plain": {"schema": {"type": "string", "format": "binary"}}},
+                    "headers": {
+                        "X-Offset": {"schema": {"type": "integer"}, "description": "Byte offset of returned content"},
+                        "X-Total-Size": {"schema": {"type": "integer"}, "description": "Total file size in bytes"},
+                    }},
+                "404": _404,
+            },
+        },
+    )
+    path("/validation/runs/{run_id}/download",
+        parameters=[{"name": "run_id", "in": "path", "required": True, "schema": {"type": "string"}}],
+        get={
+            "tags": ["Validation"], "summary": "Download run as ZIP",
+            "description": "Generate ZIP archive on-demand (if not cached) and return presigned URL for download.",
+            "responses": {"200": _ok({"type": "object", "properties": {"url": {"type": "string", "format": "uri"}}}), "404": _404},
+        },
+    )
+    path("/validation/runs/{run_id}/manifest",
+        parameters=[{"name": "run_id", "in": "path", "required": True, "schema": {"type": "string"}}],
+        get={
+            "tags": ["Validation"], "summary": "Get run manifest",
+            "description": "Return the manifest.json for the run, containing metadata about configuration, tests, and artifacts.",
+            "responses": {"200": _ok({"type": "object", "properties": {
+                "runId": {"type": "string"},
+                "name": {"type": "string"},
+                "status": {"type": "string"},
+                "productId": {"type": "string"},
+                "config": {"type": "object"},
+                "startedAt": {"type": "string", "format": "date-time", "nullable": True},
+                "finishedAt": {"type": "string", "format": "date-time", "nullable": True},
+                "device": {"type": "object", "nullable": True, "properties": {
+                    "id": {"type": "string"},
+                    "serialNumber": {"type": "string"},
+                    "status": {"type": "string"},
+                }},
+                "executions": {"type": "array", "items": {"type": "object", "properties": {
+                    "testId": {"type": "string"},
+                    "testName": {"type": "string"},
+                    "status": {"type": "string"},
+                }}},
+                "passedCount": {"type": "integer"},
+                "failedCount": {"type": "integer"},
+                "completedCount": {"type": "integer"},
+            }}), "404": _404},
+        },
+    )
+
+    # ── CI / Builds ────────────────────────────────────────────
+    spec.components.schema("BuildJob", {
+        "type": "object",
+        "properties": {
+            "id": {"type": "string"},
+            "product": {"type": "string"},
+            "board": {"type": "string"},
+            "target": {"type": "string"},
+            "variant": {"type": "string"},
+            "mtibRev": {"type": "string"},
+            "branch": {"type": "string"},
+            "commitSha": {"type": "string", "nullable": True},
+            "status": {"type": "string", "enum": ["QUEUED", "BUILDING", "SUCCESS", "FAILED", "CANCELLED"]},
+            "versionString": {"type": "string", "nullable": True},
+            "buildNum": {"type": "integer"},
+            "errorMessage": {"type": "string", "nullable": True},
+            "startedAt": {"type": "string", "format": "date-time", "nullable": True},
+            "finishedAt": {"type": "string", "format": "date-time", "nullable": True},
+            "durationSeconds": {"type": "integer", "nullable": True},
+            "createdAt": {"type": "string", "format": "date-time"},
+            "artifacts": {"type": "array", "items": {"$ref": "#/components/schemas/BuildJobArtifact"}},
+        },
+    })
+    spec.components.schema("BuildJobArtifact", {
+        "type": "object",
+        "properties": {
+            "id": {"type": "string"},
+            "name": {"type": "string"},
+            "storageKey": {"type": "string"},
+            "sizeBytes": {"type": "integer"},
+            "checksum": {"type": "string"},
+            "downloadUrl": {"type": "string", "nullable": True},
+            "createdAt": {"type": "string", "format": "date-time"},
+        },
+    })
+    spec.components.schema("Pipeline", {
+        "type": "object",
+        "properties": {
+            "id": {"type": "string"},
+            "product": {"type": "string"},
+            "branch": {"type": "string"},
+            "commitSha": {"type": "string", "nullable": True},
+            "variant": {"type": "string"},
+            "status": {"type": "string", "enum": ["PENDING", "RUNNING", "SUCCESS", "FAILED"]},
+            "stages": {"type": "array", "items": {"type": "object"}},
+            "buildJob": {"$ref": "#/components/schemas/BuildJob"},
+            "runId": {"type": "string", "nullable": True},
+            "createdAt": {"type": "string", "format": "date-time"},
+        },
+    })
+
+    path("/ci/webhooks/bitbucket", post={
+        "tags": ["CI"], "summary": "Bitbucket webhook receiver (HMAC-validated)", "security": [],
+        "requestBody": {"required": True, "content": {"application/json": {"schema": {"type": "object"}}}},
+        "responses": {"200": _ok({"type": "object", "properties": {"triggered": {"type": "boolean"}, "buildJobId": {"type": "string"}}}), "400": _400},
+    })
+    path("/ci/trigger", post={
+        "tags": ["CI"], "summary": "Manual pipeline trigger",
+        "requestBody": {"required": True, "content": {"application/json": {"schema": {
+            "type": "object", "required": ["productId", "repoSlug", "branch"],
+            "properties": {
+                "productId": {"type": "string"},
+                "repoSlug": {"type": "string"},
+                "branch": {"type": "string"},
+                "variant": {"type": "string", "default": "debug"},
+                "mtibRev": {"type": "string", "default": "1.2"},
+                "commitSha": {"type": "string", "nullable": True},
+            },
+        }}}},
+        "responses": {"201": _ok({"type": "object", "properties": {"buildJobId": {"type": "string"}, "runId": {"type": "string", "nullable": True}}}), "400": _400, "404": _404},
+    })
+    path("/ci/builds", get={
+        "tags": ["CI"], "summary": "List builds",
+        "parameters": [
+            {"name": "page", "in": "query", "schema": {"type": "integer", "default": 1}},
+            {"name": "limit", "in": "query", "schema": {"type": "integer", "default": 50}},
+            {"name": "product", "in": "query", "schema": {"type": "string"}},
+            {"name": "branch", "in": "query", "schema": {"type": "string"}},
+            {"name": "status", "in": "query", "schema": {"type": "string"}},
+        ],
+        "responses": {"200": _paginated({"$ref": "#/components/schemas/BuildJob"})},
+    })
+    path("/ci/builds/{build_id}", get={
+        "tags": ["CI"], "summary": "Build detail",
+        "parameters": [{"name": "build_id", "in": "path", "required": True, "schema": {"type": "string"}}],
+        "responses": {"200": _ok({"$ref": "#/components/schemas/BuildJob"}), "404": _404},
+    })
+    path("/ci/builds/{build_id}/artifacts", get={
+        "tags": ["CI"], "summary": "Build artifacts with download URLs",
+        "parameters": [{"name": "build_id", "in": "path", "required": True, "schema": {"type": "string"}}],
+        "responses": {"200": _ok({"type": "array", "items": {"$ref": "#/components/schemas/BuildJobArtifact"}}), "404": _404},
+    })
+    path("/ci/builds/{build_id}/log", get={
+        "tags": ["CI"], "summary": "Build log content",
+        "parameters": [{"name": "build_id", "in": "path", "required": True, "schema": {"type": "string"}}],
+        "responses": {"200": _ok({"type": "object", "properties": {"log": {"type": "string"}}}), "404": _404},
+    })
+    path("/ci/pipelines", get={
+        "tags": ["CI"], "summary": "List pipelines (build → flash → validate chains)",
+        "parameters": [
+            {"name": "page", "in": "query", "schema": {"type": "integer", "default": 1}},
+            {"name": "limit", "in": "query", "schema": {"type": "integer", "default": 50}},
+            {"name": "product", "in": "query", "schema": {"type": "string"}},
+            {"name": "branch", "in": "query", "schema": {"type": "string"}},
+        ],
+        "responses": {"200": _paginated({"$ref": "#/components/schemas/Pipeline"})},
+    })
+    path("/ci/pipelines/{pipeline_id}", get={
+        "tags": ["CI"], "summary": "Pipeline detail with stages",
+        "parameters": [{"name": "pipeline_id", "in": "path", "required": True, "schema": {"type": "string"}}],
+        "responses": {"200": _ok({"$ref": "#/components/schemas/Pipeline"}), "404": _404},
+    })
 
     # ── Health ──────────────────────────────────────────────────
     path("/healthcheck", get={

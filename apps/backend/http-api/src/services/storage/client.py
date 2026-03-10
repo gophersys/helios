@@ -22,7 +22,8 @@ class StoragePrefixes:
     DEVICES_CERTIFICATES = "devices/certificates"
     DEVICES_DIAGNOSTICS = "devices/diagnostics"
     FIRMWARE_BUILDS = "firmware/builds"
-    VALIDATION_ARTIFACTS = "validation/artifacts"
+    VALIDATION_RUNS = "validation/runs"  # Structured: runs/{run_id}/{tests,manifest.json,run.zip}
+    CI_BUILD_SCRIPTS = "ci/build-scripts"  # Build scripts per product: ci/build-scripts/{product}/build.sh
 
 
 def storage_key(prefix: str, relative_path: str) -> str:

@@ -86,6 +86,8 @@ from .catalog.products import (
     create_product,
     delete_product,
     get_product,
+    get_product_by_repo,
+    get_product_by_slug,
     list_products,
     update_product,
 )
@@ -134,6 +136,10 @@ from .system.exec import register_exec_handlers
 from .system.uart import register_uart_handlers
 from .system.analyzer_stream import register_analyzer_handlers
 from .system.observability_ws import register_observability_handlers, register_icle_handlers
+from .system.retention import cleanup_validation_runs, get_validation_storage_usage
+
+# Validation WebSocket handlers
+from .validation.runs.validation_ws import register_validation_ws_handlers
 
 # ICLE device handlers
 from .icle.heartbeat import heartbeat as icle_heartbeat, set_socketio as set_icle_socketio
@@ -226,6 +232,68 @@ from .validation.runs.reporter import (
     report_finish,
 )
 from .validation.runs.trigger import trigger_run
+from .validation.runs.demo import simulate_run
+from .validation.runs.reporter import set_validation_socketio
+from .validation.runs.logs import (
+    report_log_chunk,
+    get_log_file,
+    download_run,
+    get_manifest,
+)
+
+# Validation — Test Benches
+from .validation.benches.benches import (
+    list_benches,
+    get_bench,
+    create_bench,
+    update_bench,
+    delete_bench,
+    lock_bench,
+    unlock_bench,
+    discover_mtibs,
+    get_bench_profile,
+)
+
+# Validation — Fixture Designs
+from .validation.designs.designs import (
+    list_designs,
+    get_design,
+    create_design,
+    update_design,
+    delete_design,
+    get_design_profile,
+)
+
+# CI / Build handlers
+from .ci.webhook import webhook_bitbucket, trigger_pipeline, set_ci_socketio, list_ci_repos
+from .ci.builds import (
+    list_builds as list_ci_builds,
+    get_build as get_ci_build,
+    list_build_artifacts as list_ci_build_artifacts,
+    download_build_artifacts as download_ci_build_artifacts,
+    get_build_log as get_ci_build_log,
+    stream_build_log as stream_ci_build_log,
+    create_build as create_ci_build,
+    update_build as update_ci_build,
+    upload_build_artifact as upload_ci_build_artifact,
+)
+from .ci.pipelines import (
+    list_pipelines as list_ci_pipelines,
+    get_pipeline as get_ci_pipeline,
+    create_pipeline as create_ci_pipeline,
+    cancel_pipeline as cancel_ci_pipeline,
+    download_pipeline_artifacts as download_ci_pipeline_artifacts,
+)
+from .ci.scripts import (
+    list_build_scripts,
+    get_build_script,
+    upload_build_script,
+    delete_build_script,
+)
+from .ci.overlays import (
+    get_overlays,
+    list_overlays,
+)
 
 
 # -------------------------------------------------
@@ -342,6 +410,8 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     # Catalog - Products
     v2.add_url_rule("/catalog",                                                                   view_func=list_products,          methods=["GET"])
     v2.add_url_rule("/catalog",                                                                   view_func=create_product,         methods=["POST"])
+    v2.add_url_rule("/catalog/by-slug/<slug>",                                                    view_func=get_product_by_slug,    methods=["GET"])
+    v2.add_url_rule("/catalog/by-repo/<repo_slug>",                                               view_func=get_product_by_repo,    methods=["GET"])
     v2.add_url_rule("/catalog/<product_id>",                                                      view_func=get_product,            methods=["GET"])
     v2.add_url_rule("/catalog/<product_id>",                                                      view_func=update_product,         methods=["PUT"])
     v2.add_url_rule("/catalog/<product_id>",                                                      view_func=delete_product,         methods=["DELETE"])
@@ -390,6 +460,34 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     v2.add_url_rule("/validation/runs/<run_id>/report/test-start",                                         endpoint="report_test_start",            view_func=report_test_start,        methods=["POST"])
     v2.add_url_rule("/validation/runs/<run_id>/report/test-result",                                        endpoint="report_test_result",           view_func=report_test_result,       methods=["POST"])
     v2.add_url_rule("/validation/runs/<run_id>/report/finish",                                             endpoint="report_run_finish",            view_func=report_finish,            methods=["POST"])
+    v2.add_url_rule("/validation/runs/<run_id>/report/log-chunk",                                          endpoint="report_log_chunk",             view_func=report_log_chunk,         methods=["POST"])
+
+    # Validation — Log & artifact retrieval
+    v2.add_url_rule("/validation/runs/<run_id>/logs/<path:file_path>",                                     endpoint="get_run_log_file",             view_func=get_log_file,             methods=["GET"])
+    v2.add_url_rule("/validation/runs/<run_id>/download",                                                  endpoint="download_validation_run",      view_func=download_run,             methods=["GET"])
+    v2.add_url_rule("/validation/runs/<run_id>/manifest",                                                  endpoint="get_run_manifest",             view_func=get_manifest,             methods=["GET"])
+
+    # Validation — Demo (simulate a run via WebSocket events)
+    v2.add_url_rule("/validation/runs/<run_id>/demo/simulate",                                            endpoint="simulate_validation_run",      view_func=simulate_run,             methods=["POST"])
+
+    # Validation — Test Benches (for CI scheduling)
+    v2.add_url_rule("/validation/benches",                                                                endpoint="list_benches",                 view_func=list_benches,             methods=["GET"])
+    v2.add_url_rule("/validation/benches",                                                                endpoint="create_bench",                 view_func=create_bench,             methods=["POST"])
+    v2.add_url_rule("/validation/benches/discover",                                                       endpoint="discover_mtibs",               view_func=discover_mtibs,           methods=["GET"])
+    v2.add_url_rule("/validation/benches/<bench_id>",                                                     endpoint="get_bench",                    view_func=get_bench,                methods=["GET"])
+    v2.add_url_rule("/validation/benches/<bench_id>",                                                     endpoint="update_bench",                 view_func=update_bench,             methods=["PATCH"])
+    v2.add_url_rule("/validation/benches/<bench_id>",                                                     endpoint="delete_bench",                 view_func=delete_bench,             methods=["DELETE"])
+    v2.add_url_rule("/validation/benches/<bench_id>/lock",                                                endpoint="lock_bench",                   view_func=lock_bench,               methods=["POST"])
+    v2.add_url_rule("/validation/benches/<bench_id>/unlock",                                              endpoint="unlock_bench",                 view_func=unlock_bench,             methods=["POST"])
+    v2.add_url_rule("/validation/benches/<bench_id>/profile",                                             endpoint="get_bench_profile",            view_func=get_bench_profile,        methods=["GET"])
+
+    # Validation — Fixture Designs (versioned hardware specs)
+    v2.add_url_rule("/validation/designs",                                                                endpoint="list_designs",                 view_func=list_designs,             methods=["GET"])
+    v2.add_url_rule("/validation/designs",                                                                endpoint="create_design",                view_func=create_design,            methods=["POST"])
+    v2.add_url_rule("/validation/designs/<design_id>",                                                    endpoint="get_design",                   view_func=get_design,               methods=["GET"])
+    v2.add_url_rule("/validation/designs/<design_id>",                                                    endpoint="update_design",                view_func=update_design,            methods=["PATCH"])
+    v2.add_url_rule("/validation/designs/<design_id>",                                                    endpoint="delete_design",                view_func=delete_design,            methods=["DELETE"])
+    v2.add_url_rule("/validation/designs/<design_id>/profile",                                            endpoint="get_design_profile",           view_func=get_design_profile,       methods=["GET"])
 
     # Dashboard
     v2.add_url_rule("/dashboard/overview",                           endpoint="dashboard_overview",          view_func=dashboard_overview,         methods=["GET"])
@@ -437,6 +535,10 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
 
     # System: Build info (no auth required — useful for debugging)
     v2.add_url_rule("/system/info",                 view_func=get_system_info, methods=["GET"])
+
+    # System: Retention management (admin only)
+    v2.add_url_rule("/system/retention/validation/cleanup",   endpoint="cleanup_validation_runs",     view_func=cleanup_validation_runs,      methods=["POST"])
+    v2.add_url_rule("/system/retention/validation/usage",     endpoint="get_validation_storage_usage", view_func=get_validation_storage_usage, methods=["GET"])
 
     # Kubernetes: Cluster
     v2.add_url_rule("/kubernetes/cluster",              view_func=get_cluster,     methods=["GET"])
@@ -498,7 +600,7 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     v2.add_url_rule("/icle/devices/<device_id>/logs",               endpoint="upload_icle_log",          view_func=upload_icle_log,      methods=["POST"])
     v2.add_url_rule("/icle/commands/<command_id>/ack",              endpoint="ack_icle_command",         view_func=ack_icle_command,     methods=["POST"])
 
-    # Kubernetes: Log Streaming + Pod Exec
+    # Kubernetes: Log Streaming + Pod Exec (all use /kubernetes namespace)
     register_log_handlers(socketio)
     register_exec_handlers(socketio)
     register_uart_handlers(socketio)
@@ -506,7 +608,51 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     register_observability_handlers(socketio)
     register_icle_handlers(socketio)
 
+    # Validation: WebSocket handlers for /validation namespace
+    register_validation_ws_handlers(socketio)
+
     # Set SocketIO instance for ICLE WebSocket events
     set_icle_socketio(socketio)
+
+    # Set SocketIO instance for validation WebSocket events (reporter.py)
+    set_validation_socketio(socketio)
+
+    # Set SocketIO instance for CI WebSocket events
+    set_ci_socketio(socketio)
+
+    # CI — Webhooks & Triggers
+    v2.add_url_rule("/ci/webhooks/bitbucket",                                               endpoint="ci_webhook_bitbucket",     view_func=webhook_bitbucket,     methods=["POST"])
+    v2.add_url_rule("/ci/trigger",                                                          endpoint="ci_trigger_pipeline",      view_func=trigger_pipeline,      methods=["POST"])
+
+    # CI — Builds
+    v2.add_url_rule("/ci/builds",                                                           endpoint="list_ci_builds",           view_func=list_ci_builds,        methods=["GET"])
+    v2.add_url_rule("/ci/builds",                                                           endpoint="create_ci_build",          view_func=create_ci_build,       methods=["POST"])
+    v2.add_url_rule("/ci/builds/<build_id>",                                                endpoint="get_ci_build",             view_func=get_ci_build,          methods=["GET"])
+    v2.add_url_rule("/ci/builds/<build_id>",                                                endpoint="update_ci_build",          view_func=update_ci_build,       methods=["PATCH"])
+    v2.add_url_rule("/ci/builds/<build_id>/artifacts",                                      endpoint="list_ci_build_artifacts",  view_func=list_ci_build_artifacts, methods=["GET"])
+    v2.add_url_rule("/ci/builds/<build_id>/artifacts",                                      endpoint="upload_ci_build_artifact", view_func=upload_ci_build_artifact, methods=["POST"])
+    v2.add_url_rule("/ci/builds/<build_id>/artifacts/download",                             endpoint="download_ci_build_artifacts", view_func=download_ci_build_artifacts, methods=["GET"])
+    v2.add_url_rule("/ci/builds/<build_id>/log",                                            endpoint="get_ci_build_log",         view_func=get_ci_build_log,      methods=["GET"])
+    v2.add_url_rule("/ci/builds/<build_id>/log",                                            endpoint="stream_ci_build_log",      view_func=stream_ci_build_log,   methods=["POST"])
+
+    # CI — Pipelines
+    v2.add_url_rule("/ci/pipelines",                                                        endpoint="list_ci_pipelines",        view_func=list_ci_pipelines,     methods=["GET"])
+    v2.add_url_rule("/ci/pipelines",                                                        endpoint="create_ci_pipeline",       view_func=create_ci_pipeline,    methods=["POST"])
+    v2.add_url_rule("/ci/pipelines/<pipeline_id>",                                          endpoint="get_ci_pipeline",          view_func=get_ci_pipeline,       methods=["GET"])
+    v2.add_url_rule("/ci/pipelines/<pipeline_id>/cancel",                                   endpoint="cancel_ci_pipeline",       view_func=cancel_ci_pipeline,    methods=["POST"])
+    v2.add_url_rule("/ci/pipelines/<pipeline_id>/artifacts/download",                       endpoint="download_ci_pipeline_artifacts", view_func=download_ci_pipeline_artifacts, methods=["GET"])
+
+    # CI — Settings
+    v2.add_url_rule("/ci/settings/repos",                                                   endpoint="list_ci_repos",            view_func=list_ci_repos,         methods=["GET"])
+
+    # CI — Build Scripts (MinIO-stored bash scripts)
+    v2.add_url_rule("/ci/scripts",                                                          endpoint="list_build_scripts",       view_func=list_build_scripts,    methods=["GET"])
+    v2.add_url_rule("/ci/scripts/<product>",                                                endpoint="get_build_script",         view_func=get_build_script,      methods=["GET"])
+    v2.add_url_rule("/ci/scripts/<product>",                                                endpoint="upload_build_script",      view_func=upload_build_script,   methods=["PUT"])
+    v2.add_url_rule("/ci/scripts/<product>",                                                endpoint="delete_build_script",      view_func=delete_build_script,   methods=["DELETE"])
+
+    # CI — Overlay Files (DTS overlays for MTIB revisions)
+    v2.add_url_rule("/ci/overlays/<product>",                                               endpoint="get_overlays",             view_func=get_overlays,          methods=["GET"])
+    v2.add_url_rule("/ci/overlays/<product>/list",                                          endpoint="list_overlays",            view_func=list_overlays,         methods=["GET"])
 
     server.register_blueprint(v2)

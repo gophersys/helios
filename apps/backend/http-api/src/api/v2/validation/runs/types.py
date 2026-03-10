@@ -106,6 +106,8 @@ class ReportTestResultRequest:
     duration_s: Optional[float] = None
     error_message: Optional[str] = None
     measurements: Optional[Dict[str, Any]] = None
+    skipped: bool = False
+    log_output: Optional[str] = None
 
     @classmethod
     def from_json(cls, data: dict) -> Tuple[Optional["ReportTestResultRequest"], Optional[str]]:
@@ -137,12 +139,22 @@ class ReportTestResultRequest:
         if measurements is not None and not isinstance(measurements, dict):
             return None, "measurements must be an object"
 
+        skipped = data.get("skipped", False)
+        if not isinstance(skipped, bool):
+            skipped = False
+
+        log_output = data.get("logOutput")
+        if log_output is not None:
+            log_output = str(log_output)[:10000] or None  # Cap at 10KB
+
         return cls(
             test_name=test_name,
             passed=passed,
             duration_s=duration_s,
             error_message=error_message,
             measurements=measurements,
+            skipped=skipped,
+            log_output=log_output,
         ), None
 
 
@@ -226,4 +238,51 @@ class RunTriggerRequest:
             firmware_version=firmware_version,
             firmware_path=firmware_path,
             config=config,
+        ), None
+
+
+@dataclass
+class ReportLogChunkRequest:
+    """Log chunk from pytest reporter — streamed during test execution."""
+    file: str
+    offset: int
+    data: str  # base64 encoded
+    timestamp: Optional[int] = None
+
+    @classmethod
+    def from_json(cls, data: dict) -> Tuple[Optional["ReportLogChunkRequest"], Optional[str]]:
+        if not data:
+            return None, "Request body must contain JSON data"
+
+        file = (data.get("file") or "").strip()
+        if not file:
+            return None, "file is required"
+
+        # Validate file path to prevent directory traversal
+        if ".." in file or file.startswith("/"):
+            return None, "Invalid file path"
+
+        offset = data.get("offset")
+        if offset is None:
+            return None, "offset is required"
+        if not isinstance(offset, int) or offset < 0:
+            return None, "offset must be a non-negative integer"
+
+        chunk_data = data.get("data")
+        if not chunk_data:
+            return None, "data is required"
+        if not isinstance(chunk_data, str):
+            return None, "data must be a base64-encoded string"
+
+        timestamp = data.get("timestamp")
+        if timestamp is not None:
+            if not isinstance(timestamp, (int, float)):
+                return None, "timestamp must be a number"
+            timestamp = int(timestamp)
+
+        return cls(
+            file=file,
+            offset=offset,
+            data=chunk_data,
+            timestamp=timestamp,
         ), None

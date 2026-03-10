@@ -33,7 +33,8 @@ def create_k8s_job_name(product: str, job_id: str, firmware_version: Optional[st
     import hashlib
 
     # Ensure product name is lowercase and valid for K8s
-    product_clean = product.lower().replace("_", "-")
+    product_clean = re.sub(r"[^a-z0-9-]", "-", product.lower()).strip("-")
+    product_clean = re.sub(r"-+", "-", product_clean)
 
     # Normalize firmware version: replace dots/underscores with hyphens for K8s compatibility
     version_suffix = ""
@@ -183,6 +184,12 @@ def create_kubernetes_job(
     run_id: Optional[str] = None,
     api_key: Optional[str] = None,
     api_url: Optional[str] = None,
+    # Bench-related params (from TestBench scheduler)
+    mtib_address: Optional[str] = None,
+    bench_id: Optional[str] = None,
+    device_id: Optional[str] = None,
+    device_snr: Optional[str] = None,
+    fixture_profile_path: Optional[str] = None,
 ) -> Optional[str]:
     """
     Create a new kubernetes job with the new firmware file environment variables.
@@ -200,8 +207,12 @@ def create_kubernetes_job(
         with open(template_path, "r") as f:
             job_template = f.read()
 
+        # Sanitize product name for K8s (lowercase, no spaces, RFC 1123 compliant)
+        product_k8s = re.sub(r"[^a-z0-9-]", "-", product.lower()).strip("-")
+        product_k8s = re.sub(r"-+", "-", product_k8s)
+
         # Create Kubernetes-compliant job name
-        job_name = create_k8s_job_name(product, job_id, firmware_version)
+        job_name = create_k8s_job_name(product_k8s, job_id, firmware_version)
 
         # Set test enable flags from config
         test_enable_electrical = "true" if test_enable.get("electrical", False) else "false"
@@ -210,7 +221,7 @@ def create_kubernetes_job(
 
         # Replace placeholders in the template
         job_yaml = job_template.replace("{{JOB_ID}}", job_id)
-        job_yaml = job_yaml.replace("{{PRODUCT}}", product)
+        job_yaml = job_yaml.replace("{{PRODUCT}}", product_k8s)
         job_yaml = job_yaml.replace("{{FIRMWARE_PATH}}", firmware_path)
         job_yaml = job_yaml.replace("{{JOB_NAME}}", job_name)
         job_yaml = job_yaml.replace("{{ENVIRONMENT}}", env_config.ENVIRONMENT)
@@ -220,7 +231,20 @@ def create_kubernetes_job(
         job_yaml = job_yaml.replace("{{TEST_ENABLE_COMM_POST}}", test_enable_comm_post)
         job_yaml = job_yaml.replace("{{CONCORD_RUN_ID}}", run_id or "")
         job_yaml = job_yaml.replace("{{CONCORD_API_KEY}}", api_key or "")
-        job_yaml = job_yaml.replace("{{CONCORD_API_URL}}", api_url or "http://10.4.45.32:9001")
+        job_yaml = job_yaml.replace("{{CONCORD_API_URL}}", api_url or "https://10.4.45.11:443")
+        # Host header for ingress routing when using IP address
+        job_yaml = job_yaml.replace("{{CONCORD_API_HOST}}", "staging.concord.local")
+
+        # Device/bench identity env vars — use passed params if available, else fall back to env
+        job_yaml = job_yaml.replace("{{DEVICE_ID}}", device_id or os.environ.get("DEVICE_ID", ""))
+        job_yaml = job_yaml.replace("{{DEVICE_SNR}}", device_snr or os.environ.get("DEVICE_SNR", ""))
+        job_yaml = job_yaml.replace("{{FIXTURE_PROFILE_PATH}}", fixture_profile_path or os.environ.get("FIXTURE_PROFILE_PATH", "fixtures/alpha_b0.json"))
+        job_yaml = job_yaml.replace("{{PROXY_SERVER_URL}}", os.environ.get("PROXY_SERVER_URL", ""))
+        job_yaml = job_yaml.replace("{{DEVICE_IMEI}}", os.environ.get("DEVICE_IMEI", ""))
+        job_yaml = job_yaml.replace("{{DEVICE_ICCIDS}}", os.environ.get("DEVICE_ICCIDS", ""))
+        # Bench-specific: MTIB address from bench scheduler
+        job_yaml = job_yaml.replace("{{MTIB_ADDRESS}}", mtib_address or os.environ.get("MTIB_ADDRESS", ""))
+        job_yaml = job_yaml.replace("{{BENCH_ID}}", bench_id or "")
 
         # Parse the YAML and create the job
         job_spec = yaml.safe_load(job_yaml)
@@ -236,9 +260,9 @@ def create_kubernetes_job(
                 node_selector[label_key] = feature_value
             job_spec["spec"]["template"]["spec"]["nodeSelector"] = node_selector
 
-        # Create the Kubernetes job
+        # Create the Kubernetes job in the validation namespace (same as MinIO/API for network access)
         batch_v1 = get_batch_v1_api()
-        batch_v1.create_namespaced_job(namespace="default", body=job_spec)
+        batch_v1.create_namespaced_job(namespace=env_config.VALIDATION_NAMESPACE, body=job_spec)
 
         logger.info(f"Successfully created Kubernetes job: {job_name}")
         return job_name

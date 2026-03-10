@@ -24,6 +24,43 @@ from .types import (
 
 logger = logging.getLogger(__name__)
 
+# SocketIO instance — set by register_v2_routes()
+_socketio = None
+
+
+def set_validation_socketio(sio):
+    global _socketio
+    _socketio = sio
+
+
+def _emit_validation_event(event: str, data: dict, run_id: str | None = None):
+    """Emit a validation event to subscribers.
+
+    Events are emitted to:
+    1. /kubernetes namespace (broadcast) - for backward compatibility
+    2. /validation namespace (room-targeted) - for efficient room-based delivery
+
+    Args:
+        event: Event name (e.g., "validation_run_start")
+        data: Event payload (must include "runId" for room targeting)
+        run_id: Optional explicit run_id for room targeting (uses data["runId"] if not provided)
+    """
+    if not _socketio:
+        return
+
+    # Emit to /kubernetes namespace (broadcast for backward compatibility)
+    _socketio.emit(event, data, namespace="/kubernetes")
+
+    # Emit to /validation namespace with room targeting
+    target_run_id = run_id or data.get("runId")
+    if target_run_id:
+        _socketio.emit(
+            event,
+            data,
+            namespace="/validation",
+            room=f"run:{target_run_id}"
+        )
+
 
 def _get_session_or_404(db, run_id: str):
     session = db.session.find_unique(where={"id": run_id})
@@ -54,6 +91,8 @@ def report_start(run_id: str):
             "startedAt": datetime.now(timezone.utc),
         },
     )
+
+    _emit_validation_event("validation_run_start", {"runId": run_id, "status": "ACTIVE"})
 
     logger.info(f"Validation run {run_id} started by reporter")
     return jsonify(ApiResponse.ok({"runId": run_id, "status": "ACTIVE"}).to_dict()), 200
@@ -143,6 +182,13 @@ def report_test_start(run_id: str):
         data={"status": "IN_PROGRESS"},
     )
 
+    _emit_validation_event("validation_test_start", {
+        "runId": run_id,
+        "testName": data.test_name,
+        "module": data.module,
+        "executionId": execution.id,
+    })
+
     logger.info(f"Test {data.test_name} started in run {run_id}")
     return jsonify(ApiResponse.ok({
         "executionId": execution.id,
@@ -189,7 +235,12 @@ def report_test_result(run_id: str):
         return not_found(f"No execution found for test '{data.test_name}'")
 
     now = datetime.now(timezone.utc)
-    new_status = "PASSED" if data.passed else "FAILED"
+    if data.skipped:
+        new_status = "SKIPPED"
+    elif data.passed:
+        new_status = "PASSED"
+    else:
+        new_status = "FAILED"
 
     # Update execution status
     db.testexecution.update(
@@ -208,6 +259,8 @@ def report_test_result(run_id: str):
         result_data["errorMessage"] = data.error_message
     if data.duration_s is not None:
         result_data["durationS"] = data.duration_s
+    if data.log_output:
+        result_data["logOutput"] = data.log_output
 
     # Count existing results to determine step index
     existing_count = db.testresult.count(where={"executionId": execution.id})
@@ -223,6 +276,17 @@ def report_test_result(run_id: str):
         },
     )
 
+    _emit_validation_event("validation_test_result", {
+        "runId": run_id,
+        "testName": data.test_name,
+        "passed": data.passed,
+        "skipped": data.skipped,
+        "durationS": data.duration_s,
+        "errorMessage": data.error_message,
+        "measurements": data.measurements,
+        "logOutput": data.log_output,
+    })
+
     logger.info(f"Test {data.test_name} {'PASSED' if data.passed else 'FAILED'} in run {run_id}")
     return jsonify(ApiResponse.ok({
         "resultId": result.id,
@@ -230,6 +294,36 @@ def report_test_result(run_id: str):
         "testName": data.test_name,
         "passed": data.passed,
     }).to_dict()), 200
+
+
+def _unlock_bench_if_locked(db, session) -> None:
+    """Release the bench lock if this run had one.
+
+    The bench ID is stored in session.config["benchId"] when trigger.py
+    locks a bench for exclusive use during the run.
+    """
+    if not session.config or not isinstance(session.config, dict):
+        return
+
+    bench_id = session.config.get("benchId")
+    if not bench_id:
+        return
+
+    try:
+        bench = db.testbench.find_unique(where={"id": bench_id})
+        if bench and bench.status == "LOCKED":
+            db.testbench.update(
+                where={"id": bench_id},
+                data={
+                    "status": "AVAILABLE",
+                    "lockedBy": None,
+                    "lockedAt": None,
+                },
+            )
+            logger.info(f"Released bench lock: {bench.stationId} (was locked by run {session.id})")
+    except Exception as e:
+        # Don't fail the finish request if unlock fails — log and continue
+        logger.warning(f"Failed to unlock bench {bench_id}: {e}")
 
 
 @require_auth
@@ -246,6 +340,9 @@ def report_finish(run_id: str):
 
     now = datetime.now(timezone.utc)
 
+    # Release bench lock before updating session status
+    _unlock_bench_if_locked(db, session)
+
     # Update session with final counts
     db.session.update(
         where={"id": run_id},
@@ -258,14 +355,32 @@ def report_finish(run_id: str):
         },
     )
 
-    # Update device status based on results
+    # Mark any remaining QUEUED executions as SKIPPED (planned but never ran)
     device = db.device.find_first(where={"sessionId": run_id})
     if device:
+        db.testexecution.update_many(
+            where={
+                "deviceId": device.id,
+                "status": "QUEUED",
+            },
+            data={"status": "SKIPPED"},
+        )
+
         device_status = "PASSED" if data.failed == 0 and data.errors == 0 else "FAILED"
         db.device.update(
             where={"id": device.id},
             data={"status": device_status},
         )
+
+    _emit_validation_event("validation_run_finish", {
+        "runId": run_id,
+        "status": "COMPLETED",
+        "total": data.total,
+        "passed": data.passed,
+        "failed": data.failed,
+        "errors": data.errors,
+        "durationS": data.duration_s,
+    })
 
     logger.info(
         f"Validation run {run_id} finished: {data.passed}/{data.total} passed, "

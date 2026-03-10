@@ -28,6 +28,7 @@ def _serialize_session(s: Any, include_executions: bool = False) -> dict:
         "name": s.name,
         "productId": s.productId,
         "fixtureId": s.fixtureId,
+        "pipelineRunId": s.pipelineRunId if hasattr(s, "pipelineRunId") else None,
         "status": s.status,
         "config": s.config,
         "targetCount": s.targetCount,
@@ -44,6 +45,8 @@ def _serialize_session(s: Any, include_executions: bool = False) -> dict:
         data["product"] = {"id": s.product.id, "name": s.product.name}
     if hasattr(s, "createdBy") and s.createdBy is not None:
         data["createdBy"] = {"id": s.createdBy.id, "name": s.createdBy.name, "email": s.createdBy.email}
+    if hasattr(s, "pipelineRun") and s.pipelineRun is not None:
+        data["pipelineRun"] = _serialize_pipeline_run(s.pipelineRun)
     if hasattr(s, "devices") and s.devices is not None:
         data["devices"] = [_serialize_device(d) for d in s.devices]
     if include_executions and hasattr(s, "devices") and s.devices is not None:
@@ -51,7 +54,8 @@ def _serialize_session(s: Any, include_executions: bool = False) -> dict:
         for d in s.devices:
             if hasattr(d, "executions") and d.executions is not None:
                 for ex in d.executions:
-                    executions.append(_serialize_execution(ex))
+                    # Include full results with logs for run detail page
+                    executions.append(_serialize_execution(ex, include_results=True))
         data["executions"] = executions
     return data
 
@@ -69,7 +73,7 @@ def _serialize_device(d: Any) -> dict:
     return data
 
 
-def _serialize_execution(ex: Any) -> dict:
+def _serialize_execution(ex: Any, include_results: bool = False) -> dict:
     data = {
         "id": ex.id,
         "testId": ex.testId,
@@ -87,6 +91,9 @@ def _serialize_execution(ex: Any) -> dict:
     if hasattr(ex, "results") and ex.results is not None:
         data["resultCount"] = len(ex.results)
         data["resultsPassed"] = sum(1 for r in ex.results if r.passed)
+        # Include full results with logs for run detail page
+        if include_results:
+            data["results"] = [_serialize_result(r) for r in ex.results]
     return data
 
 
@@ -100,6 +107,69 @@ def _serialize_result(r: Any) -> dict:
         "result": r.result,
         "createdAt": r.createdAt.isoformat(),
     }
+
+
+def _serialize_build_job(b: Any) -> dict:
+    # Calculate duration from timestamps if available
+    duration_seconds = None
+    if b.startedAt and b.finishedAt:
+        duration_seconds = int((b.finishedAt - b.startedAt).total_seconds())
+
+    data = {
+        "id": b.id,
+        "product": b.product,
+        "board": b.board,
+        "target": b.target,
+        "variant": b.variant,
+        "mtibRev": b.mtibRev,
+        "branch": b.branch,
+        "commitSha": b.commitSha,
+        "status": b.status,
+        "versionMajor": b.versionMajor,
+        "versionMinor": b.versionMinor,
+        "buildNum": b.buildNum,
+        "versionString": b.versionString,
+        "errorMessage": b.errorMessage,
+        "logOutput": b.buildLog,  # Schema uses buildLog, frontend expects logOutput
+        "durationSeconds": duration_seconds,
+        "startedAt": b.startedAt.isoformat() if b.startedAt else None,
+        "finishedAt": b.finishedAt.isoformat() if b.finishedAt else None,
+        "createdAt": b.createdAt.isoformat(),
+        "updatedAt": b.updatedAt.isoformat(),
+    }
+    if hasattr(b, "artifacts") and b.artifacts is not None:
+        data["artifacts"] = [
+            {
+                "id": a.id,
+                "name": a.name,
+                "storageKey": a.storageKey,
+                "sizeBytes": str(a.sizeBytes),
+            }
+            for a in b.artifacts
+        ]
+    return data
+
+
+def _serialize_pipeline_run(p: Any) -> dict:
+    data = {
+        "id": p.id,
+        "name": p.name,
+        "product": p.product,
+        "board": p.board,
+        "branch": p.branch,
+        "commitSha": p.commitSha,
+        "status": p.status,
+        "triggerType": p.triggerType,
+        "expectedBuilds": p.expectedBuilds,
+        "completedBuilds": p.completedBuilds,
+        "startedAt": p.startedAt.isoformat() if p.startedAt else None,
+        "finishedAt": p.finishedAt.isoformat() if p.finishedAt else None,
+        "createdAt": p.createdAt.isoformat(),
+        "updatedAt": p.updatedAt.isoformat(),
+    }
+    if hasattr(p, "builds") and p.builds is not None:
+        data["builds"] = [_serialize_build_job(b) for b in p.builds]
+    return data
 
 
 # -------------------------------------------------
@@ -230,7 +300,7 @@ def list_runs():
 
     # Only return sessions that have config (validation runs have nodeId in config)
     # This distinguishes validation runs from manufacturing sessions
-    where["config"] = {"not": None}
+    where["config"] = {"not": Json("DbNull")}
 
     total = db.session.count(where=where)
     sessions = db.session.find_many(
@@ -258,7 +328,7 @@ def list_runs():
 
 @require_permissions(Permissions.ADMIN_VALIDATION_VIEW)
 def get_run(run_id: str):
-    """GET /v2/validation/runs/<id> — Run detail with devices and executions."""
+    """GET /v2/validation/runs/<id> — Run detail with devices, executions, and build pipeline."""
     db = get_db_client()
 
     session = db.session.find_unique(
@@ -266,6 +336,16 @@ def get_run(run_id: str):
         include={
             "product": True,
             "createdBy": True,
+            "pipelineRun": {
+                "include": {
+                    "builds": {
+                        "include": {
+                            "artifacts": True,
+                        },
+                        "order_by": {"createdAt": "asc"},
+                    },
+                },
+            },
             "devices": {
                 "include": {
                     "executions": {

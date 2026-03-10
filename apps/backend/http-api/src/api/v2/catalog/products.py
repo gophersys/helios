@@ -20,8 +20,19 @@ def _serialize_product(p: Any, include_children: bool = False) -> dict:
     data = {
         "id": p.id,
         "name": p.name,
+        "slug": p.slug,
         "description": p.description,
         "active": p.active,
+        # Repo config (git poller uses these)
+        "repoSlug": p.repoSlug,
+        "repoSshUrl": p.repoSshUrl,
+        "repoBranch": p.repoBranch,
+        "mfgRepoSlug": p.mfgRepoSlug,
+        "mfgRepoSshUrl": p.mfgRepoSshUrl,
+        # Build config (build worker uses these)
+        "buildBoard": p.buildBoard,
+        "buildWestDir": p.buildWestDir,
+        "buildMfgDir": p.buildMfgDir,
         "metadata": p.metadata,
         "createdAt": p.createdAt.isoformat(),
         "updatedAt": p.updatedAt.isoformat(),
@@ -247,3 +258,25 @@ def delete_product(product_id: str):
     db.product.delete(where={"id": product_id})
     log_audit("product.delete", "Product", product_id, {"name": existing.name})
     return jsonify(ApiResponse.ok({"deleted": True}).to_dict()), 200
+
+
+@require_permissions(Permissions.ADMIN_CATALOG_VIEW)
+def get_product_by_slug(slug: str):
+    """GET /v2/catalog/products/by-slug/<slug> — Find product by slug (for API consumers)."""
+    db = get_db_client()
+    product = db.product.find_first(where={"slug": slug})
+    if not product:
+        return not_found(f"Product with slug '{slug}' not found")
+    return jsonify(ApiResponse.ok(_serialize_product(product)).to_dict()), 200
+
+
+@require_permissions(Permissions.ADMIN_CATALOG_VIEW)
+def get_product_by_repo(repo_slug: str):
+    """GET /v2/catalog/products/by-repo/<repo_slug> — Find product by repo slug (for git poller)."""
+    db = get_db_client()
+    product = db.product.find_first(
+        where={"OR": [{"repoSlug": repo_slug}, {"mfgRepoSlug": repo_slug}]}
+    )
+    if not product:
+        return not_found(f"Product with repo '{repo_slug}' not found")
+    return jsonify(ApiResponse.ok(_serialize_product(product)).to_dict()), 200

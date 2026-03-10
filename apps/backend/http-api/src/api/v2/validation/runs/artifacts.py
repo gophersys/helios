@@ -24,7 +24,7 @@ def list_artifacts(run_id: str):
     try:
         storage = get_storage_client()
         bucket = get_bucket_name()
-        prefix = storage_key(StoragePrefixes.VALIDATION_ARTIFACTS, f"{run_id}/")
+        prefix = storage_key(StoragePrefixes.VALIDATION_RUNS, f"{run_id}/")
 
         objects = storage.list_objects(bucket, prefix=prefix, recursive=True)
 
@@ -63,7 +63,7 @@ def download_artifact(run_id: str, name: str):
     try:
         storage = get_storage_client()
         bucket = get_bucket_name()
-        object_name = storage_key(StoragePrefixes.VALIDATION_ARTIFACTS, f"{run_id}/{name}")
+        object_name = storage_key(StoragePrefixes.VALIDATION_RUNS, f"{run_id}/{name}")
 
         # Verify the object exists
         try:

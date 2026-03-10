@@ -133,9 +133,11 @@ COPY ./libs/python /libs/python
 # Copy the protocols used by the app
 COPY ./libs/protocols/cluster_test /libs/protocols/cluster_test
 COPY ./libs/protocols/cluster_operator /libs/protocols/cluster_operator
+COPY ./libs/protocols/mtib /libs/protocols/mtib
+COPY ./libs/protocols/mtib_v2 /libs/protocols/mtib_v2
 
 # Set the PYTHONPATH to include the libs directory
-ENV PYTHONPATH="/libs:/libs/python/"
+ENV PYTHONPATH="/libs:/libs/python:/libs/protocols"
 
 # Set Prisma binary cache directory
 ENV PRISMA_BINARY_CACHE_DIR="/root/.cache/prisma-python/binaries"
@@ -164,6 +166,10 @@ COPY ./prisma/migrations /prisma/migrations
 COPY ./apps/backend/http-api/assets assets
 COPY ./apps/backend/http-api/config config
 COPY ./apps/backend/http-api/src src
+
+# Copy firmware build scripts (served via /v2/ci/scripts/<product> endpoint)
+COPY ./apps/firmware/products/alpha/scripts /app/firmware/products/alpha/scripts
+COPY ./apps/firmware/products/sigma5/scripts /app/firmware/products/sigma5/scripts
 
 # Keep the container running
 CMD ["python3", "src/main.py"]

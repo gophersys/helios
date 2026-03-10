@@ -57,6 +57,10 @@ class Permissions:
     ADMIN_VALIDATION_VIEW = "Concord.Admin.Validation.View"
     ADMIN_VALIDATION_MANAGE = "Concord.Admin.Validation.Manage"
 
+    # Admin - CI / Builds
+    ADMIN_CI_VIEW = "Concord.Admin.CI.View"
+    ADMIN_CI_MANAGE = "Concord.Admin.CI.Manage"
+
     @classmethod
     def all(cls) -> list[dict]:
         """Return all permissions as a list for the /permissions endpoint."""

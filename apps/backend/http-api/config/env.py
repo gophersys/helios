@@ -59,6 +59,8 @@ class ProxyConfig(EnvConfig):
 
     # Validation — MTIB gRPC port
     MTIB_PORT: int = 50053
+    # Validation — K8s namespace for validation jobs (privileged namespace for hardware access)
+    VALIDATION_NAMESPACE: str = "validation"
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

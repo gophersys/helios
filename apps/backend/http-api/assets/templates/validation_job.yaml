@@ -17,24 +17,21 @@ spec:
     spec:
       restartPolicy: Never
       terminationGracePeriodSeconds: 30
-      # Add tolerations for validation node taints
-      tolerations:
-      - key: "corekinect.com/role"
-        operator: "Equal"
-        value: "edge"
-        effect: "NoSchedule"
-      nodeSelector:
-        corekinect.com/validation-product: "{{PRODUCT}}"
+      # Run on regular agent nodes (x86), connect to MTIB remotely
+      # No nodeSelector - use any available node except edge nodes
       affinity:
-        podAntiAffinity:
+        nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
-          - labelSelector:
-              matchExpressions:
-              - key: corekinect.com/validation-product
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/arch
                 operator: In
                 values:
-                - "{{PRODUCT}}"
-            topologyKey: kubernetes.io/hostname
+                - amd64
+              - key: corekinect.com/role
+                operator: NotIn
+                values:
+                - edge
       containers:
       - name: "validation-{{PRODUCT}}"
         image: "containers.ad.corekinect.com/concord-validation-{{PRODUCT}}:latest"
@@ -61,16 +58,18 @@ spec:
           value: "{{CONCORD_RUN_ID}}"
         - name: CONCORD_API_KEY
           value: "{{CONCORD_API_KEY}}"
+        - name: CONCORD_API_HOST
+          value: "{{CONCORD_API_HOST}}"
         - name: STORAGE_URL
-          value: "http://10.4.45.32:8675"
+          value: "http://concord-minio.staging.svc.cluster.local:9000"
         - name: STORAGE_ACCESS_KEY
-          value: "concord"
+          value: "minioadmin"
         - name: STORAGE_SECRET_ACCESS_KEY
-          value: "concordstorage!"
+          value: "minioadmin-staging"
+        - name: STORAGE_BUCKET
+          value: "concord"
         - name: MTIB_HOST
-          valueFrom:
-            fieldRef:
-              fieldPath: spec.nodeName
+          value: "{{MTIB_ADDRESS}}"
         - name: MTIB_PORT
           value: "{{MTIB_PORT}}"
         - name: LOKI_URL
@@ -81,9 +80,86 @@ spec:
           value: "{{TEST_ENABLE_APP_POST}}"
         - name: TEST_ENABLE_COMM_POST
           value: "{{TEST_ENABLE_COMM_POST}}"
+        # ── CoreCloud Database (VAL_1_0 — from K8s secret) ──
+        - name: CORECLOUD_DB_ENV
+          value: "VAL_1_0"
+        - name: VAL_1_0_DB_DRIVER
+          value: "postgresql+psycopg2"
+        - name: VAL_1_0_DB_USER
+          value: "concord_val"
+        - name: VAL_1_0_DB_PASS
+          valueFrom:
+            secretKeyRef:
+              name: corecloud-validation
+              key: db-password
+        - name: VAL_1_0_DB_HOST
+          value: "validation.ad.corekinect.com"
+        - name: VAL_1_0_DB_PORT
+          value: "5432"
+        - name: VAL_1_0_DB_NAME
+          value: "test"
+        - name: VAL_1_0_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: corecloud-validation
+              key: api-key
+        - name: VAL_1_0_API_AUTH_SERVER_HOST_NAME
+          value: "https://auth.office.corekinect.cloud:2013"
+        - name: VAL_1_0_API_REST_SERVER_HOST_NAME
+          value: "https://val.office.corekinect.cloud:2018/api"
+        - name: VAL_1_0_API_AUTH_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: corecloud-validation
+              key: auth-username
+        - name: VAL_1_0_API_AUTH_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: corecloud-validation
+              key: auth-password
+        # ── Bench/Device Identity (from TestBench scheduler or manual trigger) ──
+        - name: MTIB_ADDRESS
+          value: "{{MTIB_ADDRESS}}"
+        - name: BENCH_ID
+          value: "{{BENCH_ID}}"
+        - name: DEVICE_ID
+          value: "{{DEVICE_ID}}"
+        - name: DEVICE_SNR
+          value: "{{DEVICE_SNR}}"
+        - name: FIXTURE_PROFILE_PATH
+          value: "{{FIXTURE_PROFILE_PATH}}"
+        # ── CoreOps (device personalization) ──
+        - name: COREOPS_SERVER_URL
+          value: "https://coreops.office.corekinect.cloud:2013"
+        - name: COREOPS_AUTH_SERVER_URL
+          value: "https://auth.office.corekinect.cloud:2013"
+        - name: COREOPS_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: coreops-credentials
+              key: api-key
+        - name: COREOPS_AUTH_USER
+          valueFrom:
+            secretKeyRef:
+              name: coreops-credentials
+              key: auth-user
+        - name: COREOPS_AUTH_PASS
+          valueFrom:
+            secretKeyRef:
+              name: coreops-credentials
+              key: auth-pass
+        - name: DEVICE_IMEI
+          value: "{{DEVICE_IMEI}}"
+        - name: DEVICE_ICCIDS
+          value: "{{DEVICE_ICCIDS}}"
+        # ── Test Artifacts ──
+        - name: ARTIFACTS_DIR
+          value: "/var/log/validation"
         volumeMounts:
         - name: logs
           mountPath: /var/log/runner
+        - name: artifacts
+          mountPath: /var/log/validation
         resources:
           requests:
             cpu: "250m"
@@ -95,3 +171,5 @@ spec:
       - name: logs
         hostPath:
           path: /var/log/tests
+      - name: artifacts
+        emptyDir: {}
