@@ -1,0 +1,56 @@
+{
+  "station_id": "station-35",
+  "product": "theta",
+  "board": "theta_c0",
+  "mtib_revision": "1.2",
+
+  "capabilities": ["button", "motion", "gps"],
+
+  "dut": {
+    "device_id": null,
+    "snr": null,
+    "imei": null,
+    "iccids": []
+  },
+
+  "power": {
+    "battery_installed": true,
+    "dut_voltage": 3.7,
+    "charger_voltage": 5.0,
+    "boot_settle_s": 10
+  },
+
+  "button": {
+    "gpio_pin": 2,
+    "active_low": true,
+    "_doc": "Drives DUT button. LOW=pressed, HIGH=released."
+  },
+
+  "motion": {
+    "enabled": true,
+    "home_on_startup": true,
+    "shake_distance_mm": 50,
+    "shake_speed_mm_s": 100,
+    "_doc": "FluidNC linear rail for accelerometer stimulus."
+  },
+
+  "gps": {
+    "simulator_enabled": false,
+    "_doc": "GPS simulator not connected - tests use real GPS or skip."
+  },
+
+  "ppg_simulator": null,
+  "led_sensor": null,
+  "nfc_reader": null,
+  "peltier": null,
+  "charger_relay": null,
+
+  "_hardware_notes": {
+    "theta_c0": "Asset tracker with LSM6DSO accelerometer, BME280 environmental sensor, u-blox GPS, NFC (optional membrane).",
+    "accelerometer": "LSM6DSO 6-axis IMU for motion detection.",
+    "environmental": "BME280 temperature/humidity/pressure sensor.",
+    "gps": "u-blox GPS module for position tracking.",
+    "battery": "Li-ion battery with BQ25798 charger.",
+    "nfc": "Optional NFC on membrane daughter board (THETA_MEMBRANE_SUPPORT config)."
+  }
+}
