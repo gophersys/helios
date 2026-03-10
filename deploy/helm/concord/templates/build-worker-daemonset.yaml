@@ -173,6 +173,11 @@ spec:
           secret:
             secretName: alpha-mcuboot-keys
             defaultMode: 0400
+        - name: theta-mcuboot-keys
+          secret:
+            secretName: theta-mcuboot-keys
+            defaultMode: 0400
+            optional: true  # Don't fail if secret doesn't exist yet
         - name: workspace
           emptyDir:
             sizeLimit: 30Gi
