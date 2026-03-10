@@ -39,8 +39,8 @@ from corekinect.utils.timeutil.tzutils import dt_to_utc
 
 log = Logger(log_name="device_personalizer")
 
-# TLS verification for CoreCloud API (validation environments use self-signed certs)
-_TLS_VERIFY = False
+# TLS verification — enabled by default, can be disabled for local dev with self-signed certs
+_TLS_VERIFY = os.environ.get("TLS_VERIFY", "true").lower() in ("1", "true", "yes")
 
 # ICCID carrier prefix mapping (from manufacturing step_9)
 CARRIER_PREFIXES = {

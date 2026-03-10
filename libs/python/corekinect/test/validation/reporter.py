@@ -39,6 +39,9 @@ from corekinect.utils import EnvConfig, Logger
 
 log = Logger(log_name="concord_reporter")
 
+# TLS verification — enabled by default, can be disabled for local dev with self-signed certs
+_TLS_VERIFY = os.environ.get("TLS_VERIFY", "true").lower() in ("1", "true", "yes")
+
 # Attempt to import requests; if not installed, reporter is disabled.
 try:
     import requests
@@ -100,7 +103,7 @@ class ConcordReporter:
         """POST to Concord API. Returns response JSON or None on failure."""
         url = f"{self.api_url}/v2/validation/runs/{self.run_id}/{path}"
         try:
-            resp = requests.post(url, json=json_data, headers=self._headers(), timeout=10, verify=False)
+            resp = requests.post(url, json=json_data, headers=self._headers(), timeout=10, verify=_TLS_VERIFY)
             if resp.status_code >= 400:
                 log.warning(
                     "ConcordReporter: %s returned %d: %s",

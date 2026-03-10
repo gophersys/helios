@@ -126,6 +126,58 @@ class MtibV1Client:
         """
         return inspect.currentframe().f_back.f_code.co_name
 
+    def _validate_gpio(self, gpio: int) -> Optional[str]:
+        """Validate GPIO pin number is within valid range.
+
+        Args:
+            gpio: GPIO pin number to validate.
+
+        Returns:
+            None if valid, error message string if invalid.
+        """
+        if not 0 <= gpio <= 7:
+            return f"GPIO pin {gpio} out of valid range (0-7)"
+        return None
+
+    def _validate_adc_channel(self, channel: int) -> Optional[str]:
+        """Validate ADC channel number is within valid range.
+
+        Args:
+            channel: ADC channel number to validate.
+
+        Returns:
+            None if valid, error message string if invalid.
+        """
+        if not 0 <= channel <= 7:
+            return f"ADC channel {channel} out of valid range (0-7)"
+        return None
+
+    def _validate_power_channel(self, channel: int) -> Optional[str]:
+        """Validate power channel number is within valid range.
+
+        Args:
+            channel: Power channel number to validate (0=DUT, 1=CHARGER).
+
+        Returns:
+            None if valid, error message string if invalid.
+        """
+        if not 0 <= channel <= 1:
+            return f"Power channel {channel} out of valid range (0-1)"
+        return None
+
+    def _validate_voltage(self, voltage_v: float) -> Optional[str]:
+        """Validate voltage is within safe operating range.
+
+        Args:
+            voltage_v: Voltage in volts to validate.
+
+        Returns:
+            None if valid, error message string if invalid.
+        """
+        if not 0.0 <= voltage_v <= 6.0:
+            return f"Voltage {voltage_v}V out of safe range (0.0-6.0V)"
+        return None
+
     def _grpc_call(self, func, request, *, return_value: bool = False):
         """Helper method to handle common gRPC call patterns using Go-like error handling.
 
@@ -336,6 +388,9 @@ class MtibV1Client:
                 print(f"GPIO config failed: {error}")
             ```
         """
+        # Validate GPIO pin number
+        if err := self._validate_gpio(gpio):
+            return err
         try:
             response = self.client.GpioConfig(
                 GpioConfigRequest(gpio=gpio, direction=direction, resistor=resistor),
@@ -366,6 +421,9 @@ class MtibV1Client:
                 print(f"GPIO write failed: {error}")
             ```
         """
+        # Validate GPIO pin number
+        if err := self._validate_gpio(gpio):
+            return err
         try:
             response = self.client.GpioWrite(
                 GpioWriteRequest(gpio=gpio, state=state), timeout=DEFAULT_GRPC_TIMEOUT_SECONDS
@@ -398,6 +456,9 @@ class MtibV1Client:
                 print(f"GPIO pin 5 state: {state}")
             ```
         """
+        # Validate GPIO pin number
+        if err := self._validate_gpio(gpio):
+            return None, err
         try:
             response = self.client.GpioRead(GpioReadRequest(gpio=gpio), timeout=DEFAULT_GRPC_TIMEOUT_SECONDS)
             if not response.success:
@@ -431,6 +492,9 @@ class MtibV1Client:
                 print(f"Channel 0 voltage: {voltage}V")
             ```
         """
+        # Validate ADC channel number
+        if err := self._validate_adc_channel(channel):
+            return None, err
         try:
             response = self.client.AdcRead(AdcReadRequest(channel=channel), timeout=DEFAULT_GRPC_TIMEOUT_SECONDS)
             if not response.success:
@@ -482,6 +546,13 @@ class MtibV1Client:
         Returns:
             Optional[str]: None on success, error message string on failure
         """
+        # Validate power channel
+        channel_int = int(channel)
+        if err := self._validate_power_channel(channel_int):
+            return err
+        # Validate voltage
+        if err := self._validate_voltage(voltage_v):
+            return err
         try:
             response = self.client.PowerEnable(
                 PowerEnableRequest(channel=channel, voltage_v=voltage_v),
@@ -504,6 +575,10 @@ class MtibV1Client:
         Returns:
             Optional[str]: None on success, error message string on failure
         """
+        # Validate power channel
+        channel_int = int(channel)
+        if err := self._validate_power_channel(channel_int):
+            return err
         try:
             response = self.client.PowerDisable(
                 PowerDisableRequest(channel=channel),
@@ -526,6 +601,10 @@ class MtibV1Client:
         Returns:
             Tuple of (PowerReadResult, error). Result is None on error.
         """
+        # Validate power channel
+        channel_int = int(channel)
+        if err := self._validate_power_channel(channel_int):
+            return None, err
         try:
             response = self.client.PowerRead(
                 PowerReadRequest(channel=channel),

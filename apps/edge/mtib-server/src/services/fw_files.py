@@ -80,7 +80,10 @@ class FwFileManager:
         Returns:
             Tuple[bool, Optional[str]]: Success status and an error message (if any).
         """
-        file_path = os.path.join(self.storage_path, filename)
+        file_path = os.path.abspath(os.path.join(self.storage_path, filename))
+        # Security: prevent path traversal
+        if not os.path.normpath(file_path).startswith(os.path.abspath(self.storage_path)):
+            return False, "Invalid filename"
         if not os.path.exists(file_path):
             return False, "File does not exist"
         try:

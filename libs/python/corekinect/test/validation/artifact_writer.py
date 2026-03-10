@@ -20,6 +20,7 @@ When storage is not configured, all writes are no-ops.
 
 import io
 import json
+import os
 import struct
 import threading
 import time
@@ -43,6 +44,9 @@ try:
     _HAS_REQUESTS = True
 except ImportError:
     _HAS_REQUESTS = False
+
+# TLS verification — enabled by default, can be disabled for local dev with self-signed certs
+_TLS_VERIFY = os.environ.get("TLS_VERIFY", "true").lower() in ("1", "true", "yes")
 
 
 # Binary power trace format constants
@@ -203,7 +207,7 @@ class ArtifactWriter:
             }
 
             # Fire-and-forget with short timeout
-            requests.post(url, json=data, headers=headers, timeout=2, verify=False)
+            requests.post(url, json=data, headers=headers, timeout=2, verify=_TLS_VERIFY)
         except Exception as e:
             # Never fail on notification errors
             log.debug("Artifact chunk notification failed: %s", e)

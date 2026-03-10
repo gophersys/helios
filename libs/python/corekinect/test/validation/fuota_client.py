@@ -16,8 +16,8 @@ from typing import Any, Dict, List, Optional
 
 from corekinect.utils import Logger
 
-# TLS verification — default off for internal lab network with self-signed certs
-_TLS_VERIFY = os.environ.get("CORECLOUD_VERIFY_TLS", "false").lower() not in ("0", "false", "no")
+# TLS verification — enabled by default, can be disabled for local dev with self-signed certs
+_TLS_VERIFY = os.environ.get("TLS_VERIFY", "true").lower() in ("1", "true", "yes")
 
 log = Logger(log_name="fuota_client")
 

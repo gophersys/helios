@@ -28,6 +28,10 @@ _CHANNEL_INA_ADDR = {
     PowerChannel.POWER_CHANNEL_CHARGER: 0x41,
 }
 
+# Voltage bounds for hardware protection
+_MIN_VOLTAGE_V = 0.0
+_MAX_VOLTAGE_V = 5.5
+
 
 class PowerHandler:
     def __init__(self, logger: Logger):
@@ -218,6 +222,14 @@ class PowerHandler:
     def power_enable(self, request: PowerEnableRequest, context: grpc.ServicerContext) -> PowerResponse:
         """Enable power on a channel."""
         self.logger.info(f"PowerEnable: channel={request.channel}, voltage={request.voltage_v}V")
+
+        # Bounds check voltage before setting power
+        if request.voltage_v < _MIN_VOLTAGE_V or request.voltage_v > _MAX_VOLTAGE_V:
+            return PowerResponse(
+                success=False,
+                message=f"Voltage {request.voltage_v}V out of safe range ({_MIN_VOLTAGE_V}-{_MAX_VOLTAGE_V}V)"
+            )
+
         try:
             gpio, label = self._get_en_gpio(request.channel)
             if err := gpio.write(True):

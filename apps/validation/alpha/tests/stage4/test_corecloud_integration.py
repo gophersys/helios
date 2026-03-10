@@ -27,8 +27,8 @@ from typing import Optional
 import pytest
 import requests
 
-# TLS verification — default off for internal lab network with self-signed certs
-_TLS_VERIFY = os.environ.get("CORECLOUD_VERIFY_TLS", "false").lower() not in ("0", "false", "no")
+# TLS verification — enabled by default, can be disabled for local dev with self-signed certs
+_TLS_VERIFY = os.environ.get("TLS_VERIFY", "true").lower() in ("1", "true", "yes")
 
 # ── Corekinect Utils ─────────────────────────────────────────────────
 from corekinect.utils import EnvConfig, Logger

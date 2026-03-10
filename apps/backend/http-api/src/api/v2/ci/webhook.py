@@ -41,11 +41,16 @@ def _emit_ci_event(event: str, data: dict):
 
 
 def _validate_webhook_signature(payload_bytes: bytes, signature: str) -> bool:
-    """Validate Bitbucket webhook HMAC-SHA256 signature."""
+    """Validate Bitbucket webhook HMAC-SHA256 signature.
+
+    SECURITY: Fail-closed — rejects webhooks if no secret is configured.
+    This prevents accepting unsigned webhooks in misconfigured environments.
+    """
     secret = os.environ.get("BITBUCKET_WEBHOOK_SECRET", "")
     if not secret:
-        logger.warning("BITBUCKET_WEBHOOK_SECRET not set — skipping signature check")
-        return True
+        # SECURITY: Fail-closed — do not accept webhooks without a configured secret
+        logger.error("BITBUCKET_WEBHOOK_SECRET not set — rejecting webhook (fail-closed)")
+        return False
 
     if not signature:
         return False
@@ -223,7 +228,8 @@ def list_ci_repos():
     Used by build workers to get repo configs (ssh_url, build_script).
     """
     base_url = os.environ.get("CONCORD_API_URL", "https://staging.concord.local")
-    webhook_secret = os.environ.get("BITBUCKET_WEBHOOK_SECRET", "")
+    # SECURITY: webhook secret is intentionally NOT included in response
+    # Secrets should never be returned in API responses
 
     repos = []
     for slug, config in REPO_PRODUCT_MAP.items():
@@ -237,7 +243,7 @@ def list_ci_repos():
             "defaultVariant": config.get("default_variant", "debug"),
             "ncsVersion": config.get("ncs_version", ""),
             "webhookUrl": f"{base_url}/v2/ci/webhooks/bitbucket",
-            "webhookSecret": webhook_secret,
+            # SECURITY: webhookSecret removed — secrets must not be exposed in API responses
             "connected": True,  # Assume connected if we have the mapping
             "branches": list(CI_TRIGGER_BRANCHES),
             "variants": ["debug", "release"] if "mfg" not in slug else ["release"],

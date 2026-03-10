@@ -126,7 +126,9 @@ class UartWriter:
         # Clear old buffer
         if self.buffer_path.exists():
             self.buffer_path.unlink()
-        self.buffer_path.touch()
+        # Create buffer file with restrictive permissions (owner read/write only)
+        fd = os.open(self.buffer_path, os.O_WRONLY | os.O_CREAT, 0o600)
+        os.close(fd)
 
         # Open serial port
         try:

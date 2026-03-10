@@ -8,6 +8,21 @@ from unittest.mock import patch
 from tests.conftest import make_obj
 
 
+def _product_defaults() -> dict:
+    """Common product fields for test mocks."""
+    return {
+        "slug": None,
+        "repoSlug": None,
+        "repoSshUrl": None,
+        "repoBranch": None,
+        "mfgRepoSlug": None,
+        "mfgRepoSshUrl": None,
+        "buildBoard": None,
+        "buildWestDir": None,
+        "buildMfgDir": None,
+    }
+
+
 def test_list_products(authed_client, mock_db):
     """Test listing products with pagination."""
     mock_db.product.count.return_value = 2
@@ -22,6 +37,7 @@ def test_list_products(authed_client, mock_db):
             updatedAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
             boards=[],
             firmwareBuilds=[],
+            **_product_defaults(),
         ),
         make_obj(
             id="prod-2",
@@ -33,6 +49,7 @@ def test_list_products(authed_client, mock_db):
             updatedAt=datetime(2025, 1, 2, tzinfo=timezone.utc),
             boards=[],
             firmwareBuilds=[],
+            **_product_defaults(),
         ),
     ]
 
@@ -72,6 +89,7 @@ def test_create_product(authed_client, mock_db):
         updatedAt=datetime(2025, 1, 15, tzinfo=timezone.utc),
         boards=[],
         firmwareBuilds=[],
+        **_product_defaults(),
     )
 
     with patch("src.api.v2.catalog.products.log_audit"):
@@ -100,6 +118,7 @@ def test_create_product_duplicate_name(authed_client, mock_db):
         metadata={},
         createdAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
         updatedAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
+        **_product_defaults(),
     )
 
     response = authed_client.post(
@@ -163,6 +182,7 @@ def test_get_product(authed_client, mock_db):
             ),
         ],
         firmwareBuilds=[],
+        **_product_defaults(),
     )
 
     response = authed_client.get("/v2/catalog/prod-123")
@@ -194,6 +214,7 @@ def test_update_product(authed_client, mock_db):
         metadata={},
         createdAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
         updatedAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
+        **_product_defaults(),
     )
     mock_db.product.find_unique.return_value = existing
 
@@ -207,6 +228,7 @@ def test_update_product(authed_client, mock_db):
         updatedAt=datetime(2025, 1, 15, tzinfo=timezone.utc),
         boards=[],
         firmwareBuilds=[],
+        **_product_defaults(),
     )
 
     with patch("src.api.v2.catalog.products.log_audit"):
@@ -246,6 +268,7 @@ def test_delete_product(authed_client, mock_db):
         metadata={},
         createdAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
         updatedAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
+        **_product_defaults(),
     )
 
     # Mock session and test checks return None
@@ -270,6 +293,7 @@ def test_delete_product_with_sessions(authed_client, mock_db):
         metadata={},
         createdAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
         updatedAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
+        **_product_defaults(),
     )
 
     # Mock session check returns a session
@@ -294,10 +318,12 @@ def test_update_product_duplicate_name(authed_client, mock_db):
         metadata={},
         createdAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
         updatedAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
+        **_product_defaults(),
     )
     dup = make_obj(
         id="prod-other",
         name="Taken Name",
+        **_product_defaults(),
     )
 
     mock_db.product.find_unique.side_effect = [existing, dup]
@@ -321,6 +347,7 @@ def test_delete_product_with_tests(authed_client, mock_db):
         metadata={},
         createdAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
         updatedAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
+        **_product_defaults(),
     )
 
     mock_db.session.find_first.return_value = None

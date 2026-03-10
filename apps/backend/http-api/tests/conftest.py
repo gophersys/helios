@@ -65,6 +65,7 @@ class MockModelClient:
         self.count = MagicMock(return_value=0)
         self.delete_many = MagicMock(return_value=None)
         self.create_many = MagicMock(return_value=None)
+        self.update_many = MagicMock(return_value=None)
 
 
 class MockPrismaClient:

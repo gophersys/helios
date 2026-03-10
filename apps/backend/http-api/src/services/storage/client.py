@@ -1,3 +1,4 @@
+import re
 from datetime import timedelta
 from typing import Optional
 from urllib.parse import urlparse
@@ -5,6 +6,16 @@ from urllib.parse import urlparse
 from minio import Minio
 
 from config.env import env_config
+
+
+def sanitize_filename(filename: str) -> str:
+    """Sanitize filename for Content-Disposition header.
+
+    Removes any non-printable or dangerous characters that could be used
+    for header injection attacks.
+    """
+    # Remove any non-printable or dangerous characters
+    return re.sub(r'[^\w\-_\. ]', '_', filename)
 
 # Global storage client instance
 appStorageClient: Optional[Minio] = None
@@ -101,8 +112,9 @@ def presigned_get_url(object_key: str, expires_hours: int = 1, download_filename
 
     extra_query_params = None
     if download_filename:
+        safe_filename = sanitize_filename(download_filename)
         extra_query_params = {
-            "response-content-disposition": f'attachment; filename="{download_filename}"',
+            "response-content-disposition": f'attachment; filename="{safe_filename}"',
         }
 
     return client.presigned_get_object(

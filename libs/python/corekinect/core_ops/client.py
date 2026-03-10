@@ -55,8 +55,8 @@ class CoreOpsConfig(EnvConfig):
     auth_user: Optional[str] = None
     auth_pass: Optional[str] = None
 
-    # Request settings
-    verify_ssl: bool = False  # Internal network uses self-signed certs
+    # Request settings — TLS verification enabled by default for security
+    verify_ssl: bool = True
     timeout: float = 10.0
 
 

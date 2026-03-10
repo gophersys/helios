@@ -3,7 +3,7 @@ import logging
 from flask import jsonify, redirect
 
 from src.lib.decorators import require_permissions
-from src.lib.errors import internal_error, not_found
+from src.lib.errors import bad_request, internal_error, not_found
 from src.lib.permissions import Permissions
 from src.lib.types import ApiResponse
 from src.services.database.prisma import get_db_client
@@ -54,6 +54,10 @@ def list_artifacts(run_id: str):
 @require_permissions(Permissions.ADMIN_VALIDATION_VIEW)
 def download_artifact(run_id: str, name: str):
     """GET /v2/validation/runs/<id>/artifacts/<name> — Download artifact via presigned URL."""
+    # Security: reject path traversal attempts
+    if '..' in name or name.startswith('/'):
+        return bad_request("Invalid artifact name")
+
     db = get_db_client()
 
     session = db.session.find_unique(where={"id": run_id})

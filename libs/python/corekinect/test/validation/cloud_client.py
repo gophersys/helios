@@ -7,6 +7,7 @@ only if the REST API is not configured.
 All queries return status changes detected after mark_test_start() was called.
 """
 
+import re
 import time
 from typing import Any, Callable, Dict, List, Optional, Type, TypeVar
 
@@ -14,6 +15,21 @@ from corekinect.utils import Logger
 from corekinect.utils.timeutil.formaters import auto_format_time_elapsed
 
 log = Logger(log_name="cloud_client")
+
+# Device ID validation pattern: 16 hex characters
+_DEVICE_ID_PATTERN = re.compile(r'^[0-9A-Fa-f]{16}$')
+
+
+def validate_device_id(device_id: str) -> bool:
+    """Validate device ID is a valid hex string of expected length.
+
+    Args:
+        device_id: Device ID string to validate.
+
+    Returns:
+        True if valid 16-character hex string, False otherwise.
+    """
+    return bool(_DEVICE_ID_PATTERN.match(device_id))
 
 # Default poll interval (CoreCloud uplink ~60s, no need to poll faster)
 DEFAULT_POLL_INTERVAL_S = 2.0
@@ -39,6 +55,11 @@ class CloudClient:
                  db_env: str = "", logger: Optional[Logger] = None):
         self._device_id = device_id
         self._device_id_hex = f"{device_id:016X}"
+
+        # Validate the computed hex string
+        if not validate_device_id(self._device_id_hex):
+            raise ValueError(f"Invalid device ID: {device_id} (hex: {self._device_id_hex})")
+
         self._api_env = api_env or db_env or "VAL_1_0"
         self._log = logger.from_parent("cloud") if logger else log
         self._api = None

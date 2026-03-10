@@ -5,6 +5,7 @@ Provides low-level I2C operations for sensor communication.
 
 import os
 import struct
+import subprocess
 import time
 from typing import Optional, List
 from corekinect.utils import Logger
@@ -48,24 +49,30 @@ class I2CDevice:
         try:
             if length == 1:
                 # Single byte read
-                cmd = f"i2cget -y {self.bus_number} 0x{self.device_address:02x} 0x{register:02x}"
-                result = os.popen(cmd).read().strip()
+                result = subprocess.run(
+                    ["i2cget", "-y", str(self.bus_number), f"0x{self.device_address:02x}", f"0x{register:02x}"],
+                    capture_output=True, text=True, check=False
+                )
+                value = result.stdout.strip()
 
-                if not result:
+                if not value:
                     raise IOError(f"No data received from register 0x{register:02x}")
 
-                return bytes([int(result, 16)])
+                return bytes([int(value, 16)])
             else:
                 # Multi-byte read - read each byte individually
                 data = []
                 for i in range(length):
-                    cmd = f"i2cget -y {self.bus_number} 0x{self.device_address:02x} 0x{register + i:02x}"
-                    result = os.popen(cmd).read().strip()
+                    result = subprocess.run(
+                        ["i2cget", "-y", str(self.bus_number), f"0x{self.device_address:02x}", f"0x{register + i:02x}"],
+                        capture_output=True, text=True, check=False
+                    )
+                    value = result.stdout.strip()
 
-                    if not result:
+                    if not value:
                         raise IOError(f"No data received from register 0x{register + i:02x}")
 
-                    data.append(int(result, 16))
+                    data.append(int(value, 16))
 
                 return bytes(data)
 
@@ -83,14 +90,14 @@ class I2CDevice:
             data: Data bytes to write
         """
         try:
-            # Convert data to hex string
-            data_hex = " ".join([f"0x{b:02x}" for b in data])
-            cmd = f"i2cset -y {self.bus_number} 0x{self.device_address:02x} 0x{register:02x} {data_hex}"
+            # Build command with data bytes as separate arguments
+            cmd = ["i2cset", "-y", str(self.bus_number), f"0x{self.device_address:02x}", f"0x{register:02x}"]
+            cmd.extend([f"0x{b:02x}" for b in data])
 
-            result = os.popen(cmd).read().strip()
+            result = subprocess.run(cmd, capture_output=True, text=True, check=False)
 
-            if result and "Error" in result:
-                raise IOError(f"i2cset error: {result}")
+            if result.returncode != 0 or (result.stderr and "Error" in result.stderr):
+                raise IOError(f"i2cset error: {result.stderr or result.stdout}")
 
         except Exception as e:
             if self.logger:

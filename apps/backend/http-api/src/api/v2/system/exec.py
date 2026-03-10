@@ -10,6 +10,9 @@ from flask_socketio import SocketIO, emit
 from kubernetes.stream import stream as k8s_stream
 
 from src.lib.audit import log_audit
+from src.lib.permissions import Permissions
+from src.services.auth.jwt import verify_token
+from src.services.database.prisma import get_db_client
 from src.services.kubernetes.client import get_core_v1_api
 
 logger = logging.getLogger(__name__)
@@ -29,8 +32,41 @@ def register_exec_handlers(socketio: SocketIO):
     def handle_exec_start(data):
         """
         Start an interactive exec session.
-        Client sends: { namespace, pod, container, command? }
+        Client sends: { namespace, pod, container, command?, token? }
+
+        SECURITY: Exec requires ADMIN_SYSTEM_MANAGE permission (more privileged than
+        ADMIN_SYSTEM_VIEW which is sufficient for logs). The token must be passed
+        in the data payload for per-operation authorization.
         """
+        # SECURITY: Verify token and require ADMIN_SYSTEM_MANAGE for exec operations
+        # Exec is a privileged operation (shell access) — stricter than log viewing
+        token = data.get("token")
+        if not token:
+            emit("exec_error", {"message": "Authentication required"})
+            return
+
+        payload, error = verify_token(token)
+        if error:
+            emit("exec_error", {"message": "Invalid or expired token"})
+            return
+
+        # Check for ADMIN_SYSTEM_MANAGE permission (exec is privileged)
+        perm_set_id = payload.get("permissionSetId")
+        if not perm_set_id:
+            emit("exec_error", {"message": "Authorization required"})
+            return
+
+        db = get_db_client()
+        perm_set = db.permissionset.find_unique(where={"id": perm_set_id})
+        if not perm_set:
+            emit("exec_error", {"message": "Authorization required"})
+            return
+
+        user_permissions = perm_set.permissions or []
+        if Permissions.ADMIN_SYSTEM_MANAGE not in user_permissions:
+            emit("exec_error", {"message": "Insufficient permissions — ADMIN_SYSTEM_MANAGE required"})
+            return
+
         ns = data.get("namespace")
         pod = data.get("pod")
         container = data.get("container")
@@ -42,7 +78,7 @@ def register_exec_handlers(socketio: SocketIO):
 
         sid = request.sid
 
-        log_audit("system.exec.start", "Pod", f"{ns}/{pod}/{container}", {"command": command})
+        log_audit("system.exec.start", "Pod", f"{ns}/{pod}/{container}", {"command": command, "user": payload.get("email", "unknown")})
 
         with _lock:
             active_count = sum(1 for k in _active_sessions if not k.endswith(":stream"))

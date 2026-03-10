@@ -3,12 +3,15 @@ import logging
 from flask import jsonify
 
 from corekinect.utils import collect_build_info
+from src.lib.decorators import require_permissions
 from src.lib.errors import internal_error
+from src.lib.permissions import Permissions
 from src.lib.types import ApiResponse
 
 logger = logging.getLogger(__name__)
 
 
+@require_permissions(Permissions.ADMIN_SYSTEM_VIEW)
 def get_system_info():
     """Return build metadata for the running http-api instance."""
     try:
