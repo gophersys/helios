@@ -5,7 +5,7 @@
 #include <zephyr/drivers/uart.h>
 #include <string.h>
 
-static const struct device *const dev = DEVICE_DT_GET(DT_NODELABEL(uart20));
+static const struct device *const dev = DEVICE_DT_GET_OR_NULL(DT_NODELABEL(uart20));
 
 static volatile uint8_t rx_buf[256];
 static volatile uint16_t rx_head;
@@ -39,20 +39,26 @@ static int rx_get(uint8_t *c)
 
 static void tx_str(const char *s)
 {
+	if (!dev || !device_is_ready(dev)) return;
 	while (*s) uart_poll_out(dev, *s++);
 }
 
-static int rs232_init(void)
+static bool rs232_rx_active;
+
+static void rs232_ensure_active(void)
 {
-	if (!device_is_ready(dev)) return 0;
-	uart_irq_callback_set(dev, irq_handler);
-	uart_irq_rx_enable(dev);
-	return 0;
+	if (!rs232_rx_active && dev && device_is_ready(dev)) {
+		uart_irq_callback_set(dev, irq_handler);
+		uart_irq_rx_enable(dev);
+		rs232_rx_active = true;
+	}
 }
-SYS_INIT(rs232_init, APPLICATION, 91);
+
+/* Don't enable UART RX IRQ at boot — saves power when RS232 is unused */
 
 static int cmd_send(const struct shell *sh, size_t argc, char **argv)
 {
+	rs232_ensure_active();
 	if (argc < 2) {
 		shell_error(sh, "Usage: rs232 send <text>");
 		return -EINVAL;
@@ -69,6 +75,7 @@ static int cmd_send(const struct shell *sh, size_t argc, char **argv)
 static int cmd_recv(const struct shell *sh, size_t argc, char **argv)
 {
 	ARG_UNUSED(argc); ARG_UNUSED(argv);
+	rs232_ensure_active();
 	uint8_t ch;
 	int n = 0;
 	while (rx_get(&ch) == 0) {
@@ -82,6 +89,7 @@ static int cmd_recv(const struct shell *sh, size_t argc, char **argv)
 static int cmd_loopback(const struct shell *sh, size_t argc, char **argv)
 {
 	ARG_UNUSED(argc); ARG_UNUSED(argv);
+	rs232_ensure_active();
 	uint8_t dummy;
 	while (rx_get(&dummy) == 0) {}
 

@@ -7,7 +7,7 @@ set(MONOREPO_ROOT ${MONOREPO_ROOT} CACHE INTERNAL "Monorepo root directory")
 # Set the paths to the DTS and BOARD
 set(DTS_ROOT ${MONOREPO_ROOT}/libs/zephyr/ck_boards/current)
 set(BOARD_ROOT ${MONOREPO_ROOT}/libs/zephyr/ck_boards/current)
-set(BOARD iwsck_a0/nrf54l15/cpuapp)
+set(BOARD iwsck_a1/nrf54l15/cpuapp)
 
 find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
 project(iwsck_bringup)
@@ -18,4 +18,5 @@ target_sources(app PRIVATE
   src/led.c
   src/ble.c
   src/fuel.c
+  src/power.c
 )

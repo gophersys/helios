@@ -10,7 +10,7 @@
 #include <string.h>
 
 static const struct device *const temp_dev = DEVICE_DT_GET(DT_NODELABEL(temp));
-static const struct device *const i2c_dev = DEVICE_DT_GET(DT_NODELABEL(i2c_bb));
+static const struct device *const i2c_dev = DEVICE_DT_GET(DT_NODELABEL(i2c21));
 
 static bool advertising;
 static bool ready;
@@ -100,7 +100,7 @@ BT_CONN_CB_DEFINE(conn_cbs) = {
 static int cmd_start(const struct shell *sh, size_t argc, char **argv)
 {
 	if (!ready) {
-		shell_print(sh, "Initializing BLE (~60s)...");
+		shell_print(sh, "Initializing BLE...");
 		int err = bt_enable(NULL);
 		if (err) { shell_error(sh, "bt_enable: %d", err); return err; }
 		ready = true;

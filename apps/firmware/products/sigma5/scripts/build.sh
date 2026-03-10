@@ -1,6 +1,6 @@
 #!/bin/bash
 # Sigma5 firmware build wrapper for Concord monorepo
-# Builds sigma5_fw (production, NCS 2.3 cmake) and sigma5_mfg_fw (manufacturing, NCS 2.7 west)
+# Builds sigma5_fw (production, NCS 2.4 cmake) and sigma5_mfg_fw (manufacturing, NCS 2.7 west)
 # then collects artifacts to artifacts/
 #
 # Usage:
@@ -9,6 +9,9 @@
 #   bash scripts/build.sh mfg [-b BOARD]             # Build manufacturing firmware only
 #   bash scripts/build.sh clean                      # Remove all build dirs and artifacts
 #   bash scripts/build.sh all --pristine             # Force clean rebuild of everything
+#
+# CI worker mode (env vars):
+#   BUILD_DIR=/path/to/artifacts BOARD=sigma5_b0 bash scripts/build.sh app
 
 set -e
 
@@ -18,20 +21,50 @@ RED='\033[0;31m'
 YELLOW='\033[1;33m'
 NC='\033[0m'
 
-# Resolve absolute paths from this script's location
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
-ARTIFACTS_DIR="${PROJECT_DIR}/artifacts"
+# ---------- CI mode detection ----------
+# CI worker sets BUILD_DIR and runs script from work_dir with repos at ./sigma5_fw/
+# In CI mode, repos are at work_dir/sigma5_fw/ and work_dir/sigma5_mfg_fw/
+CI_MODE=""
+if [ -n "${BUILD_DIR:-}" ] && [ -d "./sigma5_fw" ]; then
+    CI_MODE="true"
+elif [ -n "${REPO_DIR:-}" ]; then
+    # Legacy CI mode (REPO_DIR)
+    CI_MODE="true"
+fi
 
-APP_FW_DIR="${PROJECT_DIR}/sigma5_fw"
-MFG_FW_DIR="${PROJECT_DIR}/sigma5_mfg_fw"
+if [ "$CI_MODE" = "true" ]; then
+    # CI mode - repos are cloned by worker to cwd
+    if [ -n "${REPO_DIR:-}" ]; then
+        # Legacy: REPO_DIR points to the firmware repo
+        APP_FW_DIR="$REPO_DIR"
+        PROJECT_DIR="$(dirname "$REPO_DIR")"
+    else
+        # New: repos are at ./sigma5_fw/ and ./sigma5_mfg_fw/
+        APP_FW_DIR="$(pwd)/sigma5_fw"
+        PROJECT_DIR="$(pwd)"
+    fi
+    ARTIFACTS_DIR="${BUILD_DIR:-${OUTPUT_DIR:-/tmp/output}}"
+    MFG_FW_DIR="${PROJECT_DIR}/sigma5_mfg_fw"
+    echo -e "${CYAN}CI mode: APP_FW_DIR=${APP_FW_DIR}${NC}"
+    echo -e "${CYAN}CI mode: ARTIFACTS_DIR=${ARTIFACTS_DIR}${NC}"
+else
+    # Local mode - paths relative to script
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+    ARTIFACTS_DIR="${PROJECT_DIR}/artifacts"
+    APP_FW_DIR="${PROJECT_DIR}/sigma5_fw"
+    MFG_FW_DIR="${PROJECT_DIR}/sigma5_mfg_fw"
+fi
 
 # ---------- argument parsing ----------
 
 TARGET="${1:-all}"
 shift || true
 
-BOARD="sigma5_c0"
+# Use BOARD env var from CI if set, otherwise default
+# sigma5_fw (NCS 2.4) only has sigma5_b0 in its ck_boards submodule
+# sigma5_mfg_fw (NCS 2.7) has both sigma5_b0 and sigma5_c0
+BOARD="${BOARD:-sigma5_b0}"
 BUILD_TARGET=""
 PRISTINE=""
 
@@ -45,6 +78,14 @@ while [[ $# -gt 0 ]]; do
 done
 
 # ---------- helpers ----------
+
+init_submodules() {
+    local repo_dir="$1"
+    if [ -f "${repo_dir}/ck_boards/.git" ]; then
+        echo -e "${CYAN}Initializing ck_boards submodule...${NC}"
+        (cd "$repo_dir" && git submodule update --init --recursive ck_boards)
+    fi
+}
 
 fix_sysbuild_key_path() {
     local conf_file="$1"
@@ -74,6 +115,7 @@ collect_artifact() {
 
 build_app_fw_52840() {
     local BUILD_DIR="${APP_FW_DIR}/nrf52840/build"
+    local BOARD_ROOT="${APP_FW_DIR}/ck_boards"
 
     echo -e "\n${CYAN}[nrf52840] Application Processor${NC}"
 
@@ -82,8 +124,10 @@ build_app_fw_52840() {
     fi
 
     mkdir -p "$BUILD_DIR"
-    cmake -S "${APP_FW_DIR}/nrf52840" -B "$BUILD_DIR" -GNinja
-    ninja -C "$BUILD_DIR"
+    cmake -S "${APP_FW_DIR}/nrf52840" -B "$BUILD_DIR" -GNinja \
+        -DBOARD="${BOARD}_nrf52840" \
+        -DBOARD_ROOT="$BOARD_ROOT" || { echo -e "${RED}CMake failed for nrf52840${NC}"; exit 1; }
+    ninja -C "$BUILD_DIR" || { echo -e "${RED}Ninja build failed for nrf52840${NC}"; exit 1; }
 
     local OUT_DIR="${ARTIFACTS_DIR}/sigma5_fw/nrf52840"
     collect_artifact "$OUT_DIR" "${BUILD_DIR}/zephyr/zephyr.hex" "app_nrf52840.hex"
@@ -93,6 +137,7 @@ build_app_fw_52840() {
 
 build_app_fw_9160() {
     local BUILD_DIR="${APP_FW_DIR}/nrf9160/build"
+    local BOARD_ROOT="${APP_FW_DIR}/ck_boards"
 
     echo -e "\n${CYAN}[nrf9160] Communication Coprocessor${NC}"
 
@@ -101,8 +146,10 @@ build_app_fw_9160() {
     fi
 
     mkdir -p "$BUILD_DIR"
-    cmake -S "${APP_FW_DIR}/nrf9160" -B "$BUILD_DIR" -GNinja
-    ninja -C "$BUILD_DIR"
+    cmake -S "${APP_FW_DIR}/nrf9160" -B "$BUILD_DIR" -GNinja \
+        -DBOARD="${BOARD}_nrf9160" \
+        -DBOARD_ROOT="$BOARD_ROOT" || { echo -e "${RED}CMake failed for nrf9160${NC}"; exit 1; }
+    ninja -C "$BUILD_DIR" || { echo -e "${RED}Ninja build failed for nrf9160${NC}"; exit 1; }
 
     local OUT_DIR="${ARTIFACTS_DIR}/sigma5_fw/nrf9160"
     collect_artifact "$OUT_DIR" "${BUILD_DIR}/zephyr/zephyr.hex" "comms_nrf9160.hex"
@@ -112,8 +159,10 @@ build_app_fw_9160() {
 
 build_app_fw() {
     echo -e "${CYAN}══════════════════════════════════════════${NC}"
-    echo -e "${CYAN}  Building sigma5_fw (NCS 2.3 / cmake)${NC}"
+    echo -e "${CYAN}  Building sigma5_fw (NCS 2.4 / cmake)${NC}"
     echo -e "${CYAN}══════════════════════════════════════════${NC}"
+
+    init_submodules "$APP_FW_DIR"
 
     case "$BUILD_TARGET" in
         nrf52840) build_app_fw_52840 ;;
@@ -142,6 +191,25 @@ build_mfg_fw() {
     echo -e "${CYAN}  Building sigma5_mfg_fw (${BOARD})${NC}"
     echo -e "${CYAN}══════════════════════════════════════════${NC}"
 
+    # In CI mode, mfg firmware is built separately via sigma5_mfg_fw job
+    if [ -n "${REPO_DIR:-}" ]; then
+        echo -e "${YELLOW}Skipping mfg firmware build in CI mode${NC}"
+        echo -e "${YELLOW}(sigma5_mfg_fw has its own build job)${NC}"
+        return 0
+    fi
+
+    if [ ! -d "$FW_DIR" ]; then
+        echo -e "${RED}ERROR: source directory $FW_DIR does not exist${NC}"
+        exit 1
+    fi
+
+    # --- Fix encryption key paths in sysbuild.conf ---
+    echo -e "${CYAN}Fixing encryption key paths...${NC}"
+    # App processor uses encryption_key.pem
+    sed -i "s|SB_CONFIG_BOOT_ENCRYPTION_KEY_FILE=\"[^\"]*\"|SB_CONFIG_BOOT_ENCRYPTION_KEY_FILE=\"${FW_DIR}/encryption_key.pem\"|g" "${FW_DIR}/sysbuild.conf"
+    # Comms processor uses comms_encryption_key.pem
+    sed -i "s|SB_CONFIG_BOOT_ENCRYPTION_KEY_FILE=\"[^\"]*\"|SB_CONFIG_BOOT_ENCRYPTION_KEY_FILE=\"${FW_DIR}/comms_encryption_key.pem\"|g" "${COMM_DIR}/sysbuild.conf"
+
     # --- Application processor (nRF52840) ---
     echo -e "\n${CYAN}[1/4] Application Processor (nRF52840)${NC}"
     west build ${PRISTINE:+--pristine} ${PRISTINE:-"--pristine"} \
@@ -153,7 +221,6 @@ build_mfg_fw() {
 
     # --- Communications coprocessor (nRF9160) ---
     echo -e "\n${CYAN}[2/4] Communication Coprocessor (nRF9160)${NC}"
-    fix_sysbuild_key_path "${COMM_DIR}/sysbuild.conf" "${FW_DIR}"
 
     # Clear fips.conf placeholder
     echo "# FIPS hash - placeholder for first build" > "${COMM_DIR}/fips.conf"
@@ -218,7 +285,7 @@ case $TARGET in
         echo "  clean  Remove all build directories and artifacts"
         echo ""
         echo "Options:"
-        echo "  -b, --board BOARD      Board variant for mfg build (default: sigma5_c0)"
+        echo "  -b, --board BOARD      Board variant for mfg build (default: sigma5_b0)"
         echo "  --target TARGET        For app build: nrf52840, nrf9160, or both (default)"
         echo "  --pristine             Force clean rebuild"
         echo ""

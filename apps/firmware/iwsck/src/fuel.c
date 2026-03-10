@@ -1,13 +1,44 @@
-/* BQ35100 fuel gauge — I2C commands + P0.00 interrupt */
+/* BQ35100 fuel gauge — I2C commands + P0.02 interrupt, P0.03 enable */
 
 #include <zephyr/kernel.h>
 #include <zephyr/shell/shell.h>
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/drivers/i2c.h>
 
-static const struct device *const i2c = DEVICE_DT_GET(DT_NODELABEL(i2c_bb));
+/* Hardware I2C on TWIM21 (P1.04 SCL, P1.05 SDA) */
+static const struct device *const i2c = DEVICE_DT_GET(DT_NODELABEL(i2c21));
+
+/* Fuel gauge interrupt — P0.02, active-low */
 static const struct gpio_dt_spec fuel_int =
 	GPIO_DT_SPEC_GET(DT_NODELABEL(fuel_gauge_int), gpios);
+
+/* Fuel gauge enable — P0.03, active-high */
+static const struct gpio_dt_spec fuel_en =
+	GPIO_DT_SPEC_GET(DT_NODELABEL(fuel_en), gpios);
+
+static bool ge_enabled;
+
+static int fuel_ge_init(void)
+{
+	if (!gpio_is_ready_dt(&fuel_en)) return -ENODEV;
+	gpio_pin_configure_dt(&fuel_en, GPIO_OUTPUT_INACTIVE);
+	return 0;
+}
+SYS_INIT(fuel_ge_init, APPLICATION, 89);
+
+static void fuel_ge_on(void)
+{
+	if (!ge_enabled) {
+		if (!gpio_is_ready_dt(&fuel_en)) {
+			printk("[fuel] GE: gpio not ready!\n");
+			return;
+		}
+		gpio_pin_set_dt(&fuel_en, 1);
+		ge_enabled = true;
+		k_msleep(1000); /* BQ35100 needs ~1s after GE rising edge for valid readings */
+		printk("[fuel] GE enabled (P0.03 HIGH)\n");
+	}
+}
 
 #define ADDR 0x55
 
@@ -59,7 +90,7 @@ static int ctl_read(uint16_t subcmd, uint16_t *val)
 	return rd16(REG_CONTROL, val);
 }
 
-/* --- Interrupt on P0.00 --- */
+/* --- Interrupt on P0.02 --- */
 
 static struct gpio_callback fuel_int_cb;
 static volatile uint32_t fuel_int_count;
@@ -93,6 +124,7 @@ static int cmd_read(const struct shell *sh, size_t argc, char **argv)
 	uint16_t volt, temp, soh, acap, imp, dcap;
 	int16_t curr;
 
+	fuel_ge_on();
 	if (rd16(REG_VOLT, &volt)) {
 		shell_error(sh, "Read failed — device present?");
 		return -EIO;
@@ -119,6 +151,7 @@ static int cmd_status(const struct shell *sh, size_t argc, char **argv)
 	ARG_UNUSED(argc); ARG_UNUSED(argv);
 	uint8_t bstat, balert;
 
+	fuel_ge_on();
 	if (rd8(REG_BSTAT, &bstat)) {
 		shell_error(sh, "Read failed");
 		return -EIO;
@@ -140,6 +173,7 @@ static int cmd_info(const struct shell *sh, size_t argc, char **argv)
 	ARG_UNUSED(argc); ARG_UNUSED(argv);
 	uint16_t devtype, fwver, hwver, chemid;
 
+	fuel_ge_on();
 	if (ctl_read(CNTL_DEVICE_TYPE, &devtype)) {
 		shell_error(sh, "Control read failed");
 		return -EIO;
@@ -156,6 +190,7 @@ static int cmd_info(const struct shell *sh, size_t argc, char **argv)
 static int cmd_start(const struct shell *sh, size_t argc, char **argv)
 {
 	ARG_UNUSED(argc); ARG_UNUSED(argv);
+	fuel_ge_on();
 	if (ctl(CNTL_GAUGE_START)) { shell_error(sh, "Failed"); return -EIO; }
 	shell_print(sh, "Gauge ACTIVE");
 	return 0;
@@ -164,6 +199,7 @@ static int cmd_start(const struct shell *sh, size_t argc, char **argv)
 static int cmd_stop(const struct shell *sh, size_t argc, char **argv)
 {
 	ARG_UNUSED(argc); ARG_UNUSED(argv);
+	fuel_ge_on();
 	if (ctl(CNTL_GAUGE_STOP)) { shell_error(sh, "Failed"); return -EIO; }
 	shell_print(sh, "Gauge SLEEP");
 	return 0;
@@ -172,6 +208,7 @@ static int cmd_stop(const struct shell *sh, size_t argc, char **argv)
 static int cmd_scan(const struct shell *sh, size_t argc, char **argv)
 {
 	ARG_UNUSED(argc); ARG_UNUSED(argv);
+	fuel_ge_on();
 	int found = 0;
 	for (uint8_t a = 0x08; a <= 0x77; a++) {
 		struct i2c_msg msg = {.buf = NULL, .len = 0,
