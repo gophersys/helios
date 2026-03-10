@@ -867,15 +867,17 @@ def compute_fuota_timeout(cfw_size_bytes: int, uplink_interval_s: int = 60) -> i
 
 | Integration | Method | Access | Notes |
 |------------|--------|--------|-------|
-| Device registration | REST API (`/System/Devices/Register`) | `CoreCloudRestInterface` | Once per DUT, or on re-personalization |
-| FUOTA plan creation | DB ORM (`Fuotaplanstbl`, `Fuotaplanstagestbl`, `Fuotaplanstagetargetstbl`) | `CoreCloudDBInterface` | **No REST endpoint available** |
-| Device FUOTA settings | DB ORM (`Fuotasettingsperdevicetbl`) | `CoreCloudDBInterface` | **No REST endpoint available** |
-| FUOTA progress monitoring | DB ORM (`Fuotaprogresstbl`) | `CoreCloudDBInterface` | Polling-based, 10s interval |
-| FUOTA history | DB ORM (`Fuotaprogresshistorytbl`) | `CoreCloudDBInterface` | Audit trail for completed transfers |
-| Message verification | DB ORM (per message type table) | `CoreCloudDBInterface` | Primary test verification method |
-| Firmware version query | DB ORM (`Devicefirmwarecurrenttbl`) | `CoreCloudDBInterface` | Check current FW versions per App ID |
-| GPS config push | REST API (`/System/Devices/Configurations/Gps`) | `CoreCloudRestInterface` | For GNSS-related tests |
-| `.cfw` upload | **TBD** | **Gap** | See Section 11 |
+| Device registration | REST API (`/api/System/Devices/Register`) | `CoreCloudRestInterface` | Once per DUT, or on re-personalization |
+| CFW upload | REST API (`/singleton/firmwareimages`) | multipart/form-data | **Resolved 2026-03-06** |
+| FUOTA plan creation | REST API (`/singleton/firmwareupdates/plans`) | JSON POST | **Resolved 2026-03-06** |
+| Device FUOTA settings | REST API (`/singleton/firmwareupdates/settings/devices`) | JSON POST | **Resolved 2026-03-06** |
+| FUOTA progress monitoring | REST API (`/singleton/firmwareupdates/progress`) | GET with query params | **Resolved 2026-03-06** |
+| Device status/boot info | REST API (`/api/System/Devices/Status`) | `CoreCloudRestInterface` | Boot reason "Fuota" after OTA |
+| GPS config push | REST API (`/api/System/Devices/Configurations/Gps`) | `CoreCloudRestInterface` | For GNSS-related tests |
+
+> **Note (2026-03-06):** FUOTA endpoints use `/singleton/` path prefix on
+> `val.office.corekinect.cloud:2018`, NOT the `/api/` prefix used by device
+> management. DB ORM access is no longer needed for FUOTA operations.
 
 ### Database Access
 
@@ -927,24 +929,22 @@ with CoreCloudDBInterface(db_env="VAL_1_0") as session:
     session.commit()
 ```
 
-### REST vs DB ORM Decision
+### REST API Decision (Updated 2026-03-06)
 
-The current recommendation (per
-[corecloud-library-architecture.md](./corecloud-library-architecture.md) Section 5) is
-to use **direct DB ORM for initial implementation** with a phased migration path to REST:
+All FUOTA operations now use REST API. DB ORM is no longer needed.
 
-| Operation | Current | Target |
-|-----------|---------|--------|
-| Plan CRUD | DB ORM | REST API (when available) |
-| Device FUOTA settings | DB ORM | REST API (when available) |
-| Progress monitoring | DB ORM | DB ORM (polling is sufficient) |
-| Version verification | DB ORM | DB ORM (read-only, safe) |
-| Device registration | REST API | REST API (already works) |
-| `.cfw` upload | **TBD** | REST API |
+| Operation | Method | Endpoint |
+|-----------|--------|----------|
+| CFW upload | REST API | `POST /singleton/firmwareimages` (multipart) |
+| Plan creation | REST API | `POST /singleton/firmwareupdates/plans` (JSON) |
+| Device assignment | REST API | `POST /singleton/firmwareupdates/settings/devices` (JSON) |
+| Progress monitoring | REST API | `GET /singleton/firmwareupdates/progress?deviceId=` |
+| Device registration | REST API | `POST /api/System/Devices/Register` (JSON) |
+| Device status | REST API | `GET /api/System/Devices/Status` (JSON) |
 
-**Risk**: Direct DB writes bypass CoreCloud server-side business logic
-(cooldown enforcement, version validation, concurrent update prevention). The
-pipeline must implement these guards itself until REST endpoints are available.
+Server-side business logic (cooldown enforcement, version validation, etc.) is
+now handled by the CoreCloud server when using the REST API — no need for
+client-side guards.
 
 ---
 

@@ -1,8 +1,9 @@
 # Phase 5: FUOTA Validation Flow
 
-> **Status:** Designed, not executed in initial proof.
-> **Blocked by:** `.cfw` upload endpoint, FUOTA plan CRUD API
-> **When:** After Phase 4 completes AND blockers are resolved
+> **Status:** Designed, blockers resolved. Ready for implementation.
+> **Previously blocked by:** `.cfw` upload endpoint, FUOTA plan CRUD API
+> **Blockers resolved:** 2026-03-06 — Jared confirmed REST API endpoints exist (see below)
+> **When:** After Phase 4 completes
 > **Effort:** ~40-60h (estimated)
 
 ---
@@ -20,24 +21,27 @@ Both are part of Stage 4 — they are sequenced, not competing.
 
 ---
 
-## Why This Is Deferred
+## Blocker Resolution (2026-03-06)
 
-Two infrastructure blockers prevent execution:
+Both infrastructure blockers have been resolved. Jared confirmed the CoreCloud
+REST API endpoints for FUOTA management:
 
-1. **`.cfw` upload endpoint** — No documented CoreCloud REST endpoint for
-   uploading firmware packages. The FUOTA system requires `.cfw` files
-   (combined firmware update packages for both MCUs) to be uploaded to
-   CoreCloud before a FUOTA plan can reference them. Without this endpoint,
-   FUOTA plans cannot be created programmatically.
+1. **CFW upload endpoint** — `POST /singleton/firmwareimages`
+   - Multipart/form-data with field `image` containing the `.cfw` file
+   - Base URL: `https://val.office.corekinect.cloud:2018` (no `/api` prefix)
 
-2. **FUOTA plan CRUD API** — No REST methods for creating, modifying, or
-   monitoring FUOTA plans. The existing Python SDK has ORM models for FUOTA
-   tables (`Fuotaplanstbl`, `Fuotaprogresshistorytbl`), but no validated
-   REST interface. Direct DB manipulation bypasses server-side validation
-   and is not safe for automated testing.
+2. **FUOTA plan CRUD API** — `POST /singleton/firmwareupdates/plans`
+   - JSON body with `stages`, `description`, `deviceTypeId`, `deviceVariantId`
+   - Each stage has `targets` array of CFW version strings (e.g., `["108.0.8.0-P", "109.0.8.0-P"]`)
 
-**When these blockers resolve**, this phase can execute using the test
-framework built in Phases 0-1 with minimal additional infrastructure.
+3. **Device assignment** — `POST /singleton/firmwareupdates/settings/devices`
+   - JSON body with `planId`, `enableFuota`, `maxStage`, `deviceIds`
+
+4. **Progress monitoring** — `GET /singleton/firmwareupdates/progress?deviceId=<DevEUI>`
+
+**Note:** These endpoints use the `/singleton/` path prefix, NOT `/api/`. The
+`CoreCloudRestInterface` needs extension to support multipart file uploads
+(currently only supports `json=` parameter).
 
 ---
 
@@ -109,28 +113,59 @@ class FuotaClient:
     """FUOTA plan management for Stage 4 validation.
 
     Creates FUOTA plans, monitors progress, and verifies completion
-    via CoreCloud API.
+    via CoreCloud REST API (/singleton/ endpoints).
+
+    Base URL: https://val.office.corekinect.cloud:2018
+    Auth: Same Bearer token + X-API-KEY as /api/ endpoints.
     """
 
-    async def upload_cfw(self, cfw_path: str) -> str:
-        """Upload .cfw firmware package. Returns firmware_id."""
+    def upload_cfw(self, cfw_path: str) -> None:
+        """Upload .cfw firmware package.
 
-    async def create_plan(
+        POST /singleton/firmwareimages (multipart/form-data, field: image)
+        Server parses CFW v2 header to extract version metadata.
+        """
+
+    def create_plan(
         self,
-        name: str,
-        device_id: str,
-        firmware_id: str,
-        app_ids: list[int],
-    ) -> str:
-        """Create FUOTA plan targeting device with firmware. Returns plan_id."""
+        stages: list[dict],
+        description: str,
+        device_type_id: int = 2,
+        device_variant_id: int = 3,
+    ) -> int:
+        """Create FUOTA plan. Returns planId.
 
-    async def activate_plan(self, plan_id: str) -> None:
-        """Activate a created FUOTA plan (triggers device download)."""
+        POST /singleton/firmwareupdates/plans
+        Each stage: {"targets": ["108.x.y.z-P", "109.x.y.z-P"], "description": "...", "isSkippable": bool}
+        """
 
-    async def wait_for_completion(
-        self, plan_id: str, timeout_s: float = 600
-    ) -> FuotaResult:
-        """Poll plan progress until completion or timeout."""
+    def assign_device(
+        self,
+        plan_id: int,
+        device_ids: list[str],
+        max_stage: int,
+        enable: bool = True,
+    ) -> None:
+        """Assign device(s) to FUOTA plan.
+
+        POST /singleton/firmwareupdates/settings/devices
+        DANGER: Only pass test DUT device IDs. Never production devices.
+        """
+
+    def get_progress(self, device_id: str) -> dict:
+        """Poll FUOTA progress.
+
+        GET /singleton/firmwareupdates/progress?deviceId=<DevEUI>
+        """
+
+    def wait_for_completion(
+        self, device_id: str, timeout_s: float = 3600
+    ) -> dict:
+        """Poll progress until stage advancement or timeout.
+
+        FUOTA depends on device uplink cycle (15-60 min for LTE-M PSM).
+        Default timeout is 1 hour.
+        """
 ```
 
 ### FuotaOrchestrator Interface
@@ -216,22 +251,29 @@ CoreCloud server: `dev.office.corekinect.cloud`
 
 | Decision | Options | Status |
 |----------|---------|--------|
-| FUOTA API access method | REST API (preferred) vs DB ORM (fallback) | Waiting on CoreCloud team |
-| `.cfw` upload mechanism | REST endpoint vs direct S3/MinIO upload | Waiting on CoreCloud team |
+| FUOTA API access method | REST API (`/singleton/` endpoints) | **Resolved** — REST API confirmed |
+| `.cfw` upload mechanism | `POST /singleton/firmwareimages` | **Resolved** — multipart upload |
 | Test device lifecycle | Persistent DUTs (reuse) vs fresh per-run | Persistent (reuse) |
 | Multi-plan consolidation | 6 separate plans vs fewer combined plans | Evaluate after stabilization |
+| `/singleton/` auth | Same Bearer+APIKey as `/api/`? | **Needs verification** |
+| CoreCloudRestInterface extension | Add `files=`/`data=` to `request()` | **Needs implementation** |
 
 ---
 
-## Phase 4 Checkpoint
+## Phase 5 Checkpoint
 
 | Check | Status |
 |-------|--------|
-| `.cfw` upload endpoint available | |
-| FUOTA plan CRUD API available | |
+| `.cfw` upload endpoint available | Confirmed (2026-03-06) |
+| FUOTA plan CRUD API available | Confirmed (2026-03-06) |
+| `/singleton/` auth verified (read-only probe) | |
+| CoreCloudRestInterface extended for multipart | |
 | FuotaClient implemented | |
 | FuotaOrchestrator implemented | |
-| 12-step flow executes on real hardware | |
-| All FUOTA transitions verified (BootMsgV2 boot_reason=2) | |
+| CFW files uploaded to VAL server | |
+| FUOTA plan created for test device | |
+| Device assigned to plan | |
+| FUOTA progress monitored | |
+| All FUOTA transitions verified (boot_reason="Fuota") | |
 | Phase 3 tests pass after each FUOTA transition | |
 | Commit-run subset verified | |
