@@ -17,6 +17,8 @@ import logging
 
 import pytest
 
+from corekinect.test.validation import Capability, requires_capability
+
 log = logging.getLogger(__name__)
 
 
@@ -24,18 +26,18 @@ log = logging.getLogger(__name__)
 class TestNfc:
     """NFC tag verification."""
 
-    @pytest.mark.skip(reason="NFC I2C reader not yet wired on fixture")
+    @requires_capability(Capability.NFC_READER)
     def test_nfc_tag_detected(self, ctx, firmware_build):
-        """NFC tag is detected by the reader."""
+        """PRDTST-337: NFC tag is detected by the reader."""
         tag_present, uid, err = ctx.mtib.NfcPoll(timeout_ms=3000)
         assert err is None, f"NfcPoll RPC failed: {err}"
         assert tag_present, "No NFC tag detected — check tag proximity to reader"
         assert len(uid) >= 4, f"Tag UID too short ({len(uid)} bytes)"
         log.info("NFC tag detected: UID=%s", uid.hex())
 
-    @pytest.mark.skip(reason="NFC I2C reader not yet wired on fixture")
+    @requires_capability(Capability.NFC_READER)
     def test_nfc_device_id(self, ctx, firmware_build):
-        """NFC NDEF text record contains correct device ID."""
+        """PRDTST-337: NFC NDEF text record contains correct device ID."""
         expected_device_id = os.environ["DEVICE_ID"]
 
         records, err = ctx.mtib.NfcReadNdef(timeout_ms=3000)

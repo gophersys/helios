@@ -24,7 +24,7 @@ class TestBoot:
 
     @pytest.mark.corecloud
     def test_power_cycle_produces_bootmsg(self, ctx, firmware_build):
-        """Power cycle device, verify BootMsgV2 arrives at CoreCloud."""
+        """PRDTST-374: Power cycle device, verify BootMsgV2 arrives at CoreCloud."""
         ctx.fixture.power_cycle()
         msg = ctx.cloud.wait_for_boot(timeout_s=120)
         assert msg is not None, "No BootMsgV2 received after power cycle"
@@ -32,7 +32,7 @@ class TestBoot:
     @pytest.mark.corecloud
     @pytest.mark.xfail(reason="BootMsgV2 does not include fw_version field yet — PRD gap")
     def test_boot_reports_firmware_version(self, ctx, firmware_build):
-        """BootMsgV2 firmware version field is populated."""
+        """PRDTST-374: BootMsgV2 firmware version field is populated."""
         msg = ctx.cloud.wait_for_boot(timeout_s=120)
         # Firmware version should be a non-empty string
         assert hasattr(msg, "fw_version") or hasattr(msg, "firmware_version"), (
@@ -40,7 +40,7 @@ class TestBoot:
         )
 
     def test_boot_current_within_budget(self, ctx, firmware_build):
-        """Boot sequence peak current draw does not exceed 200mA."""
+        """PRDTST-341, PRDTST-404: Boot sequence peak current draw does not exceed 200mA."""
         result = ctx.power.measure(channel=0, duration_s=10)
         assert result.peak_current_ma < 200, (
             f"Boot peak current {result.peak_current_ma:.1f}mA exceeds 200mA budget"
@@ -54,16 +54,16 @@ class TestBoot:
 
     @pytest.mark.corecloud
     def test_no_hw_failures_after_boot(self, ctx, firmware_build):
-        """No hardware failure messages reported after clean boot."""
-        failures = ctx.cloud.check_hw_failures()
-        assert len(failures) == 0, (
-            f"Hardware failures after boot: {[str(f) for f in failures]}"
+        """Operational: No hardware failure messages reported after clean boot."""
+        info = ctx.cloud.check_hw_failures()
+        assert not info.get("hasFailures", False), (
+            f"Hardware failures after boot: {info}"
         )
 
     @pytest.mark.corecloud
     def test_no_comms_failures_after_boot(self, ctx, firmware_build):
-        """No comms hardware failure messages reported after clean boot."""
-        failures = ctx.cloud.check_comms_hw_failures()
-        assert len(failures) == 0, (
-            f"Comms failures after boot: {[str(f) for f in failures]}"
+        """Operational: No comms hardware failure messages reported after clean boot."""
+        info = ctx.cloud.check_comms_hw_failures()
+        assert not info.get("hasFailures", False), (
+            f"Comms failures after boot: {info}"
         )

@@ -139,12 +139,18 @@ class TestPower:
         any_nonzero = any(v > 0.1 for v in rails.values())
         assert any_nonzero, f"All ADC rails near zero — DUT may be disconnected: {rails}"
 
-    def test_power_measure(self, profiler):
+    def test_power_measure(self, profiler, fixture):
         """PowerMeasure RPC returns valid stats over 5 seconds."""
-        result = profiler.measure(channel=0, duration_s=5)
+        # Ensure DUT is powered (test ordering may run this before power_on_and_read)
+        fixture.power_on()
+        time.sleep(fixture.profile.boot_settle_s)
+        # With battery installed, charger (ch1) carries most current after
+        # BQ25180 takeover. Measure whichever channel has current.
+        ch = 1 if fixture.profile.battery_installed else 0
+        result = profiler.measure(channel=ch, duration_s=5)
         log.info(
-            "PowerMeasure: avg=%.1fmA, peak=%.1fmA, min=%.1fmA, samples=%d",
-            result.avg_current_ma, result.peak_current_ma,
+            "PowerMeasure ch%d: avg=%.1fmA, peak=%.1fmA, min=%.1fmA, samples=%d",
+            ch, result.avg_current_ma, result.peak_current_ma,
             result.min_current_ma, result.samples,
         )
         assert result.samples > 0, "No samples collected"

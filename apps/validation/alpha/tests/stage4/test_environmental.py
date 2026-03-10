@@ -19,6 +19,8 @@ import logging
 
 import pytest
 
+from corekinect.test.validation import Capability, requires_capability
+
 log = logging.getLogger(__name__)
 
 
@@ -27,7 +29,7 @@ class TestEnvironmental:
 
     @pytest.mark.corecloud
     def test_temperature_within_range(self, ctx, firmware_build):
-        """Environmental temperature reading is plausible (10-40C indoor)."""
+        """PRDTST-345: Environmental temperature reading is plausible (10-40C indoor)."""
         msg = ctx.cloud.wait_for_biometric(timeout_s=120)
         assert msg is not None, "No BiometricDataMsg received"
         if hasattr(msg, "temperature") and msg.temperature is not None:
@@ -38,7 +40,7 @@ class TestEnvironmental:
 
     @pytest.mark.corecloud
     def test_biometric_has_environmental_fields(self, ctx, firmware_build):
-        """BiometricDataMsg includes expected environmental data fields."""
+        """PRDTST-327: BiometricDataMsg includes expected environmental data fields."""
         msg = ctx.cloud.wait_for_biometric(timeout_s=120)
         assert msg is not None, "No BiometricDataMsg received"
         # Verify message has the expected structure
@@ -47,7 +49,7 @@ class TestEnvironmental:
 
     @pytest.mark.corecloud
     def test_environmental_data_updates(self, ctx, firmware_build):
-        """Environmental data updates at least once within 5 minutes."""
+        """PRDTST-345, PRDTST-357, PRDTST-398: Environmental data updates at least once within 5 minutes."""
         msg1 = ctx.cloud.wait_for_biometric(timeout_s=120)
         assert msg1 is not None
         time.sleep(60)  # Wait for next reporting cycle
@@ -57,7 +59,7 @@ class TestEnvironmental:
 
     @pytest.mark.corecloud
     def test_pressure_within_range(self, ctx, firmware_build):
-        """Atmospheric pressure is in plausible range (900-1100 hPa)."""
+        """PRDTST-357: Atmospheric pressure is in plausible range (900-1100 hPa)."""
         msg = ctx.cloud.wait_for_biometric(timeout_s=120)
         if hasattr(msg, "pressure") and msg.pressure is not None:
             assert 900 <= msg.pressure <= 1100, (
@@ -69,7 +71,7 @@ class TestEnvironmental:
 
     @pytest.mark.corecloud
     def test_humidity_within_range(self, ctx, firmware_build):
-        """Relative humidity is in plausible range (10-90%)."""
+        """PRDTST-398: Relative humidity is in plausible range (10-90%)."""
         msg = ctx.cloud.wait_for_biometric(timeout_s=120)
         if hasattr(msg, "humidity") and msg.humidity is not None:
             assert 10 <= msg.humidity <= 90, (
@@ -79,19 +81,19 @@ class TestEnvironmental:
         else:
             pytest.skip("Humidity field not available in BiometricDataMsg")
 
+    @requires_capability(Capability.PELTIER)
     def test_temperature_changes_with_peltier(self, ctx, firmware_build):
-        """Temperature reading changes when Peltier heats/cools the sensor.
+        """PRDTST-406: Temperature reading changes when Peltier heats/cools the sensor.
 
         Drives the Peltier element GPIO, then reads the thermistor ADC
         to verify temperature influence. Compares to baseline reading.
         """
         baseline_adc = ctx.fixture.read_temperature()
         # Enable Peltier (heats one side, cools other)
-        gpio = ctx.fixture.profile.peltier_gpio
-        ctx.fixture._mtib.GpioWrite(gpio, True)
+        ctx.fixture.set_peltier(True)
         time.sleep(30)  # Let temperature stabilize
         heated_adc = ctx.fixture.read_temperature()
-        ctx.fixture._mtib.GpioWrite(gpio, False)  # Turn off
+        ctx.fixture.set_peltier(False)  # Turn off
 
         delta = abs(heated_adc - baseline_adc)
         log.info(
@@ -103,7 +105,7 @@ class TestEnvironmental:
         )
 
     def test_power_rails_stable(self, ctx, firmware_build):
-        """Power rails are within expected voltage ranges during normal operation."""
+        """Operational: Power rails are within expected voltage ranges during normal operation."""
         rails = ctx.fixture.read_power_rails()
         log.info("Power rails: %s", rails)
 

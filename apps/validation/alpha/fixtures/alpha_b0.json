@@ -1,43 +1,77 @@
 {
+  "station_id": "station-33",
   "product": "alpha",
   "board": "alpha_b0",
-  "button": {
-    "gpio_pin": 2,
-    "active_low": true
+  "mtib_revision": "1.2",
+
+  "capabilities": ["button", "peltier", "charger_relay"],
+
+  "dut": {
+    "device_id": "70B3D584C01E1FCC",
+    "snr": "0964",
+    "imei": "355025931735979",
+    "iccids": ["89148000009808558441", "89457300000037582833"]
   },
-  "on_skin": {
-    "gpio_pin": 3,
-    "active_high": true
-  },
-  "peltier": {
-    "gpio_pin": 4,
-    "sensor_adc_channel": 7
-  },
-  "charger_relay": {
-    "gpio_pin": 5,
-    "active_high": true
-  },
-  "led_sensor": {
-    "red_adc_channel": 4,
-    "green_adc_channel": 5,
-    "blue_adc_channel": 6
-  },
-  "nfc_reader": {
-    "interface": "i2c",
-    "bus": 1
-  },
-  "motion": {},
+
   "power": {
     "battery_installed": false,
     "dut_voltage": 4.5,
     "charger_voltage": 5.0,
-    "boot_settle_s": 3
+    "boot_settle_s": 10
   },
-  "_notes": {
-    "swd_gpios": "GPIO 0+1 are RESERVED for SWD level shifter enable (always output LOW). Do NOT assign any fixture channel to pin 0 or 1.",
-    "gpio_pins": "Pins 2-6 available for Stage 4 stimulus. Assignments are PROVISIONAL — verify against actual fixture wiring when hardware arrives. Button=2, on_skin=3, peltier=4, charger_relay=5.",
-    "led_adc_channels": "Channels 4-6 are Stage 4 additions for photodiode RGB LED sensing.",
-    "manufacturing_adc": "ch0=power rail (~4.5V), ch1=battery divider (~2.5V), ch2=backup rail (~4.5V), ch3=SYS (~0V unused), ch7=3.3V ref",
-    "peltier_adc": "Using ch7 (3.3V ref) as temp sensor channel placeholder. Actual NTC thermistor channel TBD."
+
+  "button": {
+    "gpio_pin": 2,
+    "active_low": true,
+    "_doc": "Drives DUT button membrane line. LOW=pressed, HIGH=released. DUT has internal pull-up."
+  },
+
+  "peltier": {
+    "gpio_pin": 4,
+    "temp_adc_channel": 7,
+    "_doc": "MOSFET gate driving peltier heater element near MLX90614 IR temp sensor. HIGH=heat on. Simulates skin temperature for on-body detection threshold. temp_adc_channel is a fixture-side NTC thermistor near the peltier to verify heating (reads via ADC, not the DUT's MLX90614)."
+  },
+
+  "charger_relay": {
+    "gpio_pin": 5,
+    "active_high": true,
+    "_doc": "Relay switching ch1 PSU (5V) to DUT VCHG input. HIGH=relay closed (charger connected). Only enable when battery_installed=true."
+  },
+
+  "ppg_simulator": null,
+  "led_sensor": null,
+  "nfc_reader": null,
+  "motion": null,
+
+  "_hardware_notes": {
+    "ppg_simulator": {
+      "status": "NOT_WIRED",
+      "servo_pwm_pin": 7,
+      "servo_blocked_duty_us": 1000,
+      "servo_exposed_duty_us": 2000,
+      "hr_led_gpio_pin": 3,
+      "_doc": "IR blocker servo + green LED array. Blocked=IR absorbed (no touch). Exposed=IR reflects off green LED PCB (touch detected). HR LED toggles green LEDs at heart-rate frequency. BLOCKED: Needs PWM RPC in MTIB V1 proto."
+    },
+    "led_sensor": {
+      "status": "NOT_WIRED",
+      "red_adc_channel": 4,
+      "green_adc_channel": 5,
+      "blue_adc_channel": 6,
+      "_doc": "Photodiodes over DUT status LEDs. ADC ch 4-6 not connected on current fixture."
+    },
+    "nfc_reader": {
+      "status": "NOT_WIRED",
+      "interface": "i2c",
+      "bus": 1,
+      "_doc": "NFC reader for DUT NFC antenna verification. I2C not wired."
+    },
+    "motion": {
+      "status": "NOT_CONNECTED",
+      "_doc": "FluidNC linear rail for accelerometer stimulus. Not connected to validation MTIBs."
+    },
+    "swd_gpios": "GPIO 0+1 are RESERVED for SWD level shifter enable (always output LOW). Never assign to fixture.",
+    "pwm_pins": "GPIO 7=PWM_1 (SODIMM_15), GPIO 8=PWM_2 (SODIMM_16). Connected to Verdin iMX8MM PWM outputs.",
+    "gpio_pins": "GPIO 2=button, 3=HR LED array, 4=peltier MOSFET, 5=charger relay, 6=available.",
+    "manufacturing_adc": "ch0=power rail (~4.5V), ch1=battery divider (~2.5V), ch2=backup rail (~4.5V), ch3=SYS (~0V unused), ch7=3.3V ref"
   }
 }

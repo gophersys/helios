@@ -39,17 +39,69 @@ Concord Reporter (opt-in, Phase 6B):
 """
 
 import os
-import logging
 import time
+from pathlib import Path
+from typing import List, Optional
 
 import pytest
+from dotenv import load_dotenv
+
+# Load root .env before anything else (conftest runs from apps/validation/alpha/)
+# In Docker container, the file is at /app/conftest.py, so parents[3] would fail.
+# In local dev, it's at apps/validation/alpha/conftest.py, so parents[3] is repo root.
+try:
+    _root_env = Path(__file__).resolve().parents[3] / ".env"
+    if _root_env.exists():
+        load_dotenv(_root_env, override=False)
+except IndexError:
+    pass  # Running in container without parent directories
 
 from corekinect.test.validation.test_context import TestContext
+from corekinect.utils import EnvConfig, Logger
 
-log = logging.getLogger(__name__)
+# ── Structured configuration via EnvConfig ──────────────────────────
+class ValidationConfig(EnvConfig):
+    """Validation test config — loaded from env vars / .env file."""
+    ENV_PREFIX = ""
+
+    # MTIB connection — supports MTIB_ADDRESS (host:port) or MTIB_HOST + MTIB_PORT
+    MTIB_ADDRESS: Optional[str] = None  # "10.4.45.33:50053" — from bench scheduler
+    MTIB_HOST: Optional[str] = None
+    MTIB_PORT: int = 50053
+
+    # Device identity — from bench scheduler or env
+    DEVICE_ID: str = "70B3D584C01E1FCC"
+    DEVICE_SNR: Optional[str] = None
+    FIXTURE_PROFILE_PATH: Optional[str] = None
+    BENCH_ID: Optional[str] = None  # TestBench ID for unlock on finish
+
+    # Firmware paths
+    FW_DEBUG_HEX: Optional[str] = None
+    FW_RELEASE_HEX: Optional[str] = None
+    FW_DEBUG_COMMS_HEX: Optional[str] = None
+    FW_RELEASE_COMMS_HEX: Optional[str] = None
+    FW_MODEM_ZIP: Optional[str] = None
+
+    # CoreOps re-personalization
+    PROXY_SERVER_URL: Optional[str] = None
+    DEVICE_IMEI: Optional[str] = None
+    DEVICE_ICCIDS: Optional[str] = None
+
+    # CoreCloud
+    CORECLOUD_DB_ENV: Optional[str] = None
+
+    # Test artifacts
+    ARTIFACTS_DIR: Optional[str] = None
+
+    # Mock mode
+    MOCK_CLOUD: Optional[str] = None
+
+
+cfg = ValidationConfig()
+log = Logger(log_name="validation")
 
 # ── Mock mode detection ──────────────────────────────────────────
-MOCK_MODE = os.environ.get("MOCK_CLOUD", "").strip().lower() in ("1", "true", "yes")
+MOCK_MODE = (cfg.MOCK_CLOUD or "").strip().lower() in ("1", "true", "yes")
 
 if MOCK_MODE:
     # Patch time.sleep to be near-instant in mock mode.
@@ -64,11 +116,24 @@ if MOCK_MODE:
 pytest_plugins = ["corekinect.test.validation.reporter"]
 
 
+def pytest_configure(config):
+    """Register custom pytest markers."""
+    config.addinivalue_line(
+        "markers",
+        "corecloud: marks tests that require CoreCloud connectivity",
+    )
+    config.addinivalue_line(
+        "markers",
+        "nfc: marks tests that require NFC reader hardware",
+    )
+
+
 def _has_cloud_db() -> bool:
     """Check if CoreCloud DB credentials are configured."""
     return bool(
-        os.environ.get("DEV_1_0_DB_HOST")
-        or os.environ.get("CORECLOUD_DB_ENV")
+        cfg.CORECLOUD_DB_ENV
+        or os.environ.get("DEV_1_0_DB_HOST")
+        or os.environ.get("VAL_1_0_DB_HOST")
     )
 
 
@@ -159,8 +224,7 @@ def _build_mock_context() -> TestContext:
         MockUartDemuxer,
     )
 
-    device_id_hex = os.environ.get("DEVICE_ID", "70B3D584C01E1FCC")
-    device_id = int(device_id_hex, 16)
+    device_id = int(cfg.DEVICE_ID, 16)
 
     cloud = MockCloudClient(device_id=device_id)
     fixture = MockFixtureController()
@@ -169,7 +233,7 @@ def _build_mock_context() -> TestContext:
 
     log.info(
         "Mock mode: device_id=%s, no hardware connection",
-        device_id_hex,
+        cfg.DEVICE_ID,
     )
 
     # TestContext accepts any duck-typed components
@@ -251,7 +315,7 @@ def _test_lifecycle(request):
     ctx.setup_test()  # mark_test_start + clear UART
 
     yield
-    artifacts_dir = os.environ.get("ARTIFACTS_DIR")
+    artifacts_dir = cfg.ARTIFACTS_DIR
     ctx.teardown_test(request.node.name, artifacts_dir)
     # Upload UART log to MinIO (fire-and-forget)
     if artifacts_dir and ctx.artifacts.enabled:
@@ -270,28 +334,39 @@ _uploaded_firmware: dict = {}
 _current_variant: str = ""
 
 
-def _ensure_uploaded(ctx: TestContext, local_path: str, target: str) -> str:
-    """Upload a local firmware file to the MTIB server if not already uploaded.
+def _ensure_uploaded(ctx: TestContext, path: str, target: str) -> str:
+    """Upload firmware to MTIB server from local file or MinIO storage.
 
-    Env var values can be either:
-      - A local file path (e.g., /firmware/app_nrf52840.hex) — uploaded automatically
-      - A bare filename (e.g., app_nrf52840.hex) — assumed already on the server
+    Supported path formats:
+      - Local file (e.g., /firmware/app_nrf52840.hex) — uploaded via FirmwareAssetManager
+      - MinIO key (e.g., firmware/builds/alpha/abc/app.hex) — downloaded then uploaded
+      - Bare filename (e.g., app_nrf52840.hex) — assumed already on server
+
+    Uses ctx.firmware (FirmwareAssetManager) for upload tracking and cleanup.
 
     Returns:
         The server-side filename to pass to flash_firmware().
     """
-    # If the file exists locally, upload it to the MTIB server
-    if os.path.isfile(local_path):
-        if local_path not in _uploaded_firmware:
-            log.info("Uploading firmware to MTIB: %s → target=%s", local_path, target)
-            ctx.fixture.upload_firmware(local_path, target)
-            server_name = os.path.basename(local_path)
-            _uploaded_firmware[local_path] = server_name
-            log.info("Upload complete: %s (server name: %s)", local_path, server_name)
-        return _uploaded_firmware[local_path]
+    # If it's a local file, upload using asset manager
+    if os.path.isfile(path):
+        if path not in _uploaded_firmware:
+            log.info("Uploading firmware to MTIB: %s -> target=%s", path, target)
+            server_name = ctx.firmware.upload_local(path, target)
+            _uploaded_firmware[path] = server_name
+            log.info("Upload complete: %s (server name: %s)", path, server_name)
+        return _uploaded_firmware[path]
 
-    # Not a local file — treat as a server-side filename (backward compat)
-    return local_path
+    # Check if it looks like a MinIO storage key (has path separators but not a local file)
+    if "/" in path and ctx.firmware.storage_enabled:
+        if path not in _uploaded_firmware:
+            log.info("Fetching firmware from MinIO: %s -> target=%s", path, target)
+            server_name = ctx.firmware.fetch_and_upload(path, target)
+            _uploaded_firmware[path] = server_name
+            log.info("Fetch+upload complete: %s (server name: %s)", path, server_name)
+        return _uploaded_firmware[path]
+
+    # Bare filename — assume already on server (backward compat)
+    return path
 
 
 @pytest.fixture(params=["debug", "release"])
@@ -340,18 +415,16 @@ def firmware_build(ctx: TestContext, request) -> str:
         return
 
     # ── Hardware mode: actual flash + re-personalization ──
-    hex_env_var = f"FW_{variant.upper()}_HEX"
-    hex_path = os.environ.get(hex_env_var)
+    hex_path = getattr(cfg, f"FW_{variant.upper()}_HEX", None)
 
     if not hex_path:
-        pytest.skip(f"{hex_env_var} not set — skipping {variant} build tests")
+        pytest.skip(f"FW_{variant.upper()}_HEX not set — skipping {variant} build tests")
 
     # nRF9151 comms coprocessor hex (optional — skips comms flash if not set)
-    comms_hex_env = f"FW_{variant.upper()}_COMMS_HEX"
-    comms_hex_path = os.environ.get(comms_hex_env)
+    comms_hex_path = getattr(cfg, f"FW_{variant.upper()}_COMMS_HEX", None)
 
     # nRF9151 modem firmware zip (required if comms is flashed — chiperase wipes modem)
-    modem_fw_path = os.environ.get("FW_MODEM_ZIP")
+    modem_fw_path = cfg.FW_MODEM_ZIP
 
     # Upload + flash nRF52840 application firmware
     server_hex = _ensure_uploaded(ctx, hex_path, "nrf52840")
@@ -374,24 +447,31 @@ def firmware_build(ctx: TestContext, request) -> str:
     # Re-personalize after flash (chiperase wipes EC keypair + config).
     # Best-effort: if personalization fails, tests that don't need CoreCloud
     # will still pass. Tests requiring cloud data will fail on their own.
-    proxy_url = os.environ.get("PROXY_SERVER_URL")
-    device_snr = os.environ.get("DEVICE_SNR")
+    device_snr = cfg.DEVICE_SNR
     personalized = False
 
-    if proxy_url and device_snr:
+    if device_snr:
         from corekinect.test.validation.device_personalizer import DevicePersonalizer
 
         # Use pre-known IMEI/ICCIDs if available (avoids modem read)
-        imei = os.environ.get("DEVICE_IMEI")
-        iccids_str = os.environ.get("DEVICE_ICCIDS")
+        imei = cfg.DEVICE_IMEI
+        iccids_str = cfg.DEVICE_ICCIDS
         iccids = [s.strip() for s in iccids_str.split(",") if s.strip()] if iccids_str else None
 
+        # Use device_id from fixture profile as fallback when CoreOps is unavailable
+        known_device_id = None
+        if ctx.fixture.profile and ctx.fixture.profile.dut:
+            known_device_id = ctx.fixture.profile.dut.device_id
+
+        db_env = cfg.CORECLOUD_DB_ENV
         personalizer = DevicePersonalizer(
             mtib=ctx.mtib,
-            proxy_url=proxy_url,
             snr=device_snr,
             imei=imei,
             iccids=iccids,
+            db_env=db_env,
+            logger=log,
+            known_device_id=known_device_id,
         )
         try:
             result, err = personalizer.repersonalize(
@@ -415,7 +495,7 @@ def firmware_build(ctx: TestContext, request) -> str:
             )
     else:
         log.warning(
-            "PROXY_SERVER_URL or DEVICE_SNR not set — skipping re-personalization. "
+            "DEVICE_SNR not set — skipping re-personalization. "
             "Tests requiring CoreCloud connectivity may fail."
         )
 
@@ -424,14 +504,19 @@ def firmware_build(ctx: TestContext, request) -> str:
         ctx.fixture.power_cycle()
 
     # Wait for CoreCloud boot message (only if DB is configured)
-    db_env = os.environ.get("CORECLOUD_DB_ENV") or os.environ.get("DEV_1_0_DB_HOST")
+    db_env = cfg.CORECLOUD_DB_ENV or os.environ.get("DEV_1_0_DB_HOST")
     if db_env and personalized:
         boot = ctx.cloud.wait_for_boot(boot_reason=0, timeout_s=120)
-        log.info(
-            "Device booted: reason=%s, mcu=%s",
-            boot.boot_reason_str,
-            boot.coprocessor_str,
-        )
+        # Handle both dict (REST API) and object (mock) returns
+        if isinstance(boot, dict):
+            boot_reason = boot.get("bootReason", "unknown")
+            log.info("Device booted: reason=%s", boot_reason)
+        else:
+            log.info(
+                "Device booted: reason=%s, mcu=%s",
+                getattr(boot, "boot_reason_str", "unknown"),
+                getattr(boot, "coprocessor_str", "unknown"),
+            )
     else:
         # No cloud DB or personalization failed — just wait for hardware boot
         log.info("Waiting for hardware boot settle (5s)...")

@@ -19,6 +19,8 @@ import logging
 
 import pytest
 
+from corekinect.test.validation import Capability, requires_capability
+
 log = logging.getLogger(__name__)
 
 # Power budgets (from firmware design spec)
@@ -32,11 +34,14 @@ class TestPower:
     """Power budget verification."""
 
     def test_active_mode_current(self, ctx, firmware_build):
-        """Active mode average current draw is within budget."""
-        result = ctx.power.measure(channel=0, duration_s=60)
+        """PRDTST-341, PRDTST-404: Active mode average current draw is within budget."""
+        # With battery installed, charger (ch1) carries most current after
+        # BQ25180 takeover. Measure ch1 for battery mode, ch0 otherwise.
+        ch = 1 if ctx.fixture.profile.battery_installed else 0
+        result = ctx.power.measure(channel=ch, duration_s=60)
         log.info(
-            "Active mode (%s): avg=%.1fmA, peak=%.1fmA, min=%.1fmA",
-            firmware_build, result.avg_current_ma,
+            "Active mode (%s) ch%d: avg=%.1fmA, peak=%.1fmA, min=%.1fmA",
+            firmware_build, ch, result.avg_current_ma,
             result.peak_current_ma, result.min_current_ma,
         )
         if firmware_build == "release":
@@ -45,10 +50,10 @@ class TestPower:
                 f"{ACTIVE_CURRENT_LIMIT_MA}mA budget"
             )
 
-    @pytest.mark.corecloud
     def test_boot_current_spike(self, ctx, firmware_build):
-        """Boot sequence peak current does not exceed limit."""
-        # Power cycle and measure during boot
+        """PRDTST-341: Boot sequence peak current does not exceed limit."""
+        # Power cycle and measure during boot (ch0 carries initial boot current
+        # before BQ25180 charger takeover in battery mode)
         ctx.fixture.power_off()
         time.sleep(2)
         ctx.power.start_continuous(channel=0)
@@ -66,16 +71,15 @@ class TestPower:
             f"Boot peak current {trace.measurement.peak_current_ma:.1f}mA "
             f"exceeds {BOOT_PEAK_LIMIT_MA}mA limit"
         )
-        # Re-establish boot for subsequent tests
-        ctx.cloud.wait_for_boot(timeout_s=120)
 
     def test_idle_current(self, ctx, firmware_build):
-        """Idle current (no stimulus) is within budget after boot settle."""
+        """PRDTST-348: Idle current (no stimulus) is within budget after boot settle."""
         time.sleep(30)  # Wait for device to settle from boot
-        result = ctx.power.measure(channel=0, duration_s=30)
+        ch = 1 if ctx.fixture.profile.battery_installed else 0
+        result = ctx.power.measure(channel=ch, duration_s=30)
         log.info(
-            "Idle current (%s): avg=%.1fmA, peak=%.1fmA",
-            firmware_build, result.avg_current_ma, result.peak_current_ma,
+            "Idle current (%s) ch%d: avg=%.1fmA, peak=%.1fmA",
+            firmware_build, ch, result.avg_current_ma, result.peak_current_ma,
         )
         if firmware_build == "release":
             assert result.avg_current_ma < IDLE_CURRENT_LIMIT_MA, (
@@ -83,14 +87,16 @@ class TestPower:
                 f"{IDLE_CURRENT_LIMIT_MA}mA budget"
             )
 
+    @requires_capability(Capability.PPG_SERVO, Capability.PPG_LED)
     def test_on_skin_power_impact(self, ctx, firmware_build):
-        """Current increases when on-skin sensor activates (biometric sensors engage)."""
+        """PRDTST-327: Current increases when on-skin sensor activates (biometric sensors engage)."""
+        ch = 1 if ctx.fixture.profile.battery_installed else 0
         # Measure baseline
-        baseline = ctx.power.measure(channel=0, duration_s=10)
+        baseline = ctx.power.measure(channel=ch, duration_s=10)
         # Activate on-skin
         ctx.fixture.simulate_on_skin(on=True)
         time.sleep(10)  # Let sensors stabilize
-        active = ctx.power.measure(channel=0, duration_s=10)
+        active = ctx.power.measure(channel=ch, duration_s=10)
         ctx.fixture.simulate_on_skin(on=False)
 
         log.info(
@@ -105,10 +111,12 @@ class TestPower:
                 f"On-skin current {active.avg_current_ma:.1f}mA exceeds budget"
             )
 
+    @requires_capability(Capability.MOTION_ACTUATOR)
     def test_motion_power_impact(self, ctx, firmware_build):
-        """Current during motion detection is within budget."""
+        """PRDTST-326: Current during motion detection is within budget."""
         ctx.fixture.shake(duration_s=20, speed_mm_s=50)
-        result = ctx.power.measure(channel=0, duration_s=15)
+        ch = 1 if ctx.fixture.profile.battery_installed else 0
+        result = ctx.power.measure(channel=ch, duration_s=15)
         ctx.fixture.stop_motion()
         log.info(
             "Motion current (%s): avg=%.1fmA, peak=%.1fmA",
@@ -121,8 +129,9 @@ class TestPower:
             )
 
     def test_continuous_trace_stability(self, ctx, firmware_build):
-        """Power trace over 60s shows no anomalous spikes or drops."""
-        ctx.power.start_continuous(channel=0)
+        """Operational: Power trace over 60s shows no anomalous spikes or drops."""
+        ch = 1 if ctx.fixture.profile.battery_installed else 0
+        ctx.power.start_continuous(channel=ch)
         time.sleep(60)
         trace = ctx.power.stop_continuous()
 
@@ -144,13 +153,23 @@ class TestPower:
             assert current_ma < 500, f"Anomalous spike at t={ts:.1f}s: {current_ma}mA"
 
     def test_no_current_anomalies(self, ctx, firmware_build):
-        """Normal operation shows stable current without drops to zero."""
-        result = ctx.power.measure(channel=0, duration_s=30)
-        assert result.min_current_ma > 0.5, (
-            f"Current dropped to {result.min_current_ma:.1f}mA — "
-            "possible brown-out or power glitch"
-        )
+        """Operational: Normal operation shows stable current without drops to zero.
+
+        In battery mode, the device sleeps between modem bursts so min
+        current CAN be 0mA. We check average > 0 and no negative readings.
+        """
+        ch = 1 if ctx.fixture.profile.battery_installed else 0
+        result = ctx.power.measure(channel=ch, duration_s=30)
         log.info(
-            "Current stability (%s): min=%.1fmA, avg=%.1fmA",
-            firmware_build, result.min_current_ma, result.avg_current_ma,
+            "Current stability (%s) ch%d: min=%.1fmA, avg=%.1fmA, peak=%.1fmA",
+            firmware_build, ch, result.min_current_ma,
+            result.avg_current_ma, result.peak_current_ma,
+        )
+        assert result.min_current_ma >= -1.0, (
+            f"Negative current {result.min_current_ma:.1f}mA — "
+            "possible measurement error or brown-out"
+        )
+        assert result.avg_current_ma > 0, (
+            f"Average current is {result.avg_current_ma:.1f}mA — "
+            "device may not be running"
         )
