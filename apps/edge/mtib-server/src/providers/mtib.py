@@ -28,7 +28,7 @@ from .handlers.motion import MotionHandler
 from .handlers.power import PowerHandler
 from .handlers.nfc import NfcHandler
 from .handlers.sensors import SensorsHandler
-from .handlers.uart import UartHandler
+from .handlers.uart_v2 import UartHandlerV2 as UartHandler
 
 # -------------------------------------------------
 #                             Toradex SoM GPIO Maps

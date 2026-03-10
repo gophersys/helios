@@ -49,32 +49,94 @@ class FirmwareHandler:
             return None  # REV 1.1: no mux, single target
 
         try:
+            # REV 1.2: P0 controls SN74CBT3257C mux
             # Empirically verified: P0=LOW → nRF9151, P0=HIGH → nRF52840
-            # (inverted from original assumption in TCA9534A driver comment)
-            swap = target in (HostType.HOST_TYPE_NRF52840, HostType.HOST_TYPE_NRF5340)
+            is_nrf52840 = target in (HostType.HOST_TYPE_NRF52840, HostType.HOST_TYPE_NRF5340)
+            swap = is_nrf52840  # P0=HIGH for nRF52840, P0=LOW for nRF9151
             self._gpio_expander.set_jlink_mux(swap)
-            target_name = "nRF52840" if swap else "nRF9151"
+            target_name = "nRF52840" if is_nrf52840 else "nRF9151"
             self.logger.info(f"J-Link mux set to {target_name} (P0={'HIGH' if swap else 'LOW'})")
+            # Allow mux to settle before J-Link operations
+            time.sleep(0.5)
             return None
         except Exception as e:
             self.logger.error(f"Failed to set J-Link mux: {e}")
             return f"Failed to set J-Link mux: {e}"
 
     def _assign_jlinks(self, force_recovery: bool = False):
-        """Detect and assign J-Link programmers to their respective chips."""
+        """Detect and assign J-Link programmers to their respective chips.
+
+        On REV 1.2 with TCA9534A GPIO expander (J-Link mux), a single J-Link
+        can reach BOTH nRF52840 and nRF9151 depending on mux position. We
+        register the J-Link for both targets - the mux selection happens
+        before each flash operation via _select_jlink_target().
+        """
         try:
             serials = subprocess.check_output(["nrfjprog", "--ids"]).decode().split()
         except Exception as e:
             self.logger.error(f"Error getting J-Link serials: {e}")
             serials = []
 
+        if not serials:
+            self.logger.warning("No J-Link probes detected")
+            return
+
+        # REV 1.2 with J-Link mux: scan at each mux position to find which
+        # J-Link can reach each target. This handles both true mux setups
+        # (one J-Link, mux routes to different targets) and multi-J-Link
+        # setups where different probes connect to different targets.
+        if self._gpio_expander:
+            mux_positions = [
+                (HostType.HOST_TYPE_NRF52840, True, "nRF52840"),   # swap=True → P0=HIGH
+                (HostType.HOST_TYPE_NRF9151, False, "nRF9151"),    # swap=False → P0=LOW
+            ]
+            for target_type, swap, target_name in mux_positions:
+                self._gpio_expander.set_jlink_mux(swap)
+                self.logger.info(f"Scanning J-Links with mux set to {target_name} (P0={'HIGH' if swap else 'LOW'})")
+                time.sleep(0.3)  # Allow mux to settle
+
+                for serial in serials:
+                    # Skip if already assigned to this target
+                    key = f"{serial}:{target_name.lower()}"
+                    if key in self.programmers:
+                        continue
+
+                    # Try to detect device at this mux position
+                    try:
+                        result = subprocess.check_output(
+                            ["nrfjprog", "--snr", serial, "--deviceversion",
+                             "--clockspeed", str(self.JLINK_CLOCKSPEED_KHZ)],
+                            stderr=subprocess.STDOUT,
+                        ).decode()
+                        result_upper = result.strip().upper()
+
+                        # Check if we found the expected target
+                        if target_type == HostType.HOST_TYPE_NRF52840 and "NRF52840" in result_upper:
+                            self.programmers[key] = (HostType.HOST_TYPE_NRF52840, True)
+                            self.logger.info(f"J-Link {serial} connects to nRF52840 at mux position P0={'HIGH' if swap else 'LOW'}")
+                        elif target_type == HostType.HOST_TYPE_NRF9151 and ("NRF9151" in result_upper or "NRF9120" in result_upper):
+                            self.programmers[key] = (HostType.HOST_TYPE_NRF9151, True)
+                            self.logger.info(f"J-Link {serial} connects to nRF9151 at mux position P0={'HIGH' if swap else 'LOW'}")
+                    except subprocess.CalledProcessError:
+                        pass  # This J-Link doesn't connect to this target at this mux position
+                    except Exception as e:
+                        self.logger.debug(f"Error scanning J-Link {serial}: {e}")
+            return
+
+        # REV 1.1 (no mux): detect which device is connected to each J-Link
         for serial in serials:
+            # Skip if already successfully detected
+            if serial in self.programmers:
+                existing_type, existing_connected = self.programmers[serial]
+                if existing_connected:
+                    continue
+
             # Try to get device version
             success = self._try_detect_device(serial)
             if not success:
                 if force_recovery:
+                    self.logger.info(f"J-Link {serial} detection failed, attempting recovery...")
                     if self._try_recover_device(serial):
-                        self.logger.info(f"J-Link {serial} detection failed, attempting recovery...")
                         self._try_detect_device(serial)
 
     def _try_detect_device(self, serial: str) -> bool:
@@ -203,10 +265,14 @@ class FirmwareHandler:
             programmers = []
 
             # Create a programmer for each detected J-Link
-            for serial, (host_type, is_connected) in self.programmers.items():
+            for key, (host_type, is_connected) in self.programmers.items():
+                # Extract serial from key (handles both "serial" and "serial:target" formats)
+                serial = key.split(":")[0]
                 programmer = Programmer(
                     type=ProgrammerType.PROGRAMMER_TYPE_JLINK,
                     host=host_type if is_connected else HostType.HOST_TYPE_UNDEFINED,
+                    serial=serial,
+                    connected=is_connected,
                 )
                 programmers.append(programmer)
 
@@ -337,9 +403,11 @@ class FirmwareHandler:
 
             # Find a suitable programmer
             programmer = None
-            for serial, (host_type, is_connected) in self.programmers.items():
+            for key, (host_type, is_connected) in self.programmers.items():
                 if not is_connected:
                     continue
+                # Extract serial from key (handles both "serial" and "serial:target" formats)
+                serial = key.split(":")[0]
                 # Allow NRF9160 or NRF9151 programmer for modem targets
                 if request.file_info.target in [HostType.HOST_TYPE_NRF9160, HostType.HOST_TYPE_NRF9160_MODEM, HostType.HOST_TYPE_NRF9151_MODEM]:
                     if host_type in [HostType.HOST_TYPE_NRF9160, HostType.HOST_TYPE_NRF9151]:
@@ -479,9 +547,11 @@ class FirmwareHandler:
 
             # Find a suitable programmer
             programmer = None
-            for serial, (host_type, is_connected) in self.programmers.items():
+            for key, (host_type, is_connected) in self.programmers.items():
                 if not is_connected:
                     continue
+                # Extract serial from key (handles both "serial" and "serial:target" formats)
+                serial = key.split(":")[0]
                 if host_type == request.target:
                     programmer = serial
                     break
@@ -527,9 +597,11 @@ class FirmwareHandler:
 
             # Find a suitable programmer for the target
             programmer = None
-            for serial, (host_type, is_connected) in self.programmers.items():
+            for key, (host_type, is_connected) in self.programmers.items():
                 if not is_connected:
                     continue
+                # Extract serial from key (handles both "serial" and "serial:target" formats)
+                serial = key.split(":")[0]
                 # Allow NRF9160 or NRF9151 programmer for modem targets
                 if request.target in [HostType.HOST_TYPE_NRF9160, HostType.HOST_TYPE_NRF9160_MODEM, HostType.HOST_TYPE_NRF9151_MODEM]:
                     if host_type in [HostType.HOST_TYPE_NRF9160, HostType.HOST_TYPE_NRF9151]:

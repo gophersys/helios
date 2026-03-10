@@ -88,7 +88,7 @@ class TCA9534A:
         return (self._output_cache & pin.mask) != 0
 
     def set_jlink_mux(self, swap: bool) -> None:
-        """Set J-Link mux: swap=False → nRF52840, swap=True → nRF9151."""
+        """Set J-Link mux: swap=True → nRF52840 (P0=HIGH), swap=False → nRF9151 (P0=LOW)."""
         self.set_pin(TCA9534APin.JLINK_MUL, swap)
 
     def set_eeprom_write_protect(self, protect: bool) -> None:

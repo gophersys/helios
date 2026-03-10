@@ -1,8 +1,12 @@
 # Corekinect imports
 import glob
 import os
+import pickle
+import queue
+import struct
+import threading
 import time
-from typing import Iterator, Optional, Tuple
+from typing import Dict, Iterator, Optional, Tuple
 
 import gpiod
 
@@ -10,6 +14,7 @@ import gpiod
 import grpc
 from corekinect.utils import Logger
 from src.services.mcp4017 import MCP4017
+from src.shared.streaming import BatchConfig, BatchStrategy, StreamBroadcaster
 
 # Private imports
 from src.shared.types import *
@@ -102,6 +107,10 @@ class PowerHandler:
         # Track enable state
         self._pwr_enabled = False
         self._chg_enabled = False
+
+        # Multi-subscriber power streaming
+        self._power_broadcasters: Dict[int, StreamBroadcaster] = {}
+        self._broadcaster_lock = threading.Lock()
 
     # -------------------------------------------------
     #                           Internal helpers
@@ -296,30 +305,114 @@ class PowerHandler:
             self.logger.error(f"PowerMeasure error: {e}")
             return PowerMeasureResponse(success=False, message=str(e))
 
+    def _get_or_create_broadcaster(self, channel: int) -> StreamBroadcaster:
+        """Get or create a power stream broadcaster for a channel.
+
+        Uses lazy initialization - broadcaster is only started when
+        the first subscriber connects.
+        """
+        with self._broadcaster_lock:
+            if channel in self._power_broadcasters:
+                broadcaster = self._power_broadcasters[channel]
+                if broadcaster.running:
+                    return broadcaster
+                # Broadcaster stopped, recreate it
+                del self._power_broadcasters[channel]
+
+            # Create new broadcaster with timeout-based batching
+            batch_config = BatchConfig(
+                strategy=BatchStrategy.TIMEOUT_OR_BYTES,
+                max_bytes=4096,
+                timeout_ms=10,  # Batch samples every 10ms
+            )
+            broadcaster = StreamBroadcaster(
+                name=f"power-ch{channel}",
+                logger=self.logger,
+                batch_config=batch_config,
+            )
+
+            ina_path = self._get_ina_path(channel)
+            if not ina_path:
+                raise ValueError(f"No INA219 for channel {channel}")
+
+            start_time = time.time()
+
+            def read_power() -> Optional[bytes]:
+                err, voltage_v, current_ma, _ = self._read_ina219(ina_path)
+                if err:
+                    time.sleep(0.1)
+                    return None
+
+                elapsed_ms = int((time.time() - start_time) * 1000)
+                # Pack sample as binary: timestamp(4), voltage_mv(4), current_ma(4)
+                data = struct.pack(
+                    "<iff", elapsed_ms, voltage_v * 1000.0, current_ma
+                )
+                time.sleep(0.01)  # ~100 Hz sample rate
+                return data
+
+            broadcaster.start_with_source(read_power)
+            self._power_broadcasters[channel] = broadcaster
+            self.logger.info(f"Started power broadcaster for channel {channel}")
+            return broadcaster
+
+    def _stop_broadcaster_if_idle(self, channel: int):
+        """Stop broadcaster if no subscribers remain."""
+        with self._broadcaster_lock:
+            if channel in self._power_broadcasters:
+                broadcaster = self._power_broadcasters[channel]
+                if broadcaster.stats.subscriber_count == 0:
+                    broadcaster.stop()
+                    del self._power_broadcasters[channel]
+                    self.logger.info(f"Stopped idle power broadcaster for channel {channel}")
+
     def power_stream(self, request: PowerStreamRequest, context: grpc.ServicerContext) -> Iterator[PowerStreamResponse]:
-        """Server-streaming power samples until client cancels ."""
+        """Server-streaming power samples until client cancels.
+
+        Uses multi-subscriber broadcasting so multiple clients can
+        receive the same power data without duplicating hardware reads.
+        """
         ina_path = self._get_ina_path(request.channel)
         if not ina_path:
             yield PowerStreamResponse(samples=[])
             return
 
         self.logger.info(f"PowerStream started: channel={request.channel}")
-        start_time = time.time()
+        subscription = None
+
         try:
+            # Get or create broadcaster for this channel
+            broadcaster = self._get_or_create_broadcaster(request.channel)
+            subscription = broadcaster.subscribe()
+
             while context.is_active():
-                err, voltage_v, current_ma, _ = self._read_ina219(ina_path)
-                if err:
-                    time.sleep(0.1)  # back off on read errors
-                    continue
-                elapsed_ms = int((time.time() - start_time) * 1000)
-                sample = PowerSample(
-                    timestamp_ms=elapsed_ms,
-                    voltage_mv=voltage_v * 1000.0,
-                    current_ma=current_ma,
-                )
-                yield PowerStreamResponse(samples=[sample])
-                time.sleep(0.01)  # ~100 Hz
+                # Get batched samples from broadcaster
+                data = subscription.get(timeout=0.1)
+                if data:
+                    # Unpack binary samples
+                    samples = []
+                    offset = 0
+                    sample_size = 12  # 4 + 4 + 4 bytes
+                    while offset + sample_size <= len(data):
+                        elapsed_ms, voltage_mv, current_ma = struct.unpack(
+                            "<iff", data[offset : offset + sample_size]
+                        )
+                        samples.append(
+                            PowerSample(
+                                timestamp_ms=int(elapsed_ms),
+                                voltage_mv=voltage_mv,
+                                current_ma=current_ma,
+                            )
+                        )
+                        offset += sample_size
+
+                    if samples:
+                        yield PowerStreamResponse(samples=samples)
+
         finally:
+            if subscription:
+                subscription.unsubscribe()
+            self._stop_broadcaster_if_idle(request.channel)
             self.logger.info("PowerStream ended")
 
     # -------------------------------------------------

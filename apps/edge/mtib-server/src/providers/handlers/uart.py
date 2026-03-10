@@ -271,7 +271,16 @@ class UartHandler:
                 return f"Failed to open UART device {device_path}: {str(e)}"
 
     def _start_rx_thread(self, target: HostType):
-        """Start a background thread to read from UART and broadcast to all clients."""
+        """Start a background thread to read from UART and broadcast to all clients.
+
+        Uses smart batching to reduce gRPC overhead:
+        - Flushes on newline (complete log line from Zephyr RTOS)
+        - Flushes when buffer >= 256 bytes (prevent unbounded buffering)
+        - Flushes after 100ms timeout (for shell prompts without newline)
+
+        This ensures complete log lines are sent as single messages while
+        still delivering partial data (like shell prompts) promptly.
+        """
         # Stop existing thread if running
         if target in self.rx_threads and self.rx_threads[target].is_alive():
             self.rx_stop_events[target].set()
@@ -280,36 +289,85 @@ class UartHandler:
         # Reset stop event
         self.rx_stop_events[target].clear()
 
+        # Batching constants
+        MAX_BUFFER_SIZE = 256
+        FLUSH_TIMEOUT_MS = 50  # 50ms - faster for responsive shells
+        NEWLINE_CHARS = b'\n\r'
+
         def rx_worker():
             uart = self.active_connections[target]
-            self.logger.info(f"RX thread started for {target}, waiting for data...")
+            self.logger.info(f"RX thread started for {target} with batching (newline/256B/100ms)")
+
+            buffer = bytearray()
+            last_flush_time = time.time()
             last_log_time = time.time()
+
+            def flush_buffer():
+                nonlocal buffer, last_flush_time
+                if buffer:
+                    chunk = bytes(buffer)
+                    buffer.clear()
+                    last_flush_time = time.time()
+                    self.logger.debug(f"Flushing {len(chunk)} bytes from {target}")
+                    self._broadcast_to_clients(target, chunk)
+
+            def should_flush_on_newline() -> bool:
+                """Check if buffer contains a newline and flush up to it."""
+                nonlocal buffer, last_flush_time
+                for i, byte in enumerate(buffer):
+                    if byte in NEWLINE_CHARS:
+                        # Flush up to and including the newline
+                        chunk = bytes(buffer[:i + 1])
+                        del buffer[:i + 1]
+                        last_flush_time = time.time()
+                        self.logger.debug(f"Newline flush: {len(chunk)} bytes from {target}")
+                        self._broadcast_to_clients(target, chunk)
+                        return True
+                return False
+
             while not self.rx_stop_events[target].is_set():
                 try:
-                    # Use read() with timeout instead of checking in_waiting
-                    data = uart.read(1)  # Read one byte at a time
+                    # Read with short timeout (10ms) to enable responsive timeout checks
+                    data = uart.read(1)
                     if data:
-                        # Read any additional data available
-                        additional_data = uart.read(uart.in_waiting)
-                        if additional_data:
-                            data += additional_data
+                        # Read any additional bytes available
+                        in_waiting = uart.in_waiting
+                        if in_waiting > 0:
+                            additional = uart.read(min(in_waiting, 1024))
+                            data += additional
 
-                        self.logger.debug(f"Received {len(data)} bytes from {target}: {data.hex()}")
-                        # Broadcast to all clients
-                        self._broadcast_to_clients(target, data)
-                    else:
-                        time.sleep(0.01)  # Small delay to prevent busy waiting
+                        buffer.extend(data)
 
-                    # Log every 10 seconds that RX thread is alive
+                        # Check flush conditions (priority order)
+                        # 1. Flush complete lines (newline detected)
+                        while should_flush_on_newline():
+                            pass  # Keep flushing lines while they exist
+
+                        # 2. Flush if buffer too large
+                        if len(buffer) >= MAX_BUFFER_SIZE:
+                            flush_buffer()
+
+                    # 3. Timeout flush for partial data (shell prompts etc)
+                    elapsed_ms = (time.time() - last_flush_time) * 1000
+                    if buffer and elapsed_ms >= FLUSH_TIMEOUT_MS:
+                        self.logger.debug(f"Timeout flush after {elapsed_ms:.0f}ms")
+                        flush_buffer()
+
+                    # Periodic logging
                     current_time = time.time()
-                    if current_time - last_log_time > 10:
-                        self.logger.debug(f"RX thread for {target} is alive, waiting for data...")
+                    if current_time - last_log_time > 30:
+                        self.logger.debug(f"RX thread for {target} alive, buffer={len(buffer)} bytes")
                         last_log_time = current_time
 
                 except Exception as e:
                     if not self.rx_stop_events[target].is_set():
                         self.logger.error(f"Error reading from UART {target}: {str(e)}")
                     break
+
+            # Final flush on shutdown
+            if buffer:
+                self.logger.debug(f"Final flush on shutdown: {len(buffer)} bytes")
+                self._broadcast_to_clients(target, bytes(buffer))
 
         self.rx_threads[target] = threading.Thread(target=rx_worker, daemon=True)
         self.rx_threads[target].start()
@@ -483,13 +541,21 @@ class UartHandler:
                         yield UartStreamResponse(success=False, message=error_msg, target=current_target)
                         continue
 
-                # Handle RX data (check client queue for received data)
-                try:
-                    # Non-blocking read from client queue
-                    data = client_queue.get_nowait()
-                    if data:
-                        yield UartStreamResponse(success=True, message="", target=current_target, data=data)
-                except queue.Empty:
+                # Handle RX data (drain ALL available data from client queue)
+                # This prevents backlog accumulation when data arrives faster than polling
+                chunks = []
+                while True:
+                    try:
+                        data = client_queue.get_nowait()
+                        if data:
+                            chunks.append(data)
+                    except queue.Empty:
+                        break
+
+                if chunks:
+                    # Return all accumulated data in one response
+                    yield UartStreamResponse(success=True, message="", target=current_target, data=b''.join(chunks))
+                else:
                     # No data available, send empty response to keep stream alive
                     yield UartStreamResponse(success=True, message="", target=current_target)
 
