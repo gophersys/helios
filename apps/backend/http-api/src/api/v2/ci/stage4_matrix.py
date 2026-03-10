@@ -124,6 +124,9 @@ def generate_stage4_builds(config: Stage4MatrixConfig) -> List[Dict[str, Any]]:
             git_ref = config.main_commit or config.pr_commit
             branch = config.pr_branch  # concord-main
 
+        # Version bump builds start BLOCKED until their base build completes
+        initial_status = "BLOCKED" if spec.is_version_bump else "QUEUED"
+
         build = {
             "product": fw_type,
             "board": config.board,
@@ -132,7 +135,7 @@ def generate_stage4_builds(config: Stage4MatrixConfig) -> List[Dict[str, Any]]:
             "mtibRev": config.mtib_rev,
             "branch": branch,
             "commitSha": git_ref,
-            "status": "QUEUED",
+            "status": initial_status,
             "matrixLabel": spec.label.value,
             "matrixIndex": spec.index,
             "versionBump": spec.is_version_bump,
@@ -176,10 +179,8 @@ def calculate_expected_builds(mode: str = "stage4") -> int:
     """Calculate expected number of builds for a pipeline mode."""
     if mode == "stage4":
         return len(STAGE4_MATRIX)  # 8 builds
-    elif mode == "legacy":
-        return 4  # Original 4-build matrix
-    else:
-        return 4
+    else:  # quick
+        return len(QUICK_MATRIX)  # 2 builds
 
 
 # ─────────────────────────────────────────────────────────────────────────────

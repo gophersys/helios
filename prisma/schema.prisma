@@ -913,6 +913,7 @@ model IcleLog {
 
 enum BuildJobStatus {
     QUEUED
+    BLOCKED    // Waiting for base build to complete (version bump builds)
     BUILDING
     SUCCESS
     FAILED

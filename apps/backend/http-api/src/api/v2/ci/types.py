@@ -217,7 +217,7 @@ class PipelineCreateRequest:
     build_variant: str = "debug"
     validation_config: Optional[Dict[str, Any]] = None
     # Stage 4 build matrix options
-    matrix_mode: str = "legacy"  # "legacy" (4 builds), "stage4" (8 builds), "quick" (2 builds)
+    matrix_mode: str = "stage4"  # "stage4" (8 builds) or "quick" (2 builds)
     main_commit: Optional[str] = None  # Main branch commit for Stage 4 comparison
     pr_branch: Optional[str] = None    # PR branch name for Stage 4
 
@@ -253,10 +253,10 @@ class PipelineCreateRequest:
         if validation_config is not None and not isinstance(validation_config, dict):
             return None, "validationConfig must be an object"
 
-        # Stage 4 matrix options
-        matrix_mode = (data.get("matrixMode") or "legacy").strip()
-        if matrix_mode not in ("legacy", "stage4", "quick"):
-            return None, "matrixMode must be 'legacy', 'stage4', or 'quick'"
+        # Stage 4 matrix options (legacy mode removed)
+        matrix_mode = (data.get("matrixMode") or "stage4").strip()
+        if matrix_mode not in ("stage4", "quick"):
+            return None, "matrixMode must be 'stage4' or 'quick'"
 
         main_commit = (data.get("mainCommit") or "").strip() or None
         pr_branch = (data.get("prBranch") or "").strip() or None

@@ -77,6 +77,10 @@ def list_benches():
     # Filters
     where: Dict[str, Any] = {}
 
+    station_id = request.args.get("station_id")
+    if station_id:
+        where["stationId"] = station_id
+
     product = request.args.get("product")
     if product:
         where["dutProduct"] = product.lower()

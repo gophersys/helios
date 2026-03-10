@@ -5,6 +5,15 @@ Usage:
 
 Or via Nx:
     SEED_ADMIN_EMAIL=you@company.com npx nx run database:seed
+
+Build Matrix Labels (documentation only - not stored in DB):
+    MFG_BASE     - Manufacturing firmware base (used for personalization)
+    FUT_DEBUG    - Debug firmware for validation (logging enabled)
+    FUT_RELEASE  - Release firmware for validation (logging disabled)
+    PROD         - Production firmware (AP protect enabled)
+
+These labels are used by the build system to identify firmware variants.
+The firmware build records in the database use these labels in their metadata.
 """
 
 import os
@@ -221,6 +230,12 @@ def seed():
         print("\n=== Seeding Products & Boards ===")
 
         # Alpha product with B0 board revision
+        alpha_metadata = {
+            "device_type": 2,
+            "device_variant": 3,
+            "app_ids": {"nrf52840": 109, "nrf9151": 108},
+            "corecloud_env": "VAL_1_0",
+        }
         alpha_product = db.product.upsert(
             where={"name": "Alpha"},
             data={
@@ -240,10 +255,7 @@ def seed():
                     "buildBoard": "alpha_b0",
                     "buildWestDir": "apps/firmware/products/alpha/alpha_fw",
                     "buildMfgDir": "apps/firmware/products/alpha/alpha_mfg_fw",
-                    "metadata": Json({
-                        "device_type": 2,
-                        "device_variant": 3,
-                    }),
+                    "metadata": Json(alpha_metadata),
                 },
                 "update": {
                     "slug": "alpha_b0",
@@ -255,6 +267,7 @@ def seed():
                     "buildBoard": "alpha_b0",
                     "buildWestDir": "apps/firmware/products/alpha/alpha_fw",
                     "buildMfgDir": "apps/firmware/products/alpha/alpha_mfg_fw",
+                    "metadata": Json(alpha_metadata),
                 },
             },
         )
@@ -274,7 +287,7 @@ def seed():
             },
         )
 
-        db.boardrevision.upsert(
+        alpha_b0_rev = db.boardrevision.upsert(
             where={"boardId_version": {"boardId": alpha_board.id, "version": "B0"}},
             data={
                 "create": {
@@ -288,6 +301,12 @@ def seed():
         print(f"  Board: {alpha_board.name} / B0")
 
         # Sigma 5 product with C0 and B0 board revisions
+        sigma5_metadata = {
+            "device_type": 1,
+            "device_variant": 5,
+            "app_ids": {"nrf52840": 105, "nrf9160": 104},
+            "corecloud_env": "VAL_1_0",
+        }
         sigma5_product = db.product.upsert(
             where={"name": "Sigma5"},
             data={
@@ -307,10 +326,7 @@ def seed():
                     "buildBoard": "sigma5_b0",
                     "buildWestDir": "apps/firmware/products/sigma5/sigma5_fw",
                     "buildMfgDir": "apps/firmware/products/sigma5/sigma5_mfg_fw",
-                    "metadata": Json({
-                        "device_type": 1,
-                        "device_variant": 5,
-                    }),
+                    "metadata": Json(sigma5_metadata),
                 },
                 "update": {
                     "slug": "sigma5_c0",
@@ -322,6 +338,7 @@ def seed():
                     "buildBoard": "sigma5_b0",
                     "buildWestDir": "apps/firmware/products/sigma5/sigma5_fw",
                     "buildMfgDir": "apps/firmware/products/sigma5/sigma5_mfg_fw",
+                    "metadata": Json(sigma5_metadata),
                 },
             },
         )
@@ -342,7 +359,7 @@ def seed():
         )
 
         # Sigma 5 B0 revision (older)
-        db.boardrevision.upsert(
+        sigma5_b0_rev = db.boardrevision.upsert(
             where={"boardId_version": {"boardId": sigma5_board.id, "version": "B0"}},
             data={
                 "create": {
@@ -356,7 +373,7 @@ def seed():
         print(f"  Board: {sigma5_board.name} / B0")
 
         # Sigma 5 C0 revision (current)
-        db.boardrevision.upsert(
+        sigma5_c0_rev = db.boardrevision.upsert(
             where={"boardId_version": {"boardId": sigma5_board.id, "version": "C0"}},
             data={
                 "create": {
@@ -370,6 +387,12 @@ def seed():
         print(f"  Board: {sigma5_board.name} / C0")
 
         # Theta product with C0 board revision (asset tracker)
+        theta_metadata = {
+            "device_type": 3,
+            "device_variant": 1,
+            "app_ids": {"nrf52840": 107, "nrf9160": 100},
+            "corecloud_env": "VAL_1_0",
+        }
         theta_product = db.product.upsert(
             where={"name": "Theta"},
             data={
@@ -381,7 +404,7 @@ def seed():
                     # Firmware repo config (git poller watches this)
                     "repoSlug": "theta_fw",
                     "repoSshUrl": "git@bitbucket.org:corekinect/theta_fw.git",
-                    "repoBranch": "main",
+                    "repoBranch": "concord-main",
                     # Manufacturing firmware repo (cloned during build)
                     "mfgRepoSlug": "theta_mfg_fw",
                     "mfgRepoSshUrl": "git@bitbucket.org:corekinect/theta_mfg_fw.git",
@@ -389,22 +412,19 @@ def seed():
                     "buildBoard": "theta_c0",
                     "buildWestDir": "apps/firmware/products/theta/theta_fw",
                     "buildMfgDir": "apps/firmware/products/theta/theta_mfg_fw",
-                    "metadata": Json({
-                        "device_type": 3,
-                        "device_variant": 1,
-                        "app_ids": {"nrf52840": 107, "nrf9160": 100},
-                    }),
+                    "metadata": Json(theta_metadata),
                 },
                 "update": {
                     "slug": "theta_c0",
                     "repoSlug": "theta_fw",
                     "repoSshUrl": "git@bitbucket.org:corekinect/theta_fw.git",
-                    "repoBranch": "main",
+                    "repoBranch": "concord-main",
                     "mfgRepoSlug": "theta_mfg_fw",
                     "mfgRepoSshUrl": "git@bitbucket.org:corekinect/theta_mfg_fw.git",
                     "buildBoard": "theta_c0",
                     "buildWestDir": "apps/firmware/products/theta/theta_fw",
                     "buildMfgDir": "apps/firmware/products/theta/theta_mfg_fw",
+                    "metadata": Json(theta_metadata),
                 },
             },
         )
@@ -425,7 +445,7 @@ def seed():
         )
 
         # Theta C0 revision (current)
-        db.boardrevision.upsert(
+        theta_c0_rev = db.boardrevision.upsert(
             where={"boardId_version": {"boardId": theta_board.id, "version": "C0"}},
             data={
                 "create": {
@@ -438,8 +458,174 @@ def seed():
         )
         print(f"  Board: {theta_board.name} / C0")
 
+        # IWSCK product with A1 board revision (BLE-only device)
+        iwsck_metadata = {
+            "device_type": 4,
+            "device_variant": 1,
+            "app_ids": {"nrf52840": 110},
+            "corecloud_env": None,  # No cloud connectivity
+        }
+        iwsck_product = db.product.upsert(
+            where={"name": "IWSCK"},
+            data={
+                "create": {
+                    "name": "IWSCK",
+                    "slug": "iwsck_a1",
+                    "description": "IWSCK BLE-only device platform",
+                    "active": True,
+                    # Firmware repo config (monorepo, no separate git poller)
+                    "repoSlug": None,
+                    "repoSshUrl": None,
+                    "repoBranch": None,
+                    # Manufacturing firmware repo (same as main)
+                    "mfgRepoSlug": None,
+                    "mfgRepoSshUrl": None,
+                    # Build config (build worker uses this)
+                    "buildBoard": "iwsck_a1",
+                    "buildWestDir": "apps/firmware/iwsck",
+                    "buildMfgDir": None,
+                    "metadata": Json(iwsck_metadata),
+                },
+                "update": {
+                    "slug": "iwsck_a1",
+                    "buildBoard": "iwsck_a1",
+                    "buildWestDir": "apps/firmware/iwsck",
+                    "metadata": Json(iwsck_metadata),
+                },
+            },
+        )
+        print(f"Product: {iwsck_product.name} (id: {iwsck_product.id})")
+
+        # IWSCK board
+        iwsck_board = db.board.upsert(
+            where={"productId_name": {"productId": iwsck_product.id, "name": "Main Board"}},
+            data={
+                "create": {
+                    "productId": iwsck_product.id,
+                    "name": "Main Board",
+                    "description": "IWSCK main board with nRF52840 only (no modem)",
+                    "active": True,
+                },
+                "update": {},
+            },
+        )
+
+        # IWSCK A1 revision (current)
+        iwsck_a1_rev = db.boardrevision.upsert(
+            where={"boardId_version": {"boardId": iwsck_board.id, "version": "A1"}},
+            data={
+                "create": {
+                    "boardId": iwsck_board.id,
+                    "version": "A1",
+                    "notes": "IWSCK A1 - current revision (nRF52840 only, BLE)",
+                },
+                "update": {},
+            },
+        )
+        print(f"  Board: {iwsck_board.name} / A1")
+
+        # ── BoardRevision → Chipset Links ──
+        print("\n=== Linking Board Revisions to Chipsets ===")
+
+        # Get chipset IDs by name (created earlier in this script)
+        nrf52840 = db.chipset.find_unique(where={"name": "nRF52840"})
+        nrf9151 = db.chipset.find_unique(where={"name": "nRF9151"})
+        nrf9160 = db.chipset.find_unique(where={"name": "nRF9160"})
+
+        if not nrf52840 or not nrf9151 or not nrf9160:
+            raise RuntimeError("Chipsets not found - ensure chipsets are seeded first")
+
+        # Alpha B0 → nRF52840 + nRF9151
+        db.boardrevisionchipset.upsert(
+            where={"boardRevisionId_chipsetId": {"boardRevisionId": alpha_b0_rev.id, "chipsetId": nrf52840.id}},
+            data={"create": {"boardRevisionId": alpha_b0_rev.id, "chipsetId": nrf52840.id}, "update": {}},
+        )
+        db.boardrevisionchipset.upsert(
+            where={"boardRevisionId_chipsetId": {"boardRevisionId": alpha_b0_rev.id, "chipsetId": nrf9151.id}},
+            data={"create": {"boardRevisionId": alpha_b0_rev.id, "chipsetId": nrf9151.id}, "update": {}},
+        )
+        print(f"  Alpha B0 → nRF52840, nRF9151")
+
+        # Sigma5 B0 → nRF52840 + nRF9160
+        db.boardrevisionchipset.upsert(
+            where={"boardRevisionId_chipsetId": {"boardRevisionId": sigma5_b0_rev.id, "chipsetId": nrf52840.id}},
+            data={"create": {"boardRevisionId": sigma5_b0_rev.id, "chipsetId": nrf52840.id}, "update": {}},
+        )
+        db.boardrevisionchipset.upsert(
+            where={"boardRevisionId_chipsetId": {"boardRevisionId": sigma5_b0_rev.id, "chipsetId": nrf9160.id}},
+            data={"create": {"boardRevisionId": sigma5_b0_rev.id, "chipsetId": nrf9160.id}, "update": {}},
+        )
+        print(f"  Sigma5 B0 → nRF52840, nRF9160")
+
+        # Sigma5 C0 → nRF52840 + nRF9160
+        db.boardrevisionchipset.upsert(
+            where={"boardRevisionId_chipsetId": {"boardRevisionId": sigma5_c0_rev.id, "chipsetId": nrf52840.id}},
+            data={"create": {"boardRevisionId": sigma5_c0_rev.id, "chipsetId": nrf52840.id}, "update": {}},
+        )
+        db.boardrevisionchipset.upsert(
+            where={"boardRevisionId_chipsetId": {"boardRevisionId": sigma5_c0_rev.id, "chipsetId": nrf9160.id}},
+            data={"create": {"boardRevisionId": sigma5_c0_rev.id, "chipsetId": nrf9160.id}, "update": {}},
+        )
+        print(f"  Sigma5 C0 → nRF52840, nRF9160")
+
+        # Theta C0 → nRF52840 + nRF9160
+        db.boardrevisionchipset.upsert(
+            where={"boardRevisionId_chipsetId": {"boardRevisionId": theta_c0_rev.id, "chipsetId": nrf52840.id}},
+            data={"create": {"boardRevisionId": theta_c0_rev.id, "chipsetId": nrf52840.id}, "update": {}},
+        )
+        db.boardrevisionchipset.upsert(
+            where={"boardRevisionId_chipsetId": {"boardRevisionId": theta_c0_rev.id, "chipsetId": nrf9160.id}},
+            data={"create": {"boardRevisionId": theta_c0_rev.id, "chipsetId": nrf9160.id}, "update": {}},
+        )
+        print(f"  Theta C0 → nRF52840, nRF9160")
+
+        # IWSCK A1 → nRF52840 only (no modem)
+        db.boardrevisionchipset.upsert(
+            where={"boardRevisionId_chipsetId": {"boardRevisionId": iwsck_a1_rev.id, "chipsetId": nrf52840.id}},
+            data={"create": {"boardRevisionId": iwsck_a1_rev.id, "chipsetId": nrf52840.id}, "update": {}},
+        )
+        print(f"  IWSCK A1 → nRF52840")
+
         # ── Fixture Designs ──
         print("\n=== Seeding Fixture Designs ===")
+
+        # Alpha fixture profile template (complete structure from alpha_b0.json)
+        alpha_profile_template = {
+            "station_id": None,  # Filled by TestBench
+            "product": "alpha",
+            "board": "alpha_b0",
+            "mtib_revision": "1.2",
+            "capabilities": ["button", "peltier", "charger_relay"],
+            "dut": {
+                "device_id": None,  # Filled by TestBench
+                "snr": None,
+                "imei": None,
+                "iccids": [],
+            },
+            "power": {
+                "battery_installed": False,
+                "dut_voltage": 4.5,
+                "charger_voltage": 5.0,
+                "boot_settle_s": 10,
+            },
+            "button": {
+                "gpio_pin": 2,
+                "active_low": True,
+            },
+            "peltier": {
+                "gpio_pin": 4,
+                "temp_adc_channel": 7,
+            },
+            "charger_relay": {
+                "gpio_pin": 5,
+                "active_high": True,
+            },
+            "ppg_simulator": None,
+            "led_sensor": None,
+            "nfc_reader": None,
+            "motion": None,
+        }
+
         alpha_design = db.fixturedesign.upsert(
             where={"name": "alpha-fixture-v1.2"},
             data={
@@ -448,37 +634,52 @@ def seed():
                     "product": "alpha",
                     "revision": "1.2",
                     "capabilities": ["button", "peltier", "charger_relay"],
-                    "profileTemplate": Json({
-                        "product": "alpha",
-                        "board": "alpha_b0",
-                        "mtib_revision": "1.2",
-                        "power": {
-                            "battery_installed": True,
-                            "dut_voltage": 4.5,
-                            "charger_voltage": 5.0,
-                            "boot_settle_s": 10,
-                        },
-                        "button": {
-                            "gpio_pin": 2,
-                            "active_low": True,
-                        },
-                        "peltier": {
-                            "gpio_pin": 4,
-                            "temp_adc_channel": 7,
-                        },
-                        "charger_relay": {
-                            "gpio_pin": 5,
-                            "active_high": True,
-                        },
-                    }),
+                    "profileTemplate": Json(alpha_profile_template),
                     "notes": "REV 1.2 MTIB carrier for Alpha B0 validation. Button, peltier, charger relay wired.",
                 },
-                "update": {},
+                "update": {
+                    "profileTemplate": Json(alpha_profile_template),
+                },
             },
         )
         print(f"Fixture design: {alpha_design.name} (id: {alpha_design.id})")
 
-        # Sigma5 fixture design (asset tracker - no biometrics)
+        # Sigma5 fixture profile template (complete structure)
+        sigma5_profile_template = {
+            "station_id": None,
+            "product": "sigma5",
+            "board": "sigma5_c0",
+            "mtib_revision": "1.2",
+            "capabilities": ["button", "motion"],
+            "dut": {
+                "device_id": None,
+                "snr": None,
+                "imei": None,
+                "iccids": [],
+            },
+            "power": {
+                "battery_installed": False,
+                "dut_voltage": 3.7,
+                "charger_voltage": 5.0,
+                "boot_settle_s": 8,
+            },
+            "button": {
+                "gpio_pin": 2,
+                "active_low": True,
+            },
+            "peltier": None,
+            "charger_relay": None,
+            "ppg_simulator": None,
+            "led_sensor": None,
+            "nfc_reader": None,
+            "motion": {
+                "enabled": True,
+                "home_on_startup": True,
+                "shake_distance_mm": 30,
+                "shake_speed_mm_s": 80,
+            },
+        }
+
         sigma5_design = db.fixturedesign.upsert(
             where={"name": "sigma5-fixture-v1.2"},
             data={
@@ -487,35 +688,55 @@ def seed():
                     "product": "sigma5",
                     "revision": "1.2",
                     "capabilities": ["button", "motion"],
-                    "profileTemplate": Json({
-                        "product": "sigma5",
-                        "board": "sigma5_c0",
-                        "mtib_revision": "1.2",
-                        "power": {
-                            "battery_installed": False,
-                            "dut_voltage": 3.7,
-                            "charger_voltage": 5.0,
-                            "boot_settle_s": 8,
-                        },
-                        "button": {
-                            "gpio_pin": 2,
-                            "active_low": True,
-                        },
-                        "motion": {
-                            "enabled": True,
-                            "home_on_startup": True,
-                            "shake_distance_mm": 30,
-                            "shake_speed_mm_s": 80,
-                        },
-                    }),
+                    "profileTemplate": Json(sigma5_profile_template),
                     "notes": "REV 1.2 MTIB carrier for Sigma5 C0 validation. Button + motion enabled. No biometrics.",
                 },
-                "update": {},
+                "update": {
+                    "profileTemplate": Json(sigma5_profile_template),
+                },
             },
         )
         print(f"Fixture design: {sigma5_design.name} (id: {sigma5_design.id})")
 
-        # Theta fixture design (asset tracker - GPS, motion, battery)
+        # Theta fixture profile template (complete structure)
+        theta_profile_template = {
+            "station_id": None,
+            "product": "theta",
+            "board": "theta_c0",
+            "mtib_revision": "1.2",
+            "capabilities": ["button", "motion", "gps"],
+            "dut": {
+                "device_id": None,
+                "snr": None,
+                "imei": None,
+                "iccids": [],
+            },
+            "power": {
+                "battery_installed": True,
+                "dut_voltage": 3.7,
+                "charger_voltage": 5.0,
+                "boot_settle_s": 10,
+            },
+            "button": {
+                "gpio_pin": 2,
+                "active_low": True,
+            },
+            "peltier": None,
+            "charger_relay": None,
+            "ppg_simulator": None,
+            "led_sensor": None,
+            "nfc_reader": None,
+            "motion": {
+                "enabled": True,
+                "home_on_startup": True,
+                "shake_distance_mm": 50,
+                "shake_speed_mm_s": 100,
+            },
+            "gps": {
+                "simulator_enabled": False,
+            },
+        }
+
         theta_design = db.fixturedesign.upsert(
             where={"name": "theta-fixture-v1.2"},
             data={
@@ -524,33 +745,12 @@ def seed():
                     "product": "theta",
                     "revision": "1.2",
                     "capabilities": ["button", "motion", "gps"],
-                    "profileTemplate": Json({
-                        "product": "theta",
-                        "board": "theta_c0",
-                        "mtib_revision": "1.2",
-                        "power": {
-                            "battery_installed": True,
-                            "dut_voltage": 3.7,
-                            "charger_voltage": 5.0,
-                            "boot_settle_s": 10,
-                        },
-                        "button": {
-                            "gpio_pin": 2,
-                            "active_low": True,
-                        },
-                        "motion": {
-                            "enabled": True,
-                            "home_on_startup": True,
-                            "shake_distance_mm": 50,
-                            "shake_speed_mm_s": 100,
-                        },
-                        "gps": {
-                            "simulator_enabled": False,
-                        },
-                    }),
+                    "profileTemplate": Json(theta_profile_template),
                     "notes": "REV 1.2 MTIB carrier for Theta C0 validation. Button, motion, GPS supported.",
                 },
-                "update": {},
+                "update": {
+                    "profileTemplate": Json(theta_profile_template),
+                },
             },
         )
         print(f"Fixture design: {theta_design.name} (id: {theta_design.id})")
@@ -558,10 +758,10 @@ def seed():
         # ── Test Benches ──
         print("\n=== Seeding Test Benches ===")
         bench_33 = db.testbench.upsert(
-            where={"stationId": "station-33"},
+            where={"stationId": "bench-33"},
             data={
                 "create": {
-                    "stationId": "station-33",
+                    "stationId": "bench-33",
                     "name": "Alpha B0 Bench 1 (MTIB 33)",
                     "mtibAddress": "10.4.45.33:50053",
                     "mtibRevision": "REV1.2",
@@ -589,10 +789,10 @@ def seed():
         print(f"Test bench: {bench_33.stationId} -> {bench_33.mtibAddress} (product: {alpha_product.name})")
 
         bench_32 = db.testbench.upsert(
-            where={"stationId": "station-32"},
+            where={"stationId": "bench-32"},
             data={
                 "create": {
-                    "stationId": "station-32",
+                    "stationId": "bench-32",
                     "name": "Alpha B0 Bench 2 (MTIB 32)",
                     "mtibAddress": "10.4.45.32:50053",
                     "mtibRevision": "REV1.1",
@@ -615,10 +815,10 @@ def seed():
 
         # Sigma5 C0 bench (MTIB 34 - IWSCK-A1)
         bench_34 = db.testbench.upsert(
-            where={"stationId": "station-34"},
+            where={"stationId": "bench-34"},
             data={
                 "create": {
-                    "stationId": "station-34",
+                    "stationId": "bench-34",
                     "name": "Sigma5 C0 Bench (MTIB 34)",
                     "mtibAddress": "10.4.45.34:50053",
                     "mtibRevision": "REV1.2",
@@ -641,10 +841,10 @@ def seed():
 
         # Theta C0 bench (MTIB 35 - placeholder for future deployment)
         bench_35 = db.testbench.upsert(
-            where={"stationId": "station-35"},
+            where={"stationId": "bench-35"},
             data={
                 "create": {
-                    "stationId": "station-35",
+                    "stationId": "bench-35",
                     "name": "Theta C0 Bench (MTIB 35)",
                     "mtibAddress": "10.4.45.35:50053",
                     "mtibRevision": "REV1.2",

@@ -259,6 +259,70 @@ class FixtureProfile:
         return cls.from_dict(data)
 
     @classmethod
+    def from_api(
+        cls,
+        bench_id: str,
+        api_url: str,
+        api_key: str,
+    ) -> "FixtureProfile":
+        """Load fixture profile from Concord API.
+
+        Args:
+            bench_id: TestBench ID (CUID) or station_id string
+            api_url: Base URL of Concord API (e.g., https://staging.concord.corekinect.cloud)
+            api_key: API key for authentication (ck_run_* format)
+
+        Returns:
+            FixtureProfile loaded from API response
+
+        Raises:
+            ValueError: If bench not found or API request fails
+        """
+        import requests
+
+        headers = {"Authorization": f"Bearer {api_key}"}
+
+        # Normalize API URL (remove trailing slash)
+        api_url = api_url.rstrip("/")
+
+        # Try by ID first (assume bench_id is a CUID)
+        resp = requests.get(
+            f"{api_url}/v2/validation/benches/{bench_id}/profile",
+            headers=headers,
+            timeout=30,
+        )
+
+        if resp.status_code == 404:
+            # Try looking up by station_id
+            list_resp = requests.get(
+                f"{api_url}/v2/validation/benches",
+                headers=headers,
+                params={"station_id": bench_id},
+                timeout=30,
+            )
+            if list_resp.ok:
+                benches = list_resp.json().get("data", [])
+                if benches:
+                    # Found bench by station_id, now get its profile
+                    bench = benches[0]
+                    resp = requests.get(
+                        f"{api_url}/v2/validation/benches/{bench['id']}/profile",
+                        headers=headers,
+                        timeout=30,
+                    )
+            # If list_resp failed or returned empty, keep original 404 resp
+
+        if not resp.ok:
+            raise ValueError(
+                f"Failed to load profile from API: {resp.status_code} {resp.text}"
+            )
+
+        response_data = resp.json()
+        profile_data = response_data.get("data", response_data)
+
+        return cls.from_dict(profile_data)
+
+    @classmethod
     def from_dict(cls, data: dict) -> "FixtureProfile":
         """Create fixture profile from dictionary."""
         # Parse capabilities

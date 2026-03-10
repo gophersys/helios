@@ -232,7 +232,7 @@ def update_build(build_id: str):
     # Allowed fields for update
     if "status" in data:
         status = data["status"].upper()
-        if status not in ("QUEUED", "BUILDING", "SUCCESS", "FAILED", "CANCELLED"):
+        if status not in ("QUEUED", "BLOCKED", "BUILDING", "SUCCESS", "FAILED", "CANCELLED"):
             return bad_request("Invalid status")
         update_data["status"] = status
 
@@ -286,13 +286,46 @@ def update_build(build_id: str):
             include={"artifacts": True},
         )
 
-        # Check if this build is part of a pipeline and if the pipeline is complete
-        if updated.pipelineRunId and update_data.get("status") in ("SUCCESS", "FAILED", "CANCELLED"):
-            from .pipelines import check_pipeline_completion
-            new_pipeline_status = check_pipeline_completion(updated.pipelineRunId)
-            if new_pipeline_status:
-                logger.info("Build %s finished, pipeline %s now %s",
-                           build_id, updated.pipelineRunId, new_pipeline_status)
+        # Update pipeline status based on build status changes
+        if updated.pipelineRunId:
+            new_status = update_data.get("status")
+
+            # When a build starts, update pipeline from PENDING to BUILDING
+            if new_status == "BUILDING":
+                pipeline = db.pipelinerun.find_unique(where={"id": updated.pipelineRunId})
+                if pipeline and pipeline.status == "PENDING":
+                    db.pipelinerun.update(
+                        where={"id": updated.pipelineRunId},
+                        data={"status": "BUILDING"},
+                    )
+                    logger.info("Build %s started, pipeline %s now BUILDING",
+                               build_id, updated.pipelineRunId)
+
+            # When a build succeeds, unblock dependent version-bump builds
+            if new_status == "SUCCESS":
+                # Find builds that depend on this one (have baseJobId pointing here)
+                dependent_builds = db.buildjob.find_many(
+                    where={
+                        "baseJobId": build_id,
+                        "status": "BLOCKED",
+                    }
+                )
+                if dependent_builds:
+                    for dep in dependent_builds:
+                        db.buildjob.update(
+                            where={"id": dep.id},
+                            data={"status": "QUEUED"},
+                        )
+                        logger.info("Unblocked build %s (%s) - base build %s completed",
+                                   dep.id, dep.matrixLabel, build_id)
+
+            # When a build finishes, check if pipeline is complete
+            if new_status in ("SUCCESS", "FAILED", "CANCELLED"):
+                from .pipelines import check_pipeline_completion
+                new_pipeline_status = check_pipeline_completion(updated.pipelineRunId)
+                if new_pipeline_status:
+                    logger.info("Build %s finished, pipeline %s now %s",
+                               build_id, updated.pipelineRunId, new_pipeline_status)
 
         return jsonify(ApiResponse.ok(_serialize_build_job(updated)).to_dict()), 200
 

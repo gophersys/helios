@@ -70,7 +70,15 @@ class TestContext:
             MTIB_PORT: MTIB server port (default: 50053, can be in MTIB_ADDRESS)
             DEVICE_ID: CoreCloud device ID as hex string (e.g., 70B3D584C01E1FCC)
             CORECLOUD_DB_ENV: CoreCloud namespace (default: DEV_1_0)
-            FIXTURE_PROFILE_PATH: Path to fixture profile JSON
+
+        Profile loading (one of the following):
+            API mode (preferred):
+                BENCH_ID: TestBench ID or station_id
+                CONCORD_API_URL: Base URL of Concord API
+                CONCORD_API_KEY: API key for authentication
+
+            File mode (fallback):
+                FIXTURE_PROFILE_PATH: Path to fixture profile JSON
 
         MTIB_ADDRESS takes precedence over MTIB_HOST (bench scheduler sets MTIB_ADDRESS).
         MTIB_ADDRESS can include port (e.g., "10.4.45.33:50053").
@@ -93,10 +101,28 @@ class TestContext:
 
         device_id_hex = os.environ["DEVICE_ID"]
         db_env = os.environ.get("CORECLOUD_DB_ENV", "DEV_1_0")
-        profile_path = os.environ["FIXTURE_PROFILE_PATH"]
 
         # Parse device ID (hex string -> int)
         device_id = int(device_id_hex, 16)
+
+        # Load fixture profile — prefer API if configured, fall back to file
+        bench_id = os.environ.get("BENCH_ID")
+        api_url = os.environ.get("CONCORD_API_URL")
+        api_key = os.environ.get("CONCORD_API_KEY")
+
+        if bench_id and api_url and api_key:
+            log.info(f"Loading fixture profile from API: {api_url}/benches/{bench_id}")
+            profile = FixtureProfile.from_api(bench_id, api_url, api_key)
+        else:
+            # Fallback to file-based loading
+            profile_path = os.environ.get("FIXTURE_PROFILE_PATH")
+            if not profile_path:
+                raise ValueError(
+                    "Either BENCH_ID+CONCORD_API_URL+CONCORD_API_KEY or "
+                    "FIXTURE_PROFILE_PATH must be set"
+                )
+            log.info(f"Loading fixture profile from file: {profile_path}")
+            profile = FixtureProfile.from_json(profile_path)
 
         # Build MTIB client
         config = MtibV1Client.Config(net=NetConfig(addr=mtib_host, port=mtib_port))
@@ -104,7 +130,6 @@ class TestContext:
 
         # Build components
         cloud = CloudClient(device_id=device_id, api_env=db_env)
-        profile = FixtureProfile.from_json(profile_path)
         fixture = FixtureController(mtib=mtib, profile=profile)
         uart = UartDemuxer(mtib=mtib)
         power = PowerProfiler(mtib=mtib)

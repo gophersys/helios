@@ -2286,6 +2286,182 @@ def _build_spec() -> APISpec:
         },
     )
 
+    # ── Validation Test Benches ─────────────────────────────────
+    spec.components.schema("TestBench", {
+        "type": "object",
+        "properties": {
+            "id": {"type": "string"},
+            "stationId": {"type": "string"},
+            "name": {"type": "string"},
+            "mtibAddress": {"type": "string"},
+            "mtibRevision": {"type": "string", "nullable": True},
+            "fixtureDesignId": {"type": "string", "nullable": True},
+            "profileOverrides": {"type": "object", "nullable": True},
+            "capabilities": {"type": "array", "items": {"type": "string"}},
+            "dutProduct": {"type": "string"},
+            "dutRevision": {"type": "string"},
+            "dutDeviceId": {"type": "string", "nullable": True},
+            "dutSnr": {"type": "string", "nullable": True},
+            "dutImei": {"type": "string", "nullable": True},
+            "dutIccids": {"type": "array", "items": {"type": "string"}},
+            "jlinkAppSerial": {"type": "string", "nullable": True},
+            "jlinkCommsSerial": {"type": "string", "nullable": True},
+            "uartAppPath": {"type": "string", "nullable": True},
+            "uartCommsPath": {"type": "string", "nullable": True},
+            "status": {"type": "string", "enum": ["AVAILABLE", "LOCKED", "OFFLINE", "MAINTENANCE"]},
+            "lockedBy": {"type": "string", "nullable": True},
+            "lockedAt": {"type": "string", "format": "date-time", "nullable": True},
+            "lastHealthCheck": {"type": "string", "format": "date-time", "nullable": True},
+            "metadata": {"type": "object", "nullable": True},
+            "createdAt": {"type": "string", "format": "date-time"},
+            "updatedAt": {"type": "string", "format": "date-time"},
+            "fixtureDesign": {"type": "object", "nullable": True, "properties": {
+                "id": {"type": "string"},
+                "name": {"type": "string"},
+                "product": {"type": "string"},
+                "revision": {"type": "string"},
+                "capabilities": {"type": "array", "items": {"type": "string"}},
+            }},
+            "profilePath": {"type": "string", "description": "Computed path for K8s job profile loading"},
+        },
+    })
+    spec.components.schema("FixtureProfile", {
+        "type": "object",
+        "description": "Merged fixture profile for validation tests, combining design template + bench overrides + DUT info",
+        "properties": {
+            "station_id": {"type": "string", "description": "Test bench station identifier"},
+            "capabilities": {"type": "array", "items": {"type": "string"}},
+            "dut": {"type": "object", "properties": {
+                "device_id": {"type": "string"},
+                "snr": {"type": "string"},
+                "imei": {"type": "string"},
+                "iccids": {"type": "array", "items": {"type": "string"}},
+            }},
+            "uart_app_path": {"type": "string", "nullable": True},
+            "uart_comms_path": {"type": "string", "nullable": True},
+            "jlink_app_serial": {"type": "string", "nullable": True},
+            "jlink_comms_serial": {"type": "string", "nullable": True},
+        },
+        "additionalProperties": True,
+    })
+
+    path("/validation/benches",
+        get={
+            "tags": ["Validation"], "summary": "List test benches", "security": _auth_security,
+            "parameters": _pagination_params + [
+                {"name": "product", "in": "query", "schema": {"type": "string"}, "description": "Filter by DUT product"},
+                {"name": "status", "in": "query", "schema": {"type": "string", "enum": ["AVAILABLE", "LOCKED", "OFFLINE", "MAINTENANCE"]}},
+                {"name": "capability", "in": "query", "schema": {"type": "array", "items": {"type": "string"}}, "description": "Filter by required capabilities"},
+            ],
+            "responses": {"200": _paginated("TestBench"), "401": _401, "403": _403},
+        },
+        post={
+            "tags": ["Validation"], "summary": "Create a test bench", "security": _auth_security,
+            "requestBody": {"required": True, "content": {"application/json": {"schema": {
+                "type": "object", "required": ["stationId", "name", "mtibAddress", "dutProduct", "dutRevision"],
+                "properties": {
+                    "stationId": {"type": "string"},
+                    "name": {"type": "string"},
+                    "mtibAddress": {"type": "string"},
+                    "mtibRevision": {"type": "string"},
+                    "fixtureDesignId": {"type": "string"},
+                    "profileOverrides": {"type": "object"},
+                    "capabilities": {"type": "array", "items": {"type": "string"}},
+                    "dutProduct": {"type": "string"},
+                    "dutRevision": {"type": "string"},
+                    "dutDeviceId": {"type": "string"},
+                    "dutSnr": {"type": "string"},
+                    "dutImei": {"type": "string"},
+                    "dutIccids": {"type": "array", "items": {"type": "string"}},
+                    "jlinkAppSerial": {"type": "string"},
+                    "jlinkCommsSerial": {"type": "string"},
+                    "uartAppPath": {"type": "string"},
+                    "uartCommsPath": {"type": "string"},
+                    "metadata": {"type": "object"},
+                },
+            }}}},
+            "responses": {"201": _ok("TestBench"), "400": _400, "409": _409},
+        },
+    )
+    path("/validation/benches/discover",
+        get={
+            "tags": ["Validation"], "summary": "Discover unregistered MTIBs", "security": _auth_security,
+            "description": "Find K8s nodes with MTIB label that are not yet registered as test benches.",
+            "responses": {"200": _ok({"type": "array", "items": {"type": "object", "properties": {
+                "hostname": {"type": "string"},
+                "ip": {"type": "string"},
+                "mtibAddress": {"type": "string"},
+                "labels": {"type": "object"},
+                "hardwareRevision": {"type": "string", "nullable": True},
+                "ready": {"type": "boolean"},
+            }}}), "401": _401},
+        },
+    )
+    path("/validation/benches/{bench_id}",
+        parameters=[{"name": "bench_id", "in": "path", "required": True, "schema": {"type": "string"}}],
+        get={
+            "tags": ["Validation"], "summary": "Get test bench details", "security": _auth_security,
+            "responses": {"200": _ok("TestBench"), "401": _401, "404": _404},
+        },
+        patch={
+            "tags": ["Validation"], "summary": "Update a test bench", "security": _auth_security,
+            "requestBody": {"required": True, "content": {"application/json": {"schema": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string"},
+                    "mtibAddress": {"type": "string"},
+                    "mtibRevision": {"type": "string"},
+                    "fixtureDesignId": {"type": "string"},
+                    "profileOverrides": {"type": "object"},
+                    "capabilities": {"type": "array", "items": {"type": "string"}},
+                    "dutDeviceId": {"type": "string"},
+                    "dutSnr": {"type": "string"},
+                    "dutImei": {"type": "string"},
+                    "dutIccids": {"type": "array", "items": {"type": "string"}},
+                    "status": {"type": "string", "enum": ["AVAILABLE", "OFFLINE", "MAINTENANCE"]},
+                    "metadata": {"type": "object"},
+                },
+            }}}},
+            "responses": {"200": _ok("TestBench"), "400": _400, "404": _404},
+        },
+        delete={
+            "tags": ["Validation"], "summary": "Delete a test bench", "security": _auth_security,
+            "responses": {"200": _deleted_resp, "400": _400, "404": _404},
+        },
+    )
+    path("/validation/benches/{bench_id}/lock",
+        parameters=[{"name": "bench_id", "in": "path", "required": True, "schema": {"type": "string"}}],
+        post={
+            "tags": ["Validation"], "summary": "Lock a test bench for exclusive use", "security": _auth_security,
+            "requestBody": {"required": True, "content": {"application/json": {"schema": {
+                "type": "object", "required": ["lockedBy"],
+                "properties": {"lockedBy": {"type": "string", "description": "Pipeline or job ID acquiring the lock"}},
+            }}}},
+            "responses": {"200": _ok("TestBench"), "400": _400, "404": _404, "409": _409},
+        },
+    )
+    path("/validation/benches/{bench_id}/unlock",
+        parameters=[{"name": "bench_id", "in": "path", "required": True, "schema": {"type": "string"}}],
+        post={
+            "tags": ["Validation"], "summary": "Release a test bench lock", "security": _auth_security,
+            "responses": {"200": _ok("TestBench"), "400": _400, "404": _404},
+        },
+    )
+    path("/validation/benches/{bench_id}/profile",
+        parameters=[{"name": "bench_id", "in": "path", "required": True, "schema": {"type": "string"}}],
+        get={
+            "tags": ["Validation"], "summary": "Get merged fixture profile for a test bench", "security": _auth_security,
+            "description": (
+                "Returns the complete fixture profile for a test bench, merging:\n"
+                "1. FixtureDesign.profileTemplate (base hardware config)\n"
+                "2. TestBench.profileOverrides (bench-specific overrides)\n"
+                "3. TestBench DUT info (device_id, snr, imei, iccids)\n\n"
+                "This is the profile that validation tests should use."
+            ),
+            "responses": {"200": _ok("FixtureProfile"), "401": _401, "404": _404},
+        },
+    )
+
     # ── CI / Builds ────────────────────────────────────────────
     spec.components.schema("BuildJob", {
         "type": "object",

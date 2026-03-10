@@ -329,36 +329,24 @@ def create_pipeline():
     main_fw = f"{repo_base}_fw"  # alpha_fw
     mfg_fw = data.mfg_repo_slug or f"{repo_base}_mfg_fw"  # alpha_mfg_fw
 
-    # Stage 4 or Quick matrix mode
-    if data.matrix_mode in ("stage4", "quick"):
-        # Create Stage 4 matrix configuration
-        stage4_config = Stage4MatrixConfig(
-            product=repo_base,
-            board=data.board,
-            main_branch="main",
-            main_commit=data.main_commit or data.commit_sha or "HEAD",
-            pr_branch=data.pr_branch or data.branch,
-            pr_commit=data.commit_sha or "HEAD",
-            merge_commit=None,  # TODO: Support simulated merge
-            mtib_rev="1.2",
-        )
+    # Build matrix configuration (stage4 or quick mode only)
+    stage4_config = Stage4MatrixConfig(
+        product=repo_base,
+        board=data.board,
+        main_branch="main",
+        main_commit=data.main_commit or data.commit_sha or "HEAD",
+        pr_branch=data.pr_branch or data.branch,
+        pr_commit=data.commit_sha or "HEAD",
+        merge_commit=None,  # TODO: Support simulated merge
+        mtib_rev="1.2",
+    )
 
-        if data.matrix_mode == "stage4":
-            build_specs = generate_stage4_builds(stage4_config)
-        else:  # quick
-            build_specs = generate_quick_builds(stage4_config)
+    if data.matrix_mode == "stage4":
+        build_specs = generate_stage4_builds(stage4_config)
+    else:  # quick
+        build_specs = generate_quick_builds(stage4_config)
 
-        expected_builds = len(build_specs)
-        firmware_builds = None  # Signal to use build_specs instead
-    else:
-        # Legacy mode: 4 builds (production debug/release + mfg debug/release)
-        BUILD_VARIANTS = ["debug", "release"]
-        firmware_builds = []
-        for fw_type, fw_kind in [(main_fw, "production"), (mfg_fw, "manufacturing")]:
-            for variant in BUILD_VARIANTS:
-                firmware_builds.append((fw_type, fw_kind, variant))
-        expected_builds = len(firmware_builds)
-        build_specs = None
+    expected_builds = len(build_specs)
 
     try:
         # Create pipeline run
@@ -371,107 +359,77 @@ def create_pipeline():
             trigger_data.update(data.validation_config)
 
         # Store matrix config in pipeline
-        matrix_config = None
-        if data.matrix_mode in ("stage4", "quick"):
-            matrix_config = {
-                "mode": data.matrix_mode,
-                "product": repo_base,
-                "mainCommit": data.main_commit or data.commit_sha,
-                "prBranch": data.pr_branch or data.branch,
-                "prCommit": data.commit_sha,
-            }
+        matrix_config = {
+            "mode": data.matrix_mode,
+            "product": repo_base,
+            "mainCommit": data.main_commit or data.commit_sha,
+            "prBranch": data.pr_branch or data.branch,
+            "prCommit": data.commit_sha,
+        }
 
-        pipeline = db.pipelinerun.create(
-            data={
-                "name": data.name or f"{product_base}-{data.branch[:8]}" + (f"-{data.commit_sha[:7]}" if data.commit_sha else ""),
-                "product": product_base,
-                "board": data.board,
-                "branch": data.branch,
-                "commitSha": data.commit_sha,
-                "status": "PENDING",
-                "triggerType": data.trigger_type,
-                "expectedBuilds": expected_builds,
-                "matrixMode": data.matrix_mode,
-                "buildMatrix": Json(matrix_config) if matrix_config else None,
-                "triggerData": Json(trigger_data),
-                "startedAt": datetime.now(timezone.utc),
-            }
-        )
+        # Build create data - conditionally include buildMatrix only when provided
+        create_data = {
+            "name": data.name or f"{product_base}-{data.branch[:8]}" + (f"-{data.commit_sha[:7]}" if data.commit_sha else ""),
+            "product": product_base,
+            "board": data.board,
+            "branch": data.branch,
+            "commitSha": data.commit_sha,
+            "status": "PENDING",
+            "triggerType": data.trigger_type,
+            "expectedBuilds": expected_builds,
+            "matrixMode": data.matrix_mode,
+            "triggerData": Json(trigger_data),
+            "startedAt": datetime.now(timezone.utc),
+        }
+        # Always include buildMatrix (stage4/quick modes always have config)
+        create_data["buildMatrix"] = Json(matrix_config)
+
+        pipeline = db.pipelinerun.create(data=create_data)
 
         # Create build jobs based on mode
+        # Create build jobs from matrix specs
         builds = []
+        label_to_id = {}  # Track created jobs for baseJobId linking
+        specs_with_builds = []  # Track specs with their created builds
 
-        if build_specs:
-            # Stage 4 or Quick mode - use pre-computed specs
-            label_to_id = {}  # Track created jobs for baseJobId linking
-            specs_with_builds = []  # Track specs with their created builds
-
-            for spec in build_specs:
-                build_data = {
-                    "product": spec["product"],
-                    "productId": product_record.id if product_record else None,
-                    "board": spec["board"],
-                    "target": spec["target"],
-                    "variant": spec["variant"],
-                    "mtibRev": spec["mtibRev"],
-                    "branch": spec["branch"],
-                    "commitSha": spec["commitSha"],
-                    "status": spec["status"],
-                    "pipelineRunId": pipeline.id,
+        for spec in build_specs:
+            build_data = {
+                "product": spec["product"],
+                "productId": product_record.id if product_record else None,
+                "board": spec["board"],
+                "target": spec["target"],
+                "variant": spec["variant"],
+                "mtibRev": spec["mtibRev"],
+                "branch": spec["branch"],
+                "commitSha": spec["commitSha"],
+                "status": spec["status"],
+                "pipelineRunId": pipeline.id,
+                "matrixLabel": spec.get("matrixLabel"),
+                "matrixIndex": spec.get("matrixIndex"),
+                "versionBump": spec.get("versionBump", False),
+                "webhookData": Json({
+                    "pipelineId": pipeline.id,
+                    "source": data.trigger_type,
                     "matrixLabel": spec.get("matrixLabel"),
-                    "matrixIndex": spec.get("matrixIndex"),
-                    "versionBump": spec.get("versionBump", False),
-                    "webhookData": Json({
-                        "pipelineId": pipeline.id,
-                        "source": data.trigger_type,
-                        "matrixLabel": spec.get("matrixLabel"),
-                    }),
-                }
+                }),
+            }
 
-                build = db.buildjob.create(data=build_data)
-                builds.append(build)
-                label_to_id[spec.get("matrixLabel")] = build.id
-                specs_with_builds.append((spec, build))
+            build = db.buildjob.create(data=build_data)
+            builds.append(build)
+            label_to_id[spec.get("matrixLabel")] = build.id
+            specs_with_builds.append((spec, build))
 
-            # Second pass: link version bump builds to their base builds
-            for spec, build in specs_with_builds:
-                base_label = spec.get("baseLabel")
-                if base_label and base_label in label_to_id:
-                    db.buildjob.update(
-                        where={"id": build.id},
-                        data={"baseJobId": label_to_id[base_label]},
-                    )
-
-        else:
-            # Legacy mode - create builds from firmware_builds list
-            for fw_type, fw_kind, variant in firmware_builds:
-                build = db.buildjob.create(
-                    data={
-                        "product": fw_type,
-                        "productId": product_record.id if product_record else None,
-                        "board": data.board,
-                        "target": "nrf52840",
-                        "variant": variant,
-                        "mtibRev": "1.2",
-                        "branch": data.branch,
-                        "commitSha": data.commit_sha,
-                        "status": "QUEUED",
-                        "pipelineRunId": pipeline.id,
-                        "webhookData": Json({
-                            "pipelineId": pipeline.id,
-                            "source": data.trigger_type,
-                            "fwKind": fw_kind,
-                            "variant": variant,
-                        }),
-                    },
+        # Second pass: link version bump builds to their base builds
+        for spec, build in specs_with_builds:
+            base_label = spec.get("baseLabel")
+            if base_label and base_label in label_to_id:
+                db.buildjob.update(
+                    where={"id": build.id},
+                    data={"baseJobId": label_to_id[base_label]},
                 )
-                builds.append(build)
 
-        # Update pipeline status to BUILDING
-        db.pipelinerun.update(
-            where={"id": pipeline.id},
-            data={"status": "BUILDING"},
-        )
+        # Keep pipeline PENDING - status changes to BUILDING when a worker starts a job
+        # This is handled by the build status update endpoint
 
         log_audit("ci.pipeline.create", "PipelineRun", pipeline.id, {
             "product": product_base,
@@ -561,11 +519,11 @@ def check_pipeline_completion(pipeline_id: str) -> Optional[str]:
         succeeded = sum(1 for b in builds if b.status == "SUCCESS")
         failed = sum(1 for b in builds if b.status in ("FAILED", "CANCELLED"))
 
-        # Fail-fast: if any build fails, cancel all pending/building siblings
+        # Fail-fast: if any build fails, cancel all pending/blocked/building siblings
         if failed > 0:
-            pending_builds = [b for b in builds if b.status in ("QUEUED", "BUILDING")]
+            pending_builds = [b for b in builds if b.status in ("QUEUED", "BLOCKED", "BUILDING")]
             if pending_builds:
-                logger.info("Build failed in pipeline %s, cancelling %d pending builds",
+                logger.info("Build failed in pipeline %s, cancelling %d pending/blocked builds",
                            pipeline_id, len(pending_builds))
                 for build in pending_builds:
                     db.buildjob.update(
