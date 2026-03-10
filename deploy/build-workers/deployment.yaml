@@ -1,0 +1,93 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: build-worker
+  namespace: staging
+  labels:
+    app: build-worker
+spec:
+  replicas: 2  # Start with 2 workers, scale as needed
+  selector:
+    matchLabels:
+      app: build-worker
+  template:
+    metadata:
+      labels:
+        app: build-worker
+    spec:
+      containers:
+      - name: worker
+        image: containers.ad.corekinect.com/ncs-build:2.7.0
+        imagePullPolicy: Always
+        command: ["python3", "/app/worker.py"]
+        env:
+        - name: CONCORD_API_URL
+          value: "https://staging.concord.local"
+        - name: CONCORD_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: build-worker-secrets
+              key: api-key
+        - name: WORKER_ID
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POLL_INTERVAL
+          value: "5"
+        - name: WORKSPACE_DIR
+          value: "/tmp/builds"
+        - name: SSH_KEY_PATH
+          value: "/root/.ssh/id_rsa"
+        # Zephyr/NCS environment
+        - name: ZEPHYR_BASE
+          value: "/workdir/zephyr"
+        - name: ZEPHYR_TOOLCHAIN_VARIANT
+          value: "zephyr"
+        - name: ZEPHYR_SDK_INSTALL_DIR
+          value: "/workdir/zephyr-sdk"
+        volumeMounts:
+        - name: worker-script
+          mountPath: /app
+        - name: ssh-key
+          mountPath: /root/.ssh
+          readOnly: true
+        - name: workspace
+          mountPath: /tmp/builds
+        resources:
+          requests:
+            cpu: "500m"
+            memory: "2Gi"
+          limits:
+            cpu: "4000m"
+            memory: "8Gi"
+      volumes:
+      - name: worker-script
+        configMap:
+          name: build-worker-script
+      - name: ssh-key
+        secret:
+          secretName: bitbucket-ssh-key
+          defaultMode: 0600
+      - name: workspace
+        emptyDir:
+          sizeLimit: 10Gi
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: build-worker-secrets
+  namespace: staging
+type: Opaque
+stringData:
+  api-key: "ck_ci_test_5KiMc5qFl9j-Twen2qFlz8Jzy8h62sdHkeKYpR_SGQc"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: bitbucket-ssh-key
+  namespace: staging
+type: Opaque
+data:
+  # Base64 encoded SSH private key (placeholder - replace with actual key)
+  id_rsa: ""
+  known_hosts: ""

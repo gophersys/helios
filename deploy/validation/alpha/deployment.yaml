@@ -95,27 +95,35 @@ spec:
         - name: DEVICE_ICCIDS
           value: "89148000008770457338,89012230001000370694"
 
-        # ── CoreCloud Database (fill in when creds available) ──
-        # - name: DEV_1_0_DB_DRIVER
-        #   value: "postgresql+psycopg2"
-        # - name: DEV_1_0_DB_USERNAME
-        #   value: ""
-        # - name: DEV_1_0_DB_PASSWORD
-        #   value: ""
-        # - name: DEV_1_0_DB_HOST
-        #   value: "dmz-pg02.dmz.corekinect.com"
-        # - name: DEV_1_0_DB_PORT
-        #   value: "5432"
-        # - name: DEV_1_0_DB_DATABASE_NAME
-        #   value: ""
-        # - name: DEV_1_0_SSH_HOST
-        #   value: ""
-        # - name: DEV_1_0_SSH_PORT
-        #   value: "22"
-        # - name: DEV_1_0_SSH_USERNAME
-        #   value: ""
-        # - name: DEV_1_0_SSH_PASSWORD
-        #   value: ""
+        # ── CoreCloud Database (VAL_1_0 — direct from cluster, no SSH) ──
+        - name: CORECLOUD_DB_ENV
+          value: "VAL_1_0"
+        - name: VAL_1_0_DB_DRIVER
+          value: "postgresql+psycopg2"
+        - name: VAL_1_0_DB_USER
+          value: "concord_val"
+        - name: VAL_1_0_DB_PASS
+          valueFrom:
+            secretKeyRef:
+              name: corecloud-validation
+              key: db-password
+        - name: VAL_1_0_DB_HOST
+          value: "validation.ad.corekinect.com"
+        - name: VAL_1_0_DB_PORT
+          value: "5432"
+        - name: VAL_1_0_DB_NAME
+          value: "test"
+
+        # ── CoreCloud REST API (VAL_1_0) ──
+        - name: VAL_1_0_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: corecloud-validation
+              key: api-key
+        - name: VAL_1_0_API_AUTH_SERVER_HOST_NAME
+          value: "https://auth.office.corekinect.cloud:2013"
+        - name: VAL_1_0_API_REST_SERVER_HOST_NAME
+          value: "https://val.office.corekinect.cloud:2018/api"
 
         # ── Test Artifacts ──
         - name: ARTIFACTS_DIR

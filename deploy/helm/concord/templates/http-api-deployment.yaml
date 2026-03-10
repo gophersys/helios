@@ -8,6 +8,11 @@ metadata:
     {{- include "concord.httpApi.selectorLabels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.httpApi.replicas }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
   selector:
     matchLabels:
       {{- include "concord.httpApi.selectorLabels" . | nindent 6 }}
@@ -20,20 +25,45 @@ spec:
         checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
         checksum/secret: {{ include (print $.Template.BasePath "/secrets.yaml") . | sha256sum }}
     spec:
+      terminationGracePeriodSeconds: 30
       {{- if .Values.httpApi.serviceAccount.create }}
       serviceAccountName: {{ .Values.httpApi.serviceAccount.name }}
       {{- end }}
       {{- if .Values.httpApi.migration.enabled }}
       initContainers:
-        - name: migrate
+        - name: wait-for-db
           image: "{{ .Values.httpApi.image.repository }}:{{ .Values.httpApi.image.tag }}"
           imagePullPolicy: {{ .Values.global.imagePullPolicy }}
-          command: ["bash", "-c", "cd /prisma && prisma migrate deploy"]
+          command:
+            - python3
+            - -c
+            - |
+              import os, time, socket, re
+              url = os.environ.get('DATABASE_URL', '')
+              m = re.search(r'@([^:/]+):(\d+)', url)
+              if not m:
+                  print('No DATABASE_URL, skipping wait'); exit(0)
+              host, port = m.group(1), int(m.group(2))
+              for i in range(30):
+                  s = socket.socket()
+                  s.settimeout(2)
+                  if s.connect_ex((host, port)) == 0:
+                      s.close(); print(f'DB ready at {host}:{port}'); exit(0)
+                  s.close(); print(f'Waiting for DB {host}:{port}... ({i+1}/30)')
+                  time.sleep(2)
+              print('DB not ready after 60s'); exit(1)
           envFrom:
             - configMapRef:
                 name: concord-config
             - secretRef:
                 name: concord-secrets
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
       {{- end }}
       containers:
         - name: http-api

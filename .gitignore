@@ -99,12 +99,34 @@ vitest.config.*.timestamp*
 
 # Helm secrets (never commit real credentials)
 deploy/helm/values-*-secrets.yaml
-deploy/local/.env
 
 # SvelteKit build artifacts
 .svelte-kit/
 apps/frontend/concord-app-svelte/coverage/
 apps/frontend/concord-app-svelte/dist/
 
+# Credential files
+*.pem
+*.key
+**/credentials.json
+apps/validation/**/.env
+
 # Firmware product build artifacts
 apps/firmware/products/*/artifacts/
+
+# Build temp files
+*.tmp
+*.bak
+.config.old
+CMakeCache.tmp
+
+# Test screenshots and debug images
+routes_*.png
+images/Screenshot*
+
+# Grade/quality reports (generated artifacts)
+**/grade-reports/
+
+# Playwright test artifacts
+**/playwright-report/
+**/test-results/

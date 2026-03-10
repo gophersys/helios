@@ -1,0 +1,20 @@
+# TLS certificate for staging.concord.local
+# Issued by the Concord local CA via cert-manager.
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: staging-concord-tls
+  namespace: staging
+spec:
+  secretName: staging-concord-tls
+  issuerRef:
+    name: concord-ca-issuer
+    kind: ClusterIssuer
+    group: cert-manager.io
+  commonName: staging.concord.local
+  dnsNames:
+    - staging.concord.local
+    - "*.concord.local"
+  duration: 8760h # 1 year
+  renewBefore: 720h # 30 days

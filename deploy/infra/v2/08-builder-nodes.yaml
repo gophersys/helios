@@ -1,0 +1,45 @@
+# Builder Node Group Configuration
+#
+# Nodes with label `corekinect.com/purpose=builder` will run firmware build workers.
+# This allows dynamic scaling - add more builder nodes by labeling them.
+#
+# To add a new builder node:
+#   kubectl label node <node-name> corekinect.com/purpose=builder
+#
+# To remove a builder node:
+#   kubectl label node <node-name> corekinect.com/purpose-
+#
+# Current builder nodes:
+#   - concordproxy (8 cores, 16GB RAM)
+#   - <your-wsl-node> (add when connected)
+
+---
+# Taint for builder-only workloads (optional - prevents other pods from scheduling)
+# Apply with: kubectl taint nodes <node-name> corekinect.com/purpose=builder:PreferNoSchedule
+#
+# Note: Using PreferNoSchedule instead of NoSchedule to allow system pods
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: builder-node-config
+  namespace: staging
+  labels:
+    app.kubernetes.io/component: build-worker
+    app.kubernetes.io/part-of: concord-ci
+data:
+  # Node requirements for builders
+  MIN_CPU_CORES: "4"
+  MIN_MEMORY_GB: "8"
+
+  # Supported NCS versions
+  NCS_VERSIONS: |
+    2.7.0
+    2.4.2
+
+  # Products and their required NCS versions
+  PRODUCT_NCS_MAP: |
+    alpha:2.7.0
+    sigma5:2.7.0
+    theta:2.4.2

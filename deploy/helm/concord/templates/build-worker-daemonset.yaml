@@ -1,0 +1,198 @@
+{{- if .Values.buildWorker.enabled }}
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: concord-build-worker
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: concord-build-worker
+    app.kubernetes.io/component: build-worker
+    app.kubernetes.io/part-of: concord-ci
+spec:
+  selector:
+    matchLabels:
+      app: concord-build-worker
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        app: concord-build-worker
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/build-worker-configmap.yaml") . | sha256sum }}
+    spec:
+      # Only schedule on nodes labeled as builders
+      nodeSelector:
+        corekinect.com/purpose: builder
+
+      # Tolerate builder taint if applied
+      tolerations:
+        - key: "corekinect.com/purpose"
+          operator: "Equal"
+          value: "builder"
+          effect: "PreferNoSchedule"
+
+      containers:
+        # Primary builder - NCS 2.7.0 (Alpha, Sigma5)
+        - name: ncs270
+          image: containers.ad.corekinect.com/ncs-build:2.7.0
+          command: ["/bin/bash", "-c"]
+          args:
+            - |
+              # Install SSH and ccache with timeout (skip if DNS fails)
+              timeout 30 apt-get update && timeout 60 apt-get install -y openssh-client ccache || echo "Package install skipped"
+              # Configure ccache
+              mkdir -p /ccache
+              ccache --max-size=10G
+              ccache --set-config=cache_dir=/ccache
+              ccache --set-config=compiler_check=content
+              ccache -z  # Zero stats for this session
+              echo "ccache configured: $(ccache -s | head -3)"
+              exec python3 /app/worker.py
+          env:
+            - name: CONCORD_API_URL
+              value: "http://concord-http-api:9001"
+            - name: CONCORD_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: concord-build-worker-secrets
+                  key: api-key
+            - name: POLL_INTERVAL
+              value: "5"
+            - name: WORKER_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: NCS_VERSION
+              value: "2.7.0"
+            - name: PRODUCT_EXCLUDE
+              value: "sigma5_fw"
+            - name: SSH_KEY_PATH
+              value: "/root/.ssh/id_rsa"
+            # ccache configuration for faster rebuilds
+            - name: CCACHE_DIR
+              value: "/ccache"
+            - name: CCACHE_MAXSIZE
+              value: "10G"
+            - name: CMAKE_C_COMPILER_LAUNCHER
+              value: "ccache"
+            - name: CMAKE_CXX_COMPILER_LAUNCHER
+              value: "ccache"
+            - name: USE_CCACHE
+              value: "1"
+          resources:
+            requests:
+              cpu: {{ .Values.buildWorker.resources.requests.cpu | default "2" | quote }}
+              memory: {{ .Values.buildWorker.resources.requests.memory | default "4Gi" | quote }}
+            limits:
+              cpu: {{ .Values.buildWorker.resources.limits.cpu | default "8" | quote }}
+              memory: {{ .Values.buildWorker.resources.limits.memory | default "12Gi" | quote }}
+          volumeMounts:
+            - name: worker-script
+              mountPath: /app/worker.py
+              subPath: worker.py
+            - name: worker-script
+              mountPath: /app/ci_build.sh
+              subPath: ci_build.sh
+            - name: ssh-key
+              mountPath: /root/.ssh
+              readOnly: true
+            - name: workspace
+              mountPath: /tmp/builds
+            - name: alpha-mcuboot-keys
+              mountPath: /keys/alpha
+              readOnly: true
+            - name: theta-mcuboot-keys
+              mountPath: /keys/theta
+              readOnly: true
+            - name: ccache
+              mountPath: /ccache
+
+        {{- if .Values.buildWorker.ncs242.enabled }}
+        # NCS 2.4.2 builder (sigma5_fw uses ncs-fw-dev:2.4.2)
+        - name: ncs242
+          image: {{ .Values.buildWorker.ncs242.image | default "containers.ad.corekinect.com/ncs-build:2.4.2" }}
+          command: ["/bin/bash", "-c"]
+          args:
+            - |
+              timeout 30 apt-get update && timeout 60 apt-get install -y openssh-client || echo "SSH install skipped"
+              exec python3 /app/worker.py
+          env:
+            - name: CONCORD_API_URL
+              value: "http://concord-http-api:9001"
+            - name: CONCORD_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: concord-build-worker-secrets
+                  key: api-key
+            - name: POLL_INTERVAL
+              value: "5"
+            - name: WORKER_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: NCS_VERSION
+              value: "2.4.2"
+            - name: PRODUCT_FILTER
+              value: "sigma5_fw"
+            - name: SSH_KEY_PATH
+              value: "/root/.ssh/id_rsa"
+          resources:
+            requests:
+              cpu: "2"
+              memory: "4Gi"
+            limits:
+              cpu: "6"
+              memory: "10Gi"
+          volumeMounts:
+            - name: worker-script
+              mountPath: /app/worker.py
+              subPath: worker.py
+            - name: worker-script
+              mountPath: /app/ci_build.sh
+              subPath: ci_build.sh
+            - name: ssh-key
+              mountPath: /root/.ssh
+              readOnly: true
+            - name: workspace-ncs242
+              mountPath: /tmp/builds
+        {{- end }}
+
+      volumes:
+        - name: worker-script
+          configMap:
+            name: concord-build-worker-script
+            defaultMode: 0755
+        - name: ssh-key
+          secret:
+            secretName: bitbucket-ssh-key
+            defaultMode: 0600
+        - name: alpha-mcuboot-keys
+          secret:
+            secretName: alpha-mcuboot-keys
+            defaultMode: 0400
+        - name: workspace
+          emptyDir:
+            sizeLimit: 30Gi
+        - name: workspace-ncs242
+          emptyDir:
+            sizeLimit: 20Gi
+        # ccache storage - helps with FIPS rebuilds within same pod lifetime
+        - name: ccache
+          emptyDir:
+            sizeLimit: 15Gi
+
+      # Prioritize builders on nodes with more resources
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - key: kubernetes.io/arch
+                    operator: In
+                    values:
+                      - amd64
+{{- end }}

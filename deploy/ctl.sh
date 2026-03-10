@@ -8,10 +8,9 @@ set -euo pipefail
 #   ./deploy/ctl.sh <command>
 #
 # Environments:
-#   dev       — Manual development (start services by hand)
-#   local     — Docker Compose with all services containerized
-#   staging   — Kubernetes staging namespace
-#   production — Kubernetes production namespace
+#   development — Docker Compose infra only (DB, MinIO, InfluxDB), run apps via Nx
+#   staging     — Kubernetes staging namespace
+#   production  — Kubernetes production namespace
 # ───────────────────────────────────────────────────────────────
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -101,89 +100,42 @@ cmd_build() {
   log "Build complete.  Tags: ${env}, ${env}-${version}"
 }
 
-# ─── Local (Docker Compose) ──────────────────────────────────
+# ─── Development (infrastructure only) ────────────────────────
 
-cmd_local() {
-  local action="${1:-up}"
-  local compose_dir="${SCRIPT_DIR}/local"
-
-  # Auto-create .env from example if it doesn't exist
-  if [[ ! -f "${compose_dir}/.env" ]]; then
-    if [[ -f "${compose_dir}/.env.example" ]]; then
-      cp "${compose_dir}/.env.example" "${compose_dir}/.env"
-      warn "Created ${compose_dir}/.env from .env.example — review and adjust values."
-    fi
-  fi
-
-  local version
-  version=$(get_version)
-  export APP_VERSION="${version}"
-  export GIT_COMMIT="$(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
-  export GIT_BRANCH="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo unknown)"
-  export GIT_DIRTY="$([ -n "$(git status --porcelain 2>/dev/null)" ] && echo true || echo false)"
-  export BUILD_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-  export BUILD_HOST="$(hostname)"
-
-  case "${action}" in
-    up)
-      log "Starting local environment (all services containerized)..."
-      docker compose -f "${compose_dir}/docker-compose.yaml" up --build -d
-      echo ""
-      log "Local environment is running:"
-      info "  Frontend:  http://localhost:3000"
-      info "  API:       http://localhost:9001"
-      info "  MinIO:     http://localhost:8676"
-      info "  InfluxDB:  http://localhost:8086"
-      info "  Postgres:  localhost:5432"
-      ;;
-    down)
-      log "Stopping local environment..."
-      docker compose -f "${compose_dir}/docker-compose.yaml" down
-      ;;
-    logs)
-      docker compose -f "${compose_dir}/docker-compose.yaml" logs -f "${@:2}"
-      ;;
-    ps)
-      docker compose -f "${compose_dir}/docker-compose.yaml" ps
-      ;;
-    restart)
-      log "Restarting local environment..."
-      docker compose -f "${compose_dir}/docker-compose.yaml" down
-      docker compose -f "${compose_dir}/docker-compose.yaml" up --build -d
-      ;;
-    *)
-      err "Unknown local action: ${action}"
-      err "Usage: ctl.sh local {up|down|logs|ps|restart}"
-      exit 1
-      ;;
-  esac
-}
-
-# ─── Dev (manual development) ────────────────────────────────
-
-cmd_dev() {
+cmd_development() {
   local action="${1:-up}"
   local compose_dir="${SCRIPT_DIR}/cloud/development"
 
   case "${action}" in
     up)
-      log "Starting dev infrastructure (DB, MinIO, InfluxDB)..."
+      log "Starting development infrastructure (DB, MinIO, InfluxDB)..."
       if ! docker network ls | grep -q concord_network; then
         docker network create concord_network
       fi
       docker compose -f "${compose_dir}/docker-compose.yaml" up -d
       echo ""
-      log "Dev infrastructure is running. Start your apps manually:"
-      info "  Backend:  cd apps/backend/http-api && PYTHONPATH=src:\$(pwd)/../../../libs/python:\$(pwd)/../../../libs:. python3 -m src.main"
-      info "  Frontend: cd apps/frontend/concord-app-svelte && npm run dev"
+      log "Development infrastructure is running."
+      echo ""
+      info "Start apps via Nx (recommended):"
+      info "  npx nx serve http-api         # Backend on :9001"
+      info "  npx nx dev concord-ui         # Frontend on :4200"
+      echo ""
+      info "Or run both in parallel:"
+      info "  npx nx run-many -t serve dev -p http-api concord-ui"
       ;;
     down)
-      log "Stopping dev infrastructure..."
+      log "Stopping development infrastructure..."
       docker compose -f "${compose_dir}/docker-compose.yaml" down
       ;;
+    status)
+      docker compose -f "${compose_dir}/docker-compose.yaml" ps
+      ;;
+    logs)
+      docker compose -f "${compose_dir}/docker-compose.yaml" logs -f "${@:2}"
+      ;;
     *)
-      err "Unknown dev action: ${action}"
-      err "Usage: ctl.sh dev {up|down}"
+      err "Unknown development action: ${action}"
+      err "Usage: ctl.sh development {up|down|status|logs}"
       exit 1
       ;;
   esac
@@ -420,20 +372,15 @@ ${BOLD}Usage:${NC}
   ./deploy/ctl.sh <command> [options]
 
 ${BOLD}Environments:${NC}
-  ${CYAN}dev${NC}                          Manual development (infra only, you run apps by hand)
-  ${CYAN}local${NC}                        Docker Compose with ALL services containerized
+  ${CYAN}development${NC}                  Docker Compose infra only — run apps via Nx
   ${CYAN}staging${NC}                      Kubernetes staging namespace
-  ${CYAN}production${NC}                   Kubernetes production namespace (not yet implemented)
+  ${CYAN}production${NC}                   Kubernetes production namespace
 
 ${BOLD}Commands:${NC}
-  ${GREEN}dev up${NC}                       Start dev infrastructure (DB, MinIO, InfluxDB)
-  ${GREEN}dev down${NC}                     Stop dev infrastructure
-
-  ${GREEN}local up${NC}                     Build & start all services in Docker
-  ${GREEN}local down${NC}                   Stop all local services
-  ${GREEN}local logs [service]${NC}         Tail logs (http-api, frontend, db, etc.)
-  ${GREEN}local ps${NC}                     Show running containers
-  ${GREEN}local restart${NC}                Rebuild & restart everything
+  ${GREEN}development up${NC}               Start infrastructure (DB, MinIO, InfluxDB)
+  ${GREEN}development down${NC}             Stop infrastructure
+  ${GREEN}development status${NC}           Show infrastructure containers
+  ${GREEN}development logs${NC}             Tail infrastructure logs
 
   ${GREEN}build [target] [env]${NC}         Build Docker images (target: all|api|frontend, env: staging|production)
 
@@ -454,9 +401,9 @@ ${BOLD}Commands:${NC}
   ${GREEN}version${NC}                      Show current version string
 
 ${BOLD}Examples:${NC}
-  ./deploy/ctl.sh dev up                  # Start DBs, then run backend/frontend manually
-  ./deploy/ctl.sh local up                # Full local stack in Docker
+  ./deploy/ctl.sh development up          # Start DBs, then run apps via Nx
   ./deploy/ctl.sh build api staging       # Build only the API image for staging
+  ./deploy/ctl.sh diff staging            # Preview Helm changes before deploying
   ./deploy/ctl.sh staging deploy          # Build + deploy everything to K8s staging
   ./deploy/ctl.sh staging logs http-api   # Watch backend logs in staging
   ./deploy/ctl.sh production deploy       # Build + deploy to K8s production
@@ -475,15 +422,14 @@ COMMAND="$1"
 shift
 
 case "${COMMAND}" in
-  dev)        cmd_dev "$@" ;;
-  local)      cmd_local "$@" ;;
-  build)      cmd_build "$@" ;;
-  staging)    cmd_staging "$@" ;;
-  production) cmd_production "$@" ;;
-  diff)       cmd_diff "$@" ;;
-  status)     cmd_status "$@" ;;
-  version)    cmd_version ;;
-  help|-h|--help) usage ;;
+  development|dev) cmd_development "$@" ;;
+  build)           cmd_build "$@" ;;
+  staging)         cmd_staging "$@" ;;
+  production)      cmd_production "$@" ;;
+  diff)            cmd_diff "$@" ;;
+  status)          cmd_status "$@" ;;
+  version)         cmd_version ;;
+  help|-h|--help)  usage ;;
   *)
     err "Unknown command: ${COMMAND}"
     usage

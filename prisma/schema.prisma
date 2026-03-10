@@ -54,6 +54,7 @@ enum TestExecutionStatus {
     RUNNING
     PASSED
     FAILED
+    SKIPPED
     CANCELLED
     ERROR
 }
@@ -104,6 +105,13 @@ enum IcleDeviceStatus {
     CONFIG
     BOOT
     OTA
+}
+
+enum TestBenchStatus {
+    AVAILABLE
+    LOCKED
+    OFFLINE
+    MAINTENANCE
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -202,13 +210,30 @@ model Chipset {
 }
 
 /// A hardware product that Concord tests: Sigma5, Theta, Alpha, etc.
-/// Everything flows from here — fixtures, tests, sessions.
+/// Everything flows from here — fixtures, tests, sessions, builds.
+/// Git poller and build worker read repo/build config from here.
 model Product {
     id          String   @id @default(cuid())
-    name        String   @unique
+    name        String   @unique /// "Alpha B0", "Sigma5 C0"
+    slug        String?  @unique /// "alpha_b0", "sigma5_c0" — URL-safe identifier
     description String?
     active      Boolean  @default(true)
-    metadata    Json? /// firmware paths, product-specific config
+
+    // ─── Firmware repo config (git poller reads this) ───
+    repoSlug    String?  /// "alpha_fw" — Bitbucket repo name
+    repoSshUrl  String?  /// "git@bitbucket.org:corekinect/alpha_fw.git"
+    repoBranch  String?  /// "concord-main" — branch to watch
+
+    // ─── Manufacturing firmware repo (cloned during build) ───
+    mfgRepoSlug   String?  /// "alpha_mfg_fw"
+    mfgRepoSshUrl String?  /// "git@bitbucket.org:corekinect/alpha_mfg_fw.git"
+
+    // ─── Build config (build worker reads this) ───
+    buildBoard   String?  /// "alpha_b0" — west board name
+    buildWestDir String?  /// "apps/firmware/products/alpha/alpha_fw"
+    buildMfgDir  String?  /// "apps/firmware/products/alpha/alpha_mfg_fw"
+
+    metadata    Json? /// additional product-specific config
     createdAt   DateTime @default(now())
     updatedAt   DateTime @updatedAt
 
@@ -218,6 +243,8 @@ model Product {
     deployments    Deployment[]
     boards         Board[]
     firmwareBuilds FirmwareBuild[]
+    buildJobs      BuildJob[]
+    testBenches    TestBench[]
 
     @@map("products")
 }
@@ -371,6 +398,86 @@ model Node {
     @@map("nodes")
 }
 
+/// A versioned fixture hardware design — the PCB/wiring spec for testing a product.
+/// Example: "alpha-fixture-v1.2" describes REV1.2 MTIB carrier with specific GPIO wiring.
+///
+/// The profileTemplate JSON contains the default fixture profile for benches using this design.
+/// Individual TestBench records can override specific fields via profileOverrides.
+model FixtureDesign {
+    id              String   @id @default(cuid())
+    name            String   @unique /// "alpha-fixture-v1.2"
+    product         String /// "alpha" — which product this fixture tests
+    revision        String /// "1.2" — fixture hardware revision
+    capabilities    String[] /// ["button", "peltier", "charger_relay"]
+    profileTemplate Json /// Default fixture profile JSON for this design
+    schematicUrl    String? /// Link to schematic PDF/CAD files
+    bomUrl          String? /// Link to BOM spreadsheet
+    assemblyGuide   String? /// Link to assembly instructions
+    notes           String? /// Build notes, known issues, changelog
+    createdAt       DateTime @default(now())
+    updatedAt       DateTime @updatedAt
+
+    testBenches TestBench[]
+
+    @@index([product])
+    @@map("fixture_designs")
+}
+
+/// A validation test bench with DUT, MTIB, and fixture capabilities.
+/// Used by CI pipeline scheduler to find available benches matching
+/// product requirements. Supports distributed locking for concurrent jobs.
+///
+/// Links to a FixtureDesign which provides the base profile template.
+/// DUT-specific info (device ID, SNR, IMEI) is stored here.
+model TestBench {
+    id              String          @id @default(cuid())
+    stationId       String          @unique /// "station-33", matches fixture profile
+    name            String /// "Alpha B0 Bench 1"
+    mtibAddress     String /// "10.4.45.33:50053"
+    mtibRevision    String? /// "REV1.2" — MTIB hardware revision
+
+    // Product link (preferred) — use this for scheduling
+    productId       String?
+    product         Product?        @relation(fields: [productId], references: [id])
+
+    // Fixture design (provides capabilities + profile template)
+    fixtureDesignId String?
+    fixtureDesign   FixtureDesign?  @relation(fields: [fixtureDesignId], references: [id])
+    profileOverrides Json? /// Bench-specific profile overrides (merged with template)
+
+    // Legacy: direct capabilities (used if no fixtureDesign)
+    capabilities    String[] /// ["button", "peltier", "charger_relay", "ppg_servo"]
+
+    // DUT info (legacy string fields — use productId instead)
+    dutProduct      String /// "alpha"
+    dutRevision     String /// "b0"
+    dutDeviceId     String? /// "70B3D584C01E1FCC"
+    dutSnr          String? /// "0964" — J-Link probe serial
+    dutImei         String? /// "355025931735979"
+    dutIccids       String[] /// ["89148000009808558441", "89457300000037582833"]
+
+    // Hardware paths
+    jlinkAppSerial  String? /// J-Link SNR for nRF52840 app processor
+    jlinkCommsSerial String? /// J-Link SNR for nRF9151 comms (if separate)
+    uartAppPath     String? /// "/dev/verdin-uart2"
+    uartCommsPath   String? /// "/dev/verdin-uart1"
+
+    // Status and locking
+    status          TestBenchStatus @default(AVAILABLE)
+    lockedBy        String? /// Pipeline/job ID holding the lock
+    lockedAt        DateTime?
+    lastHealthCheck DateTime? /// Last successful MTIB health check
+    metadata        Json? /// Extra config, diagnostics
+
+    createdAt       DateTime        @default(now())
+    updatedAt       DateTime        @updatedAt
+
+    @@index([dutProduct, status])
+    @@index([status])
+    @@index([fixtureDesignId])
+    @@map("test_benches")
+}
+
 /// A software deployment tracked by Concord — test runners,
 /// operators, MTIB servers, etc. The actual K8s state is
 /// queried live; this table records intent and history.
@@ -408,6 +515,7 @@ model Session {
     name           String
     productId      String
     fixtureId      String? /// null for ad-hoc or validation sessions not tied to a fixture
+    pipelineRunId  String? /// links validation run to a CI pipeline (build jobs)
     status         SessionStatus @default(ACTIVE)
     config         Json? /// firmware versions, test parameters, thresholds
     targetCount    Int? /// target number of devices (null = open-ended)
@@ -421,12 +529,14 @@ model Session {
     createdAt      DateTime      @default(now())
     updatedAt      DateTime      @updatedAt
 
-    product   Product  @relation(fields: [productId], references: [id])
-    fixture   Fixture? @relation(fields: [fixtureId], references: [id], onDelete: SetNull)
-    createdBy User     @relation(fields: [createdById], references: [id])
-    devices   Device[]
+    product     Product      @relation(fields: [productId], references: [id])
+    fixture     Fixture?     @relation(fields: [fixtureId], references: [id], onDelete: SetNull)
+    createdBy   User         @relation(fields: [createdById], references: [id])
+    pipelineRun PipelineRun? @relation(fields: [pipelineRunId], references: [id], onDelete: SetNull)
+    devices     Device[]
 
     @@index([productId])
+    @@index([pipelineRunId])
     @@index([status])
     @@map("sessions")
 }
@@ -795,4 +905,125 @@ model IcleLog {
 
     @@unique([deviceId, filename])
     @@map("icle_logs")
+}
+
+// ─────────────────────────────────────────────────────────────
+//                                           CI / Build Jobs
+// ─────────────────────────────────────────────────────────────
+
+enum BuildJobStatus {
+    QUEUED
+    BUILDING
+    SUCCESS
+    FAILED
+    CANCELLED
+}
+
+model BuildJob {
+    id              String          @id @default(cuid())
+    product         String /// Legacy: repo slug ("alpha_fw")
+    productId       String? /// FK to Product (preferred)
+    productRef      Product?        @relation(fields: [productId], references: [id])
+    board           String
+    target          String
+    variant         String          @default("release")
+    mtibRev         String          @default("1.2")
+    branch          String
+    commitSha       String?
+    status          BuildJobStatus  @default(QUEUED)
+    versionMajor    Int?
+    versionMinor    Int?
+    buildNum        Int             @default(autoincrement())
+    versionString   String?
+    errorMessage    String?
+    buildLog        String?
+    webhookData     Json?
+    startedAt       DateTime?
+    finishedAt      DateTime?
+    durationSeconds Int?
+    createdAt       DateTime        @default(now())
+    updatedAt       DateTime        @updatedAt
+    artifacts       BuildJobArtifact[]
+
+    // Stage 4 matrix identification
+    matrixLabel     String? /// e.g., "MFG_BASE", "FUT_DEBUG_A", "FUT_RELEASE_B"
+    matrixIndex     Int? /// Position in build sequence (0-7 for Stage 4)
+    versionBump     Boolean         @default(false) /// True if this is a version-bumped build (same code, N+1)
+    baseJobId       String? /// If version-bumped, points to the base build job
+
+    // Pipeline relation - groups builds triggered together
+    pipelineRunId   String?
+    pipelineRun     PipelineRun?    @relation(fields: [pipelineRunId], references: [id])
+
+    @@index([product, branch])
+    @@index([matrixLabel])
+    @@index([productId])
+    @@index([status])
+    @@index([pipelineRunId])
+    @@map("build_jobs")
+}
+
+model BuildJobArtifact {
+    id          String   @id @default(cuid())
+    buildJobId  String
+    name        String
+    storageKey  String
+    sizeBytes   BigInt
+    checksum    String
+    createdAt   DateTime @default(now())
+
+    buildJob BuildJob @relation(fields: [buildJobId], references: [id], onDelete: Cascade)
+
+    @@index([buildJobId])
+    @@map("build_job_artifacts")
+}
+
+// Pipeline status tracks the overall build+validate workflow
+enum PipelineStatus {
+    PENDING      // Waiting for builds to start
+    BUILDING     // Builds in progress
+    BUILD_FAILED // One or more builds failed
+    VALIDATING   // Validation job running
+    SUCCESS      // All builds + validation passed
+    FAILED       // Validation failed
+    CANCELLED    // Pipeline cancelled
+}
+
+// Groups multiple builds (e.g., alpha_fw + alpha_mfg_fw) triggered by same commit
+model PipelineRun {
+    id              String          @id @default(cuid())
+    name            String?         // e.g., "alpha-main-abc1234"
+    product         String          // Base product (alpha, sigma5, theta)
+    board           String          // Board variant (alpha_b0)
+    branch          String
+    commitSha       String?
+    status          PipelineStatus  @default(PENDING)
+    triggerType     String          @default("manual") // manual, webhook, scheduled
+    triggerData     Json?           // Webhook payload or trigger config
+
+    // Build tracking
+    expectedBuilds  Int             @default(2) // How many builds to wait for
+    completedBuilds Int             @default(0)
+
+    // Stage 4 build matrix configuration
+    buildMatrix     Json? /// Matrix config: {mode: "stage4", labels: ["MFG_BASE", ...], mainRef: "main", prRef: "feature/x"}
+    matrixMode      String? /// "legacy" (4 builds) or "stage4" (8 builds)
+
+    // Validation tracking
+    validationRunId String?         // Links to ValidationRun when validation starts
+
+    // Timing
+    startedAt       DateTime?
+    finishedAt      DateTime?
+    createdAt       DateTime        @default(now())
+    updatedAt       DateTime        @updatedAt
+
+    // Relations
+    builds          BuildJob[]
+    sessions        Session[]  // Validation runs linked to this pipeline
+
+    @@index([product, branch])
+    @@index([status])
+    @@index([commitSha])
+    @@map("pipeline_runs")
 }

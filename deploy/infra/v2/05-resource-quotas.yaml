@@ -1,4 +1,14 @@
-# Production - highest resource allowance
+# Resource Quotas for Concord namespaces
+#
+# Updated 2026-03-09: Increased limits to support build workers
+# Each build worker needs: 4 CPU request, 8Gi memory request
+# With 3 builder nodes, staging needs at least 12 CPU + 24Gi memory just for builds
+#
+# Builder nodes are labeled: corekinect.com/purpose=builder
+# Build workers run as DaemonSet on all builder nodes
+
+---
+# Production - no build workers, moderate resources
 apiVersion: v1
 kind: ResourceQuota
 metadata:
@@ -6,16 +16,18 @@ metadata:
   namespace: production
 spec:
   hard:
-    requests.cpu: "4"
-    requests.memory: 8Gi
-    limits.cpu: "8"
-    limits.memory: 16Gi
-    persistentvolumeclaims: "10"
-    requests.storage: 40Gi
-    pods: "30"
+    requests.cpu: "10"
+    requests.memory: 20Gi
+    limits.cpu: "20"
+    limits.memory: 40Gi
+    persistentvolumeclaims: "15"
+    requests.storage: 100Gi
+    pods: "40"
 
 ---
-# Staging - moderate resources
+# Staging - includes build workers, needs high resources
+# Formula: base (4 CPU, 8Gi) + per-builder (4 CPU, 8Gi each) + headroom
+# With 3 builders: 4 + 12 + 4 = 20 CPU, 8 + 24 + 8 = 40Gi memory
 apiVersion: v1
 kind: ResourceQuota
 metadata:
@@ -23,16 +35,16 @@ metadata:
   namespace: staging
 spec:
   hard:
-    requests.cpu: "2"
-    requests.memory: 4Gi
-    limits.cpu: "4"
-    limits.memory: 8Gi
-    persistentvolumeclaims: "5"
-    requests.storage: 20Gi
-    pods: "20"
+    requests.cpu: "30"
+    requests.memory: 60Gi
+    limits.cpu: "50"
+    limits.memory: 100Gi
+    persistentvolumeclaims: "20"
+    requests.storage: 100Gi
+    pods: "50"
 
 ---
-# Dev - limited resources
+# Dev - limited resources (no builders)
 apiVersion: v1
 kind: ResourceQuota
 metadata:
@@ -40,10 +52,10 @@ metadata:
   namespace: dev
 spec:
   hard:
-    requests.cpu: "2"
-    requests.memory: 4Gi
-    limits.cpu: "4"
-    limits.memory: 8Gi
+    requests.cpu: "4"
+    requests.memory: 8Gi
+    limits.cpu: "8"
+    limits.memory: 16Gi
     persistentvolumeclaims: "5"
-    requests.storage: 10Gi
+    requests.storage: 20Gi
     pods: "20"

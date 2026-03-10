@@ -49,8 +49,12 @@ frontend:
 ingress:
   enabled: true
   host: staging.concord.local
+  className: traefik
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+  tls:
+    secretName: staging-concord-tls
 
 config:
   SERVER_PORT: "9001"
@@ -58,11 +62,41 @@ config:
   LOG_PATH: "logs"
   DB_STORAGE_PATH: "db"
   DB_STORAGE_LIMIT_GB: "64"
-  AUTH_ENABLED: "false"
+  AUTH_ENABLED: "true"
   ASSETS_FOLDER: "assets"
   CORS_ORIGINS: "https://staging.concord.local,http://staging.concord.local,http://localhost:4200"
   SUPPORTED_REGISTRIES: "none"
   MTIB_PORT: "50053"
+  # CI Pipeline — device identity defaults for validation K8s Jobs
+  DEVICE_ID: "70B3D584C01E1FCC"
+  DEVICE_SNR: "0964"
+  FIXTURE_PROFILE_PATH: "fixtures/alpha_b0.json"
+  PROXY_SERVER_URL: "http://10.4.45.30:8001"
+  DEVICE_IMEI: "355025931735979"
+  DEVICE_ICCIDS: "89148000008770457338,89012230001000370694"
+
+# Build Worker — DaemonSet on builder nodes
+buildWorker:
+  enabled: true
+  image:
+    repository: containers.ad.corekinect.com/ncs-build
+    tag: "2.7.0"
+  resources:
+    requests:
+      cpu: "4"
+      memory: "8Gi"
+    limits:
+      cpu: "8"
+      memory: "14Gi"
+  # NCS 2.4.2 for sigma5_fw
+  ncs242:
+    enabled: true
+    image: containers.ad.corekinect.com/ncs-build:2.4.2
+
+# Git Poller — polls alpha_fw and sigma5_fw repos for new commits
+gitPoller:
+  enabled: true
+  pollInterval: "15"
 
 secrets:
   DATABASE_URL: "postgresql://concord:concord-staging@concord-postgres:5432/concord"
@@ -81,3 +115,4 @@ secrets:
   AUTH_SERVER_URL: "https://auth.office.corekinect.cloud:2013"
   AUTH_SERVER_API_KEY: "LWh0dHBzOi8vY29yZW9wcy5vZmZpY2UuY29yZWtpbmVjdC5jbG91ZDoyMDEzLwAUAAAAAAAAAAMAAAAAAAAAAmh//0ARflK7w17yvqU8VDyvJsfWFKnXJGKYZIRyzKjKEJD63QHu16/+BGn5EAK6ezr71bqOxlMML5GK60sL3HnY4eSR"
   DELETE_ALL_KEY: "staging-delete-key"
+  BITBUCKET_WEBHOOK_SECRET: "concord-bitbucket-webhook-staging"

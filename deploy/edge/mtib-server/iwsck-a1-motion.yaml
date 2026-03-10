@@ -1,16 +1,16 @@
-# MTIB V1 server for validation node — REV 1.2
-# Node: verdin-imx8mm-15005665 (10.4.45.33)
+# MTIB V1 server for IWSCK-A1 validation — REV 1.2 with Motion
+# Node: verdin-imx8mm-15005700 (10.4.45.34)
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: mtib-server-validation-rev12
+  name: mtib-server-iwsck-a1
   labels:
-    app: mtib-server-validation-rev12
+    app: mtib-server-iwsck-a1
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: mtib-server-validation-rev12
+      app: mtib-server-iwsck-a1
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -19,39 +19,24 @@ spec:
   template:
     metadata:
       labels:
-        app: mtib-server-validation-rev12
+        app: mtib-server-iwsck-a1
     spec:
       terminationGracePeriodSeconds: 1
+      nodeSelector:
+        kubernetes.io/hostname: verdin-imx8mm-15005700
       initContainers:
       - name: remount-sys
         image: busybox:latest
         command: ['sh', '-c', 'mount -o remount,rw /sys']
         securityContext:
           privileged: true
-      affinity:
-        nodeAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            nodeSelectorTerms:
-            - matchExpressions:
-              - key: "corekinect.com/role"
-                operator: In
-                values:
-                - "edge"
-              - key: "corekinect.com/purpose"
-                operator: In
-                values:
-                - "validation"
-              - key: "corekinect.com/mtib-revision"
-                operator: In
-                values:
-                - "1.2"
       tolerations:
       - key: "corekinect.com/role"
         operator: "Equal"
         value: "edge"
         effect: "NoSchedule"
       containers:
-      - name: mtib-server-validation-rev12
+      - name: mtib-server
         image: containers.ad.corekinect.com/concord-mtib-server:latest
         imagePullPolicy: Always
         securityContext:
@@ -75,7 +60,7 @@ spec:
         - name: METRICS_BROKER_URL
           value: "mqtt://kubecop.ad.corekinect.com:1883"
         - name: MOTION_ENABLED
-          value: "false"    # Disabled until motion scaffold is verified
+          value: "true"
         volumeMounts:
         - name: devices
           mountPath: /dev
@@ -87,9 +72,6 @@ spec:
           mountPath: /sys/class/gpio
         - name: sys-bus-iio
           mountPath: /sys/bus/iio
-        - name: mtib-code
-          mountPath: /app/src
-          subPath: src
         resources:
           requests:
             cpu: "1000m"
@@ -113,6 +95,3 @@ spec:
       - name: sys-bus-iio
         hostPath:
           path: /sys/bus/iio
-      - name: mtib-code
-        hostPath:
-          path: /var/mtib-code
