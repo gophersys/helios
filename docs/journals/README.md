@@ -39,3 +39,9 @@ Daily/weekly development logs documenting progress on the Concord platform.
 8. **SvelteKit Migration** — Complete React-to-Svelte frontend migration
 9. **Multi-Product Support** — Validation scaffolding for Alpha, Sigma5, Theta
 10. **MTIB Server Fixes** — UART batching, streaming handlers, power control
+
+## Productivity Analysis
+
+See [productivity-analysis.md](productivity-analysis.md) for economics comparison vs traditional engineering teams.
+
+**TL;DR:** 307,400 lines in 5 weeks = **82-123x** output of a typical senior engineer, equivalent to $2.8M-$4.1M in traditional team costs.
