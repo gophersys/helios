@@ -400,7 +400,6 @@
         class:cursor-grabbing={isDragging}
         style="height: 400px;"
         onmousedown={handleMouseDown}
-        role="img"
         aria-label="Logic analyzer waveform display"
       ></canvas>
 

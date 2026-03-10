@@ -46,7 +46,7 @@
       return;
     }
 
-    if (!isNewCapture) {
+    if (!isNewCapture && nodeId) {
       // Load existing capture
       // In a real implementation, we'd fetch the capture from the backend
       analyzerStore.connect(nodeId);
@@ -301,7 +301,7 @@
   <!-- Waveform Viewer (full height) -->
   <div class="flex-1 min-h-0 bg-surface-0">
     {#if samplesCollected > 0}
-      <AnalyzerWaveformViewer />
+      <AnalyzerWaveformViewer captureId={captureId ?? ''} />
     {:else if !isCapturing}
       <div class="h-full flex items-center justify-center">
         <div class="text-center">

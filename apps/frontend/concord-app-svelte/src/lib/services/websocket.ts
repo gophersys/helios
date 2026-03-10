@@ -5,6 +5,7 @@ import type { ObservabilitySnapshot, AnalyzerSample } from '$lib/types/mtib';
 import type { IcleUpdateEvent } from '$lib/types/icle';
 
 let systemSocket: Socket | null = null;
+let validationSocket: Socket | null = null;
 
 export interface LogSubscription {
   namespace: string;
@@ -79,6 +80,64 @@ export function disconnectSystemSocket(): void {
   if (systemSocket) {
     systemSocket.disconnect();
     systemSocket = null;
+  }
+}
+
+// ── Validation Namespace ──────────────────────────────────────────────────────
+
+/**
+ * Get or create the Socket.IO connection to /validation namespace.
+ * Authenticates with JWT token.
+ */
+export function getValidationSocket(): Socket | null {
+  if (!browser) return null;
+
+  if (validationSocket?.connected) {
+    return validationSocket;
+  }
+
+  const token = getToken();
+  if (!token) {
+    console.warn('No auth token available for validation WebSocket connection');
+    return null;
+  }
+
+  // Close existing socket if any
+  if (validationSocket) {
+    validationSocket.disconnect();
+  }
+
+  // Create new socket connection
+  validationSocket = io('/validation', {
+    auth: { token },
+    transports: ['polling', 'websocket'],
+    reconnection: true,
+    reconnectionAttempts: 5,
+    reconnectionDelay: 1000,
+  });
+
+  validationSocket.on('connect', () => {
+    console.log('Validation WebSocket connected');
+  });
+
+  validationSocket.on('connect_error', (err) => {
+    console.error('Validation WebSocket connection error:', err.message);
+  });
+
+  validationSocket.on('disconnect', (reason) => {
+    console.log('Validation WebSocket disconnected:', reason);
+  });
+
+  return validationSocket;
+}
+
+/**
+ * Disconnect the validation socket.
+ */
+export function disconnectValidationSocket(): void {
+  if (validationSocket) {
+    validationSocket.disconnect();
+    validationSocket = null;
   }
 }
 
@@ -413,6 +472,195 @@ export function subscribeAnalyzer(
   };
 }
 
+// ── Validation Run Subscriptions ──────────────────────────────────────
+
+export interface ValidationTestStartEvent {
+  runId: string;
+  testName: string;
+  module: string | null;
+  executionId: string;
+  testIndex?: number;
+  totalTests?: number;
+}
+
+export interface ValidationTestResultEvent {
+  runId: string;
+  testName: string;
+  passed: boolean;
+  skipped?: boolean;
+  durationS: number | null;
+  errorMessage: string | null;
+  measurements: Record<string, unknown> | null;
+  logOutput: string | null;
+}
+
+export interface ValidationRunFinishEvent {
+  runId: string;
+  status: string;
+  total: number;
+  passed: number;
+  failed: number;
+  errors: number;
+  durationS: number | null;
+}
+
+export interface ValidationLogChunkEvent {
+  runId: string;
+  testName?: string;
+  file: string;
+  offset: number;
+  data: string;  // base64 encoded
+  chunk?: string; // raw text (alternative to base64)
+  timestamp: number;
+}
+
+/**
+ * Subscribe to real-time validation run events using the /kubernetes namespace.
+ * Receives test-start, test-result, and run-finish events as they happen.
+ *
+ * @deprecated Use subscribeValidationRunWithLogs for room-based subscription with log streaming.
+ */
+export function subscribeValidationRun(
+  runId: string,
+  callbacks: {
+    onTestStart?: (data: ValidationTestStartEvent) => void;
+    onTestResult?: (data: ValidationTestResultEvent) => void;
+    onRunFinish?: (data: ValidationRunFinishEvent) => void;
+    onRunStart?: (data: { runId: string; status: string }) => void;
+  },
+  onError?: (message: string) => void
+): () => void {
+  const socket = getSystemSocket();
+  if (!socket) {
+    onError?.('WebSocket not available');
+    return () => {};
+  }
+
+  const runStartHandler = (data: { runId: string; status: string }) => {
+    if (data.runId === runId) callbacks.onRunStart?.(data);
+  };
+
+  const testStartHandler = (data: ValidationTestStartEvent) => {
+    if (data.runId === runId) callbacks.onTestStart?.(data);
+  };
+
+  const testResultHandler = (data: ValidationTestResultEvent) => {
+    if (data.runId === runId) callbacks.onTestResult?.(data);
+  };
+
+  const runFinishHandler = (data: ValidationRunFinishEvent) => {
+    if (data.runId === runId) callbacks.onRunFinish?.(data);
+  };
+
+  socket.on('validation_run_start', runStartHandler);
+  socket.on('validation_test_start', testStartHandler);
+  socket.on('validation_test_result', testResultHandler);
+  socket.on('validation_run_finish', runFinishHandler);
+
+  return () => {
+    socket.off('validation_run_start', runStartHandler);
+    socket.off('validation_test_start', testStartHandler);
+    socket.off('validation_test_result', testResultHandler);
+    socket.off('validation_run_finish', runFinishHandler);
+  };
+}
+
+/**
+ * Subscribe to real-time validation run events using the /validation namespace.
+ * Uses room-based subscription for efficient event delivery.
+ * Supports log streaming alongside test events.
+ *
+ * @param runId - The validation run ID to subscribe to
+ * @param callbacks - Event handlers for test and log events
+ * @param onError - Optional error handler
+ * @returns Cleanup function to unsubscribe
+ */
+export function subscribeValidationRunWithLogs(
+  runId: string,
+  callbacks: {
+    onTestStart?: (data: ValidationTestStartEvent) => void;
+    onTestResult?: (data: ValidationTestResultEvent) => void;
+    onRunFinish?: (data: ValidationRunFinishEvent) => void;
+    onRunStart?: (data: { runId: string; status: string }) => void;
+    onLogChunk?: (data: ValidationLogChunkEvent) => void;
+  },
+  onError?: (message: string) => void
+): () => void {
+  const socket = getValidationSocket();
+  if (!socket) {
+    onError?.('Validation WebSocket not available');
+    return () => {};
+  }
+
+  // Event handlers - no need to filter by runId since we're in a room
+  const runStartHandler = (data: { runId: string; status: string }) => {
+    callbacks.onRunStart?.(data);
+  };
+
+  const testStartHandler = (data: ValidationTestStartEvent) => {
+    callbacks.onTestStart?.(data);
+  };
+
+  const testResultHandler = (data: ValidationTestResultEvent) => {
+    callbacks.onTestResult?.(data);
+  };
+
+  const runFinishHandler = (data: ValidationRunFinishEvent) => {
+    callbacks.onRunFinish?.(data);
+  };
+
+  const logChunkHandler = (data: ValidationLogChunkEvent) => {
+    callbacks.onLogChunk?.(data);
+  };
+
+  const errorHandler = (data: { message: string }) => {
+    onError?.(data.message);
+  };
+
+  const subscribedHandler = (data: { runId: string }) => {
+    console.log('Subscribed to validation run:', data.runId);
+  };
+
+  // Register handlers
+  socket.on('validation_run_start', runStartHandler);
+  socket.on('validation_test_start', testStartHandler);
+  socket.on('validation_test_result', testResultHandler);
+  socket.on('validation_run_finish', runFinishHandler);
+  socket.on('validation_log_chunk', logChunkHandler);
+  socket.on('error', errorHandler);
+  socket.on('subscribed', subscribedHandler);
+
+  // Subscribe to the run room
+  const emitSubscribe = () => {
+    socket.emit('subscribe_run', { runId });
+  };
+
+  const connectHandler = () => {
+    emitSubscribe();
+  };
+
+  if (socket.connected) {
+    emitSubscribe();
+  } else {
+    socket.on('connect', connectHandler);
+  }
+
+  // Return cleanup function
+  return () => {
+    socket.off('validation_run_start', runStartHandler);
+    socket.off('validation_test_start', testStartHandler);
+    socket.off('validation_test_result', testResultHandler);
+    socket.off('validation_run_finish', runFinishHandler);
+    socket.off('validation_log_chunk', logChunkHandler);
+    socket.off('error', errorHandler);
+    socket.off('subscribed', subscribedHandler);
+    socket.off('connect', connectHandler);
+    if (socket.connected) {
+      socket.emit('unsubscribe_run', { runId });
+    }
+  };
+}
+
 /**
  * Subscribe to ICLE device updates (status, power readings).
  *
@@ -467,6 +715,208 @@ export function subscribeIcle(
     socket.off('connect', connectHandler);
     if (socket.connected) {
       socket.emit('unsubscribe_icle', { deviceId });
+    }
+  };
+}
+
+// ── CI Build Subscriptions ────────────────────────────────────
+
+export interface CiBuildStartEvent {
+  buildId: string;
+  product: string;
+  branch: string;
+  status: string;
+}
+
+export interface CiBuildLogEvent {
+  buildId: string;
+  line: string;
+}
+
+export interface CiBuildCompleteEvent {
+  buildId: string;
+  status: string;
+  durationSeconds: number | null;
+  artifactCount: number;
+}
+
+export interface CiPipelineStartEvent {
+  pipelineId: string;
+  status: string;
+}
+
+export interface CiPipelineStageUpdateEvent {
+  pipelineId: string;
+  stage: string;
+  status: string;
+  detail: string | null;
+}
+
+export interface CiPipelineCompleteEvent {
+  pipelineId: string;
+  status: string;
+  durationSeconds: number | null;
+}
+
+/**
+ * Subscribe to real-time CI build events (log streaming, status changes).
+ */
+export function subscribeCiBuild(
+  buildId: string,
+  callbacks: {
+    onStart?: (data: CiBuildStartEvent) => void;
+    onLog?: (data: CiBuildLogEvent) => void;
+    onComplete?: (data: CiBuildCompleteEvent) => void;
+  },
+  onError?: (message: string) => void
+): () => void {
+  const socket = getSystemSocket();
+  if (!socket) {
+    onError?.('WebSocket not available');
+    return () => {};
+  }
+
+  const startHandler = (data: CiBuildStartEvent) => {
+    if (data.buildId === buildId) callbacks.onStart?.(data);
+  };
+
+  const logHandler = (data: CiBuildLogEvent) => {
+    if (data.buildId === buildId) callbacks.onLog?.(data);
+  };
+
+  const completeHandler = (data: CiBuildCompleteEvent) => {
+    if (data.buildId === buildId) callbacks.onComplete?.(data);
+  };
+
+  socket.on('ci_build_start', startHandler);
+  socket.on('ci_build_log', logHandler);
+  socket.on('ci_build_complete', completeHandler);
+
+  return () => {
+    socket.off('ci_build_start', startHandler);
+    socket.off('ci_build_log', logHandler);
+    socket.off('ci_build_complete', completeHandler);
+  };
+}
+
+/**
+ * Subscribe to real-time CI pipeline events (stage transitions, completion).
+ */
+export function subscribeCiPipeline(
+  pipelineId: string,
+  callbacks: {
+    onStart?: (data: CiPipelineStartEvent) => void;
+    onStageUpdate?: (data: CiPipelineStageUpdateEvent) => void;
+    onComplete?: (data: CiPipelineCompleteEvent) => void;
+  },
+  onError?: (message: string) => void
+): () => void {
+  const socket = getSystemSocket();
+  if (!socket) {
+    onError?.('WebSocket not available');
+    return () => {};
+  }
+
+  const startHandler = (data: CiPipelineStartEvent) => {
+    if (data.pipelineId === pipelineId) callbacks.onStart?.(data);
+  };
+
+  const stageHandler = (data: CiPipelineStageUpdateEvent) => {
+    if (data.pipelineId === pipelineId) callbacks.onStageUpdate?.(data);
+  };
+
+  const completeHandler = (data: CiPipelineCompleteEvent) => {
+    if (data.pipelineId === pipelineId) callbacks.onComplete?.(data);
+  };
+
+  socket.on('ci_pipeline_start', startHandler);
+  socket.on('ci_pipeline_stage_update', stageHandler);
+  socket.on('ci_pipeline_complete', completeHandler);
+
+  return () => {
+    socket.off('ci_pipeline_start', startHandler);
+    socket.off('ci_pipeline_stage_update', stageHandler);
+    socket.off('ci_pipeline_complete', completeHandler);
+  };
+}
+
+// ── Validation Log Streaming ────────────────────────────────────
+
+export interface ValidationLogSubscription {
+  runId: string;
+  testName: string;
+  file: string;
+}
+
+/**
+ * Subscribe to real-time validation log streaming for a specific test file.
+ * Supports gap detection and recovery via offset tracking.
+ *
+ * @param subscription - Log file subscription details
+ * @param onChunk - Callback for log chunks with offset info
+ * @param onError - Optional error handler
+ * @returns Cleanup function to unsubscribe
+ */
+export function subscribeValidationLogs(
+  subscription: ValidationLogSubscription,
+  onChunk: (data: { offset: number; chunk: string }) => void,
+  onError?: (message: string) => void
+): () => void {
+  const socket = getSystemSocket();
+  if (!socket) {
+    onError?.('WebSocket not available');
+    return () => {};
+  }
+
+  const { runId, testName, file } = subscription;
+
+  const chunkHandler = (data: ValidationLogChunkEvent) => {
+    // Filter to this specific file
+    if (data.runId !== runId || data.testName !== testName || data.file !== file) {
+      return;
+    }
+
+    // Decode base64 if needed, otherwise use raw chunk
+    let chunk = data.chunk || '';
+    if (data.data && !chunk) {
+      try {
+        chunk = atob(data.data);
+      } catch {
+        chunk = data.data;
+      }
+    }
+
+    onChunk({ offset: data.offset, chunk });
+  };
+
+  const errorHandler = (data: { message: string }) => {
+    onError?.(data.message);
+  };
+
+  socket.on('validation_log_chunk', chunkHandler);
+  socket.on('validation_log_error', errorHandler);
+
+  // Subscribe to log stream
+  const emitSubscribe = () => {
+    socket.emit('subscribe_validation_logs', { runId, testName, file });
+  };
+
+  const connectHandler = () => {
+    emitSubscribe();
+  };
+
+  if (socket.connected) {
+    emitSubscribe();
+  } else {
+    socket.on('connect', connectHandler);
+  }
+
+  return () => {
+    socket.off('validation_log_chunk', chunkHandler);
+    socket.off('validation_log_error', errorHandler);
+    socket.off('connect', connectHandler);
+    if (socket.connected) {
+      socket.emit('unsubscribe_validation_logs', { runId, testName, file });
     }
   };
 }

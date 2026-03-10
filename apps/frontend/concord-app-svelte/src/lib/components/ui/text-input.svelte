@@ -23,7 +23,7 @@
     onchange
   }: Props = $props();
 
-  const fallbackId = crypto.randomUUID();
+  const fallbackId = crypto.randomUUID?.() ?? Math.random().toString(36).slice(2);
   const inputId = $derived(id ?? fallbackId);
 
   function handleInput(e: Event): void {

@@ -32,7 +32,7 @@
     onchange?: (e: Event) => void;
   } = $props();
 
-  const selectId = crypto.randomUUID();
+  const selectId = crypto.randomUUID?.() ?? Math.random().toString(36).slice(2);
 
   let open = $state(false);
   let triggerEl = $state<HTMLButtonElement | null>(null);

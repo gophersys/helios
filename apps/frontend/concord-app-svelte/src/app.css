@@ -451,4 +451,34 @@
   .scroll-smooth {
     scroll-behavior: smooth;
   }
+
+  /* ─────────────────────────────────────────────────────────────────────
+     ANSI TERMINAL COLORS - For build log rendering
+     ───────────────────────────────────────────────────────────────────── */
+  .ansi-black { color: #2e2e2e; }
+  .ansi-red { color: #c75646; }
+  .ansi-green { color: #8eb33b; }
+  .ansi-yellow { color: #d0b03c; }
+  .ansi-blue { color: #4e90d7; }
+  .ansi-magenta { color: #c26fc0; }
+  .ansi-cyan { color: #55bebe; }
+  .ansi-white { color: #d0d0d0; }
+
+  .ansi-bright-black { color: #5c5c5c; }
+  .ansi-bright-red { color: #e09690; }
+  .ansi-bright-green { color: #cdee69; }
+  .ansi-bright-yellow { color: #ffe377; }
+  .ansi-bright-blue { color: #6dbcfa; }
+  .ansi-bright-magenta { color: #e4b5db; }
+  .ansi-bright-cyan { color: #9aedfe; }
+  .ansi-bright-white { color: #f7f7f7; }
+
+  .ansi-bold { font-weight: 700; }
+  .ansi-dim { opacity: 0.6; }
+  .ansi-italic { font-style: italic; }
+  .ansi-underline { text-decoration: underline; }
+
+  /* Dark mode adjustments for ANSI colors */
+  .dark .ansi-black { color: #6c6c6c; }
+  .dark .ansi-white { color: #f0f0f0; }
 }

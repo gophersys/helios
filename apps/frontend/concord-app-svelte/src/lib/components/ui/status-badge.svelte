@@ -23,12 +23,19 @@
     // Execution statuses
     QUEUED: 'bg-surface-2 text-text-secondary',
     PASSED: 'bg-success-muted text-success',
+    SKIPPED: 'bg-surface-2 text-text-tertiary',
+    // Build / CI statuses
+    BUILDING: 'bg-accent-muted text-accent',
+    SUCCESS: 'bg-success-muted text-success',
     // Type badges
     MANUFACTURING: 'bg-accent-muted text-accent',
     VALIDATION: 'bg-info-muted text-info',
     // Lifecycle states
     REGISTERED: 'bg-info-muted text-info',
     ASSIGNED: 'bg-success-muted text-success',
+    // Test bench statuses
+    AVAILABLE: 'bg-success-muted text-success',
+    LOCKED: 'bg-warning-muted text-warning',
     // Health statuses
     HEALTHY: 'bg-success-muted text-success',
     DEGRADED: 'bg-warning-muted text-warning',

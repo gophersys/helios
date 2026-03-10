@@ -44,6 +44,7 @@
     tabindex="0"
     aria-expanded={open}
     aria-haspopup="listbox"
+    aria-controls="chipset-listbox"
     aria-label="Select chipsets"
     onclick={() => (open = !open)}
     onkeydown={(e) => e.key === 'Enter' && (open = !open)}
@@ -69,11 +70,12 @@
   </div>
 
   {#if open && available.length > 0}
-    <div role="listbox" class="absolute left-0 right-0 top-full z-20 mt-1 max-h-48 overflow-y-auto rounded-lg border border-border bg-surface-1 py-1 shadow-card">
+    <div id="chipset-listbox" role="listbox" class="absolute left-0 right-0 top-full z-20 mt-1 max-h-48 overflow-y-auto rounded-lg border border-border bg-surface-1 py-1 shadow-card">
       {#each available as opt}
         <button
           type="button"
           role="option"
+          aria-selected="false"
           onclick={() => add(opt.id)}
           class="w-full px-3 py-1.5 text-left text-sm text-text-primary hover:bg-surface-2"
         >

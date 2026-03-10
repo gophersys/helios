@@ -148,3 +148,215 @@ export function pluralize(count: number, singular: string, plural?: string): str
   const word = count === 1 ? singular : (plural || singular + 's');
   return `${count} ${word}`;
 }
+
+// ANSI color code mapping to CSS classes
+const ANSI_COLORS: Record<number, string> = {
+  // Standard colors (foreground 30-37)
+  30: 'ansi-black',
+  31: 'ansi-red',
+  32: 'ansi-green',
+  33: 'ansi-yellow',
+  34: 'ansi-blue',
+  35: 'ansi-magenta',
+  36: 'ansi-cyan',
+  37: 'ansi-white',
+  // Bright colors (foreground 90-97)
+  90: 'ansi-bright-black',
+  91: 'ansi-bright-red',
+  92: 'ansi-bright-green',
+  93: 'ansi-bright-yellow',
+  94: 'ansi-bright-blue',
+  95: 'ansi-bright-magenta',
+  96: 'ansi-bright-cyan',
+  97: 'ansi-bright-white',
+};
+
+const ANSI_STYLES: Record<number, string> = {
+  1: 'ansi-bold',
+  2: 'ansi-dim',
+  3: 'ansi-italic',
+  4: 'ansi-underline',
+};
+
+/**
+ * Convert ANSI escape sequences to HTML with CSS classes.
+ * Handles common color codes and text styles.
+ * @example ansiToHtml("\x1b[32mSuccess\x1b[0m") // '<span class="ansi-green">Success</span>'
+ */
+export function ansiToHtml(text: string): string {
+  // Match ANSI escape sequences: ESC[...m
+  const ansiRegex = /\x1b\[([0-9;]*)m/g;
+
+  let result = '';
+  let lastIndex = 0;
+  let openSpans = 0;
+  let match;
+
+  while ((match = ansiRegex.exec(text)) !== null) {
+    // Add text before this escape sequence (escaped for HTML)
+    result += escapeHtml(text.slice(lastIndex, match.index));
+    lastIndex = match.index + match[0].length;
+
+    const codes = match[1].split(';').map(c => parseInt(c, 10) || 0);
+
+    for (const code of codes) {
+      if (code === 0) {
+        // Reset - close all open spans
+        while (openSpans > 0) {
+          result += '</span>';
+          openSpans--;
+        }
+      } else {
+        const colorClass = ANSI_COLORS[code];
+        const styleClass = ANSI_STYLES[code];
+        const cssClass = colorClass || styleClass;
+
+        if (cssClass) {
+          result += `<span class="${cssClass}">`;
+          openSpans++;
+        }
+      }
+    }
+  }
+
+  // Add remaining text
+  result += escapeHtml(text.slice(lastIndex));
+
+  // Close any remaining open spans
+  while (openSpans > 0) {
+    result += '</span>';
+    openSpans--;
+  }
+
+  return result;
+}
+
+/**
+ * Escape HTML special characters.
+ */
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+/**
+ * Strip ANSI escape sequences from text.
+ * @example stripAnsi("\x1b[32mSuccess\x1b[0m") // "Success"
+ */
+export function stripAnsi(text: string): string {
+  return text.replace(/\x1b\[[0-9;]*m/g, '');
+}
+
+/** Build log analysis result */
+export interface LogAnalysis {
+  errors: string[];
+  warnings: string[];
+  errorCount: number;
+  warningCount: number;
+}
+
+/**
+ * Check if a line starts a new warning or error block.
+ */
+function isNewErrorLine(line: string): boolean {
+  return (
+    /:\d+:\d+: error:/.test(line) ||
+    /^error:/i.test(line) ||
+    /undefined reference to/.test(line) ||
+    /multiple definition of/.test(line) ||
+    /^CMake Error/i.test(line) ||
+    /^-- Configuring incomplete/i.test(line) ||
+    /FAILED:|ninja: build stopped/i.test(line) ||
+    /error: Aborting due to Kconfig/.test(line)
+  );
+}
+
+function isNewWarningLine(line: string): boolean {
+  return (
+    /:\d+:\d+: warning:/.test(line) ||
+    /^warning:/i.test(line) ||
+    /^CMake Warning/i.test(line) ||
+    (/deprecated/i.test(line) && /warning/i.test(line))
+  );
+}
+
+/**
+ * Analyze build log for errors and warnings.
+ * Extracts GCC/compiler errors, linker errors, and build system warnings.
+ * Captures multi-line messages (Kconfig warnings, CMake warnings, etc.)
+ */
+export function analyzeBuildLog(log: string): LogAnalysis {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+
+  const lines = log.split('\n');
+
+  let currentEntry: string[] = [];
+  let currentType: 'error' | 'warning' | null = null;
+
+  function flushEntry() {
+    if (currentEntry.length > 0 && currentType) {
+      const message = currentEntry.join(' ').trim();
+      if (currentType === 'error') {
+        errors.push(message);
+      } else {
+        warnings.push(message);
+      }
+    }
+    currentEntry = [];
+    currentType = null;
+  }
+
+  for (let i = 0; i < lines.length; i++) {
+    const stripped = stripAnsi(lines[i]);
+    const trimmed = stripped.trim();
+
+    // Skip empty lines - they end multi-line entries
+    if (!trimmed) {
+      flushEntry();
+      continue;
+    }
+
+    // Check if this starts a new error
+    if (isNewErrorLine(stripped)) {
+      flushEntry();
+      currentType = 'error';
+      currentEntry.push(trimmed);
+      continue;
+    }
+
+    // Check if this starts a new warning
+    if (isNewWarningLine(stripped)) {
+      flushEntry();
+      currentType = 'warning';
+      currentEntry.push(trimmed);
+      continue;
+    }
+
+    // If we're currently collecting an entry, append continuation lines
+    // Continuation lines typically start with whitespace or are indented
+    if (currentType && currentEntry.length > 0) {
+      // If line starts with whitespace or looks like a continuation (not a new log line)
+      if (/^\s/.test(stripped) || !/^[\[\-\d]/.test(stripped)) {
+        currentEntry.push(trimmed);
+      } else {
+        // This looks like a new unrelated line, flush and skip
+        flushEntry();
+      }
+    }
+  }
+
+  // Flush any remaining entry
+  flushEntry();
+
+  return {
+    errors,
+    warnings,
+    errorCount: errors.length,
+    warningCount: warnings.length,
+  };
+}

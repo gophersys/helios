@@ -6,12 +6,12 @@ export function createFocusTrap(container: HTMLElement) {
 
   function getFocusableElements(): HTMLElement[] {
     return Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(
-      (el) => \!el.hasAttribute('disabled') && el.offsetParent \!== null
+      (el) => !el.hasAttribute('disabled') && el.offsetParent !== null
     );
   }
 
   function handleKeydown(e: KeyboardEvent) {
-    if (e.key \!== 'Tab') return;
+    if (e.key !== 'Tab') return;
 
     const focusable = getFocusableElements();
     if (focusable.length === 0) return;

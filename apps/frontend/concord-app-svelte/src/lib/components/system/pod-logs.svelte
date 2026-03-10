@@ -4,7 +4,7 @@
   import Select from '$lib/components/ui/select.svelte';
   import { subscribeLogs } from '$lib/services/websocket';
   import { apiFetch } from '$lib/api';
-  import type { ApiResponse } from '$lib/types/api';
+  import type { ApiResponse } from '$lib/types';
 
   interface Props {
     namespace: string;

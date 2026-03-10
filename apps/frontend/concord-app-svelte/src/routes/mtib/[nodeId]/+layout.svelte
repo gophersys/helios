@@ -54,7 +54,7 @@
     return currentPath.startsWith(tab.path);
   });
 
-  const isOnline = $derived(nodeInfo?.deploymentStatus?.readyReplicas > 0);
+  const isOnline = $derived((nodeInfo?.deploymentStatus?.readyReplicas ?? 0) > 0);
   const lastSeen = $derived(nodeInfo?.lastSeenAt ? new Date(nodeInfo.lastSeenAt).toLocaleString() : null);
 </script>
 

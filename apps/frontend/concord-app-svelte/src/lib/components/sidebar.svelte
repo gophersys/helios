@@ -5,6 +5,7 @@
   import {
     LayoutDashboard,
     FlaskConical,
+    Hammer,
     Warehouse,
     Wrench,
     Settings,
@@ -16,7 +17,13 @@
     LogOut,
     PanelLeftClose,
     Monitor,
-    Rocket
+    Rocket,
+    Activity,
+    ChevronDown,
+    ChevronUp,
+    Shield,
+    Factory,
+    Boxes,
   } from 'lucide-svelte';
   import { PUBLIC_APP_VERSION } from '$env/static/public';
   import { getTheme } from '$lib/stores/theme.svelte';
@@ -24,9 +31,12 @@
   import ConcordLogo from '$lib/components/concord-logo.svelte';
   import KubernetesIcon from '$lib/components/icons/kubernetes-icon.svelte';
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  type IconComponent = any;
+
   interface NavItem {
     to: string;
-    icon: typeof LayoutDashboard;
+    icon: IconComponent;
     label: string;
     permission?: string;
   }
@@ -48,13 +58,14 @@
   const STORAGE_KEY = 'concord-mode';
 
   function getInitialMode(): Mode {
-    if (!browser) return 'manufacturing';
+    if (!browser) return 'validation';
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored === 'manufacturing' || stored === 'validation') return stored;
-    return 'manufacturing';
+    return 'validation';
   }
 
   let mode = $state<Mode>(getInitialMode());
+  let adminExpanded = $state(false);
 
   function handleModeChange(newMode: Mode): void {
     mode = newMode;
@@ -63,27 +74,30 @@
     }
   }
 
-  const navItems = $derived.by(() => {
-    const items: NavItem[] = [
-      { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
-      { to: '/fixtures', icon: Wrench, label: 'Fixtures' },
-    ];
+  // Mode-specific navigation items
+  const modeNavItems = $derived.by(() => {
     if (mode === 'validation') {
-      items.push({ to: '/racks', icon: Monitor, label: 'Racks' });
+      return [
+        { to: '/validation/runs', icon: Activity, label: 'Runs' },
+        { to: '/ci', icon: Hammer, label: 'Builds', permission: 'Concord.Admin.CI.View' },
+        { to: '/validation/benches', icon: Cpu, label: 'Benches' },
+        { to: '/validation/designs', icon: Wrench, label: 'Designs' },
+      ];
+    } else {
+      return [
+        { to: '/fixtures', icon: Wrench, label: 'Fixtures' },
+        { to: '/inventory', icon: Warehouse, label: 'Inventory' },
+        { to: '/catalog', icon: Package, label: 'Catalog' },
+      ];
     }
-    items.push({ to: '/tests', icon: FlaskConical, label: 'Tests' });
-    return items;
   });
 
+  // Admin items - system management pages
   const adminItems: NavItem[] = [
-    { to: '/mtib', icon: Cpu, label: 'MTIB', permission: 'Concord.Admin.Nodes.View' },
+    { to: '/mtib', icon: Cpu, label: 'MTIB Nodes', permission: 'Concord.Admin.Nodes.View' },
     { to: '/kubernetes', icon: KubernetesIcon, label: 'Kubernetes', permission: 'Concord.Admin.System.View' },
     { to: '/deployments', icon: Rocket, label: 'Deployments', permission: 'Concord.Admin.Deployments.View' },
-    { to: '/inventory', icon: Warehouse, label: 'Inventory', permission: 'Concord.Admin.Inventory.View' },
-    { to: '/catalog', icon: Package, label: 'Catalog', permission: 'Concord.Admin.Catalog.View' },
-    { to: '/fixtures', icon: Wrench, label: 'Fixtures', permission: 'Concord.Admin.Fixtures.View' },
     { to: '/codebases', icon: GitBranch, label: 'Codebases', permission: 'Concord.Admin.Codebases.View' },
-    { to: '/validation/runs', icon: FlaskConical, label: 'Validation', permission: 'Concord.Admin.Validation.View' },
     { to: '/history', icon: History, label: 'History', permission: 'Concord.Admin.History.View' },
     { to: '/users', icon: Users, label: 'Users', permission: 'Concord.Admin.Users.View' },
   ];
@@ -130,7 +144,7 @@
     {/if}
     <item.icon size={18} strokeWidth={1.75} class="shrink-0" />
     {#if !collapsed}
-      <span class="truncate">{item.label}</span>
+      <span class="flex-1 truncate">{item.label}</span>
     {/if}
   </a>
 {/snippet}
@@ -139,6 +153,7 @@
   class="fixed inset-y-0 left-0 z-fixed flex flex-col border-r border-border bg-sidebar-bg transition-[width] duration-200 ease-out"
   style:width={collapsed ? 'var(--sidebar-collapsed-width)' : 'var(--sidebar-width)'}
 >
+  <!-- Logo -->
   <div
     class="flex h-16 items-center"
     class:justify-center={collapsed}
@@ -184,8 +199,9 @@
 
   <div class="border-t border-border" class:mx-2={collapsed} class:mx-4={!collapsed}></div>
 
+  <!-- Mode Toggle -->
   <div
-    class="flex overflow-hidden rounded-lg bg-surface-2 p-0.5"
+    class="flex rounded-lg bg-surface-2 p-0.5"
     class:mx-2={collapsed}
     class:mt-3={true}
     class:mx-4={!collapsed}
@@ -220,38 +236,81 @@
     </button>
   </div>
 
+  <!-- Mode-specific Navigation -->
   <nav
-    class="flex-1 space-y-1 pt-4 pb-2"
+    class="space-y-1 pt-4"
     class:px-2={collapsed}
     class:px-3={!collapsed}
   >
-    {#each navItems as item}
-      {@render navLink(item, item.to === '/')}
+    <!-- Dashboard always visible -->
+    {@render navLink({ to: '/', icon: LayoutDashboard, label: 'Dashboard' }, true)}
+
+    <!-- Mode-specific items -->
+    {#each modeNavItems as item}
+      {@render navLink(item)}
     {/each}
-
-    {#if isAdmin}
-      <div class="pt-4">
-        <div class="border-t border-border" class:mx-0={collapsed} class:mx-1={!collapsed}></div>
-        <div class="pt-4">
-          {#if !collapsed}
-            <span class="mb-2 block px-3 text-2xs font-medium uppercase tracking-widest text-text-tertiary">
-              Admin
-            </span>
-          {/if}
-
-          {#each visibleAdminItems as item}
-            {@render navLink(item)}
-          {/each}
-        </div>
-      </div>
-    {/if}
   </nav>
 
+  <!-- Spacer -->
+  <div class="flex-1"></div>
+
+  <!-- Admin Section (expands upward) -->
+  {#if isAdmin && adminExpanded}
+    <div
+      class="border-t border-border space-y-1 overflow-hidden transition-all duration-200"
+      class:px-2={collapsed}
+      class:px-3={!collapsed}
+      class:py-3={true}
+    >
+      {#if !collapsed}
+        <span class="px-3 pb-1 block text-2xs font-medium uppercase tracking-widest text-text-tertiary">
+          Admin
+        </span>
+      {/if}
+      {#each visibleAdminItems as item}
+        {@render navLink(item)}
+      {/each}
+    </div>
+  {/if}
+
+  <!-- Footer: Admin toggle, Settings, User -->
   <div
     class="border-t border-border space-y-1"
     class:p-2={collapsed}
     class:p-3={!collapsed}
   >
+    <!-- Admin Toggle Button -->
+    {#if isAdmin}
+      <button
+        onclick={() => (adminExpanded = !adminExpanded)}
+        title={collapsed ? (adminExpanded ? 'Hide Admin' : 'Show Admin') : undefined}
+        class="group relative flex w-full items-center rounded-lg text-sm font-medium transition-all"
+        class:justify-center={collapsed}
+        class:px-0={collapsed}
+        class:py-2={true}
+        class:gap-3={!collapsed}
+        class:px-3={!collapsed}
+        class:bg-sidebar-active={adminExpanded}
+        class:text-accent={adminExpanded}
+        class:text-text-secondary={!adminExpanded}
+        class:hover:bg-sidebar-hover={!adminExpanded}
+        class:hover:text-text-primary={!adminExpanded}
+      >
+        {#if adminExpanded}
+          <div class="absolute left-0 top-1/2 h-4 w-0.5 -translate-y-1/2 rounded-r bg-accent"></div>
+        {/if}
+        <Shield size={18} strokeWidth={1.75} class="shrink-0" />
+        {#if !collapsed}
+          <span class="flex-1 truncate">Admin</span>
+          <ChevronUp
+            size={14}
+            class="shrink-0 transition-transform duration-200 {adminExpanded ? '' : 'rotate-180'}"
+          />
+        {/if}
+      </button>
+    {/if}
+
+    <!-- Settings -->
     <button
       onclick={onSettingsClick}
       ondblclick={onToggle}
@@ -267,6 +326,7 @@
       {#if !collapsed}<span class="truncate">Settings</span>{/if}
     </button>
 
+    <!-- User -->
     {#if auth.user}
       <div
         class="mt-1 flex items-center rounded-lg"

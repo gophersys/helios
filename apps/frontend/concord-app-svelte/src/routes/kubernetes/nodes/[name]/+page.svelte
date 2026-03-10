@@ -109,7 +109,7 @@
       // Find MTIB with a pod on this node
       mtibNode = mtibs.find(mtib => {
         const pods = mtib.deploymentStatus?.pods || [];
-        return pods.some(pod => pod.nodeName === nodeName);
+        return pods.some((pod: { nodeName: string | null }) => pod.nodeName === nodeName);
       }) || null;
     } catch {
       // Silently fail - MTIB features are optional

@@ -519,7 +519,7 @@ export interface ValidationExecution {
   testId: string;
   nodeId: string;
   deviceId: string;
-  status: 'QUEUED' | 'RUNNING' | 'PASSED' | 'FAILED' | 'CANCELLED';
+  status: 'QUEUED' | 'RUNNING' | 'PASSED' | 'FAILED' | 'CANCELLED' | 'SKIPPED';
   config: Record<string, unknown> | null;
   startedAt: string | null;
   finishedAt: string | null;
@@ -587,6 +587,7 @@ export interface ConcordNode {
   ipAddress: string | null;
   hardwareRevision: string | null;
   metadata: Record<string, unknown> | null;
+  lastSeenAt?: string | null;
   deploymentStatus?: {
     name: string;
     replicas: number;
@@ -805,4 +806,70 @@ export interface DeploymentK8sStatus {
       restarts: number;
     }[];
   }[];
+}
+
+// ── Validation Infrastructure ─────────────────────────────────
+
+export interface FixtureDesign {
+  id: string;
+  name: string;
+  product: string;
+  revision: string;
+  capabilities: string[];
+  profileTemplate: Record<string, unknown>;
+  schematicUrl: string | null;
+  bomUrl: string | null;
+  assemblyGuide: string | null;
+  notes: string | null;
+  benchCount?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FixtureDesignSummary {
+  id: string;
+  name: string;
+  product: string;
+  revision: string;
+  capabilities: string[];
+  benchCount?: number;
+  createdAt: string;
+}
+
+export interface TestBench {
+  id: string;
+  stationId: string;
+  name: string;
+  mtibAddress: string;
+  mtibRevision: string | null;
+  capabilities: string[];
+  fixtureDesignId: string | null;
+  fixtureDesign?: FixtureDesignSummary;
+  profileOverrides: Record<string, unknown> | null;
+  dutProduct: string;
+  dutRevision: string;
+  dutDeviceId: string | null;
+  dutSnr: string | null;
+  dutImei: string | null;
+  dutIccids: string[];
+  jlinkAppSerial: string | null;
+  jlinkCommsSerial: string | null;
+  uartAppPath: string | null;
+  uartCommsPath: string | null;
+  status: 'AVAILABLE' | 'LOCKED' | 'OFFLINE' | 'MAINTENANCE';
+  lockedBy: string | null;
+  lockedAt: string | null;
+  lastHealthCheck: string | null;
+  metadata: Record<string, unknown> | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UnregisteredMtib {
+  hostname: string;
+  ip: string;
+  mtibAddress: string;
+  hardwareRevision: string | null;
+  labels: Record<string, string>;
+  ready: boolean;
 }

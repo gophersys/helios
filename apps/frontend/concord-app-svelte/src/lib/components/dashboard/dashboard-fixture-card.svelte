@@ -56,7 +56,7 @@
 
 <button
   {onclick}
-  class="card card-interactive w-full text-left"
+  class="card card-md card-interactive w-full text-left"
 >
   <!-- Top row: type badge + health dot -->
   <div class="flex items-center justify-between">
