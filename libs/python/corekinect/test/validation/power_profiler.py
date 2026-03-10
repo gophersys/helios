@@ -4,15 +4,15 @@ Records power measurements via MTIB V1 PowerMeasure/PowerStream RPCs
 and computes per-test statistics (avg, peak, energy).
 """
 
-import logging
 import threading
 import time
 from dataclasses import dataclass, field
 from typing import List, Optional, Tuple
 
 from corekinect.mtib_client.v1.client.core import MtibV1Client
+from corekinect.utils import Logger
 
-log = logging.getLogger(__name__)
+log = Logger(log_name="power_profiler")
 
 
 @dataclass

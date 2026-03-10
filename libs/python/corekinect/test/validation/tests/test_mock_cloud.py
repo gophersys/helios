@@ -5,7 +5,9 @@ timing, predicate filtering, and CloudClient API compatibility.
 """
 
 import time
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
+
+from corekinect.utils.timeutil.tzutils import dt_to_utc
 
 import pytest
 
@@ -131,12 +133,12 @@ class TestMessageFactory:
 
     def test_factory_timestamps_auto_set(self):
         """All factories auto-set time_of_record to now if not provided."""
-        before = datetime.now(timezone.utc)
+        before = dt_to_utc(datetime.utcnow())
         boot = MessageFactory.boot()
         pos = MessageFactory.position()
         bio = MessageFactory.biometric()
         net = MessageFactory.network_status()
-        after = datetime.now(timezone.utc)
+        after = dt_to_utc(datetime.utcnow())
 
         for msg in [boot, pos, bio, net]:
             assert before <= msg.time_of_record <= after
@@ -194,13 +196,13 @@ class TestMockCloudClientInterface:
         client = MockCloudClient(device_id=0x1234)
         client.mark_test_start()
         result = client.check_hw_failures()
-        assert result == []
+        assert result.get("hasFailures") is False
 
     def test_has_check_comms_hw_failures(self):
         client = MockCloudClient(device_id=0x1234)
         client.mark_test_start()
         result = client.check_comms_hw_failures()
-        assert result == []
+        assert result.get("hasFailures") is False
 
     def test_has_wait_for_message(self):
         client = MockCloudClient(device_id=0x1234)
@@ -277,14 +279,16 @@ class TestMockCloudClientInjection:
 
     def test_check_hw_failures_returns_injected(self, client):
         client.inject(MessageFactory.hw_failure(device_id=0x1234, gps_fails=0x80))
-        failures = client.check_hw_failures()
-        assert len(failures) == 1
-        assert failures[0].gps_fails == 0x80
+        result = client.check_hw_failures()
+        assert result["hasFailures"] is True
+        assert len(result["failures"]) == 1
+        assert result["failures"][0].gps_fails == 0x80
 
     def test_check_comms_hw_failures_returns_injected(self, client):
         client.inject(MessageFactory.comms_hw_failure(device_id=0x1234, sim_fails=0x80))
-        failures = client.check_comms_hw_failures()
-        assert len(failures) == 1
+        result = client.check_comms_hw_failures()
+        assert result["hasFailures"] is True
+        assert len(result["failures"]) == 1
 
     def test_query_messages_returns_all(self, client):
         from corekinect.core_cloud.msg_def_v1_0 import BootMsgV2
@@ -313,7 +317,7 @@ class TestMockCloudClientInjection:
     def test_messages_only_after_mark_test_start(self, client):
         """Messages injected before mark_test_start are not visible."""
         from corekinect.core_cloud.msg_def_v1_0 import BootMsgV2
-        old_time = datetime.now(timezone.utc) - timedelta(hours=1)
+        old_time = dt_to_utc(datetime.utcnow()) - timedelta(hours=1)
         client.inject(MessageFactory.boot(device_id=0x1234, time_of_record=old_time))
         # Re-mark test start (simulates new test)
         client.mark_test_start()
@@ -420,8 +424,9 @@ class TestScenarioEngine:
         client.mark_test_start()
         engine.load(Scenario.happy_boot(device_id=0x1234))
         engine.append(MessageFactory.hw_failure(device_id=0x1234, gps_fails=0x80))
-        failures = client.check_hw_failures()
-        assert len(failures) == 1
+        info = client.check_hw_failures()
+        assert info["hasFailures"] is True
+        assert len(info["failures"]) == 1
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -486,8 +491,8 @@ class TestMockCloudClientIntegration:
 
         client.mark_test_start()
         engine.load(Scenario.clean_operation(device_id=0x1234))
-        failures = client.check_hw_failures()
-        assert len(failures) == 0
+        info = client.check_hw_failures()
+        assert not info.get("hasFailures", False)
 
     def test_hw_failure_detection_pattern(self):
         """Simulates a failing device that reports GPS errors."""
@@ -496,9 +501,9 @@ class TestMockCloudClientIntegration:
 
         client.mark_test_start()
         engine.load(Scenario.hw_failure(device_id=0x1234, gps_fails=0x80))
-        failures = client.check_hw_failures()
-        assert len(failures) > 0
-        assert failures[0].gps_fails == 0x80
+        info = client.check_hw_failures()
+        assert info["hasFailures"] is True
+        assert info["failures"][0].gps_fails == 0x80
 
     def test_network_status_pattern(self):
         """Simulates cloud_client.wait_for_network_status."""

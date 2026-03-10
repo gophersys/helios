@@ -7,12 +7,13 @@ All methods log their calls but perform no hardware interaction.
 Power/measurement methods return plausible default values.
 """
 
-import logging
 import time
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
-log = logging.getLogger(__name__)
+from corekinect.utils import Logger
+
+log = Logger(log_name="mock_hardware")
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -22,12 +23,38 @@ log = logging.getLogger(__name__)
 
 @dataclass
 class MockFixtureProfile:
-    """Minimal fixture profile for mock mode."""
+    """Mock fixture profile matching all FixtureProfile fields."""
+    product: str = "alpha"
+    board: str = "alpha_b0"
+
+    # Button simulation
     button_gpio: int = 2
-    on_skin_gpio: int = 3
+    button_active_low: bool = True
+
+    # PPG simulator — servo + green LED array
+    ppg_servo_pwm_pin: int = 7   # PwmPin.PWM_1
+    ppg_servo_blocked_us: int = 1000
+    ppg_servo_exposed_us: int = 2000
+    ppg_hr_led_gpio: int = 3
+
+    # Charger relay
+    charger_relay_gpio: int = 5
+    charger_relay_active_high: bool = True
+
+    # Peltier / temperature
     peltier_gpio: int = 4
-    charger_gpio: int = 5
-    reserved_gpios: List[int] = field(default_factory=lambda: [0, 1])
+    peltier_temp_adc: int = 7
+
+    # LED photodiode ADC channels
+    led_red_adc: int = 4
+    led_green_adc: int = 5
+    led_blue_adc: int = 6
+
+    # Power defaults
+    battery_installed: bool = False
+    dut_voltage: float = 4.5
+    charger_voltage: float = 5.0
+    boot_settle_s: float = 3.0
 
 
 class MockFixtureController:
@@ -45,6 +72,10 @@ class MockFixtureController:
         self._peltier_active = False
         self._button_pressed = False
         self._mtib = _MockMtibStub(fixture=self)
+
+    def has_capability(self, cap) -> bool:
+        """Mock has all capabilities by default (testing test logic, not hardware)."""
+        return True
 
     def power_on(self) -> None:
         log.info("MockFixture: power_on()")
@@ -77,8 +108,23 @@ class MockFixtureController:
         log.info("MockFixture: read_total_current() -> %.1f mA", current)
         return current
 
+    @property
+    def primary_power_channel(self) -> int:
+        """Return the power channel that carries DUT current."""
+        return 1 if self.profile.battery_installed else 0
+
+    def set_peltier(self, on: bool) -> None:
+        log.info("MockFixture: set_peltier(%s)", on)
+        self._peltier_active = on
+
     def simulate_on_skin(self, on: bool = True) -> None:
         log.info("MockFixture: simulate_on_skin(on=%s)", on)
+
+    def simulate_heartbeat(self, bpm: int = 72) -> None:
+        log.info("MockFixture: simulate_heartbeat(bpm=%d)", bpm)
+
+    def stop_heartbeat(self) -> None:
+        log.info("MockFixture: stop_heartbeat()")
 
     def shake(self, duration_s: float = 10, speed_mm_s: float = 50) -> None:
         log.info("MockFixture: shake(duration=%.1fs, speed=%.0f mm/s)", duration_s, speed_mm_s)

@@ -29,14 +29,15 @@ Registration:
         pytest_plugins = ["corekinect.test.validation.reporter"]
 """
 
-import logging
 import os
 import time
 from typing import Any, Dict, Optional
 
 import pytest
 
-log = logging.getLogger(__name__)
+from corekinect.utils import EnvConfig, Logger
+
+log = Logger(log_name="concord_reporter")
 
 # Attempt to import requests; if not installed, reporter is disabled.
 try:
@@ -50,9 +51,9 @@ class ConcordReporter:
     """pytest plugin that reports validation results to Concord HTTP API."""
 
     def __init__(self, config: Optional[Any] = None):
-        self.run_id = os.environ.get("CONCORD_RUN_ID", "")
-        self.api_url = os.environ.get("CONCORD_API_URL", "").rstrip("/")
-        self.api_key = os.environ.get("CONCORD_API_KEY", "")
+        self.run_id = os.environ.get("CONCORD_RUN_ID") or ""
+        self.api_url = (os.environ.get("CONCORD_API_URL") or "").rstrip("/")
+        self.api_key = os.environ.get("CONCORD_API_KEY") or ""
         self.enabled = bool(self.run_id and self.api_url)
 
         # Accumulated counters
@@ -64,6 +65,8 @@ class ConcordReporter:
 
         # Per-test tracking: nodeid → start time
         self._test_starts: Dict[str, float] = {}
+        # Per-test captured output: nodeid → log lines
+        self._test_output: Dict[str, str] = {}
 
         if self.enabled and not _HAS_REQUESTS:
             log.warning(
@@ -87,13 +90,17 @@ class ConcordReporter:
         headers = {"Content-Type": "application/json"}
         if self.api_key:
             headers["Authorization"] = f"ApiKey {self.api_key}"
+        # Allow Host header override for ingress routing when using IP address
+        host_header = os.environ.get("CONCORD_API_HOST")
+        if host_header:
+            headers["Host"] = host_header
         return headers
 
     def _post(self, path: str, json_data: Dict[str, Any]) -> Optional[Dict]:
         """POST to Concord API. Returns response JSON or None on failure."""
         url = f"{self.api_url}/v2/validation/runs/{self.run_id}/{path}"
         try:
-            resp = requests.post(url, json=json_data, headers=self._headers(), timeout=10)
+            resp = requests.post(url, json=json_data, headers=self._headers(), timeout=10, verify=False)
             if resp.status_code >= 400:
                 log.warning(
                     "ConcordReporter: %s returned %d: %s",
@@ -148,6 +155,35 @@ class ConcordReporter:
 
         report = outcome.get_result()
 
+        # Handle skips during setup phase (no call phase will follow)
+        if report.when == "setup" and report.skipped:
+            self._total += 1
+            self._post("report/test-result", {
+                "testName": item.name,
+                "passed": True,
+                "durationS": 0,
+                "errorMessage": None,
+                "measurements": None,
+                "skipped": True,
+            })
+            return
+
+        # Accumulate captured output from all phases
+        captured = ""
+        if report.capstdout:
+            captured += report.capstdout
+        if report.capstderr:
+            captured += report.capstderr
+        if report.caplog:
+            captured += report.caplog
+        # Also capture sections (pytest log output, etc.)
+        for title, content in report.sections:
+            captured += f"\n--- {title} ---\n{content}"
+
+        if captured.strip():
+            prev = self._test_output.get(item.nodeid, "")
+            self._test_output[item.nodeid] = prev + captured
+
         # Only report on the "call" phase (the actual test), not setup/teardown
         if report.when != "call":
             return
@@ -174,6 +210,11 @@ class ConcordReporter:
         if report.failed and report.longrepr:
             error_message = str(report.longrepr)[:2000]  # Truncate for API
 
+        # Collect captured log output for this test
+        log_output = self._test_output.pop(item.nodeid, None)
+        if log_output:
+            log_output = log_output.strip()[:10000]  # Cap at 10KB
+
         # Extract power measurements from test context if available
         measurements = None
         ctx = item.funcargs.get("ctx")
@@ -193,6 +234,7 @@ class ConcordReporter:
             "durationS": duration_s,
             "errorMessage": error_message,
             "measurements": measurements,
+            "logOutput": log_output,
         })
 
     def pytest_sessionfinish(self, session: pytest.Session, exitstatus: int) -> None:

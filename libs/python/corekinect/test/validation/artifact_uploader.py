@@ -1,10 +1,10 @@
 """Upload test artifacts (UART logs, power traces) to MinIO."""
 
-import logging
-import os
 from typing import Optional
 
-log = logging.getLogger(__name__)
+from corekinect.utils import EnvConfig, Logger
+
+log = Logger(log_name="artifact_uploader")
 
 try:
     from minio import Minio
@@ -13,15 +13,27 @@ except ImportError:
     _HAS_MINIO = False
 
 
+class _StorageConfig(EnvConfig):
+    """MinIO storage config — loaded from env vars."""
+    ENV_PREFIX = ""
+
+    STORAGE_URL: Optional[str] = None
+    STORAGE_ACCESS_KEY: Optional[str] = None
+    STORAGE_SECRET_ACCESS_KEY: Optional[str] = None
+    CONCORD_RUN_ID: Optional[str] = None
+    STORAGE_BUCKET: str = "concord"
+
+
 class ArtifactUploader:
     """Uploads test artifacts to MinIO. Opt-in via STORAGE_URL env var."""
 
     def __init__(self):
-        self.storage_url = os.environ.get("STORAGE_URL", "")
-        self.access_key = os.environ.get("STORAGE_ACCESS_KEY", "")
-        self.secret_key = os.environ.get("STORAGE_SECRET_ACCESS_KEY", "")
-        self.run_id = os.environ.get("CONCORD_RUN_ID", "")
-        self.bucket = os.environ.get("STORAGE_BUCKET", "concord")
+        cfg = _StorageConfig()
+        self.storage_url = cfg.STORAGE_URL or ""
+        self.access_key = cfg.STORAGE_ACCESS_KEY or ""
+        self.secret_key = cfg.STORAGE_SECRET_ACCESS_KEY or ""
+        self.run_id = cfg.CONCORD_RUN_ID or ""
+        self.bucket = cfg.STORAGE_BUCKET
         self.enabled = bool(self.storage_url and self.run_id and _HAS_MINIO)
         self._client: Optional[Minio] = None
 
@@ -36,13 +48,13 @@ class ArtifactUploader:
         return self._client
 
     def upload(self, local_path: str, remote_name: str) -> bool:
-        """Upload a local file to MinIO under validation/artifacts/{run_id}/."""
+        """Upload a local file to MinIO under validation/runs/{run_id}/."""
         if not self.enabled:
             return False
         try:
-            object_name = f"validation/artifacts/{self.run_id}/{remote_name}"
+            object_name = f"validation/runs/{self.run_id}/{remote_name}"
             self._get_client().fput_object(self.bucket, object_name, local_path)
-            log.info("Uploaded artifact: %s → %s", local_path, object_name)
+            log.info("Uploaded artifact: %s -> %s", local_path, object_name)
             return True
         except Exception as e:
             log.warning("Artifact upload failed for %s: %s", local_path, e)

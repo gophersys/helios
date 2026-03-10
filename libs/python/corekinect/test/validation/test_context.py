@@ -5,20 +5,23 @@ and PowerProfiler into a single object passed to every test via
 pytest fixture.
 """
 
-import logging
 import os
 from typing import Optional
 
 from corekinect.mtib_client.v1.client.core import MtibV1Client
 from corekinect.mtib_client.v1.client.config import NetConfig
+from corekinect.utils import Logger
 
 from .artifact_uploader import ArtifactUploader
+from .artifact_writer import ArtifactWriter
 from .cloud_client import CloudClient
-from .fixture_controller import FixtureController, FixtureProfile
+from .firmware_assets import FirmwareAssetManager
+from .fixture_controller import FixtureController
+from .profiles import FixtureProfile
 from .power_profiler import PowerProfiler
 from .uart_demuxer import UartDemuxer
 
-log = logging.getLogger(__name__)
+log = Logger(log_name="test_context")
 
 
 class TestContext:
@@ -36,6 +39,9 @@ class TestContext:
         fixture: Physical stimulus controller (GPIO/power/motion).
         uart: UART log capture (debug builds only).
         power: Power measurement profiler.
+        firmware: Firmware asset manager (MinIO → MTIB upload/cleanup).
+        artifacts: Simple file uploader (legacy).
+        artifact_writer: Unified artifact writer with streaming support.
     """
 
     def __init__(
@@ -51,29 +57,45 @@ class TestContext:
         self.fixture = fixture
         self.uart = uart
         self.power = power
+        self.firmware = FirmwareAssetManager(mtib=mtib, auto_cleanup=False)
         self.artifacts = ArtifactUploader()
+        self.artifact_writer = ArtifactWriter()
 
     @classmethod
     def from_env(cls) -> "TestContext":
         """Create TestContext from environment variables.
 
         Required env vars:
-            MTIB_HOST: MTIB server address (e.g., 10.4.45.33)
-            MTIB_PORT: MTIB server port (default: 50053)
+            MTIB_HOST or MTIB_ADDRESS: MTIB server address (e.g., 10.4.45.33:50053)
+            MTIB_PORT: MTIB server port (default: 50053, can be in MTIB_ADDRESS)
             DEVICE_ID: CoreCloud device ID as hex string (e.g., 70B3D584C01E1FCC)
             CORECLOUD_DB_ENV: CoreCloud namespace (default: DEV_1_0)
             FIXTURE_PROFILE_PATH: Path to fixture profile JSON
 
+        MTIB_ADDRESS takes precedence over MTIB_HOST (bench scheduler sets MTIB_ADDRESS).
+        MTIB_ADDRESS can include port (e.g., "10.4.45.33:50053").
+
         Returns:
             Configured TestContext instance (not yet connected).
         """
-        mtib_host = os.environ["MTIB_HOST"]
-        mtib_port = int(os.environ.get("MTIB_PORT", "50053"))
+        # MTIB_ADDRESS from bench scheduler takes precedence over MTIB_HOST
+        mtib_addr = os.environ.get("MTIB_ADDRESS") or os.environ.get("MTIB_HOST")
+        if not mtib_addr:
+            raise ValueError("MTIB_ADDRESS or MTIB_HOST must be set")
+
+        # Parse host:port if present in address
+        if ":" in mtib_addr:
+            mtib_host, port_str = mtib_addr.rsplit(":", 1)
+            mtib_port = int(port_str)
+        else:
+            mtib_host = mtib_addr
+            mtib_port = int(os.environ.get("MTIB_PORT", "50053"))
+
         device_id_hex = os.environ["DEVICE_ID"]
         db_env = os.environ.get("CORECLOUD_DB_ENV", "DEV_1_0")
         profile_path = os.environ["FIXTURE_PROFILE_PATH"]
 
-        # Parse device ID (hex string → int)
+        # Parse device ID (hex string -> int)
         device_id = int(device_id_hex, 16)
 
         # Build MTIB client
@@ -81,7 +103,7 @@ class TestContext:
         mtib = MtibV1Client(config)
 
         # Build components
-        cloud = CloudClient(device_id=device_id, db_env=db_env)
+        cloud = CloudClient(device_id=device_id, api_env=db_env)
         profile = FixtureProfile.from_json(profile_path)
         fixture = FixtureController(mtib=mtib, profile=profile)
         uart = UartDemuxer(mtib=mtib)
@@ -112,17 +134,25 @@ class TestContext:
         self.uart.start()
 
     def disconnect(self) -> None:
-        """Stop UART capture and disconnect from MTIB."""
+        """Stop UART capture, cleanup firmware assets, and disconnect from MTIB."""
         self.uart.stop()
+        # Cleanup uploaded firmware files from MTIB server
+        try:
+            self.firmware.cleanup()
+        except Exception as e:
+            log.warning("Firmware cleanup error: %s", e)
         err = self.mtib.disconnect()
         if err:
             log.warning("MTIB disconnect error: %s", err)
         log.info("Disconnected from MTIB")
 
     def setup_test(self) -> None:
-        """Per-test setup: mark test start time, clear UART buffer."""
+        """Per-test setup: mark test start time, clear UART buffer, reset fixture state."""
         self.cloud.mark_test_start()
         self.uart.clear()
+        # Reset transient mock fixture state (button press, etc.) between tests.
+        if hasattr(self.fixture, '_button_pressed'):
+            self.fixture._button_pressed = False
 
     def teardown_test(self, test_name: str, artifacts_dir: Optional[str] = None) -> None:
         """Per-test teardown: dump UART logs if artifacts_dir provided."""

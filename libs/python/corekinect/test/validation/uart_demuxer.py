@@ -5,16 +5,16 @@ Designed for Stage 3 extensibility: adding CONCORD prefix routing
 is a future upgrade that adds response_queue and event_queue.
 """
 
-import logging
 import re
 import threading
 import time
 from typing import List, Optional, Tuple
 
 from corekinect.mtib_client.v1.client.core import MtibV1Client
+from corekinect.utils import Logger
 from protocols.mtib.mtib_pb2 import HostType, UartStreamRequest
 
-log = logging.getLogger(__name__)
+log = Logger(log_name="uart_demuxer")
 
 # Stage 3 prefix constants (unused in Stage 4, defined for future use)
 CONCORD_RSP_PREFIX = "[CONCORD:RSP] "

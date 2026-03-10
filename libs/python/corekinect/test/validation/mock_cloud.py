@@ -19,11 +19,10 @@ Usage:
 Activate via MOCK_CLOUD=1 environment variable in conftest.py.
 """
 
-import logging
 import time
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Callable, Dict, List, Optional, Type, TypeVar
+from datetime import datetime
+from typing import Any, Callable, Dict, List, Optional, Type, TypeVar
 
 from corekinect.core_cloud.msg_def_v1_0 import (
     AlphaHwFailureMsg,
@@ -34,11 +33,13 @@ from corekinect.core_cloud.msg_def_v1_0 import (
     NetworkStatusMsgV4,
     PositionMsgV6,
 )
+from corekinect.utils import Logger
 from corekinect.utils.bits.ops import extract_bits
+from corekinect.utils.timeutil.tzutils import dt_to_utc
 
 T = TypeVar("T", bound=MsgBase)
 
-log = logging.getLogger(__name__)
+log = Logger(log_name="mock_cloud")
 
 # Default device ID (Alpha B0 REV 1.2)
 DEFAULT_DEVICE_ID = 0x70B3D584C01E1FCC
@@ -85,7 +86,7 @@ class MessageFactory:
         record_id: int = 1,
     ) -> BootMsgV2:
         if time_of_record is None:
-            time_of_record = datetime.now(timezone.utc)
+            time_of_record = dt_to_utc(datetime.utcnow())
         flags = _encode_boot_flags(boot_reason, mcu_type, fw_triggered)
         return BootMsgV2(
             device_id=device_id,
@@ -109,7 +110,7 @@ class MessageFactory:
         record_id: int = 1,
     ) -> PositionMsgV6:
         if time_of_record is None:
-            time_of_record = datetime.now(timezone.utc)
+            time_of_record = dt_to_utc(datetime.utcnow())
         # Encode flags: bit 0 = is_in_motion in the low byte
         # PositionMsgV6 reads is_in_motion directly as a field, not from flags
         return PositionMsgV6(
@@ -174,7 +175,7 @@ class MessageFactory:
         adds these properties.
         """
         if time_of_record is None:
-            time_of_record = datetime.now(timezone.utc)
+            time_of_record = dt_to_utc(datetime.utcnow())
         flags = _encode_biometric_flags(on_body)
         return MockBiometricDataMsg(
             device_id=device_id,
@@ -216,7 +217,7 @@ class MessageFactory:
         record_id: int = 1,
     ) -> NetworkStatusMsgV4:
         if time_of_record is None:
-            time_of_record = datetime.now(timezone.utc)
+            time_of_record = dt_to_utc(datetime.utcnow())
         return NetworkStatusMsgV4(
             device_id=device_id,
             interface_type=2,
@@ -258,7 +259,7 @@ class MessageFactory:
         record_id: int = 1,
     ) -> AlphaHwFailureMsg:
         if time_of_record is None:
-            time_of_record = datetime.now(timezone.utc)
+            time_of_record = dt_to_utc(datetime.utcnow())
         return AlphaHwFailureMsg(
             device_id=device_id,
             interface_type=2,
@@ -290,7 +291,7 @@ class MessageFactory:
         record_id: int = 1,
     ) -> CommsHwFailureMsg:
         if time_of_record is None:
-            time_of_record = datetime.now(timezone.utc)
+            time_of_record = dt_to_utc(datetime.utcnow())
         return CommsHwFailureMsg(
             device_id=device_id,
             interface_type=2,
@@ -371,7 +372,7 @@ class Scenario:
     @staticmethod
     def happy_boot(device_id: int = DEFAULT_DEVICE_ID) -> "Scenario":
         """Normal boot → successful network connection → position report."""
-        now = datetime.now(timezone.utc)
+        now = dt_to_utc(datetime.utcnow())
         return Scenario(
             name="happy_boot",
             messages=[
@@ -394,7 +395,7 @@ class Scenario:
     @staticmethod
     def motion_detected(device_id: int = DEFAULT_DEVICE_ID) -> "Scenario":
         """Boot → motion → stationary → motion (consistent detection)."""
-        now = datetime.now(timezone.utc)
+        now = dt_to_utc(datetime.utcnow())
         return Scenario(
             name="motion_detected",
             messages=[
@@ -425,7 +426,7 @@ class Scenario:
     @staticmethod
     def on_skin(device_id: int = DEFAULT_DEVICE_ID) -> "Scenario":
         """Boot → on-skin contact → biometric data with on_body=True."""
-        now = datetime.now(timezone.utc)
+        now = dt_to_utc(datetime.utcnow())
         return Scenario(
             name="on_skin",
             messages=[
@@ -447,7 +448,7 @@ class Scenario:
     @staticmethod
     def off_skin(device_id: int = DEFAULT_DEVICE_ID) -> "Scenario":
         """On-skin → off-skin (electrode removed)."""
-        now = datetime.now(timezone.utc)
+        now = dt_to_utc(datetime.utcnow())
         return Scenario(
             name="off_skin",
             messages=[
@@ -472,7 +473,7 @@ class Scenario:
         **failure_kwargs,
     ) -> "Scenario":
         """Boot → hardware failure reported."""
-        now = datetime.now(timezone.utc)
+        now = dt_to_utc(datetime.utcnow())
         return Scenario(
             name="hw_failure",
             messages=[
@@ -484,7 +485,7 @@ class Scenario:
     @staticmethod
     def fuota_reboot(device_id: int = DEFAULT_DEVICE_ID) -> "Scenario":
         """FUOTA complete → device reboots with boot_reason=2 → reconnects."""
-        now = datetime.now(timezone.utc)
+        now = dt_to_utc(datetime.utcnow())
         return Scenario(
             name="fuota_reboot",
             messages=[
@@ -500,7 +501,7 @@ class Scenario:
     @staticmethod
     def clean_operation(device_id: int = DEFAULT_DEVICE_ID) -> "Scenario":
         """Full clean operation: boot, network, position, biometric — no failures."""
-        now = datetime.now(timezone.utc)
+        now = dt_to_utc(datetime.utcnow())
         return Scenario(
             name="clean_operation",
             messages=[
@@ -536,7 +537,7 @@ class Scenario:
         on-body biometric, off-body biometric, and zero-failure HW reports.
         Designed as the default mock scenario for Stage 4 tests.
         """
-        now = datetime.now(timezone.utc)
+        now = dt_to_utc(datetime.utcnow())
         return Scenario(
             name="full_device_activity",
             messages=[
@@ -618,12 +619,12 @@ class MockCloudClient:
         re-injected with fresh timestamps. This handles mid-test mark_test_start()
         calls that would otherwise make scenario messages invisible.
         """
-        self._test_start = datetime.now(timezone.utc)
+        self._test_start = dt_to_utc(datetime.utcnow())
         log.debug("MockCloudClient: test start marked at %s", self._test_start.isoformat())
 
         if self._active_scenario is not None:
             self._messages.clear()
-            now = datetime.now(timezone.utc)
+            now = dt_to_utc(datetime.utcnow())
             for msg in self._active_scenario.messages:
                 object.__setattr__(msg, "time_of_record", now)
                 self._messages.append(msg)
@@ -721,11 +722,41 @@ class MockCloudClient:
             return bool(n.did_lte_conn and n.did_sock_conn and n.send_success)
         return self._poll(NetworkStatusMsgV4, pred, timeout_s)
 
-    def check_hw_failures(self) -> List[AlphaHwFailureMsg]:
-        return self._visible_messages(AlphaHwFailureMsg)
+    def check_hw_failures(self) -> Dict[str, Any]:
+        """Check app hardware failures — returns dict matching CloudClient interface.
 
-    def check_comms_hw_failures(self) -> List[CommsHwFailureMsg]:
-        return self._visible_messages(CommsHwFailureMsg)
+        Returns:
+            Dict with keys: hasFailures, recordId, timeOfFailure, failures.
+            The 'failures' key contains the raw message list for detailed inspection.
+        """
+        failures = self._visible_messages(AlphaHwFailureMsg)
+        if not failures:
+            return {"hasFailures": False, "recordId": 0, "timeOfFailure": None, "failures": []}
+        latest = failures[-1]
+        return {
+            "hasFailures": True,
+            "recordId": getattr(latest, "record_id", 0),
+            "timeOfFailure": getattr(latest, "time_of_event", None),
+            "failures": failures,
+        }
+
+    def check_comms_hw_failures(self) -> Dict[str, Any]:
+        """Check comms hardware failures — returns dict matching CloudClient interface.
+
+        Returns:
+            Dict with keys: hasFailures, recordId, timeOfFailure, failures.
+            The 'failures' key contains the raw message list for detailed inspection.
+        """
+        failures = self._visible_messages(CommsHwFailureMsg)
+        if not failures:
+            return {"hasFailures": False, "recordId": 0, "timeOfFailure": None, "failures": []}
+        latest = failures[-1]
+        return {
+            "hasFailures": True,
+            "recordId": getattr(latest, "record_id", 0),
+            "timeOfFailure": getattr(latest, "time_of_event", None),
+            "failures": failures,
+        }
 
     def wait_for_message(
         self,
@@ -772,7 +803,7 @@ class ScenarioEngine:
         """
         self._client.clear()
         self._client._active_scenario = scenario
-        now = datetime.now(timezone.utc)
+        now = dt_to_utc(datetime.utcnow())
         for msg in scenario.messages:
             # Frozen dataclass — bypass __setattr__
             object.__setattr__(msg, "time_of_record", now)
@@ -784,5 +815,5 @@ class ScenarioEngine:
 
         Re-timestamps the message to now for consistency with load().
         """
-        object.__setattr__(msg, "time_of_record", datetime.now(timezone.utc))
+        object.__setattr__(msg, "time_of_record", dt_to_utc(datetime.utcnow()))
         self._client.inject(msg)
