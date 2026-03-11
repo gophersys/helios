@@ -1,0 +1,16 @@
+meta {
+  name: Check Final Inspection
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{restServerHostname}}/Diagnostics/Devices/FinalInspection?deviceId=70B3D584C01E144F
+  body: none
+  auth: inherit
+}
+
+params:query {
+  deviceId: 70B3D584C01E144F
+  ~goldenDeviceId: 70B3D584C01E144E
+}

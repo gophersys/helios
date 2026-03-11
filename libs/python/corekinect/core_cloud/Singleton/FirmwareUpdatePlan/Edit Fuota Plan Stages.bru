@@ -1,0 +1,27 @@
+meta {
+  name: Edit Fuota Plan Stages
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{singletonHostname}}/firmwareupdates/plans/Edit
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+      "planId": 1,
+      "stages": [
+          {
+              "description": "Factory image",
+              "isSkippable": true
+          },
+          {
+              "description": "Latest",
+              "isSkippable": false
+          }
+      ]
+  }
+}

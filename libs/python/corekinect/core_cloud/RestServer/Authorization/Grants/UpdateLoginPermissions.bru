@@ -1,0 +1,30 @@
+meta {
+  name: Update Login Permissions
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{restServerHostname}}/Authorization/Grants/LoginPermissions?loginId=1
+  body: json
+  auth: inherit
+}
+
+query {
+  loginId: 1
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+      "permissionKeysToGrant": [
+          "Account.IdentityProviders.Create"
+      ],
+      "permissionKeysToRevoke": [
+          
+      ]
+  }
+}

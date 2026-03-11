@@ -1,0 +1,31 @@
+meta {
+  name: Set Configs
+  type: http
+  seq: 3
+}
+
+put {
+  url: {{restServerHostname}}/System/Devices/Configurations/Hips
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "DeviceIds": [
+      "70B3D584C0201234"
+    ],
+    "ShouldScanConstantly": false,
+    "ForceCheckin": false,
+    "ReportPeriod": 2,
+    "GroupCode": 3,
+    "Mode": "Mode",
+    "SourceUserId": 2
+  }
+  
+  
+}
+
+settings {
+  encodeUrl: true
+}

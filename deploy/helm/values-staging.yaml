@@ -110,7 +110,6 @@ secrets:
   INFLUXDB_BUCKET_TELEMETRY: "telemetry_raw"
   INFLUXDB_BUCKET_METRICS: "telemetry_metrics"
   JWT_SECRET_KEY: "concord-staging-jwt-secret-key-2026"
-  GOOGLE_CLIENT_ID: "none"
   COREOPS_SERVER_URL: "http://10.4.45.30:8001"
   AUTH_SERVER_URL: "https://auth.office.corekinect.cloud:2013"
   AUTH_SERVER_API_KEY: "LWh0dHBzOi8vY29yZW9wcy5vZmZpY2UuY29yZWtpbmVjdC5jbG91ZDoyMDEzLwAUAAAAAAAAAAMAAAAAAAAAAmh//0ARflK7w17yvqU8VDyvJsfWFKnXJGKYZIRyzKjKEJD63QHu16/+BGn5EAK6ezr71bqOxlMML5GK60sL3HnY4eSR"

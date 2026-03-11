@@ -1,0 +1,28 @@
+meta {
+  name: Set Device Firmware App IDs
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{singletonHostname}}/firmwareupdates/appids
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+      "deviceTypeId": 1,
+      "deviceVariantId": 1,
+      "appIds": [
+        {
+          "appId": 100,
+          "isAuxiliary": false
+        },
+        {
+          "appId": 101,
+          "isAuxiliary": false
+        }
+      ]
+  }
+}

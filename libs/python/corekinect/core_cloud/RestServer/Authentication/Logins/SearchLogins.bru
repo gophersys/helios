@@ -1,0 +1,11 @@
+meta {
+  name: Search Logins
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{restServerHostname}}/authentication/logins/search
+  body: none
+  auth: inherit
+}

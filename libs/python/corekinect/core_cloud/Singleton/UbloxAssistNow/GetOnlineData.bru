@@ -1,0 +1,15 @@
+meta {
+  name: GetOnlineData
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{singletonHostname}}/UbloxAssistNow/Online?constellations=gps
+  body: none
+  auth: inherit
+}
+
+params:query {
+  constellations: gps
+}

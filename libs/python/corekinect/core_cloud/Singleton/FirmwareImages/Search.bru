@@ -1,0 +1,11 @@
+meta {
+  name: Search
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{singletonHostname}}/firmwareimages/search
+  body: none
+  auth: inherit
+}

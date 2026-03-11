@@ -1,0 +1,19 @@
+meta {
+  name: Get Login Roles
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{restServerHostname}}/Authorization/Grants/LoginRoles?loginId=1
+  body: none
+  auth: inherit
+}
+
+query {
+  loginId: 1
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}

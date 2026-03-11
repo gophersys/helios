@@ -1,0 +1,25 @@
+meta {
+  name: List Configs
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{restServerHostname}}/System/Devices/Configurations/Hips/Search
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "DeviceIds": [
+      "70B3D584C0201234"
+    ]
+  }
+  
+  
+}
+
+settings {
+  encodeUrl: true
+}

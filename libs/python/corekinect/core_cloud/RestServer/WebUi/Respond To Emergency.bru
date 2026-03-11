@@ -1,0 +1,19 @@
+meta {
+  name: Respond To Emergency
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{restServerHostname}}/WebUi/DeviceInteraction/RespondToEmergency
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "DeviceId":"70B3D584C020035F",
+    "EmergencyEventId": "1A2B3C4D",
+    "Action": "Acknowledge"
+  }
+}

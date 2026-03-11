@@ -1,0 +1,15 @@
+meta {
+  name: Upload
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{singletonHostname}}/firmwareimages
+  body: multipartForm
+  auth: inherit
+}
+
+body:multipart-form {
+  ~image: @file(D:\RobBuddha\Documents\Repos\CoreKinect-Monorepo\csharp\apps\CoreFirmwareGenerator\src\CoreFirmwareGenerator\bin\Debug\net8.0\100.0.1.2-EM.cfw)
+}

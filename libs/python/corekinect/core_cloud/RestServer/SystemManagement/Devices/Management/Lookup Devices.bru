@@ -1,0 +1,19 @@
+meta {
+  name: Lookup Devices
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{restServerHostname}}/system/devices/lookup
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "DeviceIds": [
+      "70B3D584C0201234"
+    ]
+  }
+}

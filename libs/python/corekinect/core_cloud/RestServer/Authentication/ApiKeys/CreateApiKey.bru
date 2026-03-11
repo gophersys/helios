@@ -1,0 +1,22 @@
+meta {
+  name: Create API Key
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{restServerHostname}}/authentication/apikeys/create
+  body: json
+  auth: inherit
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+      "description": "Test API Key",
+      "accountId": 1
+  }
+}

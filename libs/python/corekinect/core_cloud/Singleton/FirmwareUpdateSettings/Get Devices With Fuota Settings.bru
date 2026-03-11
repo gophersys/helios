@@ -1,0 +1,16 @@
+meta {
+  name: Get Devices With Fuota Settings
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{singletonHostname}}/firmwareupdates/settings/devices
+  body: none
+  auth: inherit
+}
+
+params:query {
+  ~page: 0
+  ~pageSize: 250
+}

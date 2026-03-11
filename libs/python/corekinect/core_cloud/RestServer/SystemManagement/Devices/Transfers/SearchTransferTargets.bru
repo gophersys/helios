@@ -1,0 +1,15 @@
+meta {
+  name: Search Transfer Targets
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{restServerHostname}}/system/devices/transfers/targets/search
+  body: none
+  auth: inherit
+}
+
+query {
+  targetId: 1
+}

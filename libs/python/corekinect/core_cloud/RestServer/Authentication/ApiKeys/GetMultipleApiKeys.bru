@@ -1,0 +1,15 @@
+meta {
+  name: Get Multiple API Keys
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{restServerHostname}}/authentication/apikeys/getall
+  body: none
+  auth: inherit
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}

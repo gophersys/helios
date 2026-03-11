@@ -1,0 +1,15 @@
+meta {
+  name: Get Scratchpad
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{restServerHostname}}/Diagnostics/Devices/Scratchpad?deviceId=70B3D584C01E1438
+  body: none
+  auth: inherit
+}
+
+params:query {
+  deviceId: 70B3D584C01E1438
+}

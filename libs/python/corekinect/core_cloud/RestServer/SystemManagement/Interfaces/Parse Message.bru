@@ -1,0 +1,22 @@
+meta {
+  name: Parse Message
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{restServerHostname}}/system/interfaces/messages/parse
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "InterfaceTypeId": 0,
+    "DeviceTypeId": 0,
+    "DeviceVariantId": 0,
+    "FullMessageBase64": null,
+    "MessageUid": 43,
+    "MessagePayloadBase64": "AAAAAA=="
+  }
+}

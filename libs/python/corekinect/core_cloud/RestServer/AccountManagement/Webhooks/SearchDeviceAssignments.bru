@@ -1,0 +1,15 @@
+meta {
+  name: Search Device Assignments
+  type: http
+  seq: 10
+}
+
+get {
+  url: {{restServerHostname}}/account/webhooks/search-devices
+  body: none
+  auth: inherit
+}
+
+params:query {
+  webhookId: Qr0OljZ2
+}

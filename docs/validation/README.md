@@ -1,13 +1,14 @@
 # Concord Validation Documentation
 
-Hardware/firmware validation system for embedded products. Start with the philosophy doc, then read the final architecture, then dive into the stage that matters to you.
+Hardware/firmware validation system for embedded products. Five stages from software stubs to field monitoring.
 
 ## Reading Order (New Engineers)
 
-1. [Validation Philosophy](architecture/00-validation-philosophy.md) -- Why we validate this way, the four-stage model, design principles
-2. [Final Architecture](architecture/09-final-architecture.md) -- System-level architecture: runners, pipeline controller, MTIB, build service
-3. Stage architecture docs (pick your stage) -- What to build for each stage
-4. Alpha examples (pick your stage) -- Concrete walkthroughs with real code
+1. [Stages Overview](architecture/stages-overview.md) -- Quick reference: what each stage tests, hardware, runtime, triggers
+2. [Validation Philosophy](architecture/00-validation-philosophy.md) -- Why we validate this way, design principles
+3. [Final Architecture](architecture/09-final-architecture.md) -- System-level architecture: runners, pipeline controller, MTIB
+4. Stage implementation docs (pick your stage) -- Detailed specs for what to build
+5. Alpha examples (pick your stage) -- Concrete walkthroughs with real code
 
 ## Folder Guide
 
@@ -35,12 +36,14 @@ Hardware/firmware validation system for embedded products. Start with the philos
 
 | File | Description |
 |------|-------------|
-| [00-validation-philosophy.md](architecture/00-validation-philosophy.md) | Foundation: four-stage model, design principles, strategy |
+| [stages-overview.md](architecture/stages-overview.md) | **Start here** — Quick reference for all 5 stages: hardware, runtime, triggers, timing |
+| [00-validation-philosophy.md](architecture/00-validation-philosophy.md) | Foundation: five-stage model, design principles, strategy |
 | [09-final-architecture.md](architecture/09-final-architecture.md) | System architecture: runners, pipeline controller, MTIB, build service |
-| [stage1-software-tests.md](architecture/stage1-software-tests.md) | Stage 1 implementation spec: native_sim tests, stubs, CI runner |
-| [stage2-driver-hw-tests.md](architecture/stage2-driver-hw-tests.md) | Stage 2 implementation spec: driver HW tests, dev-kit fixtures, power profiling |
-| [stage3-integration-tests.md](architecture/stage3-integration-tests.md) | Stage 3 implementation spec: concord_harness, instrumented firmware, MTIB |
-| [stage4-product-tests.md](architecture/stage4-product-tests.md) | Stage 4 implementation spec: black-box product validation |
+| [stage1-software-tests.md](architecture/stage1-software-tests.md) | Stage 1 Smoke: native_sim tests, stubs, CI runner |
+| [stage2-driver-hw-tests.md](architecture/stage2-driver-hw-tests.md) | Stage 2 Silicon: driver HW tests, dev-kit fixtures, power profiling |
+| [stage3-integration-tests.md](architecture/stage3-integration-tests.md) | Stage 3 Integration: concord_harness, instrumented firmware, MTIB |
+| [stage4-product-tests.md](architecture/stage4-product-tests.md) | Stage 4 Nightly: comprehensive black-box product validation |
+| [stage5-gate-tests.md](architecture/stage5-gate-tests.md) | Stage 5 Gate: PR validation + FUOTA (< 15 min) |
 
 ### examples/alpha/
 
@@ -49,6 +52,8 @@ Hardware/firmware validation system for embedded products. Start with the philos
 | [stage1-alpha-example.md](examples/alpha/stage1-alpha-example.md) | Stage 1 walkthrough: LSM6DSO interface tests + VSM app tests on native_sim |
 | [stage2-alpha-example.md](examples/alpha/stage2-alpha-example.md) | Stage 2 walkthrough: LSM6DSO driver HW tests on dev-kit fixture |
 | [stage3-alpha-example.md](examples/alpha/stage3-alpha-example.md) | Stage 3 walkthrough: instrumented firmware integration tests on product board |
+| [stage4-alpha-example.md](examples/alpha/stage4-alpha-example.md) | Stage 4 Nightly: comprehensive black-box validation (30-60 min) |
+| [stage5-alpha-example.md](examples/alpha/stage5-alpha-example.md) | **Stage 5 Gate: PR validation + FUOTA (< 15 min)** |
 
 ### interfaces/
 

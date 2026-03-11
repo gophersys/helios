@@ -1,0 +1,22 @@
+meta {
+  name: Upload Device Public Key
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{restServerHostname}}/system/devices/sessions/profiles
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "Profiles": [
+      {
+        "DeviceId": "70B3D584C0201234",
+        "PublicKey": "base64"
+      }
+    ]
+  }
+}

@@ -63,15 +63,16 @@ def ensure_token() -> str:
     if _token and now < _token_expiry - 30:
         return _token
 
-    url = f"{COREOPS_AUTH_SERVER_URL.rstrip('/')}/authentication/tokens/request"
+    url = f"{COREOPS_AUTH_SERVER_URL.rstrip('/')}/Authentication/Tokens/Request"
     headers = {
+        "X-API-KEY": COREOPS_API_KEY,
         "Authorization": basic_auth_header(),
         "Content-Type": "application/x-www-form-urlencoded",
         "Accept": "application/json",
     }
 
     sess = get_session()
-    resp = sess.post(url, data={"grant_type": "password"}, headers=headers, timeout=10, verify=VERIFY_SSL)
+    resp = sess.post(url, data={"grant_type": "client_credentials"}, headers=headers, timeout=10, verify=VERIFY_SSL)
     resp.raise_for_status()
     data = resp.json()
 
@@ -88,12 +89,13 @@ def ensure_token() -> str:
 
 def auth_headers() -> dict:
     token = ensure_token()
-    return {
-        "Authorization": f"Bearer {token}",
+    headers = {
         "X-API-KEY": COREOPS_API_KEY,
+        "Authorization": f"Bearer {token}",
         "Content-Type": "application/json",
         "Accept": "application/json",
     }
+    return headers
 
 
 def api_key_only_headers() -> dict:

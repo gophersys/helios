@@ -1,0 +1,15 @@
+meta {
+  name: Get Fuota Progress
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{singletonHostname}}/firmwareupdates/progress?deviceId=70B3D584C0201234
+  body: none
+  auth: inherit
+}
+
+params:query {
+  deviceId: 70B3D584C0201234
+}

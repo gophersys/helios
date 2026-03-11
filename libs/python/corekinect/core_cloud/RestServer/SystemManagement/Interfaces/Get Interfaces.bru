@@ -1,0 +1,11 @@
+meta {
+  name: Get Interfaces
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{restServerHostname}}/system/interfaces
+  body: none
+  auth: inherit
+}

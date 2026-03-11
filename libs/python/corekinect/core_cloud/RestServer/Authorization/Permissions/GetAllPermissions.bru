@@ -1,0 +1,15 @@
+meta {
+  name: Get All Permissions
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{restServerHostname}}/authorization/permissions
+  body: none
+  auth: inherit
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}

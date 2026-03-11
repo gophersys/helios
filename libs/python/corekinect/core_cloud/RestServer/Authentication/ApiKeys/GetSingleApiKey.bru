@@ -1,0 +1,19 @@
+meta {
+  name: Get Single API Key
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{restServerHostname}}/authentication/apikeys/get?apiKeyId=rlBLNGga
+  body: none
+  auth: inherit
+}
+
+query {
+  apiKeyId: rlBLNGga
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}

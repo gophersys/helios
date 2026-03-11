@@ -86,7 +86,7 @@ services:
       - concord_network
 
   db:
-    image: postgres:latest
+    image: postgres:16
     environment:
       POSTGRES_USER: concord
       POSTGRES_PASSWORD: concord

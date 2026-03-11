@@ -1,0 +1,30 @@
+meta {
+  name: Set Configs
+  type: http
+  seq: 3
+}
+
+put {
+  url: {{restServerHostname}}/System/Devices/Configurations/Biometric
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "DeviceIds": [
+      "70B3D584C0201234"
+    ],
+    "IsPsmEnabled": true,
+    "IsAidingEnabled": true,
+    "GnssUpdateFrequency": 0,
+    "TargetFixAccuracyMeters": 1,
+    "TargetFixPdopTenths": 1
+  }
+  
+  
+}
+
+settings {
+  encodeUrl: true
+}

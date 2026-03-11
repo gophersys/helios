@@ -1,0 +1,19 @@
+meta {
+  name: Get Login Permissions
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{restServerHostname}}/Authorization/Grants/LoginPermissions?loginId=1
+  body: none
+  auth: inherit
+}
+
+query {
+  loginId: 1
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}

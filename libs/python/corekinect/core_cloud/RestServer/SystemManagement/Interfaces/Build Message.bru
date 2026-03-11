@@ -1,0 +1,39 @@
+meta {
+  name: Build Message
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{restServerHostname}}/system/interfaces/messages/build?messageUid=43
+  body: json
+  auth: inherit
+}
+
+params:query {
+  messageUid: 43
+  ~interfaceTypeId: 2
+  ~deviceTypeId: 1
+  ~deviceVariantId: 1
+}
+
+body:json {
+  {
+    "messageName": "RebootV2",
+    "payloadLength": 4,
+    "commsFlags": {
+      "rawValue": 0,
+      "rebootCommsProcessor": false,
+      "rebootAppProcessor": false,
+      "doHardReset": false
+    },
+    "appFlags": {
+      "rawValue": 0,
+      "rebootCommsProcessor": false,
+      "rebootAppProcessor": false,
+      "doHardReset": false
+    },
+    "messageId": 0,
+    "messageLength": 7
+  }
+}

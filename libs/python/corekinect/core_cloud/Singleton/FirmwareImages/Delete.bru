@@ -1,0 +1,15 @@
+meta {
+  name: Delete
+  type: http
+  seq: 4
+}
+
+delete {
+  url: {{singletonHostname}}/firmwareimages?name=101.0.1.2-BM.cfw
+  body: none
+  auth: inherit
+}
+
+params:query {
+  name: 101.0.1.2-BM.cfw
+}

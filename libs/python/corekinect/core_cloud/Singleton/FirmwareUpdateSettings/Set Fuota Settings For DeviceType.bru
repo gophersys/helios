@@ -1,0 +1,22 @@
+meta {
+  name: Set Fuota Settings For DeviceType
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{singletonHostname}}/firmwareupdates/settings/devicetypes
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+      "planId": 1,
+      "enableFuota": true,
+      "maxStage": 1,
+      "deviceTypeId": 1,
+      "deviceVariantId": 1,
+      "accountId": 1
+  }
+}

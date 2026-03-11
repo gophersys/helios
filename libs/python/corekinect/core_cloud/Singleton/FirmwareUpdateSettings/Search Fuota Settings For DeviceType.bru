@@ -1,0 +1,18 @@
+meta {
+  name: Search Fuota Settings For DeviceType
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{singletonHostname}}/firmwareupdates/settings/devicetypes/search
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+      "deviceTypeId": 1,
+      "deviceVariantId": 1
+  }
+}

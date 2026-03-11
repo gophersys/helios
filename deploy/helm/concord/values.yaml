@@ -108,6 +108,5 @@ secrets:
   INFLUXDB_BUCKET_TELEMETRY: "telemetry_raw"
   INFLUXDB_BUCKET_METRICS: "telemetry_metrics"
   JWT_SECRET_KEY: "concord-staging-jwt-secret"
-  GOOGLE_CLIENT_ID: "none"
   COREOPS_SERVER_URL: "none"
   DELETE_ALL_KEY: "staging-delete-key"

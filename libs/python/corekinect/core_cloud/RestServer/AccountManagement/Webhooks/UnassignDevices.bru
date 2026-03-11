@@ -1,0 +1,20 @@
+meta {
+  name: Unassign Devices
+  type: http
+  seq: 9
+}
+
+post {
+  url: {{restServerHostname}}/account/webhooks/unassign-devices
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "WebhookId": "Qr0OljZ2",
+    "DeviceIds": [
+      "70B3D584C0201234"
+    ]
+  }
+}

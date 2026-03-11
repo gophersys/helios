@@ -1,0 +1,11 @@
+meta {
+  name: Search Webhooks
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{restServerHostname}}/account/webhooks/search
+  body: none
+  auth: inherit
+}

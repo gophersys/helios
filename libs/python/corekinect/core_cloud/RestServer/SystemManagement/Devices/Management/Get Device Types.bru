@@ -1,0 +1,11 @@
+meta {
+  name: Get Device Types
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{restServerHostname}}/system/devices
+  body: none
+  auth: inherit
+}

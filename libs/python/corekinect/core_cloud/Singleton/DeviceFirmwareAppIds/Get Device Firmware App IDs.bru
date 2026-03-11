@@ -1,0 +1,16 @@
+meta {
+  name: Get Device Firmware App IDs
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{singletonHostname}}/firmwareupdates/appids?deviceTypeId=1&deviceVariantId=1
+  body: none
+  auth: inherit
+}
+
+params:query {
+  deviceTypeId: 1
+  deviceVariantId: 1
+}

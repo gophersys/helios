@@ -1,0 +1,20 @@
+meta {
+  name: Search Account Devices
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{restServerHostname}}/account/devices/search
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "DeviceId": null,
+    "DeviceTypeId": null,
+    "DeviceVariantId": null,
+    "IsActive": null
+  }
+}

@@ -1,0 +1,49 @@
+meta {
+  name: Create Webhook
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{restServerHostname}}/account/webhooks/create
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "Name": "string",
+    "Url": "https://example.com/path/to/webhook",
+    "Scheme": "POST",
+    "Headers": [
+      {
+        "Name": "X-API-KEY",
+        "Value": "secret_api_key"
+      },
+      {
+        "Name": "X-SOME-HEADER",
+        "Value": "secret_header_value"
+      }
+    ],
+    "Authorization": {
+      "Protocol": "Oauth",
+      "OauthConfig": {
+        "RequestParams": {
+          "Url": "https://example.com/auth/token/request",
+          "Scheme": "GET",
+          "AuthorizationHeader": "Basic base64encoded_credentials",
+          "ContentType": "application/x-www-form-urlencoded",
+          "Body": "grant_type=client_credentials&scope=scope1 scope2"
+        },
+        "ResponseParams": {
+          "TokenTypeFieldName": "token_type",
+          "TokenFieldName": "access_token",
+          "ExpiresInFieldName": "expires_in"
+        }
+      },
+      "FixedTokenConfig": {
+        "AuthorizationHeader": "fixed_access_token_header_value"
+      }
+    }
+  }
+}

@@ -6,6 +6,9 @@ plan management. Base URL: `https://val.office.corekinect.cloud:2018`
 Note: These use the `/singleton/` path prefix, NOT `/api/`. This is different from
 the device management endpoints which use `/api/System/Devices/...`.
 
+**See also**: [stage4-fuota-workflow.md](./stage4-fuota-workflow.md) for complete
+end-to-end setup including flash, personalization, and monitoring.
+
 ## Prerequisites
 
 Before FUOTA can work:
@@ -202,6 +205,35 @@ Content-Type: application/json
 - `deviceIds` must contain ONLY the test DUT DevEUI. Triple-check this.
 - This endpoint modifies `fuotasettingsperdevicetbl` in the DB.
 
+## Step 4b: Verify Assignment (CRITICAL)
+
+**IMPORTANT**: Use `/settings/devices` (with `/devices` suffix) to query enrolled devices.
+The plain `/settings` endpoint returns empty `{devicesFound: []}` even when devices are enrolled.
+
+```
+# WRONG - returns empty
+GET https://val.office.corekinect.cloud:2018/singleton/firmwareupdates/settings
+
+# CORRECT - returns enrolled devices
+GET https://val.office.corekinect.cloud:2018/singleton/firmwareupdates/settings/devices
+```
+
+Response:
+```json
+{
+  "devicesFound": [
+    {
+      "deviceId": "70B3D584C01E1DDD",
+      "deviceTypeId": 2,
+      "deviceVariantId": 3,
+      "planId": 44,
+      "enableFuota": true,
+      "maxStage": 0
+    }
+  ]
+}
+```
+
 ## Step 5: Monitor FUOTA Progress
 
 ```
@@ -322,18 +354,58 @@ both `-P` and `-BMD` CFW files with the same `AppId.Major.Minor.Build`. For exam
 Plans 21-25 all failed due to this (21-23: wrong flags, 24: stale key, 25: version collision
 with P-track CFW).
 
-## Current State (2026-03-07)
+## Current State (2026-03-10)
 
-- Plans 21-25: DISABLED
-- **Plan 26: ACTIVE** — MFG v0.5.1-BMD → Prod v0.8.2-BMD (unique build number, no P collision)
-- CFW files uploaded: `108.0.8.2-BMD.cfw`, `109.0.8.2-BMD.cfw`, `108.0.8.3-BMD.cfw`, `109.0.8.3-BMD.cfw`
-- Key uploaded via REST API (raw EC point base64, 204 confirmed)
-- Device connecting to CoreCloud (RSRP=45 ≈ -96dBm, usable signal)
-- Waiting for next uplink to start FUOTA transfer with correct flags
+- **15 Alpha B0 plans exist** (IDs 21-35)
+- Plan 26 is reference example with proper 2-stage format (confirmed working structure)
+- Device 70B3D584C01E1DDD (SNR 09J5) is CLEAN — not enrolled in any plan
+- Device 70B3D584C01E1FCC (SNR 0964) is on plans 33-35
 
-## Existing Plans in VAL Server (for reference)
+### Pipeline CFW Files (Stage 4)
+```
+MFG_BASE v0.5.0:
+  108.0.5.0 → firmware/builds/alpha_mfg_fw/.../0.5.0_no_debug_108.0.5.0.cfw
+  109.0.5.0 → firmware/builds/alpha_mfg_fw/.../0.5.0_no_debug_109.0.5.0.cfw
 
-23+ plans total. Alpha B0 variant=3: plans 21-23 (all ours, all disabled).
+MFG_BUMP v0.5.1:
+  108.0.5.1 → firmware/builds/alpha_mfg_fw/.../0.5.1_no_debug_108.0.5.1.cfw
+  109.0.5.1 → firmware/builds/alpha_mfg_fw/.../0.5.1_no_debug_109.0.5.1.cfw
+```
+
+## Device Settings Management
+
+### Remove Device from FUOTA (CONFIRMED WORKING)
+
+```
+DELETE https://val.office.corekinect.cloud:2018/singleton/firmwareupdates/settings/devices
+Content-Type: application/json
+
+{
+  "deviceIds": ["70B3D584C01E1DDD"]
+}
+```
+
+Response on success: `{"numDevicesUpdated":1,...}`
+Response for unknown device: `{"numDevicesUpdated":0,"devicesFailedToUpdate":[{"deviceId":"...","errorMessage":"Device not found"}]}`
+
+**This is the safety net** — if a FUOTA assignment goes wrong, DELETE the device settings to remove it from the plan.
+
+### Check Device FUOTA Settings
+
+```
+POST https://val.office.corekinect.cloud:2018/singleton/firmwareupdates/settings/devices/search
+Content-Type: application/json
+
+{
+  "deviceIds": ["70B3D584C01E1DDD"]
+}
+```
+
+Response: `{"devicesFound":[]}` if not enrolled, or `{"devicesFound":[{...settings...}]}` if enrolled.
+
+## Existing Plans in VAL Server
+
+35+ plans total. Alpha B0 (type=2, variant=3): plans 21-35.
 Other Alpha plans: plan 4 (variant=1, A0), plans 11-20 (variant=2, Theta).
 
 ## Answered Questions
@@ -341,10 +413,11 @@ Other Alpha plans: plan 4 (variant=1, A0), plans 11-20 (variant=2, Theta).
 1. First uplink happens within 15-60 min (LTE-M PSM cycle). Power cycle triggers immediate connection attempt.
 2. Power cycle IS the way to trigger immediate uplink — device connects within ~35s of boot.
 3. Progress response when active: `{"deviceId":"..","version":"108.0.8.0-P","percentComplete":0,"pagesApplied":0,"totalPages":20109,"timeStarted":"..","lastUpdated":".."}`. Pages increment on each uplink.
-4. Disable: `POST /singleton/firmwareupdates/settings/devices` with `{"planId":N,"enableFuota":false,"maxStage":0,"deviceIds":[".."]}`
-5. Plans cannot be deleted (no DELETE endpoint). Disable device assignment instead.
+4. Disable FUOTA: `POST /singleton/firmwareupdates/settings/devices` with `{"planId":N,"enableFuota":false,"maxStage":0,"deviceIds":[".."]}`
+5. **Delete device settings**: `DELETE /singleton/firmwareupdates/settings/devices` with `{"deviceIds":[".."]}`  — CONFIRMED WORKING 2026-03-10
+6. Plans cannot be deleted, but devices CAN be removed from plans.
 
 ## Open Questions (Remaining)
 
 1. Can cross-track FUOTA work? (MFG→Prod track, same bootloader_id but different IS_MANUFACTURING flag)
-2. MTIB UART stream is byte-by-byte — potential server-side buffering issue at 115200 baud
+2. What flags do the pipeline `no_debug` CFW files have? Need to verify before creating plan.

@@ -118,8 +118,9 @@ if [ -n "$VARIANT" ]; then
     echo -e "${CYAN}Build variant: ${VARIANT}${NC}"
 fi
 
-# Theta uses nRF9160 for comms
-COMM_SOC="nrf9160"
+# Theta uses nRF9151 for comms (not nRF9160!)
+# All Theta boards (a0, b0, c0) use the nrf9151 comms SoC
+COMM_SOC="nrf9151"
 
 # ---------- helpers ----------
 
