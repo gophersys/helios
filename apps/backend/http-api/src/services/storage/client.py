@@ -24,7 +24,6 @@ appStorageClient: Optional[Minio] = None
 class StoragePrefixes:
     FIRMWARE_RAW = "firmware/raw"
     FIRMWARE_ENCRYPTED = "firmware/encrypted"
-    INVENTORY = "inventory"
     CODEBASES = "codebases"
     TESTING_LOGS = "testing/logs"
     TESTING_REPORTS = "testing/reports"
@@ -87,9 +86,15 @@ def get_storage_client() -> Minio:
 
 
 def close_storage_client() -> None:
-    """Close the storage client connection"""
+    """Close the storage client connection and release pooled HTTP connections."""
     global appStorageClient
-    appStorageClient = None
+    if appStorageClient is not None:
+        # Clear the urllib3 PoolManager to close all pooled connections
+        try:
+            appStorageClient._http.clear()
+        except Exception:
+            pass
+        appStorageClient = None
 
 
 def get_bucket_name() -> str:

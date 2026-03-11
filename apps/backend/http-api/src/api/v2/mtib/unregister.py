@@ -11,7 +11,7 @@ from src.services.log.logger import get_logger
 from .types import MtibUnregisterRequest
 
 
-@require_permissions(Permissions.MTIB_MANAGE)
+@require_permissions(Permissions.DEVICES_MANAGE)
 def unregister_mtib():
     """Unregister an MTIB node."""
     logger = get_logger()

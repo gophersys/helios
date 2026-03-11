@@ -24,7 +24,6 @@ setup(
         "prisma==0.15.0",
         "kubernetes==34.1.0",
         "minio==7.2.18",
-        "google-auth>=2.0.0",
         "PyJWT>=2.0.0",
         "flask-cors>=5.0.0",
         "influxdb-client>=1.36.0",

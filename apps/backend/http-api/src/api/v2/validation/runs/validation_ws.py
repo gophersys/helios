@@ -59,7 +59,7 @@ def register_validation_ws_handlers(socketio: SocketIO):
             logger.warning("Validation WS connect rejected: %s", error)
             return False
 
-        # Check that the user has ADMIN_VALIDATION_VIEW or ADMIN_VALIDATION_MANAGE permission
+        # Check that the user has validation:view or validation:manage permission
         perm_set_id = payload.get("permissionSetId")
         if not perm_set_id:
             logger.warning("Validation WS connect rejected: no permissionSetId")
@@ -72,8 +72,8 @@ def register_validation_ws_handlers(socketio: SocketIO):
             return False
 
         user_permissions = perm_set.permissions or []
-        if (Permissions.ADMIN_VALIDATION_VIEW not in user_permissions
-                and Permissions.ADMIN_VALIDATION_MANAGE not in user_permissions):
+        if (Permissions.VALIDATION_VIEW not in user_permissions
+                and Permissions.VALIDATION_MANAGE not in user_permissions):
             logger.warning("Validation WS connect rejected: insufficient permissions")
             return False
 

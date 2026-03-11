@@ -170,6 +170,16 @@ COPY ./apps/backend/http-api/src src
 # Copy firmware build scripts (served via /v2/ci/scripts/<product> endpoint)
 COPY ./apps/firmware/products/alpha/scripts /app/firmware/products/alpha/scripts
 COPY ./apps/firmware/products/sigma5/scripts /app/firmware/products/sigma5/scripts
+COPY ./apps/firmware/products/theta/scripts /app/firmware/products/theta/scripts
+
+# Copy validation tests (for K8s jobs running Stage 4 validation)
+COPY ./apps/validation/alpha /app/validation/alpha
+
+# Copy modem firmware (only thing not in pipeline builds)
+COPY ./apps/manufacturing/alpha/assets/mfw_nrf91x1_2.0.2.zip /app/firmware/modem/mfw_nrf91x1_2.0.2.zip
+
+# Install pytest for validation jobs (not needed for main API)
+RUN pip3 install pytest>=8.0
 
 # Keep the container running
 CMD ["python3", "src/main.py"]

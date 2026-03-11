@@ -33,7 +33,7 @@ def test_list_chipsets(authed_client, mock_db):
         ),
     ]
 
-    response = authed_client.get("/v2/catalog/chipsets")
+    response = authed_client.get("/v2/products/chipsets")
     assert response.status_code == 200
 
     data = json.loads(response.data)
@@ -46,7 +46,7 @@ def test_list_chipsets(authed_client, mock_db):
 
 def test_list_chipsets_unauthorized(client):
     """Test listing chipsets without auth returns 401."""
-    response = client.get("/v2/catalog/chipsets")
+    response = client.get("/v2/products/chipsets")
     assert response.status_code == 401
 
 
@@ -67,7 +67,7 @@ def test_create_chipset(authed_client, mock_db):
 
     with patch("src.api.v2.catalog.chipsets.log_audit"):
         response = authed_client.post(
-            "/v2/catalog/chipsets",
+            "/v2/products/chipsets",
             data=json.dumps({
                 "name": "ESP32",
                 "manufacturer": "Espressif",
@@ -90,7 +90,7 @@ def test_create_chipset_duplicate_name(authed_client, mock_db):
     )
 
     response = authed_client.post(
-        "/v2/catalog/chipsets",
+        "/v2/products/chipsets",
         data=json.dumps({"name": "nRF52840"}),
     )
 
@@ -100,7 +100,7 @@ def test_create_chipset_duplicate_name(authed_client, mock_db):
 def test_create_chipset_missing_name(authed_client, mock_db):
     """Test creating chipset with missing name returns 400."""
     response = authed_client.post(
-        "/v2/catalog/chipsets",
+        "/v2/products/chipsets",
         data=json.dumps({}),
     )
 
@@ -120,7 +120,7 @@ def test_get_chipset(authed_client, mock_db):
         updatedAt=datetime(2025, 1, 11, tzinfo=timezone.utc),
     )
 
-    response = authed_client.get("/v2/catalog/chipsets/chip-123")
+    response = authed_client.get("/v2/products/chipsets/chip-123")
     assert response.status_code == 200
 
     data = json.loads(response.data)
@@ -133,7 +133,7 @@ def test_get_chipset_not_found(authed_client, mock_db):
     """Test getting a non-existent chipset returns 404."""
     mock_db.chipset.find_unique.return_value = None
 
-    response = authed_client.get("/v2/catalog/chipsets/nonexistent")
+    response = authed_client.get("/v2/products/chipsets/nonexistent")
     assert response.status_code == 404
 
 
@@ -164,7 +164,7 @@ def test_update_chipset(authed_client, mock_db):
 
     with patch("src.api.v2.catalog.chipsets.log_audit"):
         response = authed_client.put(
-            "/v2/catalog/chipsets/chip-update",
+            "/v2/products/chipsets/chip-update",
             data=json.dumps({
                 "manufacturer": "Nordic Semiconductor",
                 "description": "BLE SoC",
@@ -195,7 +195,7 @@ def test_delete_chipset(authed_client, mock_db):
     mock_db.firmwarebuild.find_first.return_value = None
 
     with patch("src.api.v2.catalog.chipsets.log_audit"):
-        response = authed_client.delete("/v2/catalog/chipsets/chip-delete")
+        response = authed_client.delete("/v2/products/chipsets/chip-delete")
 
     assert response.status_code == 200
     data = json.loads(response.data)
@@ -222,7 +222,7 @@ def test_delete_chipset_in_use_by_board_revision(authed_client, mock_db):
         chipsetId="chip-in-use",
     )
 
-    response = authed_client.delete("/v2/catalog/chipsets/chip-in-use")
+    response = authed_client.delete("/v2/products/chipsets/chip-in-use")
     assert response.status_code == 409
 
 
@@ -247,14 +247,14 @@ def test_delete_chipset_in_use_by_firmware_build(authed_client, mock_db):
         chipsetId="chip-in-use",
     )
 
-    response = authed_client.delete("/v2/catalog/chipsets/chip-in-use")
+    response = authed_client.delete("/v2/products/chipsets/chip-in-use")
     assert response.status_code == 409
 
 
 def test_update_chipset_no_fields(authed_client, mock_db):
     """Test updating a chipset with no fields returns 400."""
     response = authed_client.put(
-        "/v2/catalog/chipsets/chip-1",
+        "/v2/products/chipsets/chip-1",
         data=json.dumps({}),
     )
 
@@ -282,7 +282,7 @@ def test_update_chipset_duplicate_name(authed_client, mock_db):
 
     with patch("src.api.v2.catalog.chipsets.log_audit"):
         response = authed_client.put(
-            "/v2/catalog/chipsets/chip-update",
+            "/v2/products/chipsets/chip-update",
             data=json.dumps({"name": "nRF9160"}),
         )
 

@@ -29,9 +29,8 @@ class ProxyConfig(EnvConfig):
 
     # Auth
     AUTH_ENABLED: bool = True
-    GOOGLE_CLIENT_ID: str = ""
     # WARNING: The default JWT secret is for development only.
-    # In production, set JWT_SECRET_KEY to a strong, unique value.
+    # In production and staging, set JWT_SECRET_KEY to a strong, unique value (32+ chars).
     JWT_SECRET_KEY: str = "concord-dev-jwt-secret-change-in-production"
 
     # Core Cloud auth server (email/password login)
@@ -67,14 +66,22 @@ class ProxyConfig(EnvConfig):
         self._validate()
 
     def _validate(self):
-        # Fail fast: never allow the default dev JWT secret in production
-        if (
-            self.ENVIRONMENT == "production"
-            and self.JWT_SECRET_KEY == "concord-dev-jwt-secret-change-in-production"
-        ):
+        _DEFAULT_SECRET = "concord-dev-jwt-secret-change-in-production"
+        _is_deployed = self.ENVIRONMENT in ("production", "staging")
+
+        # Fail fast: never allow the default dev JWT secret in production or staging
+        if _is_deployed and self.JWT_SECRET_KEY == _DEFAULT_SECRET:
             raise RuntimeError(
-                "JWT_SECRET_KEY must be changed from the default value in production. "
+                f"JWT_SECRET_KEY must be changed from the default value in {self.ENVIRONMENT}. "
                 "Set the JWT_SECRET_KEY environment variable to a strong, unique secret."
+            )
+
+        # HS256 needs at least 256 bits (32 bytes) of key material
+        if _is_deployed and len(self.JWT_SECRET_KEY) < 32:
+            raise RuntimeError(
+                f"JWT_SECRET_KEY is too short for {self.ENVIRONMENT} ({len(self.JWT_SECRET_KEY)} chars). "
+                "HS256 requires a minimum of 32 characters. "
+                "Set JWT_SECRET_KEY to a cryptographically random string of 32+ characters."
             )
 
 

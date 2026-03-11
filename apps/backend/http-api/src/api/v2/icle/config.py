@@ -17,7 +17,7 @@ from .types import ConfigPushRequest
 logger = logging.getLogger(__name__)
 
 
-@require_permissions(Permissions.ADMIN_ICLE_MANAGE)
+@require_permissions(Permissions.DEVICES_MANAGE)
 def push_config(device_id: str):
     """Queue a config_update command for an ICLE device.
 

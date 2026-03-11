@@ -4,16 +4,20 @@ from typing import Any, Dict, List, Optional, Tuple
 
 @dataclass
 class LoginRequest:
-    credential: str
+    email: str
+    password: str
 
     @classmethod
     def from_json(cls, data: dict) -> Tuple[Optional["LoginRequest"], Optional[str]]:
         if not data:
             return None, "Request body must contain JSON data"
-        credential = data.get("credential")
-        if not credential:
-            return None, "Missing credential"
-        return cls(credential=credential), None
+        email = (data.get("email") or "").strip().lower()
+        password = data.get("password") or ""
+        if not email:
+            return None, "Email is required"
+        if not password:
+            return None, "Password is required"
+        return cls(email=email, password=password), None
 
 
 @dataclass
@@ -207,22 +211,6 @@ class PermissionSetUpdateRequest:
         return update_data
 
 
-@dataclass
-class CoreCloudLoginRequest:
-    email: str
-    password: str
-
-    @classmethod
-    def from_json(cls, data: dict) -> Tuple[Optional["CoreCloudLoginRequest"], Optional[str]]:
-        if not data:
-            return None, "Request body must contain JSON data"
-        email = (data.get("email") or "").strip().lower()
-        password = data.get("password") or ""
-        if not email:
-            return None, "Email is required"
-        if not password:
-            return None, "Password is required"
-        return cls(email=email, password=password), None
 
 
 @dataclass

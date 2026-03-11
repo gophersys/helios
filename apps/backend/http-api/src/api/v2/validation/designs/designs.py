@@ -56,7 +56,7 @@ def _serialize_design_summary(design) -> Dict[str, Any]:
     }
 
 
-@require_permissions(Permissions.ADMIN_VALIDATION_VIEW)
+@require_permissions(Permissions.BENCHES_VIEW)
 def list_designs():
     """GET /v2/validation/designs - List all fixture designs."""
     db = get_db_client()
@@ -96,7 +96,7 @@ def list_designs():
         return internal_error("Failed to list fixture designs")
 
 
-@require_permissions(Permissions.ADMIN_VALIDATION_VIEW)
+@require_permissions(Permissions.BENCHES_VIEW)
 def get_design(design_id: str):
     """GET /v2/validation/designs/<id> - Get fixture design details."""
     db = get_db_client()
@@ -116,7 +116,7 @@ def get_design(design_id: str):
         return internal_error("Failed to get fixture design")
 
 
-@require_permissions(Permissions.ADMIN_VALIDATION_MANAGE)
+@require_permissions(Permissions.BENCHES_MANAGE)
 def create_design():
     """POST /v2/validation/designs - Create a new fixture design."""
     data, error = FixtureDesignCreateRequest.from_json(request.get_json())
@@ -158,7 +158,7 @@ def create_design():
         return internal_error("Failed to create fixture design")
 
 
-@require_permissions(Permissions.ADMIN_VALIDATION_MANAGE)
+@require_permissions(Permissions.BENCHES_MANAGE)
 def update_design(design_id: str):
     """PATCH /v2/validation/designs/<id> - Update a fixture design."""
     data, error = FixtureDesignUpdateRequest.from_json(request.get_json())
@@ -200,7 +200,7 @@ def update_design(design_id: str):
         return internal_error("Failed to update fixture design")
 
 
-@require_permissions(Permissions.ADMIN_VALIDATION_MANAGE)
+@require_permissions(Permissions.BENCHES_MANAGE)
 def delete_design(design_id: str):
     """DELETE /v2/validation/designs/<id> - Delete a fixture design."""
     db = get_db_client()
@@ -233,7 +233,7 @@ def delete_design(design_id: str):
         return internal_error("Failed to delete fixture design")
 
 
-@require_permissions(Permissions.ADMIN_VALIDATION_VIEW)
+@require_permissions(Permissions.BENCHES_VIEW)
 def get_design_profile(design_id: str):
     """GET /v2/validation/designs/<id>/profile - Get the fixture profile template.
 

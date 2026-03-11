@@ -28,6 +28,7 @@ def _serialize_build_job(b: Any) -> dict:
     data = {
         "id": b.id,
         "product": b.product,
+        "productId": getattr(b, "productId", None),
         "board": b.board,
         "target": b.target,
         "variant": b.variant,
@@ -74,7 +75,7 @@ def _serialize_build_artifact(a: Any) -> dict:
 #                                 Public Endpoints
 # -------------------------------------------------
 
-@require_permissions(Permissions.ADMIN_CI_VIEW)
+@require_permissions(Permissions.BUILDS_VIEW)
 def list_builds():
     """GET /v2/ci/builds — List build jobs with pagination and filters."""
     db = get_db_client()
@@ -122,7 +123,7 @@ def list_builds():
     ).to_dict()), 200
 
 
-@require_permissions(Permissions.ADMIN_CI_VIEW)
+@require_permissions(Permissions.BUILDS_VIEW)
 def get_build(build_id: str):
     """GET /v2/ci/builds/<id> — Build detail with artifacts and log."""
     db = get_db_client()
@@ -142,7 +143,7 @@ def get_build(build_id: str):
     return jsonify(ApiResponse.ok(data).to_dict()), 200
 
 
-@require_permissions(Permissions.ADMIN_CI_VIEW)
+@require_permissions(Permissions.BUILDS_VIEW)
 def list_build_artifacts(build_id: str):
     """GET /v2/ci/builds/<id>/artifacts — List artifacts for a build."""
     db = get_db_client()
@@ -161,7 +162,7 @@ def list_build_artifacts(build_id: str):
     ).to_dict()), 200
 
 
-@require_permissions(Permissions.ADMIN_CI_VIEW)
+@require_permissions(Permissions.BUILDS_VIEW)
 def get_build_log(build_id: str):
     """GET /v2/ci/builds/<id>/log — Get build log content."""
     db = get_db_client()
@@ -177,7 +178,7 @@ def get_build_log(build_id: str):
     }).to_dict()), 200
 
 
-@require_permissions(Permissions.ADMIN_CI_MANAGE)
+@require_permissions(Permissions.BUILDS_TRIGGER)
 def create_build():
     """POST /v2/ci/builds — Trigger a manual build."""
     data, error = BuildCreateRequest.from_json(request.get_json())
@@ -186,11 +187,28 @@ def create_build():
 
     db = get_db_client()
 
+    # Resolve Product by name, slug, or repo slug for productId linkage
+    product_record = db.product.find_first(
+        where={"OR": [
+            {"slug": data.product},
+            {"repoSlug": data.product},
+            {"mfgRepoSlug": data.product},
+            {"name": {"contains": data.product, "mode": "insensitive"}},
+        ]}
+    )
+    product_id = product_record.id if product_record else None
+
+    # Use board from Product model if available and not explicitly provided
+    board = data.board
+    if product_record and product_record.buildBoard and not data.board:
+        board = product_record.buildBoard
+
     try:
         build = db.buildjob.create(
             data={
                 "product": data.product,
-                "board": data.board,
+                "productId": product_id,
+                "board": board,
                 "target": data.target,
                 "variant": data.variant,
                 "mtibRev": data.mtib_rev,
@@ -204,7 +222,8 @@ def create_build():
 
         log_audit("ci.build.create", "BuildJob", build.id, {
             "product": data.product,
-            "board": data.board,
+            "productId": product_id,
+            "board": board,
             "target": data.target,
             "variant": data.variant,
             "branch": data.branch,
@@ -217,7 +236,7 @@ def create_build():
         return internal_error("Failed to create build job")
 
 
-@require_permissions(Permissions.ADMIN_CI_MANAGE)
+@require_permissions(Permissions.BUILDS_MANAGE)
 def update_build(build_id: str):
     """PATCH /v2/ci/builds/<id> — Update build status (used by workers)."""
     db = get_db_client()
@@ -334,7 +353,54 @@ def update_build(build_id: str):
         return internal_error("Failed to update build job")
 
 
-@require_permissions(Permissions.ADMIN_CI_MANAGE)
+@require_permissions(Permissions.BUILDS_MANAGE)
+def reset_build(build_id: str):
+    """POST /v2/ci/builds/<id>/reset — Force reset a stuck build to QUEUED.
+
+    Use this when a build is stuck in BUILDING state (e.g., worker crashed).
+    Clears the build log and timestamps so the worker will pick it up fresh.
+    """
+    db = get_db_client()
+
+    build = db.buildjob.find_unique(where={"id": build_id})
+    if not build:
+        return not_found("Build job not found")
+
+    # Only allow reset from BUILDING or FAILED states
+    if build.status not in ("BUILDING", "FAILED"):
+        return bad_request(f"Cannot reset build in {build.status} state. Only BUILDING or FAILED builds can be reset.")
+
+    try:
+        updated = db.buildjob.update(
+            where={"id": build_id},
+            data={
+                "status": "QUEUED",
+                "startedAt": None,
+                "finishedAt": None,
+                "buildLog": None,
+                "errorMessage": None,
+                "durationSeconds": None,
+            },
+            include={"artifacts": True},
+        )
+
+        log_audit("ci.build.reset", "BuildJob", build_id, {
+            "previousStatus": build.status,
+            "product": build.product,
+            "matrixLabel": build.matrixLabel,
+        })
+
+        logger.info("Build %s (%s) reset to QUEUED from %s",
+                   build_id, build.matrixLabel, build.status)
+
+        return jsonify(ApiResponse.ok(_serialize_build_job(updated)).to_dict()), 200
+
+    except Exception as e:
+        logger.error("Failed to reset build %s: %s", build_id, e)
+        return internal_error("Failed to reset build")
+
+
+@require_permissions(Permissions.BUILDS_MANAGE)
 def upload_build_artifact(build_id: str):
     """POST /v2/ci/builds/<id>/artifacts — Upload a build artifact."""
     import hashlib
@@ -418,7 +484,7 @@ def _get_artifact_folder(clean_name: str) -> str:
     return ""
 
 
-@require_permissions(Permissions.ADMIN_CI_VIEW)
+@require_permissions(Permissions.BUILDS_VIEW)
 def download_build_artifacts(build_id: str):
     """GET /v2/ci/builds/<id>/artifacts/download — Download all artifacts as ZIP.
 
@@ -506,7 +572,7 @@ def download_build_artifacts(build_id: str):
         return internal_error("Failed to create artifact ZIP")
 
 
-@require_permissions(Permissions.ADMIN_CI_MANAGE)
+@require_permissions(Permissions.BUILDS_MANAGE)
 def stream_build_log(build_id: str):
     """POST /v2/ci/builds/<id>/log — Receive and broadcast log chunks from build worker.
 

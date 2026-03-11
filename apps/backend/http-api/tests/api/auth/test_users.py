@@ -8,7 +8,7 @@ from src.lib.permissions import Permissions
 from tests.conftest import make_obj
 
 # All permission keys for the superadmin mock
-_all_perms = [p["key"] for p in Permissions.all()]
+_all_perms = list(Permissions.all())
 
 
 def test_list_users(authed_client, mock_db):
@@ -47,7 +47,7 @@ def test_list_users(authed_client, mock_db):
         ),
     ]
 
-    response = authed_client.get("/v2/auth/users")
+    response = authed_client.get("/v2/users")
     assert response.status_code == 200
 
     data = json.loads(response.data)
@@ -90,7 +90,7 @@ def test_create_user(authed_client, mock_db):
 
     with patch("api.v2.auth.users.log_audit"):
         response = authed_client.post(
-            "/v2/auth/users",
+            "/v2/users",
             data=json.dumps({
                 "email": "newuser@example.com",
                 "name": "New User",
@@ -119,7 +119,7 @@ def test_create_user_duplicate_email(authed_client, mock_db):
     )
 
     response = authed_client.post(
-        "/v2/auth/users",
+        "/v2/users",
         data=json.dumps({
             "email": "existing@example.com",
             "name": "Another User",
@@ -171,7 +171,7 @@ def test_update_user(authed_client, mock_db):
 
     with patch("api.v2.auth.users.log_audit"):
         response = authed_client.put(
-            "/v2/auth/users/user-1",
+            "/v2/users/user-1",
             data=json.dumps({
                 "name": "New Name",
                 "permissionSetId": "perm-2",
@@ -200,7 +200,7 @@ def test_delete_user(authed_client, mock_db):
     mock_db.user.update.return_value = None
 
     with patch("api.v2.auth.users.log_audit"):
-        response = authed_client.delete("/v2/auth/users/user-to-delete")
+        response = authed_client.delete("/v2/users/user-to-delete")
 
     assert response.status_code == 200
     data = json.loads(response.data)
@@ -221,7 +221,7 @@ def test_delete_user_self(authed_client, mock_db):
         updatedAt=datetime(2025, 1, 10, tzinfo=timezone.utc),
     )
 
-    response = authed_client.delete("/v2/auth/users/test-user-id")
+    response = authed_client.delete("/v2/users/test-user-id")
     assert response.status_code == 400
     data = json.loads(response.data)
     assert len(data["errors"]) > 0

@@ -1,5 +1,6 @@
 """CI overlay files endpoint — serves DTS overlays to build workers."""
 
+import logging
 import tarfile
 from io import BytesIO
 from pathlib import Path
@@ -7,8 +8,11 @@ from pathlib import Path
 from flask import Response, jsonify
 
 from src.lib.decorators import require_permissions
+from src.lib.errors import internal_error, not_found
 from src.lib.permissions import Permissions
 from src.lib.types import ApiResponse
+
+logger = logging.getLogger(__name__)
 
 
 # Overlays stored in monorepo at apps/firmware/products/{product}/overlays/
@@ -41,13 +45,13 @@ def _get_overlays_dir(product: str) -> Path | None:
     return None
 
 
-@require_permissions(Permissions.ADMIN_CI_VIEW)
+@require_permissions(Permissions.BUILDS_VIEW)
 def get_overlays(product: str):
     """GET /v2/ci/overlays/<product> — Get overlay files as tarball."""
     overlays_dir = _get_overlays_dir(product)
 
     if not overlays_dir:
-        return jsonify(ApiResponse.error(f"No overlays for product: {product}").to_dict()), 404
+        return not_found(f"No overlays for product: {product}")
 
     try:
         # Create tarball of overlay files
@@ -64,16 +68,17 @@ def get_overlays(product: str):
         )
 
     except Exception as e:
-        return jsonify(ApiResponse.error(f"Failed to package overlays: {e}").to_dict()), 500
+        logger.error("Failed to package overlays for %s: %s", product, e)
+        return internal_error("Failed to package overlays")
 
 
-@require_permissions(Permissions.ADMIN_CI_VIEW)
+@require_permissions(Permissions.BUILDS_VIEW)
 def list_overlays(product: str):
     """GET /v2/ci/overlays/<product>/list — List overlay files for a product."""
     overlays_dir = _get_overlays_dir(product)
 
     if not overlays_dir:
-        return jsonify(ApiResponse.error(f"No overlays for product: {product}").to_dict()), 404
+        return not_found(f"No overlays for product: {product}")
 
     try:
         overlays = []
@@ -89,4 +94,5 @@ def list_overlays(product: str):
         }).to_dict()), 200
 
     except Exception as e:
-        return jsonify(ApiResponse.error(f"Failed to list overlays: {e}").to_dict()), 500
+        logger.error("Failed to list overlays for %s: %s", product, e)
+        return internal_error("Failed to list overlays")

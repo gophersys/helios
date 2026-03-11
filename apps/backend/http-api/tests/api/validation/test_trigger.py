@@ -10,8 +10,8 @@ from tests.conftest import make_obj
 NOW = datetime(2026, 3, 1, 12, 0, 0, tzinfo=timezone.utc)
 
 
-def _make_product(id="prod-1", name="Alpha"):
-    return make_obj(id=id, name=name)
+def _make_product(id="prod-1", name="Alpha", slug="alpha"):
+    return make_obj(id=id, name=name, slug=slug)
 
 
 def _make_bench(**overrides):

@@ -15,10 +15,10 @@ from .types import PermissionSetCreateRequest, PermissionSetUpdateRequest
 logger = logging.getLogger(__name__)
 
 # All valid permission keys for validation
-_VALID_PERMISSIONS = {p["key"] for p in Permissions.all()}
+_VALID_PERMISSIONS = Permissions.all()
 
 
-@require_permissions(Permissions.ADMIN_PERMISSION_SETS_VIEW)
+@require_permissions(Permissions.USERS_VIEW)
 def list_permission_sets():
     """List all permission sets."""
     db = get_db_client()
@@ -61,11 +61,11 @@ def list_permission_sets():
     }).to_dict()), 200
 
 
-@require_permissions(Permissions.ADMIN_PERMISSION_SETS_MANAGE)
+@require_permissions(Permissions.PERMISSIONS_MANAGE)
 def create_permission_set():
     """Create a new permission set.
 
-    Body: { "name": "...", "description?": "...", "permissions": ["Concord.Cluster.Read", ...] }
+    Body: { "name": "...", "description?": "...", "permissions": ["products:view", ...] }
     """
     data, error = PermissionSetCreateRequest.from_json(request.get_json())
     if error:
@@ -103,7 +103,7 @@ def create_permission_set():
     }).to_dict()), 201
 
 
-@require_permissions(Permissions.ADMIN_PERMISSION_SETS_MANAGE)
+@require_permissions(Permissions.PERMISSIONS_MANAGE)
 def update_permission_set(set_id: str):
     """Update a permission set.
 
@@ -149,7 +149,7 @@ def update_permission_set(set_id: str):
     }).to_dict()), 200
 
 
-@require_permissions(Permissions.ADMIN_PERMISSION_SETS_MANAGE)
+@require_permissions(Permissions.PERMISSIONS_MANAGE)
 def delete_permission_set(set_id: str):
     """Delete a permission set. Fails if users are still assigned."""
     db = get_db_client()

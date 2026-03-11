@@ -176,7 +176,7 @@ def upload_firmware_to_bucket(zip_file_path: str, job_id: str, product: str) -> 
 def create_kubernetes_job(
     product: str,
     job_id: str,
-    firmware_path: str,
+    firmware_path: str,  # Legacy: MinIO path (deprecated, use pipeline_id)
     test_type: str,
     test_enable: Dict[str, bool],
     required_features: Optional[Dict[str, str]] = None,
@@ -190,6 +190,13 @@ def create_kubernetes_job(
     device_id: Optional[str] = None,
     device_snr: Optional[str] = None,
     fixture_profile_path: Optional[str] = None,
+    # Stage 4: Pipeline-based firmware (preferred)
+    pipeline_id: Optional[str] = None,
+    # Product slug for catalog API lookup
+    product_slug: Optional[str] = None,
+    # Validation stage and image tag
+    stage: str = "gate",
+    image_tag: Optional[str] = None,
 ) -> Optional[str]:
     """
     Create a new kubernetes job with the new firmware file environment variables.
@@ -246,6 +253,17 @@ def create_kubernetes_job(
         job_yaml = job_yaml.replace("{{MTIB_ADDRESS}}", mtib_address or os.environ.get("MTIB_ADDRESS", ""))
         job_yaml = job_yaml.replace("{{BENCH_ID}}", bench_id or "")
 
+        # Stage 4: Pipeline ID for firmware asset fetching
+        job_yaml = job_yaml.replace("{{PIPELINE_ID}}", pipeline_id or "")
+
+        # Product slug for catalog API lookup (e.g., "alpha_b0")
+        job_yaml = job_yaml.replace("{{PRODUCT_SLUG}}", product_slug or "")
+
+        # Validation stage and image tag
+        job_yaml = job_yaml.replace("{{STAGE}}", stage)
+        resolved_image_tag = image_tag or env_config.ENVIRONMENT
+        job_yaml = job_yaml.replace("{{IMAGE_TAG}}", resolved_image_tag)
+
         # Parse the YAML and create the job
         job_spec = yaml.safe_load(job_yaml)
 
@@ -275,7 +293,7 @@ def create_kubernetes_job(
 # -------------------------------------------------
 #                                           Handler
 # -------------------------------------------------
-@require_permissions(Permissions.VALIDATION_TESTS_RUN)
+@require_permissions(Permissions.VALIDATION_RUN)
 def run_tests():
     logger = get_logger()
     zip_file_path = None

@@ -82,7 +82,7 @@ def test_get_profile_returns_merged_data(authed_client, mock_db):
     bench = _make_bench()
     mock_db.testbench.find_unique.return_value = bench
 
-    response = authed_client.get("/v2/validation/benches/bench-1/profile")
+    response = authed_client.get("/v2/benches/bench-1/profile")
     assert response.status_code == 200
 
     data = json.loads(response.data)
@@ -124,7 +124,7 @@ def test_get_profile_without_design_returns_bench_only(authed_client, mock_db):
     )
     mock_db.testbench.find_unique.return_value = bench
 
-    response = authed_client.get("/v2/validation/benches/bench-1/profile")
+    response = authed_client.get("/v2/benches/bench-1/profile")
     assert response.status_code == 200
 
     data = json.loads(response.data)
@@ -150,7 +150,7 @@ def test_get_profile_without_design_or_overrides(authed_client, mock_db):
     )
     mock_db.testbench.find_unique.return_value = bench
 
-    response = authed_client.get("/v2/validation/benches/bench-1/profile")
+    response = authed_client.get("/v2/benches/bench-1/profile")
     assert response.status_code == 200
 
     data = json.loads(response.data)
@@ -165,7 +165,7 @@ def test_get_profile_bench_not_found_returns_404(authed_client, mock_db):
     """Test getting profile for non-existent bench returns 404."""
     mock_db.testbench.find_unique.return_value = None
 
-    response = authed_client.get("/v2/validation/benches/bad-id/profile")
+    response = authed_client.get("/v2/benches/bad-id/profile")
     assert response.status_code == 404
 
     data = json.loads(response.data)
@@ -175,7 +175,7 @@ def test_get_profile_bench_not_found_returns_404(authed_client, mock_db):
 
 def test_get_profile_requires_auth(client):
     """Test getting profile without auth returns 401."""
-    response = client.get("/v2/validation/benches/bench-1/profile")
+    response = client.get("/v2/benches/bench-1/profile")
     assert response.status_code == 401
 
 
@@ -207,7 +207,7 @@ def test_get_profile_deep_merges_nested_objects(authed_client, mock_db):
     )
     mock_db.testbench.find_unique.return_value = bench
 
-    response = authed_client.get("/v2/validation/benches/bench-1/profile")
+    response = authed_client.get("/v2/benches/bench-1/profile")
     assert response.status_code == 200
 
     data = json.loads(response.data)
@@ -232,7 +232,7 @@ def test_get_profile_with_partial_dut_info(authed_client, mock_db):
     )
     mock_db.testbench.find_unique.return_value = bench
 
-    response = authed_client.get("/v2/validation/benches/bench-1/profile")
+    response = authed_client.get("/v2/benches/bench-1/profile")
     assert response.status_code == 200
 
     data = json.loads(response.data)

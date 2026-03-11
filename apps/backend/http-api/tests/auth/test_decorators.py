@@ -150,12 +150,12 @@ def test_require_permissions_missing_permission(auth_headers, mock_db):
     perm_set = stdlib_types.SimpleNamespace(
         id="test-perm-set-id",
         name="Limited User",
-        permissions=["Concord.Admin.Users.View"],
+        permissions=["users:view"],
     )
     mock_db.permissionset.find_unique.return_value = perm_set
 
     @app.route("/test-perms-missing")
-    @require_permissions("Concord.Admin.Catalog.Manage")
+    @require_permissions("products:manage")
     def test_route():
         return json.dumps({"success": True}), 200
 
@@ -180,12 +180,12 @@ def test_require_permissions_valid_permission(auth_headers, mock_db):
     perm_set = stdlib_types.SimpleNamespace(
         id="test-perm-set-id",
         name="Admin User",
-        permissions=["Concord.Admin.Catalog.View", "Concord.Admin.Catalog.Manage"],
+        permissions=["products:view", "products:manage"],
     )
     mock_db.permissionset.find_unique.return_value = perm_set
 
     @app.route("/test-perms-valid")
-    @require_permissions("Concord.Admin.Catalog.Manage")
+    @require_permissions("products:manage")
     def test_route():
         return json.dumps({"success": True}), 200
 
@@ -209,15 +209,15 @@ def test_require_permissions_multiple_permissions(auth_headers, mock_db):
         id="test-perm-set-id",
         name="Admin User",
         permissions=[
-            "Concord.Admin.Catalog.View",
-            "Concord.Admin.Catalog.Manage",
-            "Concord.Admin.Users.View",
+            "products:view",
+            "products:manage",
+            "users:view",
         ],
     )
     mock_db.permissionset.find_unique.return_value = perm_set
 
     @app.route("/test-perms-multiple")
-    @require_permissions("Concord.Admin.Catalog.Manage", "Concord.Admin.Users.View")
+    @require_permissions("products:manage", "users:view")
     def test_route():
         return json.dumps({"success": True}), 200
 
@@ -246,7 +246,7 @@ def test_require_permissions_no_permission_set(mock_db):
     )
 
     @app.route("/test-perms-no-set")
-    @require_permissions("Concord.Admin.Catalog.View")
+    @require_permissions("products:view")
     def test_route():
         return json.dumps({"success": True}), 200
 
@@ -269,18 +269,18 @@ def test_invalidate_permission_set_cache(mock_db):
     perm_set = stdlib_types.SimpleNamespace(
         id="perm-set-1",
         name="Test Set",
-        permissions=["Concord.Admin.Catalog.View"],
+        permissions=["products:view"],
     )
     mock_db.permissionset.find_unique.return_value = perm_set
 
     # Load into cache
     perms = _get_permissions_for_set("perm-set-1")
-    assert perms == ["Concord.Admin.Catalog.View"]
+    assert perms == ["products:view"]
 
     # Verify it was cached (DB should not be called again)
     mock_db.permissionset.find_unique.reset_mock()
     perms_cached = _get_permissions_for_set("perm-set-1")
-    assert perms_cached == ["Concord.Admin.Catalog.View"]
+    assert perms_cached == ["products:view"]
     mock_db.permissionset.find_unique.assert_not_called()
 
     # Invalidate specific permission set
@@ -288,7 +288,7 @@ def test_invalidate_permission_set_cache(mock_db):
 
     # Should hit DB again
     perms_after = _get_permissions_for_set("perm-set-1")
-    assert perms_after == ["Concord.Admin.Catalog.View"]
+    assert perms_after == ["products:view"]
     mock_db.permissionset.find_unique.assert_called_once()
 
 
@@ -298,11 +298,11 @@ def test_invalidate_permission_set_cache_all(mock_db):
     # Mock permission sets
     perm_set_1 = stdlib_types.SimpleNamespace(
         id="perm-set-1",
-        permissions=["Concord.Admin.Catalog.View"],
+        permissions=["products:view"],
     )
     perm_set_2 = stdlib_types.SimpleNamespace(
         id="perm-set-2",
-        permissions=["Concord.Admin.Users.View"],
+        permissions=["users:view"],
     )
 
     def find_unique_side_effect(where):
@@ -343,24 +343,24 @@ def test_permission_cache_ttl(mock_db):
 
     perm_set = stdlib_types.SimpleNamespace(
         id="perm-set-ttl",
-        permissions=["Concord.Admin.Catalog.View"],
+        permissions=["products:view"],
     )
     mock_db.permissionset.find_unique.return_value = perm_set
 
     # Load into cache
     with patch("time.time", return_value=1000.0):
         perms = _get_permissions_for_set("perm-set-ttl")
-        assert perms == ["Concord.Admin.Catalog.View"]
+        assert perms == ["products:view"]
 
     # Within TTL, should use cache
     mock_db.permissionset.find_unique.reset_mock()
     with patch("time.time", return_value=1000.0 + _CACHE_TTL_SECONDS - 1):
         perms_cached = _get_permissions_for_set("perm-set-ttl")
-        assert perms_cached == ["Concord.Admin.Catalog.View"]
+        assert perms_cached == ["products:view"]
         mock_db.permissionset.find_unique.assert_not_called()
 
     # After TTL, should reload from DB
     with patch("time.time", return_value=1000.0 + _CACHE_TTL_SECONDS + 1):
         perms_expired = _get_permissions_for_set("perm-set-ttl")
-        assert perms_expired == ["Concord.Admin.Catalog.View"]
+        assert perms_expired == ["products:view"]
         mock_db.permissionset.find_unique.assert_called_once()

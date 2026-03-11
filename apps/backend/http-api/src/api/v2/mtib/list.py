@@ -10,7 +10,7 @@ from src.services.database.prisma import get_db_client
 from src.services.log.logger import get_logger
 
 
-@require_permissions(Permissions.MTIB_READ)
+@require_permissions(Permissions.DEVICES_VIEW)
 def list_mtibs():
     """List all MTIB nodes with basic information."""
     logger = get_logger()

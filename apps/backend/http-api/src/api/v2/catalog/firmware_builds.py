@@ -60,7 +60,7 @@ def _serialize_build(b: Any) -> dict:
 # ── Firmware Builds ─────────────────────────────────────────
 
 
-@require_permissions(Permissions.ADMIN_CATALOG_VIEW)
+@require_permissions(Permissions.PRODUCTS_VIEW)
 def list_firmware_builds(product_id: str):
     db = get_db_client()
     product = db.product.find_unique(where={"id": product_id})
@@ -101,7 +101,7 @@ def list_firmware_builds(product_id: str):
     }).to_dict()), 200
 
 
-@require_permissions(Permissions.ADMIN_CATALOG_MANAGE)
+@require_permissions(Permissions.PRODUCTS_MANAGE)
 def upload_firmware_build(product_id: str):
     db = get_db_client()
     product = db.product.find_unique(where={"id": product_id})
@@ -246,7 +246,7 @@ def upload_firmware_build(product_id: str):
         return internal_error("Failed to upload firmware build")
 
 
-@require_permissions(Permissions.ADMIN_CATALOG_MANAGE)
+@require_permissions(Permissions.PRODUCTS_MANAGE)
 def update_firmware_build(product_id: str, build_id: str):
     db = get_db_client()
     build = db.firmwarebuild.find_first(
@@ -270,7 +270,7 @@ def update_firmware_build(product_id: str, build_id: str):
     return jsonify(ApiResponse.ok(_serialize_build(updated)).to_dict()), 200
 
 
-@require_permissions(Permissions.ADMIN_CATALOG_MANAGE)
+@require_permissions(Permissions.PRODUCTS_MANAGE)
 def delete_firmware_build(product_id: str, build_id: str):
     db = get_db_client()
     build = db.firmwarebuild.find_first(
@@ -296,7 +296,7 @@ def delete_firmware_build(product_id: str, build_id: str):
     return jsonify(ApiResponse.ok({"deleted": True}).to_dict()), 200
 
 
-@require_permissions(Permissions.ADMIN_CATALOG_VIEW)
+@require_permissions(Permissions.PRODUCTS_VIEW)
 def download_firmware_build(build_id: str):
     db = get_db_client()
     build = db.firmwarebuild.find_unique(where={"id": build_id})

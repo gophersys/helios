@@ -8,13 +8,22 @@ from .serializers import serialize_job
 logger = logging.getLogger(__name__)
 
 
-def list_jobs(namespace: str | None = None) -> list[dict]:
+def list_jobs(
+    namespace: str | None = None,
+    label_selector: str | None = None,
+    field_selector: str | None = None,
+) -> list[dict]:
     batch = get_batch_v1_api()
+    kwargs = {}
+    if label_selector:
+        kwargs["label_selector"] = label_selector
+    if field_selector:
+        kwargs["field_selector"] = field_selector
 
     if namespace:
-        job_list = batch.list_namespaced_job(namespace)
+        job_list = batch.list_namespaced_job(namespace, **kwargs)
     else:
-        job_list = batch.list_job_for_all_namespaces()
+        job_list = batch.list_job_for_all_namespaces(**kwargs)
 
     return [serialize_job(j) for j in job_list.items]
 

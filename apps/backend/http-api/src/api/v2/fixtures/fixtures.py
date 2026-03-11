@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 # ── Dashboard ─────────────────────────────────────────────────
 
 
-@require_permissions(Permissions.ADMIN_FIXTURES_VIEW)
+@require_permissions(Permissions.FIXTURES_VIEW)
 def dashboard_overview():
     db = get_db_client()
 
@@ -146,7 +146,7 @@ def _serialize_slot(s: Any) -> dict:
 # ── Fixtures CRUD ──────────────────────────────────────────────
 
 
-@require_permissions(Permissions.ADMIN_FIXTURES_VIEW)
+@require_permissions(Permissions.FIXTURES_VIEW)
 def list_fixtures():
     db = get_db_client()
 
@@ -183,7 +183,7 @@ def list_fixtures():
     }).to_dict()), 200
 
 
-@require_permissions(Permissions.ADMIN_FIXTURES_MANAGE)
+@require_permissions(Permissions.FIXTURES_MANAGE)
 def create_fixture():
     data, error = FixtureCreateRequest.from_json(request.get_json())
     if error:
@@ -231,7 +231,7 @@ def create_fixture():
     return jsonify(ApiResponse.ok(_serialize_fixture(fixture, include_slots=True)).to_dict()), 201
 
 
-@require_permissions(Permissions.ADMIN_FIXTURES_VIEW)
+@require_permissions(Permissions.FIXTURES_VIEW)
 def get_fixture(fixture_id: str):
     db = get_db_client()
     fixture = db.fixture.find_unique(
@@ -249,7 +249,7 @@ def get_fixture(fixture_id: str):
     return jsonify(ApiResponse.ok(_serialize_fixture(fixture, include_slots=True)).to_dict()), 200
 
 
-@require_permissions(Permissions.ADMIN_FIXTURES_MANAGE)
+@require_permissions(Permissions.FIXTURES_MANAGE)
 def update_fixture(fixture_id: str):
     data, error = FixtureUpdateRequest.from_json(request.get_json())
     if error:
@@ -279,7 +279,7 @@ def update_fixture(fixture_id: str):
     return jsonify(ApiResponse.ok(_serialize_fixture(fixture)).to_dict()), 200
 
 
-@require_permissions(Permissions.ADMIN_FIXTURES_MANAGE)
+@require_permissions(Permissions.FIXTURES_MANAGE)
 def delete_fixture(fixture_id: str):
     db = get_db_client()
     existing = db.fixture.find_unique(
@@ -305,7 +305,7 @@ def delete_fixture(fixture_id: str):
 # ── Slots ──────────────────────────────────────────────────────
 
 
-@require_permissions(Permissions.ADMIN_FIXTURES_MANAGE)
+@require_permissions(Permissions.FIXTURES_MANAGE)
 def create_slot(fixture_id: str):
     db = get_db_client()
     fixture = db.fixture.find_unique(where={"id": fixture_id})
@@ -335,7 +335,7 @@ def create_slot(fixture_id: str):
     return jsonify(ApiResponse.ok(_serialize_slot(slot)).to_dict()), 201
 
 
-@require_permissions(Permissions.ADMIN_FIXTURES_MANAGE)
+@require_permissions(Permissions.FIXTURES_MANAGE)
 def update_slot(fixture_id: str, slot_id: str):
     db = get_db_client()
     slot = db.fixtureslot.find_first(
@@ -358,7 +358,7 @@ def update_slot(fixture_id: str, slot_id: str):
     return jsonify(ApiResponse.ok(_serialize_slot(updated)).to_dict()), 200
 
 
-@require_permissions(Permissions.ADMIN_FIXTURES_MANAGE)
+@require_permissions(Permissions.FIXTURES_MANAGE)
 def delete_slot(fixture_id: str, slot_id: str):
     db = get_db_client()
     slot = db.fixtureslot.find_first(
@@ -377,7 +377,7 @@ def delete_slot(fixture_id: str, slot_id: str):
     return jsonify(ApiResponse.ok({"deleted": True}).to_dict()), 200
 
 
-@require_permissions(Permissions.ADMIN_FIXTURES_MANAGE)
+@require_permissions(Permissions.FIXTURES_MANAGE)
 def assign_slot_node(fixture_id: str, slot_id: str):
     db = get_db_client()
 

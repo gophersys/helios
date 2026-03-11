@@ -30,7 +30,7 @@ def _serialize_board(b: Any) -> dict:
     return data
 
 
-@require_permissions(Permissions.ADMIN_CATALOG_VIEW)
+@require_permissions(Permissions.PRODUCTS_VIEW)
 def list_boards(product_id: str):
     db = get_db_client()
     product = db.product.find_unique(where={"id": product_id})
@@ -45,7 +45,7 @@ def list_boards(product_id: str):
     return jsonify(ApiResponse.ok([_serialize_board(b) for b in boards]).to_dict()), 200
 
 
-@require_permissions(Permissions.ADMIN_CATALOG_MANAGE)
+@require_permissions(Permissions.PRODUCTS_MANAGE)
 def create_board(product_id: str):
     db = get_db_client()
     product = db.product.find_unique(where={"id": product_id})
@@ -77,7 +77,7 @@ def create_board(product_id: str):
     return jsonify(ApiResponse.ok(_serialize_board(board)).to_dict()), 201
 
 
-@require_permissions(Permissions.ADMIN_CATALOG_VIEW)
+@require_permissions(Permissions.PRODUCTS_VIEW)
 def get_board(product_id: str, board_id: str):
     db = get_db_client()
     board = db.board.find_first(
@@ -122,7 +122,7 @@ def _serialize_board_revision(r: Any) -> dict:
     return result
 
 
-@require_permissions(Permissions.ADMIN_CATALOG_MANAGE)
+@require_permissions(Permissions.PRODUCTS_MANAGE)
 def update_board(product_id: str, board_id: str):
     db = get_db_client()
     existing = db.board.find_first(
@@ -153,7 +153,7 @@ def update_board(product_id: str, board_id: str):
     return jsonify(ApiResponse.ok(_serialize_board(board)).to_dict()), 200
 
 
-@require_permissions(Permissions.ADMIN_CATALOG_MANAGE)
+@require_permissions(Permissions.PRODUCTS_MANAGE)
 def delete_board(product_id: str, board_id: str):
     db = get_db_client()
     existing = db.board.find_first(

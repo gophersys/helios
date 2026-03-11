@@ -61,6 +61,18 @@ RESOURCE_MAP = {
         "patch": "patch_namespaced_ingress",
         "delete": "delete_namespaced_ingress",
     },
+    "cronjob": {
+        "api": "batch",
+        "read": "read_namespaced_cron_job",
+        "patch": "patch_namespaced_cron_job",
+        "delete": "delete_namespaced_cron_job",
+    },
+    "replicaset": {
+        "api": "apps",
+        "read": "read_namespaced_replica_set",
+        "patch": "patch_namespaced_replica_set",
+        "delete": "delete_namespaced_replica_set",
+    },
 }
 
 API_VERSION_MAP = {
@@ -73,6 +85,8 @@ API_VERSION_MAP = {
     "statefulset": "apps/v1",
     "job": "batch/v1",
     "ingress": "networking.k8s.io/v1",
+    "cronjob": "batch/v1",
+    "replicaset": "apps/v1",
 }
 
 KIND_DISPLAY = {
@@ -85,6 +99,8 @@ KIND_DISPLAY = {
     "daemonset": "DaemonSet",
     "statefulset": "StatefulSet",
     "ingress": "Ingress",
+    "cronjob": "CronJob",
+    "replicaset": "ReplicaSet",
 }
 
 

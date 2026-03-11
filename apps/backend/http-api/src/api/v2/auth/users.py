@@ -19,7 +19,7 @@ def _user_to_dict(user) -> dict:
     return UserResponse.from_user(user).to_dict()
 
 
-@require_permissions(Permissions.ADMIN_USERS_VIEW)
+@require_permissions(Permissions.USERS_VIEW)
 def users_list():
     """List all users."""
     db = get_db_client()
@@ -46,7 +46,7 @@ def users_list():
     }).to_dict()), 200
 
 
-@require_permissions(Permissions.ADMIN_USERS_MANAGE)
+@require_permissions(Permissions.USERS_MANAGE)
 def users_create():
     """Pre-register a new user.
 
@@ -80,7 +80,7 @@ def users_create():
     return jsonify(ApiResponse.created(_user_to_dict(user)).to_dict()), 201
 
 
-@require_permissions(Permissions.ADMIN_USERS_MANAGE)
+@require_permissions(Permissions.USERS_MANAGE)
 def users_update(user_id: str):
     """Update a user's name, permission set, or active status.
 
@@ -115,7 +115,7 @@ def users_update(user_id: str):
     return jsonify(ApiResponse.ok(_user_to_dict(updated)).to_dict()), 200
 
 
-@require_permissions(Permissions.ADMIN_USERS_MANAGE)
+@require_permissions(Permissions.USERS_MANAGE)
 def users_delete(user_id: str):
     """Deactivate a user (soft delete)."""
     db = get_db_client()

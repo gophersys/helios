@@ -28,7 +28,6 @@ def pytest_configure(config):
         "DB_STORAGE_PATH": "/tmp/concord-test-storage",
         "DB_STORAGE_LIMIT_GB": "1",
         "SUPPORTED_REGISTRIES": "[]",
-        "GOOGLE_CLIENT_ID": "test-google-client-id",
         "JWT_SECRET_KEY": "test-jwt-secret-key-for-testing",
         "COREOPS_SERVER_URL": "http://localhost:50050",
         "ASSETS_FOLDER": "/tmp/concord-test-assets",
@@ -148,7 +147,7 @@ def authed_client(client, auth_headers, mock_db):
     """
     # Mock the permission set lookup to return all permissions
     from src.lib.permissions import Permissions
-    all_perms = [p["key"] for p in Permissions.all()]
+    all_perms = list(Permissions.all())
 
     perm_set = stdlib_types.SimpleNamespace(
         id="test-perm-set-id",

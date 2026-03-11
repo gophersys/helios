@@ -52,7 +52,7 @@ def _serialize_device(device, include_commands: bool = False) -> dict:
     return result
 
 
-@require_permissions(Permissions.ADMIN_ICLE_VIEW)
+@require_permissions(Permissions.DEVICES_VIEW)
 def list_devices():
     """List all ICLE devices with pagination.
 
@@ -100,7 +100,7 @@ def list_devices():
     ).to_dict()), 200
 
 
-@require_permissions(Permissions.ADMIN_ICLE_VIEW)
+@require_permissions(Permissions.DEVICES_VIEW)
 def get_device(device_id: str):
     """Get a single ICLE device by ID.
 
@@ -124,7 +124,7 @@ def get_device(device_id: str):
     return jsonify(ApiResponse.ok(_serialize_device(device, include_commands=True)).to_dict()), 200
 
 
-@require_permissions(Permissions.ADMIN_ICLE_MANAGE)
+@require_permissions(Permissions.DEVICES_MANAGE)
 def update_device(device_id: str):
     """Update an ICLE device.
 
@@ -164,7 +164,7 @@ def update_device(device_id: str):
     return jsonify(ApiResponse.ok(_serialize_device(device)).to_dict()), 200
 
 
-@require_permissions(Permissions.ADMIN_ICLE_MANAGE)
+@require_permissions(Permissions.DEVICES_MANAGE)
 def delete_device(device_id: str):
     """Delete an ICLE device.
 

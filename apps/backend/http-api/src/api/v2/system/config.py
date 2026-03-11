@@ -11,17 +11,20 @@ from src.lib.types import ApiResponse
 from src.lib.validation import validate_k8s_name
 from src.services.kubernetes import configmaps as config_svc
 
+from .shared import paginate, parse_list_params
+
 logger = logging.getLogger(__name__)
 
 
-@require_permissions(Permissions.ADMIN_SYSTEM_VIEW)
+@require_permissions(Permissions.CLUSTER_VIEW)
 def list_configmaps():
-    namespace = request.args.get("namespace", None)
-    limit = request.args.get("limit", 500, type=int)
-    limit = min(max(limit, 1), 1000)
+    page, limit, namespace, label_selector, field_selector = parse_list_params()
     try:
-        data = config_svc.list_configmaps(namespace=namespace)
-        return jsonify(ApiResponse.ok(data[:limit]).to_dict()), 200
+        data = config_svc.list_configmaps(
+            namespace=namespace,
+            label_selector=label_selector,
+        )
+        return jsonify(ApiResponse.ok(paginate(data, page, limit)).to_dict()), 200
     except ApiException as e:
         if e.status == 404:
             return not_found("ConfigMaps not found")
@@ -31,7 +34,7 @@ def list_configmaps():
         return internal_error("Failed to list configmaps")
 
 
-@require_permissions(Permissions.ADMIN_SYSTEM_VIEW)
+@require_permissions(Permissions.CLUSTER_VIEW)
 def get_configmap(namespace: str, name: str):
     err = validate_k8s_name(namespace, "namespace")
     if err: return err
@@ -51,14 +54,15 @@ def get_configmap(namespace: str, name: str):
         return internal_error("Failed to get configmap")
 
 
-@require_permissions(Permissions.ADMIN_SYSTEM_VIEW)
+@require_permissions(Permissions.CLUSTER_VIEW)
 def list_secrets():
-    namespace = request.args.get("namespace", None)
-    limit = request.args.get("limit", 500, type=int)
-    limit = min(max(limit, 1), 1000)
+    page, limit, namespace, label_selector, field_selector = parse_list_params()
     try:
-        data = config_svc.list_secrets(namespace=namespace)
-        return jsonify(ApiResponse.ok(data[:limit]).to_dict()), 200
+        data = config_svc.list_secrets(
+            namespace=namespace,
+            label_selector=label_selector,
+        )
+        return jsonify(ApiResponse.ok(paginate(data, page, limit)).to_dict()), 200
     except ApiException as e:
         if e.status == 404:
             return not_found("Secrets not found")
@@ -68,14 +72,14 @@ def list_secrets():
         return internal_error("Failed to list secrets")
 
 
-@require_permissions(Permissions.ADMIN_SYSTEM_VIEW)
+@require_permissions(Permissions.CLUSTER_VIEW)
 def get_secret(namespace: str, name: str):
     err = validate_k8s_name(namespace, "namespace")
     if err: return err
     err = validate_k8s_name(name, "name")
     if err: return err
-    log_audit("system.secret.view", "Secret", f"{namespace}/{name}")
     try:
+        log_audit("cluster.secret.view", "Secret", f"{namespace}/{name}")
         data = config_svc.get_secret(namespace, name)
         if data is None:
             return not_found("Secret not found")

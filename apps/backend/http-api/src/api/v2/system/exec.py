@@ -34,11 +34,11 @@ def register_exec_handlers(socketio: SocketIO):
         Start an interactive exec session.
         Client sends: { namespace, pod, container, command?, token? }
 
-        SECURITY: Exec requires ADMIN_SYSTEM_MANAGE permission (more privileged than
-        ADMIN_SYSTEM_VIEW which is sufficient for logs). The token must be passed
+        SECURITY: Exec requires system:manage permission (more privileged than
+        system:view which is sufficient for logs). The token must be passed
         in the data payload for per-operation authorization.
         """
-        # SECURITY: Verify token and require ADMIN_SYSTEM_MANAGE for exec operations
+        # SECURITY: Verify token and require system:manage for exec operations
         # Exec is a privileged operation (shell access) — stricter than log viewing
         token = data.get("token")
         if not token:
@@ -50,7 +50,7 @@ def register_exec_handlers(socketio: SocketIO):
             emit("exec_error", {"message": "Invalid or expired token"})
             return
 
-        # Check for ADMIN_SYSTEM_MANAGE permission (exec is privileged)
+        # Check for system:manage permission (exec is privileged)
         perm_set_id = payload.get("permissionSetId")
         if not perm_set_id:
             emit("exec_error", {"message": "Authorization required"})
@@ -63,8 +63,8 @@ def register_exec_handlers(socketio: SocketIO):
             return
 
         user_permissions = perm_set.permissions or []
-        if Permissions.ADMIN_SYSTEM_MANAGE not in user_permissions:
-            emit("exec_error", {"message": "Insufficient permissions — ADMIN_SYSTEM_MANAGE required"})
+        if Permissions.SYSTEM_MANAGE not in user_permissions:
+            emit("exec_error", {"message": "Insufficient permissions — system:manage required"})
             return
 
         ns = data.get("namespace")

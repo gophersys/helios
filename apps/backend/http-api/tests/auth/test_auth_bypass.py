@@ -118,7 +118,7 @@ class TestRequirePermissionsBypass:
         with patch("config.env.env_config.AUTH_ENABLED", False):
             from src.lib.decorators import require_permissions
             app = _make_app_with_route(
-                require_permissions("Concord.Admin.Catalog.Manage"),
+                require_permissions("products:manage"),
                 route_name="/test-perms-bypass",
             )
             client = app.test_client()
@@ -134,9 +134,9 @@ class TestRequirePermissionsBypass:
             from src.lib.decorators import require_permissions
             app = _make_app_with_route(
                 require_permissions(
-                    "Concord.Admin.Catalog.Manage",
-                    "Concord.Admin.Users.Manage",
-                    "Concord.Admin.System.Manage",
+                    "products:manage",
+                    "users:manage",
+                    "system:manage",
                 ),
                 route_name="/test-multi-bypass",
             )
@@ -151,14 +151,14 @@ class TestRequirePermissionsBypass:
         perm_set = stdlib_types.SimpleNamespace(
             id="test-perm-set-id",
             name="Limited",
-            permissions=["Concord.Admin.Users.View"],
+            permissions=["users:view"],
         )
         mock_db.permissionset.find_unique.return_value = perm_set
 
         with patch("config.env.env_config.AUTH_ENABLED", True):
             from src.lib.decorators import require_permissions
             app = _make_app_with_route(
-                require_permissions("Concord.Admin.Catalog.Manage"),
+                require_permissions("products:manage"),
                 route_name="/test-perms-enforced",
             )
             client = app.test_client()
@@ -186,7 +186,7 @@ class TestMeEndpointBypass:
         assert user["email"] == "admin@concord.local"
         assert user["name"] == "Admin (auth disabled)"
         assert user["permissionSetName"] == "Full Access"
-        assert "Concord.Admin.All.Manage" in user["permissions"]
+        assert "products:view" in user["permissions"]
         assert user["active"] is True
 
         # Should NOT hit the database
@@ -208,7 +208,7 @@ class TestMeEndpointBypass:
             permissionSet=make_obj(
                 id="perm-1",
                 name="Admin",
-                permissions=["Concord.Admin.Catalog.View"],
+                permissions=["products:view"],
             ),
         )
 

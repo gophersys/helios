@@ -10,7 +10,7 @@ import logging
 from flask import jsonify, request
 
 from src.lib.decorators import require_permissions
-from src.lib.errors import bad_request
+from src.lib.errors import bad_request, internal_error
 from src.lib.permissions import Permissions
 from src.lib.types import ApiResponse
 from src.services.retention import (
@@ -22,7 +22,7 @@ from src.services.retention import (
 logger = logging.getLogger(__name__)
 
 
-@require_permissions(Permissions.ADMIN_SYSTEM_MANAGE)
+@require_permissions(Permissions.SYSTEM_MANAGE)
 def cleanup_validation_runs():
     """POST /v2/system/retention/validation/cleanup — Manually trigger cleanup.
 
@@ -47,16 +47,16 @@ def cleanup_validation_runs():
         result = cleanup_old_validation_runs(retention_days)
         return jsonify(ApiResponse.ok(result).to_dict()), 200
     except Exception as e:
-        logger.error(f"Retention cleanup failed: {e}")
-        return jsonify(ApiResponse.error(f"Cleanup failed: {str(e)}").to_dict()), 500
+        logger.error("Retention cleanup failed: %s", e)
+        return internal_error("Cleanup failed")
 
 
-@require_permissions(Permissions.ADMIN_SYSTEM_VIEW)
+@require_permissions(Permissions.SYSTEM_VIEW)
 def get_validation_storage_usage():
     """GET /v2/system/retention/validation/usage — Get storage usage stats."""
     try:
         usage = get_storage_usage()
         return jsonify(ApiResponse.ok(usage).to_dict()), 200
     except Exception as e:
-        logger.error(f"Failed to get storage usage: {e}")
-        return jsonify(ApiResponse.error(f"Failed to get usage: {str(e)}").to_dict()), 500
+        logger.error("Failed to get storage usage: %s", e)
+        return internal_error("Failed to get storage usage")

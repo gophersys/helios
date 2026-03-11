@@ -42,7 +42,7 @@ def _serialize_artifact(a: Any) -> dict:
 # ── Artifacts CRUD ─────────────────────────────────────────
 
 
-@require_permissions(Permissions.ADMIN_CODEBASES_VIEW)
+@require_permissions(Permissions.BUILDS_VIEW)
 def list_artifacts(codebase_id: str, release_id: str):
     db = get_db_client()
     release = db.release.find_first(
@@ -73,7 +73,7 @@ def list_artifacts(codebase_id: str, release_id: str):
     }).to_dict()), 200
 
 
-@require_permissions(Permissions.ADMIN_CODEBASES_MANAGE)
+@require_permissions(Permissions.BUILDS_MANAGE)
 def create_artifact(codebase_id: str, release_id: str):
     db = get_db_client()
     release = db.release.find_first(
@@ -98,7 +98,7 @@ def create_artifact(codebase_id: str, release_id: str):
     return jsonify(ApiResponse.ok(_serialize_artifact(artifact)).to_dict()), 201
 
 
-@require_permissions(Permissions.ADMIN_CODEBASES_MANAGE)
+@require_permissions(Permissions.BUILDS_MANAGE)
 def upload_artifact(codebase_id: str, release_id: str):
     db = get_db_client()
     release = db.release.find_first(
@@ -163,7 +163,7 @@ def upload_artifact(codebase_id: str, release_id: str):
         return internal_error("Failed to upload artifact")
 
 
-@require_permissions(Permissions.ADMIN_CODEBASES_MANAGE)
+@require_permissions(Permissions.BUILDS_MANAGE)
 def delete_artifact(codebase_id: str, release_id: str, artifact_id: str):
     db = get_db_client()
     artifact = db.releaseartifact.find_first(
@@ -196,7 +196,7 @@ def delete_artifact(codebase_id: str, release_id: str, artifact_id: str):
 # ── Download ─────────────────────────────────────────────
 
 
-@require_permissions(Permissions.ADMIN_CODEBASES_VIEW)
+@require_permissions(Permissions.BUILDS_VIEW)
 def download_artifact(artifact_id: str):
     db = get_db_client()
     artifact = db.releaseartifact.find_unique(where={"id": artifact_id})

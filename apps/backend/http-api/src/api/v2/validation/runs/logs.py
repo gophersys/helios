@@ -60,8 +60,8 @@ def report_log_chunk(run_id: str):
     # Decode base64 data
     try:
         chunk_bytes = base64.b64decode(data.data)
-    except Exception as e:
-        return bad_request(f"Invalid base64 data: {e}")
+    except Exception:
+        return bad_request("Invalid base64 data")
 
     # Store chunk in MinIO
     try:
@@ -115,7 +115,7 @@ def report_log_chunk(run_id: str):
     return jsonify(ApiResponse.ok({"received": True}).to_dict()), 200
 
 
-@require_permissions(Permissions.ADMIN_VALIDATION_VIEW)
+@require_permissions(Permissions.VALIDATION_VIEW)
 def get_log_file(run_id: str, file_path: str):
     """GET /v2/validation/runs/<id>/logs/<path> — Fetch log file with optional offset.
 
@@ -185,7 +185,7 @@ def get_log_file(run_id: str, file_path: str):
         return internal_error("Failed to fetch log file")
 
 
-@require_permissions(Permissions.ADMIN_VALIDATION_VIEW)
+@require_permissions(Permissions.VALIDATION_VIEW)
 def download_run(run_id: str):
     """GET /v2/validation/runs/<id>/download — Generate ZIP and return presigned URL.
 
@@ -268,7 +268,7 @@ def download_run(run_id: str):
         return internal_error("Failed to generate download")
 
 
-@require_permissions(Permissions.ADMIN_VALIDATION_VIEW)
+@require_permissions(Permissions.VALIDATION_VIEW)
 def get_manifest(run_id: str):
     """GET /v2/validation/runs/<id>/manifest — Return the manifest.json for the run.
 

@@ -65,7 +65,7 @@ def _serialize_bench(bench) -> Dict[str, Any]:
     return result
 
 
-@require_permissions(Permissions.ADMIN_VALIDATION_VIEW)
+@require_permissions(Permissions.BENCHES_VIEW)
 def list_benches():
     """GET /v2/validation/benches - List all test benches."""
     db = get_db_client()
@@ -118,7 +118,7 @@ def list_benches():
         return internal_error("Failed to list benches")
 
 
-@require_permissions(Permissions.ADMIN_VALIDATION_VIEW)
+@require_permissions(Permissions.BENCHES_VIEW)
 def get_bench(bench_id: str):
     """GET /v2/validation/benches/<id> - Get bench details."""
     db = get_db_client()
@@ -138,7 +138,7 @@ def get_bench(bench_id: str):
         return internal_error("Failed to get bench")
 
 
-@require_permissions(Permissions.ADMIN_VALIDATION_MANAGE)
+@require_permissions(Permissions.BENCHES_MANAGE)
 def create_bench():
     """POST /v2/validation/benches - Create a new test bench."""
     data, error = BenchCreateRequest.from_json(request.get_json())
@@ -211,7 +211,7 @@ def create_bench():
         return internal_error("Failed to create bench")
 
 
-@require_permissions(Permissions.ADMIN_VALIDATION_MANAGE)
+@require_permissions(Permissions.BENCHES_MANAGE)
 def update_bench(bench_id: str):
     """PATCH /v2/validation/benches/<id> - Update a test bench."""
     data, error = BenchUpdateRequest.from_json(request.get_json())
@@ -247,7 +247,7 @@ def update_bench(bench_id: str):
         return internal_error("Failed to update bench")
 
 
-@require_permissions(Permissions.ADMIN_VALIDATION_MANAGE)
+@require_permissions(Permissions.BENCHES_MANAGE)
 def delete_bench(bench_id: str):
     """DELETE /v2/validation/benches/<id> - Delete a test bench."""
     db = get_db_client()
@@ -273,7 +273,7 @@ def delete_bench(bench_id: str):
         return internal_error("Failed to delete bench")
 
 
-@require_permissions(Permissions.ADMIN_VALIDATION_MANAGE)
+@require_permissions(Permissions.BENCHES_MANAGE)
 def lock_bench(bench_id: str):
     """POST /v2/validation/benches/<id>/lock - Lock a bench for exclusive use."""
     data, error = BenchLockRequest.from_json(request.get_json())
@@ -313,7 +313,7 @@ def lock_bench(bench_id: str):
         return internal_error("Failed to lock bench")
 
 
-@require_permissions(Permissions.ADMIN_VALIDATION_MANAGE)
+@require_permissions(Permissions.BENCHES_MANAGE)
 def unlock_bench(bench_id: str):
     """POST /v2/validation/benches/<id>/unlock - Release a bench lock."""
     db = get_db_client()
@@ -407,7 +407,7 @@ def find_available_bench(
         return None
 
 
-@require_permissions(Permissions.ADMIN_VALIDATION_VIEW)
+@require_permissions(Permissions.BENCHES_VIEW)
 def discover_mtibs():
     """GET /v2/validation/benches/discover - Find unregistered MTIBs in K8s cluster.
 
@@ -439,12 +439,16 @@ def discover_mtibs():
             nodes = type("MockNodeList", (), {"items": []})()
 
         # Get all registered bench MTIB addresses
-        registered_addresses = set()
-        benches = db.testbench.find_many(select={"mtibAddress": True})
+        registered_bench_addresses = set()
+        benches = db.testbench.find_many()
         for b in benches:
-            # Extract IP from "10.4.45.33:50053"
             addr = b.mtibAddress.split(":")[0] if b.mtibAddress else ""
-            registered_addresses.add(addr)
+            registered_bench_addresses.add(addr)
+
+        # Get all registered Node hostnames and IPs
+        registered_nodes = db.node.find_many()
+        registered_node_hostnames = {n.hostname for n in registered_nodes}
+        registered_node_ips = {n.ipAddress for n in registered_nodes if n.ipAddress}
 
         # Find unregistered nodes
         unregistered = []
@@ -456,9 +460,13 @@ def discover_mtibs():
                     ip = addr.address
                     break
 
-            if ip and ip not in registered_addresses:
+            hostname = node.metadata.name
+            has_bench = ip in registered_bench_addresses if ip else False
+            has_node = hostname in registered_node_hostnames or (ip in registered_node_ips if ip else False)
+
+            if ip and not has_bench:
                 unregistered.append({
-                    "hostname": node.metadata.name,
+                    "hostname": hostname,
                     "ip": ip,
                     "mtibAddress": f"{ip}:50053",
                     "labels": dict(node.metadata.labels or {}),
@@ -469,6 +477,7 @@ def discover_mtibs():
                         c.type == "Ready" and c.status == "True"
                         for c in (node.status.conditions or [])
                     ),
+                    "hasNodeRecord": has_node,
                 })
 
         return jsonify(ApiResponse.ok(unregistered).to_dict()), 200
@@ -478,7 +487,7 @@ def discover_mtibs():
         return internal_error("Failed to discover MTIBs")
 
 
-@require_permissions(Permissions.ADMIN_VALIDATION_VIEW)
+@require_permissions(Permissions.BENCHES_VIEW)
 def get_bench_profile(bench_id: str):
     """GET /v2/validation/benches/<id>/profile - Get resolved fixture profile.
 
@@ -492,7 +501,7 @@ def get_bench_profile(bench_id: str):
     try:
         bench = db.testbench.find_unique(
             where={"id": bench_id},
-            include={"fixtureDesign": True},
+            include={"fixtureDesign": True, "product": True},
         )
         if not bench:
             return not_found(f"Bench not found: {bench_id}")
@@ -538,6 +547,17 @@ def get_bench_profile(bench_id: str):
         # Set capabilities from bench (may override design)
         if bench.capabilities:
             profile["capabilities"] = bench.capabilities
+
+        # Inject Product metadata (deviceTypeId, deviceVariantId, appIds, coreCloudEnv, etc.)
+        if hasattr(bench, "product") and bench.product:
+            product = bench.product
+            profile["product"] = {
+                "id": product.id,
+                "name": product.name,
+                "slug": product.slug,
+            }
+            if product.metadata and isinstance(product.metadata, dict):
+                profile["product"].update(product.metadata)
 
         return jsonify(ApiResponse.ok(profile).to_dict()), 200
 

@@ -11,19 +11,22 @@ from src.lib.types import ApiResponse
 from src.lib.validation import validate_k8s_name
 from src.services.kubernetes import deployments as dep_svc
 
+from .shared import paginate, parse_list_params
 from .types import ScaleDeploymentRequest
 
 logger = logging.getLogger(__name__)
 
 
-@require_permissions(Permissions.ADMIN_SYSTEM_VIEW)
+@require_permissions(Permissions.CLUSTER_VIEW)
 def list_deployments():
-    namespace = request.args.get("namespace", None)
-    limit = request.args.get("limit", 500, type=int)
-    limit = min(max(limit, 1), 1000)
+    page, limit, namespace, label_selector, field_selector = parse_list_params()
     try:
-        data = dep_svc.list_deployments(namespace=namespace)
-        return jsonify(ApiResponse.ok(data[:limit]).to_dict()), 200
+        data = dep_svc.list_deployments(
+            namespace=namespace,
+            label_selector=label_selector,
+            field_selector=field_selector,
+        )
+        return jsonify(ApiResponse.ok(paginate(data, page, limit)).to_dict()), 200
     except ApiException as e:
         if e.status == 404:
             return not_found("Deployments not found")
@@ -33,7 +36,7 @@ def list_deployments():
         return internal_error("Failed to list deployments")
 
 
-@require_permissions(Permissions.ADMIN_SYSTEM_VIEW)
+@require_permissions(Permissions.CLUSTER_VIEW)
 def get_deployment(namespace: str, name: str):
     err = validate_k8s_name(namespace, "namespace")
     if err: return err
@@ -53,7 +56,7 @@ def get_deployment(namespace: str, name: str):
         return internal_error("Failed to get deployment")
 
 
-@require_permissions(Permissions.ADMIN_SYSTEM_MANAGE)
+@require_permissions(Permissions.CLUSTER_MANAGE)
 def scale_deployment(namespace: str, name: str):
     err = validate_k8s_name(namespace, "namespace")
     if err: return err
@@ -67,7 +70,7 @@ def scale_deployment(namespace: str, name: str):
         success = dep_svc.scale_deployment(namespace, name, data.replicas)
         if not success:
             return internal_error("Failed to scale deployment")
-        log_audit("system.deployment.scale", "Deployment", f"{namespace}/{name}", {"replicas": data.replicas})
+        log_audit("cluster.deployment.scale", "Deployment", f"{namespace}/{name}", {"replicas": data.replicas})
         return jsonify(ApiResponse.ok({"scaled": True, "replicas": data.replicas}).to_dict()), 200
     except ApiException as e:
         if e.status == 404:
@@ -78,7 +81,7 @@ def scale_deployment(namespace: str, name: str):
         return internal_error("Failed to scale deployment")
 
 
-@require_permissions(Permissions.ADMIN_SYSTEM_MANAGE)
+@require_permissions(Permissions.CLUSTER_MANAGE)
 def restart_deployment(namespace: str, name: str):
     err = validate_k8s_name(namespace, "namespace")
     if err: return err
@@ -88,7 +91,7 @@ def restart_deployment(namespace: str, name: str):
         success = dep_svc.restart_deployment(namespace, name)
         if not success:
             return internal_error("Failed to restart deployment")
-        log_audit("system.deployment.restart", "Deployment", f"{namespace}/{name}")
+        log_audit("cluster.deployment.restart", "Deployment", f"{namespace}/{name}")
         return jsonify(ApiResponse.ok({"restarted": True}).to_dict()), 200
     except ApiException as e:
         if e.status == 404:

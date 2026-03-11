@@ -214,7 +214,9 @@ class ReportFinishRequest:
 class RunTriggerRequest:
     """Trigger a K8s validation job for an existing run."""
     firmware_version: str
-    firmware_path: Optional[str] = None
+    firmware_path: Optional[str] = None  # Legacy: MinIO path (deprecated)
+    pipeline_id: Optional[str] = None  # Stage 4: CI pipeline ID (preferred)
+    stage: str = "gate"  # Test stage: gate, nightly, integration, smoke
     config: Optional[Dict[str, Any]] = None
 
     @classmethod
@@ -230,6 +232,14 @@ class RunTriggerRequest:
         if firmware_path is not None:
             firmware_path = firmware_path.strip() or None
 
+        pipeline_id = data.get("pipelineId")
+        if pipeline_id is not None:
+            pipeline_id = pipeline_id.strip() or None
+
+        stage = (data.get("stage") or "gate").strip().lower()
+        if stage not in ("gate", "nightly", "integration", "smoke"):
+            return None, "stage must be one of: gate, nightly, integration, smoke"
+
         config = data.get("config")
         if config is not None and not isinstance(config, dict):
             return None, "config must be an object"
@@ -237,6 +247,8 @@ class RunTriggerRequest:
         return cls(
             firmware_version=firmware_version,
             firmware_path=firmware_path,
+            pipeline_id=pipeline_id,
+            stage=stage,
             config=config,
         ), None
 

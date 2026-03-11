@@ -12,9 +12,9 @@ datasource db {
     directUrl = env("DIRECT_DATABASE_URL")
 }
 
-// ─────────────────────────────────────────────────────────────
-//                                                        Enums
-// ─────────────────────────────────────────────────────────────
+// =============================================================================
+// ENUMS
+// =============================================================================
 
 enum NodeStatus {
     ONLINE
@@ -67,14 +67,6 @@ enum LogLevel {
     FATAL
 }
 
-enum InventoryCategory {
-    HARDWARE
-    MECHANICAL
-    CABLE
-    ACCESSORY
-    OTHER
-}
-
 enum RevisionStatus {
     ACTIVE
     DEPRECATED
@@ -114,168 +106,132 @@ enum TestBenchStatus {
     MAINTENANCE
 }
 
-// ─────────────────────────────────────────────────────────────
-//                                               Users & Audit
-// ─────────────────────────────────────────────────────────────
-
-model PermissionSet {
-    id          String   @id @default(cuid())
-    name        String   @unique
-    description String?
-    permissions String[] /// e.g. ["Concord.Firmware.AppID.Create", "Concord.Cluster.Read"]
-    createdAt   DateTime @default(now())
-    updatedAt   DateTime @updatedAt
-
-    users User[]
-
-    @@map("permission_sets")
+enum BuildJobStatus {
+    QUEUED
+    BLOCKED // Waiting for base build to complete (version bump builds)
+    BUILDING
+    SUCCESS
+    FAILED
+    CANCELLED
 }
 
-model ApiKey {
-    id         String    @id @default(cuid())
-    name       String
-    keyHash    String    @unique /// SHA-256 hash of the actual key (never store plaintext)
-    keyPrefix  String /// First 8 chars of key for display ("ck_live_a1b2...")
-    userId     String
-    expiresAt  DateTime?
-    lastUsedAt DateTime?
-    createdAt  DateTime  @default(now())
-
-    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-    @@map("api_keys")
+enum PipelineStatus {
+    PENDING      // Waiting for builds to start
+    BUILDING     // Builds in progress
+    BUILD_FAILED // One or more builds failed
+    VALIDATING   // Validation job running
+    SUCCESS      // All builds + validation passed
+    FAILED       // Validation failed
+    CANCELLED    // Pipeline cancelled
 }
 
-model User {
-    id              String    @id @default(cuid())
-    externalId      String?   @unique /// Google sub ID, set on first login
-    email           String    @unique
-    name            String
-    permissionSetId String?
-    active          Boolean   @default(true)
-    lastSeenAt      DateTime?
-    createdAt       DateTime  @default(now())
-    updatedAt       DateTime  @updatedAt
-
-    permissionSet  PermissionSet? @relation(fields: [permissionSetId], references: [id])
-    apiKeys        ApiKey[]
-    sessions       Session[]
-    deployments    Deployment[]
-    testExecutions TestExecution[]
-    auditLogs      AuditLog[]
-
-    @@map("users")
+enum ValidationCategory {
+    SIM // Simulation (native_sim, no HW)
+    DRV // Driver (single driver on real HW)
+    INT // Integration (multi-component on real HW)
+    PRD // Product (black-box + FUOTA lifecycle)
 }
 
-/// Append-only log of every significant mutation in the system.
-/// userId is nullable for system-initiated actions.
-model AuditLog {
-    id         String   @id @default(cuid())
-    userId     String?
-    action     String /// dot-notation verb: "session.create", "node.update", etc.
-    entityType String /// model name: "Session", "Node", "Test", etc.
-    entityId   String?
-    details    Json? /// freeform context — before/after snapshots, params, etc.
-    ipAddress  String?
-    createdAt  DateTime @default(now())
-
-    user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
-
-    @@index([createdAt])
-    @@index([entityType, entityId])
-    @@index([userId])
-    @@map("audit_logs")
+enum ValidationNodeType {
+    BUILD  // Firmware build step
+    FLASH  // J-Link flash step
+    FUOTA  // FUOTA delivery step
+    TEST   // Test execution step
+    MANUAL // Manual intervention required
+    GATE   // Approval gate
 }
 
-// ─────────────────────────────────────────────────────────────
-//                                       Products & Catalog
-// ─────────────────────────────────────────────────────────────
-
-/// A chipset / SoC that can be placed on a board revision.
-/// First-class entity — new chipsets can be added via UI without code changes.
-model Chipset {
-    id           String   @id @default(cuid())
-    name         String   @unique /// "nRF52840", "nRF9151", "ESP32"
-    manufacturer String? /// "Nordic Semiconductor"
-    isModem      Boolean  @default(false)
-    description  String?
-    active       Boolean  @default(true)
-    createdAt    DateTime @default(now())
-    updatedAt    DateTime @updatedAt
-
-    boardRevisionChipsets BoardRevisionChipset[]
-    firmwareBuilds        FirmwareBuild[]
-
-    @@map("chipsets")
+enum ValidationRunStatus {
+    PENDING
+    RUNNING
+    PASSED
+    FAILED
+    CANCELLED
 }
+
+enum ValidationStepStatus {
+    PENDING
+    BLOCKED // Waiting for upstream node
+    RUNNING
+    PASSED
+    FAILED
+    SKIPPED
+}
+
+// =============================================================================
+//
+//  PRODUCTS
+//  Hardware products, boards, chipsets, and firmware builds.
+//
+// =============================================================================
 
 /// A hardware product that Concord tests: Sigma5, Theta, Alpha, etc.
-/// Everything flows from here — fixtures, tests, sessions, builds.
+/// Everything flows from here -- fixtures, tests, sessions, builds.
 /// Git poller and build worker read repo/build config from here.
 model Product {
-    id          String   @id @default(cuid())
-    name        String   @unique /// "Alpha B0", "Sigma5 C0"
-    slug        String?  @unique /// "alpha_b0", "sigma5_c0" — URL-safe identifier
+    id          String  @id @default(cuid())
+    name        String  @unique /// "Alpha B0", "Sigma5 C0"
+    slug        String? @unique /// "alpha_b0", "sigma5_c0" -- URL-safe identifier
     description String?
-    active      Boolean  @default(true)
+    active      Boolean @default(true)
 
-    // ─── Firmware repo config (git poller reads this) ───
-    repoSlug    String?  /// "alpha_fw" — Bitbucket repo name
-    repoSshUrl  String?  /// "git@bitbucket.org:corekinect/alpha_fw.git"
-    repoBranch  String?  /// "concord-main" — branch to watch
+    // Firmware repo config (git poller reads this)
+    repoSlug    String? /// "alpha_fw" -- Bitbucket repo name
+    repoSshUrl  String? /// "git@bitbucket.org:corekinect/alpha_fw.git"
+    repoBranch  String? /// "concord-main" -- branch to watch
 
-    // ─── Manufacturing firmware repo (cloned during build) ───
-    mfgRepoSlug   String?  /// "alpha_mfg_fw"
-    mfgRepoSshUrl String?  /// "git@bitbucket.org:corekinect/alpha_mfg_fw.git"
+    // Manufacturing firmware repo (cloned during build)
+    mfgRepoSlug   String? /// "alpha_mfg_fw"
+    mfgRepoSshUrl String? /// "git@bitbucket.org:corekinect/alpha_mfg_fw.git"
 
-    // ─── Build config (build worker reads this) ───
-    buildBoard   String?  /// "alpha_b0" — west board name
-    buildWestDir String?  /// "apps/firmware/products/alpha/alpha_fw"
-    buildMfgDir  String?  /// "apps/firmware/products/alpha/alpha_mfg_fw"
+    // Build config (build worker reads this)
+    buildBoard   String? /// "alpha_b0" -- west board name
+    buildWestDir String? /// "apps/firmware/products/alpha/alpha_fw"
+    buildMfgDir  String? /// "apps/firmware/products/alpha/alpha_mfg_fw"
 
-    metadata    Json? /// additional product-specific config
-    createdAt   DateTime @default(now())
-    updatedAt   DateTime @updatedAt
+    metadata  Json? /// additional product-specific config
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
 
+    boards         Board[]
+    firmwareBuilds FirmwareBuild[]
     fixtures       Fixture[]
     tests          Test[]
     sessions       Session[]
-    deployments    Deployment[]
-    boards         Board[]
-    firmwareBuilds FirmwareBuild[]
     buildJobs      BuildJob[]
     testBenches    TestBench[]
+    deployments    Deployment[]
 
     @@map("products")
 }
 
 /// A distinct PCB design within a product (e.g. "Main Board", "Sensor Board").
 model Board {
-    id          String   @id @default(cuid())
+    id          String  @id @default(cuid())
     productId   String
     name        String /// "Main Board", "Sensor Board"
     description String?
-    active      Boolean  @default(true)
+    active      Boolean @default(true)
     createdAt   DateTime @default(now())
     updatedAt   DateTime @updatedAt
 
-    product   Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
+    product   Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
     revisions BoardRevision[]
 
     @@unique([productId, name])
     @@map("boards")
 }
 
-/// A board revision (e.g. A0, B0, B1) — a specific version of a Board PCB.
+/// A board revision (e.g. A0, B0, B1) -- a specific version of a Board PCB.
 model BoardRevision {
-    id              String         @id @default(cuid())
-    boardId         String
-    version         String /// e.g. "A0", "B0", "B1"
-    selectedBuilds  Json? /// Per-chipset build selection: {"<chipsetId>": "build-id", ...}
-    status          RevisionStatus @default(ACTIVE)
-    notes           String?
-    createdAt       DateTime       @default(now())
-    updatedAt       DateTime       @updatedAt
+    id             String         @id @default(cuid())
+    boardId        String
+    version        String /// e.g. "A0", "B0", "B1"
+    status         RevisionStatus @default(ACTIVE)
+    selectedBuilds Json? /// Per-chipset build selection: {"<chipsetId>": "build-id", ...}
+    notes          String?
+    createdAt      DateTime       @default(now())
+    updatedAt      DateTime       @updatedAt
 
     board    Board                  @relation(fields: [boardId], references: [id], onDelete: Cascade)
     chipsets BoardRevisionChipset[]
@@ -297,26 +253,44 @@ model BoardRevisionChipset {
     @@map("board_revision_chipsets")
 }
 
+/// A chipset / SoC that can be placed on a board revision.
+/// First-class entity -- new chipsets can be added via UI without code changes.
+model Chipset {
+    id           String  @id @default(cuid())
+    name         String  @unique /// "nRF52840", "nRF9151", "ESP32"
+    manufacturer String? /// "Nordic Semiconductor"
+    isModem      Boolean @default(false)
+    description  String?
+    active       Boolean @default(true)
+    createdAt    DateTime @default(now())
+    updatedAt    DateTime @updatedAt
+
+    boardRevisionChipsets BoardRevisionChipset[]
+    firmwareBuilds        FirmwareBuild[]
+
+    @@map("chipsets")
+}
+
 /// An uploaded firmware build file with version metadata.
 model FirmwareBuild {
-    id               String              @id @default(cuid())
-    productId        String
-    chipsetId        String /// FK to Chipset
-    version          String /// Semantic version string "1.0.0"
-    isManufacturing  Boolean             @default(false)
-    storageKey       String /// MinIO object key
-    filename         String
-    sizeBytes        BigInt
-    checksum         String /// SHA-256 hex digest
-    contentType      String?
-    modemStorageKey  String? /// MinIO key for modem firmware zip (modem targets only)
-    modemFilename    String?
-    modemSizeBytes   BigInt?
-    modemChecksum    String? /// SHA-256 hex digest of modem file
-    status           FirmwareBuildStatus @default(DRAFT)
-    notes            String?
-    createdAt        DateTime            @default(now())
-    updatedAt        DateTime            @updatedAt
+    id              String              @id @default(cuid())
+    productId       String
+    chipsetId       String /// FK to Chipset
+    version         String /// Semantic version string "1.0.0"
+    isManufacturing Boolean             @default(false)
+    status          FirmwareBuildStatus @default(DRAFT)
+    storageKey      String /// MinIO object key
+    filename        String
+    sizeBytes       BigInt
+    checksum        String /// SHA-256 hex digest
+    contentType     String?
+    modemStorageKey String? /// MinIO key for modem firmware zip (modem targets only)
+    modemFilename   String?
+    modemSizeBytes  BigInt?
+    modemChecksum   String? /// SHA-256 hex digest of modem file
+    notes           String?
+    createdAt       DateTime            @default(now())
+    updatedAt       DateTime            @updatedAt
 
     product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
     chipset Chipset @relation(fields: [chipsetId], references: [id], onDelete: Restrict)
@@ -325,6 +299,473 @@ model FirmwareBuild {
     @@index([productId])
     @@map("firmware_builds")
 }
+
+// =============================================================================
+//
+//  BUILDS
+//  CI pipeline runs, build jobs, artifacts, codebases, and releases.
+//
+// =============================================================================
+
+/// Groups multiple builds (e.g., alpha_fw + alpha_mfg_fw) triggered by same commit.
+/// Tracks the overall build+validate workflow for a product.
+model PipelineRun {
+    id              String         @id @default(cuid())
+    name            String?        /// e.g., "alpha-main-abc1234"
+    product         String         /// Base product (alpha, sigma5, theta)
+    board           String         /// Board variant (alpha_b0)
+    branch          String
+    commitSha       String?
+    status          PipelineStatus @default(PENDING)
+    triggerType     String         @default("manual") /// manual, webhook, scheduled
+    triggerData     Json?          /// Webhook payload or trigger config
+
+    // Build tracking
+    expectedBuilds  Int            @default(2) /// How many builds to wait for
+    completedBuilds Int            @default(0)
+
+    // Stage 4 build matrix configuration
+    buildMatrix     Json? /// Matrix config: {mode: "stage4", labels: [...], mainRef: "main", prRef: "feature/x"}
+    matrixMode      String? /// "legacy" (4 builds) or "stage4" (8 builds)
+
+    // Validation tracking
+    validationRunId String? /// Links to ValidationRun when validation starts
+
+    // Timing
+    startedAt  DateTime?
+    finishedAt DateTime?
+    createdAt  DateTime @default(now())
+    updatedAt  DateTime @updatedAt
+
+    builds         BuildJob[]
+    sessions       Session[]
+    validationRuns ValidationRun[]
+
+    @@index([product, branch])
+    @@index([status])
+    @@index([commitSha])
+    @@map("pipeline_runs")
+}
+
+/// A single firmware build job within a pipeline.
+model BuildJob {
+    id              String         @id @default(cuid())
+    product         String /// Legacy: repo slug ("alpha_fw")
+    productId       String? /// FK to Product (preferred)
+    board           String
+    target          String
+    variant         String         @default("release")
+    mtibRev         String         @default("1.2")
+    branch          String
+    commitSha       String?
+    status          BuildJobStatus @default(QUEUED)
+    versionMajor    Int?
+    versionMinor    Int?
+    buildNum        Int            @default(autoincrement())
+    versionString   String?
+    errorMessage    String?
+    buildLog        String?
+    webhookData     Json?
+
+    // Stage 4 matrix identification
+    matrixLabel String? /// e.g., "MFG_BASE", "FUT_DEBUG_A", "FUT_RELEASE_B"
+    matrixIndex Int?    /// Position in build sequence (0-7 for Stage 4)
+    versionBump Boolean @default(false) /// True if version-bumped build (same code, N+1)
+    baseJobId   String? /// If version-bumped, points to the base build job
+
+    // Pipeline relation
+    pipelineRunId String?
+    pipelineRun   PipelineRun? @relation(fields: [pipelineRunId], references: [id])
+
+    // Timing
+    startedAt       DateTime?
+    finishedAt      DateTime?
+    durationSeconds Int?
+    createdAt       DateTime @default(now())
+    updatedAt       DateTime @updatedAt
+
+    productRef Product?           @relation(fields: [productId], references: [id])
+    artifacts  BuildJobArtifact[]
+
+    @@index([product, branch])
+    @@index([matrixLabel])
+    @@index([productId])
+    @@index([status])
+    @@index([pipelineRunId])
+    @@map("build_jobs")
+}
+
+/// A build artifact (hex, bin, elf) stored in MinIO.
+model BuildJobArtifact {
+    id         String   @id @default(cuid())
+    buildJobId String
+    name       String
+    storageKey String
+    sizeBytes  BigInt
+    checksum   String
+    createdAt  DateTime @default(now())
+
+    buildJob BuildJob @relation(fields: [buildJobId], references: [id], onDelete: Cascade)
+
+    @@index([buildJobId])
+    @@map("build_job_artifacts")
+}
+
+/// A software repository tracked by Concord -- Concord App, Concord OS, etc.
+model Codebase {
+    id            String  @id @default(cuid())
+    name          String  @unique
+    description   String?
+    repoUrl       String?
+    defaultBranch String  @default("main")
+    imageKey      String? /// MinIO object key for logo image
+    createdAt     DateTime @default(now())
+    updatedAt     DateTime @updatedAt
+
+    releases Release[]
+
+    @@map("codebases")
+}
+
+/// A versioned release of a codebase.
+model Release {
+    id           String        @id @default(cuid())
+    codebaseId   String
+    version      String
+    status       ReleaseStatus @default(DRAFT)
+    releaseNotes String?
+    tagName      String? /// Bitbucket tag name for linking
+    releasedAt   DateTime? /// When the release was published (separate from createdAt)
+    createdAt    DateTime      @default(now())
+    updatedAt    DateTime      @updatedAt
+
+    codebase  Codebase          @relation(fields: [codebaseId], references: [id], onDelete: Cascade)
+    artifacts ReleaseArtifact[]
+
+    @@unique([codebaseId, version])
+    @@index([codebaseId, status])
+    @@map("releases")
+}
+
+/// A downloadable artifact for a release -- uploaded to MinIO or linked via external URL.
+model ReleaseArtifact {
+    id          String       @id @default(cuid())
+    releaseId   String
+    name        String
+    filename    String?
+    type        ArtifactType
+    storageKey  String? /// MinIO object key (for UPLOAD type)
+    externalUrl String? /// External download URL (for EXTERNAL type)
+    sizeBytes   BigInt? /// File size; BigInt to support files > 2GB
+    checksum    String? /// SHA-256 hex digest
+    contentType String?
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+
+    release Release @relation(fields: [releaseId], references: [id], onDelete: Cascade)
+
+    @@index([releaseId])
+    @@map("release_artifacts")
+}
+
+// =============================================================================
+//
+//  VALIDATION
+//  Validation flow designs, runs, and step-level execution tracking.
+//
+// =============================================================================
+
+/// Template for validation flows -- defines the graph of steps for a product/board.
+model ValidationDesign {
+    id          String  @id @default(cuid())
+    name        String  /// "Alpha B0 Full Validation"
+    slug        String  @unique /// "alpha-b0-full"
+    product     String  /// "alpha"
+    board       String  /// "alpha_b0"
+    description String?
+
+    // Graph definition (JSON)
+    nodes Json /// Array of node definitions
+    edges Json /// Array of edge connections
+
+    // Display settings
+    canvasWidth  Int @default(1200)
+    canvasHeight Int @default(800)
+
+    // Metadata
+    isDefault  Boolean @default(false) /// Default design for this product/board
+    isArchived Boolean @default(false)
+    createdBy  String?
+    createdAt  DateTime @default(now())
+    updatedAt  DateTime @updatedAt
+
+    runs ValidationRun[]
+
+    @@index([product, board])
+    @@index([isDefault])
+    @@map("validation_designs")
+}
+
+/// An execution instance of a ValidationDesign.
+model ValidationRun {
+    id       String              @id @default(cuid())
+    designId String
+    status   ValidationRunStatus @default(PENDING)
+
+    // Link to CI pipeline that triggered this
+    pipelineId String?
+
+    // Execution context
+    deviceId String? /// DUT device ID (DevEUI)
+    nodeId   String? /// MTIB node running this
+
+    // Progress tracking
+    currentStep String? /// nodeId of currently executing step
+    stepsTotal  Int     @default(0)
+    stepsPassed Int     @default(0)
+    stepsFailed Int     @default(0)
+
+    // Error info
+    errorMessage String?
+
+    // Timing
+    startedAt  DateTime?
+    finishedAt DateTime?
+    durationMs Int?
+    createdAt  DateTime @default(now())
+    updatedAt  DateTime @updatedAt
+
+    design   ValidationDesign @relation(fields: [designId], references: [id])
+    pipeline PipelineRun?     @relation(fields: [pipelineId], references: [id])
+    node     Node?            @relation(fields: [nodeId], references: [id])
+    steps    ValidationStep[]
+
+    @@index([designId])
+    @@index([pipelineId])
+    @@index([status])
+    @@index([nodeId])
+    @@map("validation_runs")
+}
+
+/// Tracks execution of each node in a validation run.
+model ValidationStep {
+    id       String               @id @default(cuid())
+    runId    String
+    nodeId   String               /// References node.id in design.nodes JSON
+    nodeType ValidationNodeType   /// Denormalized for queries
+    nodeLabel String              /// Denormalized for display
+    category ValidationCategory   /// Denormalized for filtering
+    status   ValidationStepStatus @default(PENDING)
+
+    // Timing
+    startedAt  DateTime?
+    finishedAt DateTime?
+    durationMs Int?
+
+    // Results summary
+    summary String? /// "12/12 tests passed" or "Pages: 512/512"
+
+    // Test results (for TEST type nodes)
+    testsTotal   Int?
+    testsPassed  Int?
+    testsFailed  Int?
+    testsSkipped Int?
+
+    // FUOTA progress (for FUOTA type nodes)
+    fuotaPlanId     Int?
+    fuotaTargets    String? /// "108.0.5.1-BMD, 109.0.5.1-BMD"
+    fuotaPages      Int?    /// Pages delivered
+    fuotaPagesTotal Int?    /// Total pages
+    fuotaPercent    Int?    /// Percent complete
+
+    // Error info
+    errorMessage String?
+
+    // Detailed data (expandable in UI)
+    logs        String?  @db.Text
+    artifacts   Json?    /// Links to uploaded artifacts
+    metrics     Json?    /// Power readings, timing data, etc.
+    testResults Json?    /// Individual test results [{name, status, duration, message}]
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    run ValidationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+    @@index([runId])
+    @@index([status])
+    @@index([nodeType])
+    @@map("validation_steps")
+}
+
+// =============================================================================
+//
+//  MANUFACTURING
+//  Sessions (manufacturing or validation runs) and DUT device tracking.
+//
+// =============================================================================
+
+/// An operational session: "Manufacture 100 Theta units today"
+/// or "Validate Sigma5 firmware v2.3". Every test execution
+/// happens within a session, giving full traceability.
+///
+/// The count fields are denormalized for dashboard performance.
+/// They are updated by the API when devices complete testing
+/// and can always be recomputed from Device statuses.
+model Session {
+    id             String        @id @default(cuid())
+    name           String
+    productId      String
+    fixtureId      String? /// null for ad-hoc or validation sessions not tied to a fixture
+    pipelineRunId  String? /// links validation run to a CI pipeline (build jobs)
+    status         SessionStatus @default(ACTIVE)
+    config         Json? /// firmware versions, test parameters, thresholds
+    targetCount    Int? /// target number of devices (null = open-ended)
+    completedCount Int           @default(0)
+    passedCount    Int           @default(0)
+    failedCount    Int           @default(0)
+    notes          String?
+    createdById    String
+    startedAt      DateTime      @default(now())
+    finishedAt     DateTime?
+    createdAt      DateTime      @default(now())
+    updatedAt      DateTime      @updatedAt
+
+    product     Product      @relation(fields: [productId], references: [id])
+    fixture     Fixture?     @relation(fields: [fixtureId], references: [id], onDelete: SetNull)
+    createdBy   User         @relation(fields: [createdById], references: [id])
+    pipelineRun PipelineRun? @relation(fields: [pipelineRunId], references: [id], onDelete: SetNull)
+    devices     Device[]
+
+    @@index([productId])
+    @@index([pipelineRunId])
+    @@index([status])
+    @@map("sessions")
+}
+
+/// An individual device (DUT) going through testing within a session.
+/// Tracks serial number, overall pass/fail status, and links to all
+/// test executions run on this device.
+///
+/// The same serial number may appear in different sessions
+/// (e.g., a device that failed and was retested later).
+///
+/// Device status lifecycle:
+///   PENDING     -> device registered, no tests started
+///   IN_PROGRESS -> at least one execution running
+///   PASSED      -> all required tests passed
+///   FAILED      -> any test failed
+model Device {
+    id           String       @id @default(cuid())
+    serialNumber String
+    sessionId    String
+    status       DeviceStatus @default(PENDING)
+    metadata     Json? /// IMEI, ICCID, hardware info, calibration data
+    createdAt    DateTime     @default(now())
+    updatedAt    DateTime     @updatedAt
+
+    session    Session         @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+    executions TestExecution[]
+
+    @@unique([serialNumber, sessionId])
+    @@index([serialNumber])
+    @@map("devices")
+}
+
+// =============================================================================
+//
+//  BENCHES
+//  Validation test bench hardware: fixture designs and bench instances.
+//
+// =============================================================================
+
+/// A versioned fixture hardware design -- the PCB/wiring spec for testing a product.
+/// Example: "alpha-fixture-v1.2" describes REV1.2 MTIB carrier with specific GPIO wiring.
+///
+/// The profileTemplate JSON contains the default fixture profile for benches using this design.
+/// Individual TestBench records can override specific fields via profileOverrides.
+model FixtureDesign {
+    id              String   @id @default(cuid())
+    name            String   @unique /// "alpha-fixture-v1.2"
+    product         String /// "alpha" -- which product this fixture tests
+    revision        String /// "1.2" -- fixture hardware revision
+    capabilities    String[] /// ["button", "peltier", "charger_relay"]
+    profileTemplate Json /// Default fixture profile JSON for this design
+    schematicUrl    String? /// Link to schematic PDF/CAD files
+    bomUrl          String? /// Link to BOM spreadsheet
+    assemblyGuide   String? /// Link to assembly instructions
+    notes           String? /// Build notes, known issues, changelog
+    createdAt       DateTime @default(now())
+    updatedAt       DateTime @updatedAt
+
+    testBenches TestBench[]
+
+    @@index([product])
+    @@map("fixture_designs")
+}
+
+/// A validation test bench with DUT, MTIB, and fixture capabilities.
+/// Used by CI pipeline scheduler to find available benches matching
+/// product requirements. Supports distributed locking for concurrent jobs.
+///
+/// Links to a FixtureDesign which provides the base profile template.
+/// DUT-specific info (device ID, SNR, IMEI) is stored here.
+model TestBench {
+    id           String @id @default(cuid())
+    stationId    String @unique /// "station-33", matches fixture profile
+    name         String /// "Alpha B0 Bench 1"
+    mtibAddress  String /// "10.4.45.33:50053"
+    mtibRevision String? /// "REV1.2" -- MTIB hardware revision
+
+    // Product link (preferred) -- use this for scheduling
+    productId String?
+
+    // Fixture design (provides capabilities + profile template)
+    fixtureDesignId  String?
+    profileOverrides Json? /// Bench-specific profile overrides (merged with template)
+
+    // Legacy: direct capabilities (used if no fixtureDesign)
+    capabilities String[] /// ["button", "peltier", "charger_relay", "ppg_servo"]
+
+    // DUT info (legacy string fields -- use productId instead)
+    dutProduct  String /// "alpha"
+    dutRevision String /// "b0"
+    dutDeviceId String? /// "70B3D584C01E1FCC"
+    dutSnr      String? /// "0964" -- J-Link probe serial
+    dutImei     String? /// "355025931735979"
+    dutIccids   String[] /// ["89148000009808558441", "89457300000037582833"]
+
+    // Hardware paths
+    jlinkAppSerial   String? /// J-Link SNR for nRF52840 app processor
+    jlinkCommsSerial String? /// J-Link SNR for nRF9151 comms (if separate)
+    uartAppPath      String? /// "/dev/verdin-uart2"
+    uartCommsPath    String? /// "/dev/verdin-uart1"
+
+    // Status and locking
+    status          TestBenchStatus @default(AVAILABLE)
+    lockedBy        String? /// Pipeline/job ID holding the lock
+    lockedAt        DateTime?
+    lastHealthCheck DateTime? /// Last successful MTIB health check
+    metadata        Json? /// Extra config, diagnostics
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    product       Product?       @relation(fields: [productId], references: [id])
+    fixtureDesign FixtureDesign? @relation(fields: [fixtureDesignId], references: [id])
+
+    @@index([dutProduct, status])
+    @@index([status])
+    @@index([fixtureDesignId])
+    @@map("test_benches")
+}
+
+// =============================================================================
+//
+//  FIXTURES
+//  Manufacturing fixtures: physical test rigs with multi-DUT slots.
+//
+// =============================================================================
 
 /// A physical test fixture for a product. Manufacturing fixtures
 /// hold multi-panel arrays (4+ DUT slots). Validation fixtures
@@ -352,12 +793,12 @@ model Fixture {
 /// assigned to one slot at a time (NULL is exempt from uniqueness,
 /// so empty slots are fine).
 model FixtureSlot {
-    id        String   @id @default(cuid())
+    id        String  @id @default(cuid())
     fixtureId String
     slotIndex Int /// 0-based position in the fixture
     label     String? /// human-readable: "Slot 1", "Stand Alone"
-    nodeId    String?  @unique
-    active    Boolean  @default(true)
+    nodeId    String? @unique
+    active    Boolean @default(true)
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
 
@@ -369,11 +810,14 @@ model FixtureSlot {
     @@map("fixture_slots")
 }
 
-// ─────────────────────────────────────────────────────────────
-//                                             Infrastructure
-// ─────────────────────────────────────────────────────────────
+// =============================================================================
+//
+//  DEVICES
+//  Edge infrastructure: MTIB nodes, ICLE power monitors.
+//
+// =============================================================================
 
-/// A compute node managed by Concord — typically an MTIB
+/// A compute node managed by Concord -- typically an MTIB
 /// (Verdin iMX8MM + Mallow + MTIB carrier board) running
 /// as an edge node in the K3s cluster.
 ///
@@ -394,91 +838,80 @@ model Node {
 
     fixtureSlot    FixtureSlot? /// one-to-one via @unique on FixtureSlot.nodeId
     testExecutions TestExecution[]
+    validationRuns ValidationRun[]
 
     @@map("nodes")
 }
 
-/// A versioned fixture hardware design — the PCB/wiring spec for testing a product.
-/// Example: "alpha-fixture-v1.2" describes REV1.2 MTIB carrier with specific GPIO wiring.
-///
-/// The profileTemplate JSON contains the default fixture profile for benches using this design.
-/// Individual TestBench records can override specific fields via profileOverrides.
-model FixtureDesign {
-    id              String   @id @default(cuid())
-    name            String   @unique /// "alpha-fixture-v1.2"
-    product         String /// "alpha" — which product this fixture tests
-    revision        String /// "1.2" — fixture hardware revision
-    capabilities    String[] /// ["button", "peltier", "charger_relay"]
-    profileTemplate Json /// Default fixture profile JSON for this design
-    schematicUrl    String? /// Link to schematic PDF/CAD files
-    bomUrl          String? /// Link to BOM spreadsheet
-    assemblyGuide   String? /// Link to assembly instructions
-    notes           String? /// Build notes, known issues, changelog
-    createdAt       DateTime @default(now())
-    updatedAt       DateTime @updatedAt
+/// An ICLE (In-Circuit Loop-back Equipment) device -- ESP32-based
+/// power monitoring tool for DUT validation. Devices register
+/// themselves via heartbeat and receive commands in the response.
+model IcleDevice {
+    id              String           @id @default(cuid())
+    deviceId        String           @unique /// Hardware ID from ZMS
+    name            String?
+    ipAddress       String?
+    macAddress      String?
+    firmwareVersion String?
+    status          IcleDeviceStatus @default(OFFLINE)
+    registered      Boolean          @default(false) /// false = discovered, true = registered via UI
+    lastHeartbeat   DateTime?
+    lastStatusData  Json? /// Latest telemetry snapshot (uptime, heap, rssi, etc.)
+    pendingConfig   Json? /// Config to push on next heartbeat
+    metadata        Json?
+    createdAt       DateTime         @default(now())
+    updatedAt       DateTime         @updatedAt
 
-    testBenches TestBench[]
+    commands IclePendingCommand[]
+    logs     IcleLog[]
 
-    @@index([product])
-    @@map("fixture_designs")
-}
-
-/// A validation test bench with DUT, MTIB, and fixture capabilities.
-/// Used by CI pipeline scheduler to find available benches matching
-/// product requirements. Supports distributed locking for concurrent jobs.
-///
-/// Links to a FixtureDesign which provides the base profile template.
-/// DUT-specific info (device ID, SNR, IMEI) is stored here.
-model TestBench {
-    id              String          @id @default(cuid())
-    stationId       String          @unique /// "station-33", matches fixture profile
-    name            String /// "Alpha B0 Bench 1"
-    mtibAddress     String /// "10.4.45.33:50053"
-    mtibRevision    String? /// "REV1.2" — MTIB hardware revision
-
-    // Product link (preferred) — use this for scheduling
-    productId       String?
-    product         Product?        @relation(fields: [productId], references: [id])
-
-    // Fixture design (provides capabilities + profile template)
-    fixtureDesignId String?
-    fixtureDesign   FixtureDesign?  @relation(fields: [fixtureDesignId], references: [id])
-    profileOverrides Json? /// Bench-specific profile overrides (merged with template)
-
-    // Legacy: direct capabilities (used if no fixtureDesign)
-    capabilities    String[] /// ["button", "peltier", "charger_relay", "ppg_servo"]
-
-    // DUT info (legacy string fields — use productId instead)
-    dutProduct      String /// "alpha"
-    dutRevision     String /// "b0"
-    dutDeviceId     String? /// "70B3D584C01E1FCC"
-    dutSnr          String? /// "0964" — J-Link probe serial
-    dutImei         String? /// "355025931735979"
-    dutIccids       String[] /// ["89148000009808558441", "89457300000037582833"]
-
-    // Hardware paths
-    jlinkAppSerial  String? /// J-Link SNR for nRF52840 app processor
-    jlinkCommsSerial String? /// J-Link SNR for nRF9151 comms (if separate)
-    uartAppPath     String? /// "/dev/verdin-uart2"
-    uartCommsPath   String? /// "/dev/verdin-uart1"
-
-    // Status and locking
-    status          TestBenchStatus @default(AVAILABLE)
-    lockedBy        String? /// Pipeline/job ID holding the lock
-    lockedAt        DateTime?
-    lastHealthCheck DateTime? /// Last successful MTIB health check
-    metadata        Json? /// Extra config, diagnostics
-
-    createdAt       DateTime        @default(now())
-    updatedAt       DateTime        @updatedAt
-
-    @@index([dutProduct, status])
     @@index([status])
-    @@index([fixtureDesignId])
-    @@map("test_benches")
+    @@map("icle_devices")
 }
 
-/// A software deployment tracked by Concord — test runners,
+/// A pending command to be delivered to an ICLE device on its
+/// next heartbeat. Commands are acknowledged by the device and
+/// then marked as such.
+model IclePendingCommand {
+    id           String    @id @default(cuid())
+    deviceId     String
+    commandType  String /// config_update, ota_trigger, log_upload, reboot
+    payload      Json
+    priority     Int       @default(0) /// Higher priority = delivered first
+    expiresAt    DateTime?
+    acknowledged Boolean   @default(false)
+    createdAt    DateTime  @default(now())
+
+    device IcleDevice @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+    @@index([deviceId, acknowledged])
+    @@map("icle_pending_commands")
+}
+
+/// A log file uploaded from an ICLE device, stored in MinIO.
+model IcleLog {
+    id         String   @id @default(cuid())
+    deviceId   String
+    filename   String
+    storageKey String /// MinIO object key
+    sizeBytes  BigInt
+    format     String /// "binary" or "csv"
+    uploadedAt DateTime @default(now())
+
+    device IcleDevice @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+    @@unique([deviceId, filename])
+    @@map("icle_logs")
+}
+
+// =============================================================================
+//
+//  CLUSTER
+//  Software deployments managed by Concord.
+//
+// =============================================================================
+
+/// A software deployment tracked by Concord -- test runners,
 /// operators, MTIB servers, etc. The actual K8s state is
 /// queried live; this table records intent and history.
 model Deployment {
@@ -499,82 +932,12 @@ model Deployment {
     @@map("deployments")
 }
 
-// ─────────────────────────────────────────────────────────────
-//                                        Sessions & Devices
-// ─────────────────────────────────────────────────────────────
-
-/// An operational session: "Manufacture 100 Theta units today"
-/// or "Validate Sigma5 firmware v2.3". Every test execution
-/// happens within a session, giving full traceability.
-///
-/// The count fields are denormalized for dashboard performance.
-/// They are updated by the API when devices complete testing
-/// and can always be recomputed from Device statuses.
-model Session {
-    id             String        @id @default(cuid())
-    name           String
-    productId      String
-    fixtureId      String? /// null for ad-hoc or validation sessions not tied to a fixture
-    pipelineRunId  String? /// links validation run to a CI pipeline (build jobs)
-    status         SessionStatus @default(ACTIVE)
-    config         Json? /// firmware versions, test parameters, thresholds
-    targetCount    Int? /// target number of devices (null = open-ended)
-    completedCount Int           @default(0)
-    passedCount    Int           @default(0)
-    failedCount    Int           @default(0)
-    startedAt      DateTime      @default(now())
-    finishedAt     DateTime?
-    notes          String?
-    createdById    String
-    createdAt      DateTime      @default(now())
-    updatedAt      DateTime      @updatedAt
-
-    product     Product      @relation(fields: [productId], references: [id])
-    fixture     Fixture?     @relation(fields: [fixtureId], references: [id], onDelete: SetNull)
-    createdBy   User         @relation(fields: [createdById], references: [id])
-    pipelineRun PipelineRun? @relation(fields: [pipelineRunId], references: [id], onDelete: SetNull)
-    devices     Device[]
-
-    @@index([productId])
-    @@index([pipelineRunId])
-    @@index([status])
-    @@map("sessions")
-}
-
-/// An individual device (DUT) going through testing within
-/// a session. Tracks serial number, overall pass/fail status,
-/// and links to all test executions run on this device.
-///
-/// The same serial number may appear in different sessions
-/// (e.g., a device that failed and was retested later).
-/// The compound unique on [serialNumber, sessionId] enforces
-/// one entry per device per session.
-///
-/// Device status is updated by the API:
-///   PENDING     → device registered, no tests started
-///   IN_PROGRESS → at least one execution running
-///   PASSED      → all required tests passed
-///   FAILED      → any test failed
-model Device {
-    id           String       @id @default(cuid())
-    serialNumber String
-    sessionId    String
-    status       DeviceStatus @default(PENDING)
-    metadata     Json? /// IMEI, ICCID, hardware info, calibration data
-    createdAt    DateTime     @default(now())
-    updatedAt    DateTime     @updatedAt
-
-    session    Session         @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-    executions TestExecution[]
-
-    @@unique([serialNumber, sessionId])
-    @@index([serialNumber])
-    @@map("devices")
-}
-
-// ─────────────────────────────────────────────────────────────
-//                                                      Testing
-// ─────────────────────────────────────────────────────────────
+// =============================================================================
+//
+//  TESTING
+//  Test definitions, executions, and step-level results.
+//
+// =============================================================================
 
 /// A test definition for a product. Defines WHAT to test,
 /// not a specific run. Tests are grouped by category
@@ -584,14 +947,14 @@ model Device {
 /// Tests with execution history cannot be deleted (default
 /// Restrict). Disable with enabled = false instead.
 model Test {
-    id          String   @id @default(cuid())
+    id          String  @id @default(cuid())
     name        String
     productId   String
     description String?
     category    String? /// "electrical", "firmware", "post", etc.
-    sortOrder   Int      @default(0)
+    sortOrder   Int     @default(0)
     config      Json? /// default config template (can be overridden per-execution)
-    enabled     Boolean  @default(true)
+    enabled     Boolean @default(true)
     createdAt   DateTime @default(now())
     updatedAt   DateTime @updatedAt
 
@@ -628,11 +991,11 @@ model TestExecution {
     createdAt     DateTime            @default(now())
     updatedAt     DateTime            @updatedAt
 
-    test        Test          @relation(fields: [testId], references: [id])
-    node        Node          @relation(fields: [nodeId], references: [id])
-    device      Device?       @relation(fields: [deviceId], references: [id], onDelete: Cascade)
-    slot        FixtureSlot?  @relation(fields: [slotId], references: [id], onDelete: SetNull)
-    triggeredBy User?         @relation(fields: [triggeredById], references: [id], onDelete: SetNull)
+    test        Test         @relation(fields: [testId], references: [id])
+    node        Node         @relation(fields: [nodeId], references: [id])
+    device      Device?      @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+    slot        FixtureSlot? @relation(fields: [slotId], references: [id], onDelete: SetNull)
+    triggeredBy User?        @relation(fields: [triggeredById], references: [id], onDelete: SetNull)
     results     TestResult[]
     logs        Log[]
 
@@ -650,10 +1013,10 @@ model TestExecution {
 /// groupIndex supports batched/parallel steps within the
 /// same execution (e.g., multi-channel ADC readings).
 model TestResult {
-    id          String   @id @default(cuid())
+    id          String  @id @default(cuid())
     executionId String
     stepIndex   Int
-    groupIndex  Int      @default(0)
+    groupIndex  Int     @default(0)
     passed      Boolean
     result      Json /// step-specific data: measurements, thresholds, errors
     createdAt   DateTime @default(now())
@@ -664,9 +1027,97 @@ model TestResult {
     @@map("test_results")
 }
 
-// ─────────────────────────────────────────────────────────────
-//                                                       System
-// ─────────────────────────────────────────────────────────────
+// =============================================================================
+//
+//  PLATFORM
+//  Users, permissions, API keys, audit logs, system settings, and logs.
+//
+// =============================================================================
+
+/// A platform user, authenticated via Google OAuth.
+model User {
+    id              String    @id @default(cuid())
+    email           String    @unique
+    name            String
+    externalId      String?   @unique /// Google sub ID, set on first login
+    permissionSetId String?
+    active          Boolean   @default(true)
+    lastSeenAt      DateTime?
+    createdAt       DateTime  @default(now())
+    updatedAt       DateTime  @updatedAt
+
+    permissionSet  PermissionSet? @relation(fields: [permissionSetId], references: [id])
+    apiKeys        ApiKey[]
+    sessions       Session[]
+    deployments    Deployment[]
+    testExecutions TestExecution[]
+    auditLogs      AuditLog[]
+
+    @@map("users")
+}
+
+/// A named set of permissions assignable to users.
+model PermissionSet {
+    id          String   @id @default(cuid())
+    name        String   @unique
+    description String?
+    permissions String[] /// e.g. ["Concord.Firmware.AppID.Create", "Concord.Cluster.Read"]
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+
+    users User[]
+
+    @@map("permission_sets")
+}
+
+/// A programmatic API key linked to a user. Keys are stored as
+/// SHA-256 hashes; the plaintext is only shown once at creation.
+model ApiKey {
+    id         String    @id @default(cuid())
+    name       String
+    keyHash    String    @unique /// SHA-256 hash of the actual key (never store plaintext)
+    keyPrefix  String /// First 8 chars of key for display ("ck_live_a1b2...")
+    userId     String
+    expiresAt  DateTime?
+    lastUsedAt DateTime?
+    createdAt  DateTime  @default(now())
+
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@map("api_keys")
+}
+
+/// Append-only log of every significant mutation in the system.
+/// userId is nullable for system-initiated actions.
+model AuditLog {
+    id         String   @id @default(cuid())
+    userId     String?
+    action     String /// dot-notation verb: "session.create", "node.update", etc.
+    entityType String /// model name: "Session", "Node", "Test", etc.
+    entityId   String?
+    details    Json? /// freeform context -- before/after snapshots, params, etc.
+    ipAddress  String?
+    createdAt  DateTime @default(now())
+
+    user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+    @@index([createdAt])
+    @@index([entityType, entityId])
+    @@index([userId])
+    @@map("audit_logs")
+}
+
+/// Key-value configuration store for system-wide settings
+/// (thresholds, feature flags, UI preferences, etc.).
+model Setting {
+    key         String   @id
+    value       String
+    description String?
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+
+    @@map("settings")
+}
 
 /// System and execution logs. Can be free-standing (system
 /// events) or linked to a specific test execution.
@@ -683,348 +1134,4 @@ model Log {
     @@index([createdAt])
     @@index([level])
     @@map("logs")
-}
-
-/// Key-value configuration store for system-wide settings
-/// (thresholds, feature flags, UI preferences, etc.).
-model Setting {
-    key         String   @id
-    value       String
-    description String?
-    createdAt   DateTime @default(now())
-    updatedAt   DateTime @updatedAt
-
-    @@map("settings")
-}
-
-// ─────────────────────────────────────────────────────────────
-//                                          Inventory Catalog
-// ─────────────────────────────────────────────────────────────
-
-/// An individual inventory component — SoM, carrier board, accessory, etc.
-model InventoryComponent {
-    id           String            @id @default(cuid())
-    name         String            @unique
-    description  String?
-    category     InventoryCategory
-    manufacturer String
-    partNumber   String            @unique
-    imageKey     String? /// MinIO object key for hero image
-    createdAt    DateTime          @default(now())
-    updatedAt    DateTime          @updatedAt
-
-    revisions InventoryRevision[]
-
-    @@map("inventory_components")
-}
-
-/// A specific revision/version of an inventory component (e.g. REV1.0, REV1.1).
-model InventoryRevision {
-    id           String         @id @default(cuid())
-    componentId  String
-    version      String /// e.g. "REV1.0", "REV1.1"
-    status       RevisionStatus @default(ACTIVE)
-    releaseNotes String?
-    createdAt    DateTime       @default(now())
-    updatedAt    DateTime       @updatedAt
-
-    component             InventoryComponent          @relation(fields: [componentId], references: [id], onDelete: Cascade)
-    assemblyRevisionItems AssemblyRevisionComponent[]
-
-    @@unique([componentId, version])
-    @@map("inventory_revisions")
-}
-
-/// An assembly — a combination of hardware components
-/// (e.g. MTIB = Verdin SoM + Mallow + MTIB Carrier Board).
-model Assembly {
-    id          String   @id @default(cuid())
-    name        String   @unique
-    description String?
-    imageKey    String? /// MinIO object key for hero image
-    createdAt   DateTime @default(now())
-    updatedAt   DateTime @updatedAt
-
-    revisions AssemblyRevision[]
-
-    @@map("assemblies")
-}
-
-/// A specific revision of an assembly with its own BOM.
-model AssemblyRevision {
-    id           String         @id @default(cuid())
-    assemblyId   String
-    version      String
-    status       RevisionStatus @default(ACTIVE)
-    releaseNotes String?
-    createdAt    DateTime       @default(now())
-    updatedAt    DateTime       @updatedAt
-
-    assembly   Assembly                    @relation(fields: [assemblyId], references: [id], onDelete: Cascade)
-    components AssemblyRevisionComponent[]
-
-    @@unique([assemblyId, version])
-    @@map("assembly_revisions")
-}
-
-/// BOM line item — links an assembly revision to a specific inventory revision with quantity.
-model AssemblyRevisionComponent {
-    id                  String @id @default(cuid())
-    assemblyRevisionId  String
-    inventoryRevisionId String
-    quantity            Int    @default(1)
-
-    assemblyRevision  AssemblyRevision  @relation(fields: [assemblyRevisionId], references: [id], onDelete: Cascade)
-    inventoryRevision InventoryRevision @relation(fields: [inventoryRevisionId], references: [id], onDelete: Cascade)
-
-    @@unique([assemblyRevisionId, inventoryRevisionId])
-    @@map("assembly_revision_components")
-}
-
-// ─────────────────────────────────────────────────────────────
-//                                       Codebases & Releases
-// ─────────────────────────────────────────────────────────────
-
-/// A software repository tracked by Concord — Concord App, Concord OS, etc.
-model Codebase {
-    id            String   @id @default(cuid())
-    name          String   @unique
-    description   String?
-    repoUrl       String?
-    defaultBranch String   @default("main")
-    imageKey      String? /// MinIO object key for logo image
-    createdAt     DateTime @default(now())
-    updatedAt     DateTime @updatedAt
-
-    releases Release[]
-
-    @@map("codebases")
-}
-
-/// A versioned release of a codebase.
-model Release {
-    id           String        @id @default(cuid())
-    codebaseId   String
-    version      String
-    status       ReleaseStatus @default(DRAFT)
-    releaseNotes String?
-    tagName      String? /// Bitbucket tag name for linking
-    releasedAt   DateTime? /// When the release was published (separate from createdAt)
-    createdAt    DateTime      @default(now())
-    updatedAt    DateTime      @updatedAt
-
-    codebase  Codebase          @relation(fields: [codebaseId], references: [id], onDelete: Cascade)
-    artifacts ReleaseArtifact[]
-
-    @@unique([codebaseId, version])
-    @@index([codebaseId, status])
-    @@map("releases")
-}
-
-/// A downloadable artifact for a release — either uploaded to MinIO or linked via external URL.
-model ReleaseArtifact {
-    id          String       @id @default(cuid())
-    releaseId   String
-    name        String
-    filename    String?
-    type        ArtifactType
-    storageKey  String? /// MinIO object key (for UPLOAD type)
-    externalUrl String? /// External download URL (for EXTERNAL type)
-    sizeBytes   BigInt? /// File size; BigInt to support files > 2GB
-    checksum    String? /// SHA-256 hex digest
-    contentType String?
-    createdAt   DateTime     @default(now())
-    updatedAt   DateTime     @updatedAt
-
-    release Release @relation(fields: [releaseId], references: [id], onDelete: Cascade)
-
-    @@index([releaseId])
-    @@map("release_artifacts")
-}
-
-// ─────────────────────────────────────────────────────────────
-//                                        ICLE Devices (ESP32)
-// ─────────────────────────────────────────────────────────────
-
-/// An ICLE (In-Circuit Loop-back Equipment) device — ESP32-based
-/// power monitoring tool for DUT validation. Devices register
-/// themselves via heartbeat and receive commands in the response.
-model IcleDevice {
-    id              String           @id @default(cuid())
-    deviceId        String           @unique /// Hardware ID from ZMS
-    name            String?
-    ipAddress       String?
-    macAddress      String?
-    firmwareVersion String?
-    status          IcleDeviceStatus @default(OFFLINE)
-    registered      Boolean          @default(false) /// false = discovered, true = registered via UI
-    lastHeartbeat   DateTime?
-    lastStatusData  Json? /// Latest telemetry snapshot (uptime, heap, rssi, etc.)
-    pendingConfig   Json? /// Config to push on next heartbeat
-    metadata        Json?
-    createdAt       DateTime         @default(now())
-    updatedAt       DateTime         @updatedAt
-
-    commands IclePendingCommand[]
-    logs     IcleLog[]
-
-    @@index([status])
-    @@map("icle_devices")
-}
-
-/// A pending command to be delivered to an ICLE device on its
-/// next heartbeat. Commands are acknowledged by the device and
-/// then marked as such.
-model IclePendingCommand {
-    id           String    @id @default(cuid())
-    deviceId     String
-    commandType  String /// config_update, ota_trigger, log_upload, reboot
-    payload      Json
-    priority     Int       @default(0) /// Higher priority = delivered first
-    createdAt    DateTime  @default(now())
-    expiresAt    DateTime?
-    acknowledged Boolean   @default(false)
-
-    device IcleDevice @relation(fields: [deviceId], references: [id], onDelete: Cascade)
-
-    @@index([deviceId, acknowledged])
-    @@map("icle_pending_commands")
-}
-
-/// A log file uploaded from an ICLE device, stored in MinIO.
-model IcleLog {
-    id         String   @id @default(cuid())
-    deviceId   String
-    filename   String
-    storageKey String /// MinIO object key
-    sizeBytes  BigInt
-    format     String /// "binary" or "csv"
-    uploadedAt DateTime @default(now())
-
-    device IcleDevice @relation(fields: [deviceId], references: [id], onDelete: Cascade)
-
-    @@unique([deviceId, filename])
-    @@map("icle_logs")
-}
-
-// ─────────────────────────────────────────────────────────────
-//                                           CI / Build Jobs
-// ─────────────────────────────────────────────────────────────
-
-enum BuildJobStatus {
-    QUEUED
-    BLOCKED    // Waiting for base build to complete (version bump builds)
-    BUILDING
-    SUCCESS
-    FAILED
-    CANCELLED
-}
-
-model BuildJob {
-    id              String          @id @default(cuid())
-    product         String /// Legacy: repo slug ("alpha_fw")
-    productId       String? /// FK to Product (preferred)
-    productRef      Product?        @relation(fields: [productId], references: [id])
-    board           String
-    target          String
-    variant         String          @default("release")
-    mtibRev         String          @default("1.2")
-    branch          String
-    commitSha       String?
-    status          BuildJobStatus  @default(QUEUED)
-    versionMajor    Int?
-    versionMinor    Int?
-    buildNum        Int             @default(autoincrement())
-    versionString   String?
-    errorMessage    String?
-    buildLog        String?
-    webhookData     Json?
-    startedAt       DateTime?
-    finishedAt      DateTime?
-    durationSeconds Int?
-    createdAt       DateTime        @default(now())
-    updatedAt       DateTime        @updatedAt
-    artifacts       BuildJobArtifact[]
-
-    // Stage 4 matrix identification
-    matrixLabel     String? /// e.g., "MFG_BASE", "FUT_DEBUG_A", "FUT_RELEASE_B"
-    matrixIndex     Int? /// Position in build sequence (0-7 for Stage 4)
-    versionBump     Boolean         @default(false) /// True if this is a version-bumped build (same code, N+1)
-    baseJobId       String? /// If version-bumped, points to the base build job
-
-    // Pipeline relation - groups builds triggered together
-    pipelineRunId   String?
-    pipelineRun     PipelineRun?    @relation(fields: [pipelineRunId], references: [id])
-
-    @@index([product, branch])
-    @@index([matrixLabel])
-    @@index([productId])
-    @@index([status])
-    @@index([pipelineRunId])
-    @@map("build_jobs")
-}
-
-model BuildJobArtifact {
-    id          String   @id @default(cuid())
-    buildJobId  String
-    name        String
-    storageKey  String
-    sizeBytes   BigInt
-    checksum    String
-    createdAt   DateTime @default(now())
-
-    buildJob BuildJob @relation(fields: [buildJobId], references: [id], onDelete: Cascade)
-
-    @@index([buildJobId])
-    @@map("build_job_artifacts")
-}
-
-// Pipeline status tracks the overall build+validate workflow
-enum PipelineStatus {
-    PENDING      // Waiting for builds to start
-    BUILDING     // Builds in progress
-    BUILD_FAILED // One or more builds failed
-    VALIDATING   // Validation job running
-    SUCCESS      // All builds + validation passed
-    FAILED       // Validation failed
-    CANCELLED    // Pipeline cancelled
-}
-
-// Groups multiple builds (e.g., alpha_fw + alpha_mfg_fw) triggered by same commit
-model PipelineRun {
-    id              String          @id @default(cuid())
-    name            String?         // e.g., "alpha-main-abc1234"
-    product         String          // Base product (alpha, sigma5, theta)
-    board           String          // Board variant (alpha_b0)
-    branch          String
-    commitSha       String?
-    status          PipelineStatus  @default(PENDING)
-    triggerType     String          @default("manual") // manual, webhook, scheduled
-    triggerData     Json?           // Webhook payload or trigger config
-
-    // Build tracking
-    expectedBuilds  Int             @default(2) // How many builds to wait for
-    completedBuilds Int             @default(0)
-
-    // Stage 4 build matrix configuration
-    buildMatrix     Json? /// Matrix config: {mode: "stage4", labels: ["MFG_BASE", ...], mainRef: "main", prRef: "feature/x"}
-    matrixMode      String? /// "legacy" (4 builds) or "stage4" (8 builds)
-
-    // Validation tracking
-    validationRunId String?         // Links to ValidationRun when validation starts
-
-    // Timing
-    startedAt       DateTime?
-    finishedAt      DateTime?
-    createdAt       DateTime        @default(now())
-    updatedAt       DateTime        @updatedAt
-
-    // Relations
-    builds          BuildJob[]
-    sessions        Session[]  // Validation runs linked to this pipeline
-
-    @@index([product, branch])
-    @@index([status])
-    @@index([commitSha])
-    @@map("pipeline_runs")
 }

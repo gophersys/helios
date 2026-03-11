@@ -38,7 +38,7 @@ def test_list_boards(authed_client, mock_db):
         ),
     ]
 
-    response = authed_client.get("/v2/catalog/prod-1/boards")
+    response = authed_client.get("/v2/products/prod-1/boards")
     assert response.status_code == 200
 
     data = json.loads(response.data)
@@ -51,7 +51,7 @@ def test_list_boards_product_not_found(authed_client, mock_db):
     """Test listing boards for non-existent product returns 404."""
     mock_db.product.find_unique.return_value = None
 
-    response = authed_client.get("/v2/catalog/nonexistent/boards")
+    response = authed_client.get("/v2/products/nonexistent/boards")
     assert response.status_code == 404
 
 
@@ -78,7 +78,7 @@ def test_create_board(authed_client, mock_db):
 
     with patch("src.api.v2.catalog.boards.log_audit"):
         response = authed_client.post(
-            "/v2/catalog/prod-1/boards",
+            "/v2/products/prod-1/boards",
             data=json.dumps({
                 "name": "New Board",
                 "description": "A new PCB",
@@ -105,7 +105,7 @@ def test_create_board_duplicate_name(authed_client, mock_db):
     )
 
     response = authed_client.post(
-        "/v2/catalog/prod-1/boards",
+        "/v2/products/prod-1/boards",
         data=json.dumps({"name": "Main Board"}),
     )
 
@@ -120,7 +120,7 @@ def test_create_board_missing_name(authed_client, mock_db):
     )
 
     response = authed_client.post(
-        "/v2/catalog/prod-1/boards",
+        "/v2/products/prod-1/boards",
         data=json.dumps({}),
     )
 
@@ -156,7 +156,7 @@ def test_get_board(authed_client, mock_db):
         ],
     )
 
-    response = authed_client.get("/v2/catalog/prod-1/boards/board-123")
+    response = authed_client.get("/v2/products/prod-1/boards/board-123")
     assert response.status_code == 200
 
     data = json.loads(response.data)
@@ -170,7 +170,7 @@ def test_get_board_not_found(authed_client, mock_db):
     """Test getting a non-existent board returns 404."""
     mock_db.board.find_first.return_value = None
 
-    response = authed_client.get("/v2/catalog/prod-1/boards/nonexistent")
+    response = authed_client.get("/v2/products/prod-1/boards/nonexistent")
     assert response.status_code == 404
 
 
@@ -200,7 +200,7 @@ def test_update_board(authed_client, mock_db):
 
     with patch("src.api.v2.catalog.boards.log_audit"):
         response = authed_client.put(
-            "/v2/catalog/prod-1/boards/board-update",
+            "/v2/products/prod-1/boards/board-update",
             data=json.dumps({
                 "description": "New description",
                 "active": False,
@@ -229,7 +229,7 @@ def test_delete_board(authed_client, mock_db):
     mock_db.boardrevision.find_first.return_value = None
 
     with patch("src.api.v2.catalog.boards.log_audit"):
-        response = authed_client.delete("/v2/catalog/prod-1/boards/board-delete")
+        response = authed_client.delete("/v2/products/prod-1/boards/board-delete")
 
     assert response.status_code == 200
     data = json.loads(response.data)
@@ -251,7 +251,7 @@ def test_delete_board_with_revisions(authed_client, mock_db):
         ],
     )
 
-    response = authed_client.delete("/v2/catalog/prod-1/boards/board-has-revs")
+    response = authed_client.delete("/v2/products/prod-1/boards/board-has-revs")
     assert response.status_code == 409
 
 
@@ -268,7 +268,7 @@ def test_update_board_no_fields(authed_client, mock_db):
     )
 
     response = authed_client.put(
-        "/v2/catalog/prod-1/boards/board-1",
+        "/v2/products/prod-1/boards/board-1",
         data=json.dumps({}),
     )
 
@@ -296,7 +296,7 @@ def test_update_board_duplicate_name(authed_client, mock_db):
 
     with patch("src.api.v2.catalog.boards.log_audit"):
         response = authed_client.put(
-            "/v2/catalog/prod-1/boards/board-update",
+            "/v2/products/prod-1/boards/board-update",
             data=json.dumps({"name": "Taken Name"}),
         )
 
@@ -312,7 +312,7 @@ def test_list_boards_empty(authed_client, mock_db):
 
     mock_db.board.find_many.return_value = []
 
-    response = authed_client.get("/v2/catalog/prod-1/boards")
+    response = authed_client.get("/v2/products/prod-1/boards")
     assert response.status_code == 200
 
     data = json.loads(response.data)

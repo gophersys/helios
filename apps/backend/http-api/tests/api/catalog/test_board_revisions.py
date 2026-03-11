@@ -58,7 +58,7 @@ def test_create_board_revision(authed_client, mock_db):
 
     with patch("src.api.v2.catalog.board_revisions.log_audit"):
         response = authed_client.post(
-            "/v2/catalog/prod-1/boards/board-1/revisions",
+            "/v2/products/prod-1/boards/board-1/revisions",
             data=json.dumps({
                 "version": "2.0",
                 "chipsetIds": ["chip-1"],
@@ -80,7 +80,7 @@ def test_create_board_revision_board_not_found(authed_client, mock_db):
     mock_db.board.find_first.return_value = None
 
     response = authed_client.post(
-        "/v2/catalog/prod-1/boards/nonexistent/revisions",
+        "/v2/products/prod-1/boards/nonexistent/revisions",
         data=json.dumps({"version": "1.0"}),
     )
 
@@ -103,7 +103,7 @@ def test_create_board_revision_duplicate_version(authed_client, mock_db):
     )
 
     response = authed_client.post(
-        "/v2/catalog/prod-1/boards/board-1/revisions",
+        "/v2/products/prod-1/boards/board-1/revisions",
         data=json.dumps({"version": "1.0"}),
     )
 
@@ -148,7 +148,7 @@ def test_update_board_revision(authed_client, mock_db):
 
     with patch("src.api.v2.catalog.board_revisions.log_audit"):
         response = authed_client.put(
-            "/v2/catalog/prod-1/boards/board-1/revisions/rev-1",
+            "/v2/products/prod-1/boards/board-1/revisions/rev-1",
             data=json.dumps({
                 "status": "DEPRECATED",
                 "notes": "Updated notes",
@@ -181,7 +181,7 @@ def test_delete_board_revision(authed_client, mock_db):
     )
 
     with patch("src.api.v2.catalog.board_revisions.log_audit"):
-        response = authed_client.delete("/v2/catalog/prod-1/boards/board-1/revisions/rev-delete")
+        response = authed_client.delete("/v2/products/prod-1/boards/board-1/revisions/rev-delete")
 
     assert response.status_code == 200
     data = json.loads(response.data)
@@ -200,7 +200,7 @@ def test_create_board_revision_invalid_chipset(authed_client, mock_db):
     mock_db.chipset.find_unique.return_value = None
 
     response = authed_client.post(
-        "/v2/catalog/prod-1/boards/board-1/revisions",
+        "/v2/products/prod-1/boards/board-1/revisions",
         data=json.dumps({"version": "3.0", "chipsetIds": ["bad-chip"]}),
     )
 
@@ -243,7 +243,7 @@ def test_create_board_revision_no_chipsets(authed_client, mock_db):
 
     with patch("src.api.v2.catalog.board_revisions.log_audit"):
         response = authed_client.post(
-            "/v2/catalog/prod-1/boards/board-1/revisions",
+            "/v2/products/prod-1/boards/board-1/revisions",
             data=json.dumps({"version": "3.0"}),
         )
 
@@ -295,7 +295,7 @@ def test_update_board_revision_chipsets(authed_client, mock_db):
 
     with patch("src.api.v2.catalog.board_revisions.log_audit"):
         response = authed_client.put(
-            "/v2/catalog/prod-1/boards/board-1/revisions/rev-1",
+            "/v2/products/prod-1/boards/board-1/revisions/rev-1",
             data=json.dumps({"chipsetIds": ["chip-a", "chip-b"]}),
         )
 
@@ -333,7 +333,7 @@ def test_update_board_revision_duplicate_version(authed_client, mock_db):
     mock_db.boardrevision.find_first.side_effect = [existing_rev, dup_rev]
 
     response = authed_client.put(
-        "/v2/catalog/prod-1/boards/board-1/revisions/rev-1",
+        "/v2/products/prod-1/boards/board-1/revisions/rev-1",
         data=json.dumps({"version": "2.0"}),
     )
 
@@ -351,7 +351,7 @@ def test_update_board_revision_not_found(authed_client, mock_db):
     mock_db.boardrevision.find_first.return_value = None
 
     response = authed_client.put(
-        "/v2/catalog/prod-1/boards/board-1/revisions/nonexistent",
+        "/v2/products/prod-1/boards/board-1/revisions/nonexistent",
         data=json.dumps({"status": "DEPRECATED"}),
     )
 
@@ -368,6 +368,6 @@ def test_delete_board_revision_not_found(authed_client, mock_db):
 
     mock_db.boardrevision.find_first.return_value = None
 
-    response = authed_client.delete("/v2/catalog/prod-1/boards/board-1/revisions/nonexistent")
+    response = authed_client.delete("/v2/products/prod-1/boards/board-1/revisions/nonexistent")
 
     assert response.status_code == 404

@@ -5,8 +5,8 @@ from src.lib.errors import bad_request
 _K8S_NAME_RE = re.compile(r'^[a-z0-9]([a-z0-9\-]{0,251}[a-z0-9])?$')
 
 ALLOWED_RESOURCE_KINDS = frozenset({
-    "Pod", "Deployment", "StatefulSet", "DaemonSet", "ReplicaSet",
-    "Service", "ConfigMap", "Secret", "Job", "CronJob", "Ingress",
+    "pod", "deployment", "statefulset", "daemonset", "replicaset",
+    "service", "configmap", "secret", "job", "cronjob", "ingress",
 })
 
 
@@ -19,6 +19,6 @@ def validate_k8s_name(value: str, field: str = "name"):
 
 def validate_resource_kind(kind: str):
     """Return a bad_request response if kind is not in the allowlist, else None."""
-    if kind not in ALLOWED_RESOURCE_KINDS:
+    if not kind or kind.lower() not in ALLOWED_RESOURCE_KINDS:
         return bad_request(f"Resource kind '{kind}' is not supported")
     return None

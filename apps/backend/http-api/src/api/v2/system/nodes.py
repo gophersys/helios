@@ -12,7 +12,7 @@ from src.services.kubernetes import nodes as nodes_svc
 logger = logging.getLogger(__name__)
 
 
-@require_permissions(Permissions.ADMIN_SYSTEM_VIEW)
+@require_permissions(Permissions.CLUSTER_VIEW)
 def list_nodes():
     try:
         data = nodes_svc.list_nodes()
@@ -26,7 +26,7 @@ def list_nodes():
         return internal_error("Failed to list nodes")
 
 
-@require_permissions(Permissions.ADMIN_SYSTEM_VIEW)
+@require_permissions(Permissions.CLUSTER_VIEW)
 def get_node(node_name: str):
     try:
         data = nodes_svc.get_node(node_name)

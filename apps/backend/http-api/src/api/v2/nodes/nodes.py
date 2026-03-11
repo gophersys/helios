@@ -94,7 +94,7 @@ def _serialize_node(n: Any, include_slot: bool = False) -> dict:
 # -- Nodes CRUD ---------------------------------------------------------------
 
 
-@require_permissions(Permissions.ADMIN_NODES_VIEW)
+@require_permissions(Permissions.DEVICES_VIEW)
 def list_nodes():
     db = get_db_client()
 
@@ -126,7 +126,7 @@ def list_nodes():
     }).to_dict()), 200
 
 
-@require_permissions(Permissions.ADMIN_NODES_MANAGE)
+@require_permissions(Permissions.DEVICES_MANAGE)
 def create_node():
     data, error = NodeCreateRequest.from_json(request.get_json())
     if error:
@@ -180,7 +180,7 @@ def create_node():
     return jsonify(ApiResponse.ok(_serialize_node(node, include_slot=True)).to_dict()), 201
 
 
-@require_permissions(Permissions.ADMIN_NODES_MANAGE)
+@require_permissions(Permissions.DEVICES_MANAGE)
 def sync_nodes_from_k8s():
     empty_result = {"registered": [], "discovered": [], "offline": [], "k8sAvailable": False}
 
@@ -269,7 +269,7 @@ def sync_nodes_from_k8s():
     }).to_dict()), 200
 
 
-@require_permissions(Permissions.ADMIN_NODES_VIEW)
+@require_permissions(Permissions.DEVICES_VIEW)
 def get_node(node_id: str):
     db = get_db_client()
     node = db.node.find_unique(
@@ -281,7 +281,7 @@ def get_node(node_id: str):
     return jsonify(ApiResponse.ok(_serialize_node(node, include_slot=True)).to_dict()), 200
 
 
-@require_permissions(Permissions.ADMIN_NODES_MANAGE)
+@require_permissions(Permissions.DEVICES_MANAGE)
 def update_node(node_id: str):
     data, error = NodeUpdateRequest.from_json(request.get_json())
     if error:
@@ -326,7 +326,7 @@ def update_node(node_id: str):
     return jsonify(ApiResponse.ok(_serialize_node(node, include_slot=True)).to_dict()), 200
 
 
-@require_permissions(Permissions.ADMIN_NODES_MANAGE)
+@require_permissions(Permissions.DEVICES_MANAGE)
 def delete_node(node_id: str):
     db = get_db_client()
     existing = db.node.find_unique(
@@ -353,7 +353,7 @@ def delete_node(node_id: str):
     return jsonify(ApiResponse.ok({"deleted": True}).to_dict()), 200
 
 
-@require_permissions(Permissions.ADMIN_NODES_MANAGE)
+@require_permissions(Permissions.DEVICES_MANAGE)
 def check_node_health(node_id: str):
     db = get_db_client()
     node = db.node.find_unique(where={"id": node_id})
@@ -396,7 +396,7 @@ def check_node_health(node_id: str):
     }).to_dict()), 200
 
 
-@require_permissions(Permissions.ADMIN_NODES_MANAGE)
+@require_permissions(Permissions.DEVICES_MANAGE)
 def register_node(node_id: str):
     if not K8S_AVAILABLE:
         return internal_error("Kubernetes client not available")
@@ -458,7 +458,7 @@ def register_node(node_id: str):
     return jsonify(ApiResponse.ok(_serialize_node(node, include_slot=True)).to_dict()), 201
 
 
-@require_permissions(Permissions.ADMIN_NODES_MANAGE)
+@require_permissions(Permissions.DEVICES_MANAGE)
 def deploy_node(node_id: str):
     """Manually trigger MTIB server deployment for a node."""
     db = get_db_client()
@@ -496,7 +496,7 @@ def deploy_node(node_id: str):
     return jsonify(ApiResponse.ok(_serialize_node(node, include_slot=True)).to_dict()), 200
 
 
-@require_permissions(Permissions.ADMIN_NODES_MANAGE)
+@require_permissions(Permissions.DEVICES_MANAGE)
 def undeploy_node(node_id: str):
     """Manually remove MTIB server deployment for a node."""
     db = get_db_client()

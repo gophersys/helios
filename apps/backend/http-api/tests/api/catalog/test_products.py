@@ -53,7 +53,7 @@ def test_list_products(authed_client, mock_db):
         ),
     ]
 
-    response = authed_client.get("/v2/catalog")
+    response = authed_client.get("/v2/products")
     assert response.status_code == 200
 
     data = json.loads(response.data)
@@ -71,7 +71,7 @@ def test_list_products(authed_client, mock_db):
 
 def test_list_products_unauthorized(client):
     """Test listing products without auth returns 401."""
-    response = client.get("/v2/catalog")
+    response = client.get("/v2/products")
     assert response.status_code == 401
 
 
@@ -94,7 +94,7 @@ def test_create_product(authed_client, mock_db):
 
     with patch("src.api.v2.catalog.products.log_audit"):
         response = authed_client.post(
-            "/v2/catalog",
+            "/v2/products",
             data=json.dumps({
                 "name": "New Product",
                 "description": "A new product",
@@ -122,7 +122,7 @@ def test_create_product_duplicate_name(authed_client, mock_db):
     )
 
     response = authed_client.post(
-        "/v2/catalog",
+        "/v2/products",
         data=json.dumps({"name": "Existing Product"}),
     )
 
@@ -134,7 +134,7 @@ def test_create_product_duplicate_name(authed_client, mock_db):
 def test_create_product_missing_name(authed_client, mock_db):
     """Test creating product with missing name returns 400."""
     response = authed_client.post(
-        "/v2/catalog",
+        "/v2/products",
         data=json.dumps({}),
     )
 
@@ -185,7 +185,7 @@ def test_get_product(authed_client, mock_db):
         **_product_defaults(),
     )
 
-    response = authed_client.get("/v2/catalog/prod-123")
+    response = authed_client.get("/v2/products/prod-123")
     assert response.status_code == 200
 
     data = json.loads(response.data)
@@ -200,7 +200,7 @@ def test_get_product_not_found(authed_client, mock_db):
     """Test getting a non-existent product returns 404."""
     mock_db.product.find_unique.return_value = None
 
-    response = authed_client.get("/v2/catalog/nonexistent")
+    response = authed_client.get("/v2/products/nonexistent")
     assert response.status_code == 404
 
 
@@ -233,7 +233,7 @@ def test_update_product(authed_client, mock_db):
 
     with patch("src.api.v2.catalog.products.log_audit"):
         response = authed_client.put(
-            "/v2/catalog/prod-update",
+            "/v2/products/prod-update",
             data=json.dumps({
                 "description": "New description",
                 "active": False,
@@ -251,7 +251,7 @@ def test_update_product_not_found(authed_client, mock_db):
     mock_db.product.find_unique.return_value = None
 
     response = authed_client.put(
-        "/v2/catalog/nonexistent",
+        "/v2/products/nonexistent",
         data=json.dumps({"name": "New Name"}),
     )
 
@@ -276,7 +276,7 @@ def test_delete_product(authed_client, mock_db):
     mock_db.test.find_first.return_value = None
 
     with patch("src.api.v2.catalog.products.log_audit"):
-        response = authed_client.delete("/v2/catalog/prod-delete")
+        response = authed_client.delete("/v2/products/prod-delete")
 
     assert response.status_code == 200
     data = json.loads(response.data)
@@ -302,7 +302,7 @@ def test_delete_product_with_sessions(authed_client, mock_db):
         productId="prod-has-sessions",
     )
 
-    response = authed_client.delete("/v2/catalog/prod-has-sessions")
+    response = authed_client.delete("/v2/products/prod-has-sessions")
     assert response.status_code == 409
     data = json.loads(response.data)
     assert len(data["errors"]) > 0
@@ -330,7 +330,7 @@ def test_update_product_duplicate_name(authed_client, mock_db):
 
     with patch("src.api.v2.catalog.products.log_audit"):
         response = authed_client.put(
-            "/v2/catalog/prod-update",
+            "/v2/products/prod-update",
             data=json.dumps({"name": "Taken Name"}),
         )
 
@@ -356,7 +356,7 @@ def test_delete_product_with_tests(authed_client, mock_db):
         productId="prod-has-tests",
     )
 
-    response = authed_client.delete("/v2/catalog/prod-has-tests")
+    response = authed_client.delete("/v2/products/prod-has-tests")
     assert response.status_code == 409
     data = json.loads(response.data)
     assert len(data["errors"]) > 0

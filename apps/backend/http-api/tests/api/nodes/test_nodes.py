@@ -21,7 +21,7 @@ def test_list_nodes(authed_client, mock_db):
         ),
     ]
 
-    response = authed_client.get("/v2/mtibs")
+    response = authed_client.get("/v2/devices/mtibs")
     assert response.status_code == 200
     data = json.loads(response.data)
     assert "data" in data
@@ -42,7 +42,7 @@ def test_create_node(authed_client, mock_db):
     )
 
     with patch("api.v2.nodes.nodes.log_audit"):
-        response = authed_client.post("/v2/mtibs", data=json.dumps({
+        response = authed_client.post("/v2/devices/mtibs", data=json.dumps({
             "name": "MTIB-02", "hostname": "verdin-imx8mm-002", "type": "VALIDATION",
         }))
 
@@ -60,7 +60,7 @@ def test_create_node_duplicate_hostname(authed_client, mock_db):
         updatedAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
     )
 
-    response = authed_client.post("/v2/mtibs", data=json.dumps({
+    response = authed_client.post("/v2/devices/mtibs", data=json.dumps({
         "name": "New Node", "hostname": "host-dup", "type": "MANUFACTURING",
     }))
 
@@ -76,7 +76,7 @@ def test_get_node(authed_client, mock_db):
         updatedAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
     )
 
-    response = authed_client.get("/v2/mtibs/node-1")
+    response = authed_client.get("/v2/devices/mtibs/node-1")
     assert response.status_code == 200
     data = json.loads(response.data)
     assert data["data"]["id"] == "node-1"
@@ -84,7 +84,7 @@ def test_get_node(authed_client, mock_db):
 
 def test_get_node_not_found(authed_client, mock_db):
     mock_db.node.find_unique.return_value = None
-    response = authed_client.get("/v2/mtibs/nonexistent")
+    response = authed_client.get("/v2/devices/mtibs/nonexistent")
     assert response.status_code == 404
 
 
@@ -105,7 +105,7 @@ def test_update_node(authed_client, mock_db):
     )
 
     with patch("api.v2.nodes.nodes.log_audit"):
-        response = authed_client.put("/v2/mtibs/node-1", data=json.dumps({"name": "New Name"}))
+        response = authed_client.put("/v2/devices/mtibs/node-1", data=json.dumps({"name": "New Name"}))
 
     assert response.status_code == 200
     data = json.loads(response.data)
@@ -122,7 +122,7 @@ def test_delete_node(authed_client, mock_db):
     )
 
     with patch("api.v2.nodes.nodes.log_audit"):
-        response = authed_client.delete("/v2/mtibs/node-del")
+        response = authed_client.delete("/v2/devices/mtibs/node-del")
 
     assert response.status_code == 200
     data = json.loads(response.data)

@@ -13,7 +13,7 @@ from src.services.log.logger import get_logger
 from .types import MtibRegisterRequest
 
 
-@require_permissions(Permissions.MTIB_MANAGE)
+@require_permissions(Permissions.DEVICES_MANAGE)
 def register_mtib():
     """Register a new MTIB node."""
     logger = get_logger()

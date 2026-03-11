@@ -48,7 +48,7 @@ def _create_run_api_key(db, user_id: str, run_id: str) -> str:
     return raw_key
 
 
-@require_permissions(Permissions.ADMIN_VALIDATION_MANAGE)
+@require_permissions(Permissions.VALIDATION_RUN)
 def trigger_run(run_id: str):
     """POST /v2/validation/runs/<run_id>/trigger — Create a K8s Job for this run."""
     data, error = RunTriggerRequest.from_json(request.get_json())
@@ -130,6 +130,11 @@ def trigger_run(run_id: str):
         mtib_addr_full = bench.get("mtibAddress") or ""
         mtib_host = mtib_addr_full.split(":")[0] if mtib_addr_full else ""
 
+        # Derive product slug for catalog API lookup
+        product_slug = None
+        if hasattr(session, "product") and session.product:
+            product_slug = session.product.slug
+
         # Create K8s Job with bench info
         job_name = create_kubernetes_job(
             product=product_name,
@@ -147,6 +152,12 @@ def trigger_run(run_id: str):
             device_id=bench.get("dutDeviceId"),
             device_snr=bench.get("dutSnr"),
             fixture_profile_path=bench.get("profilePath"),
+            # Stage 4: Pipeline-based firmware
+            pipeline_id=data.pipeline_id,
+            # Product context
+            product_slug=product_slug,
+            # Validation stage
+            stage=data.stage,
         )
 
         if not job_name:

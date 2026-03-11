@@ -176,7 +176,7 @@ def _serialize_pipeline_run(p: Any) -> dict:
 #                                 Public Endpoints
 # -------------------------------------------------
 
-@require_permissions(Permissions.ADMIN_VALIDATION_MANAGE)
+@require_permissions(Permissions.VALIDATION_RUN)
 def create_run():
     """POST /v2/validation/runs — Create a new validation run."""
     from flask import g
@@ -279,7 +279,7 @@ def create_run():
         return internal_error("Failed to create validation run")
 
 
-@require_permissions(Permissions.ADMIN_VALIDATION_VIEW)
+@require_permissions(Permissions.VALIDATION_VIEW)
 def list_runs():
     """GET /v2/validation/runs — List validation runs with pagination and filters."""
     db = get_db_client()
@@ -326,7 +326,7 @@ def list_runs():
     }).to_dict()), 200
 
 
-@require_permissions(Permissions.ADMIN_VALIDATION_VIEW)
+@require_permissions(Permissions.VALIDATION_VIEW)
 def get_run(run_id: str):
     """GET /v2/validation/runs/<id> — Run detail with devices, executions, and build pipeline."""
     db = get_db_client()
@@ -365,7 +365,7 @@ def get_run(run_id: str):
     return jsonify(ApiResponse.ok(_serialize_session(session, include_executions=True)).to_dict()), 200
 
 
-@require_permissions(Permissions.ADMIN_VALIDATION_MANAGE)
+@require_permissions(Permissions.VALIDATION_MANAGE)
 def cancel_run(run_id: str):
     """POST /v2/validation/runs/<id>/cancel — Cancel a running session."""
     db = get_db_client()

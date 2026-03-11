@@ -5,6 +5,7 @@ from flask import g, jsonify
 from config import env_config
 from src.lib.decorators import require_permissions
 from src.lib.errors import not_found
+from src.lib.permissions import Permissions
 from src.lib.types import ApiResponse
 from src.services.database.prisma import get_db_client
 
@@ -22,7 +23,7 @@ def me():
                 "name": "Admin (auth disabled)",
                 "permissionSetId": None,
                 "permissionSetName": "Full Access",
-                "permissions": ["Concord.Admin.All.Manage"],
+                "permissions": list(Permissions.all()),
                 "active": True,
                 "lastSeenAt": None,
                 "createdAt": "2026-01-01T00:00:00",

@@ -176,3 +176,17 @@ def test_api_response_to_dict_with_errors():
     assert result["errors"][0]["field"] == "field1"
     assert result["errors"][1]["message"] == "Error 2"
     assert result["errors"][1]["code"] == "CODE_2"
+
+
+def test_api_response_error_with_raw_string_crashes():
+    """Verify that passing a raw string to ApiResponse.error() crashes on to_dict().
+
+    This documents the bug that existed when endpoints called
+    ApiResponse.error("some string") instead of
+    ApiResponse.error(ErrorDetail(message="some string")).
+    """
+    from src.lib.types import ApiResponse
+
+    response = ApiResponse.error("raw string error")
+    with pytest.raises(AttributeError, match="to_dict"):
+        response.to_dict()

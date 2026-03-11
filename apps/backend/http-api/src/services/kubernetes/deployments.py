@@ -9,13 +9,22 @@ from .serializers import serialize_deployment
 logger = logging.getLogger(__name__)
 
 
-def list_deployments(namespace: str | None = None) -> list[dict]:
+def list_deployments(
+    namespace: str | None = None,
+    label_selector: str | None = None,
+    field_selector: str | None = None,
+) -> list[dict]:
     apps = get_apps_v1_api()
+    kwargs = {}
+    if label_selector:
+        kwargs["label_selector"] = label_selector
+    if field_selector:
+        kwargs["field_selector"] = field_selector
 
     if namespace:
-        dep_list = apps.list_namespaced_deployment(namespace)
+        dep_list = apps.list_namespaced_deployment(namespace, **kwargs)
     else:
-        dep_list = apps.list_deployment_for_all_namespaces()
+        dep_list = apps.list_deployment_for_all_namespaces(**kwargs)
 
     return [serialize_deployment(d) for d in dep_list.items]
 

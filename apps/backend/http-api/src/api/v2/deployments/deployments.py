@@ -43,7 +43,7 @@ def _serialize_deployment(d: Any) -> dict:
 # -- List deployments -------------------------------------------------------
 
 
-@require_permissions(Permissions.ADMIN_DEPLOYMENTS_VIEW)
+@require_permissions(Permissions.SYSTEM_VIEW)
 def list_deployments():
     db = get_db_client()
 
@@ -83,7 +83,7 @@ def list_deployments():
 # -- Create deployment ------------------------------------------------------
 
 
-@require_permissions(Permissions.ADMIN_DEPLOYMENTS_MANAGE)
+@require_permissions(Permissions.SYSTEM_MANAGE)
 def create_deployment():
     data, error = DeploymentCreateRequest.from_json(request.get_json())
     if error:
@@ -131,7 +131,7 @@ def create_deployment():
 # -- Get deployment ---------------------------------------------------------
 
 
-@require_permissions(Permissions.ADMIN_DEPLOYMENTS_VIEW)
+@require_permissions(Permissions.SYSTEM_VIEW)
 def get_deployment(deployment_id: str):
     db = get_db_client()
     deployment = db.deployment.find_unique(
@@ -151,7 +151,7 @@ def get_deployment(deployment_id: str):
 # -- Delete deployment ------------------------------------------------------
 
 
-@require_permissions(Permissions.ADMIN_DEPLOYMENTS_MANAGE)
+@require_permissions(Permissions.SYSTEM_MANAGE)
 def delete_deployment(deployment_id: str):
     db = get_db_client()
     deployment = db.deployment.find_unique(where={"id": deployment_id})
@@ -170,7 +170,7 @@ def delete_deployment(deployment_id: str):
 # -- Deploy fixture ---------------------------------------------------------
 
 
-@require_permissions(Permissions.ADMIN_DEPLOYMENTS_MANAGE)
+@require_permissions(Permissions.SYSTEM_MANAGE)
 def deploy_fixture(deployment_id: str):
     db = get_db_client()
     deployment = db.deployment.find_unique(
@@ -258,7 +258,7 @@ def deploy_fixture(deployment_id: str):
 # -- Stop deployment --------------------------------------------------------
 
 
-@require_permissions(Permissions.ADMIN_DEPLOYMENTS_MANAGE)
+@require_permissions(Permissions.SYSTEM_MANAGE)
 def stop_deployment(deployment_id: str):
     db = get_db_client()
     deployment = db.deployment.find_unique(where={"id": deployment_id})
@@ -300,7 +300,7 @@ def stop_deployment(deployment_id: str):
 # -- Restart deployment -----------------------------------------------------
 
 
-@require_permissions(Permissions.ADMIN_DEPLOYMENTS_MANAGE)
+@require_permissions(Permissions.SYSTEM_MANAGE)
 def restart_deployment(deployment_id: str):
     db = get_db_client()
     deployment = db.deployment.find_unique(where={"id": deployment_id})
@@ -339,7 +339,7 @@ def restart_deployment(deployment_id: str):
 # -- Get deployment status --------------------------------------------------
 
 
-@require_permissions(Permissions.ADMIN_DEPLOYMENTS_VIEW)
+@require_permissions(Permissions.SYSTEM_VIEW)
 def get_deployment_status(deployment_id: str):
     db = get_db_client()
     deployment = db.deployment.find_unique(

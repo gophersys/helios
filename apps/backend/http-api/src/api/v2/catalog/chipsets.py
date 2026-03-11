@@ -32,7 +32,7 @@ def _serialize_chipset(c: Any) -> dict:
 # ── Chipsets CRUD ─────────────────────────────────────────
 
 
-@require_permissions(Permissions.ADMIN_CATALOG_VIEW)
+@require_permissions(Permissions.PRODUCTS_VIEW)
 def list_chipsets():
     db = get_db_client()
 
@@ -57,7 +57,7 @@ def list_chipsets():
     }).to_dict()), 200
 
 
-@require_permissions(Permissions.ADMIN_CATALOG_MANAGE)
+@require_permissions(Permissions.PRODUCTS_MANAGE)
 def create_chipset():
     data, error = ChipsetCreateRequest.from_json(request.get_json())
     if error:
@@ -82,7 +82,7 @@ def create_chipset():
     return jsonify(ApiResponse.ok(_serialize_chipset(chipset)).to_dict()), 201
 
 
-@require_permissions(Permissions.ADMIN_CATALOG_VIEW)
+@require_permissions(Permissions.PRODUCTS_VIEW)
 def get_chipset(chipset_id: str):
     db = get_db_client()
     chipset = db.chipset.find_unique(where={"id": chipset_id})
@@ -91,7 +91,7 @@ def get_chipset(chipset_id: str):
     return jsonify(ApiResponse.ok(_serialize_chipset(chipset)).to_dict()), 200
 
 
-@require_permissions(Permissions.ADMIN_CATALOG_MANAGE)
+@require_permissions(Permissions.PRODUCTS_MANAGE)
 def update_chipset(chipset_id: str):
     data, error = ChipsetUpdateRequest.from_json(request.get_json())
     if error:
@@ -117,7 +117,7 @@ def update_chipset(chipset_id: str):
     return jsonify(ApiResponse.ok(_serialize_chipset(chipset)).to_dict()), 200
 
 
-@require_permissions(Permissions.ADMIN_CATALOG_MANAGE)
+@require_permissions(Permissions.PRODUCTS_MANAGE)
 def delete_chipset(chipset_id: str):
     db = get_db_client()
     existing = db.chipset.find_unique(where={"id": chipset_id})

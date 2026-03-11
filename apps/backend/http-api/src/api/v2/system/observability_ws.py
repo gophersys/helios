@@ -19,7 +19,7 @@ def register_observability_handlers(socketio: SocketIO):
     """Register Socket.IO event handlers for MTIB observability streaming.
 
     NOTE: Authentication is handled by the shared /kubernetes namespace connect handler
-    in logs.py, which validates JWT tokens and checks ADMIN_SYSTEM_VIEW permission.
+    in logs.py, which validates JWT tokens and checks system:view permission.
     This handler must be registered AFTER register_log_handlers() in router.py to
     inherit the authentication."""
 
@@ -143,7 +143,7 @@ def register_icle_handlers(socketio: SocketIO):
     """Register Socket.IO event handlers for ICLE device updates.
 
     NOTE: Authentication is handled by the shared /kubernetes namespace connect handler
-    in logs.py, which validates JWT tokens and checks ADMIN_SYSTEM_VIEW permission.
+    in logs.py, which validates JWT tokens and checks system:view permission.
     This handler must be registered AFTER register_log_handlers() in router.py to
     inherit the authentication."""
 

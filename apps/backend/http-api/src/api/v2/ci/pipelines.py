@@ -107,7 +107,7 @@ def _serialize_pipeline_summary(p) -> Dict[str, Any]:
     return data
 
 
-@require_permissions(Permissions.ADMIN_CI_VIEW)
+@require_permissions(Permissions.BUILDS_VIEW)
 def list_pipelines():
     """GET /v2/ci/pipelines — List pipeline runs."""
     db = get_db_client()
@@ -154,7 +154,7 @@ def list_pipelines():
         return internal_error("Failed to list pipelines")
 
 
-@require_permissions(Permissions.ADMIN_CI_VIEW)
+@require_permissions(Permissions.BUILDS_VIEW)
 def get_pipeline(pipeline_id: str):
     """GET /v2/ci/pipelines/<id> — Get pipeline details with builds."""
     db = get_db_client()
@@ -174,7 +174,7 @@ def get_pipeline(pipeline_id: str):
         return internal_error("Failed to get pipeline")
 
 
-@require_permissions(Permissions.ADMIN_CI_VIEW)
+@require_permissions(Permissions.BUILDS_VIEW)
 def download_pipeline_artifacts(pipeline_id: str):
     """GET /v2/ci/pipelines/<id>/artifacts/download — Download all artifacts as ZIP.
 
@@ -282,7 +282,7 @@ def download_pipeline_artifacts(pipeline_id: str):
         return internal_error("Failed to create artifact ZIP")
 
 
-@require_permissions(Permissions.ADMIN_CI_MANAGE)
+@require_permissions(Permissions.BUILDS_TRIGGER)
 def create_pipeline():
     """POST /v2/ci/pipelines — Create a new pipeline (triggers builds).
 
@@ -310,24 +310,38 @@ def create_pipeline():
         )
 
     # Determine product/repo base name for builds
-    # Build jobs use repo slugs (alpha_fw, alpha_mfg_fw), not product slugs (alpha_b0)
-    repo_slug = data.repo_slug or data.product
-    # Normalize: remove _fw/_mfg suffixes, spaces, board suffixes (b0/a0)
-    # "Alpha B0" -> "alpha", "alpha_fw" -> "alpha", "alpha b0_mfg_fw" -> "alpha"
-    repo_base = repo_slug.lower().replace(" ", "_").replace("_fw", "").replace("_mfg", "")
-    # Remove board suffixes like _b0, _a0
-    for suffix in ["_b0", "_a0", "_b1", "_a1"]:
-        repo_base = repo_base.replace(suffix, "")
-    repo_base = repo_base.strip("_")  # "alpha"
-
-    # Product base for pipeline naming (use product name if found)
-    product_base = repo_base
+    # Prefer Product model fields when available
     if product_record:
-        product_base = product_record.name.lower().replace(" ", "_")  # "alpha"
+        repo_slug = data.repo_slug or product_record.repoSlug or data.product
+        # Derive repo_base from Product slug or name
+        product_base = product_record.slug or product_record.name.lower().replace(" ", "_")
+        # Strip board suffixes for base name (alpha_b0 -> alpha)
+        repo_base = product_base
+        for suffix in ["_b0", "_a0", "_b1", "_a1"]:
+            repo_base = repo_base.replace(suffix, "")
+        repo_base = repo_base.strip("_")
+    else:
+        repo_slug = data.repo_slug or data.product
+        # Normalize: remove _fw/_mfg suffixes, spaces, board suffixes (b0/a0)
+        repo_base = repo_slug.lower().replace(" ", "_").replace("_fw", "").replace("_mfg", "")
+        for suffix in ["_b0", "_a0", "_b1", "_a1"]:
+            repo_base = repo_base.replace(suffix, "")
+        repo_base = repo_base.strip("_")
+        product_base = repo_base
 
     # Determine which firmware builds are needed based on matrix mode
-    main_fw = f"{repo_base}_fw"  # alpha_fw
-    mfg_fw = data.mfg_repo_slug or f"{repo_base}_mfg_fw"  # alpha_mfg_fw
+    # Use Product model fields when available
+    if product_record and product_record.repoSlug:
+        main_fw = product_record.repoSlug  # e.g. "alpha_fw"
+    else:
+        main_fw = f"{repo_base}_fw"
+
+    if data.mfg_repo_slug:
+        mfg_fw = data.mfg_repo_slug
+    elif product_record and product_record.mfgRepoSlug:
+        mfg_fw = product_record.mfgRepoSlug  # e.g. "alpha_mfg_fw"
+    else:
+        mfg_fw = f"{repo_base}_mfg_fw"
 
     # Build matrix configuration (stage4 or quick mode only)
     stage4_config = Stage4MatrixConfig(
@@ -358,10 +372,13 @@ def create_pipeline():
         if data.validation_config:
             trigger_data.update(data.validation_config)
 
-        # Store matrix config in pipeline
+        # Store matrix config in pipeline (include Product model fields for traceability)
         matrix_config = {
             "mode": data.matrix_mode,
             "product": repo_base,
+            "productId": product_record.id if product_record else None,
+            "mainFw": main_fw,
+            "mfgFw": mfg_fw,
             "mainCommit": data.main_commit or data.commit_sha,
             "prBranch": data.pr_branch or data.branch,
             "prCommit": data.commit_sha,
@@ -452,7 +469,7 @@ def create_pipeline():
         return internal_error("Failed to create pipeline")
 
 
-@require_permissions(Permissions.ADMIN_CI_MANAGE)
+@require_permissions(Permissions.BUILDS_MANAGE)
 def cancel_pipeline(pipeline_id: str):
     """POST /v2/ci/pipelines/<id>/cancel — Cancel a pipeline."""
     db = get_db_client()

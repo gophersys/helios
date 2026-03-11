@@ -92,7 +92,7 @@ def _serialize_release(r: Any, include_artifact_count: bool = False, include_art
 # ── Codebases CRUD ─────────────────────────────────────────
 
 
-@require_permissions(Permissions.ADMIN_CODEBASES_VIEW)
+@require_permissions(Permissions.BUILDS_VIEW)
 def list_codebases():
     db = get_db_client()
 
@@ -118,7 +118,7 @@ def list_codebases():
     }).to_dict()), 200
 
 
-@require_permissions(Permissions.ADMIN_CODEBASES_MANAGE)
+@require_permissions(Permissions.BUILDS_MANAGE)
 def create_codebase():
     data, error = CodebaseCreateRequest.from_json(request.get_json())
     if error:
@@ -143,7 +143,7 @@ def create_codebase():
     return jsonify(ApiResponse.ok(_serialize_codebase(codebase)).to_dict()), 201
 
 
-@require_permissions(Permissions.ADMIN_CODEBASES_VIEW)
+@require_permissions(Permissions.BUILDS_VIEW)
 def get_codebase(codebase_id: str):
     db = get_db_client()
     codebase = db.codebase.find_unique(
@@ -155,7 +155,7 @@ def get_codebase(codebase_id: str):
     return jsonify(ApiResponse.ok(_serialize_codebase(codebase, include_releases=True)).to_dict()), 200
 
 
-@require_permissions(Permissions.ADMIN_CODEBASES_MANAGE)
+@require_permissions(Permissions.BUILDS_MANAGE)
 def update_codebase(codebase_id: str):
     data, error = CodebaseUpdateRequest.from_json(request.get_json())
     if error:
@@ -180,7 +180,7 @@ def update_codebase(codebase_id: str):
     return jsonify(ApiResponse.ok(_serialize_codebase(codebase)).to_dict()), 200
 
 
-@require_permissions(Permissions.ADMIN_CODEBASES_MANAGE)
+@require_permissions(Permissions.BUILDS_MANAGE)
 def delete_codebase(codebase_id: str):
     db = get_db_client()
     existing = db.codebase.find_unique(
@@ -218,7 +218,7 @@ def delete_codebase(codebase_id: str):
 # ── Image upload ─────────────────────────────────────────────
 
 
-@require_permissions(Permissions.ADMIN_CODEBASES_MANAGE)
+@require_permissions(Permissions.BUILDS_MANAGE)
 def upload_codebase_image(codebase_id: str):
     db = get_db_client()
     codebase = db.codebase.find_unique(where={"id": codebase_id})

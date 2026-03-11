@@ -30,6 +30,17 @@ def init_kubernetes_client() -> Optional[k8s_client.ApiClient]:
     return client
 
 
+def close_kubernetes_client() -> None:
+    """Close the global Kubernetes client and release its connection pool."""
+    global appKubernetesClient
+    if appKubernetesClient is not None:
+        try:
+            appKubernetesClient.close()
+        except Exception:
+            pass
+        appKubernetesClient = None
+
+
 def get_k8s_client() -> k8s_client.ApiClient:
     """Get the global Kubernetes client instance"""
     global appKubernetesClient

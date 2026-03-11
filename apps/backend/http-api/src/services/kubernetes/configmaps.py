@@ -8,13 +8,19 @@ from .serializers import serialize_configmap, serialize_secret
 logger = logging.getLogger(__name__)
 
 
-def list_configmaps(namespace: str | None = None) -> list[dict]:
+def list_configmaps(
+    namespace: str | None = None,
+    label_selector: str | None = None,
+) -> list[dict]:
     core = get_core_v1_api()
+    kwargs = {}
+    if label_selector:
+        kwargs["label_selector"] = label_selector
 
     if namespace:
-        cm_list = core.list_namespaced_config_map(namespace)
+        cm_list = core.list_namespaced_config_map(namespace, **kwargs)
     else:
-        cm_list = core.list_config_map_for_all_namespaces()
+        cm_list = core.list_config_map_for_all_namespaces(**kwargs)
 
     return [serialize_configmap(cm) for cm in cm_list.items]
 
@@ -30,13 +36,19 @@ def get_configmap(namespace: str, name: str) -> dict | None:
     return serialize_configmap(cm, include_data=True)
 
 
-def list_secrets(namespace: str | None = None) -> list[dict]:
+def list_secrets(
+    namespace: str | None = None,
+    label_selector: str | None = None,
+) -> list[dict]:
     core = get_core_v1_api()
+    kwargs = {}
+    if label_selector:
+        kwargs["label_selector"] = label_selector
 
     if namespace:
-        secret_list = core.list_namespaced_secret(namespace)
+        secret_list = core.list_namespaced_secret(namespace, **kwargs)
     else:
-        secret_list = core.list_secret_for_all_namespaces()
+        secret_list = core.list_secret_for_all_namespaces(**kwargs)
 
     return [serialize_secret(s) for s in secret_list.items]
 

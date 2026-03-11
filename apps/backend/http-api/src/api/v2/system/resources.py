@@ -16,7 +16,7 @@ from .types import ApplyResourceYamlRequest
 logger = logging.getLogger(__name__)
 
 
-@require_permissions(Permissions.ADMIN_SYSTEM_VIEW)
+@require_permissions(Permissions.CLUSTER_VIEW)
 def get_resource_yaml(kind: str, namespace: str, name: str):
     err = validate_resource_kind(kind)
     if err: return err
@@ -40,7 +40,7 @@ def get_resource_yaml(kind: str, namespace: str, name: str):
         return internal_error("Failed to get resource")
 
 
-@require_permissions(Permissions.ADMIN_SYSTEM_MANAGE)
+@require_permissions(Permissions.CLUSTER_MANAGE)
 def apply_resource_yaml(kind: str, namespace: str, name: str):
     err = validate_resource_kind(kind)
     if err: return err
@@ -69,7 +69,7 @@ def apply_resource_yaml(kind: str, namespace: str, name: str):
         return internal_error("Failed to apply resource")
 
 
-@require_permissions(Permissions.ADMIN_SYSTEM_MANAGE)
+@require_permissions(Permissions.CLUSTER_MANAGE)
 def delete_resource(kind: str, namespace: str, name: str):
     err = validate_resource_kind(kind)
     if err: return err

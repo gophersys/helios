@@ -21,9 +21,9 @@ KEY_PREFIX_FORMAT = "ck_live_"
 KEY_RANDOM_LENGTH = 32
 
 
-@require_permissions(Permissions.ADMIN_API_KEYS_VIEW)
+@require_permissions(Permissions.API_KEYS_VIEW)
 def list_api_keys():
-    """List all API keys (requires ADMIN_API_KEYS_VIEW permission)."""
+    """List all API keys (requires api-keys:view permission)."""
     db = get_db_client()
 
     page = max(1, request.args.get("page", 1, type=int))
@@ -61,7 +61,7 @@ def list_api_keys():
     }).to_dict()), 200
 
 
-@require_permissions(Permissions.ADMIN_API_KEYS_MANAGE)
+@require_permissions(Permissions.API_KEYS_MANAGE)
 def create_api_key():
     """Create a new API key for the authenticated user.
 
@@ -110,9 +110,9 @@ def create_api_key():
     }).to_dict()), 201
 
 
-@require_permissions(Permissions.ADMIN_API_KEYS_MANAGE)
+@require_permissions(Permissions.API_KEYS_MANAGE)
 def delete_api_key(key_id: str):
-    """Delete an API key (requires ADMIN_API_KEYS_MANAGE permission)."""
+    """Delete an API key (requires api-keys:manage permission)."""
     db = get_db_client()
 
     api_key = db.apikey.find_unique(where={"id": key_id})

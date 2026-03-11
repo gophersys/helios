@@ -35,7 +35,7 @@ def _serialize_audit_log(entry: Any) -> dict:
     return data
 
 
-@require_permissions(Permissions.ADMIN_HISTORY_VIEW)
+@require_permissions(Permissions.SYSTEM_VIEW)
 def list_history():
     """List audit log entries with filtering and pagination."""
     db = get_db_client()
@@ -96,7 +96,7 @@ def list_history():
     }).to_dict()), 200
 
 
-@require_permissions(Permissions.ADMIN_HISTORY_VIEW)
+@require_permissions(Permissions.SYSTEM_VIEW)
 def get_history_entry(entry_id: str):
     """Get a single audit log entry by ID."""
     db = get_db_client()

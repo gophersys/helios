@@ -56,7 +56,7 @@ def _serialize_artifact(a: Any) -> dict:
 # ── Releases CRUD ─────────────────────────────────────────
 
 
-@require_permissions(Permissions.ADMIN_CODEBASES_MANAGE)
+@require_permissions(Permissions.BUILDS_MANAGE)
 def create_release(codebase_id: str):
     db = get_db_client()
     codebase = db.codebase.find_unique(where={"id": codebase_id})
@@ -91,7 +91,7 @@ def create_release(codebase_id: str):
     return jsonify(ApiResponse.ok(_serialize_release(release)).to_dict()), 201
 
 
-@require_permissions(Permissions.ADMIN_CODEBASES_MANAGE)
+@require_permissions(Permissions.BUILDS_MANAGE)
 def update_release(codebase_id: str, release_id: str):
     db = get_db_client()
     release = db.release.find_first(
@@ -126,7 +126,7 @@ def update_release(codebase_id: str, release_id: str):
     return jsonify(ApiResponse.ok(_serialize_release(updated)).to_dict()), 200
 
 
-@require_permissions(Permissions.ADMIN_CODEBASES_MANAGE)
+@require_permissions(Permissions.BUILDS_MANAGE)
 def delete_release(codebase_id: str, release_id: str):
     db = get_db_client()
     release = db.release.find_first(

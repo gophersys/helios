@@ -11,7 +11,7 @@ from src.lib.types import ApiResponse
 logger = logging.getLogger(__name__)
 
 
-@require_permissions(Permissions.ADMIN_SYSTEM_VIEW)
+@require_permissions(Permissions.SYSTEM_VIEW)
 def get_system_info():
     """Return build metadata for the running http-api instance."""
     try:

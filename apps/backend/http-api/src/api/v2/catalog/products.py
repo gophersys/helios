@@ -124,7 +124,7 @@ def _serialize_firmware_build(b: Any) -> dict:
 # ── Products CRUD ─────────────────────────────────────────
 
 
-@require_permissions(Permissions.ADMIN_CATALOG_VIEW)
+@require_permissions(Permissions.PRODUCTS_VIEW)
 def list_products():
     db = get_db_client()
 
@@ -153,7 +153,7 @@ def list_products():
     }).to_dict()), 200
 
 
-@require_permissions(Permissions.ADMIN_CATALOG_MANAGE)
+@require_permissions(Permissions.PRODUCTS_MANAGE)
 def create_product():
     data, error = ProductCreateRequest.from_json(request.get_json())
     if error:
@@ -165,12 +165,42 @@ def create_product():
     if existing:
         return conflict("Product with this name already exists")
 
+    # Check slug uniqueness if provided
+    if data.slug:
+        existing_slug = db.product.find_unique(where={"slug": data.slug})
+        if existing_slug:
+            return conflict("Product with this slug already exists")
+
+    # Build create data with all provided fields
+    create_data = {
+        "name": data.name,
+        "description": data.description,
+        "active": data.active,
+    }
+    if data.slug is not None:
+        create_data["slug"] = data.slug
+    if data.repoSlug is not None:
+        create_data["repoSlug"] = data.repoSlug
+    if data.repoSshUrl is not None:
+        create_data["repoSshUrl"] = data.repoSshUrl
+    if data.repoBranch is not None:
+        create_data["repoBranch"] = data.repoBranch
+    if data.mfgRepoSlug is not None:
+        create_data["mfgRepoSlug"] = data.mfgRepoSlug
+    if data.mfgRepoSshUrl is not None:
+        create_data["mfgRepoSshUrl"] = data.mfgRepoSshUrl
+    if data.buildBoard is not None:
+        create_data["buildBoard"] = data.buildBoard
+    if data.buildWestDir is not None:
+        create_data["buildWestDir"] = data.buildWestDir
+    if data.buildMfgDir is not None:
+        create_data["buildMfgDir"] = data.buildMfgDir
+    if data.metadata is not None:
+        from database import Json
+        create_data["metadata"] = Json(data.metadata)
+
     product = db.product.create(
-        data={
-            "name": data.name,
-            "description": data.description,
-            "active": data.active,
-        },
+        data=create_data,
         include={
             "boards": {"include": {"revisions": True}},
             "firmwareBuilds": {"include": {"chipset": True}},
@@ -180,7 +210,7 @@ def create_product():
     return jsonify(ApiResponse.ok(_serialize_product(product)).to_dict()), 201
 
 
-@require_permissions(Permissions.ADMIN_CATALOG_VIEW)
+@require_permissions(Permissions.PRODUCTS_VIEW)
 def get_product(product_id: str):
     db = get_db_client()
     product = db.product.find_unique(
@@ -210,7 +240,7 @@ def get_product(product_id: str):
     return jsonify(ApiResponse.ok(_serialize_product(product, include_children=True)).to_dict()), 200
 
 
-@require_permissions(Permissions.ADMIN_CATALOG_MANAGE)
+@require_permissions(Permissions.PRODUCTS_MANAGE)
 def update_product(product_id: str):
     data, error = ProductUpdateRequest.from_json(request.get_json())
     if error:
@@ -226,6 +256,12 @@ def update_product(product_id: str):
         if dup:
             return conflict("Product with this name already exists")
 
+    # Check slug uniqueness if being changed
+    if data._has_slug and data.slug and data.slug != existing.slug:
+        dup_slug = db.product.find_unique(where={"slug": data.slug})
+        if dup_slug:
+            return conflict("Product with this slug already exists")
+
     product = db.product.update(
         where={"id": product_id},
         data=data.to_update_data(),
@@ -238,7 +274,7 @@ def update_product(product_id: str):
     return jsonify(ApiResponse.ok(_serialize_product(product)).to_dict()), 200
 
 
-@require_permissions(Permissions.ADMIN_CATALOG_MANAGE)
+@require_permissions(Permissions.PRODUCTS_MANAGE)
 def delete_product(product_id: str):
     db = get_db_client()
     existing = db.product.find_unique(where={"id": product_id})
@@ -260,7 +296,7 @@ def delete_product(product_id: str):
     return jsonify(ApiResponse.ok({"deleted": True}).to_dict()), 200
 
 
-@require_permissions(Permissions.ADMIN_CATALOG_VIEW)
+@require_permissions(Permissions.PRODUCTS_VIEW)
 def get_product_by_slug(slug: str):
     """GET /v2/catalog/products/by-slug/<slug> — Find product by slug (for API consumers)."""
     db = get_db_client()
@@ -270,7 +306,7 @@ def get_product_by_slug(slug: str):
     return jsonify(ApiResponse.ok(_serialize_product(product)).to_dict()), 200
 
 
-@require_permissions(Permissions.ADMIN_CATALOG_VIEW)
+@require_permissions(Permissions.PRODUCTS_VIEW)
 def get_product_by_repo(repo_slug: str):
     """GET /v2/catalog/products/by-repo/<repo_slug> — Find product by repo slug (for git poller)."""
     db = get_db_client()

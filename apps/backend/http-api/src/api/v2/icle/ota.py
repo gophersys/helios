@@ -17,7 +17,7 @@ from .types import OtaTriggerRequest
 logger = logging.getLogger(__name__)
 
 
-@require_permissions(Permissions.ADMIN_ICLE_MANAGE)
+@require_permissions(Permissions.DEVICES_MANAGE)
 def trigger_ota(device_id: str):
     """Queue an OTA update command for an ICLE device.
 

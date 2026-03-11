@@ -12,7 +12,7 @@ from src.services.mtib_observability import get_observability_service
 logger = logging.getLogger(__name__)
 
 
-@require_permissions(Permissions.ADMIN_NODES_VIEW)
+@require_permissions(Permissions.DEVICES_VIEW)
 def get_fleet_observability():
     """Get observability overview for all MTIBs."""
     svc = get_observability_service()
@@ -163,7 +163,7 @@ def _normalize_system_metrics(sm: dict | None) -> dict:
     }
 
 
-@require_permissions(Permissions.ADMIN_NODES_VIEW)
+@require_permissions(Permissions.DEVICES_VIEW)
 def get_node_observability(node_id: str):
     """Get full observability snapshot for a single MTIB."""
     db = get_db_client()
@@ -190,7 +190,7 @@ def get_node_observability(node_id: str):
     }).to_dict()), 200
 
 
-@require_permissions(Permissions.ADMIN_NODES_VIEW)
+@require_permissions(Permissions.DEVICES_VIEW)
 def get_node_power(node_id: str):
     """Get power readings for a single MTIB."""
     db = get_db_client()
@@ -213,7 +213,7 @@ def get_node_power(node_id: str):
     }).to_dict()), 200
 
 
-@require_permissions(Permissions.ADMIN_NODES_VIEW)
+@require_permissions(Permissions.DEVICES_VIEW)
 def get_node_gpio(node_id: str):
     """Get GPIO states for a single MTIB."""
     db = get_db_client()
@@ -236,7 +236,7 @@ def get_node_gpio(node_id: str):
     }).to_dict()), 200
 
 
-@require_permissions(Permissions.ADMIN_NODES_VIEW)
+@require_permissions(Permissions.DEVICES_VIEW)
 def get_node_uart(node_id: str):
     """Get UART status and recent output for a single MTIB."""
     db = get_db_client()
@@ -259,7 +259,7 @@ def get_node_uart(node_id: str):
     }).to_dict()), 200
 
 
-@require_permissions(Permissions.ADMIN_NODES_VIEW)
+@require_permissions(Permissions.DEVICES_VIEW)
 def get_node_system(node_id: str):
     """Get system metrics for a single MTIB."""
     db = get_db_client()

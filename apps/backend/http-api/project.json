@@ -82,7 +82,7 @@
       "executor": "nx:run-commands",
       "options": {
         "cwd": "apps/backend/http-api",
-        "command": "PYTHONPATH=src:$(pwd)/../../../libs/python:$(pwd)/../../../libs:. pytest tests/ -v"
+        "command": "PYTHONPATH=src:$(pwd)/../../../libs/python:$(pwd)/../../../libs:$(pwd)/../../../libs/protocols:. pytest tests/ -v"
       }
     },
     "typecheck": {
@@ -96,7 +96,7 @@
       "executor": "nx:run-commands",
       "options": {
         "cwd": "apps/backend/http-api",
-        "command": "PYTHONPATH=src:$(pwd)/../../../libs/python:$(pwd)/../../../libs:. python3 -m src.main"
+        "command": "PYTHONPATH=src:$(pwd)/../../../libs/python:$(pwd)/../../../libs:$(pwd)/../../../libs/protocols:. python3 -m src.main"
       }
     },
     "deploy": {

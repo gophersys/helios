@@ -11,17 +11,21 @@ from src.lib.types import ApiResponse
 from src.lib.validation import validate_k8s_name
 from src.services.kubernetes import jobs as jobs_svc
 
+from .shared import paginate, parse_list_params
+
 logger = logging.getLogger(__name__)
 
 
-@require_permissions(Permissions.ADMIN_SYSTEM_VIEW)
+@require_permissions(Permissions.CLUSTER_VIEW)
 def list_jobs():
-    namespace = request.args.get("namespace", None)
-    limit = request.args.get("limit", 500, type=int)
-    limit = min(max(limit, 1), 1000)
+    page, limit, namespace, label_selector, field_selector = parse_list_params()
     try:
-        data = jobs_svc.list_jobs(namespace=namespace)
-        return jsonify(ApiResponse.ok(data[:limit]).to_dict()), 200
+        data = jobs_svc.list_jobs(
+            namespace=namespace,
+            label_selector=label_selector,
+            field_selector=field_selector,
+        )
+        return jsonify(ApiResponse.ok(paginate(data, page, limit)).to_dict()), 200
     except ApiException as e:
         if e.status == 404:
             return not_found("Jobs not found")
@@ -31,7 +35,7 @@ def list_jobs():
         return internal_error("Failed to list jobs")
 
 
-@require_permissions(Permissions.ADMIN_SYSTEM_VIEW)
+@require_permissions(Permissions.CLUSTER_VIEW)
 def get_job(namespace: str, name: str):
     err = validate_k8s_name(namespace, "namespace")
     if err: return err
@@ -51,7 +55,7 @@ def get_job(namespace: str, name: str):
         return internal_error("Failed to get job")
 
 
-@require_permissions(Permissions.ADMIN_SYSTEM_MANAGE)
+@require_permissions(Permissions.CLUSTER_MANAGE)
 def delete_job(namespace: str, name: str):
     err = validate_k8s_name(namespace, "namespace")
     if err: return err
@@ -61,7 +65,7 @@ def delete_job(namespace: str, name: str):
         success = jobs_svc.delete_job(namespace, name)
         if not success:
             return internal_error("Failed to delete job")
-        log_audit("system.job.delete", "Job", f"{namespace}/{name}")
+        log_audit("cluster.job.delete", "Job", f"{namespace}/{name}")
         return jsonify(ApiResponse.ok({"deleted": True}).to_dict()), 200
     except ApiException as e:
         if e.status == 404:

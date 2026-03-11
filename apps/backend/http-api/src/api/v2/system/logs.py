@@ -30,7 +30,7 @@ def register_log_handlers(socketio: SocketIO):
         if error:
             return False
 
-        # Check that the user has ADMIN_SYSTEM_VIEW or ADMIN_SYSTEM_MANAGE permission
+        # Check that the user has system:view or system:manage permission
         perm_set_id = payload.get("permissionSetId")
         if not perm_set_id:
             return False
@@ -39,8 +39,8 @@ def register_log_handlers(socketio: SocketIO):
         if not perm_set:
             return False
         user_permissions = perm_set.permissions or []
-        if (Permissions.ADMIN_SYSTEM_VIEW not in user_permissions
-                and Permissions.ADMIN_SYSTEM_MANAGE not in user_permissions):
+        if (Permissions.SYSTEM_VIEW not in user_permissions
+                and Permissions.SYSTEM_MANAGE not in user_permissions):
             return False
         # Connection accepted — socket is authenticated and authorized
 

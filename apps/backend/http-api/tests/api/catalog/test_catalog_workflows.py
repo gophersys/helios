@@ -40,7 +40,7 @@ def test_chipset_in_use_by_revision_blocks_delete(authed_client, mock_db):
         chipsetId="chip-1",
     )
 
-    response = authed_client.delete("/v2/catalog/chipsets/chip-1")
+    response = authed_client.delete("/v2/products/chipsets/chip-1")
     assert response.status_code == 409
     data = json.loads(response.data)
     assert "board revisions" in data["errors"][0]["message"].lower()
@@ -50,7 +50,7 @@ def test_chipset_in_use_by_revision_blocks_delete(authed_client, mock_db):
     mock_db.firmwarebuild.find_first.return_value = None
 
     with patch("src.api.v2.catalog.chipsets.log_audit"):
-        response = authed_client.delete("/v2/catalog/chipsets/chip-1")
+        response = authed_client.delete("/v2/products/chipsets/chip-1")
 
     assert response.status_code == 200
     data = json.loads(response.data)
@@ -81,7 +81,7 @@ def test_chipset_in_use_by_firmware_blocks_delete(authed_client, mock_db):
         chipsetId="chip-2",
     )
 
-    response = authed_client.delete("/v2/catalog/chipsets/chip-2")
+    response = authed_client.delete("/v2/products/chipsets/chip-2")
     assert response.status_code == 409
     data = json.loads(response.data)
     assert "firmware builds" in data["errors"][0]["message"].lower()
@@ -105,7 +105,7 @@ def test_board_with_revisions_blocks_delete(authed_client, mock_db):
         ],
     )
 
-    response = authed_client.delete("/v2/catalog/prod-1/boards/board-1")
+    response = authed_client.delete("/v2/products/prod-1/boards/board-1")
     assert response.status_code == 409
     data = json.loads(response.data)
     assert "revisions" in data["errors"][0]["message"].lower()
@@ -131,7 +131,7 @@ def test_product_with_sessions_blocks_delete(authed_client, mock_db):
         productId="prod-1",
     )
 
-    response = authed_client.delete("/v2/catalog/prod-1")
+    response = authed_client.delete("/v2/products/prod-1")
     assert response.status_code == 409
     data = json.loads(response.data)
     assert "sessions" in data["errors"][0]["message"].lower()
@@ -158,7 +158,7 @@ def test_product_with_tests_blocks_delete(authed_client, mock_db):
         productId="prod-2",
     )
 
-    response = authed_client.delete("/v2/catalog/prod-2")
+    response = authed_client.delete("/v2/products/prod-2")
     assert response.status_code == 409
     data = json.loads(response.data)
     assert "tests" in data["errors"][0]["message"].lower()
@@ -183,7 +183,7 @@ def test_board_name_unique_per_product(authed_client, mock_db):
     )
 
     response = authed_client.post(
-        "/v2/catalog/prod-1/boards",
+        "/v2/products/prod-1/boards",
         data=json.dumps({"name": "Main Board"}),
     )
     assert response.status_code == 409
@@ -208,7 +208,7 @@ def test_board_name_unique_per_product(authed_client, mock_db):
 
     with patch("src.api.v2.catalog.boards.log_audit"):
         response = authed_client.post(
-            "/v2/catalog/prod-2/boards",
+            "/v2/products/prod-2/boards",
             data=json.dumps({"name": "Main Board"}),
         )
 
@@ -238,7 +238,7 @@ def test_revision_version_unique_per_board(authed_client, mock_db):
     )
 
     response = authed_client.post(
-        "/v2/catalog/prod-1/boards/board-1/revisions",
+        "/v2/products/prod-1/boards/board-1/revisions",
         data=json.dumps({"version": "1.0"}),
     )
     assert response.status_code == 409
@@ -278,7 +278,7 @@ def test_revision_version_unique_per_board(authed_client, mock_db):
 
     with patch("src.api.v2.catalog.board_revisions.log_audit"):
         response = authed_client.post(
-            "/v2/catalog/prod-1/boards/board-2/revisions",
+            "/v2/products/prod-1/boards/board-2/revisions",
             data=json.dumps({"version": "1.0"}),
         )
 
@@ -323,7 +323,7 @@ def test_firmware_version_unique_per_product_chipset(authed_client, mock_db):
     auth_headers = {"Authorization": f"Bearer {token}"}
 
     response = authed_client._client.post(
-        "/v2/catalog/prod-1/firmware-builds/upload",
+        "/v2/products/prod-1/firmware/upload",
         headers=auth_headers,
         data={
             "chipsetId": "chip-1",
@@ -382,7 +382,7 @@ def test_firmware_version_unique_per_product_chipset(authed_client, mock_db):
         with patch("api.v2.catalog.firmware_builds.get_bucket_name", return_value="test-bucket"):
             with patch("api.v2.catalog.firmware_builds.log_audit"):
                 response = authed_client._client.post(
-                    "/v2/catalog/prod-1/firmware-builds/upload",
+                    "/v2/products/prod-1/firmware/upload",
                     headers=auth_headers,
                     data={
                         "chipsetId": "chip-2",
@@ -443,7 +443,7 @@ def test_update_revision_replaces_chipsets(authed_client, mock_db):
 
     with patch("src.api.v2.catalog.board_revisions.log_audit"):
         response = authed_client.put(
-            "/v2/catalog/prod-1/boards/board-1/revisions/rev-1",
+            "/v2/products/prod-1/boards/board-1/revisions/rev-1",
             data=json.dumps({
                 "chipsetIds": ["chip-b", "chip-c"],
             }),
@@ -501,7 +501,7 @@ def test_update_revision_selected_builds(authed_client, mock_db):
 
     with patch("src.api.v2.catalog.board_revisions.log_audit"):
         response = authed_client.put(
-            "/v2/catalog/prod-1/boards/board-1/revisions/rev-1",
+            "/v2/products/prod-1/boards/board-1/revisions/rev-1",
             data=json.dumps({
                 "selectedBuilds": {"chip-1": "build-1"},
             }),

@@ -38,7 +38,7 @@ def _serialize_log(log_entry) -> dict:
     }
 
 
-@require_permissions(Permissions.ADMIN_ICLE_VIEW)
+@require_permissions(Permissions.DEVICES_VIEW)
 def list_device_logs(device_id: str):
     """List log files uploaded from an ICLE device.
 
@@ -89,7 +89,7 @@ def list_device_logs(device_id: str):
     ).to_dict()), 200
 
 
-@require_permissions(Permissions.ADMIN_ICLE_MANAGE)
+@require_permissions(Permissions.DEVICES_MANAGE)
 def upload_device_log(device_id: str):
     """Upload a log file from an ICLE device.
 

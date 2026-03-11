@@ -12,7 +12,7 @@ from src.services.kubernetes.cluster import get_cluster_info, list_namespaces
 logger = logging.getLogger(__name__)
 
 
-@require_permissions(Permissions.ADMIN_SYSTEM_VIEW)
+@require_permissions(Permissions.CLUSTER_VIEW)
 def get_cluster():
     try:
         data = get_cluster_info()
@@ -26,7 +26,7 @@ def get_cluster():
         return internal_error("Failed to get cluster info")
 
 
-@require_permissions(Permissions.ADMIN_SYSTEM_VIEW)
+@require_permissions(Permissions.CLUSTER_VIEW)
 def get_namespaces():
     try:
         data = list_namespaces()

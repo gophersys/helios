@@ -57,7 +57,7 @@ def test_list_codebases(authed_client, mock_db):
         ),
     ]
 
-    response = authed_client.get("/v2/codebases")
+    response = authed_client.get("/v2/builds/codebases")
     assert response.status_code == 200
 
     data = json.loads(response.data)
@@ -86,7 +86,7 @@ def test_create_codebase(authed_client, mock_db):
 
     with patch("api.v2.codebases.codebases.log_audit"):
         response = authed_client.post(
-            "/v2/codebases",
+            "/v2/builds/codebases",
             data=json.dumps({
                 "name": "New Codebase",
                 "description": "A new codebase",
@@ -115,7 +115,7 @@ def test_create_codebase_duplicate_name(authed_client, mock_db):
     )
 
     response = authed_client.post(
-        "/v2/codebases",
+        "/v2/builds/codebases",
         data=json.dumps({"name": "Existing Codebase"}),
     )
 
@@ -151,7 +151,7 @@ def test_get_codebase(authed_client, mock_db):
         ],
     )
 
-    response = authed_client.get("/v2/codebases/codebase-123")
+    response = authed_client.get("/v2/builds/codebases/codebase-123")
     assert response.status_code == 200
 
     data = json.loads(response.data)
@@ -164,7 +164,7 @@ def test_get_codebase_not_found(authed_client, mock_db):
     """Test getting a non-existent codebase returns 404."""
     mock_db.codebase.find_unique.return_value = None
 
-    response = authed_client.get("/v2/codebases/nonexistent")
+    response = authed_client.get("/v2/builds/codebases/nonexistent")
     assert response.status_code == 404
 
 
@@ -196,7 +196,7 @@ def test_update_codebase(authed_client, mock_db):
 
     with patch("api.v2.codebases.codebases.log_audit"):
         response = authed_client.put(
-            "/v2/codebases/codebase-update",
+            "/v2/builds/codebases/codebase-update",
             data=json.dumps({
                 "description": "New description",
                 "repoUrl": "https://github.com/org/new",
@@ -243,7 +243,7 @@ def test_delete_codebase(authed_client, mock_db):
     with patch("api.v2.codebases.codebases.get_storage_client", return_value=mock_storage):
         with patch("api.v2.codebases.codebases.get_bucket_name", return_value="test-bucket"):
             with patch("api.v2.codebases.codebases.log_audit"):
-                response = authed_client.delete("/v2/codebases/codebase-delete")
+                response = authed_client.delete("/v2/builds/codebases/codebase-delete")
 
     assert response.status_code == 200
     data = json.loads(response.data)

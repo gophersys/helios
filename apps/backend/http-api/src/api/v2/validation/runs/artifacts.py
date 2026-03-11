@@ -12,7 +12,7 @@ from src.services.storage.client import StoragePrefixes, get_bucket_name, get_st
 logger = logging.getLogger(__name__)
 
 
-@require_permissions(Permissions.ADMIN_VALIDATION_VIEW)
+@require_permissions(Permissions.VALIDATION_VIEW)
 def list_artifacts(run_id: str):
     """GET /v2/validation/runs/<id>/artifacts — List artifacts from MinIO."""
     db = get_db_client()
@@ -51,7 +51,7 @@ def list_artifacts(run_id: str):
         return jsonify(ApiResponse.ok([]).to_dict()), 200
 
 
-@require_permissions(Permissions.ADMIN_VALIDATION_VIEW)
+@require_permissions(Permissions.VALIDATION_VIEW)
 def download_artifact(run_id: str, name: str):
     """GET /v2/validation/runs/<id>/artifacts/<name> — Download artifact via presigned URL."""
     # Security: reject path traversal attempts

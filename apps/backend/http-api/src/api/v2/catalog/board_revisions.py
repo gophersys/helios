@@ -46,7 +46,7 @@ _REVISION_INCLUDE = {
 # ── Board Revisions CRUD ─────────────────────────────────
 
 
-@require_permissions(Permissions.ADMIN_CATALOG_MANAGE)
+@require_permissions(Permissions.PRODUCTS_MANAGE)
 def create_board_revision(product_id: str, board_id: str):
     db = get_db_client()
 
@@ -101,7 +101,7 @@ def create_board_revision(product_id: str, board_id: str):
     return jsonify(ApiResponse.ok(_serialize_revision(revision)).to_dict()), 201
 
 
-@require_permissions(Permissions.ADMIN_CATALOG_MANAGE)
+@require_permissions(Permissions.PRODUCTS_MANAGE)
 def update_board_revision(product_id: str, board_id: str, revision_id: str):
     db = get_db_client()
 
@@ -166,7 +166,7 @@ def update_board_revision(product_id: str, board_id: str, revision_id: str):
     return jsonify(ApiResponse.ok(_serialize_revision(updated)).to_dict()), 200
 
 
-@require_permissions(Permissions.ADMIN_CATALOG_MANAGE)
+@require_permissions(Permissions.PRODUCTS_MANAGE)
 def delete_board_revision(product_id: str, board_id: str, revision_id: str):
     db = get_db_client()
 

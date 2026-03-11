@@ -24,73 +24,86 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "libs", "python
 
 from database import Prisma, Json
 
-# Every permission that exists in the system
+# Every permission that exists in the system (26 total)
+# Organized by functional group for clarity
 ALL_PERMISSIONS = [
-    "Concord.Cluster.Read",
-    "Concord.Cluster.Manage",
-    "Concord.Validation.Tests.Run",
-    "Concord.Admin.Users.View",
-    "Concord.Admin.Users.Manage",
-    "Concord.Admin.PermissionSets.View",
-    "Concord.Admin.PermissionSets.Manage",
-    "Concord.Admin.ApiKeys.View",
-    "Concord.Admin.ApiKeys.Manage",
-    "Concord.Admin.Inventory.View",
-    "Concord.Admin.Inventory.Manage",
-    "Concord.Admin.Codebases.View",
-    "Concord.Admin.Codebases.Manage",
-    "Concord.Admin.Catalog.View",
-    "Concord.Admin.Catalog.Manage",
-    "Concord.Admin.History.View",
-    "Concord.Admin.System.View",
-    "Concord.Admin.System.Manage",
-    "Concord.Admin.Nodes.View",
-    "Concord.Admin.Nodes.Manage",
-    "Concord.Admin.Fixtures.View",
-    "Concord.Admin.Fixtures.Manage",
-    "Concord.Admin.Deployments.View",
-    "Concord.Admin.Deployments.Manage",
-    "Concord.Admin.Validation.View",
-    "Concord.Admin.Validation.Manage",
-    "Concord.Admin.CI.View",
-    "Concord.Admin.CI.Manage",
+    # Products & Builds
+    "products:view",
+    "products:manage",
+    "builds:view",
+    "builds:trigger",
+    "builds:manage",
+    # Testing
+    "validation:view",
+    "validation:run",
+    "validation:manage",
+    "manufacturing:view",
+    "manufacturing:run",
+    "manufacturing:manage",
+    # Infrastructure
+    "fixtures:view",
+    "fixtures:manage",
+    "benches:view",
+    "benches:manage",
+    "devices:view",
+    "devices:manage",
+    "cluster:view",
+    "cluster:manage",
+    # Platform
+    "users:view",
+    "users:manage",
+    "permissions:manage",
+    "api-keys:view",
+    "api-keys:manage",
+    "system:view",
+    "system:manage",
 ]
 
 # Default permission sets
-ADMIN_PERMISSIONS = [
-    "Concord.Cluster.Read",
-    "Concord.Cluster.Manage",
-    "Concord.Validation.Tests.Run",
-    "Concord.Admin.Users.View",
-    "Concord.Admin.Users.Manage",
-    "Concord.Admin.Inventory.View",
-    "Concord.Admin.Inventory.Manage",
-    "Concord.Admin.Codebases.View",
-    "Concord.Admin.Codebases.Manage",
-    "Concord.Admin.Catalog.View",
-    "Concord.Admin.Catalog.Manage",
-    "Concord.Admin.History.View",
-    "Concord.Admin.System.View",
-    "Concord.Admin.Nodes.View",
-    "Concord.Admin.Nodes.Manage",
-    "Concord.Admin.Fixtures.View",
-    "Concord.Admin.Fixtures.Manage",
-    "Concord.Admin.Deployments.View",
-    "Concord.Admin.Deployments.Manage",
-    "Concord.Admin.Validation.View",
-    "Concord.Admin.Validation.Manage",
-    "Concord.Admin.CI.View",
-    "Concord.Admin.CI.Manage",
+ADMIN_PERMISSIONS = [p for p in ALL_PERMISSIONS if p not in (
+    "cluster:manage",
+    "system:manage",
+    "permissions:manage",
+)]
+
+ENGINEER_PERMISSIONS = [
+    "products:view",
+    "builds:view",
+    "builds:trigger",
+    "validation:view",
+    "validation:run",
+    "manufacturing:view",
+    "manufacturing:run",
+    "fixtures:view",
+    "benches:view",
+    "devices:view",
+    "cluster:view",
+    "system:view",
+    "api-keys:view",
+    "api-keys:manage",
 ]
 
 OPERATOR_PERMISSIONS = [
-    "Concord.Cluster.Read",
-    "Concord.Cluster.Manage",
-    "Concord.Validation.Tests.Run",
+    "products:view",
+    "builds:view",
+    "validation:view",
+    "manufacturing:view",
+    "manufacturing:run",
+    "fixtures:view",
+    "benches:view",
+    "devices:view",
+    "system:view",
 ]
 
 VIEWER_PERMISSIONS = [
-    "Concord.Cluster.Read",
+    "products:view",
+    "builds:view",
+    "validation:view",
+    "manufacturing:view",
+    "fixtures:view",
+    "benches:view",
+    "devices:view",
+    "system:view",
 ]
 
 
@@ -124,27 +137,43 @@ def seed():
             data={
                 "create": {
                     "name": "Admin",
-                    "description": "Admin access to users and day-to-day operations",
+                    "description": "Full access except cluster, system, and permission management",
                     "permissions": ADMIN_PERMISSIONS,
                 },
                 "update": {
-                    "description": "Admin access to users and day-to-day operations",
+                    "description": "Full access except cluster, system, and permission management",
                     "permissions": ADMIN_PERMISSIONS,
                 },
             },
         )
         print(f"Permission set 'Admin' ready (id: {admin_set.id})")
 
+        engineer_set = db.permissionset.upsert(
+            where={"name": "Engineer"},
+            data={
+                "create": {
+                    "name": "Engineer",
+                    "description": "Engineering access — build, test, and monitor products",
+                    "permissions": ENGINEER_PERMISSIONS,
+                },
+                "update": {
+                    "description": "Engineering access — build, test, and monitor products",
+                    "permissions": ENGINEER_PERMISSIONS,
+                },
+            },
+        )
+        print(f"Permission set 'Engineer' ready (id: {engineer_set.id})")
+
         operator_set = db.permissionset.upsert(
             where={"name": "Operator"},
             data={
                 "create": {
                     "name": "Operator",
-                    "description": "Operational access without admin capabilities",
+                    "description": "Manufacturing operator — view products, run manufacturing tests",
                     "permissions": OPERATOR_PERMISSIONS,
                 },
                 "update": {
-                    "description": "Operational access without admin capabilities",
+                    "description": "Manufacturing operator — view products, run manufacturing tests",
                     "permissions": OPERATOR_PERMISSIONS,
                 },
             },
@@ -757,6 +786,7 @@ def seed():
 
         # ── Test Benches ──
         print("\n=== Seeding Test Benches ===")
+        # Bench-33 DUT: Device 09J5 (current active test device)
         bench_33 = db.testbench.upsert(
             where={"stationId": "bench-33"},
             data={
@@ -770,10 +800,10 @@ def seed():
                     "capabilities": ["button", "peltier", "charger_relay"],
                     "dutProduct": "alpha",
                     "dutRevision": "b0",
-                    "dutDeviceId": "70B3D584C01E1FCC",
-                    "dutSnr": "0964",
-                    "dutImei": "355025931735979",
-                    "dutIccids": ["89148000009808558441", "89457300000037582833"],
+                    "dutDeviceId": "70B3D584C01E1DDD",
+                    "dutSnr": "09J5",
+                    "dutImei": "355025931651952",
+                    "dutIccids": ["89148000009808560116", "89457300000037581199"],
                     "jlinkAppSerial": "821009546",
                     "jlinkCommsSerial": "821009537",
                     "uartAppPath": "/dev/verdin-uart2",
@@ -783,6 +813,10 @@ def seed():
                 "update": {
                     "productId": alpha_product.id,
                     "fixtureDesignId": alpha_design.id,
+                    "dutDeviceId": "70B3D584C01E1DDD",
+                    "dutSnr": "09J5",
+                    "dutImei": "355025931651952",
+                    "dutIccids": ["89148000009808560116", "89457300000037581199"],
                 },
             },
         )
@@ -913,8 +947,94 @@ def seed():
         print(f"CI API key ready: {ci_api_key.keyPrefix}... (id: {ci_api_key.id})")
         print(f"  Use this key for testing: {ci_key}")
 
+        # ── Catalog Sync: ValidationDesign from catalog.yaml ──
+        print("\n=== Syncing Test Catalogs to ValidationDesign ===")
+        sync_product_catalog(db, "alpha", alpha_product.id)
+
     finally:
         db.disconnect()
+
+
+def sync_product_catalog(db: Prisma, product: str, product_id: str) -> None:
+    """
+    Sync catalog.yaml → ValidationDesign records.
+    Creates one ValidationDesign per stage (gate, nightly, integration).
+    Each test becomes a node in the flow graph.
+    """
+    import yaml as pyyaml
+    from pathlib import Path
+
+    catalog_path = Path(__file__).parent.parent / "apps" / "validation" / product / "catalog.yaml"
+    if not catalog_path.exists():
+        print(f"  Skipping {product}: catalog.yaml not found at {catalog_path}")
+        return
+
+    with open(catalog_path) as f:
+        catalog = pyyaml.safe_load(f)
+
+    stages = catalog.get("stages", {})
+    tests = catalog.get("tests", [])
+
+    for stage_name, stage_config in stages.items():
+        # Filter tests for this stage
+        stage_tests = [t for t in tests if t.get("stage") == stage_name]
+        if not stage_tests:
+            print(f"  Skipping {product}/{stage_name}: no tests")
+            continue
+
+        # Build flow graph: sequential test execution
+        nodes = []
+        edges = []
+        y_offset = 0
+        for i, test in enumerate(stage_tests):
+            node_id = f"node-{i}"
+            nodes.append({
+                "id": node_id,
+                "type": "test",
+                "position": {"x": 200, "y": y_offset},
+                "data": {
+                    "testId": test.get("id"),
+                    "name": test.get("name"),
+                    "timeout_s": test.get("timeout_s", 60),
+                    "hardware": test.get("hardware", []),
+                    "category": test.get("category", "general"),
+                },
+            })
+            # Connect to previous node
+            if i > 0:
+                edges.append({
+                    "id": f"edge-{i-1}-{i}",
+                    "source": f"node-{i-1}",
+                    "target": node_id,
+                    "type": "smoothstep",
+                })
+            y_offset += 100
+
+        design_slug = f"{product}-{stage_name}"
+        design_name = f"{product.title()} {stage_name.title()} Validation"
+        board = catalog.get("board", f"{product}_b0")
+
+        design = db.validationdesign.upsert(
+            where={"slug": design_slug},
+            data={
+                "create": {
+                    "name": design_name,
+                    "slug": design_slug,
+                    "product": product,
+                    "board": board,
+                    "description": stage_config.get("description", ""),
+                    "nodes": Json(nodes),
+                    "edges": Json(edges),
+                },
+                "update": {
+                    "name": design_name,
+                    "description": stage_config.get("description", ""),
+                    "nodes": Json(nodes),
+                    "edges": Json(edges),
+                },
+            },
+        )
+        print(f"  ValidationDesign: {design.slug} ({len(stage_tests)} tests)")
 
 
 if __name__ == "__main__":

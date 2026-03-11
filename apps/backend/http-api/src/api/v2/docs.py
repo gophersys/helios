@@ -12,7 +12,7 @@ def _build_spec() -> APISpec:
         openapi_version="3.0.3",
         info={
             "description": (
-                "Concord platform API for managing inventory, codebases, releases, and device testing.\n\n"
+                "Concord platform API for managing products, builds, test benches, and device validation.\n\n"
                 "All responses use a standard envelope:\n"
                 '```json\n{ "data": <payload>, "errors": [] }\n```\n'
                 "Error responses set `data` to `null` and populate `errors`."
@@ -117,78 +117,6 @@ def _build_spec() -> APISpec:
             "expiresAt": {"type": "string", "format": "date-time", "nullable": True},
             "lastUsedAt": {"type": "string", "format": "date-time", "nullable": True},
             "createdAt": {"type": "string", "format": "date-time"},
-        },
-    })
-    spec.components.schema("Component", {
-        "type": "object",
-        "properties": {
-            "id": {"type": "string"},
-            "name": {"type": "string"},
-            "description": {"type": "string", "nullable": True},
-            "category": {"type": "string", "enum": ["HARDWARE", "MECHANICAL", "CABLE", "ACCESSORY", "OTHER"]},
-            "manufacturer": {"type": "string"},
-            "partNumber": {"type": "string"},
-            "imageKey": {"type": "string", "nullable": True},
-            "imageUrl": {"type": "string", "nullable": True},
-            "createdAt": {"type": "string", "format": "date-time"},
-            "updatedAt": {"type": "string", "format": "date-time"},
-            "revisionCount": {"type": "integer"},
-        },
-    })
-    spec.components.schema("ComponentRevision", {
-        "type": "object",
-        "properties": {
-            "id": {"type": "string"},
-            "componentId": {"type": "string"},
-            "version": {"type": "string"},
-            "status": {"type": "string", "enum": ["ACTIVE", "DEPRECATED", "EOL"]},
-            "releaseNotes": {"type": "string", "nullable": True},
-            "createdAt": {"type": "string", "format": "date-time"},
-            "updatedAt": {"type": "string", "format": "date-time"},
-        },
-    })
-    spec.components.schema("Assembly", {
-        "type": "object",
-        "properties": {
-            "id": {"type": "string"},
-            "name": {"type": "string"},
-            "description": {"type": "string", "nullable": True},
-            "imageKey": {"type": "string", "nullable": True},
-            "imageUrl": {"type": "string", "nullable": True},
-            "createdAt": {"type": "string", "format": "date-time"},
-            "updatedAt": {"type": "string", "format": "date-time"},
-            "revisionCount": {"type": "integer"},
-        },
-    })
-    spec.components.schema("AssemblyRevision", {
-        "type": "object",
-        "properties": {
-            "id": {"type": "string"},
-            "assemblyId": {"type": "string"},
-            "version": {"type": "string"},
-            "status": {"type": "string", "enum": ["ACTIVE", "DEPRECATED", "EOL"]},
-            "releaseNotes": {"type": "string", "nullable": True},
-            "createdAt": {"type": "string", "format": "date-time"},
-            "updatedAt": {"type": "string", "format": "date-time"},
-            "bom": {"type": "array", "items": {"type": "object", "properties": {
-                "id": {"type": "string"},
-                "inventoryRevisionId": {"type": "string"},
-                "quantity": {"type": "integer"},
-                "inventoryRevision": {"type": "object", "properties": {
-                    "id": {"type": "string"}, "version": {"type": "string"},
-                    "component": {"type": "object", "properties": {
-                        "id": {"type": "string"}, "name": {"type": "string"}, "category": {"type": "string"},
-                    }},
-                }},
-            }}},
-        },
-    })
-    spec.components.schema("BomItem", {
-        "type": "object",
-        "required": ["inventoryRevisionId", "quantity"],
-        "properties": {
-            "inventoryRevisionId": {"type": "string"},
-            "quantity": {"type": "integer", "minimum": 1},
         },
     })
     spec.components.schema("Codebase", {
@@ -576,12 +504,11 @@ def _build_spec() -> APISpec:
 
     # ── Tags ────────────────────────────────────────────────────
     for tag in [
-        "Auth", "Users", "Permission Sets", "API Keys", "Permissions",
-        "Inventory Components", "Inventory Assemblies", "Inventory Image",
-        "Catalog", "Chipsets", "Boards", "Board Revisions", "Firmware Builds",
-        "Codebases", "Releases", "Artifacts", "System", "MTIB", "Admin",
-        "Nodes", "Fixtures", "Fixture Slots", "Deployments",
-        "Validation", "Health",
+        "Auth", "Users", "Permissions", "API Keys",
+        "Products", "Chipsets", "Boards", "Board Revisions", "Firmware Builds",
+        "Builds", "Codebases", "Releases", "Artifacts", "Cluster", "Devices",
+        "Benches", "Nodes", "Fixtures", "Fixture Slots", "Managed Deployments",
+        "Validation", "System", "Dashboard", "Health",
     ]:
         spec.tag({"name": tag})
 
@@ -611,7 +538,7 @@ def _build_spec() -> APISpec:
     })
 
     # ── Users ───────────────────────────────────────────────────
-    path("/auth/users",
+    path("/users",
         get={
             "tags": ["Users"], "summary": "List all users", "security": _auth_security,
             "responses": {"200": _ok("FullUser", array=True), "401": _401, "403": _403},
@@ -629,7 +556,7 @@ def _build_spec() -> APISpec:
             "responses": {"201": _ok("FullUser"), "400": _400, "409": _409},
         },
     )
-    path("/auth/users/{user_id}",
+    path("/users/{user_id}",
         parameters=[{"name": "user_id", "in": "path", "required": True, "schema": {"type": "string"}}],
         put={
             "tags": ["Users"], "summary": "Update a user", "security": _auth_security,
@@ -648,14 +575,14 @@ def _build_spec() -> APISpec:
         },
     )
 
-    # ── Permission Sets ─────────────────────────────────────────
-    path("/auth/permission-sets",
+    # ── Permissions ───────────────────────────────────────────────
+    path("/permissions",
         get={
-            "tags": ["Permission Sets"], "summary": "List all permission sets", "security": _auth_security,
+            "tags": ["Permissions"], "summary": "List all permission sets", "security": _auth_security,
             "responses": {"200": _ok("PermissionSet", array=True), "401": _401, "403": _403},
         },
         post={
-            "tags": ["Permission Sets"], "summary": "Create a permission set", "security": _auth_security,
+            "tags": ["Permissions"], "summary": "Create a permission set", "security": _auth_security,
             "requestBody": {"required": True, "content": {"application/json": {"schema": {
                 "type": "object", "required": ["name", "permissions"],
                 "properties": {
@@ -667,10 +594,10 @@ def _build_spec() -> APISpec:
             "responses": {"201": _ok("PermissionSetDetail"), "400": _400, "409": _409},
         },
     )
-    path("/auth/permission-sets/{set_id}",
+    path("/permissions/{set_id}",
         parameters=[{"name": "set_id", "in": "path", "required": True, "schema": {"type": "string"}}],
         put={
-            "tags": ["Permission Sets"], "summary": "Update a permission set", "security": _auth_security,
+            "tags": ["Permissions"], "summary": "Update a permission set", "security": _auth_security,
             "requestBody": {"required": True, "content": {"application/json": {"schema": {
                 "type": "object", "properties": {
                     "name": {"type": "string"},
@@ -681,16 +608,16 @@ def _build_spec() -> APISpec:
             "responses": {"200": _ok("PermissionSetDetail"), "400": _400, "404": _404, "409": _409},
         },
         delete={
-            "tags": ["Permission Sets"], "summary": "Delete a permission set", "security": _auth_security,
+            "tags": ["Permissions"], "summary": "Delete a permission set", "security": _auth_security,
             "responses": {"200": _deleted_resp, "404": _404, "409": _409},
         },
     )
 
     # ── API Keys ────────────────────────────────────────────────
-    path("/auth/api-keys",
+    path("/api-keys",
         get={
             "tags": ["API Keys"], "summary": "List API keys",
-            "description": "Users see their own keys. Admins with ApiKeys.View see all.",
+            "description": "Users see their own keys. Admins with api-keys:view see all.",
             "security": _auth_security,
             "responses": {"200": _ok("ApiKey", array=True), "401": _401},
         },
@@ -711,7 +638,7 @@ def _build_spec() -> APISpec:
             ]}), "400": _400},
         },
     )
-    path("/auth/api-keys/{key_id}",
+    path("/api-keys/{key_id}",
         parameters=[{"name": "key_id", "in": "path", "required": True, "schema": {"type": "string"}}],
         delete={
             "tags": ["API Keys"], "summary": "Delete an API key", "security": _auth_security,
@@ -719,201 +646,16 @@ def _build_spec() -> APISpec:
         },
     )
 
-    # ── Permissions ─────────────────────────────────────────────
-    path("/auth/permissions", get={
+    # ── Available Permissions ─────────────────────────────────────
+    path("/permissions/available", get={
         "tags": ["Permissions"], "summary": "List all available permissions", "security": _auth_security,
         "responses": {"200": _ok({"type": "array", "items": {"type": "object", "properties": {
             "key": {"type": "string"}, "name": {"type": "string"},
         }}}), "401": _401, "403": _403},
     })
 
-    # ── Inventory Components ─────────────────────────────────────
-    path("/inventory/components",
-        get={
-            "tags": ["Inventory Components"], "summary": "List all components", "security": _auth_security,
-            "parameters": _pagination_params,
-            "responses": {"200": _paginated("Component")},
-        },
-        post={
-            "tags": ["Inventory Components"], "summary": "Create a component", "security": _auth_security,
-            "requestBody": {"required": True, "content": {"application/json": {"schema": {
-                "type": "object", "required": ["name", "category", "manufacturer", "partNumber"],
-                "properties": {
-                    "name": {"type": "string"}, "category": {"type": "string", "enum": ["HARDWARE", "MECHANICAL", "CABLE", "ACCESSORY", "OTHER"]},
-                    "manufacturer": {"type": "string"}, "partNumber": {"type": "string"}, "description": {"type": "string"},
-                },
-            }}}},
-            "responses": {"201": _ok("Component"), "400": _400, "409": _409},
-        },
-    )
-    path("/inventory/components/{component_id}",
-        parameters=[{"name": "component_id", "in": "path", "required": True, "schema": {"type": "string"}}],
-        get={
-            "tags": ["Inventory Components"], "summary": "Get a component with revisions", "security": _auth_security,
-            "responses": {"200": _ok({"allOf": [
-                {"$ref": "#/components/schemas/Component"},
-                {"type": "object", "properties": {"revisions": {"type": "array", "items": {"$ref": "#/components/schemas/ComponentRevision"}}}},
-            ]}), "404": _404},
-        },
-        put={
-            "tags": ["Inventory Components"], "summary": "Update a component", "security": _auth_security,
-            "requestBody": {"required": True, "content": {"application/json": {"schema": {
-                "type": "object", "properties": {
-                    "name": {"type": "string"}, "category": {"type": "string", "enum": ["HARDWARE", "MECHANICAL", "CABLE", "ACCESSORY", "OTHER"]},
-                    "manufacturer": {"type": "string"}, "partNumber": {"type": "string"}, "description": {"type": "string"},
-                },
-            }}}},
-            "responses": {"200": _ok("Component"), "400": _400, "404": _404, "409": _409},
-        },
-        delete={
-            "tags": ["Inventory Components"], "summary": "Delete a component", "security": _auth_security,
-            "responses": {"200": _deleted_resp, "404": _404, "409": _409},
-        },
-    )
-    path("/inventory/components/{component_id}/image",
-        parameters=[{"name": "component_id", "in": "path", "required": True, "schema": {"type": "string"}}],
-        post={
-            "tags": ["Inventory Components"], "summary": "Upload component image", "security": _auth_security,
-            "requestBody": {"required": True, "content": {"multipart/form-data": {"schema": {
-                "type": "object", "required": ["file"], "properties": {"file": {"type": "string", "format": "binary"}},
-            }}}},
-            "responses": {"200": _ok("Component"), "400": _400, "404": _404},
-        },
-    )
-    path("/inventory/components/{component_id}/revisions",
-        parameters=[{"name": "component_id", "in": "path", "required": True, "schema": {"type": "string"}}],
-        post={
-            "tags": ["Inventory Components"], "summary": "Create a component revision", "security": _auth_security,
-            "requestBody": {"required": True, "content": {"application/json": {"schema": {
-                "type": "object", "required": ["version"],
-                "properties": {
-                    "version": {"type": "string"},
-                    "status": {"type": "string", "enum": ["ACTIVE", "DEPRECATED", "EOL"], "default": "ACTIVE"},
-                    "releaseNotes": {"type": "string"},
-                },
-            }}}},
-            "responses": {"201": _ok("ComponentRevision"), "400": _400, "404": _404, "409": _409},
-        },
-    )
-    path("/inventory/components/{component_id}/revisions/{revision_id}",
-        parameters=[
-            {"name": "component_id", "in": "path", "required": True, "schema": {"type": "string"}},
-            {"name": "revision_id", "in": "path", "required": True, "schema": {"type": "string"}},
-        ],
-        put={
-            "tags": ["Inventory Components"], "summary": "Update a component revision", "security": _auth_security,
-            "requestBody": {"required": True, "content": {"application/json": {"schema": {
-                "type": "object", "properties": {
-                    "version": {"type": "string"},
-                    "status": {"type": "string", "enum": ["ACTIVE", "DEPRECATED", "EOL"]},
-                    "releaseNotes": {"type": "string"},
-                },
-            }}}},
-            "responses": {"200": _ok("ComponentRevision"), "400": _400, "404": _404, "409": _409},
-        },
-        delete={
-            "tags": ["Inventory Components"], "summary": "Delete a component revision", "security": _auth_security,
-            "responses": {"200": _deleted_resp, "404": _404, "409": _409},
-        },
-    )
-
-    # ── Inventory Assemblies ─────────────────────────────────────
-    path("/inventory/assemblies",
-        get={
-            "tags": ["Inventory Assemblies"], "summary": "List all assemblies", "security": _auth_security,
-            "parameters": _pagination_params,
-            "responses": {"200": _paginated("Assembly")},
-        },
-        post={
-            "tags": ["Inventory Assemblies"], "summary": "Create an assembly", "security": _auth_security,
-            "requestBody": {"required": True, "content": {"application/json": {"schema": {
-                "type": "object", "required": ["name"],
-                "properties": {"name": {"type": "string"}, "description": {"type": "string"}},
-            }}}},
-            "responses": {"201": _ok("Assembly"), "400": _400, "409": _409},
-        },
-    )
-    path("/inventory/assemblies/{assembly_id}",
-        parameters=[{"name": "assembly_id", "in": "path", "required": True, "schema": {"type": "string"}}],
-        get={
-            "tags": ["Inventory Assemblies"], "summary": "Get an assembly with revisions and BOM", "security": _auth_security,
-            "responses": {"200": _ok({"allOf": [
-                {"$ref": "#/components/schemas/Assembly"},
-                {"type": "object", "properties": {"revisions": {"type": "array", "items": {"$ref": "#/components/schemas/AssemblyRevision"}}}},
-            ]}), "404": _404},
-        },
-        put={
-            "tags": ["Inventory Assemblies"], "summary": "Update an assembly", "security": _auth_security,
-            "requestBody": {"required": True, "content": {"application/json": {"schema": {
-                "type": "object", "properties": {"name": {"type": "string"}, "description": {"type": "string"}},
-            }}}},
-            "responses": {"200": _ok("Assembly"), "400": _400, "404": _404, "409": _409},
-        },
-        delete={
-            "tags": ["Inventory Assemblies"], "summary": "Delete an assembly", "security": _auth_security,
-            "responses": {"200": _deleted_resp, "404": _404},
-        },
-    )
-    path("/inventory/assemblies/{assembly_id}/image",
-        parameters=[{"name": "assembly_id", "in": "path", "required": True, "schema": {"type": "string"}}],
-        post={
-            "tags": ["Inventory Assemblies"], "summary": "Upload assembly image", "security": _auth_security,
-            "requestBody": {"required": True, "content": {"multipart/form-data": {"schema": {
-                "type": "object", "required": ["file"], "properties": {"file": {"type": "string", "format": "binary"}},
-            }}}},
-            "responses": {"200": _ok("Assembly"), "400": _400, "404": _404},
-        },
-    )
-    path("/inventory/assemblies/{assembly_id}/revisions",
-        parameters=[{"name": "assembly_id", "in": "path", "required": True, "schema": {"type": "string"}}],
-        post={
-            "tags": ["Inventory Assemblies"], "summary": "Create an assembly revision", "security": _auth_security,
-            "requestBody": {"required": True, "content": {"application/json": {"schema": {
-                "type": "object", "required": ["version"],
-                "properties": {
-                    "version": {"type": "string"},
-                    "status": {"type": "string", "enum": ["ACTIVE", "DEPRECATED", "EOL"], "default": "ACTIVE"},
-                    "releaseNotes": {"type": "string"},
-                    "bom": {"type": "array", "items": {"$ref": "#/components/schemas/BomItem"}},
-                },
-            }}}},
-            "responses": {"201": _ok("AssemblyRevision"), "400": _400, "404": _404, "409": _409},
-        },
-    )
-    path("/inventory/assemblies/{assembly_id}/revisions/{revision_id}",
-        parameters=[
-            {"name": "assembly_id", "in": "path", "required": True, "schema": {"type": "string"}},
-            {"name": "revision_id", "in": "path", "required": True, "schema": {"type": "string"}},
-        ],
-        put={
-            "tags": ["Inventory Assemblies"], "summary": "Update an assembly revision", "security": _auth_security,
-            "requestBody": {"required": True, "content": {"application/json": {"schema": {
-                "type": "object", "properties": {
-                    "version": {"type": "string"},
-                    "status": {"type": "string", "enum": ["ACTIVE", "DEPRECATED", "EOL"]},
-                    "releaseNotes": {"type": "string"},
-                    "bom": {"type": "array", "items": {"$ref": "#/components/schemas/BomItem"}},
-                },
-            }}}},
-            "responses": {"200": _ok("AssemblyRevision"), "400": _400, "404": _404, "409": _409},
-        },
-        delete={
-            "tags": ["Inventory Assemblies"], "summary": "Delete an assembly revision", "security": _auth_security,
-            "responses": {"200": _deleted_resp, "404": _404},
-        },
-    )
-
-    # ── Inventory Image ──────────────────────────────────────────
-    path("/inventory/image/{key}",
-        parameters=[{"name": "key", "in": "path", "required": True, "schema": {"type": "string"}, "description": "Image key, e.g. components/<id>/hero.png"}],
-        get={
-            "tags": ["Inventory Image"], "summary": "Get inventory image (redirect to storage)", "security": _auth_security,
-            "responses": {"302": {"description": "Redirect to presigned image URL"}, "400": _400, "404": _404},
-        },
-    )
-
     # ── Codebases ───────────────────────────────────────────────
-    path("/codebases",
+    path("/builds/codebases",
         get={
             "tags": ["Codebases"], "summary": "List all codebases", "security": _auth_security,
             "parameters": _pagination_params,
@@ -931,7 +673,7 @@ def _build_spec() -> APISpec:
             "responses": {"201": _ok("Codebase"), "400": _400, "409": _409},
         },
     )
-    path("/codebases/{codebase_id}",
+    path("/builds/codebases/{codebase_id}",
         parameters=[{"name": "codebase_id", "in": "path", "required": True, "schema": {"type": "string"}}],
         get={
             "tags": ["Codebases"], "summary": "Get a codebase with releases", "security": _auth_security,
@@ -955,7 +697,7 @@ def _build_spec() -> APISpec:
             "responses": {"200": _deleted_resp, "404": _404},
         },
     )
-    path("/codebases/{codebase_id}/image",
+    path("/builds/codebases/{codebase_id}/image",
         parameters=[{"name": "codebase_id", "in": "path", "required": True, "schema": {"type": "string"}}],
         post={
             "tags": ["Codebases"], "summary": "Upload codebase image", "security": _auth_security,
@@ -967,7 +709,7 @@ def _build_spec() -> APISpec:
     )
 
     # ── Releases ────────────────────────────────────────────────
-    path("/codebases/{codebase_id}/releases",
+    path("/builds/codebases/{codebase_id}/releases",
         parameters=[{"name": "codebase_id", "in": "path", "required": True, "schema": {"type": "string"}}],
         post={
             "tags": ["Releases"], "summary": "Create a release", "security": _auth_security,
@@ -982,7 +724,7 @@ def _build_spec() -> APISpec:
             "responses": {"201": _ok("Release"), "400": _400, "404": _404, "409": _409},
         },
     )
-    path("/codebases/{codebase_id}/releases/{release_id}",
+    path("/builds/codebases/{codebase_id}/releases/{release_id}",
         parameters=[
             {"name": "codebase_id", "in": "path", "required": True, "schema": {"type": "string"}},
             {"name": "release_id", "in": "path", "required": True, "schema": {"type": "string"}},
@@ -1005,7 +747,7 @@ def _build_spec() -> APISpec:
     )
 
     # ── Artifacts ───────────────────────────────────────────────
-    path("/codebases/{codebase_id}/releases/{release_id}/artifacts",
+    path("/builds/codebases/{codebase_id}/releases/{release_id}/artifacts",
         parameters=[
             {"name": "codebase_id", "in": "path", "required": True, "schema": {"type": "string"}},
             {"name": "release_id", "in": "path", "required": True, "schema": {"type": "string"}},
@@ -1024,7 +766,7 @@ def _build_spec() -> APISpec:
             "responses": {"201": _ok("Artifact"), "400": _400, "404": _404},
         },
     )
-    path("/codebases/{codebase_id}/releases/{release_id}/artifacts/upload",
+    path("/builds/codebases/{codebase_id}/releases/{release_id}/artifacts/upload",
         parameters=[
             {"name": "codebase_id", "in": "path", "required": True, "schema": {"type": "string"}},
             {"name": "release_id", "in": "path", "required": True, "schema": {"type": "string"}},
@@ -1038,7 +780,7 @@ def _build_spec() -> APISpec:
             "responses": {"201": _ok("Artifact"), "400": _400, "404": _404},
         },
     )
-    path("/codebases/{codebase_id}/releases/{release_id}/artifacts/{artifact_id}",
+    path("/builds/codebases/{codebase_id}/releases/{release_id}/artifacts/{artifact_id}",
         parameters=[
             {"name": "codebase_id", "in": "path", "required": True, "schema": {"type": "string"}},
             {"name": "release_id", "in": "path", "required": True, "schema": {"type": "string"}},
@@ -1049,7 +791,7 @@ def _build_spec() -> APISpec:
             "responses": {"200": _deleted_resp, "404": _404},
         },
     )
-    path("/codebases/artifacts/{artifact_id}/download",
+    path("/builds/codebases/artifacts/{artifact_id}/download",
         parameters=[{"name": "artifact_id", "in": "path", "required": True, "schema": {"type": "string"}}],
         get={
             "tags": ["Artifacts"], "summary": "Get artifact download URL", "security": _auth_security,
@@ -1057,10 +799,10 @@ def _build_spec() -> APISpec:
         },
     )
 
-    # ── Catalog ───────────────────────────────────────────────────
+    # ── Products ─────────────────────────────────────────────────
 
     # Chipsets CRUD
-    path("/catalog/chipsets",
+    path("/products/chipsets",
         get={
             "tags": ["Chipsets"], "summary": "List all chipsets", "security": _auth_security,
             "parameters": _pagination_params,
@@ -1079,7 +821,7 @@ def _build_spec() -> APISpec:
             "responses": {"201": _ok("Chipset"), "400": _400, "409": _409},
         },
     )
-    path("/catalog/chipsets/{chipset_id}",
+    path("/products/chipsets/{chipset_id}",
         parameters=[{"name": "chipset_id", "in": "path", "required": True, "schema": {"type": "string"}}],
         get={
             "tags": ["Chipsets"], "summary": "Get a chipset", "security": _auth_security,
@@ -1103,14 +845,14 @@ def _build_spec() -> APISpec:
     )
 
     # Products
-    path("/catalog",
+    path("/products",
         get={
-            "tags": ["Catalog"], "summary": "List all products", "security": _auth_security,
+            "tags": ["Products"], "summary": "List all products", "security": _auth_security,
             "parameters": _pagination_params,
             "responses": {"200": _paginated("Product")},
         },
         post={
-            "tags": ["Catalog"], "summary": "Create a product", "security": _auth_security,
+            "tags": ["Products"], "summary": "Create a product", "security": _auth_security,
             "requestBody": {"required": True, "content": {"application/json": {"schema": {
                 "type": "object", "required": ["name"],
                 "properties": {
@@ -1121,10 +863,10 @@ def _build_spec() -> APISpec:
             "responses": {"201": _ok("Product"), "400": _400, "409": _409},
         },
     )
-    path("/catalog/{product_id}",
+    path("/products/{product_id}",
         parameters=[{"name": "product_id", "in": "path", "required": True, "schema": {"type": "string"}}],
         get={
-            "tags": ["Catalog"], "summary": "Get a product with children", "security": _auth_security,
+            "tags": ["Products"], "summary": "Get a product with children", "security": _auth_security,
             "responses": {"200": _ok({"allOf": [
                 {"$ref": "#/components/schemas/Product"},
                 {"type": "object", "properties": {
@@ -1134,7 +876,7 @@ def _build_spec() -> APISpec:
             ]}), "404": _404},
         },
         put={
-            "tags": ["Catalog"], "summary": "Update a product", "security": _auth_security,
+            "tags": ["Products"], "summary": "Update a product", "security": _auth_security,
             "requestBody": {"required": True, "content": {"application/json": {"schema": {
                 "type": "object", "properties": {
                     "name": {"type": "string"}, "description": {"type": "string"},
@@ -1144,13 +886,13 @@ def _build_spec() -> APISpec:
             "responses": {"200": _ok("Product"), "400": _400, "404": _404, "409": _409},
         },
         delete={
-            "tags": ["Catalog"], "summary": "Delete a product", "security": _auth_security,
+            "tags": ["Products"], "summary": "Delete a product", "security": _auth_security,
             "responses": {"200": _deleted_resp, "404": _404, "409": _409},
         },
     )
 
     # ── Boards ───────────────────────────────────────────────────
-    path("/catalog/{product_id}/boards",
+    path("/products/{product_id}/boards",
         parameters=[{"name": "product_id", "in": "path", "required": True, "schema": {"type": "string"}}],
         get={
             "tags": ["Boards"], "summary": "List boards for a product", "security": _auth_security,
@@ -1168,7 +910,7 @@ def _build_spec() -> APISpec:
             "responses": {"201": _ok("Board"), "400": _400, "404": _404, "409": _409},
         },
     )
-    path("/catalog/{product_id}/boards/{board_id}",
+    path("/products/{product_id}/boards/{board_id}",
         parameters=[
             {"name": "product_id", "in": "path", "required": True, "schema": {"type": "string"}},
             {"name": "board_id", "in": "path", "required": True, "schema": {"type": "string"}},
@@ -1199,7 +941,7 @@ def _build_spec() -> APISpec:
     )
 
     # ── Board Revisions (nested under boards) ────────────────────
-    path("/catalog/{product_id}/boards/{board_id}/revisions",
+    path("/products/{product_id}/boards/{board_id}/revisions",
         parameters=[
             {"name": "product_id", "in": "path", "required": True, "schema": {"type": "string"}},
             {"name": "board_id", "in": "path", "required": True, "schema": {"type": "string"}},
@@ -1218,7 +960,7 @@ def _build_spec() -> APISpec:
             "responses": {"201": _ok("BoardRevision"), "400": _400, "404": _404, "409": _409},
         },
     )
-    path("/catalog/{product_id}/boards/{board_id}/revisions/{revision_id}",
+    path("/products/{product_id}/boards/{board_id}/revisions/{revision_id}",
         parameters=[
             {"name": "product_id", "in": "path", "required": True, "schema": {"type": "string"}},
             {"name": "board_id", "in": "path", "required": True, "schema": {"type": "string"}},
@@ -1244,7 +986,7 @@ def _build_spec() -> APISpec:
     )
 
     # ── Firmware Builds ──────────────────────────────────────────
-    path("/catalog/{product_id}/firmware-builds",
+    path("/products/{product_id}/firmware-builds",
         parameters=[{"name": "product_id", "in": "path", "required": True, "schema": {"type": "string"}}],
         get={
             "tags": ["Firmware Builds"], "summary": "List firmware builds for a product", "security": _auth_security,
@@ -1256,7 +998,7 @@ def _build_spec() -> APISpec:
             "responses": {"200": _ok("FirmwareBuild", array=True), "404": _404},
         },
     )
-    path("/catalog/{product_id}/firmware-builds/upload",
+    path("/products/{product_id}/firmware-builds/upload",
         parameters=[{"name": "product_id", "in": "path", "required": True, "schema": {"type": "string"}}],
         post={
             "tags": ["Firmware Builds"], "summary": "Upload a firmware build", "security": _auth_security,
@@ -1274,7 +1016,7 @@ def _build_spec() -> APISpec:
             "responses": {"201": _ok("FirmwareBuild"), "400": _400, "404": _404, "409": _409},
         },
     )
-    path("/catalog/{product_id}/firmware-builds/{build_id}",
+    path("/products/{product_id}/firmware-builds/{build_id}",
         parameters=[
             {"name": "product_id", "in": "path", "required": True, "schema": {"type": "string"}},
             {"name": "build_id", "in": "path", "required": True, "schema": {"type": "string"}},
@@ -1294,7 +1036,7 @@ def _build_spec() -> APISpec:
             "responses": {"200": _deleted_resp, "404": _404},
         },
     )
-    path("/catalog/firmware-builds/{build_id}/download",
+    path("/products/firmware-builds/{build_id}/download",
         parameters=[{"name": "build_id", "in": "path", "required": True, "schema": {"type": "string"}}],
         get={
             "tags": ["Firmware Builds"], "summary": "Get firmware build download URL", "security": _auth_security,
@@ -1305,14 +1047,14 @@ def _build_spec() -> APISpec:
         },
     )
 
-    # ── System ─────────────────────────────────────────────────
+    # ── Cluster ─────────────────────────────────────────────────
     _ns_param = {"name": "namespace", "in": "query", "schema": {"type": "string"}, "description": "Filter by namespace"}
     _k8s_limit_param = {"name": "limit", "in": "query", "schema": {"type": "integer", "default": 500, "maximum": 1000}}
     _ns_path_param = {"name": "namespace", "in": "path", "required": True, "schema": {"type": "string"}}
     _name_path_param = {"name": "name", "in": "path", "required": True, "schema": {"type": "string"}}
 
-    path("/system/cluster", get={
-        "tags": ["System"], "summary": "Get cluster overview", "security": _auth_security,
+    path("/cluster", get={
+        "tags": ["Cluster"], "summary": "Get cluster overview", "security": _auth_security,
         "responses": {"200": _ok({"type": "object", "properties": {
             "kubernetesVersion": {"type": "string"},
             "platforms": {"type": "array", "items": {"type": "string"}},
@@ -1338,8 +1080,8 @@ def _build_spec() -> APISpec:
             }},
         }}), "401": _401, "403": _403},
     })
-    path("/system/namespaces", get={
-        "tags": ["System"], "summary": "List namespaces", "security": _auth_security,
+    path("/cluster/namespaces", get={
+        "tags": ["Cluster"], "summary": "List namespaces", "security": _auth_security,
         "responses": {"200": _ok({"type": "array", "items": {"type": "object", "properties": {
             "name": {"type": "string"},
             "status": {"type": "string"},
@@ -1347,9 +1089,9 @@ def _build_spec() -> APISpec:
             "age": {"type": "string"},
         }}}), "401": _401, "403": _403},
     })
-    path("/system/nodes",
+    path("/cluster/nodes",
         get={
-            "tags": ["System"], "summary": "List nodes", "security": _auth_security,
+            "tags": ["Cluster"], "summary": "List nodes", "security": _auth_security,
             "responses": {"200": _ok({"type": "array", "items": {"type": "object", "properties": {
                 "name": {"type": "string"},
                 "status": {"type": "string"},
@@ -1371,15 +1113,15 @@ def _build_spec() -> APISpec:
             }}}), "401": _401, "403": _403},
         },
     )
-    path("/system/nodes/{node_name}",
+    path("/cluster/nodes/{node_name}",
         parameters=[{"name": "node_name", "in": "path", "required": True, "schema": {"type": "string"}}],
         get={
-            "tags": ["System"], "summary": "Get node details", "security": _auth_security,
+            "tags": ["Cluster"], "summary": "Get node details", "security": _auth_security,
             "responses": {"200": _ok({"type": "object", "description": "Node detail object"}), "404": _404},
         },
     )
-    path("/system/events", get={
-        "tags": ["System"], "summary": "List cluster events", "security": _auth_security,
+    path("/cluster/events", get={
+        "tags": ["Cluster"], "summary": "List cluster events", "security": _auth_security,
         "parameters": [
             _ns_param,
             {"name": "limit", "in": "query", "schema": {"type": "integer", "default": 500, "maximum": 1000}},
@@ -1396,9 +1138,9 @@ def _build_spec() -> APISpec:
             "source": {"type": "string"},
         }}}), "401": _401, "403": _403},
     })
-    path("/system/pods",
+    path("/cluster/pods",
         get={
-            "tags": ["System"], "summary": "List pods", "security": _auth_security,
+            "tags": ["Cluster"], "summary": "List pods", "security": _auth_security,
             "parameters": [_ns_param, _k8s_limit_param],
             "responses": {"200": _ok({"type": "array", "items": {"type": "object", "properties": {
                 "name": {"type": "string"},
@@ -1414,20 +1156,20 @@ def _build_spec() -> APISpec:
             }}}), "401": _401, "403": _403},
         },
     )
-    path("/system/pods/{namespace}/{name}",
+    path("/cluster/pods/{namespace}/{name}",
         parameters=[_ns_path_param, _name_path_param],
         get={
-            "tags": ["System"], "summary": "Get pod details", "security": _auth_security,
+            "tags": ["Cluster"], "summary": "Get pod details", "security": _auth_security,
             "responses": {"200": _ok({"type": "object", "description": "Pod detail object"}), "404": _404},
         },
         delete={
-            "tags": ["System"], "summary": "Delete a pod", "security": _auth_security,
+            "tags": ["Cluster"], "summary": "Delete a pod", "security": _auth_security,
             "responses": {"200": _ok({"type": "object", "properties": {"deleted": {"type": "boolean"}}}), "404": _404},
         },
     )
-    path("/system/deployments",
+    path("/cluster/deployments",
         get={
-            "tags": ["System"], "summary": "List deployments", "security": _auth_security,
+            "tags": ["Cluster"], "summary": "List deployments", "security": _auth_security,
             "parameters": [_ns_param, _k8s_limit_param],
             "responses": {"200": _ok({"type": "array", "items": {"type": "object", "properties": {
                 "name": {"type": "string"},
@@ -1449,17 +1191,17 @@ def _build_spec() -> APISpec:
             }}}), "401": _401, "403": _403},
         },
     )
-    path("/system/deployments/{namespace}/{name}",
+    path("/cluster/deployments/{namespace}/{name}",
         parameters=[_ns_path_param, _name_path_param],
         get={
-            "tags": ["System"], "summary": "Get deployment details", "security": _auth_security,
+            "tags": ["Cluster"], "summary": "Get deployment details", "security": _auth_security,
             "responses": {"200": _ok({"type": "object", "description": "Deployment detail object"}), "404": _404},
         },
     )
-    path("/system/deployments/{namespace}/{name}/scale",
+    path("/cluster/deployments/{namespace}/{name}/scale",
         parameters=[_ns_path_param, _name_path_param],
         post={
-            "tags": ["System"], "summary": "Scale a deployment", "security": _auth_security,
+            "tags": ["Cluster"], "summary": "Scale a deployment", "security": _auth_security,
             "requestBody": {"required": True, "content": {"application/json": {"schema": {
                 "type": "object", "required": ["replicas"],
                 "properties": {"replicas": {"type": "integer", "minimum": 0, "maximum": 100}},
@@ -1472,19 +1214,19 @@ def _build_spec() -> APISpec:
             },
         },
     )
-    path("/system/deployments/{namespace}/{name}/restart",
+    path("/cluster/deployments/{namespace}/{name}/restart",
         parameters=[_ns_path_param, _name_path_param],
         post={
-            "tags": ["System"], "summary": "Restart a deployment", "security": _auth_security,
+            "tags": ["Cluster"], "summary": "Restart a deployment", "security": _auth_security,
             "responses": {
                 "200": _ok({"type": "object", "properties": {"restarted": {"type": "boolean"}}}),
                 "404": _404,
             },
         },
     )
-    path("/system/services",
+    path("/cluster/services",
         get={
-            "tags": ["System"], "summary": "List services", "security": _auth_security,
+            "tags": ["Cluster"], "summary": "List services", "security": _auth_security,
             "parameters": [_ns_param, _k8s_limit_param],
             "responses": {"200": _ok({"type": "array", "items": {"type": "object", "properties": {
                 "name": {"type": "string"},
@@ -1504,16 +1246,16 @@ def _build_spec() -> APISpec:
             }}}), "401": _401, "403": _403},
         },
     )
-    path("/system/services/{namespace}/{name}",
+    path("/cluster/services/{namespace}/{name}",
         parameters=[_ns_path_param, _name_path_param],
         get={
-            "tags": ["System"], "summary": "Get service details", "security": _auth_security,
+            "tags": ["Cluster"], "summary": "Get service details", "security": _auth_security,
             "responses": {"200": _ok({"type": "object", "description": "Service detail object"}), "404": _404},
         },
     )
-    path("/system/jobs",
+    path("/cluster/jobs",
         get={
-            "tags": ["System"], "summary": "List jobs", "security": _auth_security,
+            "tags": ["Cluster"], "summary": "List jobs", "security": _auth_security,
             "parameters": [_ns_param, _k8s_limit_param],
             "responses": {"200": _ok({"type": "array", "items": {"type": "object", "properties": {
                 "name": {"type": "string"},
@@ -1533,20 +1275,20 @@ def _build_spec() -> APISpec:
             }}}), "401": _401, "403": _403},
         },
     )
-    path("/system/jobs/{namespace}/{name}",
+    path("/cluster/jobs/{namespace}/{name}",
         parameters=[_ns_path_param, _name_path_param],
         get={
-            "tags": ["System"], "summary": "Get job details", "security": _auth_security,
+            "tags": ["Cluster"], "summary": "Get job details", "security": _auth_security,
             "responses": {"200": _ok({"type": "object", "description": "Job detail object"}), "404": _404},
         },
         delete={
-            "tags": ["System"], "summary": "Delete a job", "security": _auth_security,
+            "tags": ["Cluster"], "summary": "Delete a job", "security": _auth_security,
             "responses": {"200": _ok({"type": "object", "properties": {"deleted": {"type": "boolean"}}}), "404": _404},
         },
     )
-    path("/system/configmaps",
+    path("/cluster/configmaps",
         get={
-            "tags": ["System"], "summary": "List ConfigMaps", "security": _auth_security,
+            "tags": ["Cluster"], "summary": "List ConfigMaps", "security": _auth_security,
             "parameters": [_ns_param, _k8s_limit_param],
             "responses": {"200": _ok({"type": "array", "items": {"type": "object", "properties": {
                 "name": {"type": "string"},
@@ -1558,10 +1300,10 @@ def _build_spec() -> APISpec:
             }}}), "401": _401, "403": _403},
         },
     )
-    path("/system/configmaps/{namespace}/{name}",
+    path("/cluster/configmaps/{namespace}/{name}",
         parameters=[_ns_path_param, _name_path_param],
         get={
-            "tags": ["System"], "summary": "Get ConfigMap details", "security": _auth_security,
+            "tags": ["Cluster"], "summary": "Get ConfigMap details", "security": _auth_security,
             "responses": {"200": _ok({"type": "object", "properties": {
                 "name": {"type": "string"},
                 "namespace": {"type": "string"},
@@ -1573,9 +1315,9 @@ def _build_spec() -> APISpec:
             }}), "404": _404},
         },
     )
-    path("/system/secrets",
+    path("/cluster/secrets",
         get={
-            "tags": ["System"], "summary": "List Secrets", "security": _auth_security,
+            "tags": ["Cluster"], "summary": "List Secrets", "security": _auth_security,
             "parameters": [_ns_param, _k8s_limit_param],
             "responses": {"200": _ok({"type": "array", "items": {"type": "object", "properties": {
                 "name": {"type": "string"},
@@ -1588,10 +1330,10 @@ def _build_spec() -> APISpec:
             }}}), "401": _401, "403": _403},
         },
     )
-    path("/system/secrets/{namespace}/{name}",
+    path("/cluster/secrets/{namespace}/{name}",
         parameters=[_ns_path_param, _name_path_param],
         get={
-            "tags": ["System"], "summary": "Get Secret details (values masked)", "security": _auth_security,
+            "tags": ["Cluster"], "summary": "Get Secret details (values masked)", "security": _auth_security,
             "responses": {"200": _ok({"type": "object", "properties": {
                 "name": {"type": "string"},
                 "namespace": {"type": "string"},
@@ -1604,17 +1346,17 @@ def _build_spec() -> APISpec:
             }}), "404": _404},
         },
     )
-    path("/system/resources/{kind}/{namespace}/{name}",
+    path("/cluster/resources/{kind}/{namespace}/{name}",
         parameters=[
             {"name": "kind", "in": "path", "required": True, "schema": {"type": "string"}, "description": "Resource kind (e.g. pod, deployment, service, job, configmap, secret)"},
             _ns_path_param, _name_path_param,
         ],
         get={
-            "tags": ["System"], "summary": "Get resource YAML", "security": _auth_security,
+            "tags": ["Cluster"], "summary": "Get resource YAML", "security": _auth_security,
             "responses": {"200": _ok({"type": "object", "description": "Raw resource YAML as object"}), "400": _400, "404": _404},
         },
         put={
-            "tags": ["System"], "summary": "Apply resource YAML", "security": _auth_security,
+            "tags": ["Cluster"], "summary": "Apply resource YAML", "security": _auth_security,
             "requestBody": {"required": True, "content": {"application/json": {"schema": {
                 "type": "object", "required": ["yaml"],
                 "properties": {"yaml": {"type": "string", "description": "YAML string (max 100KB)"}},
@@ -1622,12 +1364,12 @@ def _build_spec() -> APISpec:
             "responses": {"200": _ok({"type": "object", "description": "Updated resource object"}), "400": _400, "404": _404},
         },
         delete={
-            "tags": ["System"], "summary": "Delete a resource", "security": _auth_security,
+            "tags": ["Cluster"], "summary": "Delete a resource", "security": _auth_security,
             "responses": {"200": _ok({"type": "object", "properties": {"deleted": {"type": "boolean"}}}), "400": _400, "404": _404},
         },
     )
-    path("/system/rbac/roles", get={
-        "tags": ["System"], "summary": "List Roles", "security": _auth_security,
+    path("/cluster/rbac/roles", get={
+        "tags": ["Cluster"], "summary": "List Roles", "security": _auth_security,
         "parameters": [_ns_param, _k8s_limit_param],
         "responses": {"200": _ok({"type": "array", "items": {"type": "object", "properties": {
             "name": {"type": "string"},
@@ -1643,8 +1385,8 @@ def _build_spec() -> APISpec:
             "age": {"type": "string"},
         }}}), "401": _401, "403": _403},
     })
-    path("/system/rbac/clusterroles", get={
-        "tags": ["System"], "summary": "List ClusterRoles", "security": _auth_security,
+    path("/cluster/rbac/clusterroles", get={
+        "tags": ["Cluster"], "summary": "List ClusterRoles", "security": _auth_security,
         "parameters": [_k8s_limit_param],
         "responses": {"200": _ok({"type": "array", "items": {"type": "object", "properties": {
             "name": {"type": "string"},
@@ -1655,8 +1397,8 @@ def _build_spec() -> APISpec:
             "age": {"type": "string"},
         }}}), "401": _401, "403": _403},
     })
-    path("/system/rbac/bindings", get={
-        "tags": ["System"], "summary": "List RoleBindings", "security": _auth_security,
+    path("/cluster/rbac/bindings", get={
+        "tags": ["Cluster"], "summary": "List RoleBindings", "security": _auth_security,
         "parameters": [_ns_param, _k8s_limit_param],
         "responses": {"200": _ok({"type": "array", "items": {"type": "object", "properties": {
             "name": {"type": "string"},
@@ -1671,8 +1413,8 @@ def _build_spec() -> APISpec:
             "age": {"type": "string"},
         }}}), "401": _401, "403": _403},
     })
-    path("/system/rbac/clusterrolebindings", get={
-        "tags": ["System"], "summary": "List ClusterRoleBindings", "security": _auth_security,
+    path("/cluster/rbac/clusterrolebindings", get={
+        "tags": ["Cluster"], "summary": "List ClusterRoleBindings", "security": _auth_security,
         "parameters": [_k8s_limit_param],
         "responses": {"200": _ok({"type": "array", "items": {"type": "object", "properties": {
             "name": {"type": "string"},
@@ -1687,8 +1429,8 @@ def _build_spec() -> APISpec:
             "age": {"type": "string"},
         }}}), "401": _401, "403": _403},
     })
-    path("/system/rbac/serviceaccounts", get={
-        "tags": ["System"], "summary": "List ServiceAccounts", "security": _auth_security,
+    path("/cluster/rbac/serviceaccounts", get={
+        "tags": ["Cluster"], "summary": "List ServiceAccounts", "security": _auth_security,
         "parameters": [_ns_param, _k8s_limit_param],
         "responses": {"200": _ok({"type": "array", "items": {"type": "object", "properties": {
             "name": {"type": "string"},
@@ -1700,18 +1442,18 @@ def _build_spec() -> APISpec:
         }}}), "401": _401, "403": _403},
     })
 
-    # ── MTIB ────────────────────────────────────────────────────
-    path("/mtib/list", get={
-        "tags": ["MTIB"], "summary": "List all MTIBs", "security": _auth_security,
+    # ── Devices / MTIB ────────────────────────────────────────────
+    path("/devices/mtib/list", get={
+        "tags": ["Devices"], "summary": "List all MTIBs", "security": _auth_security,
         "responses": {"200": _ok("MtibSummary", array=True)},
     })
-    path("/mtib/get", get={
-        "tags": ["MTIB"], "summary": "Get MTIB details", "security": _auth_security,
+    path("/devices/mtib/get", get={
+        "tags": ["Devices"], "summary": "Get MTIB details", "security": _auth_security,
         "parameters": [{"name": "hostname", "in": "query", "required": True, "schema": {"type": "string"}}],
         "responses": {"200": _ok("MtibDetail"), "400": _400, "404": _404},
     })
-    path("/mtib/register", post={
-        "tags": ["MTIB"], "summary": "Register an MTIB", "security": _auth_security,
+    path("/devices/mtib/register", post={
+        "tags": ["Devices"], "summary": "Register an MTIB", "security": _auth_security,
         "requestBody": {"required": True, "content": {"application/json": {"schema": {
             "type": "object", "required": ["name", "hostname", "mtibType", "features", "appIds"],
             "properties": {
@@ -1730,8 +1472,8 @@ def _build_spec() -> APISpec:
             "status": {"type": "string"}, "message": {"type": "string"},
         }}), "400": _400, "409": _409},
     })
-    path("/mtib/unregister", post={
-        "tags": ["MTIB"], "summary": "Unregister an MTIB", "security": _auth_security,
+    path("/devices/mtib/unregister", post={
+        "tags": ["Devices"], "summary": "Unregister an MTIB", "security": _auth_security,
         "requestBody": {"required": True, "content": {"application/json": {"schema": {
             "type": "object", "required": ["hostname"],
             "properties": {"hostname": {"type": "string"}},
@@ -1741,9 +1483,9 @@ def _build_spec() -> APISpec:
         }}), "400": _400, "404": _404},
     })
 
-    # ── Admin ───────────────────────────────────────────────────
-    path("/admin/history", get={
-        "tags": ["Admin"], "summary": "List audit log entries", "security": _auth_security,
+    # ── System / Audit History ──────────────────────────────────
+    path("/system/history", get={
+        "tags": ["System"], "summary": "List audit log entries", "security": _auth_security,
         "parameters": [
             {"name": "page", "in": "query", "schema": {"type": "integer", "default": 1}},
             {"name": "limit", "in": "query", "schema": {"type": "integer", "default": 50, "maximum": 100}},
@@ -1761,10 +1503,10 @@ def _build_spec() -> APISpec:
             }},
         }}), "401": _401, "403": _403},
     })
-    path("/admin/history/{entry_id}",
+    path("/system/history/{entry_id}",
         parameters=[{"name": "entry_id", "in": "path", "required": True, "schema": {"type": "string"}}],
         get={
-            "tags": ["Admin"], "summary": "Get a single audit log entry", "security": _auth_security,
+            "tags": ["System"], "summary": "Get a single audit log entry", "security": _auth_security,
             "responses": {"200": _ok("AuditLogEntry"), "404": _404},
         },
     )
@@ -1957,17 +1699,17 @@ def _build_spec() -> APISpec:
         "responses": {"200": _ok("DashboardFixture", array=True), "401": _401, "403": _403},
     })
 
-    # ── Deployments (managed) ──────────────────────────────────
-    path("/deployments",
+    # ── Managed Deployments ──────────────────────────────────────
+    path("/cluster/managed-deployments",
         get={
-            "tags": ["Deployments"], "summary": "List managed deployments", "security": _auth_security,
+            "tags": ["Managed Deployments"], "summary": "List managed deployments", "security": _auth_security,
             "parameters": _pagination_params + [
                 {"name": "fixtureId", "in": "query", "schema": {"type": "string"}, "description": "Filter by fixture ID"},
             ],
             "responses": {"200": _paginated("ConcordDeployment"), "401": _401, "403": _403},
         },
         post={
-            "tags": ["Deployments"], "summary": "Create a deployment", "security": _auth_security,
+            "tags": ["Managed Deployments"], "summary": "Create a deployment", "security": _auth_security,
             "requestBody": {"required": True, "content": {"application/json": {"schema": {
                 "type": "object", "required": ["name", "fixtureId"],
                 "properties": {
@@ -1978,42 +1720,42 @@ def _build_spec() -> APISpec:
             "responses": {"201": _ok("ConcordDeployment"), "400": _400, "404": _404},
         },
     )
-    path("/deployments/{deployment_id}",
+    path("/cluster/managed-deployments/{deployment_id}",
         parameters=[{"name": "deployment_id", "in": "path", "required": True, "schema": {"type": "string"}}],
         get={
-            "tags": ["Deployments"], "summary": "Get a deployment", "security": _auth_security,
+            "tags": ["Managed Deployments"], "summary": "Get a deployment", "security": _auth_security,
             "responses": {"200": _ok("ConcordDeployment"), "404": _404},
         },
         delete={
-            "tags": ["Deployments"], "summary": "Delete a deployment", "security": _auth_security,
+            "tags": ["Managed Deployments"], "summary": "Delete a deployment", "security": _auth_security,
             "responses": {"200": _deleted_resp, "404": _404, "409": _409},
         },
     )
-    path("/deployments/{deployment_id}/deploy",
+    path("/cluster/managed-deployments/{deployment_id}/deploy",
         parameters=[{"name": "deployment_id", "in": "path", "required": True, "schema": {"type": "string"}}],
         post={
-            "tags": ["Deployments"], "summary": "Deploy a fixture to K8s", "security": _auth_security,
+            "tags": ["Managed Deployments"], "summary": "Deploy a fixture to K8s", "security": _auth_security,
             "responses": {"200": _ok("ConcordDeployment"), "400": _400, "404": _404, "409": _409},
         },
     )
-    path("/deployments/{deployment_id}/stop",
+    path("/cluster/managed-deployments/{deployment_id}/stop",
         parameters=[{"name": "deployment_id", "in": "path", "required": True, "schema": {"type": "string"}}],
         post={
-            "tags": ["Deployments"], "summary": "Stop a running deployment", "security": _auth_security,
+            "tags": ["Managed Deployments"], "summary": "Stop a running deployment", "security": _auth_security,
             "responses": {"200": _ok("ConcordDeployment"), "404": _404, "409": _409},
         },
     )
-    path("/deployments/{deployment_id}/restart",
+    path("/cluster/managed-deployments/{deployment_id}/restart",
         parameters=[{"name": "deployment_id", "in": "path", "required": True, "schema": {"type": "string"}}],
         post={
-            "tags": ["Deployments"], "summary": "Restart a running deployment", "security": _auth_security,
+            "tags": ["Managed Deployments"], "summary": "Restart a running deployment", "security": _auth_security,
             "responses": {"200": _ok("ConcordDeployment"), "404": _404, "409": _409},
         },
     )
-    path("/deployments/{deployment_id}/status",
+    path("/cluster/managed-deployments/{deployment_id}/status",
         parameters=[{"name": "deployment_id", "in": "path", "required": True, "schema": {"type": "string"}}],
         get={
-            "tags": ["Deployments"], "summary": "Get deployment status with K8s pod info", "security": _auth_security,
+            "tags": ["Managed Deployments"], "summary": "Get deployment status with K8s pod info", "security": _auth_security,
             "responses": {"200": _ok({"allOf": [
                 {"$ref": "#/components/schemas/ConcordDeployment"},
                 {"type": "object", "properties": {
@@ -2286,7 +2028,7 @@ def _build_spec() -> APISpec:
         },
     )
 
-    # ── Validation Test Benches ─────────────────────────────────
+    # ── Benches ─────────────────────────────────────────────────
     spec.components.schema("TestBench", {
         "type": "object",
         "properties": {
@@ -2345,9 +2087,9 @@ def _build_spec() -> APISpec:
         "additionalProperties": True,
     })
 
-    path("/validation/benches",
+    path("/benches",
         get={
-            "tags": ["Validation"], "summary": "List test benches", "security": _auth_security,
+            "tags": ["Benches"], "summary": "List test benches", "security": _auth_security,
             "parameters": _pagination_params + [
                 {"name": "product", "in": "query", "schema": {"type": "string"}, "description": "Filter by DUT product"},
                 {"name": "status", "in": "query", "schema": {"type": "string", "enum": ["AVAILABLE", "LOCKED", "OFFLINE", "MAINTENANCE"]}},
@@ -2356,7 +2098,7 @@ def _build_spec() -> APISpec:
             "responses": {"200": _paginated("TestBench"), "401": _401, "403": _403},
         },
         post={
-            "tags": ["Validation"], "summary": "Create a test bench", "security": _auth_security,
+            "tags": ["Benches"], "summary": "Create a test bench", "security": _auth_security,
             "requestBody": {"required": True, "content": {"application/json": {"schema": {
                 "type": "object", "required": ["stationId", "name", "mtibAddress", "dutProduct", "dutRevision"],
                 "properties": {
@@ -2383,9 +2125,9 @@ def _build_spec() -> APISpec:
             "responses": {"201": _ok("TestBench"), "400": _400, "409": _409},
         },
     )
-    path("/validation/benches/discover",
+    path("/benches/discover",
         get={
-            "tags": ["Validation"], "summary": "Discover unregistered MTIBs", "security": _auth_security,
+            "tags": ["Benches"], "summary": "Discover unregistered MTIBs", "security": _auth_security,
             "description": "Find K8s nodes with MTIB label that are not yet registered as test benches.",
             "responses": {"200": _ok({"type": "array", "items": {"type": "object", "properties": {
                 "hostname": {"type": "string"},
@@ -2397,14 +2139,14 @@ def _build_spec() -> APISpec:
             }}}), "401": _401},
         },
     )
-    path("/validation/benches/{bench_id}",
+    path("/benches/{bench_id}",
         parameters=[{"name": "bench_id", "in": "path", "required": True, "schema": {"type": "string"}}],
         get={
-            "tags": ["Validation"], "summary": "Get test bench details", "security": _auth_security,
+            "tags": ["Benches"], "summary": "Get test bench details", "security": _auth_security,
             "responses": {"200": _ok("TestBench"), "401": _401, "404": _404},
         },
         patch={
-            "tags": ["Validation"], "summary": "Update a test bench", "security": _auth_security,
+            "tags": ["Benches"], "summary": "Update a test bench", "security": _auth_security,
             "requestBody": {"required": True, "content": {"application/json": {"schema": {
                 "type": "object",
                 "properties": {
@@ -2425,14 +2167,14 @@ def _build_spec() -> APISpec:
             "responses": {"200": _ok("TestBench"), "400": _400, "404": _404},
         },
         delete={
-            "tags": ["Validation"], "summary": "Delete a test bench", "security": _auth_security,
+            "tags": ["Benches"], "summary": "Delete a test bench", "security": _auth_security,
             "responses": {"200": _deleted_resp, "400": _400, "404": _404},
         },
     )
-    path("/validation/benches/{bench_id}/lock",
+    path("/benches/{bench_id}/lock",
         parameters=[{"name": "bench_id", "in": "path", "required": True, "schema": {"type": "string"}}],
         post={
-            "tags": ["Validation"], "summary": "Lock a test bench for exclusive use", "security": _auth_security,
+            "tags": ["Benches"], "summary": "Lock a test bench for exclusive use", "security": _auth_security,
             "requestBody": {"required": True, "content": {"application/json": {"schema": {
                 "type": "object", "required": ["lockedBy"],
                 "properties": {"lockedBy": {"type": "string", "description": "Pipeline or job ID acquiring the lock"}},
@@ -2440,17 +2182,17 @@ def _build_spec() -> APISpec:
             "responses": {"200": _ok("TestBench"), "400": _400, "404": _404, "409": _409},
         },
     )
-    path("/validation/benches/{bench_id}/unlock",
+    path("/benches/{bench_id}/unlock",
         parameters=[{"name": "bench_id", "in": "path", "required": True, "schema": {"type": "string"}}],
         post={
-            "tags": ["Validation"], "summary": "Release a test bench lock", "security": _auth_security,
+            "tags": ["Benches"], "summary": "Release a test bench lock", "security": _auth_security,
             "responses": {"200": _ok("TestBench"), "400": _400, "404": _404},
         },
     )
-    path("/validation/benches/{bench_id}/profile",
+    path("/benches/{bench_id}/profile",
         parameters=[{"name": "bench_id", "in": "path", "required": True, "schema": {"type": "string"}}],
         get={
-            "tags": ["Validation"], "summary": "Get merged fixture profile for a test bench", "security": _auth_security,
+            "tags": ["Benches"], "summary": "Get merged fixture profile for a test bench", "security": _auth_security,
             "description": (
                 "Returns the complete fixture profile for a test bench, merging:\n"
                 "1. FixtureDesign.profileTemplate (base hardware config)\n"
@@ -2462,7 +2204,7 @@ def _build_spec() -> APISpec:
         },
     )
 
-    # ── CI / Builds ────────────────────────────────────────────
+    # ── Builds ──────────────────────────────────────────────────
     spec.components.schema("BuildJob", {
         "type": "object",
         "properties": {
@@ -2513,13 +2255,13 @@ def _build_spec() -> APISpec:
         },
     })
 
-    path("/ci/webhooks/bitbucket", post={
-        "tags": ["CI"], "summary": "Bitbucket webhook receiver (HMAC-validated)", "security": [],
+    path("/builds/webhooks/bitbucket", post={
+        "tags": ["Builds"], "summary": "Bitbucket webhook receiver (HMAC-validated)", "security": [],
         "requestBody": {"required": True, "content": {"application/json": {"schema": {"type": "object"}}}},
         "responses": {"200": _ok({"type": "object", "properties": {"triggered": {"type": "boolean"}, "buildJobId": {"type": "string"}}}), "400": _400},
     })
-    path("/ci/trigger", post={
-        "tags": ["CI"], "summary": "Manual pipeline trigger",
+    path("/builds/trigger", post={
+        "tags": ["Builds"], "summary": "Manual pipeline trigger",
         "requestBody": {"required": True, "content": {"application/json": {"schema": {
             "type": "object", "required": ["productId", "repoSlug", "branch"],
             "properties": {
@@ -2533,8 +2275,8 @@ def _build_spec() -> APISpec:
         }}}},
         "responses": {"201": _ok({"type": "object", "properties": {"buildJobId": {"type": "string"}, "runId": {"type": "string", "nullable": True}}}), "400": _400, "404": _404},
     })
-    path("/ci/builds", get={
-        "tags": ["CI"], "summary": "List builds",
+    path("/builds", get={
+        "tags": ["Builds"], "summary": "List builds",
         "parameters": [
             {"name": "page", "in": "query", "schema": {"type": "integer", "default": 1}},
             {"name": "limit", "in": "query", "schema": {"type": "integer", "default": 50}},
@@ -2544,23 +2286,23 @@ def _build_spec() -> APISpec:
         ],
         "responses": {"200": _paginated({"$ref": "#/components/schemas/BuildJob"})},
     })
-    path("/ci/builds/{build_id}", get={
-        "tags": ["CI"], "summary": "Build detail",
+    path("/builds/{build_id}", get={
+        "tags": ["Builds"], "summary": "Build detail",
         "parameters": [{"name": "build_id", "in": "path", "required": True, "schema": {"type": "string"}}],
         "responses": {"200": _ok({"$ref": "#/components/schemas/BuildJob"}), "404": _404},
     })
-    path("/ci/builds/{build_id}/artifacts", get={
-        "tags": ["CI"], "summary": "Build artifacts with download URLs",
+    path("/builds/{build_id}/artifacts", get={
+        "tags": ["Builds"], "summary": "Build artifacts with download URLs",
         "parameters": [{"name": "build_id", "in": "path", "required": True, "schema": {"type": "string"}}],
         "responses": {"200": _ok({"type": "array", "items": {"$ref": "#/components/schemas/BuildJobArtifact"}}), "404": _404},
     })
-    path("/ci/builds/{build_id}/log", get={
-        "tags": ["CI"], "summary": "Build log content",
+    path("/builds/{build_id}/log", get={
+        "tags": ["Builds"], "summary": "Build log content",
         "parameters": [{"name": "build_id", "in": "path", "required": True, "schema": {"type": "string"}}],
         "responses": {"200": _ok({"type": "object", "properties": {"log": {"type": "string"}}}), "404": _404},
     })
-    path("/ci/pipelines", get={
-        "tags": ["CI"], "summary": "List pipelines (build → flash → validate chains)",
+    path("/builds/pipelines", get={
+        "tags": ["Builds"], "summary": "List pipelines (build → flash → validate chains)",
         "parameters": [
             {"name": "page", "in": "query", "schema": {"type": "integer", "default": 1}},
             {"name": "limit", "in": "query", "schema": {"type": "integer", "default": 50}},
@@ -2569,8 +2311,8 @@ def _build_spec() -> APISpec:
         ],
         "responses": {"200": _paginated({"$ref": "#/components/schemas/Pipeline"})},
     })
-    path("/ci/pipelines/{pipeline_id}", get={
-        "tags": ["CI"], "summary": "Pipeline detail with stages",
+    path("/builds/pipelines/{pipeline_id}", get={
+        "tags": ["Builds"], "summary": "Pipeline detail with stages",
         "parameters": [{"name": "pipeline_id", "in": "path", "required": True, "schema": {"type": "string"}}],
         "responses": {"200": _ok({"$ref": "#/components/schemas/Pipeline"}), "404": _404},
     })

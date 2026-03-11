@@ -1,13 +1,17 @@
 """CI build script endpoint — serves build scripts to workers."""
 
+import logging
 import os
 from pathlib import Path
 
 from flask import jsonify
 
 from src.lib.decorators import require_permissions
+from src.lib.errors import internal_error, not_found
 from src.lib.permissions import Permissions
-from src.lib.types import ApiResponse
+from src.lib.types import ApiResponse, ErrorDetail
+
+logger = logging.getLogger(__name__)
 
 
 # Build scripts stored in Docker container at /app/firmware/products/{product}/scripts/build.sh
@@ -21,41 +25,41 @@ else:
     SCRIPTS_DIR = _script_path.parent.parent.parent.parent.parent / "firmware" / "products"
 
 
+def _normalize_product_dir(product_key: str) -> str | None:
+    """Normalize a product key to a directory name.
+
+    Strips _fw, _mfg suffixes and board variants to get the base product dir.
+    e.g., alpha_fw -> alpha, alpha_mfg_fw -> alpha, sigma5_b0 -> sigma5
+    """
+    key = product_key.lower().replace("_fw", "").replace("_mfg", "")
+    for suffix in ["_b0", "_a0", "_b1", "_a1", "_c0"]:
+        key = key.replace(suffix, "")
+    return key.strip("_") or None
+
+
 def _get_script_path(product: str) -> Path | None:
     """Map product key to script path.
 
-    Product keys: alpha, alpha_mfg, sigma5, sigma5_mfg
+    Dynamically normalizes product keys instead of using a static map.
+    e.g., alpha_fw -> alpha, alpha_mfg_fw -> alpha, sigma5_fw -> sigma5
     """
-    # Map repo-style names to product directories
-    # alpha_fw -> alpha, alpha_mfg_fw -> alpha, sigma5_fw -> sigma5
-    product_map = {
-        "alpha": "alpha",
-        "alpha_fw": "alpha",
-        "alpha_mfg": "alpha",
-        "alpha_mfg_fw": "alpha",
-        "sigma5": "sigma5",
-        "sigma5_fw": "sigma5",
-        "sigma5_mfg": "sigma5",
-        "sigma5_mfg_fw": "sigma5",
-    }
-
-    product = product_map.get(product.lower())
-    if not product:
+    product_dir = _normalize_product_dir(product)
+    if not product_dir:
         return None
 
-    script_path = SCRIPTS_DIR / product / "scripts" / "build.sh"
+    script_path = SCRIPTS_DIR / product_dir / "scripts" / "build.sh"
     if script_path.exists():
         return script_path
     return None
 
 
-@require_permissions(Permissions.ADMIN_CI_VIEW)
+@require_permissions(Permissions.BUILDS_VIEW)
 def get_build_script(product: str):
     """GET /v2/ci/scripts/<product> — Get build script content for a product."""
     script_path = _get_script_path(product)
 
     if not script_path:
-        return jsonify(ApiResponse.error(f"No build script for product: {product}").to_dict()), 404
+        return not_found(f"No build script for product: {product}")
 
     try:
         content = script_path.read_text()
@@ -65,34 +69,40 @@ def get_build_script(product: str):
             "path": str(script_path.relative_to(SCRIPTS_DIR.parent.parent.parent)),
         }).to_dict()), 200
     except Exception as e:
-        return jsonify(ApiResponse.error(f"Failed to read script: {e}").to_dict()), 500
+        logger.error("Failed to read build script for %s: %s", product, e)
+        return internal_error("Failed to read build script")
 
 
-@require_permissions(Permissions.ADMIN_CI_VIEW)
+@require_permissions(Permissions.BUILDS_VIEW)
 def list_build_scripts():
-    """GET /v2/ci/scripts — List available build scripts."""
-    products = ["alpha", "sigma5"]
+    """GET /v2/ci/scripts — List available build scripts.
+
+    Dynamically discovers products by scanning the firmware products directory.
+    """
     scripts = []
 
-    for product in products:
-        script_path = SCRIPTS_DIR / product / "scripts" / "build.sh"
-        if script_path.exists():
-            scripts.append({
-                "product": product,
-                "path": str(script_path.relative_to(SCRIPTS_DIR.parent.parent.parent)),
-                "size": script_path.stat().st_size,
-            })
+    if SCRIPTS_DIR.exists():
+        for product_dir in sorted(SCRIPTS_DIR.iterdir()):
+            if not product_dir.is_dir():
+                continue
+            script_path = product_dir / "scripts" / "build.sh"
+            if script_path.exists():
+                scripts.append({
+                    "product": product_dir.name,
+                    "path": str(script_path.relative_to(SCRIPTS_DIR.parent.parent.parent)),
+                    "size": script_path.stat().st_size,
+                })
 
     return jsonify(ApiResponse.ok(scripts).to_dict()), 200
 
 
-@require_permissions(Permissions.ADMIN_CI_MANAGE)
+@require_permissions(Permissions.BUILDS_MANAGE)
 def upload_build_script(product: str):
     """POST /v2/ci/scripts/<product> — Upload a build script (not implemented)."""
-    return jsonify(ApiResponse.error("Script upload not implemented - scripts are managed in git").to_dict()), 501
+    return jsonify(ApiResponse.error(ErrorDetail(message="Script upload not implemented - scripts are managed in git")).to_dict()), 501
 
 
-@require_permissions(Permissions.ADMIN_CI_MANAGE)
+@require_permissions(Permissions.BUILDS_MANAGE)
 def delete_build_script(product: str):
     """DELETE /v2/ci/scripts/<product> — Delete a build script (not implemented)."""
-    return jsonify(ApiResponse.error("Script deletion not implemented - scripts are managed in git").to_dict()), 501
+    return jsonify(ApiResponse.error(ErrorDetail(message="Script deletion not implemented - scripts are managed in git")).to_dict()), 501

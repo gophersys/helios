@@ -73,7 +73,7 @@ def test_list_firmware_builds(authed_client, mock_db):
         ),
     ]
 
-    response = authed_client.get("/v2/catalog/prod-1/firmware-builds")
+    response = authed_client.get("/v2/products/prod-1/firmware")
     assert response.status_code == 200
 
     data = json.loads(response.data)
@@ -126,7 +126,7 @@ def test_update_firmware_build(authed_client, mock_db):
 
     with patch("api.v2.catalog.firmware_builds.log_audit"):
         response = authed_client.put(
-            "/v2/catalog/prod-1/firmware-builds/build-1",
+            "/v2/products/prod-1/firmware/build-1",
             data=json.dumps({
                 "status": "RELEASED",
                 "notes": "Updated notes",
@@ -144,7 +144,7 @@ def test_update_firmware_build_not_found(authed_client, mock_db):
     mock_db.firmwarebuild.find_first.return_value = None
 
     response = authed_client.put(
-        "/v2/catalog/prod-1/firmware-builds/nonexistent",
+        "/v2/products/prod-1/firmware/nonexistent",
         data=json.dumps({"status": "RELEASED"}),
     )
 
@@ -170,7 +170,7 @@ def test_delete_firmware_build(authed_client, mock_db):
     with patch("api.v2.catalog.firmware_builds.get_storage_client", return_value=mock_storage):
         with patch("api.v2.catalog.firmware_builds.get_bucket_name", return_value="test-bucket"):
             with patch("api.v2.catalog.firmware_builds.log_audit"):
-                response = authed_client.delete("/v2/catalog/prod-1/firmware-builds/build-delete")
+                response = authed_client.delete("/v2/products/prod-1/firmware/build-delete")
 
     assert response.status_code == 200
     data = json.loads(response.data)
@@ -231,7 +231,7 @@ def test_upload_firmware_build(authed_client, mock_db):
         with patch("api.v2.catalog.firmware_builds.get_bucket_name", return_value="test-bucket"):
             with patch("api.v2.catalog.firmware_builds.log_audit"):
                 response = authed_client._client.post(
-                    "/v2/catalog/prod-1/firmware-builds/upload",
+                    "/v2/products/prod-1/firmware/upload",
                     data={
                         "file": (BytesIO(b"fake firmware"), "app.hex"),
                         "chipsetId": "chip-1",
@@ -257,7 +257,7 @@ def test_upload_firmware_build_no_file(authed_client, mock_db):
     auth_headers_no_ct = {k: v for k, v in authed_client._headers.items() if k != "Content-Type"}
 
     response = authed_client._client.post(
-        "/v2/catalog/prod-1/firmware-builds/upload",
+        "/v2/products/prod-1/firmware/upload",
         data={"chipsetId": "chip-1", "version": "1.0.0"},
         headers=auth_headers_no_ct,
         content_type="multipart/form-data",
@@ -276,7 +276,7 @@ def test_upload_firmware_build_invalid_extension(authed_client, mock_db):
     auth_headers_no_ct = {k: v for k, v in authed_client._headers.items() if k != "Content-Type"}
 
     response = authed_client._client.post(
-        "/v2/catalog/prod-1/firmware-builds/upload",
+        "/v2/products/prod-1/firmware/upload",
         data={
             "file": (BytesIO(b"bad file"), "malware.exe"),
             "chipsetId": "chip-1",
@@ -299,7 +299,7 @@ def test_upload_firmware_build_missing_chipset(authed_client, mock_db):
     auth_headers_no_ct = {k: v for k, v in authed_client._headers.items() if k != "Content-Type"}
 
     response = authed_client._client.post(
-        "/v2/catalog/prod-1/firmware-builds/upload",
+        "/v2/products/prod-1/firmware/upload",
         data={
             "file": (BytesIO(b"fake firmware"), "app.hex"),
             "version": "1.0.0",
@@ -323,7 +323,7 @@ def test_upload_firmware_build_invalid_chipset(authed_client, mock_db):
     auth_headers_no_ct = {k: v for k, v in authed_client._headers.items() if k != "Content-Type"}
 
     response = authed_client._client.post(
-        "/v2/catalog/prod-1/firmware-builds/upload",
+        "/v2/products/prod-1/firmware/upload",
         data={
             "file": (BytesIO(b"fake firmware"), "app.hex"),
             "chipsetId": "bad",
@@ -348,7 +348,7 @@ def test_upload_firmware_build_missing_version(authed_client, mock_db):
     auth_headers_no_ct = {k: v for k, v in authed_client._headers.items() if k != "Content-Type"}
 
     response = authed_client._client.post(
-        "/v2/catalog/prod-1/firmware-builds/upload",
+        "/v2/products/prod-1/firmware/upload",
         data={
             "file": (BytesIO(b"fake firmware"), "app.hex"),
             "chipsetId": "chip-1",
@@ -376,7 +376,7 @@ def test_upload_firmware_build_duplicate_version(authed_client, mock_db):
     auth_headers_no_ct = {k: v for k, v in authed_client._headers.items() if k != "Content-Type"}
 
     response = authed_client._client.post(
-        "/v2/catalog/prod-1/firmware-builds/upload",
+        "/v2/products/prod-1/firmware/upload",
         data={
             "file": (BytesIO(b"fake firmware"), "app.hex"),
             "chipsetId": "chip-1",
@@ -404,7 +404,7 @@ def test_upload_firmware_build_modem_required(authed_client, mock_db):
     auth_headers_no_ct = {k: v for k, v in authed_client._headers.items() if k != "Content-Type"}
 
     response = authed_client._client.post(
-        "/v2/catalog/prod-1/firmware-builds/upload",
+        "/v2/products/prod-1/firmware/upload",
         data={
             "file": (BytesIO(b"fake firmware"), "app.hex"),
             "chipsetId": "chip-modem",
@@ -476,7 +476,7 @@ def test_upload_firmware_build_modem_success(authed_client, mock_db):
         with patch("api.v2.catalog.firmware_builds.get_bucket_name", return_value="test-bucket"):
             with patch("api.v2.catalog.firmware_builds.log_audit"):
                 response = authed_client._client.post(
-                    "/v2/catalog/prod-1/firmware-builds/upload",
+                    "/v2/products/prod-1/firmware/upload",
                     data={
                         "file": (BytesIO(b"fake firmware"), "app.hex"),
                         "modemFile": (BytesIO(b"modem data"), "modem.zip"),
@@ -508,7 +508,7 @@ def test_upload_firmware_build_modem_invalid_ext(authed_client, mock_db):
     auth_headers_no_ct = {k: v for k, v in authed_client._headers.items() if k != "Content-Type"}
 
     response = authed_client._client.post(
-        "/v2/catalog/prod-1/firmware-builds/upload",
+        "/v2/products/prod-1/firmware/upload",
         data={
             "file": (BytesIO(b"fake firmware"), "app.hex"),
             "modemFile": (BytesIO(b"modem data"), "modem.bin"),
@@ -531,7 +531,7 @@ def test_download_firmware_build(authed_client, mock_db):
     )
 
     with patch("api.v2.catalog.shared.presigned_get_url", return_value="https://storage.example.com/firmware/app.hex"):
-        response = authed_client.get("/v2/catalog/firmware-builds/build-1/download")
+        response = authed_client.get("/v2/products/firmware/build-1/download")
 
     assert response.status_code == 200
     data = json.loads(response.data)
@@ -543,7 +543,7 @@ def test_download_firmware_build_not_found(authed_client, mock_db):
     """Test downloading a non-existent firmware build returns 404."""
     mock_db.firmwarebuild.find_unique.return_value = None
 
-    response = authed_client.get("/v2/catalog/firmware-builds/nonexistent/download")
+    response = authed_client.get("/v2/products/firmware/nonexistent/download")
 
     assert response.status_code == 404
 
@@ -579,7 +579,7 @@ def test_list_firmware_builds_with_filters(authed_client, mock_db):
     ]
 
     response = authed_client.get(
-        "/v2/catalog/prod-1/firmware-builds?chipsetId=chip-1&status=RELEASED&isManufacturing=true"
+        "/v2/products/prod-1/firmware?chipsetId=chip-1&status=RELEASED&isManufacturing=true"
     )
 
     assert response.status_code == 200
@@ -609,7 +609,7 @@ def test_delete_firmware_build_with_modem(authed_client, mock_db):
     with patch("api.v2.catalog.firmware_builds.get_storage_client", return_value=mock_storage):
         with patch("api.v2.catalog.firmware_builds.get_bucket_name", return_value="test-bucket"):
             with patch("api.v2.catalog.firmware_builds.log_audit"):
-                response = authed_client.delete("/v2/catalog/prod-1/firmware-builds/build-modem-del")
+                response = authed_client.delete("/v2/products/prod-1/firmware/build-modem-del")
 
     assert response.status_code == 200
     data = json.loads(response.data)

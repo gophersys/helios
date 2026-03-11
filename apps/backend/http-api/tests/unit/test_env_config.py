@@ -77,66 +77,123 @@ class TestProxyConfigBooleanParsing:
 # ---------------------------------------------------------------------------
 
 class TestJwtSecretValidation:
-    """Ensure the default JWT secret is rejected in production."""
+    """Ensure the default JWT secret is rejected in production and staging."""
+
+    # Shared base env so each test only overrides what it cares about.
+    _BASE_ENV = {
+        "DELETE_ALL_KEY": "test",
+        "LOG_LEVEL": "10",
+        "LOG_PATH": "/tmp/test.log",
+        "SERVER_PORT": "9001",
+        "DB_STORAGE_PATH": "/tmp/test",
+        "DB_STORAGE_LIMIT_GB": "1",
+        "SUPPORTED_REGISTRIES": "[]",
+        "COREOPS_SERVER_URL": "http://localhost:50050",
+        "ASSETS_FOLDER": "/tmp/test-assets",
+        "STORAGE_URL": "http://localhost:9000",
+        "STORAGE_ACCESS_KEY": "test",
+        "STORAGE_SECRET_ACCESS_KEY": "test",
+        "STORAGE_BUCKET_NAME": "test",
+        "INFLUXDB_URL": "http://localhost:8086",
+        "INFLUXDB_TOKEN": "test",
+        "INFLUXDB_ORG": "test",
+        "INFLUXDB_BUCKET_TELEMETRY": "test",
+        "INFLUXDB_BUCKET_METRICS": "test",
+    }
+
+    def _make_env(self, **overrides):
+        env = dict(self._BASE_ENV)
+        env.update(overrides)
+        return env
+
+    # --- default secret rejected in deployed environments ---
 
     def test_rejects_default_secret_in_production(self):
         """ProxyConfig should raise RuntimeError if default JWT secret is used in production."""
-        env_override = {
-            "ENVIRONMENT": "production",
-            "JWT_SECRET_KEY": "concord-dev-jwt-secret-change-in-production",
-            "DELETE_ALL_KEY": "test",
-            "LOG_LEVEL": "10",
-            "LOG_PATH": "/tmp/test.log",
-            "SERVER_PORT": "9001",
-            "DB_STORAGE_PATH": "/tmp/test",
-            "DB_STORAGE_LIMIT_GB": "1",
-            "SUPPORTED_REGISTRIES": "[]",
-            "COREOPS_SERVER_URL": "http://localhost:50050",
-            "ASSETS_FOLDER": "/tmp/test-assets",
-            "STORAGE_URL": "http://localhost:9000",
-            "STORAGE_ACCESS_KEY": "test",
-            "STORAGE_SECRET_ACCESS_KEY": "test",
-            "STORAGE_BUCKET_NAME": "test",
-            "INFLUXDB_URL": "http://localhost:8086",
-            "INFLUXDB_TOKEN": "test",
-            "INFLUXDB_ORG": "test",
-            "INFLUXDB_BUCKET_TELEMETRY": "test",
-            "INFLUXDB_BUCKET_METRICS": "test",
-        }
-        with patch.dict(os.environ, env_override, clear=False):
+        env = self._make_env(
+            ENVIRONMENT="production",
+            JWT_SECRET_KEY="concord-dev-jwt-secret-change-in-production",
+        )
+        with patch.dict(os.environ, env, clear=False):
             from config.env import ProxyConfig
             with pytest.raises(RuntimeError, match="JWT_SECRET_KEY must be changed"):
                 ProxyConfig(namespace=None, auto_load_env=True)
 
-    def test_accepts_custom_secret_in_production(self):
-        """ProxyConfig should accept a custom JWT secret in production."""
-        env_override = {
-            "ENVIRONMENT": "production",
-            "JWT_SECRET_KEY": "my-strong-production-secret-2026",
-            "DELETE_ALL_KEY": "test",
-            "LOG_LEVEL": "10",
-            "LOG_PATH": "/tmp/test.log",
-            "SERVER_PORT": "9001",
-            "DB_STORAGE_PATH": "/tmp/test",
-            "DB_STORAGE_LIMIT_GB": "1",
-            "SUPPORTED_REGISTRIES": "[]",
-            "COREOPS_SERVER_URL": "http://localhost:50050",
-            "ASSETS_FOLDER": "/tmp/test-assets",
-            "STORAGE_URL": "http://localhost:9000",
-            "STORAGE_ACCESS_KEY": "test",
-            "STORAGE_SECRET_ACCESS_KEY": "test",
-            "STORAGE_BUCKET_NAME": "test",
-            "INFLUXDB_URL": "http://localhost:8086",
-            "INFLUXDB_TOKEN": "test",
-            "INFLUXDB_ORG": "test",
-            "INFLUXDB_BUCKET_TELEMETRY": "test",
-            "INFLUXDB_BUCKET_METRICS": "test",
-        }
-        with patch.dict(os.environ, env_override, clear=False):
+    def test_rejects_default_secret_in_staging(self):
+        """ProxyConfig should raise RuntimeError if default JWT secret is used in staging."""
+        env = self._make_env(
+            ENVIRONMENT="staging",
+            JWT_SECRET_KEY="concord-dev-jwt-secret-change-in-production",
+        )
+        with patch.dict(os.environ, env, clear=False):
             from config.env import ProxyConfig
-            # Should not raise
+            with pytest.raises(RuntimeError, match="JWT_SECRET_KEY must be changed"):
+                ProxyConfig(namespace=None, auto_load_env=True)
+
+    # --- minimum length enforced in deployed environments ---
+
+    def test_rejects_short_secret_in_production(self):
+        """HS256 needs >= 32 chars; a short secret should be rejected in production."""
+        env = self._make_env(
+            ENVIRONMENT="production",
+            JWT_SECRET_KEY="too-short",
+        )
+        with patch.dict(os.environ, env, clear=False):
+            from config.env import ProxyConfig
+            with pytest.raises(RuntimeError, match="JWT_SECRET_KEY is too short"):
+                ProxyConfig(namespace=None, auto_load_env=True)
+
+    def test_rejects_short_secret_in_staging(self):
+        """HS256 needs >= 32 chars; a short secret should be rejected in staging."""
+        env = self._make_env(
+            ENVIRONMENT="staging",
+            JWT_SECRET_KEY="too-short",
+        )
+        with patch.dict(os.environ, env, clear=False):
+            from config.env import ProxyConfig
+            with pytest.raises(RuntimeError, match="JWT_SECRET_KEY is too short"):
+                ProxyConfig(namespace=None, auto_load_env=True)
+
+    # --- valid secrets accepted ---
+
+    def test_accepts_custom_secret_in_production(self):
+        """ProxyConfig should accept a strong custom JWT secret in production."""
+        secret = "my-strong-production-secret-2026!"  # 33 chars
+        env = self._make_env(ENVIRONMENT="production", JWT_SECRET_KEY=secret)
+        with patch.dict(os.environ, env, clear=False):
+            from config.env import ProxyConfig
             config = ProxyConfig(namespace=None, auto_load_env=True)
-            assert config.JWT_SECRET_KEY == "my-strong-production-secret-2026"
+            assert config.JWT_SECRET_KEY == secret
+
+    def test_accepts_custom_secret_in_staging(self):
+        """ProxyConfig should accept a strong custom JWT secret in staging."""
+        secret = "my-strong-staging-secret-20260311"  # 32 chars
+        env = self._make_env(ENVIRONMENT="staging", JWT_SECRET_KEY=secret)
+        with patch.dict(os.environ, env, clear=False):
+            from config.env import ProxyConfig
+            config = ProxyConfig(namespace=None, auto_load_env=True)
+            assert config.JWT_SECRET_KEY == secret
+
+    # --- development / test are lenient ---
+
+    def test_allows_default_secret_in_development(self):
+        """Development should accept the default JWT secret for local convenience."""
+        env = self._make_env(
+            ENVIRONMENT="development",
+            JWT_SECRET_KEY="concord-dev-jwt-secret-change-in-production",
+        )
+        with patch.dict(os.environ, env, clear=False):
+            from config.env import ProxyConfig
+            config = ProxyConfig(namespace=None, auto_load_env=True)
+            assert config.JWT_SECRET_KEY == "concord-dev-jwt-secret-change-in-production"
+
+    def test_allows_short_secret_in_development(self):
+        """Development should accept short secrets for convenience."""
+        env = self._make_env(ENVIRONMENT="development", JWT_SECRET_KEY="dev")
+        with patch.dict(os.environ, env, clear=False):
+            from config.env import ProxyConfig
+            config = ProxyConfig(namespace=None, auto_load_env=True)
+            assert config.JWT_SECRET_KEY == "dev"
 
 
 # ---------------------------------------------------------------------------

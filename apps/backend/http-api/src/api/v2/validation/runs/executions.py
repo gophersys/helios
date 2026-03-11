@@ -14,7 +14,7 @@ from .runs import _serialize_execution, _serialize_result
 logger = logging.getLogger(__name__)
 
 
-@require_permissions(Permissions.ADMIN_VALIDATION_VIEW)
+@require_permissions(Permissions.VALIDATION_VIEW)
 def list_executions(run_id: str):
     """GET /v2/validation/runs/<id>/executions — All test executions for a run."""
     db = get_db_client()
@@ -58,7 +58,7 @@ def list_executions(run_id: str):
     }).to_dict()), 200
 
 
-@require_permissions(Permissions.ADMIN_VALIDATION_VIEW)
+@require_permissions(Permissions.VALIDATION_VIEW)
 def list_execution_results(run_id: str, execution_id: str):
     """GET /v2/validation/runs/<id>/executions/<eid>/results — Results for one execution."""
     db = get_db_client()

@@ -8,13 +8,19 @@ from .serializers import serialize_service
 logger = logging.getLogger(__name__)
 
 
-def list_services(namespace: str | None = None) -> list[dict]:
+def list_services(
+    namespace: str | None = None,
+    label_selector: str | None = None,
+) -> list[dict]:
     core = get_core_v1_api()
+    kwargs = {}
+    if label_selector:
+        kwargs["label_selector"] = label_selector
 
     if namespace:
-        svc_list = core.list_namespaced_service(namespace)
+        svc_list = core.list_namespaced_service(namespace, **kwargs)
     else:
-        svc_list = core.list_service_for_all_namespaces()
+        svc_list = core.list_service_for_all_namespaces(**kwargs)
 
     return [serialize_service(s) for s in svc_list.items]
 

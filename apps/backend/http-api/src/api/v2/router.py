@@ -7,7 +7,7 @@ from flask_socketio import SocketIO
 
 # Auth handlers
 from .auth.api_keys import create_api_key, delete_api_key, list_api_keys
-from .auth.login import login, login_corecloud
+from .auth.login import login
 from .auth.me import me
 from .auth.permission_sets import (
     create_permission_set,
@@ -26,31 +26,6 @@ from .mtib.get import get_mtib
 from .mtib.list import list_mtibs
 from .mtib.register import register_mtib
 from .mtib.unregister import unregister_mtib
-
-# Inventory handlers
-from .inventory.components import (
-    create_component,
-    create_revision,
-    delete_component,
-    delete_revision,
-    get_component,
-    list_components,
-    update_component,
-    update_revision,
-    upload_component_image,
-)
-from .inventory.assemblies import (
-    create_assembly,
-    create_assembly_revision,
-    delete_assembly,
-    delete_assembly_revision,
-    get_assembly,
-    list_assemblies,
-    update_assembly,
-    update_assembly_revision,
-    upload_assembly_image,
-)
-from .inventory.image import get_inventory_image
 
 # Codebases handlers
 from .codebases.codebases import (
@@ -119,7 +94,7 @@ from .system.info import get_system_info
 from .system.cluster import get_cluster, get_namespaces
 from .system.nodes import list_nodes as list_system_nodes, get_node as get_system_node
 from .system.events import get_events
-from .system.pods import list_pods, get_pod, delete_pod
+from .system.pods import list_pods, get_pod, get_pod_logs, delete_pod
 from .system.deployments import (
     list_deployments as list_system_deployments,
     get_deployment as get_system_deployment,
@@ -264,6 +239,17 @@ from .validation.designs.designs import (
     get_design_profile,
 )
 
+# Validation — Test Catalog (source of truth for test definitions)
+from .validation.catalog import (
+    list_catalogs,
+    get_catalog,
+    get_catalog_stages,
+    get_catalog_tests,
+    get_catalog_test,
+    sync_catalog,
+    get_catalog_sync_status,
+)
+
 # CI / Build handlers
 from .ci.webhook import webhook_bitbucket, trigger_pipeline, set_ci_socketio, list_ci_repos
 from .ci.builds import (
@@ -276,6 +262,7 @@ from .ci.builds import (
     create_build as create_ci_build,
     update_build as update_ci_build,
     upload_build_artifact as upload_ci_build_artifact,
+    reset_build as reset_ci_build,
 )
 from .ci.pipelines import (
     list_pipelines as list_ci_pipelines,
@@ -330,114 +317,88 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     # Add a log filter to avoid spamming the logs with commonly hit routes
     logger.add_filter(LogFilter())
 
-    # Auth
+    # Auth (login + me only — stays under /auth)
     v2.add_url_rule("/auth/login",           view_func=login,          methods=["POST"])
-    v2.add_url_rule("/auth/login/corecloud", view_func=login_corecloud, methods=["POST"])
     v2.add_url_rule("/auth/me",              view_func=me,             methods=["GET"])
-    v2.add_url_rule("/auth/users",           view_func=users_list,     methods=["GET"])
-    v2.add_url_rule("/auth/users",           view_func=users_create,   methods=["POST"])
-    v2.add_url_rule("/auth/users/<user_id>", view_func=users_update,   methods=["PUT"])
-    v2.add_url_rule("/auth/users/<user_id>", view_func=users_delete,   methods=["DELETE"])
 
-    # Permission Sets
-    v2.add_url_rule("/auth/permission-sets",          view_func=list_permission_sets,   methods=["GET"])
-    v2.add_url_rule("/auth/permission-sets",          view_func=create_permission_set,  methods=["POST"])
-    v2.add_url_rule("/auth/permission-sets/<set_id>", view_func=update_permission_set,  methods=["PUT"])
-    v2.add_url_rule("/auth/permission-sets/<set_id>", view_func=delete_permission_set,  methods=["DELETE"])
+    # Users (was /auth/users)
+    v2.add_url_rule("/users",           view_func=users_list,     methods=["GET"])
+    v2.add_url_rule("/users",           view_func=users_create,   methods=["POST"])
+    v2.add_url_rule("/users/<user_id>", view_func=users_update,   methods=["PUT"])
+    v2.add_url_rule("/users/<user_id>", view_func=users_delete,   methods=["DELETE"])
 
-    # API Keys
-    v2.add_url_rule("/auth/api-keys",          view_func=list_api_keys,   methods=["GET"])
-    v2.add_url_rule("/auth/api-keys",          view_func=create_api_key,  methods=["POST"])
-    v2.add_url_rule("/auth/api-keys/<key_id>", view_func=delete_api_key,  methods=["DELETE"])
+    # Permissions (was /auth/permission-sets + /auth/permissions)
+    v2.add_url_rule("/permissions",          view_func=list_permission_sets,   methods=["GET"])
+    v2.add_url_rule("/permissions",          view_func=create_permission_set,  methods=["POST"])
+    v2.add_url_rule("/permissions/<set_id>", view_func=update_permission_set,  methods=["PUT"])
+    v2.add_url_rule("/permissions/<set_id>", view_func=delete_permission_set,  methods=["DELETE"])
+    v2.add_url_rule("/permissions/available", view_func=list_permissions,      methods=["GET"])
 
-    # Available Permissions
-    v2.add_url_rule("/auth/permissions",        view_func=list_permissions, methods=["GET"])
+    # API Keys (was /auth/api-keys)
+    v2.add_url_rule("/api-keys",          view_func=list_api_keys,   methods=["GET"])
+    v2.add_url_rule("/api-keys",          view_func=create_api_key,  methods=["POST"])
+    v2.add_url_rule("/api-keys/<key_id>", view_func=delete_api_key,  methods=["DELETE"])
 
-    # MTIB
-    v2.add_url_rule("/mtib/list",            view_func=list_mtibs,      methods=["GET"])
-    v2.add_url_rule("/mtib/get",             view_func=get_mtib,        methods=["GET"])
-    v2.add_url_rule("/mtib/register",        view_func=register_mtib,   methods=["POST"])
-    v2.add_url_rule("/mtib/unregister",      view_func=unregister_mtib, methods=["POST"])
+    # MTIB (legacy — moved under /devices/mtib)
+    v2.add_url_rule("/devices/mtib/list",            view_func=list_mtibs,      methods=["GET"])
+    v2.add_url_rule("/devices/mtib/get",             view_func=get_mtib,        methods=["GET"])
+    v2.add_url_rule("/devices/mtib/register",        view_func=register_mtib,   methods=["POST"])
+    v2.add_url_rule("/devices/mtib/unregister",      view_func=unregister_mtib, methods=["POST"])
 
-    # Inventory - Components
-    v2.add_url_rule("/inventory/components",                                          view_func=list_components,        methods=["GET"])
-    v2.add_url_rule("/inventory/components",                                          view_func=create_component,       methods=["POST"])
-    v2.add_url_rule("/inventory/components/<component_id>",                           view_func=get_component,          methods=["GET"])
-    v2.add_url_rule("/inventory/components/<component_id>",                           view_func=update_component,       methods=["PUT"])
-    v2.add_url_rule("/inventory/components/<component_id>",                           view_func=delete_component,       methods=["DELETE"])
-    v2.add_url_rule("/inventory/components/<component_id>/image",                     view_func=upload_component_image, methods=["POST"])
-    v2.add_url_rule("/inventory/components/<component_id>/revisions",                 view_func=create_revision,        methods=["POST"])
-    v2.add_url_rule("/inventory/components/<component_id>/revisions/<revision_id>",   view_func=update_revision,        methods=["PUT"])
-    v2.add_url_rule("/inventory/components/<component_id>/revisions/<revision_id>",   view_func=delete_revision,        methods=["DELETE"])
+    # Codebases (moved under /builds/codebases)
+    v2.add_url_rule("/builds/codebases",                                                                     view_func=list_codebases,        methods=["GET"])
+    v2.add_url_rule("/builds/codebases",                                                                     view_func=create_codebase,       methods=["POST"])
+    v2.add_url_rule("/builds/codebases/<codebase_id>",                                                       view_func=get_codebase,          methods=["GET"])
+    v2.add_url_rule("/builds/codebases/<codebase_id>",                                                       view_func=update_codebase,       methods=["PUT"])
+    v2.add_url_rule("/builds/codebases/<codebase_id>",                                                       view_func=delete_codebase,       methods=["DELETE"])
+    v2.add_url_rule("/builds/codebases/<codebase_id>/image",                                                 view_func=upload_codebase_image, methods=["POST"])
+    v2.add_url_rule("/builds/codebases/<codebase_id>/releases",                                              view_func=create_release,        methods=["POST"])
+    v2.add_url_rule("/builds/codebases/<codebase_id>/releases/<release_id>",                                 view_func=update_release,        methods=["PUT"])
+    v2.add_url_rule("/builds/codebases/<codebase_id>/releases/<release_id>",                                 view_func=delete_release,        methods=["DELETE"])
+    v2.add_url_rule("/builds/codebases/<codebase_id>/releases/<release_id>/artifacts",                       view_func=list_artifacts,        methods=["GET"])
+    v2.add_url_rule("/builds/codebases/<codebase_id>/releases/<release_id>/artifacts",                       view_func=create_artifact,       methods=["POST"])
+    v2.add_url_rule("/builds/codebases/<codebase_id>/releases/<release_id>/artifacts/upload",                view_func=upload_artifact,       methods=["POST"])
+    v2.add_url_rule("/builds/codebases/<codebase_id>/releases/<release_id>/artifacts/<artifact_id>",         view_func=delete_artifact,       methods=["DELETE"])
+    v2.add_url_rule("/builds/codebases/artifacts/<artifact_id>/download",                                    view_func=download_artifact,     methods=["GET"])
 
-    # Inventory - Assemblies
-    v2.add_url_rule("/inventory/assemblies",                                          view_func=list_assemblies,            methods=["GET"])
-    v2.add_url_rule("/inventory/assemblies",                                          view_func=create_assembly,            methods=["POST"])
-    v2.add_url_rule("/inventory/assemblies/<assembly_id>",                            view_func=get_assembly,               methods=["GET"])
-    v2.add_url_rule("/inventory/assemblies/<assembly_id>",                            view_func=update_assembly,            methods=["PUT"])
-    v2.add_url_rule("/inventory/assemblies/<assembly_id>",                            view_func=delete_assembly,            methods=["DELETE"])
-    v2.add_url_rule("/inventory/assemblies/<assembly_id>/image",                      view_func=upload_assembly_image,      methods=["POST"])
-    v2.add_url_rule("/inventory/assemblies/<assembly_id>/revisions",                  view_func=create_assembly_revision,   methods=["POST"])
-    v2.add_url_rule("/inventory/assemblies/<assembly_id>/revisions/<revision_id>",    view_func=update_assembly_revision,   methods=["PUT"])
-    v2.add_url_rule("/inventory/assemblies/<assembly_id>/revisions/<revision_id>",    view_func=delete_assembly_revision,   methods=["DELETE"])
+    # Products - Chipsets (was /catalog/chipsets)
+    v2.add_url_rule("/products/chipsets",                                                          view_func=list_chipsets,           methods=["GET"])
+    v2.add_url_rule("/products/chipsets",                                                          view_func=create_chipset,          methods=["POST"])
+    v2.add_url_rule("/products/chipsets/<chipset_id>",                                             view_func=get_chipset,             methods=["GET"])
+    v2.add_url_rule("/products/chipsets/<chipset_id>",                                             view_func=update_chipset,          methods=["PUT"])
+    v2.add_url_rule("/products/chipsets/<chipset_id>",                                             view_func=delete_chipset,          methods=["DELETE"])
 
-    # Inventory - Image serving
-    v2.add_url_rule("/inventory/image/<path:key>",                                    view_func=get_inventory_image,         methods=["GET"])
+    # Products (was /catalog)
+    v2.add_url_rule("/products",                                                                   view_func=list_products,          methods=["GET"])
+    v2.add_url_rule("/products",                                                                   view_func=create_product,         methods=["POST"])
+    v2.add_url_rule("/products/by-slug/<slug>",                                                    view_func=get_product_by_slug,    methods=["GET"])
+    v2.add_url_rule("/products/by-repo/<repo_slug>",                                               view_func=get_product_by_repo,    methods=["GET"])
+    v2.add_url_rule("/products/<product_id>",                                                      view_func=get_product,            methods=["GET"])
+    v2.add_url_rule("/products/<product_id>",                                                      view_func=update_product,         methods=["PUT"])
+    v2.add_url_rule("/products/<product_id>",                                                      view_func=delete_product,         methods=["DELETE"])
 
-    # Codebases
-    v2.add_url_rule("/codebases",                                                                     view_func=list_codebases,        methods=["GET"])
-    v2.add_url_rule("/codebases",                                                                     view_func=create_codebase,       methods=["POST"])
-    v2.add_url_rule("/codebases/<codebase_id>",                                                       view_func=get_codebase,          methods=["GET"])
-    v2.add_url_rule("/codebases/<codebase_id>",                                                       view_func=update_codebase,       methods=["PUT"])
-    v2.add_url_rule("/codebases/<codebase_id>",                                                       view_func=delete_codebase,       methods=["DELETE"])
-    v2.add_url_rule("/codebases/<codebase_id>/image",                                                 view_func=upload_codebase_image, methods=["POST"])
-    v2.add_url_rule("/codebases/<codebase_id>/releases",                                              view_func=create_release,        methods=["POST"])
-    v2.add_url_rule("/codebases/<codebase_id>/releases/<release_id>",                                 view_func=update_release,        methods=["PUT"])
-    v2.add_url_rule("/codebases/<codebase_id>/releases/<release_id>",                                 view_func=delete_release,        methods=["DELETE"])
-    v2.add_url_rule("/codebases/<codebase_id>/releases/<release_id>/artifacts",                       view_func=list_artifacts,        methods=["GET"])
-    v2.add_url_rule("/codebases/<codebase_id>/releases/<release_id>/artifacts",                       view_func=create_artifact,       methods=["POST"])
-    v2.add_url_rule("/codebases/<codebase_id>/releases/<release_id>/artifacts/upload",                view_func=upload_artifact,       methods=["POST"])
-    v2.add_url_rule("/codebases/<codebase_id>/releases/<release_id>/artifacts/<artifact_id>",         view_func=delete_artifact,       methods=["DELETE"])
-    v2.add_url_rule("/codebases/artifacts/<artifact_id>/download",                                    view_func=download_artifact,     methods=["GET"])
+    # Products - Boards (was /catalog/<id>/boards)
+    v2.add_url_rule("/products/<product_id>/boards",                                               view_func=list_boards,            methods=["GET"])
+    v2.add_url_rule("/products/<product_id>/boards",                                               view_func=create_board,           methods=["POST"])
+    v2.add_url_rule("/products/<product_id>/boards/<board_id>",                                    view_func=get_board,              methods=["GET"])
+    v2.add_url_rule("/products/<product_id>/boards/<board_id>",                                    view_func=update_board,           methods=["PUT"])
+    v2.add_url_rule("/products/<product_id>/boards/<board_id>",                                    view_func=delete_board,           methods=["DELETE"])
 
-    # Catalog - Chipsets
-    v2.add_url_rule("/catalog/chipsets",                                                          view_func=list_chipsets,           methods=["GET"])
-    v2.add_url_rule("/catalog/chipsets",                                                          view_func=create_chipset,          methods=["POST"])
-    v2.add_url_rule("/catalog/chipsets/<chipset_id>",                                             view_func=get_chipset,             methods=["GET"])
-    v2.add_url_rule("/catalog/chipsets/<chipset_id>",                                             view_func=update_chipset,          methods=["PUT"])
-    v2.add_url_rule("/catalog/chipsets/<chipset_id>",                                             view_func=delete_chipset,          methods=["DELETE"])
+    # Products - Board Revisions (was /catalog/<id>/boards/<id>/revisions)
+    v2.add_url_rule("/products/<product_id>/boards/<board_id>/revisions",                          view_func=create_board_revision,  methods=["POST"])
+    v2.add_url_rule("/products/<product_id>/boards/<board_id>/revisions/<revision_id>",            view_func=update_board_revision,  methods=["PUT"])
+    v2.add_url_rule("/products/<product_id>/boards/<board_id>/revisions/<revision_id>",            view_func=delete_board_revision,  methods=["DELETE"])
 
-    # Catalog - Products
-    v2.add_url_rule("/catalog",                                                                   view_func=list_products,          methods=["GET"])
-    v2.add_url_rule("/catalog",                                                                   view_func=create_product,         methods=["POST"])
-    v2.add_url_rule("/catalog/by-slug/<slug>",                                                    view_func=get_product_by_slug,    methods=["GET"])
-    v2.add_url_rule("/catalog/by-repo/<repo_slug>",                                               view_func=get_product_by_repo,    methods=["GET"])
-    v2.add_url_rule("/catalog/<product_id>",                                                      view_func=get_product,            methods=["GET"])
-    v2.add_url_rule("/catalog/<product_id>",                                                      view_func=update_product,         methods=["PUT"])
-    v2.add_url_rule("/catalog/<product_id>",                                                      view_func=delete_product,         methods=["DELETE"])
+    # Products - Firmware (was /catalog/<id>/firmware-builds)
+    v2.add_url_rule("/products/<product_id>/firmware",                                             view_func=list_firmware_builds,   methods=["GET"])
+    v2.add_url_rule("/products/<product_id>/firmware/upload",                                      view_func=upload_firmware_build,  methods=["POST"])
+    v2.add_url_rule("/products/<product_id>/firmware/<build_id>",                                  view_func=update_firmware_build,  methods=["PUT"])
+    v2.add_url_rule("/products/<product_id>/firmware/<build_id>",                                  view_func=delete_firmware_build,  methods=["DELETE"])
+    v2.add_url_rule("/products/firmware/<build_id>/download",                                      view_func=download_firmware_build, methods=["GET"])
 
-    # Catalog - Boards
-    v2.add_url_rule("/catalog/<product_id>/boards",                                               view_func=list_boards,            methods=["GET"])
-    v2.add_url_rule("/catalog/<product_id>/boards",                                               view_func=create_board,           methods=["POST"])
-    v2.add_url_rule("/catalog/<product_id>/boards/<board_id>",                                    view_func=get_board,              methods=["GET"])
-    v2.add_url_rule("/catalog/<product_id>/boards/<board_id>",                                    view_func=update_board,           methods=["PUT"])
-    v2.add_url_rule("/catalog/<product_id>/boards/<board_id>",                                    view_func=delete_board,           methods=["DELETE"])
-
-    # Catalog - Board Revisions (nested under boards)
-    v2.add_url_rule("/catalog/<product_id>/boards/<board_id>/revisions",                          view_func=create_board_revision,  methods=["POST"])
-    v2.add_url_rule("/catalog/<product_id>/boards/<board_id>/revisions/<revision_id>",            view_func=update_board_revision,  methods=["PUT"])
-    v2.add_url_rule("/catalog/<product_id>/boards/<board_id>/revisions/<revision_id>",            view_func=delete_board_revision,  methods=["DELETE"])
-
-    # Catalog - Firmware Builds
-    v2.add_url_rule("/catalog/<product_id>/firmware-builds",                                      view_func=list_firmware_builds,   methods=["GET"])
-    v2.add_url_rule("/catalog/<product_id>/firmware-builds/upload",                               view_func=upload_firmware_build,  methods=["POST"])
-    v2.add_url_rule("/catalog/<product_id>/firmware-builds/<build_id>",                           view_func=update_firmware_build,  methods=["PUT"])
-    v2.add_url_rule("/catalog/<product_id>/firmware-builds/<build_id>",                           view_func=delete_firmware_build,  methods=["DELETE"])
-    v2.add_url_rule("/catalog/firmware-builds/<build_id>/download",                               view_func=download_firmware_build, methods=["GET"])
-
-    # Admin - History
-    v2.add_url_rule("/admin/history",              view_func=list_history,      methods=["GET"])
-    v2.add_url_rule("/admin/history/<entry_id>",   view_func=get_history_entry, methods=["GET"])
+    # System - History (was /admin/history)
+    v2.add_url_rule("/system/history",              view_func=list_history,      methods=["GET"])
+    v2.add_url_rule("/system/history/<entry_id>",   view_func=get_history_entry, methods=["GET"])
 
     # Validation — legacy manufacturing test run
     v2.add_url_rule("/validation/tests/run", view_func=run_tests,       methods=["POST"])
@@ -470,57 +431,66 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     # Validation — Demo (simulate a run via WebSocket events)
     v2.add_url_rule("/validation/runs/<run_id>/demo/simulate",                                            endpoint="simulate_validation_run",      view_func=simulate_run,             methods=["POST"])
 
-    # Validation — Test Benches (for CI scheduling)
-    v2.add_url_rule("/validation/benches",                                                                endpoint="list_benches",                 view_func=list_benches,             methods=["GET"])
-    v2.add_url_rule("/validation/benches",                                                                endpoint="create_bench",                 view_func=create_bench,             methods=["POST"])
-    v2.add_url_rule("/validation/benches/discover",                                                       endpoint="discover_mtibs",               view_func=discover_mtibs,           methods=["GET"])
-    v2.add_url_rule("/validation/benches/<bench_id>",                                                     endpoint="get_bench",                    view_func=get_bench,                methods=["GET"])
-    v2.add_url_rule("/validation/benches/<bench_id>",                                                     endpoint="update_bench",                 view_func=update_bench,             methods=["PATCH"])
-    v2.add_url_rule("/validation/benches/<bench_id>",                                                     endpoint="delete_bench",                 view_func=delete_bench,             methods=["DELETE"])
-    v2.add_url_rule("/validation/benches/<bench_id>/lock",                                                endpoint="lock_bench",                   view_func=lock_bench,               methods=["POST"])
-    v2.add_url_rule("/validation/benches/<bench_id>/unlock",                                              endpoint="unlock_bench",                 view_func=unlock_bench,             methods=["POST"])
-    v2.add_url_rule("/validation/benches/<bench_id>/profile",                                             endpoint="get_bench_profile",            view_func=get_bench_profile,        methods=["GET"])
+    # Benches (was /validation/benches)
+    v2.add_url_rule("/benches",                                                                endpoint="list_benches",                 view_func=list_benches,             methods=["GET"])
+    v2.add_url_rule("/benches",                                                                endpoint="create_bench",                 view_func=create_bench,             methods=["POST"])
+    v2.add_url_rule("/benches/discover",                                                       endpoint="discover_mtibs",               view_func=discover_mtibs,           methods=["GET"])
+    v2.add_url_rule("/benches/<bench_id>",                                                     endpoint="get_bench",                    view_func=get_bench,                methods=["GET"])
+    v2.add_url_rule("/benches/<bench_id>",                                                     endpoint="update_bench",                 view_func=update_bench,             methods=["PATCH"])
+    v2.add_url_rule("/benches/<bench_id>",                                                     endpoint="delete_bench",                 view_func=delete_bench,             methods=["DELETE"])
+    v2.add_url_rule("/benches/<bench_id>/lock",                                                endpoint="lock_bench",                   view_func=lock_bench,               methods=["POST"])
+    v2.add_url_rule("/benches/<bench_id>/unlock",                                              endpoint="unlock_bench",                 view_func=unlock_bench,             methods=["POST"])
+    v2.add_url_rule("/benches/<bench_id>/profile",                                             endpoint="get_bench_profile",            view_func=get_bench_profile,        methods=["GET"])
 
-    # Validation — Fixture Designs (versioned hardware specs)
-    v2.add_url_rule("/validation/designs",                                                                endpoint="list_designs",                 view_func=list_designs,             methods=["GET"])
-    v2.add_url_rule("/validation/designs",                                                                endpoint="create_design",                view_func=create_design,            methods=["POST"])
-    v2.add_url_rule("/validation/designs/<design_id>",                                                    endpoint="get_design",                   view_func=get_design,               methods=["GET"])
-    v2.add_url_rule("/validation/designs/<design_id>",                                                    endpoint="update_design",                view_func=update_design,            methods=["PATCH"])
-    v2.add_url_rule("/validation/designs/<design_id>",                                                    endpoint="delete_design",                view_func=delete_design,            methods=["DELETE"])
-    v2.add_url_rule("/validation/designs/<design_id>/profile",                                            endpoint="get_design_profile",           view_func=get_design_profile,       methods=["GET"])
+    # Benches — Fixture Designs (was /validation/designs)
+    v2.add_url_rule("/benches/designs",                                                                endpoint="list_designs",                 view_func=list_designs,             methods=["GET"])
+    v2.add_url_rule("/benches/designs",                                                                endpoint="create_design",                view_func=create_design,            methods=["POST"])
+    v2.add_url_rule("/benches/designs/<design_id>",                                                    endpoint="get_design",                   view_func=get_design,               methods=["GET"])
+    v2.add_url_rule("/benches/designs/<design_id>",                                                    endpoint="update_design",                view_func=update_design,            methods=["PATCH"])
+    v2.add_url_rule("/benches/designs/<design_id>",                                                    endpoint="delete_design",                view_func=delete_design,            methods=["DELETE"])
+    v2.add_url_rule("/benches/designs/<design_id>/profile",                                            endpoint="get_design_profile",           view_func=get_design_profile,       methods=["GET"])
+
+    # Validation — Test Catalog (source of truth for test definitions)
+    v2.add_url_rule("/validation/catalog",                                                                endpoint="list_catalogs",                view_func=list_catalogs,            methods=["GET"])
+    v2.add_url_rule("/validation/catalog/<product>",                                                      endpoint="get_catalog",                  view_func=get_catalog,              methods=["GET"])
+    v2.add_url_rule("/validation/catalog/<product>/stages",                                               endpoint="get_catalog_stages",           view_func=get_catalog_stages,       methods=["GET"])
+    v2.add_url_rule("/validation/catalog/<product>/tests",                                                endpoint="get_catalog_tests",            view_func=get_catalog_tests,        methods=["GET"])
+    v2.add_url_rule("/validation/catalog/<product>/tests/<test_id>",                                      endpoint="get_catalog_test",             view_func=get_catalog_test,         methods=["GET"])
+    v2.add_url_rule("/validation/catalog/<product>/sync",                                                 endpoint="sync_catalog",                 view_func=sync_catalog,             methods=["POST"])
+    v2.add_url_rule("/validation/catalog/<product>/sync",                                                 endpoint="get_catalog_sync_status",      view_func=get_catalog_sync_status,  methods=["GET"])
 
     # Dashboard
     v2.add_url_rule("/dashboard/overview",                           endpoint="dashboard_overview",          view_func=dashboard_overview,         methods=["GET"])
 
-    # Deployments (managed MTIB deployments)
-    v2.add_url_rule("/deployments",                                 endpoint="list_managed_deployments",    view_func=list_managed_deployments,   methods=["GET"])
-    v2.add_url_rule("/deployments",                                 endpoint="create_managed_deployment",   view_func=create_deployment,          methods=["POST"])
-    v2.add_url_rule("/deployments/<deployment_id>",                 endpoint="get_managed_deployment",      view_func=get_deployment,             methods=["GET"])
-    v2.add_url_rule("/deployments/<deployment_id>",                 endpoint="delete_managed_deployment",   view_func=delete_deployment,          methods=["DELETE"])
-    v2.add_url_rule("/deployments/<deployment_id>/deploy",          endpoint="deploy_managed_fixture",      view_func=deploy_fixture,             methods=["POST"])
-    v2.add_url_rule("/deployments/<deployment_id>/stop",            endpoint="stop_managed_deployment",     view_func=stop_deployment,            methods=["POST"])
-    v2.add_url_rule("/deployments/<deployment_id>/restart",         endpoint="restart_managed_deployment",  view_func=restart_managed_deployment, methods=["POST"])
-    v2.add_url_rule("/deployments/<deployment_id>/status",          endpoint="get_managed_deployment_status", view_func=get_deployment_status,    methods=["GET"])
+    # Cluster — Managed Deployments (was /deployments)
+    v2.add_url_rule("/cluster/managed-deployments",                                 endpoint="list_managed_deployments",    view_func=list_managed_deployments,   methods=["GET"])
+    v2.add_url_rule("/cluster/managed-deployments",                                 endpoint="create_managed_deployment",   view_func=create_deployment,          methods=["POST"])
+    v2.add_url_rule("/cluster/managed-deployments/<deployment_id>",                 endpoint="get_managed_deployment",      view_func=get_deployment,             methods=["GET"])
+    v2.add_url_rule("/cluster/managed-deployments/<deployment_id>",                 endpoint="delete_managed_deployment",   view_func=delete_deployment,          methods=["DELETE"])
+    v2.add_url_rule("/cluster/managed-deployments/<deployment_id>/deploy",          endpoint="deploy_managed_fixture",      view_func=deploy_fixture,             methods=["POST"])
+    v2.add_url_rule("/cluster/managed-deployments/<deployment_id>/stop",            endpoint="stop_managed_deployment",     view_func=stop_deployment,            methods=["POST"])
+    v2.add_url_rule("/cluster/managed-deployments/<deployment_id>/restart",         endpoint="restart_managed_deployment",  view_func=restart_managed_deployment, methods=["POST"])
+    v2.add_url_rule("/cluster/managed-deployments/<deployment_id>/status",          endpoint="get_managed_deployment_status", view_func=get_deployment_status,    methods=["GET"])
 
-    # MTIBs (managed MTIB test bench nodes)
-    v2.add_url_rule("/mtibs",                                            endpoint="list_managed_mtibs",      view_func=list_managed_nodes,   methods=["GET"])
-    v2.add_url_rule("/mtibs",                                            endpoint="create_managed_mtib",     view_func=create_node,          methods=["POST"])
-    v2.add_url_rule("/mtibs/discover",                                   endpoint="discover_managed_mtibs",  view_func=sync_nodes_from_k8s,  methods=["POST"])
-    v2.add_url_rule("/mtibs/<node_id>",                                  endpoint="get_managed_mtib",        view_func=get_managed_node,     methods=["GET"])
-    v2.add_url_rule("/mtibs/<node_id>",                                  endpoint="update_managed_mtib",     view_func=update_node,          methods=["PUT"])
-    v2.add_url_rule("/mtibs/<node_id>",                                  endpoint="delete_managed_mtib",     view_func=delete_node,          methods=["DELETE"])
-    v2.add_url_rule("/mtibs/<node_id>/health",                           endpoint="check_managed_mtib_health", view_func=check_node_health,  methods=["POST"])
-    v2.add_url_rule("/mtibs/<node_id>/register",                         endpoint="register_managed_mtib",   view_func=register_node,        methods=["POST"])
-    v2.add_url_rule("/mtibs/<node_id>/deploy",                           endpoint="deploy_managed_mtib",     view_func=deploy_node,          methods=["POST"])
-    v2.add_url_rule("/mtibs/<node_id>/undeploy",                         endpoint="undeploy_managed_mtib",   view_func=undeploy_node,        methods=["POST"])
+    # Devices — MTIBs (was /mtibs)
+    v2.add_url_rule("/devices/mtibs",                                            endpoint="list_managed_mtibs",      view_func=list_managed_nodes,   methods=["GET"])
+    v2.add_url_rule("/devices/mtibs",                                            endpoint="create_managed_mtib",     view_func=create_node,          methods=["POST"])
+    v2.add_url_rule("/devices/mtibs/discover",                                   endpoint="discover_managed_mtibs",  view_func=sync_nodes_from_k8s,  methods=["POST"])
+    v2.add_url_rule("/devices/mtibs/<node_id>",                                  endpoint="get_managed_mtib",        view_func=get_managed_node,     methods=["GET"])
+    v2.add_url_rule("/devices/mtibs/<node_id>",                                  endpoint="update_managed_mtib",     view_func=update_node,          methods=["PUT"])
+    v2.add_url_rule("/devices/mtibs/<node_id>",                                  endpoint="delete_managed_mtib",     view_func=delete_node,          methods=["DELETE"])
+    v2.add_url_rule("/devices/mtibs/<node_id>/health",                           endpoint="check_managed_mtib_health", view_func=check_node_health,  methods=["POST"])
+    v2.add_url_rule("/devices/mtibs/<node_id>/register",                         endpoint="register_managed_mtib",   view_func=register_node,        methods=["POST"])
+    v2.add_url_rule("/devices/mtibs/<node_id>/deploy",                           endpoint="deploy_managed_mtib",     view_func=deploy_node,          methods=["POST"])
+    v2.add_url_rule("/devices/mtibs/<node_id>/undeploy",                         endpoint="undeploy_managed_mtib",   view_func=undeploy_node,        methods=["POST"])
 
-    # MTIBs - Observability
-    v2.add_url_rule("/mtibs/observability",                                  endpoint="fleet_observability",        view_func=get_fleet_observability,   methods=["GET"])
-    v2.add_url_rule("/mtibs/<node_id>/observability",                        endpoint="node_observability",         view_func=get_node_observability,    methods=["GET"])
-    v2.add_url_rule("/mtibs/<node_id>/observability/power",                  endpoint="node_observability_power",   view_func=get_node_power,            methods=["GET"])
-    v2.add_url_rule("/mtibs/<node_id>/observability/gpio",                   endpoint="node_observability_gpio",    view_func=get_node_gpio,             methods=["GET"])
-    v2.add_url_rule("/mtibs/<node_id>/observability/uart",                   endpoint="node_observability_uart",    view_func=get_node_uart,             methods=["GET"])
-    v2.add_url_rule("/mtibs/<node_id>/observability/system",                 endpoint="node_observability_system",  view_func=get_node_system,           methods=["GET"])
+    # Devices — MTIBs Observability (was /mtibs/observability)
+    v2.add_url_rule("/devices/mtibs/observability",                                  endpoint="fleet_observability",        view_func=get_fleet_observability,   methods=["GET"])
+    v2.add_url_rule("/devices/mtibs/<node_id>/observability",                        endpoint="node_observability",         view_func=get_node_observability,    methods=["GET"])
+    v2.add_url_rule("/devices/mtibs/<node_id>/observability/power",                  endpoint="node_observability_power",   view_func=get_node_power,            methods=["GET"])
+    v2.add_url_rule("/devices/mtibs/<node_id>/observability/gpio",                   endpoint="node_observability_gpio",    view_func=get_node_gpio,             methods=["GET"])
+    v2.add_url_rule("/devices/mtibs/<node_id>/observability/uart",                   endpoint="node_observability_uart",    view_func=get_node_uart,             methods=["GET"])
+    v2.add_url_rule("/devices/mtibs/<node_id>/observability/system",                 endpoint="node_observability_system",  view_func=get_node_system,           methods=["GET"])
 
     # Fixtures (managed fixtures)
     v2.add_url_rule("/fixtures",                                         endpoint="list_fixtures",           view_func=list_fixtures,            methods=["GET"])
@@ -540,34 +510,39 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     v2.add_url_rule("/system/retention/validation/cleanup",   endpoint="cleanup_validation_runs",     view_func=cleanup_validation_runs,      methods=["POST"])
     v2.add_url_rule("/system/retention/validation/usage",     endpoint="get_validation_storage_usage", view_func=get_validation_storage_usage, methods=["GET"])
 
-    # Kubernetes: Cluster
-    v2.add_url_rule("/kubernetes/cluster",              view_func=get_cluster,     methods=["GET"])
-    v2.add_url_rule("/kubernetes/namespaces",            view_func=get_namespaces,  methods=["GET"])
-    v2.add_url_rule("/kubernetes/nodes",                 view_func=list_system_nodes,      methods=["GET"])
-    v2.add_url_rule("/kubernetes/nodes/<node_name>",     view_func=get_system_node,        methods=["GET"])
-    v2.add_url_rule("/kubernetes/events",                view_func=get_events,      methods=["GET"])
+    # Cluster (was /kubernetes)
+    v2.add_url_rule("/cluster/info",                    view_func=get_cluster,     methods=["GET"])
+    v2.add_url_rule("/cluster/namespaces",              view_func=get_namespaces,  methods=["GET"])
+    v2.add_url_rule("/cluster/nodes",                   view_func=list_system_nodes,      methods=["GET"])
+    v2.add_url_rule("/cluster/nodes/<node_name>",       view_func=get_system_node,        methods=["GET"])
+    v2.add_url_rule("/cluster/events",                  view_func=get_events,      methods=["GET"])
 
-    # Kubernetes: Resources
-    v2.add_url_rule("/kubernetes/pods",                                      view_func=list_pods,          methods=["GET"])
-    v2.add_url_rule("/kubernetes/pods/<namespace>/<name>",                   view_func=get_pod,            methods=["GET"])
-    v2.add_url_rule("/kubernetes/pods/<namespace>/<name>",                   view_func=delete_pod,         methods=["DELETE"])
+    # Cluster — Pods (was /kubernetes/pods)
+    v2.add_url_rule("/cluster/pods",                                      view_func=list_pods,          methods=["GET"])
+    v2.add_url_rule("/cluster/pods/<namespace>/<name>",                   view_func=get_pod,            methods=["GET"])
+    v2.add_url_rule("/cluster/pods/<namespace>/<name>/logs",              view_func=get_pod_logs,       methods=["GET"])
+    v2.add_url_rule("/cluster/pods/<namespace>/<name>",                   view_func=delete_pod,         methods=["DELETE"])
 
-    v2.add_url_rule("/kubernetes/deployments",                               view_func=list_system_deployments,   methods=["GET"])
-    v2.add_url_rule("/kubernetes/deployments/<namespace>/<name>",            view_func=get_system_deployment,     methods=["GET"])
-    v2.add_url_rule("/kubernetes/deployments/<namespace>/<name>/scale",      view_func=scale_deployment,   methods=["POST"])
-    v2.add_url_rule("/kubernetes/deployments/<namespace>/<name>/restart",    view_func=restart_system_deployment, methods=["POST"])
+    # Cluster — Deployments (was /kubernetes/deployments)
+    v2.add_url_rule("/cluster/deployments",                               view_func=list_system_deployments,   methods=["GET"])
+    v2.add_url_rule("/cluster/deployments/<namespace>/<name>",            view_func=get_system_deployment,     methods=["GET"])
+    v2.add_url_rule("/cluster/deployments/<namespace>/<name>/scale",      view_func=scale_deployment,   methods=["POST"])
+    v2.add_url_rule("/cluster/deployments/<namespace>/<name>/restart",    view_func=restart_system_deployment, methods=["POST"])
 
-    v2.add_url_rule("/kubernetes/services",                                  view_func=list_services,      methods=["GET"])
-    v2.add_url_rule("/kubernetes/services/<namespace>/<name>",               view_func=get_service,        methods=["GET"])
+    # Cluster — Services (was /kubernetes/services)
+    v2.add_url_rule("/cluster/services",                                  view_func=list_services,      methods=["GET"])
+    v2.add_url_rule("/cluster/services/<namespace>/<name>",               view_func=get_service,        methods=["GET"])
 
-    v2.add_url_rule("/kubernetes/jobs",                                      view_func=list_jobs,          methods=["GET"])
-    v2.add_url_rule("/kubernetes/jobs/<namespace>/<name>",                   view_func=get_job,            methods=["GET"])
-    v2.add_url_rule("/kubernetes/jobs/<namespace>/<name>",                   view_func=delete_job,         methods=["DELETE"])
+    # Cluster — Jobs (was /kubernetes/jobs)
+    v2.add_url_rule("/cluster/jobs",                                      view_func=list_jobs,          methods=["GET"])
+    v2.add_url_rule("/cluster/jobs/<namespace>/<name>",                   view_func=get_job,            methods=["GET"])
+    v2.add_url_rule("/cluster/jobs/<namespace>/<name>",                   view_func=delete_job,         methods=["DELETE"])
 
-    v2.add_url_rule("/kubernetes/configmaps",                                view_func=list_configmaps,    methods=["GET"])
-    v2.add_url_rule("/kubernetes/configmaps/<namespace>/<name>",             view_func=get_configmap,      methods=["GET"])
-    v2.add_url_rule("/kubernetes/secrets",                                   view_func=list_secrets,       methods=["GET"])
-    v2.add_url_rule("/kubernetes/secrets/<namespace>/<name>",                view_func=get_secret,         methods=["GET"])
+    # Cluster — ConfigMaps & Secrets (was /kubernetes/configmaps + /kubernetes/secrets)
+    v2.add_url_rule("/cluster/configmaps",                                view_func=list_configmaps,    methods=["GET"])
+    v2.add_url_rule("/cluster/configmaps/<namespace>/<name>",             view_func=get_configmap,      methods=["GET"])
+    v2.add_url_rule("/cluster/secrets",                                   view_func=list_secrets,       methods=["GET"])
+    v2.add_url_rule("/cluster/secrets/<namespace>/<name>",                view_func=get_secret,         methods=["GET"])
 
     # Health
     v2.add_url_rule("/healthcheck",          view_func=healthcheck,     methods=["GET"])
@@ -576,29 +551,29 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     v2.add_url_rule("/openapi.json",         view_func=openapi_spec,    methods=["GET"])
     v2.add_url_rule("/docs",                 view_func=swagger_ui,      methods=["GET"])
 
-    # Kubernetes: Resource YAML
-    v2.add_url_rule("/kubernetes/resources/<kind>/<namespace>/<name>",       view_func=get_resource_yaml,       methods=["GET"])
-    v2.add_url_rule("/kubernetes/resources/<kind>/<namespace>/<name>",       view_func=apply_resource_yaml,     methods=["PUT"])
-    v2.add_url_rule("/kubernetes/resources/<kind>/<namespace>/<name>",       view_func=delete_resource,         methods=["DELETE"])
+    # Cluster — Resource YAML (was /kubernetes/resources)
+    v2.add_url_rule("/cluster/resources/<kind>/<namespace>/<name>",       view_func=get_resource_yaml,       methods=["GET"])
+    v2.add_url_rule("/cluster/resources/<kind>/<namespace>/<name>",       view_func=apply_resource_yaml,     methods=["PUT"])
+    v2.add_url_rule("/cluster/resources/<kind>/<namespace>/<name>",       view_func=delete_resource,         methods=["DELETE"])
 
-    # Kubernetes: RBAC
-    v2.add_url_rule("/kubernetes/rbac/roles",                               view_func=list_roles,              methods=["GET"])
-    v2.add_url_rule("/kubernetes/rbac/clusterroles",                        view_func=list_cluster_roles,      methods=["GET"])
-    v2.add_url_rule("/kubernetes/rbac/bindings",                            view_func=list_role_bindings,      methods=["GET"])
-    v2.add_url_rule("/kubernetes/rbac/clusterrolebindings",                 view_func=list_cluster_role_bindings, methods=["GET"])
-    v2.add_url_rule("/kubernetes/rbac/serviceaccounts",                     view_func=list_service_accounts,   methods=["GET"])
+    # Cluster — RBAC (was /kubernetes/rbac)
+    v2.add_url_rule("/cluster/rbac/roles",                               view_func=list_roles,              methods=["GET"])
+    v2.add_url_rule("/cluster/rbac/clusterroles",                        view_func=list_cluster_roles,      methods=["GET"])
+    v2.add_url_rule("/cluster/rbac/bindings",                            view_func=list_role_bindings,      methods=["GET"])
+    v2.add_url_rule("/cluster/rbac/clusterrolebindings",                 view_func=list_cluster_role_bindings, methods=["GET"])
+    v2.add_url_rule("/cluster/rbac/serviceaccounts",                     view_func=list_service_accounts,   methods=["GET"])
 
-    # ICLE Devices (ESP32 power monitoring tools)
-    v2.add_url_rule("/icle/heartbeat",                              endpoint="icle_heartbeat",           view_func=icle_heartbeat,       methods=["POST"])
-    v2.add_url_rule("/icle/devices",                                endpoint="list_icle_devices",        view_func=list_icle_devices,    methods=["GET"])
-    v2.add_url_rule("/icle/devices/<device_id>",                    endpoint="get_icle_device",          view_func=get_icle_device,      methods=["GET"])
-    v2.add_url_rule("/icle/devices/<device_id>",                    endpoint="update_icle_device",       view_func=update_icle_device,   methods=["PUT"])
-    v2.add_url_rule("/icle/devices/<device_id>",                    endpoint="delete_icle_device",       view_func=delete_icle_device,   methods=["DELETE"])
-    v2.add_url_rule("/icle/devices/<device_id>/config",             endpoint="push_icle_config",         view_func=push_icle_config,     methods=["PUT"])
-    v2.add_url_rule("/icle/devices/<device_id>/ota",                endpoint="trigger_icle_ota",         view_func=trigger_icle_ota,     methods=["POST"])
-    v2.add_url_rule("/icle/devices/<device_id>/logs",               endpoint="list_icle_logs",           view_func=list_icle_logs,       methods=["GET"])
-    v2.add_url_rule("/icle/devices/<device_id>/logs",               endpoint="upload_icle_log",          view_func=upload_icle_log,      methods=["POST"])
-    v2.add_url_rule("/icle/commands/<command_id>/ack",              endpoint="ack_icle_command",         view_func=ack_icle_command,     methods=["POST"])
+    # Devices — ICLE (was /icle)
+    v2.add_url_rule("/devices/icle/heartbeat",                              endpoint="icle_heartbeat",           view_func=icle_heartbeat,       methods=["POST"])
+    v2.add_url_rule("/devices/icle",                                        endpoint="list_icle_devices",        view_func=list_icle_devices,    methods=["GET"])
+    v2.add_url_rule("/devices/icle/<device_id>",                            endpoint="get_icle_device",          view_func=get_icle_device,      methods=["GET"])
+    v2.add_url_rule("/devices/icle/<device_id>",                            endpoint="update_icle_device",       view_func=update_icle_device,   methods=["PUT"])
+    v2.add_url_rule("/devices/icle/<device_id>",                            endpoint="delete_icle_device",       view_func=delete_icle_device,   methods=["DELETE"])
+    v2.add_url_rule("/devices/icle/<device_id>/config",                     endpoint="push_icle_config",         view_func=push_icle_config,     methods=["PUT"])
+    v2.add_url_rule("/devices/icle/<device_id>/ota",                        endpoint="trigger_icle_ota",         view_func=trigger_icle_ota,     methods=["POST"])
+    v2.add_url_rule("/devices/icle/<device_id>/logs",                       endpoint="list_icle_logs",           view_func=list_icle_logs,       methods=["GET"])
+    v2.add_url_rule("/devices/icle/<device_id>/logs",                       endpoint="upload_icle_log",          view_func=upload_icle_log,      methods=["POST"])
+    v2.add_url_rule("/devices/icle/commands/<command_id>/ack",              endpoint="ack_icle_command",         view_func=ack_icle_command,     methods=["POST"])
 
     # Kubernetes: Log Streaming + Pod Exec (all use /kubernetes namespace)
     register_log_handlers(socketio)
@@ -620,39 +595,40 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     # Set SocketIO instance for CI WebSocket events
     set_ci_socketio(socketio)
 
-    # CI — Webhooks & Triggers
-    v2.add_url_rule("/ci/webhooks/bitbucket",                                               endpoint="ci_webhook_bitbucket",     view_func=webhook_bitbucket,     methods=["POST"])
-    v2.add_url_rule("/ci/trigger",                                                          endpoint="ci_trigger_pipeline",      view_func=trigger_pipeline,      methods=["POST"])
+    # Builds — Webhooks & Triggers (was /ci)
+    v2.add_url_rule("/builds/webhooks/bitbucket",                                               endpoint="ci_webhook_bitbucket",     view_func=webhook_bitbucket,     methods=["POST"])
+    v2.add_url_rule("/builds/trigger",                                                          endpoint="ci_trigger_pipeline",      view_func=trigger_pipeline,      methods=["POST"])
 
-    # CI — Builds
-    v2.add_url_rule("/ci/builds",                                                           endpoint="list_ci_builds",           view_func=list_ci_builds,        methods=["GET"])
-    v2.add_url_rule("/ci/builds",                                                           endpoint="create_ci_build",          view_func=create_ci_build,       methods=["POST"])
-    v2.add_url_rule("/ci/builds/<build_id>",                                                endpoint="get_ci_build",             view_func=get_ci_build,          methods=["GET"])
-    v2.add_url_rule("/ci/builds/<build_id>",                                                endpoint="update_ci_build",          view_func=update_ci_build,       methods=["PATCH"])
-    v2.add_url_rule("/ci/builds/<build_id>/artifacts",                                      endpoint="list_ci_build_artifacts",  view_func=list_ci_build_artifacts, methods=["GET"])
-    v2.add_url_rule("/ci/builds/<build_id>/artifacts",                                      endpoint="upload_ci_build_artifact", view_func=upload_ci_build_artifact, methods=["POST"])
-    v2.add_url_rule("/ci/builds/<build_id>/artifacts/download",                             endpoint="download_ci_build_artifacts", view_func=download_ci_build_artifacts, methods=["GET"])
-    v2.add_url_rule("/ci/builds/<build_id>/log",                                            endpoint="get_ci_build_log",         view_func=get_ci_build_log,      methods=["GET"])
-    v2.add_url_rule("/ci/builds/<build_id>/log",                                            endpoint="stream_ci_build_log",      view_func=stream_ci_build_log,   methods=["POST"])
+    # Builds (was /ci/builds)
+    v2.add_url_rule("/builds",                                                                  endpoint="list_ci_builds",           view_func=list_ci_builds,        methods=["GET"])
+    v2.add_url_rule("/builds",                                                                  endpoint="create_ci_build",          view_func=create_ci_build,       methods=["POST"])
+    v2.add_url_rule("/builds/<build_id>",                                                       endpoint="get_ci_build",             view_func=get_ci_build,          methods=["GET"])
+    v2.add_url_rule("/builds/<build_id>",                                                       endpoint="update_ci_build",          view_func=update_ci_build,       methods=["PATCH"])
+    v2.add_url_rule("/builds/<build_id>/artifacts",                                             endpoint="list_ci_build_artifacts",  view_func=list_ci_build_artifacts, methods=["GET"])
+    v2.add_url_rule("/builds/<build_id>/artifacts",                                             endpoint="upload_ci_build_artifact", view_func=upload_ci_build_artifact, methods=["POST"])
+    v2.add_url_rule("/builds/<build_id>/artifacts/download",                                    endpoint="download_ci_build_artifacts", view_func=download_ci_build_artifacts, methods=["GET"])
+    v2.add_url_rule("/builds/<build_id>/log",                                                   endpoint="get_ci_build_log",         view_func=get_ci_build_log,      methods=["GET"])
+    v2.add_url_rule("/builds/<build_id>/log",                                                   endpoint="stream_ci_build_log",      view_func=stream_ci_build_log,   methods=["POST"])
+    v2.add_url_rule("/builds/<build_id>/reset",                                                 endpoint="reset_ci_build",           view_func=reset_ci_build,        methods=["POST"])
 
-    # CI — Pipelines
-    v2.add_url_rule("/ci/pipelines",                                                        endpoint="list_ci_pipelines",        view_func=list_ci_pipelines,     methods=["GET"])
-    v2.add_url_rule("/ci/pipelines",                                                        endpoint="create_ci_pipeline",       view_func=create_ci_pipeline,    methods=["POST"])
-    v2.add_url_rule("/ci/pipelines/<pipeline_id>",                                          endpoint="get_ci_pipeline",          view_func=get_ci_pipeline,       methods=["GET"])
-    v2.add_url_rule("/ci/pipelines/<pipeline_id>/cancel",                                   endpoint="cancel_ci_pipeline",       view_func=cancel_ci_pipeline,    methods=["POST"])
-    v2.add_url_rule("/ci/pipelines/<pipeline_id>/artifacts/download",                       endpoint="download_ci_pipeline_artifacts", view_func=download_ci_pipeline_artifacts, methods=["GET"])
+    # Builds — Pipelines (was /ci/pipelines)
+    v2.add_url_rule("/builds/pipelines",                                                        endpoint="list_ci_pipelines",        view_func=list_ci_pipelines,     methods=["GET"])
+    v2.add_url_rule("/builds/pipelines",                                                        endpoint="create_ci_pipeline",       view_func=create_ci_pipeline,    methods=["POST"])
+    v2.add_url_rule("/builds/pipelines/<pipeline_id>",                                          endpoint="get_ci_pipeline",          view_func=get_ci_pipeline,       methods=["GET"])
+    v2.add_url_rule("/builds/pipelines/<pipeline_id>/cancel",                                   endpoint="cancel_ci_pipeline",       view_func=cancel_ci_pipeline,    methods=["POST"])
+    v2.add_url_rule("/builds/pipelines/<pipeline_id>/artifacts/download",                       endpoint="download_ci_pipeline_artifacts", view_func=download_ci_pipeline_artifacts, methods=["GET"])
 
-    # CI — Settings
-    v2.add_url_rule("/ci/settings/repos",                                                   endpoint="list_ci_repos",            view_func=list_ci_repos,         methods=["GET"])
+    # Builds — Settings (was /ci/settings)
+    v2.add_url_rule("/builds/settings/repos",                                                   endpoint="list_ci_repos",            view_func=list_ci_repos,         methods=["GET"])
 
-    # CI — Build Scripts (MinIO-stored bash scripts)
-    v2.add_url_rule("/ci/scripts",                                                          endpoint="list_build_scripts",       view_func=list_build_scripts,    methods=["GET"])
-    v2.add_url_rule("/ci/scripts/<product>",                                                endpoint="get_build_script",         view_func=get_build_script,      methods=["GET"])
-    v2.add_url_rule("/ci/scripts/<product>",                                                endpoint="upload_build_script",      view_func=upload_build_script,   methods=["PUT"])
-    v2.add_url_rule("/ci/scripts/<product>",                                                endpoint="delete_build_script",      view_func=delete_build_script,   methods=["DELETE"])
+    # Builds — Scripts (was /ci/scripts)
+    v2.add_url_rule("/builds/scripts",                                                          endpoint="list_build_scripts",       view_func=list_build_scripts,    methods=["GET"])
+    v2.add_url_rule("/builds/scripts/<product>",                                                endpoint="get_build_script",         view_func=get_build_script,      methods=["GET"])
+    v2.add_url_rule("/builds/scripts/<product>",                                                endpoint="upload_build_script",      view_func=upload_build_script,   methods=["PUT"])
+    v2.add_url_rule("/builds/scripts/<product>",                                                endpoint="delete_build_script",      view_func=delete_build_script,   methods=["DELETE"])
 
-    # CI — Overlay Files (DTS overlays for MTIB revisions)
-    v2.add_url_rule("/ci/overlays/<product>",                                               endpoint="get_overlays",             view_func=get_overlays,          methods=["GET"])
-    v2.add_url_rule("/ci/overlays/<product>/list",                                          endpoint="list_overlays",            view_func=list_overlays,         methods=["GET"])
+    # Builds — Overlays (was /ci/overlays)
+    v2.add_url_rule("/builds/overlays/<product>",                                               endpoint="get_overlays",             view_func=get_overlays,          methods=["GET"])
+    v2.add_url_rule("/builds/overlays/<product>/list",                                          endpoint="list_overlays",            view_func=list_overlays,         methods=["GET"])
 
     server.register_blueprint(v2)
