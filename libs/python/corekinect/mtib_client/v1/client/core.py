@@ -1383,7 +1383,7 @@ class MtibV1Client:
             target=target,
             command=f"personalize {device_id}",
             success_patterns=["Public key (base64)"],
-            timeout_s=15,  # Key generation takes ~5s, plus byte-by-byte UART delivery
+            timeout_s=60,  # Key generation takes ~5s, plus byte-by-byte UART delivery is SLOW
         )
         if err:
             return None, None, err

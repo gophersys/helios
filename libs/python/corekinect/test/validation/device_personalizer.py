@@ -8,18 +8,29 @@ Uses CoreOpsClient for all CoreOps API calls (device ID assignment,
 key upload, ICCID registration). CoreOps credentials must be set via
 COREOPS_* environment variables.
 
-After CoreOps personalization, the device's public key must also be
-registered with the CoreCloud DB (deviceprofilestbl) so the Socket
-Server can authenticate uplinks.
+CRITICAL: The device's public key MUST be uploaded to CoreCloud for:
+- FUOTA (firmware updates) to work
+- Device telemetry to be authenticated
+- Any CoreCloud communication to succeed
+
+The key upload is MANDATORY by default (require_corecloud_key=True).
+If the key upload fails, repersonalize() returns an error. This prevents
+silent failures where FUOTA appears to work but the device can't communicate.
 
 Typical usage (after firmware flash):
     personalizer = DevicePersonalizer(
         mtib=ctx.mtib,
         snr="0964",
-        db_env="VAL_1_0",
+        # db_env defaults to "VAL_1_0"
+        # require_corecloud_key defaults to True
     )
     result, error = personalizer.repersonalize()
     assert error is None, f"Re-personalization failed: {error}"
+
+Environment variables required:
+    VAL_1_0_API_KEY, VAL_1_0_API_AUTH_SERVER_HOST_NAME,
+    VAL_1_0_API_REST_SERVER_HOST_NAME, VAL_1_0_API_AUTH_USERNAME,
+    VAL_1_0_API_AUTH_PASSWORD
 """
 
 import datetime
@@ -82,16 +93,21 @@ class DevicePersonalizer:
       4. Personalize device via UART (generates new EC keypair)
       5. Upload public key to CoreOps
       6. Save SIM info to CoreOps
-      7. Rekey IPC (replace hardcoded keys with device-specific)
+      7. **Upload public key to CoreCloud (REQUIRED for FUOTA)**
+      8. Rekey IPC (replace hardcoded keys with device-specific)
 
     Args:
         mtib: Connected V1 MTIB client.
         snr: Device serial number (J-Link probe serial, e.g., "0964").
         imei: Pre-known IMEI (skip modem read if provided).
         iccids: Pre-known ICCIDs (skip modem read if provided).
-        db_env: CoreCloud DB environment for key upload (e.g., "VAL_1_0").
+        db_env: CoreCloud API environment (default "VAL_1_0"). REQUIRED for FUOTA.
         logger: Parent Logger instance (creates child logger if provided).
         proxy_url: DEPRECATED - no longer used, CoreOpsClient handles this.
+        known_device_id: Pre-known device ID (skip CoreOps lookup if provided).
+        require_corecloud_key: If True (default), FAIL if key upload fails.
+            This prevents silent failures where FUOTA won't work because
+            CoreCloud doesn't have the device's public key.
     """
 
     def __init__(
@@ -100,10 +116,11 @@ class DevicePersonalizer:
         snr: str,
         imei: Optional[str] = None,
         iccids: Optional[List[str]] = None,
-        db_env: Optional[str] = None,
+        db_env: Optional[str] = "VAL_1_0",  # Default to VAL - FUOTA requires key upload
         logger: Optional[Logger] = None,
         proxy_url: Optional[str] = None,  # Deprecated, kept for backward compat
         known_device_id: Optional[str] = None,  # Fallback when CoreOps unavailable
+        require_corecloud_key: bool = True,  # FUOTA requires key in CoreCloud - fail if upload fails
     ):
         self._mtib = mtib
         self._snr = snr
@@ -113,6 +130,7 @@ class DevicePersonalizer:
         self._log = logger.from_parent("personalizer") if logger else log
         self._coreops = None  # Lazy init
         self._known_device_id = known_device_id
+        self._require_corecloud_key = require_corecloud_key
 
         if proxy_url:
             self._log.warning(
@@ -185,8 +203,10 @@ class DevicePersonalizer:
         hex_key, b64_key, err = self._personalize(device_id)
         if err:
             return None, f"UART personalization failed: {err}"
+        if not b64_key:
+            return None, "Personalization succeeded but no base64 public key returned — cannot upload to CoreCloud"
 
-        self._log.info("Device personalized, pub key: %s...", b64_key[:20] if b64_key else "?")
+        self._log.info("Device personalized, pub key (b64): %s...", b64_key[:20])
 
         # Step 6: Upload keys + SIM info to CoreOps (optional, non-blocking)
         # CoreOps is only needed for production — validation can skip this
@@ -194,18 +214,30 @@ class DevicePersonalizer:
         if err:
             self._log.warning("CoreOps save skipped: %s — OK for validation", err)
 
-        # Step 6b: Register public key in CoreCloud DB (required for Socket Server auth)
-        if self._db_env and hex_key:
-            err = self._save_key_to_corecloud_db(device_id, hex_key)
+        # Step 6b: Register public key in CoreCloud DB (REQUIRED for FUOTA and Socket Server auth)
+        # CRITICAL: Without this key, the device cannot communicate with CoreCloud.
+        # FUOTA, telemetry, and all cloud features require this key to be uploaded.
+        # Uses b64_key directly from the device — NOT re-encoded from hex.
+        if self._db_env and b64_key:
+            err = self._save_key_to_corecloud_db(device_id, b64_key)
             if err:
-                self._log.warning("CoreCloud DB key upload failed: %s — device uplinks may not be authenticated", err)
+                if self._require_corecloud_key:
+                    return None, f"CoreCloud key upload FAILED: {err} — FUOTA will not work without this key"
+                else:
+                    self._log.warning("CoreCloud DB key upload failed: %s — device uplinks may not be authenticated", err)
+        elif self._require_corecloud_key and (hex_key or b64_key):
+            if not self._db_env:
+                return None, "CoreCloud key upload required but db_env not set — set db_env='VAL_1_0' or require_corecloud_key=False"
+            if not b64_key:
+                return None, "CoreCloud key upload required but no base64 key from device"
 
-        # Step 7: Rekey IPC (optional, non-blocking for validation)
-        # IPC rekey replaces hardcoded keys between app/comms processors
-        # Not critical for most validation tests
+        # Step 7: Rekey IPC (inter-processor communication, NOT CoreCloud auth)
+        # Replaces hardcoded keys between app (nRF52840) and comms (nRF9151)
+        # processors. This is for their internal protocol, separate from the
+        # EC keypair used for CoreCloud server authentication.
         err = self._rekey_ipc()
         if err:
-            self._log.warning("IPC rekey skipped: %s — OK for validation", err)
+            self._log.warning("IPC rekey failed: %s — inter-processor comms may use default keys", err)
 
         self._log.info("Re-personalization complete for device %s", device_id)
 
@@ -239,15 +271,17 @@ class DevicePersonalizer:
         """
         self._log.debug("Power cycling DUT...")
 
-        # Step 0: Drain any stale UART backlog BEFORE power cycle
-        # This prevents old data from previous sessions bleeding into the new session
-        # After firmware flash, there can be 60+ seconds of boot logs buffered
-        self._log.debug("Draining UART backlog before power cycle...")
-        self._mtib.alpha_drain_uart(COMMS_TARGET, duration_s=10.0)
-        self._mtib.alpha_drain_uart(APP_TARGET, duration_s=10.0)
+        # Step 0: Quick UART drain (0.5s each) - just clear any pending bytes
+        # Don't wait long here - after flash, the device is already booting
+        # and we need to catch the shell window (2-7s post-boot)
+        self._mtib.alpha_drain_uart(COMMS_TARGET, duration_s=0.5)
+        self._mtib.alpha_drain_uart(APP_TARGET, duration_s=0.5)
 
-        # Step 1: Power off
+        # Step 1: Power off BOTH channels (DUT may run on charger when battery_installed)
         err = self._mtib.PowerDisable(channel=PowerChannel.DUT)
+        if err:
+            return err
+        err = self._mtib.PowerDisable(channel=PowerChannel.CHARGER)
         if err:
             return err
         time.sleep(2)
@@ -261,17 +295,22 @@ class DevicePersonalizer:
             if err:
                 return f"GpioWrite({gpio}) failed: {err}"
 
-        # Step 3: Power on
+        # Step 3: Power on BOTH channels (battery + charger for battery-installed fixtures)
         err = self._mtib.PowerEnable(channel=PowerChannel.DUT, voltage_v=4.5)
         if err:
             return err
+        err = self._mtib.PowerEnable(channel=PowerChannel.CHARGER, voltage_v=5.0)
+        if err:
+            return err
 
-        self._log.debug("DUT powered on (ch0 only)")
+        self._log.debug("DUT powered on (ch0 + ch1)")
 
-        # Step 4: Wait for boot (manufacturing uses 3s)
-        time.sleep(boot_wait_s)
+        # Step 4: Wait briefly for boot (shell activates ~0.4s after boot)
+        # Don't wait too long - shell deactivates ~7.4s after boot
+        # Start spamming at ~1.5s to catch the 0.4-7.4s window
+        time.sleep(min(boot_wait_s, 1.5))
 
-        # Step 5: Lock shells using spam approach (must catch 2-7s window after boot)
+        # Step 5: Lock shells using spam approach (must catch 0.4-7.4s window after boot)
         # Spam is more reliable than single command because the window is narrow
         if lock_shells:
             # Lock comms shell (nRF9151) - spam for 5s to catch the window
@@ -404,51 +443,76 @@ class DevicePersonalizer:
         self._log.debug("IPC rekey complete")
         return None
 
-    def _save_key_to_corecloud_db(self, device_id: str, hex_key: str) -> Optional[str]:
-        """Upload the device's public key to CoreCloud via REST API.
+    def _save_key_to_corecloud_db(self, device_id: str, b64_key: str) -> Optional[str]:
+        """Upload the device's EC public key to CoreCloud and VERIFY it matches.
 
-        The Socket Server authenticates device uplinks using the public key
-        stored in CoreCloud. The key must be the raw EC point in base64
-        (NOT DER SubjectPublicKeyInfo).
+        The Socket Server authenticates device uplinks by verifying signatures
+        against this stored public key. Key must be raw EC point in base64
+        (NOT DER SubjectPublicKeyInfo) — this is exactly the format the device
+        returns from the `personalize` command.
 
-        Key format: base64(bytes.fromhex(hex_key)) where hex_key starts
-        with '04' (uncompressed EC P-256 point, 65 bytes).
-
-        Uses POST /api/System/Devices/Sessions/Profiles with a fresh
-        requests.Session to avoid session state issues.
+        CRITICAL: Uses b64_key directly from the device. No re-encoding.
+        After upload, reads back the stored key and compares byte-for-byte.
+        Returns error if the stored key doesn't match what we uploaded.
         """
         try:
-            import base64 as b64mod
+            import json as json_mod
+            import time as time_mod
 
             from corekinect.core_cloud.api_interface import CoreCloudRestInterface
 
-            # Raw EC point → base64 (NOT DER wrapped)
-            raw_b64 = b64mod.b64encode(bytes.fromhex(hex_key)).decode()
+            self._log.debug("Key to upload (first 20 chars): %s...", b64_key[:20])
 
             with CoreCloudRestInterface(env_namespace=self._db_env) as api:
                 token = api._ensure_token()
                 key_str = str(api.api.key)
                 base_url = api.api.rest_server_host_name
 
-            # Use fresh session (CoreCloudRestInterface session can return
-            # stale results on this endpoint)
-            url = f"{base_url}/System/Devices/Sessions/Profiles"
+            sess = requests.Session()
             headers = {
                 "Authorization": f"Bearer {token}",
                 "X-API-KEY": key_str,
                 "Content-Type": "application/json",
             }
-            body = {"Profiles": [{"deviceId": device_id, "publicKey": raw_b64}]}
 
-            import json as json_mod
-            sess = requests.Session()
+            # Upload key — use b64_key directly from device, no re-encoding
+            url = f"{base_url}/System/Devices/Sessions/Profiles"
+            body = {"Profiles": [{"DeviceId": device_id, "PublicKey": b64_key}]}
+
+            self._log.debug("Uploading key to %s...", url)
             resp = sess.post(url, data=json_mod.dumps(body), headers=headers, verify=_TLS_VERIFY, timeout=10)
 
-            if resp.status_code in (200, 204):
-                self._log.info("Public key uploaded to CoreCloud REST API (%s)", self._db_env)
-                return None
-            else:
+            if resp.status_code not in (200, 204):
                 return f"Key upload failed: {resp.status_code} {resp.text[:200]}"
+
+            self._log.info("Key upload returned %d, verifying stored key matches...", resp.status_code)
+
+            # VERIFY: Read back the stored key and compare against what we uploaded
+            time_mod.sleep(1)
+
+            verify_url = f"{base_url}/System/Devices/Sessions/Profiles"
+            verify_body = {"deviceIds": [device_id]}
+            verify_resp = sess.get(verify_url, headers=headers, json=verify_body, verify=_TLS_VERIFY, timeout=10)
+
+            if verify_resp.status_code != 200:
+                return f"Key verification failed: could not query profiles ({verify_resp.status_code})"
+
+            profiles = verify_resp.json()
+            if isinstance(profiles, list):
+                for p in profiles:
+                    if p.get('deviceId') == device_id:
+                        stored_key = p.get('publicKey')
+                        if not stored_key:
+                            return "Profile exists but publicKey is empty — upload did not persist"
+                        if stored_key != b64_key:
+                            return (
+                                f"KEY MISMATCH: uploaded key != stored key. "
+                                f"Uploaded: {b64_key[:20]}... Stored: {stored_key[:20]}..."
+                            )
+                        self._log.info("Key verified: stored key matches uploaded key")
+                        return None
+
+            return f"Profile not found for device {device_id} — key upload may have failed"
 
         except Exception as e:
             return str(e)

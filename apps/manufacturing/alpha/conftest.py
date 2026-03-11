@@ -13,6 +13,12 @@ Optional:
     CONCORD_RUN_ID: Validation run ID (activates reporter plugin)
     CONCORD_API_URL: Concord HTTP API base URL
     CONCORD_API_KEY: API key for reporter auth
+    PRODUCT_SLUG: Product slug for API-based config loading (default: "alpha_b0")
+
+Product config resolution (in order):
+    1. Concord API (CONCORD_API_URL + CONCORD_API_KEY + PRODUCT_SLUG) — preferred
+    2. FIXTURE_CONFIG_PATH (local JSON file) — fallback
+    3. Hardcoded defaults — last resort
 
 Log streaming:
     When CONCORD_RUN_ID is set, all stdout/stderr and UART logs are streamed
@@ -66,6 +72,11 @@ class ManufacturingConfig(EnvConfig):
     # Mock mode
     MOCK_MODE: Optional[str] = None
 
+    # Unified product/catalog infrastructure
+    PRODUCT_SLUG: str = "alpha_b0"
+    CONCORD_API_URL: Optional[str] = None
+    CONCORD_API_KEY: Optional[str] = None
+
 
 cfg = ManufacturingConfig()
 log = Logger(log_name="manufacturing")
@@ -79,6 +90,101 @@ if MOCK_MODE:
 
 # Auto-discover the Concord Reporter plugin (opt-in via CONCORD_RUN_ID env var).
 pytest_plugins = ["corekinect.test.validation.reporter"]
+
+
+# ── Product Config (Unified Infrastructure) ──────────────────────────────────
+
+# Default product metadata — used when API is unavailable.
+_DEFAULT_PRODUCT_METADATA = {
+    "device_type": 2,
+    "device_variant": 3,
+    "app_ids": {"nrf52840": 109, "nrf9151": 108},
+    "corecloud_env": "VAL_1_0",
+}
+
+
+def _fetch_product_config(api_url: str, api_key: str, slug: str) -> Optional[Dict]:
+    """Fetch Product config from Concord API by slug.
+
+    Returns the full product dict including metadata, or None on failure.
+    """
+    try:
+        import requests
+
+        url = f"{api_url}/v2/catalog/products/by-slug/{slug}"
+        headers = {"Authorization": f"ApiKey {api_key}"}
+        resp = requests.get(url, headers=headers, timeout=10)
+        if resp.status_code != 200:
+            log.warning("Product API returned %d for slug=%s", resp.status_code, slug)
+            return None
+        body = resp.json()
+        # Standard envelope: { "data": { ... } }
+        product = body.get("data", body)
+        log.info("Loaded product config from API: %s (id=%s)", product.get("name"), product.get("id"))
+        return product
+    except Exception as e:
+        log.warning("Failed to fetch product config from API: %s", e)
+        return None
+
+
+def _fetch_fixture_profile(api_url: str, api_key: str, product_name: str) -> Optional[Dict]:
+    """Fetch FixtureDesign profile template from Concord API.
+
+    Looks up fixture designs for the given product and returns the
+    profileTemplate from the first matching design.
+    """
+    try:
+        import requests
+
+        url = f"{api_url}/v2/validation/designs"
+        headers = {"Authorization": f"ApiKey {api_key}"}
+        params = {"product": product_name}
+        resp = requests.get(url, headers=headers, params=params, timeout=10)
+        if resp.status_code != 200:
+            log.debug("Fixture designs API returned %d", resp.status_code)
+            return None
+        body = resp.json()
+        designs = body.get("data", {})
+        if isinstance(designs, dict):
+            designs = designs.get("data", [])
+        if not designs:
+            return None
+        # Use first matching design's profile template
+        profile = designs[0].get("profileTemplate")
+        if profile:
+            log.info("Loaded fixture profile from API: %s", designs[0].get("name"))
+        return profile
+    except Exception as e:
+        log.debug("Failed to fetch fixture profile from API: %s", e)
+        return None
+
+
+def _load_product_metadata() -> Dict:
+    """Load product metadata from API or fall back to defaults.
+
+    Resolution order:
+    1. Concord API (if CONCORD_API_URL + CONCORD_API_KEY set)
+    2. Hardcoded defaults
+    """
+    if cfg.CONCORD_API_URL and cfg.CONCORD_API_KEY:
+        product = _fetch_product_config(cfg.CONCORD_API_URL, cfg.CONCORD_API_KEY, cfg.PRODUCT_SLUG)
+        if product and product.get("metadata"):
+            return product["metadata"]
+
+    log.info("Using default product metadata for %s", cfg.PRODUCT_SLUG)
+    return dict(_DEFAULT_PRODUCT_METADATA)
+
+
+# Cache product metadata at module load time (session-scoped).
+_product_metadata: Optional[Dict] = None
+
+
+def _get_product_metadata() -> Dict:
+    """Get cached product metadata, loading on first access."""
+    global _product_metadata
+    if _product_metadata is None:
+        _product_metadata = _load_product_metadata()
+    return _product_metadata
 
 
 # ── Slot Context ─────────────────────────────────────────────────────────────
@@ -148,14 +254,34 @@ class FixtureContext:
 
     @classmethod
     def from_env(cls) -> "FixtureContext":
-        """Create FixtureContext from environment variables."""
-        # Load fixture config
+        """Create FixtureContext from environment variables.
+
+        Config resolution order:
+        1. FIXTURE_CONFIG_PATH (local JSON file)
+        2. FixtureDesign.profileTemplate from Concord API
+        3. Hardcoded defaults
+
+        Product metadata is always merged into config["product_metadata"].
+        """
+        config = None
+
+        # 1. Try local fixture config file
         config_path = cfg.FIXTURE_CONFIG_PATH
         if config_path and os.path.isfile(config_path):
             with open(config_path) as f:
                 config = json.load(f)
-        else:
-            # Default 4-slot config
+
+        # 2. Try API-based fixture profile
+        if config is None and cfg.CONCORD_API_URL and cfg.CONCORD_API_KEY:
+            profile = _fetch_fixture_profile(
+                cfg.CONCORD_API_URL, cfg.CONCORD_API_KEY,
+                cfg.PRODUCT_SLUG.split("_")[0],  # "alpha_b0" -> "alpha"
+            )
+            if profile:
+                config = profile
+
+        # 3. Hardcoded default
+        if config is None:
             config = {
                 "snrs": {
                     "slot-1": "000A",
@@ -164,6 +290,9 @@ class FixtureContext:
                     "slot-4": "000D",
                 }
             }
+
+        # Always merge product metadata into config
+        config["product_metadata"] = _get_product_metadata()
 
         # Parse MTIB hosts
         mtib_hosts = []
@@ -257,6 +386,9 @@ def _build_mock_context() -> FixtureContext:
             mtib=MockMtibClient(),
         )
 
+    # Include product metadata in mock config
+    config["product_metadata"] = _get_product_metadata()
+
     log.info("Mock mode: 4-slot fixture with mock MTIB clients")
     return FixtureContext(config=config, slots=slots)
 
@@ -288,6 +420,22 @@ def fixture_ctx(request) -> FixtureContext:
 def config(fixture_ctx) -> Dict:
     """Access fixture configuration."""
     return fixture_ctx.config
+
+
+@pytest.fixture(scope="session")
+def product_config() -> Dict:
+    """Product metadata from unified Product model.
+
+    Loaded from Concord API (preferred) or hardcoded defaults.
+    Provides device_type, device_variant, app_ids, corecloud_env.
+
+    Example:
+        def test_personalize(product_config, slot):
+            device_type = product_config["device_type"]      # 2
+            device_variant = product_config["device_variant"] # 3
+            app_ids = product_config["app_ids"]               # {"nrf52840": 109, "nrf9151": 108}
+    """
+    return _get_product_metadata()
 
 
 @pytest.fixture(params=["slot-1", "slot-2", "slot-3", "slot-4"])

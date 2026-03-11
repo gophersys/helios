@@ -260,6 +260,7 @@ class CoreCloudRestInterface(metaclass=SingletonThreadSafeMeta):
             "Authorization": self._basic_auth_header(),
             "Content-Type": "application/x-www-form-urlencoded",
             "Accept": "application/json",
+            "X-API-KEY": str(self.api.key),  # Required by CoreCloud auth
         }
         url = self._auth_url()
         resp = sess.post(

@@ -151,6 +151,10 @@ class UartDemuxer:
 
     def dump_to_file(self, path: str) -> None:
         """Write all captured logs to file."""
+        import os
+        parent = os.path.dirname(path)
+        if parent:
+            os.makedirs(parent, exist_ok=True)
         with self._lock:
             with open(path, "w") as f:
                 for ts, line in self._log_buffer:

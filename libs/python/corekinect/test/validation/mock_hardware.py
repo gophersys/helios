@@ -22,14 +22,34 @@ log = Logger(log_name="mock_hardware")
 
 
 @dataclass
+class MockDutConfig:
+    """Mock DUT identity matching DutConfig fields."""
+    device_id: str = "70B3D584C01E1DDD"
+    snr: str = "09J5"
+    imei: Optional[str] = "355025931651952"
+    iccids: Optional[List[str]] = None
+
+    def __post_init__(self):
+        if self.iccids is None:
+            object.__setattr__(self, 'iccids', ["89148000009808560116", "89457300000037581199"])
+
+
+@dataclass
 class MockFixtureProfile:
     """Mock fixture profile matching all FixtureProfile fields."""
     product: str = "alpha"
     board: str = "alpha_b0"
 
+    # DUT identity
+    dut: Optional[MockDutConfig] = None
+
     # Button simulation
     button_gpio: int = 2
     button_active_low: bool = True
+
+    def __post_init__(self):
+        if self.dut is None:
+            object.__setattr__(self, 'dut', MockDutConfig())
 
     # PPG simulator — servo + green LED array
     ppg_servo_pwm_pin: int = 7   # PwmPin.PWM_1
@@ -102,6 +122,12 @@ class MockFixtureController:
         log.info("MockFixture: read_dut_current() -> %.1f mA", current)
         return current
 
+    def read_current(self, channel: int = 0) -> float:
+        """Return plausible current for a specific channel in mA."""
+        current = 10.0 if self._powered else 0.5
+        log.info("MockFixture: read_current(ch=%d) -> %.1f mA", channel, current)
+        return current
+
     def read_total_current(self) -> float:
         """Return plausible total current (ch0+ch1) in mA."""
         current = 10.0 if self._powered else 0.5
@@ -135,6 +161,10 @@ class MockFixtureController:
     def press_button(self, duration_s: float = 0.5) -> None:
         log.info("MockFixture: press_button(duration=%.1fs)", duration_s)
         self._button_pressed = True
+
+    def button_press(self, duration_s: float = 0.5) -> None:
+        """Alias for press_button (used by nightly tests)."""
+        self.press_button(duration_s=duration_s)
 
     def long_press_button(self, duration_s: float = 3.0) -> None:
         log.info("MockFixture: long_press_button(duration=%.1fs)", duration_s)

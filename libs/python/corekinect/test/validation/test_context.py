@@ -42,6 +42,7 @@ class TestContext:
         firmware: Firmware asset manager (MinIO → MTIB upload/cleanup).
         artifacts: Simple file uploader (legacy).
         artifact_writer: Unified artifact writer with streaming support.
+        product: Product context from Concord catalog (deviceTypeId, appIds, etc.).
     """
 
     def __init__(
@@ -51,12 +52,14 @@ class TestContext:
         fixture: FixtureController,
         uart: UartDemuxer,
         power: PowerProfiler,
+        product=None,
     ):
         self.mtib = mtib
         self.cloud = cloud
         self.fixture = fixture
         self.uart = uart
         self.power = power
+        self.product = product
         self.firmware = FirmwareAssetManager(mtib=mtib, auto_cleanup=False)
         self.artifacts = ArtifactUploader()
         self.artifact_writer = ArtifactWriter()
@@ -124,6 +127,33 @@ class TestContext:
             log.info(f"Loading fixture profile from file: {profile_path}")
             profile = FixtureProfile.from_json(profile_path)
 
+        # Load product context from API if available
+        product_ctx = None
+        product_slug = os.environ.get("PRODUCT_SLUG")
+        if not product_slug and profile:
+            # Derive slug from fixture profile product+board (e.g., "alpha" + "b0" -> "alpha_b0")
+            product_slug = f"{profile.product}_{profile.board}"
+
+        if product_slug and api_url and api_key:
+            try:
+                from .runner import ProductContext
+                product_ctx = ProductContext.from_api(product_slug, api_url, api_key)
+                log.info("Loaded product context from API: %s (deviceType=%d, deviceVariant=%d)",
+                         product_ctx.name, product_ctx.device_type_id, product_ctx.device_variant_id)
+                # Use product's coreCloudEnv if available
+                if product_ctx.core_cloud_env:
+                    db_env = product_ctx.core_cloud_env
+            except Exception as e:
+                log.warning("Failed to load product context from API: %s — using defaults", e)
+
+        if not product_ctx and product_slug:
+            from .runner import ProductContext
+            parts = product_slug.rsplit("_", 1)
+            product_name = parts[0] if len(parts) == 2 else product_slug
+            board_name = parts[1] if len(parts) == 2 else ""
+            product_ctx = ProductContext.default(product_name, board_name)
+            log.info("Using default product context for %s", product_slug)
+
         # Build MTIB client
         config = MtibV1Client.Config(net=NetConfig(addr=mtib_host, port=mtib_port))
         mtib = MtibV1Client(config)
@@ -140,6 +170,7 @@ class TestContext:
             fixture=fixture,
             uart=uart,
             power=power,
+            product=product_ctx,
         )
 
     def connect(self) -> None:

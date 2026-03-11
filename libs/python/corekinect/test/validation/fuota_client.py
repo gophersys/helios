@@ -74,6 +74,93 @@ class FuotaClient:
         return resp
 
     # ------------------------------------------------------------------
+    # Device Registration
+    # ------------------------------------------------------------------
+
+    def _api_request(self, method: str, path: str, **kwargs) -> Any:
+        """Make a request to /api/ endpoints using the API session."""
+        api = self._get_api()
+        sess = api._require_session()
+        token = api._ensure_token()
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "X-API-KEY": str(api.api.key),
+        }
+        if "json" in kwargs:
+            headers["Content-Type"] = "application/json"
+        # /api/ endpoints use the full rest_server_host_name (includes /api)
+        url = f"{api.api.rest_server_host_name.rstrip('/')}/{path.lstrip('/')}"
+        resp = sess.request(method, url, headers=headers, verify=_TLS_VERIFY, timeout=30, **kwargs)
+        return resp
+
+    def ensure_device_registered(
+        self,
+        device_id: str,
+        device_type_id: int = 2,
+        device_variant_id: int = 3,
+    ) -> bool:
+        """Ensure device is registered in CoreCloud. Registers if not present.
+
+        MUST be called before assign_device() — FUOTA assignment fails on
+        unregistered devices with "Device not found".
+
+        Args:
+            device_id: DevEUI hex string (e.g., "70B3D584C01E1DDD").
+            device_type_id: CoreCloud device type (2 = Alpha).
+            device_variant_id: CoreCloud device variant (3 = Alpha B0).
+
+        Returns:
+            True if device was newly registered, False if already registered.
+        """
+        # Check if already registered via Search endpoint
+        resp = self._api_request(
+            "GET", "System/Devices/Search",
+            json={"deviceIds": [device_id]},
+        )
+        if resp.status_code == 200:
+            data = resp.json()
+            devices = data.get("devices", data if isinstance(data, list) else [])
+            for d in devices:
+                if d.get("deviceId") == device_id:
+                    self._log.info(
+                        "Device %s already registered (type=%s, variant=%s)",
+                        device_id, d.get("deviceType"), d.get("deviceVariantId"),
+                    )
+                    return False
+
+        # Register the device
+        self._log.info(
+            "Registering device %s (type=%d, variant=%d)",
+            device_id, device_type_id, device_variant_id,
+        )
+        payload = {
+            "Devices": [{
+                "DeviceId": device_id,
+                "DeviceType": device_type_id,
+                "DeviceVariantId": device_variant_id,
+            }]
+        }
+        resp = self._api_request("POST", "System/Devices/Register", json=payload)
+
+        if resp.status_code != 200:
+            raise RuntimeError(
+                f"Device registration failed: {resp.status_code} {resp.text[:300]}"
+            )
+
+        result = resp.json()
+        registered = result.get("registeredDevices", [])
+        already = result.get("devicesAlreadyRegistered", [])
+
+        if registered:
+            self._log.info("Device %s registered successfully", device_id)
+            return True
+        elif already:
+            self._log.info("Device %s was already registered", device_id)
+            return False
+        else:
+            raise RuntimeError(f"Unexpected registration result: {result}")
+
+    # ------------------------------------------------------------------
     # CFW Upload
     # ------------------------------------------------------------------
 
@@ -180,6 +267,8 @@ class FuotaClient:
         device_ids: List[str],
         max_stage: int,
         enable: bool = True,
+        device_type_id: int = 2,
+        device_variant_id: int = 3,
     ) -> Dict[str, Any]:
         """Assign device(s) to FUOTA plan.
 
@@ -187,15 +276,24 @@ class FuotaClient:
 
         SAFETY: Only pass test DUT device IDs. Never production devices.
 
+        Auto-registers devices if not already registered (required for assignment).
+
         Args:
             plan_id: Plan to assign (from create_plan).
             device_ids: List of DevEUI hex strings.
             max_stage: 0-indexed max stage the device should reach.
             enable: Enable FUOTA (True) or disable (False).
+            device_type_id: CoreCloud device type (default 2 = Alpha).
+            device_variant_id: CoreCloud device variant (default 3 = Alpha B0).
 
         Returns:
             Response dict with numDevicesUpdated.
         """
+        # CRITICAL: Ensure devices are registered before assigning.
+        # FUOTA assignment fails with "Device not found" on unregistered devices.
+        for device_id in device_ids:
+            self.ensure_device_registered(device_id, device_type_id, device_variant_id)
+
         payload = {
             "planId": plan_id,
             "enableFuota": enable,
@@ -380,6 +478,10 @@ class FuotaClient:
         Returns:
             planId of the created plan.
         """
+        # CRITICAL: Ensure device is registered before FUOTA operations.
+        # assign_device() fails with "Device not found" on unregistered devices.
+        self.ensure_device_registered(device_id, device_type_id, device_variant_id)
+
         stages = [
             {
                 "targets": from_targets,

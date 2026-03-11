@@ -20,10 +20,6 @@ from .data import FwFlashTestSharedData
 def fw_flash_test_step_2_handler(
     config: ThetaFixtureConfig, node: str, usr_data: Dict[str, FwFlashTestSharedData]
 ) -> TestStepResult:
-    """
-    Flash nRF9151 comms firmware via V1 flash_fw_file (with retry on failure).
-    Modem firmware flash is skipped — modem FW is already on the DUTs.
-    """
     result: TestStepResult = TestStepResult(success=False)
 
     # Flash nRF9151 comms firmware.
@@ -53,9 +49,7 @@ def fw_flash_test_step_2_handler(
             result.error = f"nRF9151 comms flash failed after retry: {err}"
             return result
 
-    logging.debug(
-        f"nRF9151 comms firmware {config.fw_flash_nrf9151_app_fw_name} flashed in {time_ms}ms"
-    )
+    logging.debug(f"nRF9151 comms firmware {config.fw_flash_nrf9151_app_fw_name} flashed in {time_ms}ms")
 
     result.success = True
     return result

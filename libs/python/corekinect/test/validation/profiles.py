@@ -280,7 +280,9 @@ class FixtureProfile:
         """
         import requests
 
-        headers = {"Authorization": f"Bearer {api_key}"}
+        # API keys starting with ck_ use "ApiKey" prefix, not "Bearer"
+        auth_prefix = "ApiKey" if api_key.startswith("ck_") else "Bearer"
+        headers = {"Authorization": f"{auth_prefix} {api_key}"}
 
         # Normalize API URL (remove trailing slash)
         api_url = api_url.rstrip("/")

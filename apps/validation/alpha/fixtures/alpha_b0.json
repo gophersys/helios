@@ -7,14 +7,14 @@
   "capabilities": ["button", "peltier", "charger_relay"],
 
   "dut": {
-    "device_id": "70B3D584C01E1FCC",
-    "snr": "0964",
-    "imei": "355025931735979",
-    "iccids": ["89148000009808558441", "89457300000037582833"]
+    "device_id": "70B3D584C01E1DDD",
+    "snr": "09J5",
+    "imei": "355025931651952",
+    "iccids": ["89148000009808560116", "89457300000037581199"]
   },
 
   "power": {
-    "battery_installed": false,
+    "battery_installed": true,
     "dut_voltage": 4.5,
     "charger_voltage": 5.0,
     "boot_settle_s": 10

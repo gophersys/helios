@@ -1,0 +1,408 @@
+# Alpha Validation Test Catalog
+# This is the source of truth for all test definitions.
+# Frontend and API sync from this file.
+
+version: "1.0.0"
+product: alpha
+board: alpha_b0
+
+# Stage definitions
+stages:
+  gate:
+    name: Gate
+    description: PR merge blocker - flash, boot, personalize, FUOTA
+    timing_budget_s: 900
+    trigger: pr
+    blocks_merge: true
+    directory: tests/gate
+
+  nightly:
+    name: Nightly
+    description: Comprehensive validation - sensors, power, GPS, charger
+    timing_budget_s: 3600
+    trigger: cron
+    cron: "0 2 * * *"
+    directory: tests/nightly
+
+  integration:
+    name: Integration
+    description: Instrumented firmware testing via harness
+    timing_budget_s: 1800
+    trigger: manual
+    requires_harness: true
+    directory: tests/integration
+
+  post:
+    name: POST
+    description: Manufacturing Power-On Self Test - run on production floor
+    timing_budget_s: 600
+    trigger: manual
+    system: manufacturing
+    directory: ../../../manufacturing/alpha/src/tests/post
+
+# Hardware capabilities referenced by tests
+hardware:
+  mtib:
+    description: Manufacturing Test Interface Board
+    required: true
+  jlink:
+    description: J-Link debugger for flashing
+    required: true
+  motion:
+    description: Linear rail motion stage
+    required: false
+  peltier:
+    description: Peltier heater for temperature simulation
+    required: false
+  ppg_servo:
+    description: Servo for PPG blocker
+    required: false
+
+# Test definitions
+tests:
+  # ═══════════════════════════════════════════════════════════════════════════
+  # GATE TESTS (Stage 5) - PR merge blocker
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  - id: GATE-ALPHA-001
+    name: test_01_download_artifacts
+    stage: gate
+    timeout_s: 60
+    description: Download firmware artifacts from pipeline
+    hardware: []
+
+  - id: GATE-ALPHA-002
+    name: test_02_flash_firmware
+    stage: gate
+    timeout_s: 150
+    description: Flash all 3 targets via J-Link (nRF52840, modem, nRF9151)
+    hardware: [mtib, jlink]
+
+  - id: GATE-ALPHA-003
+    name: test_03_verify_boot
+    stage: gate
+    timeout_s: 30
+    description: Verify device boots after flash (current check)
+    hardware: [mtib]
+
+  - id: GATE-ALPHA-004
+    name: test_04_personalize
+    stage: gate
+    timeout_s: 120
+    description: Shell lock + EC keygen + key upload
+    hardware: [mtib]
+
+  - id: GATE-ALPHA-005
+    name: test_05_cloud_checkin
+    stage: gate
+    timeout_s: 150
+    description: Wait for device to check into CoreCloud
+    hardware: [mtib]
+
+  - id: GATE-ALPHA-006
+    name: test_06_upload_cfw
+    stage: gate
+    timeout_s: 60
+    description: Upload CFW files to CoreCloud
+    hardware: []
+
+  - id: GATE-ALPHA-007
+    name: test_07_fuota_plan
+    stage: gate
+    timeout_s: 30
+    description: Create FUOTA plan and assign device
+    hardware: []
+
+  - id: GATE-ALPHA-008
+    name: test_08_fuota_delivery
+    stage: gate
+    timeout_s: 480
+    description: Wait for FUOTA delivery to complete
+    hardware: [mtib]
+
+  - id: GATE-ALPHA-009
+    name: test_09_cleanup_fuota
+    stage: gate
+    timeout_s: 15
+    description: Disable FUOTA for device (cleanup)
+    hardware: []
+
+  - id: GATE-ALPHA-010
+    name: test_10_post_fuota_boot
+    stage: gate
+    timeout_s: 30
+    description: Verify device boots after FUOTA
+    hardware: [mtib]
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # NIGHTLY TESTS (Stage 4) - Comprehensive validation
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # Power tests
+  - id: NIGHTLY-ALPHA-PWR-001
+    name: test_sleep_current
+    stage: nightly
+    timeout_s: 120
+    description: Verify sleep mode current < 50uA
+    hardware: [mtib]
+    category: power
+
+  - id: NIGHTLY-ALPHA-PWR-002
+    name: test_active_current
+    stage: nightly
+    timeout_s: 60
+    description: Verify active mode current in expected range
+    hardware: [mtib]
+    category: power
+
+  - id: NIGHTLY-ALPHA-PWR-003
+    name: test_modem_burst
+    stage: nightly
+    timeout_s: 180
+    description: Capture modem TX burst current profile
+    hardware: [mtib]
+    category: power
+
+  - id: NIGHTLY-ALPHA-PWR-004
+    name: test_power_profile
+    stage: nightly
+    timeout_s: 300
+    description: Full 5-minute power profile capture
+    hardware: [mtib]
+    category: power
+
+  # Sensor tests
+  - id: NIGHTLY-ALPHA-SENS-001
+    name: test_ppg_touch_detection
+    stage: nightly
+    timeout_s: 60
+    description: PPG sensor detects simulated touch
+    hardware: [mtib, ppg_servo]
+    category: sensors
+
+  - id: NIGHTLY-ALPHA-SENS-002
+    name: test_temperature_reading
+    stage: nightly
+    timeout_s: 60
+    description: MLX90614 returns valid temperature
+    hardware: [mtib, peltier]
+    category: sensors
+
+  - id: NIGHTLY-ALPHA-SENS-003
+    name: test_accelerometer
+    stage: nightly
+    timeout_s: 60
+    description: Accelerometer detects gravity vector
+    hardware: [mtib]
+    category: sensors
+
+  - id: NIGHTLY-ALPHA-SENS-004
+    name: test_barometer
+    stage: nightly
+    timeout_s: 60
+    description: Barometer returns valid pressure
+    hardware: [mtib]
+    category: sensors
+
+  # GPS tests
+  - id: NIGHTLY-ALPHA-GPS-001
+    name: test_gps_cold_start
+    stage: nightly
+    timeout_s: 120
+    description: GPS cold start TTFF
+    hardware: [mtib]
+    category: gps
+
+  - id: NIGHTLY-ALPHA-GPS-002
+    name: test_gps_warm_start
+    stage: nightly
+    timeout_s: 30
+    description: GPS warm start TTFF
+    hardware: [mtib]
+    category: gps
+
+  - id: NIGHTLY-ALPHA-GPS-003
+    name: test_gps_position
+    stage: nightly
+    timeout_s: 180
+    description: GPS acquires valid position fix
+    hardware: [mtib]
+    category: gps
+
+  # Charger tests
+  - id: NIGHTLY-ALPHA-CHG-001
+    name: test_charger_detection
+    stage: nightly
+    timeout_s: 30
+    description: BQ25180 detects charger connection
+    hardware: [mtib]
+    category: charger
+
+  - id: NIGHTLY-ALPHA-CHG-002
+    name: test_charging_current
+    stage: nightly
+    timeout_s: 60
+    description: Charging current in expected range
+    hardware: [mtib]
+    category: charger
+
+  - id: NIGHTLY-ALPHA-CHG-003
+    name: test_charger_disconnect
+    stage: nightly
+    timeout_s: 30
+    description: Clean transition on charger disconnect
+    hardware: [mtib]
+    category: charger
+
+  # Stimulus tests
+  - id: NIGHTLY-ALPHA-STIM-001
+    name: test_button_short_press
+    stage: nightly
+    timeout_s: 30
+    description: Short button press triggers state change
+    hardware: [mtib]
+    category: stimulus
+
+  - id: NIGHTLY-ALPHA-STIM-002
+    name: test_button_long_press
+    stage: nightly
+    timeout_s: 30
+    description: Long button press triggers SOS/shutdown
+    hardware: [mtib]
+    category: stimulus
+
+  - id: NIGHTLY-ALPHA-STIM-003
+    name: test_motion_detection
+    stage: nightly
+    timeout_s: 60
+    description: Motion stage triggers motion event
+    hardware: [mtib, motion]
+    category: stimulus
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # INTEGRATION TESTS (Stage 3) - Instrumented firmware
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  - id: INTEG-ALPHA-SM-001
+    name: test_idle_to_monitoring
+    stage: integration
+    timeout_s: 30
+    description: IDLE -> MONITORING on touch detection
+    hardware: [mtib]
+    category: state_machine
+
+  - id: INTEG-ALPHA-SM-002
+    name: test_monitoring_to_idle
+    stage: integration
+    timeout_s: 30
+    description: MONITORING -> IDLE on off-body timeout
+    hardware: [mtib]
+    category: state_machine
+
+  - id: INTEG-ALPHA-IPC-001
+    name: test_app_to_comms
+    stage: integration
+    timeout_s: 10
+    description: App->Comms message delivery
+    hardware: [mtib]
+    category: ipc
+
+  - id: INTEG-ALPHA-IPC-002
+    name: test_comms_to_app
+    stage: integration
+    timeout_s: 10
+    description: Comms->App message delivery
+    hardware: [mtib]
+    category: ipc
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # POST TESTS - Manufacturing Power-On Self Test
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  - id: POST-ALPHA-001
+    name: step_0_boot_and_lock
+    stage: post
+    timeout_s: 600
+    description: Boot device and lock comms + app shells
+    hardware: [mtib]
+    category: boot
+
+  - id: POST-ALPHA-002
+    name: step_1_chip_id
+    stage: post
+    timeout_s: 30
+    description: Read and verify nRF52840 chip ID
+    hardware: [mtib]
+    category: identity
+
+  - id: POST-ALPHA-003
+    name: step_2_ext_flash
+    stage: post
+    timeout_s: 60
+    description: External flash read/write/verify
+    hardware: [mtib]
+    category: memory
+
+  - id: POST-ALPHA-004
+    name: step_3_bms_status
+    stage: post
+    timeout_s: 30
+    description: BQ25180 charger/BMS status check
+    hardware: [mtib]
+    category: power
+
+  - id: POST-ALPHA-005
+    name: step_4_charger
+    stage: post
+    timeout_s: 30
+    description: Charger detection and current verification
+    hardware: [mtib]
+    category: power
+
+  - id: POST-ALPHA-006
+    name: step_5_sensors
+    stage: post
+    timeout_s: 30
+    description: Onboard sensor presence check (accel, baro, temp)
+    hardware: [mtib]
+    category: sensors
+
+  - id: POST-ALPHA-007
+    name: step_6_gps
+    stage: post
+    timeout_s: 60
+    description: GPS module communication check
+    hardware: [mtib]
+    category: gps
+
+  - id: POST-ALPHA-008
+    name: step_7_imei_iccid
+    stage: post
+    timeout_s: 30
+    description: Read IMEI and ICCIDs from nRF9151
+    hardware: [mtib]
+    category: identity
+
+  - id: POST-ALPHA-009
+    name: step_8_flash_verify
+    stage: post
+    timeout_s: 120
+    description: Verify firmware on both processors
+    hardware: [mtib]
+    category: firmware
+
+  - id: POST-ALPHA-010
+    name: step_9_personalize
+    stage: post
+    timeout_s: 30
+    description: Personalize device with CoreOps data
+    hardware: [mtib]
+    category: identity
+
+  - id: POST-ALPHA-011
+    name: step_10_rekey_ipc
+    stage: post
+    timeout_s: 30
+    description: Replace hardcoded IPC keys with device-specific keys
+    hardware: [mtib]
+    category: security

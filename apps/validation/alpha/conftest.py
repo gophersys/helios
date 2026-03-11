@@ -1,4 +1,4 @@
-"""pytest fixtures for Stage 4 product validation tests.
+"""pytest fixtures for product validation tests.
 
 Provides session-scoped TestContext and per-test firmware variant
 parametrization. Tests receive a connected, ready-to-use context.
@@ -95,6 +95,18 @@ class ValidationConfig(EnvConfig):
 
     # Mock mode
     MOCK_CLOUD: Optional[str] = None
+
+    # Product context (from Concord catalog API)
+    PRODUCT_SLUG: str = "alpha_b0"
+
+    # MFG flash:Pipeline-based firmware assets (from CI trigger)
+    PIPELINE_ID: Optional[str] = None
+    CONCORD_API_URL: Optional[str] = None
+    CONCORD_API_KEY: Optional[str] = None
+    STORAGE_URL: Optional[str] = None
+    STORAGE_ACCESS_KEY: Optional[str] = None
+    STORAGE_SECRET_ACCESS_KEY: Optional[str] = None
+    STORAGE_BUCKET: str = "concord"
 
 
 cfg = ValidationConfig()
@@ -203,6 +215,12 @@ def pytest_addoption(parser):
         default=False,
         help="Run in mock mode (no hardware/cloud required). Same as MOCK_CLOUD=1 env var.",
     )
+    parser.addoption(
+        "--skip-personalization",
+        action="store_true",
+        default=False,
+        help="Skip personalization tests (use after FUOTA when device already has keys).",
+    )
 
 
 def _is_mock_mode(config) -> bool:
@@ -223,6 +241,7 @@ def _build_mock_context() -> TestContext:
         MockPowerProfiler,
         MockUartDemuxer,
     )
+    from corekinect.test.validation.runner import ProductContext
 
     device_id = int(cfg.DEVICE_ID, 16)
 
@@ -230,6 +249,19 @@ def _build_mock_context() -> TestContext:
     fixture = MockFixtureController()
     uart = MockUartDemuxer()
     power = MockPowerProfiler()
+
+    # Load product context from API if available, else use defaults
+    product_ctx = None
+    api_url = cfg.CONCORD_API_URL
+    api_key = cfg.CONCORD_API_KEY
+    product_slug = cfg.PRODUCT_SLUG
+    if api_url and api_key and product_slug:
+        try:
+            product_ctx = ProductContext.from_api(product_slug, api_url, api_key)
+        except Exception:
+            pass
+    if not product_ctx:
+        product_ctx = ProductContext.default("alpha", "b0")
 
     log.info(
         "Mock mode: device_id=%s, no hardware connection",
@@ -243,7 +275,42 @@ def _build_mock_context() -> TestContext:
         fixture=fixture,
         uart=uart,
         power=power,
+        product=product_ctx,
     )
+
+
+def _resolve_device_id_from_snr() -> Optional[str]:
+    """Resolve DEVICE_ID from DEVICE_SNR via CoreOps proxy.
+
+    If DEVICE_SNR is set but DEVICE_ID is not (or is default), calls the
+    CoreOps proxy to get the actual device ID for this serial number.
+
+    Returns the resolved device ID, or None if resolution fails.
+    """
+    snr = cfg.DEVICE_SNR
+    if not snr:
+        return None
+
+    # Check if DEVICE_ID is already set to something non-default
+    current_id = os.environ.get("DEVICE_ID", cfg.DEVICE_ID)
+    if current_id and current_id != "70B3D584C01E1FCC":
+        log.debug("DEVICE_ID already set to %s, skipping SNR lookup", current_id)
+        return current_id
+
+    try:
+        from corekinect.core_ops import CoreOpsProxyClient
+
+        client = CoreOpsProxyClient(logger=log)
+        if not client.health_check():
+            log.warning("CoreOps proxy not available — using default DEVICE_ID")
+            return None
+
+        device_id = client.assign_device_id(snr)
+        log.info("Resolved SNR %s → DEVICE_ID %s via CoreOps proxy", snr, device_id)
+        return device_id
+    except Exception as e:
+        log.warning("CoreOps proxy lookup failed: %s — using default DEVICE_ID", e)
+        return None
 
 
 @pytest.fixture(scope="session")
@@ -271,10 +338,35 @@ def ctx(request) -> TestContext:
     if request.config.getoption("--db-env"):
         os.environ["CORECLOUD_DB_ENV"] = request.config.getoption("--db-env")
 
+    # Resolve DEVICE_ID from DEVICE_SNR via CoreOps proxy if needed
+    resolved_id = _resolve_device_id_from_snr()
+    if resolved_id:
+        os.environ["DEVICE_ID"] = resolved_id
+
+    # Ensure PRODUCT_SLUG is available for product context loading
+    if not os.environ.get("PRODUCT_SLUG"):
+        os.environ["PRODUCT_SLUG"] = cfg.PRODUCT_SLUG
+
     context = TestContext.from_env()
     context.connect()
     yield context
     context.disconnect()
+
+
+@pytest.fixture(scope="session")
+def product(ctx):
+    """Session-scoped product context from Concord catalog API.
+
+    Provides deviceTypeId, deviceVariantId, appIds, coreCloudEnv from the
+    Product model. Tests use this for FUOTA targets, device registration, etc.
+
+    Usage in tests:
+        def test_fuota(ctx, product):
+            device_type = product.device_type_id   # 2
+            app_ids = product.app_ids               # {"nrf52840": 109, "nrf9151": 108}
+            cloud_env = product.core_cloud_env      # "VAL_1_0"
+    """
+    return ctx.product
 
 
 @pytest.fixture(scope="session")
@@ -295,6 +387,119 @@ def mock_cloud(ctx):
     if isinstance(ctx.cloud, MockCloudClient):
         return ctx.cloud
     return None
+
+
+@pytest.fixture(scope="session")
+def pipeline_assets():
+    """Session-scoped pipeline assets manager for Stage 4 validation.
+
+    When PIPELINE_ID is set (from K8s Job trigger), provides access to
+    firmware artifacts from the CI pipeline. Tests can use this to:
+      - Download hex files for J-Link flashing
+      - Download CFW files for FUOTA
+      - Get version strings for each matrix build
+
+    Usage in tests:
+        def test_fuota(ctx, pipeline_assets):
+            if pipeline_assets:
+                mfg_app_hex = pipeline_assets.get_hex("MFG_BASE", "app")
+                mfg_comms_hex = pipeline_assets.get_hex("MFG_BASE", "comms")
+                cfw_files = pipeline_assets.get_cfw_files("MFG_BUMP")
+
+    Returns None if PIPELINE_ID is not set (manual run without CI trigger).
+    """
+    if not cfg.PIPELINE_ID:
+        log.info("PIPELINE_ID not set — pipeline_assets fixture returning None")
+        yield None
+        return
+
+    try:
+        from corekinect.test.validation.pipeline_assets import PipelineAssets
+        assets = PipelineAssets(
+            pipeline_id=cfg.PIPELINE_ID,
+            logger=log,
+        )
+        log.info("PipelineAssets initialized: %s", cfg.PIPELINE_ID)
+        log.info(assets.summary())
+        yield assets
+        assets.cleanup()
+    except Exception as e:
+        log.error("Failed to initialize PipelineAssets: %s", e)
+        yield None
+
+
+@pytest.fixture(scope="session")
+def mfg_flash(ctx, pipeline_assets):
+    """Session-scoped fixture: Flash MFG_BASE firmware via J-Link.
+
+    When pipeline_assets is available:
+      1. Downloads MFG_BASE hex files from MinIO
+      2. Uploads to MTIB server
+      3. Flashes nRF52840 (app) and nRF9151 (comms) via J-Link
+      4. Re-personalizes the device
+
+    Runs once at the start of the test session, before any tests.
+    Does nothing if pipeline_assets is not available (manual run).
+    """
+    if not pipeline_assets:
+        log.info("No pipeline_assets — skipping Stage 4 MFG flash")
+        yield None
+        return
+
+    try:
+        # Download MFG_BASE hex files
+        log.info("MFG flash:Downloading MFG_BASE firmware from pipeline...")
+        app_hex_path = pipeline_assets.get_hex("MFG_BASE", "app")
+        comms_hex_path = pipeline_assets.get_hex("MFG_BASE", "comms")
+        log.info("MFG_BASE app hex: %s", app_hex_path)
+        log.info("MFG_BASE comms hex: %s", comms_hex_path)
+
+        # Upload to MTIB and flash nRF52840
+        log.info("MFG flash:Flashing MFG_BASE nRF52840...")
+        server_app = pipeline_assets.upload_to_mtib(app_hex_path, ctx.mtib, "nrf52840")
+        ctx.fixture.flash_firmware(server_app, target="nrf52840")
+
+        # Flash nRF9151 comms (if hex available)
+        if comms_hex_path:
+            log.info("MFG flash:Flashing MFG_BASE nRF9151...")
+            server_comms = pipeline_assets.upload_to_mtib(comms_hex_path, ctx.mtib, "nrf9151")
+            ctx.fixture.flash_firmware(server_comms, target="nrf9151")
+
+        # Re-personalize after flash
+        device_snr = cfg.DEVICE_SNR
+        if device_snr:
+            log.info("MFG flash:Re-personalizing device...")
+            from corekinect.test.validation.device_personalizer import DevicePersonalizer
+
+            known_device_id = None
+            if ctx.fixture.profile and ctx.fixture.profile.dut:
+                known_device_id = ctx.fixture.profile.dut.device_id
+
+            personalizer = DevicePersonalizer(
+                mtib=ctx.mtib,
+                snr=device_snr,
+                imei=cfg.DEVICE_IMEI,
+                iccids=[s.strip() for s in (cfg.DEVICE_ICCIDS or "").split(",") if s.strip()] or None,
+                db_env=cfg.CORECLOUD_DB_ENV,
+                logger=log,
+                known_device_id=known_device_id,
+            )
+            result, err = personalizer.repersonalize(power_cycle=True, lock_shells=True)
+            if err:
+                log.warning("MFG flash:Re-personalization failed: %s", err)
+            else:
+                log.info("MFG flash:Re-personalized device_id=%s", result.device_id)
+        else:
+            # Just power cycle if no personalization
+            log.info("MFG flash:Power cycling after flash...")
+            ctx.fixture.power_cycle()
+
+        log.info("MFG flash:MFG_BASE flash complete")
+        yield "MFG_BASE"
+
+    except Exception as e:
+        log.error("MFG flash:MFG flash failed: %s", e)
+        yield None
 
 
 @pytest.fixture(autouse=True)

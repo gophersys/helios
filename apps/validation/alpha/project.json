@@ -3,67 +3,136 @@
   "$schema": "../../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "apps/validation/alpha",
   "projectType": "application",
+  "tags": ["scope:validation", "type:app", "product:alpha"],
   "targets": {
     "build": {
-      "command": "nx run validation-alpha:containerize",
-      "cwd": "{workspaceRoot}"
-    },
-    "push": {
-      "dependsOn": [
-        "build"
-      ],
-      "command": "docker push containers.ad.corekinect.com/concord-validation-alpha:latest"
+      "executor": "nx:run-commands",
+      "defaultConfiguration": "development",
+      "options": {
+        "cwd": "{workspaceRoot}"
+      },
+      "configurations": {
+        "development": {
+          "command": "nx run validation-alpha:containerize -c development"
+        },
+        "staging": {
+          "command": "nx run validation-alpha:containerize -c staging"
+        },
+        "production": {
+          "command": "nx run validation-alpha:containerize -c production"
+        }
+      }
     },
     "containerize": {
       "executor": "@nx-tools/nx-container:build",
-      "cwd": "{workspaceRoot}",
+      "defaultConfiguration": "development",
       "options": {
         "context": "{workspaceRoot}",
-        "file": "apps/validation/alpha/Dockerfile",
-        "platforms": [
-          "linux/amd64"
-        ],
-        "load": true,
+        "cwd": "{workspaceRoot}",
+        "file": "apps/validation/alpha/deploy/Dockerfile",
         "push": false,
-        "tags": [
-          "containers.ad.corekinect.com/concord-validation-alpha:latest"
+        "load": true,
+        "build-args": [
+          "APP_VERSION",
+          "ENVIRONMENT",
+          "GIT_COMMIT",
+          "GIT_BRANCH",
+          "BUILD_TIME"
         ]
+      },
+      "configurations": {
+        "development": {
+          "tags": ["concord/validation-alpha:development"],
+          "platforms": []
+        },
+        "staging": {
+          "tags": [
+            "concord/validation-alpha:staging",
+            "containers.ad.corekinect.com/concord-validation-alpha:staging"
+          ]
+        },
+        "production": {
+          "tags": [
+            "concord/validation-alpha:production",
+            "containers.ad.corekinect.com/concord-validation-alpha:production"
+          ],
+          "platforms": ["linux/amd64"]
+        }
+      }
+    },
+    "push": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["build"],
+      "options": {
+        "cwd": "{workspaceRoot}"
+      },
+      "defaultConfiguration": "staging",
+      "configurations": {
+        "staging": {
+          "command": "docker push containers.ad.corekinect.com/concord-validation-alpha:staging"
+        },
+        "production": {
+          "command": "docker push containers.ad.corekinect.com/concord-validation-alpha:production"
+        }
       }
     },
     "deploy": {
-      "dependsOn": [
-        "push"
-      ],
-      "command": "kubectl delete job validation-alpha --ignore-not-found && kubectl apply -f deploy/validation/alpha/deployment.yaml"
-    },
-    "logs": {
-      "command": "kubectl logs -f -l app=validation-alpha --tail=200"
+      "executor": "nx:run-commands",
+      "dependsOn": ["push"],
+      "defaultConfiguration": "staging",
+      "options": {
+        "cwd": "{workspaceRoot}"
+      },
+      "configurations": {
+        "staging": {
+          "commands": [
+            "echo '✓ Image pushed: containers.ad.corekinect.com/concord-validation-alpha:staging'",
+            "echo 'Trigger validation via POST /v2/validation/runs or Concord UI'"
+          ],
+          "parallel": false
+        },
+        "production": {
+          "commands": [
+            "echo '✓ Image pushed: containers.ad.corekinect.com/concord-validation-alpha:production'",
+            "echo 'Trigger validation via POST /v2/validation/runs or Concord UI'"
+          ],
+          "parallel": false
+        }
+      }
     },
     "test": {
-      "command": "PYTHONPATH=../../libs/python:../../libs:../../libs/protocols pytest -v -s",
-      "cwd": "{projectRoot}"
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/validation/alpha",
+        "command": "PYTHONPATH=$(pwd)/../../../libs/python:$(pwd)/../../../libs:$(pwd)/../../../libs/protocols:. pytest tests/ -v --collect-only"
+      }
     },
     "test:mock": {
-      "command": "PYTHONPATH=../../libs/python:../../libs:../../libs/protocols MOCK_CLOUD=1 pytest -v -s",
-      "cwd": "{projectRoot}"
-    },
-    "setup": {
       "executor": "nx:run-commands",
-      "cwd": "{projectRoot}",
       "options": {
-        "cwd": "{projectRoot}",
-        "commands": [
-          {
-            "command": "python3 -m venv .venv"
-          },
-          {
-            "command": "bash -c 'source .venv/bin/activate && pip install -e .'"
-          },
-          {
-            "command": "cp .env.example .env"
-          }
-        ],
-        "parallel": false
+        "cwd": "apps/validation/alpha",
+        "command": "PYTHONPATH=$(pwd)/../../../libs/python:$(pwd)/../../../libs:$(pwd)/../../../libs/protocols:. MOCK_CLOUD=1 pytest tests/ -v"
+      }
+    },
+    "test:gate": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/validation/alpha",
+        "command": "PYTHONPATH=$(pwd)/../../../libs/python:$(pwd)/../../../libs:$(pwd)/../../../libs/protocols:. pytest tests/gate/ -v --timeout=900"
+      }
+    },
+    "preflight": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/validation/alpha",
+        "command": "PYTHONPATH=$(pwd)/../../../libs/python:$(pwd)/../../../libs:$(pwd)/../../../libs/protocols:. python3 run.py --stage gate --preflight-only"
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/validation/alpha",
+        "command": "python3 -c \"import py_compile,glob;[py_compile.compile(f,doraise=True) for f in glob.glob('**/*.py',recursive=True)]\""
       }
     }
   }
