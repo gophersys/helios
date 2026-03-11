@@ -28,7 +28,7 @@
     loading = true;
     error = null;
     try {
-      const res = await api.get<{ data: { yaml: string } }>(`/v2/kubernetes/resources/${kind}/${namespace}/${name}`);
+      const res = await api.get<{ data: { yaml: string } }>(`/v2/cluster/resources/${kind}/${namespace}/${name}`);
       if (res?.data) {
         yaml = res.data.yaml;
         editValue = res.data.yaml;
@@ -44,7 +44,7 @@
     saving = true;
     error = null;
     try {
-      await api.put(`/v2/kubernetes/resources/${kind}/${namespace}/${name}`, { yaml: editValue });
+      await api.put(`/v2/cluster/resources/${kind}/${namespace}/${name}`, { yaml: editValue });
       yaml = editValue;
       editMode = false;
     } catch (e) {

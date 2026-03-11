@@ -25,13 +25,13 @@ export async function fetchDesigns(
   if (params?.product) qs.set('product', params.product);
 
   const res = await apiFetch<ApiResponse<{ data: FixtureDesignSummary[]; pagination: Pagination }>>(
-    `/v2/validation/designs?${qs.toString()}`
+    `/v2/benches/designs?${qs.toString()}`
   );
   return res.data;
 }
 
 export async function fetchDesign(id: string): Promise<FixtureDesign> {
-  const res = await apiFetch<ApiResponse<FixtureDesign>>(`/v2/validation/designs/${id}`);
+  const res = await apiFetch<ApiResponse<FixtureDesign>>(`/v2/benches/designs/${id}`);
   return res.data;
 }
 
@@ -48,7 +48,7 @@ export interface CreateDesignRequest {
 }
 
 export async function createDesign(data: CreateDesignRequest): Promise<FixtureDesign> {
-  const res = await api.post<ApiResponse<FixtureDesign>>('/v2/validation/designs', data);
+  const res = await api.post<ApiResponse<FixtureDesign>>('/v2/benches/designs', data);
   return res.data;
 }
 
@@ -56,7 +56,7 @@ export async function updateDesign(
   id: string,
   data: Partial<CreateDesignRequest>
 ): Promise<FixtureDesign> {
-  const res = await apiFetch<ApiResponse<FixtureDesign>>(`/v2/validation/designs/${id}`, {
+  const res = await apiFetch<ApiResponse<FixtureDesign>>(`/v2/benches/designs/${id}`, {
     method: 'PATCH',
     body: JSON.stringify(data),
   });
@@ -64,7 +64,7 @@ export async function updateDesign(
 }
 
 export async function deleteDesign(id: string): Promise<void> {
-  await api.delete(`/v2/validation/designs/${id}`);
+  await api.delete(`/v2/benches/designs/${id}`);
 }
 
 // ── Test Benches ───────────────────────────────────────────────
@@ -86,18 +86,18 @@ export async function fetchBenches(
   if (params?.status) qs.set('status', params.status);
 
   const res = await apiFetch<ApiResponse<{ data: TestBench[]; pagination: Pagination }>>(
-    `/v2/validation/benches?${qs.toString()}`
+    `/v2/benches?${qs.toString()}`
   );
   return res.data;
 }
 
 export async function fetchBench(id: string): Promise<TestBench> {
-  const res = await apiFetch<ApiResponse<TestBench>>(`/v2/validation/benches/${id}`);
+  const res = await apiFetch<ApiResponse<TestBench>>(`/v2/benches/${id}`);
   return res.data;
 }
 
 export async function discoverMtibs(): Promise<UnregisteredMtib[]> {
-  const res = await apiFetch<ApiResponse<UnregisteredMtib[]>>('/v2/validation/benches/discover');
+  const res = await apiFetch<ApiResponse<UnregisteredMtib[]>>('/v2/benches/discover');
   return res.data;
 }
 
@@ -124,7 +124,7 @@ export interface CreateBenchRequest {
 }
 
 export async function createBench(data: CreateBenchRequest): Promise<TestBench> {
-  const res = await api.post<ApiResponse<TestBench>>('/v2/validation/benches', data);
+  const res = await api.post<ApiResponse<TestBench>>('/v2/benches', data);
   return res.data;
 }
 
@@ -132,7 +132,7 @@ export async function updateBench(
   id: string,
   data: Partial<CreateBenchRequest>
 ): Promise<TestBench> {
-  const res = await apiFetch<ApiResponse<TestBench>>(`/v2/validation/benches/${id}`, {
+  const res = await apiFetch<ApiResponse<TestBench>>(`/v2/benches/${id}`, {
     method: 'PATCH',
     body: JSON.stringify(data),
   });
@@ -140,12 +140,12 @@ export async function updateBench(
 }
 
 export async function deleteBench(id: string): Promise<void> {
-  await api.delete(`/v2/validation/benches/${id}`);
+  await api.delete(`/v2/benches/${id}`);
 }
 
 export async function fetchBenchProfile(id: string): Promise<Record<string, unknown>> {
   const res = await apiFetch<ApiResponse<Record<string, unknown>>>(
-    `/v2/validation/benches/${id}/profile`
+    `/v2/benches/${id}/profile`
   );
   return res.data;
 }

@@ -39,7 +39,7 @@
 
   async function fetchDevices() {
     try {
-      const res = await apiFetch<ApiResponse<{ devices: IcleDevice[] }>>('/v2/icle');
+      const res = await apiFetch<ApiResponse<{ devices: IcleDevice[] }>>('/v2/devices/icle');
       devices = res.data?.devices || [];
     } catch (err) {
       if (devices.length === 0) {
@@ -52,7 +52,7 @@
     error = null;
     syncing = true;
     try {
-      const res = await api.post<ApiResponse<IcleDiscoveryResult>>('/v2/icle/discover');
+      const res = await api.post<ApiResponse<IcleDiscoveryResult>>('/v2/devices/icle/discover');
       const result = res.data;
       discoveredDevices = result.discovered || [];
       await fetchDevices();
@@ -98,7 +98,7 @@
     error = null;
     submitting = true;
     try {
-      await api.post('/v2/icle', {
+      await api.post('/v2/devices/icle', {
         deviceId: registeringDevice.deviceId,
         name: registerName || null,
         ipAddress: registeringDevice.ipAddress,

@@ -41,7 +41,7 @@
 
   async function fetchProducts() {
     try {
-      const res = await apiFetch<ApiResponse<{ data: Product[] }>>('/v2/catalog');
+      const res = await apiFetch<ApiResponse<{ data: Product[] }>>('/v2/products');
       const payload = res.data;
       products = Array.isArray(payload) ? payload : (payload as { data: Product[] }).data || [];
     } catch (err) {
@@ -53,7 +53,7 @@
 
   async function fetchDetail(id: string) {
     try {
-      const res = await apiFetch<ApiResponse<Product>>(`/v2/catalog/${id}`);
+      const res = await apiFetch<ApiResponse<Product>>(`/v2/products/${id}`);
       selectedProduct = res.data;
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to load product';
@@ -98,9 +98,9 @@
 
     try {
       if (editingId) {
-        await api.put(`/v2/catalog/${editingId}`, body);
+        await api.put(`/v2/products/${editingId}`, body);
       } else {
-        await api.post('/v2/catalog', body);
+        await api.post('/v2/products', body);
       }
       resetForm();
       fetchProducts();
@@ -119,7 +119,7 @@
   async function handleDelete(id: string) {
     error = null;
     try {
-      await api.delete(`/v2/catalog/${id}`);
+      await api.delete(`/v2/products/${id}`);
       if (selectedProduct?.id === id) selectedProduct = null;
       fetchProducts();
     } catch (err) {

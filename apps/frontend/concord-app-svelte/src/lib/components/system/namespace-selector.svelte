@@ -15,7 +15,7 @@
 
   onMount(async () => {
     try {
-      const res = await api.get<{ data: { name: string }[] }>('/v2/kubernetes/namespaces');
+      const res = await api.get<{ data: { name: string }[] }>('/v2/cluster/namespaces');
       if (res?.data) {
         namespaces = res.data.map((n: { name: string }) => n.name);
       }

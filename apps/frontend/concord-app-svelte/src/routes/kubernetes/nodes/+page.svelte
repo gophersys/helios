@@ -28,7 +28,7 @@
 
   async function fetchNodes() {
     try {
-      const res = await api.get<{ data: NodeSummary[] }>('/v2/kubernetes/nodes');
+      const res = await api.get<{ data: NodeSummary[] }>('/v2/cluster/nodes');
       if (res?.data) nodes = res.data;
       error = null;
     } catch (e) {

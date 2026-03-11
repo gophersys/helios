@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
-  import { FlaskConical, Cpu, Wrench, ArrowRight, Activity } from 'lucide-svelte';
+  import { FlaskConical, Cpu, Wrench, ArrowRight, Activity, BookOpen } from 'lucide-svelte';
   import { getAuth } from '$lib/stores/auth.svelte';
   import PageHeader from '$lib/components/ui/page-header.svelte';
 
@@ -22,6 +22,12 @@
       description: 'View and manage validation test sessions, results, and power measurements.',
       href: '/validation/runs',
       icon: Activity,
+    },
+    {
+      title: 'Test Catalog',
+      description: 'Browse test definitions by product and stage. Source of truth for all tests.',
+      href: '/validation/catalog',
+      icon: BookOpen,
     },
     {
       title: 'Test Benches',

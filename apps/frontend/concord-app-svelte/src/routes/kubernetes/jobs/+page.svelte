@@ -28,7 +28,7 @@
 
   async function fetchJobs() {
     try {
-      const url = namespace ? `/v2/kubernetes/jobs?namespace=${namespace}` : '/v2/kubernetes/jobs';
+      const url = namespace ? `/v2/cluster/jobs?namespace=${namespace}` : '/v2/cluster/jobs';
       const res = await api.get<{ data: JobSummary[] }>(url);
       if (res?.data) jobs = res.data;
       error = null;

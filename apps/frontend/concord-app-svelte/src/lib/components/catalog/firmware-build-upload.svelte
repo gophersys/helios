@@ -78,7 +78,7 @@
     if (modemFile) formData.append('modemFile', modemFile);
 
     try {
-      await apiUpload(`/v2/catalog/${productId}/firmware-builds/upload`, formData);
+      await apiUpload(`/v2/products/${productId}/firmware-builds/upload`, formData);
       onSuccess();
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to upload build';

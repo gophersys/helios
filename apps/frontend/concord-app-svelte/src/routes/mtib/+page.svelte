@@ -93,7 +93,7 @@
 
   async function fetchNodes() {
     try {
-      const res = await apiFetch<ApiResponse<{ data: ConcordNode[] }>>('/v2/mtibs');
+      const res = await apiFetch<ApiResponse<{ data: ConcordNode[] }>>('/v2/devices/mtibs');
       const payload = res.data;
       nodes = Array.isArray(payload) ? payload : (payload as { data: ConcordNode[] }).data || [];
     } catch (err) {
@@ -105,7 +105,7 @@
 
   async function fetchFleetObs() {
     try {
-      const res = await apiFetch<ApiResponse<FleetObservabilityResponse>>('/v2/mtibs/observability');
+      const res = await apiFetch<ApiResponse<FleetObservabilityResponse>>('/v2/devices/mtibs/observability');
       const payload = res.data;
       const fleetNodes = payload?.nodes || [];
       if (!Array.isArray(fleetNodes)) return;
@@ -131,7 +131,7 @@
     error = null;
     syncing = true;
     try {
-      const res = await api.post<ApiResponse<NodeSyncResult>>('/v2/mtibs/discover');
+      const res = await api.post<ApiResponse<NodeSyncResult>>('/v2/devices/mtibs/discover');
       const result = res.data;
       discoveredNodes = result.discovered || [];
       offlineNodes = result.offline || [];
@@ -191,7 +191,7 @@
     error = null;
     submitting = true;
     try {
-      await api.put(`/v2/mtibs/${editingId}`, {
+      await api.put(`/v2/devices/mtibs/${editingId}`, {
         name: formName,
         hostname: formHostname,
         type: formType,
@@ -221,7 +221,7 @@
     error = null;
     submitting = true;
     try {
-      await api.post('/v2/mtibs', {
+      await api.post('/v2/devices/mtibs', {
         name: registeringHostname,
         hostname: registeringHostname,
         type: registerType,
@@ -250,7 +250,7 @@
   async function handleDelete(id: string) {
     error = null;
     try {
-      await api.delete(`/v2/mtibs/${id}`);
+      await api.delete(`/v2/devices/mtibs/${id}`);
       await fetchNodes();
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to delete MTIB';
@@ -262,7 +262,7 @@
   async function handleHealthCheck(id: string) {
     error = null;
     try {
-      await api.post(`/v2/mtibs/${id}/health`);
+      await api.post(`/v2/devices/mtibs/${id}/health`);
       await fetchNodes();
     } catch (err) {
       error = err instanceof Error ? err.message : 'Health check failed';

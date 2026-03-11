@@ -1,29 +1,21 @@
 <script lang="ts">
   import { page } from '$app/stores';
   import { goto } from '$app/navigation';
-  import { browser } from '$app/environment';
   import {
     LayoutDashboard,
     FlaskConical,
     Hammer,
-    Warehouse,
     Wrench,
     Settings,
     Users,
     Cpu,
     Package,
-    GitBranch,
     History,
     LogOut,
     PanelLeftClose,
-    Monitor,
-    Rocket,
-    Activity,
-    ChevronDown,
     ChevronUp,
     Shield,
-    Factory,
-    Boxes,
+    Monitor,
   } from 'lucide-svelte';
   import { PUBLIC_APP_VERSION } from '$env/static/public';
   import { getTheme } from '$lib/stores/theme.svelte';
@@ -54,59 +46,45 @@
   const theme = getTheme();
   const auth = getAuth();
 
-  type Mode = 'manufacturing' | 'validation';
-  const STORAGE_KEY = 'concord-mode';
-
-  function getInitialMode(): Mode {
-    if (!browser) return 'validation';
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored === 'manufacturing' || stored === 'validation') return stored;
-    return 'validation';
-  }
-
-  let mode = $state<Mode>(getInitialMode());
   let adminExpanded = $state(false);
+  let systemExpanded = $state(false);
 
-  function handleModeChange(newMode: Mode): void {
-    mode = newMode;
-    if (browser) {
-      localStorage.setItem(STORAGE_KEY, newMode);
-    }
-  }
+  // Primary navigation items
+  const primaryItems: NavItem[] = [
+    { to: '/catalog', icon: Package, label: 'Products', permission: 'Concord.Admin.Catalog.View' },
+    { to: '/ci', icon: Hammer, label: 'Builds', permission: 'Concord.Admin.CI.View' },
+    { to: '/validation', icon: FlaskConical, label: 'Validation' },
+    { to: '/mtib', icon: Cpu, label: 'Devices', permission: 'Concord.Admin.Nodes.View' },
+  ];
 
-  // Mode-specific navigation items
-  const modeNavItems = $derived.by(() => {
-    if (mode === 'validation') {
-      return [
-        { to: '/validation/runs', icon: Activity, label: 'Runs' },
-        { to: '/ci', icon: Hammer, label: 'Builds', permission: 'Concord.Admin.CI.View' },
-        { to: '/validation/benches', icon: Cpu, label: 'Benches' },
-        { to: '/validation/designs', icon: Wrench, label: 'Designs' },
-      ];
-    } else {
-      return [
-        { to: '/fixtures', icon: Wrench, label: 'Fixtures' },
-        { to: '/inventory', icon: Warehouse, label: 'Inventory' },
-        { to: '/catalog', icon: Package, label: 'Catalog' },
-      ];
-    }
-  });
+  const visiblePrimaryItems = $derived(
+    primaryItems.filter(item => !item.permission || auth.hasPermission(item.permission))
+  );
 
-  // Admin items - system management pages
+  // Admin items
   const adminItems: NavItem[] = [
-    { to: '/mtib', icon: Cpu, label: 'MTIB Nodes', permission: 'Concord.Admin.Nodes.View' },
-    { to: '/kubernetes', icon: KubernetesIcon, label: 'Kubernetes', permission: 'Concord.Admin.System.View' },
-    { to: '/deployments', icon: Rocket, label: 'Deployments', permission: 'Concord.Admin.Deployments.View' },
-    { to: '/codebases', icon: GitBranch, label: 'Codebases', permission: 'Concord.Admin.Codebases.View' },
-    { to: '/history', icon: History, label: 'History', permission: 'Concord.Admin.History.View' },
-    { to: '/users', icon: Users, label: 'Users', permission: 'Concord.Admin.Users.View' },
+    { to: '/validation/benches', icon: Monitor, label: 'Benches' },
+    { to: '/fixtures', icon: Wrench, label: 'Fixtures' },
+    { to: '/users', icon: Users, label: 'Users & Permissions', permission: 'Concord.Admin.Users.View' },
   ];
 
   const visibleAdminItems = $derived(
     adminItems.filter(item => !item.permission || auth.hasPermission(item.permission))
   );
 
-  const isAdmin = $derived(visibleAdminItems.length > 0);
+  const hasAdmin = $derived(visibleAdminItems.length > 0);
+
+  // System items
+  const systemItems: NavItem[] = [
+    { to: '/kubernetes', icon: KubernetesIcon, label: 'Cluster', permission: 'Concord.Admin.System.View' },
+    { to: '/history', icon: History, label: 'History', permission: 'Concord.Admin.History.View' },
+  ];
+
+  const visibleSystemItems = $derived(
+    systemItems.filter(item => !item.permission || auth.hasPermission(item.permission))
+  );
+
+  const hasSystem = $derived(visibleSystemItems.length > 0);
 
   function handleLogout(): void {
     auth.logout();
@@ -147,6 +125,36 @@
       <span class="flex-1 truncate">{item.label}</span>
     {/if}
   </a>
+{/snippet}
+
+{#snippet sectionToggle(label: string, icon: IconComponent, expanded: boolean, toggle: () => void)}
+  <button
+    onclick={toggle}
+    title={collapsed ? (expanded ? `Hide ${label}` : `Show ${label}`) : undefined}
+    class="group relative flex w-full items-center rounded-lg text-sm font-medium transition-all"
+    class:justify-center={collapsed}
+    class:px-0={collapsed}
+    class:py-2={true}
+    class:gap-3={!collapsed}
+    class:px-3={!collapsed}
+    class:bg-sidebar-active={expanded}
+    class:text-accent={expanded}
+    class:text-text-secondary={!expanded}
+    class:hover:bg-sidebar-hover={!expanded}
+    class:hover:text-text-primary={!expanded}
+  >
+    {#if expanded}
+      <div class="absolute left-0 top-1/2 h-4 w-0.5 -translate-y-1/2 rounded-r bg-accent"></div>
+    {/if}
+    <svelte:component this={icon} size={18} strokeWidth={1.75} class="shrink-0" />
+    {#if !collapsed}
+      <span class="flex-1 truncate">{label}</span>
+      <ChevronUp
+        size={14}
+        class="shrink-0 transition-transform duration-200 {expanded ? '' : 'rotate-180'}"
+      />
+    {/if}
+  </button>
 {/snippet}
 
 <aside
@@ -199,44 +207,7 @@
 
   <div class="border-t border-border" class:mx-2={collapsed} class:mx-4={!collapsed}></div>
 
-  <!-- Mode Toggle -->
-  <div
-    class="flex rounded-lg bg-surface-2 p-0.5"
-    class:mx-2={collapsed}
-    class:mt-3={true}
-    class:mx-4={!collapsed}
-  >
-    <button
-      onclick={() => handleModeChange('manufacturing')}
-      class="flex-1 min-w-0 truncate rounded-md text-center text-2xs font-medium transition-all"
-      class:px-1={collapsed}
-      class:py-1.5={true}
-      class:px-2={!collapsed}
-      class:bg-accent-muted={mode === 'manufacturing'}
-      class:text-accent={mode === 'manufacturing'}
-      class:shadow-sm={mode === 'manufacturing'}
-      class:text-text-tertiary={mode !== 'manufacturing'}
-      class:hover:text-text-secondary={mode !== 'manufacturing'}
-    >
-      {collapsed ? 'M' : 'Manufacturing'}
-    </button>
-    <button
-      onclick={() => handleModeChange('validation')}
-      class="flex-1 min-w-0 truncate rounded-md text-center text-2xs font-medium transition-all"
-      class:px-1={collapsed}
-      class:py-1.5={true}
-      class:px-2={!collapsed}
-      class:bg-accent-muted={mode === 'validation'}
-      class:text-accent={mode === 'validation'}
-      class:shadow-sm={mode === 'validation'}
-      class:text-text-tertiary={mode !== 'validation'}
-      class:hover:text-text-secondary={mode !== 'validation'}
-    >
-      {collapsed ? 'V' : 'Validation'}
-    </button>
-  </div>
-
-  <!-- Mode-specific Navigation -->
+  <!-- Primary Navigation -->
   <nav
     class="space-y-1 pt-4"
     class:px-2={collapsed}
@@ -245,8 +216,8 @@
     <!-- Dashboard always visible -->
     {@render navLink({ to: '/', icon: LayoutDashboard, label: 'Dashboard' }, true)}
 
-    <!-- Mode-specific items -->
-    {#each modeNavItems as item}
+    <!-- Primary items -->
+    {#each visiblePrimaryItems as item}
       {@render navLink(item)}
     {/each}
   </nav>
@@ -254,8 +225,27 @@
   <!-- Spacer -->
   <div class="flex-1"></div>
 
+  <!-- System Section (expands upward) -->
+  {#if hasSystem && systemExpanded}
+    <div
+      class="border-t border-border space-y-1 overflow-hidden transition-all duration-200"
+      class:px-2={collapsed}
+      class:px-3={!collapsed}
+      class:py-3={true}
+    >
+      {#if !collapsed}
+        <span class="px-3 pb-1 block text-2xs font-medium uppercase tracking-widest text-text-tertiary">
+          System
+        </span>
+      {/if}
+      {#each visibleSystemItems as item}
+        {@render navLink(item)}
+      {/each}
+    </div>
+  {/if}
+
   <!-- Admin Section (expands upward) -->
-  {#if isAdmin && adminExpanded}
+  {#if hasAdmin && adminExpanded}
     <div
       class="border-t border-border space-y-1 overflow-hidden transition-all duration-200"
       class:px-2={collapsed}
@@ -273,41 +263,20 @@
     </div>
   {/if}
 
-  <!-- Footer: Admin toggle, Settings, User -->
+  <!-- Footer: Section toggles, Settings, User -->
   <div
     class="border-t border-border space-y-1"
     class:p-2={collapsed}
     class:p-3={!collapsed}
   >
+    <!-- System Toggle Button -->
+    {#if hasSystem}
+      {@render sectionToggle('System', KubernetesIcon, systemExpanded, () => (systemExpanded = !systemExpanded))}
+    {/if}
+
     <!-- Admin Toggle Button -->
-    {#if isAdmin}
-      <button
-        onclick={() => (adminExpanded = !adminExpanded)}
-        title={collapsed ? (adminExpanded ? 'Hide Admin' : 'Show Admin') : undefined}
-        class="group relative flex w-full items-center rounded-lg text-sm font-medium transition-all"
-        class:justify-center={collapsed}
-        class:px-0={collapsed}
-        class:py-2={true}
-        class:gap-3={!collapsed}
-        class:px-3={!collapsed}
-        class:bg-sidebar-active={adminExpanded}
-        class:text-accent={adminExpanded}
-        class:text-text-secondary={!adminExpanded}
-        class:hover:bg-sidebar-hover={!adminExpanded}
-        class:hover:text-text-primary={!adminExpanded}
-      >
-        {#if adminExpanded}
-          <div class="absolute left-0 top-1/2 h-4 w-0.5 -translate-y-1/2 rounded-r bg-accent"></div>
-        {/if}
-        <Shield size={18} strokeWidth={1.75} class="shrink-0" />
-        {#if !collapsed}
-          <span class="flex-1 truncate">Admin</span>
-          <ChevronUp
-            size={14}
-            class="shrink-0 transition-transform duration-200 {adminExpanded ? '' : 'rotate-180'}"
-          />
-        {/if}
-      </button>
+    {#if hasAdmin}
+      {@render sectionToggle('Admin', Shield, adminExpanded, () => (adminExpanded = !adminExpanded))}
     {/if}
 
     <!-- Settings -->

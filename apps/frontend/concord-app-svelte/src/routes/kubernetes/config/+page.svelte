@@ -34,7 +34,7 @@
 
   async function fetchConfigMaps() {
     try {
-      const url = namespace ? `/v2/kubernetes/configmaps?namespace=${namespace}` : '/v2/kubernetes/configmaps';
+      const url = namespace ? `/v2/cluster/configmaps?namespace=${namespace}` : '/v2/cluster/configmaps';
       const res = await api.get<{ data: ConfigMapSummary[] }>(url);
       if (res?.data) configMaps = res.data;
     } catch (e) {
@@ -44,7 +44,7 @@
 
   async function fetchSecrets() {
     try {
-      const url = namespace ? `/v2/kubernetes/secrets?namespace=${namespace}` : '/v2/kubernetes/secrets';
+      const url = namespace ? `/v2/cluster/secrets?namespace=${namespace}` : '/v2/cluster/secrets';
       const res = await api.get<{ data: SecretSummary[] }>(url);
       if (res?.data) secrets = res.data;
     } catch (e) {

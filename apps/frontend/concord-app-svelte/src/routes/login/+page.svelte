@@ -13,10 +13,6 @@
   let canvas: HTMLCanvasElement;
   let email = $state('');
   let password = $state('');
-  let showGoogleLogin = $state(false);
-
-  // Google OAuth configuration
-  const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
 
   // Redirect if already authenticated (check token directly to avoid timing issues)
   $effect(() => {
@@ -257,65 +253,10 @@
   }
 
   onMount(() => {
-    const cleanupAnimation = initPlanesAnimation();
-
-    // Only load Google Sign-In if a client ID is configured
-    if (GOOGLE_CLIENT_ID && GOOGLE_CLIENT_ID !== 'none') {
-      const script = document.createElement('script');
-      script.src = 'https://accounts.google.com/gsi/client';
-      script.async = true;
-      script.defer = true;
-      script.onload = initializeGoogle;
-      document.head.appendChild(script);
-
-      return () => {
-        script.remove();
-        cleanupAnimation?.();
-      };
-    }
-
-    return cleanupAnimation;
+    return initPlanesAnimation();
   });
 
-  function initializeGoogle() {
-    if (!window.google) return;
-
-    window.google.accounts.id.initialize({
-      client_id: GOOGLE_CLIENT_ID,
-      callback: handleCredentialResponse,
-      auto_select: false,
-      cancel_on_tap_outside: true
-    });
-
-    window.google.accounts.id.renderButton(
-      document.getElementById('google-signin-btn')!,
-      {
-        type: 'standard',
-        theme: 'outline',
-        size: 'large',
-        text: 'signin_with',
-        shape: 'rectangular',
-        logo_alignment: 'left',
-        width: 280
-      }
-    );
-  }
-
-  async function handleCredentialResponse(response: { credential: string }) {
-    loading = true;
-    error = null;
-
-    try {
-      await auth.login(response.credential);
-      goto('/');
-    } catch (err) {
-      error = err instanceof Error ? err.message : 'Login failed';
-    } finally {
-      loading = false;
-    }
-  }
-
-  async function handleCredentialsLogin(e: Event) {
+  async function handleLogin(e: Event) {
     e.preventDefault();
     if (!email.trim() || !password) return;
 
@@ -323,7 +264,7 @@
     error = null;
 
     try {
-      await auth.loginWithCredentials(email.trim(), password);
+      await auth.login(email.trim(), password);
       goto('/');
     } catch (err) {
       error = err instanceof Error ? err.message : 'Login failed';
@@ -387,8 +328,7 @@
           <span class="ml-2 text-sm text-text-secondary">Signing in...</span>
         </div>
       {:else}
-        <!-- Email/password login form -->
-        <form onsubmit={handleCredentialsLogin} class="space-y-4">
+        <form onsubmit={handleLogin} class="space-y-4">
           <div>
             <label for="email" class="block text-sm font-medium text-text-secondary mb-1">Email</label>
             <input
@@ -419,27 +359,6 @@
             Sign in
           </button>
         </form>
-
-        {#if GOOGLE_CLIENT_ID && GOOGLE_CLIENT_ID !== 'none'}
-          <div class="relative my-4">
-            <div class="absolute inset-0 flex items-center">
-              <div class="w-full border-t border-border"></div>
-            </div>
-            <div class="relative flex justify-center text-xs">
-              <button
-                type="button"
-                onclick={() => showGoogleLogin = !showGoogleLogin}
-                class="bg-surface-1 px-2 text-text-tertiary hover:text-text-secondary transition-colors"
-              >
-                {showGoogleLogin ? 'Hide' : 'Or sign in with Google'}
-              </button>
-            </div>
-          </div>
-
-          {#if showGoogleLogin}
-            <div id="google-signin-btn" class="flex justify-center"></div>
-          {/if}
-        {/if}
       {/if}
 
       <p class="mt-4 text-center text-xs text-text-tertiary">
@@ -561,10 +480,5 @@
     50% {
       transform: translateY(-10px) rotate(2deg);
     }
-  }
-
-  /* Ensure Google button is centered and styled consistently */
-  :global(#google-signin-btn > div) {
-    margin: 0 auto;
   }
 </style>

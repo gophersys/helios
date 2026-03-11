@@ -51,24 +51,11 @@ class AuthState {
     }
   }
 
-  async login(googleCredential: string): Promise<void> {
-    const loginData = await apiFetch<ApiResponse<LoginResponse>>('/v2/auth/login', {
-      method: 'POST',
-      body: JSON.stringify({ credential: googleCredential })
-    });
-
-    setToken(loginData.data.token);
-
-    // Fetch full user profile with permissions
-    const meData = await apiFetch<ApiResponse<User>>('/v2/auth/me');
-    this.user = meData.data;
-  }
-
-  async loginWithCredentials(email: string, password: string): Promise<void> {
+  async login(email: string, password: string): Promise<void> {
     // Use fetch directly (not apiFetch) because apiFetch's 401 interceptor
     // redirects to /login, which silently reloads the page instead of
     // showing the "invalid credentials" error to the user.
-    const res = await fetch('/v2/auth/login/corecloud', {
+    const res = await fetch('/v2/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password })

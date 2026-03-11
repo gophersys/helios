@@ -31,7 +31,7 @@
       onDownload(filename);
     } else {
       // Default: open download URL in new tab
-      window.open(`/v2/icle/${deviceId}/logs/${encodeURIComponent(filename)}`, '_blank');
+      window.open(`/v2/devices/icle/${deviceId}/logs/${encodeURIComponent(filename)}`, '_blank');
     }
   }
 </script>

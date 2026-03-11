@@ -120,9 +120,9 @@
 
     try {
       if (editingId) {
-        await api.put(`/v2/catalog/${productId}/boards/${boardId}/revisions/${editingId}`, body);
+        await api.put(`/v2/products/${productId}/boards/${boardId}/revisions/${editingId}`, body);
       } else {
-        await api.post(`/v2/catalog/${productId}/boards/${boardId}/revisions`, body);
+        await api.post(`/v2/products/${productId}/boards/${boardId}/revisions`, body);
       }
       resetForm();
       onRefresh();
@@ -141,7 +141,7 @@
   async function handleDelete(id: string) {
     error = null;
     try {
-      await api.delete(`/v2/catalog/${productId}/boards/${boardId}/revisions/${id}`);
+      await api.delete(`/v2/products/${productId}/boards/${boardId}/revisions/${id}`);
       onRefresh();
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to delete revision';

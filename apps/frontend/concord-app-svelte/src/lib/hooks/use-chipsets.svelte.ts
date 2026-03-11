@@ -19,7 +19,7 @@ export function useChipsets(): ChipsetsState {
     loading = true;
     error = null;
     try {
-      const res = await apiFetch<ApiResponse<Chipset[]>>('/v2/catalog/chipsets');
+      const res = await apiFetch<ApiResponse<Chipset[]>>('/v2/products/chipsets');
       data = Array.isArray(res.data) ? res.data : [];
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to load chipsets';

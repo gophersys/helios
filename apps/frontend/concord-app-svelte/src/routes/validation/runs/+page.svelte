@@ -168,8 +168,8 @@
   async function fetchDropdowns(): Promise<void> {
     try {
       const [prodRes, nodeRes] = await Promise.all([
-        apiFetch<ApiResponse<{ data: Product[] }>>('/v2/catalog'),
-        apiFetch<ApiResponse<{ data: { id: string; name: string }[] }>>('/v2/mtibs'),
+        apiFetch<ApiResponse<{ data: Product[] }>>('/v2/products'),
+        apiFetch<ApiResponse<{ data: { id: string; name: string }[] }>>('/v2/devices/mtibs'),
       ]);
 
       const prodList = Array.isArray(prodRes.data) ? prodRes.data : prodRes.data.data || [];

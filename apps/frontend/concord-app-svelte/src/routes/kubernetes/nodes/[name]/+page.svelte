@@ -78,7 +78,7 @@
   async function fetchNode() {
     loading = true;
     try {
-      const res = await api.get<{ data: NodeDetailData }>(`/v2/kubernetes/nodes/${nodeName}`);
+      const res = await api.get<{ data: NodeDetailData }>(`/v2/cluster/nodes/${nodeName}`);
       if (res?.data) node = res.data;
       error = null;
     } catch (e) {
@@ -102,7 +102,7 @@
     mtibLoading = true;
     try {
       // Fetch all MTIBs and find one deployed to this node
-      const res = await apiFetch<ApiResponse<{ data: ConcordNode[] }>>('/v2/mtibs');
+      const res = await apiFetch<ApiResponse<{ data: ConcordNode[] }>>('/v2/devices/mtibs');
       const payload = res.data;
       const mtibs = Array.isArray(payload) ? payload : (payload as { data: ConcordNode[] }).data || [];
 

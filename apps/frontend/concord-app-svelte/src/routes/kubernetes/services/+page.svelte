@@ -34,7 +34,7 @@
 
   async function fetchServices() {
     try {
-      const url = namespace ? `/v2/kubernetes/services?namespace=${namespace}` : '/v2/kubernetes/services';
+      const url = namespace ? `/v2/cluster/services?namespace=${namespace}` : '/v2/cluster/services';
       const res = await api.get<{ data: ServiceSummary[] }>(url);
       if (res?.data) services = res.data;
       error = null;

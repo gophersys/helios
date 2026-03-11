@@ -175,7 +175,7 @@
 
   async function fetchApiKeys(): Promise<void> {
     try {
-      const data = await apiFetch<ApiResponse<ApiKey[]>>('/v2/auth/api-keys');
+      const data = await apiFetch<ApiResponse<ApiKey[]>>('/v2/api-keys');
       apiKeys = data.data;
     } catch (err: unknown) {
       apiKeyError = err instanceof Error ? err.message : 'Failed to load API keys';
@@ -193,7 +193,7 @@
       if (formExpiresAt) {
         body.expiresAt = new Date(formExpiresAt).toISOString();
       }
-      const data = await apiFetch<ApiResponse<{ key: string } & ApiKey>>('/v2/auth/api-keys', {
+      const data = await apiFetch<ApiResponse<{ key: string } & ApiKey>>('/v2/api-keys', {
         method: 'POST',
         body: JSON.stringify(body),
       });
@@ -211,7 +211,7 @@
 
   async function handleDeleteKey(keyId: string): Promise<void> {
     try {
-      await apiFetch(`/v2/auth/api-keys/${keyId}`, { method: 'DELETE' });
+      await apiFetch(`/v2/api-keys/${keyId}`, { method: 'DELETE' });
       fetchApiKeys();
     } catch (err: unknown) {
       apiKeyError = err instanceof Error ? err.message : 'Failed to delete API key';

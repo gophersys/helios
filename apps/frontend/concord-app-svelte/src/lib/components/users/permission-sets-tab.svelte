@@ -95,7 +95,7 @@
 
   async function fetchSets(): Promise<void> {
     try {
-      const data = await apiFetch<ApiResponse<PermissionSet[]>>('/v2/auth/permission-sets');
+      const data = await apiFetch<ApiResponse<PermissionSet[]>>('/v2/permissions');
       sets = data.data;
     } catch (err: unknown) {
       error = err instanceof Error ? err.message : 'Failed to load permission sets';
@@ -106,7 +106,7 @@
 
   async function fetchPermissions(): Promise<void> {
     try {
-      const data = await apiFetch<ApiResponse<AvailablePermission[]>>('/v2/auth/permissions');
+      const data = await apiFetch<ApiResponse<AvailablePermission[]>>('/v2/permissions/available');
       availablePerms = data.data;
     } catch (err: unknown) {
       error = err instanceof Error ? err.message : 'Failed to load permissions';
@@ -163,9 +163,9 @@
 
     try {
       if (editingId) {
-        await api.put(`/v2/auth/permission-sets/${editingId}`, body);
+        await api.put(`/v2/permissions/${editingId}`, body);
       } else {
-        await api.post('/v2/auth/permission-sets', body);
+        await api.post('/v2/permissions', body);
       }
       resetForm();
       fetchSets();
@@ -179,7 +179,7 @@
   async function handleDelete(id: string): Promise<void> {
     error = null;
     try {
-      await api.delete(`/v2/auth/permission-sets/${id}`);
+      await api.delete(`/v2/permissions/${id}`);
       fetchSets();
     } catch (err: unknown) {
       error = err instanceof Error ? err.message : 'Failed to delete permission set';

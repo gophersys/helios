@@ -50,7 +50,7 @@
   async function fetchPodStatus() {
     try {
       const res = await apiFetch<ApiResponse<PodStatus>>(
-        `/v2/kubernetes/pods/${namespace}/${pod}`
+        `/v2/cluster/pods/${namespace}/${pod}`
       );
       if (res.data) {
         podStatus = res.data;

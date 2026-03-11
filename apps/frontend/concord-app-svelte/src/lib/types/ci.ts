@@ -1,6 +1,6 @@
 // CI / Build pipeline types
 
-export type BuildJobStatus = 'QUEUED' | 'BUILDING' | 'SUCCESS' | 'FAILED' | 'CANCELLED';
+export type BuildJobStatus = 'QUEUED' | 'BLOCKED' | 'BUILDING' | 'SUCCESS' | 'FAILED' | 'CANCELLED';
 export type PipelineStage = 'BUILD' | 'FLASH' | 'VALIDATE';
 export type PipelineStageStatus = 'PENDING' | 'RUNNING' | 'SUCCESS' | 'FAILED' | 'SKIPPED';
 

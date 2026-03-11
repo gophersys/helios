@@ -47,7 +47,7 @@
   }) {
     error = null;
     try {
-      await api.post(`/v2/codebases/${codebase.id}/releases`, data);
+      await api.post(`/v2/builds/codebases/${codebase.id}/releases`, data);
       showReleaseForm = false;
       onRefresh();
     } catch (err) {
@@ -66,7 +66,7 @@
   ) {
     error = null;
     try {
-      await api.put(`/v2/codebases/${codebase.id}/releases/${releaseId}`, data);
+      await api.put(`/v2/builds/codebases/${codebase.id}/releases/${releaseId}`, data);
       editingRelease = null;
       onRefresh();
     } catch (err) {
@@ -82,7 +82,7 @@
   async function handleDeleteRelease(releaseId: string) {
     error = null;
     try {
-      await api.delete(`/v2/codebases/${codebase.id}/releases/${releaseId}`);
+      await api.delete(`/v2/builds/codebases/${codebase.id}/releases/${releaseId}`);
       onRefresh();
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to delete release';

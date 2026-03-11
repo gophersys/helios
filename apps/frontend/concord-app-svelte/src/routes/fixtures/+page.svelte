@@ -48,7 +48,7 @@
 
   async function fetchProducts() {
     try {
-      const res = await apiFetch<ApiResponse<{ data: Product[] }>>('/v2/catalog');
+      const res = await apiFetch<ApiResponse<{ data: Product[] }>>('/v2/products');
       const payload = res.data;
       products = Array.isArray(payload) ? payload : (payload as { data: Product[] }).data || [];
     } catch {

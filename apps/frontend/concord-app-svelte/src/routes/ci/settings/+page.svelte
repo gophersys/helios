@@ -53,7 +53,7 @@
 
   async function loadSettings(): Promise<void> {
     try {
-      const res = await apiFetch<ApiResponse<RepoConfig[]>>('/v2/ci/settings/repos');
+      const res = await apiFetch<ApiResponse<RepoConfig[]>>('/v2/builds/settings/repos');
       repos = res.data;
       error = null;
     } catch (err: unknown) {

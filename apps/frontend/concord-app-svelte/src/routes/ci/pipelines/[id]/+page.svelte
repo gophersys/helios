@@ -18,13 +18,14 @@
     Hammer,
     Loader2,
     Package,
+    RefreshCw,
     User,
     XCircle,
   } from 'lucide-svelte';
   import { getAuth } from '$lib/stores/auth.svelte';
   import type { Pipeline, PipelineBuildSummary, MatrixLabel } from '$lib/types/ci';
   import { MATRIX_LABEL_DISPLAY } from '$lib/types/ci';
-  import { fetchPipeline, fetchBuildLog, fetchBuildArtifacts } from '$lib/services/ci';
+  import { fetchPipeline, fetchBuildLog, fetchBuildArtifacts, resetBuild } from '$lib/services/ci';
   import type { BuildJobArtifact } from '$lib/types/ci';
   import {
     subscribeCiPipeline,
@@ -34,12 +35,14 @@
   import ErrorAlert from '$lib/components/ui/error-alert.svelte';
   import LoadingState from '$lib/components/ui/loading-state.svelte';
   import StatusBadge from '$lib/components/ui/status-badge.svelte';
+  import Skeleton from '$lib/components/ui/skeleton.svelte';
 
   const auth = getAuth();
   const pipelineId = $derived($page.params.id);
 
   let pipeline = $state<Pipeline | null>(null);
   let loading = $state(true);
+  let initialLoadComplete = $state(false);
   let error = $state<string | null>(null);
   let unsubscribeWs: (() => void) | null = null;
   let pollInterval: ReturnType<typeof setInterval> | null = null;
@@ -52,6 +55,27 @@
   let logContainers = $state<Record<string, HTMLDivElement | null>>({});
   let logPollIntervals = $state<Record<string, ReturnType<typeof setInterval>>>({});
   let logAnalysis = $state<Record<string, LogAnalysis>>({});
+  let resettingBuilds = $state<Set<string>>(new Set());
+
+  async function handleResetBuild(buildId: string, e: Event): Promise<void> {
+    e.stopPropagation();
+    if (resettingBuilds.has(buildId)) return;
+
+    resettingBuilds.add(buildId);
+    resettingBuilds = new Set(resettingBuilds);
+
+    try {
+      await resetBuild(buildId);
+      // Reload the pipeline to get fresh status
+      await loadPipeline();
+    } catch (err) {
+      console.error('Failed to reset build:', err);
+      error = err instanceof Error ? err.message : 'Failed to reset build';
+    } finally {
+      resettingBuilds.delete(buildId);
+      resettingBuilds = new Set(resettingBuilds);
+    }
+  }
 
   // Trigger source display
   const TRIGGER_CONFIG: Record<string, { icon: typeof User; label: string; color: string }> = {
@@ -124,6 +148,29 @@
   function getMatrixDisplay(label: string | null | undefined) {
     if (!label) return null;
     return MATRIX_LABEL_DISPLAY[label as MatrixLabel] ?? null;
+  }
+
+  // Bitbucket URL construction
+  // Maps product/repo to Bitbucket workspace/repo
+  const BITBUCKET_WORKSPACE = 'corekinect';
+
+  function getBitbucketCommitUrl(product: string, commitSha: string | null): string | null {
+    if (!commitSha) return null;
+    // Map product to repo slug: alpha_fw -> alpha_fw, alpha -> alpha_fw
+    let repoSlug = product.toLowerCase().replace(/\s+/g, '_');
+    if (!repoSlug.endsWith('_fw')) {
+      repoSlug = `${repoSlug}_fw`;
+    }
+    return `https://bitbucket.org/${BITBUCKET_WORKSPACE}/${repoSlug}/commits/${commitSha}`;
+  }
+
+  function getBitbucketBranchUrl(product: string, branch: string): string | null {
+    if (!branch) return null;
+    let repoSlug = product.toLowerCase().replace(/\s+/g, '_');
+    if (!repoSlug.endsWith('_fw')) {
+      repoSlug = `${repoSlug}_fw`;
+    }
+    return `https://bitbucket.org/${BITBUCKET_WORKSPACE}/${repoSlug}/branch/${encodeURIComponent(branch)}`;
   }
 
   function scrollLogToBottom(buildId: string): void {
@@ -211,15 +258,30 @@
     return name.endsWith('.hex') || name.endsWith('.cfw') || name.endsWith('.bin');
   }
 
-  async function loadPipeline(): Promise<void> {
+  async function loadPipeline(isInitial: boolean = false): Promise<void> {
     if (!pipelineId) return;
     try {
       pipeline = await fetchPipeline(pipelineId);
       error = null;
+
+      // On initial load, pre-fetch log analysis for all completed builds before showing content
+      if (isInitial && pipeline?.builds) {
+        const completedBuilds = pipeline.builds.filter(
+          (b) => b.status === 'SUCCESS' || b.status === 'FAILED'
+        );
+        if (completedBuilds.length > 0) {
+          await Promise.all(
+            completedBuilds.map((b) => fetchAndUpdateLog(b.id, false))
+          );
+        }
+      }
     } catch (err: unknown) {
       error = err instanceof Error ? err.message : 'Failed to load build';
     } finally {
       loading = false;
+      if (isInitial) {
+        initialLoadComplete = true;
+      }
     }
   }
 
@@ -270,10 +332,10 @@
       goto('/');
       return;
     }
-    loadPipeline();
+    loadPipeline(true); // Initial load - wait for all data
     setupWebSocket();
     pollInterval = setInterval(() => {
-      if (isRunning) loadPipeline();
+      if (isRunning) loadPipeline(false); // Refresh - don't block
     }, 5000);
   });
 
@@ -294,8 +356,50 @@
     All Builds
   </button>
 
-  {#if loading}
-    <LoadingState message="Loading build..." />
+  {#if loading || !initialLoadComplete}
+    <!-- Skeleton loading state -->
+    <div class="animate-fade-in space-y-6">
+      <!-- Header skeleton -->
+      <div class="flex items-start justify-between gap-4">
+        <div class="space-y-2">
+          <div class="flex items-center gap-3">
+            <Skeleton width="180px" height="1.5rem" />
+            <Skeleton width="80px" height="1.25rem" class="rounded-full" />
+          </div>
+          <div class="flex items-center gap-4">
+            <Skeleton width="120px" height="0.875rem" />
+            <Skeleton width="80px" height="0.875rem" />
+            <Skeleton width="60px" height="0.875rem" />
+          </div>
+        </div>
+        <Skeleton width="100px" height="2rem" class="rounded" />
+      </div>
+      <!-- Stats cards skeleton -->
+      <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {#each [1, 2, 3, 4] as _}
+          <div class="card card-sm">
+            <Skeleton width="60px" height="0.625rem" class="mb-2" />
+            <Skeleton width="80px" height="1.25rem" />
+          </div>
+        {/each}
+      </div>
+      <!-- Builds skeleton -->
+      <div class="space-y-3">
+        <Skeleton width="120px" height="1rem" />
+        {#each [1, 2, 3] as _}
+          <div class="card p-4 space-y-2">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <Skeleton width="14px" height="14px" />
+                <Skeleton width="150px" height="1rem" />
+                <Skeleton width="60px" height="1rem" class="rounded-full" />
+              </div>
+              <Skeleton width="80px" height="0.875rem" />
+            </div>
+          </div>
+        {/each}
+      </div>
+    </div>
   {:else if error && !pipeline}
     <ErrorAlert message={error} />
   {:else if pipeline}
@@ -320,12 +424,44 @@
           {/if}
         </div>
         <div class="mt-1 flex items-center gap-4 text-xs text-text-tertiary">
-          <span class="inline-flex items-center gap-1">
-            <GitBranch size={12} />
-            {pipeline.branch}
-          </span>
+          {#if pipeline.branch}
+            {@const branchUrl = getBitbucketBranchUrl(pipeline.product, pipeline.branch)}
+            {#if branchUrl}
+              <a
+                href={branchUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                class="inline-flex items-center gap-1 hover:text-accent transition-colors"
+                title="View branch on Bitbucket"
+              >
+                <GitBranch size={12} />
+                {pipeline.branch}
+                <ExternalLink size={10} />
+              </a>
+            {:else}
+              <span class="inline-flex items-center gap-1">
+                <GitBranch size={12} />
+                {pipeline.branch}
+              </span>
+            {/if}
+          {/if}
           {#if pipeline.commitSha}
-            <span class="font-mono">{pipeline.commitSha.slice(0, 7)}</span>
+            {@const commitUrl = getBitbucketCommitUrl(pipeline.product, pipeline.commitSha)}
+            {#if commitUrl}
+              <a
+                href={commitUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                class="inline-flex items-center gap-1 font-mono hover:text-accent transition-colors"
+                title="View commit on Bitbucket"
+              >
+                <GitCommit size={12} />
+                {pipeline.commitSha.slice(0, 7)}
+                <ExternalLink size={10} />
+              </a>
+            {:else}
+              <span class="font-mono">{pipeline.commitSha.slice(0, 7)}</span>
+            {/if}
           {/if}
           <span>{pipeline.board}</span>
           <!-- Trigger badge -->
@@ -338,7 +474,7 @@
       <div class="flex items-center gap-3 text-xs text-text-tertiary">
         {#if totalArtifacts > 0}
           <a
-            href="/v2/ci/pipelines/{pipeline.id}/artifacts/download"
+            href="/v2/builds/pipelines/{pipeline.id}/artifacts/download"
             class="btn btn-sm btn-accent flex items-center gap-1.5"
             download
           >
@@ -387,8 +523,27 @@
       </div>
       <div class="card card-sm">
         <div class="text-2xs font-medium uppercase tracking-wider text-text-tertiary">Commit</div>
-        <div class="mt-1 text-sm font-mono text-text-primary">
-          {pipeline.commitSha ? pipeline.commitSha.slice(0, 12) : '--'}
+        <div class="mt-1 flex items-center gap-1.5">
+          <GitCommit size={16} class="text-text-tertiary" />
+          {#if pipeline.commitSha}
+            {@const commitUrl = getBitbucketCommitUrl(pipeline.product, pipeline.commitSha)}
+            {#if commitUrl}
+              <a
+                href={commitUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                class="text-sm font-mono text-text-primary hover:text-accent transition-colors inline-flex items-center gap-1"
+                title="View commit on Bitbucket"
+              >
+                {pipeline.commitSha.slice(0, 12)}
+                <ExternalLink size={12} />
+              </a>
+            {:else}
+              <span class="text-sm font-mono text-text-primary">{pipeline.commitSha.slice(0, 12)}</span>
+            {/if}
+          {:else}
+            <span class="text-sm font-mono text-text-primary">--</span>
+          {/if}
         </div>
       </div>
     </div>
@@ -457,6 +612,17 @@
                             {#if build.versionBump}
                               <span class="text-2xs text-info px-1 py-0.5 rounded bg-info-muted flex-shrink-0" title="Version bump (+1 from base)">+1</span>
                             {/if}
+                            {#if build.status === 'BUILDING' || build.status === 'FAILED'}
+                              <button
+                                onclick={(e) => handleResetBuild(build.id, e)}
+                                disabled={resettingBuilds.has(build.id)}
+                                class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-warning-muted text-warning text-2xs font-medium hover:bg-warning/20 transition-colors disabled:opacity-50"
+                                title="Reset build to QUEUED (re-run)"
+                              >
+                                <RefreshCw size={10} class={resettingBuilds.has(build.id) ? 'animate-spin' : ''} />
+                                Reset
+                              </button>
+                            {/if}
                           </div>
                           <div class="flex items-center gap-2 text-2xs text-text-tertiary flex-shrink-0">
                             {#if analysis?.errorCount}
@@ -499,7 +665,7 @@
                                 <div class="grid gap-2 sm:grid-cols-2">
                                   {#each artifacts as artifact (artifact.id)}
                                     <a
-                                      href="/v2/ci/builds/{build.id}/artifacts/{artifact.name}"
+                                      href="/v2/builds/{build.id}/artifacts/{artifact.name}"
                                       class="flex items-center justify-between gap-2 px-3 py-2 rounded-lg border border-border bg-surface-0 hover:bg-surface-2 transition-colors"
                                       download
                                     >
@@ -636,6 +802,17 @@
                     {#if build.versionString}
                       <span class="text-2xs font-mono text-text-secondary flex-shrink-0">v{build.versionString}</span>
                     {/if}
+                    {#if build.status === 'BUILDING' || build.status === 'FAILED'}
+                      <button
+                        onclick={(e) => handleResetBuild(build.id, e)}
+                        disabled={resettingBuilds.has(build.id)}
+                        class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-warning-muted text-warning text-2xs font-medium hover:bg-warning/20 transition-colors disabled:opacity-50"
+                        title="Reset build to QUEUED (re-run)"
+                      >
+                        <RefreshCw size={10} class={resettingBuilds.has(build.id) ? 'animate-spin' : ''} />
+                        Reset
+                      </button>
+                    {/if}
                   </div>
                   <div class="flex items-center gap-2 text-2xs text-text-tertiary flex-shrink-0">
                     {#if analysis?.errorCount}
@@ -663,7 +840,7 @@
                 {#if artifacts.length > 0 && !isExpanded}
                   <div class="flex items-center gap-2 ml-8 mt-1">
                     <a
-                      href="/v2/ci/builds/{build.id}/artifacts/download"
+                      href="/v2/builds/{build.id}/artifacts/download"
                       onclick={(e) => e.stopPropagation()}
                       class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-accent-muted text-2xs text-accent font-medium hover:bg-accent-subtle transition-colors"
                       download
@@ -693,7 +870,7 @@
                         <div class="grid gap-2 sm:grid-cols-2">
                           {#each artifacts as artifact (artifact.id)}
                             <a
-                              href="/v2/ci/builds/{build.id}/artifacts/{artifact.name}"
+                              href="/v2/builds/{build.id}/artifacts/{artifact.name}"
                               class="flex items-center justify-between gap-2 px-3 py-2 rounded-lg border border-border bg-surface-0 hover:bg-surface-2 transition-colors"
                               download
                             >

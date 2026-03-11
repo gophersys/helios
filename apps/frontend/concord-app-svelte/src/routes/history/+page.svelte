@@ -79,7 +79,7 @@
       if (actionSearch) params.set('action', actionSearch);
 
       const res = await apiFetch<ApiResponse<{ entries: AuditEntry[]; pagination: Pagination }>>(
-        '/v2/admin/history?' + params.toString()
+        '/v2/system/history?' + params.toString()
       );
 
       entries = res.data.entries;

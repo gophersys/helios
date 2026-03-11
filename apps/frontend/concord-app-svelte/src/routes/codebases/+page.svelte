@@ -34,7 +34,7 @@
 
   async function fetchCodebases() {
     try {
-      const res = await apiFetch<ApiResponse<{ data: Codebase[] }>>('/v2/codebases');
+      const res = await apiFetch<ApiResponse<{ data: Codebase[] }>>('/v2/builds/codebases');
       const payload = res.data;
       codebases = Array.isArray(payload) ? payload : (payload as { data: Codebase[] }).data || [];
     } catch (err) {
@@ -46,7 +46,7 @@
 
   async function fetchDetail(id: string) {
     try {
-      const res = await apiFetch<ApiResponse<Codebase>>(`/v2/codebases/${id}`);
+      const res = await apiFetch<ApiResponse<Codebase>>(`/v2/builds/codebases/${id}`);
       selectedCodebase = res.data;
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to load codebase';
@@ -94,9 +94,9 @@
 
     try {
       if (editingId) {
-        await api.put(`/v2/codebases/${editingId}`, body);
+        await api.put(`/v2/builds/codebases/${editingId}`, body);
       } else {
-        await api.post('/v2/codebases', body);
+        await api.post('/v2/builds/codebases', body);
       }
       resetForm();
       fetchCodebases();
@@ -115,7 +115,7 @@
   async function handleDelete(id: string) {
     error = null;
     try {
-      await api.delete(`/v2/codebases/${id}`);
+      await api.delete(`/v2/builds/codebases/${id}`);
       if (selectedCodebase?.id === id) selectedCodebase = null;
       fetchCodebases();
     } catch (err) {
@@ -128,7 +128,7 @@
     try {
       const formData = new FormData();
       formData.append('file', file);
-      await apiUpload(`/v2/codebases/${selectedCodebase.id}/image`, formData);
+      await apiUpload(`/v2/builds/codebases/${selectedCodebase.id}/image`, formData);
       fetchCodebases();
       fetchDetail(selectedCodebase.id);
     } catch (err) {

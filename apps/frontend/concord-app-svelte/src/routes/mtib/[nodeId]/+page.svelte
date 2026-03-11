@@ -82,8 +82,8 @@
   async function fetchData() {
     try {
       const [obsRes, nodeRes] = await Promise.all([
-        apiFetch<ApiResponse<NodeObservabilityResponse>>(`/v2/mtibs/${nodeId}/observability`),
-        apiFetch<ApiResponse<ConcordNode>>(`/v2/mtibs/${nodeId}`),
+        apiFetch<ApiResponse<NodeObservabilityResponse>>(`/v2/devices/mtibs/${nodeId}/observability`),
+        apiFetch<ApiResponse<ConcordNode>>(`/v2/devices/mtibs/${nodeId}`),
       ]);
       data = obsRes.data;
       nodeDetail = nodeRes.data;

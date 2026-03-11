@@ -69,7 +69,7 @@
 
   async function handleDownload(buildId: string) {
     try {
-      const res = await apiFetch<ApiResponse<{ url: string }>>(`/v2/catalog/firmware-builds/${buildId}/download`);
+      const res = await apiFetch<ApiResponse<{ url: string }>>(`/v2/products/firmware-builds/${buildId}/download`);
       window.open(res.data.url, '_blank');
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to get download URL';
@@ -84,7 +84,7 @@
   async function handleDelete(buildId: string) {
     error = null;
     try {
-      await api.delete(`/v2/catalog/${productId}/firmware-builds/${buildId}`);
+      await api.delete(`/v2/products/${productId}/firmware-builds/${buildId}`);
       onRefresh();
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to delete build';

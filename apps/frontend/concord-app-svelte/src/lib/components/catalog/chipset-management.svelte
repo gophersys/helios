@@ -61,9 +61,9 @@
 
     try {
       if (editingId) {
-        await api.put(`/v2/catalog/chipsets/${editingId}`, body);
+        await api.put(`/v2/products/chipsets/${editingId}`, body);
       } else {
-        await api.post('/v2/catalog/chipsets', body);
+        await api.post('/v2/products/chipsets', body);
       }
       resetForm();
       onRefresh();
@@ -82,7 +82,7 @@
   async function handleDelete(id: string) {
     error = null;
     try {
-      await api.delete(`/v2/catalog/chipsets/${id}`);
+      await api.delete(`/v2/products/chipsets/${id}`);
       onRefresh();
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to delete chipset';

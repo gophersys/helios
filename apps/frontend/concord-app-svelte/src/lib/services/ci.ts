@@ -41,7 +41,7 @@ export async function fetchPipelines(
   if (params?.product) qs.set('product', params.product);
 
   const res = await apiFetch<PaginatedApiResponse<Pipeline[]>>(
-    `/v2/ci/pipelines?${qs.toString()}`
+    `/v2/builds/pipelines?${qs.toString()}`
   );
   return {
     data: res.data,
@@ -55,7 +55,7 @@ export async function fetchPipelines(
 }
 
 export async function fetchPipeline(id: string): Promise<Pipeline> {
-  const res = await apiFetch<ApiResponse<Pipeline>>(`/v2/ci/pipelines/${id}`);
+  const res = await apiFetch<ApiResponse<Pipeline>>(`/v2/builds/pipelines/${id}`);
   const pipeline = res.data;
 
   // Compute stages from pipeline status and builds
@@ -127,7 +127,7 @@ export async function fetchPipeline(id: string): Promise<Pipeline> {
 }
 
 export async function triggerPipeline(config: TriggerPipelineConfig): Promise<Pipeline> {
-  const res = await api.post<ApiResponse<Pipeline>>('/v2/ci/trigger', config);
+  const res = await api.post<ApiResponse<Pipeline>>('/v2/builds/trigger', config);
   return res.data;
 }
 
@@ -152,7 +152,7 @@ export async function fetchBuilds(
   if (params?.product) qs.set('product', params.product);
 
   const res = await apiFetch<PaginatedApiResponse<BuildJob[]>>(
-    `/v2/ci/builds?${qs.toString()}`
+    `/v2/builds?${qs.toString()}`
   );
   return {
     data: res.data,
@@ -166,21 +166,26 @@ export async function fetchBuilds(
 }
 
 export async function fetchBuild(id: string): Promise<BuildJob> {
-  const res = await apiFetch<ApiResponse<BuildJob>>(`/v2/ci/builds/${id}`);
+  const res = await apiFetch<ApiResponse<BuildJob>>(`/v2/builds/${id}`);
   return res.data;
 }
 
 export async function fetchBuildLog(id: string): Promise<string> {
-  const res = await apiFetch<ApiResponse<{ log: string }>>(`/v2/ci/builds/${id}/log`);
+  const res = await apiFetch<ApiResponse<{ log: string }>>(`/v2/builds/${id}/log`);
   return res.data.log;
 }
 
 export async function fetchBuildArtifacts(id: string): Promise<BuildJobArtifact[]> {
-  const res = await apiFetch<ApiResponse<BuildJobArtifact[]>>(`/v2/ci/builds/${id}/artifacts`);
+  const res = await apiFetch<ApiResponse<BuildJobArtifact[]>>(`/v2/builds/${id}/artifacts`);
   return res.data;
 }
 
 export async function triggerBuild(config: TriggerBuildConfig): Promise<BuildJob> {
-  const res = await api.post<ApiResponse<BuildJob>>('/v2/ci/builds', config);
+  const res = await api.post<ApiResponse<BuildJob>>('/v2/builds', config);
+  return res.data;
+}
+
+export async function resetBuild(id: string): Promise<BuildJob> {
+  const res = await api.post<ApiResponse<BuildJob>>(`/v2/builds/${id}/reset`, {});
   return res.data;
 }

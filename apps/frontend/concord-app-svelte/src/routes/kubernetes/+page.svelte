@@ -52,7 +52,7 @@
   async function fetchData() {
     try {
       // Fetch cluster info
-      const clusterRes = await api.get<{ data: ClusterInfo }>('/v2/kubernetes/cluster');
+      const clusterRes = await api.get<{ data: ClusterInfo }>('/v2/cluster/cluster');
       console.log('cluster response:', clusterRes);
       if (clusterRes?.data) {
         cluster = clusterRes.data;
@@ -60,7 +60,7 @@
 
       // Fetch nodes (may fail if not available)
       try {
-        const nodesRes = await api.get<{ data: NodeSummary[] }>('/v2/kubernetes/nodes');
+        const nodesRes = await api.get<{ data: NodeSummary[] }>('/v2/cluster/nodes');
         console.log('nodes response:', nodesRes);
         if (nodesRes?.data) {
           nodes = nodesRes.data;
@@ -71,7 +71,7 @@
 
       // Fetch events (may fail if not available)
       try {
-        const eventsRes = await api.get<{ data: K8sEvent[] }>('/v2/kubernetes/events?limit=10');
+        const eventsRes = await api.get<{ data: K8sEvent[] }>('/v2/cluster/events?limit=10');
         console.log('events response:', eventsRes);
         if (eventsRes?.data) {
           events = eventsRes.data;

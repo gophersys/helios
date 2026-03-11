@@ -17,7 +17,7 @@
   // Fetch basic node info for header
   async function fetchNodeInfo() {
     try {
-      const res = await apiFetch<ApiResponse<ConcordNode>>(`/v2/mtibs/${nodeId}`);
+      const res = await apiFetch<ApiResponse<ConcordNode>>(`/v2/devices/mtibs/${nodeId}`);
       nodeInfo = res.data;
     } catch {
       // Silently fail - child pages will handle errors

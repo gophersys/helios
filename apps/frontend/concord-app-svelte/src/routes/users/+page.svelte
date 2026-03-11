@@ -38,7 +38,7 @@
 
   async function fetchUsers(): Promise<void> {
     try {
-      const data = await apiFetch<ApiResponse<FullUser[]>>('/v2/auth/users');
+      const data = await apiFetch<ApiResponse<FullUser[]>>('/v2/users');
       users = data.data;
     } catch (err: unknown) {
       error = err instanceof Error ? err.message : 'Failed to load users';
@@ -49,7 +49,7 @@
 
   async function fetchPermissionSets(): Promise<void> {
     try {
-      const data = await apiFetch<ApiResponse<PermissionSet[]>>('/v2/auth/permission-sets');
+      const data = await apiFetch<ApiResponse<PermissionSet[]>>('/v2/permissions');
       permissionSets = data.data;
       // Set default selection
       if (data.data.length > 0 && !formPermissionSetId) {
@@ -75,7 +75,7 @@
     error = null;
     submitting = true;
     try {
-      await api.post('/v2/auth/users', {
+      await api.post('/v2/users', {
         email: formEmail,
         name: formName,
         permissionSetId: formPermissionSetId || null,
@@ -95,7 +95,7 @@
 
   async function handleToggleActive(userId: string, currentActive: boolean): Promise<void> {
     try {
-      await api.put(`/v2/auth/users/${userId}`, { active: !currentActive });
+      await api.put(`/v2/users/${userId}`, { active: !currentActive });
       fetchUsers();
     } catch (err: unknown) {
       error = err instanceof Error ? err.message : 'Failed to update user';
@@ -106,7 +106,7 @@
     const user = users.find(u => u.id === userId);
     if (!user) return;
     try {
-      await api.put(`/v2/auth/users/${userId}`, { permissionSetId: user.permissionSetId || null });
+      await api.put(`/v2/users/${userId}`, { permissionSetId: user.permissionSetId || null });
       fetchUsers();
     } catch (err: unknown) {
       error = err instanceof Error ? err.message : 'Failed to update permission set';

@@ -26,7 +26,10 @@
     SKIPPED: 'bg-surface-2 text-text-tertiary',
     // Build / CI statuses
     BUILDING: 'bg-accent-muted text-accent',
+    BLOCKED: 'bg-surface-2 text-text-tertiary',
     SUCCESS: 'bg-success-muted text-success',
+    BUILD_FAILED: 'bg-error-muted text-error',
+    VALIDATING: 'bg-info-muted text-info',
     // Type badges
     MANUFACTURING: 'bg-accent-muted text-accent',
     VALIDATION: 'bg-info-muted text-info',

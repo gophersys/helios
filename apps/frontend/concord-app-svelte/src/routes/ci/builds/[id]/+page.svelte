@@ -259,7 +259,7 @@
                 </span>
               {/if}
               <a
-                href="/v2/ci/builds/{buildId}/artifacts/{artifact.name}"
+                href="/v2/builds/{buildId}/artifacts/{artifact.name}"
                 class="btn btn-sm text-2xs flex items-center gap-1"
                 target="_blank"
               >

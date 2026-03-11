@@ -194,7 +194,7 @@ describe('AuthState', () => {
   });
 
   describe('login', () => {
-    it('calls login API with credential', async () => {
+    it('calls login API with email and password', async () => {
       const mockLoginResponse = {
         data: {
           token: 'new-jwt-token',
@@ -221,14 +221,14 @@ describe('AuthState', () => {
       });
 
       const auth = createAuthContext();
-      await auth.login('google-credential');
+      await auth.login('test@test.com', 'password123');
 
-      // Should have called login endpoint
+      // Should have called login endpoint with email/password
       expect(global.fetch).toHaveBeenCalledWith(
         '/v2/auth/login',
         expect.objectContaining({
           method: 'POST',
-          body: JSON.stringify({ credential: 'google-credential' })
+          body: JSON.stringify({ email: 'test@test.com', password: 'password123' })
         })
       );
 
@@ -255,7 +255,7 @@ describe('AuthState', () => {
       });
 
       const auth = createAuthContext();
-      await auth.login('cred');
+      await auth.login('user@test.com', 'secret');
 
       // Should have fetched /v2/auth/me
       expect(global.fetch).toHaveBeenCalledWith(
@@ -269,7 +269,7 @@ describe('AuthState', () => {
       global.fetch = vi.fn().mockResolvedValue({
         ok: false,
         status: 401,
-        json: () => Promise.resolve({ error: 'Invalid credential' })
+        json: () => Promise.resolve({ error: 'Invalid email or password' })
       });
 
       // Mock clearToken to not redirect
@@ -277,7 +277,7 @@ describe('AuthState', () => {
 
       const auth = createAuthContext();
 
-      await expect(auth.login('bad-cred')).rejects.toThrow();
+      await expect(auth.login('bad@test.com', 'wrong')).rejects.toThrow();
     });
   });
 

@@ -60,7 +60,7 @@
 
   async function fetchDevice() {
     try {
-      const res = await apiFetch<ApiResponse<IcleDevice>>(`/v2/icle/${deviceId}`);
+      const res = await apiFetch<ApiResponse<IcleDevice>>(`/v2/devices/icle/${deviceId}`);
       device = res.data;
       icleStore.setDevice(device);
       error = null;
@@ -74,7 +74,7 @@
   async function fetchLogs() {
     logsLoading = true;
     try {
-      const res = await apiFetch<ApiResponse<{ logs: IcleLogFile[] }>>(`/v2/icle/${deviceId}/logs`);
+      const res = await apiFetch<ApiResponse<{ logs: IcleLogFile[] }>>(`/v2/devices/icle/${deviceId}/logs`);
       logs = res.data?.logs || [];
     } catch {
       // Non-critical
@@ -85,7 +85,7 @@
 
   async function fetchConfig() {
     try {
-      const res = await apiFetch<ApiResponse<IcleConfig>>(`/v2/icle/${deviceId}/config`);
+      const res = await apiFetch<ApiResponse<IcleConfig>>(`/v2/devices/icle/${deviceId}/config`);
       config = res.data;
     } catch {
       // Non-critical
@@ -94,7 +94,7 @@
 
   async function fetchPendingCommands() {
     try {
-      const res = await apiFetch<ApiResponse<{ commands: IclePendingCommand[] }>>(`/v2/icle/${deviceId}/commands`);
+      const res = await apiFetch<ApiResponse<{ commands: IclePendingCommand[] }>>(`/v2/devices/icle/${deviceId}/commands`);
       pendingCommands = res.data?.commands || [];
     } catch {
       // Non-critical
@@ -152,7 +152,7 @@
     if (!device) return;
     submitting = true;
     try {
-      await api.put(`/v2/icle/${deviceId}`, { name: editName || null });
+      await api.put(`/v2/devices/icle/${deviceId}`, { name: editName || null });
       await fetchDevice();
       cancelEdit();
     } catch (err) {
@@ -165,7 +165,7 @@
   // Delete handler
   async function handleDelete() {
     try {
-      await api.delete(`/v2/icle/${deviceId}`);
+      await api.delete(`/v2/devices/icle/${deviceId}`);
       goto('/icle');
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to delete device';
@@ -176,7 +176,7 @@
   async function startLogging() {
     submitting = true;
     try {
-      await api.post(`/v2/icle/${deviceId}/commands`, {
+      await api.post(`/v2/devices/icle/${deviceId}/commands`, {
         commandType: 'START_LOGGING',
         payload: {},
       });
@@ -191,7 +191,7 @@
   async function stopLogging() {
     submitting = true;
     try {
-      await api.post(`/v2/icle/${deviceId}/commands`, {
+      await api.post(`/v2/devices/icle/${deviceId}/commands`, {
         commandType: 'STOP_LOGGING',
         payload: {},
       });
@@ -215,7 +215,7 @@
   async function saveConfig() {
     submitting = true;
     try {
-      await api.post(`/v2/icle/${deviceId}/commands`, {
+      await api.post(`/v2/devices/icle/${deviceId}/commands`, {
         commandType: 'SET_CONFIG',
         payload: configForm,
       });
@@ -238,7 +238,7 @@
     if (!otaUrl) return;
     submitting = true;
     try {
-      await api.post(`/v2/icle/${deviceId}/commands`, {
+      await api.post(`/v2/devices/icle/${deviceId}/commands`, {
         commandType: 'OTA_UPDATE',
         payload: { url: otaUrl },
       });

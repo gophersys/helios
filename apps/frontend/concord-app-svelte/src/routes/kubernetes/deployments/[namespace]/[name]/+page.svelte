@@ -70,7 +70,7 @@
   async function fetchDeployment() {
     loading = true;
     try {
-      const res = await api.get<{ data: DeploymentDetailData }>(`/v2/kubernetes/deployments/${namespace}/${deploymentName}`);
+      const res = await api.get<{ data: DeploymentDetailData }>(`/v2/cluster/deployments/${namespace}/${deploymentName}`);
       if (res?.data) {
         deployment = res.data;
         scaleValue = res.data.replicas.desired;
@@ -87,7 +87,7 @@
     scaling = true;
     mutationError = null;
     try {
-      await api.post(`/v2/kubernetes/deployments/${namespace}/${deploymentName}/scale`, { replicas: scaleValue });
+      await api.post(`/v2/cluster/deployments/${namespace}/${deploymentName}/scale`, { replicas: scaleValue });
       await fetchDeployment();
     } catch (e) {
       mutationError = e instanceof Error ? e.message : 'Failed to scale deployment';
@@ -100,7 +100,7 @@
     restarting = true;
     mutationError = null;
     try {
-      await api.post(`/v2/kubernetes/deployments/${namespace}/${deploymentName}/restart`);
+      await api.post(`/v2/cluster/deployments/${namespace}/${deploymentName}/restart`);
       await fetchDeployment();
     } catch (e) {
       mutationError = e instanceof Error ? e.message : 'Failed to restart deployment';

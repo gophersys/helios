@@ -64,7 +64,7 @@
 
   async function fetchBoardDetail(boardId: string) {
     try {
-      const res = await apiFetch<ApiResponse<Board>>(`/v2/catalog/${productId}/boards/${boardId}`);
+      const res = await apiFetch<ApiResponse<Board>>(`/v2/products/${productId}/boards/${boardId}`);
       boardDetails = { ...boardDetails, [boardId]: res.data };
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to load board details';
@@ -85,9 +85,9 @@
     try {
       const wasEditing = editingId;
       if (editingId) {
-        await api.put(`/v2/catalog/${productId}/boards/${editingId}`, body);
+        await api.put(`/v2/products/${productId}/boards/${editingId}`, body);
       } else {
-        await api.post(`/v2/catalog/${productId}/boards`, body);
+        await api.post(`/v2/products/${productId}/boards`, body);
       }
       resetForm();
       onRefresh();
@@ -110,7 +110,7 @@
   async function handleDelete(id: string) {
     error = null;
     try {
-      await api.delete(`/v2/catalog/${productId}/boards/${id}`);
+      await api.delete(`/v2/products/${productId}/boards/${id}`);
       onRefresh();
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to delete board';

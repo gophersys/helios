@@ -554,6 +554,56 @@ export interface ValidationRun {
   executionCount?: number;
 }
 
+// ── Test Catalog types ────────────────────────────────────────
+
+export interface TestCatalogSummary {
+  product: string;
+  version: string;
+  board: string | null;
+  testCount: number;
+  stageCount: number;
+}
+
+export interface TestStage {
+  id: string;
+  name: string;
+  description: string | null;
+  timingBudgetS: number;
+  trigger: 'pr' | 'cron' | 'manual';
+  blocksMerge: boolean;
+  cron?: string;
+  requiresHarness?: boolean;
+  directory?: string;
+  testCount: number;
+  totalTimeoutS: number;
+}
+
+export interface TestDefinition {
+  id: string;
+  name: string;
+  stage: string;
+  timeoutS: number;
+  description: string;
+  hardware: string[];
+  category?: string;
+  stageInfo?: {
+    id: string;
+    name: string;
+    timingBudgetS: number;
+  };
+}
+
+export interface TestCatalog {
+  version: string;
+  product: string;
+  board: string | null;
+  stages: Record<string, TestStage>;
+  hardware: Record<string, { description: string; required: boolean }>;
+  tests: TestDefinition[];
+  testCount: number;
+  stageCount: number;
+}
+
 // ── UI utility types ─────────────────────────────────────────
 
 export interface TreeNode {

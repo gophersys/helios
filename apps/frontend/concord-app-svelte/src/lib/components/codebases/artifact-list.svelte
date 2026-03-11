@@ -36,7 +36,7 @@
     error = null;
     try {
       await api.delete(
-        `/v2/codebases/${codebaseId}/releases/${releaseId}/artifacts/${artifactId}`
+        `/v2/builds/codebases/${codebaseId}/releases/${releaseId}/artifacts/${artifactId}`
       );
       onRefresh();
     } catch (err) {
@@ -47,7 +47,7 @@
   async function handleDownload(artifactId: string) {
     try {
       const res = await apiFetch<ApiResponse<{ url: string }>>(
-        `/v2/codebases/artifacts/${artifactId}/download`
+        `/v2/builds/codebases/artifacts/${artifactId}/download`
       );
       window.open(res.data.url, '_blank');
     } catch (err) {
@@ -60,7 +60,7 @@
     error = null;
     submitting = true;
     try {
-      await api.post(`/v2/codebases/${codebaseId}/releases/${releaseId}/artifacts`, {
+      await api.post(`/v2/builds/codebases/${codebaseId}/releases/${releaseId}/artifacts`, {
         name: extName,
         externalUrl: extUrl,
       });
@@ -82,7 +82,7 @@
       formData.append('file', file);
 
       await apiUploadRaw(
-        `/v2/codebases/${codebaseId}/releases/${releaseId}/artifacts/upload`,
+        `/v2/builds/codebases/${codebaseId}/releases/${releaseId}/artifacts/upload`,
         formData
       );
 

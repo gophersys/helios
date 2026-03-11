@@ -32,7 +32,7 @@
 
   async function fetchDeployments() {
     try {
-      const url = namespace ? `/v2/kubernetes/deployments?namespace=${namespace}` : '/v2/kubernetes/deployments';
+      const url = namespace ? `/v2/cluster/deployments?namespace=${namespace}` : '/v2/cluster/deployments';
       const res = await api.get<{ data: DeploymentSummary[] }>(url);
       if (res?.data) deployments = res.data;
       error = null;

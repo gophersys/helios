@@ -91,7 +91,7 @@
     loadingProducts = true;
     try {
       const [prodRes, designRes] = await Promise.all([
-        apiFetch<ApiResponse<{ data: Product[] }>>('/v2/catalog'),
+        apiFetch<ApiResponse<{ data: Product[] }>>('/v2/products'),
         fetchDesigns({ limit: 100 }),
       ]);
 

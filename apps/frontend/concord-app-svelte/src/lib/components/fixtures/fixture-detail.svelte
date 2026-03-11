@@ -30,7 +30,7 @@
 
   async function fetchAvailableNodes() {
     try {
-      const res = await apiFetch<ApiResponse<{ data: ConcordNode[] }>>('/v2/mtibs');
+      const res = await apiFetch<ApiResponse<{ data: ConcordNode[] }>>('/v2/devices/mtibs');
       const allNodes = res.data.data || res.data;
       availableNodes = (allNodes as ConcordNode[]).filter(
         n => n.type === fixture.type && !n.fixtureSlot
@@ -42,7 +42,7 @@
 
   async function fetchDeployment() {
     try {
-      const res = await apiFetch<ApiResponse<{ data: ConcordDeployment[] }>>(`/v2/deployments?fixtureId=${fixture.id}&limit=1`);
+      const res = await apiFetch<ApiResponse<{ data: ConcordDeployment[] }>>(`/v2/cluster/managed-deployments?fixtureId=${fixture.id}&limit=1`);
       const deployments = res.data.data || res.data;
       const list = deployments as ConcordDeployment[];
       deployment = list.length > 0 ? list[0] : null;
@@ -50,7 +50,7 @@
       // Fetch K8s status if running
       if (deployment && deployment.status === 'RUNNING') {
         try {
-          const statusRes = await apiFetch<ApiResponse<ConcordDeployment & { k8sStatus?: typeof k8sStatus }>>(`/v2/deployments/${deployment.id}/status`);
+          const statusRes = await apiFetch<ApiResponse<ConcordDeployment & { k8sStatus?: typeof k8sStatus }>>(`/v2/cluster/managed-deployments/${deployment.id}/status`);
           k8sStatus = statusRes.data.k8sStatus || [];
         } catch {
           k8sStatus = [];
@@ -106,14 +106,14 @@
     error = null;
     deploying = true;
     try {
-      const createRes = await api.post<ApiResponse<ConcordDeployment>>('/v2/deployments', {
+      const createRes = await api.post<ApiResponse<ConcordDeployment>>('/v2/cluster/managed-deployments', {
         name: `${fixture.name}-deploy`,
         fixtureId: fixture.id,
         productId: fixture.productId,
       });
       const newDep = createRes.data;
       // Now deploy it
-      await api.post(`/v2/deployments/${newDep.id}/deploy`);
+      await api.post(`/v2/cluster/managed-deployments/${newDep.id}/deploy`);
       fetchDeployment();
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to deploy';
@@ -127,7 +127,7 @@
     error = null;
     actionInProgress = true;
     try {
-      await api.post(`/v2/deployments/${deployment.id}/deploy`);
+      await api.post(`/v2/cluster/managed-deployments/${deployment.id}/deploy`);
       fetchDeployment();
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to deploy';
@@ -141,7 +141,7 @@
     error = null;
     actionInProgress = true;
     try {
-      await api.post(`/v2/deployments/${deployment.id}/stop`);
+      await api.post(`/v2/cluster/managed-deployments/${deployment.id}/stop`);
       fetchDeployment();
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to stop';
@@ -155,7 +155,7 @@
     error = null;
     actionInProgress = true;
     try {
-      await api.post(`/v2/deployments/${deployment.id}/restart`);
+      await api.post(`/v2/cluster/managed-deployments/${deployment.id}/restart`);
       fetchDeployment();
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to restart';

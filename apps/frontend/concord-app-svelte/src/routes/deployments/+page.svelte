@@ -38,7 +38,7 @@
 
   async function fetchDeployments() {
     try {
-      const res = await apiFetch<ApiResponse<{ data: ConcordDeployment[] }>>('/v2/deployments');
+      const res = await apiFetch<ApiResponse<{ data: ConcordDeployment[] }>>('/v2/cluster/managed-deployments');
       const payload = res.data;
       deployments = Array.isArray(payload) ? payload : (payload as { data: ConcordDeployment[] }).data || [];
     } catch (err) {
@@ -117,7 +117,7 @@
     };
 
     try {
-      await api.post('/v2/deployments', body);
+      await api.post('/v2/cluster/managed-deployments', body);
       resetForm();
       fetchDeployments();
     } catch (err) {
@@ -130,7 +130,7 @@
   async function handleDeploy(id: string) {
     error = null;
     try {
-      await api.post(`/v2/deployments/${id}/deploy`);
+      await api.post(`/v2/cluster/managed-deployments/${id}/deploy`);
       fetchDeployments();
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to deploy';
@@ -140,7 +140,7 @@
   async function handleStop(id: string) {
     error = null;
     try {
-      await api.post(`/v2/deployments/${id}/stop`);
+      await api.post(`/v2/cluster/managed-deployments/${id}/stop`);
       fetchDeployments();
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to stop deployment';
@@ -150,7 +150,7 @@
   async function handleRestart(id: string) {
     error = null;
     try {
-      await api.post(`/v2/deployments/${id}/restart`);
+      await api.post(`/v2/cluster/managed-deployments/${id}/restart`);
       fetchDeployments();
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to restart deployment';
@@ -165,7 +165,7 @@
   async function handleDelete(id: string) {
     error = null;
     try {
-      await api.delete(`/v2/deployments/${id}`);
+      await api.delete(`/v2/cluster/managed-deployments/${id}`);
       fetchDeployments();
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to delete deployment';
