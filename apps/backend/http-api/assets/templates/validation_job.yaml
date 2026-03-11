@@ -34,22 +34,19 @@ spec:
                 - edge
       containers:
       - name: "validation-{{PRODUCT}}"
-        image: "containers.ad.corekinect.com/concord-validation-{{PRODUCT}}:latest"
+        image: "containers.ad.corekinect.com/concord-validation-{{PRODUCT}}:{{IMAGE_TAG}}"
         imagePullPolicy: Always
         securityContext:
-          privileged: true
-        ports:
-        - containerPort: 50060
-          hostPort: 50060
+          privileged: false
         env:
         - name: ENVIRONMENT
           value: "{{ENVIRONMENT}}"
+        - name: STAGE
+          value: "{{STAGE}}"
         - name: LOG_LEVEL
           value: "4"
-        - name: LOG_PATH
-          value: "/var/log"
-        - name: FIRMWARE_BUCKET_FILE_PATH
-          value: "{{FIRMWARE_PATH}}"
+        - name: PIPELINE_ID
+          value: "{{PIPELINE_ID}}"
         - name: PRODUCT
           value: "{{PRODUCT}}"
         - name: CONCORD_API_URL
@@ -122,6 +119,8 @@ spec:
           value: "{{MTIB_ADDRESS}}"
         - name: BENCH_ID
           value: "{{BENCH_ID}}"
+        - name: PRODUCT_SLUG
+          value: "{{PRODUCT_SLUG}}"
         - name: DEVICE_ID
           value: "{{DEVICE_ID}}"
         - name: DEVICE_SNR

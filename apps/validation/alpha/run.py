@@ -38,16 +38,21 @@ from datetime import datetime
 from pathlib import Path
 
 # Ensure correct import paths
-_root = Path(__file__).resolve().parents[3]
-_paths = [
-    str(_root / "libs" / "python"),
-    str(_root / "libs" / "protocols"),
-    str(_root / "libs"),
-    str(_root / "apps" / "validation" / "alpha"),
-]
-for p in _paths:
-    if p not in sys.path:
-        sys.path.insert(0, p)
+# In repo: apps/validation/alpha/run.py → parents[3] = repo root
+# In container: /app/run.py → parents[3] doesn't exist (PYTHONPATH already set)
+try:
+    _root = Path(__file__).resolve().parents[3]
+    _paths = [
+        str(_root / "libs" / "python"),
+        str(_root / "libs" / "protocols"),
+        str(_root / "libs"),
+        str(_root / "apps" / "validation" / "alpha"),
+    ]
+    for p in _paths:
+        if p not in sys.path:
+            sys.path.insert(0, p)
+except IndexError:
+    pass  # Running in container — PYTHONPATH already configured
 
 from corekinect.test.validation.runner import ValidationRunner
 from corekinect.utils import Logger
