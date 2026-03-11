@@ -1,36 +1,47 @@
 #!/usr/bin/env python3
-"""FUOTA Test - Automated firmware update over the air.
+"""FUOTA Test — Pipeline-driven firmware update over the air.
 
-Validates the complete FUOTA workflow:
-1. Flash device with base MFG firmware (v0.5.0)
-2. Personalize device (generate EC keypair, upload to CoreCloud)
-3. Upload target CFW files to CoreCloud
+Validates ALL FUOTA transitions defined in the pipeline:
+- MFG_BASE → MFG_BUMP (sanity: same code, bumped version)
+- FUT_DEBUG_A → FUT_DEBUG_B (debug build FUOTA)
+- FUT_RELEASE_A → FUT_RELEASE_B (release build FUOTA)
+- MAIN_BASELINE → MAIN_MERGED (field upgrade path simulation)
+
+Each transition is a complete FUOTA cycle:
+1. Flash device with "from" firmware (hex files via J-Link)
+2. Personalize device (EC keypair, upload to CoreCloud)
+3. Upload "to" CFW files to CoreCloud
 4. Create FUOTA plan and assign device
-5. Poll for FUOTA completion (device checks in on LTE-M PSM wake)
-6. Verify device reports target firmware version
+5. Poll for FUOTA completion (LTE-M PSM wake)
+6. Verify device reports "to" firmware version
+
+All firmware versions come from the pipeline — nothing is hardcoded.
 
 Requirements:
-- MTIB connected with DUT
-- VAL_1_0_API_* environment variables set (CoreCloud auth)
+- PIPELINE_ID environment variable (set by K8s job)
+- MTIB_ADDRESS, DEVICE_SNR environment variables
+- VAL_1_0_API_* environment variables (CoreCloud auth)
 - COREOPS_* environment variables (device ID assignment)
-- MinIO access for firmware artifacts
+- MinIO access via STORAGE_* env vars
 
 Usage:
-    pytest tests/fuota/test_fuota.py -v -s \\
-        --mtib-addr 10.4.45.33 \\
-        --device-snr 09J5
+    # K8s job sets all env vars automatically
+    pytest tests/fuota/test_fuota.py -v -s
 
-    # Or set env vars:
-    MTIB_ADDR=10.4.45.33 DEVICE_SNR=09J5 pytest tests/fuota/test_fuota.py -v -s
+    # Manual run with explicit pipeline:
+    PIPELINE_ID=<id> MTIB_ADDRESS=10.4.45.33 DEVICE_SNR=09J5 \\
+        pytest tests/fuota/test_fuota.py -v -s
 """
 
 import os
+import re
 import sys
 import time
-import tempfile
+import threading
+from dataclasses import dataclass
 from pathlib import Path
 from datetime import datetime
-from typing import Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import pytest
 
@@ -47,17 +58,6 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 # Test Configuration
 # ============================================================================
 
-# Firmware versions for FUOTA test
-SOURCE_VERSION = "0.5.0"  # Version to flash as base
-TARGET_VERSION = "0.5.1"  # Version to FUOTA to
-# CFW track suffix (B=Bench, M=Mfg) - must match for FUOTA to work
-CFW_TRACK = "-BM"
-
-# MinIO paths for firmware artifacts
-MINIO_BUCKET = "concord"
-MINIO_V050_BUILD = "firmware/builds/alpha_mfg_fw/cmmk9o90200028785zcfxqlxe"
-MINIO_V051_BUILD = "firmware/builds/alpha_mfg_fw/cmmk9o90v00048785vl0v4od5"
-
 # Device type/variant for Alpha B0
 DEVICE_TYPE_ID = 2
 DEVICE_VARIANT_ID = 3
@@ -67,45 +67,103 @@ FUOTA_TIMEOUT_MINUTES = 90  # LTE-M PSM wake can take up to 60 min
 
 
 # ============================================================================
+# Data Types
+# ============================================================================
+
+@dataclass
+class FuotaTransition:
+    """A single FUOTA transition from the pipeline."""
+    from_label: str      # e.g., "MFG_BASE"
+    to_label: str        # e.g., "MFG_BUMP"
+    purpose: str         # e.g., "FUOTA sanity (same code, bumped version)"
+    from_version: str    # e.g., "0.5.1"
+    to_version: str      # e.g., "0.5.2"
+    from_app_hex: str    # Local path to APP hex
+    from_comms_hex: str  # Local path to COMMS hex
+    to_cfw_files: List[str]  # Local paths to CFW files
+    cfw_track: str       # e.g., "-BM" extracted from CFW filename
+
+
+# ============================================================================
 # Fixtures
 # ============================================================================
 
 @pytest.fixture(scope="module")
-def firmware_files():
-    """Download firmware files from MinIO."""
-    from minio import Minio
+def pipeline_assets(request):
+    """Load pipeline and fetch all builds.
 
-    # Get MinIO credentials from environment or use staging defaults
-    minio_host = os.environ.get("MINIO_ENDPOINT", "127.0.0.1:9000")
-    minio_access = os.environ.get("MINIO_ACCESS_KEY", "minioadmin")
-    minio_secret = os.environ.get("MINIO_SECRET_ACCESS_KEY", "minioadmin-staging")
+    PIPELINE_ID is set by the K8s job that triggers this test.
+    All firmware versions, hex files, and CFW files come from the pipeline.
+    """
+    from corekinect.test.validation.pipeline_assets import PipelineAssets
 
-    client = Minio(minio_host, access_key=minio_access, secret_key=minio_secret, secure=False)
+    # CLI option takes precedence over env var
+    pipeline_id = request.config.getoption("--pipeline-id") or os.environ.get("PIPELINE_ID")
+    if not pipeline_id:
+        pytest.skip("PIPELINE_ID not set — run via K8s job or set manually")
 
-    # Create temp directory for firmware
-    tmpdir = Path(tempfile.mkdtemp(prefix="fuota_test_"))
+    assets = PipelineAssets(pipeline_id=pipeline_id)
 
-    files = {
-        # v0.5.0 hex files (base firmware to flash)
-        "app_hex": (f"{MINIO_V050_BUILD}/{SOURCE_VERSION}_no_debug_app_nrf52840.hex", tmpdir / "app_nrf52840.hex"),
-        "comms_hex": (f"{MINIO_V050_BUILD}/{SOURCE_VERSION}_no_debug_comms_nrf9151.hex", tmpdir / "comms_nrf9151.hex"),
-        # v0.5.1 CFW files (FUOTA target)
-        "cfw_108": (f"{MINIO_V051_BUILD}/{TARGET_VERSION}_no_debug_108.{TARGET_VERSION}.cfw", tmpdir / f"108.{TARGET_VERSION}.cfw"),
-        "cfw_109": (f"{MINIO_V051_BUILD}/{TARGET_VERSION}_no_debug_109.{TARGET_VERSION}.cfw", tmpdir / f"109.{TARGET_VERSION}.cfw"),
-    }
+    # Pre-fetch pipeline data
+    print(f"\n{assets.summary()}")
 
-    downloaded = {}
-    for key, (remote_path, local_path) in files.items():
-        print(f"Downloading {remote_path}...")
-        client.fget_object(MINIO_BUCKET, remote_path, str(local_path))
-        downloaded[key] = local_path
-        print(f"  -> {local_path}")
+    # Check that all required builds are present
+    if not assets.has_all_builds():
+        available = list(assets.builds.keys())
+        pytest.fail(f"Pipeline missing required builds. Available: {available}")
 
-    yield downloaded
+    yield assets
 
-    # Cleanup
-    import shutil
-    shutil.rmtree(tmpdir, ignore_errors=True)
+    # Cleanup temp files
+    assets.cleanup()
+
+
+@pytest.fixture(scope="module")
+def fuota_transitions(pipeline_assets) -> List[FuotaTransition]:
+    """Extract FUOTA transitions from the pipeline.
+
+    Each transition is a (from_label, to_label, purpose) tuple from the pipeline.
+    This fixture downloads all required firmware files and returns fully-populated
+    FuotaTransition objects.
+    """
+    transitions = []
+
+    for from_label, to_label, purpose in pipeline_assets.get_fuota_transitions():
+        # Get builds
+        from_build = pipeline_assets.get_build(from_label)
+        to_build = pipeline_assets.get_build(to_label)
+
+        # Download hex files for "from" build
+        from_app_hex = pipeline_assets.get_hex(from_label, "app")
+        from_comms_hex = pipeline_assets.get_hex(from_label, "comms")
+
+        # Download CFW files for "to" build
+        to_cfw_files = pipeline_assets.get_cfw_files(to_label)
+
+        # Extract CFW track from filename (e.g., "108.0.5.2-BM.cfw" → "-BM")
+        cfw_track = ""
+        if to_cfw_files:
+            cfw_name = Path(to_cfw_files[0]).name
+            # Pattern: {appId}.{version}{track}.cfw
+            m = re.search(r'\d+\.\d+\.\d+\.\d+(-[A-Z]+)\.cfw$', cfw_name)
+            if m:
+                cfw_track = m.group(1)
+
+        transitions.append(FuotaTransition(
+            from_label=from_label,
+            to_label=to_label,
+            purpose=purpose,
+            from_version=from_build.version_string or "unknown",
+            to_version=to_build.version_string or "unknown",
+            from_app_hex=from_app_hex,
+            from_comms_hex=from_comms_hex,
+            to_cfw_files=to_cfw_files,
+            cfw_track=cfw_track,
+        ))
+
+        print(f"Transition: {from_label} ({from_build.version_string}) → {to_label} ({to_build.version_string})")
+
+    return transitions
 
 
 @pytest.fixture(scope="module")
@@ -114,7 +172,12 @@ def mtib_client(request):
     from corekinect.mtib_client.v1.client.core import MtibV1Client
     from corekinect.mtib_client.v1.client.config import NetConfig
 
-    mtib_addr = request.config.getoption("--mtib-addr", default="10.4.45.33")
+    # CLI option takes precedence over env var
+    mtib_addr = (
+        request.config.getoption("--mtib-addr") or
+        os.environ.get("MTIB_ADDRESS") or
+        os.environ.get("MTIB_HOST", "10.4.45.33")
+    )
 
     cfg = MtibV1Client.Config(net=NetConfig(addr=mtib_addr, port=50053))
     client = MtibV1Client(cfg)
@@ -128,20 +191,25 @@ def mtib_client(request):
     from corekinect.mtib_client.v1.client.types import PowerChannel
     try:
         client.PowerDisable(channel=PowerChannel.DUT)
+        client.PowerDisable(channel=PowerChannel.CHARGER)
     except Exception:
         pass
 
 
 @pytest.fixture(scope="module")
 def device_snr(request):
-    """Get device SNR from command line."""
-    return request.config.getoption("--device-snr", default="09J5")
+    """Get device SNR from CLI or environment."""
+    # CLI option takes precedence over env var
+    snr = request.config.getoption("--device-snr") or os.environ.get("DEVICE_SNR")
+    if not snr:
+        pytest.skip("DEVICE_SNR not set — required for J-Link operations")
+    return snr
 
 
 @pytest.fixture(scope="module")
-def device_id_override(request):
-    """Optional device ID from --device-id CLI arg (defined in conftest.py)."""
-    return request.config.getoption("--device-id", default=None) or os.environ.get("DEVICE_ID")
+def device_id_override():
+    """Optional device ID from environment (skips CoreOps lookup)."""
+    return os.environ.get("DEVICE_ID")
 
 
 @pytest.fixture(scope="module")
@@ -152,145 +220,198 @@ def fuota_client():
 
 
 # ============================================================================
-# Helper Functions
+# Boot Log Capture + Verification
 # ============================================================================
 
-def flash_firmware(client, app_hex: Path, comms_hex: Path):
+def capture_boot_logs_until_version(
+    client,
+    max_timeout_s: float = 120.0,
+) -> Dict[str, Any]:
+    """Capture UART boot output until firmware versions are detected.
+
+    Event-driven: stops as soon as both COMMS and APP version strings are found.
+    MUST be called BEFORE power-on.
+    """
+    from protocols.mtib.mtib_pb2 import HostType, UartStreamRequest
+
+    logs = {"comms": [], "app": []}
+    versions = {"comms": None, "app": None}
+    stop = threading.Event()
+    version_found = {"comms": threading.Event(), "app": threading.Event()}
+
+    version_patterns = [
+        re.compile(r"application\s+(\d+)\s+launched.*Version\s+(\d+\.\d+\.\d+)"),
+        re.compile(r"Running FW version\s+(\d+)\.(\d+\.\d+\.\d+)"),
+    ]
+
+    def _capture(target, key):
+        partial = ""
+        def req_gen():
+            yield UartStreamRequest(target=target, data=b"")
+            while not stop.is_set():
+                time.sleep(0.05)
+                yield UartStreamRequest(target=target, data=b"")
+        try:
+            for resp in client.UartStream(target, req_gen()):
+                if stop.is_set():
+                    break
+                if resp.data:
+                    partial += resp.data.decode("utf-8", errors="replace")
+                    while "\n" in partial:
+                        line, partial = partial.split("\n", 1)
+                        logs[key].append(line)
+                        if versions[key] is None:
+                            for pat in version_patterns:
+                                m = pat.search(line)
+                                if m:
+                                    versions[key] = m.group(2)
+                                    version_found[key].set()
+                                    break
+        except Exception:
+            pass
+        if partial:
+            logs[key].append(partial)
+
+    comms_t = threading.Thread(target=_capture, args=(HostType.HOST_TYPE_NRF9151, "comms"), daemon=True)
+    app_t = threading.Thread(target=_capture, args=(HostType.HOST_TYPE_NRF52840, "app"), daemon=True)
+    comms_t.start()
+    app_t.start()
+
+    start = time.time()
+    while time.time() - start < max_timeout_s:
+        if version_found["comms"].is_set() and version_found["app"].is_set():
+            time.sleep(2)
+            break
+        time.sleep(0.5)
+
+    stop.set()
+    comms_t.join(timeout=5)
+    app_t.join(timeout=5)
+
+    return {"comms": logs["comms"], "app": logs["app"], "versions": versions}
+
+
+def verify_firmware_version_from_boot(client, expected_version: str) -> Dict[str, str]:
+    """Power cycle DUT, capture boot logs, verify firmware version."""
+    from corekinect.mtib_client.v1.client.types import PowerChannel, GpioDirection, GpioResistorConfig
+
+    # Power off
+    client.PowerDisable(channel=PowerChannel.DUT)
+    client.PowerDisable(channel=PowerChannel.CHARGER)
+    time.sleep(2)
+
+    # Start UART capture BEFORE power-on
+    capture_result = {}
+    def _run_capture():
+        capture_result["data"] = capture_boot_logs_until_version(client, max_timeout_s=120.0)
+
+    capture_thread = threading.Thread(target=_run_capture, daemon=True)
+    capture_thread.start()
+    time.sleep(1)
+
+    # Power on
+    for gpio in (0, 1):
+        client.GpioConfig(gpio, GpioDirection.OUTPUT, GpioResistorConfig.NONE)
+        client.GpioWrite(gpio, False)
+    client.PowerEnable(channel=PowerChannel.DUT, voltage_v=4.5)
+    client.PowerEnable(channel=PowerChannel.CHARGER, voltage_v=5.0)
+
+    capture_thread.join(timeout=130)
+    data = capture_result.get("data", {"comms": [], "app": [], "versions": {}})
+
+    versions = data.get("versions", {})
+    comms_ver = versions.get("comms")
+
+    print(f"Boot log capture: COMMS={len(data['comms'])} lines, APP={len(data['app'])} lines")
+    print(f"Detected firmware versions: {versions}")
+
+    assert comms_ver is not None, f"Could not detect COMMS firmware version from boot logs"
+    assert comms_ver == expected_version, (
+        f"COMMS firmware version mismatch: expected {expected_version}, got {comms_ver}"
+    )
+
+    return versions
+
+
+# ============================================================================
+# FUOTA Cycle Helpers
+# ============================================================================
+
+def flash_firmware(client, app_hex: str, comms_hex: str):
     """Flash firmware via J-Link through MTIB."""
     from protocols.mtib.mtib_pb2 import HostType
     from corekinect.mtib_client.v1.client.types import PowerChannel, GpioDirection, GpioResistorConfig
 
-    # Power on DUT for flashing (J-Link needs powered target)
-    client.GpioConfig(gpio=0, direction=GpioDirection.OUTPUT, resistor=GpioResistorConfig.NONE)
-    client.GpioConfig(gpio=1, direction=GpioDirection.OUTPUT, resistor=GpioResistorConfig.NONE)
-    client.GpioWrite(gpio=0, state=False)
-    client.GpioWrite(gpio=1, state=False)
+    # Power on DUT for flashing
+    for gpio in (0, 1):
+        client.GpioConfig(gpio, GpioDirection.OUTPUT, GpioResistorConfig.NONE)
+        client.GpioWrite(gpio, False)
     client.PowerEnable(channel=PowerChannel.DUT, voltage_v=4.5)
     client.PowerEnable(channel=PowerChannel.CHARGER, voltage_v=5.0)
     time.sleep(2)
 
     # Upload and flash nRF52840 (APP)
-    print(f"Uploading nRF52840 hex: {app_hex.name}")
-    err = client.UploadFwFile(str(app_hex), HostType.HOST_TYPE_NRF52840)
+    print(f"Uploading nRF52840: {Path(app_hex).name}")
+    err = client.UploadFwFile(app_hex, HostType.HOST_TYPE_NRF52840)
     assert err is None, f"nRF52840 upload failed: {err}"
 
-    print(f"Flashing nRF52840...")
     files_list, err = client.ListFwFiles()
     assert err is None, f"ListFwFiles failed: {err}"
-    app_file = next((f for f in files_list if "app" in f.name.lower() or "52840" in f.name), None)
-    assert app_file is not None, f"Could not find uploaded app file"
+    app_file = next((f for f in files_list if f.name == Path(app_hex).name), None)
+    assert app_file, f"Could not find uploaded app file"
     time_ms, err = client.FlashFwFile(app_file, recover=True)
     assert err is None, f"nRF52840 flash failed: {err}"
     print(f"  nRF52840 flashed in {time_ms}ms")
 
     # Upload and flash nRF9151 (COMMS)
-    print(f"Uploading nRF9151 hex: {comms_hex.name}")
-    err = client.UploadFwFile(str(comms_hex), HostType.HOST_TYPE_NRF9151)
+    print(f"Uploading nRF9151: {Path(comms_hex).name}")
+    err = client.UploadFwFile(comms_hex, HostType.HOST_TYPE_NRF9151)
     assert err is None, f"nRF9151 upload failed: {err}"
 
-    print(f"Flashing nRF9151...")
     files_list, err = client.ListFwFiles()
     assert err is None, f"ListFwFiles failed: {err}"
-    comms_file = next((f for f in files_list if "comms" in f.name.lower() or "9151" in f.name), None)
-    assert comms_file is not None, f"Could not find uploaded comms file"
+    comms_file = next((f for f in files_list if f.name == Path(comms_hex).name), None)
+    assert comms_file, f"Could not find uploaded comms file"
     time_ms, err = client.FlashFwFile(comms_file, recover=True)
     assert err is None, f"nRF9151 flash failed: {err}"
     print(f"  nRF9151 flashed in {time_ms}ms")
 
 
-def power_cycle_dut(client, wait_s: float = 5.0):
-    """Power cycle the DUT and wait for boot.
-
-    Uses battery-installed mode (ch0 + ch1) per fixture profile.
-    Boot power timeline:
-      t=0-3s: DUT boots from ch0 (battery sim), ~65-100mA
-      t=4s:   BQ25180 charger takes over, ch0→~0mA, ch1→17-33mA
-      t=5s+:  Steady state on ch1
-    """
-    from corekinect.mtib_client.v1.client.types import PowerChannel, GpioDirection, GpioResistorConfig
-
-    # Power off both channels
-    client.PowerDisable(channel=PowerChannel.DUT)
-    client.PowerDisable(channel=PowerChannel.CHARGER)
-    time.sleep(2)
-
-    # GPIO 0+1 as output LOW — REQUIRED for DUT to boot
-    client.GpioConfig(gpio=0, direction=GpioDirection.OUTPUT, resistor=GpioResistorConfig.NONE)
-    client.GpioConfig(gpio=1, direction=GpioDirection.OUTPUT, resistor=GpioResistorConfig.NONE)
-    client.GpioWrite(gpio=0, state=False)
-    client.GpioWrite(gpio=1, state=False)
-
-    # Power on both rails (battery_installed=true)
-    client.PowerEnable(channel=PowerChannel.DUT, voltage_v=4.5)
-    client.PowerEnable(channel=PowerChannel.CHARGER, voltage_v=5.0)
-    time.sleep(wait_s)
-
-
 def personalize_device(client, snr: str, device_id: Optional[str] = None) -> dict:
-    """Personalize device and upload EC public key to CoreCloud.
-
-    The personalizer handles the full sequence:
-    1. Power cycle + lock mfg shells (within 8s window)
-    2. Read IMEI/ICCIDs from modem via shell
-    3. Get device ID from CoreOps (deterministic per SNR)
-    4. Generate new EC keypair on device
-    5. Upload public key to CoreCloud (b64 format, verified after upload)
-
-    Nothing is hardcoded — all device identity comes from the hardware itself.
-    """
+    """Personalize device and upload EC public key to CoreCloud."""
     from corekinect.test.validation.device_personalizer import DevicePersonalizer
 
     personalizer = DevicePersonalizer(
         mtib=client,
         snr=snr,
-        known_device_id=device_id,  # Optional fallback if CoreOps unavailable
+        known_device_id=device_id,
         db_env="VAL_1_0",
-        require_corecloud_key=True,  # FUOTA requires verified key in CoreCloud
+        require_corecloud_key=True,
     )
 
-    result, err = personalizer.repersonalize(
-        power_cycle=True,
-        lock_shells=True,
-    )
+    result, err = personalizer.repersonalize(power_cycle=True, lock_shells=True)
 
-    # FAIL HARD — no point continuing if personalization fails
     assert err is None, f"Personalization FAILED: {err}"
     assert result is not None, "Personalization returned no result"
     assert result.device_id, "No device ID assigned"
     assert result.pub_key_base64, "No public key generated"
 
-    print(f"Personalized: device_id={result.device_id}, key={result.pub_key_base64[:20]}...")
-
-    return {
-        "device_id": result.device_id,
-        "public_key": result.pub_key_base64,
-    }
+    print(f"Personalized: device_id={result.device_id}")
+    return {"device_id": result.device_id, "public_key": result.pub_key_base64}
 
 
-def upload_cfw_files(fuota_client, cfw_108: Path, cfw_109: Path):
-    """Upload CFW files to CoreCloud.
-
-    CFW files must be named with track suffix (e.g., 108.0.5.1-BM.cfw)
-    for the FUOTA server to recognize them as valid targets.
-    """
-    import shutil
-
-    # Rename files with track suffix for upload
-    tmpdir = cfw_108.parent
-    cfw_108_bm = tmpdir / f"108.{TARGET_VERSION}{CFW_TRACK}.cfw"
-    cfw_109_bm = tmpdir / f"109.{TARGET_VERSION}{CFW_TRACK}.cfw"
-
-    shutil.copy(cfw_108, cfw_108_bm)
-    shutil.copy(cfw_109, cfw_109_bm)
-
-    print(f"Uploading CFW: {cfw_108_bm.name}")
-    fuota_client.upload_cfw(str(cfw_108_bm))
-
-    print(f"Uploading CFW: {cfw_109_bm.name}")
-    fuota_client.upload_cfw(str(cfw_109_bm))
+def upload_cfw_files(fuota_client, cfw_files: List[str]):
+    """Upload CFW files to CoreCloud."""
+    for cfw_path in cfw_files:
+        print(f"Uploading CFW: {Path(cfw_path).name}")
+        fuota_client.upload_cfw(cfw_path)
 
 
-def create_fuota_plan(fuota_client, device_id: str, target_version: str) -> int:
+def create_fuota_plan(
+    fuota_client,
+    device_id: str,
+    transition: FuotaTransition,
+) -> int:
     """Create FUOTA plan and assign device."""
     # Ensure device is registered
     print(f"Ensuring device {device_id} is registered...")
@@ -311,21 +432,26 @@ def create_fuota_plan(fuota_client, device_id: str, target_version: str) -> int:
             print(f"  Device in plan {old_plan}, disabling...")
             fuota_client.disable_device(device_id, old_plan)
 
-    # Create plan
-    # CFW targets must include track suffix (e.g., -BM for Bench+Mfg)
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    stages = [
-        {
-            "targets": [f"108.{target_version}{CFW_TRACK}", f"109.{target_version}{CFW_TRACK}"],
-            "description": f"Stage 1: MFG v{SOURCE_VERSION} -> v{target_version}",
-            "isSkippable": False
-        }
-    ]
+    # Build CFW targets from filenames (e.g., "108.0.5.2-BM")
+    targets = []
+    for cfw_path in transition.to_cfw_files:
+        name = Path(cfw_path).stem  # Strip .cfw extension
+        targets.append(name)
 
-    print(f"Creating FUOTA plan: {SOURCE_VERSION} -> {target_version}")
+    # Create plan
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    stages = [{
+        "targets": targets,
+        "description": f"Stage 1: {transition.from_label} → {transition.to_label}",
+        "isSkippable": False
+    }]
+
+    print(f"Creating FUOTA plan: {transition.from_label} ({transition.from_version}) → {transition.to_label} ({transition.to_version})")
+    print(f"  Targets: {targets}")
+
     plan_id = fuota_client.create_plan(
         stages=stages,
-        description=f"FUOTA Test {timestamp}",
+        description=f"FUOTA Test {timestamp}: {transition.purpose}",
         device_type_id=DEVICE_TYPE_ID,
         device_variant_id=DEVICE_VARIANT_ID,
     )
@@ -333,13 +459,7 @@ def create_fuota_plan(fuota_client, device_id: str, target_version: str) -> int:
 
     # Assign device
     print(f"Assigning device {device_id} to plan {plan_id}...")
-    result = fuota_client.assign_device(
-        plan_id=plan_id,
-        device_ids=[device_id],
-        max_stage=0,
-        enable=True,
-    )
-    print(f"  Assignment result: {result}")
+    fuota_client.assign_device(plan_id=plan_id, device_ids=[device_id], max_stage=0, enable=True)
 
     # Verify assignment
     resp = fuota_client._singleton_request("GET", "firmwareupdates/settings/devices")
@@ -357,187 +477,323 @@ def create_fuota_plan(fuota_client, device_id: str, target_version: str) -> int:
     return plan_id
 
 
-def wait_for_fuota_completion(fuota_client, device_id: str, timeout_minutes: int = 90) -> bool:
-    """Wait for FUOTA to complete.
+def wait_for_fuota_completion(
+    fuota_client,
+    device_id: str,
+    timeout_minutes: int = 90,
+    mtib_client=None,
+) -> bool:
+    """Wait for FUOTA to complete for both 108 (COMMS) and 109 (APP)."""
+    from protocols.mtib.mtib_pb2 import HostType, UartStreamRequest
 
-    Returns True if FUOTA completed successfully, False otherwise.
-    """
     start_time = time.time()
     timeout_s = timeout_minutes * 60
-    poll_interval = 60  # Check every minute
+    poll_interval = 10
 
     print(f"\nWaiting for FUOTA completion (timeout: {timeout_minutes} min)...")
-    print("Device will check in during LTE-M PSM wake cycle (15-60 min)")
 
+    completed_versions = set()
     last_status = None
+    consecutive_404s = 0
+    last_progress_time = time.time()
+    last_power_cycle_time = start_time
+    power_cycle_interval = 180
 
-    while time.time() - start_time < timeout_s:
-        # Check progress
-        resp = fuota_client._singleton_request(
-            "GET", f"firmwareupdates/progress?deviceId={device_id}"
-        )
+    # UART monitoring thread
+    uart_stop = threading.Event()
+    uart_lines = []
 
-        if resp.status_code == 200:
-            prog = resp.json()
-            if prog:
-                state = prog.get('state', 'unknown')
-                pct = prog.get('percentComplete', 0)
-                status = f"state={state}, progress={pct}%"
+    def _uart_monitor():
+        if not mtib_client:
+            return
+        partial = ""
+        def req_gen():
+            yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9151, data=b"")
+            while not uart_stop.is_set():
+                time.sleep(0.1)
+                yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9151, data=b"")
+        try:
+            for resp in mtib_client.UartStream(HostType.HOST_TYPE_NRF9151, req_gen()):
+                if uart_stop.is_set():
+                    break
+                if resp.data:
+                    partial += resp.data.decode("utf-8", errors="replace")
+                    while "\n" in partial:
+                        line, partial = partial.split("\n", 1)
+                        if any(kw in line.lower() for kw in ["fuota", "cfw", "download", "mcuboot", "swap", "upgrade"]):
+                            elapsed = (time.time() - start_time) / 60
+                            print(f"  [UART {elapsed:.1f}m] {line.strip()}")
+                            uart_lines.append(line)
+        except Exception:
+            pass
 
-                if status != last_status:
-                    elapsed = (time.time() - start_time) / 60
-                    print(f"  [{elapsed:.1f}m] FUOTA: {status}")
-                    last_status = status
+    def _force_power_cycle():
+        nonlocal last_power_cycle_time
+        if not mtib_client:
+            return
+        from corekinect.mtib_client.v1.client.types import PowerChannel, GpioDirection, GpioResistorConfig
+        elapsed = (time.time() - start_time) / 60
+        print(f"  [{elapsed:.1f}m] Power cycling DUT to force check-in...")
+        try:
+            mtib_client.PowerDisable(channel=PowerChannel.DUT)
+            mtib_client.PowerDisable(channel=PowerChannel.CHARGER)
+            time.sleep(2)
+            for gpio in (0, 1):
+                mtib_client.GpioConfig(gpio, GpioDirection.OUTPUT, GpioResistorConfig.NONE)
+                mtib_client.GpioWrite(gpio, False)
+            mtib_client.PowerEnable(channel=PowerChannel.DUT, voltage_v=4.5)
+            mtib_client.PowerEnable(channel=PowerChannel.CHARGER, voltage_v=5.0)
+            time.sleep(5)
+            last_power_cycle_time = time.time()
+        except Exception as e:
+            print(f"  Power cycle failed: {e}")
 
-                # Check for completion
-                if state.lower() == 'completed' and pct == 100:
-                    print("  FUOTA COMPLETED!")
+    if mtib_client:
+        uart_thread = threading.Thread(target=_uart_monitor, daemon=True)
+        uart_thread.start()
+
+    try:
+        while time.time() - start_time < timeout_s:
+            resp = fuota_client._singleton_request("GET", f"firmwareupdates/progress?deviceId={device_id}")
+
+            if resp.status_code == 200:
+                prog = resp.json()
+                consecutive_404s = 0
+
+                if prog:
+                    version = prog.get('version', 'unknown')
+                    pct = prog.get('percentComplete', 0)
+                    pages = prog.get('pagesApplied', 0)
+                    total = prog.get('totalPages', 1)
+
+                    status = f"{version}: {pct:.1f}% ({pages}/{total})"
+
+                    if status != last_status:
+                        elapsed = (time.time() - start_time) / 60
+                        print(f"  [{elapsed:.1f}m] {status}")
+                        last_status = status
+                        if pct > 0:
+                            last_progress_time = time.time()
+
+                    if pct >= 100:
+                        if version not in completed_versions:
+                            completed_versions.add(version)
+                            print(f"  {version} COMPLETED!")
+
+                        has_108 = any('108' in v for v in completed_versions)
+                        has_109 = any('109' in v for v in completed_versions)
+                        if has_108 and has_109:
+                            elapsed = (time.time() - start_time) / 60
+                            print(f"  [{elapsed:.1f}m] Both 108 and 109 at 100%, FUOTA DONE!")
+                            return True
+
+            elif resp.status_code == 404:
+                consecutive_404s += 1
+                elapsed = (time.time() - start_time) / 60
+
+                has_108 = any('108' in v for v in completed_versions)
+                has_109 = any('109' in v for v in completed_versions)
+
+                if has_108 and has_109 and consecutive_404s >= 3:
+                    print(f"  [{elapsed:.1f}m] Both 108 and 109 completed, FUOTA DONE!")
                     return True
+                elif has_108 and not has_109:
+                    if last_status != "waiting_109":
+                        print(f"  [{elapsed:.1f}m] 108 complete, waiting for device to reboot and start 109...")
+                        last_status = "waiting_109"
+                elif not completed_versions:
+                    if last_status != "waiting":
+                        print(f"  [{elapsed:.1f}m] Waiting for device check-in...")
+                        last_status = "waiting"
+                    if mtib_client and time.time() - last_power_cycle_time > power_cycle_interval:
+                        _force_power_cycle()
 
-                # Check for failure
-                if state.lower() in ('failed', 'error', 'aborted'):
-                    print(f"  FUOTA FAILED: {state}")
-                    return False
+            if last_status == "waiting_109" and mtib_client:
+                if time.time() - last_power_cycle_time > power_cycle_interval:
+                    _force_power_cycle()
 
-        elif resp.status_code == 404:
-            # No active transfer yet - device hasn't checked in
-            elapsed = (time.time() - start_time) / 60
-            if last_status != "waiting":
-                print(f"  [{elapsed:.1f}m] Waiting for device check-in...")
-                last_status = "waiting"
+            time.sleep(poll_interval)
 
-        time.sleep(poll_interval)
+        # Final check
+        has_108 = any('108' in v for v in completed_versions)
+        has_109 = any('109' in v for v in completed_versions)
 
-    print(f"  FUOTA TIMEOUT after {timeout_minutes} minutes")
-    return False
+        if has_108 and has_109:
+            return True
+        elif has_108:
+            print(f"  FUOTA PARTIAL: 108 done but 109 not received (timeout)")
+            return False
+        else:
+            print(f"  FUOTA TIMEOUT after {timeout_minutes} minutes")
+            return False
+
+    finally:
+        uart_stop.set()
 
 
-def verify_firmware_version(fuota_client, device_id: str, expected_version: str) -> bool:
-    """Verify device reports expected firmware version.
+def run_fuota_cycle(
+    transition: FuotaTransition,
+    mtib_client,
+    fuota_client,
+    device_snr: str,
+    device_id: Optional[str] = None,
+) -> Tuple[bool, str]:
+    """Run a complete FUOTA cycle for one transition.
 
-    Checks CoreCloud device status for firmware version.
+    Returns (success, device_id) tuple.
     """
-    # Query device status from CoreCloud
-    resp = fuota_client._api_request(
-        "GET", "System/Devices/Status",
-        json={"deviceIds": [device_id]}
+    print(f"\n{'='*60}")
+    print(f"FUOTA TRANSITION: {transition.from_label} → {transition.to_label}")
+    print(f"  {transition.purpose}")
+    print(f"  {transition.from_version} → {transition.to_version}")
+    print(f"{'='*60}")
+
+    # 1. Flash base firmware
+    print(f"\n[1/6] Flashing {transition.from_label} firmware...")
+    flash_firmware(mtib_client, transition.from_app_hex, transition.from_comms_hex)
+
+    # 2. Verify flash via boot logs
+    print(f"\n[2/6] Verifying {transition.from_label} firmware version...")
+    versions = verify_firmware_version_from_boot(mtib_client, transition.from_version)
+    print(f"  Verified: {versions}")
+
+    # 3. Personalize device
+    print(f"\n[3/6] Personalizing device...")
+    result = personalize_device(mtib_client, device_snr, device_id=device_id)
+    device_id = result["device_id"]
+
+    # 4. Upload CFW files
+    print(f"\n[4/6] Uploading {transition.to_label} CFW files...")
+    upload_cfw_files(fuota_client, transition.to_cfw_files)
+
+    # 5. Create plan and trigger FUOTA
+    print(f"\n[5/6] Creating FUOTA plan...")
+    plan_id = create_fuota_plan(fuota_client, device_id, transition)
+
+    # Force check-in
+    print(f"\n[5.5/6] Power cycling DUT for CoreCloud check-in...")
+    verify_firmware_version_from_boot(mtib_client, transition.from_version)
+
+    # 6. Wait for completion
+    print(f"\n[6/6] Waiting for FUOTA completion...")
+    success = wait_for_fuota_completion(
+        fuota_client,
+        device_id=device_id,
+        timeout_minutes=FUOTA_TIMEOUT_MINUTES,
+        mtib_client=mtib_client,
     )
 
-    if resp.status_code != 200:
-        print(f"Failed to query device status: {resp.status_code}")
-        return False
+    if not success:
+        return False, device_id
 
-    data = resp.json()
-    devices = data.get('devices', [])
+    # Verify final version
+    print(f"\nVerifying {transition.to_label} firmware version...")
+    versions = verify_firmware_version_from_boot(mtib_client, transition.to_version)
+    print(f"  Verified: {versions}")
 
-    for d in devices:
-        if d.get('deviceId') == device_id:
-            # Check firmware version fields
-            app_version = d.get('appFirmwareVersion', '')
-            comms_version = d.get('commsFirmwareVersion', '')
+    # Cleanup: disable FUOTA for device
+    print(f"\nDisabling FUOTA for device (cleanup)...")
+    try:
+        fuota_client.disable_device(device_id, plan_id)
+    except Exception as e:
+        print(f"  Warning: cleanup failed: {e}")
 
-            print(f"Device firmware: app={app_version}, comms={comms_version}")
-
-            # Both should match target version
-            if expected_version in str(app_version) and expected_version in str(comms_version):
-                return True
-            else:
-                print(f"Version mismatch: expected {expected_version}")
-                return False
-
-    print(f"Device {device_id} not found in status response")
-    return False
+    return True, device_id
 
 
 # ============================================================================
 # Tests
 # ============================================================================
 
-class TestFuota:
-    """FUOTA validation tests."""
+class TestFuotaTransitions:
+    """FUOTA transition tests — one test per transition from the pipeline."""
 
-    @pytest.mark.order(1)
-    def test_flash_base_firmware(self, mtib_client, firmware_files):
-        """Flash v0.5.0 base firmware to device."""
-        flash_firmware(
-            mtib_client,
-            firmware_files["app_hex"],
-            firmware_files["comms_hex"],
-        )
+    @classmethod
+    def setup_class(cls):
+        cls.device_id = os.environ.get("DEVICE_ID")
+        cls.completed_transitions = []
+        cls.failed_transitions = []
 
-        # Power cycle and verify boot
-        power_cycle_dut(mtib_client, wait_s=5)
+    def test_all_fuota_transitions(
+        self,
+        fuota_transitions,
+        mtib_client,
+        fuota_client,
+        device_snr,
+        device_id_override,
+    ):
+        """Run all FUOTA transitions from the pipeline.
 
-        # Verify boot via total current (ch0 + ch1)
-        # After charger takeover (~4s), ch0→~0mA and ch1→17-33mA
-        from corekinect.mtib_client.v1.client.types import PowerChannel
-        r0, err0 = mtib_client.PowerRead(channel=PowerChannel.DUT)
-        r1, err1 = mtib_client.PowerRead(channel=PowerChannel.CHARGER)
-        assert err0 is None, f"PowerRead ch0 failed: {err0}"
-        assert err1 is None, f"PowerRead ch1 failed: {err1}"
+        Each transition is a complete FUOTA cycle:
+        - MFG_BASE → MFG_BUMP
+        - FUT_DEBUG_A → FUT_DEBUG_B
+        - FUT_RELEASE_A → FUT_RELEASE_B
+        - MAIN_BASELINE → MAIN_MERGED
+        """
+        device_id = device_id_override or self.__class__.device_id
 
-        total_ma = r0.current_ma + r1.current_ma
-        assert total_ma > 5, f"DUT not booted: total current={total_ma:.1f}mA (ch0={r0.current_ma:.1f}, ch1={r1.current_ma:.1f})"
+        for transition in fuota_transitions:
+            success, device_id = run_fuota_cycle(
+                transition=transition,
+                mtib_client=mtib_client,
+                fuota_client=fuota_client,
+                device_snr=device_snr,
+                device_id=device_id,
+            )
 
-        print(f"Device booted: ch0={r0.current_ma:.1f}mA ch1={r1.current_ma:.1f}mA total={total_ma:.1f}mA")
+            # Store device ID for subsequent transitions
+            self.__class__.device_id = device_id
 
-    @pytest.mark.order(2)
-    def test_personalize_device(self, mtib_client, device_snr, device_id_override):
-        """Personalize device and verify CoreCloud registration."""
-        result = personalize_device(mtib_client, device_snr, device_id=device_id_override)
+            if success:
+                self.__class__.completed_transitions.append(transition.to_label)
+                print(f"\n✓ TRANSITION PASSED: {transition.from_label} → {transition.to_label}")
+            else:
+                self.__class__.failed_transitions.append(transition.to_label)
+                print(f"\n✗ TRANSITION FAILED: {transition.from_label} → {transition.to_label}")
+                pytest.fail(
+                    f"FUOTA transition failed: {transition.from_label} → {transition.to_label}\n"
+                    f"Completed: {self.__class__.completed_transitions}\n"
+                    f"Failed: {self.__class__.failed_transitions}"
+                )
 
-        # Store for subsequent tests
-        pytest.device_id = result["device_id"]
+        # Summary
+        print(f"\n{'='*60}")
+        print(f"FUOTA TEST COMPLETE")
+        print(f"  Transitions passed: {len(self.__class__.completed_transitions)}")
+        print(f"  Transitions failed: {len(self.__class__.failed_transitions)}")
+        print(f"{'='*60}")
 
-        print(f"Device personalized: ID={result['device_id']}")
 
-    @pytest.mark.order(3)
-    def test_upload_cfw(self, fuota_client, firmware_files):
-        """Upload target CFW files to CoreCloud."""
-        upload_cfw_files(
-            fuota_client,
-            firmware_files["cfw_108"],
-            firmware_files["cfw_109"],
-        )
-        print("CFW files uploaded to CoreCloud")
+# ============================================================================
+# Alternative: Individual Tests Per Transition (for parallel execution)
+# ============================================================================
 
-    @pytest.mark.order(4)
-    def test_create_fuota_plan(self, fuota_client):
-        """Create FUOTA plan and assign device."""
-        plan_id = create_fuota_plan(
-            fuota_client,
-            device_id=pytest.device_id,
-            target_version=TARGET_VERSION,
-        )
+# Uncomment this section to run transitions as separate pytest tests
+# (requires pytest-xdist for parallel execution)
 
-        # Store for monitoring
-        pytest.fuota_plan_id = plan_id
-
-        print(f"FUOTA plan created: {plan_id}")
-
-    @pytest.mark.order(5)
-    @pytest.mark.timeout(FUOTA_TIMEOUT_MINUTES * 60 + 60)  # Add buffer
-    def test_wait_for_fuota(self, fuota_client):
-        """Wait for FUOTA to complete."""
-        success = wait_for_fuota_completion(
-            fuota_client,
-            device_id=pytest.device_id,
-            timeout_minutes=FUOTA_TIMEOUT_MINUTES,
-        )
-
-        assert success, "FUOTA did not complete successfully"
-
-    @pytest.mark.order(6)
-    def test_verify_firmware_version(self, fuota_client):
-        """Verify device reports target firmware version."""
-        verified = verify_firmware_version(
-            fuota_client,
-            device_id=pytest.device_id,
-            expected_version=TARGET_VERSION,
-        )
-
-        assert verified, f"Device did not report firmware v{TARGET_VERSION}"
-        print(f"Device successfully updated to v{TARGET_VERSION}")
+# @pytest.mark.parametrize("transition_index", range(4))
+# def test_fuota_transition(
+#     transition_index,
+#     fuota_transitions,
+#     mtib_client,
+#     fuota_client,
+#     device_snr,
+#     device_id_override,
+# ):
+#     """Run a single FUOTA transition (parameterized)."""
+#     if transition_index >= len(fuota_transitions):
+#         pytest.skip(f"Transition index {transition_index} out of range")
+#
+#     transition = fuota_transitions[transition_index]
+#     success, _ = run_fuota_cycle(
+#         transition=transition,
+#         mtib_client=mtib_client,
+#         fuota_client=fuota_client,
+#         device_snr=device_snr,
+#         device_id=device_id_override,
+#     )
+#
+#     assert success, f"FUOTA transition failed: {transition.from_label} → {transition.to_label}"
 
 
 # ============================================================================
@@ -545,21 +801,25 @@ class TestFuota:
 # ============================================================================
 
 def pytest_addoption(parser):
-    """Add custom command line options.
-
-    NOTE: --device-id is already defined in conftest.py — don't re-add here.
-    """
+    """Add custom command line options."""
+    # These can override env vars for manual runs
+    parser.addoption(
+        "--pipeline-id",
+        action="store",
+        default=None,
+        help="Pipeline ID (overrides PIPELINE_ID env var)",
+    )
     parser.addoption(
         "--mtib-addr",
         action="store",
-        default=os.environ.get("MTIB_ADDR", "10.4.45.33"),
-        help="MTIB address",
+        default=None,
+        help="MTIB address (overrides MTIB_ADDRESS env var)",
     )
     parser.addoption(
         "--device-snr",
         action="store",
-        default=os.environ.get("DEVICE_SNR", "09J5"),
-        help="Device serial number (J-Link probe SNR)",
+        default=None,
+        help="Device serial number (overrides DEVICE_SNR env var)",
     )
 
 

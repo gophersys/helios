@@ -152,7 +152,7 @@ class PipelineAssets:
         if not self._api_url:
             raise RuntimeError("CONCORD_API_URL not configured")
 
-        url = f"{self._api_url.rstrip('/')}/v2/ci/pipelines/{self._pipeline_id}"
+        url = f"{self._api_url.rstrip('/')}/v2/builds/pipelines/{self._pipeline_id}"
         headers = {}
         if self._api_key:
             # API keys (ck_*) use ApiKey prefix, JWTs use Bearer
@@ -180,7 +180,7 @@ class PipelineAssets:
         if not self._api_url:
             return []
 
-        url = f"{self._api_url.rstrip('/')}/v2/ci/builds/{build_id}/artifacts"
+        url = f"{self._api_url.rstrip('/')}/v2/builds/builds/{build_id}/artifacts"
         headers = {}
         if self._api_key:
             if self._api_key.startswith("ck_"):
@@ -409,14 +409,23 @@ class PipelineAssets:
         """Get the FUOTA transition sequence for this pipeline.
 
         Returns list of (from_label, to_label, purpose) tuples.
+        Only returns transitions where:
+        - The "to" build is a version_bump of the "from" build
+        - Both builds have CFW files (produces_cfw=True)
+
+        Stage 5 defines 4 valid FUOTA transitions:
+        - MFG_BASE → MFG_BUMP (sanity test: same code, bumped version)
+        - FUT_DEBUG_A → FUT_DEBUG_B (debug build FUOTA)
+        - FUT_RELEASE_A → FUT_RELEASE_B (release build FUOTA)
+        - MAIN_BASELINE → MAIN_MERGED (field upgrade path)
         """
+        # These are the only valid FUOTA transitions per stage_builds.py
+        # (where is_version_bump=True and base_label points to from_build)
         return [
-            ("MFG_BASE", "MFG_BUMP", "FUOTA sanity (same code, bumped version)"),
-            ("MFG_BUMP", "FUT_DEBUG_A", "Factory transition (mfg → prod debug)"),
-            ("FUT_DEBUG_A", "FUT_DEBUG_B", "FUOTA on debug production FW"),
-            ("FUT_DEBUG_B", "FUT_RELEASE_A", "Debug → release transition"),
-            ("FUT_RELEASE_A", "FUT_RELEASE_B", "FUOTA on release production FW"),
-            ("MAIN_BASELINE", "MAIN_MERGED", "Field upgrade path simulation"),
+            ("MFG_BASE", "MFG_BUMP", "MFG FUOTA sanity (same code, bumped version)"),
+            ("FUT_DEBUG_A", "FUT_DEBUG_B", "Debug build FUOTA"),
+            ("FUT_RELEASE_A", "FUT_RELEASE_B", "Release build FUOTA"),
+            ("MAIN_BASELINE", "MAIN_MERGED", "Field upgrade path (main → merged)"),
         ]
 
     def has_all_builds(self) -> bool:
