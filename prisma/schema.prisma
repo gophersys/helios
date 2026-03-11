@@ -113,6 +113,16 @@ enum BuildJobStatus {
     SUCCESS
     FAILED
     CANCELLED
+    CACHED // Reused from a previous build with same fingerprint
+}
+
+enum QueueEntryStatus {
+    QUEUED
+    ASSIGNED
+    RUNNING
+    COMPLETED
+    FAILED
+    CANCELLED
 }
 
 enum PipelineStatus {
@@ -201,6 +211,7 @@ model Product {
     buildJobs      BuildJob[]
     testBenches    TestBench[]
     deployments    Deployment[]
+    stageConfigs   ProductStageConfig[]
 
     @@map("products")
 }
@@ -302,6 +313,102 @@ model FirmwareBuild {
 
 // =============================================================================
 //
+//  PRODUCT STAGE CONFIGURATION
+//  Per-product, per-stage build + validation settings.
+//
+// =============================================================================
+
+/// Configuration for a single validation stage (1-5) within a product.
+/// Defines what firmware to build, what tests to run, and queue priority.
+model ProductStageConfig {
+    id        String  @id @default(cuid())
+    productId String
+    stage     Int     /// 1=Smoke, 2=Silicon, 3=Integration, 4=Nightly, 5=FUOTA
+    name      String  /// Display name: "Smoke", "Silicon", "Integration", "Nightly", "FUOTA"
+    enabled   Boolean @default(true)
+
+    // Build configuration
+    buildScript    String?  @db.Text /// Bash build script content
+    buildTarget    String?  /// West board name ("alpha_b0") or "native_sim"
+    fwRepoUrl      String?  /// Firmware repo SSH URL
+    fwRepoBranch   String?  /// Branch to build from
+    mfgRepoUrl     String?  /// Manufacturing firmware repo (stages 4-6)
+    mfgRepoBranch  String?  /// Manufacturing firmware branch
+    buildVariant   String?  /// Default variant: "debug", "release", "mfg", "test"
+    configFlags    Json?    /// Build-time flags: {"harness": true, "debug": false}
+    buildMatrix    Json?    /// Stage-specific build definitions (array of BuildDef)
+
+    // Test configuration
+    testDirectory  String?  /// Pytest path: "tests/stage5/"
+    testMarker     String?  /// Pytest marker: "-m gate"
+    testTimeout    Int      @default(900) /// Max seconds for test execution
+
+    // Queue / scheduling
+    priority       Int      @default(50)  /// Higher = more urgent (Gate=100, Nightly=50)
+    blocksMerge    Boolean  @default(false)
+    requiresFuota  Boolean  @default(false)
+    requiresBench  Boolean  @default(true) /// Stage 1 doesn't need hardware
+    maxDurationSec Int      @default(3600) /// Hard timeout for entire stage
+
+    description String?
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+
+    product      Product              @relation(fields: [productId], references: [id], onDelete: Cascade)
+    pipelineRuns PipelineRun[]
+    queueEntries ValidationQueueEntry[]
+
+    @@unique([productId, stage])
+    @@index([productId])
+    @@map("product_stage_configs")
+}
+
+/// A queued validation run waiting for a test bench.
+/// Priority queue: higher priority entries are assigned first.
+model ValidationQueueEntry {
+    id String @id @default(cuid())
+
+    // What triggered this
+    pipelineRunId String
+    stageConfigId String?
+    stage         Int     /// Validation stage (1-5)
+    priority      Int     @default(50) /// From stage config, but overridable
+
+    // Status
+    status QueueEntryStatus @default(QUEUED)
+
+    // Bench assignment
+    benchId String? /// Assigned test bench (null until ASSIGNED)
+
+    // Validation run (created when tests actually start)
+    validationRunId String? @unique
+
+    // Context
+    reason       String? /// "PR #42", "nightly 2026-03-11", "manual"
+    errorMessage String?
+    jobName      String? /// K8s job name when triggered
+
+    // Timing
+    requestedAt DateTime  @default(now())
+    assignedAt  DateTime?
+    startedAt   DateTime?
+    completedAt DateTime?
+    createdAt   DateTime  @default(now())
+    updatedAt   DateTime  @updatedAt
+
+    pipelineRun   PipelineRun         @relation(fields: [pipelineRunId], references: [id])
+    stageConfig   ProductStageConfig? @relation(fields: [stageConfigId], references: [id])
+    bench         TestBench?          @relation(fields: [benchId], references: [id])
+    validationRun ValidationRun?      @relation(fields: [validationRunId], references: [id])
+
+    @@index([status, priority])
+    @@index([pipelineRunId])
+    @@index([benchId])
+    @@map("validation_queue_entries")
+}
+
+// =============================================================================
+//
 //  BUILDS
 //  CI pipeline runs, build jobs, artifacts, codebases, and releases.
 //
@@ -320,6 +427,10 @@ model PipelineRun {
     triggerType     String         @default("manual") /// manual, webhook, scheduled
     triggerData     Json?          /// Webhook payload or trigger config
 
+    // Stage-aware pipeline
+    stage         Int?    /// Validation stage (1-5) this pipeline targets
+    stageConfigId String? /// FK to ProductStageConfig
+
     // Build tracking
     expectedBuilds  Int            @default(2) /// How many builds to wait for
     completedBuilds Int            @default(0)
@@ -337,13 +448,16 @@ model PipelineRun {
     createdAt  DateTime @default(now())
     updatedAt  DateTime @updatedAt
 
+    stageConfig    ProductStageConfig? @relation(fields: [stageConfigId], references: [id])
     builds         BuildJob[]
     sessions       Session[]
     validationRuns ValidationRun[]
+    queueEntries   ValidationQueueEntry[]
 
     @@index([product, branch])
     @@index([status])
     @@index([commitSha])
+    @@index([stage])
     @@map("pipeline_runs")
 }
 
@@ -373,6 +487,11 @@ model BuildJob {
     versionBump Boolean @default(false) /// True if version-bumped build (same code, N+1)
     baseJobId   String? /// If version-bumped, points to the base build job
 
+    // Build cache / fingerprinting
+    buildFingerprint String? /// SHA-256 of (repo+commit+board+variant+configFlags)
+    configFlags      Json?   /// {"harness": false, "debug": true, "mfg": false}
+    reusedFromId     String? /// If CACHED, points to the original successful build
+
     // Pipeline relation
     pipelineRunId String?
     pipelineRun   PipelineRun? @relation(fields: [pipelineRunId], references: [id])
@@ -386,12 +505,15 @@ model BuildJob {
 
     productRef Product?           @relation(fields: [productId], references: [id])
     artifacts  BuildJobArtifact[]
+    reusedFrom BuildJob?          @relation("BuildReuse", fields: [reusedFromId], references: [id])
+    reusedBy   BuildJob[]         @relation("BuildReuse")
 
     @@index([product, branch])
     @@index([matrixLabel])
     @@index([productId])
     @@index([status])
     @@index([pipelineRunId])
+    @@index([buildFingerprint])
     @@map("build_jobs")
 }
 
@@ -535,10 +657,11 @@ model ValidationRun {
     createdAt  DateTime @default(now())
     updatedAt  DateTime @updatedAt
 
-    design   ValidationDesign @relation(fields: [designId], references: [id])
-    pipeline PipelineRun?     @relation(fields: [pipelineId], references: [id])
-    node     Node?            @relation(fields: [nodeId], references: [id])
-    steps    ValidationStep[]
+    design     ValidationDesign      @relation(fields: [designId], references: [id])
+    pipeline   PipelineRun?          @relation(fields: [pipelineId], references: [id])
+    node       Node?                 @relation(fields: [nodeId], references: [id])
+    steps      ValidationStep[]
+    queueEntry ValidationQueueEntry?
 
     @@index([designId])
     @@index([pipelineId])
@@ -753,6 +876,7 @@ model TestBench {
 
     product       Product?       @relation(fields: [productId], references: [id])
     fixtureDesign FixtureDesign? @relation(fields: [fixtureDesignId], references: [id])
+    queueEntries  ValidationQueueEntry[]
 
     @@index([dutProduct, status])
     @@index([status])
