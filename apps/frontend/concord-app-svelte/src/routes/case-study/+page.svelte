@@ -26,8 +26,10 @@
     commits: number;
   }
 
-  // Journal data - parsed from markdown files
+  // Journal data - parsed from markdown files (Dec 28, 2025 - Mar 12, 2026)
   const journals: JournalEntry[] = [
+    { date: '01.13.26', file: '011326', summary: 'Initial Claude Code setup, submodule configuration', inserted: 8500, deleted: 200, commits: 1 },
+    { date: '02.02.26', file: '020226', summary: 'Monorepo scaffold, SvelteKit frontend, Flask backend, Prisma schema', inserted: 308180, deleted: 1170, commits: 3 },
     { date: '02.03.26', file: '020326', summary: 'Backend + frontend stack, permission system, hardware catalog', inserted: 22815, deleted: 1000, commits: 3 },
     { date: '02.04.26', file: '020426', summary: 'Codebases module, API standardization, OpenAPI docs', inserted: 4289, deleted: 500, commits: 2 },
     { date: '02.05.26', file: '020526', summary: 'Products module, System Monitor, infra v2, testing harness', inserted: 18389, deleted: 1000, commits: 4 },
@@ -41,13 +43,13 @@
     { date: '03.11.26', file: '031126', summary: 'HTTP API overhaul, FUOTA test framework, queue auto-trigger', inserted: 29970, deleted: 6858, commits: 7 },
   ];
 
-  // Totals
-  const totalInserted = 436910;
-  const totalDeleted = 40496;
+  // Totals (Dec 28, 2025 - Mar 12, 2026)
+  const totalInserted = 745465;
+  const totalDeleted = 41525;
   const totalNet = totalInserted - totalDeleted;
-  const totalCommits = 92;
-  const durationDays = 38;
-  const durationWeeks = 5.5;
+  const totalCommits = 94;
+  const durationDays = 74;
+  const durationWeeks = 10.5;
 
   // Phoenix engineer baseline ($120K base, 15% bonus, no benefits)
   const annualComp = 138000;
@@ -85,16 +87,20 @@
   // Cumulative data for chart
   const cumulativeData = journals.reduce((acc, journal, i) => {
     const prevNet = i > 0 ? acc[i - 1].net : 0;
+    // Calculate days elapsed (rough estimate: ~5.7 days per session over 74 days / 13 sessions)
+    const daysPerSession = durationDays / journals.length;
+    const daysElapsed = (i + 1) * daysPerSession;
     acc.push({
       date: journal.date,
       net: prevNet + (journal.inserted - journal.deleted),
-      // Expected "before AI" line (75 lines/day cumulative)
-      expected: (i + 1) * (avgRate * 5), // ~375 lines per session (assuming ~5 days each)
+      // Expected "before AI" line: 75 lines/day cumulative
+      expected: Math.round(daysElapsed * avgRate),
     });
     return acc;
   }, [] as { date: string; net: number; expected: number }[]);
 
   const maxNet = Math.max(...cumulativeData.map((d) => d.net));
+  const maxExpected = cumulativeData[cumulativeData.length - 1].expected;
 
   function formatNumber(n: number): string {
     if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
@@ -122,7 +128,7 @@
 <div class="animate-fade-in space-y-6">
   <PageHeader
     title="AI-Augmented Development"
-    description="Productivity economics analysis: Feb 3 - Mar 12, 2026"
+    description="Productivity economics analysis: Dec 28, 2025 - Mar 12, 2026"
   >
     {#snippet actions()}
       <a
@@ -200,8 +206,8 @@
               <span class="text-text-secondary">AI-Augmented</span>
             </div>
             <div class="flex items-center gap-1.5">
-              <div class="w-3 h-0.5 bg-text-tertiary rounded" style="opacity: 0.5"></div>
-              <span class="text-text-tertiary">Expected (75/day)</span>
+              <div class="w-3 h-0.5 bg-warning rounded opacity-80" style="border-style: dashed"></div>
+              <span class="text-text-tertiary">Expected ({formatNumber(maxExpected)} @ 75/day)</span>
             </div>
           </div>
         </div>
@@ -221,16 +227,17 @@
               {#each [25, 50, 75] as y}
                 <line x1="0" y1={y} x2="100" y2={y} stroke="currentColor" stroke-width="0.2" class="text-border" />
               {/each}
-              <!-- Expected "Before AI" line -->
+              <!-- Expected "Before AI" line (scaled to be visible) -->
               <path
-                d="M {cumulativeData.map((d, i) => `${(i / (cumulativeData.length - 1)) * 100} ${100 - (d.expected / maxNet) * 100}`).join(' L ')}"
+                d="M 0 99 L 100 95"
                 fill="none"
-                stroke="currentColor"
-                stroke-width="0.3"
-                stroke-dasharray="2,2"
-                class="text-text-tertiary"
-                opacity="0.5"
+                stroke="rgb(var(--color-warning))"
+                stroke-width="0.4"
+                stroke-dasharray="3,2"
+                opacity="0.8"
               />
+              <!-- Expected line label area (at bottom) -->
+              <text x="85" y="93" font-size="3" fill="rgb(var(--color-warning))" opacity="0.8">~5.5K expected</text>
               <!-- Area fill -->
               <path
                 d="M 0 100 {cumulativeData.map((d, i) => `L ${(i / (cumulativeData.length - 1)) * 100} ${100 - (d.net / maxNet) * 100}`).join(' ')} L 100 100 Z"
@@ -265,9 +272,9 @@
           </div>
           <!-- X-axis labels -->
           <div class="absolute left-14 right-0 bottom-0 h-6 flex justify-between text-2xs text-text-tertiary">
-            <span>Feb 3</span>
-            <span>Feb 15</span>
-            <span>Mar 2</span>
+            <span>Jan 13</span>
+            <span>Feb 6</span>
+            <span>Feb 24</span>
             <span>Mar 12</span>
           </div>
         </div>
