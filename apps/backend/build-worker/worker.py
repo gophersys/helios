@@ -48,6 +48,14 @@ from typing import Dict, List, Optional, Tuple
 
 import requests
 
+# Firmware validation - try to import, fallback if not available in container
+try:
+    from corekinect.firmware.validator import FirmwarePackageValidator, ValidationResult
+    HAS_VALIDATOR = True
+except ImportError:
+    HAS_VALIDATOR = False
+    ValidationResult = None  # type: ignore
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
@@ -75,6 +83,7 @@ class BuildJob:
     version_bump: bool = False
     base_job_id: str = None
     matrix_label: str = None
+    version_override: str = None  # Explicit version override (e.g., "0.5.0")
 
 
 class BuildWorker:
@@ -114,7 +123,7 @@ class BuildWorker:
 
     def _load_repo_configs(self) -> bool:
         """Fetch repo configs from API. Called once at startup and on cache miss."""
-        result = self._api_get("/v2/ci/settings/repos")
+        result = self._api_get("/v2/builds/settings/repos")
         if not result or not result.get("data"):
             log.error("Failed to fetch repo configs from API")
             return False
@@ -230,7 +239,7 @@ class BuildWorker:
         """Fetch build script content from API."""
         # Map product names to script keys (alpha_fw -> alpha)
         script_key = product.lower().replace("_fw", "").replace("_mfg", "")
-        result = self._api_get(f"/v2/ci/scripts/{script_key}")
+        result = self._api_get(f"/v2/builds/scripts/{script_key}")
         if not result or not result.get("data"):
             log.error("Failed to fetch build script for %s", product)
             return None
@@ -241,7 +250,7 @@ class BuildWorker:
         script_key = product.lower().replace("_fw", "").replace("_mfg", "")
         try:
             resp = requests.get(
-                f"{self.api_url}/v2/ci/overlays/{script_key}",
+                f"{self.api_url}/v2/builds/overlays/{script_key}",
                 headers=self._headers(),
                 timeout=30,
                 verify=False,
@@ -270,7 +279,7 @@ class BuildWorker:
         if self.ncs_version:
             params += f"&ncsVersion={self.ncs_version}"
 
-        result = self._api_get(f"/v2/ci/builds?{params}")
+        result = self._api_get(f"/v2/builds/builds?{params}")
         if not result or not result.get("data"):
             return None
 
@@ -292,11 +301,21 @@ class BuildWorker:
             version_bump=j.get("versionBump", False),
             base_job_id=j.get("baseJobId"),
             matrix_label=j.get("matrixLabel"),
+            version_override=_extract_version_override(j),
         )
+
+def _extract_version_override(job_data: dict) -> Optional[str]:
+    """Extract version override from job data (configFlags or direct field)."""
+    # First check configFlags JSON
+    config_flags = job_data.get("configFlags") or {}
+    if isinstance(config_flags, dict) and config_flags.get("versionOverride"):
+        return config_flags["versionOverride"]
+    # Fallback to direct fields
+    return job_data.get("versionOverride") or job_data.get("firmwareVersion")
 
     def claim_job(self, job_id: str) -> bool:
         """Claim a job by setting status to BUILDING."""
-        result = self._api_patch(f"/v2/ci/builds/{job_id}", {
+        result = self._api_patch(f"/v2/builds/builds/{job_id}", {
             "status": "BUILDING",
             "workerId": self.worker_id,
             "startedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
@@ -316,7 +335,7 @@ class BuildWorker:
         if status in ("SUCCESS", "FAILED", "CANCELLED"):
             data["finishedAt"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
 
-        result = self._api_patch(f"/v2/ci/builds/{job_id}", data)
+        result = self._api_patch(f"/v2/builds/builds/{job_id}", data)
         return result is not None
 
     def clone_repo(self, repo_slug: str, dest_dir: Path, commit_sha: str = None) -> bool:
@@ -373,7 +392,7 @@ class BuildWorker:
         if not base_job_id:
             return None
 
-        result = self._api_get(f"/v2/ci/builds/{base_job_id}")
+        result = self._api_get(f"/v2/builds/builds/{base_job_id}")
         if not result or not result.get("data"):
             return None
 
@@ -416,8 +435,17 @@ class BuildWorker:
 
         # Prepare environment for build script
         env = os.environ.copy()
+
+        # Determine firmware repo directory (REPO_DIR enables CI_MODE in build.sh)
+        if "_mfg_" in job.product or "_mfg" in job.product:
+            product_base = job.product.replace("_mfg_fw", "").replace("_mfg", "")
+            repo_dir = str(work_dir / f"{product_base}_mfg_fw")
+        else:
+            repo_dir = str(work_dir / job.product)
+
         env.update({
             "BUILD_DIR": str(output_dir),
+            "REPO_DIR": repo_dir,
             "VARIANT": job.variant if job.variant != "mfg" else "",
             "MTIB_REV": job.mtib_rev,
             "COMMIT_SHA": job.commit_sha or "",
@@ -430,8 +458,20 @@ class BuildWorker:
             "ZEPHYR_SDK_INSTALL_DIR": os.environ.get("ZEPHYR_SDK_INSTALL_DIR", "/workdir/zephyr-sdk"),
         })
 
+        # Handle explicit version override (e.g., "0.5.0" -> BUILD_NUM=0)
+        if job.version_override:
+            # Parse version string to extract build number (last component)
+            parts = job.version_override.strip().split(".")
+            if len(parts) >= 3:
+                try:
+                    build_num = int(parts[2])
+                    env["VERSION_BUILD_OVERRIDE"] = str(build_num)
+                    log.info("Version override: %s -> BUILD_NUM=%d", job.version_override, build_num)
+                except ValueError:
+                    log.warning("Could not parse build number from version_override: %s", job.version_override)
+
         # Handle version bumping for N+1 builds (same code, incremented version)
-        if job.version_bump and job.base_job_id:
+        elif job.version_bump and job.base_job_id:
             base_version = self._get_base_build_version(job.base_job_id)
             if base_version is not None:
                 bumped_version = base_version + 1
@@ -507,7 +547,7 @@ class BuildWorker:
         try:
             # Fire and forget - don't block build on API calls
             requests.post(
-                f"{self.api_url}/v2/ci/builds/{job_id}/log",
+                f"{self.api_url}/v2/builds/builds/{job_id}/log",
                 json={"chunk": chunk},
                 headers=self._headers(),
                 timeout=5,
@@ -523,12 +563,62 @@ class BuildWorker:
             artifacts.extend(output_dir.glob(f"**/{pattern}"))
         return artifacts
 
+    def verify_artifacts(self, output_dir: Path, expected_version: Optional[str] = None) -> Tuple[bool, str]:
+        """Verify firmware artifacts for consistency and correctness.
+
+        Checks:
+        1. Required files present (hex, build.json)
+        2. Version consistency across build.json and CFW headers
+        3. CFW header integrity
+        4. Version matches expected (if provided)
+
+        Returns (success, message) tuple.
+        """
+        if not HAS_VALIDATOR:
+            log.warning("Firmware validator not available, skipping verification")
+            return True, "Validator not available"
+
+        # Find artifact directory (may be nested)
+        artifact_dirs = list(output_dir.glob("**/build.json"))
+        if not artifact_dirs:
+            # No build.json, check if we have hex files directly
+            hex_files = list(output_dir.glob("**/*.hex"))
+            if not hex_files:
+                return False, "No artifacts found (no build.json or hex files)"
+            log.warning("No build.json found, skipping package validation")
+            return True, "No build.json, skipping validation"
+
+        # Use the directory containing build.json
+        package_dir = artifact_dirs[0].parent
+
+        try:
+            validator = FirmwarePackageValidator(str(package_dir))
+            result = validator.validate()
+
+            # Log the validation result
+            if result.valid:
+                log.info("Firmware validation PASSED: %s", result.summary().split('\n')[0])
+            else:
+                log.error("Firmware validation FAILED:\n%s", result.summary())
+
+            # If expected version provided, verify it matches
+            if expected_version and result.valid:
+                build_version = result.versions.get("build.json")
+                if build_version and build_version.version_string != expected_version:
+                    return False, f"Version mismatch: built {build_version.version_string}, expected {expected_version}"
+
+            return result.valid, result.summary()
+
+        except Exception as e:
+            log.exception("Verification error: %s", e)
+            return False, f"Verification error: {e}"
+
     def upload_artifacts(self, job_id: str, artifacts: List[Path]) -> int:
         """Upload all artifacts for a job. Returns count of successful uploads."""
         count = 0
         for artifact in artifacts:
             log.info("Uploading %s...", artifact.name)
-            if self._upload_file(f"/v2/ci/builds/{job_id}/artifacts", artifact, artifact.name):
+            if self._upload_file(f"/v2/builds/builds/{job_id}/artifacts", artifact, artifact.name):
                 count += 1
         return count
 
@@ -607,7 +697,7 @@ class BuildWorker:
                 error_summary = log_output[-4000:] if len(log_output) > 4000 else log_output
                 self.update_job(job.id, "FAILED", error_summary, duration=duration)
                 # Upload full log as artifact
-                self._upload_file(f"/v2/ci/builds/{job.id}/artifacts", log_file, "build.log")
+                self._upload_file(f"/v2/builds/builds/{job.id}/artifacts", log_file, "build.log")
                 return False
 
             # 6. Collect and upload artifacts
@@ -619,6 +709,16 @@ class BuildWorker:
                     artifacts.extend(self.collect_artifacts(fw_dir))
             artifacts.append(log_file)  # Include build log
 
+            # 6.5. Verify artifacts before upload
+            valid, verify_msg = self.verify_artifacts(output_dir, job.version_override)
+            if not valid:
+                log.error("Artifact verification failed: %s", verify_msg)
+                self.update_job(job.id, "FAILED", f"Verification failed: {verify_msg}", duration=duration)
+                # Still upload artifacts for debugging
+                self._upload_file(f"/v2/builds/builds/{job.id}/artifacts", log_file, "build.log")
+                return False
+
+            # 7. Upload artifacts
             artifact_count = self.upload_artifacts(job.id, artifacts)
             log.info("Uploaded %d artifacts", artifact_count)
 

@@ -5,6 +5,7 @@
   import { getAuth } from '$lib/stores/auth.svelte';
   import ResourceAge from '$lib/components/system/resource-age.svelte';
   import NamespaceSelector from '$lib/components/system/namespace-selector.svelte';
+  import PlanesLoader from '$lib/components/ui/planes-loader.svelte';
 
   interface ConfigMapSummary {
     name: string;
@@ -64,7 +65,7 @@
   }
 
   onMount(() => {
-    if (!auth.hasPermission('Concord.Admin.System.View')) {
+    if (!auth.hasPermission('system:view')) {
       goto('/');
       return;
     }
@@ -107,9 +108,7 @@
   </div>
 
   {#if loading}
-    <div class="flex items-center justify-center py-12">
-      <span class="text-secondary">Loading {tab}...</span>
-    </div>
+    <PlanesLoader message="Loading {tab}..." />
   {:else if error}
     <div class="rounded-lg border border-error/20 bg-error/10 p-4 text-error">{error}</div>
   {:else}

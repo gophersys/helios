@@ -15,7 +15,7 @@
   ];
 
   onMount(() => {
-    if (!auth.hasPermission('Concord.Admin.Inventory.View')) {
+    if (!auth.hasPermission('products:view')) {
       goto('/');
     }
   });

@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 # In dev mode (monorepo), resolve from script location
 _script_path = Path(__file__)
 if _script_path.parts[:2] == ('/', 'app'):
-    # Docker container: /app/src/api/v2/ci/scripts.py → /app/firmware/products
+    # Docker container: /app/src/api/v2/builds/scripts.py → /app/firmware/products
     SCRIPTS_DIR = Path("/app/firmware/products")
 else:
     # Dev/monorepo: resolve relative to script location
@@ -55,7 +55,7 @@ def _get_script_path(product: str) -> Path | None:
 
 @require_permissions(Permissions.BUILDS_VIEW)
 def get_build_script(product: str):
-    """GET /v2/ci/scripts/<product> — Get build script content for a product."""
+    """GET /v2/builds/scripts/<product> — Get build script content for a product."""
     script_path = _get_script_path(product)
 
     if not script_path:
@@ -75,7 +75,7 @@ def get_build_script(product: str):
 
 @require_permissions(Permissions.BUILDS_VIEW)
 def list_build_scripts():
-    """GET /v2/ci/scripts — List available build scripts.
+    """GET /v2/builds/scripts — List available build scripts.
 
     Dynamically discovers products by scanning the firmware products directory.
     """
@@ -98,11 +98,11 @@ def list_build_scripts():
 
 @require_permissions(Permissions.BUILDS_MANAGE)
 def upload_build_script(product: str):
-    """POST /v2/ci/scripts/<product> — Upload a build script (not implemented)."""
+    """POST /v2/builds/scripts/<product> — Upload a build script (not implemented)."""
     return jsonify(ApiResponse.error(ErrorDetail(message="Script upload not implemented - scripts are managed in git")).to_dict()), 501
 
 
 @require_permissions(Permissions.BUILDS_MANAGE)
 def delete_build_script(product: str):
-    """DELETE /v2/ci/scripts/<product> — Delete a build script (not implemented)."""
+    """DELETE /v2/builds/scripts/<product> — Delete a build script (not implemented)."""
     return jsonify(ApiResponse.error(ErrorDetail(message="Script deletion not implemented - scripts are managed in git")).to_dict()), 501

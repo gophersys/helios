@@ -22,7 +22,7 @@
   let saving = $state(false);
 
   const auth = getAuth();
-  const canManage = $derived(auth.hasPermission('Concord.Admin.System.Manage'));
+  const canManage = $derived(auth.hasPermission('system:manage'));
 
   async function fetchYaml() {
     loading = true;

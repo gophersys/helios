@@ -38,13 +38,8 @@
   }
 </script>
 
-<!-- svelte-ignore a11y_no_static_element_interactions -->
-<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 <div
   onclick={handleCardClick}
-  onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleCardClick(); }}
-  role={isServerOnline || deployState === 'deploying' ? 'link' : undefined}
-  tabindex={isServerOnline || deployState === 'deploying' ? 0 : -1}
   class="card group relative flex flex-col overflow-hidden text-left w-full transition-all duration-200
     {isServerOnline ? 'hover:ring-2 hover:ring-accent/50 cursor-pointer' : deployState === 'deploying' ? 'hover:ring-2 hover:ring-warning/50 cursor-pointer' : ''}"
 >
@@ -117,7 +112,7 @@
       onclick={(e) => e.stopPropagation()}
       onkeydown={(e) => e.stopPropagation()}
     >
-      <button
+      <div
         onclick={() => onHealthCheck(node.id)}
         class="rounded-lg bg-surface-1/90 p-1.5 text-text-tertiary shadow-sm backdrop-blur hover:text-success"
         title="Health check"
@@ -125,7 +120,7 @@
       >
         <HeartPulse size={14} />
       </button>
-      <button
+      <div
         onclick={() => onEdit(node)}
         class="rounded-lg bg-surface-1/90 p-1.5 text-text-tertiary shadow-sm backdrop-blur hover:text-text-primary"
         title="Edit"
@@ -133,7 +128,7 @@
       >
         <Pencil size={14} />
       </button>
-      <button
+      <div
         onclick={() => onDelete(node.id)}
         class="rounded-lg bg-surface-1/90 p-1.5 text-text-tertiary shadow-sm backdrop-blur hover:text-error"
         title="Delete"
@@ -143,4 +138,4 @@
       </button>
     </div>
   {/if}
-</div>
+</button>

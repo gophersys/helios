@@ -190,6 +190,7 @@ from .validation.runs.runs import (
     create_run,
     list_runs,
     get_run,
+    get_run_job,
     cancel_run,
 )
 from .validation.runs.executions import (
@@ -257,6 +258,7 @@ from .ci.builds import (
     get_build as get_ci_build,
     list_build_artifacts as list_ci_build_artifacts,
     download_build_artifacts as download_ci_build_artifacts,
+    download_single_artifact as download_ci_single_artifact,
     get_build_log as get_ci_build_log,
     stream_build_log as stream_ci_build_log,
     create_build as create_ci_build,
@@ -280,6 +282,31 @@ from .ci.scripts import (
 from .ci.overlays import (
     get_overlays,
     list_overlays,
+)
+
+# Stage config handlers (product validation stages)
+from .ci.stage_config import (
+    list_stage_configs,
+    get_stage_config,
+    create_stage_config,
+    update_stage_config,
+    delete_stage_config,
+    initialize_stages,
+)
+
+# Run manifest (execution graph for validation pipeline stages)
+from .ci.manifest import get_run_manifest
+
+# Validation queue handlers
+from .validation.queue import (
+    list_queue,
+    get_queue_entry,
+    create_queue_entry,
+    update_queue_entry,
+    cancel_queue_entry,
+    promote_queue_entry,
+    get_queue_stats,
+    trigger_scheduler,
 )
 
 
@@ -408,6 +435,7 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     v2.add_url_rule("/validation/runs",                                                                    endpoint="create_validation_run",        view_func=create_run,               methods=["POST"])
     v2.add_url_rule("/validation/runs/<run_id>",                                                           endpoint="get_validation_run",           view_func=get_run,                  methods=["GET"])
     v2.add_url_rule("/validation/runs/<run_id>/cancel",                                                    endpoint="cancel_validation_run",        view_func=cancel_run,               methods=["POST"])
+    v2.add_url_rule("/validation/runs/<run_id>/job",                                                       endpoint="get_validation_run_job",       view_func=get_run_job,              methods=["GET"])
     v2.add_url_rule("/validation/runs/<run_id>/executions",                                                endpoint="list_validation_executions",   view_func=list_executions,          methods=["GET"])
     v2.add_url_rule("/validation/runs/<run_id>/executions/<execution_id>/results",                         endpoint="list_execution_results",       view_func=list_execution_results,   methods=["GET"])
     v2.add_url_rule("/validation/runs/<run_id>/artifacts",                                                 endpoint="list_run_artifacts",           view_func=list_run_artifacts,       methods=["GET"])
@@ -607,6 +635,7 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     v2.add_url_rule("/builds/<build_id>/artifacts",                                             endpoint="list_ci_build_artifacts",  view_func=list_ci_build_artifacts, methods=["GET"])
     v2.add_url_rule("/builds/<build_id>/artifacts",                                             endpoint="upload_ci_build_artifact", view_func=upload_ci_build_artifact, methods=["POST"])
     v2.add_url_rule("/builds/<build_id>/artifacts/download",                                    endpoint="download_ci_build_artifacts", view_func=download_ci_build_artifacts, methods=["GET"])
+    v2.add_url_rule("/builds/<build_id>/artifacts/<artifact_name>",                             endpoint="download_ci_single_artifact", view_func=download_ci_single_artifact, methods=["GET"])
     v2.add_url_rule("/builds/<build_id>/log",                                                   endpoint="get_ci_build_log",         view_func=get_ci_build_log,      methods=["GET"])
     v2.add_url_rule("/builds/<build_id>/log",                                                   endpoint="stream_ci_build_log",      view_func=stream_ci_build_log,   methods=["POST"])
     v2.add_url_rule("/builds/<build_id>/reset",                                                 endpoint="reset_ci_build",           view_func=reset_ci_build,        methods=["POST"])
@@ -630,5 +659,26 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     # Builds — Overlays (was /ci/overlays)
     v2.add_url_rule("/builds/overlays/<product>",                                               endpoint="get_overlays",             view_func=get_overlays,          methods=["GET"])
     v2.add_url_rule("/builds/overlays/<product>/list",                                          endpoint="list_overlays",            view_func=list_overlays,         methods=["GET"])
+
+    # Products — Stage Configs (validation stage configuration per product)
+    v2.add_url_rule("/products/<product_id>/stages",                                            endpoint="list_stage_configs",       view_func=list_stage_configs,    methods=["GET"])
+    v2.add_url_rule("/products/<product_id>/stages",                                            endpoint="create_stage_config",      view_func=create_stage_config,   methods=["POST"])
+    v2.add_url_rule("/products/<product_id>/stages/initialize",                                 endpoint="initialize_stages",        view_func=initialize_stages,     methods=["POST"])
+    v2.add_url_rule("/products/<product_id>/stages/<stage>",                                    endpoint="get_stage_config",         view_func=get_stage_config,      methods=["GET"])
+    v2.add_url_rule("/products/<product_id>/stages/<stage>",                                    endpoint="update_stage_config",      view_func=update_stage_config,   methods=["PUT"])
+    v2.add_url_rule("/products/<product_id>/stages/<stage>",                                    endpoint="delete_stage_config",      view_func=delete_stage_config,   methods=["DELETE"])
+
+    # Products — Run Manifest (execution graph for validation pipeline)
+    v2.add_url_rule("/products/<product_id>/manifest",                                           endpoint="get_product_manifest",     view_func=get_run_manifest,      methods=["GET"])
+
+    # Validation — Queue (priority-based scheduling for validation runs)
+    v2.add_url_rule("/validation/queue",                                                        endpoint="list_queue",               view_func=list_queue,            methods=["GET"])
+    v2.add_url_rule("/validation/queue",                                                        endpoint="create_queue_entry",       view_func=create_queue_entry,    methods=["POST"])
+    v2.add_url_rule("/validation/queue/stats",                                                  endpoint="get_queue_stats",          view_func=get_queue_stats,       methods=["GET"])
+    v2.add_url_rule("/validation/queue/<entry_id>",                                             endpoint="get_queue_entry",          view_func=get_queue_entry,       methods=["GET"])
+    v2.add_url_rule("/validation/queue/<entry_id>",                                             endpoint="update_queue_entry",       view_func=update_queue_entry,    methods=["PATCH"])
+    v2.add_url_rule("/validation/queue/<entry_id>/cancel",                                      endpoint="cancel_queue_entry",       view_func=cancel_queue_entry,    methods=["POST"])
+    v2.add_url_rule("/validation/queue/<entry_id>/promote",                                     endpoint="promote_queue_entry",      view_func=promote_queue_entry,   methods=["POST"])
+    v2.add_url_rule("/validation/queue/schedule",                                               endpoint="trigger_scheduler",        view_func=trigger_scheduler,     methods=["POST"])
 
     server.register_blueprint(v2)

@@ -122,7 +122,7 @@ def _create_build_job(db, payload: BitbucketWebhookPayload, product_config: dict
 
 
 def webhook_bitbucket():
-    """POST /v2/ci/webhooks/bitbucket — Receive Bitbucket Server webhook.
+    """POST /v2/builds/webhooks/bitbucket — Receive Bitbucket Server webhook.
 
     No auth decorator — validated via HMAC signature instead.
     """
@@ -208,7 +208,7 @@ def webhook_bitbucket():
 
 @require_permissions(Permissions.BUILDS_TRIGGER)
 def trigger_pipeline():
-    """POST /v2/ci/trigger — Manual CI pipeline trigger."""
+    """POST /v2/builds/trigger — Manual CI pipeline trigger."""
     data, error = CiTriggerRequest.from_json(request.get_json())
     if error:
         return bad_request(error)
@@ -226,6 +226,12 @@ def trigger_pipeline():
     try:
         # Create build job with board from Product model
         board = product.buildBoard or product_config.get("board", "alpha_b0")
+
+        # Store version override in configFlags if provided
+        config_flags = {}
+        if data.firmware_version:
+            config_flags["versionOverride"] = data.firmware_version
+
         build = db.buildjob.create(
             data={
                 "product": data.repo_slug,
@@ -237,6 +243,7 @@ def trigger_pipeline():
                 "branch": data.branch,
                 "commitSha": data.commit_sha,
                 "status": "QUEUED",
+                "configFlags": Json(config_flags) if config_flags else None,
             },
             include={"artifacts": True},
         )
@@ -266,7 +273,7 @@ def trigger_pipeline():
 
 @require_permissions(Permissions.BUILDS_VIEW)
 def list_ci_repos():
-    """GET /v2/ci/settings/repos — List configured CI repositories.
+    """GET /v2/builds/settings/repos — List configured CI repositories.
 
     Used by build workers to get repo configs (ssh_url, build_script).
     Pulls from Product model in DB, with legacy REPO_PRODUCT_MAP as fallback.
@@ -296,7 +303,7 @@ def list_ci_repos():
                 "targets": targets,
                 "defaultVariant": "debug",
                 "ncsVersion": metadata.get("ncsVersion", ""),
-                "webhookUrl": f"{base_url}/v2/ci/webhooks/bitbucket",
+                "webhookUrl": f"{base_url}/v2/builds/webhooks/bitbucket",
                 "connected": True,
                 "branches": list(CI_TRIGGER_BRANCHES),
                 "variants": ["debug", "release"],
@@ -320,7 +327,7 @@ def list_ci_repos():
                 "targets": targets,
                 "defaultVariant": "release",
                 "ncsVersion": metadata.get("ncsVersion", ""),
-                "webhookUrl": f"{base_url}/v2/ci/webhooks/bitbucket",
+                "webhookUrl": f"{base_url}/v2/builds/webhooks/bitbucket",
                 "connected": True,
                 "branches": list(CI_TRIGGER_BRANCHES),
                 "variants": ["release"],
@@ -344,7 +351,7 @@ def list_ci_repos():
             "targets": config.get("targets", []),
             "defaultVariant": config.get("default_variant", "debug"),
             "ncsVersion": config.get("ncs_version", ""),
-            "webhookUrl": f"{base_url}/v2/ci/webhooks/bitbucket",
+            "webhookUrl": f"{base_url}/v2/builds/webhooks/bitbucket",
             "connected": True,
             "branches": list(CI_TRIGGER_BRANCHES),
             "variants": ["debug", "release"] if "mfg" not in slug else ["release"],

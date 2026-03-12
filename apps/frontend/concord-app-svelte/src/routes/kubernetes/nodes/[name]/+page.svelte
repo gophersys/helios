@@ -13,6 +13,7 @@
   import { formatCpu, formatMem, parseCpuMillis, parseMemoryMi } from '$lib/components/system/k8s-resources';
   import type { ApiResponse } from '$lib/types';
   import type { ConcordNode } from '$lib/types/models';
+  import PlanesLoader from '$lib/components/ui/planes-loader.svelte';
 
   interface NodeCondition {
     type: string;
@@ -89,7 +90,7 @@
   }
 
   onMount(() => {
-    if (!auth.hasPermission('Concord.Admin.System.View')) {
+    if (!auth.hasPermission('system:view')) {
       goto('/');
       return;
     }
@@ -143,9 +144,7 @@
   </button>
 
   {#if loading}
-    <div class="flex items-center justify-center py-12">
-      <span class="text-secondary">Loading node details...</span>
-    </div>
+    <PlanesLoader message="Loading node details..." />
   {:else if error}
     <div class="rounded-lg border border-error/20 bg-error/10 p-4 text-error">{error}</div>
   {:else if node}

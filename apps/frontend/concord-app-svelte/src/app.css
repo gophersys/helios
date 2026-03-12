@@ -482,3 +482,43 @@
   .dark .ansi-black { color: #6c6c6c; }
   .dark .ansi-white { color: #f0f0f0; }
 }
+
+/* Print styles for Case Study PDF export */
+@media print {
+  /* Hide navigation and non-essential elements */
+  nav, .print\\:hidden, button:not(.print-include) {
+    display: none !important;
+  }
+  
+  /* Reset backgrounds for print */
+  body {
+    background: white !important;
+    color: black !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  
+  /* Ensure cards have borders for visibility */
+  .card {
+    border: 1px solid #e5e7eb !important;
+    box-shadow: none !important;
+    break-inside: avoid;
+  }
+  
+  /* Keep colors in charts */
+  svg {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  
+  /* Page margins */
+  @page {
+    margin: 0.75in;
+    size: letter;
+  }
+  
+  /* Avoid breaks inside important sections */
+  .grid, .space-y-6 > * {
+    break-inside: avoid;
+  }
+}

@@ -14,17 +14,34 @@
   let { namespace, pod, containers, defaultOpen = true }: Props = $props();
 
   let selectedContainer = $state(untrack(() => containers[0] || ''));
+  let prevContainer = $state(untrack(() => containers[0] || ''));
   let lines = $state<string[]>([]);
   let error = $state<string | null>(null);
   let connected = $state(false);
   let paused = $state(false);
   let tailLines = $state(100);
+  let prevTailLines = $state(100);
   let autoScroll = $state(true);
   let isOpen = $state(untrack(() => defaultOpen));
   let logsContainer = $state<HTMLDivElement | undefined>(undefined);
   let unsubscribe: (() => void) | null = null;
 
   let pausedBuffer = $state<string[]>([]);
+
+  // Watch for container or tail lines changes and reconnect
+  $effect(() => {
+    if (selectedContainer !== prevContainer) {
+      prevContainer = selectedContainer;
+      if (isOpen) connect();
+    }
+  });
+
+  $effect(() => {
+    if (tailLines !== prevTailLines) {
+      prevTailLines = tailLines;
+      if (isOpen) connect();
+    }
+  });
 
   async function scrollToBottom() {
     if (autoScroll && logsContainer && !paused) {
@@ -98,14 +115,6 @@
     );
   }
 
-  function handleContainerChange(e: Event) {
-    selectedContainer = (e.target as HTMLSelectElement).value;
-    connect();
-  }
-
-  function handleTailChange() {
-    connect();
-  }
 
   function toggleOpen() {
     isOpen = !isOpen;
@@ -162,8 +171,7 @@
         <div class="flex items-center gap-2">
           <span class="text-xs text-text-secondary">Container:</span>
           <Select
-            value={selectedContainer}
-            onchange={handleContainerChange}
+            bind:value={selectedContainer}
             options={containers.map(c => ({ value: c, label: c }))}
             compact
           />
@@ -173,7 +181,6 @@
           <span class="text-xs text-text-secondary">Tail:</span>
           <Select
             bind:value={tailLines}
-            onchange={handleTailChange}
             options={[
               { value: '50', label: '50' },
               { value: '100', label: '100' },

@@ -17,7 +17,7 @@
     const m = raw.match(/(\d+)[_.](\d+)/);
     return m ? `${m[1]}.${m[2]}` : raw;
   }
-  const canManage = $derived(auth.hasPermission('Concord.Admin.Nodes.Manage'));
+  const canManage = $derived(auth.hasPermission('devices:manage'));
 
   interface NodeMetrics { cpu: number; mem: number; disk: number; hwRev: string | null }
 
@@ -151,7 +151,7 @@
   }
 
   onMount(() => {
-    if (!auth.hasPermission('Concord.Admin.Nodes.View')) {
+    if (!auth.hasPermission('devices:view')) {
       goto('/');
       return;
     }

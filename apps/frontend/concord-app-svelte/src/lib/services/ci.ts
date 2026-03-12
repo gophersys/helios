@@ -1,4 +1,4 @@
-import { apiFetch, api } from '$lib/api';
+import { apiFetch, api, apiDownload } from '$lib/api';
 import type { ApiResponse } from '$lib/types';
 import type {
   BuildJob,
@@ -188,4 +188,42 @@ export async function triggerBuild(config: TriggerBuildConfig): Promise<BuildJob
 export async function resetBuild(id: string): Promise<BuildJob> {
   const res = await api.post<ApiResponse<BuildJob>>(`/v2/builds/${id}/reset`, {});
   return res.data;
+}
+
+// ── Downloads ───────────────────────────────────────────────────
+
+/**
+ * Download all artifacts for a single build as a ZIP.
+ */
+export async function downloadBuildArtifacts(
+  buildId: string,
+  product: string,
+  variant: string,
+  version: string
+): Promise<void> {
+  const filename = `${product}_${variant}_${version}.zip`;
+  await apiDownload(`/v2/builds/${buildId}/artifacts/download`, filename);
+}
+
+/**
+ * Download all artifacts for a pipeline (all builds) as a ZIP.
+ */
+export async function downloadPipelineArtifacts(
+  pipelineId: string,
+  product: string,
+  branch: string
+): Promise<void> {
+  const safeBranch = branch.replace(/[^a-zA-Z0-9-_]/g, '_');
+  const filename = `${product}_${safeBranch}_all.zip`;
+  await apiDownload(`/v2/builds/pipelines/${pipelineId}/artifacts/download`, filename);
+}
+
+/**
+ * Download a single artifact by name.
+ */
+export async function downloadSingleArtifact(
+  buildId: string,
+  artifactName: string
+): Promise<void> {
+  await apiDownload(`/v2/builds/${buildId}/artifacts/${encodeURIComponent(artifactName)}`, artifactName);
 }

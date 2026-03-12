@@ -92,7 +92,7 @@
   }
 
   onMount(() => {
-    if (!auth.hasPermission('Concord.Admin.History.View')) {
+    if (!auth.hasPermission('system:view')) {
       goto('/');
       return;
     }

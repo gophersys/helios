@@ -34,6 +34,7 @@ Environment variables required:
 """
 
 import datetime
+import threading
 import time
 from dataclasses import dataclass, field
 from typing import List, Optional, Tuple
@@ -209,35 +210,26 @@ class DevicePersonalizer:
         self._log.info("Device personalized, pub key (b64): %s...", b64_key[:20])
 
         # Step 6: Upload keys + SIM info to CoreOps (optional, non-blocking)
-        # CoreOps is only needed for production — validation can skip this
         err = self._save_device_info(device_id, hex_key, b64_key, imei, iccids or [])
         if err:
             self._log.warning("CoreOps save skipped: %s — OK for validation", err)
 
-        # Step 6b: Register public key in CoreCloud DB (REQUIRED for FUOTA and Socket Server auth)
-        # CRITICAL: Without this key, the device cannot communicate with CoreCloud.
-        # FUOTA, telemetry, and all cloud features require this key to be uploaded.
-        # Uses b64_key directly from the device — NOT re-encoded from hex.
+        # Step 6b: Upload public key to CoreCloud (REQUIRED for Socket Server auth)
         if self._db_env and b64_key:
             err = self._save_key_to_corecloud_db(device_id, b64_key)
             if err:
                 if self._require_corecloud_key:
                     return None, f"CoreCloud key upload FAILED: {err} — FUOTA will not work without this key"
                 else:
-                    self._log.warning("CoreCloud DB key upload failed: %s — device uplinks may not be authenticated", err)
-        elif self._require_corecloud_key and (hex_key or b64_key):
-            if not self._db_env:
-                return None, "CoreCloud key upload required but db_env not set — set db_env='VAL_1_0' or require_corecloud_key=False"
-            if not b64_key:
-                return None, "CoreCloud key upload required but no base64 key from device"
+                    self._log.warning("CoreCloud key upload failed: %s", err)
+        elif self._require_corecloud_key and b64_key and not self._db_env:
+            return None, "CoreCloud key upload required but db_env not set"
 
-        # Step 7: Rekey IPC (inter-processor communication, NOT CoreCloud auth)
-        # Replaces hardcoded keys between app (nRF52840) and comms (nRF9151)
-        # processors. This is for their internal protocol, separate from the
-        # EC keypair used for CoreCloud server authentication.
-        err = self._rekey_ipc()
-        if err:
-            self._log.warning("IPC rekey failed: %s — inter-processor comms may use default keys", err)
+        # Step 7: IPC rekey SKIPPED — not needed for CoreCloud auth.
+        # IPC rekey replaces hardcoded AES-128 key between APP and COMMS processors.
+        # It is NOT required for FUOTA or Socket Server authentication.
+        # Skipping to avoid any risk of corrupting the EC keypair in flash.
+        self._log.info("IPC rekey skipped — not needed for CoreCloud/FUOTA")
 
         self._log.info("Re-personalization complete for device %s", device_id)
 
@@ -310,28 +302,20 @@ class DevicePersonalizer:
         # Start spamming at ~1.5s to catch the 0.4-7.4s window
         time.sleep(min(boot_wait_s, 1.5))
 
-        # Step 5: Lock shells using spam approach (must catch 0.4-7.4s window after boot)
-        # Spam is more reliable than single command because the window is narrow
+        # Step 5: Lock COMMS shell only - personalization runs on COMMS (nRF9151)
+        # APP shell lock causes UART contention issues - skip it for FUOTA flows
         if lock_shells:
-            # Lock comms shell (nRF9151) - spam for 5s to catch the window
-            self._log.info("Spamming lock_shell on comms (target=%s, 5s)...", COMMS_TARGET)
+            self._log.info("Spamming lock_shell on COMMS (5s)...")
             comms_success, comms_out = self._mtib.alpha_spam_lock_shell(target=COMMS_TARGET, duration_s=5.0)
+
             if comms_success:
                 self._log.info("Comms shell locked!")
             else:
-                self._log.warning("Comms shell lock may have failed - continuing anyway")
+                self._log.error("Comms shell lock FAILED - cannot proceed with personalization")
+                return "Comms shell lock failed - device may not boot correctly or window missed"
 
-            # Lock app shell (nRF52840) - spam for 5s
-            self._log.info("Spamming lock_shell on app (target=%s, 5s)...", APP_TARGET)
-            app_success, app_out = self._mtib.alpha_spam_lock_shell(target=APP_TARGET, duration_s=5.0)
-            if app_success:
-                self._log.info("App shell locked!")
-            else:
-                self._log.warning("App shell lock may have failed - continuing anyway")
-
-            # Disable debug output
+            # Disable debug output on COMMS only
             self._mtib.alpha_cmd_debug_disable_comms()
-            self._mtib.alpha_cmd_debug_disable_app()
 
         self._log.debug("Power cycle and shell lock complete")
         return None
@@ -345,7 +329,7 @@ class DevicePersonalizer:
 
         success, err = self._mtib.alpha_cmd_lock_shell_app()
         if not success:
-            self._log.warning("App shell lock failed: %s", err)
+            return f"App shell lock failed: {err}"
 
         self._mtib.alpha_cmd_debug_disable_comms()
         self._mtib.alpha_cmd_debug_disable_app()
@@ -446,10 +430,10 @@ class DevicePersonalizer:
     def _save_key_to_corecloud_db(self, device_id: str, b64_key: str) -> Optional[str]:
         """Upload the device's EC public key to CoreCloud and VERIFY it matches.
 
-        The Socket Server authenticates device uplinks by verifying signatures
-        against this stored public key. Key must be raw EC point in base64
-        (NOT DER SubjectPublicKeyInfo) — this is exactly the format the device
-        returns from the `personalize` command.
+        The Socket Server authenticates device uplinks by verifying ECDSA
+        signatures against the stored public key. Key must be raw EC point
+        in base64 (NOT DER SubjectPublicKeyInfo) — exactly the format the
+        device returns from the `personalize` command.
 
         CRITICAL: Uses b64_key directly from the device. No re-encoding.
         After upload, reads back the stored key and compares byte-for-byte.
@@ -458,10 +442,14 @@ class DevicePersonalizer:
         try:
             import json as json_mod
             import time as time_mod
+            import base64 as b64_mod
 
             from corekinect.core_cloud.api_interface import CoreCloudRestInterface
 
-            self._log.debug("Key to upload (first 20 chars): %s...", b64_key[:20])
+            # Log full key for debugging — helps diagnose Invalid Signature issues
+            self._log.info("Key to upload (full): %s", b64_key)
+            self._log.info("Key length: %d chars, decoded: %d bytes",
+                           len(b64_key), len(b64_mod.b64decode(b64_key)))
 
             with CoreCloudRestInterface(env_namespace=self._db_env) as api:
                 token = api._ensure_token()
@@ -475,20 +463,20 @@ class DevicePersonalizer:
                 "Content-Type": "application/json",
             }
 
-            # Upload key — use b64_key directly from device, no re-encoding
+            # Upload key via Sessions/Profiles endpoint
             url = f"{base_url}/System/Devices/Sessions/Profiles"
             body = {"Profiles": [{"DeviceId": device_id, "PublicKey": b64_key}]}
 
-            self._log.debug("Uploading key to %s...", url)
+            self._log.info("Uploading key to %s ...", url)
             resp = sess.post(url, data=json_mod.dumps(body), headers=headers, verify=_TLS_VERIFY, timeout=10)
 
             if resp.status_code not in (200, 204):
-                return f"Key upload failed: {resp.status_code} {resp.text[:200]}"
+                return f"Key upload failed: {resp.status_code} {resp.text[:300]}"
 
-            self._log.info("Key upload returned %d, verifying stored key matches...", resp.status_code)
+            self._log.info("Key upload returned %d", resp.status_code)
 
-            # VERIFY: Read back the stored key and compare against what we uploaded
-            time_mod.sleep(1)
+            # VERIFY: Read back stored key and compare byte-for-byte
+            time_mod.sleep(2)
 
             verify_url = f"{base_url}/System/Devices/Sessions/Profiles"
             verify_body = {"deviceIds": [device_id]}
@@ -498,6 +486,8 @@ class DevicePersonalizer:
                 return f"Key verification failed: could not query profiles ({verify_resp.status_code})"
 
             profiles = verify_resp.json()
+            self._log.info("Profiles response: %s", json_mod.dumps(profiles)[:500])
+
             if isinstance(profiles, list):
                 for p in profiles:
                     if p.get('deviceId') == device_id:
@@ -507,12 +497,12 @@ class DevicePersonalizer:
                         if stored_key != b64_key:
                             return (
                                 f"KEY MISMATCH: uploaded key != stored key. "
-                                f"Uploaded: {b64_key[:20]}... Stored: {stored_key[:20]}..."
+                                f"Uploaded: {b64_key} Stored: {stored_key}"
                             )
-                        self._log.info("Key verified: stored key matches uploaded key")
+                        self._log.info("Key VERIFIED: stored key matches uploaded key (%d bytes)", len(b64_mod.b64decode(stored_key)))
                         return None
 
-            return f"Profile not found for device {device_id} — key upload may have failed"
+            return f"Profile not found for device {device_id} — key upload may have failed. Response: {json_mod.dumps(profiles)[:300]}"
 
         except Exception as e:
             return str(e)

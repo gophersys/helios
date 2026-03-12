@@ -147,7 +147,7 @@
   }
 
   onMount(() => {
-    if (!auth.hasPermission('Concord.Admin.Validation.View')) {
+    if (!auth.hasPermission('validation:view')) {
       goto('/');
       return;
     }

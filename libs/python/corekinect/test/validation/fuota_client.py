@@ -199,6 +199,36 @@ class FuotaClient:
             )
         self._log.info("CFW uploaded: %s", p.name)
 
+    def delete_cfw(self, cfw_name: str) -> bool:
+        """Delete .cfw firmware package from CoreCloud.
+
+        DELETE /singleton/firmwareimages?name=<cfw_name>
+
+        Args:
+            cfw_name: CFW filename (e.g., "108.0.5.2-BM.cfw").
+
+        Returns:
+            True if deleted, False if not found.
+
+        Raises:
+            RuntimeError: If deletion fails.
+        """
+        self._log.info("Deleting CFW: %s", cfw_name)
+
+        resp = self._singleton_request(
+            "DELETE", f"firmwareimages?name={cfw_name}",
+        )
+
+        if resp.status_code == 404:
+            self._log.info("CFW not found (already deleted?): %s", cfw_name)
+            return False
+        if resp.status_code not in (200, 204):
+            raise RuntimeError(
+                f"CFW delete failed: {resp.status_code} {resp.text[:200]}"
+            )
+        self._log.info("CFW deleted: %s", cfw_name)
+        return True
+
     # ------------------------------------------------------------------
     # Plan Management
     # ------------------------------------------------------------------

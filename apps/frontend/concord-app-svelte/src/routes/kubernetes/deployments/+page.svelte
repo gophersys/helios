@@ -44,7 +44,7 @@
   }
 
   onMount(() => {
-    if (!auth.hasPermission('Concord.Admin.System.View')) {
+    if (!auth.hasPermission('system:view')) {
       goto('/');
       return;
     }

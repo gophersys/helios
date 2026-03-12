@@ -39,10 +39,10 @@
   // Stage list with counts
   const stageList = $derived.by(() => {
     if (!catalog) return [];
-    const stages = Object.entries(catalog.stages).map(([id, stage]) => ({
-      id,
+    const stages = Object.entries(catalog!.stages).map(([stageId, stage]) => ({
       ...stage,
-      testCount: catalog.tests.filter(t => t.stage === id).length,
+      id: stageId,
+      testCount: catalog!.tests.filter(t => t.stage === stageId).length,
     }));
     return stages.sort((a, b) => a.name.localeCompare(b.name));
   });
@@ -101,7 +101,7 @@
   }
 
   onMount(() => {
-    if (!auth.hasPermission('Concord.Admin.Validation.View')) {
+    if (!auth.hasPermission('validation:view')) {
       goto('/');
       return;
     }

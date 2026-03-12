@@ -86,7 +86,16 @@ def trigger_run(run_id: str):
         product_revision = run_config.get("revision", "b0")  # Default to b0
 
         # Required capabilities from config (optional)
-        required_capabilities = run_config.get("requiredCapabilities", ["button"])
+        # Stage-specific defaults: fuota/gate/smoke need jlink for firmware flashing
+        stage_capability_defaults = {
+            "fuota": ["button", "jlink"],
+            "gate": ["button", "jlink"],
+            "smoke": ["button", "jlink"],
+            "nightly": ["button", "jlink"],
+            "integration": ["button"],
+        }
+        default_caps = stage_capability_defaults.get(data.stage, ["button"])
+        required_capabilities = run_config.get("requiredCapabilities", default_caps)
 
         # Find an available test bench for this product
         bench = find_available_bench(

@@ -108,6 +108,7 @@ def report_log_chunk(run_id: str):
         "file": data.file,
         "offset": data.offset,
         "data": data.data,  # Keep as base64 for transport
+        "testName": data.test_name,  # Which test this belongs to (if any)
         "timestamp": data.timestamp,
     }, run_id)
 

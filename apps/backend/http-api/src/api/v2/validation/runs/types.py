@@ -237,8 +237,8 @@ class RunTriggerRequest:
             pipeline_id = pipeline_id.strip() or None
 
         stage = (data.get("stage") or "gate").strip().lower()
-        if stage not in ("gate", "nightly", "integration", "smoke"):
-            return None, "stage must be one of: gate, nightly, integration, smoke"
+        if stage not in ("gate", "nightly", "integration", "smoke", "fuota"):
+            return None, "stage must be one of: gate, nightly, integration, smoke, fuota"
 
         config = data.get("config")
         if config is not None and not isinstance(config, dict):
@@ -255,10 +255,16 @@ class RunTriggerRequest:
 
 @dataclass
 class ReportLogChunkRequest:
-    """Log chunk from pytest reporter — streamed during test execution."""
+    """Log chunk from pytest reporter — streamed during test execution.
+
+    Can be sent with or without testName:
+    - With testName: logs are associated with specific test (for per-test log display)
+    - Without testName: logs are associated with run-level output (pytest framework, setup, etc.)
+    """
     file: str
     offset: int
     data: str  # base64 encoded
+    test_name: Optional[str] = None  # Which test this log belongs to (if any)
     timestamp: Optional[int] = None
 
     @classmethod
@@ -286,6 +292,10 @@ class ReportLogChunkRequest:
         if not isinstance(chunk_data, str):
             return None, "data must be a base64-encoded string"
 
+        test_name = data.get("testName")
+        if test_name is not None:
+            test_name = str(test_name).strip() or None
+
         timestamp = data.get("timestamp")
         if timestamp is not None:
             if not isinstance(timestamp, (int, float)):
@@ -296,5 +306,6 @@ class ReportLogChunkRequest:
             file=file,
             offset=offset,
             data=chunk_data,
+            test_name=test_name,
             timestamp=timestamp,
         ), None

@@ -197,7 +197,7 @@ class StageConfig:
                 timeout_s=7200,  # 2h — FUOTA polling takes up to 90 min
                 retry_count=0,
                 test_path="tests/fuota/",
-                pytest_args=["-v", "-s", "--tb=long"],
+                pytest_args=["-v", "-s", "--tb=long", "-x"],  # -x = fail fast (stop on first failure)
                 required_checks=["mtib", "device"],
                 artifact_patterns=["*.log", "*.uart"],
             ),

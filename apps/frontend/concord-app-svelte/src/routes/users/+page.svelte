@@ -29,7 +29,7 @@
   let formPermissionSetId = $state('');
   let submitting = $state(false);
 
-  const canManage = $derived(auth.hasPermission('Concord.Admin.Users.Manage'));
+  const canManage = $derived(auth.hasPermission('users:manage'));
 
   const tabs: { key: Tab; label: string }[] = [
     { key: 'users', label: 'Users' },
@@ -62,7 +62,7 @@
   }
 
   onMount(() => {
-    if (!auth.hasPermission('Concord.Admin.Users.View')) {
+    if (!auth.hasPermission('users:view')) {
       goto('/');
       return;
     }

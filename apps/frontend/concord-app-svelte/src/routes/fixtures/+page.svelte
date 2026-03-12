@@ -11,7 +11,7 @@
   import type { ApiResponse } from '$lib/types';
 
   const auth = getAuth();
-  const canManage = $derived(auth.hasPermission('Concord.Admin.Fixtures.Manage'));
+  const canManage = $derived(auth.hasPermission('fixtures:manage'));
 
   let fixtures = $state<Fixture[]>([]);
   let products = $state<Product[]>([]);
@@ -66,7 +66,7 @@
   }
 
   onMount(() => {
-    if (!auth.hasPermission('Concord.Admin.Fixtures.View')) {
+    if (!auth.hasPermission('fixtures:view')) {
       goto('/');
       return;
     }

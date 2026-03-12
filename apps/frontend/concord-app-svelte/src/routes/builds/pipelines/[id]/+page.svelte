@@ -23,9 +23,9 @@
     XCircle,
   } from 'lucide-svelte';
   import { getAuth } from '$lib/stores/auth.svelte';
-  import type { Pipeline, PipelineBuildSummary, MatrixLabel } from '$lib/types/ci';
-  import { MATRIX_LABEL_DISPLAY } from '$lib/types/ci';
-  import { fetchPipeline, fetchBuildLog, fetchBuildArtifacts, resetBuild } from '$lib/services/ci';
+  import type { Pipeline, PipelineBuildSummary, MatrixLabel, ValidationStage } from '$lib/types/ci';
+  import { MATRIX_LABEL_DISPLAY, STAGE_DISPLAY } from '$lib/types/ci';
+  import { fetchPipeline, fetchBuildLog, fetchBuildArtifacts, resetBuild, downloadBuildArtifacts, downloadPipelineArtifacts, downloadSingleArtifact } from '$lib/services/ci';
   import type { BuildJobArtifact } from '$lib/types/ci';
   import {
     subscribeCiPipeline,
@@ -56,6 +56,82 @@
   let logPollIntervals = $state<Record<string, ReturnType<typeof setInterval>>>({});
   let logAnalysis = $state<Record<string, LogAnalysis>>({});
   let resettingBuilds = $state<Set<string>>(new Set());
+  let downloadingBuilds = $state<Set<string>>(new Set());
+  let downloadingArtifacts = $state<Set<string>>(new Set());
+  let downloadingAll = $state(false);
+
+  // Check if all builds are complete (success or failed)
+  const allBuildsComplete = $derived(
+    pipeline?.builds && pipeline.builds.length > 0 &&
+    pipeline.builds.every(b => b.status === 'SUCCESS' || b.status === 'FAILED' || b.status === 'CANCELLED')
+  );
+
+  // Check if any builds have artifacts
+  const hasAnyArtifacts = $derived(
+    pipeline?.builds?.some(b => (b.artifactCount ?? 0) > 0) ?? false
+  );
+
+  async function handleDownloadBuild(build: PipelineBuildSummary, e: Event): Promise<void> {
+    e.stopPropagation();
+    if (downloadingBuilds.has(build.id)) return;
+
+    downloadingBuilds.add(build.id);
+    downloadingBuilds = new Set(downloadingBuilds);
+
+    try {
+      await downloadBuildArtifacts(
+        build.id,
+        build.product,
+        build.variant ?? 'release',
+        build.versionString ?? 'build'
+      );
+    } catch (err) {
+      console.error('Failed to download build:', err);
+      error = err instanceof Error ? err.message : 'Download failed';
+    } finally {
+      downloadingBuilds.delete(build.id);
+      downloadingBuilds = new Set(downloadingBuilds);
+    }
+  }
+
+  async function handleDownloadAll(): Promise<void> {
+    if (!pipeline || downloadingAll) return;
+
+    downloadingAll = true;
+
+    try {
+      await downloadPipelineArtifacts(
+        pipeline.id,
+        pipeline.product,
+        pipeline.branch
+      );
+    } catch (err) {
+      console.error('Failed to download pipeline artifacts:', err);
+      error = err instanceof Error ? err.message : 'Download failed';
+    } finally {
+      downloadingAll = false;
+    }
+  }
+
+  async function handleDownloadArtifact(buildId: string, artifactName: string, e: Event): Promise<void> {
+    e.preventDefault();
+    e.stopPropagation();
+    const key = `${buildId}:${artifactName}`;
+    if (downloadingArtifacts.has(key)) return;
+
+    downloadingArtifacts.add(key);
+    downloadingArtifacts = new Set(downloadingArtifacts);
+
+    try {
+      await downloadSingleArtifact(buildId, artifactName);
+    } catch (err) {
+      console.error('Failed to download artifact:', err);
+      error = err instanceof Error ? err.message : 'Download failed';
+    } finally {
+      downloadingArtifacts.delete(key);
+      downloadingArtifacts = new Set(downloadingArtifacts);
+    }
+  }
 
   async function handleResetBuild(buildId: string, e: Event): Promise<void> {
     e.stopPropagation();
@@ -105,12 +181,13 @@
     return pipeline.builds.reduce((sum, b) => sum + (b.artifactCount ?? 0), 0);
   });
 
-  // Check if this is a Stage 4 pipeline
-  const isStage4 = $derived(pipeline?.matrixMode === 'stage4');
+  // Check if this is a stage pipeline with matrix labels (FUOTA has grouped view)
+  const isFuota = $derived(pipeline?.matrixMode === 'fuota');
+  const stageInfo = $derived(pipeline?.matrixMode ? STAGE_DISPLAY[pipeline.matrixMode as ValidationStage] : null);
 
-  // Group builds by FUOTA step for Stage 4 display (ordered by flow)
+  // Group builds by FUOTA step for display (ordered by flow)
   const groupedBuilds = $derived.by(() => {
-    if (!pipeline?.builds || !isStage4) return null;
+    if (!pipeline?.builds || !isFuota) return null;
 
     // Group by fuotaStep, preserving FUOTA flow order
     const stepGroups: Map<number, { title: string; builds: PipelineBuildSummary[] }> = new Map();
@@ -150,27 +227,32 @@
     return MATRIX_LABEL_DISPLAY[label as MatrixLabel] ?? null;
   }
 
+  // Product info mapping (board -> display name, repo slug, hardware rev)
+  const PRODUCT_INFO: Record<string, { name: string; repo: string; rev: string }> = {
+    alpha_b0: { name: 'Alpha', repo: 'alpha_fw', rev: 'B0' },
+    sigma5_b0: { name: 'Sigma5', repo: 'sigma5_fw', rev: 'B0' },
+    sigma5_c0: { name: 'Sigma5', repo: 'sigma5_fw', rev: 'C0' },
+    theta_c0: { name: 'Theta', repo: 'theta_fw', rev: 'C0' },
+  };
+
+  function getProductInfo(product: string): { name: string; repo: string; rev: string } {
+    const key = product.toLowerCase().replace(/\s+/g, '_');
+    return PRODUCT_INFO[key] ?? { name: product, repo: `${key}_fw`, rev: '' };
+  }
+
   // Bitbucket URL construction
-  // Maps product/repo to Bitbucket workspace/repo
   const BITBUCKET_WORKSPACE = 'corekinect';
 
   function getBitbucketCommitUrl(product: string, commitSha: string | null): string | null {
     if (!commitSha) return null;
-    // Map product to repo slug: alpha_fw -> alpha_fw, alpha -> alpha_fw
-    let repoSlug = product.toLowerCase().replace(/\s+/g, '_');
-    if (!repoSlug.endsWith('_fw')) {
-      repoSlug = `${repoSlug}_fw`;
-    }
-    return `https://bitbucket.org/${BITBUCKET_WORKSPACE}/${repoSlug}/commits/${commitSha}`;
+    const info = getProductInfo(product);
+    return `https://bitbucket.org/${BITBUCKET_WORKSPACE}/${info.repo}/commits/${commitSha}`;
   }
 
   function getBitbucketBranchUrl(product: string, branch: string): string | null {
     if (!branch) return null;
-    let repoSlug = product.toLowerCase().replace(/\s+/g, '_');
-    if (!repoSlug.endsWith('_fw')) {
-      repoSlug = `${repoSlug}_fw`;
-    }
-    return `https://bitbucket.org/${BITBUCKET_WORKSPACE}/${repoSlug}/branch/${encodeURIComponent(branch)}`;
+    const info = getProductInfo(product);
+    return `https://bitbucket.org/${BITBUCKET_WORKSPACE}/${info.repo}/src/${encodeURIComponent(branch)}/`;
   }
 
   function scrollLogToBottom(buildId: string): void {
@@ -349,7 +431,7 @@
 
 <div class="animate-fade-in">
   <button
-    onclick={() => goto('/ci')}
+    onclick={() => goto('/builds')}
     class="flex items-center gap-1 text-xs text-text-tertiary hover:text-text-primary transition-colors mb-3"
   >
     <ArrowLeft size={14} />
@@ -406,13 +488,13 @@
     <ErrorAlert message={error} />
 
     <!-- Header -->
+    {@const productInfo = getProductInfo(pipeline.product)}
     <div class="flex items-start justify-between gap-4 mb-6">
       <div>
         <div class="flex items-center gap-3">
           <h1 class="text-lg font-semibold text-text-primary">
-            {pipeline.product}
+            {productInfo.name}
           </h1>
-          <StatusBadge status={pipeline.status} />
           {#if isRunning}
             <span class="inline-flex items-center gap-1.5 rounded-full bg-accent-muted px-2 py-0.5 text-2xs font-medium text-accent">
               <span class="relative flex h-2 w-2">
@@ -421,67 +503,60 @@
               </span>
               BUILDING
             </span>
+          {:else}
+            <StatusBadge status={pipeline.status} />
           {/if}
         </div>
-        <div class="mt-1 flex items-center gap-4 text-xs text-text-tertiary">
+        <div class="mt-2 flex items-center gap-2 flex-wrap">
+          <!-- Branch card -->
           {#if pipeline.branch}
             {@const branchUrl = getBitbucketBranchUrl(pipeline.product, pipeline.branch)}
-            {#if branchUrl}
-              <a
-                href={branchUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                class="inline-flex items-center gap-1 hover:text-accent transition-colors"
-                title="View branch on Bitbucket"
-              >
-                <GitBranch size={12} />
-                {pipeline.branch}
-                <ExternalLink size={10} />
-              </a>
-            {:else}
-              <span class="inline-flex items-center gap-1">
-                <GitBranch size={12} />
-                {pipeline.branch}
-              </span>
-            {/if}
+            <a
+              href={branchUrl ?? '#'}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border bg-surface-1 text-xs font-medium text-text-primary hover:bg-surface-2 hover:border-accent transition-colors"
+              title="View branch on Bitbucket"
+            >
+              <GitBranch size={14} class="text-accent" />
+              {pipeline.branch}
+              {#if branchUrl}
+                <ExternalLink size={10} class="text-text-tertiary" />
+              {/if}
+            </a>
           {/if}
+          <!-- Hardware Rev card -->
+          {#if productInfo.rev}
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border bg-surface-1 text-xs font-medium text-text-primary">
+              <Package size={14} class="text-info" />
+              {productInfo.rev}
+            </span>
+          {/if}
+          <!-- Commit badge -->
           {#if pipeline.commitSha}
             {@const commitUrl = getBitbucketCommitUrl(pipeline.product, pipeline.commitSha)}
-            {#if commitUrl}
-              <a
-                href={commitUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                class="inline-flex items-center gap-1 font-mono hover:text-accent transition-colors"
-                title="View commit on Bitbucket"
-              >
-                <GitCommit size={12} />
-                {pipeline.commitSha.slice(0, 7)}
-                <ExternalLink size={10} />
-              </a>
-            {:else}
-              <span class="font-mono">{pipeline.commitSha.slice(0, 7)}</span>
-            {/if}
+            <a
+              href={commitUrl ?? '#'}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border bg-surface-1 text-xs font-mono text-text-primary hover:bg-surface-2 hover:border-accent transition-colors"
+              title="View commit on Bitbucket"
+            >
+              <GitCommit size={14} class="text-warning" />
+              {pipeline.commitSha.slice(0, 7)}
+              {#if commitUrl}
+                <ExternalLink size={10} class="text-text-tertiary" />
+              {/if}
+            </a>
           {/if}
-          <span>{pipeline.board}</span>
           <!-- Trigger badge -->
-          <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded {triggerDisplay.color} font-medium">
-            <svelte:component this={triggerDisplay.icon} size={10} />
+          <span class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg {triggerDisplay.color} text-xs font-medium">
+            <svelte:component this={triggerDisplay.icon} size={14} />
             {triggerDisplay.label}
           </span>
         </div>
       </div>
       <div class="flex items-center gap-3 text-xs text-text-tertiary">
-        {#if totalArtifacts > 0}
-          <a
-            href="/v2/builds/pipelines/{pipeline.id}/artifacts/download"
-            class="btn btn-sm btn-accent flex items-center gap-1.5"
-            download
-          >
-            <Download size={14} />
-            Download All
-          </a>
-        {/if}
         {#if totalDuration}
           <span class="flex items-center gap-1">
             <Clock size={14} />
@@ -491,6 +566,22 @@
         <span title={formatDateTime(pipeline.createdAt)}>
           {formatTimeAgo(pipeline.createdAt)}
         </span>
+        <!-- Download All button -->
+        {#if hasAnyArtifacts}
+          <button
+            onclick={handleDownloadAll}
+            disabled={!allBuildsComplete || downloadingAll}
+            class="btn btn-sm btn-accent flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+            title={allBuildsComplete ? 'Download all artifacts as ZIP' : 'Waiting for builds to complete'}
+          >
+            {#if downloadingAll}
+              <Loader2 size={14} class="animate-spin" />
+            {:else}
+              <Download size={14} />
+            {/if}
+            Download All
+          </button>
+        {/if}
       </div>
     </div>
 
@@ -542,7 +633,7 @@
               <span class="text-sm font-mono text-text-primary">{pipeline.commitSha.slice(0, 12)}</span>
             {/if}
           {:else}
-            <span class="text-sm font-mono text-text-primary">--</span>
+            <span class="text-sm text-text-tertiary italic">Manual trigger</span>
           {/if}
         </div>
       </div>
@@ -554,13 +645,13 @@
         <h2 class="mb-3 text-sm font-medium text-text-primary flex items-center gap-2">
           <Hammer size={16} class="text-text-tertiary" />
           Build Jobs
-          {#if isStage4}
-            <span class="text-2xs text-text-tertiary px-1.5 py-0.5 rounded bg-accent-muted text-accent font-medium">Stage 4</span>
+          {#if stageInfo}
+            <span class="text-2xs px-1.5 py-0.5 rounded {stageInfo.color} font-medium" title={stageInfo.description}>{stageInfo.name}</span>
           {/if}
         </h2>
 
-        {#if isStage4 && groupedBuilds}
-          <!-- Stage 4 grouped view (FUOTA flow order) -->
+        {#if isFuota && groupedBuilds}
+          <!-- FUOTA grouped view (FUOTA flow order) -->
           <div class="space-y-4 min-w-0">
             {#each groupedBuilds as group, groupIdx (group.title)}
               <div class="rounded-lg border border-border bg-surface-0 overflow-hidden">
@@ -623,6 +714,21 @@
                                 Reset
                               </button>
                             {/if}
+                            {#if build.status === 'SUCCESS' && (build.artifactCount ?? 0) > 0}
+                              <button
+                                onclick={(e) => handleDownloadBuild(build, e)}
+                                disabled={downloadingBuilds.has(build.id)}
+                                class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-accent text-surface-0 text-2xs font-medium hover:bg-accent-hover transition-colors disabled:opacity-50"
+                                title="Download build artifacts"
+                              >
+                                {#if downloadingBuilds.has(build.id)}
+                                  <Loader2 size={10} class="animate-spin" />
+                                {:else}
+                                  <Download size={10} />
+                                {/if}
+                                Download
+                              </button>
+                            {/if}
                           </div>
                           <div class="flex items-center gap-2 text-2xs text-text-tertiary flex-shrink-0">
                             {#if analysis?.errorCount}
@@ -664,10 +770,11 @@
                                 </h4>
                                 <div class="grid gap-2 sm:grid-cols-2">
                                   {#each artifacts as artifact (artifact.id)}
-                                    <a
-                                      href="/v2/builds/{build.id}/artifacts/{artifact.name}"
-                                      class="flex items-center justify-between gap-2 px-3 py-2 rounded-lg border border-border bg-surface-0 hover:bg-surface-2 transition-colors"
-                                      download
+                                    {@const isDownloading = downloadingArtifacts.has(`${build.id}:${artifact.name}`)}
+                                    <button
+                                      onclick={(e) => handleDownloadArtifact(build.id, artifact.name, e)}
+                                      disabled={isDownloading}
+                                      class="flex items-center justify-between gap-2 px-3 py-2 rounded-lg border border-border bg-surface-0 hover:bg-surface-2 transition-colors text-left disabled:opacity-50"
                                     >
                                       <div class="flex items-center gap-2 min-w-0">
                                         <FileText size={14} class="flex-shrink-0 text-text-tertiary" />
@@ -675,9 +782,13 @@
                                       </div>
                                       <div class="flex items-center gap-2 flex-shrink-0">
                                         <span class="text-2xs text-text-tertiary">{formatSize(String(artifact.sizeBytes))}</span>
-                                        <Download size={14} class="text-accent" />
+                                        {#if isDownloading}
+                                          <Loader2 size={14} class="text-accent animate-spin" />
+                                        {:else}
+                                          <Download size={14} class="text-accent" />
+                                        {/if}
                                       </div>
-                                    </a>
+                                    </button>
                                   {/each}
                                 </div>
                               </div>
@@ -813,6 +924,21 @@
                         Reset
                       </button>
                     {/if}
+                    {#if build.status === 'SUCCESS' && (build.artifactCount ?? 0) > 0}
+                      <button
+                        onclick={(e) => handleDownloadBuild(build, e)}
+                        disabled={downloadingBuilds.has(build.id)}
+                        class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-accent text-surface-0 text-2xs font-medium hover:bg-accent-hover transition-colors disabled:opacity-50"
+                        title="Download build artifacts"
+                      >
+                        {#if downloadingBuilds.has(build.id)}
+                          <Loader2 size={10} class="animate-spin" />
+                        {:else}
+                          <Download size={10} />
+                        {/if}
+                        Download
+                      </button>
+                    {/if}
                   </div>
                   <div class="flex items-center gap-2 text-2xs text-text-tertiary flex-shrink-0">
                     {#if analysis?.errorCount}
@@ -836,20 +962,6 @@
                     <span class="tabular-nums">#{build.buildNum}</span>
                   </div>
                 </div>
-                <!-- Quick ZIP download -->
-                {#if artifacts.length > 0 && !isExpanded}
-                  <div class="flex items-center gap-2 ml-8 mt-1">
-                    <a
-                      href="/v2/builds/{build.id}/artifacts/download"
-                      onclick={(e) => e.stopPropagation()}
-                      class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-accent-muted text-2xs text-accent font-medium hover:bg-accent-subtle transition-colors"
-                      download
-                    >
-                      <Download size={12} />
-                      Download All ({artifacts.length} files)
-                    </a>
-                  </div>
-                {/if}
               </button>
 
               {#if isExpanded}
@@ -869,10 +981,11 @@
                         </h4>
                         <div class="grid gap-2 sm:grid-cols-2">
                           {#each artifacts as artifact (artifact.id)}
-                            <a
-                              href="/v2/builds/{build.id}/artifacts/{artifact.name}"
-                              class="flex items-center justify-between gap-2 px-3 py-2 rounded-lg border border-border bg-surface-0 hover:bg-surface-2 transition-colors"
-                              download
+                            {@const isDownloading = downloadingArtifacts.has(`${build.id}:${artifact.name}`)}
+                            <button
+                              onclick={(e) => handleDownloadArtifact(build.id, artifact.name, e)}
+                              disabled={isDownloading}
+                              class="flex items-center justify-between gap-2 px-3 py-2 rounded-lg border border-border bg-surface-0 hover:bg-surface-2 transition-colors text-left disabled:opacity-50"
                             >
                               <div class="flex items-center gap-2 min-w-0">
                                 <FileText size={14} class="flex-shrink-0 text-text-tertiary" />
@@ -880,9 +993,13 @@
                               </div>
                               <div class="flex items-center gap-2 flex-shrink-0">
                                 <span class="text-2xs text-text-tertiary">{formatSize(String(artifact.sizeBytes))}</span>
-                                <Download size={14} class="text-accent" />
+                                {#if isDownloading}
+                                  <Loader2 size={14} class="text-accent animate-spin" />
+                                {:else}
+                                  <Download size={14} class="text-accent" />
+                                {/if}
                               </div>
-                            </a>
+                            </button>
                           {/each}
                         </div>
                       </div>

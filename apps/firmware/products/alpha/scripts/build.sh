@@ -175,6 +175,23 @@ OVERLAY_EOF
     echo -e "${GREEN}Overlay files created in ${OVERLAYS_DIR}${NC}"
 fi
 
+# ---------- Create VAL server config in CI mode ----------
+# Override default server URL to point to VAL CoreCloud instead of DEV
+if [ "$CI_MODE" == "true" ]; then
+    VAL_SERVER_CONF="${OVERLAYS_DIR}/val_server.conf"
+    mkdir -p "$OVERLAYS_DIR"
+    cat > "$VAL_SERVER_CONF" << 'VAL_CONF_EOF'
+# VAL CoreCloud server configuration (overrides dev defaults)
+CONFIG_SOCKET_SERVER_DEFAULT_URL="val.office.corekinect.cloud"
+CONFIG_SOCKET_SERVER_DEFAULT_TIME_PORT=2016
+CONFIG_SOCKET_SERVER_DEFAULT_SESS_PORT=2018
+CONFIG_SOCKET_SERVER_DEFAULT_DATA_PORT=2017
+# VAL time server EC P-256 public key (different from DEV server)
+CONFIG_SOCKET_SERVER_DEFAULT_TS_PUB_KEY="044E1C9C3D79BD0972DAFC8EF56E078EDFE44C8B21A57AFDC2AE5F2DDE834A99B8B387E4EBD31A16DFAFA70434F20B2CF3B8C0633A5E45ECDF29D6E61B127673AB"
+VAL_CONF_EOF
+    echo -e "${CYAN}VAL server config created: ${VAL_SERVER_CONF}${NC}"
+fi
+
 # Determine comms SOC from board
 case $BOARD in
     alpha_a0) COMM_SOC="nrf9160" ;;
@@ -261,6 +278,82 @@ print(f"  Generated: {output} (flags=0x{flags:02x}, {track_str})")
 PYCFW
 }
 
+# Patch VersionDevice.h files with correct BUILD_NUM before compilation
+# This ensures the compiled firmware reports the correct version
+patch_version_device_h() {
+    local fw_dir="$1"
+    local build_num="$2"
+
+    if [ -z "$build_num" ]; then
+        echo -e "${YELLOW}Warning: No build number provided for patching${NC}"
+        return
+    fi
+
+    echo -e "${CYAN}Patching VersionDevice.h files with BUILD_NUM=${build_num}...${NC}"
+
+    # Find and patch all VersionDevice.h files in the firmware directory
+    local patched=0
+    while IFS= read -r -d '' vh_file; do
+        if grep -q "^#define BUILD_NUM" "$vh_file"; then
+            sed -i "s/^#define BUILD_NUM.*/#define BUILD_NUM         ${build_num}/" "$vh_file"
+            echo -e "  ${GREEN}Patched: ${vh_file}${NC}"
+            patched=$((patched + 1))
+        fi
+    done < <(find "$fw_dir" -name "VersionDevice.h" -print0 2>/dev/null)
+
+    if [ $patched -eq 0 ]; then
+        echo -e "${YELLOW}Warning: No VersionDevice.h files found to patch${NC}"
+    else
+        echo -e "${GREEN}Patched ${patched} VersionDevice.h file(s)${NC}"
+    fi
+}
+
+# Resolve version from version.conf and optionally VersionDevice.h
+# Sets: VERSION_MAJOR, VERSION_MINOR, VERSION_BUILD, VERSION_STRING
+resolve_version() {
+    local fw_dir="$1"
+    local version_conf="${fw_dir}/version.conf"
+
+    VERSION_MAJOR=""
+    VERSION_MINOR=""
+    VERSION_BUILD=""
+
+    if [ -f "$version_conf" ]; then
+        echo -e "${CYAN}Reading version from: ${version_conf}${NC}"
+
+        # Try current alpha_fw format first
+        VERSION_MAJOR=$(grep -E "^CONFIG_APP_FW_MAJOR_VERSION=" "$version_conf" 2>/dev/null | cut -d'=' -f2)
+        VERSION_MINOR=$(grep -E "^CONFIG_APP_FW_MINOR_VERSION=" "$version_conf" 2>/dev/null | cut -d'=' -f2)
+        VERSION_BUILD=$(grep -E "^CONFIG_APP_FW_BUILD_VERSION=" "$version_conf" 2>/dev/null | cut -d'=' -f2)
+
+        # Try legacy format if not found
+        [ -z "$VERSION_MAJOR" ] && VERSION_MAJOR=$(grep -E "^CONFIG_FW_INFO_VERSION_MAJOR=" "$version_conf" 2>/dev/null | cut -d'=' -f2)
+        [ -z "$VERSION_MINOR" ] && VERSION_MINOR=$(grep -E "^CONFIG_FW_INFO_VERSION_MINOR=" "$version_conf" 2>/dev/null | cut -d'=' -f2)
+        [ -z "$VERSION_BUILD" ] && VERSION_BUILD=$(grep -E "^CONFIG_FW_INFO_VERSION_BUILD=" "$version_conf" 2>/dev/null | cut -d'=' -f2)
+    fi
+
+    # Defaults
+    VERSION_MAJOR="${VERSION_MAJOR:-0}"
+    VERSION_MINOR="${VERSION_MINOR:-0}"
+
+    # Build number priority: VERSION_BUILD_OVERRIDE > version.conf > VersionDevice.h > BUILD_NUM env > 0
+    if [ -n "$VERSION_BUILD_OVERRIDE" ]; then
+        VERSION_BUILD="$VERSION_BUILD_OVERRIDE"
+        echo -e "${CYAN}Using VERSION_BUILD_OVERRIDE=${VERSION_BUILD}${NC}"
+    elif [ -z "$VERSION_BUILD" ]; then
+        # Read from VersionDevice.h
+        local vh_file="${fw_dir}/src/VersionDevice.h"
+        if [ -f "$vh_file" ]; then
+            VERSION_BUILD=$(grep -E "^#define BUILD_NUM" "$vh_file" 2>/dev/null | awk '{print $3}')
+            [ -n "$VERSION_BUILD" ] && echo -e "${CYAN}Read BUILD_NUM=${VERSION_BUILD} from VersionDevice.h${NC}"
+        fi
+        VERSION_BUILD="${VERSION_BUILD:-${BUILD_NUM:-0}}"
+    fi
+
+    VERSION_STRING="${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_BUILD}"
+    echo -e "${GREEN}Resolved version: ${VERSION_STRING}${NC}"
+}
+
 collect_artifacts() {
     local label="$1"
     local app_hex="$2"
@@ -304,11 +397,22 @@ collect_artifacts() {
     # Default to 0 if empty, use BUILD_NUM env var if version_build is still empty
     version_major="${version_major:-0}"
     version_minor="${version_minor:-0}"
-    # For build number: use VERSION_BUILD_OVERRIDE if set, else version.conf value, else BUILD_NUM, else 0
+    # For build number: use VERSION_BUILD_OVERRIDE if set, else version.conf value, else VersionDevice.h, else BUILD_NUM env, else 0
     if [ -n "$VERSION_BUILD_OVERRIDE" ]; then
         version_build="$VERSION_BUILD_OVERRIDE"
     elif [ -z "$version_build" ]; then
-        version_build="${BUILD_NUM:-0}"
+        # Try to read BUILD_NUM from VersionDevice.h (source of truth for compiled firmware)
+        local version_device_h="${fw_dir:-$REPO_DIR}/src/VersionDevice.h"
+        if [ -f "$version_device_h" ]; then
+            local h_build_num
+            h_build_num=$(grep -E "^#define BUILD_NUM" "$version_device_h" 2>/dev/null | awk '{print $3}')
+            if [ -n "$h_build_num" ]; then
+                echo -e "${CYAN}Read BUILD_NUM=${h_build_num} from VersionDevice.h${NC}"
+                version_build="$h_build_num"
+            fi
+        fi
+        # Final fallback to env var or 0
+        version_build="${version_build:-${BUILD_NUM:-0}}"
     fi
     local version_string="${version_major}.${version_minor}.${version_build}"
     echo -e "${GREEN}Resolved version: ${version_string}${NC}"
@@ -378,6 +482,48 @@ collect_artifacts() {
             $cfw_track $cfw_mfg $cfw_debug "$out_dir/108.${version_major}.${version_minor}.${version_build}.cfw"
     fi
 
+    # Validate generated CFW files
+    echo -e "${CYAN}Validating CFW artifacts...${NC}"
+    local validation_failed=0
+    for cfw_file in "$out_dir"/*.cfw; do
+        [ -f "$cfw_file" ] || continue
+        local cfw_name=$(basename "$cfw_file")
+
+        # Parse CFW header using Python (big-endian: >HQHBHHHI)
+        local result=$(python3 -c "
+import struct
+import sys
+with open('$cfw_file', 'rb') as f:
+    data = f.read(23)
+ver, ts, appid, flags, major, minor, build, imglen = struct.unpack('>HQHBHHHI', data)
+print(f'{appid} {major} {minor} {build} {imglen}')
+" 2>/dev/null)
+
+        if [ -z "$result" ]; then
+            echo -e "  ${RED}FAIL: ${cfw_name} - could not parse header${NC}"
+            validation_failed=1
+            continue
+        fi
+
+        read cfw_appid cfw_major cfw_minor cfw_build cfw_imglen <<< "$result"
+
+        # Verify version matches expected
+        if [ "$cfw_major" != "$version_major" ] || [ "$cfw_minor" != "$version_minor" ] || [ "$cfw_build" != "$version_build" ]; then
+            echo -e "  ${RED}FAIL: ${cfw_name} - version mismatch${NC}"
+            echo -e "       Expected: ${version_major}.${version_minor}.${version_build}"
+            echo -e "       Got:      ${cfw_major}.${cfw_minor}.${cfw_build}"
+            validation_failed=1
+        else
+            echo -e "  ${GREEN}PASS: ${cfw_name} (${cfw_major}.${cfw_minor}.${cfw_build}, appid=${cfw_appid}, ${cfw_imglen} bytes)${NC}"
+        fi
+    done
+
+    if [ $validation_failed -eq 1 ]; then
+        echo -e "${RED}CFW validation FAILED - build artifacts may be incorrect${NC}"
+        exit 1
+    fi
+    echo -e "${GREEN}CFW validation passed${NC}"
+
     # Generate build.json with version info
     if [ "$CI_MODE" == "true" ]; then
         # Build flag string for JSON
@@ -437,11 +583,21 @@ build_app_fw() {
         APP_EXTRA_CONF="${FW_DIR}/version.conf;${FW_DIR}/logging.conf"
         COMMS_EXTRA_CONF="${FW_DIR}/version.conf;${FW_DIR}/default_personalization.conf;${COMM_DIR}/dev.conf"
     fi
+    # In CI mode, add VAL server config to override DEV defaults
+    if [ "$CI_MODE" == "true" ] && [ -f "${OVERLAYS_DIR}/val_server.conf" ]; then
+        COMMS_EXTRA_CONF="${COMMS_EXTRA_CONF};${OVERLAYS_DIR}/val_server.conf"
+        echo -e "${CYAN}Adding VAL server config to comms build${NC}"
+    fi
 
     echo -e "${CYAN}══════════════════════════════════════════${NC}"
     echo -e "${CYAN}  Building alpha_fw (${BOARD} / ${COMM_SOC})${NC}"
     echo -e "${CYAN}  MTIB REV ${MTIB_REV} | variant: ${VARIANT:-release}${NC}"
     echo -e "${CYAN}══════════════════════════════════════════${NC}"
+
+    # --- Resolve version and patch VersionDevice.h BEFORE compilation ---
+    resolve_version "$FW_DIR"
+    patch_version_device_h "$FW_DIR" "$VERSION_BUILD"
+    patch_version_device_h "$COMM_DIR" "$VERSION_BUILD"
 
     # --- Application processor (nRF52840) ---
     echo -e "\n${CYAN}[1/4] Application Processor (nRF52840)${NC}"
@@ -527,10 +683,22 @@ build_mfg_fw() {
         COMMS_DTS_OVERLAY=""
     fi
 
+    # --- Resolve extra configs for comms (add VAL server in CI mode) ---
+    local MFG_COMMS_EXTRA_CONF="${FW_DIR}/version.conf;${FW_DIR}/default_personalization.conf"
+    if [ "$CI_MODE" == "true" ] && [ -f "${OVERLAYS_DIR}/val_server.conf" ]; then
+        MFG_COMMS_EXTRA_CONF="${MFG_COMMS_EXTRA_CONF};${OVERLAYS_DIR}/val_server.conf"
+        echo -e "${CYAN}Adding VAL server config to mfg comms build${NC}"
+    fi
+
     echo -e "${CYAN}══════════════════════════════════════════${NC}"
     echo -e "${CYAN}  Building alpha_mfg_fw (${MFG_BOARD})${NC}"
     echo -e "${CYAN}  MTIB REV ${MTIB_REV}${NC}"
     echo -e "${CYAN}══════════════════════════════════════════${NC}"
+
+    # --- Resolve version and patch VersionDevice.h BEFORE compilation ---
+    resolve_version "$FW_DIR"
+    patch_version_device_h "$FW_DIR" "$VERSION_BUILD"
+    patch_version_device_h "$COMM_DIR" "$VERSION_BUILD"
 
     # --- Application processor (nRF52840) ---
     echo -e "\n${CYAN}[1/4] Application Processor (nRF52840)${NC}"
@@ -562,7 +730,7 @@ build_mfg_fw() {
         -- \
         -DBOARD_ROOT="${FW_DIR}/ck_boards/current/" \
         -DOVERLAY_CONFIG=dev.conf \
-        "-DEXTRA_CONF_FILE=${FW_DIR}/version.conf;${FW_DIR}/default_personalization.conf" \
+        "-DEXTRA_CONF_FILE=${MFG_COMMS_EXTRA_CONF}" \
         ${COMMS_DTS_OVERLAY}
 
     # --- FIPS hash recalculation + final rebuild ---
@@ -590,7 +758,7 @@ build_mfg_fw() {
         -- \
         -DBOARD_ROOT="${FW_DIR}/ck_boards/current/" \
         "-DOVERLAY_CONFIG=dev.conf;fips.conf" \
-        "-DEXTRA_CONF_FILE=${FW_DIR}/version.conf;${FW_DIR}/default_personalization.conf" \
+        "-DEXTRA_CONF_FILE=${MFG_COMMS_EXTRA_CONF}" \
         ${COMMS_DTS_OVERLAY}
 
     echo -e "\n${GREEN}alpha_mfg_fw build complete${NC}"

@@ -11,7 +11,7 @@
   import type { ApiResponse } from '$lib/types';
 
   const auth = getAuth();
-  const canManage = $derived(auth.hasPermission('Concord.Admin.Codebases.Manage'));
+  const canManage = $derived(auth.hasPermission('products:manage'));
 
   let codebases = $state<Codebase[]>([]);
   let loading = $state(true);
@@ -54,7 +54,7 @@
   }
 
   onMount(() => {
-    if (!auth.hasPermission('Concord.Admin.Codebases.View')) {
+    if (!auth.hasPermission('products:view')) {
       goto('/');
       return;
     }

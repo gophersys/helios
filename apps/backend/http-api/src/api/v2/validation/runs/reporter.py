@@ -128,6 +128,12 @@ def report_test_start(run_id: str):
                 "enabled": True,
             },
         )
+    elif data.module and test.category != data.module:
+        # Update category if it changed (e.g., test moved to different module/file)
+        test = db.test.update(
+            where={"id": test.id},
+            data={"category": data.module},
+        )
 
     # Find the device for this session
     device = db.device.find_first(where={"sessionId": run_id})

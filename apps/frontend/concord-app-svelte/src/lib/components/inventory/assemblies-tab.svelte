@@ -10,7 +10,7 @@
   import type { ApiResponse } from '$lib/types';
 
   const auth = getAuth();
-  const canManage = $derived(auth.hasPermission('Concord.Admin.Inventory.Manage'));
+  const canManage = $derived(auth.hasPermission('products:manage'));
 
   let assemblies = $state<Assembly[]>([]);
   let loading = $state(true);

@@ -116,7 +116,7 @@
       <div class="text-2xs font-medium uppercase tracking-wider text-text-tertiary">Pipeline</div>
       <div class="mt-0.5">
         {#if pipelineId}
-          <a href="/ci/pipelines/{pipelineId}" class="text-xs text-accent hover:underline flex items-center gap-1">
+          <a href="/builds/pipelines/{pipelineId}" class="text-xs text-accent hover:underline flex items-center gap-1">
             View <ExternalLink class="h-3 w-3" />
           </a>
         {:else}
@@ -226,7 +226,7 @@
                         <span class="ml-1">{expandedBuild.product}</span>
                       </div>
                       <div>
-                        <a href="/ci/builds/{expandedBuild.id}" class="text-accent hover:underline flex items-center gap-1">
+                        <a href="/builds/builds/{expandedBuild.id}" class="text-accent hover:underline flex items-center gap-1">
                           Full build page <ExternalLink class="h-3 w-3" />
                         </a>
                       </div>
@@ -285,7 +285,7 @@
                                   <span class="font-mono text-xs truncate">{artifact.name}</span>
                                 </div>
                                 <div class="flex items-center gap-2 flex-shrink-0">
-                                  <span class="text-2xs text-text-tertiary">{formatSize(artifact.sizeBytes ?? 0)}</span>
+                                  <span class="text-2xs text-text-tertiary">{formatSize(String(artifact.sizeBytes ?? 0))}</span>
                                   <Download class="h-3.5 w-3.5 text-accent" />
                                 </div>
                               </a>

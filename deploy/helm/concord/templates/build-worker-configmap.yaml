@@ -31,6 +31,14 @@ data:
         version_bump: bool = False
         base_job_id: str = None
         matrix_label: str = None
+        version_override: str = None  # Explicit version override (e.g., "0.5.0")
+
+    def _extract_version_override(job_data):
+        """Extract version override from job data (configFlags or direct field)."""
+        config_flags = job_data.get("configFlags") or {}
+        if isinstance(config_flags, dict) and config_flags.get("versionOverride"):
+            return config_flags["versionOverride"]
+        return job_data.get("versionOverride") or job_data.get("firmwareVersion")
 
     class BuildWorker:
         # Only *_fw (production) and *_mfg_fw (manufacturing) are valid build products
@@ -89,14 +97,14 @@ data:
         def _stream_log(self, job_id, chunk):
             """Stream a log chunk to the API for real-time UI updates."""
             try:
-                requests.post(f"{self.api_url}/v2/ci/builds/{job_id}/log",
+                requests.post(f"{self.api_url}/v2/builds/{job_id}/log",
                              json={"chunk": chunk}, headers=self._headers(), timeout=5, verify=False)
             except Exception:
                 pass  # Don't fail build if streaming fails
 
         def fetch_queued_job(self):
             # Build query with optional product filter
-            query = "/v2/ci/builds?status=QUEUED&limit=1"
+            query = "/v2/builds?status=QUEUED&limit=1"
             if self.product_filter:
                 query += f"&product={self.product_filter[0]}"
 
@@ -123,10 +131,10 @@ data:
                             variant=j["variant"], mtib_rev=j["mtibRev"], branch=j["branch"],
                             commit_sha=j["commitSha"] or "", status=j["status"],
                             version_bump=j.get("versionBump", False), base_job_id=j.get("baseJobId"),
-                            matrix_label=j.get("matrixLabel"))
+                            matrix_label=j.get("matrixLabel"), version_override=_extract_version_override(j))
 
         def claim_job(self, job_id):
-            result = self._api_patch(f"/v2/ci/builds/{job_id}", {
+            result = self._api_patch(f"/v2/builds/{job_id}", {
                 "status": "BUILDING",
                 "workerId": f"{self.worker_id}:{self.ncs_version or 'default'}",
                 "startedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
@@ -145,7 +153,7 @@ data:
                 data["buildLog"] = build_log[-100000:]
             if status in ("SUCCESS", "FAILED", "CANCELLED"):
                 data["finishedAt"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-            return self._api_patch(f"/v2/ci/builds/{job_id}", data) is not None
+            return self._api_patch(f"/v2/builds/{job_id}", data) is not None
 
         def download_build_script(self, product, dest_path):
             # Extract product key for script lookup
@@ -154,7 +162,7 @@ data:
 
             try:
                 log.info("Downloading build script for product: %s", product_key)
-                resp = requests.get(f"{self.api_url}/v2/ci/scripts/{product_key}",
+                resp = requests.get(f"{self.api_url}/v2/builds/scripts/{product_key}",
                                   headers=self._headers(), timeout=30, verify=False)
                 if resp.status_code != 200:
                     log.warning("No custom script for %s (HTTP %d), using fallback", product_key, resp.status_code)
@@ -305,7 +313,7 @@ data:
             """Fetch the build number from a completed base build."""
             if not base_job_id:
                 return None
-            result = self._api_get(f"/v2/ci/builds/{base_job_id}")
+            result = self._api_get(f"/v2/builds/{base_job_id}")
             if not result or not result.get("data"):
                 return None
             version_string = result["data"].get("versionString", "")
@@ -340,8 +348,19 @@ data:
                 "ZEPHYR_SDK_INSTALL_DIR": os.environ.get("ZEPHYR_SDK_INSTALL_DIR", "/workdir/zephyr-sdk")
             })
 
+            # Handle explicit version override (e.g., "0.5.0" -> BUILD_NUM=0)
+            if job.version_override:
+                parts = job.version_override.strip().split(".")
+                if len(parts) >= 3:
+                    try:
+                        build_num = int(parts[2])
+                        env["VERSION_BUILD_OVERRIDE"] = str(build_num)
+                        log.info("Version override: %s -> BUILD_NUM=%d", job.version_override, build_num)
+                    except ValueError:
+                        log.warning("Could not parse build number from version_override: %s", job.version_override)
+
             # Handle version bumping for N+1 builds (same code, incremented version)
-            if job.version_bump and job.base_job_id:
+            elif job.version_bump and job.base_job_id:
                 base_version = self._get_base_build_version(job.base_job_id)
                 if base_version is not None:
                     bumped_version = base_version + 1
@@ -365,6 +384,45 @@ data:
                     log.warning("Failed to parse %s: %s", build_json, e)
             return None
 
+        def verify_artifacts(self, output_dir, expected_version=None):
+            """Verify firmware artifacts for basic consistency."""
+            # Find build.json
+            build_jsons = list(Path(output_dir).glob("**/build.json"))
+            if not build_jsons:
+                return False, "No build.json found in output"
+
+            # Parse version from build.json
+            try:
+                with open(build_jsons[0]) as f:
+                    data = json.load(f)
+                version = data.get("version")
+                if not version:
+                    return False, "build.json missing 'version' field"
+            except Exception as e:
+                return False, f"Failed to parse build.json: {e}"
+
+            # Check version matches expected (if provided)
+            if expected_version and version != expected_version:
+                return False, f"Version mismatch: built {version}, expected {expected_version}"
+
+            # Check hex files exist
+            hex_files = list(Path(output_dir).glob("**/*.hex"))
+            if not hex_files:
+                return False, "No hex files found in output"
+
+            # Check CFW files (if present) have consistent versions in filename
+            cfw_files = list(Path(output_dir).glob("**/*.cfw"))
+            for cfw in cfw_files:
+                # Pattern: {appId}.{major}.{minor}.{build}-{track}.cfw
+                match = re.match(r"(\d+)\.(\d+)\.(\d+)\.(\d+)-", cfw.name)
+                if match:
+                    cfw_ver = f"{match.group(2)}.{match.group(3)}.{match.group(4)}"
+                    if cfw_ver != version:
+                        return False, f"CFW {cfw.name} version {cfw_ver} != build.json {version}"
+
+            log.info("Verification passed: version %s, %d hex, %d cfw", version, len(hex_files), len(cfw_files))
+            return True, f"OK: {version}"
+
         def upload_artifacts(self, job_id, output_dir):
             # Recursively find all artifacts in versioned directory structure
             artifacts = (
@@ -379,7 +437,7 @@ data:
                 rel_path = artifact.relative_to(output_dir)
                 name = str(rel_path).replace("/", "_")  # Flatten for storage
                 log.info("Uploading artifact: %s (%d bytes)", name, artifact.stat().st_size)
-                self._upload_file(f"/v2/ci/builds/{job_id}/artifacts", artifact, name)
+                self._upload_file(f"/v2/builds/{job_id}/artifacts", artifact, name)
 
         def process_job(self, job):
             job_dir = self.workspace_dir / f"cmbuild_{job.id}"
@@ -409,6 +467,13 @@ data:
                 duration = int(time.time() - start_time)
 
                 if build_success:
+                    # Verify artifacts before upload
+                    valid, verify_msg = self.verify_artifacts(output_dir, job.version_override)
+                    if not valid:
+                        log.error("Artifact verification failed: %s", verify_msg)
+                        self.update_job(job.id, "FAILED", error=f"Verification failed: {verify_msg}", duration=duration)
+                        return
+
                     self.upload_artifacts(job.id, output_dir)
                     # Extract version from build.json if present
                     version_string = self._extract_version(output_dir)

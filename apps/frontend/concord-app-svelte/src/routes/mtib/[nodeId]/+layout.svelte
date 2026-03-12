@@ -28,7 +28,7 @@
 
   onMount(() => {
     // Permission guard
-    if (!auth.hasPermission('Concord.Admin.Nodes.View')) {
+    if (!auth.hasPermission('devices:view')) {
       goto('/');
       return;
     }

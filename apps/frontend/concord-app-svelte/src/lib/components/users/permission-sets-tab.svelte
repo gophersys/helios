@@ -90,7 +90,7 @@
   let submitting = $state(false);
   let deleteTarget = $state<{ id: string; name: string } | null>(null);
 
-  const canManage = $derived(auth.hasPermission('Concord.Admin.PermissionSets.Manage'));
+  const canManage = $derived(auth.hasPermission('permissions:manage'));
   const tree = $derived(buildTree(availablePerms));
 
   async function fetchSets(): Promise<void> {

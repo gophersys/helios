@@ -148,10 +148,12 @@ class CoreOpsClient:
         if self._token and now < self._token_expiry - 30:
             return self._token
 
-        # Fetch new token
-        url = f"{self._config.auth_server_url.rstrip('/')}/authentication/tokens/request"
+        # Fetch new token — uses client_credentials grant + X-API-KEY header
+        # (matches the working coreops-proxy auth flow)
+        url = f"{self._config.auth_server_url.rstrip('/')}/Authentication/Tokens/Request"
         headers = {
             "Authorization": self._basic_auth_header(),
+            "X-API-KEY": self._config.api_key,
             "Content-Type": "application/x-www-form-urlencoded",
             "Accept": "application/json",
         }
@@ -159,7 +161,7 @@ class CoreOpsClient:
         sess = self._get_session()
         resp = sess.post(
             url,
-            data={"grant_type": "password"},
+            data={"grant_type": "client_credentials"},
             headers=headers,
             timeout=self._config.timeout,
             verify=self._config.verify_ssl,

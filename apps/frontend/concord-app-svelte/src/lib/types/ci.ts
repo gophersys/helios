@@ -6,10 +6,12 @@ export type PipelineStageStatus = 'PENDING' | 'RUNNING' | 'SUCCESS' | 'FAILED' |
 
 export interface BuildJobArtifact {
   id: string;
+  buildJobId?: string;
   name: string;
   storageKey: string;
   sizeBytes: number;
   checksum: string | null;
+  downloadUrl?: string;
   createdAt: string;
 }
 
@@ -29,6 +31,14 @@ export interface BuildJob {
   durationSeconds: number | null;
   createdAt: string;
   artifacts: BuildJobArtifact[];
+  // Stage matrix fields
+  matrixLabel?: MatrixLabel | string | null;
+  matrixIndex?: number | null;
+  buildNum?: number | null;
+  // Build cache fields
+  buildFingerprint?: string | null;
+  configFlags?: Record<string, unknown> | null;
+  reusedFromId?: string | null;
 }
 
 export interface PipelineStageInfo {
@@ -39,7 +49,7 @@ export interface PipelineStageInfo {
   detail: string | null;
 }
 
-// Stage 4 build matrix labels
+// Build matrix labels (FUOTA mode uses all, nightly uses subset)
 export type MatrixLabel =
   | 'MFG_BASE' | 'MFG_BUMP'
   | 'FUT_DEBUG_A' | 'FUT_DEBUG_B'
@@ -62,7 +72,7 @@ export interface PipelineBuildSummary {
   baseJobId?: string | null;
 }
 
-// Human-readable labels for Stage 4 matrix (FUOTA flow order)
+// Human-readable labels for FUOTA matrix (FUOTA flow order)
 export const MATRIX_LABEL_DISPLAY: Record<MatrixLabel, {
   name: string;
   description: string;
@@ -168,8 +178,8 @@ export interface Pipeline {
   createdAt: string;
   updatedAt: string;
   builds?: PipelineBuildSummary[];
-  // Stage 4 matrix mode
-  matrixMode?: 'legacy' | 'stage4' | 'quick' | null;
+  // Build matrix mode (validation stage)
+  matrixMode?: 'smoke' | 'silicon' | 'integration' | 'nightly' | 'fuota' | null;
   buildMatrix?: {
     mode: string;
     product: string;
@@ -182,6 +192,42 @@ export interface Pipeline {
   validationRun?: { id: string; name: string; status: string } | null;
   stages?: PipelineStageInfo[];
 }
+
+// Validation stage display info
+export type ValidationStage = 'smoke' | 'silicon' | 'integration' | 'nightly' | 'fuota';
+
+export const STAGE_DISPLAY: Record<ValidationStage, { name: string; description: string; buildCount: number; color: string }> = {
+  smoke: {
+    name: 'Smoke',
+    description: 'Quick native sim tests',
+    buildCount: 1,
+    color: 'bg-surface-2 text-text-secondary',
+  },
+  silicon: {
+    name: 'Silicon',
+    description: 'Driver tests on real hardware',
+    buildCount: 1,
+    color: 'bg-surface-2 text-text-secondary',
+  },
+  integration: {
+    name: 'Integration',
+    description: 'System integration tests',
+    buildCount: 1,
+    color: 'bg-surface-2 text-text-secondary',
+  },
+  nightly: {
+    name: 'Nightly',
+    description: 'Long-running validation tests',
+    buildCount: 2,
+    color: 'bg-warning-muted text-warning',
+  },
+  fuota: {
+    name: 'FUOTA',
+    description: 'Full firmware update chain testing',
+    buildCount: 8,
+    color: 'bg-info-muted text-info',
+  },
+};
 
 export interface TriggerBuildConfig {
   product: string;

@@ -13,6 +13,7 @@
   import ResourceYamlDialog from '$lib/components/system/resource-yaml-dialog.svelte';
   import PodLogsInline from '$lib/components/system/pod-logs-inline.svelte';
   import PodTerminal from '$lib/components/system/pod-terminal.svelte';
+  import PlanesLoader from '$lib/components/ui/planes-loader.svelte';
 
   interface Container {
     name: string;
@@ -65,7 +66,7 @@
   let showTerminalMenu = $state(false);
 
   const auth = getAuth();
-  const canManage = $derived(auth.hasPermission('Concord.Admin.System.Manage'));
+  const canManage = $derived(auth.hasPermission('system:manage'));
 
   // Get running containers for terminal
   const runningContainers = $derived(
@@ -105,7 +106,7 @@
   }
 
   onMount(() => {
-    if (!auth.hasPermission('Concord.Admin.System.View')) {
+    if (!auth.hasPermission('system:view')) {
       goto('/');
       return;
     }
@@ -124,9 +125,7 @@
   </button>
 
   {#if loading}
-    <div class="flex items-center justify-center py-12">
-      <span class="text-secondary">Loading pod details...</span>
-    </div>
+    <PlanesLoader message="Loading pod details..." />
   {:else if error}
     <div class="rounded-lg border border-error/20 bg-error/10 p-4 text-error">{error}</div>
   {:else if pod}

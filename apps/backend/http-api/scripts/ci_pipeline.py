@@ -88,7 +88,7 @@ def create_build_job_via_api(api_url: str, api_key: str, build_data: dict) -> di
     import urllib.request
     import urllib.error
 
-    url = f"{api_url}/v2/ci/builds"
+    url = f"{api_url}/v2/builds"
     payload = json.dumps(build_data).encode()
 
     req = urllib.request.Request(

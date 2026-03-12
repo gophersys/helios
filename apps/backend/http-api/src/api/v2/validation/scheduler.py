@@ -12,6 +12,7 @@ import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
+from database import Json
 from config.env import env_config
 from src.lib.audit import log_audit
 from src.services.database.prisma import get_db_client
@@ -32,7 +33,10 @@ def _create_job_api_key(db, entry_id: str) -> str:
     key_hash = hashlib.sha256(raw_key.encode()).hexdigest()
 
     # Get a system user ID for scheduler-created keys
-    system_user = db.user.find_first(where={"email": "system@corekinect.com"})
+    system_user = db.user.find_first(where={"email": "system@concord.local"})
+    if not system_user:
+        # Fallback: try any user if system user doesn't exist
+        system_user = db.user.find_first()
     user_id = system_user.id if system_user else None
 
     db.apikey.create(
@@ -46,6 +50,73 @@ def _create_job_api_key(db, entry_id: str) -> str:
     )
 
     return raw_key
+
+
+def _create_validation_run(
+    db,
+    entry_id: str,
+    pipeline,
+    bench,
+    stage: int,
+    stage_name: str,
+) -> Optional[str]:
+    """Create a ValidationRun (Session) and Device record for the queue entry.
+
+    Returns the session ID if successful, None otherwise.
+    """
+    # Look up product by slug
+    product_obj = db.product.find_first(where={"slug": pipeline.product})
+    if not product_obj:
+        logger.error(f"Product not found for slug: {pipeline.product}")
+        return None
+
+    # Get system user ID
+    system_user = db.user.find_first(where={"email": "system@concord.local"})
+    if not system_user:
+        system_user = db.user.find_first()
+    if not system_user:
+        logger.error("No users found in database for session creation")
+        return None
+
+    # Build session name
+    session_name = f"Queue {entry_id[:8]} - Stage {stage_name}"
+
+    # Create session (ValidationRun)
+    session = db.session.create(
+        data={
+            "name": session_name,
+            "productId": product_obj.id,
+            "pipelineRunId": pipeline.id,
+            "createdById": system_user.id,
+            "status": "ACTIVE",
+            "targetCount": 1,
+            "config": Json({
+                "benchId": bench.id,
+                "stationId": bench.stationId,
+                "queueEntryId": entry_id,
+                "stage": stage,
+                "stageName": stage_name,
+            }),
+        },
+    )
+
+    # Create device record linked to session
+    device_snr = bench.dutSnr or "UNKNOWN"
+    db.device.create(
+        data={
+            "serialNumber": device_snr,
+            "sessionId": session.id,
+            "status": "PENDING",
+            "metadata": Json({
+                "deviceId": bench.dutDeviceId,
+                "benchId": bench.id,
+                "mtibAddress": bench.mtibAddress,
+            }),
+        },
+    )
+
+    logger.info(f"Created validation run {session.id} for queue entry {entry_id}")
+    return session.id
 
 
 def _trigger_validation_job(
@@ -66,7 +137,7 @@ def _trigger_validation_job(
     entry = db.validationqueueentry.find_unique(
         where={"id": entry_id},
         include={
-            "pipelineRun": {"include": {"product": True}},
+            "pipelineRun": True,
             "bench": True,
         },
     )
@@ -82,6 +153,15 @@ def _trigger_validation_job(
 
     pipeline = entry.pipelineRun
 
+    # Stage name for K8s job (needed for session creation too)
+    stage_name = STAGE_NAMES.get(stage, "validation")
+
+    # Create ValidationRun (Session) record first
+    run_id = _create_validation_run(db, entry_id, pipeline, bench, stage, stage_name)
+    if not run_id:
+        logger.error(f"Failed to create validation run for queue entry {entry_id}")
+        return None
+
     # Create API key for the job
     api_key = _create_job_api_key(db, entry_id)
 
@@ -95,12 +175,11 @@ def _trigger_validation_job(
     mtib_addr_full = bench.mtibAddress or ""
     mtib_host = mtib_addr_full.split(":")[0] if mtib_addr_full else ""
 
-    # Stage name for K8s job
-    stage_name = STAGE_NAMES.get(stage, "validation")
+    # Product slug for catalog lookup (pipeline.product is a string like "alpha_b0")
+    product_slug = pipeline.product if hasattr(pipeline, "product") else None
 
-    # Product slug for catalog lookup
-    product_obj = pipeline.product if hasattr(pipeline, "product") else None
-    product_slug = product_obj.slug if product_obj else None
+    # Compute fixture profile path from bench product/revision
+    fixture_profile_path = f"/app/fixtures/{bench.dutProduct}_{bench.dutRevision}.json"
 
     # Create the K8s job
     job_name = create_kubernetes_job(
@@ -110,14 +189,14 @@ def _trigger_validation_job(
         test_type="validation",
         test_enable={},
         firmware_version="",
-        run_id=entry_id,
+        run_id=run_id,  # Use Session ID, not entry_id
         api_key=api_key,
         api_url=api_url,
         mtib_address=mtib_host,
         bench_id=bench.id,
         device_id=bench.dutDeviceId,
         device_snr=bench.dutSnr,
-        fixture_profile_path=bench.profilePath,
+        fixture_profile_path=fixture_profile_path,
         pipeline_id=pipeline.id,
         product_slug=product_slug,
         stage=stage_name,
@@ -128,6 +207,8 @@ def _trigger_validation_job(
         return None
 
     # Update entry status to RUNNING with job name
+    # Note: validationRunId FK points to ValidationRun table, not Session
+    # The run_id here is a Session ID, which the reporter uses
     now = datetime.now(timezone.utc)
     db.validationqueueentry.update(
         where={"id": entry_id},
@@ -142,7 +223,7 @@ def _trigger_validation_job(
         "queue.trigger",
         "ValidationQueueEntry",
         entry_id,
-        {"jobName": job_name, "stage": stage_name, "pipelineId": pipeline.id},
+        {"jobName": job_name, "stage": stage_name, "pipelineId": pipeline.id, "sessionId": run_id},
     )
 
     return job_name

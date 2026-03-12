@@ -26,7 +26,7 @@ class UartConfig:
     """UART port configuration."""
     device: str
     baudrate: int = 115200
-    timeout: float = 0.1  # Serial read timeout
+    timeout: float = 0.01  # Serial read timeout (10ms for responsive polling)
 
 
 class LineBatcher:
@@ -171,21 +171,31 @@ class UartWriter:
             return 0
 
     def _writer_loop(self):
-        """Background thread: read serial, append to file."""
+        """Background thread: read serial, append to file.
+
+        Uses serial.read(1) with a short timeout (10ms) as the blocking
+        wait. When data arrives, immediately reads all remaining bytes
+        via in_waiting to get the full chunk. This gives sub-millisecond
+        latency from byte arrival to file write, while avoiding busy-spin
+        when idle.
+        """
         with open(self.buffer_path, 'ab', buffering=0) as f:
             while not self._stop.is_set():
                 try:
-                    # Read whatever's available
-                    waiting = self._serial.in_waiting
-                    if waiting > 0:
-                        data = self._serial.read(min(waiting, 1024))
-                        if data:
-                            with self._write_lock:
-                                f.write(data)
-                                self._bytes_written += len(data)
-                    else:
-                        # Brief sleep when no data
-                        time.sleep(0.001)
+                    # Block until at least 1 byte arrives (up to serial timeout)
+                    first = self._serial.read(1)
+                    if first:
+                        # Got at least 1 byte; grab everything else available
+                        remaining = self._serial.in_waiting
+                        if remaining > 0:
+                            rest = self._serial.read(min(remaining, 4096))
+                            data = first + rest
+                        else:
+                            data = first
+                        with self._write_lock:
+                            f.write(data)
+                            self._bytes_written += len(data)
+                    # If first is empty, serial.read timed out (no data) -- loop
                 except Exception:
                     if not self._stop.is_set():
                         time.sleep(0.1)
@@ -233,7 +243,7 @@ class UartReader:
     def read_batched(self, timeout: float = 0.05) -> Iterator[bytes]:
         """Read and yield batched data.
 
-        Yields complete batches (on newline or 128 bytes).
+        Yields complete batches (on newline or 128 bytes or 20ms timeout).
         Use in a loop for streaming.
         """
         if not self._file:
@@ -249,13 +259,15 @@ class UartReader:
                 # Feed to batcher, yield complete batches
                 for batch in self._batcher.feed(data):
                     yield batch
+                # Immediately try another read (more data may have arrived)
+                continue
             else:
                 # Check for timeout flush
                 timeout_batch = self._batcher.flush_if_timeout()
                 if timeout_batch:
                     yield timeout_batch
-                # Brief sleep when no new data
-                time.sleep(0.005)
+                # Brief sleep when no new data (1ms to avoid busy-spin)
+                time.sleep(0.001)
 
     def read_all_available(self) -> Iterator[bytes]:
         """Read all currently available data with batching."""

@@ -122,6 +122,50 @@ export const api = {
   }
 };
 
+/**
+ * Download a file from an authenticated endpoint.
+ * Triggers browser download with the given filename.
+ */
+export async function apiDownload(path: string, filename: string): Promise<void> {
+  const token = getToken();
+
+  const headers: Record<string, string> = {};
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const res = await fetch(path, { method: 'GET', headers });
+
+  if (res.status === 401) {
+    clearToken();
+    if (browser) {
+      window.location.href = '/login';
+    }
+    throw new Error('Session expired');
+  }
+
+  if (!res.ok) {
+    // Try to parse error message
+    try {
+      const data = await res.json();
+      throw new Error(data.error || data.errors?.[0]?.message || `Download failed (${res.status})`);
+    } catch {
+      throw new Error(`Download failed (${res.status})`);
+    }
+  }
+
+  // Get the blob and trigger download
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 export async function apiUpload<T = unknown>(
   path: string,
   formData: FormData

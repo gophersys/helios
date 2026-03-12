@@ -15,7 +15,7 @@
   type TopTab = 'products' | 'chipsets';
 
   const auth = getAuth();
-  const canManage = $derived(auth.hasPermission('Concord.Admin.Catalog.Manage'));
+  const canManage = $derived(auth.hasPermission('products:manage'));
 
   let topTab = $state<TopTab>('products');
   let products = $state<Product[]>([]);
@@ -61,7 +61,7 @@
   }
 
   onMount(() => {
-    if (!auth.hasPermission('Concord.Admin.Catalog.View')) {
+    if (!auth.hasPermission('products:view')) {
       goto('/');
       return;
     }

@@ -3,6 +3,7 @@ export { default as FlowCanvas } from './flow-canvas.svelte';
 export { default as FlowNode } from './flow-node.svelte';
 export { default as FlowEdge } from './flow-edge.svelte';
 export { default as StepDetailPanel } from './step-detail-panel.svelte';
+export { default as ProductStages } from './product-stages.svelte';
 
 export * from './types';
 export * from './mock-data';

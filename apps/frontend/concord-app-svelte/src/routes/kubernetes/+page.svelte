@@ -52,7 +52,7 @@
   async function fetchData() {
     try {
       // Fetch cluster info
-      const clusterRes = await api.get<{ data: ClusterInfo }>('/v2/cluster/cluster');
+      const clusterRes = await api.get<{ data: ClusterInfo }>('/v2/cluster/info');
       console.log('cluster response:', clusterRes);
       if (clusterRes?.data) {
         cluster = clusterRes.data;
@@ -90,7 +90,7 @@
   }
 
   onMount(() => {
-    if (!auth.hasPermission('Concord.Admin.System.View')) {
+    if (!auth.hasPermission('system:view')) {
       goto('/');
       return;
     }

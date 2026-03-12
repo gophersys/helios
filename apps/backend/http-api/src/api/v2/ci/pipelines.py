@@ -15,14 +15,70 @@ from src.lib.types import ApiResponse
 from src.services.database.prisma import get_db_client
 
 from .types import PipelineCreateRequest
-from .stage4_matrix import (
-    Stage4MatrixConfig,
-    generate_stage4_builds,
-    generate_quick_builds,
-    calculate_expected_builds,
+from .stage_builds import (
+    ValidationStage,
+    StageBuildDef,
+    get_stage_build_defs,
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _generate_build_specs(
+    stage: ValidationStage,
+    product_base: str,
+    board: str,
+    branch: str,
+    commit_sha: Optional[str],
+    mtib_rev: str = "1.2",
+) -> List[Dict[str, Any]]:
+    """Generate build job specs from stage definitions.
+
+    Converts StageBuildDef entries to the dict format expected by BuildJob creation.
+    This is the single source of truth - all build requirements come from stage_builds.py.
+    """
+    defs = get_stage_build_defs(stage)
+    builds = []
+
+    for idx, d in enumerate(defs):
+        # Determine firmware type from fw_type field
+        if d.fw_type == "mfg":
+            fw_product = f"{product_base}_mfg_fw"
+        elif d.fw_type == "driver_test":
+            fw_product = f"{product_base}_fw"  # Driver tests use same repo
+        else:  # "app"
+            fw_product = f"{product_base}_fw"
+
+        # Resolve git ref based on git_ref field
+        if d.git_ref == "main":
+            git_branch = "main"
+            git_commit = None  # Use HEAD
+        elif d.git_ref == "merge":
+            git_branch = branch
+            git_commit = commit_sha  # TODO: Support actual merge commits
+        else:  # "pr"
+            git_branch = branch
+            git_commit = commit_sha
+
+        # Version bump builds start BLOCKED until base completes
+        initial_status = "BLOCKED" if d.is_version_bump else "QUEUED"
+
+        builds.append({
+            "product": fw_product,
+            "board": board,
+            "target": "nrf52840",
+            "variant": d.variant,
+            "mtibRev": mtib_rev,
+            "branch": git_branch,
+            "commitSha": git_commit,
+            "status": initial_status,
+            "matrixLabel": d.label,
+            "matrixIndex": idx,
+            "versionBump": d.is_version_bump,
+            "baseLabel": d.base_label,
+        })
+
+    return builds
 
 
 def _serialize_pipeline(p) -> Dict[str, Any]:
@@ -97,6 +153,8 @@ def _serialize_pipeline_summary(p) -> Dict[str, Any]:
                 "product": b.product,
                 "status": b.status,
                 "variant": b.variant,
+                "versionString": b.versionString,
+                "durationSeconds": b.durationSeconds,
                 "matrixLabel": getattr(b, "matrixLabel", None),
                 "matrixIndex": getattr(b, "matrixIndex", None),
                 "versionBump": getattr(b, "versionBump", False),
@@ -109,7 +167,7 @@ def _serialize_pipeline_summary(p) -> Dict[str, Any]:
 
 @require_permissions(Permissions.BUILDS_VIEW)
 def list_pipelines():
-    """GET /v2/ci/pipelines — List pipeline runs."""
+    """GET /v2/builds/pipelines — List pipeline runs."""
     db = get_db_client()
 
     page = max(1, request.args.get("page", 1, type=int))
@@ -156,7 +214,7 @@ def list_pipelines():
 
 @require_permissions(Permissions.BUILDS_VIEW)
 def get_pipeline(pipeline_id: str):
-    """GET /v2/ci/pipelines/<id> — Get pipeline details with builds."""
+    """GET /v2/builds/pipelines/<id> — Get pipeline details with builds."""
     db = get_db_client()
 
     try:
@@ -176,7 +234,7 @@ def get_pipeline(pipeline_id: str):
 
 @require_permissions(Permissions.BUILDS_VIEW)
 def download_pipeline_artifacts(pipeline_id: str):
-    """GET /v2/ci/pipelines/<id>/artifacts/download — Download all artifacts as ZIP.
+    """GET /v2/builds/pipelines/<id>/artifacts/download — Download all artifacts as ZIP.
 
     Creates a structured ZIP containing all builds:
       <product>_<branch>_<sha>/
@@ -284,7 +342,7 @@ def download_pipeline_artifacts(pipeline_id: str):
 
 @require_permissions(Permissions.BUILDS_TRIGGER)
 def create_pipeline():
-    """POST /v2/ci/pipelines — Create a new pipeline (triggers builds).
+    """POST /v2/builds/pipelines — Create a new pipeline (triggers builds).
 
     Can be triggered manually (UI) or by git poller. Git poller provides:
     - productId: DB product ID for linking
@@ -343,22 +401,25 @@ def create_pipeline():
     else:
         mfg_fw = f"{repo_base}_mfg_fw"
 
-    # Build matrix configuration (stage4 or quick mode only)
-    stage4_config = Stage4MatrixConfig(
-        product=repo_base,
+    # Map matrix mode to validation stage (all 5 stages supported)
+    stage_map = {
+        "smoke": ValidationStage.SMOKE,
+        "silicon": ValidationStage.SILICON,
+        "integration": ValidationStage.INTEGRATION,
+        "nightly": ValidationStage.NIGHTLY,
+        "fuota": ValidationStage.FUOTA,
+    }
+    stage = stage_map.get(data.matrix_mode, ValidationStage.FUOTA)
+
+    # Generate build specs from stage definitions (single source of truth)
+    build_specs = _generate_build_specs(
+        stage=stage,
+        product_base=repo_base,
         board=data.board,
-        main_branch="main",
-        main_commit=data.main_commit or data.commit_sha or "HEAD",
-        pr_branch=data.pr_branch or data.branch,
-        pr_commit=data.commit_sha or "HEAD",
-        merge_commit=None,  # TODO: Support simulated merge
+        branch=data.pr_branch or data.branch,
+        commit_sha=data.commit_sha,
         mtib_rev="1.2",
     )
-
-    if data.matrix_mode == "stage4":
-        build_specs = generate_stage4_builds(stage4_config)
-    else:  # quick
-        build_specs = generate_quick_builds(stage4_config)
 
     expected_builds = len(build_specs)
 
@@ -398,7 +459,7 @@ def create_pipeline():
             "triggerData": Json(trigger_data),
             "startedAt": datetime.now(timezone.utc),
         }
-        # Always include buildMatrix (stage4/quick modes always have config)
+        # Always include buildMatrix (fuota/nightly modes always have config)
         create_data["buildMatrix"] = Json(matrix_config)
 
         pipeline = db.pipelinerun.create(data=create_data)
@@ -471,7 +532,7 @@ def create_pipeline():
 
 @require_permissions(Permissions.BUILDS_MANAGE)
 def cancel_pipeline(pipeline_id: str):
-    """POST /v2/ci/pipelines/<id>/cancel — Cancel a pipeline."""
+    """POST /v2/builds/pipelines/<id>/cancel — Cancel a pipeline."""
     db = get_db_client()
 
     try:

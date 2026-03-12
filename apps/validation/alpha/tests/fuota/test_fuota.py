@@ -381,9 +381,16 @@ def personalize_device(client, snr: str, device_id: Optional[str] = None) -> dic
     """Personalize device and upload EC public key to CoreCloud."""
     from corekinect.test.validation.device_personalizer import DevicePersonalizer
 
+    # Known device info to skip modem read (UART too slow/unreliable)
+    # Device 09J5 on MTIB 10.4.45.33
+    known_imei = os.environ.get("DEVICE_IMEI", "355025931651952")
+    known_iccids = os.environ.get("DEVICE_ICCIDS", "89148000009808560116,89457300000037581199").split(",")
+
     personalizer = DevicePersonalizer(
         mtib=client,
         snr=snr,
+        imei=known_imei,
+        iccids=known_iccids,
         known_device_id=device_id,
         db_env="VAL_1_0",
         require_corecloud_key=True,
@@ -432,11 +439,33 @@ def create_fuota_plan(
             print(f"  Device in plan {old_plan}, disabling...")
             fuota_client.disable_device(device_id, old_plan)
 
-    # Build CFW targets from filenames (e.g., "108.0.5.2-BM")
+    # Build CFW targets from the to_version and extract app IDs from filenames
+    # CFW files are named like: 0.5.2_no_debug_108.0.5.2.cfw or 0.5.2_debug_109.0.5.2.cfw
+    # Target format: {appId}.{version}-{track} e.g., "108.0.5.2-BM" (BM = Bench+Mfg)
     targets = []
+    to_version = transition.to_version  # e.g., "0.5.2"
+
+    # Determine track suffix based on build label
+    # MFG builds use -BM (Bench+Mfg), Debug builds use -BMD, Release builds use -BM
+    if "debug" in transition.to_label.lower():
+        track = "-BMD"
+    else:
+        track = "-BM"
+
+    # Extract app IDs (108, 109) from build artifacts
     for cfw_path in transition.to_cfw_files:
-        name = Path(cfw_path).stem  # Strip .cfw extension
-        targets.append(name)
+        name = Path(cfw_path).name  # Keep extension for pattern match
+        # Pattern: matches "108.0.5.2.cfw" or "109.0.5.2.cfw" at end of filename
+        match = re.search(r'(10[89])\.(\d+\.\d+\.\d+)\.cfw$', name)
+        if match:
+            app_id = match.group(1)  # 108 or 109
+            version = match.group(2)  # 0.5.2
+            target = f"{app_id}.{version}{track}"
+            targets.append(target)
+
+    if not targets:
+        # Fallback: construct from version assuming both 108 and 109
+        targets = [f"108.{to_version}{track}", f"109.{to_version}{track}"]
 
     # Create plan
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -794,33 +823,6 @@ class TestFuotaTransitions:
 #     )
 #
 #     assert success, f"FUOTA transition failed: {transition.from_label} → {transition.to_label}"
-
-
-# ============================================================================
-# Pytest Configuration
-# ============================================================================
-
-def pytest_addoption(parser):
-    """Add custom command line options."""
-    # These can override env vars for manual runs
-    parser.addoption(
-        "--pipeline-id",
-        action="store",
-        default=None,
-        help="Pipeline ID (overrides PIPELINE_ID env var)",
-    )
-    parser.addoption(
-        "--mtib-addr",
-        action="store",
-        default=None,
-        help="MTIB address (overrides MTIB_ADDRESS env var)",
-    )
-    parser.addoption(
-        "--device-snr",
-        action="store",
-        default=None,
-        help="Device serial number (overrides DEVICE_SNR env var)",
-    )
 
 
 if __name__ == "__main__":

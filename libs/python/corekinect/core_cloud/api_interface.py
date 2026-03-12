@@ -178,11 +178,33 @@ class CoreCloudRestInterface(metaclass=SingletonThreadSafeMeta):
             if self._test_auth_on_enter:
                 # fetch token immediately so we fail early if creds are wrong
                 self._ensure_token()
+                # Also verify REST API access - wrong API key causes 401 even with valid token
+                self._verify_api_access()
             return self
         except Exception:
             self._depth = 0
             self._teardown()
             raise
+
+    def _verify_api_access(self) -> None:
+        """Verify REST API is accessible with current credentials.
+
+        Auth token acquisition can succeed but REST API calls fail with 401
+        if the API key is wrong. This catches that early with a clear error.
+        """
+        try:
+            # Make a minimal API call to verify access
+            resp = self.request("GET", "/System/Devices/Search", json={"deviceIds": []})
+            if resp.status_code == 401:
+                raise RuntimeError(
+                    "CoreCloud REST API returned 401 Unauthorized. "
+                    "Token was acquired successfully but API rejects requests. "
+                    "CHECK VAL_1_0_API_KEY - the key in K8s secrets may be wrong. "
+                    f"Expected key starts with 'KWh0dHBz' (for VAL environment). "
+                    f"Current key starts with '{str(self.api.key)[:10]}...'"
+                )
+        except requests.RequestException as e:
+            raise RuntimeError(f"CoreCloud REST API connectivity check failed: {e}")
 
     def __exit__(self, exc_type, exc, tb) -> bool:
         if self._depth <= 1:

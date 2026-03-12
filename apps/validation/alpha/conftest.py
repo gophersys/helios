@@ -198,6 +198,18 @@ def pytest_addoption(parser):
         help="MTIB server address (overrides MTIB_HOST env var)",
     )
     parser.addoption(
+        "--mtib-addr",
+        action="store",
+        default=None,
+        help="MTIB address for FUOTA tests (alias for --mtib-host, overrides MTIB_ADDRESS env var)",
+    )
+    parser.addoption(
+        "--device-snr",
+        action="store",
+        default=None,
+        help="Device serial number (overrides DEVICE_SNR env var)",
+    )
+    parser.addoption(
         "--artifacts-dir",
         action="store",
         default=None,
@@ -220,6 +232,12 @@ def pytest_addoption(parser):
         action="store_true",
         default=False,
         help="Skip personalization tests (use after FUOTA when device already has keys).",
+    )
+    parser.addoption(
+        "--pipeline-id",
+        action="store",
+        default=None,
+        help="Pipeline ID for FUOTA tests (overrides PIPELINE_ID env var).",
     )
 
 

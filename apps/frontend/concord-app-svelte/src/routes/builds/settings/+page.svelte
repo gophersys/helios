@@ -78,7 +78,7 @@
 
 <div class="animate-fade-in">
   <button
-    onclick={() => goto('/ci')}
+    onclick={() => goto('/builds')}
     class="flex items-center gap-1 text-xs text-text-tertiary hover:text-text-primary transition-colors mb-3"
   >
     <ArrowLeft size={14} />

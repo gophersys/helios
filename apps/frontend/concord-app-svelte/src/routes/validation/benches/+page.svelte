@@ -26,7 +26,7 @@
   import { fetchBenches, updateBench, deleteBench } from '$lib/services/validation';
 
   const auth = getAuth();
-  const canManage = $derived(auth.hasPermission('Concord.Admin.Validation.Manage'));
+  const canManage = $derived(auth.hasPermission('validation:manage'));
 
   const STATUS_OPTIONS = [
     { value: 'AVAILABLE', label: 'Available' },
@@ -176,7 +176,7 @@
   }
 
   onMount(() => {
-    if (!auth.hasPermission('Concord.Admin.Validation.View')) {
+    if (!auth.hasPermission('validation:view')) {
       goto('/');
       return;
     }

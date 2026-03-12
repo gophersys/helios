@@ -10,7 +10,7 @@
   import type { ApiResponse } from '$lib/types';
 
   const auth = getAuth();
-  const canManage = $derived(auth.hasPermission('Concord.Admin.Devices.Manage'));
+  const canManage = $derived(auth.hasPermission('devices:manage'));
 
   let devices = $state<IcleDevice[]>([]);
   let discoveredDevices = $state<DiscoveredIcleDevice[]>([]);
@@ -70,7 +70,7 @@
   }
 
   onMount(() => {
-    if (!auth.hasPermission('Concord.Admin.Devices.View')) {
+    if (!auth.hasPermission('devices:view')) {
       goto('/');
       return;
     }

@@ -132,12 +132,17 @@ class AsyncUartHandler:
 
             while not stop_event.is_set():
                 try:
-                    # Read available bytes
-                    in_waiting = uart.in_waiting
-                    if in_waiting > 0:
-                        data = uart.read(min(in_waiting, 256))
-                        if data:
-                            buffer.extend(data)
+                    # Block until at least 1 byte arrives (up to serial timeout)
+                    first = uart.read(1)
+                    if first:
+                        # Grab all remaining available bytes
+                        in_waiting = uart.in_waiting
+                        if in_waiting > 0:
+                            rest = uart.read(min(in_waiting, 4096))
+                            buffer.extend(first + rest)
+                        else:
+                            buffer.extend(first)
+                    # If first is empty, serial.read timed out -- check flush
 
                     # Check flush conditions
                     now = time.time()
@@ -175,10 +180,6 @@ class AsyncUartHandler:
                             )
                         except asyncio.QueueFull:
                             self.logger.warning(f"RX queue full for {target}, dropping")
-
-                    # Brief sleep if no data
-                    if in_waiting == 0:
-                        time.sleep(0.001)
 
                 except Exception as e:
                     if not stop_event.is_set():

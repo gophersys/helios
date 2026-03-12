@@ -10,7 +10,7 @@
   import { getCategoryDisplayName, getCategoryOptions } from '$lib/constants/inventory';
 
   const auth = getAuth();
-  const canManage = $derived(auth.hasPermission('Concord.Admin.Inventory.Manage'));
+  const canManage = $derived(auth.hasPermission('products:manage'));
 
   let components = $state<InventoryComponent[]>([]);
   let loading = $state(true);

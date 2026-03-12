@@ -63,6 +63,11 @@
   <Layout>
     {@render children()}
   </Layout>
+{:else}
+  <!-- Redirecting to login - show loading while redirect happens -->
+  <div class="flex min-h-screen items-center justify-center bg-surface-0">
+    <div class="text-sm text-text-tertiary">Redirecting to login...</div>
+  </div>
 {/if}
 
 <div aria-live="polite" aria-atomic="true" class="sr-only">{routeAnnouncement}</div>

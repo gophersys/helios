@@ -12,6 +12,7 @@
   import CollapsibleSection from '$lib/components/system/collapsible-section.svelte';
   import ActionButton from '$lib/components/system/action-button.svelte';
   import ResourceYamlDialog from '$lib/components/system/resource-yaml-dialog.svelte';
+  import PlanesLoader from '$lib/components/ui/planes-loader.svelte';
 
   interface DeploymentCondition {
     type: string;
@@ -65,7 +66,7 @@
   let mutationError = $state<string | null>(null);
 
   const auth = getAuth();
-  const canManage = $derived(auth.hasPermission('Concord.Admin.System.Manage'));
+  const canManage = $derived(auth.hasPermission('system:manage'));
 
   async function fetchDeployment() {
     loading = true;
@@ -112,7 +113,7 @@
   let pollInterval: ReturnType<typeof setInterval>;
 
   onMount(() => {
-    if (!auth.hasPermission('Concord.Admin.System.View')) {
+    if (!auth.hasPermission('system:view')) {
       goto('/');
       return;
     }
@@ -147,9 +148,7 @@
   </button>
 
   {#if loading}
-    <div class="flex items-center justify-center py-12">
-      <span class="text-secondary">Loading deployment details...</span>
-    </div>
+    <PlanesLoader message="Loading deployment details..." />
   {:else if error}
     <div class="rounded-lg border border-error/20 bg-error/10 p-4 text-error">{error}</div>
   {:else if deployment}

@@ -216,10 +216,10 @@ class PipelineCreateRequest:
     name: Optional[str] = None
     build_variant: str = "debug"
     validation_config: Optional[Dict[str, Any]] = None
-    # Stage 4 build matrix options
-    matrix_mode: str = "stage4"  # "stage4" (8 builds) or "quick" (2 builds)
-    main_commit: Optional[str] = None  # Main branch commit for Stage 4 comparison
-    pr_branch: Optional[str] = None    # PR branch name for Stage 4
+    # Build matrix options: smoke(1), silicon(1), integration(1), nightly(2), fuota(8)
+    matrix_mode: str = "fuota"
+    main_commit: Optional[str] = None  # Main branch commit for comparison
+    pr_branch: Optional[str] = None    # PR branch name
 
     @classmethod
     def from_json(cls, data: dict) -> Tuple[Optional["PipelineCreateRequest"], Optional[str]]:
@@ -253,10 +253,11 @@ class PipelineCreateRequest:
         if validation_config is not None and not isinstance(validation_config, dict):
             return None, "validationConfig must be an object"
 
-        # Stage 4 matrix options (legacy mode removed)
-        matrix_mode = (data.get("matrixMode") or "stage4").strip()
-        if matrix_mode not in ("stage4", "quick"):
-            return None, "matrixMode must be 'stage4' or 'quick'"
+        # Build matrix mode — must match ValidationStage enum names (lowercase)
+        matrix_mode = (data.get("matrixMode") or "fuota").strip()
+        valid_modes = ("smoke", "silicon", "integration", "nightly", "fuota")
+        if matrix_mode not in valid_modes:
+            return None, f"matrixMode must be one of: {', '.join(valid_modes)}"
 
         main_commit = (data.get("mainCommit") or "").strip() or None
         pr_branch = (data.get("prBranch") or "").strip() or None

@@ -19,8 +19,8 @@
     Webhook,
   } from 'lucide-svelte';
   import { getAuth } from '$lib/stores/auth.svelte';
-  import type { Pipeline, MatrixLabel } from '$lib/types/ci';
-  import { MATRIX_LABEL_DISPLAY } from '$lib/types/ci';
+  import type { Pipeline, MatrixLabel, ValidationStage } from '$lib/types/ci';
+  import { MATRIX_LABEL_DISPLAY, STAGE_DISPLAY } from '$lib/types/ci';
   import type { Pagination } from '$lib/types/models';
   import { fetchPipelines, triggerPipeline } from '$lib/services/ci';
   import { formatTimeAgo, formatDateTime, formatDuration } from '$lib/utils/formatting';
@@ -54,10 +54,23 @@
     return TRIGGER_CONFIG[type] || TRIGGER_CONFIG.manual;
   }
 
-  // Get build matrix summary for Stage 4 pipelines
+  // Product info mapping (board -> display name, repo slug, hardware rev)
+  const PRODUCT_INFO: Record<string, { name: string; repo: string; rev: string }> = {
+    alpha_b0: { name: 'Alpha', repo: 'alpha_fw', rev: 'B0' },
+    sigma5_b0: { name: 'Sigma5', repo: 'sigma5_fw', rev: 'B0' },
+    sigma5_c0: { name: 'Sigma5', repo: 'sigma5_fw', rev: 'C0' },
+    theta_c0: { name: 'Theta', repo: 'theta_fw', rev: 'C0' },
+  };
+
+  function getProductInfo(product: string): { name: string; repo: string; rev: string } {
+    const key = product.toLowerCase().replace(/\s+/g, '_');
+    return PRODUCT_INFO[key] ?? { name: product, repo: `${key}_fw`, rev: '' };
+  }
+
+  // Get build matrix summary for validation pipelines
   function getMatrixSummary(pipeline: Pipeline): string | null {
     if (!pipeline.builds || pipeline.builds.length === 0) return null;
-    if (!pipeline.matrixMode || pipeline.matrixMode === 'legacy') return null;
+    if (!pipeline.matrixMode) return null;
 
     const statusCounts = new Map<string, number>();
     for (const build of pipeline.builds) {
@@ -166,7 +179,7 @@
         serialNumber: formSerialNumber || undefined,
       });
       resetForm();
-      goto(`/ci/pipelines/${pipeline.id}`);
+      goto(`/builds/pipelines/${pipeline.id}`);
     } catch (err: unknown) {
       error = err instanceof Error ? err.message : 'Failed to trigger pipeline';
     } finally {
@@ -327,16 +340,22 @@
     <div class="space-y-2">
       {#each pipelines as pipeline (pipeline.id)}
         {@const trigger = getTriggerConfig(pipeline.triggerType)}
+        {@const productInfo = getProductInfo(pipeline.product ?? '')}
         <button
-          onclick={() => goto(`/ci/pipelines/${pipeline.id}`)}
+          onclick={() => goto(`/builds/pipelines/${pipeline.id}`)}
           class="w-full rounded-lg border border-border bg-surface-0 px-4 py-3 text-left transition-colors hover:bg-surface-1"
         >
           <div class="flex items-center justify-between gap-4 mb-2">
             <div class="flex items-center gap-3 min-w-0">
               <Package size={16} class="flex-shrink-0 text-text-tertiary" />
               <span class="text-sm font-medium text-text-primary truncate">
-                {pipeline.product ?? pipeline.name ?? 'Build'}
+                {productInfo.name}
               </span>
+              {#if productInfo.rev}
+                <span class="inline-flex items-center gap-1 rounded bg-info-muted px-1.5 py-0.5 text-2xs text-info font-medium">
+                  {productInfo.rev}
+                </span>
+              {/if}
               {#if pipeline.branch}
                 <span class="inline-flex items-center gap-1 rounded bg-surface-2 px-1.5 py-0.5 text-2xs text-text-secondary">
                   <GitBranch size={10} />
@@ -344,7 +363,8 @@
                 </span>
               {/if}
               {#if pipeline.commitSha}
-                <span class="font-mono text-2xs text-text-tertiary">
+                <span class="inline-flex items-center gap-1 rounded bg-surface-2 px-1.5 py-0.5 text-2xs font-mono text-text-tertiary">
+                  <GitCommit size={10} />
                   {pipeline.commitSha.slice(0, 7)}
                 </span>
               {/if}
@@ -367,47 +387,44 @@
               <svelte:component this={trigger.icon} size={10} />
               {trigger.label}
             </span>
-            <!-- Stage 4 matrix indicator -->
-            {#if pipeline.matrixMode === 'stage4'}
-              <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-info-muted text-info font-medium">
+            <!-- Stage indicator -->
+            {#if pipeline.matrixMode && STAGE_DISPLAY[pipeline.matrixMode as ValidationStage]}
+              {@const stage = STAGE_DISPLAY[pipeline.matrixMode as ValidationStage]}
+              <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded {stage.color} font-medium" title={stage.description}>
                 <Grid3X3 size={10} />
-                Stage 4
+                {stage.name}
               </span>
             {/if}
-            <!-- Build summary: variants or matrix status -->
+            <!-- Build summary -->
             {#if pipeline.builds && pipeline.builds.length > 0}
-              {#if pipeline.matrixMode === 'stage4'}
-                {@const summary = getMatrixSummary(pipeline)}
-                {#if summary}
-                  <span class="text-text-tertiary">{summary}</span>
-                {/if}
+              {@const summary = getMatrixSummary(pipeline)}
+              {#if summary}
+                <span class="text-text-tertiary">{summary}</span>
               {:else}
                 <span class="text-text-tertiary">
                   {getVariantSummary(pipeline)}
                 </span>
               {/if}
             {/if}
-            <!-- Show matrix labels for Stage 4 -->
-            {#if pipeline.matrixMode === 'stage4' && pipeline.builds && pipeline.builds.length > 0}
-              <div class="flex items-center gap-1 ml-auto">
-                {#each pipeline.builds.slice(0, 4) as build}
-                  {@const display = build.matrixLabel ? MATRIX_LABEL_DISPLAY[build.matrixLabel as MatrixLabel] : null}
-                  {#if display}
-                    <span
-                      class="px-1 py-0.5 rounded text-3xs font-mono {
-                        build.status === 'SUCCESS' ? 'bg-success-muted text-success' :
-                        build.status === 'FAILED' ? 'bg-error-muted text-error' :
-                        build.status === 'BUILDING' ? 'bg-warning-muted text-warning' :
-                        'bg-surface-2 text-text-tertiary'
-                      }"
-                      title="{display.name}: {display.description}"
-                    >
-                      {display.name.substring(0, 6)}
-                    </span>
-                  {/if}
+            <!-- Show build versions with status colors and duration -->
+            {#if pipeline.builds && pipeline.builds.length > 0}
+              <div class="flex items-center gap-1.5 ml-auto">
+                {#each pipeline.builds.slice(0, 6) as build}
+                  <span
+                    class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-2xs font-mono {
+                      build.status === 'SUCCESS' ? 'bg-success-muted text-success' :
+                      build.status === 'FAILED' ? 'bg-error-muted text-error' :
+                      build.status === 'BUILDING' ? 'bg-warning-muted text-warning animate-pulse' :
+                      build.status === 'BLOCKED' ? 'bg-surface-2 text-text-tertiary' :
+                      'bg-surface-2 text-text-tertiary'
+                    }"
+                    title="{build.variant ?? ''} {build.versionString ?? ''} - {build.status}{build.durationSeconds ? ` (${formatDuration(build.durationSeconds * 1000)})` : ''}"
+                  >
+                    {build.versionString ?? '...'}
+                  </span>
                 {/each}
-                {#if pipeline.builds.length > 4}
-                  <span class="text-text-tertiary">+{pipeline.builds.length - 4}</span>
+                {#if pipeline.builds.length > 6}
+                  <span class="text-2xs text-text-tertiary">+{pipeline.builds.length - 6}</span>
                 {/if}
               </div>
             {/if}

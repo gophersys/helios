@@ -2,7 +2,7 @@
  * E2E tests for authentication flow.
  * These test what a real user would experience.
  */
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures';
 
 test.describe('Authentication', () => {
   test('redirects unauthenticated users to login', async ({ page }) => {

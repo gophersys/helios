@@ -22,6 +22,7 @@ export const MOCK_BUILDS: BuildJob[] = [
     startedAt: '2026-03-10T18:00:00Z',
     finishedAt: '2026-03-10T18:06:00Z',
     createdAt: '2026-03-10T18:00:00Z',
+    buildLog: null,
     artifacts: [],
   },
   {
@@ -41,6 +42,7 @@ export const MOCK_BUILDS: BuildJob[] = [
     startedAt: '2026-03-10T18:06:00Z',
     finishedAt: '2026-03-10T18:11:40Z',
     createdAt: '2026-03-10T18:06:00Z',
+    buildLog: null,
     artifacts: [],
   },
   {
@@ -60,6 +62,7 @@ export const MOCK_BUILDS: BuildJob[] = [
     startedAt: '2026-03-10T18:11:40Z',
     finishedAt: '2026-03-10T18:18:00Z',
     createdAt: '2026-03-10T18:11:40Z',
+    buildLog: null,
     artifacts: [],
   },
   {
@@ -79,6 +82,7 @@ export const MOCK_BUILDS: BuildJob[] = [
     startedAt: '2026-03-10T18:18:00Z',
     finishedAt: '2026-03-10T18:24:00Z',
     createdAt: '2026-03-10T18:18:00Z',
+    buildLog: null,
     artifacts: [],
   },
   {
@@ -98,6 +102,7 @@ export const MOCK_BUILDS: BuildJob[] = [
     startedAt: '2026-03-10T18:24:00Z',
     finishedAt: '2026-03-10T18:29:50Z',
     createdAt: '2026-03-10T18:24:00Z',
+    buildLog: null,
     artifacts: [],
   },
   {
@@ -117,6 +122,7 @@ export const MOCK_BUILDS: BuildJob[] = [
     startedAt: '2026-03-10T18:29:50Z',
     finishedAt: '2026-03-10T18:35:30Z',
     createdAt: '2026-03-10T18:29:50Z',
+    buildLog: null,
     artifacts: [],
   },
   {
@@ -136,6 +142,7 @@ export const MOCK_BUILDS: BuildJob[] = [
     startedAt: '2026-03-10T18:35:30Z',
     finishedAt: '2026-03-10T18:41:30Z',
     createdAt: '2026-03-10T18:35:30Z',
+    buildLog: null,
     artifacts: [],
   },
   {
@@ -155,6 +162,7 @@ export const MOCK_BUILDS: BuildJob[] = [
     startedAt: '2026-03-10T18:41:30Z',
     finishedAt: '2026-03-10T18:47:20Z',
     createdAt: '2026-03-10T18:41:30Z',
+    buildLog: null,
     artifacts: [],
   },
 ];

@@ -47,7 +47,7 @@ def _get_overlays_dir(product: str) -> Path | None:
 
 @require_permissions(Permissions.BUILDS_VIEW)
 def get_overlays(product: str):
-    """GET /v2/ci/overlays/<product> — Get overlay files as tarball."""
+    """GET /v2/builds/overlays/<product> — Get overlay files as tarball."""
     overlays_dir = _get_overlays_dir(product)
 
     if not overlays_dir:
@@ -74,7 +74,7 @@ def get_overlays(product: str):
 
 @require_permissions(Permissions.BUILDS_VIEW)
 def list_overlays(product: str):
-    """GET /v2/ci/overlays/<product>/list — List overlay files for a product."""
+    """GET /v2/builds/overlays/<product>/list — List overlay files for a product."""
     overlays_dir = _get_overlays_dir(product)
 
     if not overlays_dir:

@@ -2,7 +2,7 @@
  * E2E tests for common UI patterns.
  * Tests loading states, transitions, and core interactions.
  */
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures';
 
 test.describe('Loading States', () => {
   test('shows planes loader during page load', async ({ page }) => {

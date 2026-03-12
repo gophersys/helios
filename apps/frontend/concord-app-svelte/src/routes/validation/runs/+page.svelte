@@ -2,42 +2,46 @@
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import {
-    ChevronDown,
     ChevronRight,
     ChevronLeft,
     ChevronsLeft,
     ChevronsRight,
-    GitCompareArrows,
     Plus,
     Package,
     CheckCircle2,
     XCircle,
     Clock,
     Loader2,
+    Search,
+    Hand,
+    Moon,
+    GitBranch,
+    Shield,
+    Zap,
+    FlaskConical,
+    Flame,
+    Play,
+    AlertCircle,
   } from 'lucide-svelte';
   import { getAuth } from '$lib/stores/auth.svelte';
   import { apiFetch, api } from '$lib/api';
-  import type { ValidationRun, Product, Pagination } from '$lib/types/models';
+  import type { ValidationRun, ValidationTrigger, ValidationStage, Product, Pagination } from '$lib/types/models';
   import type { ApiResponse } from '$lib/types';
   import { formatTimeAgo, formatDateTime, formatDuration } from '$lib/utils/formatting';
   import EmptyState from '$lib/components/ui/empty-state.svelte';
   import ErrorAlert from '$lib/components/ui/error-alert.svelte';
   import FormCard from '$lib/components/ui/form-card.svelte';
-  import LoadingState from '$lib/components/ui/loading-state.svelte';
-  import PageHeader from '$lib/components/ui/page-header.svelte';
+  import PlanesLoader from '$lib/components/ui/planes-loader.svelte';
   import Select from '$lib/components/ui/select.svelte';
-  import StatusBadge from '$lib/components/ui/status-badge.svelte';
   import TextInput from '$lib/components/ui/text-input.svelte';
+  import { BitbucketIcon } from '$lib/components/icons';
 
   const auth = getAuth();
-  const canManage = $derived(auth.hasPermission('Concord.Admin.Validation.Manage'));
+  const canManage = $derived(auth.hasPermission('validation:manage'));
 
-  const STATUS_OPTIONS = [
-    { value: 'ACTIVE', label: 'Active' },
-    { value: 'COMPLETED', label: 'Completed' },
-    { value: 'CANCELLED', label: 'Cancelled' },
-    { value: 'PAUSED', label: 'Paused' },
-  ];
+  // Tab options
+  type TabType = 'active' | 'failed' | 'all';
+  let activeTab = $state<TabType>('all');
 
   const VARIANT_OPTIONS = [
     { value: 'debug', label: 'Debug' },
@@ -45,15 +49,22 @@
     { value: 'mfg', label: 'Manufacturing' },
   ];
 
+  const STAGE_OPTIONS = [
+    { value: 'gate', label: 'Gate Tests' },
+    { value: 'smoke', label: 'Smoke' },
+    { value: 'integration', label: 'Integration' },
+    { value: 'nightly', label: 'Nightly' },
+  ];
+
   // List state
   let runs = $state<ValidationRun[]>([]);
-  let pagination = $state<Pagination>({ page: 1, limit: 100, total: 0, pages: 0 });
+  let pagination = $state<Pagination>({ page: 1, limit: 50, total: 0, pages: 0 });
   let loading = $state(true);
   let error = $state<string | null>(null);
-  let statusFilter = $state('');
   let page = $state(1);
-  let selectedRuns = $state<string[]>([]);
-  let expandedProducts = $state<Set<string>>(new Set());
+
+  // Search
+  let searchQuery = $state('');
 
   // Create form state
   let showForm = $state(false);
@@ -62,6 +73,7 @@
   let formNodeId = $state('');
   let formSerialNumber = $state('');
   let formVariant = $state('');
+  let formStage = $state('gate');
   let formNotes = $state('');
   let submitting = $state(false);
 
@@ -69,73 +81,163 @@
   let products = $state<{ value: string; label: string }[]>([]);
   let nodes = $state<{ value: string; label: string }[]>([]);
 
-  // Group runs by product
-  interface ProductGroup {
-    productId: string;
-    productName: string;
-    runs: ValidationRun[];
-    totalPassed: number;
-    totalFailed: number;
-    latestRun: ValidationRun | null;
-  }
+  // Counts for tabs
+  const activeCount = $derived(runs.filter(r => r.status === 'ACTIVE').length);
+  const failedCount = $derived(runs.filter(r => r.status === 'COMPLETED' && (r.failedCount ?? 0) > 0).length);
 
-  const groupedRuns = $derived.by(() => {
-    const groups: Map<string, ProductGroup> = new Map();
+  // Filter and sort runs based on tab and search
+  const filteredRuns = $derived.by(() => {
+    let result = runs;
 
-    for (const run of runs) {
-      const productId = run.product?.id ?? 'unknown';
-      const productName = run.product?.name ?? 'Unknown Product';
-
-      if (!groups.has(productId)) {
-        groups.set(productId, {
-          productId,
-          productName,
-          runs: [],
-          totalPassed: 0,
-          totalFailed: 0,
-          latestRun: null,
-        });
-      }
-
-      const group = groups.get(productId)!;
-      group.runs.push(run);
-      group.totalPassed += run.passedCount ?? 0;
-      group.totalFailed += run.failedCount ?? 0;
-
-      if (!group.latestRun || new Date(run.createdAt) > new Date(group.latestRun.createdAt)) {
-        group.latestRun = run;
-      }
+    // Filter by tab
+    if (activeTab === 'active') {
+      result = result.filter(r => r.status === 'ACTIVE');
+    } else if (activeTab === 'failed') {
+      result = result.filter(r => r.status === 'COMPLETED' && (r.failedCount ?? 0) > 0);
     }
 
-    // Sort by latest activity
-    return Array.from(groups.values()).sort((a, b) => {
-      if (!a.latestRun || !b.latestRun) return 0;
-      return new Date(b.latestRun.createdAt).getTime() - new Date(a.latestRun.createdAt).getTime();
+    // Filter by search
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(r =>
+        r.name.toLowerCase().includes(q) ||
+        r.product?.name?.toLowerCase().includes(q) ||
+        (r.config as any)?.serialNumber?.toLowerCase().includes(q) ||
+        (r.config as any)?.firmwareVersion?.toLowerCase().includes(q) ||
+        r.createdBy?.name?.toLowerCase().includes(q)
+      );
+    }
+
+    // Smart sorting: active first, then failed, then passed
+    return result.sort((a, b) => {
+      // Active always first
+      if (a.status === 'ACTIVE' && b.status !== 'ACTIVE') return -1;
+      if (b.status === 'ACTIVE' && a.status !== 'ACTIVE') return 1;
+
+      // Then by recency
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
   });
 
-  function toggleProduct(productId: string): void {
-    const newSet = new Set(expandedProducts);
-    if (newSet.has(productId)) {
-      newSet.delete(productId);
-    } else {
-      newSet.add(productId);
-    }
-    expandedProducts = newSet;
+  // Helper functions
+  function getTrigger(run: ValidationRun): ValidationTrigger {
+    if (run.trigger) return run.trigger;
+    const config = run.config as Record<string, unknown> | null;
+    if (config?.bitbucketPrId || config?.pullRequestId) return 'bitbucket';
+    if (config?.nightlyRun || config?.scheduled) return 'nightly';
+    if (config?.pipelineId) return 'ci';
+    return 'manual';
   }
 
-  function toggleSelect(id: string): void {
-    if (selectedRuns.includes(id)) {
-      selectedRuns = selectedRuns.filter(r => r !== id);
-    } else if (selectedRuns.length < 2) {
-      selectedRuns = [...selectedRuns, id];
+  function getStage(run: ValidationRun): ValidationStage {
+    if (run.stage) return run.stage;
+    const config = run.config as Record<string, unknown> | null;
+    if (config?.stage) return config.stage as ValidationStage;
+    const name = run.name.toLowerCase();
+    if (name.includes('gate')) return 'gate';
+    if (name.includes('nightly')) return 'nightly';
+    if (name.includes('integration')) return 'integration';
+    if (name.includes('smoke')) return 'smoke';
+    return 'gate';
+  }
+
+  function getTriggerContext(run: ValidationRun): { icon: typeof BitbucketIcon | typeof Moon | typeof Hand | typeof GitBranch; text: string; iconClass: string } {
+    const trigger = getTrigger(run);
+    const config = run.config as Record<string, unknown> | null;
+
+    switch (trigger) {
+      case 'bitbucket': {
+        const prId = config?.bitbucketPrId || config?.pullRequestId || '';
+        const prTitle = config?.prTitle || config?.commitMessage || '';
+        return {
+          icon: BitbucketIcon,
+          text: prId ? `PR #${prId}${prTitle ? `: ${prTitle}` : ''}` : 'Bitbucket PR',
+          iconClass: 'text-blue-400'
+        };
+      }
+      case 'nightly':
+      case 'scheduled':
+        return {
+          icon: Moon,
+          text: 'Scheduled nightly run',
+          iconClass: 'text-purple-400'
+        };
+      case 'ci': {
+        const pipelineId = config?.pipelineId || '';
+        return {
+          icon: GitBranch,
+          text: pipelineId ? `CI Pipeline #${pipelineId}` : 'CI Pipeline',
+          iconClass: 'text-orange-400'
+        };
+      }
+      default:
+        return {
+          icon: Hand,
+          text: run.createdBy ? `Manual run by ${run.createdBy.name}` : 'Manual run',
+          iconClass: 'text-text-tertiary'
+        };
     }
   }
 
-  function compareSelected(): void {
-    if (selectedRuns.length === 2) {
-      goto(`/validation/runs/compare?a=${selectedRuns[0]}&b=${selectedRuns[1]}`);
+  function getStageDisplay(stage: ValidationStage): { label: string; icon: typeof Shield; colorClass: string; bgClass: string } {
+    switch (stage) {
+      case 'gate':
+        return { label: 'GATE TESTS', icon: Shield, colorClass: 'text-accent', bgClass: 'bg-accent' };
+      case 'nightly':
+        return { label: 'NIGHTLY', icon: Moon, colorClass: 'text-purple-400', bgClass: 'bg-purple-500' };
+      case 'integration':
+        return { label: 'INTEGRATION', icon: FlaskConical, colorClass: 'text-blue-400', bgClass: 'bg-blue-500' };
+      case 'smoke':
+        return { label: 'SMOKE', icon: Flame, colorClass: 'text-orange-400', bgClass: 'bg-orange-500' };
+      default:
+        return { label: 'CUSTOM', icon: Zap, colorClass: 'text-text-secondary', bgClass: 'bg-surface-3' };
     }
+  }
+
+  function getStatusDisplay(run: ValidationRun): { label: string; icon: typeof CheckCircle2; colorClass: string } {
+    if (run.status === 'ACTIVE') {
+      return { label: 'RUNNING', icon: Loader2, colorClass: 'text-accent' };
+    }
+    if (run.status === 'CANCELLED') {
+      return { label: 'CANCELLED', icon: XCircle, colorClass: 'text-text-tertiary' };
+    }
+    if ((run.failedCount ?? 0) > 0) {
+      return { label: 'FAILED', icon: XCircle, colorClass: 'text-error' };
+    }
+    return { label: 'PASSED', icon: CheckCircle2, colorClass: 'text-success' };
+  }
+
+  function getProgressPercent(run: ValidationRun): number {
+    if (!run.targetCount) return 0;
+    return Math.round(((run.passedCount ?? 0) + (run.failedCount ?? 0)) / run.targetCount * 100);
+  }
+
+  function getDuration(run: ValidationRun): string | null {
+    if (!run.startedAt) return null;
+    const start = new Date(run.startedAt).getTime();
+    const end = run.finishedAt ? new Date(run.finishedAt).getTime() : Date.now();
+    return formatDuration(end - start);
+  }
+
+  function getFailedTests(run: ValidationRun): string[] {
+    // Extract from executions if available
+    const executions = (run as any).executions as any[] | undefined;
+    if (executions?.length) {
+      return executions
+        .filter(ex => ex.status === 'FAILED')
+        .map(ex => ex.test?.name || 'Unknown test')
+        .slice(0, 3);
+    }
+    return [];
+  }
+
+  function getCurrentTest(run: ValidationRun): string | null {
+    const executions = (run as any).executions as any[] | undefined;
+    if (executions?.length) {
+      const running = executions.find(ex => ex.status === 'RUNNING');
+      return running?.test?.name || null;
+    }
+    return null;
   }
 
   async function fetchRuns(): Promise<void> {
@@ -143,8 +245,7 @@
     try {
       const params = new URLSearchParams();
       params.set('page', String(page));
-      params.set('limit', '100');
-      if (statusFilter) params.set('status', statusFilter);
+      params.set('limit', '50');
 
       const res = await apiFetch<ApiResponse<{ data: ValidationRun[]; pagination: Pagination }>>(
         '/v2/validation/runs?' + params.toString()
@@ -152,12 +253,6 @@
 
       runs = res.data.data;
       pagination = res.data.pagination;
-
-      // Auto-expand first product with active runs, or first product
-      if (expandedProducts.size === 0 && groupedRuns.length > 0) {
-        const activeGroup = groupedRuns.find(g => g.runs.some(r => r.status === 'ACTIVE'));
-        expandedProducts = new Set([activeGroup?.productId ?? groupedRuns[0].productId]);
-      }
     } catch (err: unknown) {
       error = err instanceof Error ? err.message : 'Failed to load validation runs';
     } finally {
@@ -188,6 +283,7 @@
     formNodeId = '';
     formSerialNumber = '';
     formVariant = '';
+    formStage = 'gate';
     formNotes = '';
     showForm = false;
   }
@@ -204,6 +300,7 @@
       serialNumber: formSerialNumber,
     };
     if (formVariant) body.firmwareVariant = formVariant;
+    if (formStage) body.stage = formStage;
     if (formNotes.trim()) body.notes = formNotes.trim();
 
     try {
@@ -220,22 +317,8 @@
     }
   }
 
-  function getRunStatus(run: ValidationRun): 'running' | 'passed' | 'failed' | 'cancelled' {
-    if (run.status === 'ACTIVE') return 'running';
-    if (run.status === 'CANCELLED') return 'cancelled';
-    if ((run.failedCount ?? 0) > 0) return 'failed';
-    return 'passed';
-  }
-
-  function getRunDuration(run: ValidationRun): string | null {
-    if (!run.startedAt) return null;
-    const start = new Date(run.startedAt).getTime();
-    const end = run.finishedAt ? new Date(run.finishedAt).getTime() : Date.now();
-    return formatDuration(end - start);
-  }
-
   onMount(() => {
-    if (!auth.hasPermission('Concord.Admin.Validation.View')) {
+    if (!auth.hasPermission('validation:view')) {
       goto('/');
       return;
     }
@@ -246,23 +329,28 @@
     const _p = page;
     fetchRuns();
   });
-
-  $effect(() => {
-    const _s = statusFilter;
-    page = 1;
-  });
 </script>
 
 <svelte:head>
   <title>Validation Runs — Concord</title>
 </svelte:head>
 
-<div class="animate-fade-in">
-  <div class="mb-6">
-    <PageHeader
-      title="Validation Runs"
-      description="Product validation test sessions grouped by product."
-    />
+<div class="space-y-4">
+  <!-- Header -->
+  <div class="flex items-start justify-between">
+    <div>
+      <h1 class="text-xl font-semibold text-text-primary">Validation Runs</h1>
+      <p class="text-sm text-text-tertiary mt-0.5">Hardware test results for firmware validation</p>
+    </div>
+    {#if canManage}
+      <button
+        onclick={() => { showForm = true; fetchDropdowns(); }}
+        class="btn btn-sm btn-primary flex items-center gap-1.5"
+      >
+        <Plus size={14} />
+        New Run
+      </button>
+    {/if}
   </div>
 
   <ErrorAlert message={error} />
@@ -271,7 +359,7 @@
   {#if showForm}
     <FormCard title="New Validation Run" onClose={resetForm}>
       <form onsubmit={handleSubmit} class="space-y-3">
-        <TextInput bind:value={formName} label="Name" placeholder="e.g. Alpha REV1.2 Debug v0.1.12" required />
+        <TextInput bind:value={formName} label="Name" placeholder="e.g. Alpha Gate v0.5.1 PR-123" required />
 
         <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Select
@@ -290,13 +378,18 @@
           />
         </div>
 
-        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <TextInput bind:value={formSerialNumber} label="Serial Number" placeholder="e.g. 70B3D584C01E1FCC" required />
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <TextInput bind:value={formSerialNumber} label="Serial Number" placeholder="70B3D584C01E1FCC" required />
           <Select
             bind:value={formVariant}
             label="Firmware Variant"
             placeholder="Any variant"
             options={VARIANT_OPTIONS}
+          />
+          <Select
+            bind:value={formStage}
+            label="Test Stage"
+            options={STAGE_OPTIONS}
           />
         </div>
 
@@ -306,7 +399,7 @@
             id="notes"
             bind:value={formNotes}
             rows={2}
-            placeholder="Optional notes about this run..."
+            placeholder="Optional notes..."
             class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
           ></textarea>
         </div>
@@ -321,187 +414,182 @@
     </FormCard>
   {/if}
 
-  <!-- Toolbar -->
-  <div class="mb-4 flex flex-wrap items-center gap-3">
-    <Select
-      bind:value={statusFilter}
-      placeholder="All statuses"
-      options={STATUS_OPTIONS}
-    />
-    <span class="ml-auto text-2xs text-text-tertiary">
-      {pagination.total} runs across {groupedRuns.length} products
-    </span>
-    {#if selectedRuns.length === 2}
+  <!-- Tabs and Search -->
+  <div class="flex items-center justify-between gap-4">
+    <!-- Tabs -->
+    <div class="flex items-center gap-1 p-1 rounded-lg bg-surface-1">
       <button
-        onclick={compareSelected}
-        class="btn btn-sm flex items-center gap-1.5"
+        onclick={() => { activeTab = 'active'; }}
+        class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-1.5
+          {activeTab === 'active' ? 'bg-surface-0 text-text-primary shadow-sm' : 'text-text-secondary hover:text-text-primary'}"
       >
-        <GitCompareArrows size={14} />
-        Compare Selected
+        <Loader2 size={14} class={activeTab === 'active' ? 'text-accent' : ''} />
+        Active
+        {#if activeCount > 0}
+          <span class="px-1.5 py-0.5 rounded-full text-2xs bg-accent text-white">{activeCount}</span>
+        {/if}
       </button>
-    {/if}
-    {#if canManage}
       <button
-        onclick={() => { showForm = true; fetchDropdowns(); }}
-        class="btn btn-sm btn-primary flex items-center gap-1.5"
+        onclick={() => { activeTab = 'failed'; }}
+        class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-1.5
+          {activeTab === 'failed' ? 'bg-surface-0 text-text-primary shadow-sm' : 'text-text-secondary hover:text-text-primary'}"
       >
-        <Plus size={14} />
-        New Run
+        <XCircle size={14} class={activeTab === 'failed' ? 'text-error' : ''} />
+        Failed
+        {#if failedCount > 0}
+          <span class="px-1.5 py-0.5 rounded-full text-2xs bg-error text-white">{failedCount}</span>
+        {/if}
       </button>
-    {/if}
+      <button
+        onclick={() => { activeTab = 'all'; }}
+        class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors
+          {activeTab === 'all' ? 'bg-surface-0 text-text-primary shadow-sm' : 'text-text-secondary hover:text-text-primary'}"
+      >
+        All Runs
+      </button>
+    </div>
+
+    <!-- Search -->
+    <div class="relative">
+      <Search size={14} class="absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary" />
+      <input
+        type="text"
+        bind:value={searchQuery}
+        placeholder="Search version, PR, test..."
+        class="pl-9 pr-3 py-1.5 w-64 text-sm rounded-lg border border-border bg-surface-0 text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
+      />
+    </div>
   </div>
 
+  <!-- Runs list -->
   {#if loading}
-    <LoadingState message="Loading validation runs..." />
-  {:else if groupedRuns.length === 0}
-    <EmptyState message="No validation runs found." />
+    <PlanesLoader message="Loading validation runs..." />
+  {:else if filteredRuns.length === 0}
+    <EmptyState message={searchQuery ? 'No runs match your search.' : activeTab === 'active' ? 'No active runs.' : activeTab === 'failed' ? 'No failed runs. Nice!' : 'No validation runs yet.'} />
   {:else}
-    <!-- Product groups -->
     <div class="space-y-3">
-      {#each groupedRuns as group (group.productId)}
-        {@const isExpanded = expandedProducts.has(group.productId)}
-        {@const hasActive = group.runs.some(r => r.status === 'ACTIVE')}
-        {@const hasFailed = group.totalFailed > 0}
+      {#each filteredRuns as run (run.id)}
+        {@const stage = getStage(run)}
+        {@const stageDisplay = getStageDisplay(stage)}
+        {@const statusDisplay = getStatusDisplay(run)}
+        {@const triggerContext = getTriggerContext(run)}
+        {@const config = run.config as Record<string, unknown> | null}
+        {@const failedTests = getFailedTests(run)}
+        {@const currentTest = getCurrentTest(run)}
+        {@const progressPct = getProgressPercent(run)}
 
-        <div class="rounded-xl border border-border bg-surface-1 overflow-hidden">
-          <!-- Product header -->
-          <button
-            onclick={() => toggleProduct(group.productId)}
-            class="w-full flex items-center gap-4 px-4 py-3 hover:bg-surface-0 transition-colors text-left"
-          >
-            <!-- Expand icon -->
-            <div class="flex-shrink-0 text-text-tertiary">
-              {#if isExpanded}
-                <ChevronDown size={18} />
-              {:else}
-                <ChevronRight size={18} />
+        <!-- Run Card -->
+        <button
+          onclick={() => goto(`/validation/runs/${run.id}`)}
+          class="w-full text-left rounded-xl border border-border bg-surface-0 overflow-hidden hover:border-accent/50 hover:shadow-lg transition-all group"
+        >
+          <!-- Card Header: Stage + Status -->
+          <div class="flex items-center justify-between px-4 py-2 border-b border-border bg-surface-1">
+            <div class="flex items-center gap-2">
+              <svelte:component this={stageDisplay.icon} size={14} class={stageDisplay.colorClass} />
+              <span class="text-xs font-bold tracking-wide {stageDisplay.colorClass}">
+                {stageDisplay.label}
+              </span>
+              <span class="text-xs font-bold {statusDisplay.colorClass}">
+                {statusDisplay.label}
+              </span>
+              {#if run.status === 'ACTIVE'}
+                <svelte:component this={Loader2} size={12} class="text-accent animate-spin" />
               {/if}
             </div>
+            <span class="text-2xs text-text-tertiary" title={formatDateTime(run.createdAt)}>
+              {formatTimeAgo(run.createdAt)}
+            </span>
+          </div>
 
-            <!-- Product icon -->
-            <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg {hasActive ? 'bg-accent-muted' : hasFailed ? 'bg-error-muted' : 'bg-success-muted'}">
-              <Package size={20} class="{hasActive ? 'text-accent' : hasFailed ? 'text-error' : 'text-success'}" />
+          <!-- Card Body -->
+          <div class="px-4 py-3 space-y-3">
+            <!-- Trigger Context -->
+            <div class="flex items-center gap-2 text-sm">
+              <svelte:component this={triggerContext.icon} size={16} class={triggerContext.iconClass} />
+              <span class="text-text-primary font-medium truncate">{triggerContext.text}</span>
             </div>
 
-            <!-- Product info -->
-            <div class="flex-1 min-w-0">
-              <div class="flex items-center gap-2">
-                <h3 class="text-sm font-semibold text-text-primary truncate">{group.productName}</h3>
-                {#if hasActive}
-                  <span class="inline-flex items-center gap-1 rounded-full bg-accent-muted px-2 py-0.5 text-2xs font-medium text-accent">
-                    <Loader2 size={10} class="animate-spin" />
-                    Active
+            <!-- Hardware Context -->
+            <div class="flex items-center gap-2 text-xs text-text-secondary">
+              <Package size={12} class="text-text-tertiary" />
+              <span>{run.product?.name || 'Unknown Product'}</span>
+              <span class="text-text-tertiary">•</span>
+              <span class="font-mono">{config?.firmwareVersion || config?.firmwareVariant || 'v?.?.?'}-{config?.firmwareVariant || 'debug'}</span>
+              <span class="text-text-tertiary">•</span>
+              <span class="font-mono text-text-tertiary">{config?.serialNumber || '—'}</span>
+            </div>
+
+            <!-- Progress Bar -->
+            <div class="space-y-1">
+              <div class="flex items-center justify-between text-xs">
+                <div class="flex items-center gap-3">
+                  <span class="flex items-center gap-1">
+                    <CheckCircle2 size={12} class="text-success" />
+                    <span class="text-text-primary font-medium">{run.passedCount ?? 0}</span>
+                  </span>
+                  <span class="flex items-center gap-1 {(run.failedCount ?? 0) > 0 ? 'text-error' : 'text-text-tertiary'}">
+                    <XCircle size={12} />
+                    <span class="font-medium">{run.failedCount ?? 0}</span>
+                  </span>
+                  <span class="text-text-tertiary">/ {run.targetCount ?? 0} tests</span>
+                </div>
+                {#if getDuration(run)}
+                  <span class="flex items-center gap-1 text-text-tertiary">
+                    <Clock size={12} />
+                    {getDuration(run)}
                   </span>
                 {/if}
               </div>
-              <div class="flex items-center gap-3 mt-0.5 text-2xs text-text-tertiary">
-                <span>{group.runs.length} run{group.runs.length !== 1 ? 's' : ''}</span>
-                {#if group.latestRun}
-                  <span>Latest: {formatTimeAgo(group.latestRun.createdAt)}</span>
-                {/if}
-              </div>
-            </div>
-
-            <!-- Stats -->
-            <div class="flex items-center gap-4 text-sm">
-              <div class="flex items-center gap-1.5">
-                <CheckCircle2 size={16} class="text-success" />
-                <span class="font-medium tabular-nums text-text-primary">{group.totalPassed}</span>
-              </div>
-              <div class="flex items-center gap-1.5">
-                <XCircle size={16} class="{group.totalFailed > 0 ? 'text-error' : 'text-text-tertiary'}" />
-                <span class="font-medium tabular-nums text-text-primary">{group.totalFailed}</span>
-              </div>
-            </div>
-          </button>
-
-          <!-- Runs list -->
-          {#if isExpanded}
-            <div class="border-t border-border">
-              {#each group.runs as run, idx (run.id)}
-                {@const runStatus = getRunStatus(run)}
+              <div class="h-1.5 bg-surface-2 rounded-full overflow-hidden">
                 <div
-                  class="flex items-center gap-3 px-4 py-2.5 hover:bg-surface-0 cursor-pointer transition-colors {idx !== group.runs.length - 1 ? 'border-b border-border' : ''}"
-                  onclick={() => goto(`/validation/runs/${run.id}`)}
-                >
-                  <!-- Checkbox -->
-                  <div onclick={(e: MouseEvent) => e.stopPropagation()}>
-                    <input
-                      type="checkbox"
-                      checked={selectedRuns.includes(run.id)}
-                      disabled={!selectedRuns.includes(run.id) && selectedRuns.length >= 2}
-                      onchange={() => toggleSelect(run.id)}
-                      class="rounded border-border"
-                    />
-                  </div>
-
-                  <!-- Status icon -->
-                  <div class="flex-shrink-0">
-                    {#if runStatus === 'running'}
-                      <Loader2 size={16} class="text-accent animate-spin" />
-                    {:else if runStatus === 'passed'}
-                      <CheckCircle2 size={16} class="text-success" />
-                    {:else if runStatus === 'failed'}
-                      <XCircle size={16} class="text-error" />
-                    {:else}
-                      <XCircle size={16} class="text-text-tertiary" />
-                    {/if}
-                  </div>
-
-                  <!-- Run info -->
-                  <div class="flex-1 min-w-0">
-                    <div class="flex items-center gap-2">
-                      <span class="text-sm font-medium text-text-primary truncate">{run.name}</span>
-                      <StatusBadge status={run.status} />
-                    </div>
-                    <div class="flex items-center gap-2 mt-0.5 text-2xs text-text-tertiary">
-                      {#if run.createdBy}
-                        <span>{run.createdBy.name}</span>
-                        <span>·</span>
-                      {/if}
-                      <span title={formatDateTime(run.createdAt)}>{formatTimeAgo(run.createdAt)}</span>
-                    </div>
-                  </div>
-
-                  <!-- Progress / Results -->
-                  <div class="flex items-center gap-4 text-xs">
-                    <div class="flex items-center gap-3 tabular-nums">
-                      <span class="text-success">{run.passedCount ?? 0}P</span>
-                      <span class="{(run.failedCount ?? 0) > 0 ? 'text-error' : 'text-text-tertiary'}">{run.failedCount ?? 0}F</span>
-                      <span class="text-text-tertiary">/ {run.targetCount ?? 0}</span>
-                    </div>
-
-                    {#if getRunDuration(run)}
-                      <div class="flex items-center gap-1 text-text-tertiary">
-                        <Clock size={12} />
-                        <span class="tabular-nums">{getRunDuration(run)}</span>
-                      </div>
-                    {/if}
-                  </div>
-
-                  <!-- Arrow -->
-                  <ChevronRight size={16} class="text-text-tertiary" />
-                </div>
-              {/each}
+                  class="h-full rounded-full transition-all duration-500 {(run.failedCount ?? 0) > 0 ? 'bg-error' : run.status === 'ACTIVE' ? 'bg-accent' : 'bg-success'}"
+                  style="width: {progressPct}%"
+                ></div>
+              </div>
             </div>
-          {/if}
-        </div>
+
+            <!-- Failed Tests or Current Test -->
+            {#if failedTests.length > 0}
+              <div class="flex items-start gap-2 text-xs">
+                <AlertCircle size={12} class="text-error mt-0.5 flex-shrink-0" />
+                <div class="flex flex-wrap gap-1">
+                  {#each failedTests as testName}
+                    <span class="px-1.5 py-0.5 rounded bg-error/10 text-error font-mono">{testName}</span>
+                  {/each}
+                  {#if (run.failedCount ?? 0) > 3}
+                    <span class="px-1.5 py-0.5 rounded bg-error/10 text-error">+{(run.failedCount ?? 0) - 3} more</span>
+                  {/if}
+                </div>
+              </div>
+            {:else if run.status === 'ACTIVE' && currentTest}
+              <div class="flex items-center gap-2 text-xs">
+                <Play size={12} class="text-accent" />
+                <span class="text-text-secondary">Running:</span>
+                <span class="font-mono text-text-primary">{currentTest}</span>
+              </div>
+            {/if}
+          </div>
+
+          <!-- Hover indicator -->
+          <div class="h-0.5 bg-accent scale-x-0 group-hover:scale-x-100 transition-transform origin-left"></div>
+        </button>
       {/each}
     </div>
   {/if}
 
   <!-- Pagination -->
   {#if pagination.pages > 1}
-    <div class="mt-4 flex items-center justify-between">
+    <div class="flex items-center justify-between pt-2">
       <span class="text-2xs text-text-tertiary">
-        Page {pagination.page} of {pagination.pages}
+        Page {pagination.page} of {pagination.pages} · {pagination.total} runs
       </span>
       <div class="flex items-center gap-1">
         <button
           onclick={() => (page = 1)}
           disabled={page <= 1}
           aria-label="First page"
-          class="rounded-lg p-2 text-text-secondary transition-colors hover:bg-surface-1 disabled:opacity-30 disabled:hover:bg-transparent"
+          class="rounded-lg p-2 text-text-secondary transition-colors hover:bg-surface-1 disabled:opacity-30"
         >
           <ChevronsLeft size={16} />
         </button>
@@ -509,7 +597,7 @@
           onclick={() => (page = Math.max(1, page - 1))}
           disabled={page <= 1}
           aria-label="Previous page"
-          class="rounded-lg p-2 text-text-secondary transition-colors hover:bg-surface-1 disabled:opacity-30 disabled:hover:bg-transparent"
+          class="rounded-lg p-2 text-text-secondary transition-colors hover:bg-surface-1 disabled:opacity-30"
         >
           <ChevronLeft size={16} />
         </button>
@@ -517,7 +605,7 @@
           onclick={() => (page = Math.min(pagination.pages, page + 1))}
           disabled={page >= pagination.pages}
           aria-label="Next page"
-          class="rounded-lg p-2 text-text-secondary transition-colors hover:bg-surface-1 disabled:opacity-30 disabled:hover:bg-transparent"
+          class="rounded-lg p-2 text-text-secondary transition-colors hover:bg-surface-1 disabled:opacity-30"
         >
           <ChevronRight size={16} />
         </button>
@@ -525,7 +613,7 @@
           onclick={() => (page = pagination.pages)}
           disabled={page >= pagination.pages}
           aria-label="Last page"
-          class="rounded-lg p-2 text-text-secondary transition-colors hover:bg-surface-1 disabled:opacity-30 disabled:hover:bg-transparent"
+          class="rounded-lg p-2 text-text-secondary transition-colors hover:bg-surface-1 disabled:opacity-30"
         >
           <ChevronsRight size={16} />
         </button>

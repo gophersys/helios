@@ -399,3 +399,76 @@ def cancel_run(run_id: str):
     log_audit("validation.run.cancel", "Session", run_id, {"previousStatus": "ACTIVE"})
 
     return jsonify(ApiResponse.ok(_serialize_session(session)).to_dict()), 200
+
+
+@require_permissions(Permissions.VALIDATION_VIEW)
+def get_run_job(run_id: str):
+    """GET /v2/validation/runs/<id>/job — Get K8s job and pod info for live log streaming."""
+    db = get_db_client()
+
+    session = db.session.find_unique(where={"id": run_id})
+    if not session:
+        return not_found("Validation run not found")
+
+    # Extract job name from config
+    config = session.config if isinstance(session.config, dict) else {}
+    trigger_meta = config.get("trigger", {})
+    job_name = trigger_meta.get("jobName")
+
+    if not job_name:
+        return jsonify(ApiResponse.ok({
+            "jobName": None,
+            "pod": None,
+            "message": "No K8s job associated with this run",
+        }).to_dict()), 200
+
+    # Get job and pod info from K8s
+    from src.services.kubernetes import jobs as jobs_svc
+
+    # Validation jobs run in staging namespace by default
+    namespace = config.get("namespace", "staging")
+
+    job_info = jobs_svc.get_job(namespace, job_name)
+    if not job_info:
+        # Job may have been cleaned up
+        return jsonify(ApiResponse.ok({
+            "jobName": job_name,
+            "namespace": namespace,
+            "pod": None,
+            "message": "K8s job not found (may have been cleaned up)",
+        }).to_dict()), 200
+
+    # Find the active pod
+    pod = None
+    containers = []
+    if job_info.get("pods"):
+        # Prefer running pod, fall back to most recent
+        for p in job_info["pods"]:
+            if p["status"] == "Running":
+                pod = p
+                break
+        if not pod and job_info["pods"]:
+            pod = job_info["pods"][-1]  # Most recent
+
+    # Get container names from the pod
+    if pod:
+        from src.services.kubernetes.client import get_core_v1_api
+        try:
+            core = get_core_v1_api()
+            pod_obj = core.read_namespaced_pod(pod["name"], namespace)
+            containers = [c.name for c in (pod_obj.spec.containers or [])]
+        except Exception:
+            containers = ["validation"]  # Default container name
+
+    return jsonify(ApiResponse.ok({
+        "jobName": job_name,
+        "namespace": namespace,
+        "job": {
+            "status": job_info.get("status"),
+            "succeeded": job_info.get("succeeded"),
+            "failed": job_info.get("failed"),
+            "active": job_info.get("active"),
+        },
+        "pod": pod,
+        "containers": containers,
+    }).to_dict()), 200

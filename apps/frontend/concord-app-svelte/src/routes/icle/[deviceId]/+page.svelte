@@ -17,7 +17,7 @@
   import type { ApiResponse } from '$lib/types';
 
   const auth = getAuth();
-  const canManage = $derived(auth.hasPermission('Concord.Admin.Devices.Manage'));
+  const canManage = $derived(auth.hasPermission('devices:manage'));
 
   const deviceId = $derived($page.params.deviceId as string);
 
@@ -110,7 +110,7 @@
   }
 
   onMount(() => {
-    if (!auth.hasPermission('Concord.Admin.Devices.View')) {
+    if (!auth.hasPermission('devices:view')) {
       goto('/');
       return;
     }

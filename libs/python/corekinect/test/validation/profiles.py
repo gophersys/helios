@@ -289,7 +289,7 @@ class FixtureProfile:
 
         # Try by ID first (assume bench_id is a CUID)
         resp = requests.get(
-            f"{api_url}/v2/validation/benches/{bench_id}/profile",
+            f"{api_url}/v2/benches/{bench_id}/profile",
             headers=headers,
             timeout=30,
         )
@@ -297,7 +297,7 @@ class FixtureProfile:
         if resp.status_code == 404:
             # Try looking up by station_id
             list_resp = requests.get(
-                f"{api_url}/v2/validation/benches",
+                f"{api_url}/v2/benches",
                 headers=headers,
                 params={"station_id": bench_id},
                 timeout=30,
@@ -308,7 +308,7 @@ class FixtureProfile:
                     # Found bench by station_id, now get its profile
                     bench = benches[0]
                     resp = requests.get(
-                        f"{api_url}/v2/validation/benches/{bench['id']}/profile",
+                        f"{api_url}/v2/benches/{bench['id']}/profile",
                         headers=headers,
                         timeout=30,
                     )

@@ -9,15 +9,21 @@ When these are NOT set, the reporter does absolutely nothing — tests run
 exactly as they always have. This is the "offline mode" for local
 development and SSH-based runs.
 
-When activated, the reporter makes HTTP calls to the 6A callback endpoints:
+When activated, the reporter makes HTTP calls to the callback endpoints:
     POST /v2/validation/runs/<id>/report/start
     POST /v2/validation/runs/<id>/report/test-start
     POST /v2/validation/runs/<id>/report/test-result
     POST /v2/validation/runs/<id>/report/finish
+    POST /v2/validation/runs/<id>/report/log-chunk  (live streaming)
 
 All HTTP calls are fire-and-forget with error handling — the reporter NEVER
 causes a test to fail. If the API is unreachable, errors are logged and
 the test suite continues normally.
+
+Live Log Streaming:
+    When enabled, stdout/stderr are captured in real-time and streamed to the
+    API via log-chunk endpoint. Each chunk is tagged with the currently running
+    test name so the frontend can display per-test logs live.
 
 Registration:
     Add to conftest.py (already done):
@@ -29,7 +35,11 @@ Registration:
         pytest_plugins = ["corekinect.test.validation.reporter"]
 """
 
+import base64
+import io
 import os
+import sys
+import threading
 import time
 from typing import Any, Dict, Optional
 
@@ -42,12 +52,48 @@ log = Logger(log_name="concord_reporter")
 # TLS verification — enabled by default, can be disabled for local dev with self-signed certs
 _TLS_VERIFY = os.environ.get("TLS_VERIFY", "true").lower() in ("1", "true", "yes")
 
+# Live log streaming config
+_LOG_STREAM_ENABLED = os.environ.get("CONCORD_LOG_STREAM", "true").lower() in ("1", "true", "yes")
+_LOG_FLUSH_INTERVAL = float(os.environ.get("CONCORD_LOG_FLUSH_INTERVAL", "1.0"))  # seconds
+
 # Attempt to import requests; if not installed, reporter is disabled.
 try:
     import requests
     _HAS_REQUESTS = True
 except ImportError:
     _HAS_REQUESTS = False
+
+
+class StreamCapture(io.TextIOBase):
+    """Capture stream writes and forward to a callback while also writing to original stream."""
+
+    def __init__(self, original_stream, callback):
+        self.original = original_stream
+        self.callback = callback
+        self._lock = threading.Lock()
+
+    def write(self, data):
+        if data:
+            with self._lock:
+                # Write to original stream
+                if self.original:
+                    self.original.write(data)
+                    self.original.flush()
+                # Notify callback
+                self.callback(data)
+        return len(data) if data else 0
+
+    def flush(self):
+        if self.original:
+            self.original.flush()
+
+    def fileno(self):
+        if self.original:
+            return self.original.fileno()
+        raise io.UnsupportedOperation("fileno")
+
+    def isatty(self):
+        return self.original.isatty() if self.original else False
 
 
 class ConcordReporter:
@@ -71,6 +117,17 @@ class ConcordReporter:
         # Per-test captured output: nodeid → log lines
         self._test_output: Dict[str, str] = {}
 
+        # Live log streaming state
+        self._current_test_name: Optional[str] = None
+        self._log_buffer: str = ""
+        self._log_buffer_lock = threading.Lock()
+        self._log_offset: int = 0
+        self._flush_thread: Optional[threading.Thread] = None
+        self._flush_stop_event = threading.Event()
+        self._original_stdout = None
+        self._original_stderr = None
+        self._stream_capture_enabled = _LOG_STREAM_ENABLED
+
         if self.enabled and not _HAS_REQUESTS:
             log.warning(
                 "ConcordReporter: CONCORD_RUN_ID is set but 'requests' "
@@ -80,9 +137,10 @@ class ConcordReporter:
 
         if self.enabled:
             log.info(
-                "ConcordReporter: active (run_id=%s, api=%s)",
+                "ConcordReporter: active (run_id=%s, api=%s, stream=%s)",
                 self.run_id,
                 self.api_url,
+                self._stream_capture_enabled,
             )
         else:
             log.debug("ConcordReporter: inactive (CONCORD_RUN_ID not set)")
@@ -115,6 +173,73 @@ class ConcordReporter:
             log.warning("ConcordReporter: %s failed: %s", path, e)
             return None
 
+    # ── Live log streaming ──────────────────────────────────
+
+    def _on_output(self, data: str) -> None:
+        """Callback for captured stdout/stderr data."""
+        with self._log_buffer_lock:
+            self._log_buffer += data
+
+    def _flush_log_buffer(self) -> None:
+        """Send buffered log data to API."""
+        with self._log_buffer_lock:
+            if not self._log_buffer:
+                return
+            data = self._log_buffer
+            self._log_buffer = ""
+            test_name = self._current_test_name
+
+        # Send chunk to API (outside lock to avoid blocking)
+        try:
+            encoded = base64.b64encode(data.encode("utf-8", errors="replace")).decode("ascii")
+            self._post("report/log-chunk", {
+                "file": "output.log",
+                "offset": self._log_offset,
+                "data": encoded,
+                "testName": test_name,
+                "timestamp": int(time.time() * 1000),
+            })
+            self._log_offset += len(data.encode("utf-8", errors="replace"))
+        except Exception as e:
+            log.warning("ConcordReporter: log flush failed: %s", e)
+
+    def _flush_loop(self) -> None:
+        """Background thread that periodically flushes log buffer."""
+        while not self._flush_stop_event.wait(_LOG_FLUSH_INTERVAL):
+            self._flush_log_buffer()
+        # Final flush on stop
+        self._flush_log_buffer()
+
+    def _start_stream_capture(self) -> None:
+        """Install stream capture and start flush thread."""
+        if not self._stream_capture_enabled:
+            return
+
+        self._original_stdout = sys.stdout
+        self._original_stderr = sys.stderr
+        sys.stdout = StreamCapture(self._original_stdout, self._on_output)
+        sys.stderr = StreamCapture(self._original_stderr, self._on_output)
+
+        self._flush_stop_event.clear()
+        self._flush_thread = threading.Thread(target=self._flush_loop, daemon=True)
+        self._flush_thread.start()
+
+    def _stop_stream_capture(self) -> None:
+        """Restore original streams and stop flush thread."""
+        if not self._stream_capture_enabled:
+            return
+
+        # Stop flush thread
+        self._flush_stop_event.set()
+        if self._flush_thread and self._flush_thread.is_alive():
+            self._flush_thread.join(timeout=5)
+
+        # Restore streams
+        if self._original_stdout:
+            sys.stdout = self._original_stdout
+        if self._original_stderr:
+            sys.stderr = self._original_stderr
+
     # ── pytest hooks ──────────────────────────────────────
 
     def pytest_sessionstart(self, session: pytest.Session) -> None:
@@ -123,6 +248,8 @@ class ConcordReporter:
             return
         self._start_time = time.monotonic()
         self._post("report/start", {"started": True})
+        # Start live log streaming
+        self._start_stream_capture()
 
     def pytest_runtest_logstart(self, nodeid: str, location: tuple) -> None:
         """Called at the start of running a test item."""
@@ -143,6 +270,11 @@ class ConcordReporter:
                 file_part = file_part.rsplit("/", 1)[-1]
             if file_part.endswith(".py"):
                 module = file_part[:-3]
+
+        # Set current test for log streaming
+        self._current_test_name = test_name
+        # Flush any pending logs before starting new test
+        self._flush_log_buffer()
 
         self._post("report/test-start", {
             "testName": test_name,
@@ -244,6 +376,9 @@ class ConcordReporter:
         """Called after whole test run finished."""
         if not self.enabled:
             return
+
+        # Stop live log streaming (this flushes remaining logs)
+        self._stop_stream_capture()
 
         duration_s = None
         if self._start_time is not None:

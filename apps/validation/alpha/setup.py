@@ -15,5 +15,6 @@ setup(
         "python-dotenv>=1.0.0",
         "termcolor>=2.4.0",
         "minio>=7.2.0",
+        "boto3>=1.26.0",
     ],
 )

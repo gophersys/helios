@@ -51,6 +51,7 @@ def _serialize_build_job(b: Any) -> dict:
         "matrixIndex": getattr(b, "matrixIndex", None),
         "versionBump": getattr(b, "versionBump", False),
         "baseJobId": getattr(b, "baseJobId", None),
+        "configFlags": getattr(b, "configFlags", None),
     }
     if hasattr(b, "artifacts") and b.artifacts is not None:
         data["artifacts"] = [_serialize_build_artifact(a) for a in b.artifacts]
@@ -77,7 +78,7 @@ def _serialize_build_artifact(a: Any) -> dict:
 
 @require_permissions(Permissions.BUILDS_VIEW)
 def list_builds():
-    """GET /v2/ci/builds — List build jobs with pagination and filters."""
+    """GET /v2/builds — List build jobs with pagination and filters."""
     db = get_db_client()
 
     page = max(1, request.args.get("page", 1, type=int))
@@ -125,7 +126,7 @@ def list_builds():
 
 @require_permissions(Permissions.BUILDS_VIEW)
 def get_build(build_id: str):
-    """GET /v2/ci/builds/<id> — Build detail with artifacts and log."""
+    """GET /v2/builds/<id> — Build detail with artifacts and log."""
     db = get_db_client()
 
     build = db.buildjob.find_unique(
@@ -145,7 +146,7 @@ def get_build(build_id: str):
 
 @require_permissions(Permissions.BUILDS_VIEW)
 def list_build_artifacts(build_id: str):
-    """GET /v2/ci/builds/<id>/artifacts — List artifacts for a build."""
+    """GET /v2/builds/<id>/artifacts — List artifacts for a build."""
     db = get_db_client()
 
     build = db.buildjob.find_unique(where={"id": build_id})
@@ -164,7 +165,7 @@ def list_build_artifacts(build_id: str):
 
 @require_permissions(Permissions.BUILDS_VIEW)
 def get_build_log(build_id: str):
-    """GET /v2/ci/builds/<id>/log — Get build log content."""
+    """GET /v2/builds/<id>/log — Get build log content."""
     db = get_db_client()
 
     build = db.buildjob.find_unique(where={"id": build_id})
@@ -180,7 +181,7 @@ def get_build_log(build_id: str):
 
 @require_permissions(Permissions.BUILDS_TRIGGER)
 def create_build():
-    """POST /v2/ci/builds — Trigger a manual build."""
+    """POST /v2/builds — Trigger a manual build."""
     data, error = BuildCreateRequest.from_json(request.get_json())
     if error:
         return bad_request(error)
@@ -238,7 +239,7 @@ def create_build():
 
 @require_permissions(Permissions.BUILDS_MANAGE)
 def update_build(build_id: str):
-    """PATCH /v2/ci/builds/<id> — Update build status (used by workers)."""
+    """PATCH /v2/builds/<id> — Update build status (used by workers)."""
     db = get_db_client()
 
     build = db.buildjob.find_unique(where={"id": build_id})
@@ -355,7 +356,7 @@ def update_build(build_id: str):
 
 @require_permissions(Permissions.BUILDS_MANAGE)
 def reset_build(build_id: str):
-    """POST /v2/ci/builds/<id>/reset — Force reset a stuck build to QUEUED.
+    """POST /v2/builds/<id>/reset — Force reset a stuck build to QUEUED.
 
     Use this when a build is stuck in BUILDING state (e.g., worker crashed).
     Clears the build log and timestamps so the worker will pick it up fresh.
@@ -402,7 +403,7 @@ def reset_build(build_id: str):
 
 @require_permissions(Permissions.BUILDS_MANAGE)
 def upload_build_artifact(build_id: str):
-    """POST /v2/ci/builds/<id>/artifacts — Upload a build artifact."""
+    """POST /v2/builds/<id>/artifacts — Upload a build artifact."""
     import hashlib
     from src.services.storage.client import get_storage_client, storage_key, StoragePrefixes
 
@@ -486,7 +487,7 @@ def _get_artifact_folder(clean_name: str) -> str:
 
 @require_permissions(Permissions.BUILDS_VIEW)
 def download_build_artifacts(build_id: str):
-    """GET /v2/ci/builds/<id>/artifacts/download — Download all artifacts as ZIP.
+    """GET /v2/builds/<id>/artifacts/download — Download all artifacts as ZIP.
 
     Creates a structured ZIP:
       <product>_<variant>_<version>/
@@ -572,9 +573,64 @@ def download_build_artifacts(build_id: str):
         return internal_error("Failed to create artifact ZIP")
 
 
+@require_permissions(Permissions.BUILDS_VIEW)
+def download_single_artifact(build_id: str, artifact_name: str):
+    """GET /v2/builds/<id>/artifacts/<name> — Download a single artifact.
+
+    Streams the artifact file directly from MinIO storage.
+    """
+    from flask import Response
+    from src.services.storage.client import get_storage_client
+
+    db = get_db_client()
+
+    build = db.buildjob.find_unique(where={"id": build_id})
+    if not build:
+        return not_found("Build job not found")
+
+    artifact = db.buildjobartifact.find_first(
+        where={
+            "buildJobId": build_id,
+            "name": artifact_name,
+        }
+    )
+
+    if not artifact:
+        return not_found("Artifact not found")
+
+    try:
+        storage = get_storage_client()
+        response = storage.get_object("concord", artifact.storageKey)
+        content = response.read()
+        response.close()
+        response.release_conn()
+
+        # Determine content type
+        content_type = "application/octet-stream"
+        if artifact_name.endswith(".hex"):
+            content_type = "application/octet-stream"
+        elif artifact_name.endswith(".json"):
+            content_type = "application/json"
+        elif artifact_name.endswith(".cfw"):
+            content_type = "application/octet-stream"
+
+        return Response(
+            content,
+            mimetype=content_type,
+            headers={
+                "Content-Disposition": f'attachment; filename="{artifact_name}"',
+                "Content-Length": str(len(content)),
+            },
+        )
+
+    except Exception as e:
+        logger.error("Failed to download artifact %s: %s", artifact_name, e)
+        return internal_error("Failed to download artifact")
+
+
 @require_permissions(Permissions.BUILDS_MANAGE)
 def stream_build_log(build_id: str):
-    """POST /v2/ci/builds/<id>/log — Receive and broadcast log chunks from build worker.
+    """POST /v2/builds/<id>/log — Receive and broadcast log chunks from build worker.
 
     Used by build workers to stream real-time build output.
     Appends to buildLog in DB and broadcasts via WebSocket.

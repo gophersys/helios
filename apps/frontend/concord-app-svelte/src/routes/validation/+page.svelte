@@ -1,12 +1,12 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
-  import { FlaskConical, Cpu, Wrench, ArrowRight, Activity, BookOpen } from 'lucide-svelte';
+  import { FlaskConical, Cpu, Wrench, ArrowRight, Activity, BookOpen, ListOrdered } from 'lucide-svelte';
   import { getAuth } from '$lib/stores/auth.svelte';
   import PageHeader from '$lib/components/ui/page-header.svelte';
 
   const auth = getAuth();
-  const canManage = $derived(auth.hasPermission('Concord.Admin.Validation.Manage'));
+  const canManage = $derived(auth.hasPermission('validation:manage'));
 
   interface NavCard {
     title: string;
@@ -41,10 +41,16 @@
       href: '/validation/designs',
       icon: Wrench,
     },
+    {
+      title: 'Validation Queue',
+      description: 'Priority-ranked queue for test bench allocation and scheduling.',
+      href: '/validation/queue',
+      icon: ListOrdered,
+    },
   ];
 
   onMount(() => {
-    if (!auth.hasPermission('Concord.Admin.Validation.View')) {
+    if (!auth.hasPermission('validation:view')) {
       goto('/');
     }
   });

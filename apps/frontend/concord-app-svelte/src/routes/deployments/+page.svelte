@@ -15,7 +15,7 @@
   import type { ApiResponse } from '$lib/types';
 
   const auth = getAuth();
-  const canManage = $derived(auth.hasPermission('Concord.Admin.Deployments.Manage'));
+  const canManage = $derived(auth.hasPermission('system:manage'));
 
   let deployments = $state<ConcordDeployment[]>([]);
   let fixtures = $state<Fixture[]>([]);
@@ -81,7 +81,7 @@
   });
 
   onMount(() => {
-    if (!auth.hasPermission('Concord.Admin.Deployments.View')) {
+    if (!auth.hasPermission('system:view')) {
       goto('/');
       return;
     }

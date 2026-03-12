@@ -180,7 +180,7 @@ class PipelineAssets:
         if not self._api_url:
             return []
 
-        url = f"{self._api_url.rstrip('/')}/v2/builds/builds/{build_id}/artifacts"
+        url = f"{self._api_url.rstrip('/')}/v2/builds/{build_id}/artifacts"
         headers = {}
         if self._api_key:
             if self._api_key.startswith("ck_"):
@@ -324,9 +324,15 @@ class PipelineAssets:
             Local file path to the downloaded hex.
         """
         build = self.get_build(matrix_label)
+        self._log.info(
+            "get_hex: build=%s has %d artifacts: %s",
+            matrix_label,
+            len(build.artifacts),
+            [a.name for a in build.artifacts]
+        )
         artifact = build.get_hex(target)
         if not artifact:
-            raise ValueError(f"No {target} hex found in build {matrix_label}")
+            raise ValueError(f"No {target} hex found in build {matrix_label}. Artifacts: {[a.name for a in build.artifacts]}")
 
         if not artifact.local_path:
             artifact.local_path = self._download(artifact.storage_key)

@@ -1571,10 +1571,9 @@ class MtibV1Client:
         Returns:
             Tuple of (full_response, error).
 
-        Note:
-            Due to byte-by-byte MTIB UART delivery, responses arrive slowly.
-            This method waits for the command echo, then collects until a
-            success pattern + shell prompt is seen.
+        The request iterator uses a threading.Event-based stop signal so
+        the gRPC stream terminates promptly when the response is complete,
+        rather than blocking on the iterator's sleep.
         """
         try:
             # Drain any pending data first to prevent response bleeding
@@ -1582,60 +1581,72 @@ class MtibV1Client:
                 self.alpha_drain_uart(target, duration_s=1.0)
 
             input_queue = queue.Queue()
+            stop_requests = threading.Event()
 
             # Add commands to input queue
             input_queue.put(b"\r")  # Hit ENTER to get prompt
-            time.sleep(0.3)  # Slightly longer delay
+            time.sleep(0.1)
             input_queue.put(f"{command}\r".encode("utf-8"))
 
             def request_iterator():
-                while True:
+                # Send initial target identification request immediately
+                yield UartStreamRequest(target=target, data=b"")
+                while not stop_requests.is_set():
                     try:
                         data = input_queue.get_nowait()
                         yield UartStreamRequest(target=target, data=data)
                     except queue.Empty:
+                        # Keep the stream alive with empty requests.
+                        # With the push-based server, these just keep the
+                        # gRPC stream open; RX data arrives independently.
                         yield UartStreamRequest(target=target, data=b"")
-                        time.sleep(0.05)  # Faster polling (20Hz)
+                        # Wait with event so we can stop promptly
+                        stop_requests.wait(timeout=0.05)
 
             response_lines = []
             start_time = time.time()
             command_echoed = False
             success_pattern_time = None
 
-            for resp in self.UartStream(target, request_iterator()):
-                if not resp.success:
-                    return None, f"UartStream error: {resp.message}"
+            try:
+                for resp in self.UartStream(target, request_iterator()):
+                    if not resp.success:
+                        stop_requests.set()
+                        return None, f"UartStream error: {resp.message}"
 
-                if resp.data and len(resp.data) > 0:
-                    line = resp.data.decode("utf-8", errors="ignore")
-                    response_lines.append(line)
+                    if resp.data and len(resp.data) > 0:
+                        line = resp.data.decode("utf-8", errors="ignore")
+                        response_lines.append(line)
 
-                    full_response = "".join(response_lines)
+                        full_response = "".join(response_lines)
 
-                    # Wait for command echo before treating response as valid
-                    # Note: Shell sometimes truncates the last char of echo, so check for partial match
-                    echo_to_check = command[:-1] if len(command) > 3 else command
-                    if not command_echoed and echo_to_check in full_response:
-                        command_echoed = True
+                        # Wait for command echo before treating response as valid
+                        echo_to_check = command[:-1] if len(command) > 3 else command
+                        if not command_echoed and echo_to_check in full_response:
+                            command_echoed = True
 
-                    # Check if any success pattern is present (only after echo)
-                    if command_echoed and success_patterns and not success_pattern_time:
-                        for pattern in success_patterns:
-                            if pattern in full_response:
-                                success_pattern_time = time.time()
-                                break
+                        # Check if any success pattern is present (only after echo)
+                        if command_echoed and success_patterns and not success_pattern_time:
+                            for pattern in success_patterns:
+                                if pattern in full_response:
+                                    success_pattern_time = time.time()
+                                    break
 
-                    # Once pattern found, wait for prompt OR additional time
-                    if success_pattern_time:
-                        elapsed_since_pattern = time.time() - success_pattern_time
-                        if "Mfg shell:" in full_response or "Comms Mfg:" in full_response:
-                            return full_response, None
-                        # Give 5 seconds after pattern for prompt to arrive
-                        if elapsed_since_pattern > 5.0:
-                            return full_response, None
+                        # Once pattern found, wait for prompt OR additional time
+                        if success_pattern_time:
+                            elapsed_since_pattern = time.time() - success_pattern_time
+                            if "Mfg shell:" in full_response or "Comms Mfg:" in full_response:
+                                stop_requests.set()
+                                return full_response, None
+                            # Give 3 seconds after pattern for prompt to arrive
+                            if elapsed_since_pattern > 3.0:
+                                stop_requests.set()
+                                return full_response, None
 
-                if time.time() - start_time > timeout_s:
-                    break
+                    if time.time() - start_time > timeout_s:
+                        break
+            finally:
+                stop_requests.set()
 
             full_response = "".join(response_lines)
             # Check one more time after collecting all data
@@ -1661,15 +1672,21 @@ class MtibV1Client:
             target: HostType for UART target.
             duration_s: How long to drain (default 3s).
         """
+        stop = threading.Event()
+
         def request_iterator():
-            start = time.time()
-            while time.time() - start < duration_s:
+            # Initial request to set target
+            yield UartStreamRequest(target=target, data=b"")
+            while not stop.is_set():
                 yield UartStreamRequest(target=target, data=b"")
-                time.sleep(0.05)
+                stop.wait(timeout=0.05)
 
         try:
+            start = time.time()
             for _ in self.UartStream(target, request_iterator()):
-                pass  # Just drain
+                if time.time() - start >= duration_s:
+                    stop.set()
+                    break
         except Exception:
             pass
 
@@ -1694,12 +1711,14 @@ class MtibV1Client:
             success is True if "Locking shell mode ON" or "Mfg shell:" seen.
         """
         output_lines = []
+        stop = threading.Event()
 
         def request_iterator():
+            # Initial request to set target, then spam lock_shell
             start = time.time()
-            while time.time() - start < duration_s:
+            while time.time() - start < duration_s and not stop.is_set():
                 yield UartStreamRequest(target=target, data=b"\rlock_shell\r")
-                time.sleep(0.1)
+                stop.wait(timeout=0.1)
 
         try:
             for resp in self.UartStream(target, request_iterator()):

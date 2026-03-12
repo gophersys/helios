@@ -327,13 +327,13 @@ class UartHandler:
 
             while not self.rx_stop_events[target].is_set():
                 try:
-                    # Read with short timeout (10ms) to enable responsive timeout checks
+                    # Block until at least 1 byte arrives (up to serial timeout)
                     data = uart.read(1)
                     if data:
-                        # Read any additional bytes available
+                        # Immediately grab all remaining bytes available
                         in_waiting = uart.in_waiting
                         if in_waiting > 0:
-                            additional = uart.read(min(in_waiting, 1024))
+                            additional = uart.read(min(in_waiting, 4096))
                             data += additional
 
                         buffer.extend(data)
@@ -500,71 +500,112 @@ class UartHandler:
     def stream(
         self, request_iterator: Iterator[UartStreamRequest], context: grpc.ServicerContext
     ) -> Iterator[UartStreamResponse]:
-        """Handle bidirectional UART streaming with multi-client support."""
+        """Handle bidirectional UART streaming with push-based RX.
+
+        RX and TX are fully decoupled:
+        - A background thread consumes client requests (TX path)
+        - The main generator yields RX data as soon as it arrives,
+          WITHOUT waiting for the next client request
+
+        This eliminates the previous bottleneck where the server could
+        only yield one response per client request.
+        """
         current_target = None
         client_queue = Queue()
+        stop_event = threading.Event()
+        target_ready = threading.Event()
+        target_container = [None]
+        init_error = [None]
 
-        try:
-            self.logger.info("UART stream started")
-            # Process incoming requests and handle TX/RX
-            for request in request_iterator:
-                if not context.is_active():
-                    break
-
-                # Set current target from first request
-                if current_target is None:
-                    current_target = request.target
-                    self.logger.info(
-                        f"Starting UART stream for target {current_target} (type: {type(current_target)})"
-                    )
-
-                    # Ensure connection is established
-                    if err := self._ensure_connection(current_target):
-                        context.set_code(grpc.StatusCode.INTERNAL)
-                        context.set_details(f"Failed to establish UART connection: {err}")
-                        return
-
-                    # Register this client
-                    with self.client_locks[current_target]:
-                        self.client_streams[current_target].add(weakref.ref(client_queue))
-
-                # Handle TX data (queue for sending to device)
-                if request.data:
-                    try:
-                        self.tx_queues[current_target].put(request.data)
-                        self.logger.debug(
-                            f"Queued {len(request.data)} bytes for {current_target}: {request.data.hex()}"
-                        )
-                    except Exception as e:
-                        error_msg = f"Failed to queue data for {current_target}: {str(e)}"
-                        self.logger.error(error_msg)
-                        yield UartStreamResponse(success=False, message=error_msg, target=current_target)
-                        continue
-
-                # Handle RX data (drain ALL available data from client queue)
-                # This prevents backlog accumulation when data arrives faster than polling
-                chunks = []
-                while True:
-                    try:
-                        data = client_queue.get_nowait()
-                        if data:
-                            chunks.append(data)
-                    except queue.Empty:
+        def tx_consumer():
+            """Background thread: consume client requests, handle TX writes."""
+            nonlocal current_target
+            try:
+                for request in request_iterator:
+                    if stop_event.is_set() or not context.is_active():
                         break
 
-                if chunks:
-                    # Return all accumulated data in one response
-                    yield UartStreamResponse(success=True, message="", target=current_target, data=b''.join(chunks))
-                else:
-                    # No data available, send empty response to keep stream alive
-                    yield UartStreamResponse(success=True, message="", target=current_target)
+                    # Initialize on first request
+                    if target_container[0] is None:
+                        current_target = request.target
+                        target_container[0] = current_target
+                        self.logger.info(
+                            f"Starting UART stream for target {current_target}"
+                        )
+
+                        # Ensure connection is established
+                        if err := self._ensure_connection(current_target):
+                            init_error[0] = f"Failed to establish UART connection: {err}"
+                            stop_event.set()
+                            target_ready.set()
+                            return
+
+                        # Register this client
+                        with self.client_locks[current_target]:
+                            self.client_streams[current_target].add(weakref.ref(client_queue))
+
+                        target_ready.set()
+
+                    # Handle TX data (queue for sending to device)
+                    if request.data:
+                        try:
+                            self.tx_queues[target_container[0]].put(request.data)
+                            self.logger.debug(
+                                f"Queued {len(request.data)} bytes for {target_container[0]}"
+                            )
+                        except Exception as e:
+                            self.logger.error(f"Failed to queue TX data: {e}")
+
+            except grpc.RpcError:
+                pass  # Client disconnected
+            except Exception as e:
+                if not stop_event.is_set():
+                    self.logger.debug(f"TX consumer error: {e}")
+            finally:
+                stop_event.set()
+                target_ready.set()
+
+        tx_thread = None
+
+        try:
+            self.logger.info("UART stream started (push-based)")
+
+            # Start TX consumer in background thread
+            tx_thread = threading.Thread(
+                target=tx_consumer, daemon=True, name="uart-tx-consumer"
+            )
+            tx_thread.start()
+
+            # Wait for target initialization
+            target_ready.wait(timeout=10.0)
+            if init_error[0]:
+                context.set_code(grpc.StatusCode.INTERNAL)
+                context.set_details(init_error[0])
+                return
+
+            if stop_event.is_set() or target_container[0] is None:
+                return
+
+            current_target = target_container[0]
+
+            # Main generator loop: yield RX data as soon as it arrives.
+            # NOT gated by client requests.
+            while not stop_event.is_set() and context.is_active():
+                try:
+                    # Block up to 10ms for data
+                    data = client_queue.get(timeout=0.01)
+                    if data:
+                        yield UartStreamResponse(
+                            success=True, message="", target=current_target, data=data
+                        )
+                except queue.Empty:
+                    continue
 
         except grpc.RpcError as e:
-            # Handle gRPC errors (client disconnection, etc.)
-            if e.code() == grpc.StatusCode.CANCELLED:
+            if hasattr(e, 'code') and e.code() == grpc.StatusCode.CANCELLED:
                 self.logger.info("UART stream cancelled by client")
             else:
-                self.logger.error(f"UART stream gRPC error: {e.code()} - {e.details()}")
+                self.logger.error(f"UART stream gRPC error: {e}")
         except Exception as e:
             error_msg = f"UART stream error: {str(e)}"
             self.logger.error(error_msg)
@@ -572,22 +613,25 @@ class UartHandler:
             context.set_details(error_msg)
 
         finally:
+            stop_event.set()
+            if tx_thread:
+                tx_thread.join(timeout=1.0)
+
             # Clean up client registration
             if current_target:
                 with self.client_locks[current_target]:
-                    # Remove this client's queue reference
                     for ref in list(self.client_streams[current_target]):
                         if ref() == client_queue:
                             self.client_streams[current_target].discard(ref)
                             break
 
-                # Close connection if no more clients
                 if not self.client_streams[current_target]:
                     self.logger.info(f"No more clients for {current_target}, closing connection")
                     self._close_connection(current_target)
                 else:
                     self.logger.info(
-                        f"Client disconnected from {current_target}, {len(self.client_streams[current_target])} clients remaining"
+                        f"Client disconnected from {current_target}, "
+                        f"{len(self.client_streams[current_target])} clients remaining"
                     )
 
                 self.logger.info(f"UART stream ended for target {current_target}")

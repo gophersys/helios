@@ -531,6 +531,9 @@ export interface ValidationExecution {
   results?: ValidationResult[];
 }
 
+export type ValidationTrigger = 'manual' | 'bitbucket' | 'nightly' | 'scheduled' | 'ci';
+export type ValidationStage = 'gate' | 'nightly' | 'integration' | 'fuota' | 'smoke';
+
 export interface ValidationRun {
   id: string;
   name: string;
@@ -552,6 +555,12 @@ export interface ValidationRun {
   devices?: ValidationDevice[];
   executions?: ValidationExecution[];
   executionCount?: number;
+  // Extended fields for filtering/display
+  trigger?: ValidationTrigger;
+  stage?: ValidationStage;
+  pipelineRunId?: string;
+  commitSha?: string;
+  branch?: string;
 }
 
 // ── Test Catalog types ────────────────────────────────────────
