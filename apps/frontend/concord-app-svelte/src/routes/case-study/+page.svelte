@@ -7,9 +7,10 @@
     FileCode,
     Calendar,
     ChevronRight,
+    ChevronDown,
     Users,
-    DollarSign,
     Zap,
+    ExternalLink,
   } from 'lucide-svelte';
   import { getAuth } from '$lib/stores/auth.svelte';
   import PageHeader from '$lib/components/ui/page-header.svelte';
@@ -54,9 +55,9 @@
   const periodCost = Math.round(weeklyComp * durationWeeks);
 
   // Productivity benchmarks (Phoenix area - slightly lower than coastal)
-  const lowRate = 50;      // lines/day
-  const avgRate = 75;      // Phoenix average
-  const highRate = 100;    // High performer
+  const lowRate = 50;
+  const avgRate = 75;
+  const highRate = 100;
 
   // Working days in period
   const workingDays = Math.round(durationWeeks * 5);
@@ -67,9 +68,7 @@
   const highExpected = highRate * workingDays;
 
   // Multipliers
-  const lowMultiplier = Math.round(totalNet / lowExpected);
   const avgMultiplier = Math.round(totalNet / avgExpected);
-  const highMultiplier = Math.round(totalNet / highExpected);
 
   // Team equivalents
   const teamLow = Math.round(totalNet / lowExpected);
@@ -77,26 +76,23 @@
   const teamHigh = Math.round(totalNet / highExpected);
 
   // Team costs
-  const teamCostLow = teamLow * periodCost;
   const teamCostAvg = teamAvg * periodCost;
-  const teamCostHigh = teamHigh * periodCost;
 
-  // Selected journal for detail view
+  // UI state
   let selectedJournal = $state<JournalEntry | null>(null);
+  let journalsExpanded = $state(false);
 
   // Cumulative data for chart
   const cumulativeData = journals.reduce((acc, journal, i) => {
     const prevNet = i > 0 ? acc[i - 1].net : 0;
-    const prevInserted = i > 0 ? acc[i - 1].totalInserted : 0;
-    const prevDeleted = i > 0 ? acc[i - 1].totalDeleted : 0;
     acc.push({
       date: journal.date,
       net: prevNet + (journal.inserted - journal.deleted),
-      totalInserted: prevInserted + journal.inserted,
-      totalDeleted: prevDeleted + journal.deleted,
+      // Expected "before AI" line (75 lines/day cumulative)
+      expected: (i + 1) * (avgRate * 5), // ~375 lines per session (assuming ~5 days each)
     });
     return acc;
-  }, [] as { date: string; net: number; totalInserted: number; totalDeleted: number }[]);
+  }, [] as { date: string; net: number; expected: number }[]);
 
   const maxNet = Math.max(...cumulativeData.map((d) => d.net));
 
@@ -127,7 +123,17 @@
   <PageHeader
     title="AI-Augmented Development"
     description="Productivity economics analysis: Feb 3 - Mar 12, 2026"
-  />
+  >
+    {#snippet actions()}
+      <a
+        href="/case-study/team"
+        class="flex items-center gap-2 rounded-lg bg-surface-2 px-3 py-2 text-sm font-medium text-text-primary transition-colors hover:bg-surface-1"
+      >
+        <Users size={16} />
+        Team Comparison (Full Year)
+      </a>
+    {/snippet}
+  </PageHeader>
 
   <!-- Summary Cards -->
   <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -186,7 +192,19 @@
     <div class="lg:col-span-2 space-y-6">
       <!-- Cumulative Output Chart -->
       <div class="card p-5">
-        <h3 class="text-sm font-semibold text-text-primary mb-4">Cumulative Output</h3>
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-sm font-semibold text-text-primary">Cumulative Output</h3>
+          <div class="flex items-center gap-4 text-2xs">
+            <div class="flex items-center gap-1.5">
+              <div class="w-3 h-0.5 bg-accent rounded"></div>
+              <span class="text-text-secondary">AI-Augmented</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <div class="w-3 h-0.5 bg-text-tertiary rounded" style="opacity: 0.5"></div>
+              <span class="text-text-tertiary">Expected (75/day)</span>
+            </div>
+          </div>
+        </div>
         <div class="h-64 relative">
           <!-- Y-axis labels -->
           <div class="absolute left-0 top-0 h-full w-12 flex flex-col justify-between text-2xs text-text-tertiary">
@@ -203,13 +221,23 @@
               {#each [25, 50, 75] as y}
                 <line x1="0" y1={y} x2="100" y2={y} stroke="currentColor" stroke-width="0.2" class="text-border" />
               {/each}
+              <!-- Expected "Before AI" line -->
+              <path
+                d="M {cumulativeData.map((d, i) => `${(i / (cumulativeData.length - 1)) * 100} ${100 - (d.expected / maxNet) * 100}`).join(' L ')}"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="0.3"
+                stroke-dasharray="2,2"
+                class="text-text-tertiary"
+                opacity="0.5"
+              />
               <!-- Area fill -->
               <path
                 d="M 0 100 {cumulativeData.map((d, i) => `L ${(i / (cumulativeData.length - 1)) * 100} ${100 - (d.net / maxNet) * 100}`).join(' ')} L 100 100 Z"
                 fill="url(#gradient)"
                 opacity="0.3"
               />
-              <!-- Line -->
+              <!-- AI-Augmented Line -->
               <path
                 d="M {cumulativeData.map((d, i) => `${(i / (cumulativeData.length - 1)) * 100} ${100 - (d.net / maxNet) * 100}`).join(' L ')}"
                 fill="none"
@@ -260,17 +288,14 @@
               <div class="flex items-center gap-3">
                 <span class="w-16 text-2xs text-text-tertiary font-mono shrink-0">{journal.date}</span>
                 <div class="flex-1 h-6 bg-surface-1 rounded overflow-hidden relative">
-                  <!-- Inserted bar -->
                   <div
                     class="absolute inset-y-0 left-0 bg-success/20 transition-all group-hover:bg-success/30"
                     style:width="{(journal.inserted / maxJournalNet) * 100}%"
                   ></div>
-                  <!-- Deleted overlay -->
                   <div
                     class="absolute inset-y-0 right-0 bg-error/20 transition-all group-hover:bg-error/30"
                     style:width="{(journal.deleted / maxJournalNet) * 100}%"
                   ></div>
-                  <!-- Net line -->
                   <div
                     class="absolute top-1/2 -translate-y-1/2 h-1 bg-accent rounded transition-all"
                     style:width="{barWidth}%"
@@ -298,7 +323,6 @@
 
     <!-- Right column: Economics -->
     <div class="space-y-6">
-      <!-- Baseline -->
       <div class="card p-5">
         <h3 class="text-sm font-semibold text-text-primary mb-4">Phoenix Engineer Baseline</h3>
         <div class="space-y-3">
@@ -321,12 +345,10 @@
         </div>
       </div>
 
-      <!-- Productivity Comparison -->
       <div class="card p-5">
         <h3 class="text-sm font-semibold text-text-primary mb-4">Productivity Benchmarks</h3>
         <div class="space-y-4">
           <div class="text-2xs text-text-tertiary mb-2">Lines/day (Phoenix area)</div>
-
           <div class="space-y-3">
             <div>
               <div class="flex justify-between text-sm mb-1">
@@ -337,7 +359,6 @@
                 <div class="h-full bg-error/50 rounded-full" style:width="{(lowExpected / totalNet) * 100}%"></div>
               </div>
             </div>
-
             <div>
               <div class="flex justify-between text-sm mb-1">
                 <span class="text-text-secondary">Average ({avgRate}/day)</span>
@@ -347,7 +368,6 @@
                 <div class="h-full bg-warning/50 rounded-full" style:width="{(avgExpected / totalNet) * 100}%"></div>
               </div>
             </div>
-
             <div>
               <div class="flex justify-between text-sm mb-1">
                 <span class="text-text-secondary">High ({highRate}/day)</span>
@@ -358,7 +378,6 @@
               </div>
             </div>
           </div>
-
           <div class="border-t border-border pt-3">
             <div class="flex justify-between text-sm mb-1">
               <span class="text-accent font-medium">Actual Output</span>
@@ -371,19 +390,15 @@
         </div>
       </div>
 
-      <!-- Team Equivalent -->
       <div class="card p-5">
         <h3 class="text-sm font-semibold text-text-primary mb-4">Team Equivalent</h3>
         <div class="space-y-4">
           <div class="text-center py-4 bg-surface-1 rounded-lg">
-            <div class="flex items-center justify-center gap-2 mb-2">
-              <Users size={24} class="text-accent" />
-            </div>
+            <Users size={24} class="text-accent mx-auto mb-2" />
             <div class="text-3xl font-bold text-accent">{teamAvg}</div>
             <div class="text-sm text-text-secondary">engineers equivalent</div>
             <div class="text-2xs text-text-tertiary mt-1">at {avgRate} lines/day avg</div>
           </div>
-
           <div class="space-y-2">
             <div class="flex justify-between text-sm">
               <span class="text-text-secondary">Low rate ({lowRate}/day)</span>
@@ -397,7 +412,6 @@
         </div>
       </div>
 
-      <!-- Cost Comparison -->
       <div class="card p-5">
         <h3 class="text-sm font-semibold text-text-primary mb-4">Cost Comparison</h3>
         <div class="space-y-3">
@@ -420,7 +434,6 @@
         </div>
       </div>
 
-      <!-- Quality Note -->
       <div class="card p-5 bg-accent/5 border-accent/20">
         <h3 class="text-sm font-semibold text-text-primary mb-3">Quality Indicators</h3>
         <ul class="space-y-2 text-sm text-text-secondary">
@@ -446,7 +459,7 @@
   </div>
 
   <!-- Bottom summary -->
-  <div class="mt-8 card p-6 bg-surface-1">
+  <div class="card p-6 bg-surface-1">
     <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
       <div class="text-center sm:text-left">
         <h3 class="text-lg font-semibold text-text-primary">Bottom Line</h3>
@@ -466,5 +479,46 @@
         </div>
       </div>
     </div>
+  </div>
+
+  <!-- Development Journals Dropdown -->
+  <div class="card">
+    <button
+      onclick={() => journalsExpanded = !journalsExpanded}
+      class="w-full p-5 flex items-center justify-between text-left"
+    >
+      <div>
+        <h3 class="text-sm font-semibold text-text-primary">Development Journals</h3>
+        <p class="text-2xs text-text-tertiary mt-1">{journals.length} sessions documented</p>
+      </div>
+      <ChevronDown
+        size={20}
+        class="text-text-tertiary transition-transform {journalsExpanded ? 'rotate-180' : ''}"
+      />
+    </button>
+
+    {#if journalsExpanded}
+      <div class="border-t border-border">
+        <div class="divide-y divide-border">
+          {#each journals as journal}
+            {@const net = journal.inserted - journal.deleted}
+            <div class="p-4 hover:bg-surface-1 transition-colors">
+              <div class="flex items-center justify-between mb-1">
+                <span class="font-mono text-sm text-text-primary">{journal.date}</span>
+                <div class="flex items-center gap-3 text-2xs">
+                  <span class="text-success">+{formatNumber(journal.inserted)}</span>
+                  <span class="text-error">-{formatNumber(journal.deleted)}</span>
+                  <span class="font-medium text-accent">= +{formatNumber(net)}</span>
+                </div>
+              </div>
+              <p class="text-sm text-text-secondary">{journal.summary}</p>
+              <div class="mt-2 text-2xs text-text-tertiary">
+                {journal.commits} commits
+              </div>
+            </div>
+          {/each}
+        </div>
+      </div>
+    {/if}
   </div>
 </div>
