@@ -34,7 +34,7 @@
   import TextInput from '$lib/components/ui/text-input.svelte';
 
   const auth = getAuth();
-  const canManage = $derived(auth.hasPermission('Concord.Admin.CI.Manage'));
+  const canManage = $derived(auth.hasPermission('builds:manage'));
 
   const STATUS_OPTIONS = [
     { value: 'BUILDING', label: 'Building' },
@@ -201,7 +201,7 @@
   }
 
   onMount(() => {
-    if (!auth.hasPermission('Concord.Admin.CI.View')) {
+    if (!auth.hasPermission('builds:view')) {
       goto('/');
       return;
     }

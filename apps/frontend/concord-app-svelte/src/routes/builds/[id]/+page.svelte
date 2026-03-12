@@ -111,7 +111,7 @@
   }
 
   onMount(() => {
-    if (!auth.hasPermission('Concord.Admin.CI.View')) {
+    if (!auth.hasPermission('builds:view')) {
       goto('/');
       return;
     }
@@ -177,7 +177,7 @@
       </div>
 
       <div class="flex items-center gap-2">
-        {#if auth.hasPermission('Concord.Admin.CI.Manage')}
+        {#if auth.hasPermission('builds:manage')}
           <button
             onclick={retrigger}
             disabled={retriggering}
