@@ -1,0 +1,100 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "shared-clickhouse.fullname" . }}-init
+  labels:
+    {{- include "shared-clickhouse.labels" . | nindent 4 }}
+data:
+  01_databases.sql: |
+    {{- range .Values.databases }}
+    CREATE DATABASE IF NOT EXISTS {{ .name }};
+    {{- end }}
+
+  02_codectl_schema.sql: |
+    -- codectl telemetry events
+    CREATE TABLE IF NOT EXISTS codectl_telemetry.events
+    (
+        event_id          UUID DEFAULT generateUUIDv4(),
+        session_id        String,
+        user_id           String,
+        event_type        LowCardinality(String),
+        event_name        LowCardinality(String),
+        plugin_name       LowCardinality(String),
+        plugin_version    LowCardinality(String),
+        payload           String,
+        duration_ms       UInt32 DEFAULT 0,
+        token_count       UInt32 DEFAULT 0,
+        cache_read_tokens UInt32 DEFAULT 0,
+        cache_write_tokens UInt32 DEFAULT 0,
+        error             String DEFAULT '',
+        created_at        DateTime64(3) DEFAULT now64(3)
+    )
+    ENGINE = MergeTree()
+    PARTITION BY toYYYYMM(created_at)
+    ORDER BY (user_id, session_id, created_at)
+    TTL toDateTime(created_at) + INTERVAL {{ .Values.config.eventRetentionDays }} DAY DELETE
+    SETTINGS index_granularity = 8192;
+
+    -- codectl sessions
+    CREATE TABLE IF NOT EXISTS codectl_telemetry.sessions
+    (
+        session_id        String,
+        user_id           String,
+        plugin_name       LowCardinality(String),
+        plugin_version    LowCardinality(String),
+        started_at        DateTime64(3),
+        ended_at          Nullable(DateTime64(3)),
+        event_count       UInt32 DEFAULT 0,
+        total_tokens      UInt32 DEFAULT 0,
+        total_cache_read  UInt32 DEFAULT 0,
+        total_cache_write UInt32 DEFAULT 0,
+        total_duration_ms UInt64 DEFAULT 0,
+        error_count       UInt32 DEFAULT 0,
+        created_at        DateTime64(3) DEFAULT now64(3)
+    )
+    ENGINE = ReplacingMergeTree(created_at)
+    PARTITION BY toYYYYMM(started_at)
+    ORDER BY (user_id, session_id)
+    TTL toDateTime(started_at) + INTERVAL {{ .Values.config.eventRetentionDays }} DAY DELETE
+    SETTINGS index_granularity = 8192;
+
+    -- codectl hourly aggregates
+    CREATE TABLE IF NOT EXISTS codectl_telemetry.events_hourly
+    (
+        hour              DateTime,
+        user_id           String,
+        event_type        LowCardinality(String),
+        plugin_name       LowCardinality(String),
+        event_count       UInt64,
+        total_tokens      UInt64,
+        total_cache_read  UInt64,
+        total_cache_write UInt64,
+        total_duration_ms UInt64,
+        error_count       UInt64
+    )
+    ENGINE = SummingMergeTree()
+    PARTITION BY toYYYYMM(hour)
+    ORDER BY (hour, user_id, event_type, plugin_name)
+    TTL hour + INTERVAL {{ .Values.config.eventRetentionDays }} DAY DELETE;
+
+    CREATE MATERIALIZED VIEW IF NOT EXISTS codectl_telemetry.events_hourly_mv
+    TO codectl_telemetry.events_hourly
+    AS SELECT
+        toStartOfHour(created_at) AS hour,
+        user_id,
+        event_type,
+        plugin_name,
+        count()            AS event_count,
+        sum(token_count)   AS total_tokens,
+        sum(cache_read_tokens)  AS total_cache_read,
+        sum(cache_write_tokens) AS total_cache_write,
+        sum(duration_ms)   AS total_duration_ms,
+        countIf(error != '') AS error_count
+    FROM codectl_telemetry.events
+    GROUP BY hour, user_id, event_type, plugin_name;
+
+  03_fintel_schema.sql: |
+    -- fintel OTEL traces (written by OTEL Collector ClickHouse exporter)
+    -- The OTEL Collector auto-creates tables, but we pre-create the database
+    -- and grant access. Tables: otel_traces, otel_metrics, otel_logs
+    SELECT 1;  -- placeholder; OTEL Collector creates its own schema

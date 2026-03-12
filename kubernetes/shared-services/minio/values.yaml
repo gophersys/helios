@@ -1,0 +1,38 @@
+# Shared MinIO — S3-compatible object storage
+# Connect from other namespaces:
+#   API:     minio.shared-services.svc.cluster.local:9000
+#   Console: minio.shared-services.svc.cluster.local:9001
+
+replicaCount: 1
+
+image:
+  repository: minio/minio
+  pullPolicy: IfNotPresent
+  tag: "RELEASE.2024-03-07T00-43-48Z"
+
+service:
+  type: ClusterIP
+  apiPort: 9000
+  consolePort: 9001
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 1Gi
+
+persistence:
+  enabled: true
+  size: 50Gi
+  storageClass: ""
+
+auth:
+  rootUser: "minio"
+  rootPassword: ""  # Set via --set auth.rootPassword=<password>
+
+# Buckets to create on init
+buckets:
+  - fintel-intelligence
+  - fintel-signal-images

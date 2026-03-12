@@ -1,0 +1,76 @@
+# Shared Observability Stack
+# OTEL Collector → ClickHouse + Jaeger, Prometheus scrapes, Grafana visualizes
+#
+# Depends on: clickhouse.shared-services.svc.cluster.local (shared-clickhouse chart)
+# Connect from other namespaces:
+#   OTEL gRPC: otel-collector.shared-services.svc.cluster.local:4317
+#   OTEL HTTP: otel-collector.shared-services.svc.cluster.local:4318
+#   Jaeger UI: jaeger.shared-services.svc.cluster.local:16686
+#   Prometheus: prometheus.shared-services.svc.cluster.local:9090
+#   Grafana:    grafana.shared-services.svc.cluster.local:3000
+
+otelCollector:
+  image:
+    repository: otel/opentelemetry-collector-contrib
+    tag: "0.96.0"
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 512Mi
+
+# ClickHouse connection (deployed by shared-clickhouse chart in same namespace)
+clickhouse:
+  host: clickhouse
+  port: 9000
+  user: fintel
+  database: fintel_otel
+  # Password fetched from clickhouse secret
+  passwordSecretName: ""   # Set to the clickhouse credentials secret name
+  passwordSecretKey: "fintel-password"
+
+jaeger:
+  image:
+    repository: jaegertracing/all-in-one
+    tag: "1.55"
+    pullPolicy: IfNotPresent
+  storage: memory
+  maxTraces: "100000"
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi
+
+prometheus:
+  image:
+    repository: prom/prometheus
+    tag: "v2.50.0"
+    pullPolicy: IfNotPresent
+  retentionDays: 7
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi
+
+grafana:
+  image:
+    repository: grafana/grafana
+    tag: "10.4.0"
+    pullPolicy: IfNotPresent
+  adminPassword: ""  # Set via --set grafana.adminPassword=<password>
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi

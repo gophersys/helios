@@ -1,0 +1,11 @@
+---
+# K3s server group variables
+
+k3s_role: "server"
+
+k3s_extra_args: >-
+  --disable traefik
+  --flannel-iface=tailscale0
+  --node-ip={{ tailscale_ip }}
+  --tls-san={{ tailscale_ip }}
+  --tls-san={{ ansible_host }}

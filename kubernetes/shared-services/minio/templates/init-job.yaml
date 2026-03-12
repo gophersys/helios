@@ -1,0 +1,43 @@
+{{- if .Values.buckets }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "shared-minio.fullname" . }}-init
+  labels:
+    {{- include "shared-minio.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation
+    "helm.sh/hook-weight": "5"
+spec:
+  ttlSecondsAfterFinished: 300
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: mc
+          image: minio/mc:latest
+          env:
+            - name: MINIO_ROOT_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "shared-minio.fullname" . }}-credentials
+                  key: root-user
+            - name: MINIO_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "shared-minio.fullname" . }}-credentials
+                  key: root-password
+          command:
+            - /bin/sh
+            - -c
+            - |
+              until mc alias set local http://minio:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD"; do
+                echo "Waiting for MinIO..."; sleep 3
+              done
+              {{- range .Values.buckets }}
+              mc mb --ignore-existing local/{{ . }}
+              echo "Bucket {{ . }} ready"
+              {{- end }}
+              echo "All buckets initialized."
+{{- end }}

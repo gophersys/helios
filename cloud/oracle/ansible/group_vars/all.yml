@@ -1,0 +1,10 @@
+---
+# Shared variables for all hosts
+
+tailscale_auth_key: "{{ lookup('env', 'TAILSCALE_AUTH_KEY') }}"
+
+k3s_version: "v1.32.4+k3s1"
+
+domain: "codectl.dev"
+
+timezone: "UTC"

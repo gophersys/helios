@@ -1,0 +1,35 @@
+# Shared Redis 7
+# Connect from other namespaces: redis.shared-services.svc.cluster.local:6379
+
+replicaCount: 1
+
+image:
+  repository: redis
+  pullPolicy: IfNotPresent
+  tag: "7-alpine"
+
+service:
+  type: ClusterIP
+  port: 6379
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 200m
+    memory: 256Mi
+
+persistence:
+  enabled: true
+  size: 5Gi
+  storageClass: ""
+
+auth:
+  enabled: true
+  password: ""  # Set via --set auth.password=<password>
+
+config:
+  maxmemory: "200mb"
+  maxmemoryPolicy: "allkeys-lru"
+  appendonly: "yes"

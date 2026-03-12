@@ -1,0 +1,34 @@
+# Shared NATS with JetStream
+# Connect from other namespaces: nats.shared-services.svc.cluster.local:4222
+
+replicaCount: 1
+
+image:
+  repository: nats
+  pullPolicy: IfNotPresent
+  tag: "2.10-alpine"
+
+service:
+  type: ClusterIP
+  clientPort: 4222
+  monitorPort: 8222
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 200m
+    memory: 256Mi
+
+jetstream:
+  enabled: true
+  # File-based storage for JetStream persistence
+  storage:
+    enabled: true
+    size: 5Gi
+    storageClass: ""
+  # Memory storage limit
+  memStorage: "128Mi"
+  # File storage limit
+  fileStorage: "4Gi"

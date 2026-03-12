@@ -1,0 +1,36 @@
+{
+  "name": "infrastructure",
+  "image": "ghcr.io/mateosegura/dev-env:latest",
+  "postCreateCommand": "chmod +x .devcontainer/ctl.sh && .devcontainer/ctl.sh post-create && npm install",
+  "postStartCommand": "chmod +x .devcontainer/ctl.sh && .devcontainer/ctl.sh post-start",
+  "containerEnv": {
+    "KUBECONFIG": "/workspaces/infrastructure/cloud/oracle/kubeconfig"
+  },
+  "runArgs": [
+    "--init",
+    "--env-file=.devcontainer/.env"
+  ],
+  "mounts": [
+    "source=${localEnv:HOME}/.claude,target=/root/.claude,type=bind,consistency=cached",
+    "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind"
+  ],
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "zsh",
+        "editor.formatOnSave": true
+      },
+      "extensions": [
+        "hashicorp.terraform",
+        "redhat.ansible",
+        "redhat.vscode-yaml",
+        "ms-azuretools.vscode-docker",
+        "ms-kubernetes-tools.vscode-kubernetes-tools",
+        "timonwong.shellcheck",
+        "github.vscode-pull-request-github",
+        "eamodio.gitlens",
+        "usernamehw.errorlens"
+      ]
+    }
+  }
+}

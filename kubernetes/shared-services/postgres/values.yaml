@@ -1,0 +1,45 @@
+# Shared PostgreSQL — multi-database, multi-user
+# Connect from other namespaces: postgres.shared-services.svc.cluster.local:5432
+
+replicaCount: 1
+
+image:
+  repository: postgres
+  pullPolicy: IfNotPresent
+  tag: "16-alpine"
+
+service:
+  type: ClusterIP
+  port: 5432
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: "1"
+    memory: 2Gi
+
+persistence:
+  enabled: true
+  size: 30Gi
+  storageClass: ""
+
+# Superuser credentials
+auth:
+  postgresPassword: ""  # Set via --set auth.postgresPassword=<password>
+
+# Databases and users created on init
+databases:
+  - name: codectl
+    user: codectl
+    password: ""  # Set via --set databases[0].password=<password>
+  - name: fintel
+    user: fintel
+    password: ""  # Set via --set databases[1].password=<password>
+
+config:
+  sharedBuffers: "256MB"
+  workMem: "8MB"
+  effectiveCacheSize: "1GB"
+  maxConnections: "200"
