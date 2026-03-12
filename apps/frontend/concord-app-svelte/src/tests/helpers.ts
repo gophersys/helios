@@ -68,7 +68,7 @@ export function createMockUser(overrides: Partial<MockUser> = {}): MockUser {
     email: 'test@example.com',
     name: 'Test User',
     picture: 'https://example.com/avatar.jpg',
-    permissions: ['Concord.Admin.Catalog.View'],
+    permissions: ['products:view'],
     ...overrides
   };
 }

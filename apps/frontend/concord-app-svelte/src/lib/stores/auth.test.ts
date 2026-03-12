@@ -87,7 +87,7 @@ describe('AuthState', () => {
   describe('hasPermission', () => {
     it('returns false when user is null', () => {
       const auth = createAuthContext();
-      expect(auth.hasPermission('Concord.Admin.Test')).toBe(false);
+      expect(auth.hasPermission('products:view')).toBe(false);
     });
 
     it('returns false when user has no permissions', async () => {
@@ -98,12 +98,12 @@ describe('AuthState', () => {
       const auth = createAuthContext();
       await auth.init();
 
-      expect(auth.hasPermission('Concord.Admin.Test')).toBe(false);
+      expect(auth.hasPermission('products:view')).toBe(false);
     });
 
     it('returns true when user has the permission', async () => {
       const mockUser = createMockUser({
-        permissions: ['Concord.Admin.Catalog.View', 'Concord.Admin.Catalog.Manage']
+        permissions: ['products:view', 'products:manage']
       });
       global.fetch = createMockFetch(createMockApiResponse(mockUser));
       storage._store['concord-token'] = 'valid-token';
@@ -111,12 +111,12 @@ describe('AuthState', () => {
       const auth = createAuthContext();
       await auth.init();
 
-      expect(auth.hasPermission('Concord.Admin.Catalog.View')).toBe(true);
+      expect(auth.hasPermission('products:view')).toBe(true);
     });
 
     it('returns false when user is missing any required permission', async () => {
       const mockUser = createMockUser({
-        permissions: ['Concord.Admin.Catalog.View']
+        permissions: ['products:view']
       });
       global.fetch = createMockFetch(createMockApiResponse(mockUser));
       storage._store['concord-token'] = 'valid-token';
@@ -125,14 +125,14 @@ describe('AuthState', () => {
       await auth.init();
 
       expect(auth.hasPermission(
-        'Concord.Admin.Catalog.View',
-        'Concord.Admin.Catalog.Manage'
+        'products:view',
+        'products:manage'
       )).toBe(false);
     });
 
     it('returns true when user has all required permissions', async () => {
       const mockUser = createMockUser({
-        permissions: ['Concord.Admin.Catalog.View', 'Concord.Admin.Catalog.Manage']
+        permissions: ['products:view', 'products:manage']
       });
       global.fetch = createMockFetch(createMockApiResponse(mockUser));
       storage._store['concord-token'] = 'valid-token';
@@ -141,8 +141,8 @@ describe('AuthState', () => {
       await auth.init();
 
       expect(auth.hasPermission(
-        'Concord.Admin.Catalog.View',
-        'Concord.Admin.Catalog.Manage'
+        'products:view',
+        'products:manage'
       )).toBe(true);
     });
   });

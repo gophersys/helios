@@ -475,7 +475,7 @@
   }
 
   onMount(() => {
-    if (!auth.hasPermission('Concord.Admin.Validation.View')) {
+    if (!auth.hasPermission('validation:view')) {
       goto('/');
       return;
     }
@@ -568,7 +568,7 @@
           </button>
         </div>
 
-        {#if isActive && auth.hasPermission('Concord.Admin.Validation.Manage')}
+        {#if isActive && auth.hasPermission('validation:manage')}
           <button
             onclick={() => { showTrigger = !showTrigger; }}
             class="btn btn-sm btn-primary flex items-center gap-1.5"
