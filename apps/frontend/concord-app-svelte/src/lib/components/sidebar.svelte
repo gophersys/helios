@@ -15,7 +15,7 @@
     PanelLeftClose,
     ChevronUp,
     Shield,
-    Monitor,
+    LineChart,
   } from 'lucide-svelte';
   import { PUBLIC_APP_VERSION } from '$env/static/public';
   import { getTheme } from '$lib/stores/theme.svelte';
@@ -51,10 +51,10 @@
 
   // Primary navigation items
   const primaryItems: NavItem[] = [
-    { to: '/catalog', icon: Package, label: 'Products', permission: 'Concord.Admin.Catalog.View' },
-    { to: '/ci', icon: Hammer, label: 'Builds', permission: 'Concord.Admin.CI.View' },
+    { to: '/catalog', icon: Package, label: 'Products', permission: 'products:view' },
+    { to: '/builds', icon: Hammer, label: 'Builds', permission: 'builds:view' },
     { to: '/validation', icon: FlaskConical, label: 'Validation' },
-    { to: '/mtib', icon: Cpu, label: 'Devices', permission: 'Concord.Admin.Nodes.View' },
+    { to: '/mtib', icon: Cpu, label: 'Hardware', permission: 'devices:view' },
   ];
 
   const visiblePrimaryItems = $derived(
@@ -63,9 +63,9 @@
 
   // Admin items
   const adminItems: NavItem[] = [
-    { to: '/validation/benches', icon: Monitor, label: 'Benches' },
     { to: '/fixtures', icon: Wrench, label: 'Fixtures' },
-    { to: '/users', icon: Users, label: 'Users & Permissions', permission: 'Concord.Admin.Users.View' },
+    { to: '/users', icon: Users, label: 'Users & Permissions', permission: 'users:view' },
+    { to: '/case-study', icon: LineChart, label: 'Case Study', permission: 'system:view' },
   ];
 
   const visibleAdminItems = $derived(
@@ -76,8 +76,8 @@
 
   // System items
   const systemItems: NavItem[] = [
-    { to: '/kubernetes', icon: KubernetesIcon, label: 'Cluster', permission: 'Concord.Admin.System.View' },
-    { to: '/history', icon: History, label: 'History', permission: 'Concord.Admin.History.View' },
+    { to: '/kubernetes', icon: KubernetesIcon, label: 'Cluster', permission: 'system:view' },
+    { to: '/history', icon: History, label: 'History', permission: 'system:view' },
   ];
 
   const visibleSystemItems = $derived(
