@@ -123,17 +123,15 @@
   <title>Case Study — Concord</title>
 </svelte:head>
 
-<div class="animate-fade-in">
-  <div class="mb-6">
-    <PageHeader
-      title="AI-Augmented Development"
-      description="Productivity economics analysis: Feb 3 - Mar 12, 2026"
-    />
-  </div>
+<div class="animate-fade-in space-y-6">
+  <PageHeader
+    title="AI-Augmented Development"
+    description="Productivity economics analysis: Feb 3 - Mar 12, 2026"
+  />
 
   <!-- Summary Cards -->
-  <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
-    <div class="card card-sm">
+  <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+    <div class="card p-5">
       <div class="flex items-center gap-3">
         <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-success/10">
           <TrendingUp size={20} class="text-success" />
@@ -145,7 +143,7 @@
       </div>
     </div>
 
-    <div class="card card-sm">
+    <div class="card p-5">
       <div class="flex items-center gap-3">
         <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-accent/10">
           <GitCommit size={20} class="text-accent" />
@@ -157,7 +155,7 @@
       </div>
     </div>
 
-    <div class="card card-sm">
+    <div class="card p-5">
       <div class="flex items-center gap-3">
         <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-warning/10">
           <Calendar size={20} class="text-warning" />
@@ -169,7 +167,7 @@
       </div>
     </div>
 
-    <div class="card card-sm">
+    <div class="card p-5">
       <div class="flex items-center gap-3">
         <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-error/10">
           <Zap size={20} class="text-error" />
@@ -187,7 +185,7 @@
     <!-- Left column: Charts -->
     <div class="lg:col-span-2 space-y-6">
       <!-- Cumulative Output Chart -->
-      <div class="card">
+      <div class="card p-5">
         <h3 class="text-sm font-semibold text-text-primary mb-4">Cumulative Output</h3>
         <div class="h-64 relative">
           <!-- Y-axis labels -->
@@ -248,7 +246,7 @@
       </div>
 
       <!-- Daily Output Bar Chart -->
-      <div class="card">
+      <div class="card p-5">
         <h3 class="text-sm font-semibold text-text-primary mb-4">Output by Session</h3>
         <div class="space-y-2">
           {#each journals as journal}
@@ -301,7 +299,7 @@
     <!-- Right column: Economics -->
     <div class="space-y-6">
       <!-- Baseline -->
-      <div class="card">
+      <div class="card p-5">
         <h3 class="text-sm font-semibold text-text-primary mb-4">Phoenix Engineer Baseline</h3>
         <div class="space-y-3">
           <div class="flex justify-between text-sm">
@@ -324,7 +322,7 @@
       </div>
 
       <!-- Productivity Comparison -->
-      <div class="card">
+      <div class="card p-5">
         <h3 class="text-sm font-semibold text-text-primary mb-4">Productivity Benchmarks</h3>
         <div class="space-y-4">
           <div class="text-2xs text-text-tertiary mb-2">Lines/day (Phoenix area)</div>
@@ -374,7 +372,7 @@
       </div>
 
       <!-- Team Equivalent -->
-      <div class="card">
+      <div class="card p-5">
         <h3 class="text-sm font-semibold text-text-primary mb-4">Team Equivalent</h3>
         <div class="space-y-4">
           <div class="text-center py-4 bg-surface-1 rounded-lg">
@@ -400,7 +398,7 @@
       </div>
 
       <!-- Cost Comparison -->
-      <div class="card">
+      <div class="card p-5">
         <h3 class="text-sm font-semibold text-text-primary mb-4">Cost Comparison</h3>
         <div class="space-y-3">
           <div class="flex justify-between text-sm">
@@ -423,7 +421,7 @@
       </div>
 
       <!-- Quality Note -->
-      <div class="card bg-accent/5 border-accent/20">
+      <div class="card p-5 bg-accent/5 border-accent/20">
         <h3 class="text-sm font-semibold text-text-primary mb-3">Quality Indicators</h3>
         <ul class="space-y-2 text-sm text-text-secondary">
           <li class="flex items-start gap-2">
@@ -448,7 +446,7 @@
   </div>
 
   <!-- Bottom summary -->
-  <div class="mt-8 card bg-surface-1">
+  <div class="mt-8 card p-6 bg-surface-1">
     <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
       <div class="text-center sm:text-left">
         <h3 class="text-lg font-semibold text-text-primary">Bottom Line</h3>
