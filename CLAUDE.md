@@ -38,18 +38,69 @@ instances were obtained through weeks of retry scripting.
 ## Repo Structure
 
 ```
-cloud/oracle/       Terraform, Ansible, scripts for OCI cluster
+cloud/oracle/       Terraform, Ansible, scripts for OCI cluster (5 nodes)
+cloud/aws/          Terraform for AWS resources (builder + agent-02)
 kubernetes/         Shared K8s manifests (observability, databases, messaging)
 apps/               Per-product deployment configs (Helm values, overlays)
 docker/             Dockerfiles for all services
 docs/               Infrastructure documentation
 ```
 
+## Multi-Cloud Cluster Layout
+
+```
+OCI Phoenix (Always Free):
+  server-00   A1.Flex ARM   2 CPU / 12 GB   K3s server
+  agent-00    A1.Flex ARM   2 CPU / 12 GB   K3s agent
+  agent-01    E4.Flex x86   1 CPU / 16 GB   K3s agent (~$14/mo)
+  sentinel-00 E2.Micro x86  1 CPU /  1 GB   bastion
+  sentinel-01 E2.Micro x86  1 CPU /  1 GB   bastion
+
+AWS Oregon (Free Tier):
+  agent-02    t4g.small ARM  2 CPU /  2 GB   K3s agent (always-on)
+  arm-builder t4g.small ARM  2 CPU /  2 GB   Docker builder (on-demand)
+```
+
+All nodes connected via Tailscale mesh. K3s networking is transparent across clouds.
+
 ## Shell Scripts
 
 - Use `set -euo pipefail` at the top of every script
 - Quote all variables
 - Use `$(...)` not backticks
+
+## ARM Builder (On-Demand Remote Docker Builds)
+
+The cluster runs on ARM. Dev machines are x86. To build ARM container images
+natively, we use an AWS t4g.small (Graviton ARM) instance that is **stopped
+when idle** and **started on demand** (~20s resume). Per-second billing.
+
+**Scripts:**
+- `cloud/oracle/scripts/arm-builder.sh` — Main CLI (up/down/ensure/status/ssh/build)
+- `cloud/oracle/scripts/arm-builder-setup.sh` — One-time dev machine setup
+
+**Usage:**
+```bash
+docker-arm build -t myapp:latest .     # auto-starts builder if needed
+arm-builder up                          # manual start (~20s)
+arm-builder down                        # stop ($0 compute, EBS persists)
+arm-builder status                      # check state + cost
+arm-builder ensure                      # idempotent start (for CI)
+```
+
+**Cost:** $0 compute (free tier through Dec 2026). ~$4/mo EBS (Docker cache).
+Auto-stops after 10 min idle.
+
+**Required credentials on a new machine:**
+1. AWS credentials (`~/.aws/credentials` or `AWS_ACCESS_KEY_ID` + `AWS_SECRET_ACCESS_KEY`)
+2. SSH key (`~/.ssh/arm-builder` + `.pub`)
+3. `GITHUB_TOKEN` for ghcr.io push (optional, auto-discovered from .env)
+
+**Rules:**
+- ALWAYS use the remote ARM builder for staging/production container builds
+- NEVER use QEMU emulation for production images (5x slower, can mask bugs)
+- Local `docker build` (x86) is fine for dev/testing only
+- The builder is NOT a cluster node — safe to stop/start freely
 
 ## Nx Targets
 
