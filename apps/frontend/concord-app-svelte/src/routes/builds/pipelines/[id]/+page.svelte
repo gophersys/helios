@@ -25,7 +25,7 @@
   import { getAuth } from '$lib/stores/auth.svelte';
   import type { Pipeline, PipelineBuildSummary, MatrixLabel, ValidationStage } from '$lib/types/ci';
   import { MATRIX_LABEL_DISPLAY, STAGE_DISPLAY } from '$lib/types/ci';
-  import { fetchPipeline, fetchBuildLog, fetchBuildArtifacts, resetBuild, downloadBuildArtifacts, downloadPipelineArtifacts, downloadSingleArtifact } from '$lib/services/ci';
+  import { fetchPipeline, fetchBuildLog, fetchBuildArtifacts, resetBuild, downloadBuildArtifacts, downloadPipelineArtifacts, downloadSingleArtifact, triggerPipelineValidation } from '$lib/services/ci';
   import type { BuildJobArtifact } from '$lib/types/ci';
   import {
     subscribeCiPipeline,
@@ -59,6 +59,15 @@
   let downloadingBuilds = $state<Set<string>>(new Set());
   let downloadingArtifacts = $state<Set<string>>(new Set());
   let downloadingAll = $state(false);
+  let triggeringValidation = $state(false);
+
+  // Can trigger validation: builds succeeded but no validation yet
+  const canTriggerValidation = $derived(
+    pipeline && !pipeline.validationRunId &&
+    pipeline.status === 'SUCCESS' &&
+    pipeline.builds && pipeline.builds.length > 0 &&
+    pipeline.builds.some(b => b.status === 'SUCCESS')
+  );
 
   // Check if all builds are complete (success or failed)
   const allBuildsComplete = $derived(
@@ -110,6 +119,21 @@
       error = err instanceof Error ? err.message : 'Download failed';
     } finally {
       downloadingAll = false;
+    }
+  }
+
+  async function handleTriggerValidation(): Promise<void> {
+    if (!pipeline || triggeringValidation || !pipelineId) return;
+    triggeringValidation = true;
+    try {
+      await triggerPipelineValidation(pipeline.id);
+      // Refresh pipeline to show updated status
+      pipeline = await fetchPipeline(pipelineId);
+      error = null;
+    } catch (err) {
+      error = err instanceof Error ? err.message : 'Failed to trigger validation';
+    } finally {
+      triggeringValidation = false;
     }
   }
 
@@ -243,16 +267,21 @@
   // Bitbucket URL construction
   const BITBUCKET_WORKSPACE = 'corekinect';
 
-  function getBitbucketCommitUrl(product: string, commitSha: string | null): string | null {
-    if (!commitSha) return null;
-    const info = getProductInfo(product);
-    return `https://bitbucket.org/${BITBUCKET_WORKSPACE}/${info.repo}/commits/${commitSha}`;
+  function getFwRepo(): string {
+    // Use buildMatrix.mainFw when available (most accurate), fall back to product info
+    if (pipeline?.buildMatrix?.mainFw) return pipeline.buildMatrix.mainFw as string;
+    const info = getProductInfo(pipeline?.product ?? '');
+    return info.repo;
   }
 
-  function getBitbucketBranchUrl(product: string, branch: string): string | null {
+  function getBitbucketCommitUrl(commitSha: string | null): string | null {
+    if (!commitSha) return null;
+    return `https://bitbucket.org/${BITBUCKET_WORKSPACE}/${getFwRepo()}/commits/${commitSha}`;
+  }
+
+  function getBitbucketBranchUrl(branch: string): string | null {
     if (!branch) return null;
-    const info = getProductInfo(product);
-    return `https://bitbucket.org/${BITBUCKET_WORKSPACE}/${info.repo}/src/${encodeURIComponent(branch)}/`;
+    return `https://bitbucket.org/${BITBUCKET_WORKSPACE}/${getFwRepo()}/branch/${encodeURIComponent(branch)}`;
   }
 
   function scrollLogToBottom(buildId: string): void {
@@ -510,7 +539,7 @@
         <div class="mt-2 flex items-center gap-2 flex-wrap">
           <!-- Branch card -->
           {#if pipeline.branch}
-            {@const branchUrl = getBitbucketBranchUrl(pipeline.product, pipeline.branch)}
+            {@const branchUrl = getBitbucketBranchUrl(pipeline.branch)}
             <a
               href={branchUrl ?? '#'}
               target="_blank"
@@ -534,7 +563,7 @@
           {/if}
           <!-- Commit badge -->
           {#if pipeline.commitSha}
-            {@const commitUrl = getBitbucketCommitUrl(pipeline.product, pipeline.commitSha)}
+            {@const commitUrl = getBitbucketCommitUrl(pipeline.commitSha)}
             <a
               href={commitUrl ?? '#'}
               target="_blank"
@@ -617,7 +646,7 @@
         <div class="mt-1 flex items-center gap-1.5">
           <GitCommit size={16} class="text-text-tertiary" />
           {#if pipeline.commitSha}
-            {@const commitUrl = getBitbucketCommitUrl(pipeline.product, pipeline.commitSha)}
+            {@const commitUrl = getBitbucketCommitUrl(pipeline.commitSha)}
             {#if commitUrl}
               <a
                 href={commitUrl}
@@ -634,6 +663,66 @@
             {/if}
           {:else}
             <span class="text-sm text-text-tertiary italic">Manual trigger</span>
+          {/if}
+        </div>
+      </div>
+    </div>
+
+    <!-- Validation section -->
+    <div class="mb-6 rounded-lg border border-border bg-surface-0 px-4 py-3">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <FlaskConical size={16} class="text-text-tertiary" />
+          <span class="text-sm font-medium text-text-primary">Validation</span>
+          {#if pipeline.autoValidate}
+            <span class="inline-flex items-center rounded bg-accent-muted px-1.5 py-0.5 text-2xs font-medium text-accent">
+              Auto
+            </span>
+          {/if}
+          {#if pipeline.matrixMode}
+            {@const stageInfo = STAGE_DISPLAY[pipeline.matrixMode as ValidationStage]}
+            {#if stageInfo}
+              <span class="inline-flex items-center rounded {stageInfo.color} px-1.5 py-0.5 text-2xs font-medium">
+                {stageInfo.name}
+              </span>
+            {/if}
+          {/if}
+        </div>
+        <div class="flex items-center gap-2">
+          {#if pipeline.validationRunId}
+            <StatusBadge status={pipeline.status === 'VALIDATING' ? 'RUNNING' : pipeline.status === 'SUCCESS' ? 'PASSED' : pipeline.status === 'FAILED' ? 'FAILED' : pipeline.status} />
+            <button
+              onclick={() => goto(`/validation/runs/${pipeline?.validationRunId}`)}
+              class="btn btn-sm flex items-center gap-1.5 text-2xs"
+            >
+              <ExternalLink size={12} />
+              View Run
+            </button>
+          {:else if canTriggerValidation}
+            <button
+              onclick={handleTriggerValidation}
+              disabled={triggeringValidation}
+              class="btn btn-sm btn-primary flex items-center gap-1.5 text-2xs"
+            >
+              {#if triggeringValidation}
+                <Loader2 size={12} class="animate-spin" />
+                Triggering...
+              {:else}
+                <FlaskConical size={12} />
+                Run Validation
+              {/if}
+            </button>
+          {:else if pipeline.status === 'BUILDING' || pipeline.status === 'PENDING'}
+            <span class="text-2xs text-text-tertiary">Waiting for builds...</span>
+          {:else if pipeline.status === 'BUILD_FAILED'}
+            <span class="text-2xs text-error">Builds failed</span>
+          {:else if pipeline.status === 'VALIDATING'}
+            <span class="inline-flex items-center gap-1.5 text-2xs text-accent">
+              <Loader2 size={12} class="animate-spin" />
+              Running...
+            </span>
+          {:else}
+            <span class="text-2xs text-text-tertiary">Not configured</span>
           {/if}
         </div>
       </div>

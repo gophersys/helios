@@ -8,15 +8,21 @@
     ChevronsLeft,
     ChevronsRight,
     Clock,
+    Cpu,
+    FlaskConical,
     GitBranch,
     GitCommit,
     Grid3X3,
     Hammer,
+    Layers,
+    Moon,
     Package,
     Plus,
+    Radio,
     RefreshCw,
     User,
     Webhook,
+    Zap,
   } from 'lucide-svelte';
   import { getAuth } from '$lib/stores/auth.svelte';
   import type { Pipeline, MatrixLabel, ValidationStage } from '$lib/types/ci';
@@ -42,6 +48,23 @@
     { value: 'FAILED', label: 'Failed' },
     { value: 'CANCELLED', label: 'Cancelled' },
   ];
+
+  const STAGE_OPTIONS = [
+    { value: 'smoke', label: 'Smoke' },
+    { value: 'silicon', label: 'Silicon' },
+    { value: 'integration', label: 'Integration' },
+    { value: 'nightly', label: 'Nightly' },
+    { value: 'fuota', label: 'FUOTA' },
+  ];
+
+  // Per-stage icon and color config for list badges
+  const STAGE_BADGE: Record<string, { icon: typeof Zap; color: string }> = {
+    smoke:       { icon: Zap,    color: 'text-text-secondary bg-surface-2' },
+    silicon:     { icon: Cpu,    color: 'text-text-secondary bg-surface-2' },
+    integration: { icon: Layers, color: 'text-text-secondary bg-surface-2' },
+    nightly:     { icon: Moon,   color: 'text-warning bg-warning-muted' },
+    fuota:       { icon: Radio,  color: 'text-info bg-info-muted' },
+  };
 
   // Trigger source display config
   const TRIGGER_CONFIG: Record<string, { icon: typeof Webhook; label: string; color: string }> = {
@@ -103,6 +126,7 @@
   let statusFilter = $state('');
   let productFilter = $state('');
   let branchFilter = $state('');
+  let stageFilter = $state('');
   let currentPage = $state(1);
   let refreshing = $state(false);
   let productOptions = $state<{ value: string; label: string }[]>([]);
@@ -127,6 +151,7 @@
         status: statusFilter || undefined,
         product: productFilter || undefined,
         branch: branchFilter || undefined,
+        matrixMode: stageFilter || undefined,
       });
       pipelines = res.data;
       pagination = res.pagination;
@@ -223,6 +248,7 @@
     const _s = statusFilter;
     const _p = productFilter;
     const _b = branchFilter;
+    const _st = stageFilter;
     currentPage = 1;
   });
 </script>
@@ -306,6 +332,11 @@
         options={productOptions}
       />
     {/if}
+    <Select
+      bind:value={stageFilter}
+      placeholder="All stages"
+      options={STAGE_OPTIONS}
+    />
     <TextInput
       bind:value={branchFilter}
       placeholder="Filter by branch..."
@@ -388,11 +419,24 @@
               {trigger.label}
             </span>
             <!-- Stage indicator -->
-            {#if pipeline.matrixMode && STAGE_DISPLAY[pipeline.matrixMode as ValidationStage]}
+            {#if pipeline.matrixMode && STAGE_BADGE[pipeline.matrixMode]}
+              {@const badge = STAGE_BADGE[pipeline.matrixMode]}
               {@const stage = STAGE_DISPLAY[pipeline.matrixMode as ValidationStage]}
-              <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded {stage.color} font-medium" title={stage.description}>
-                <Grid3X3 size={10} />
-                {stage.name}
+              <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded {badge.color} font-medium" title={stage?.description ?? pipeline.matrixMode}>
+                <svelte:component this={badge.icon} size={10} />
+                {stage?.name ?? pipeline.matrixMode}
+              </span>
+            {/if}
+            <!-- Validation indicator -->
+            {#if pipeline.validationRunId}
+              <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-success-muted text-success font-medium" title="Validation run linked">
+                <FlaskConical size={10} />
+                Validated
+              </span>
+            {:else if pipeline.autoValidate}
+              <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-accent-muted text-accent font-medium" title="Will auto-trigger validation">
+                <FlaskConical size={10} />
+                Auto
               </span>
             {/if}
             <!-- Build summary -->

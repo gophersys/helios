@@ -1,12 +1,6 @@
-<script lang="ts" module>
-  export interface SelectOption {
-    value: string;
-    label: string;
-  }
-</script>
-
 <script lang="ts">
   import { ChevronDown, Check } from 'lucide-svelte';
+  import type { SelectOption } from './types';
 
   type Option = SelectOption;
 

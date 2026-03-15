@@ -19,6 +19,7 @@ export interface FetchPipelinesParams {
   status?: string;
   branch?: string;
   product?: string;
+  matrixMode?: string;
 }
 
 interface PaginatedApiResponse<T> {
@@ -39,6 +40,7 @@ export async function fetchPipelines(
   if (params?.status) qs.set('status', params.status);
   if (params?.branch) qs.set('branch', params.branch);
   if (params?.product) qs.set('product', params.product);
+  if (params?.matrixMode) qs.set('matrixMode', params.matrixMode);
 
   const res = await apiFetch<PaginatedApiResponse<Pipeline[]>>(
     `/v2/builds/pipelines?${qs.toString()}`
@@ -187,6 +189,20 @@ export async function triggerBuild(config: TriggerBuildConfig): Promise<BuildJob
 
 export async function resetBuild(id: string): Promise<BuildJob> {
   const res = await api.post<ApiResponse<BuildJob>>(`/v2/builds/${id}/reset`, {});
+  return res.data;
+}
+
+export async function cancelPipeline(id: string): Promise<Pipeline> {
+  const res = await api.post<ApiResponse<Pipeline>>(`/v2/builds/pipelines/${id}/cancel`, {});
+  return res.data;
+}
+
+export async function triggerPipelineValidation(
+  pipelineId: string
+): Promise<{ pipelineId: string; validationRunId: string; status: string }> {
+  const res = await api.post<ApiResponse<{ pipelineId: string; validationRunId: string; status: string }>>(
+    `/v2/builds/pipelines/${pipelineId}/validate`, {}
+  );
   return res.data;
 }
 

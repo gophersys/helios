@@ -7,22 +7,15 @@
   import type { ProductStageConfig } from '$lib/types/stages';
   import { listStageConfigs } from '$lib/services/stages';
 
-  interface Props {
-    product: any;
-    canManage: boolean;
-    onRefresh: () => void;
-  }
-
+  interface Props { product: any; canManage: boolean; onRefresh: () => void; }
   let { product, canManage, onRefresh }: Props = $props();
 
   let editing = $state(false);
   let saving = $state(false);
   let error = $state<string | null>(null);
   let success = $state<string | null>(null);
-
   let editName = $state('');
   let editDescription = $state('');
-
   let stageConfigs = $state<ProductStageConfig[]>([]);
   let loadingRepos = $state(true);
 
@@ -30,51 +23,29 @@
     const repos: { label: string; url: string; branch: string | null }[] = [];
     const seen = new Set<string>();
     for (const cfg of stageConfigs) {
-      if (cfg.fwRepoUrl && !seen.has(cfg.fwRepoUrl)) {
-        seen.add(cfg.fwRepoUrl);
-        repos.push({ label: 'Firmware Repo', url: cfg.fwRepoUrl, branch: cfg.fwRepoBranch });
-      }
-      if (cfg.mfgRepoUrl && !seen.has(cfg.mfgRepoUrl)) {
-        seen.add(cfg.mfgRepoUrl);
-        repos.push({ label: 'Mfg Repo', url: cfg.mfgRepoUrl, branch: cfg.mfgRepoBranch });
-      }
+      if (cfg.fwRepoUrl && !seen.has(cfg.fwRepoUrl)) { seen.add(cfg.fwRepoUrl); repos.push({ label: 'FW Repo', url: cfg.fwRepoUrl, branch: cfg.fwRepoBranch }); }
+      if (cfg.mfgRepoUrl && !seen.has(cfg.mfgRepoUrl)) { seen.add(cfg.mfgRepoUrl); repos.push({ label: 'Mfg Repo', url: cfg.mfgRepoUrl, branch: cfg.mfgRepoBranch }); }
     }
     return repos;
   });
 
   onMount(async () => {
-    try { stageConfigs = await listStageConfigs(product.id); }
-    catch { /* non-critical */ }
-    finally { loadingRepos = false; }
+    try { stageConfigs = await listStageConfigs(product.id); } catch { /* non-critical */ } finally { loadingRepos = false; }
   });
 
-  function startEdit() {
-    editName = product.name;
-    editDescription = product.description ?? '';
-    error = null;
-    editing = true;
-  }
-
+  function startEdit() { editName = product.name; editDescription = product.description ?? ''; error = null; editing = true; }
   function cancelEdit() { editing = false; error = null; }
 
   async function saveChanges() {
     if (!editName.trim()) { error = 'Name is required'; return; }
-    saving = true;
-    error = null;
+    saving = true; error = null;
     try {
       await apiFetch<ApiResponse<Product>>(`/v2/products/${product.id}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ name: editName.trim(), description: editDescription.trim() || null }),
+        method: 'PATCH', body: JSON.stringify({ name: editName.trim(), description: editDescription.trim() || null }),
       });
-      editing = false;
-      success = 'Settings saved';
-      setTimeout(() => (success = null), 3000);
-      onRefresh();
-    } catch (e: unknown) {
-      error = e instanceof Error ? e.message : 'Failed to save';
-    } finally {
-      saving = false;
-    }
+      editing = false; success = 'Settings saved'; setTimeout(() => (success = null), 3000); onRefresh();
+    } catch (e: unknown) { error = e instanceof Error ? e.message : 'Failed to save'; }
+    finally { saving = false; }
   }
 </script>
 

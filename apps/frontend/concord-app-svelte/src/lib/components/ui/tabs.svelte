@@ -1,15 +1,6 @@
-<script lang="ts" module>
-  /** Tab configuration */
-  export interface Tab {
-    id: string;
-    label: string;
-    icon?: any; // Lucide icon component
-    badge?: string | number;
-    disabled?: boolean;
-  }
-</script>
-
 <script lang="ts">
+  import type { Tab } from './types';
+
   interface Props {
     /** Array of tab configurations */
     tabs: Tab[];

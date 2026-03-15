@@ -137,11 +137,11 @@
     {#snippet actions()}
       <div class="flex items-center gap-2">
         <a
-          href="/case-study/code-kit"
+          href="/case-study/codectl"
           class="flex items-center gap-2 rounded-lg bg-surface-2 px-3 py-2 text-sm font-medium text-text-primary transition-colors hover:bg-surface-1"
         >
           <FileCode size={16} />
-          Code-Kit
+          codectl
         </a>
         <a
           href="/case-study/team"

@@ -173,6 +173,7 @@ export interface Pipeline {
   expectedBuilds: number;
   completedBuilds: number;
   validationRunId: string | null;
+  autoValidate: boolean;
   startedAt: string | null;
   finishedAt: string | null;
   createdAt: string;
@@ -183,6 +184,8 @@ export interface Pipeline {
   buildMatrix?: {
     mode: string;
     product: string;
+    mainFw?: string;
+    mfgFw?: string;
     prBranch?: string;
     prCommit?: string;
     mainCommit?: string;
