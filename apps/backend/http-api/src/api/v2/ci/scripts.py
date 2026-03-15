@@ -30,11 +30,22 @@ def _normalize_product_dir(product_key: str) -> str | None:
 
     Strips _fw, _mfg suffixes and board variants to get the base product dir.
     e.g., alpha_fw -> alpha, alpha_mfg_fw -> alpha, sigma5_b0 -> sigma5
+
+    Returns None if the key contains path traversal sequences or invalid characters.
     """
+    # Reject path traversal attempts and invalid characters
+    if ".." in product_key or "/" in product_key or "\\" in product_key:
+        return None
+
     key = product_key.lower().replace("_fw", "").replace("_mfg", "")
     for suffix in ["_b0", "_a0", "_b1", "_a1", "_c0"]:
         key = key.replace(suffix, "")
-    return key.strip("_") or None
+
+    # Only allow alphanumeric and underscore
+    cleaned = key.strip("_")
+    if not cleaned or not all(c.isalnum() or c == "_" for c in cleaned):
+        return None
+    return cleaned
 
 
 def _get_script_path(product: str) -> Path | None:
@@ -42,12 +53,22 @@ def _get_script_path(product: str) -> Path | None:
 
     Dynamically normalizes product keys instead of using a static map.
     e.g., alpha_fw -> alpha, alpha_mfg_fw -> alpha, sigma5_fw -> sigma5
+
+    Includes path traversal protection to ensure the resolved path stays within SCRIPTS_DIR.
     """
     product_dir = _normalize_product_dir(product)
     if not product_dir:
         return None
 
-    script_path = SCRIPTS_DIR / product_dir / "scripts" / "build.sh"
+    script_path = (SCRIPTS_DIR / product_dir / "scripts" / "build.sh").resolve()
+
+    # Verify resolved path is within SCRIPTS_DIR (defense in depth)
+    try:
+        script_path.relative_to(SCRIPTS_DIR.resolve())
+    except ValueError:
+        logger.warning("Path traversal attempt blocked: %s", product)
+        return None
+
     if script_path.exists():
         return script_path
     return None

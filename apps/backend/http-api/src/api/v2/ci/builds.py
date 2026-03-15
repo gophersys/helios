@@ -19,6 +19,17 @@ from .types import BuildCreateRequest
 logger = logging.getLogger(__name__)
 
 
+def _sanitize_filename(filename: str) -> str:
+    """Sanitize a filename for use in Content-Disposition header.
+
+    Removes characters that could cause header injection or parsing issues.
+    """
+    # Remove or replace problematic characters
+    sanitized = filename.replace('"', "'").replace("\r", "").replace("\n", "").replace("\\", "_")
+    # Ensure it's not empty
+    return sanitized if sanitized else "download"
+
+
 # -------------------------------------------------
 #                                      Serializers
 # -------------------------------------------------
@@ -217,6 +228,7 @@ def create_build():
                 "commitSha": data.commit_sha,
                 "status": "QUEUED",
                 "webhookData": Json(data.config) if data.config else Json({"source": "manual"}),
+                "configFlags": Json(data.config) if data.config else None,
             },
             include={"artifacts": True},
         )
@@ -252,7 +264,7 @@ def update_build(build_id: str):
     # Allowed fields for update
     if "status" in data:
         status = data["status"].upper()
-        if status not in ("QUEUED", "BLOCKED", "BUILDING", "SUCCESS", "FAILED", "CANCELLED"):
+        if status not in ("QUEUED", "BLOCKED", "CLONING", "BUILDING", "SUCCESS", "FAILED", "CANCELLED"):
             return bad_request("Invalid status")
         update_data["status"] = status
 
@@ -295,6 +307,9 @@ def update_build(build_id: str):
 
     if "baseJobId" in data:
         update_data["baseJobId"] = data["baseJobId"]
+
+    if "configFlags" in data:
+        update_data["configFlags"] = Json(data["configFlags"]) if data["configFlags"] else None
 
     if not update_data:
         return bad_request("No valid fields to update")
@@ -368,8 +383,8 @@ def reset_build(build_id: str):
         return not_found("Build job not found")
 
     # Only allow reset from BUILDING or FAILED states
-    if build.status not in ("BUILDING", "FAILED"):
-        return bad_request(f"Cannot reset build in {build.status} state. Only BUILDING or FAILED builds can be reset.")
+    if build.status not in ("CLONING", "BUILDING", "FAILED"):
+        return bad_request(f"Cannot reset build in {build.status} state. Only CLONING, BUILDING or FAILED builds can be reset.")
 
     try:
         updated = db.buildjob.update(
@@ -563,7 +578,7 @@ def download_build_artifacts(build_id: str):
             zip_buffer.getvalue(),
             mimetype="application/zip",
             headers={
-                "Content-Disposition": f'attachment; filename="{zip_filename}"',
+                "Content-Disposition": f'attachment; filename="{_sanitize_filename(zip_filename)}"',
                 "Content-Length": str(len(zip_buffer.getvalue())),
             },
         )
@@ -618,7 +633,7 @@ def download_single_artifact(build_id: str, artifact_name: str):
             content,
             mimetype=content_type,
             headers={
-                "Content-Disposition": f'attachment; filename="{artifact_name}"',
+                "Content-Disposition": f'attachment; filename="{_sanitize_filename(artifact_name)}"',
                 "Content-Length": str(len(content)),
             },
         )

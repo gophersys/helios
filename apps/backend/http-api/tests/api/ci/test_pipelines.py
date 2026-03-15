@@ -29,8 +29,8 @@ def _pipeline_obj(**overrides):
         "expectedBuilds": 2,
         "completedBuilds": 0,
         "validationRunId": None,
-        "matrixMode": "quick",
-        "buildMatrix": {"mode": "quick", "product": "alpha"},
+        "matrixMode": "smoke",
+        "buildMatrix": {"mode": "smoke", "product": "alpha"},
         "triggerData": None,
         "startedAt": _now(),
         "finishedAt": None,
@@ -330,7 +330,7 @@ class TestCreatePipeline:
                     "product": "alpha",
                     "board": "alpha_b0",
                     "branch": "concord-main",
-                    "matrixMode": "quick",
+                    "matrixMode": "smoke",
                 }),
             )
 
@@ -417,9 +417,9 @@ class TestCreatePipeline:
 
         assert response.status_code == 201
 
-    def test_create_pipeline_stage4_mode(self, authed_client, mock_db):
-        """Create pipeline with stage4 matrix mode creates 8 builds."""
-        self._mock_pipeline_creation(mock_db, "pipe-stage4")
+    def test_create_pipeline_fuota_mode(self, authed_client, mock_db):
+        """Create pipeline with fuota matrix mode creates 8 builds."""
+        self._mock_pipeline_creation(mock_db, "pipe-fuota")
 
         with patch("src.api.v2.ci.pipelines.log_audit"):
             response = authed_client.post(
@@ -428,7 +428,7 @@ class TestCreatePipeline:
                     "product": "alpha",
                     "board": "alpha_b0",
                     "branch": "feature/test",
-                    "matrixMode": "stage4",
+                    "matrixMode": "fuota",
                 }),
             )
 
@@ -448,7 +448,7 @@ class TestCreatePipeline:
                     "product": "alpha",
                     "board": "alpha_b0",
                     "branch": "main",
-                    "matrixMode": "quick",
+                    "matrixMode": "smoke",
                 }),
             )
 

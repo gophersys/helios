@@ -388,6 +388,27 @@ def report_finish(run_id: str):
         "durationS": data.duration_s,
     })
 
+    # Propagate result back to parent pipeline if this run was triggered by one
+    pipeline_id = getattr(session, "pipelineRunId", None)
+    if pipeline_id:
+        try:
+            pipeline_status = "SUCCESS" if (data.failed == 0 and data.errors == 0) else "FAILED"
+            db.pipelinerun.update(
+                where={"id": pipeline_id},
+                data={
+                    "status": pipeline_status,
+                    "finishedAt": now,
+                },
+            )
+            _emit_validation_event("ci_pipeline_complete", {
+                "pipelineId": pipeline_id,
+                "status": pipeline_status,
+                "validationRunId": run_id,
+            })
+            logger.info(f"Pipeline {pipeline_id} finished with status {pipeline_status}")
+        except Exception as e:
+            logger.warning(f"Failed to update parent pipeline {pipeline_id}: {e}")
+
     logger.info(
         f"Validation run {run_id} finished: {data.passed}/{data.total} passed, "
         f"{data.failed} failed, {data.errors} errors"

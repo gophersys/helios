@@ -272,6 +272,7 @@ from .ci.pipelines import (
     create_pipeline as create_ci_pipeline,
     cancel_pipeline as cancel_ci_pipeline,
     download_pipeline_artifacts as download_ci_pipeline_artifacts,
+    validate_pipeline as validate_ci_pipeline,
 )
 from .ci.scripts import (
     list_build_scripts,
@@ -645,6 +646,7 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     v2.add_url_rule("/builds/pipelines",                                                        endpoint="create_ci_pipeline",       view_func=create_ci_pipeline,    methods=["POST"])
     v2.add_url_rule("/builds/pipelines/<pipeline_id>",                                          endpoint="get_ci_pipeline",          view_func=get_ci_pipeline,       methods=["GET"])
     v2.add_url_rule("/builds/pipelines/<pipeline_id>/cancel",                                   endpoint="cancel_ci_pipeline",       view_func=cancel_ci_pipeline,    methods=["POST"])
+    v2.add_url_rule("/builds/pipelines/<pipeline_id>/validate",                                endpoint="validate_ci_pipeline",     view_func=validate_ci_pipeline,  methods=["POST"])
     v2.add_url_rule("/builds/pipelines/<pipeline_id>/artifacts/download",                       endpoint="download_ci_pipeline_artifacts", view_func=download_ci_pipeline_artifacts, methods=["GET"])
 
     # Builds — Settings (was /ci/settings)

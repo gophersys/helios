@@ -51,11 +51,17 @@ def _generate_build_specs(
 
         # Resolve git ref based on git_ref field
         if d.git_ref == "main":
-            git_branch = "main"
-            git_commit = None  # Use HEAD
-        elif d.git_ref == "merge":
+            # Use pipeline branch as baseline — "main" means the pipeline's
+            # reference branch (e.g. concord-main), not literal git main.
+            # Firmware repos may have validation-specific branches that differ
+            # from upstream main (VAL server config, board fixes, etc.).
             git_branch = branch
-            git_commit = commit_sha  # TODO: Support actual merge commits
+            git_commit = None  # Use HEAD of the branch
+        elif d.git_ref == "merge":
+            # TODO: Support actual merge commits (git merge base into PR)
+            # For now, same as "main" — builds from pipeline branch HEAD
+            git_branch = branch
+            git_commit = None
         else:  # "pr"
             git_branch = branch
             git_commit = commit_sha
@@ -96,6 +102,7 @@ def _serialize_pipeline(p) -> Dict[str, Any]:
         "completedBuilds": p.completedBuilds,
         "validationRunId": p.validationRunId,
         "matrixMode": getattr(p, "matrixMode", None),
+        "autoValidate": getattr(p, "autoValidate", False),
         "buildMatrix": p.buildMatrix if hasattr(p, "buildMatrix") else None,
         "startedAt": p.startedAt.isoformat() if p.startedAt else None,
         "finishedAt": p.finishedAt.isoformat() if p.finishedAt else None,
@@ -140,6 +147,8 @@ def _serialize_pipeline_summary(p) -> Dict[str, Any]:
         "expectedBuilds": p.expectedBuilds,
         "completedBuilds": p.completedBuilds,
         "matrixMode": getattr(p, "matrixMode", None),
+        "autoValidate": getattr(p, "autoValidate", False),
+        "validationRunId": getattr(p, "validationRunId", None),
         "startedAt": p.startedAt.isoformat() if p.startedAt else None,
         "finishedAt": p.finishedAt.isoformat() if p.finishedAt else None,
         "createdAt": p.createdAt.isoformat(),
@@ -178,6 +187,7 @@ def list_pipelines():
     product = request.args.get("product")
     branch = request.args.get("branch")
     status = request.args.get("status")
+    matrix_mode = request.args.get("matrixMode")
 
     where: Dict[str, Any] = {}
     if product:
@@ -186,6 +196,8 @@ def list_pipelines():
         where["branch"] = branch
     if status:
         where["status"] = status
+    if matrix_mode:
+        where["matrixMode"] = matrix_mode
 
     try:
         total = db.pipelinerun.count(where=where)
@@ -456,6 +468,7 @@ def create_pipeline():
             "triggerType": data.trigger_type,
             "expectedBuilds": expected_builds,
             "matrixMode": data.matrix_mode,
+            "autoValidate": data.auto_validate,
             "triggerData": Json(trigger_data),
             "startedAt": datetime.now(timezone.utc),
         }
@@ -547,7 +560,7 @@ def cancel_pipeline(pipeline_id: str):
         db.buildjob.update_many(
             where={
                 "pipelineRunId": pipeline_id,
-                "status": {"in": ["QUEUED", "BUILDING"]},
+                "status": {"in": ["QUEUED", "CLONING", "BUILDING"]},
             },
             data={"status": "CANCELLED"},
         )
@@ -585,7 +598,7 @@ def check_pipeline_completion(pipeline_id: str) -> Optional[str]:
         if not pipeline:
             return None
 
-        if pipeline.status not in ("PENDING", "BUILDING"):
+        if pipeline.status not in ("PENDING", "CLONING", "BUILDING"):
             return None  # Already in terminal state
 
         builds = pipeline.builds or []
@@ -599,7 +612,7 @@ def check_pipeline_completion(pipeline_id: str) -> Optional[str]:
 
         # Fail-fast: if any build fails, cancel all pending/blocked/building siblings
         if failed > 0:
-            pending_builds = [b for b in builds if b.status in ("QUEUED", "BLOCKED", "BUILDING")]
+            pending_builds = [b for b in builds if b.status in ("QUEUED", "BLOCKED", "CLONING", "BUILDING")]
             if pending_builds:
                 logger.info("Build failed in pipeline %s, cancelling %d pending/blocked builds",
                            pipeline_id, len(pending_builds))
@@ -633,22 +646,39 @@ def check_pipeline_completion(pipeline_id: str) -> Optional[str]:
             logger.info("Pipeline %s failed: %d/%d builds failed", pipeline_id, failed, len(builds))
             return new_status
 
-        # All builds succeeded - trigger validation
-        new_status = "VALIDATING"
-        db.pipelinerun.update(
-            where={"id": pipeline_id},
-            data={"status": new_status},
-        )
-        logger.info("Pipeline %s builds complete, triggering validation", pipeline_id)
-
-        # Trigger validation job
-        validation_run_id = trigger_pipeline_validation(pipeline_id, pipeline, builds)
-        if validation_run_id:
+        # All builds succeeded
+        if getattr(pipeline, "autoValidate", False):
+            # Auto-trigger validation
+            new_status = "VALIDATING"
             db.pipelinerun.update(
                 where={"id": pipeline_id},
-                data={"validationRunId": validation_run_id},
+                data={"status": new_status},
             )
-            logger.info("Pipeline %s validation triggered: %s", pipeline_id, validation_run_id)
+            logger.info("Pipeline %s builds complete, auto-triggering validation", pipeline_id)
+
+            validation_run_id = trigger_pipeline_validation(pipeline_id, pipeline, builds)
+            if validation_run_id:
+                db.pipelinerun.update(
+                    where={"id": pipeline_id},
+                    data={"validationRunId": validation_run_id},
+                )
+                logger.info("Pipeline %s validation triggered: %s", pipeline_id, validation_run_id)
+            else:
+                # Validation trigger failed (no bench, etc.) — mark SUCCESS, user can trigger manually
+                new_status = "SUCCESS"
+                db.pipelinerun.update(
+                    where={"id": pipeline_id},
+                    data={"status": new_status, "finishedAt": datetime.now(timezone.utc)},
+                )
+                logger.warning("Pipeline %s auto-validate failed (no bench?), set to SUCCESS", pipeline_id)
+        else:
+            # No auto-validate — builds are done
+            new_status = "SUCCESS"
+            db.pipelinerun.update(
+                where={"id": pipeline_id},
+                data={"status": new_status, "finishedAt": datetime.now(timezone.utc)},
+            )
+            logger.info("Pipeline %s builds complete (autoValidate=false), set to SUCCESS", pipeline_id)
 
         return new_status
 
@@ -708,6 +738,7 @@ def trigger_pipeline_validation(pipeline_id: str, pipeline, builds: list) -> Opt
             data={
                 "name": f"Pipeline {pipeline.name} - {pipeline.branch}",
                 "productId": product.id,
+                "pipelineRunId": pipeline_id,
                 "status": "ACTIVE",
                 "config": Json({
                     "pipelineId": pipeline_id,
@@ -833,3 +864,52 @@ def trigger_pipeline_validation(pipeline_id: str, pipeline, builds: list) -> Opt
     except Exception as e:
         logger.error("Failed to trigger validation for pipeline %s: %s", pipeline_id, e)
         return None
+
+
+@require_permissions(Permissions.BUILDS_MANAGE)
+def validate_pipeline(pipeline_id: str):
+    """POST /v2/builds/pipelines/<id>/validate — Manually trigger validation for a completed pipeline."""
+    db = get_db_client()
+
+    try:
+        pipeline = db.pipelinerun.find_unique(
+            where={"id": pipeline_id},
+            include={"builds": True},
+        )
+        if not pipeline:
+            return not_found(f"Pipeline not found: {pipeline_id}")
+
+        # Allow from SUCCESS (never auto-validated) or FAILED (re-trigger after fix)
+        if pipeline.status not in ("SUCCESS", "FAILED", "BUILD_FAILED"):
+            if pipeline.status == "VALIDATING":
+                return bad_request("Pipeline is already validating")
+            return bad_request(f"Cannot trigger validation for pipeline in {pipeline.status} state")
+
+        builds = pipeline.builds or []
+        succeeded = [b for b in builds if b.status == "SUCCESS"]
+        if not succeeded:
+            return bad_request("No successful builds — cannot trigger validation")
+
+        # Trigger validation
+        validation_run_id = trigger_pipeline_validation(pipeline_id, pipeline, builds)
+        if not validation_run_id:
+            return internal_error("Failed to create validation run (no bench available?)")
+
+        db.pipelinerun.update(
+            where={"id": pipeline_id},
+            data={"status": "VALIDATING", "validationRunId": validation_run_id},
+        )
+
+        log_audit("ci.pipeline.validate_manual", "PipelineRun", pipeline_id, {
+            "validationRunId": validation_run_id,
+        })
+
+        return jsonify(ApiResponse.ok({
+            "pipelineId": pipeline_id,
+            "validationRunId": validation_run_id,
+            "status": "VALIDATING",
+        }).to_dict()), 200
+
+    except Exception as e:
+        logger.error("Failed to trigger validation for pipeline %s: %s", pipeline_id, e)
+        return internal_error("Failed to trigger validation")

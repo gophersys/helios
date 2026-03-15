@@ -198,7 +198,7 @@ class StageConfigUpdateRequest:
 
     @classmethod
     def from_json(cls, data: dict, stage: Optional[int] = None) -> Tuple[Optional["StageConfigUpdateRequest"], Optional[str]]:
-        if not data:
+        if data is None:
             return None, "Request body must contain JSON data"
 
         # Enabled
