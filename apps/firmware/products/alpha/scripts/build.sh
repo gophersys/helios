@@ -18,7 +18,7 @@
 # CI worker mode (set env vars):
 #   REPO_DIR=/path/to/cloned/repo OUTPUT_DIR=/path/to/artifacts BOARD=alpha_b0 VARIANT=debug MTIB_REV=1.2 bash build.sh
 
-set -e
+set -eo pipefail
 
 CYAN='\033[0;36m'
 GREEN='\033[0;32m'
@@ -131,49 +131,97 @@ if [ -n "$VARIANT" ]; then
     echo -e "${CYAN}Build variant: ${VARIANT}${NC}"
 fi
 
-# ---------- Create overlays in CI mode if missing ----------
-if [ "$CI_MODE" == "true" ] && [ ! -d "$OVERLAYS_DIR" ]; then
-    echo -e "${CYAN}Creating overlay files for CI mode...${NC}"
-    mkdir -p "$OVERLAYS_DIR"
+# ---------- Create overlays ----------
+# Always create overlays dir (needed for REV 1.2 MFG sensor overlay)
+mkdir -p "$OVERLAYS_DIR"
 
-    # nRF52840 pin swap overlay for REV 1.1 (UART TX/RX swapped)
-    cat > "${OVERLAYS_DIR}/nrf52840_pinswap.overlay" << 'OVERLAY_EOF'
-/* Pin swap overlay for REV 1.1 MTIB - UART TX/RX reversed */
-&uart0 {
-    tx-pin = <7>;
-    rx-pin = <6>;
+# REV 1.2 MFG APP overlay: I2C sensors + explicit UART pins (board defaults).
+# The submodule's boards/alpha_b0_nrf52840.overlay gets auto-detected by Zephyr
+# and swaps UART TX/RX (for REV 1.1 wiring). Sysbuild auto-detection bypasses
+# -DDTC_OVERLAY_FILE, so we MUST explicitly set the correct REV 1.2 pins here
+# AND remove the auto-detected overlay (done in build_mfg below).
+cat > "${OVERLAYS_DIR}/mfg_app_rev12.overlay" << 'OVERLAY_EOF'
+/* REV 1.2 MFG overlay: sensors + explicit UART pins (board defaults).
+ * Must include pinctrl to override any auto-detected boards/ overlay
+ * that swaps TX/RX for REV 1.1. */
+/ {
+    aliases {
+        ioexpander = &lp5814;
+        vsm-enable = &vsm_enable;
+        i2c-gpio = &ir_i2c;
+    };
+
+    ir_i2c: ir_i2c {
+        compatible = "gpio-i2c-fast";
+        status = "okay";
+        clock-frequency = <100000>;
+        cpu-frequency = <64000000>;
+        #address-cells = <1>;
+        #size-cells = <0>;
+        scl-gpios = <&gpio1 4 (GPIO_ACTIVE_HIGH | GPIO_PULL_UP)>;
+        sda-gpios = <&gpio1 6 (GPIO_ACTIVE_HIGH | GPIO_PULL_UP)>;
+
+        mlx90614: mlx90614@5a {
+            status = "okay";
+            compatible = "melexis,mlx90614";
+            reg = <0x5a>;
+            emissivity = <65535>;
+        };
+    };
+};
+
+&i2c1 {
+    clock-frequency = <I2C_BITRATE_FAST>;
+
+    bme280: bme280@76 {
+        compatible = "bosch,bme280";
+        reg = <0x76>;
+    };
+
+    lp5814: lp5814@2c {
+        compatible = "ti,lp5814";
+        reg = <0x2C>;
+    };
+
+    pah8151: pah8151@15 {
+        status = "okay";
+        compatible = "pixart,pah8151";
+        reg = <0x15>;
+        irq-gpios = <&gpio0 20 GPIO_ACTIVE_HIGH>;
+        int1-gpios = <&gpio0 20 GPIO_ACTIVE_HIGH>;
+        int2-gpios = <&gpio0 20 GPIO_ACTIVE_HIGH>;
+        int-pin = <1>;
+        led-current-ir = <255>;
+        led-current-red = <255>;
+        led-current-green = <255>;
+    };
+};
+
+/* UART0 pinctrl: REV 1.2 board-default pins (no swap).
+ * TX=P0.23, RX=P0.25 — matches alpha_b0_nrf52840-pinctrl.dtsi.
+ * Must be explicit to override auto-detected boards/ overlay. */
+&pinctrl {
+    uart0_default: uart0_default {
+        group1 {
+            psels = <NRF_PSEL(UART_TX, 0, 23)>;
+        };
+        group2 {
+            psels = <NRF_PSEL(UART_RX, 0, 25)>;
+            bias-pull-up;
+        };
+    };
+
+    uart0_sleep: uart0_sleep {
+        group1 {
+            psels = <NRF_PSEL(UART_TX, 0, 23)>,
+                    <NRF_PSEL(UART_RX, 0, 25)>;
+            low-power-enable;
+        };
+    };
 };
 OVERLAY_EOF
 
-    # nRF52840 default pins overlay for REV 1.2 (corrects pin swap in submodule)
-    cat > "${OVERLAYS_DIR}/nrf52840_default_pins.overlay" << 'OVERLAY_EOF'
-/* Default pins overlay for REV 1.2 MTIB - no pin swap needed */
-&uart0 {
-    tx-pin = <6>;
-    rx-pin = <7>;
-};
-OVERLAY_EOF
-
-    # nRF9151 pin swap overlay for REV 1.1
-    cat > "${OVERLAYS_DIR}/nrf9151_ns_pinswap.overlay" << 'OVERLAY_EOF'
-/* Pin swap overlay for REV 1.1 MTIB - UART TX/RX reversed */
-&uart0 {
-    tx-pin = <29>;
-    rx-pin = <28>;
-};
-OVERLAY_EOF
-
-    # nRF9151 default pins overlay for REV 1.2
-    cat > "${OVERLAYS_DIR}/nrf9151_ns_default_pins.overlay" << 'OVERLAY_EOF'
-/* Default pins overlay for REV 1.2 MTIB - no pin swap needed */
-&uart0 {
-    tx-pin = <28>;
-    rx-pin = <29>;
-};
-OVERLAY_EOF
-
-    echo -e "${GREEN}Overlay files created in ${OVERLAYS_DIR}${NC}"
-fi
+echo -e "${GREEN}Overlay files created in ${OVERLAYS_DIR}${NC}"
 
 # ---------- Create VAL server config in CI mode ----------
 # Override default server URL to point to VAL CoreCloud instead of DEV
@@ -188,6 +236,26 @@ CONFIG_SOCKET_SERVER_DEFAULT_SESS_PORT=2018
 CONFIG_SOCKET_SERVER_DEFAULT_DATA_PORT=2017
 # VAL time server EC P-256 public key (different from DEV server)
 CONFIG_SOCKET_SERVER_DEFAULT_TS_PUB_KEY="044E1C9C3D79BD0972DAFC8EF56E078EDFE44C8B21A57AFDC2AE5F2DDE834A99B8B387E4EBD31A16DFAFA70434F20B2CF3B8C0633A5E45ECDF29D6E61B127673AB"
+
+# MFG shell and logging (inline fallback — ensures shell works even if dev.conf is missing
+# from the submodule checkout; these are safe to apply in all builds as they match dev.conf)
+CONFIG_LOG=y
+CONFIG_LOG_MODE_DEFERRED=y
+CONFIG_LOG_SPEED=y
+CONFIG_LOG_BUFFER_SIZE=4096
+CONFIG_LOG_BACKEND_UART=y
+CONFIG_SHELL=y
+CONFIG_SHELL_CMDS_SELECT=y
+CONFIG_SHELL_ASYNC_API=y
+CONFIG_SHELL_LOG_BACKEND=n
+CONFIG_SHELL_PROMPT_UART="Mfg shell: "
+CONFIG_SHELL_BACKEND_SERIAL_ASYNC_RX_BUFFER_SIZE=64
+CONFIG_SHELL_BACKEND_SERIAL_ASYNC_RX_BUFFER_COUNT=8
+CONFIG_SHELL_CMD_BUFF_SIZE=768
+CONFIG_SHELL_STACK_SIZE=8192
+CONFIG_SHELL_THREAD_PRIORITY_OVERRIDE=y
+CONFIG_SHELL_THREAD_PRIORITY=5
+CONFIG_BASE64=y
 VAL_CONF_EOF
     echo -e "${CYAN}VAL server config created: ${VAL_SERVER_CONF}${NC}"
 fi
@@ -208,9 +276,17 @@ esac
 fix_sysbuild_key_path() {
     local conf_file="$1"
     local key_dir="$2"
-    # Normalize any previous absolute path to the current one
-    sed -i \
-        -e "s|SB_CONFIG_BOOT_ENCRYPTION_KEY_FILE=\"[^\"]*\"|SB_CONFIG_BOOT_ENCRYPTION_KEY_FILE=\"${key_dir}/comms_encryption_key.pem\"|g" \
+    if [ ! -f "$conf_file" ]; then
+        return
+    fi
+    # Fix all SB_CONFIG_BOOT_ENCRYPTION_KEY_FILE references:
+    # Replace any absolute path, keeping the filename intact
+    sed -i -E \
+        "s|SB_CONFIG_BOOT_ENCRYPTION_KEY_FILE=\"[^\"]*/([-_a-zA-Z0-9]+\.pem)\"|SB_CONFIG_BOOT_ENCRYPTION_KEY_FILE=\"${key_dir}/\1\"|g" \
+        "$conf_file"
+    # Also fix SB_CONFIG_BOOT_SIGNATURE_KEY_FILE if present
+    sed -i -E \
+        "s|SB_CONFIG_BOOT_SIGNATURE_KEY_FILE=\"[^\"]*/([-_a-zA-Z0-9]+\.pem)\"|SB_CONFIG_BOOT_SIGNATURE_KEY_FILE=\"${key_dir}/\1\"|g" \
         "$conf_file"
 }
 
@@ -322,14 +398,15 @@ resolve_version() {
         echo -e "${CYAN}Reading version from: ${version_conf}${NC}"
 
         # Try current alpha_fw format first
-        VERSION_MAJOR=$(grep -E "^CONFIG_APP_FW_MAJOR_VERSION=" "$version_conf" 2>/dev/null | cut -d'=' -f2)
-        VERSION_MINOR=$(grep -E "^CONFIG_APP_FW_MINOR_VERSION=" "$version_conf" 2>/dev/null | cut -d'=' -f2)
-        VERSION_BUILD=$(grep -E "^CONFIG_APP_FW_BUILD_VERSION=" "$version_conf" 2>/dev/null | cut -d'=' -f2)
+        # || true: grep returns 1 when key is absent, which kills the script under pipefail
+        VERSION_MAJOR=$(grep -E "^CONFIG_APP_FW_MAJOR_VERSION=" "$version_conf" 2>/dev/null | cut -d'=' -f2 || true)
+        VERSION_MINOR=$(grep -E "^CONFIG_APP_FW_MINOR_VERSION=" "$version_conf" 2>/dev/null | cut -d'=' -f2 || true)
+        VERSION_BUILD=$(grep -E "^CONFIG_APP_FW_BUILD_VERSION=" "$version_conf" 2>/dev/null | cut -d'=' -f2 || true)
 
         # Try legacy format if not found
-        [ -z "$VERSION_MAJOR" ] && VERSION_MAJOR=$(grep -E "^CONFIG_FW_INFO_VERSION_MAJOR=" "$version_conf" 2>/dev/null | cut -d'=' -f2)
-        [ -z "$VERSION_MINOR" ] && VERSION_MINOR=$(grep -E "^CONFIG_FW_INFO_VERSION_MINOR=" "$version_conf" 2>/dev/null | cut -d'=' -f2)
-        [ -z "$VERSION_BUILD" ] && VERSION_BUILD=$(grep -E "^CONFIG_FW_INFO_VERSION_BUILD=" "$version_conf" 2>/dev/null | cut -d'=' -f2)
+        [ -z "$VERSION_MAJOR" ] && VERSION_MAJOR=$(grep -E "^CONFIG_FW_INFO_VERSION_MAJOR=" "$version_conf" 2>/dev/null | cut -d'=' -f2 || true)
+        [ -z "$VERSION_MINOR" ] && VERSION_MINOR=$(grep -E "^CONFIG_FW_INFO_VERSION_MINOR=" "$version_conf" 2>/dev/null | cut -d'=' -f2 || true)
+        [ -z "$VERSION_BUILD" ] && VERSION_BUILD=$(grep -E "^CONFIG_FW_INFO_VERSION_BUILD=" "$version_conf" 2>/dev/null | cut -d'=' -f2 || true)
     fi
 
     # Defaults
@@ -344,7 +421,7 @@ resolve_version() {
         # Read from VersionDevice.h
         local vh_file="${fw_dir}/src/VersionDevice.h"
         if [ -f "$vh_file" ]; then
-            VERSION_BUILD=$(grep -E "^#define BUILD_NUM" "$vh_file" 2>/dev/null | awk '{print $3}')
+            VERSION_BUILD=$(grep -E "^#define BUILD_NUM" "$vh_file" 2>/dev/null | awk '{print $3}' || true)
             [ -n "$VERSION_BUILD" ] && echo -e "${CYAN}Read BUILD_NUM=${VERSION_BUILD} from VersionDevice.h${NC}"
         fi
         VERSION_BUILD="${VERSION_BUILD:-${BUILD_NUM:-0}}"
@@ -375,20 +452,20 @@ collect_artifacts() {
         echo -e "${CYAN}Reading version from: ${version_conf}${NC}"
         cat "$version_conf"
 
-        # Try legacy format first
-        version_major=$(grep -E "^CONFIG_FW_INFO_VERSION_MAJOR=" "$version_conf" 2>/dev/null | cut -d'=' -f2)
-        version_minor=$(grep -E "^CONFIG_FW_INFO_VERSION_MINOR=" "$version_conf" 2>/dev/null | cut -d'=' -f2)
-        version_build=$(grep -E "^CONFIG_FW_INFO_VERSION_BUILD=" "$version_conf" 2>/dev/null | cut -d'=' -f2)
+        # Try legacy format first (|| true: grep returns 1 when key is absent under pipefail)
+        version_major=$(grep -E "^CONFIG_FW_INFO_VERSION_MAJOR=" "$version_conf" 2>/dev/null | cut -d'=' -f2 || true)
+        version_minor=$(grep -E "^CONFIG_FW_INFO_VERSION_MINOR=" "$version_conf" 2>/dev/null | cut -d'=' -f2 || true)
+        version_build=$(grep -E "^CONFIG_FW_INFO_VERSION_BUILD=" "$version_conf" 2>/dev/null | cut -d'=' -f2 || true)
 
         # If not found, try current alpha_fw format
         if [ -z "$version_major" ]; then
-            version_major=$(grep -E "^CONFIG_APP_FW_MAJOR_VERSION=" "$version_conf" 2>/dev/null | cut -d'=' -f2)
+            version_major=$(grep -E "^CONFIG_APP_FW_MAJOR_VERSION=" "$version_conf" 2>/dev/null | cut -d'=' -f2 || true)
         fi
         if [ -z "$version_minor" ]; then
-            version_minor=$(grep -E "^CONFIG_APP_FW_MINOR_VERSION=" "$version_conf" 2>/dev/null | cut -d'=' -f2)
+            version_minor=$(grep -E "^CONFIG_APP_FW_MINOR_VERSION=" "$version_conf" 2>/dev/null | cut -d'=' -f2 || true)
         fi
         if [ -z "$version_build" ]; then
-            version_build=$(grep -E "^CONFIG_APP_FW_BUILD_VERSION=" "$version_conf" 2>/dev/null | cut -d'=' -f2)
+            version_build=$(grep -E "^CONFIG_APP_FW_BUILD_VERSION=" "$version_conf" 2>/dev/null | cut -d'=' -f2 || true)
         fi
     else
         echo -e "${YELLOW}Warning: version.conf not found at ${version_conf}${NC}"
@@ -405,7 +482,7 @@ collect_artifacts() {
         local version_device_h="${fw_dir:-$REPO_DIR}/src/VersionDevice.h"
         if [ -f "$version_device_h" ]; then
             local h_build_num
-            h_build_num=$(grep -E "^#define BUILD_NUM" "$version_device_h" 2>/dev/null | awk '{print $3}')
+            h_build_num=$(grep -E "^#define BUILD_NUM" "$version_device_h" 2>/dev/null | awk '{print $3}' || true)
             if [ -n "$h_build_num" ]; then
                 echo -e "${CYAN}Read BUILD_NUM=${h_build_num} from VersionDevice.h${NC}"
                 version_build="$h_build_num"
@@ -434,13 +511,16 @@ collect_artifacts() {
 
     mkdir -p "$out_dir"
 
+    # Name hex files to match CFW naming: {appId}.{version}.hex
+    local app_hex_name="109.${version_major}.${version_minor}.${version_build}.hex"
+    local comms_hex_name="108.${version_major}.${version_minor}.${version_build}.hex"
     if [ -f "$app_hex" ]; then
-        cp "$app_hex" "$out_dir/app_nrf52840.hex"
-        echo -e "  ${GREEN}app_nrf52840.hex${NC}"
+        cp "$app_hex" "$out_dir/${app_hex_name}"
+        echo -e "  ${GREEN}${app_hex_name}${NC}"
     fi
     if [ -f "$comms_hex" ]; then
-        cp "$comms_hex" "$out_dir/comms_${COMM_SOC}.hex"
-        echo -e "  ${GREEN}comms_${COMM_SOC}.hex${NC}"
+        cp "$comms_hex" "$out_dir/${comms_hex_name}"
+        echo -e "  ${GREEN}${comms_hex_name}${NC}"
     fi
     if [ -n "$dfu_zip" ] && [ -f "$dfu_zip" ]; then
         cp "$dfu_zip" "$out_dir/dfu_application.zip"
@@ -469,8 +549,19 @@ collect_artifacts() {
     echo -e "${CYAN}Generating CFW files...${NC}"
 
     # App processor CFW (app_id=109 for nRF52840)
-    local app_bin="${fw_dir}/build/repo/zephyr/zephyr.signed.encrypted.bin"
-    if [ -f "$app_bin" ]; then
+    # Sysbuild outputs to build/<project_name>/zephyr/ — find the actual bin
+    local app_bin=""
+    for candidate in \
+        "${fw_dir}/build/alpha_fw/zephyr/zephyr.signed.encrypted.bin" \
+        "${fw_dir}/build/alpha_mfg_fw/zephyr/zephyr.signed.encrypted.bin" \
+        "${fw_dir}/build/repo/zephyr/zephyr.signed.encrypted.bin" \
+        $(find "${fw_dir}/build" -path "*/nrf52840*/zephyr/zephyr.signed.encrypted.bin" 2>/dev/null | head -1); do
+        if [ -f "$candidate" ]; then
+            app_bin="$candidate"
+            break
+        fi
+    done
+    if [ -n "$app_bin" ] && [ -f "$app_bin" ]; then
         generate_cfw "$app_bin" 109 "$version_major" "$version_minor" "$version_build" \
             $cfw_track $cfw_mfg $cfw_debug "$out_dir/109.${version_major}.${version_minor}.${version_build}.cfw"
     fi
@@ -581,7 +672,12 @@ build_app_fw() {
     local COMMS_EXTRA_CONF="${FW_DIR}/version.conf;${FW_DIR}/default_personalization.conf"
     if [[ "$VARIANT" == "debug" ]]; then
         APP_EXTRA_CONF="${FW_DIR}/version.conf;${FW_DIR}/logging.conf"
-        COMMS_EXTRA_CONF="${FW_DIR}/version.conf;${FW_DIR}/default_personalization.conf;${COMM_DIR}/dev.conf"
+        COMMS_EXTRA_CONF="${FW_DIR}/version.conf;${FW_DIR}/default_personalization.conf"
+        if [ -f "${COMM_DIR}/dev.conf" ]; then
+            COMMS_EXTRA_CONF="${COMMS_EXTRA_CONF};${COMM_DIR}/dev.conf"
+        else
+            echo -e "${YELLOW}WARNING: ${COMM_DIR}/dev.conf not found — shell/logging from val_server.conf fallback${NC}"
+        fi
     fi
     # In CI mode, add VAL server config to override DEV defaults
     if [ "$CI_MODE" == "true" ] && [ -f "${OVERLAYS_DIR}/val_server.conf" ]; then
@@ -598,6 +694,9 @@ build_app_fw() {
     resolve_version "$FW_DIR"
     patch_version_device_h "$FW_DIR" "$VERSION_BUILD"
     patch_version_device_h "$COMM_DIR" "$VERSION_BUILD"
+
+    # --- Fix key paths in sysbuild configs (CI clones to different path) ---
+    fix_sysbuild_key_path "${FW_DIR}/sysbuild.conf" "${FW_DIR}"
 
     # --- Application processor (nRF52840) ---
     echo -e "\n${CYAN}[1/4] Application Processor (nRF52840)${NC}"
@@ -638,14 +737,15 @@ build_app_fw() {
         "${COMM_DIR}/build/comm_coproc_mfg/zephyr/zephyr.map" \
         > "${COMM_DIR}/fips.conf"
 
+    # Rebuild with FIPS hash added to EXTRA_CONF_FILE
+    local COMMS_FIPS_CONF="${COMMS_EXTRA_CONF};${COMM_DIR}/fips.conf"
     west build \
         -d "${COMM_DIR}/build" \
         -b "${BOARD}/${COMM_SOC}/ns" \
         --sysbuild "${COMM_DIR}" \
         -- \
         -DBOARD_ROOT="${FW_DIR}/ck_boards/current/" \
-        -DOVERLAY_CONFIG=fips.conf \
-        "-DEXTRA_CONF_FILE=${COMMS_EXTRA_CONF}" \
+        "-DEXTRA_CONF_FILE=${COMMS_FIPS_CONF}" \
         ${COMMS_DTS_OVERLAY}
 
     echo -e "\n${GREEN}alpha_fw build complete${NC}"
@@ -667,24 +767,33 @@ build_mfg_fw() {
     local MFG_SOC="nrf9151"
 
     # --- Resolve DTS overlays based on MTIB revision ---
-    # Overlays are in overlays/ (repo level), NOT in the submodule.
-    # Submodule overlay files are referenced read-only when combining.
+    # The submodule's boards/alpha_b0_nrf52840.overlay has TWO things:
+    #   1. I2C sensor definitions (pah8151, mlx90614, bme280, lp5814) — needed always
+    #   2. UART TX/RX pin swap — needed for REV 1.1, BREAKS REV 1.2
+    # Zephyr auto-detects overlays in boards/ by board name, so we MUST explicitly
+    # set DTC_OVERLAY_FILE to suppress auto-detection and control what gets applied.
     local APP_DTS_OVERLAY=""
     local COMMS_DTS_OVERLAY=""
     if [[ "$MTIB_REV" == "1.1" ]]; then
-        # REV 1.1: submodule overlays have pin swap baked in - use them directly
+        # REV 1.1: use submodule overlay as-is (sensors + UART pin swap)
         APP_DTS_OVERLAY="-DDTC_OVERLAY_FILE=${FW_DIR}/boards/alpha_b0_nrf52840.overlay"
         COMMS_DTS_OVERLAY="-DDTC_OVERLAY_FILE=${FW_DIR}/boards/alpha_b0_nrf9151_ns.overlay"
     else
-        # REV 1.2: Let Zephyr auto-discover overlays from boards/ directory
-        # This matches production build behavior - submodule overlays should have correct pins
-        # Note: If mfg submodule has old pin swap, that needs to be fixed in the firmware repo
-        APP_DTS_OVERLAY=""
+        # REV 1.2: use sensors-only overlay (no UART pin swap).
+        # This suppresses Zephyr auto-detection of the submodule overlay.
+        APP_DTS_OVERLAY="-DDTC_OVERLAY_FILE=${OVERLAYS_DIR}/mfg_app_rev12.overlay"
         COMMS_DTS_OVERLAY=""
     fi
 
-    # --- Resolve extra configs for comms (add VAL server in CI mode) ---
+    # --- Resolve extra configs for comms ---
+    # dev.conf enables shell + logging for MFG firmware. Must use EXTRA_CONF_FILE
+    # with absolute path because -DOVERLAY_CONFIG doesn't propagate through sysbuild.
     local MFG_COMMS_EXTRA_CONF="${FW_DIR}/version.conf;${FW_DIR}/default_personalization.conf"
+    if [ -f "${COMM_DIR}/dev.conf" ]; then
+        MFG_COMMS_EXTRA_CONF="${MFG_COMMS_EXTRA_CONF};${COMM_DIR}/dev.conf"
+    else
+        echo -e "${YELLOW}WARNING: ${COMM_DIR}/dev.conf not found — shell/logging configs from val_server.conf fallback${NC}"
+    fi
     if [ "$CI_MODE" == "true" ] && [ -f "${OVERLAYS_DIR}/val_server.conf" ]; then
         MFG_COMMS_EXTRA_CONF="${MFG_COMMS_EXTRA_CONF};${OVERLAYS_DIR}/val_server.conf"
         echo -e "${CYAN}Adding VAL server config to mfg comms build${NC}"
@@ -700,41 +809,88 @@ build_mfg_fw() {
     patch_version_device_h "$FW_DIR" "$VERSION_BUILD"
     patch_version_device_h "$COMM_DIR" "$VERSION_BUILD"
 
-    # --- Application processor (nRF52840) ---
-    echo -e "\n${CYAN}[1/4] Application Processor (nRF52840)${NC}"
-    west build ${PRISTINE:---pristine} \
-        -d "${FW_DIR}/build" \
-        -b "${MFG_BOARD}/nrf52840" \
-        --sysbuild "${FW_DIR}" \
-        -- \
-        -DBOARD_ROOT="${FW_DIR}/ck_boards/current/" \
-        -DEXTRA_CONF_FILE="${FW_DIR}/version.conf" \
-        ${APP_DTS_OVERLAY}
+    # --- Fix key paths in sysbuild configs (CI clones to different path) ---
+    fix_sysbuild_key_path "${FW_DIR}/sysbuild.conf" "${FW_DIR}"
 
-    # --- Merge VSM PSP hex ---
-    echo -e "\n${CYAN}[2/4] Merging VSM PSP hex${NC}"
+    # --- Remove auto-detected board overlay for REV 1.2 ---
+    # Zephyr/sysbuild auto-detects boards/<board>.overlay even when DTC_OVERLAY_FILE
+    # is explicitly set. The submodule's overlay swaps UART TX/RX pins for REV 1.1,
+    # which breaks REV 1.2 UART communication (especially after FUOTA).
+    # Remove it so only the explicit mfg_app_rev12.overlay is applied.
+    if [[ "$MTIB_REV" != "1.1" ]]; then
+        local auto_overlay="${FW_DIR}/boards/alpha_b0_nrf52840.overlay"
+        if [ -f "$auto_overlay" ]; then
+            echo -e "${CYAN}Removing auto-detected overlay (REV 1.2 build): ${auto_overlay}${NC}"
+            rm -f "$auto_overlay"
+        fi
+    fi
+
+    # --- Parallel build: APP (nRF52840) + COMMS first pass (nRF9151) ---
+    # These are fully independent — different source trees, build dirs, and boards.
+    # Run them in parallel, then do post-processing (mergehex + FIPS) after both finish.
+    fix_sysbuild_key_path "${COMM_DIR}/sysbuild.conf" "${FW_DIR}"
+    echo "# FIPS hash - placeholder for first build" > "${COMM_DIR}/fips.conf"
+
+    local APP_LOG="${FW_DIR}/build_app.log"
+    local COMMS_LOG="${COMM_DIR}/build_comms.log"
+
+    echo -e "\n${CYAN}[1/3] Building APP + COMMS in parallel${NC}"
+    echo -e "${CYAN}  APP:   nRF52840 (${MFG_BOARD})${NC}"
+    echo -e "${CYAN}  COMMS: ${MFG_SOC} (${MFG_BOARD})${NC}"
+
+    # APP build (background) — tee captures log file, sed adds prefix for real-time streaming
+    (
+        west build ${PRISTINE:---pristine} \
+            -d "${FW_DIR}/build" \
+            -b "${MFG_BOARD}/nrf52840" \
+            --sysbuild "${FW_DIR}" \
+            -- \
+            -DBOARD_ROOT="${FW_DIR}/ck_boards/current/" \
+            -DEXTRA_CONF_FILE="${FW_DIR}/version.conf" \
+            ${APP_DTS_OVERLAY} 2>&1 | tee "$APP_LOG" | sed -u 's/^/[APP] /'
+    ) &
+    local APP_PID=$!
+
+    # COMMS first build (background) — tee captures log file, sed adds prefix for real-time streaming
+    (
+        west build --pristine \
+            -d "${COMM_DIR}/build" \
+            -b "${MFG_BOARD}/${MFG_SOC}/ns" \
+            --sysbuild "${COMM_DIR}" \
+            -- \
+            -DBOARD_ROOT="${FW_DIR}/ck_boards/current/" \
+            "-DEXTRA_CONF_FILE=${MFG_COMMS_EXTRA_CONF}" \
+            ${COMMS_DTS_OVERLAY} 2>&1 | tee "$COMMS_LOG" | sed -u 's/^/[COMMS] /'
+    ) &
+    local COMMS_PID=$!
+
+    echo -e "${CYAN}  APP PID:   ${APP_PID}${NC}"
+    echo -e "${CYAN}  COMMS PID: ${COMMS_PID}${NC}"
+
+    # Wait for both — pipefail ensures we catch west build failures through the tee|sed pipe
+    local APP_RC=0 COMMS_RC=0
+    wait $APP_PID || APP_RC=$?
+    wait $COMMS_PID || COMMS_RC=$?
+
+    if [ $APP_RC -ne 0 ]; then
+        echo -e "${RED}APP build failed (exit $APP_RC)${NC}"
+        exit 1
+    fi
+    if [ $COMMS_RC -ne 0 ]; then
+        echo -e "${RED}COMMS first-pass build failed (exit $COMMS_RC)${NC}"
+        exit 1
+    fi
+    echo -e "${GREEN}Both parallel builds succeeded${NC}"
+
+    # --- Post-processing (can also run in parallel) ---
+    echo -e "\n${CYAN}[2/3] Merging VSM PSP hex${NC}"
     mergehex -m \
         "${FW_DIR}/build/merged.hex" \
         "${FW_DIR}/vsm_drv/src/corekinect/module/vsm/threads/vitals/lib/bin/psp.hex" \
         -o "${FW_DIR}/build/merged.hex"
 
-    # --- Communications coprocessor with mfg shell ---
-    echo -e "\n${CYAN}[3/4] Communication Coprocessor (${MFG_SOC}) + mfg shell${NC}"
-    fix_sysbuild_key_path "${COMM_DIR}/sysbuild.conf" "${FW_DIR}"
-    echo "# FIPS hash - placeholder for first build" > "${COMM_DIR}/fips.conf"
-
-    west build --pristine \
-        -d "${COMM_DIR}/build" \
-        -b "${MFG_BOARD}/${MFG_SOC}/ns" \
-        --sysbuild "${COMM_DIR}" \
-        -- \
-        -DBOARD_ROOT="${FW_DIR}/ck_boards/current/" \
-        -DOVERLAY_CONFIG=dev.conf \
-        "-DEXTRA_CONF_FILE=${MFG_COMMS_EXTRA_CONF}" \
-        ${COMMS_DTS_OVERLAY}
-
     # --- FIPS hash recalculation + final rebuild ---
-    echo -e "\n${CYAN}[4/4] FIPS hash recalculation + final rebuild${NC}"
+    echo -e "\n${CYAN}[3/3] FIPS hash recalculation + final COMMS rebuild${NC}"
     if [ ! -f "${COMM_DIR}/build/merged.hex" ] || [ ! -f "${COMM_DIR}/build/comm_coproc_mfg/zephyr/zephyr.map" ]; then
         echo -e "${RED}ERROR: First build failed - missing required files for FIPS hash${NC}"
         exit 1
@@ -751,14 +907,15 @@ build_mfg_fw() {
         exit 1
     fi
 
+    # Rebuild with FIPS hash — add fips.conf to EXTRA_CONF_FILE for the final build
+    local MFG_COMMS_FIPS_CONF="${MFG_COMMS_EXTRA_CONF};${COMM_DIR}/fips.conf"
     west build \
         -d "${COMM_DIR}/build" \
         -b "${MFG_BOARD}/${MFG_SOC}/ns" \
         --sysbuild "${COMM_DIR}" \
         -- \
         -DBOARD_ROOT="${FW_DIR}/ck_boards/current/" \
-        "-DOVERLAY_CONFIG=dev.conf;fips.conf" \
-        "-DEXTRA_CONF_FILE=${MFG_COMMS_EXTRA_CONF}" \
+        "-DEXTRA_CONF_FILE=${MFG_COMMS_FIPS_CONF}" \
         ${COMMS_DTS_OVERLAY}
 
     echo -e "\n${GREEN}alpha_mfg_fw build complete${NC}"

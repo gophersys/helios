@@ -86,6 +86,14 @@ class BuildJob:
     version_override: str = None  # Explicit version override (e.g., "0.5.0")
 
 
+def _extract_version_override(job_data: dict) -> Optional[str]:
+    """Extract version override from job data (configFlags or direct field)."""
+    config_flags = job_data.get("configFlags") or {}
+    if isinstance(config_flags, dict) and config_flags.get("versionOverride"):
+        return config_flags["versionOverride"]
+    return job_data.get("versionOverride") or job_data.get("firmwareVersion")
+
+
 class BuildWorker:
     """Firmware build worker that processes jobs from the Concord API.
 
@@ -120,6 +128,9 @@ class BuildWorker:
         # Repo configs fetched from API (populated by _load_repo_configs)
         self._repo_configs: Dict[str, dict] = {}
         self._configs_loaded = False
+
+        # NCS version cache: product -> ncs_version (learned from devcontainer)
+        self._product_ncs_cache: Dict[str, str] = {}
 
     def _load_repo_configs(self) -> bool:
         """Fetch repo configs from API. Called once at startup and on cache miss."""
@@ -274,12 +285,7 @@ class BuildWorker:
 
     def fetch_queued_job(self) -> Optional[BuildJob]:
         """Fetch the next QUEUED build job matching this worker's NCS version."""
-        # Build query params
-        params = "status=QUEUED&limit=1"
-        if self.ncs_version:
-            params += f"&ncsVersion={self.ncs_version}"
-
-        result = self._api_get(f"/v2/builds/builds?{params}")
+        result = self._api_get("/v2/builds?status=QUEUED&limit=20")
         if not result or not result.get("data"):
             return None
 
@@ -287,35 +293,35 @@ class BuildWorker:
         if not jobs:
             return None
 
-        j = jobs[0]
-        return BuildJob(
-            id=j["id"],
-            product=j["product"],
-            board=j["board"],
-            target=j["target"],
-            variant=j["variant"],
-            mtib_rev=j["mtibRev"],
-            branch=j["branch"],
-            commit_sha=j["commitSha"] or "",
-            status=j["status"],
-            version_bump=j.get("versionBump", False),
-            base_job_id=j.get("baseJobId"),
-            matrix_label=j.get("matrixLabel"),
-            version_override=_extract_version_override(j),
-        )
+        for j in jobs:
+            product = j["product"]
+            # Skip products we already know need a different NCS version
+            if self.ncs_version and product in self._product_ncs_cache:
+                cached_ncs = self._product_ncs_cache[product]
+                if cached_ncs != self.ncs_version:
+                    continue
 
-def _extract_version_override(job_data: dict) -> Optional[str]:
-    """Extract version override from job data (configFlags or direct field)."""
-    # First check configFlags JSON
-    config_flags = job_data.get("configFlags") or {}
-    if isinstance(config_flags, dict) and config_flags.get("versionOverride"):
-        return config_flags["versionOverride"]
-    # Fallback to direct fields
-    return job_data.get("versionOverride") or job_data.get("firmwareVersion")
+            return BuildJob(
+                id=j["id"],
+                product=j["product"],
+                board=j["board"],
+                target=j["target"],
+                variant=j["variant"],
+                mtib_rev=j["mtibRev"],
+                branch=j["branch"],
+                commit_sha=j["commitSha"] or "",
+                status=j["status"],
+                version_bump=j.get("versionBump", False),
+                base_job_id=j.get("baseJobId"),
+                matrix_label=j.get("matrixLabel"),
+                version_override=_extract_version_override(j),
+            )
+
+        return None  # All queued jobs are for incompatible NCS versions
 
     def claim_job(self, job_id: str) -> bool:
         """Claim a job by setting status to BUILDING."""
-        result = self._api_patch(f"/v2/builds/builds/{job_id}", {
+        result = self._api_patch(f"/v2/builds/{job_id}", {
             "status": "BUILDING",
             "workerId": self.worker_id,
             "startedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
@@ -335,16 +341,19 @@ def _extract_version_override(job_data: dict) -> Optional[str]:
         if status in ("SUCCESS", "FAILED", "CANCELLED"):
             data["finishedAt"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
 
-        result = self._api_patch(f"/v2/builds/builds/{job_id}", data)
+        result = self._api_patch(f"/v2/builds/{job_id}", data)
         return result is not None
 
-    def clone_repo(self, repo_slug: str, dest_dir: Path, commit_sha: str = None) -> bool:
+    def clone_repo(self, repo_slug: str, dest_dir: Path, commit_sha: str = None,
+                   branch: str = None, job_id: str = None) -> bool:
         """Clone a repo to a specific directory.
 
         Args:
             repo_slug: The repo identifier (e.g., "alpha_fw")
             dest_dir: Where to clone the repo
             commit_sha: Optional commit to checkout
+            branch: Optional branch to clone (default: repo default branch)
+            job_id: Optional job ID for log streaming
         """
         config = self._get_repo_config(repo_slug)
         if not config or not config.get("ssh_url"):
@@ -355,29 +364,49 @@ def _extract_version_override(job_data: dict) -> Optional[str]:
         env = os.environ.copy()
         env["GIT_SSH_COMMAND"] = f"ssh -i {self.ssh_key_path} -o StrictHostKeyChecking=no -o BatchMode=yes"
 
+        def _log(msg: str):
+            log.info(msg)
+            if job_id:
+                self._stream_log_chunk(job_id, msg + "\n")
+
         try:
-            # Clone
-            log.info("Cloning %s to %s...", repo_url, dest_dir.name)
-            subprocess.run(
-                ["git", "clone", "--depth", "50", repo_url, str(dest_dir)],
+            # Clone — use specific branch if provided
+            clone_cmd = ["git", "clone", "--depth", "50", "--progress"]
+            if branch:
+                clone_cmd.extend(["-b", branch])
+            clone_cmd.extend([repo_url, str(dest_dir)])
+
+            _log(f"[clone] git clone {repo_slug} (branch={branch or 'default'})...")
+            result = subprocess.run(
+                clone_cmd,
                 env=env, check=True, capture_output=True, timeout=120,
             )
+            # Git clone progress goes to stderr
+            if result.stderr:
+                clone_output = result.stderr.decode("utf-8", errors="replace").strip()
+                if job_id and clone_output:
+                    self._stream_log_chunk(job_id, clone_output + "\n")
 
             # Checkout specific commit if provided
             if commit_sha:
-                log.info("Checking out %s...", commit_sha[:8])
+                _log(f"[clone] Checking out {commit_sha[:8]}...")
                 subprocess.run(
                     ["git", "checkout", commit_sha],
                     cwd=dest_dir, check=True, capture_output=True, timeout=30,
                 )
 
-            # Initialize submodules
-            log.info("Initializing submodules...")
-            subprocess.run(
-                ["git", "submodule", "update", "--init", "--recursive"],
-                cwd=dest_dir, check=True, capture_output=True, timeout=300,
+            # Initialize submodules (must pass env for SSH key)
+            _log(f"[clone] Initializing submodules...")
+            result = subprocess.run(
+                ["git", "submodule", "update", "--init", "--recursive", "--progress", "--jobs", "8"],
+                cwd=dest_dir, env=env, check=True, capture_output=True, timeout=300,
             )
+            if result.stderr:
+                sub_output = result.stderr.decode("utf-8", errors="replace").strip()
+                if job_id and sub_output:
+                    self._stream_log_chunk(job_id, sub_output + "\n")
 
+            _log(f"[clone] {repo_slug} ready")
             return True
 
         except subprocess.CalledProcessError as e:
@@ -387,12 +416,35 @@ def _extract_version_override(job_data: dict) -> Optional[str]:
             log.error("Clone failed: %s", e)
             return False
 
+    def _check_ncs_version(self, repo_dir: Path) -> Optional[str]:
+        """Read NCS version from repo's .devcontainer/devcontainer.json.
+
+        Returns the NCS version string (e.g., '2.7.0') or None if not found.
+        """
+        devcontainer = repo_dir / ".devcontainer" / "devcontainer.json"
+        if not devcontainer.exists():
+            return None
+        try:
+            import re
+            text = devcontainer.read_text()
+            # Remove JSON comments (// style)
+            text = re.sub(r'//.*$', '', text, flags=re.MULTILINE)
+            data = json.loads(text)
+            image = data.get("image", "")
+            # Extract version from image tag like "containers.ad.corekinect.com/ncs-fw-dev:2.7.0"
+            match = re.search(r'ncs.*?:(\d+\.\d+\.\d+)', image)
+            if match:
+                return match.group(1)
+        except Exception as e:
+            log.warning("Could not parse devcontainer.json: %s", e)
+        return None
+
     def _get_base_build_version(self, base_job_id: str) -> Optional[int]:
         """Fetch the build number from a completed base build."""
         if not base_job_id:
             return None
 
-        result = self._api_get(f"/v2/builds/builds/{base_job_id}")
+        result = self._api_get(f"/v2/builds/{base_job_id}")
         if not result or not result.get("data"):
             return None
 
@@ -445,12 +497,14 @@ def _extract_version_override(job_data: dict) -> Optional[str]:
 
         env.update({
             "BUILD_DIR": str(output_dir),
+            "OUTPUT_DIR": str(output_dir),
             "REPO_DIR": repo_dir,
             "VARIANT": job.variant if job.variant != "mfg" else "",
             "MTIB_REV": job.mtib_rev,
             "COMMIT_SHA": job.commit_sha or "",
             "BRANCH": job.branch,
-            "TARGET": job.target,
+            "TARGET": build_target,
+            "FIRMWARE_TYPE": build_target,
             "BOARD": job.board,
             # Zephyr/NCS paths (assuming ncs-build container)
             "ZEPHYR_BASE": os.environ.get("ZEPHYR_BASE", "/workdir/zephyr"),
@@ -547,7 +601,7 @@ def _extract_version_override(job_data: dict) -> Optional[str]:
         try:
             # Fire and forget - don't block build on API calls
             requests.post(
-                f"{self.api_url}/v2/builds/builds/{job_id}/log",
+                f"{self.api_url}/v2/builds/{job_id}/log",
                 json={"chunk": chunk},
                 headers=self._headers(),
                 timeout=5,
@@ -557,10 +611,27 @@ def _extract_version_override(job_data: dict) -> Optional[str]:
             pass  # Don't fail build if streaming fails
 
     def collect_artifacts(self, output_dir: Path) -> List[Path]:
-        """Find all build artifacts in the output directory."""
+        """Find final build artifacts only — no intermediates.
+
+        Final artifacts:
+          - {appId}.{version}.hex (e.g. 109.0.8.1.hex, 108.0.8.1.hex)
+          - {appId}.{version}.cfw (e.g. 109.0.8.1.cfw, 108.0.8.1.cfw)
+          - build.json (build metadata)
+          - build.log (added separately by caller)
+
+        Hex and CFW files share the same naming scheme: {appId}.{major}.{minor}.{build}
+        """
         artifacts = []
-        for pattern in ["*.hex", "*.bin", "*.cfw", "*.elf", "*.map"]:
-            artifacts.extend(output_dir.glob(f"**/{pattern}"))
+        # CFW files
+        artifacts.extend(output_dir.glob("**/*.cfw"))
+        # Versioned hex files (109.0.8.1.hex, 108.0.8.1.hex)
+        for f in output_dir.glob("**/*.hex"):
+            # Only include hex files named with appId prefix (digits.digits.digits.digits.hex)
+            name = f.name
+            if name[0].isdigit() and name.endswith(".hex"):
+                artifacts.append(f)
+        # Build metadata
+        artifacts.extend(output_dir.glob("**/build.json"))
         return artifacts
 
     def verify_artifacts(self, output_dir: Path, expected_version: Optional[str] = None) -> Tuple[bool, str]:
@@ -618,7 +689,7 @@ def _extract_version_override(job_data: dict) -> Optional[str]:
         count = 0
         for artifact in artifacts:
             log.info("Uploading %s...", artifact.name)
-            if self._upload_file(f"/v2/builds/builds/{job_id}/artifacts", artifact, artifact.name):
+            if self._upload_file(f"/v2/builds/{job_id}/artifacts", artifact, artifact.name):
                 count += 1
         return count
 
@@ -669,24 +740,47 @@ def _extract_version_override(job_data: dict) -> Optional[str]:
             self.fetch_overlays(job.product, overlays_dir)  # Optional, don't fail if missing
 
             # 3. Clone production firmware repo (e.g., alpha_fw)
+            self.update_job(job.id, "CLONING")
             main_fw = f"{product_base}_fw"
             main_fw_dir = work_dir / main_fw
-            log.info("Cloning %s...", main_fw)
-            if not self.clone_repo(main_fw, main_fw_dir, job.commit_sha):
-                self.update_job(job.id, "FAILED", f"Failed to clone {main_fw}")
+            log.info("Cloning %s (branch=%s)...", main_fw, job.branch)
+            if not self.clone_repo(main_fw, main_fw_dir, job.commit_sha, branch=job.branch, job_id=job.id):
+                self.update_job(job.id, "FAILED", f"Failed to clone {main_fw} (branch={job.branch})")
                 return False
+
+            # 3.5. Check NCS version compatibility from repo's devcontainer
+            repo_ncs = self._check_ncs_version(main_fw_dir)
+            if repo_ncs:
+                self._product_ncs_cache[job.product] = repo_ncs
+                if self.ncs_version and repo_ncs != self.ncs_version:
+                    log.warning("NCS version mismatch: repo requires %s, worker has %s — releasing job", repo_ncs, self.ncs_version)
+                    self.update_job(job.id, "QUEUED")  # Release back for correct worker
+                    return False
 
             # 4. Clone manufacturing firmware repo (e.g., alpha_mfg_fw)
             mfg_fw = f"{product_base}_mfg_fw"
             mfg_fw_dir = work_dir / mfg_fw
-            log.info("Cloning %s...", mfg_fw)
+            log.info("Cloning %s (branch=%s)...", mfg_fw, job.branch)
             # For mfg builds, use same commit; for production builds, just get latest
             mfg_commit = job.commit_sha if "_mfg" in job.product else None
-            if not self.clone_repo(mfg_fw, mfg_fw_dir, mfg_commit):
+            if not self.clone_repo(mfg_fw, mfg_fw_dir, mfg_commit, branch=job.branch, job_id=job.id):
                 log.warning("Failed to clone %s - mfg builds may fail", mfg_fw)
                 # Don't fail here, mfg repo might not exist for all products
 
-            # 5. Run build (writes log to output_dir/build.log during execution)
+            # 5. Copy MCUboot signing keys into cloned repos
+            # Always overwrite — repos may ship different keys per-branch but
+            # FUOTA requires both alpha_fw and alpha_mfg_fw to use the SAME
+            # shared boot key so MCUboot can decrypt OTA images.
+            keys_dir = Path(f"/keys/{product_base}")
+            if keys_dir.is_dir():
+                for key_file in keys_dir.glob("*.pem"):
+                    for target_dir in [main_fw_dir, mfg_fw_dir]:
+                        if target_dir.is_dir():
+                            dest = target_dir / key_file.name
+                            shutil.copy2(key_file, dest)
+                            log.info("Copied shared key %s to %s", key_file.name, target_dir.name)
+
+            # 6. Run build (writes log to output_dir/build.log during execution)
             log_file = output_dir / "build.log"
             success, log_output = self.run_build(job, work_dir, output_dir)
             duration = int(time.time() - start_time)
@@ -697,16 +791,11 @@ def _extract_version_override(job_data: dict) -> Optional[str]:
                 error_summary = log_output[-4000:] if len(log_output) > 4000 else log_output
                 self.update_job(job.id, "FAILED", error_summary, duration=duration)
                 # Upload full log as artifact
-                self._upload_file(f"/v2/builds/builds/{job.id}/artifacts", log_file, "build.log")
+                self._upload_file(f"/v2/builds/{job.id}/artifacts", log_file, "build.log")
                 return False
 
-            # 6. Collect and upload artifacts
-            # Artifacts are in work_dir/artifacts/<fw_type>/<board>/*.hex
+            # 6. Collect and upload artifacts (final hex/cfw only, no intermediates)
             artifacts = self.collect_artifacts(output_dir)
-            # Also check the build directories in the firmware repos
-            for fw_dir in [main_fw_dir, mfg_fw_dir]:
-                if fw_dir.exists():
-                    artifacts.extend(self.collect_artifacts(fw_dir))
             artifacts.append(log_file)  # Include build log
 
             # 6.5. Verify artifacts before upload
@@ -715,19 +804,26 @@ def _extract_version_override(job_data: dict) -> Optional[str]:
                 log.error("Artifact verification failed: %s", verify_msg)
                 self.update_job(job.id, "FAILED", f"Verification failed: {verify_msg}", duration=duration)
                 # Still upload artifacts for debugging
-                self._upload_file(f"/v2/builds/builds/{job.id}/artifacts", log_file, "build.log")
+                self._upload_file(f"/v2/builds/{job.id}/artifacts", log_file, "build.log")
                 return False
 
             # 7. Upload artifacts
             artifact_count = self.upload_artifacts(job.id, artifacts)
             log.info("Uploaded %d artifacts", artifact_count)
 
-            # Extract version from output (look for pattern like "v0.8.1")
+            # Extract version from build script output
+            # Build script prints "Resolved version: X.Y.Z" — use that, not greedy regex
+            # (greedy regex picks up NCS container versions like "2.7.0" first)
             version_string = None
             import re
-            match = re.search(r"v?(\d+\.\d+\.\d+)", log_output)
-            if match:
-                version_string = match.group(0)
+            ver_match = re.search(r"Resolved version:\s*(\d+\.\d+\.\d+)", log_output)
+            if ver_match:
+                version_string = ver_match.group(1)
+            else:
+                # Fallback: last occurrence of X.Y.Z in output (most likely the firmware version)
+                all_versions = re.findall(r"(\d+\.\d+\.\d+)", log_output)
+                if all_versions:
+                    version_string = all_versions[-1]
 
             self.update_job(job.id, "SUCCESS", version_string=version_string, duration=duration)
             log.info("Build %s completed in %ds", job.id[:8], duration)

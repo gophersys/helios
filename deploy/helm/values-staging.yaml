@@ -86,8 +86,8 @@ buildWorker:
       cpu: "4"
       memory: "8Gi"
     limits:
-      cpu: "8"
-      memory: "14Gi"
+      cpu: "14"
+      memory: "28Gi"
   # NCS 2.4.2 for sigma5_fw
   ncs242:
     enabled: true

@@ -82,6 +82,11 @@ spec:
               value: "ccache"
             - name: USE_CCACHE
               value: "1"
+            # Max out CPU for parallel builds — Ninja uses this
+            - name: CMAKE_BUILD_PARALLEL_LEVEL
+              value: "14"
+            - name: NINJA_STATUS
+              value: "[%f/%t %es] "
           resources:
             requests:
               cpu: {{ .Values.buildWorker.resources.requests.cpu | default "2" | quote }}
