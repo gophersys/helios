@@ -109,6 +109,7 @@ enum TestBenchStatus {
 enum BuildJobStatus {
     QUEUED
     BLOCKED // Waiting for base build to complete (version bump builds)
+    CLONING // Cloning firmware repos from git
     BUILDING
     SUCCESS
     FAILED
@@ -440,6 +441,7 @@ model PipelineRun {
     matrixMode      String? /// "legacy" (4 builds) or "stage4" (8 builds)
 
     // Validation tracking
+    autoValidate    Boolean @default(false) /// Auto-trigger validation when all builds pass
     validationRunId String? /// Links to ValidationRun when validation starts
 
     // Timing
