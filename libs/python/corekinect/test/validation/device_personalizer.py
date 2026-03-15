@@ -250,29 +250,60 @@ class DevicePersonalizer:
     # Step implementations
     # ------------------------------------------------------------------
 
+    def _lock_shells_concurrent(self, timeout_s: float = 15.0) -> Tuple[bool, bool]:
+        """Lock both shells concurrently using threads.
+
+        The mfg shell activation window is only ~7s (0.4s–7.4s post-boot).
+        MTIB byte-by-byte UART latency means sequential locking takes 5-30s
+        per shell — the second shell always misses the window. Concurrent
+        locking fits both within the window reliably.
+
+        Returns:
+            (app_locked, comms_locked) tuple.
+        """
+        results = {}
+
+        def _lock(name, lock_fn):
+            results[name] = lock_fn(timeout_s=timeout_s)
+
+        t_app = threading.Thread(
+            target=_lock, args=("APP", self._mtib.lock_shell_app)
+        )
+        t_comms = threading.Thread(
+            target=_lock, args=("COMMS", self._mtib.lock_shell_comms)
+        )
+        t_app.start()
+        t_comms.start()
+        t_app.join(timeout=timeout_s + 5)
+        t_comms.join(timeout=timeout_s + 5)
+
+        app_ok = results.get("APP", (False, ""))[0]
+        comms_ok = results.get("COMMS", (False, ""))[0]
+
+        self._log.info(
+            "Concurrent lock: APP=%s, COMMS=%s",
+            "locked" if app_ok else "FAILED",
+            "locked" if comms_ok else "FAILED",
+        )
+        return app_ok, comms_ok
+
     def _power_cycle_and_lock_shells(self, boot_wait_s: float, lock_shells: bool) -> Optional[str]:
         """Power cycle DUT and lock shells using manufacturing pattern.
 
         Manufacturing sequence:
-        0. Drain UART buffers (clear stale backlog from previous sessions)
         1. Power off, wait 2s
         2. Configure GPIOs
         3. Power on
-        4. Wait 3s (shell activates ~0.4s after boot, deactivates ~7.4s)
-        5. Send lock_shell commands with retry (within the window)
+        4. Wait 1s for boot
+        5. Lock BOTH shells concurrently (must fit within ~7s window)
+        6. Disable debug output on both
 
         GPIO 0+1 must be configured as output LOW before power-on — these
         control the SWD level shifter enable lines.
         """
         self._log.debug("Power cycling DUT...")
 
-        # Step 0: Quick UART drain (0.5s each) - just clear any pending bytes
-        # Don't wait long here - after flash, the device is already booting
-        # and we need to catch the shell window (2-7s post-boot)
-        self._mtib.alpha_drain_uart(COMMS_TARGET, duration_s=0.5)
-        self._mtib.alpha_drain_uart(APP_TARGET, duration_s=0.5)
-
-        # Step 1: Power off BOTH channels (DUT may run on charger when battery_installed)
+        # Step 1: Power off BOTH channels
         err = self._mtib.PowerDisable(channel=PowerChannel.DUT)
         if err:
             return err
@@ -290,7 +321,7 @@ class DevicePersonalizer:
             if err:
                 return f"GpioWrite({gpio}) failed: {err}"
 
-        # Step 3: Power on BOTH channels (battery + charger for battery-installed fixtures)
+        # Step 3: Power on BOTH channels
         err = self._mtib.PowerEnable(channel=PowerChannel.DUT, voltage_v=4.5)
         if err:
             return err
@@ -300,33 +331,25 @@ class DevicePersonalizer:
 
         self._log.debug("DUT powered on (ch0 + ch1)")
 
-        # Step 4: Wait briefly for boot (shell activates ~0.4s after boot)
-        # Don't wait too long - shell deactivates ~7.4s after boot
-        # Start spamming at ~1.5s to catch the 0.4-7.4s window
-        time.sleep(min(boot_wait_s, 1.5))
+        # Step 4: Wait for boot — shell activates ~0.4s, deactivates ~7.4s
+        time.sleep(min(boot_wait_s, 1.0))
 
-        # Step 5: Lock BOTH shells then disable debug (per chip, in order)
-        # CRITICAL: APP shell MUST be locked — if left unlocked, the nRF52840
-        # sends IPC boot messages that interleave with the COMMS personalization
-        # response, corrupting the "Public key (base64)" pattern and causing
-        # a timeout even though personalization actually succeeded on the device.
+        # Step 5: Lock BOTH shells concurrently
+        # CRITICAL: Sequential locking FAILS — MTIB byte-by-byte UART latency
+        # means each lock takes 5-30s, causing the second shell to always miss
+        # the ~7s activation window. Concurrent locking fits both in the window.
         if lock_shells:
-            # APP: lock_shell then debug_disable
-            self._log.info("Locking APP shell...")
-            app_ok, _ = self._mtib.lock_shell_app()
-            if app_ok:
-                self._log.info("APP shell locked")
-            else:
-                self._log.warning("APP shell lock failed (non-fatal)")
-            self._mtib.debug_disable_app()
+            self._log.info("Locking shells (concurrent)...")
+            app_ok, comms_ok = self._lock_shells_concurrent(timeout_s=15.0)
 
-            # COMMS: lock_shell then debug_disable
-            self._log.info("Locking COMMS shell...")
-            comms_ok, _ = self._mtib.lock_shell_comms()
+            # Disable debug output (reduces UART noise for subsequent commands)
+            if app_ok:
+                self._mtib.debug_disable_app()
+            if comms_ok:
+                self._mtib.debug_disable_comms()
+
             if not comms_ok:
                 return "COMMS shell lock failed — device may not have booted or window missed"
-            self._log.info("COMMS shell locked")
-            self._mtib.debug_disable_comms()
 
         self._log.debug("Power cycle and shell lock complete")
         return None
@@ -335,17 +358,15 @@ class DevicePersonalizer:
         """Lock shells without power cycling (for when device is already booted)."""
         self._log.debug("Locking shells (no power cycle)...")
 
-        # APP: lock_shell then debug_disable
-        app_ok, _ = self._mtib.lock_shell_app()
-        if not app_ok:
-            self._log.warning("APP shell lock failed (non-fatal)")
-        self._mtib.debug_disable_app()
+        app_ok, comms_ok = self._lock_shells_concurrent(timeout_s=15.0)
 
-        # COMMS: lock_shell then debug_disable
-        comms_ok, _ = self._mtib.lock_shell_comms()
+        if app_ok:
+            self._mtib.debug_disable_app()
+        if comms_ok:
+            self._mtib.debug_disable_comms()
+
         if not comms_ok:
             return "COMMS shell lock failed — device may not have booted or window missed"
-        self._mtib.debug_disable_comms()
 
         return None
 
