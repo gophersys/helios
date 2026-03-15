@@ -191,38 +191,46 @@ def personalize_with_concurrent_lock(client):
 
     # Upload key to CoreCloud via REST API
     print("  Uploading key to CoreCloud...")
+    import json as json_mod
     from corekinect.core_cloud.api_interface import CoreCloudRestInterface
-    api = CoreCloudRestInterface(env_namespace="VAL_1_0")
-    api.__enter__()
-    try:
-        sess = api._require_session()
+    import requests as req_mod
+
+    with CoreCloudRestInterface(env_namespace="VAL_1_0") as api:
         token = api._ensure_token()
-        headers = {
-            "Authorization": f"Bearer {token}",
-            "X-API-KEY": str(api.api.key),
-            "Content-Type": "application/json",
-        }
-        url = f"{api.api.rest_server_host_name}/System/Devices/Sessions/Profiles"
-        payload = {
-            "deviceId": DEVICE_ID,
-            "publicKey": result.base64_key,
-        }
-        resp = sess.post(url, headers=headers, json=payload, verify=False, timeout=30)
-        if resp.status_code not in (200, 204):
-            return None, f"Key upload failed: {resp.status_code} {resp.text[:200]}"
-        print(f"  Key uploaded (HTTP {resp.status_code})")
-    finally:
-        api.__exit__(None, None, None)
+        key_str = str(api.api.key)
+        base_url = api.api.rest_server_host_name
+
+    sess = req_mod.Session()
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "X-API-KEY": key_str,
+        "Content-Type": "application/json",
+    }
+    url = f"{base_url}/System/Devices/Sessions/Profiles"
+    body = {"Profiles": [{"DeviceId": DEVICE_ID, "PublicKey": result.base64_key}]}
+    resp = sess.post(url, data=json_mod.dumps(body), headers=headers, verify=False, timeout=30)
+    if resp.status_code not in (200, 204):
+        return None, f"Key upload failed: {resp.status_code} {resp.text[:200]}"
+    print(f"  Key uploaded (HTTP {resp.status_code})")
 
     return result, None
 
 
 def wait_for_fuota(fc, timeout_min=45):
-    """Poll FUOTA progress until both 108 and 109 complete."""
+    """Poll FUOTA progress until both 108 and 109 complete.
+
+    Handles stale progress data: after creating a new plan, the progress
+    endpoint may return 100% from a PREVIOUS plan. We detect staleness by
+    checking lastUpdated timestamp — if it's older than our start time,
+    it's stale and we ignore it.
+    """
+    from datetime import datetime, timezone
     start = time.time()
+    start_dt = datetime.now(timezone.utc)
     timeout_s = timeout_min * 60
     completed = set()
     last_status = None
+    saw_fresh_data = False
 
     print(f"Waiting for device to check in with CoreCloud (PSM wakeup 2-10 min)...")
     print(f"Target: {', '.join(TARGET_CFWS)}")
@@ -242,6 +250,26 @@ def wait_for_fuota(fc, timeout_min=45):
             pct = prog.get("percentComplete", 0)
             pages = prog.get("pagesApplied", 0)
             total = prog.get("totalPages", 1)
+            last_updated = prog.get("lastUpdated", "")
+
+            # Detect stale data from previous plan
+            is_stale = False
+            if last_updated and not saw_fresh_data:
+                try:
+                    updated_dt = datetime.fromisoformat(last_updated.replace("Z", "+00:00"))
+                    if updated_dt < start_dt:
+                        is_stale = True
+                except (ValueError, TypeError):
+                    pass
+
+            if is_stale:
+                if last_status != "stale":
+                    print(f"[{elapsed:.0f}s] Ignoring stale progress (lastUpdated={last_updated[:19]})")
+                    last_status = "stale"
+                time.sleep(30)
+                continue
+
+            saw_fresh_data = True
             status = f"{ver}: {pct:.1f}% ({pages}/{total} pages)"
 
             if status != last_status:
@@ -258,6 +286,7 @@ def wait_for_fuota(fc, timeout_min=45):
                     print(f"[{elapsed:.0f}s] Both stages DONE!")
                     return True
         else:
+            # 404 = no active transfer
             has_108 = any("108" in v for v in completed)
             has_109 = any("109" in v for v in completed)
             if has_108 and has_109:

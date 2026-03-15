@@ -232,7 +232,12 @@ class CommsCoprocShell:
         result = PersonalizeResult()
         joined = "\n".join(lines)
 
-        m = re.search(r"Public key \(hex\)\s*:\s*([0-9a-fA-F]{100,})", joined)
+        # Hex key regex: also match truncated prefix from IPC interleaving
+        # (APP IPC messages can corrupt "Public key" → "ey" or similar)
+        m = re.search(r"(?:Public key \(hex\)|ey \(hex\))\s*:\s*([0-9a-fA-F]{100,})", joined)
+        if not m:
+            # Fallback: any 128+ char hex string is likely the key
+            m = re.search(r":\s*([0-9a-fA-F]{128,})", joined)
         if m:
             result.hex_key = m.group(1)
 
@@ -240,7 +245,8 @@ class CommsCoprocShell:
         if m:
             result.base64_key = m.group(1)
 
-        if result.hex_key and result.base64_key:
+        # Base64 key alone is sufficient for CoreCloud key upload
+        if result.base64_key:
             return result, None
         return result, f"Failed to parse public keys from: {joined[:300]}"
 
