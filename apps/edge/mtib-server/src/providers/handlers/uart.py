@@ -194,19 +194,7 @@ class UartHandler:
             if target in self.active_connections:
                 uart = self.active_connections[target]
                 if uart.is_open:
-                    # Test if the connection is still working
-                    try:
-                        # Try to read any pending data to test connection
-                        uart.read(uart.in_waiting)
-                        return None  # Connection is valid
-                    except Exception as e:
-                        self.logger.warning(f"Existing UART connection for {target} is broken, reconnecting: {e}")
-                        # Close broken connection
-                        try:
-                            uart.close()
-                        except:
-                            pass
-                        del self.active_connections[target]
+                    return None  # Connection valid, RX thread handles data
                 else:
                     # Connection exists but is closed, remove it
                     del self.active_connections[target]
@@ -232,18 +220,6 @@ class UartHandler:
                 # Test the connection by trying to read any pending data
                 uart.reset_input_buffer()
                 uart.reset_output_buffer()
-
-                # Test if UART is actually working by sending a test byte
-                try:
-                    test_byte = b"\r"
-                    uart.write(test_byte)
-                    uart.flush()
-                    time.sleep(0.01)  # Small delay
-                    self.logger.debug(f"UART test write successful for {target}")
-                except Exception as e:
-                    self.logger.error(f"UART test write failed for {target}: {e}")
-                    uart.close()
-                    return f"UART test write failed for {target}: {str(e)}"
 
                 self.active_connections[target] = uart
                 self.logger.info(f"UART connection established for {target} on {device_path} with config: {config}")
