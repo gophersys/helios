@@ -37,7 +37,7 @@ deploy_dashboard() {
   info "Applying k8s manifests..."
   kubectl apply -k "${app_dir}/k8s/"
   kubectl rollout status deployment/dashboard -n codectl --timeout=120s
-  ok "Dashboard deployed to app.codectl.dev"
+  ok "Dashboard deployed to app.mateosegura.com"
 }
 
 deploy_api() {
@@ -53,7 +53,7 @@ deploy_api() {
   info "Applying k8s manifests..."
   kubectl apply -k "${app_dir}/k8s/"
   kubectl rollout status deployment/api -n codectl --timeout=120s
-  ok "API deployed to api.codectl.dev"
+  ok "API deployed to api.mateosegura.com"
 }
 
 deploy_helm_stack() {

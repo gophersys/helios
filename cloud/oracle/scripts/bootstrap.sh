@@ -287,7 +287,7 @@ info "Updating Cloudflare DNS to point to server (${SERVER_IP})..."
 if [[ -n "${CLOUDFLARE_ZONE_ID:-}" && -n "${CLOUDFLARE_API_TOKEN:-}" ]]; then
     CF_API="https://api.cloudflare.com/client/v4"
     CF_HEADERS=(-H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" -H "Content-Type: application/json")
-    DOMAIN="codectl.dev"
+    DOMAIN="mateosegura.com"
 
     update_dns_record() {
         local name="$1" content="$2"
@@ -313,7 +313,7 @@ if [[ -n "${CLOUDFLARE_ZONE_ID:-}" && -n "${CLOUDFLARE_API_TOKEN:-}" ]]; then
     ok "DNS updated: ${DOMAIN} + *.${DOMAIN} → ${SERVER_IP}"
 else
     warn "CLOUDFLARE_ZONE_ID not set — skipping DNS update"
-    warn "Manually point codectl.dev + *.codectl.dev to ${SERVER_IP}"
+    warn "Manually point mateosegura.com + *.mateosegura.com to ${SERVER_IP}"
 fi
 
 # ---------------------------------------------------------------------------
@@ -346,7 +346,7 @@ echo -e "${GREEN}  Bootstrap complete!${NC}"
 echo -e "${GREEN}============================================================${NC}"
 echo ""
 info "Cluster: 6-node K3s on OCI (1 server, 3 agents, 2 sentinels)"
-info "Domain:  codectl.dev → ${SERVER_IP}"
+info "Domain:  mateosegura.com → ${SERVER_IP}"
 info "TLS:     Let's Encrypt via cert-manager (DNS01 Cloudflare)"
 info ""
 info "Kubeconfig: export KUBECONFIG=${ORACLE_DIR}/kubeconfig"
