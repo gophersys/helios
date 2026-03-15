@@ -1464,49 +1464,8 @@ class MtibV1Client:
     # -----------------------------------------------
     #                           Comms Coproc Commands
     # ---------------------------------------------*/
-    def cmd_comms_coproc_lock_shell(
-        self, target: HostType = HostType.HOST_TYPE_NRF9151
-    ) -> Tuple[Optional[bool], Optional[str]]:
-        """Lock shell mode for the communications co-processor device.
-
-        Sends a UART command to lock the shell mode. Uses the standard UART helper.
-
-        Returns:
-            Tuple[Optional[bool], Optional[str]]: A tuple containing:
-                - success (Optional[bool]): True if shell was locked successfully, False on timeout, None on error
-                - error (Optional[str]): Error message string if operation failed, None on success
-        """
-        response, err = self._alpha_send_uart_cmd(
-            target=target,
-            command="lock_shell",
-            success_patterns=["Locking shell mode ON"],
-            timeout_s=15,
-        )
-        if err:
-            return None, err
-        return "Locking shell mode ON" in (response or ""), None
-
-    def cmd_comms_coproc_debug_uart_disable(
-        self, target: HostType = HostType.HOST_TYPE_NRF9151
-    ) -> Tuple[Optional[bool], Optional[str]]:
-        """Disable debug UART for the communications co-processor device.
-
-        Sends a UART command to disable debug UART. Uses the standard UART helper.
-
-        Returns:
-            Tuple[Optional[bool], Optional[str]]: A tuple containing:
-                - success (Optional[bool]): True if debug UART was disabled, False on timeout, None on error
-                - error (Optional[str]): Error message string if operation failed, None on success
-        """
-        response, err = self._alpha_send_uart_cmd(
-            target=target,
-            command="debug_enable 0",
-            success_patterns=["Debug is not enabled"],
-            timeout_s=15,
-        )
-        if err:
-            return None, err
-        return "Debug is not enabled" in (response or ""), None
+    # lock_shell_comms() and debug_disable_comms() are defined above
+    # (replaced cmd_comms_coproc_lock_shell and cmd_comms_coproc_debug_uart_disable)
 
     def cmd_comms_coproc_get_chip_ids(
         self, target: HostType = HostType.HOST_TYPE_NRF9151
@@ -1578,7 +1537,7 @@ class MtibV1Client:
         try:
             # Drain any pending data first to prevent response bleeding
             if drain_first:
-                self.alpha_drain_uart(target, duration_s=1.0)
+                self.alpha_drain_uart(target, duration_s=3.0)
 
             input_queue = queue.Queue()
             stop_requests = threading.Event()
@@ -1619,23 +1578,26 @@ class MtibV1Client:
                         response_lines.append(line)
 
                         full_response = "".join(response_lines)
+                        # Strip ANSI escapes for matching — dual-processor
+                        # UART interleaving embeds escape codes mid-pattern
+                        stripped = re.sub(r"\x1b\[[0-9;]*[A-Za-z]", "", full_response)
 
                         # Wait for command echo before treating response as valid
                         echo_to_check = command[:-1] if len(command) > 3 else command
-                        if not command_echoed and echo_to_check in full_response:
+                        if not command_echoed and echo_to_check in stripped:
                             command_echoed = True
 
                         # Check if any success pattern is present (only after echo)
                         if command_echoed and success_patterns and not success_pattern_time:
                             for pattern in success_patterns:
-                                if pattern in full_response:
+                                if pattern in stripped:
                                     success_pattern_time = time.time()
                                     break
 
                         # Once pattern found, wait for prompt OR additional time
                         if success_pattern_time:
                             elapsed_since_pattern = time.time() - success_pattern_time
-                            if "Mfg shell:" in full_response or "Comms Mfg:" in full_response:
+                            if "Mfg shell:" in stripped or "Comms Mfg:" in stripped:
                                 stop_requests.set()
                                 return full_response, None
                             # Give 3 seconds after pattern for prompt to arrive
@@ -1649,13 +1611,14 @@ class MtibV1Client:
                 stop_requests.set()
 
             full_response = "".join(response_lines)
+            stripped = re.sub(r"\x1b\[[0-9;]*[A-Za-z]", "", full_response)
             # Check one more time after collecting all data
             if success_patterns:
                 for pattern in success_patterns:
-                    if pattern in full_response:
+                    if pattern in stripped:
                         return full_response, None
 
-            return None, f"Timeout waiting for response. Got: {full_response[:500]}..."
+            return None, f"Timeout waiting for response. Got: {stripped[:500]}..."
 
         except Exception as e:
             return None, f"Exception: {str(e)}"
@@ -1690,40 +1653,43 @@ class MtibV1Client:
         except Exception:
             pass
 
-    def alpha_spam_lock_shell(
-        self, target: HostType, duration_s: float = 5.0
+    def lock_shell(
+        self, target: HostType, timeout_s: float = 30.0, spam_s: float = 5.0
     ) -> Tuple[bool, str]:
-        """Spam lock_shell command to catch the shell activation window.
+        """Lock the manufacturing shell on the given target processor.
 
-        IMPORTANT: This is the ONLY way to lock the manufacturing shell reliably.
-        The shell activation window is ~2 seconds after boot, then it auto-deactivates.
-        This method spams lock_shell commands for the specified duration to ensure
-        we catch the window.
-
-        Call this immediately after PowerEnable, BEFORE sending any other commands.
+        Spams lock_shell commands during the boot activation window (~0.4-7.4s
+        post-boot), then pumps empty requests to drain buffered responses.
+        Must be called right after PowerEnable.
 
         Args:
-            target: HostType for UART target (HOST_TYPE_NRF52840 or HOST_TYPE_NRF9151).
-            duration_s: How long to spam lock_shell (default 5s, should cover boot).
+            target: HOST_TYPE_NRF52840 (app) or HOST_TYPE_NRF9151 (comms).
+            timeout_s: Total time to wait for lock confirmation.
+            spam_s: How long to actively spam lock_shell (default 5s).
 
         Returns:
-            Tuple of (success, full_output).
-            success is True if "Locking shell mode ON" or "Mfg shell:" seen.
+            (success, full_output) — success is True if shell lock confirmed.
         """
         output_lines = []
         stop = threading.Event()
 
         def request_iterator():
-            # Initial request to set target, then spam lock_shell
             start = time.time()
-            while time.time() - start < duration_s and not stop.is_set():
+            while time.time() - start < spam_s and not stop.is_set():
                 yield UartStreamRequest(target=target, data=b"\rlock_shell\r")
                 stop.wait(timeout=0.1)
+            while time.time() - start < timeout_s and not stop.is_set():
+                yield UartStreamRequest(target=target, data=b"")
+                stop.wait(timeout=0.05)
 
         try:
             for resp in self.UartStream(target, request_iterator()):
                 if resp.data:
-                    output_lines.append(resp.data.decode("utf-8", errors="ignore"))
+                    text = resp.data.decode("utf-8", errors="ignore")
+                    output_lines.append(text)
+                    if "mode ON" in text or "Mfg shell:" in text:
+                        stop.set()
+                        break
         except Exception:
             pass
 
@@ -1731,48 +1697,35 @@ class MtibV1Client:
         success = "mode ON" in full_output or "Mfg shell:" in full_output
         return success, full_output
 
-    def alpha_cmd_lock_shell_app(
-        self, target: HostType = HostType.HOST_TYPE_NRF52840
+    def lock_shell_app(self, timeout_s: float = 30.0) -> Tuple[bool, str]:
+        """Lock manufacturing shell on nRF52840 (app processor)."""
+        return self.lock_shell(HostType.HOST_TYPE_NRF52840, timeout_s=timeout_s)
+
+    def lock_shell_comms(self, timeout_s: float = 30.0) -> Tuple[bool, str]:
+        """Lock manufacturing shell on nRF9151 (comms processor)."""
+        return self.lock_shell(HostType.HOST_TYPE_NRF9151, timeout_s=timeout_s)
+
+    def debug_disable(
+        self, target: HostType, timeout_s: float = 15.0
     ) -> Tuple[Optional[bool], Optional[str]]:
-        """Lock shell mode on the Alpha app processor (NRF52840).
-
-        WARNING: This method sends ONE lock_shell command and waits for response.
-        It WILL NOT work during boot because the shell activation window is only ~2s.
-        Use alpha_spam_lock_shell() instead which spams the command during boot.
-
-        This method is only useful if the shell was already locked and you want
-        to re-confirm the lock status.
-
-        Returns:
-            Tuple of (success, error).
-        """
-        response, err = self._alpha_send_uart_cmd(
-            target=target,
-            command="lock_shell",
-            success_patterns=["Locking shell mode ON", "mode ON"],
-            timeout_s=30,  # Manufacturing uses 30s for app shell
-        )
-        if err:
-            return None, err
-        return "mode ON" in (response or ""), None
-
-    def alpha_cmd_debug_disable_app(
-        self, target: HostType = HostType.HOST_TYPE_NRF52840
-    ) -> Tuple[Optional[bool], Optional[str]]:
-        """Disable debug UART output on the Alpha app processor.
-
-        Returns:
-            Tuple of (success, error).
-        """
+        """Disable debug UART output on the given target processor."""
         response, err = self._alpha_send_uart_cmd(
             target=target,
             command="debug_enable 0",
             success_patterns=["Debug is not enabled"],
-            timeout_s=15,
+            timeout_s=timeout_s,
         )
         if err:
             return None, err
         return "Debug is not enabled" in (response or ""), None
+
+    def debug_disable_app(self) -> Tuple[Optional[bool], Optional[str]]:
+        """Disable debug UART output on nRF52840 (app processor)."""
+        return self.debug_disable(HostType.HOST_TYPE_NRF52840)
+
+    def debug_disable_comms(self) -> Tuple[Optional[bool], Optional[str]]:
+        """Disable debug UART output on nRF9151 (comms processor)."""
+        return self.debug_disable(HostType.HOST_TYPE_NRF9151)
 
     def alpha_cmd_get_chip_ids_app(
         self, target: HostType = HostType.HOST_TYPE_NRF52840
@@ -2041,44 +1994,7 @@ class MtibV1Client:
             return hex_key, b64_key, None
         return None, None, f"Failed to parse public keys from: {response[:200]}"
 
-    def alpha_cmd_lock_shell_comms(
-        self, target: HostType = HostType.HOST_TYPE_NRF9151
-    ) -> Tuple[Optional[bool], Optional[str]]:
-        """Lock shell mode on the Alpha comms processor (NRF9151).
-
-        Sends lock_shell command to keep the manufacturing shell active.
-        Must be called within ~2 seconds of boot.
-
-        Returns:
-            Tuple of (success, error).
-        """
-        response, err = self._alpha_send_uart_cmd(
-            target=target,
-            command="lock_shell",
-            success_patterns=["Locking shell mode ON"],
-            timeout_s=120,  # Manufacturing uses 120s to drain UART backlog
-        )
-        if err:
-            return None, err
-        return "Locking shell mode ON" in (response or ""), None
-
-    def alpha_cmd_debug_disable_comms(
-        self, target: HostType = HostType.HOST_TYPE_NRF9151
-    ) -> Tuple[Optional[bool], Optional[str]]:
-        """Disable debug UART output on the Alpha comms processor.
-
-        Returns:
-            Tuple of (success, error).
-        """
-        response, err = self._alpha_send_uart_cmd(
-            target=target,
-            command="debug_enable 0",
-            success_patterns=["Debug is not enabled"],
-            timeout_s=15,
-        )
-        if err:
-            return None, err
-        return "Debug is not enabled" in (response or ""), None
+    # lock_shell_comms() and debug_disable_comms() are defined above
 
     def alpha_cmd_get_chip_ids_comms(
         self, target: HostType = HostType.HOST_TYPE_NRF9151

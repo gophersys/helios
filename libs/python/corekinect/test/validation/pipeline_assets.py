@@ -93,12 +93,24 @@ class PipelineBuild:
         return None
 
     def get_hex(self, target: str) -> Optional[BuildArtifact]:
-        """Get hex file for target ('app' or 'comms')."""
-        patterns = {
+        """Get hex file for target ('app' or 'comms').
+
+        Supports both new naming (109.0.8.1.hex / 108.0.8.1.hex)
+        and legacy naming (app_nrf52840.hex / comms_nrf9151.hex).
+        """
+        # App ID mapping: 109=nRF52840 (app), 108=nRF9151 (comms)
+        app_id = {"app": "109.", "comms": "108."}.get(target)
+        if app_id:
+            # Try new versioned naming first
+            for a in self.artifacts:
+                if a.name.startswith(app_id) and a.name.endswith(".hex"):
+                    return a
+        # Fallback to legacy naming
+        legacy = {
             "app": ["app_nrf52840.hex", "nrf52840.hex"],
             "comms": ["comms_nrf9151.hex", "comms_nrf9160.hex", "nrf9151.hex", "nrf9160.hex"],
         }
-        for pattern in patterns.get(target, [target]):
+        for pattern in legacy.get(target, [target]):
             a = self.get_artifact(pattern)
             if a:
                 return a

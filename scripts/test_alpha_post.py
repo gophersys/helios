@@ -1,24 +1,25 @@
 #!/usr/bin/env python3
-"""Alpha Manufacturing POST Test - matches working manufacturing flow.
+"""Alpha Manufacturing POST Test — concurrent lock strategy.
 
-Uses the same approach as apps/manufacturing/alpha/src/tests/post/:
-1. Power on, wait 3s for boot
-2. Lock shells with 120s timeout and 3 retries
-3. Disable debug output (60s timeout)
-4. Run commands with 10s timeout
+Opens BOTH UART streams before power-on to capture boot output, locks
+both shells concurrently (required: MTIB byte-by-byte latency means
+sequential locking misses the ~7s activation window), silences output,
+then runs commands.
 """
 
 import sys
 import time
+import threading
 
 sys.path.insert(0, "libs/python")
 sys.path.insert(0, "libs/protocols")
 sys.path.insert(0, "libs")
 
-from protocols.mtib.mtib_pb2 import HostType
 from corekinect.mtib_client.v1.client.core import MtibV1Client
 from corekinect.mtib_client.v1.client.config import NetConfig
 from corekinect.mtib_client.v1.client.types import GpioDirection, GpioResistorConfig
+from corekinect.shells.alpha_app import AlphaAppShell
+from corekinect.shells.comms_coproc import CommsCoprocShell
 
 
 MTIB_HOST = "10.4.45.33"
@@ -31,10 +32,11 @@ def print_result(name: str, passed: bool, detail: str = ""):
 
 
 def main():
-    print(f"=== Alpha Manufacturing POST Test ===")
+    t0 = time.time()
+    print("=== Alpha Manufacturing POST Test ===")
     print(f"MTIB: {MTIB_HOST}:{MTIB_PORT}")
+    print(f"Strategy: boot, concurrent lock, silence+clear, commands")
 
-    # Connect
     cfg = MtibV1Client.Config(net=NetConfig(addr=MTIB_HOST, port=MTIB_PORT))
     client = MtibV1Client(cfg)
     err = client.connect()
@@ -43,158 +45,191 @@ def main():
         return 1
     print("Connected to MTIB")
 
-    try:
-        # === POWER CYCLE AND LOCK SHELLS ===
-        print("\n=== Power Cycle DUT with Shell Lock ===")
+    app = AlphaAppShell(client)
+    comms = CommsCoprocShell(client)
 
-        # Power down
-        print("  Powering down...")
+    try:
+        # ============================================================
+        # PHASE 0: POWER CYCLE + BOOT + CONCURRENT LOCK
+        # ============================================================
+        print(f"\n--- Power Cycle DUT [{time.time()-t0:.0f}s] ---")
         client.PowerDisable(channel=0)
         client.PowerDisable(channel=1)
-        time.sleep(2)
+        time.sleep(3)
 
-        # GPIO config (required for DUT to boot)
-        print("  Configuring GPIOs...")
         for gpio in [0, 1]:
             client.GpioConfig(gpio=gpio, direction=GpioDirection.OUTPUT, resistor=GpioResistorConfig.NONE)
             client.GpioWrite(gpio=gpio, state=False)
         client.GpioConfig(gpio=2, direction=GpioDirection.OUTPUT, resistor=GpioResistorConfig.NONE)
-        client.GpioWrite(gpio=2, state=True)  # Button released
+        client.GpioWrite(gpio=2, state=True)
 
-        # Power on
+        print("  Opening UART streams...")
+        app.start()
+        comms.start()
+
         print("  Powering on ch0=4.5V...")
         err = client.PowerEnable(channel=0, voltage_v=4.5)
         if err:
             print(f"  [ERROR] PowerEnable failed: {err}")
             return 1
 
-        # Wait for boot (same as manufacturing test)
-        print("  Waiting 3s for boot...")
-        time.sleep(3)
+        print("  Waiting 1s for boot...")
+        time.sleep(1)
 
-        # Lock shells using spam method (fast, catches 2s window)
-        print("  Locking Comms shell (spam 3s)...")
-        comms_locked, _ = client.alpha_spam_lock_shell(HostType.HOST_TYPE_NRF9151, 3.0)
-        print(f"    Locked: {'YES' if comms_locked else 'NO'}")
+        # Lock BOTH shells concurrently — required because MTIB
+        # byte-by-byte UART latency makes sequential locking too
+        # slow to fit within the ~7s mfg shell activation window.
+        print(f"\n--- Locking Shells (concurrent) [{time.time()-t0:.0f}s] ---")
+        lock_results = {}
 
-        print("  Locking App shell (spam 3s)...")
-        app_locked, _ = client.alpha_spam_lock_shell(HostType.HOST_TYPE_NRF52840, 3.0)
-        print(f"    Locked: {'YES' if app_locked else 'NO'}")
+        def _lock(shell, name):
+            lock_results[name] = shell.lock(timeout_s=120)
 
-        # Disable debug output (same as manufacturing test)
-        print("  Disabling debug output (Comms)...")
-        client.alpha_cmd_debug_disable_comms()
-        print("  Disabling debug output (App)...")
-        client.alpha_cmd_debug_disable_app()
+        t_app = threading.Thread(target=_lock, args=(app, "APP"))
+        t_comms = threading.Thread(target=_lock, args=(comms, "COMMS"))
+        t_app.start()
+        t_comms.start()
+        t_app.join()
+        t_comms.join()
+
+        app_locked = lock_results.get("APP", False)
+        comms_locked = lock_results.get("COMMS", False)
+        print(f"  APP: {'locked' if app_locked else 'FAILED'}")
+        print(f"  COMMS: {'locked' if comms_locked else 'FAILED'}")
 
         result, err = client.PowerRead(channel=0)
         if not err and result:
-            print(f"  DUT drawing {result.current_ma:.1f}mA @ {result.voltage_v:.2f}V")
+            print(f"  DUT: {result.current_ma:.1f}mA @ {result.voltage_v:.2f}V")
 
-        # === APP PROCESSOR POST ===
-        print("\n=== App Processor (nRF52840) POST ===")
+        # ============================================================
+        # SILENCE + DRAIN BACKLOG
+        # ============================================================
+        if app_locked:
+            app._cmd._stream.write(b"\rdebug_enable 0\r")
+        if comms_locked:
+            comms._cmd._stream.write(b"\rdebug_enable 0\r")
+
+        # Drain UART TX backlog. MTIB delivers ~400 B/s byte-by-byte;
+        # the APP processor queues 10-15 KB of debug output during boot.
+        # Keep clearing until rate drops below 100 B/s (backlog drained).
+        print(f"  Draining UART backlog [{time.time()-t0:.0f}s]...")
+        for _ in range(60):  # max 30s
+            app._cmd._stream.clear()
+            comms._cmd._stream.clear()
+            time.sleep(0.5)
+            app_bytes = len(app._cmd._stream._buffer)
+            if app_bytes < 50:  # <100 B/s = backlog drained
+                break
+        app._cmd._stream.clear()
+        comms._cmd._stream.clear()
+        print(f"  Backlog drained [{time.time()-t0:.0f}s]")
+
+        # ============================================================
+        # PHASE 1: APP commands
+        # ============================================================
         app_passed = 0
         app_failed = 0
+
+        print(f"\n--- Phase 1: APP Commands [{time.time()-t0:.0f}s] ---")
 
         if app_locked:
             print_result("lock_shell", True, "(locked during boot)")
             app_passed += 1
 
-            # get_chip_ids
-            print("  Running get_chip_ids...")
-            ext_flash_id, ble_mac, err = client.alpha_cmd_get_chip_ids_app()
-            if ble_mac:
-                print_result("get_chip_ids", True, f"BLE MAC={ble_mac}, Flash={ext_flash_id}")
+            t1 = time.time()
+            ids, err = app.get_chip_ids()
+            dt = time.time() - t1
+            if ids.ble_mac:
+                print_result("get_chip_ids", True, f"BLE MAC={ids.ble_mac}, Flash={ids.ext_flash_id} ({dt:.1f}s)")
                 app_passed += 1
             else:
-                print_result("get_chip_ids", False, err[:80] if err else "No BLE MAC")
+                print_result("get_chip_ids", False, (err or "No BLE MAC")[:200])
                 app_failed += 1
 
-            # test_bms
-            print("  Running test_bms...")
-            bms_result, err = client.alpha_cmd_test_bms()
-            if bms_result is not None:
-                print_result("test_bms", True, f"connected={bms_result.connected}, chip_id={bms_result.chip_id}")
+            t1 = time.time()
+            bms, err = app.test_bms()
+            dt = time.time() - t1
+            if err is None:
+                print_result("test_bms", True, f"connected={bms.connected}, chip_id={bms.chip_id} ({dt:.1f}s)")
                 app_passed += 1
             else:
-                print_result("test_bms", False, err[:80] if err else "Unknown error")
+                print_result("test_bms", False, err[:200])
                 app_failed += 1
 
-            # test_charger
-            print("  Running test_charger...")
-            charger_result, err = client.alpha_cmd_test_charger()
-            if charger_result is not None:
-                print_result("test_charger", True, f"chip_id={charger_result.chip_id}, on_charger={charger_result.on_charger}")
+            t1 = time.time()
+            charger, err = app.test_charger()
+            dt = time.time() - t1
+            if err is None:
+                print_result("test_charger", True, f"chip_id={charger.chip_id}, on_charger={charger.on_charger} ({dt:.1f}s)")
                 app_passed += 1
             else:
-                print_result("test_charger", False, err[:80] if err else "Unknown error")
+                print_result("test_charger", False, err[:200])
                 app_failed += 1
 
-            # test_gps
-            print("  Running test_gps...")
-            gps_result, err = client.alpha_cmd_test_gps()
-            if gps_result is not None:
-                print_result("test_gps", True, f"comms_ok={gps_result.comms_ok}, tracking={gps_result.tracking}")
+            t1 = time.time()
+            gps, err = app.test_gps()
+            dt = time.time() - t1
+            if err is None:
+                print_result("test_gps", True, f"comms_ok={gps.comms_ok}, tracking={gps.tracking} ({dt:.1f}s)")
                 app_passed += 1
             else:
-                print_result("test_gps", False, err[:80] if err else "Unknown error")
+                print_result("test_gps", False, err[:200])
                 app_failed += 1
         else:
             print("[ERROR] App shell not locked")
-            app_failed += 1
+            app_failed += 5
 
-        # === COMMS PROCESSOR POST ===
-        print("\n=== Comms Processor (nRF9151) POST ===")
+        # ============================================================
+        # PHASE 2: COMMS commands
+        # ============================================================
         comms_passed = 0
         comms_failed = 0
+
+        print(f"\n--- Phase 2: COMMS Commands [{time.time()-t0:.0f}s] ---")
 
         if comms_locked:
             print_result("lock_shell", True, "(locked during boot)")
             comms_passed += 1
 
-            # get_chip_ids
-            print("  Running get_chip_ids...")
-            ext_flash_id, lora_status, err = client.alpha_cmd_get_chip_ids_comms()
-            if ext_flash_id:
-                print_result("get_chip_ids", True, f"Flash={ext_flash_id}")
+            t1 = time.time()
+            ids, err = comms.get_chip_ids()
+            dt = time.time() - t1
+            if ids.ext_flash_id:
+                print_result("get_chip_ids", True, f"Flash={ids.ext_flash_id} ({dt:.1f}s)")
                 comms_passed += 1
             else:
-                print_result("get_chip_ids", False, err[:80] if err else "Unknown error")
+                print_result("get_chip_ids", False, (err or "Unknown error")[:200])
                 comms_failed += 1
 
-            # get_modem_fw
-            print("  Running get_modem_fw...")
-            fw_version, err = client.alpha_cmd_get_modem_fw()
-            if fw_version:
-                print_result("get_modem_fw", True, f"FW={fw_version}")
+            t1 = time.time()
+            fw, err = comms.get_modem_fw()
+            dt = time.time() - t1
+            if fw.version:
+                print_result("get_modem_fw", True, f"FW={fw.version} ({dt:.1f}s)")
                 comms_passed += 1
             else:
-                print_result("get_modem_fw", False, err[:80] if err else "Unknown error")
+                print_result("get_modem_fw", False, (err or "Unknown error")[:200])
                 comms_failed += 1
 
-            # imei_iccid with retries
-            print("  Running get_imei_iccids...")
-            for attempt in range(3):
-                imei, iccids, err = client.alpha_cmd_get_imei_iccids()
-                if imei:
-                    iccid_str = iccids[0] if iccids else "?"
-                    print_result("get_imei_iccids", True, f"IMEI={imei}, ICCID={iccid_str}")
-                    comms_passed += 1
-                    break
-                if attempt < 2:
-                    print(f"    Retry {attempt + 1}...")
-                    time.sleep(2)
+            t1 = time.time()
+            sim, err = comms.get_sim_info()
+            dt = time.time() - t1
+            if sim.imei:
+                iccid_str = sim.iccids[0] if sim.iccids else "?"
+                print_result("get_sim_info", True, f"IMEI={sim.imei}, ICCID={iccid_str} ({dt:.1f}s)")
+                comms_passed += 1
             else:
-                print_result("get_imei_iccids", False, err[:60] if err else "Not ready")
+                print_result("get_sim_info", False, (err or "Not ready")[:200])
                 comms_failed += 1
         else:
             print("[ERROR] Comms shell not locked")
-            comms_failed += 1
+            comms_failed += 4
 
         # === SUMMARY ===
         total_passed = app_passed + comms_passed
         total_failed = app_failed + comms_failed
-        print(f"\n=== Summary ===")
+        elapsed = time.time() - t0
+        print(f"\n=== Summary ({elapsed:.0f}s) ===")
         print(f"  App Processor:   {app_passed} passed, {app_failed} failed")
         print(f"  Comms Processor: {comms_passed} passed, {comms_failed} failed")
         print(f"  Total:           {total_passed} passed, {total_failed} failed")
@@ -202,7 +237,9 @@ def main():
         return 0 if total_failed == 0 else 1
 
     finally:
-        print("\n=== Powering down ===")
+        print("\n--- Cleanup ---")
+        app.stop()
+        comms.stop()
         client.PowerDisable(channel=0)
         client.PowerDisable(channel=1)
         print("Done.")

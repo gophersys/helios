@@ -73,6 +73,11 @@ except ImportError:
     COMMS_TARGET = 5  # HOST_TYPE_NRF9151
     APP_TARGET = 3    # HOST_TYPE_NRF52840
 
+# Allow overriding personalization target via env var when COMMS UART is dead
+import os as _os
+if _os.environ.get("PERSONALIZE_VIA_APP") == "1":
+    COMMS_TARGET = APP_TARGET
+
 
 @dataclass
 class PersonalizationResult:
@@ -258,8 +263,6 @@ class DevicePersonalizer:
 
         GPIO 0+1 must be configured as output LOW before power-on — these
         control the SWD level shifter enable lines.
-
-        Batteryless fixture: ch0 ONLY at 4.5V. Ch1 (charger) must NOT be enabled.
         """
         self._log.debug("Power cycling DUT...")
 
@@ -302,20 +305,28 @@ class DevicePersonalizer:
         # Start spamming at ~1.5s to catch the 0.4-7.4s window
         time.sleep(min(boot_wait_s, 1.5))
 
-        # Step 5: Lock COMMS shell only - personalization runs on COMMS (nRF9151)
-        # APP shell lock causes UART contention issues - skip it for FUOTA flows
+        # Step 5: Lock BOTH shells then disable debug (per chip, in order)
+        # CRITICAL: APP shell MUST be locked — if left unlocked, the nRF52840
+        # sends IPC boot messages that interleave with the COMMS personalization
+        # response, corrupting the "Public key (base64)" pattern and causing
+        # a timeout even though personalization actually succeeded on the device.
         if lock_shells:
-            self._log.info("Spamming lock_shell on COMMS (5s)...")
-            comms_success, comms_out = self._mtib.alpha_spam_lock_shell(target=COMMS_TARGET, duration_s=5.0)
-
-            if comms_success:
-                self._log.info("Comms shell locked!")
+            # APP: lock_shell then debug_disable
+            self._log.info("Locking APP shell...")
+            app_ok, _ = self._mtib.lock_shell_app()
+            if app_ok:
+                self._log.info("APP shell locked")
             else:
-                self._log.error("Comms shell lock FAILED - cannot proceed with personalization")
-                return "Comms shell lock failed - device may not boot correctly or window missed"
+                self._log.warning("APP shell lock failed (non-fatal)")
+            self._mtib.debug_disable_app()
 
-            # Disable debug output on COMMS only
-            self._mtib.alpha_cmd_debug_disable_comms()
+            # COMMS: lock_shell then debug_disable
+            self._log.info("Locking COMMS shell...")
+            comms_ok, _ = self._mtib.lock_shell_comms()
+            if not comms_ok:
+                return "COMMS shell lock failed — device may not have booted or window missed"
+            self._log.info("COMMS shell locked")
+            self._mtib.debug_disable_comms()
 
         self._log.debug("Power cycle and shell lock complete")
         return None
@@ -323,16 +334,19 @@ class DevicePersonalizer:
     def _lock_shells_only(self) -> Optional[str]:
         """Lock shells without power cycling (for when device is already booted)."""
         self._log.debug("Locking shells (no power cycle)...")
-        success, err = self._mtib.alpha_cmd_lock_shell_comms()
-        if not success:
-            return f"Comms shell lock failed: {err}"
 
-        success, err = self._mtib.alpha_cmd_lock_shell_app()
-        if not success:
-            return f"App shell lock failed: {err}"
+        # APP: lock_shell then debug_disable
+        app_ok, _ = self._mtib.lock_shell_app()
+        if not app_ok:
+            self._log.warning("APP shell lock failed (non-fatal)")
+        self._mtib.debug_disable_app()
 
-        self._mtib.alpha_cmd_debug_disable_comms()
-        self._mtib.alpha_cmd_debug_disable_app()
+        # COMMS: lock_shell then debug_disable
+        comms_ok, _ = self._mtib.lock_shell_comms()
+        if not comms_ok:
+            return "COMMS shell lock failed — device may not have booted or window missed"
+        self._mtib.debug_disable_comms()
+
         return None
 
     def _read_imei_iccids(self) -> Tuple[Optional[str], Optional[List[str]], Optional[str]]:

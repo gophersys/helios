@@ -154,11 +154,11 @@ def _init(logger: Logger, mtib_client: MtibV1Client) -> Optional[str]:
         return f"Failed to disable app debug UART: {err}"
 
     # Setup the shell for the comms processor
-    locked, err = mtib_client.cmd_comms_coproc_lock_shell()
-    if err or not locked:
-        return f"Failed to lock comms shell: {err}"
+    locked, _ = mtib_client.lock_shell_comms()
+    if not locked:
+        return "Failed to lock comms shell"
 
-    disabled, err = mtib_client.cmd_comms_coproc_debug_uart_disable()
+    disabled, err = mtib_client.debug_disable_comms()
     if err or not disabled:
         return f"Failed to disable comms debug UART: {err}"
 
