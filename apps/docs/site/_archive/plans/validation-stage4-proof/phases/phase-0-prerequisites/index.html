@@ -1,0 +1,3685 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Continuous delivery platform for embedded systems">
+      
+      
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../../../assets/images/favicon.png">
+      <meta name="generator" content="zensical-0.0.27">
+    
+    
+      
+        <title>Phase 0: Prerequisites - Concord</title>
+      
+    
+    
+      
+        
+      
+      <link rel="stylesheet" href="../../../../../assets/stylesheets/modern/main.50057488.min.css">
+      
+        
+          
+        
+        <link rel="stylesheet" href="../../../../../assets/stylesheets/modern/palette.dfe2e883.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,500,500i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../../../../..",location),__md_hash=e=>[...e].reduce(((e,t)=>(e<<5)-e+t.charCodeAt(0)),0),__md_get=(e,t=localStorage,a=__md_scope)=>JSON.parse(t.getItem(a.pathname+"."+e)),__md_set=(e,t,a=localStorage,_=__md_scope)=>{try{a.setItem(_.pathname+"."+e,JSON.stringify(t))}catch(e){}},document.documentElement.setAttribute("data-platform",navigator.platform)</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="deep-purple" data-md-color-accent="amber">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer" aria-label="Navigation"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#phase-0-prerequisites" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../../../.." title="Concord" class="md-header__button md-logo" aria-label="Concord" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer" aria-label="Navigation">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-menu" viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h16"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Concord
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Phase 0: Prerequisites
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="none" data-md-color-scheme="slate" data-md-color-primary="deep-purple" data-md-color-accent="amber"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="none" data-md-color-scheme="default" data-md-color-primary="deep-purple" data-md-color-accent="amber"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search" aria-label="Search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-search" viewBox="0 0 24 24"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog" aria-label="Search">
+  <button type="button" class="md-search__button">
+    Search
+  </button>
+</div>
+      
+    
+    <div class="md-header__source">
+      
+    </div>
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../../../.." title="Concord" class="md-nav__button md-logo" aria-label="Concord" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+
+    </a>
+    Concord
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../../vision/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vision
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2" id="__nav_2_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Vision
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../vision/thesis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Thesis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../vision/validation-philosophy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation Philosophy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../../architecture/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3" id="__nav_3_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Architecture
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_2" id="__nav_3_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Platform
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Platform
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../architecture/platform/unified-platform/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Unified Platform
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../architecture/platform/hardware-registry/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hardware Registry
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../architecture/platform/log-streaming/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Log Streaming
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../architecture/platform/ci-pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CI Pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../architecture/platform/corecloud-library/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CoreCloud Library
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_3" id="__nav_3_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Validation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../architecture/validation/stages-overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stages Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../architecture/validation/system/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    System Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../architecture/validation/stage1-software-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 1: Software Tests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../architecture/validation/stage2-driver-hw-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 2: Driver HW Tests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../architecture/validation/stage3-integration-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 3: Integration Tests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../architecture/validation/stage4-product-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 4: Product Tests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../architecture/validation/stage4-fuota-flow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 4: FUOTA Flow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../architecture/validation/stage4-pr-flow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 4: PR Flow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../architecture/validation/stage5-gate-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 5: Gate Tests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../architecture/validation/test-runner/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Test Runner
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_4" id="__nav_3_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Build
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../architecture/build/build-service/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build Service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../architecture/build/builder-nodes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Builder Nodes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../../reference/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../reference/fuota-workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FUOTA Workflow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../reference/fuota-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FUOTA API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../reference/alpha-test-cases/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Alpha Test Cases
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../reference/traceability-matrix/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Traceability Matrix
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../reference/twister-hil/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Twister HIL
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../reference/stage4-connectivity/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 4 Connectivity
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../reference/stage4-long-term-vision/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 4 Long-Term Vision
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../reference/validation-flow-ui/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation Flow UI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../reference/interfaces/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interfaces
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../../guides/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_2" id="__nav_5_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Alpha
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Alpha
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../guides/alpha/stage1/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 1
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../guides/alpha/stage2/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 2
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../guides/alpha/stage3/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 3
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../guides/alpha/stage4/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 4
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../guides/alpha/stage5/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 5
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../../research/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Research
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_6" id="__nav_6_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Research
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../research/01-sigma5-firmware-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sigma5 Firmware
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../research/02-alpha-firmware-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Alpha Firmware
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../research/03-sensor-drivers-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sensor Drivers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../research/05-mtib-server-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MTIB Server
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../research/06-fuota-corecloud-v1/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FUOTA CoreCloud
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../research/07-alpha-manufacturing-firmware-and-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Alpha MFG Firmware
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../research/08-device-personalization-and-key-provisioning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Device Personalization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../research/08-firmware-build-and-fuota-delivery/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Firmware Build & FUOTA
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../research/09-corecloud-validation-integration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CoreCloud Integration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../../journals/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Journals
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Journals
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#engineering-protocol-for-phase-0" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Engineering Protocol for Phase 0
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#parallelization-strategy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parallelization Strategy
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#01-k8s-node-onboarding-2-new-validation-nodes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        0.1 K8s Node Onboarding (2 new validation nodes)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.1 K8s Node Onboarding (2 new validation nodes)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#current-cluster-state" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Current Cluster State
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#01a-hardware-already-connected" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        0.1a Hardware Already Connected
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.1a Hardware Already Connected">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#whats-wired-and-available-now" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What's Wired and Available NOW
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#whats-testable-immediately-tdd-from-day-1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What's Testable Immediately (TDD from Day 1)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#manufacturing-test-steps-proven-reusable-as-validation-baseline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Manufacturing Test Steps (proven, reusable as validation baseline)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#whats-not-wired-needs-stage-4-fixture-hardware" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What's NOT Wired (Needs Stage 4 Fixture Hardware)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tdd-strategy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TDD Strategy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#infrastructure-files-to-update" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Infrastructure Files to Update
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-1-flash-torizon-os-on-new-boards" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 1: Flash Torizon OS on New Boards
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-2-join-k3s-cluster" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 2: Join K3s Cluster
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-3-apply-labels-and-taints" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 3: Apply Labels and Taints
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-4-deploy-mtib-v1-server" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 4: Deploy MTIB V1 Server
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-5-verify-both-nodes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 5: Verify Both Nodes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phase-1-consolidation-note" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 1 Consolidation Note
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#01b-verify-existing-infrastructure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        0.1b Verify Existing Infrastructure
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.1b Verify Existing Infrastructure">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#container-registry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Container Registry
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#k3s-cluster-full-view" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        K3s Cluster (full view)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#02-procure-hardware" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        0.2 Procure Hardware
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#03-verify-corecloud-val_1_0-environment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        0.3 Verify CoreCloud VAL_1_0 Environment
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#04-device-personalization-lte-verification" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        0.4 Device Personalization &amp; LTE Verification
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#05-firmware-asset-generation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        0.5 Firmware Asset Generation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.5 Firmware Asset Generation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-problem" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The Problem
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mtib-revision-impact-on-firmware" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MTIB Revision Impact on Firmware
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#firmware-asset-naming-convention" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Firmware Asset Naming Convention
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#full-asset-matrix" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Full Asset Matrix
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#build-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Build Steps
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#asset-storage-location" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Asset Storage Location
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dts-overlay-to-create" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DTS Overlay to Create
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#verification" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verification
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#phase-0-checkpoint" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 0 Checkpoint
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+                
+
+
+
+  
+
+
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+<h1 id="phase-0-prerequisites">Phase 0: Prerequisites<a class="headerlink" href="#phase-0-prerequisites" title="Permanent link">&para;</a></h1>
+<blockquote>
+<p><strong>When:</strong> Day 1-2
+<strong>Effort:</strong> ~8h active work + procurement lead time + firmware builds
+<strong>Hardware state at start:</strong> 2× Verdin + MTIB carriers online (REV 1.1 + REV 1.2),
+  V1 MTIB server deployed
+<strong>Hardware state at end:</strong> Device personalized, CoreCloud accessible, all firmware
+  assets built, parts ordered</p>
+</blockquote>
+<hr />
+<h2 id="engineering-protocol-for-phase-0">Engineering Protocol for Phase 0<a class="headerlink" href="#engineering-protocol-for-phase-0" title="Permanent link">&para;</a></h2>
+<p>Phase 0 touches live infrastructure — the K8s cluster, MTIB servers, and
+CoreCloud. Before making changes:</p>
+<ol>
+<li><strong>Verify the current state first.</strong> Don't assume what's running. Use
+   <code>kubectl</code>, <code>grpcurl</code>, and SSH to see what actually exists before
+   modifying it.</li>
+<li><strong>Read existing deploy code.</strong> The infra scripts (<code>deploy/infra/v2/</code>)
+   are idempotent and well-structured. Understand them before modifying.</li>
+<li><strong>Check Confluence</strong> for Torizon OS provisioning docs, K3s agent
+   joining procedures, and MTIB hardware revision specs.</li>
+<li><strong>Validate hardware revision.</strong> When a new Verdin board arrives, probe
+   the I2C bus to confirm the MTIB revision: <code>i2cdetect -y 3</code> — if
+   address 0x38 (TCA9534A) responds, it's REV 1.2. If not, REV 1.1.
+   Do not trust labels alone.</li>
+<li><strong>Build firmware the way CI would.</strong> Use the same <code>scripts/build.sh</code>
+   and configs. Do not hand-craft west build commands unless the build
+   script is broken — and if it is, fix the script.</li>
+</ol>
+<hr />
+<h2 id="parallelization-strategy">Parallelization Strategy<a class="headerlink" href="#parallelization-strategy" title="Permanent link">&para;</a></h2>
+<p>Phase 0 and Phase 1 are designed to run in parallel across multiple Claude
+instances and physical hardware setup. Here's how to split the work:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>┌──────────────────────────────────────────────────────────────────────────┐
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>│  Day 1 Kickoff                                                          │
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>│                                                                          │
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>│  Claude Instance 1              Claude Instance 2       Hardware status  │
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>│  ─────────────────              ─────────────────       ──────────────   │
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>│  Phase 1: MTIB server           Phase 0: prereqs        ✓ K8s: DONE     │
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>│  updates (M1 proto first,       ├── 0.1b Verify infra   ✓ Both Verdins  │
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>│  then M2-M8 peripheral          ├── 0.3 CoreCloud env     in cluster    │
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>│  by peripheral)                 ├── 0.5 Build ALL       ✓ Alphas wired  │
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>│                                 │   firmware assets        (mfg fixture) │
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>│  Constraint: M1 (proto) must    ├── TDD: flash + verify                 │
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>│  finish before M2-M8 start.     │   each hex on HW      Later:          │
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>│  Each M2-M8 unit is a self-     └── 0.4 Personalize     Stage 4 stimulus│
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>│  contained session.                  device              (relays, NFC,   │
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>│                                                          photodiode,     │
+<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>│                                 These are independent    Peltier) when   │
+<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>│                                 of MTIB server work.     parts arrive    │
+<a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>└──────────────────────────────────────────────────────────────────────────┘
+</code></pre></div>
+<p><strong>Key parallelism:</strong> Hardware setup is done — both nodes online with Alphas
+connected. Claude Instance 1 works on MTIB server updates. Claude Instance 2
+handles firmware builds with TDD (build, flash on real hardware, verify UART,
+run POST), CoreCloud verification, and device personalization. Stage 4
+stimulus wiring (relays, photodiode, etc.) happens later when parts arrive.</p>
+<hr />
+<h2 id="01-k8s-node-onboarding-2-new-validation-nodes">0.1 K8s Node Onboarding (2 new validation nodes)<a class="headerlink" href="#01-k8s-node-onboarding-2-new-validation-nodes" title="Permanent link">&para;</a></h2>
+<h3 id="current-cluster-state">Current Cluster State<a class="headerlink" href="#current-cluster-state" title="Permanent link">&para;</a></h3>
+<p>The K3s cluster currently has (verified 2026-03-01):
+- <strong>3 server nodes</strong> (amd64): <code>concordserver01-03</code> at 10.4.45.11-13 — K3s v1.33.5
+- <strong>3 agent nodes</strong> (amd64): <code>concordagent01-03</code> at 10.4.45.21-23 — K3s v1.33.5
+- <strong>2 validation edge nodes</strong> (arm64 Verdin) — both joined, labeled, Ready:</p>
+<table>
+<thead>
+<tr>
+<th>Node</th>
+<th>IP</th>
+<th>HW Revision</th>
+<th>K3s</th>
+<th>Labels</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>verdin-imx8mm-15005665</code></td>
+<td>10.4.45.33</td>
+<td>REV 1.2</td>
+<td>v1.28.7</td>
+<td><code>role=edge</code>, <code>purpose=validation</code>, <code>mtib-revision=1.2</code></td>
+</tr>
+<tr>
+<td><code>verdin-imx8mm-15702161</code></td>
+<td>10.4.45.32</td>
+<td>REV 1.1</td>
+<td>v1.28.7</td>
+<td><code>role=edge</code>, <code>purpose=validation</code>, <code>mtib-revision=1.1</code></td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>0 manufacturing edge nodes</strong> — all previously removed from cluster.</li>
+</ul>
+<p><strong>K8s node onboarding: DONE.</strong> Both nodes are in the cluster and labeled.
+Remaining infra work: update <code>00-labels-taints.sh</code>, create per-revision
+deployment manifests, assign K8s roles to edge nodes. See
+<code>deploy/infra/v2/TODO.md</code> for tracked infra debt.</p>
+<hr />
+<h2 id="01a-hardware-already-connected">0.1a Hardware Already Connected<a class="headerlink" href="#01a-hardware-already-connected" title="Permanent link">&para;</a></h2>
+<p>Both validation nodes have an Alpha B0 connected in the same configuration
+as the manufacturing fixture. This means the full manufacturing test
+capability is available immediately — no additional wiring needed for
+basic validation.</p>
+<h3 id="whats-wired-and-available-now">What's Wired and Available NOW<a class="headerlink" href="#whats-wired-and-available-now" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Interface</th>
+<th>Channels</th>
+<th>What It Gives You</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Power (DUT)</strong></td>
+<td>Ch 0, INA219 @ 0x40, MCP4017 @ 0x2F</td>
+<td>Battery sim (4.5V required), current measurement</td>
+</tr>
+<tr>
+<td><strong>Power (CHG)</strong></td>
+<td>Ch 1, INA219 @ 0x41</td>
+<td>5V charge rail, charger current sense</td>
+</tr>
+<tr>
+<td><strong>ADC</strong></td>
+<td>Ch 0-3 via 2× ADS1015 (0x48, 0x49)</td>
+<td>+3.3V, +BATT_SYS, +VBCKP, +SYS voltage rails</td>
+</tr>
+<tr>
+<td><strong>UART</strong></td>
+<td>2 ports (nRF52840 app MCU + nRF9151 comms MCU)</td>
+<td>Shell commands, POST, log capture</td>
+</tr>
+<tr>
+<td><strong>SWD/J-Link</strong></td>
+<td>2 probes (one per MCU, muxed on REV 1.2)</td>
+<td>Firmware flashing for both processors</td>
+</tr>
+<tr>
+<td><strong>GPIO</strong></td>
+<td>9 pins (SODIMM 206/208/210/212 + I2S + PWM)</td>
+<td>Level shifter control, general purpose</td>
+</tr>
+<tr>
+<td><strong>Accelerometer</strong></td>
+<td>Via UART <code>read_accel</code> command</td>
+<td>IMU data (LSM6DSO, read by Alpha MCU internally)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="whats-testable-immediately-tdd-from-day-1">What's Testable Immediately (TDD from Day 1)<a class="headerlink" href="#whats-testable-immediately-tdd-from-day-1" title="Permanent link">&para;</a></h3>
+<p>With the MTIB V1 server deployed, we can:</p>
+<ol>
+<li><strong>Flash firmware</strong> — build a hex, stream it via J-Link, verify device boots</li>
+<li><strong>Verify UART</strong> — open shell, send commands, confirm bidirectional comms</li>
+<li><strong>Run POST</strong> — the full 10-step manufacturing POST exercises BMS, charger,
+   GPS, modem, external flash, chip IDs, accelerometer</li>
+<li><strong>Measure power</strong> — verify boot current (&gt;50mA), rail voltages via ADC</li>
+<li><strong>Validate both MTIB revisions</strong> — flash the same firmware on both nodes,
+   confirm UART works on both (REV 1.1 with pin swap overlay, REV 1.2 default)</li>
+</ol>
+<h3 id="manufacturing-test-steps-proven-reusable-as-validation-baseline">Manufacturing Test Steps (proven, reusable as validation baseline)<a class="headerlink" href="#manufacturing-test-steps-proven-reusable-as-validation-baseline" title="Permanent link">&para;</a></h3>
+<p>These test steps are proven in production manufacturing
+(<code>apps/manufacturing/alpha/src/tests/</code>):</p>
+<table>
+<thead>
+<tr>
+<th>Test Suite</th>
+<th>Steps</th>
+<th>What It Validates</th>
+<th>Key RPCs</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Electrical</strong></td>
+<td>5 steps</td>
+<td>Power sequencing, voltage rails, current draw, load sharing</td>
+<td><code>DutPowerEnable</code>, <code>DutPowerRead</code>, <code>AdcRead</code></td>
+</tr>
+<tr>
+<td><strong>FW Flash</strong></td>
+<td>3 steps</td>
+<td>Flash both MCUs via SWD, verify boot + UART</td>
+<td><code>FlashProgram</code>, <code>UartStream</code></td>
+</tr>
+<tr>
+<td><strong>POST</strong></td>
+<td>10 steps</td>
+<td>BMS, charger, GPS, modem FW, IMEI/ICCID, ext flash, chip IDs, personalization</td>
+<td><code>UartStream</code> (shell commands)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Reference files:</strong>
+- <code>apps/manufacturing/alpha/src/tests/electrical/test.py</code>
+- <code>apps/manufacturing/alpha/src/tests/fw_flash/test.py</code>
+- <code>apps/manufacturing/alpha/src/tests/post/test.py</code>
+- <code>apps/manufacturing/alpha/src/tests/shared/rpcs.py</code> — all MTIB RPC wrappers</p>
+<h3 id="whats-not-wired-needs-stage-4-fixture-hardware">What's NOT Wired (Needs Stage 4 Fixture Hardware)<a class="headerlink" href="#whats-not-wired-needs-stage-4-fixture-hardware" title="Permanent link">&para;</a></h3>
+<p>These are the physical stimulus channels that Stage 4 product tests need
+beyond what manufacturing provides:</p>
+<table>
+<thead>
+<tr>
+<th>Stimulus</th>
+<th>Why Needed</th>
+<th>Hardware Required</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Button press relay</td>
+<td>Simulate user button press/hold</td>
+<td>Relay module on GPIO</td>
+</tr>
+<tr>
+<td>Charger insertion relay</td>
+<td>Simulate USB charger connect/disconnect</td>
+<td>Relay module on GPIO</td>
+</tr>
+<tr>
+<td>Peltier TEC + thermistor</td>
+<td>Temperature control for environmental tests</td>
+<td>Peltier module + NTC 10K</td>
+</tr>
+<tr>
+<td>Photodiode array (RGB)</td>
+<td>Capture LED blink patterns for state verification</td>
+<td>3-channel photodiode on ADC</td>
+</tr>
+<tr>
+<td>On-skin electrode pad</td>
+<td>Simulate skin contact for biometric tests</td>
+<td>Conductive pad on GPIO</td>
+</tr>
+<tr>
+<td>NFC reader</td>
+<td>NFC tap simulation</td>
+<td>I2C NFC reader (NT3H2111 compatible)</td>
+</tr>
+<tr>
+<td>Motion platform</td>
+<td>6-DOF shake for motion detection</td>
+<td>Linear actuator (already exists as scaffold?)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="tdd-strategy">TDD Strategy<a class="headerlink" href="#tdd-strategy" title="Permanent link">&para;</a></h3>
+<p>Use what's wired to validate firmware builds incrementally as they're
+created in Phase 0.5 (firmware asset generation):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>Build hex → Flash via MTIB → Verify UART → Run POST → Record result
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>     │                                                      │
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>     └──── iterate if broken ◄──────────────────────────────┘
+</code></pre></div>
+<p><strong>For each of the 9 firmware assets:</strong>
+1. Build hex (using <code>scripts/build.sh</code> with appropriate overlay)
+2. Flash to the correct MTIB node (REV 1.1 or REV 1.2)
+3. Verify UART bidirectional communication works
+4. For manufacturing variants: run POST suite to confirm all peripherals respond
+5. For debug variants: verify log output is visible on UART
+6. For release variants: verify UART is silent (no log output)</p>
+<p>This catches firmware build problems, DTS overlay errors, and UART pin
+swap issues before any Stage 4 test code is written.</p>
+<h3 id="infrastructure-files-to-update">Infrastructure Files to Update<a class="headerlink" href="#infrastructure-files-to-update" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>What Changes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>deploy/infra/v2/00-labels-taints.sh</code></td>
+<td>Add 2 new node hostnames to <code>EDGE_VALIDATION</code> array, add <code>mtib-revision</code> label</td>
+</tr>
+<tr>
+<td><code>deploy/edge/mtib-server/validation.yaml</code></td>
+<td>Split into per-revision manifests OR update replicas to 2</td>
+</tr>
+</tbody>
+</table>
+<h3 id="step-1-flash-torizon-os-on-new-boards">Step 1: Flash Torizon OS on New Boards<a class="headerlink" href="#step-1-flash-torizon-os-on-new-boards" title="Permanent link">&para;</a></h3>
+<p>Flash 2 Verdin iMX8M Mini boards with Torizon OS (same image as existing
+edge nodes). Record hostnames — they follow the pattern
+<code>verdin-imx8mm-&lt;serial&gt;</code>.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># After flashing, verify SSH access</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>ssh<span class="w"> </span>torizon@&lt;NEW_NODE_IP_1&gt;
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>ssh<span class="w"> </span>torizon@&lt;NEW_NODE_IP_2&gt;
+</code></pre></div>
+<h3 id="step-2-join-k3s-cluster">Step 2: Join K3s Cluster<a class="headerlink" href="#step-2-join-k3s-cluster" title="Permanent link">&para;</a></h3>
+<p>Each new node joins the cluster as an agent:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1"># On each new Verdin board:</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>curl<span class="w"> </span>-sfL<span class="w"> </span>https://get.k3s.io<span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="nv">K3S_URL</span><span class="o">=</span>https://concordserver01:6443<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span><span class="nv">K3S_TOKEN</span><span class="o">=</span>&lt;node-token&gt;<span class="w"> </span>sh<span class="w"> </span>-s<span class="w"> </span>-<span class="w"> </span>agent<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">  </span>--node-label<span class="w"> </span><span class="s2">&quot;corekinect.com/role=edge&quot;</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">  </span>--node-label<span class="w"> </span><span class="s2">&quot;corekinect.com/purpose=validation&quot;</span>
+</code></pre></div>
+<p>Verify from the control plane:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>kubectl<span class="w"> </span>get<span class="w"> </span>nodes<span class="w"> </span>-l<span class="w"> </span>corekinect.com/purpose<span class="o">=</span>validation
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="c1"># Should show 3 nodes (1 existing + 2 new)</span>
+</code></pre></div>
+<h3 id="step-3-apply-labels-and-taints">Step 3: Apply Labels and Taints<a class="headerlink" href="#step-3-apply-labels-and-taints" title="Permanent link">&para;</a></h3>
+<p>Update <code>deploy/infra/v2/00-labels-taints.sh</code> to include the new nodes:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c1"># Update the EDGE_VALIDATION array (replace stale entries):</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="nv">EDGE_VALIDATION</span><span class="o">=(</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">  </span><span class="s2">&quot;verdin-imx8mm-15005665&quot;</span><span class="w">    </span><span class="c1"># REV 1.2 — 10.4.45.33 — joined + labeled ✓</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">  </span><span class="s2">&quot;verdin-imx8mm-15702161&quot;</span><span class="w">    </span><span class="c1"># REV 1.1 — 10.4.45.32 — joined + labeled ✓</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="o">)</span>
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="c1"># Remove all 5 stale manufacturing nodes from EDGE_MANUFACTURING (cluster was cleaned)</span>
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="nv">EDGE_MANUFACTURING</span><span class="o">=()</span>
+</code></pre></div>
+<p>Add a new MTIB revision label to the labeling function so deployments can
+target specific hardware revisions:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1"># Both done:</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="c1"># kubectl label node verdin-imx8mm-15005665 corekinect.com/role=edge \</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="c1">#   corekinect.com/purpose=validation corekinect.com/mtib-revision=1.2 --overwrite</span>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="c1"># kubectl label node verdin-imx8mm-15702161 corekinect.com/role=edge \</span>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="c1">#   corekinect.com/purpose=validation corekinect.com/mtib-revision=1.1 --overwrite</span>
+</code></pre></div>
+<p>Then run the updated script:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>bash<span class="w"> </span>deploy/infra/v2/00-labels-taints.sh<span class="w"> </span>--with-taints
+</code></pre></div>
+<h3 id="step-4-deploy-mtib-v1-server">Step 4: Deploy MTIB V1 Server<a class="headerlink" href="#step-4-deploy-mtib-v1-server" title="Permanent link">&para;</a></h3>
+<p><strong>Problem:</strong> The current <code>validation.yaml</code> uses a single Deployment with
+<code>HARDWARE_VERSION=REV1.1</code> hardcoded. With 2 nodes at different revisions,
+we need per-revision configuration.</p>
+<p><strong>Solution:</strong> Split into two manifests — one per revision. After Phase 1
+adds auto-detection (TCA9534A probe at 0x38), this can be consolidated
+back into a single Deployment.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>deploy/edge/mtib-server/
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>├── manufacturing.yaml           # 4 replicas, all REV 1.1 (unchanged)
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>├── validation-rev11.yaml        # 1 replica, pinned to REV 1.1 node
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>└── validation-rev12.yaml        # 1 replica, pinned to REV 1.2 node
+</code></pre></div>
+<p>Each manifest uses <code>nodeAffinity</code> to target the specific MTIB revision:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="c1"># validation-rev11.yaml — key differences from current validation.yaml</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="nt">spec</span><span class="p">:</span>
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="w">  </span><span class="nt">replicas</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="w">  </span><span class="nt">template</span><span class="p">:</span>
+<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="w">    </span><span class="nt">spec</span><span class="p">:</span>
+<a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="w">      </span><span class="nt">affinity</span><span class="p">:</span>
+<a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a><span class="w">        </span><span class="nt">nodeAffinity</span><span class="p">:</span>
+<a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a><span class="w">          </span><span class="nt">requiredDuringSchedulingIgnoredDuringExecution</span><span class="p">:</span>
+<a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a><span class="w">            </span><span class="nt">nodeSelectorTerms</span><span class="p">:</span>
+<a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a><span class="w">            </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">matchExpressions</span><span class="p">:</span>
+<a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a><span class="w">              </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">key</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;corekinect.com/role&quot;</span>
+<a id="__codelineno-9-12" name="__codelineno-9-12" href="#__codelineno-9-12"></a><span class="w">                </span><span class="nt">operator</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">In</span>
+<a id="__codelineno-9-13" name="__codelineno-9-13" href="#__codelineno-9-13"></a><span class="w">                </span><span class="nt">values</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;edge&quot;</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-9-14" name="__codelineno-9-14" href="#__codelineno-9-14"></a><span class="w">              </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">key</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;corekinect.com/purpose&quot;</span>
+<a id="__codelineno-9-15" name="__codelineno-9-15" href="#__codelineno-9-15"></a><span class="w">                </span><span class="nt">operator</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">In</span>
+<a id="__codelineno-9-16" name="__codelineno-9-16" href="#__codelineno-9-16"></a><span class="w">                </span><span class="nt">values</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;validation&quot;</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-9-17" name="__codelineno-9-17" href="#__codelineno-9-17"></a><span class="w">              </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">key</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;corekinect.com/mtib-revision&quot;</span>
+<a id="__codelineno-9-18" name="__codelineno-9-18" href="#__codelineno-9-18"></a><span class="w">                </span><span class="nt">operator</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">In</span>
+<a id="__codelineno-9-19" name="__codelineno-9-19" href="#__codelineno-9-19"></a><span class="w">                </span><span class="nt">values</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;1.1&quot;</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-9-20" name="__codelineno-9-20" href="#__codelineno-9-20"></a><span class="w">      </span><span class="nt">containers</span><span class="p">:</span>
+<a id="__codelineno-9-21" name="__codelineno-9-21" href="#__codelineno-9-21"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">mtib-server-validation-rev11</span>
+<a id="__codelineno-9-22" name="__codelineno-9-22" href="#__codelineno-9-22"></a><span class="w">        </span><span class="nt">env</span><span class="p">:</span>
+<a id="__codelineno-9-23" name="__codelineno-9-23" href="#__codelineno-9-23"></a><span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">HARDWARE_VERSION</span>
+<a id="__codelineno-9-24" name="__codelineno-9-24" href="#__codelineno-9-24"></a><span class="w">          </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;REV1.1&quot;</span>
+<a id="__codelineno-9-25" name="__codelineno-9-25" href="#__codelineno-9-25"></a><span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">MOTION_ENABLED</span>
+<a id="__codelineno-9-26" name="__codelineno-9-26" href="#__codelineno-9-26"></a><span class="w">          </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;true&quot;</span><span class="w">        </span><span class="c1"># Motion scaffold attached — same for both nodes</span>
+<a id="__codelineno-9-27" name="__codelineno-9-27" href="#__codelineno-9-27"></a>
+<a id="__codelineno-9-28" name="__codelineno-9-28" href="#__codelineno-9-28"></a><span class="c1"># validation-rev12.yaml — same structure, different revision</span>
+<a id="__codelineno-9-29" name="__codelineno-9-29" href="#__codelineno-9-29"></a><span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">HARDWARE_VERSION</span>
+<a id="__codelineno-9-30" name="__codelineno-9-30" href="#__codelineno-9-30"></a><span class="w">          </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;REV1.2&quot;</span>
+<a id="__codelineno-9-31" name="__codelineno-9-31" href="#__codelineno-9-31"></a><span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">MOTION_ENABLED</span>
+<a id="__codelineno-9-32" name="__codelineno-9-32" href="#__codelineno-9-32"></a><span class="w">          </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;true&quot;</span><span class="w">        </span><span class="c1"># Motion scaffold attached — same for both nodes</span>
+</code></pre></div>
+<p><strong>Note on MOTION_ENABLED:</strong> This flag controls whether the server exposes
+motion RPCs. It is about whether a <strong>motion scaffold is physically
+attached</strong> to the node, NOT about the hardware revision. Both validation
+nodes have scaffolds, so both get <code>MOTION_ENABLED=true</code>. The REV 1.2
+motor power MOSFET (TCA9534A P2 / VMM_EN) is a safety feature that
+keeps the motor off at startup — it does not determine motion capability.
+REV 1.1 has no such MOSFET, so the motor is powered whenever the system
+is powered. Both revisions can drive motion.</p>
+<p>Deploy:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>kubectl<span class="w"> </span>apply<span class="w"> </span>-f<span class="w"> </span>deploy/edge/mtib-server/validation-rev11.yaml
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>kubectl<span class="w"> </span>apply<span class="w"> </span>-f<span class="w"> </span>deploy/edge/mtib-server/validation-rev12.yaml
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="c1"># Remove old single validation.yaml if still deployed</span>
+<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>kubectl<span class="w"> </span>delete<span class="w"> </span>deployment<span class="w"> </span>mtib-server-validation<span class="w"> </span><span class="m">2</span>&gt;/dev/null<span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nb">true</span>
+</code></pre></div>
+<h3 id="step-5-verify-both-nodes">Step 5: Verify Both Nodes<a class="headerlink" href="#step-5-verify-both-nodes" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="c1"># Check pods are running on correct nodes</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>kubectl<span class="w"> </span>get<span class="w"> </span>pods<span class="w"> </span>-l<span class="w"> </span><span class="nv">app</span><span class="o">=</span>mtib-server-validation-rev11<span class="w"> </span>-o<span class="w"> </span>wide
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>kubectl<span class="w"> </span>get<span class="w"> </span>pods<span class="w"> </span>-l<span class="w"> </span><span class="nv">app</span><span class="o">=</span>mtib-server-validation-rev12<span class="w"> </span>-o<span class="w"> </span>wide
+<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a>
+<a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="c1"># Verify gRPC health on each</span>
+<a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a>grpcurl<span class="w"> </span>-plaintext<span class="w"> </span><span class="m">10</span>.4.45.33:50053<span class="w"> </span>grpc.health.v1.Health/Check<span class="w">   </span><span class="c1"># REV 1.2</span>
+<a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a>grpcurl<span class="w"> </span>-plaintext<span class="w"> </span><span class="m">10</span>.4.45.32:50053<span class="w"> </span>grpc.health.v1.Health/Check<span class="w">   </span><span class="c1"># REV 1.1</span>
+</code></pre></div>
+<h3 id="phase-1-consolidation-note">Phase 1 Consolidation Note<a class="headerlink" href="#phase-1-consolidation-note" title="Permanent link">&para;</a></h3>
+<p>After Phase 1 M9 adds hardware revision auto-detection (TCA9534A probe),
+the two validation manifests can optionally be consolidated back into a
+single <code>validation.yaml</code> with <code>replicas: 2</code>. The server will detect its
+own revision at startup and branch accordingly. The <code>HARDWARE_VERSION</code>
+env var becomes an optional override rather than a requirement.</p>
+<hr />
+<h2 id="01b-verify-existing-infrastructure">0.1b Verify Existing Infrastructure<a class="headerlink" href="#01b-verify-existing-infrastructure" title="Permanent link">&para;</a></h2>
+<h3 id="container-registry">Container Registry<a class="headerlink" href="#container-registry" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>docker<span class="w"> </span>login<span class="w"> </span>containers.ad.corekinect.com
+</code></pre></div>
+<h3 id="k3s-cluster-full-view">K3s Cluster (full view)<a class="headerlink" href="#k3s-cluster-full-view" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>kubectl<span class="w"> </span>get<span class="w"> </span>nodes<span class="w"> </span>-L<span class="w"> </span>corekinect.com/role,corekinect.com/purpose,corekinect.com/mtib-revision
+</code></pre></div>
+<hr />
+<h2 id="02-procure-hardware">0.2 Procure Hardware<a class="headerlink" href="#02-procure-hardware" title="Permanent link">&para;</a></h2>
+<p>Order on Day 1 — longest lead times:</p>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Est. Cost</th>
+<th>Lead Time</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Alpha B0 board (1 unit)</td>
+<td>$200-400</td>
+<td>Check inventory first</td>
+<td>Internal</td>
+</tr>
+<tr>
+<td>NFC reader (I2C, NT3H2111 compatible)</td>
+<td>~$30</td>
+<td>1-2 weeks</td>
+<td>Adafruit/Mouser</td>
+</tr>
+<tr>
+<td>Linear actuator (check existing scaffold)</td>
+<td>~$200-1,000</td>
+<td>0-2 weeks</td>
+<td>Amazon/Actuonix</td>
+</tr>
+<tr>
+<td>Relay modules (2× charger + button)</td>
+<td>~$10</td>
+<td>1 week</td>
+<td>Amazon</td>
+</tr>
+<tr>
+<td>3-channel photodiode breakout (RGB)</td>
+<td>~$50</td>
+<td>1 week</td>
+<td>Adafruit</td>
+</tr>
+<tr>
+<td>Peltier module (TEC1-12706 or similar)</td>
+<td>~$100-500</td>
+<td>1 week</td>
+<td>Amazon/Mouser</td>
+</tr>
+<tr>
+<td>NTC 10K thermistor</td>
+<td>~$5</td>
+<td>1 week</td>
+<td>Mouser</td>
+</tr>
+<tr>
+<td>Conductive electrode pad</td>
+<td>~$20</td>
+<td>1 week</td>
+<td>Specialty</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="03-verify-corecloud-val_1_0-environment">0.3 Verify CoreCloud VAL_1_0 Environment<a class="headerlink" href="#03-verify-corecloud-val_1_0-environment" title="Permanent link">&para;</a></h2>
+<p><strong>Status:</strong> URL not yet known. Obtain from team.</p>
+<p><strong>Can run in parallel with MTIB server work (Claude Instance 2).</strong></p>
+<p>When available:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">VAL_1_0_AUTH_SERVER_HOST_NAME</span><span class="o">=</span>https://auth.corekinect.com
+<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">VAL_1_0_AUTH_USERNAME</span><span class="o">=</span>&lt;from-vault&gt;
+<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="nb">export</span><span class="w"> </span><span class="nv">VAL_1_0_AUTH_PASSWORD</span><span class="o">=</span>&lt;from-vault&gt;
+<a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a><span class="nb">export</span><span class="w"> </span><span class="nv">VAL_1_0_API_REST_SERVER_HOST_NAME</span><span class="o">=</span>&lt;TBD&gt;
+<a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a><span class="nb">export</span><span class="w"> </span><span class="nv">VAL_1_0_API_KEY</span><span class="o">=</span>&lt;from-vault&gt;
+<a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a>
+<a id="__codelineno-14-7" name="__codelineno-14-7" href="#__codelineno-14-7"></a>python3<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;</span>
+<a id="__codelineno-14-8" name="__codelineno-14-8" href="#__codelineno-14-8"></a><span class="s2">from corekinect.core_cloud.db_interface import CoreCloudDBInterface</span>
+<a id="__codelineno-14-9" name="__codelineno-14-9" href="#__codelineno-14-9"></a><span class="s2">with CoreCloudDBInterface(db_env=&#39;VAL_1_0&#39;) as db:</span>
+<a id="__codelineno-14-10" name="__codelineno-14-10" href="#__codelineno-14-10"></a><span class="s2">    print(&#39;DB connected&#39;)</span>
+<a id="__codelineno-14-11" name="__codelineno-14-11" href="#__codelineno-14-11"></a><span class="s2">&quot;</span>
+</code></pre></div></p>
+<hr />
+<h2 id="04-device-personalization-lte-verification">0.4 Device Personalization &amp; LTE Verification<a class="headerlink" href="#04-device-personalization-lte-verification" title="Permanent link">&para;</a></h2>
+<p>The Alpha B0 nRF9151 requires personalization (certs, keys, socket server
+URL) before it can connect to CoreCloud via LTE. This is a prerequisite for
+all Stage 4 work.</p>
+<ol>
+<li>Flash <code>comm_coproc_mfg</code> firmware to nRF9151 via SWD (direct nrfjprog,
+   no MTIB server needed yet — use direct J-Link connection)</li>
+<li>Provision device credentials using <code>default_personalization.conf</code> +
+   encryption keys from vault</li>
+<li>Record <code>DEVICE_ID</code> — needed by CloudClient in all Stage 4 tests</li>
+<li>Verify LTE connectivity: device boots, attaches to network, sends
+   <code>BootMsgV2</code> to CoreCloud</li>
+<li>Verify cloud path: <code>BootMsgV2</code> visible in CoreCloud VAL_1_0 environment</li>
+</ol>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="c1"># After flashing and personalization:</span>
+<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>python3<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;</span>
+<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="s2">from corekinect.core_cloud.msg_def_v1_0 import BootMsgV2</span>
+<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a><span class="s2">msg = BootMsgV2.last(DEVICE_ID, db_env=&#39;VAL_1_0&#39;)</span>
+<a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a><span class="s2">print(f&#39;Boot msg received: {msg is not None}&#39;)</span>
+<a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a><span class="s2">if msg:</span>
+<a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a><span class="s2">    print(f&#39;  boot_reason: {msg.boot_reason}&#39;)</span>
+<a id="__codelineno-15-8" name="__codelineno-15-8" href="#__codelineno-15-8"></a><span class="s2">    print(f&#39;  fw_version: {msg.fw_version}&#39;)</span>
+<a id="__codelineno-15-9" name="__codelineno-15-9" href="#__codelineno-15-9"></a><span class="s2">&quot;</span>
+</code></pre></div>
+<p><strong>Note:</strong> This step requires the Alpha B0 board (H-01) and CoreCloud access
+(0.3). Can be done before fixture wiring — just needs direct SWD access.</p>
+<hr />
+<h2 id="05-firmware-asset-generation">0.5 Firmware Asset Generation<a class="headerlink" href="#05-firmware-asset-generation" title="Permanent link">&para;</a></h2>
+<h3 id="the-problem">The Problem<a class="headerlink" href="#the-problem" title="Permanent link">&para;</a></h3>
+<p>Stage 4 testing needs firmware assets for <strong>both MTIB hardware revisions</strong>.
+REV 1.1 had the UART TX/RX lines physically swapped on the carrier board,
+so the nRF firmware needed a DTS overlay to flip the pins. REV 1.2 fixed
+this in hardware — firmware uses default pins.</p>
+<p>This means every firmware variant needs two builds: one for each MTIB
+revision. Without this, UART communication fails on one revision or the
+other.</p>
+<h3 id="mtib-revision-impact-on-firmware">MTIB Revision Impact on Firmware<a class="headerlink" href="#mtib-revision-impact-on-firmware" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>MTIB Rev</th>
+<th>UART Hardware</th>
+<th>nRF Firmware Needs</th>
+<th>DTS Overlay</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>REV 1.1</td>
+<td>TX/RX swapped on carrier</td>
+<td>Pin swap in DTS</td>
+<td><code>boards/alpha_b0_nrf52840_mtib11.overlay</code></td>
+</tr>
+<tr>
+<td>REV 1.2</td>
+<td>Fixed in hardware</td>
+<td>Default pins</td>
+<td>None (or empty overlay)</td>
+</tr>
+</tbody>
+</table>
+<p>The pin swap overlay lives at the app level under
+<code>apps/firmware/products/alpha/alpha_mfg_fw/</code> (and equivalents for other
+firmware variants). It swaps the UART TX/RX pin assignments in the
+devicetree so the firmware compensates for the crossed wires on the REV 1.1
+carrier board.</p>
+<h3 id="firmware-asset-naming-convention">Firmware Asset Naming Convention<a class="headerlink" href="#firmware-asset-naming-convention" title="Permanent link">&para;</a></h3>
+<p>To keep track of which hex goes with which MTIB, the naming convention
+encodes the MTIB revision:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>&lt;product&gt;_&lt;variant&gt;_&lt;mcu&gt;_&lt;mtib_rev&gt;.hex
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Values</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>product</code></td>
+<td><code>alpha</code></td>
+<td><code>alpha</code></td>
+</tr>
+<tr>
+<td><code>variant</code></td>
+<td><code>mfg</code>, <code>debug</code>, <code>release</code></td>
+<td><code>mfg</code></td>
+</tr>
+<tr>
+<td><code>mcu</code></td>
+<td><code>nrf52840</code>, <code>nrf9151</code></td>
+<td><code>nrf52840</code></td>
+</tr>
+<tr>
+<td><code>mtib_rev</code></td>
+<td><code>mtib11</code>, <code>mtib12</code></td>
+<td><code>mtib11</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Examples:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>alpha_mfg_nrf52840_mtib11.hex       # Manufacturing, app MCU, for REV 1.1 bench
+<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>alpha_mfg_nrf52840_mtib12.hex       # Manufacturing, app MCU, for REV 1.2 bench
+<a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a>alpha_mfg_nrf9151.hex               # Manufacturing, comms MCU (same for both)
+<a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a>alpha_debug_nrf52840_mtib11.hex     # Prod debug, app MCU, for REV 1.1 bench
+<a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a>alpha_debug_nrf52840_mtib12.hex     # Prod debug, app MCU, for REV 1.2 bench
+<a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a>alpha_debug_nrf9151.hex             # Prod debug, comms MCU (same for both)
+<a id="__codelineno-17-7" name="__codelineno-17-7" href="#__codelineno-17-7"></a>alpha_release_nrf52840_mtib11.hex   # Prod release, app MCU, for REV 1.1 bench
+<a id="__codelineno-17-8" name="__codelineno-17-8" href="#__codelineno-17-8"></a>alpha_release_nrf52840_mtib12.hex   # Prod release, app MCU, for REV 1.2 bench
+<a id="__codelineno-17-9" name="__codelineno-17-9" href="#__codelineno-17-9"></a>alpha_release_nrf9151.hex           # Prod release, comms MCU (same for both)
+</code></pre></div></p>
+<p><strong>Note on nRF9151 comms firmware:</strong> The comms coprocessor (<code>comm_coproc_mfg</code>)
+uses a different UART bus and its pin assignment may not be affected by the
+MTIB revision. If the comms UART is also swapped on REV 1.1, add <code>_mtib11</code>
+/ <code>_mtib12</code> suffixes to comms hexes too. Verify during asset generation.</p>
+<h3 id="full-asset-matrix">Full Asset Matrix<a class="headerlink" href="#full-asset-matrix" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Asset</th>
+<th>Variant</th>
+<th>MCU</th>
+<th>MTIB Rev</th>
+<th>DTS Overlay</th>
+<th>Tests It Supports</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><code>alpha_mfg_nrf52840_mtib11.hex</code></td>
+<td>Manufacturing</td>
+<td>nRF52840</td>
+<td>1.1</td>
+<td>Pin swap</td>
+<td>Flash, UART, POST on REV 1.1</td>
+</tr>
+<tr>
+<td>2</td>
+<td><code>alpha_mfg_nrf52840_mtib12.hex</code></td>
+<td>Manufacturing</td>
+<td>nRF52840</td>
+<td>1.2</td>
+<td>None</td>
+<td>Flash, UART, POST on REV 1.2</td>
+</tr>
+<tr>
+<td>3</td>
+<td><code>alpha_mfg_nrf9151.hex</code></td>
+<td>Manufacturing</td>
+<td>nRF9151</td>
+<td>Both</td>
+<td>—</td>
+<td>Comms for both benches</td>
+</tr>
+<tr>
+<td>4</td>
+<td><code>alpha_debug_nrf52840_mtib11.hex</code></td>
+<td>Prod Debug</td>
+<td>nRF52840</td>
+<td>1.1</td>
+<td>Pin swap</td>
+<td>Stage 4 debug tests on REV 1.1</td>
+</tr>
+<tr>
+<td>5</td>
+<td><code>alpha_debug_nrf52840_mtib12.hex</code></td>
+<td>Prod Debug</td>
+<td>nRF52840</td>
+<td>1.2</td>
+<td>None</td>
+<td>Stage 4 debug tests on REV 1.2</td>
+</tr>
+<tr>
+<td>6</td>
+<td><code>alpha_debug_nrf9151.hex</code></td>
+<td>Prod Debug</td>
+<td>nRF9151</td>
+<td>Both</td>
+<td>—</td>
+<td>Comms for both benches</td>
+</tr>
+<tr>
+<td>7</td>
+<td><code>alpha_release_nrf52840_mtib11.hex</code></td>
+<td>Prod Release</td>
+<td>nRF52840</td>
+<td>1.1</td>
+<td>Pin swap</td>
+<td>Stage 4 release tests on REV 1.1</td>
+</tr>
+<tr>
+<td>8</td>
+<td><code>alpha_release_nrf52840_mtib12.hex</code></td>
+<td>Prod Release</td>
+<td>nRF52840</td>
+<td>1.2</td>
+<td>None</td>
+<td>Stage 4 release tests on REV 1.2</td>
+</tr>
+<tr>
+<td>9</td>
+<td><code>alpha_release_nrf9151.hex</code></td>
+<td>Prod Release</td>
+<td>nRF9151</td>
+<td>Both</td>
+<td>—</td>
+<td>Comms for both benches</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Total: 9 hex files</strong> (6 nRF52840 + 3 nRF9151, or 12 if nRF9151 also needs
+per-revision builds).</p>
+<h3 id="build-steps">Build Steps<a class="headerlink" href="#build-steps" title="Permanent link">&para;</a></h3>
+<p>Build all firmware assets using the existing build system. Each variant ×
+MTIB revision is a separate <code>west build</code> invocation with the appropriate
+overlay.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="nb">cd</span><span class="w"> </span>~/work/firmware/alpha_fw
+<a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a>
+<a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a><span class="c1"># --- Manufacturing firmware ---</span>
+<a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a><span class="c1"># REV 1.2 (default pins)</span>
+<a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a>bash<span class="w"> </span>scripts/build.sh<span class="w"> </span>mfg<span class="w"> </span>-b<span class="w"> </span>alpha_b0
+<a id="__codelineno-18-6" name="__codelineno-18-6" href="#__codelineno-18-6"></a>cp<span class="w"> </span>artifacts/alpha_mfg_fw/alpha_b0/app_nrf52840.hex<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-18-7" name="__codelineno-18-7" href="#__codelineno-18-7"></a><span class="w">   </span>assets/alpha_mfg_nrf52840_mtib12.hex
+<a id="__codelineno-18-8" name="__codelineno-18-8" href="#__codelineno-18-8"></a>cp<span class="w"> </span>artifacts/alpha_mfg_fw/alpha_b0/comms_nrf9151.hex<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-18-9" name="__codelineno-18-9" href="#__codelineno-18-9"></a><span class="w">   </span>assets/alpha_mfg_nrf9151.hex
+<a id="__codelineno-18-10" name="__codelineno-18-10" href="#__codelineno-18-10"></a>
+<a id="__codelineno-18-11" name="__codelineno-18-11" href="#__codelineno-18-11"></a><span class="c1"># REV 1.1 (pin swap overlay)</span>
+<a id="__codelineno-18-12" name="__codelineno-18-12" href="#__codelineno-18-12"></a>bash<span class="w"> </span>scripts/build.sh<span class="w"> </span>mfg<span class="w"> </span>-b<span class="w"> </span>alpha_b0<span class="w"> </span>--overlay<span class="w"> </span>boards/alpha_b0_nrf52840_mtib11.overlay
+<a id="__codelineno-18-13" name="__codelineno-18-13" href="#__codelineno-18-13"></a>cp<span class="w"> </span>artifacts/alpha_mfg_fw/alpha_b0/app_nrf52840.hex<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-18-14" name="__codelineno-18-14" href="#__codelineno-18-14"></a><span class="w">   </span>assets/alpha_mfg_nrf52840_mtib11.hex
+<a id="__codelineno-18-15" name="__codelineno-18-15" href="#__codelineno-18-15"></a>
+<a id="__codelineno-18-16" name="__codelineno-18-16" href="#__codelineno-18-16"></a><span class="c1"># --- Production Debug ---</span>
+<a id="__codelineno-18-17" name="__codelineno-18-17" href="#__codelineno-18-17"></a><span class="c1"># REV 1.2</span>
+<a id="__codelineno-18-18" name="__codelineno-18-18" href="#__codelineno-18-18"></a>bash<span class="w"> </span>scripts/build.sh<span class="w"> </span>app<span class="w"> </span>-b<span class="w"> </span>alpha_b0<span class="w"> </span>--config<span class="w"> </span>boards/alpha_b0_debug.conf
+<a id="__codelineno-18-19" name="__codelineno-18-19" href="#__codelineno-18-19"></a>cp<span class="w"> </span>artifacts/alpha_fw/alpha_b0/app_nrf52840.hex<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-18-20" name="__codelineno-18-20" href="#__codelineno-18-20"></a><span class="w">   </span>assets/alpha_debug_nrf52840_mtib12.hex
+<a id="__codelineno-18-21" name="__codelineno-18-21" href="#__codelineno-18-21"></a>cp<span class="w"> </span>artifacts/alpha_fw/alpha_b0/comms_nrf9151.hex<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-18-22" name="__codelineno-18-22" href="#__codelineno-18-22"></a><span class="w">   </span>assets/alpha_debug_nrf9151.hex
+<a id="__codelineno-18-23" name="__codelineno-18-23" href="#__codelineno-18-23"></a>
+<a id="__codelineno-18-24" name="__codelineno-18-24" href="#__codelineno-18-24"></a><span class="c1"># REV 1.1</span>
+<a id="__codelineno-18-25" name="__codelineno-18-25" href="#__codelineno-18-25"></a>bash<span class="w"> </span>scripts/build.sh<span class="w"> </span>app<span class="w"> </span>-b<span class="w"> </span>alpha_b0<span class="w"> </span>--config<span class="w"> </span>boards/alpha_b0_debug.conf<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-18-26" name="__codelineno-18-26" href="#__codelineno-18-26"></a><span class="w">   </span>--overlay<span class="w"> </span>boards/alpha_b0_nrf52840_mtib11.overlay
+<a id="__codelineno-18-27" name="__codelineno-18-27" href="#__codelineno-18-27"></a>cp<span class="w"> </span>artifacts/alpha_fw/alpha_b0/app_nrf52840.hex<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-18-28" name="__codelineno-18-28" href="#__codelineno-18-28"></a><span class="w">   </span>assets/alpha_debug_nrf52840_mtib11.hex
+<a id="__codelineno-18-29" name="__codelineno-18-29" href="#__codelineno-18-29"></a>
+<a id="__codelineno-18-30" name="__codelineno-18-30" href="#__codelineno-18-30"></a><span class="c1"># --- Production Release ---</span>
+<a id="__codelineno-18-31" name="__codelineno-18-31" href="#__codelineno-18-31"></a><span class="c1"># REV 1.2</span>
+<a id="__codelineno-18-32" name="__codelineno-18-32" href="#__codelineno-18-32"></a>bash<span class="w"> </span>scripts/build.sh<span class="w"> </span>app<span class="w"> </span>-b<span class="w"> </span>alpha_b0<span class="w"> </span>--config<span class="w"> </span>boards/alpha_b0_release.conf
+<a id="__codelineno-18-33" name="__codelineno-18-33" href="#__codelineno-18-33"></a>cp<span class="w"> </span>artifacts/alpha_fw/alpha_b0/app_nrf52840.hex<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-18-34" name="__codelineno-18-34" href="#__codelineno-18-34"></a><span class="w">   </span>assets/alpha_release_nrf52840_mtib12.hex
+<a id="__codelineno-18-35" name="__codelineno-18-35" href="#__codelineno-18-35"></a>cp<span class="w"> </span>artifacts/alpha_fw/alpha_b0/comms_nrf9151.hex<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-18-36" name="__codelineno-18-36" href="#__codelineno-18-36"></a><span class="w">   </span>assets/alpha_release_nrf9151.hex
+<a id="__codelineno-18-37" name="__codelineno-18-37" href="#__codelineno-18-37"></a>
+<a id="__codelineno-18-38" name="__codelineno-18-38" href="#__codelineno-18-38"></a><span class="c1"># REV 1.1</span>
+<a id="__codelineno-18-39" name="__codelineno-18-39" href="#__codelineno-18-39"></a>bash<span class="w"> </span>scripts/build.sh<span class="w"> </span>app<span class="w"> </span>-b<span class="w"> </span>alpha_b0<span class="w"> </span>--config<span class="w"> </span>boards/alpha_b0_release.conf<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-18-40" name="__codelineno-18-40" href="#__codelineno-18-40"></a><span class="w">   </span>--overlay<span class="w"> </span>boards/alpha_b0_nrf52840_mtib11.overlay
+<a id="__codelineno-18-41" name="__codelineno-18-41" href="#__codelineno-18-41"></a>cp<span class="w"> </span>artifacts/alpha_fw/alpha_b0/app_nrf52840.hex<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-18-42" name="__codelineno-18-42" href="#__codelineno-18-42"></a><span class="w">   </span>assets/alpha_release_nrf52840_mtib11.hex
+</code></pre></div>
+<p><strong>Note:</strong> The exact <code>--overlay</code> flag syntax depends on the build script.
+If <code>build.sh</code> doesn't support <code>--overlay</code>, the DTS overlay must be applied
+via west build args: <code>-- -DDTC_OVERLAY_FILE=boards/alpha_b0_nrf52840_mtib11.overlay</code></p>
+<h3 id="asset-storage-location">Asset Storage Location<a class="headerlink" href="#asset-storage-location" title="Permanent link">&para;</a></h3>
+<p>All built assets go into a central location in the concord repo:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a>libs/corekinect/test/validation/assets/firmware/
+<a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a>├── alpha_mfg_nrf52840_mtib11.hex
+<a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a>├── alpha_mfg_nrf52840_mtib12.hex
+<a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a>├── alpha_mfg_nrf9151.hex
+<a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a>├── alpha_debug_nrf52840_mtib11.hex
+<a id="__codelineno-19-6" name="__codelineno-19-6" href="#__codelineno-19-6"></a>├── alpha_debug_nrf52840_mtib12.hex
+<a id="__codelineno-19-7" name="__codelineno-19-7" href="#__codelineno-19-7"></a>├── alpha_debug_nrf9151.hex
+<a id="__codelineno-19-8" name="__codelineno-19-8" href="#__codelineno-19-8"></a>├── alpha_release_nrf52840_mtib11.hex
+<a id="__codelineno-19-9" name="__codelineno-19-9" href="#__codelineno-19-9"></a>├── alpha_release_nrf52840_mtib12.hex
+<a id="__codelineno-19-10" name="__codelineno-19-10" href="#__codelineno-19-10"></a>├── alpha_release_nrf9151.hex
+<a id="__codelineno-19-11" name="__codelineno-19-11" href="#__codelineno-19-11"></a>└── manifest.json           # Maps asset names to versions, build hashes
+</code></pre></div>
+<p><strong><code>manifest.json</code>:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="p">{</span>
+<a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a><span class="w">  </span><span class="nt">&quot;product&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;alpha&quot;</span><span class="p">,</span>
+<a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a><span class="w">  </span><span class="nt">&quot;board&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;alpha_b0&quot;</span><span class="p">,</span>
+<a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a><span class="w">  </span><span class="nt">&quot;fw_version&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;0.8.0&quot;</span><span class="p">,</span>
+<a id="__codelineno-20-5" name="__codelineno-20-5" href="#__codelineno-20-5"></a><span class="w">  </span><span class="nt">&quot;build_date&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2026-03-01&quot;</span><span class="p">,</span>
+<a id="__codelineno-20-6" name="__codelineno-20-6" href="#__codelineno-20-6"></a><span class="w">  </span><span class="nt">&quot;assets&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-20-7" name="__codelineno-20-7" href="#__codelineno-20-7"></a><span class="w">    </span><span class="nt">&quot;alpha_mfg_nrf52840_mtib11&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-20-8" name="__codelineno-20-8" href="#__codelineno-20-8"></a><span class="w">      </span><span class="nt">&quot;file&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;alpha_mfg_nrf52840_mtib11.hex&quot;</span><span class="p">,</span>
+<a id="__codelineno-20-9" name="__codelineno-20-9" href="#__codelineno-20-9"></a><span class="w">      </span><span class="nt">&quot;variant&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;manufacturing&quot;</span><span class="p">,</span>
+<a id="__codelineno-20-10" name="__codelineno-20-10" href="#__codelineno-20-10"></a><span class="w">      </span><span class="nt">&quot;mcu&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;nrf52840&quot;</span><span class="p">,</span>
+<a id="__codelineno-20-11" name="__codelineno-20-11" href="#__codelineno-20-11"></a><span class="w">      </span><span class="nt">&quot;mtib_rev&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;1.1&quot;</span><span class="p">,</span>
+<a id="__codelineno-20-12" name="__codelineno-20-12" href="#__codelineno-20-12"></a><span class="w">      </span><span class="nt">&quot;overlay&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;alpha_b0_nrf52840_mtib11.overlay&quot;</span><span class="p">,</span>
+<a id="__codelineno-20-13" name="__codelineno-20-13" href="#__codelineno-20-13"></a><span class="w">      </span><span class="nt">&quot;sha256&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;&lt;hash&gt;&quot;</span>
+<a id="__codelineno-20-14" name="__codelineno-20-14" href="#__codelineno-20-14"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-20-15" name="__codelineno-20-15" href="#__codelineno-20-15"></a><span class="w">  </span><span class="p">}</span>
+<a id="__codelineno-20-16" name="__codelineno-20-16" href="#__codelineno-20-16"></a><span class="p">}</span>
+</code></pre></div></p>
+<h3 id="dts-overlay-to-create">DTS Overlay to Create<a class="headerlink" href="#dts-overlay-to-create" title="Permanent link">&para;</a></h3>
+<p>The REV 1.1 pin swap overlay needs to be created (or verified if it already
+exists). It swaps the UART TX/RX pin assignments for the nRF52840:</p>
+<p><strong>File:</strong> <code>boards/alpha_b0_nrf52840_mtib11.overlay</code></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="cm">/* MTIB REV 1.1 UART pin swap compensation.</span>
+<a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a><span class="cm"> * REV 1.1 carrier board has TX/RX crossed at the connector.</span>
+<a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a><span class="cm"> * This overlay swaps the nRF52840 UART0 pins to compensate.</span>
+<a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a><span class="cm"> * Not needed on REV 1.2 (fixed in hardware).</span>
+<a id="__codelineno-21-5" name="__codelineno-21-5" href="#__codelineno-21-5"></a><span class="cm"> */</span>
+<a id="__codelineno-21-6" name="__codelineno-21-6" href="#__codelineno-21-6"></a><span class="o">&amp;</span><span class="na">uart0</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-21-7" name="__codelineno-21-7" href="#__codelineno-21-7"></a><span class="w">    </span><span class="n">pinctrl-0</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&lt;&amp;</span><span class="na">uart0_mtib11_default</span><span class="o">&gt;</span><span class="p">;</span>
+<a id="__codelineno-21-8" name="__codelineno-21-8" href="#__codelineno-21-8"></a><span class="w">    </span><span class="n">pinctrl-1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&lt;&amp;</span><span class="na">uart0_mtib11_sleep</span><span class="o">&gt;</span><span class="p">;</span>
+<a id="__codelineno-21-9" name="__codelineno-21-9" href="#__codelineno-21-9"></a><span class="p">};</span>
+<a id="__codelineno-21-10" name="__codelineno-21-10" href="#__codelineno-21-10"></a>
+<a id="__codelineno-21-11" name="__codelineno-21-11" href="#__codelineno-21-11"></a><span class="o">&amp;</span><span class="na">pinctrl</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-21-12" name="__codelineno-21-12" href="#__codelineno-21-12"></a><span class="w">    </span><span class="nl">uart0_mtib11_default</span><span class="p">:</span><span class="w"> </span><span class="nf">uart0_mtib11_default</span><span class="cm"> </span><span class="p">{</span>
+<a id="__codelineno-21-13" name="__codelineno-21-13" href="#__codelineno-21-13"></a><span class="w">        </span><span class="nf">group1</span><span class="cm"> </span><span class="p">{</span>
+<a id="__codelineno-21-14" name="__codelineno-21-14" href="#__codelineno-21-14"></a><span class="w">            </span><span class="n">psels</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&lt;</span><span class="na">NRF_PSEL</span><span class="p">(</span><span class="na">UART_TX</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">25</span><span class="p">)</span><span class="o">&gt;</span><span class="p">;</span><span class="w">  </span><span class="cm">/* Swapped: was RX */</span>
+<a id="__codelineno-21-15" name="__codelineno-21-15" href="#__codelineno-21-15"></a><span class="w">        </span><span class="p">};</span>
+<a id="__codelineno-21-16" name="__codelineno-21-16" href="#__codelineno-21-16"></a><span class="w">        </span><span class="nf">group2</span><span class="cm"> </span><span class="p">{</span>
+<a id="__codelineno-21-17" name="__codelineno-21-17" href="#__codelineno-21-17"></a><span class="w">            </span><span class="n">psels</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&lt;</span><span class="na">NRF_PSEL</span><span class="p">(</span><span class="na">UART_RX</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">23</span><span class="p">)</span><span class="o">&gt;</span><span class="p">;</span><span class="w">  </span><span class="cm">/* Swapped: was TX */</span>
+<a id="__codelineno-21-18" name="__codelineno-21-18" href="#__codelineno-21-18"></a><span class="w">            </span><span class="n">bias-pull-up</span><span class="p">;</span>
+<a id="__codelineno-21-19" name="__codelineno-21-19" href="#__codelineno-21-19"></a><span class="w">        </span><span class="p">};</span>
+<a id="__codelineno-21-20" name="__codelineno-21-20" href="#__codelineno-21-20"></a><span class="w">    </span><span class="p">};</span>
+<a id="__codelineno-21-21" name="__codelineno-21-21" href="#__codelineno-21-21"></a><span class="w">    </span><span class="nl">uart0_mtib11_sleep</span><span class="p">:</span><span class="w"> </span><span class="nf">uart0_mtib11_sleep</span><span class="cm"> </span><span class="p">{</span>
+<a id="__codelineno-21-22" name="__codelineno-21-22" href="#__codelineno-21-22"></a><span class="w">        </span><span class="nf">group1</span><span class="cm"> </span><span class="p">{</span>
+<a id="__codelineno-21-23" name="__codelineno-21-23" href="#__codelineno-21-23"></a><span class="w">            </span><span class="n">psels</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&lt;</span><span class="na">NRF_PSEL</span><span class="p">(</span><span class="na">UART_TX</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">25</span><span class="p">)</span><span class="o">&gt;</span><span class="p">,</span>
+<a id="__codelineno-21-24" name="__codelineno-21-24" href="#__codelineno-21-24"></a><span class="w">                    </span><span class="o">&lt;</span><span class="na">NRF_PSEL</span><span class="p">(</span><span class="na">UART_RX</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">23</span><span class="p">)</span><span class="o">&gt;</span><span class="p">;</span>
+<a id="__codelineno-21-25" name="__codelineno-21-25" href="#__codelineno-21-25"></a><span class="w">            </span><span class="n">low-power-enable</span><span class="p">;</span>
+<a id="__codelineno-21-26" name="__codelineno-21-26" href="#__codelineno-21-26"></a><span class="w">        </span><span class="p">};</span>
+<a id="__codelineno-21-27" name="__codelineno-21-27" href="#__codelineno-21-27"></a><span class="w">    </span><span class="p">};</span>
+<a id="__codelineno-21-28" name="__codelineno-21-28" href="#__codelineno-21-28"></a><span class="p">};</span>
+</code></pre></div>
+<p><strong>Important:</strong> The exact pin numbers above are placeholders based on the
+Alpha B0 pinctrl definitions. Verify against the actual
+<code>alpha_b0_nrf52840-pinctrl.dtsi</code> before building. The swap is TX↔RX on the
+same pins — the pin numbers just exchange between the TX and RX roles.</p>
+<h3 id="verification">Verification<a class="headerlink" href="#verification" title="Permanent link">&para;</a></h3>
+<p>After building all assets, verify each hex on its target MTIB revision:</p>
+<table>
+<thead>
+<tr>
+<th>Test</th>
+<th>MTIB</th>
+<th>Asset</th>
+<th>Pass Criteria</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Flash + boot</td>
+<td>REV 1.1</td>
+<td><code>alpha_mfg_nrf52840_mtib11.hex</code></td>
+<td>Device boots, UART output visible</td>
+</tr>
+<tr>
+<td>Flash + boot</td>
+<td>REV 1.2</td>
+<td><code>alpha_mfg_nrf52840_mtib12.hex</code></td>
+<td>Device boots, UART output visible</td>
+</tr>
+<tr>
+<td>UART bidirectional</td>
+<td>REV 1.1</td>
+<td>mfg + mtib11</td>
+<td>Shell commands work over MTIB UART</td>
+</tr>
+<tr>
+<td>UART bidirectional</td>
+<td>REV 1.2</td>
+<td>mfg + mtib12</td>
+<td>Shell commands work over MTIB UART</td>
+</tr>
+<tr>
+<td>POST</td>
+<td>REV 1.1</td>
+<td>mfg + mtib11</td>
+<td>POST tests pass (chip IDs, BMS, modem)</td>
+</tr>
+<tr>
+<td>POST</td>
+<td>REV 1.2</td>
+<td>mfg + mtib12</td>
+<td>POST tests pass</td>
+</tr>
+<tr>
+<td>Debug log capture</td>
+<td>REV 1.1</td>
+<td>debug + mtib11</td>
+<td>UART logs visible</td>
+</tr>
+<tr>
+<td>Debug log capture</td>
+<td>REV 1.2</td>
+<td>debug + mtib12</td>
+<td>UART logs visible</td>
+</tr>
+<tr>
+<td>Silent release</td>
+<td>REV 1.1</td>
+<td>release + mtib11</td>
+<td>No UART output (expected)</td>
+</tr>
+<tr>
+<td>Silent release</td>
+<td>REV 1.2</td>
+<td>release + mtib12</td>
+<td>No UART output (expected)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="phase-0-checkpoint">Phase 0 Checkpoint<a class="headerlink" href="#phase-0-checkpoint" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2 new Verdin boards flashed with Torizon OS</td>
+<td></td>
+</tr>
+<tr>
+<td>Both new nodes joined K3s cluster</td>
+<td></td>
+</tr>
+<tr>
+<td>Node labels applied (role, purpose, mtib-revision)</td>
+<td></td>
+</tr>
+<tr>
+<td><code>00-labels-taints.sh</code> updated with new hostnames</td>
+<td></td>
+</tr>
+<tr>
+<td><code>validation-rev11.yaml</code> + <code>validation-rev12.yaml</code> created</td>
+<td></td>
+</tr>
+<tr>
+<td>MTIB V1 server operational on REV 1.1 node</td>
+<td></td>
+</tr>
+<tr>
+<td>MTIB V1 server operational on REV 1.2 node</td>
+<td></td>
+</tr>
+<tr>
+<td>Alpha B0 sourced or ordered</td>
+<td></td>
+</tr>
+<tr>
+<td>Scaffold confirmed (existing or ordered)</td>
+<td></td>
+</tr>
+<tr>
+<td>CoreCloud URL obtained</td>
+<td></td>
+</tr>
+<tr>
+<td>Device personalized (nRF9151 flashed, certs provisioned)</td>
+<td></td>
+</tr>
+<tr>
+<td>DEVICE_ID recorded</td>
+<td></td>
+</tr>
+<tr>
+<td>LTE connectivity verified (BootMsgV2 at CoreCloud)</td>
+<td></td>
+</tr>
+<tr>
+<td>REV 1.1 pin swap DTS overlay created and verified</td>
+<td></td>
+</tr>
+<tr>
+<td>All 9 firmware assets built</td>
+<td></td>
+</tr>
+<tr>
+<td>Manufacturing firmware verified on both MTIB revisions (UART works)</td>
+<td></td>
+</tr>
+<tr>
+<td>Debug firmware verified on both MTIB revisions (logs visible)</td>
+<td></td>
+</tr>
+<tr>
+<td>Release firmware verified on both MTIB revisions (silent)</td>
+<td></td>
+</tr>
+<tr>
+<td>POST tests pass on both MTIB revisions</td>
+<td></td>
+</tr>
+<tr>
+<td>Parts ordered</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://zensical.org/" target="_blank" rel="noopener">
+      Zensical
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      
+      <script id="__config" type="application/json">{"annotate":null,"base":"../../../../..","features":["navigation.sections","navigation.expand","navigation.path","navigation.indexes","search.suggest","content.code.copy","toc.follow"],"search":"../../../../../assets/javascripts/workers/search.e2d2d235.min.js","tags":null,"translations":{"clipboard.copied":"Copied to clipboard","clipboard.copy":"Copy to clipboard","search.result.more.one":"1 more on this page","search.result.more.other":"# more on this page","search.result.none":"No matching documents","search.result.one":"1 matching document","search.result.other":"# matching documents","search.result.placeholder":"Type to start searching","search.result.term.missing":"Missing","select.version":"Select version"},"version":null}</script>
+    
+    
+      <script src="../../../../../assets/javascripts/bundle.5fd3284f.min.js"></script>
+      
+        <script src="../../../../../assets/js/external-links.js"></script>
+      
+    
+  </body>
+</html>

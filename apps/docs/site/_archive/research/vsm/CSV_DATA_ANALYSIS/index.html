@@ -1,0 +1,4839 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Continuous delivery platform for embedded systems">
+      
+      
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../../assets/images/favicon.png">
+      <meta name="generator" content="zensical-0.0.27">
+    
+    
+      
+        <title>Alpha Wearable VSM Data Analysis - Concord</title>
+      
+    
+    
+      
+        
+      
+      <link rel="stylesheet" href="../../../../assets/stylesheets/modern/main.50057488.min.css">
+      
+        
+          
+        
+        <link rel="stylesheet" href="../../../../assets/stylesheets/modern/palette.dfe2e883.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,500,500i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../../../..",location),__md_hash=e=>[...e].reduce(((e,t)=>(e<<5)-e+t.charCodeAt(0)),0),__md_get=(e,t=localStorage,a=__md_scope)=>JSON.parse(t.getItem(a.pathname+"."+e)),__md_set=(e,t,a=localStorage,_=__md_scope)=>{try{a.setItem(_.pathname+"."+e,JSON.stringify(t))}catch(e){}},document.documentElement.setAttribute("data-platform",navigator.platform)</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="deep-purple" data-md-color-accent="amber">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer" aria-label="Navigation"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#alpha-wearable-vsm-data-analysis" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../../.." title="Concord" class="md-header__button md-logo" aria-label="Concord" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer" aria-label="Navigation">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-menu" viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h16"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Concord
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Alpha Wearable VSM Data Analysis
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="none" data-md-color-scheme="slate" data-md-color-primary="deep-purple" data-md-color-accent="amber"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="none" data-md-color-scheme="default" data-md-color-primary="deep-purple" data-md-color-accent="amber"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search" aria-label="Search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-search" viewBox="0 0 24 24"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog" aria-label="Search">
+  <button type="button" class="md-search__button">
+    Search
+  </button>
+</div>
+      
+    
+    <div class="md-header__source">
+      
+    </div>
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../../.." title="Concord" class="md-nav__button md-logo" aria-label="Concord" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+
+    </a>
+    Concord
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../vision/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vision
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2" id="__nav_2_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Vision
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../vision/thesis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Thesis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../vision/validation-philosophy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation Philosophy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../architecture/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3" id="__nav_3_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Architecture
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_2" id="__nav_3_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Platform
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Platform
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/platform/unified-platform/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Unified Platform
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/platform/hardware-registry/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hardware Registry
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/platform/log-streaming/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Log Streaming
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/platform/ci-pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CI Pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/platform/corecloud-library/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CoreCloud Library
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_3" id="__nav_3_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Validation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/validation/stages-overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stages Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/validation/system/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    System Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/validation/stage1-software-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 1: Software Tests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/validation/stage2-driver-hw-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 2: Driver HW Tests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/validation/stage3-integration-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 3: Integration Tests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/validation/stage4-product-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 4: Product Tests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/validation/stage4-fuota-flow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 4: FUOTA Flow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/validation/stage4-pr-flow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 4: PR Flow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/validation/stage5-gate-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 5: Gate Tests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/validation/test-runner/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Test Runner
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_4" id="__nav_3_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Build
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/build/build-service/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build Service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/build/builder-nodes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Builder Nodes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../reference/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/fuota-workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FUOTA Workflow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/fuota-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FUOTA API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/alpha-test-cases/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Alpha Test Cases
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/traceability-matrix/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Traceability Matrix
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/twister-hil/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Twister HIL
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/stage4-connectivity/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 4 Connectivity
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/stage4-long-term-vision/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 4 Long-Term Vision
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/validation-flow-ui/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation Flow UI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/interfaces/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interfaces
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../guides/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_2" id="__nav_5_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Alpha
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Alpha
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../guides/alpha/stage1/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 1
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../guides/alpha/stage2/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 2
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../guides/alpha/stage3/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 3
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../guides/alpha/stage4/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 4
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../guides/alpha/stage5/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 5
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../research/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Research
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_6" id="__nav_6_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Research
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../research/01-sigma5-firmware-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sigma5 Firmware
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../research/02-alpha-firmware-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Alpha Firmware
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../research/03-sensor-drivers-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sensor Drivers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../research/05-mtib-server-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MTIB Server
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../research/06-fuota-corecloud-v1/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FUOTA CoreCloud
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../research/07-alpha-manufacturing-firmware-and-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Alpha MFG Firmware
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../research/08-device-personalization-and-key-provisioning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Device Personalization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../research/08-firmware-build-and-fuota-delivery/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Firmware Build & FUOTA
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../research/09-corecloud-validation-integration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CoreCloud Integration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../journals/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Journals
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Journals
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-dataset-overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Dataset Overview
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. Dataset Overview">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#device-information" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Device Information
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#temporal-coverage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Temporal Coverage
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-heart-rate-analysis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Heart Rate Analysis
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Heart Rate Analysis">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#distribution-statistics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Distribution Statistics
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#most-frequent-hr-values-top-10" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Most Frequent HR Values (Top 10)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hr-jumps-15-bpm-between-consecutive-samples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HR Jumps (&gt;15 BPM Between Consecutive Samples)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-hr-confidence-analysis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. HR Confidence Analysis
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. HR Confidence Analysis">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#low-confidence-periods-conf-50" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Low-Confidence Periods (conf &lt; 50)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-hsi-heart-signal-index-analysis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. HSI (Heart Signal Index) Analysis
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. HSI (Heart Signal Index) Analysis">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#hsi-distribution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HSI Distribution
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hsi-trend-over-session-quartile-analysis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HSI Trend Over Session (Quartile Analysis)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-spo2-analysis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. SpO2 Analysis
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. SpO2 Analysis">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#availability" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Availability
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#spo2-value-distribution-non-zero-only" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SpO2 Value Distribution (Non-Zero Only)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#spo2-confidence-distribution-non-zero-spo2-only" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SpO2 Confidence Distribution (Non-Zero SpO2 Only)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#spo2-high-confidence-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SpO2 High-Confidence Summary
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#spo2-interpretation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SpO2 Interpretation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-temperature-analysis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Temperature Analysis
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. Temperature Analysis">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#skin-temperature" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Skin Temperature
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#skin-temperature-trend" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Skin Temperature Trend
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#core-temperature-estimated" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Core Temperature (Estimated)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#external-temperature" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        External Temperature
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#temperature-hr-correlation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Temperature-HR Correlation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-vsm-on-time" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. VSM On-Time
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-temporal-analysis-biocsv" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Temporal Analysis (bio.csv)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="8. Temporal Analysis (bio.csv)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#measurement-interval-time-between-consecutive-measurements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Measurement Interval (Time Between Consecutive Measurements)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#duplicate-records" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Duplicate Records
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#gaps-in-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Gaps in Data
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#measurement-to-received-delay" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Measurement-to-Received Delay
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#delay-by-session-quarter" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Delay by Session Quarter
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-environmental-sensors-biocsv" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Environmental Sensors (bio.csv)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="9. Environmental Sensors (bio.csv)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#humidity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Humidity
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#air-pressure-biocsv" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Air Pressure (bio.csv)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#flags" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Flags
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#heatsos-id" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HeatSOS ID
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-positionmotion-data-analysis-poscsv" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. Position/Motion Data Analysis (pos.csv)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="10. Position&#x2f;Motion Data Analysis (pos.csv)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#motion-state-distribution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Motion State Distribution
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#update-reason-distribution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Update Reason Distribution
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#motion-state-transitions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Motion State Transitions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#gps-fix-quality" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GPS Fix Quality
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#satellite-count" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Satellite Count
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#horizontal-accuracy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Horizontal Accuracy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#position-reporting-interval" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Position Reporting Interval
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#force-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Force Data
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#air-pressure-poscsv" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Air Pressure (pos.csv)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#gps-location" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GPS Location
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#battery" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Battery
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ground-speed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Ground Speed
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#11-cross-correlation-bio-vs-motion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11. Cross-Correlation: Bio vs. Motion
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="11. Cross-Correlation: Bio vs. Motion">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#hr-during-motion-vs-still" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HR During Motion vs. Still
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hr-confidence-during-motion-vs-still" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HR Confidence During Motion vs. Still
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hsi-during-motion-vs-still" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HSI During Motion vs. Still
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hsi-change-at-motion-onset-stop-motion-transitions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HSI Change at Motion Onset (Stop -&gt; Motion Transitions)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#spo2-during-motion-vs-still" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SpO2 During Motion vs. Still
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#12-anomalies-and-data-quality-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12. Anomalies and Data Quality Issues
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="12. Anomalies and Data Quality Issues">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#issue-1-duplicate-records-174-of-512-rows-34" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Issue 1: Duplicate Records (174 of 512 rows, 34%)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#issue-2-startup-low-confidence-period" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Issue 2: Startup Low-Confidence Period
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#issue-3-112-second-gap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Issue 3: 112-Second Gap
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#issue-4-force-data-not-populated" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Issue 4: Force Data Not Populated
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#issue-5-gps-fix-rate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Issue 5: GPS Fix Rate
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#issue-6-device-id-mismatch-between-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Issue 6: Device ID Mismatch Between Files
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#issue-7-module-temperature-always-zero" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Issue 7: Module Temperature Always Zero
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#issue-8-measurement-delay-outliers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Issue 8: Measurement Delay Outliers
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#issue-9-datetime-confirmation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Issue 9: Date/Time Confirmation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#13-summary-statistics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        13. Summary Statistics
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="13. Summary Statistics">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#data-quality-scorecard" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data Quality Scorecard
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#key-findings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key Findings
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+                
+
+
+
+  
+
+
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+<h1 id="alpha-wearable-vsm-data-analysis">Alpha Wearable VSM Data Analysis<a class="headerlink" href="#alpha-wearable-vsm-data-analysis" title="Permanent link">&para;</a></h1>
+<p><strong>Date of Analysis:</strong> 2026-02-09
+<strong>Data Source:</strong> Live capture from Alpha wearable device (PAH8151 PPG + LSM6DSO accelerometer, Philips PSP library)
+<strong>bio.csv:</strong> 512 rows of vitals data
+<strong>pos.csv:</strong> 145 rows of position/motion data</p>
+<hr />
+<h2 id="1-dataset-overview">1. Dataset Overview<a class="headerlink" href="#1-dataset-overview" title="Permanent link">&para;</a></h2>
+<h3 id="device-information">Device Information<a class="headerlink" href="#device-information" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>bio.csv</th>
+<th>pos.csv</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Device ID</td>
+<td><code>8121069319214735276</code></td>
+<td><code>70b3d584c01e1fac</code></td>
+</tr>
+<tr>
+<td>ID Format</td>
+<td>Decimal integer</td>
+<td>Hex string</td>
+</tr>
+</tbody>
+</table>
+<p>The two files use different device ID formats. The bio device ID is a decimal integer (likely derived from a 64-bit identifier), while the pos device ID is a hex string. These likely represent different subsystem identifiers on the same physical device (the VSM sensor subsystem vs. the cellular/GPS module).</p>
+<h3 id="temporal-coverage">Temporal Coverage<a class="headerlink" href="#temporal-coverage" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>bio.csv</th>
+<th>pos.csv</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Start (UTC)</td>
+<td>2026-02-09 21:14:49</td>
+<td>2026-02-09 19:39:24</td>
+</tr>
+<tr>
+<td>End (UTC)</td>
+<td>2026-02-09 22:26:57</td>
+<td>2026-02-09 22:27:53</td>
+</tr>
+<tr>
+<td>Duration</td>
+<td>1h 12m 8s</td>
+<td>2h 48m 29s</td>
+</tr>
+<tr>
+<td>Start (MST)</td>
+<td>2026-02-09 14:14:49</td>
+<td>2026-02-09 12:39:24</td>
+</tr>
+<tr>
+<td>End (MST)</td>
+<td>2026-02-09 15:26:57</td>
+<td>2026-02-09 15:27:53</td>
+</tr>
+</tbody>
+</table>
+<p>The position data starts ~1.5 hours before vitals data begins. This indicates either that the VSM sensor was activated later than the position module, or the device was not on-body during the initial position-reporting period.</p>
+<hr />
+<h2 id="2-heart-rate-analysis">2. Heart Rate Analysis<a class="headerlink" href="#2-heart-rate-analysis" title="Permanent link">&para;</a></h2>
+<h3 id="distribution-statistics">Distribution Statistics<a class="headerlink" href="#distribution-statistics" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Statistic</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Count</td>
+<td>512</td>
+</tr>
+<tr>
+<td>Min</td>
+<td>69 BPM</td>
+</tr>
+<tr>
+<td>Max</td>
+<td>124 BPM</td>
+</tr>
+<tr>
+<td>Mean</td>
+<td>91.69 BPM</td>
+</tr>
+<tr>
+<td>Median</td>
+<td>90 BPM</td>
+</tr>
+<tr>
+<td>Std Dev</td>
+<td>10.28 BPM</td>
+</tr>
+<tr>
+<td>P5</td>
+<td>78 BPM</td>
+</tr>
+<tr>
+<td>P10</td>
+<td>80 BPM</td>
+</tr>
+<tr>
+<td>P25</td>
+<td>84 BPM</td>
+</tr>
+<tr>
+<td>P50</td>
+<td>90 BPM</td>
+</tr>
+<tr>
+<td>P75</td>
+<td>98 BPM</td>
+</tr>
+<tr>
+<td>P90</td>
+<td>107 BPM</td>
+</tr>
+<tr>
+<td>P95</td>
+<td>113 BPM</td>
+</tr>
+</tbody>
+</table>
+<p>The distribution is slightly right-skewed (mean &gt; median) with a reasonable physiological range. No implausible readings (all values 69-124 BPM).</p>
+<h3 id="most-frequent-hr-values-top-10">Most Frequent HR Values (Top 10)<a class="headerlink" href="#most-frequent-hr-values-top-10" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>HR (BPM)</th>
+<th>Count</th>
+<th>Percentage</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>82</td>
+<td>28</td>
+<td>5.5%</td>
+</tr>
+<tr>
+<td>93</td>
+<td>26</td>
+<td>5.1%</td>
+</tr>
+<tr>
+<td>88</td>
+<td>24</td>
+<td>4.7%</td>
+</tr>
+<tr>
+<td>84</td>
+<td>24</td>
+<td>4.7%</td>
+</tr>
+<tr>
+<td>85</td>
+<td>23</td>
+<td>4.5%</td>
+</tr>
+<tr>
+<td>89</td>
+<td>21</td>
+<td>4.1%</td>
+</tr>
+<tr>
+<td>91</td>
+<td>20</td>
+<td>3.9%</td>
+</tr>
+<tr>
+<td>90</td>
+<td>18</td>
+<td>3.5%</td>
+</tr>
+<tr>
+<td>87</td>
+<td>18</td>
+<td>3.5%</td>
+</tr>
+<tr>
+<td>94</td>
+<td>18</td>
+<td>3.5%</td>
+</tr>
+</tbody>
+</table>
+<p>No single HR value dominates, suggesting real variability rather than a stuck sensor.</p>
+<h3 id="hr-jumps-15-bpm-between-consecutive-samples">HR Jumps (&gt;15 BPM Between Consecutive Samples)<a class="headerlink" href="#hr-jumps-15-bpm-between-consecutive-samples" title="Permanent link">&para;</a></h3>
+<p><strong>Total jumps:</strong> 29 out of 511 consecutive pairs (5.7%)</p>
+<p>Notable examples:</p>
+<table>
+<thead>
+<tr>
+<th>Time (UTC)</th>
+<th>From</th>
+<th>To</th>
+<th>Delta</th>
+<th>Conf Before</th>
+<th>Conf After</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>21:17:47</td>
+<td>104</td>
+<td>85</td>
+<td>19</td>
+<td>25</td>
+<td>25</td>
+</tr>
+<tr>
+<td>21:19:57</td>
+<td>93</td>
+<td>110</td>
+<td>17</td>
+<td>25</td>
+<td>75</td>
+</tr>
+<tr>
+<td>21:20:07</td>
+<td>110</td>
+<td>89</td>
+<td>21</td>
+<td>75</td>
+<td>75</td>
+</tr>
+<tr>
+<td>21:21:27</td>
+<td>98</td>
+<td>81</td>
+<td>17</td>
+<td>100</td>
+<td>50</td>
+</tr>
+<tr>
+<td>21:22:47</td>
+<td>96</td>
+<td>78</td>
+<td>18</td>
+<td>100</td>
+<td>100</td>
+</tr>
+<tr>
+<td>21:23:47</td>
+<td>96</td>
+<td>80</td>
+<td>16</td>
+<td>100</td>
+<td>75</td>
+</tr>
+<tr>
+<td>21:32:57</td>
+<td>108</td>
+<td>89</td>
+<td>19</td>
+<td>25</td>
+<td>25</td>
+</tr>
+<tr>
+<td>21:33:17</td>
+<td>82</td>
+<td>101</td>
+<td>19</td>
+<td>50</td>
+<td>50</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Key observations:</strong>
+- Many jumps occur during low-confidence periods (conf=25), suggesting motion artifact
+- Some jumps happen even at conf=100, particularly drops from high HR (~96-100) to lower values (~78-83), which may represent true physiological transitions (e.g., brief exertion ending)
+- The largest single jump is 21 BPM (110 to 89 at 21:20:07)</p>
+<hr />
+<h2 id="3-hr-confidence-analysis">3. HR Confidence Analysis<a class="headerlink" href="#3-hr-confidence-analysis" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Confidence Level</th>
+<th>Count</th>
+<th>Percentage</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>25</td>
+<td>31</td>
+<td>6.1%</td>
+</tr>
+<tr>
+<td>50</td>
+<td>72</td>
+<td>14.1%</td>
+</tr>
+<tr>
+<td>75</td>
+<td>175</td>
+<td>34.2%</td>
+</tr>
+<tr>
+<td>100</td>
+<td>234</td>
+<td>45.7%</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Mean confidence: 79.88</strong></p>
+<p>The confidence values are discrete at 25-point intervals (25, 50, 75, 100). Nearly 80% of readings are at confidence 75 or 100, indicating generally good signal quality. Only 6.1% are at the lowest confidence level (25).</p>
+<h3 id="low-confidence-periods-conf-50">Low-Confidence Periods (conf &lt; 50)<a class="headerlink" href="#low-confidence-periods-conf-50" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Period</th>
+<th>Rows</th>
+<th>Duration</th>
+<th>Time Range (UTC)</th>
+<th>HR Range</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>0-11</td>
+<td>188s</td>
+<td>21:14:49 - 21:17:57</td>
+<td>70-104</td>
+</tr>
+<tr>
+<td>2</td>
+<td>26</td>
+<td>0s</td>
+<td>21:19:47</td>
+<td>93</td>
+</tr>
+<tr>
+<td>3</td>
+<td>118-123</td>
+<td>40s</td>
+<td>21:32:17 - 21:32:57</td>
+<td>89-108</td>
+</tr>
+<tr>
+<td>4</td>
+<td>148-149</td>
+<td>10s</td>
+<td>21:36:27 - 21:36:37</td>
+<td>93-104</td>
+</tr>
+<tr>
+<td>5</td>
+<td>337-339</td>
+<td>10s</td>
+<td>22:03:17 - 22:03:27</td>
+<td>96-106</td>
+</tr>
+<tr>
+<td>6</td>
+<td>358-361</td>
+<td>20s</td>
+<td>22:05:57 - 22:06:17</td>
+<td>107-112</td>
+</tr>
+<tr>
+<td>7</td>
+<td>386-388</td>
+<td>20s</td>
+<td>22:09:27 - 22:09:47</td>
+<td>96-121</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Period 1 is notable:</strong> The first 3+ minutes after VSM startup show exclusively low confidence (25). This is the PPG sensor "settling in" period where the Philips PSP algorithm has not yet converged. HR values during this period (70-104) show high variability and should be treated as unreliable.</p>
+<hr />
+<h2 id="4-hsi-heart-signal-index-analysis">4. HSI (Heart Signal Index) Analysis<a class="headerlink" href="#4-hsi-heart-signal-index-analysis" title="Permanent link">&para;</a></h2>
+<p>HSI reflects PPG signal quality from the PAH8151 sensor. Higher values generally indicate stronger signal.</p>
+<table>
+<thead>
+<tr>
+<th>Statistic</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Count</td>
+<td>512</td>
+</tr>
+<tr>
+<td>Min</td>
+<td>0.20</td>
+</tr>
+<tr>
+<td>Max</td>
+<td>3.10</td>
+</tr>
+<tr>
+<td>Mean</td>
+<td>1.53</td>
+</tr>
+<tr>
+<td>Median</td>
+<td>1.40</td>
+</tr>
+<tr>
+<td>Std Dev</td>
+<td>0.55</td>
+</tr>
+</tbody>
+</table>
+<h3 id="hsi-distribution">HSI Distribution<a class="headerlink" href="#hsi-distribution" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>HSI Range</th>
+<th>Count</th>
+<th>Percentage</th>
+<th>Signal Quality</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0.2-0.8</td>
+<td>37</td>
+<td>7.2%</td>
+<td>Poor</td>
+</tr>
+<tr>
+<td>0.9-1.2</td>
+<td>149</td>
+<td>29.1%</td>
+<td>Moderate</td>
+</tr>
+<tr>
+<td>1.3-1.8</td>
+<td>184</td>
+<td>35.9%</td>
+<td>Good</td>
+</tr>
+<tr>
+<td>1.9-2.4</td>
+<td>62</td>
+<td>12.1%</td>
+<td>Very Good</td>
+</tr>
+<tr>
+<td>2.5-3.1</td>
+<td>80</td>
+<td>15.6%</td>
+<td>Excellent</td>
+</tr>
+</tbody>
+</table>
+<p>The majority of readings (77.7%) fall in the moderate-to-very-good range (0.9-2.4). The single reading at HSI=0.2 corresponds to the very first measurement at VSM startup.</p>
+<h3 id="hsi-trend-over-session-quartile-analysis">HSI Trend Over Session (Quartile Analysis)<a class="headerlink" href="#hsi-trend-over-session-quartile-analysis" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Time Quarter</th>
+<th>Time Range (UTC)</th>
+<th>Mean HSI</th>
+<th>Mean HR Conf</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Q1 (first 25%)</td>
+<td>21:14:49 - 21:33:27</td>
+<td>1.18</td>
+<td>81.1</td>
+</tr>
+<tr>
+<td>Q2 (25-50%)</td>
+<td>21:33:37 - 21:51:27</td>
+<td>1.26</td>
+<td>83.6</td>
+</tr>
+<tr>
+<td>Q3 (50-75%)</td>
+<td>21:51:37 - 22:08:57</td>
+<td>1.81</td>
+<td>74.4</td>
+</tr>
+<tr>
+<td>Q4 (last 25%)</td>
+<td>22:09:07 - 22:26:57</td>
+<td>1.88</td>
+<td>80.5</td>
+</tr>
+</tbody>
+</table>
+<p><strong>HSI increases over the session</strong> (from mean 1.18 to 1.88), likely due to the skin warming up and improving optical coupling with the PPG sensor. Notably, Q3 shows the highest HR values (mean 96.3) and lowest confidence (74.4) despite increasing HSI, suggesting motion was the primary confidence-degrading factor in that period.</p>
+<hr />
+<h2 id="5-spo2-analysis">5. SpO2 Analysis<a class="headerlink" href="#5-spo2-analysis" title="Permanent link">&para;</a></h2>
+<h3 id="availability">Availability<a class="headerlink" href="#availability" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Total readings</td>
+<td>512</td>
+</tr>
+<tr>
+<td>Non-zero SpO2 readings</td>
+<td>144 (28.1%)</td>
+</tr>
+<tr>
+<td>Zero SpO2 readings</td>
+<td>368 (71.9%)</td>
+</tr>
+<tr>
+<td>SpO2 time range (when active)</td>
+<td>21:18:07 - 22:22:57 UTC</td>
+</tr>
+</tbody>
+</table>
+<p><strong>SpO2 is NOT always zero.</strong> It produces valid readings 28.1% of the time, but availability is intermittent. The SpO2 measurement cycles on and off throughout the session in blocks ranging from 2 to 22 consecutive samples (10-170 seconds). There is one extended outage of 131 consecutive zero samples (21:57:37 - 22:14:37, approximately 17 minutes).</p>
+<h3 id="spo2-value-distribution-non-zero-only">SpO2 Value Distribution (Non-Zero Only)<a class="headerlink" href="#spo2-value-distribution-non-zero-only" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>SpO2 %</th>
+<th>Count</th>
+<th>Percentage</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>95</td>
+<td>7</td>
+<td>4.9%</td>
+</tr>
+<tr>
+<td>96</td>
+<td>29</td>
+<td>20.1%</td>
+</tr>
+<tr>
+<td>97</td>
+<td>69</td>
+<td>47.9%</td>
+</tr>
+<tr>
+<td>98</td>
+<td>25</td>
+<td>17.4%</td>
+</tr>
+<tr>
+<td>99</td>
+<td>5</td>
+<td>3.5%</td>
+</tr>
+<tr>
+<td>100</td>
+<td>9</td>
+<td>6.3%</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Mean: 97.1% -- Range: 95-100%</strong></p>
+<p>All non-zero values are physiologically reasonable. The distribution centers tightly around 97%, consistent with normal healthy blood oxygen levels.</p>
+<h3 id="spo2-confidence-distribution-non-zero-spo2-only">SpO2 Confidence Distribution (Non-Zero SpO2 Only)<a class="headerlink" href="#spo2-confidence-distribution-non-zero-spo2-only" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Confidence</th>
+<th>Count</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>11</td>
+<td>SpO2 value present but zero confidence</td>
+</tr>
+<tr>
+<td>25</td>
+<td>26</td>
+<td>Low confidence</td>
+</tr>
+<tr>
+<td>50</td>
+<td>7</td>
+<td>Medium confidence</td>
+</tr>
+<tr>
+<td>75</td>
+<td>2</td>
+<td>High confidence</td>
+</tr>
+<tr>
+<td>100</td>
+<td>98</td>
+<td>Full confidence</td>
+</tr>
+</tbody>
+</table>
+<p><strong>68% of non-zero SpO2 readings have full confidence (100).</strong> However, 11 readings report a non-zero SpO2 value but zero confidence, which is an unusual pattern -- the PSP library may be reporting a "best guess" even when it cannot confirm accuracy.</p>
+<h3 id="spo2-high-confidence-summary">SpO2 High-Confidence Summary<a class="headerlink" href="#spo2-high-confidence-summary" title="Permanent link">&para;</a></h3>
+<p>When SpO2 confidence &gt;= 75: <strong>100 readings</strong> with SpO2 range 96-100%, mean 97.3%. These are the most trustworthy SpO2 measurements.</p>
+<h3 id="spo2-interpretation">SpO2 Interpretation<a class="headerlink" href="#spo2-interpretation" title="Permanent link">&para;</a></h3>
+<p>SpO2 measurement is enabled but operates intermittently, likely controlled by the PSP library's internal state machine. The algorithm appears to switch between HR-focused and SpO2-focused measurement modes. When SpO2 readings are available, they show healthy oxygenation levels with high confidence.</p>
+<hr />
+<h2 id="6-temperature-analysis">6. Temperature Analysis<a class="headerlink" href="#6-temperature-analysis" title="Permanent link">&para;</a></h2>
+<h3 id="skin-temperature">Skin Temperature<a class="headerlink" href="#skin-temperature" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Statistic</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Min</td>
+<td>31.89 C</td>
+</tr>
+<tr>
+<td>Max</td>
+<td>34.99 C</td>
+</tr>
+<tr>
+<td>Mean</td>
+<td>34.27 C</td>
+</tr>
+<tr>
+<td>Std Dev</td>
+<td>0.79 C</td>
+</tr>
+<tr>
+<td>Range</td>
+<td>3.10 C</td>
+</tr>
+</tbody>
+</table>
+<h3 id="skin-temperature-trend">Skin Temperature Trend<a class="headerlink" href="#skin-temperature-trend" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Quarter</th>
+<th>Mean Skin Temp</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Q1 (21:14 - 21:33)</td>
+<td>33.10 C</td>
+</tr>
+<tr>
+<td>Q2 (21:33 - 21:51)</td>
+<td>34.34 C</td>
+</tr>
+<tr>
+<td>Q3 (21:51 - 22:08)</td>
+<td>34.86 C</td>
+</tr>
+<tr>
+<td>Q4 (22:09 - 22:26)</td>
+<td>34.78 C</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Skin temperature rises sharply in the first half</strong> (from 33.1 C to 34.9 C), then plateaus. This is consistent with the device being placed on-body at the start of the capture and the skin warming under the sensor. The initial low readings (31.89 C) suggest the device was cold/off-body before the session began.</p>
+<h3 id="core-temperature-estimated">Core Temperature (Estimated)<a class="headerlink" href="#core-temperature-estimated" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Statistic</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Min</td>
+<td>37.00 C</td>
+</tr>
+<tr>
+<td>Max</td>
+<td>37.36 C</td>
+</tr>
+<tr>
+<td>Mean</td>
+<td>37.16 C</td>
+</tr>
+<tr>
+<td>Std Dev</td>
+<td>0.10 C</td>
+</tr>
+<tr>
+<td>Range</td>
+<td>0.36 C</td>
+</tr>
+</tbody>
+</table>
+<p>Core temperature shows very narrow variance (0.36 C range), which is expected for a healthy individual. The estimate is derived from the PSP algorithm using skin temperature and a thermal model.</p>
+<h3 id="external-temperature">External Temperature<a class="headerlink" href="#external-temperature" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Statistic</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Min</td>
+<td>28.51 C</td>
+</tr>
+<tr>
+<td>Max</td>
+<td>32.39 C</td>
+</tr>
+<tr>
+<td>Mean</td>
+<td>30.98 C</td>
+</tr>
+<tr>
+<td>Std Dev</td>
+<td>0.98 C</td>
+</tr>
+</tbody>
+</table>
+<p>External temperature (ambient from on-board sensor) ranges from 28.5 C to 32.4 C, consistent with a warm indoor environment or device-generated heat.</p>
+<h3 id="temperature-hr-correlation">Temperature-HR Correlation<a class="headerlink" href="#temperature-hr-correlation" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Pair</th>
+<th>Pearson r</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Skin Temp vs HR</td>
+<td>0.1404</td>
+</tr>
+<tr>
+<td>Core Temp vs HR</td>
+<td>0.1840</td>
+</tr>
+</tbody>
+</table>
+<p>Both correlations are weakly positive, meaning higher skin/core temperature is mildly associated with higher heart rate. This is expected physiologically but the correlation is not strong.</p>
+<hr />
+<h2 id="7-vsm-on-time">7. VSM On-Time<a class="headerlink" href="#7-vsm-on-time" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Value (seconds)</th>
+<th>Count</th>
+<th>Percentage</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>3</td>
+<td>1</td>
+<td>0.2%</td>
+</tr>
+<tr>
+<td>6</td>
+<td>1</td>
+<td>0.2%</td>
+</tr>
+<tr>
+<td>9</td>
+<td>24</td>
+<td>4.7%</td>
+</tr>
+<tr>
+<td>10</td>
+<td>483</td>
+<td>94.3%</td>
+</tr>
+<tr>
+<td>60</td>
+<td>2</td>
+<td>0.4%</td>
+</tr>
+<tr>
+<td>181</td>
+<td>1</td>
+<td>0.2%</td>
+</tr>
+</tbody>
+</table>
+<p><strong>94.3% of readings show VSM on-time = 10 seconds</strong>, which matches the expected 10-second measurement cadence. The initial readings (3, 6, 9) represent the sensor warming up during the first few measurement cycles. The two readings at 60s and one at 181s suggest the sensor was running continuously for an extended period during those measurements, possibly during a calibration or extended SpO2 measurement cycle.</p>
+<hr />
+<h2 id="8-temporal-analysis-biocsv">8. Temporal Analysis (bio.csv)<a class="headerlink" href="#8-temporal-analysis-biocsv" title="Permanent link">&para;</a></h2>
+<h3 id="measurement-interval-time-between-consecutive-measurements">Measurement Interval (Time Between Consecutive Measurements)<a class="headerlink" href="#measurement-interval-time-between-consecutive-measurements" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Interval</th>
+<th>Count</th>
+<th>Percentage</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0s (duplicate time)</td>
+<td>87</td>
+<td>17.0%</td>
+</tr>
+<tr>
+<td>4s</td>
+<td>1</td>
+<td>0.2%</td>
+</tr>
+<tr>
+<td>6s</td>
+<td>2</td>
+<td>0.4%</td>
+</tr>
+<tr>
+<td>10s (nominal)</td>
+<td>420</td>
+<td>82.2%</td>
+</tr>
+<tr>
+<td>112s (gap)</td>
+<td>1</td>
+<td>0.2%</td>
+</tr>
+</tbody>
+</table>
+<p><strong>The nominal measurement interval is 10 seconds</strong>, which accounts for 82.2% of intervals. 17.0% of intervals are 0 seconds, meaning 87 measurement times have exactly two records with the same timestamp.</p>
+<h3 id="duplicate-records">Duplicate Records<a class="headerlink" href="#duplicate-records" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>87 measurement times have exactly 2 records</strong> (174 out of 512 total records)</li>
+<li>All 87 duplicate pairs are <strong>value-identical</strong> (same HR, confidence, HSI, SpO2, temperatures)</li>
+<li>The duplicate pairs have <strong>different record times</strong> (mean difference 15.19s, range 1.02s - 67.34s)</li>
+</ul>
+<p><strong>Interpretation:</strong> The device appears to transmit the same measurement twice, arriving at the server at different times (average 15s apart). This could be a retry mechanism in the cellular uplink, or a firmware behavior where the same VSM snapshot is packaged in two consecutive BLE/cellular messages. For analysis purposes, one copy of each duplicate should be deduplicated.</p>
+<h3 id="gaps-in-data">Gaps in Data<a class="headerlink" href="#gaps-in-data" title="Permanent link">&para;</a></h3>
+<p>There is <strong>one significant gap</strong> of 112 seconds at 21:17:47 UTC (rows 9-10). This gap falls within the initial low-confidence startup period and may represent a sensor reinitialization.</p>
+<p>No other gaps exceed the nominal 10-second interval (beyond duplicates).</p>
+<h3 id="measurement-to-received-delay">Measurement-to-Received Delay<a class="headerlink" href="#measurement-to-received-delay" title="Permanent link">&para;</a></h3>
+<p>This measures the time between when the measurement was taken on-device and when it was recorded at the server.</p>
+<table>
+<thead>
+<tr>
+<th>Bucket</th>
+<th>Count</th>
+<th>Percentage</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>&lt; 10s</td>
+<td>218</td>
+<td>42.6%</td>
+</tr>
+<tr>
+<td>10-20s</td>
+<td>147</td>
+<td>28.7%</td>
+</tr>
+<tr>
+<td>20-30s</td>
+<td>105</td>
+<td>20.5%</td>
+</tr>
+<tr>
+<td>30-60s</td>
+<td>21</td>
+<td>4.1%</td>
+</tr>
+<tr>
+<td>&gt; 60s</td>
+<td>21</td>
+<td>4.1%</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+<th>Statistic</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Min</td>
+<td>9.35s</td>
+</tr>
+<tr>
+<td>Max</td>
+<td>210.60s</td>
+</tr>
+<tr>
+<td>Mean</td>
+<td>19.59s</td>
+</tr>
+<tr>
+<td>Median</td>
+<td>10.51s</td>
+</tr>
+<tr>
+<td>Std Dev</td>
+<td>24.42s</td>
+</tr>
+</tbody>
+</table>
+<p>Most measurements arrive within 20 seconds, but ~8% take more than 30 seconds. The maximum delay of 210.6 seconds (3.5 minutes) occurred during Q3 of the session.</p>
+<h3 id="delay-by-session-quarter">Delay by Session Quarter<a class="headerlink" href="#delay-by-session-quarter" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Quarter</th>
+<th>Mean Delay</th>
+<th>Median Delay</th>
+<th>Max Delay</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Q1</td>
+<td>15.0s</td>
+<td>10.2s</td>
+<td>54.2s</td>
+</tr>
+<tr>
+<td>Q2</td>
+<td>17.1s</td>
+<td>13.5s</td>
+<td>73.4s</td>
+</tr>
+<tr>
+<td>Q3</td>
+<td>29.7s</td>
+<td>10.9s</td>
+<td>210.6s</td>
+</tr>
+<tr>
+<td>Q4</td>
+<td>16.5s</td>
+<td>10.2s</td>
+<td>77.3s</td>
+</tr>
+</tbody>
+</table>
+<p>Q3 has the highest mean delay (29.7s), driven by a few extreme outliers (max 210.6s). Median delays are stable around 10-13s across all quarters.</p>
+<hr />
+<h2 id="9-environmental-sensors-biocsv">9. Environmental Sensors (bio.csv)<a class="headerlink" href="#9-environmental-sensors-biocsv" title="Permanent link">&para;</a></h2>
+<h3 id="humidity">Humidity<a class="headerlink" href="#humidity" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Value (%)</th>
+<th>Count</th>
+<th>Percentage</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>16-18</td>
+<td>237</td>
+<td>46.3%</td>
+</tr>
+<tr>
+<td>19-21</td>
+<td>228</td>
+<td>44.5%</td>
+</tr>
+<tr>
+<td>22-29</td>
+<td>43</td>
+<td>8.4%</td>
+</tr>
+<tr>
+<td>33-36</td>
+<td>2</td>
+<td>0.4%</td>
+</tr>
+</tbody>
+</table>
+<p>Humidity readings are in the 16-29% range for 99.2% of measurements, indicating a dry indoor environment. The few readings at 33-36% may correspond to changes in microenvironment around the sensor.</p>
+<h3 id="air-pressure-biocsv">Air Pressure (bio.csv)<a class="headerlink" href="#air-pressure-biocsv" title="Permanent link">&para;</a></h3>
+<p>All 512 readings report air pressure = <strong>28</strong> (likely inHg, consistent with the Scottsdale, AZ area elevation of ~1200 ft). The integer truncation suggests the bio.csv air pressure field has limited resolution.</p>
+<h3 id="flags">Flags<a class="headerlink" href="#flags" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Count</th>
+<th>Percentage</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>4</td>
+<td>0.8%</td>
+</tr>
+<tr>
+<td>1</td>
+<td>508</td>
+<td>99.2%</td>
+</tr>
+</tbody>
+</table>
+<p>Flag=1 for 99.2% of readings. The 4 readings with flag=0 occur at the very start of the session. The meaning of the flag is not specified in the data but may indicate "measurement valid" or "sensor active."</p>
+<h3 id="heatsos-id">HeatSOS ID<a class="headerlink" href="#heatsos-id" title="Permanent link">&para;</a></h3>
+<p>All 512 readings have heatsosid=0, indicating no heat stress events were detected.</p>
+<hr />
+<h2 id="10-positionmotion-data-analysis-poscsv">10. Position/Motion Data Analysis (pos.csv)<a class="headerlink" href="#10-positionmotion-data-analysis-poscsv" title="Permanent link">&para;</a></h2>
+<h3 id="motion-state-distribution">Motion State Distribution<a class="headerlink" href="#motion-state-distribution" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>State</th>
+<th>Count</th>
+<th>Percentage</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>In Motion (true)</td>
+<td>132</td>
+<td>91.0%</td>
+</tr>
+<tr>
+<td>Still (false)</td>
+<td>13</td>
+<td>9.0%</td>
+</tr>
+</tbody>
+</table>
+<p>The device was in motion for the vast majority of position reports.</p>
+<h3 id="update-reason-distribution">Update Reason Distribution<a class="headerlink" href="#update-reason-distribution" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Reason</th>
+<th>Raw Code</th>
+<th>Count</th>
+<th>Percentage</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Continuous Motion</td>
+<td>5</td>
+<td>128</td>
+<td>88.3%</td>
+</tr>
+<tr>
+<td>Stop Motion</td>
+<td>2</td>
+<td>10</td>
+<td>6.9%</td>
+</tr>
+<tr>
+<td>Heartbeat</td>
+<td>1</td>
+<td>3</td>
+<td>2.1%</td>
+</tr>
+<tr>
+<td>Unknown: 10</td>
+<td>10</td>
+<td>3</td>
+<td>2.1%</td>
+</tr>
+<tr>
+<td>Boot</td>
+<td>0</td>
+<td>1</td>
+<td>0.7%</td>
+</tr>
+</tbody>
+</table>
+<p>The predominant update reason is "Continuous Motion" (88.3%), meaning most position reports were triggered by ongoing motion detection. "Stop Motion" accounts for 6.9%, appearing at each transition from motion to still. The Boot event marks device power-on, and 3 "Heartbeat" reports are periodic keep-alive messages during still periods.</p>
+<h3 id="motion-state-transitions">Motion State Transitions<a class="headerlink" href="#motion-state-transitions" title="Permanent link">&para;</a></h3>
+<p><strong>18 total transitions</strong> (9 stop-to-motion, 9 motion-to-stop):</p>
+<table>
+<thead>
+<tr>
+<th>Time (UTC)</th>
+<th>Transition</th>
+<th>Duration Until Next</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>21:14:19</td>
+<td>STILL -&gt; MOTION</td>
+<td>9m 9s (motion)</td>
+</tr>
+<tr>
+<td>21:23:28</td>
+<td>MOTION -&gt; STILL</td>
+<td>1m 3s (still)</td>
+</tr>
+<tr>
+<td>21:24:31</td>
+<td>STILL -&gt; MOTION</td>
+<td>46s (motion)</td>
+</tr>
+<tr>
+<td>21:25:17</td>
+<td>MOTION -&gt; STILL</td>
+<td>1m 6s (still)</td>
+</tr>
+<tr>
+<td>21:26:23</td>
+<td>STILL -&gt; MOTION</td>
+<td>17m 16s (motion)</td>
+</tr>
+<tr>
+<td>21:43:39</td>
+<td>MOTION -&gt; STILL</td>
+<td>1m 21s (still)</td>
+</tr>
+<tr>
+<td>21:45:00</td>
+<td>STILL -&gt; MOTION</td>
+<td>1m 43s (motion)</td>
+</tr>
+<tr>
+<td>21:46:43</td>
+<td>MOTION -&gt; STILL</td>
+<td>51s (still)</td>
+</tr>
+<tr>
+<td>21:47:34</td>
+<td>STILL -&gt; MOTION</td>
+<td>8m 2s (motion)</td>
+</tr>
+<tr>
+<td>21:55:36</td>
+<td>MOTION -&gt; STILL</td>
+<td>3m 31s (still)</td>
+</tr>
+<tr>
+<td>21:59:07</td>
+<td>STILL -&gt; MOTION</td>
+<td>15m 45s (motion)</td>
+</tr>
+<tr>
+<td>22:14:52</td>
+<td>MOTION -&gt; STILL</td>
+<td>55s (still)</td>
+</tr>
+<tr>
+<td>22:15:47</td>
+<td>STILL -&gt; MOTION</td>
+<td>3m 1s (motion)</td>
+</tr>
+<tr>
+<td>22:18:48</td>
+<td>MOTION -&gt; STILL</td>
+<td>1m 11s (still)</td>
+</tr>
+<tr>
+<td>22:19:59</td>
+<td>STILL -&gt; MOTION</td>
+<td>1m 50s (motion)</td>
+</tr>
+<tr>
+<td>22:21:49</td>
+<td>MOTION -&gt; STILL</td>
+<td>1m 25s (still)</td>
+</tr>
+<tr>
+<td>22:23:14</td>
+<td>STILL -&gt; MOTION</td>
+<td>4m 39s (motion)</td>
+</tr>
+<tr>
+<td>22:27:53</td>
+<td>MOTION -&gt; STILL</td>
+<td>-- (session end)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Pattern:</strong> The user appears to be traveling with frequent short stops (1-3 min still periods) and longer motion stretches (up to 17 min). This is consistent with driving in an urban area with traffic stops.</p>
+<h3 id="gps-fix-quality">GPS Fix Quality<a class="headerlink" href="#gps-fix-quality" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Fix Type</th>
+<th>Count</th>
+<th>Percentage</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>No Fix</td>
+<td>108</td>
+<td>74.5%</td>
+</tr>
+<tr>
+<td>3D</td>
+<td>36</td>
+<td>24.8%</td>
+</tr>
+<tr>
+<td>2D</td>
+<td>1</td>
+<td>0.7%</td>
+</tr>
+</tbody>
+</table>
+<p><strong>74.5% of position reports have no GPS fix.</strong> The device is primarily relying on cell-based positioning (datasource = "cell" for all 145 records). When GPS does lock, it achieves a 3D fix.</p>
+<p><strong>GPS during motion vs. still:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Fix Type</th>
+<th>During Motion</th>
+<th>During Still</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>No Fix</td>
+<td>97 (73.5%)</td>
+<td>11 (84.6%)</td>
+</tr>
+<tr>
+<td>3D</td>
+<td>34 (25.8%)</td>
+<td>2 (15.4%)</td>
+</tr>
+<tr>
+<td>2D</td>
+<td>1 (0.8%)</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+<p>Slightly better GPS fix rate during motion (25.8% vs 15.4%), possibly due to GPS antenna positioning or environmental factors during travel.</p>
+<h3 id="satellite-count">Satellite Count<a class="headerlink" href="#satellite-count" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Satellites</th>
+<th>Count</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>108</td>
+<td>No fix</td>
+</tr>
+<tr>
+<td>4-8</td>
+<td>9</td>
+<td>Marginal fix</td>
+</tr>
+<tr>
+<td>9-12</td>
+<td>14</td>
+<td>Good fix</td>
+</tr>
+<tr>
+<td>13-17</td>
+<td>12</td>
+<td>Excellent fix</td>
+</tr>
+</tbody>
+</table>
+<p>When GPS does achieve a fix, it typically sees 9-17 satellites.</p>
+<h3 id="horizontal-accuracy">Horizontal Accuracy<a class="headerlink" href="#horizontal-accuracy" title="Permanent link">&para;</a></h3>
+<p>When GPS has a fix, horizontal accuracy ranges from <strong>2m to 46m</strong> (good). During no-fix periods, accuracy shows 255 (sentinel value) or high values (135-237m), representing cell-tower-derived position with lower accuracy.</p>
+<h3 id="position-reporting-interval">Position Reporting Interval<a class="headerlink" href="#position-reporting-interval" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Interval</th>
+<th>Count</th>
+<th>Percentage</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>29-31s (nominal 30s)</td>
+<td>115</td>
+<td>79.9%</td>
+</tr>
+<tr>
+<td>1-20s</td>
+<td>11</td>
+<td>7.6%</td>
+</tr>
+<tr>
+<td>51-88s</td>
+<td>6</td>
+<td>4.2%</td>
+</tr>
+<tr>
+<td>211s</td>
+<td>1</td>
+<td>0.7%</td>
+</tr>
+<tr>
+<td>2016s (~33 min)</td>
+<td>1</td>
+<td>0.7%</td>
+</tr>
+<tr>
+<td>3600s (1 hour)</td>
+<td>1</td>
+<td>0.7%</td>
+</tr>
+</tbody>
+</table>
+<p><strong>The nominal position reporting interval is 30 seconds</strong> (79.9% of intervals). The large gaps (2016s, 3600s) occur early in the capture before the bio data starts, likely when the device was in a low-power still mode with reduced reporting frequency.</p>
+<h3 id="force-data">Force Data<a class="headerlink" href="#force-data" title="Permanent link">&para;</a></h3>
+<p><strong>All avgforce and maxforce readings are 0.0.</strong> The accelerometer force metrics are not being populated in this firmware version, despite motion being detected. Motion detection is likely based on a different accelerometer threshold/interrupt mechanism that does not log force magnitude.</p>
+<h3 id="air-pressure-poscsv">Air Pressure (pos.csv)<a class="headerlink" href="#air-pressure-poscsv" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Statistic</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Min</td>
+<td>28.6914 inHg</td>
+</tr>
+<tr>
+<td>Max</td>
+<td>28.7852 inHg</td>
+</tr>
+<tr>
+<td>Mean</td>
+<td>28.7088 inHg</td>
+</tr>
+<tr>
+<td>Std Dev</td>
+<td>0.0112 inHg</td>
+</tr>
+</tbody>
+</table>
+<p>The pos.csv air pressure has full floating-point precision (unlike the integer-truncated bio.csv value). The narrow range (0.09 inHg) is consistent with stable barometric pressure during the session.</p>
+<h3 id="gps-location">GPS Location<a class="headerlink" href="#gps-location" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Coordinate</th>
+<th>Min</th>
+<th>Max</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Latitude</td>
+<td>33.2460774</td>
+<td>33.3551174</td>
+</tr>
+<tr>
+<td>Longitude</td>
+<td>-111.9413409</td>
+<td>-111.8917425</td>
+</tr>
+</tbody>
+</table>
+<p>The GPS coordinates place the device in the <strong>Scottsdale/Tempe, Arizona area</strong> (33.3N, -111.9W). The position spans roughly 12 km north-south and 5 km east-west, consistent with urban travel.</p>
+<h3 id="battery">Battery<a class="headerlink" href="#battery" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Battery %</td>
+<td>82-87% (declining over session)</td>
+</tr>
+<tr>
+<td>Battery mV</td>
+<td>4250-4325 mV</td>
+</tr>
+<tr>
+<td>On Charger</td>
+<td>false (all readings)</td>
+</tr>
+</tbody>
+</table>
+<p>Battery starts at 87% and declines to 82% over the ~3 hour pos.csv window. This is approximately 1.8% per hour, suggesting reasonable battery performance.</p>
+<h3 id="ground-speed">Ground Speed<a class="headerlink" href="#ground-speed" title="Permanent link">&para;</a></h3>
+<p>Reported ground speeds during 3D GPS fix: 0-107 (units likely km/h or 0.01 m/s). The higher values (76-107) during motion are consistent with vehicle travel on roads.</p>
+<hr />
+<h2 id="11-cross-correlation-bio-vs-motion">11. Cross-Correlation: Bio vs. Motion<a class="headerlink" href="#11-cross-correlation-bio-vs-motion" title="Permanent link">&para;</a></h2>
+<h3 id="hr-during-motion-vs-still">HR During Motion vs. Still<a class="headerlink" href="#hr-during-motion-vs-still" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>During Motion (n=439)</th>
+<th>During Still (n=73)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Mean HR</td>
+<td>92.3 BPM</td>
+<td>88.2 BPM</td>
+</tr>
+<tr>
+<td>Median HR</td>
+<td>91 BPM</td>
+<td>88 BPM</td>
+</tr>
+<tr>
+<td>Std Dev</td>
+<td>10.6 BPM</td>
+<td>6.8 BPM</td>
+</tr>
+<tr>
+<td>Min</td>
+<td>69 BPM</td>
+<td>77 BPM</td>
+</tr>
+<tr>
+<td>Max</td>
+<td>124 BPM</td>
+<td>102 BPM</td>
+</tr>
+</tbody>
+</table>
+<p><strong>HR is ~4 BPM higher during motion</strong> with nearly double the standard deviation. The higher variability during motion is consistent with both physiological response and motion artifact. The motion-period minimum of 69 BPM (vs. 77 during still) and maximum of 124 BPM (vs. 102) show a much wider range during motion.</p>
+<h3 id="hr-confidence-during-motion-vs-still">HR Confidence During Motion vs. Still<a class="headerlink" href="#hr-confidence-during-motion-vs-still" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Confidence</th>
+<th>During Motion</th>
+<th>During Still</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>25</td>
+<td>31 (7.1%)</td>
+<td>0 (0%)</td>
+</tr>
+<tr>
+<td>50</td>
+<td>70 (15.9%)</td>
+<td>2 (2.7%)</td>
+</tr>
+<tr>
+<td>75</td>
+<td>164 (37.4%)</td>
+<td>11 (15.1%)</td>
+</tr>
+<tr>
+<td>100</td>
+<td>174 (39.6%)</td>
+<td>60 (82.2%)</td>
+</tr>
+<tr>
+<td><strong>Mean</strong></td>
+<td><strong>77.4</strong></td>
+<td><strong>94.9</strong></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Confidence is significantly degraded during motion.</strong> Mean confidence drops from 94.9 (still) to 77.4 (motion). All 31 lowest-confidence readings (conf=25) occur during motion. During still periods, 82.2% of readings achieve full confidence.</p>
+<h3 id="hsi-during-motion-vs-still">HSI During Motion vs. Still<a class="headerlink" href="#hsi-during-motion-vs-still" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>During Motion</th>
+<th>During Still</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Mean HSI</td>
+<td>1.55</td>
+<td>1.41</td>
+</tr>
+<tr>
+<td>Median HSI</td>
+<td>1.40</td>
+<td>1.40</td>
+</tr>
+<tr>
+<td>Std Dev</td>
+<td>0.58</td>
+<td>0.30</td>
+</tr>
+</tbody>
+</table>
+<p>Paradoxically, mean HSI is slightly <strong>higher</strong> during motion (1.55 vs 1.41). However, HSI standard deviation is nearly double during motion (0.58 vs 0.30), indicating more signal instability. The higher mean may be influenced by the temporal trend (HSI increases over the session as the skin warms).</p>
+<h3 id="hsi-change-at-motion-onset-stop-motion-transitions">HSI Change at Motion Onset (Stop -&gt; Motion Transitions)<a class="headerlink" href="#hsi-change-at-motion-onset-stop-motion-transitions" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Transition Time</th>
+<th>HSI Before (30s avg)</th>
+<th>HSI After (30s avg)</th>
+<th>Conf Before</th>
+<th>Conf After</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>21:24:31</td>
+<td>1.27</td>
+<td>1.20</td>
+<td>100</td>
+<td>81</td>
+</tr>
+<tr>
+<td>21:26:23</td>
+<td>1.60</td>
+<td>0.93</td>
+<td>94</td>
+<td>92</td>
+</tr>
+<tr>
+<td>21:45:00</td>
+<td>1.53</td>
+<td>1.20</td>
+<td>100</td>
+<td>81</td>
+</tr>
+<tr>
+<td>21:47:34</td>
+<td>1.43</td>
+<td>1.30</td>
+<td>83</td>
+<td>83</td>
+</tr>
+<tr>
+<td>21:59:07</td>
+<td>1.53</td>
+<td>1.72</td>
+<td>92</td>
+<td>70</td>
+</tr>
+<tr>
+<td>22:15:47</td>
+<td>1.70</td>
+<td>1.90</td>
+<td>83</td>
+<td>95</td>
+</tr>
+<tr>
+<td>22:19:59</td>
+<td>1.80</td>
+<td>1.65</td>
+<td>100</td>
+<td>75</td>
+</tr>
+<tr>
+<td>22:23:14</td>
+<td>1.60</td>
+<td>2.40</td>
+<td>58</td>
+<td>58</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Confidence consistently drops at motion onset</strong> in most transitions (6 out of 8 show lower confidence after). HSI behavior is mixed -- it drops in early transitions but sometimes increases in later ones (when baseline HSI is already higher due to skin warming).</p>
+<h3 id="spo2-during-motion-vs-still">SpO2 During Motion vs. Still<a class="headerlink" href="#spo2-during-motion-vs-still" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>During Motion</th>
+<th>During Still</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Non-zero readings</td>
+<td>104 / 439 (23.7%)</td>
+<td>40 / 73 (54.8%)</td>
+</tr>
+<tr>
+<td>Mean SpO2 (when present)</td>
+<td>97.2%</td>
+<td>96.9%</td>
+</tr>
+</tbody>
+</table>
+<p><strong>SpO2 availability is significantly higher during still periods</strong> (54.8% vs 23.7%). The PSP algorithm is more likely to report SpO2 when the sensor is stable. However, when SpO2 is reported during motion, the values are still physiologically valid.</p>
+<hr />
+<h2 id="12-anomalies-and-data-quality-issues">12. Anomalies and Data Quality Issues<a class="headerlink" href="#12-anomalies-and-data-quality-issues" title="Permanent link">&para;</a></h2>
+<h3 id="issue-1-duplicate-records-174-of-512-rows-34">Issue 1: Duplicate Records (174 of 512 rows, 34%)<a class="headerlink" href="#issue-1-duplicate-records-174-of-512-rows-34" title="Permanent link">&para;</a></h3>
+<p>87 measurement timestamps appear twice with identical vital signs but different server receive times (average 15s apart). This inflates the dataset by 34%. <strong>Recommendation:</strong> Deduplicate by (deviceid, timeofmeasurement) before analysis.</p>
+<h3 id="issue-2-startup-low-confidence-period">Issue 2: Startup Low-Confidence Period<a class="headerlink" href="#issue-2-startup-low-confidence-period" title="Permanent link">&para;</a></h3>
+<p>The first 12 samples (~3 minutes) show conf=25 with erratic HR (70-104 BPM range, 19+ BPM jumps). This is the PPG sensor initialization phase. <strong>Recommendation:</strong> Discard or flag measurements where VSM on-time &lt; 10 and confidence &lt;= 25.</p>
+<h3 id="issue-3-112-second-gap">Issue 3: 112-Second Gap<a class="headerlink" href="#issue-3-112-second-gap" title="Permanent link">&para;</a></h3>
+<p>A single gap of 112 seconds occurs at 21:17:47 UTC during the startup phase. No data loss is evident after this gap.</p>
+<h3 id="issue-4-force-data-not-populated">Issue 4: Force Data Not Populated<a class="headerlink" href="#issue-4-force-data-not-populated" title="Permanent link">&para;</a></h3>
+<p>All avgforce and maxforce values are 0.0 in pos.csv despite active motion detection. The accelerometer force logging may not be enabled in this firmware build.</p>
+<h3 id="issue-5-gps-fix-rate">Issue 5: GPS Fix Rate<a class="headerlink" href="#issue-5-gps-fix-rate" title="Permanent link">&para;</a></h3>
+<p>Only 25.5% of position reports have a GPS fix. The device relies heavily on cell-tower positioning, which provides significantly lower accuracy (100-255m vs 2-46m with GPS).</p>
+<h3 id="issue-6-device-id-mismatch-between-files">Issue 6: Device ID Mismatch Between Files<a class="headerlink" href="#issue-6-device-id-mismatch-between-files" title="Permanent link">&para;</a></h3>
+<p>bio.csv and pos.csv use different device ID formats. Correlation between the two datasets must use time-based joining rather than device ID matching.</p>
+<h3 id="issue-7-module-temperature-always-zero">Issue 7: Module Temperature Always Zero<a class="headerlink" href="#issue-7-module-temperature-always-zero" title="Permanent link">&para;</a></h3>
+<p>The <code>temperature</code> field in pos.csv is 0.0 for all 145 readings, suggesting the GPS/cellular module temperature sensor is not reporting.</p>
+<h3 id="issue-8-measurement-delay-outliers">Issue 8: Measurement Delay Outliers<a class="headerlink" href="#issue-8-measurement-delay-outliers" title="Permanent link">&para;</a></h3>
+<p>8.2% of measurements have &gt;30s server receive delay, with a maximum of 210.6s. These delays could affect real-time monitoring use cases.</p>
+<h3 id="issue-9-datetime-confirmation">Issue 9: Date/Time Confirmation<a class="headerlink" href="#issue-9-datetime-confirmation" title="Permanent link">&para;</a></h3>
+<p><code>dateconfirmed</code> is false for all pos.csv records, and <code>timeconfirmed</code> is false for 64.8% of records. This suggests the GPS module has not synchronized its real-time clock via satellite.</p>
+<hr />
+<h2 id="13-summary-statistics">13. Summary Statistics<a class="headerlink" href="#13-summary-statistics" title="Permanent link">&para;</a></h2>
+<h3 id="data-quality-scorecard">Data Quality Scorecard<a class="headerlink" href="#data-quality-scorecard" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Score</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>HR availability</td>
+<td>100%</td>
+<td>All 512 rows have HR</td>
+</tr>
+<tr>
+<td>HR confidence &gt;= 75</td>
+<td>79.9%</td>
+<td>Good overall</td>
+</tr>
+<tr>
+<td>HR confidence = 100</td>
+<td>45.7%</td>
+<td>Moderate</td>
+</tr>
+<tr>
+<td>SpO2 availability</td>
+<td>28.1%</td>
+<td>Intermittent</td>
+</tr>
+<tr>
+<td>SpO2 high confidence (&gt;= 75)</td>
+<td>19.5% (of total)</td>
+<td>Limited</td>
+</tr>
+<tr>
+<td>Measurement cadence (10s)</td>
+<td>82.2%</td>
+<td>Good regularity</td>
+</tr>
+<tr>
+<td>Duplicate rate</td>
+<td>34.0%</td>
+<td>Needs dedup</td>
+</tr>
+<tr>
+<td>GPS fix rate</td>
+<td>25.5%</td>
+<td>Poor, cell-tower fallback</td>
+</tr>
+<tr>
+<td>Data receive &lt; 20s</td>
+<td>71.3%</td>
+<td>Acceptable latency</td>
+</tr>
+</tbody>
+</table>
+<h3 id="key-findings">Key Findings<a class="headerlink" href="#key-findings" title="Permanent link">&para;</a></h3>
+<ol>
+<li>
+<p><strong>HR measurement is reliable</strong> with 79.9% of readings at confidence &gt;= 75. Mean HR of 91.7 BPM with normal physiological range (69-124 BPM).</p>
+</li>
+<li>
+<p><strong>Motion degrades HR confidence</strong> from a mean of 94.9 (still) to 77.4 (motion), but does not produce implausible values.</p>
+</li>
+<li>
+<p><strong>SpO2 is enabled but intermittent</strong>, providing valid readings (95-100%, mean 97.1%) for about 28% of samples. Availability is better during still periods (55% vs 24%).</p>
+</li>
+<li>
+<p><strong>Skin temperature shows expected warm-up pattern</strong>, rising from 31.9 C to 35.0 C over the session with a ~20 minute stabilization period.</p>
+</li>
+<li>
+<p><strong>34% of records are exact duplicates</strong> that need deduplication for accurate analysis.</p>
+</li>
+<li>
+<p><strong>GPS fix rate is poor (25.5%)</strong>, with the device relying on cell-tower positioning for most reports.</p>
+</li>
+<li>
+<p><strong>The first ~3 minutes of VSM data should be discarded</strong> due to sensor initialization (low confidence, erratic readings).</p>
+</li>
+<li>
+<p><strong>Data latency is acceptable</strong> for most samples (71.3% arrive within 20s) but has occasional outliers up to 3.5 minutes.</p>
+</li>
+</ol>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://zensical.org/" target="_blank" rel="noopener">
+      Zensical
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      
+      <script id="__config" type="application/json">{"annotate":null,"base":"../../../..","features":["navigation.sections","navigation.expand","navigation.path","navigation.indexes","search.suggest","content.code.copy","toc.follow"],"search":"../../../../assets/javascripts/workers/search.e2d2d235.min.js","tags":null,"translations":{"clipboard.copied":"Copied to clipboard","clipboard.copy":"Copy to clipboard","search.result.more.one":"1 more on this page","search.result.more.other":"# more on this page","search.result.none":"No matching documents","search.result.one":"1 matching document","search.result.other":"# matching documents","search.result.placeholder":"Type to start searching","search.result.term.missing":"Missing","select.version":"Select version"},"version":null}</script>
+    
+    
+      <script src="../../../../assets/javascripts/bundle.5fd3284f.min.js"></script>
+      
+        <script src="../../../../assets/js/external-links.js"></script>
+      
+    
+  </body>
+</html>

@@ -1,0 +1,3866 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Continuous delivery platform for embedded systems">
+      
+      
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../../assets/images/favicon.png">
+      <meta name="generator" content="zensical-0.0.27">
+    
+    
+      
+        <title>Stage 4 Proof — Status Tracker - Concord</title>
+      
+    
+    
+      
+        
+      
+      <link rel="stylesheet" href="../../../../assets/stylesheets/modern/main.50057488.min.css">
+      
+        
+          
+        
+        <link rel="stylesheet" href="../../../../assets/stylesheets/modern/palette.dfe2e883.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,500,500i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../../../..",location),__md_hash=e=>[...e].reduce(((e,t)=>(e<<5)-e+t.charCodeAt(0)),0),__md_get=(e,t=localStorage,a=__md_scope)=>JSON.parse(t.getItem(a.pathname+"."+e)),__md_set=(e,t,a=localStorage,_=__md_scope)=>{try{a.setItem(_.pathname+"."+e,JSON.stringify(t))}catch(e){}},document.documentElement.setAttribute("data-platform",navigator.platform)</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="deep-purple" data-md-color-accent="amber">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer" aria-label="Navigation"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#stage-4-proof-status-tracker" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../../.." title="Concord" class="md-header__button md-logo" aria-label="Concord" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer" aria-label="Navigation">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-menu" viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h16"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Concord
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Stage 4 Proof — Status Tracker
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="none" data-md-color-scheme="slate" data-md-color-primary="deep-purple" data-md-color-accent="amber"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="none" data-md-color-scheme="default" data-md-color-primary="deep-purple" data-md-color-accent="amber"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search" aria-label="Search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-search" viewBox="0 0 24 24"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog" aria-label="Search">
+  <button type="button" class="md-search__button">
+    Search
+  </button>
+</div>
+      
+    
+    <div class="md-header__source">
+      
+    </div>
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../../.." title="Concord" class="md-nav__button md-logo" aria-label="Concord" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+
+    </a>
+    Concord
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../vision/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vision
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2" id="__nav_2_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Vision
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../vision/thesis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Thesis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../vision/validation-philosophy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation Philosophy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../architecture/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3" id="__nav_3_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Architecture
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_2" id="__nav_3_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Platform
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Platform
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/platform/unified-platform/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Unified Platform
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/platform/hardware-registry/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hardware Registry
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/platform/log-streaming/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Log Streaming
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/platform/ci-pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CI Pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/platform/corecloud-library/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CoreCloud Library
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_3" id="__nav_3_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Validation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/validation/stages-overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stages Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/validation/system/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    System Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/validation/stage1-software-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 1: Software Tests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/validation/stage2-driver-hw-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 2: Driver HW Tests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/validation/stage3-integration-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 3: Integration Tests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/validation/stage4-product-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 4: Product Tests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/validation/stage4-fuota-flow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 4: FUOTA Flow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/validation/stage4-pr-flow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 4: PR Flow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/validation/stage5-gate-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 5: Gate Tests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/validation/test-runner/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Test Runner
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_4" id="__nav_3_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Build
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/build/build-service/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build Service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/build/builder-nodes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Builder Nodes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../reference/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/fuota-workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FUOTA Workflow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/fuota-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FUOTA API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/alpha-test-cases/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Alpha Test Cases
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/traceability-matrix/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Traceability Matrix
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/twister-hil/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Twister HIL
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/stage4-connectivity/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 4 Connectivity
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/stage4-long-term-vision/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 4 Long-Term Vision
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/validation-flow-ui/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation Flow UI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/interfaces/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interfaces
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../guides/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_2" id="__nav_5_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Alpha
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Alpha
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../guides/alpha/stage1/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 1
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../guides/alpha/stage2/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 2
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../guides/alpha/stage3/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 3
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../guides/alpha/stage4/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 4
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../guides/alpha/stage5/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 5
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../research/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Research
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_6" id="__nav_6_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Research
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../research/01-sigma5-firmware-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sigma5 Firmware
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../research/02-alpha-firmware-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Alpha Firmware
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../research/03-sensor-drivers-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sensor Drivers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../research/05-mtib-server-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MTIB Server
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../research/06-fuota-corecloud-v1/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FUOTA CoreCloud
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../research/07-alpha-manufacturing-firmware-and-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Alpha MFG Firmware
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../research/08-device-personalization-and-key-provisioning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Device Personalization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../research/08-firmware-build-and-fuota-delivery/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Firmware Build & FUOTA
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../research/09-corecloud-validation-integration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CoreCloud Integration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../journals/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Journals
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Journals
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#current-phase-phase-3-smoke-tests-passing-full-suite-pending-live-run" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Current Phase: Phase 3 — Smoke Tests PASSING, Full Suite Pending Live Run
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#progress-scorecard" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Progress Scorecard
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#stream-status" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stream Status
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#phase-checklist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase Checklist
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Phase Checklist">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#phase-0-prerequisites" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 0: Prerequisites
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phase-1-mtib-server-updates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 1: MTIB Server Updates
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phase-2-test-infrastructure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 2: Test Infrastructure
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phase-2b-corecloud-integration-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 2B: CoreCloud Integration Tests
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phase-3-product-test-proof" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 3: Product Test Proof
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phase-4-comparison" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 4: Comparison
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phase-6-orchestration-visibility-cicd" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 6: Orchestration, Visibility &amp; CI/CD
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#manufacturing-alpha-migration-v2-v1-verified" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Manufacturing Alpha Migration (V2 → V1) — VERIFIED
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phase-5-fuota-flow-designed-not-executed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 5: FUOTA Flow (Designed, Not Executed)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#firmware-build-architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Firmware Build Architecture
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#blockers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Blockers
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#action-items-ask-tomorrow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Action Items — Ask Tomorrow
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Action Items — Ask Tomorrow">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ask-jarred-corecloud" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Ask Jarred (CoreCloud)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ask-main-engineer-mtib" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Ask Main Engineer (MTIB)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hardware-inventory" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Hardware / Inventory
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#validation-devices-from-manufacturing-records" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Validation Devices (from manufacturing records)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#environment-setup-validation-env" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Environment Setup (Validation .env)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#decisions-log" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Decisions Log
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#validation-architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Validation Architecture
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Validation Architecture">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#how-the-pieces-fit-together" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How the Pieces Fit Together
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#three-execution-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Three Execution Patterns
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#requirements-traceability" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Requirements Traceability
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#where-product-specific-tests-live-current-vs-future" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Where Product-Specific Tests Live (Current vs Future)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#jarreds-featuretest-automation-branch" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Jarred's feature/test-automation Branch
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#development-cycle" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Development Cycle
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+                
+
+
+
+  
+
+
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+<h1 id="stage-4-proof-status-tracker">Stage 4 Proof — Status Tracker<a class="headerlink" href="#stage-4-proof-status-tracker" title="Permanent link">&para;</a></h1>
+<blockquote>
+<p>Last updated: 2026-03-03</p>
+</blockquote>
+<h2 id="current-phase-phase-3-smoke-tests-passing-full-suite-pending-live-run">Current Phase: <strong>Phase 3 — Smoke Tests PASSING, Full Suite Pending Live Run</strong><a class="headerlink" href="#current-phase-phase-3-smoke-tests-passing-full-suite-pending-live-run" title="Permanent link">&para;</a></h2>
+<p>Phase 0.5 (Manufacturing Tests): <strong>REV 1.2 FULLY VERIFIED</strong> — fw_flash 3/3 PASS, POST 11/11 PASS (including CoreOps personalization + IPC rekey). Containerized and deployed to K8s.
+Phase 1 (MTIB Server): <strong>M1-M10 COMPLETE</strong> — deployed, 24/27 RPCs verified on both boards (3 expected fails: motion disabled, altimeter absent).
+Phase 0.5 (Firmware Build Tooling): <code>ctl.sh</code> done, builds pending Docker image pull. Pre-built hex files available.
+Phase 2A (Python Test Framework): <strong>Code complete + smoke verified.</strong> 13/13 MTIB smoke tests PASS on BOTH REV 1.1 and REV 1.2. Dual-rail power (ch0+ch1) confirmed required for cold boot.
+Phase 3 (Test Modules): All 8 modules written (112 tests collected). Pending full live run with firmware + CoreCloud.
+Phase 6 (Orchestration &amp; Visibility): <strong>6A-6E complete</strong> (backend API + pytest reporter + frontend pages + trigger endpoint + comparison dashboard). 381 backend tests passing.
+Deploy Infrastructure: Helm chart v0.2.0 with Prisma migration init container, ctl.sh diff/status commands, staging/production values aligned.</p>
+<hr />
+<h2 id="progress-scorecard">Progress Scorecard<a class="headerlink" href="#progress-scorecard" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Phase</th>
+<th>Weight</th>
+<th>Progress</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Phase 0</strong> Prerequisites</td>
+<td>10%</td>
+<td><strong>~90%</strong></td>
+<td>K8s nodes, devices, personalization all done. Firmware builds blocked on Docker image pull. LTE connectivity not yet verified.</td>
+</tr>
+<tr>
+<td><strong>Phase 1</strong> MTIB Server</td>
+<td>15%</td>
+<td><strong>100%</strong></td>
+<td>M1-M10 complete. 24/27 RPCs PASS both boards. Server deployed.</td>
+</tr>
+<tr>
+<td><strong>Phase 2A</strong> Test Framework</td>
+<td>20%</td>
+<td><strong>~85%</strong></td>
+<td>Code complete. 13/13 smoke PASS both boards. FixtureController dual-rail power verified. PowerProfiler verified. CloudClient + UartDemuxer untested (need CoreCloud creds + flashed firmware).</td>
+</tr>
+<tr>
+<td><strong>Phase 2B</strong> CoreCloud Integration</td>
+<td>10%</td>
+<td><strong>~15%</strong></td>
+<td>22 tests written, 0 executed (blocked on CoreCloud credentials from Jarred).</td>
+</tr>
+<tr>
+<td><strong>Phase 3</strong> Product Test Proof</td>
+<td>25%</td>
+<td><strong>~50%</strong></td>
+<td>All 8 modules written (112 tests collected via pytest). Pending full live run with firmware + CoreCloud.</td>
+</tr>
+<tr>
+<td><strong>Phase 4</strong> Comparison</td>
+<td>5%</td>
+<td><strong>0%</strong></td>
+<td>Blocked on Phase 3 completion.</td>
+</tr>
+<tr>
+<td><strong>Phase 5</strong> FUOTA</td>
+<td>5%</td>
+<td><strong>~10%</strong></td>
+<td>Mechanism confirmed (DB + Azure). Blocked on DB write access + Azure creds.</td>
+</tr>
+<tr>
+<td><strong>Phase 6</strong> Orchestration &amp; Visibility</td>
+<td>10%</td>
+<td><strong>100%</strong></td>
+<td>6A-6E complete. 381 backend tests passing. Trigger + comparison dashboard done.</td>
+</tr>
+<tr>
+<td><strong>Deploy</strong> Infrastructure</td>
+<td>—</td>
+<td><strong>100%</strong></td>
+<td>Helm v0.2.0, init container, ctl.sh diff/status, validation manifests deployed.</td>
+</tr>
+<tr>
+<td><strong>Overall</strong></td>
+<td></td>
+<td><strong>~70%</strong></td>
+<td>Code-complete for all written phases. Blocked on: CoreCloud creds, firmware builds, LTE verification.</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="stream-status">Stream Status<a class="headerlink" href="#stream-status" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Stream</th>
+<th>Phase</th>
+<th>Status</th>
+<th>Blocked By</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>F</strong> Firmware assets</td>
+<td>0.5</td>
+<td><strong>Tooling complete</strong></td>
+<td>Docker image pull + build run</td>
+<td><code>ctl.sh</code> + <code>build.sh</code> + overlays done. Need to run <code>ctl.sh build-all alpha</code>.</td>
+</tr>
+<tr>
+<td><strong>M</strong> MTIB server updates</td>
+<td>1</td>
+<td><strong>M1-M10 COMPLETE</strong></td>
+<td>—</td>
+<td>Proto, handlers, wiring, client, deploy all done. 24/27 RPCs PASS both boards.</td>
+</tr>
+<tr>
+<td><strong>A</strong> Python test framework</td>
+<td>2</td>
+<td><strong>Code complete + smoke verified</strong></td>
+<td>CoreCloud creds for integration test</td>
+<td>CloudClient, FixtureController, UartDemuxer, PowerProfiler, TestContext, DevicePersonalizer, ConcordReporter — all written at <code>libs/python/corekinect/test/validation/</code>, imports verified. 112 tests collected (99 Stage 4 parametrized + 13 smoke). Smoke 13/13 PASS both boards.</td>
+</tr>
+<tr>
+<td><strong>B</strong> Fixture wiring</td>
+<td>2</td>
+<td>Partially done</td>
+<td>Parts for Stage 4 stimulus</td>
+<td>Manufacturing baseline wired; need button/charger relays, photodiode, Peltier, NFC, motion</td>
+</tr>
+<tr>
+<td><strong>C</strong> Stage 4 test modules + E2E</td>
+<td>3</td>
+<td><strong>Code complete</strong></td>
+<td>Firmware + CoreCloud creds for E2E run</td>
+<td>8 modules written, 112 tests collected (99 Stage 4 parametrized debug+release + 13 smoke). NFC skipped (B6 not wired). E2E runs need firmware flashed + CoreCloud connected.</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="phase-checklist">Phase Checklist<a class="headerlink" href="#phase-checklist" title="Permanent link">&para;</a></h2>
+<h3 id="phase-0-prerequisites">Phase 0: Prerequisites<a class="headerlink" href="#phase-0-prerequisites" title="Permanent link">&para;</a></h3>
+<p><strong>K8s Node Onboarding:</strong>
+- [x] REV 1.2 Verdin board flashed — <code>verdin-imx8mm-15005665</code> at 10.4.45.33
+- [x] REV 1.1 Verdin board flashed — <code>verdin-imx8mm-15702161</code> at 10.4.45.32
+- [x] Both nodes joined K3s cluster
+- [x] Both nodes labeled (<code>role=edge</code>, <code>purpose=validation</code>, <code>mtib-revision</code>)
+- [x] K8s roles assigned to edge nodes (<code>node-role.kubernetes.io/edge</code>)
+- [x] <code>00-labels-taints.sh</code> updated (stale mfg nodes removed, MTIB revision labels added)
+- [x] <code>validation-rev11.yaml</code> created and deployed
+- [x] <code>validation-rev12.yaml</code> created and deployed
+- [x] Old <code>mtib-server-validation</code> deployment cleaned up (not present in cluster)</p>
+<p><strong>Infrastructure Verification:</strong>
+- [x] K3s cluster access verified (<code>kubectl get nodes</code>)
+- [x] V1 MTIB server operational on REV 1.1 node — HealthCheck <code>ready: true</code>, DutPowerRead OK
+- [x] V1 MTIB server operational on REV 1.2 node — HealthCheck <code>ready: true</code>, DutPowerRead OK
+- [x] Alpha B0 board sourced — two devices: SNR 0964 (REV 1.2) and SNR 097D (REV 1.1)
+- [ ] Motion scaffold status confirmed (existing or need to build)
+- [x] CoreCloud VAL_1_0 environment URL obtained — Auth: 2013, REST: 2018, DB: 5432, Session: 2018, Data: 2017, Time: 2016
+- [ ] Hardware parts ordered (relays, photodiodes, thermistor, etc.)</p>
+<p><strong>Device Personalization:</strong>
+- [x] REV 1.2 (SNR 0964) re-personalized — POST step_9 personalize + step_10 rekey IPC PASS (via K8s pod, CoreOps at <code>http://10.4.45.30:8001</code>)
+- [x] REV 1.1 (SNR 097D) still personalized from manufacturing batch 9 — EUI <code>70B3D584C01E20A2</code> confirmed
+- [ ] LTE connectivity verified (device boots, connects to CoreCloud)
+- [ ] BootMsgV2 received at CoreCloud from personalized device</p>
+<p><strong>Firmware Assets (Phase 0.5):</strong>
+- [x] Pin swap overlays created at repo level (<code>overlays/nrf52840_pinswap.overlay</code>, <code>nrf9151_ns_pinswap.overlay</code>)
+- [x] Default pin correction overlays created (<code>overlays/nrf52840_default_pins.overlay</code>, <code>nrf9151_ns_default_pins.overlay</code>)
+- [x] <code>build.sh</code> updated with <code>--mtib-rev 1.1|1.2</code> and <code>--variant debug</code> flags
+- [x] <code>mergehex</code> wrapper installed (Python intelhex → drop-in replacement)
+- [x] <code>ctl.sh</code> Docker build orchestrator created (<code>apps/firmware/products/ctl.sh</code>)
+- [x] Nx targets updated for Docker builds (<code>build:docker</code>, <code>build:all-variants</code>, <code>collect</code>)
+- [x] MCUboot encryption key issue fixed — <code>ctl.sh</code> pre-build step auto-generates keys via <code>imgtool.py</code> in Docker + fixes app sysbuild.conf paths for monorepo mount layout
+- [ ] All 12 firmware assets built (3 variants × 2 MCUs × 2 MTIB revs) — via <code>ctl.sh build-all alpha</code>
+- [ ] Mfg firmware UART verified on REV 1.1 (fw_flash 3/3 PASS, but POST step_0 lock_shell timeout — UART not responding after boot)
+- [x] Mfg firmware UART verified on REV 1.2 (shell commands work — all 11 POST steps PASS)
+- [x] POST tests pass on REV 1.2 (11/11 PASS including CoreOps personalization + IPC rekey)
+- [ ] POST tests pass on REV 1.1 (step_0 lock_shell timeout — needs UART investigation)
+- [ ] Debug firmware logs visible on both MTIB revisions
+- [ ] Release firmware silent on both MTIB revisions
+- [ ] Artifacts stored in <code>libs/corekinect/test/validation/assets/firmware/</code> with <code>manifest.json</code></p>
+<h3 id="phase-1-mtib-server-updates">Phase 1: MTIB Server Updates<a class="headerlink" href="#phase-1-mtib-server-updates" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[x] M1: Proto updated — 34 RPCs (26 old kept as aliases + 8 new V2), bindings regenerated, backward compat verified</li>
+<li>[x] M2: Power handler — unified channel-based API, PowerMeasure (stats over duration), PowerStream (~100Hz server-streaming), legacy V1 aliases preserved</li>
+<li>[x] M3: GPIO handler — GpioWatch streaming via gpiod edge detection, get_snapshot_data()</li>
+<li>[x] M4: ADC handler — AdcStream at configurable interval, get_snapshot_data()</li>
+<li>[x] M5: UART handler — no changes needed (already clean)</li>
+<li>[x] M6: Flash handler — J-Link speed fixed to 4000, REV 1.2 J-Link mux via TCA9534A P0</li>
+<li>[x] M7: Motion handler — REV 1.2 motor power switch (VMM_EN via TCA9534A P2) with error handling</li>
+<li>[x] M8: Observability + wiring — HealthCheck extended (hw_revision, capabilities), GetSnapshot aggregates power/gpio/adc, all 8 V2 RPCs wired, TCA9534A init on REV 1.2</li>
+<li>[x] M8b: Error handling pass — _read_ina219 returns (err, v, mA, mW), _set_motor_power returns Optional[str], _select_jlink_target returns Optional[str], all callers check errors, TCA9534A driver created at src/hardware/tca9534a.py</li>
+<li>[x] M9: V1 client updated — 9 new methods (PowerEnable/Disable/Read/Measure/Stream, GpioWatch, AdcStream, HealthCheckExtended, GetSnapshot), client-side dataclasses (PowerReadResult, PowerMeasureResult, SnapshotResult, HealthCheckExtendedResponse), backward compat preserved (HealthCheck returns same 3-tuple)</li>
+<li>[x] M10: Server deployed to K3s — 24/27 RPCs PASS (both V1 and V2), 3 expected fails (motion disabled, altimeter absent). Both REV 1.1 and REV 1.2 verified.</li>
+<li>[x] Manufacturing backward compatibility confirmed — Alpha mfg app migrated to V1 RPCs, fw_flash 3/3 + POST 11/11 PASS on REV 1.2. Container deployed to K8s: <code>containers.ad.corekinect.com/concord-manufacturing-alpha:latest</code></li>
+</ul>
+<h3 id="phase-2-test-infrastructure">Phase 2: Test Infrastructure<a class="headerlink" href="#phase-2-test-infrastructure" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[x] Stream A: CloudClient code written (<code>cloud_client.py</code>) — polling over MsgBase.since_server_time(), sync pattern</li>
+<li>[x] Stream A: FixtureController code written (<code>fixture_controller.py</code>) — wraps MTIB V1 PowerEnable/GpioWrite/etc, FixtureProfile from JSON</li>
+<li>[x] Stream A: UartDemuxer code written (<code>uart_demuxer.py</code>) — background thread captures UartStream, timestamped log buffer</li>
+<li>[x] Stream A: PowerProfiler code written (<code>power_profiler.py</code>) — PowerMeasure + PowerStream wrappers, PowerTrace stats</li>
+<li>[x] Stream A: TestContext + conftest code written (<code>test_context.py</code>, <code>conftest.py</code>) — from_env(), session fixture, firmware_build parametrization</li>
+<li>[x] Stream A: Fixture profile JSON created (<code>fixtures/alpha_b0.json</code>) — pin mappings TBD pending schematic verification</li>
+<li>[x] Stream A: All imports verified (PYTHONPATH=libs/python:libs:libs/protocols)</li>
+<li>[x] Stream A: DevicePersonalizer added (<code>device_personalizer.py</code>) — wraps V1 client shell commands + CoreOps API for auto re-personalization after flash</li>
+<li>[x] Stream A: firmware_build fixture auto-repersonalizes after each flash (opt-in via PROXY_SERVER_URL + DEVICE_SNR)</li>
+<li>[ ] Stream A: CloudClient queries return real data from CoreCloud DEV_1_0 (needs SSH tunnel + DB creds)</li>
+<li>[x] Stream A: FixtureController drives GPIO, reads ADC via MTIB V1 — <strong>13/13 smoke tests PASS on both boards</strong> (dual-rail power, GPIO config, ADC reads all verified)</li>
+<li>[ ] Stream A: UartDemuxer captures UART logs from debug build (needs MTIB + flashed firmware)</li>
+<li>[x] Stream A: PowerProfiler records measurements via MTIB V1 — ch0+ch1 reads working, REV 1.1: 23mA total, REV 1.2: 8mA total (no FW)</li>
+<li>[x] Stream A: TestContext.from_env() works end-to-end on validation network — smoke test used it successfully</li>
+<li>[ ] Stream B: All fixture channels wired and verified (acceptance test)</li>
+</ul>
+<h3 id="phase-2b-corecloud-integration-tests">Phase 2B: CoreCloud Integration Tests<a class="headerlink" href="#phase-2b-corecloud-integration-tests" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[x] Comprehensive CoreCloud reference document written (<code>corecloud-complete-reference.md</code>) — 18+ Confluence pages extracted</li>
+<li>[x] CoreCloud integration test suite written (<code>test_corecloud_integration.py</code>) — 22 tests in 7 groups</li>
+<li>Group 1: Authentication &amp; connectivity (auth server, REST server, CoreOps proxy)</li>
+<li>Group 2: Database connectivity (query all message types via SDK)</li>
+<li>Group 3: Device registration &amp; identity (device ID determinism, type/variant, active status)</li>
+<li>Group 4: Message history (boot, network, position, hw failures — read-only)</li>
+<li>Group 5: FUOTA table access (FuotaTbl, FuotaListsTbl, progress — Phase 5 prerequisite)</li>
+<li>Group 6: Re-personalization flow (full end-to-end with MTIB + DUT)</li>
+<li>Group 7: Webhook verification (optional, for data forwarding)</li>
+<li>[ ] All Group 1 tests pass (auth + connectivity) — needs credentials from Jarred</li>
+<li>[ ] All Group 2 tests pass (DB queries) — needs SSH tunnel + DB creds</li>
+<li>[ ] All Group 3 tests pass (device identity) — needs REST API creds</li>
+<li>[ ] All Group 4 tests pass (message history) — needs DB connection</li>
+<li>[ ] All Group 5 tests pass (FUOTA tables) — needs DB write access</li>
+<li>[ ] All Group 6 tests pass (re-personalization) — needs MTIB + DUT + CoreOps + LTE</li>
+<li>[ ] All Group 7 tests pass (webhooks) — optional</li>
+</ul>
+<h3 id="phase-3-product-test-proof">Phase 3: Product Test Proof<a class="headerlink" href="#phase-3-product-test-proof" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[x] Stream C: All 8 test modules written (112 tests collected: 99 Stage 4 parametrized debug+release + 13 smoke; GNSS deferred, NFC skipped until wired)</li>
+<li><code>test_boot.py</code> — 5 tests (boot msg, FW version, current budget, HW failures, comms failures)</li>
+<li><code>test_motion.py</code> — 5 tests (shake detection, stationary, accel data, motion stops, repeated cycles)</li>
+<li><code>test_biometric.py</code> — 3 tests (on-skin, off-skin, temperature field)</li>
+<li><code>test_button.py</code> — 9 tests (short press, long press, very long press, LED, double press, etc.)</li>
+<li><code>test_environmental.py</code> — 7 tests (temp, pressure, humidity, Peltier, power rails, updates)</li>
+<li><code>test_power.py</code> — 7 tests (active, boot spike, idle, on-skin impact, motion impact, trace, anomalies)</li>
+<li><code>test_nfc.py</code> — 1 test (skipped until B6 wiring)</li>
+<li><code>test_corecloud_integration.py</code> — 22 tests in 7 groups (auth, DB, identity, messages, FUOTA, re-personalization, webhooks)</li>
+<li>[ ] Stream C: Debug build — all tests pass</li>
+<li>[ ] Stream C: Release build — all tests pass</li>
+<li>[ ] Stream C: CoreCloud receives expected messages for all tests</li>
+<li>[ ] Stream C: Power measurements recorded for all power tests</li>
+</ul>
+<h3 id="phase-4-comparison">Phase 4: Comparison<a class="headerlink" href="#phase-4-comparison" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[ ] All 112 tests compared across debug + release builds</li>
+<li>[ ] Power measurements compared (debug vs release)</li>
+<li>[ ] Discrepancies documented as bug reports</li>
+<li>[ ] Final recommendation written (which tests are release-authoritative)</li>
+</ul>
+<h3 id="phase-6-orchestration-visibility-cicd">Phase 6: Orchestration, Visibility &amp; CI/CD<a class="headerlink" href="#phase-6-orchestration-visibility-cicd" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[x] 6A: Backend validation run API — <strong>13 routes implemented, 381 total backend tests passing</strong></li>
+<li>Public: POST/GET <code>/validation/runs</code>, GET <code>/runs/&lt;id&gt;</code>, POST <code>/runs/&lt;id&gt;/cancel</code></li>
+<li>Sub-resources: GET <code>/runs/&lt;id&gt;/executions</code>, GET <code>/runs/&lt;id&gt;/executions/&lt;eid&gt;/results</code></li>
+<li>Artifacts: GET <code>/runs/&lt;id&gt;/artifacts</code>, GET <code>/runs/&lt;id&gt;/artifacts/&lt;name&gt;</code> (MinIO presigned URLs)</li>
+<li>Reporter callbacks: POST <code>/runs/&lt;id&gt;/report/{start,test-start,test-result,finish}</code></li>
+<li>Permissions: <code>Concord.Admin.Validation.View</code> / <code>Concord.Admin.Validation.Manage</code></li>
+<li>Storage: <code>validation/artifacts</code> prefix added to MinIO StoragePrefixes</li>
+<li>Auto-creates Test definitions on first reporter call (no pre-seeding needed)</li>
+<li>Files: <code>src/api/v2/validation/runs/{types,runs,executions,artifacts,reporter}.py</code></li>
+<li>Tests: <code>tests/unit/types/test_validation_runs_types.py</code>, <code>tests/api/validation/test_runs.py</code></li>
+<li>[x] 6B: pytest reporter plugin — <strong>ConcordReporter class at <code>libs/python/corekinect/test/validation/reporter.py</code></strong></li>
+<li>Opt-in via <code>CONCORD_RUN_ID</code> + <code>CONCORD_API_URL</code> + <code>CONCORD_API_KEY</code> env vars</li>
+<li>Hooks: <code>pytest_sessionstart</code>, <code>pytest_runtest_logstart</code>, <code>pytest_runtest_makereport</code> (hookwrapper), <code>pytest_sessionfinish</code></li>
+<li>Fire-and-forget HTTP: never causes test failures, logs warnings on error</li>
+<li>Auto-registered via <code>pytest_plugins</code> in validation <code>conftest.py</code></li>
+<li>Extracts power measurements from <code>ctx.power.last_measurement</code> (if available)</li>
+<li>13 tests passing at <code>tests/lib/test_reporter.py</code> (importlib-based to bypass broken parent <code>__init__.py</code>)</li>
+<li>[x] 6C: Frontend validation pages — <strong>list + detail at <code>/validation/runs</code></strong></li>
+<li>List page: paginated table with status filter, progress display (passed/failed/total)</li>
+<li>Detail page: stats cards (progress bar, passed, failed, duration), devices, execution table</li>
+<li>TypeScript types added to <code>models.ts</code> (ValidationRun, ValidationExecution, ValidationDevice, etc.)</li>
+<li>StatusBadge updated with QUEUED, PASSED, COMPLETED, CANCELLED colors</li>
+<li>Sidebar nav entry added (Validation, gated by <code>Concord.Admin.Validation.View</code>)</li>
+<li>5s polling for active runs (Socket.IO deferred to 6E)</li>
+<li>Cancel button with confirmation dialog (requires <code>Concord.Admin.Validation.Manage</code>)</li>
+<li>Trigger Run button on detail page (inline form, firmware version input, gated on ACTIVE + Manage)</li>
+<li>Notes section on detail page (shows <code>run.notes</code> if present)</li>
+<li>Validation permissions added to <code>prisma/seed.py</code> (ALL_PERMISSIONS + ADMIN_PERMISSIONS)</li>
+<li>OpenAPI docs added for all 12 validation endpoints in <code>src/api/v2/docs.py</code> (4 schemas + 12 paths)</li>
+<li>[x] 6D: Build-server integration + simulator — <strong>trigger endpoint + simulator script implemented, 6 integration tests + 6 unit tests passing</strong></li>
+<li><code>POST /v2/validation/runs/&lt;run_id&gt;/trigger</code> — creates K8s Job from existing <code>validation_job.yaml</code> template</li>
+<li><code>RunTriggerRequest</code> type with <code>from_json()</code> validation (firmwareVersion required, firmwarePath + config optional)</li>
+<li>Handler: validates session is ACTIVE, generates API key, calls <code>create_kubernetes_job()</code>, updates session config with trigger metadata, audit logs</li>
+<li>Simulator: <code>scripts/simulate-build-trigger.py</code> — mimics TeamCity: creates validation run, triggers it, optionally polls for completion</li>
+<li>OpenAPI docs added for trigger endpoint (request body + 200/400/404/500 responses)</li>
+<li>Files: <code>src/api/v2/validation/runs/trigger.py</code>, <code>tests/api/validation/test_trigger.py</code>, <code>tests/unit/types/test_validation_runs_types.py</code> (appended), <code>scripts/simulate-build-trigger.py</code></li>
+<li>[x] 6E: Comparison dashboard — <strong>side-by-side run comparison at <code>/validation/runs/compare</code></strong></li>
+<li>Route: <code>/validation/runs/compare?a=&lt;run_id&gt;&amp;b=&lt;run_id&gt;</code></li>
+<li>Side-by-side summary cards (total, passed, failed, duration)</li>
+<li>Test result comparison table with diff highlighting (pass→fail = red, fail→pass = green)</li>
+<li>Power measurement CSS bar charts (current_ma side-by-side per test)</li>
+<li>Compare selection on runs list page (checkbox + Compare button)</li>
+<li>"Compare with..." button on run detail page</li>
+<li>Uses existing 6A API endpoints — no backend changes needed</li>
+<li>Files: <code>src/routes/validation/runs/compare/+page.svelte</code> (new), <code>src/routes/validation/runs/+page.svelte</code> (modified), <code>src/routes/validation/runs/[id]/+page.svelte</code> (modified)</li>
+</ul>
+<blockquote>
+<p>Full proposal: <code>docs/validation/plans/stage4-proof/phases/phase-6-orchestration-and-visibility.md</code>
+Does NOT modify any Phase 0-5 code.</p>
+</blockquote>
+<h3 id="manufacturing-alpha-migration-v2-v1-verified">Manufacturing Alpha Migration (V2 → V1) — VERIFIED<a class="headerlink" href="#manufacturing-alpha-migration-v2-v1-verified" title="Permanent link">&para;</a></h3>
+<p>Manufacturing alpha app (<code>apps/manufacturing/alpha/</code>) was migrated from V2 MTIB client (port 50052, NOT deployed) to V1 MTIB server (port 50053, deployed and working). 20 files modified. Tests run from K8s pods on <code>concordagent03</code> with <code>hostNetwork: true</code>.</p>
+<p><strong>REV 1.2 (10.4.45.33) — FULLY VERIFIED:</strong>
+- fw_flash: 3/3 PASS (nRF52840 flash ~11s, nRF9151 flash ~5.5s, AP protect both)
+- POST: 11/11 PASS (lock shells, chip IDs, BMS, charger, GPS, modem FW, IMEI/ICCID, ext flash, personalize via CoreOps, rekey IPC)
+- AP protect verified via <code>nrfjprog --deviceversion</code> from MTIB container
+- CoreOps proxy: <code>http://10.4.45.30:8001</code> (old <code>https://10.4.45.3:443</code> is dead)
+- Container image: <code>containers.ad.corekinect.com/concord-manufacturing-alpha:latest</code>
+- K8s manifest: <code>deploy/manufacturing/alpha/deployment.yaml</code></p>
+<p><strong>REV 1.1 (10.4.45.32) — fw_flash PASS, POST NEEDS WORK:</strong>
+- fw_flash: 3/3 PASS (with <code>fw_flash_step2_recover=False</code> config override — REV 1.1 has no J-Link mux)
+- POST: step_0 (lock_shell) times out — zero UART bytes after boot. Root cause: needs further investigation (pin-swap firmware + UART timing)</p>
+<p><strong>Key changes:</strong>
+- <code>fw_flash_step2_recover</code> config flag: <code>True</code> (default, REV 1.2 with mux), <code>False</code> (REV 1.1 without mux)
+- Personalize response parser: handles variable whitespace in key labels
+- Dockerfile: fixed paths (was referencing theta_fixture) + PYTHONPATH (added <code>/libs/protocols</code>)
+- UART timeouts: lock_shell 120s, debug_uart_disable 60s</p>
+<h3 id="phase-5-fuota-flow-designed-not-executed">Phase 5: FUOTA Flow (Designed, Not Executed)<a class="headerlink" href="#phase-5-fuota-flow-designed-not-executed" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[ ] FUOTA flow design reviewed and approved</li>
+<li>[ ] <code>.cfw</code> file upload to Azure <code>cc-smb-fs</code> storage (confirmed mechanism — no REST API)</li>
+<li>[ ] Direct DB INSERT into <code>FuotaTbl</code> with plan/stage JSON (confirmed mechanism — no CRUD API)</li>
+<li>[ ] FUOTA plan stage JSON authored (targets, isSkippable, maxStage per device)</li>
+<li>[ ] Device enablement record created (deviceId, planId, enableUpdates, maxStage)</li>
+<li>[ ] 12-step flow execution (deferred until DB + Azure access available)</li>
+</ul>
+<hr />
+<h2 id="firmware-build-architecture">Firmware Build Architecture<a class="headerlink" href="#firmware-build-architecture" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>apps/firmware/products/
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>├── ctl.sh                          # Top-level orchestrator (Docker builds)
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>├── alpha/
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>│   ├── project.json                # Nx targets (build:docker, build:all-variants, collect)
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>│   ├── scripts/build.sh            # Actual build logic (west, cmake, overlay chaining)
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>│   ├── overlays/                   # Repo-level DTS overlays (4 files, pin swap + default)
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>│   ├── artifacts/                  # Build output (created by build.sh)
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>│   ├── alpha_fw/                   # Submodule → ncs-fw-dev:2.7.0
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>│   └── alpha_mfg_fw/              # Submodule → ncs-fw-dev:2.7.0
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>└── sigma5/
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>    ├── project.json
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>    ├── scripts/build.sh
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>    ├── artifacts/
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>    ├── sigma5_fw/                  # Submodule → ncs-fw-dev:2.4.2
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>    └── sigma5_mfg_fw/             # Submodule → ncs-fw-dev:2.7.0
+</code></pre></div>
+<p><strong>Build flow:</strong> <code>ctl.sh build alpha --target mfg --mtib-rev 1.2</code>
+1. Reads <code>alpha/alpha_mfg_fw/.devcontainer/devcontainer.json</code> → extracts Docker image
+2. <code>ctl.sh</code> pre-build: auto-generates encryption keys if missing (<code>imgtool.py keygen</code> in Docker)
+3. <code>ctl.sh</code> pre-build: fixes app sysbuild.conf key path for monorepo mount (<code>/workspaces/alpha/alpha_mfg_fw/</code>)
+4. <code>docker run --rm -v ... ncs-fw-dev:2.7.0 bash scripts/build.sh mfg --mtib-rev 1.2</code>
+5. <code>build.sh</code> fixes comms sysbuild.conf path, resolves overlays, runs <code>west build</code>
+6. Artifacts land in <code>alpha/artifacts/alpha_mfg_fw/alpha_b0/</code></p>
+<p><strong>Alpha build matrix</strong> (12 hex files):
+| Target | Variant | MTIB Rev | nRF52840 hex | nRF9151 hex |
+|--------|---------|----------|-------------|-------------|
+| mfg | — | 1.1 | yes | yes |
+| mfg | — | 1.2 | yes | yes |
+| app | debug | 1.1 | yes | yes |
+| app | debug | 1.2 | yes | yes |
+| app | release | 1.1 | yes | yes |
+| app | release | 1.2 | yes | yes |</p>
+<p><strong>Next step:</strong> <code>./apps/firmware/products/ctl.sh build-all alpha</code> (requires Docker image pull from registry)</p>
+<hr />
+<h2 id="blockers">Blockers<a class="headerlink" href="#blockers" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Blocker</th>
+<th>Affects</th>
+<th>Status</th>
+<th>Resolution</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>~~CoreCloud VAL_1_0 URL unknown~~</td>
+<td>~~Stream A (CloudClient)~~</td>
+<td><strong>Resolved → corrected to DEV_1_0</strong></td>
+<td>Devices personalized against <code>dev.office.corekinect.cloud</code>, NOT val. REST: <code>https://dev.office.corekinect.cloud:2022/api</code>, Auth: <code>https://auth.office.corekinect.cloud:2013</code>. Ports: Session=2022, Data=2023, Time=2024. DB requires SSH tunnel via <code>dmz-pg02.dmz.corekinect.com</code>. CloudClient default changed from VAL_1_0 to DEV_1_0.</td>
+</tr>
+<tr>
+<td><strong>CoreCloud DB credentials</strong></td>
+<td><strong>CloudClient (live testing)</strong></td>
+<td><strong>Open — ask Jarred</strong></td>
+<td>Need <code>DEV_1_0_DB_USERNAME</code>, <code>DEV_1_0_DB_PASSWORD</code>, <code>DEV_1_0_DB_DATABASE_NAME</code>. DB host is <code>127.0.0.1</code> via SSH tunnel to <code>dmz-pg02.dmz.corekinect.com</code>. Also need SSH creds or key. Template at <code>libs/python/corekinect/core_cloud/.env.example</code> (DEV_1_0 section).</td>
+</tr>
+<tr>
+<td><strong>CoreCloud API credentials</strong></td>
+<td><strong>CloudClient REST calls</strong></td>
+<td><strong>Open — ask Jarred</strong></td>
+<td>Need <code>DEV_1_0_API_AUTH_USERNAME</code>, <code>DEV_1_0_API_AUTH_PASSWORD</code>, <code>DEV_1_0_API_KEY</code>. Same creds as manufacturing.</td>
+</tr>
+<tr>
+<td><strong>Docker image pull from registry</strong></td>
+<td><strong>Firmware builds</strong></td>
+<td><strong>Open — need registry access</strong></td>
+<td><code>ctl.sh build-all alpha</code> needs <code>containers.ad.corekinect.com/ncs-fw-dev:2.7.0</code>. Devcontainer can't reach internal registry. Run from a machine with registry access.</td>
+</tr>
+<tr>
+<td>~~M10 deploy~~</td>
+<td>~~Live hardware testing~~</td>
+<td><strong>Resolved</strong></td>
+<td>Server with M1-M9 changes deployed. 24/27 RPCs PASS on both boards (V1 + V2). 3 expected fails: MotionStart (disabled), AltimeterRead (BME280 absent), AccelRead (intermittent). Manufacturing 14/14 tests PASS on REV 1.2.</td>
+</tr>
+<tr>
+<td>~~Alpha B0 availability~~</td>
+<td>~~All on-device work~~</td>
+<td><strong>Resolved</strong></td>
+<td>Two devices sourced from mfg batches: SNR 0964 (batch 7) and SNR 097D (batch 9). See <code>apps/firmware/products/results.json</code>.</td>
+</tr>
+<tr>
+<td>~~Device personalization~~</td>
+<td>~~Stage 4 (LTE/CoreCloud)~~</td>
+<td><strong>Resolved</strong></td>
+<td>REV 1.2 re-personalized (2026-03-02) via manufacturing POST step_9/10 from K8s pod. REV 1.1 still personalized from mfg batch 9. Server: <code>dev.office.corekinect.cloud</code>. Automated re-personalization via <code>DevicePersonalizer</code> class after each flash.</td>
+</tr>
+<tr>
+<td>~~DEVICE_ID unknown~~</td>
+<td>~~CloudClient, all tests~~</td>
+<td><strong>Resolved</strong></td>
+<td>SNR 0964 → <code>70B3D584C01E1FCC</code>, SNR 097D → <code>70B3D584C01E20A2</code>. Both have EC keypairs, activated SIMs (Verizon + Onomondo).</td>
+</tr>
+<tr>
+<td><code>.cfw</code> file upload to Azure</td>
+<td>Phase 5 (FUOTA)</td>
+<td><strong>Mechanism confirmed</strong></td>
+<td>No REST endpoint — upload <code>.cfw</code> to Azure <code>cc-smb-fs</code> storage, files land at <code>C:\CoreCloud\CoreCloud.SocketServer\fuota</code> on cc-winsrv-01/02. Need Azure storage creds or SMB access.</td>
+</tr>
+<tr>
+<td>FUOTA plan DB records</td>
+<td>Phase 5 (FUOTA)</td>
+<td><strong>Mechanism confirmed</strong></td>
+<td>No CRUD API — direct INSERT into <code>FuotaTbl</code> + <code>FuotaListsTbl</code>. Plan uses Stages JSON with targets, isSkippable, maxStage. Device enablement JSON per device. Need DB write access (DEV_1_0 creds from Jarred).</td>
+</tr>
+<tr>
+<td>~~Edge nodes need K8s roles assigned~~</td>
+<td>~~Infra consistency~~</td>
+<td><strong>Resolved</strong></td>
+<td><code>00-labels-taints.sh</code> updated + run on live cluster. Both Verdins show <code>edge</code> role + <code>mtib-revision</code> labels.</td>
+</tr>
+<tr>
+<td>~~NCS/Zephyr version mismatch in devcontainer~~</td>
+<td>~~Firmware builds (Phase 0.5)~~</td>
+<td><strong>Resolved</strong></td>
+<td>Docker-based builds via <code>ctl.sh</code> — each firmware submodule's <code>.devcontainer</code> image provides the correct NCS version. See <code>apps/firmware/products/ctl.sh</code>.</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="action-items-ask-tomorrow">Action Items — Ask Tomorrow<a class="headerlink" href="#action-items-ask-tomorrow" title="Permanent link">&para;</a></h2>
+<p>These are the things that need human action. Ask about these when people are in:</p>
+<h3 id="ask-jarred-corecloud">Ask Jarred (CoreCloud)<a class="headerlink" href="#ask-jarred-corecloud" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>CoreCloud DEV_1_0 credentials</strong> — Devices are personalized against <code>dev.office.corekinect.cloud</code> (DEV_1_0 namespace, not VAL_1_0). We need:</li>
+<li>DB: <code>DEV_1_0_DB_USERNAME</code>, <code>DEV_1_0_DB_PASSWORD</code>, <code>DEV_1_0_DB_DATABASE_NAME</code></li>
+<li>SSH tunnel: <code>DEV_1_0_SSH_USERNAME</code>, <code>DEV_1_0_SSH_PASSWORD</code> (or key path) for <code>dmz-pg02.dmz.corekinect.com</code></li>
+<li>API: <code>DEV_1_0_API_AUTH_USERNAME</code>, <code>DEV_1_0_API_AUTH_PASSWORD</code>, <code>DEV_1_0_API_KEY</code></li>
+<li><strong>Verify device 70B3D584C01E1FCC is visible in DEV CoreCloud</strong> — This device (SNR 0964) was personalized in mfg batch 7. Confirm we can query its BootMsgV2 / BiometricDataMsg etc.</li>
+<li>~~<strong>CoreOps proxy URL</strong>~~ — <strong>RESOLVED</strong>: <code>http://10.4.45.30:8001</code> (old <code>https://10.4.45.3:443</code> is dead). Verified working from K8s cluster — returns device IDs, accepts key uploads. Updated in <code>.env.example</code> and K8s deployment manifest.</li>
+</ol>
+<h3 id="ask-main-engineer-mtib">Ask Main Engineer (MTIB)<a class="headerlink" href="#ask-main-engineer-mtib" title="Permanent link">&para;</a></h3>
+<ol>
+<li>~~<strong>M10 deploy status</strong>~~ — <strong>RESOLVED</strong>: Server with M1-M9 changes deployed. 24/27 RPCs verified (V1 + V2). Manufacturing 14/14 tests PASS on REV 1.2.</li>
+<li><strong>Docker image registry access</strong> — Can he pull <code>containers.ad.corekinect.com/ncs-fw-dev:2.7.0</code> and run <code>ctl.sh build-all alpha</code> from a machine with registry access? The devcontainer can't reach the internal registry. <strong>Note</strong>: Pre-built firmware hex files exist at <code>libs/corekinect/test/validation/assets/firmware/</code> — sufficient for initial Stage 4 runs.</li>
+</ol>
+<h3 id="hardware-inventory">Hardware / Inventory<a class="headerlink" href="#hardware-inventory" title="Permanent link">&para;</a></h3>
+<ol>
+<li>~~<strong>Alpha B0 board</strong>~~ — <strong>RESOLVED</strong>: Two devices sourced from manufacturing: SNR 0964 (device_id <code>70B3D584C01E1FCC</code>, batch 7) and SNR 097D (device_id <code>70B3D584C01E20A2</code>, batch 9). Both have activated SIMs (Verizon + Onomondo). Details in <code>apps/firmware/products/results.json</code>.</li>
+<li>~~<strong>Device personalization</strong>~~ — <strong>RESOLVED</strong>: Both devices personalized during manufacturing. EC keypairs generated, keys uploaded to CoreOps. Auto re-personalization after each J-Link flash handled by <code>DevicePersonalizer</code> class.</li>
+<li><strong>Stage 4 fixture parts</strong> — Button relay, charger relay, photodiodes, Peltier, NFC reader, motion scaffold — are any of these ordered?</li>
+</ol>
+<h3 id="validation-devices-from-manufacturing-records">Validation Devices (from manufacturing records)<a class="headerlink" href="#validation-devices-from-manufacturing-records" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Device 1 (SNR 0964)</th>
+<th>Device 2 (SNR 097D)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Device ID</td>
+<td><code>70B3D584C01E1FCC</code></td>
+<td><code>70B3D584C01E20A2</code></td>
+</tr>
+<tr>
+<td>J-Link SNR</td>
+<td>0964</td>
+<td>097D</td>
+</tr>
+<tr>
+<td>IMEI</td>
+<td>355025931735979</td>
+<td>355025937661526</td>
+</tr>
+<tr>
+<td>Verizon ICCID</td>
+<td>89148000009808558441</td>
+<td>89148000009808567699</td>
+</tr>
+<tr>
+<td>Onomondo ICCID</td>
+<td>89457300000037582833</td>
+<td>89457300000037574012</td>
+</tr>
+<tr>
+<td>Mfg Batch</td>
+<td>7 (2026-02-04)</td>
+<td>9 (2026-02-18)</td>
+</tr>
+<tr>
+<td>FW Version</td>
+<td>0.8</td>
+<td>0.8</td>
+</tr>
+<tr>
+<td>Server</td>
+<td>dev.office.corekinect.cloud</td>
+<td>dev.office.corekinect.cloud</td>
+</tr>
+<tr>
+<td>Coproc App ID</td>
+<td>108</td>
+<td>108</td>
+</tr>
+</tbody>
+</table>
+<h3 id="environment-setup-validation-env">Environment Setup (Validation .env)<a class="headerlink" href="#environment-setup-validation-env" title="Permanent link">&para;</a></h3>
+<p>The test framework needs these env vars set at runtime. Template below:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a># MTIB Connection
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>MTIB_HOST=10.4.45.33
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>MTIB_PORT=50053
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>DEVICE_ID=70B3D584C01E1FCC
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>DEVICE_SNR=0964
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>DEVICE_IMEI=355025931735979
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>DEVICE_ICCIDS=89148000009808558441,89457300000037582833
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>FIXTURE_PROFILE_PATH=libs/python/corekinect/test/validation/fixtures/alpha_b0.json
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>CORECLOUD_DB_ENV=DEV_1_0
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a># CoreOps re-personalization (RESOLVED)
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>PROXY_SERVER_URL=http://10.4.45.30:8001
+<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>
+<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a># CoreCloud DEV_1_0 (ask Jarred for actual values)
+<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>DEV_1_0_DB_DRIVER=postgresql+psycopg2
+<a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a>DEV_1_0_DB_USERNAME=&lt;from Jarred&gt;
+<a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>DEV_1_0_DB_PASSWORD=&lt;from Jarred&gt;
+<a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a>DEV_1_0_DB_HOST=127.0.0.1
+<a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a>DEV_1_0_DB_PORT=5432
+<a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a>DEV_1_0_DB_DATABASE_NAME=&lt;from Jarred&gt;
+<a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a>DEV_1_0_DB_CONNECT_TIMEOUT=5
+<a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a>DEV_1_0_SSH_HOST=dmz-pg02.dmz.corekinect.com
+<a id="__codelineno-1-23" name="__codelineno-1-23" href="#__codelineno-1-23"></a>DEV_1_0_SSH_PORT=22
+<a id="__codelineno-1-24" name="__codelineno-1-24" href="#__codelineno-1-24"></a>DEV_1_0_SSH_USERNAME=&lt;from Jarred&gt;
+<a id="__codelineno-1-25" name="__codelineno-1-25" href="#__codelineno-1-25"></a>DEV_1_0_SSH_PASSWORD=&lt;from Jarred&gt;
+<a id="__codelineno-1-26" name="__codelineno-1-26" href="#__codelineno-1-26"></a>DEV_1_0_SSH_REMOTE_HOST=127.0.0.1
+<a id="__codelineno-1-27" name="__codelineno-1-27" href="#__codelineno-1-27"></a>DEV_1_0_SSH_REMOTE_PORT=5432
+<a id="__codelineno-1-28" name="__codelineno-1-28" href="#__codelineno-1-28"></a>DEV_1_0_API_AUTH_SERVER_HOST_NAME=https://auth.office.corekinect.cloud:2013
+<a id="__codelineno-1-29" name="__codelineno-1-29" href="#__codelineno-1-29"></a>DEV_1_0_API_REST_SERVER_HOST_NAME=https://dev.office.corekinect.cloud:2022/api
+<a id="__codelineno-1-30" name="__codelineno-1-30" href="#__codelineno-1-30"></a>DEV_1_0_API_AUTH_USERNAME=&lt;from Jarred&gt;
+<a id="__codelineno-1-31" name="__codelineno-1-31" href="#__codelineno-1-31"></a>DEV_1_0_API_AUTH_PASSWORD=&lt;from Jarred&gt;
+<a id="__codelineno-1-32" name="__codelineno-1-32" href="#__codelineno-1-32"></a>DEV_1_0_API_KEY=&lt;from Jarred&gt;
+<a id="__codelineno-1-33" name="__codelineno-1-33" href="#__codelineno-1-33"></a>
+<a id="__codelineno-1-34" name="__codelineno-1-34" href="#__codelineno-1-34"></a># Firmware paths (pre-built hex files — must be uploaded to MTIB first)
+<a id="__codelineno-1-35" name="__codelineno-1-35" href="#__codelineno-1-35"></a>FW_DEBUG_HEX=libs/corekinect/test/validation/assets/firmware/alpha_debug_nrf52840.hex
+<a id="__codelineno-1-36" name="__codelineno-1-36" href="#__codelineno-1-36"></a>FW_RELEASE_HEX=libs/corekinect/test/validation/assets/firmware/alpha_release_nrf52840.hex
+</code></pre></div>
+<hr />
+<h2 id="decisions-log">Decisions Log<a class="headerlink" href="#decisions-log" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Date</th>
+<th>Decision</th>
+<th>Rationale</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2026-03-01</td>
+<td>Update V1 server, do not use V2</td>
+<td>V2 is overcomplicated (77 RPCs, 19 handlers); V1 is simple and proven in manufacturing</td>
+</tr>
+<tr>
+<td>2026-03-01</td>
+<td>Peripheral-by-peripheral approach for MTIB updates</td>
+<td>User works with Claude one handler at a time; independent work units</td>
+</tr>
+<tr>
+<td>2026-03-01</td>
+<td>Keep old power RPCs as aliases for manufacturing compat</td>
+<td>Avoids breaking manufacturing code; migrate later</td>
+</tr>
+<tr>
+<td>2026-03-01</td>
+<td>Separate Stage 4 from Stage 3</td>
+<td>Stage 4 needs zero harness infrastructure; can prove independently</td>
+</tr>
+<tr>
+<td>2026-03-01</td>
+<td>Defer FUOTA flow to Phase 5</td>
+<td>Blocked on <code>.cfw</code> upload + FUOTA plan API; product tests prove core value first</td>
+</tr>
+<tr>
+<td>2026-03-01</td>
+<td>Design TestContext for Stage 3 extensibility</td>
+<td>Adding <code>harness: HarnessTransport</code> later is a single-field addition</td>
+</tr>
+<tr>
+<td>2026-03-01</td>
+<td>29 charging tests deferred</td>
+<td>DUT + CHG share same MTIB power source; no battery sync</td>
+</tr>
+<tr>
+<td>2026-03-01</td>
+<td>7 GNSS tests deferred</td>
+<td>Indoor scaffold, no GPS signal source</td>
+</tr>
+<tr>
+<td>2026-03-01</td>
+<td>18 config value tests deferred</td>
+<td>GroundModeConfigV2 endpoint unavailable</td>
+</tr>
+<tr>
+<td>2026-03-01</td>
+<td>Split validation.yaml into per-revision manifests</td>
+<td>REV 1.1 and REV 1.2 need different HARDWARE_VERSION env var; consolidate after Phase 1 auto-detection</td>
+</tr>
+<tr>
+<td>2026-03-01</td>
+<td>Add <code>mtib-revision</code> node label</td>
+<td>Enables nodeAffinity targeting per MTIB hardware revision</td>
+</tr>
+<tr>
+<td>2026-03-01</td>
+<td>2 new Verdin boards for validation</td>
+<td>Need dedicated validation nodes separate from manufacturing fleet</td>
+</tr>
+<tr>
+<td>2026-03-01</td>
+<td>Alpha B0 already connected on both nodes (mfg fixture config)</td>
+<td>TDD from Day 1: power, ADC, UART, SWD, GPIO all available. Fixture wiring reduced 32h → 20h.</td>
+</tr>
+<tr>
+<td>2026-03-01</td>
+<td>Bootstrap fixture profile from manufacturing RPCs</td>
+<td><code>apps/manufacturing/alpha/src/tests/shared/rpcs.py</code> has proven pin maps, ADC channels, shell commands</td>
+</tr>
+<tr>
+<td>2026-03-01</td>
+<td>M1: Keep all 26 existing RPCs in proto, add 8 new V2 RPCs (34 total)</td>
+<td>Original plan said "remove 7" but backward compat requires keeping them. Old RPCs become server-side aliases delegating to new handlers. Proto is additive-only.</td>
+</tr>
+<tr>
+<td>2026-03-01</td>
+<td>M2-M8: Implement all handler updates in single session</td>
+<td>Power unified with channel enum, GPIO watch via gpiod, ADC streaming, J-Link mux + motor power via TCA9534A, GetSnapshot aggregation</td>
+</tr>
+<tr>
+<td>2026-03-01</td>
+<td>_read_ina219 returns (err, v, mA, mW) instead of raising</td>
+<td>Consistent error-value pattern across all sysfs reads; callers check err before using values. Prevents gRPC INTERNAL errors reaching clients.</td>
+</tr>
+<tr>
+<td>2026-03-01</td>
+<td>TCA9534A driver copied from V2 to V1 as src/hardware/tca9534a.py</td>
+<td>V1 server needs same I2C GPIO expander driver; simplified version without unused features</td>
+</tr>
+<tr>
+<td>2026-03-01</td>
+<td>_set_motor_power and _select_jlink_target return Optional[str]</td>
+<td>Error-value pattern for all TCA9534A operations; callers propagate errors as success=False responses</td>
+</tr>
+<tr>
+<td>2026-03-01</td>
+<td>nRF9151 also needs per-revision builds (12 assets total, not 9)</td>
+<td>Both nRF52840 UART0 (P0.23↔P0.25) and nRF9151 UART0 (P0.21↔P0.22) are swapped on REV 1.1 carrier board. Verified by reading mfg overlay files.</td>
+</tr>
+<tr>
+<td>2026-03-01</td>
+<td>Overlays live at repo level (<code>overlays/</code>), not in submodules</td>
+<td>Submodule repos (alpha_fw, alpha_mfg_fw) must not be modified. Repo-level overlays combine with submodule overlays via <code>-DDTC_OVERLAY_FILE</code> semicolon chaining.</td>
+</tr>
+<tr>
+<td>2026-03-01</td>
+<td>Docker-based firmware builds via <code>ctl.sh</code></td>
+<td>Devcontainer has Zephyr 4.0.0 but firmware needs NCS 2.7.0 (Partition Manager symbols undefined in vanilla Zephyr). Solution: use each submodule's <code>.devcontainer</code> Docker image (<code>ncs-fw-dev:2.7.0</code> / <code>ncs-fw-dev:2.4.2</code>) for builds. <code>ctl.sh</code> reads <code>devcontainer.json</code> dynamically, runs <code>scripts/build.sh</code> inside the correct container. Zero submodule modifications.</td>
+</tr>
+<tr>
+<td>2026-03-01</td>
+<td>Production overlay has NO pin swap; mfg overlay DOES</td>
+<td><code>alpha_fw/boards/alpha_b0_nrf52840.overlay</code> = I2C sensors only. <code>alpha_mfg_fw/boards/alpha_b0_nrf52840.overlay</code> = I2C + pin swap. For prod REV 1.1, pin swap is added via repo-level overlay. For mfg REV 1.2, pin swap is corrected via repo-level overlay.</td>
+</tr>
+<tr>
+<td>2026-03-01</td>
+<td>M9: Keep HealthCheck 3-tuple, add HealthCheckExtended</td>
+<td>Changing HealthCheck return from <code>(ready, errors, err)</code> to 5-tuple would break <code>connect()</code> and all manufacturing code. New <code>HealthCheckExtended</code> returns full V2 response as dataclass.</td>
+</tr>
+<tr>
+<td>2026-03-01</td>
+<td>M9: Client streaming methods yield proto objects directly</td>
+<td>PowerStream/GpioWatch/AdcStream yield raw proto response objects (not dataclasses). Callers iterate and consume <code>.samples</code>, <code>.state</code>, etc. directly. Consistent with existing MotionStart/UartStream patterns.</td>
+</tr>
+<tr>
+<td>2026-03-01</td>
+<td>Phase 2A: Sync (not async) for all test framework code</td>
+<td>Existing CoreCloud SDK is sync (SQLAlchemy), MTIB client is sync, manufacturing tests are sync. Using async would add complexity (pytest-asyncio, event loops) with no benefit. <code>time.sleep</code> polling matches proven manufacturing patterns.</td>
+</tr>
+<tr>
+<td>2026-03-01</td>
+<td>Phase 2A: Framework at <code>libs/python/corekinect/test/validation/</code></td>
+<td>Under existing <code>corekinect.test</code> package. Parent <code>__init__.py</code> has broken <code>mtib_runner</code> import — validation subpackage works independently when imported with correct PYTHONPATH. Does not modify parent package.</td>
+</tr>
+<tr>
+<td>2026-03-01</td>
+<td>Phase 2A: FixtureProfile loaded from JSON, not hardcoded</td>
+<td>Fixture pin assignments are TBD pending schematic verification. JSON file (<code>fixtures/alpha_b0.json</code>) decouples test logic from wiring. Updated during Stream B (fixture wiring) without code changes.</td>
+</tr>
+<tr>
+<td>2026-03-01</td>
+<td>CoreCloud connectivity: REST reachable, DB not from devcontainer</td>
+<td><code>auth.office.corekinect.cloud:2013</code> and <code>val.office.corekinect.cloud:2018</code> reachable. <code>validation.ad.corekinect.com:5432</code> is internal-only — accessible from K8s pods but not devcontainer. Integration testing requires deployment to validation network.</td>
+</tr>
+<tr>
+<td>2026-03-01</td>
+<td>Phase 3 test modules written in parallel with M10 deploy</td>
+<td>All 8 test modules (62 test functions) written at <code>tests/stage4/</code>. Code can't run until M10 + credentials + firmware are ready, but writing tests now means we can do a full E2E run immediately once unblocked.</td>
+</tr>
+<tr>
+<td>2026-03-01</td>
+<td>Test modules use sync pattern (no async/await)</td>
+<td>Matches Phase 2A framework decision. Tests use <code>time.sleep</code> for waits, <code>ctx.cloud.wait_for_*</code> for polling. No pytest-asyncio dependency.</td>
+</tr>
+<tr>
+<td>2026-03-01</td>
+<td>CoreCloud credentials: same as manufacturing</td>
+<td>User confirmed manufacturing app creds work for VAL_1_0. Need to get actual values from Jarred (they're not committed to git — runtime env vars only).</td>
+</tr>
+<tr>
+<td>2026-03-01</td>
+<td>NFC test skipped until fixture wired</td>
+<td><code>test_nfc.py</code> has 1 test with <code>@pytest.mark.skip</code> — NFC I2C reader is Stream B task B6, not yet wired.</td>
+</tr>
+<tr>
+<td>2026-03-01</td>
+<td>Infra cleanup: labels script updated + run on live cluster</td>
+<td>Removed 5 stale mfg nodes, added both Verdins with mtib-revision labels, added edge K8s role. Script run on cluster — <code>kubectl get nodes</code> shows correct labels.</td>
+</tr>
+<tr>
+<td>2026-03-01</td>
+<td>Phase 6 proposed: Orchestration, Visibility &amp; CI/CD</td>
+<td>Extends Stage 4 with backend API (wire Prisma Session/Execution/Result), pytest reporter plugin (opt-in), frontend validation pages (live Socket.IO progress), Bitbucket pipeline (build → upload → trigger), comparison dashboard. 88h total. Does not modify Phases 0-5. See <code>phase-6-orchestration-and-visibility.md</code>.</td>
+</tr>
+<tr>
+<td>2026-03-01</td>
+<td>Phase 6: Pipeline-initiated CI (Option B) over webhooks</td>
+<td>Lower complexity for Stage 4 proof. Pipeline runs <code>ctl.sh build-all</code>, calls Concord API to upload + trigger. No webhook infra.</td>
+</tr>
+<tr>
+<td>2026-03-01</td>
+<td>Phase 6: Reporter plugin opt-in via CONCORD_RUN_ID env var</td>
+<td>Zero impact on existing pytest flow. Local dev = pure terminal. K8s Job = env var injected.</td>
+</tr>
+<tr>
+<td>2026-03-01</td>
+<td>Phase 6: Reuse existing Socket.IO <code>/kubernetes</code> namespace</td>
+<td>Add <code>subscribe_validation_run</code> event alongside existing 6 patterns. One connection per client.</td>
+</tr>
+<tr>
+<td>2026-03-01</td>
+<td>Phase 6: Write to existing Prisma schema, no migrations</td>
+<td>Session/TestExecution/TestResult/Log already modeled. Just start writing rows.</td>
+</tr>
+<tr>
+<td>2026-03-02</td>
+<td>CoreCloud environment corrected: DEV_1_0, not VAL_1_0</td>
+<td>Devices (0964, 097D) personalized against <code>dev.office.corekinect.cloud</code>. DEV_1_0 DB requires SSH tunnel via <code>dmz-pg02.dmz.corekinect.com</code>. CloudClient default changed to DEV_1_0. Ports: session=2022, data=2023, time=2024.</td>
+</tr>
+<tr>
+<td>2026-03-02</td>
+<td>Two validation devices sourced from manufacturing</td>
+<td>SNR 0964 → <code>70B3D584C01E1FCC</code> (batch 7), SNR 097D → <code>70B3D584C01E20A2</code> (batch 9). Both have activated SIMs (Verizon + Onomondo), EC keypairs, FW 0.8. Full records in <code>apps/firmware/products/results.json</code>.</td>
+</tr>
+<tr>
+<td>2026-03-02</td>
+<td>DevicePersonalizer bridges V1/V2 client gap</td>
+<td>Manufacturing uses V2 client (<code>boot_and_lock_shells</code>); validation uses V1 client (different proto). <code>DevicePersonalizer</code> wraps V1 client's <code>cmd_comms_coproc_lock_shell</code>, <code>alpha_cmd_personalize</code>, <code>cmd_comms_coproc_rekey_ipc</code> + CoreOps API calls into a single <code>repersonalize()</code> flow.</td>
+</tr>
+<tr>
+<td>2026-03-02</td>
+<td>Auto re-personalization in firmware_build fixture</td>
+<td><code>conftest.py</code> firmware_build fixture now calls <code>DevicePersonalizer.repersonalize()</code> after each flash. Opt-in via <code>PROXY_SERVER_URL</code> + <code>DEVICE_SNR</code> env vars. Without them, power cycle only (no re-personalization).</td>
+</tr>
+<tr>
+<td>2026-03-02</td>
+<td>FUOTA: no REST API exists, 11 DB ORM tables available</td>
+<td>CoreCloud Python SDK has zero FUOTA REST endpoints. C# server endpoints undocumented. DB ORM has full schema (<code>Fuotaplanstbl</code>, <code>Fuotaprogresstbl</code>, etc.). Phase 5 workaround: direct DB writes via ORM, bypassing server-side validation.</td>
+</tr>
+<tr>
+<td>2026-03-02</td>
+<td>Pre-known IMEI/ICCIDs via env vars</td>
+<td><code>DEVICE_IMEI</code> and <code>DEVICE_ICCIDS</code> env vars skip modem read during re-personalization. Values from manufacturing records are stable (hardware identifiers don't change).</td>
+</tr>
+<tr>
+<td>2026-03-02</td>
+<td>MCUboot encryption key fix in <code>ctl.sh</code></td>
+<td>Two bugs found: (1) <code>encryption_key.pem</code> and <code>comms_encryption_key.pem</code> don't exist (in <code>.gitignore</code>, must be generated per-developer). (2) App processor <code>sysbuild.conf</code> hardcodes <code>/workspaces/alpha_fw/</code> paths from standalone dev, but monorepo Docker mounts at <code>/workspaces/alpha/alpha_fw/</code>. Fix lives in <code>ctl.sh</code> (not submodule's <code>build.sh</code>): <code>_ensure_encryption_keys()</code> auto-generates via <code>imgtool.py</code> inside Docker; <code>_fix_app_sysbuild_key_path()</code> fixes app sysbuild.conf path pre-build. Comms path was already handled by <code>build.sh</code>'s <code>fix_sysbuild_key_path()</code>. Keys are for development/validation — production builds need shared production keys.</td>
+</tr>
+<tr>
+<td>2026-03-02</td>
+<td>FUOTA mechanism confirmed from Confluence: DB + Azure, no REST</td>
+<td>Searched 10 Confluence pages. FUOTA uses direct DB INSERT into <code>FuotaTbl</code> + Azure file upload (<code>cc-smb-fs</code>). Server middleware processes FUOTA on every uplink. Plans use Stages JSON (targets, isSkippable, maxStage). No REST API for FUOTA management exists — confirmed by both Python SDK and Confluence docs. Phase 5 workaround: direct DB writes + Azure file upload. Need DB write access + Azure/SMB creds.</td>
+</tr>
+<tr>
+<td>2026-03-02</td>
+<td>Firmware versioning spec documented</td>
+<td>Binary: AppId(2)+Flags(1)+Major(1)+Minor(1)+Build(2)=7 bytes. Flags: debug[3], track[2:1] (Bench/Eng/Prod), mfg[0]. Artifacts: <code>.hex</code> (plaintext, J-Link), <code>.hex</code> (encrypted), <code>.cfw</code> (encrypted, no bootloader, OTA). Mfg FW shares App ID with production.</td>
+</tr>
+<tr>
+<td>2026-03-02</td>
+<td>Device Management REST API found</td>
+<td><code>/System/Devices/{Register,Search,Update,Set-Account}</code> — requires privileged API key. Useful for Phase 5 device registration/status queries.</td>
+</tr>
+<tr>
+<td>2026-03-02</td>
+<td>Phase 6A: Backend validation run API implemented</td>
+<td>12 endpoints (8 public + 4 reporter callbacks) at <code>src/api/v2/validation/runs/</code>. Wires existing Prisma Session/Device/Test/TestExecution/TestResult models. Reporter callbacks auto-create Test definitions on first call (no pre-seeding). Artifacts served from MinIO <code>validation/artifacts</code> prefix. Permissions: <code>Concord.Admin.Validation.{View,Manage}</code>. 354 total tests pass (21 new type tests + 14 new integration tests + 319 existing).</td>
+</tr>
+<tr>
+<td>2026-03-02</td>
+<td>Phase 6A: Reporter auto-creates Test definitions</td>
+<td>Reporter <code>test-start</code> callback creates Test records on-the-fly if they don't exist for the product. This means no manual test seeding is needed — first pytest run populates the test catalog.</td>
+</tr>
+<tr>
+<td>2026-03-02</td>
+<td>Phase 6A: <code>update_many</code> not in MockModelClient</td>
+<td>Test conftest <code>MockModelClient</code> has <code>create_many</code> and <code>delete_many</code> but not <code>update_many</code>. Cancel endpoint test needs explicit <code>MagicMock()</code> for it. Not worth modifying conftest for one use.</td>
+</tr>
+<tr>
+<td>2026-03-02</td>
+<td>CoreCloud complete reference doc written</td>
+<td>18+ Confluence pages distilled into <code>corecloud-complete-reference.md</code>. Covers: system architecture (4 server components), auth flow (API key + JWT), device lifecycle (registration → personalization → production), firmware versioning (7-byte binary format, App IDs), FUOTA mechanism (DB + Azure, no REST), Socket Server protocol (AES-256 + HMAC-SHA-256), CoreOps manufacturing pipeline, IPC personalization commands, full REST API reference, environment map. Single source of truth — no need to search Confluence again.</td>
+</tr>
+<tr>
+<td>2026-03-02</td>
+<td>CoreCloud integration test suite written</td>
+<td>22 tests in 7 groups at <code>test_corecloud_integration.py</code>. Tests auth connectivity, DB queries, device registration/identity, message history, FUOTA table access (Phase 5 prerequisite), full re-personalization flow, and webhook management. Run as: <code>pytest test_corecloud_integration.py -v -m corecloud</code>.</td>
+</tr>
+<tr>
+<td>2026-03-02</td>
+<td>Alpha B0 CoreCloud identifiers confirmed</td>
+<td>App IDs: 108 (nRF9151 comms), 109 (nRF52840 app). CoreCloud: DeviceType=2, Variant=3. From Confluence App ID table (page 1855127553).</td>
+</tr>
+<tr>
+<td>2026-03-02</td>
+<td>Phase 6B: Reporter tests in backend suite, not validation package</td>
+<td>Reporter tests can't live under <code>corekinect/test/validation/tests/</code> because the parent <code>__init__.py</code> has a broken <code>mtib_runner</code> import chain. Tests moved to <code>apps/backend/http-api/tests/lib/test_reporter.py</code> and use <code>importlib.util.spec_from_file_location</code> to load the reporter module directly, bypassing the package chain. 13 tests pass.</td>
+</tr>
+<tr>
+<td>2026-03-02</td>
+<td>Phase 6B: Reporter uses <code>@hookimpl(hookwrapper=True)</code> for test results</td>
+<td><code>pytest_runtest_makereport</code> needs hookwrapper to intercept the TestReport for each test phase. Only reports on <code>when="call"</code> phase (not setup/teardown). Extracts error message, power measurements, and duration for each test.</td>
+</tr>
+<tr>
+<td>2026-03-02</td>
+<td>Phase 6C: Validation permissions + OpenAPI convention compliance</td>
+<td>Added <code>Concord.Admin.Validation.View</code> and <code>Manage</code> to <code>prisma/seed.py</code> (ALL_PERMISSIONS + ADMIN_PERMISSIONS). Added 4 schemas (ValidationRun, ValidationDevice, ValidationExecution, ValidationResult) + 12 endpoint paths to <code>src/api/v2/docs.py</code>. OpenAPI spec builds: 102 paths, 34 schemas. 367 tests pass.</td>
+</tr>
+<tr>
+<td>2026-03-02</td>
+<td>Phase 6D: CI is TeamCity, not Bitbucket Pipelines</td>
+<td>Build server is TeamCity. Pipeline config lives in TeamCity UI, not in repo YAML. No <code>bitbucket-pipelines.yml</code> needed.</td>
+</tr>
+<tr>
+<td>2026-03-02</td>
+<td>Phase 6D: Build-server artifact format confirmed from real theta builds</td>
+<td>Real TeamCity output at <code>build-server/0.1.11/</code> and <code>0.1.12/</code>: <code>&lt;version&gt;/debug/{app,comm_coproc_mfg}/</code> with <code>.hex</code> + <code>.hex.sha1</code> + <code>signed.encrypted/</code> variants, plus <code>.cfw</code> FUOTA package and <code>commit.log</code>. Alpha and theta are identical boards — same artifact structure, different product prefix.</td>
+</tr>
+<tr>
+<td>2026-03-02</td>
+<td>Phase 6D+6E: Neither is externally blocked</td>
+<td>6D needs a <code>trigger</code> endpoint + simulator script (pure code, no infra). 6E is pure frontend (existing API provides all data). Both can be built now.</td>
+</tr>
+<tr>
+<td>2026-03-02</td>
+<td>Phase 6D: Trigger reuses <code>create_kubernetes_job()</code> from validation/tests/run.py</td>
+<td>Avoids duplicating K8s Job creation logic. Import path: <code>src.api.v2.validation.tests.run</code>. Handler generates per-run API key (<code>secrets.token_urlsafe</code>), injects <code>CONCORD_RUN_ID</code> + <code>CONCORD_API_URL</code> + <code>CONCORD_API_KEY</code> into session config.</td>
+</tr>
+<tr>
+<td>2026-03-02</td>
+<td>Phase 6D: Mock paths use <code>api.v2.</code> prefix, not <code>src.api.v2.</code></td>
+<td>Conftest imports router as <code>api.v2.router</code> (PYTHONPATH includes <code>src</code>), so all modules load under <code>api.v2.*</code> namespace. Using <code>src.api.v2.*</code> in <code>@patch()</code> creates a separate module object in <code>sys.modules</code> — mock doesn't intercept the real call.</td>
+</tr>
+<tr>
+<td>2026-03-02</td>
+<td>Phase 6D: Simulator is standalone <code>requests</code>-based script</td>
+<td><code>scripts/simulate-build-trigger.py</code> mimics TeamCity flow: create run → trigger → optional poll. Uses <code>requests</code> (already in requirements). No new dependencies.</td>
+</tr>
+<tr>
+<td>2026-03-02</td>
+<td>Phase 6E: Comparison dashboard is pure frontend, CSS bar charts</td>
+<td>No charting library — uses styled <code>&lt;div&gt;</code> bars for power measurement comparison, consistent with existing design patterns. Page reads from existing 6A API endpoints.</td>
+</tr>
+<tr>
+<td>2026-03-02</td>
+<td>Manufacturing alpha migrated V2 → V1</td>
+<td>fw_flash and POST tests rewritten from V2 MTIB client (port 50052, not deployed) to V1 server (port 50053, deployed). <code>ThetaMtibServers</code> singleton wraps all V1 gRPC calls. 20 files modified. REV 1.2: 14/14 PASS. REV 1.1: fw_flash 3/3 PASS, POST pending.</td>
+</tr>
+<tr>
+<td>2026-03-02</td>
+<td>CoreOps proxy URL corrected</td>
+<td>Old: <code>https://10.4.45.3:443</code> (dead). New: <code>http://10.4.45.30:8001</code> (working). Discovered from sigma5 deployment configs. Verified from K8s cluster. Updated in <code>.env.example</code>, Dockerfile, K8s manifest.</td>
+</tr>
+<tr>
+<td>2026-03-02</td>
+<td>REV 1.1 J-Link mux workaround</td>
+<td>REV 1.1 has no J-Link mux — both probes always visible. <code>_assign_jlinks(force_recovery=True)</code> chip-erases ALL connected devices. Fix: <code>fw_flash_step2_recover</code> config flag — <code>True</code> for REV 1.2 (mux isolates probes), <code>False</code> for REV 1.1 (skip recovery on step 2, step 1 recovery covers both).</td>
+</tr>
+<tr>
+<td>2026-03-02</td>
+<td>Manufacturing alpha containerized and deployed</td>
+<td>Dockerfile fixed (was referencing theta_fixture), PYTHONPATH fixed (added <code>/libs/protocols</code>). Image: <code>containers.ad.corekinect.com/concord-manufacturing-alpha:latest</code>. K8s manifest at <code>deploy/manufacturing/alpha/deployment.yaml</code>. Runs on <code>concordagent01</code> with hostNetwork for CoreOps access.</td>
+</tr>
+<tr>
+<td>2026-03-02</td>
+<td>Personalize response parser hardened</td>
+<td>Firmware outputs <code>Public key (hex)   :</code> with variable whitespace. Parser changed from exact <code>response.find()</code> to line-by-line matching with <code>"Public key (hex)" in stripped</code>. Pattern changed from <code>"Personalization complete"</code> to <code>"Public key (base64)"</code>.</td>
+</tr>
+<tr>
+<td>2026-03-03</td>
+<td>M10 confirmed deployed</td>
+<td>V2 RPCs (PowerMeasure, PowerStream, GpioWatch, AdcStream, etc.) all verified working on both boards. 24/27 RPCs PASS. M10 is effectively complete — both V1 and V2 client methods work against the deployed server.</td>
+</tr>
+<tr>
+<td>2026-03-03</td>
+<td>GPIO 0+1 config added to FixtureController + DevicePersonalizer</td>
+<td><code>power_on()</code> and <code>_power_cycle()</code> now configure GPIO 0+1 as output LOW before enabling power. Critical for Alpha B0 — without this, DUT draws 0mA at 4.5V (SWD level shifter disabled). Extracted into <code>_configure_swd_gpios()</code> helper in FixtureController.</td>
+</tr>
+<tr>
+<td>2026-03-03</td>
+<td>PROXY_SERVER_URL updated in all validation code</td>
+<td>Changed from dead <code>https://10.4.45.3:443</code> to working <code>http://10.4.45.30:8001</code> in conftest.py, device_personalizer.py, status.md env template. Manufacturing code already updated in prior session.</td>
+</tr>
+<tr>
+<td>2026-03-03</td>
+<td>Pre-built firmware hex files available</td>
+<td>All 6 variants (mfg/debug/release × nRF52840/nRF9151) pre-built and collected at <code>libs/corekinect/test/validation/assets/firmware/</code> with SHA256 manifest. No need to run <code>ctl.sh build-all</code> for initial Stage 4 testing.</td>
+</tr>
+<tr>
+<td>2026-03-03</td>
+<td>Phase 6: 381 backend tests passing, trigger button added</td>
+<td>Other engineer completed: Trigger Run button on detail page (inline form, firmware version, gated on ACTIVE + Manage permission), Notes section on detail page, 381 total backend tests passing. Phase 6A-6E fully complete.</td>
+</tr>
+<tr>
+<td>2026-03-03</td>
+<td>Validation tests stay in library for now, move to <code>apps/validation/alpha/</code> when second product arrives</td>
+<td>Tests at <code>libs/python/corekinect/test/validation/tests/stage4/</code> are Alpha-specific but framework is reusable. Refactoring to <code>apps/validation/alpha/</code> when Sigma5 validation added is a file-move + import fix — no logic changes.</td>
+</tr>
+<tr>
+<td>2026-03-03</td>
+<td>Recommend merging Jarred's <code>feature/test-automation</code> branch</td>
+<td>Zero conflicts with Stage 4 work. Adds MessageBase (Active Record DB queries), ConfigMessageBase (REST API push), MessageCodec (binary packing), GroundModeConfigV2 (unblocks 18 deferred config tests), discharge_windows.py, event_time_pairs.py. All additions to Layer 2 (CoreCloud SDK).</td>
+</tr>
+<tr>
+<td>2026-03-03</td>
+<td>Validation architecture documented</td>
+<td>Three-pattern codebase (manufacturing gRPC, sigma5 CLI, Stage 4 pytest). Four-layer dependency chain (MTIB client → CoreCloud SDK → Validation framework → Product tests). Requirements traceability via naming + docstrings, not DB model. See Architecture section below.</td>
+</tr>
+<tr>
+<td>2026-03-03</td>
+<td>Alpha B0 requires DUAL-RAIL power for cold boot</td>
+<td>BQ25180 charger IC requires both ch0 (battery 4.5V) and ch1 (charger 5.0V) to enable system rail. Without ch1, ch0 shows 4.5V but 0mA — DUT does not boot. After ~4s charger takes over: ch0 drops to ~0mA, ch1 draws 17-33mA. Must check total current (ch0+ch1) for reliable "DUT alive" verification. FixtureController.power_on() updated to enable both rails by default. Smoke test uses read_total_current() with 5mA threshold. <code>.claude/rules/mtib-hardware.md</code> updated with full boot power timeline and corrected common mistakes.</td>
+</tr>
+<tr>
+<td>2026-03-03</td>
+<td>MTIB smoke test 13/13 PASS on both boards</td>
+<td>TestMtibConnection (2), TestGpio (2), TestPower (5), TestAdc (2), TestSnapshot (1), TestCleanup (1). REV 1.1: 23mA total (firmware present). REV 1.2: 8mA total (firmware wiped, BQ25180 quiescent). Both boards pass same test suite — threshold at 5mA total accommodates both states.</td>
+</tr>
+<tr>
+<td>2026-03-03</td>
+<td>PowerProfiler + FixtureController attribute fixes verified live</td>
+<td>PowerMeasureResult: <code>average_ma</code>/<code>max_ma</code>/<code>min_ma</code>/<code>average_mv</code>/<code>duration_s</code>/<code>sample_count</code> (not <code>avg_current_ma</code>/<code>peak_current_ma</code>). PowerReadResult: <code>voltage_v</code>/<code>current_ma</code>/<code>power_mw</code>/<code>enabled</code> (not <code>voltage_mv</code>). Both classes confirmed working against live MTIB hardware on both boards.</td>
+</tr>
+<tr>
+<td>2026-03-03</td>
+<td>112 tests collected via pytest --collect-only</td>
+<td>99 Stage 4 tests (parametrized debug+release across 8 modules) + 13 smoke tests = 112 total. 9 test modules discovered. All imports resolve cleanly with PYTHONPATH=libs/python:libs:libs/protocols.</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="validation-architecture">Validation Architecture<a class="headerlink" href="#validation-architecture" title="Permanent link">&para;</a></h2>
+<h3 id="how-the-pieces-fit-together">How the Pieces Fit Together<a class="headerlink" href="#how-the-pieces-fit-together" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>┌───────────────────────────────────────────────────────────────────────┐
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>│  LAYER 4: PRODUCT TEST CASES                                         │
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>│  libs/python/corekinect/test/validation/tests/stage4/                │
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>│  ├── test_boot.py, test_motion.py, test_power.py, ...               │
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>│  └── 62 test functions, 8 modules, Alpha B0 specific                │
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>│  Future: apps/validation/alpha/tests/stage4/ (when multi-product)    │
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>├───────────────────────────────────────────────────────────────────────┤
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>│  LAYER 3: VALIDATION FRAMEWORK (product-agnostic)                    │
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>│  libs/python/corekinect/test/validation/                             │
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>│  ├── TestContext (session-scoped, connects once)                     │
+<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>│  ├── FixtureController (GPIO/ADC/motion/power via MTIB)             │
+<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>│  ├── CloudClient (CoreCloud DB polling: wait_for_boot, etc.)        │
+<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a>│  ├── PowerProfiler (PowerMeasure + PowerStream wrappers)            │
+<a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a>│  ├── UartDemuxer (background UART capture + log buffer)             │
+<a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a>│  ├── DevicePersonalizer (post-flash re-personalization)             │
+<a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a>│  ├── ConcordReporter (pytest plugin → Concord API, opt-in)         │
+<a id="__codelineno-2-17" name="__codelineno-2-17" href="#__codelineno-2-17"></a>│  └── conftest.py (ctx fixture, firmware_build parametrization)      │
+<a id="__codelineno-2-18" name="__codelineno-2-18" href="#__codelineno-2-18"></a>├───────────────────────────────────────────────────────────────────────┤
+<a id="__codelineno-2-19" name="__codelineno-2-19" href="#__codelineno-2-19"></a>│  LAYER 2: CORECLOUD SDK (DB + REST + messages)                       │
+<a id="__codelineno-2-20" name="__codelineno-2-20" href="#__codelineno-2-20"></a>│  libs/python/corekinect/core_cloud/                                  │
+<a id="__codelineno-2-21" name="__codelineno-2-21" href="#__codelineno-2-21"></a>│  ├── CoreCloudDBInterface (SQLAlchemy, SSH tunnel to PostgreSQL)     │
+<a id="__codelineno-2-22" name="__codelineno-2-22" href="#__codelineno-2-22"></a>│  ├── CoreCloudRestInterface (JWT auth, device management REST)       │
+<a id="__codelineno-2-23" name="__codelineno-2-23" href="#__codelineno-2-23"></a>│  ├── messages/ (BootMsgV2, PositionMsgV6, BiometricDataMsg, ...)    │
+<a id="__codelineno-2-24" name="__codelineno-2-24" href="#__codelineno-2-24"></a>│  ├── unified_core/message_base.py (Jarred: Active Record queries)   │
+<a id="__codelineno-2-25" name="__codelineno-2-25" href="#__codelineno-2-25"></a>│  ├── unified_core/conf_message_base.py (Jarred: REST config push)   │
+<a id="__codelineno-2-26" name="__codelineno-2-26" href="#__codelineno-2-26"></a>│  └── unified_core/message_codec.py (Jarred: binary pack/unpack)     │
+<a id="__codelineno-2-27" name="__codelineno-2-27" href="#__codelineno-2-27"></a>├───────────────────────────────────────────────────────────────────────┤
+<a id="__codelineno-2-28" name="__codelineno-2-28" href="#__codelineno-2-28"></a>│  LAYER 1: MTIB CLIENT (hardware control)                             │
+<a id="__codelineno-2-29" name="__codelineno-2-29" href="#__codelineno-2-29"></a>│  libs/python/corekinect/mtib_client/v1/                              │
+<a id="__codelineno-2-30" name="__codelineno-2-30" href="#__codelineno-2-30"></a>│  ├── MtibV1Client (gRPC, 34 RPCs)                                   │
+<a id="__codelineno-2-31" name="__codelineno-2-31" href="#__codelineno-2-31"></a>│  ├── Power, GPIO, ADC, UART, Flash, Motion, Sensors, Snapshot       │
+<a id="__codelineno-2-32" name="__codelineno-2-32" href="#__codelineno-2-32"></a>│  └── Shell commands: lock_shell, personalize, rekey_ipc, etc.       │
+<a id="__codelineno-2-33" name="__codelineno-2-33" href="#__codelineno-2-33"></a>├───────────────────────────────────────────────────────────────────────┤
+<a id="__codelineno-2-34" name="__codelineno-2-34" href="#__codelineno-2-34"></a>│  HARDWARE                                                             │
+<a id="__codelineno-2-35" name="__codelineno-2-35" href="#__codelineno-2-35"></a>│  ├── MTIB V1 gRPC Server (K3s pod, port 50053)                      │
+<a id="__codelineno-2-36" name="__codelineno-2-36" href="#__codelineno-2-36"></a>│  ├── Alpha B0 DUT (nRF52840 + nRF9151, 48-pin connector)           │
+<a id="__codelineno-2-37" name="__codelineno-2-37" href="#__codelineno-2-37"></a>│  └── CoreCloud (dev.office.corekinect.cloud, PostgreSQL)            │
+<a id="__codelineno-2-38" name="__codelineno-2-38" href="#__codelineno-2-38"></a>└───────────────────────────────────────────────────────────────────────┘
+</code></pre></div>
+<h3 id="three-execution-patterns">Three Execution Patterns<a class="headerlink" href="#three-execution-patterns" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Pattern</th>
+<th>Manufacturing</th>
+<th>Sigma5 Validation</th>
+<th>Stage 4 Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Location</strong></td>
+<td><code>apps/manufacturing/alpha/</code></td>
+<td><code>apps/validation/sigma5/</code></td>
+<td><code>libs/python/corekinect/test/validation/</code></td>
+</tr>
+<tr>
+<td><strong>Execution</strong></td>
+<td>gRPC cluster, operator-driven</td>
+<td>Standalone CLI, <code>run_X_test()</code></td>
+<td>pytest, engineer-triggered</td>
+</tr>
+<tr>
+<td><strong>Multi-node</strong></td>
+<td>Yes (ThreadPoolExecutor)</td>
+<td>No (single MTIB)</td>
+<td>No (single MTIB)</td>
+</tr>
+<tr>
+<td><strong>Hardware API</strong></td>
+<td>Raw proto stubs (<code>ThetaMtibServers</code>)</td>
+<td><code>MtibV1Client</code></td>
+<td><code>MtibV1Client</code> via <code>FixtureController</code></td>
+</tr>
+<tr>
+<td><strong>CoreCloud</strong></td>
+<td>CoreOps proxy only</td>
+<td>None</td>
+<td><code>CloudClient</code> (DB polling) + REST</td>
+</tr>
+<tr>
+<td><strong>Results</strong></td>
+<td>gRPC streaming to operator UI</td>
+<td>Return <code>Optional[str]</code> error</td>
+<td>ConcordReporter → Concord API</td>
+</tr>
+<tr>
+<td><strong>Test structure</strong></td>
+<td>Test/TestStep classes, handler functions</td>
+<td><code>_init → _run → _deinit</code> functions</td>
+<td>pytest fixtures + test methods</td>
+</tr>
+</tbody>
+</table>
+<h3 id="requirements-traceability">Requirements Traceability<a class="headerlink" href="#requirements-traceability" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>Jira PRDTST-xxx (89 Alpha B0 test cases)
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>    │
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>    ├── docs/validation/reference/alpha-prdtst-reference.md
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>    │   (extracted reference, 35 active / 54 deferred)
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>    │
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>    ├── tests/stage4/test_&lt;category&gt;.py
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>    │   (test functions with descriptive names + docstrings)
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>    │   e.g., test_shake_triggers_motion → PRDTST-326
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>    │
+<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a>    └── Concord API (via ConcordReporter)
+<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a>        └── Session → TestExecution → TestResult
+<a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a>            (no explicit Requirement model — traceability is naming-based)
+</code></pre></div>
+<p><strong>Gap:</strong> No machine-queryable requirement-to-test mapping. Traceability is human-readable via test names and docstrings. Adding a <code>Requirement</code> Prisma model + linking to TestResult would enable "which requirements passed?" queries in the Concord UI. This is a Phase 6+ enhancement, not a blocker.</p>
+<h3 id="where-product-specific-tests-live-current-vs-future">Where Product-Specific Tests Live (Current vs Future)<a class="headerlink" href="#where-product-specific-tests-live-current-vs-future" title="Permanent link">&para;</a></h3>
+<p><strong>Current (Alpha-only):</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>libs/python/corekinect/test/validation/
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>├── [framework modules]          ← reusable across products
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>├── conftest.py                  ← Alpha-specific setup
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>├── fixtures/alpha_b0.json       ← Alpha-specific pin map
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>└── tests/stage4/test_*.py       ← Alpha-specific tests
+</code></pre></div></p>
+<p><strong>Future (multi-product):</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>libs/python/corekinect/test/validation/     ← framework only
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>├── cloud_client.py, fixture_controller.py, ...
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>apps/validation/alpha/                       ← Alpha product app
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>├── conftest.py (imports framework, Alpha config)
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>├── fixtures/alpha_b0.json
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>├── tests/stage4/test_boot.py, test_motion.py, ...
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>└── .env.example
+<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>
+<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a>apps/validation/sigma5/                      ← Sigma5 product app
+<a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a>├── conftest.py (imports framework, Sigma5 config)
+<a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a>├── fixtures/sigma5.json
+<a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a>├── tests/stage4/test_boot.py, test_power.py, ...
+<a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a>└── .env.example
+</code></pre></div></p>
+<p><strong>Refactor cost:</strong> Move 8 test files + conftest.py + fixtures/ → <code>apps/validation/alpha/</code>. Update imports. No logic changes. Do this when Sigma5 gets Stage 4 tests.</p>
+<h3 id="jarreds-featuretest-automation-branch">Jarred's <code>feature/test-automation</code> Branch<a class="headerlink" href="#jarreds-featuretest-automation-branch" title="Permanent link">&para;</a></h3>
+<p><strong>Assessment:</strong> Fills Layer 2 gaps. Zero conflicts with Stage 4 framework. Recommend merge to main.</p>
+<table>
+<thead>
+<tr>
+<th>Module</th>
+<th>Layer</th>
+<th>What It Adds</th>
+<th>Stage 4 Impact</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>MessageBase</code></td>
+<td>2</td>
+<td><code>.last()</code>, <code>.since_server_time()</code>, <code>.since_device_time()</code></td>
+<td>Already used by CloudClient internally</td>
+</tr>
+<tr>
+<td><code>ConfigMessageBase</code></td>
+<td>2</td>
+<td><code>.send_via_api()</code>, <code>.to_api_payload()</code></td>
+<td>Unblocks deferred config PRDTST tests (18)</td>
+</tr>
+<tr>
+<td><code>GroundModeConfigV2</code></td>
+<td>2</td>
+<td>Ground mode config read/write/pack</td>
+<td>Specifically unblocks 18 config PRDTST tests</td>
+</tr>
+<tr>
+<td><code>MessageCodec</code></td>
+<td>2</td>
+<td>Binary packing for OTA payloads</td>
+<td>Phase 5 (FUOTA)</td>
+</tr>
+<tr>
+<td><code>discharge_windows.py</code></td>
+<td>utility</td>
+<td>Battery discharge interval detection</td>
+<td>Deferred charging tests (29)</td>
+</tr>
+<tr>
+<td><code>event_time_pairs.py</code></td>
+<td>utility</td>
+<td>Generic event interval extraction</td>
+<td>Motion window + heartbeat interval tests</td>
+</tr>
+<tr>
+<td><code>DataStorageObject</code></td>
+<td>utility</td>
+<td>JSON/CSV serialization base class</td>
+<td>Test artifact persistence</td>
+</tr>
+<tr>
+<td><code>PositionMsgV6</code> refactor</td>
+<td>2</td>
+<td>Adds MessageBase + MessageCodec mixins</td>
+<td>Active — CloudClient uses PositionMsgV6</td>
+</tr>
+</tbody>
+</table>
+<h3 id="development-cycle">Development Cycle<a class="headerlink" href="#development-cycle" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>1. Pick requirement        Jira PRDTST-xxx or alpha-prdtst-reference.md
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>                           ↓
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>2. Write test              tests/stage4/test_&lt;category&gt;.py
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>                           def test_&lt;descriptive_name&gt;(self, ctx, firmware_build):
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>                           ↓
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>3. Run locally             MTIB_HOST=10.4.45.33 DEVICE_ID=70B3D584C01E1FCC \
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>                           pytest tests/stage4/test_boot.py -v
+<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>                           ↓
+<a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>4. Test executes           conftest creates TestContext (MTIB + CloudClient)
+<a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a>                           firmware_build fixture: flash → re-personalize → boot
+<a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a>                           Test: ctx.fixture.* (stimulus) → ctx.cloud.* (verify)
+<a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a>                           _test_lifecycle: UART capture + teardown
+<a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a>                           ↓
+<a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a>5. Results to Concord      CONCORD_RUN_ID=xxx pytest tests/stage4/ -v
+<a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a>   (opt-in)                Reporter → POST /v2/validation/runs/&lt;id&gt;/report/*
+<a id="__codelineno-6-16" name="__codelineno-6-16" href="#__codelineno-6-16"></a>                           ↓
+<a id="__codelineno-6-17" name="__codelineno-6-17" href="#__codelineno-6-17"></a>6. Concord UI              Pass/fail per test, per firmware variant
+<a id="__codelineno-6-18" name="__codelineno-6-18" href="#__codelineno-6-18"></a>                           Power measurements, UART artifacts
+<a id="__codelineno-6-19" name="__codelineno-6-19" href="#__codelineno-6-19"></a>                           Debug vs release comparison dashboard
+</code></pre></div>
+<p><strong>Full E2E run:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1"># 112 tests collected (99 parametrized + 13 smoke)</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>pytest<span class="w"> </span>tests/stage4/<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">  </span>--device-id<span class="o">=</span>70B3D584C01E1FCC<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="w">  </span>--mtib-host<span class="o">=</span><span class="m">10</span>.4.45.33<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="w">  </span>--db-env<span class="o">=</span>DEV_1_0
+</code></pre></div></p>
+<p>The <code>firmware_build</code> fixture parametrizes on <code>["debug", "release"]</code>, so every test runs twice automatically.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://zensical.org/" target="_blank" rel="noopener">
+      Zensical
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      
+      <script id="__config" type="application/json">{"annotate":null,"base":"../../../..","features":["navigation.sections","navigation.expand","navigation.path","navigation.indexes","search.suggest","content.code.copy","toc.follow"],"search":"../../../../assets/javascripts/workers/search.e2d2d235.min.js","tags":null,"translations":{"clipboard.copied":"Copied to clipboard","clipboard.copy":"Copy to clipboard","search.result.more.one":"1 more on this page","search.result.more.other":"# more on this page","search.result.none":"No matching documents","search.result.one":"1 matching document","search.result.other":"# matching documents","search.result.placeholder":"Type to start searching","search.result.term.missing":"Missing","select.version":"Select version"},"version":null}</script>
+    
+    
+      <script src="../../../../assets/javascripts/bundle.5fd3284f.min.js"></script>
+      
+        <script src="../../../../assets/js/external-links.js"></script>
+      
+    
+  </body>
+</html>

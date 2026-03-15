@@ -1,0 +1,3501 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Continuous delivery platform for embedded systems">
+      
+      
+      
+      
+        <link rel="prev" href="../07-alpha-manufacturing-firmware-and-tests/">
+      
+      
+        <link rel="next" href="../08-firmware-build-and-fuota-delivery/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="zensical-0.0.27">
+    
+    
+      
+        <title>Device Personalization and Key Provisioning - Concord</title>
+      
+    
+    
+      
+        
+      
+      <link rel="stylesheet" href="../../assets/stylesheets/modern/main.50057488.min.css">
+      
+        
+          
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/modern/palette.dfe2e883.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,500,500i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,t)=>(e<<5)-e+t.charCodeAt(0)),0),__md_get=(e,t=localStorage,a=__md_scope)=>JSON.parse(t.getItem(a.pathname+"."+e)),__md_set=(e,t,a=localStorage,_=__md_scope)=>{try{a.setItem(_.pathname+"."+e,JSON.stringify(t))}catch(e){}},document.documentElement.setAttribute("data-platform",navigator.platform)</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="deep-purple" data-md-color-accent="amber">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer" aria-label="Navigation"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#device-personalization-and-key-provisioning" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Concord" class="md-header__button md-logo" aria-label="Concord" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer" aria-label="Navigation">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-menu" viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h16"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Concord
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Device Personalization and Key Provisioning
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="none" data-md-color-scheme="slate" data-md-color-primary="deep-purple" data-md-color-accent="amber"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="none" data-md-color-scheme="default" data-md-color-primary="deep-purple" data-md-color-accent="amber"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search" aria-label="Search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-search" viewBox="0 0 24 24"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog" aria-label="Search">
+  <button type="button" class="md-search__button">
+    Search
+  </button>
+</div>
+      
+    
+    <div class="md-header__source">
+      
+    </div>
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Concord" class="md-nav__button md-logo" aria-label="Concord" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+
+    </a>
+    Concord
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../vision/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vision
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2" id="__nav_2_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Vision
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../vision/thesis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Thesis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../vision/validation-philosophy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation Philosophy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../architecture/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3" id="__nav_3_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Architecture
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_2" id="__nav_3_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Platform
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Platform
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/platform/unified-platform/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Unified Platform
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/platform/hardware-registry/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hardware Registry
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/platform/log-streaming/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Log Streaming
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/platform/ci-pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CI Pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/platform/corecloud-library/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CoreCloud Library
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_3" id="__nav_3_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Validation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/validation/stages-overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stages Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/validation/system/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    System Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/validation/stage1-software-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 1: Software Tests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/validation/stage2-driver-hw-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 2: Driver HW Tests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/validation/stage3-integration-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 3: Integration Tests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/validation/stage4-product-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 4: Product Tests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/validation/stage4-fuota-flow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 4: FUOTA Flow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/validation/stage4-pr-flow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 4: PR Flow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/validation/stage5-gate-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 5: Gate Tests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/validation/test-runner/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Test Runner
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_4" id="__nav_3_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Build
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/build/build-service/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build Service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/build/builder-nodes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Builder Nodes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../reference/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/fuota-workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FUOTA Workflow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/fuota-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FUOTA API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/alpha-test-cases/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Alpha Test Cases
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/traceability-matrix/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Traceability Matrix
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/twister-hil/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Twister HIL
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/stage4-connectivity/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 4 Connectivity
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/stage4-long-term-vision/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 4 Long-Term Vision
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/validation-flow-ui/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation Flow UI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/interfaces/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interfaces
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../guides/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_2" id="__nav_5_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Alpha
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Alpha
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/alpha/stage1/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 1
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/alpha/stage2/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 2
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/alpha/stage3/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 3
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/alpha/stage4/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 4
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/alpha/stage5/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 5
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" checked>
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Research
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_6" id="__nav_6_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Research
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../01-sigma5-firmware-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sigma5 Firmware
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../02-alpha-firmware-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Alpha Firmware
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../03-sensor-drivers-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sensor Drivers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../05-mtib-server-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MTIB Server
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../06-fuota-corecloud-v1/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FUOTA CoreCloud
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../07-alpha-manufacturing-firmware-and-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Alpha MFG Firmware
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Device Personalization
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="././" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Device Personalization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#personalization-flow-manufacturing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Personalization Flow (Manufacturing)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Personalization Flow (Manufacturing)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#step-1-device-id-assignment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 1: Device ID Assignment
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-2-key-generation-on-device" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 2: Key Generation (On-Device)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-3-public-key-upload-to-corecloud" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 3: Public Key Upload to CoreCloud
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-4-ipc-rekey" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 4: IPC Rekey
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#post-manufacturing-key-exchange" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Post-Manufacturing Key Exchange
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Post-Manufacturing Key Exchange">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#step-5-time-server-contact" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 5: Time Server Contact
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-6-tls-certificate-acquisition" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 6: TLS Certificate Acquisition
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-7-rekey-via-https" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 7: Rekey via HTTPS
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-8-socket-server-connection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 8: Socket Server Connection
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#transition-to-production-via-fuota" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Transition to Production (via FUOTA)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Transition to Production (via FUOTA)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#step-9-production-firmware-ota" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 9: Production Firmware OTA
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-10-production-server-migration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 10: Production Server Migration
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#complete-lifecycle-diagram" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Complete Lifecycle Diagram
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#corecloud-device-management-rest-api" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CoreCloud Device Management REST API
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="CoreCloud Device Management REST API">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#registration-request" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Registration Request
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#search-request" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Search Request
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#validation-pipeline-implications" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Validation Pipeline Implications
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Validation Pipeline Implications">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#dedicated-validation-corecloud" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dedicated Validation CoreCloud
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#device-registration-strategy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Device Registration Strategy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#key-management-constraints" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key Management Constraints
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#server-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Server Configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fuota-interaction" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        FUOTA Interaction
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#validation-personalization-sequence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Validation Personalization Sequence
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#security-considerations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Security Considerations
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Security Considerations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#private-key-protection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Private Key Protection
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#re-personalization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Re-personalization
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#approtect" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        APPROTECT
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#session-key-rotation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Session Key Rotation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#open-questions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Open Questions
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../08-firmware-build-and-fuota-delivery/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Firmware Build & FUOTA
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../09-corecloud-validation-integration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CoreCloud Integration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../journals/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Journals
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Journals
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#personalization-flow-manufacturing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Personalization Flow (Manufacturing)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Personalization Flow (Manufacturing)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#step-1-device-id-assignment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 1: Device ID Assignment
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-2-key-generation-on-device" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 2: Key Generation (On-Device)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-3-public-key-upload-to-corecloud" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 3: Public Key Upload to CoreCloud
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-4-ipc-rekey" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 4: IPC Rekey
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#post-manufacturing-key-exchange" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Post-Manufacturing Key Exchange
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Post-Manufacturing Key Exchange">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#step-5-time-server-contact" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 5: Time Server Contact
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-6-tls-certificate-acquisition" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 6: TLS Certificate Acquisition
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-7-rekey-via-https" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 7: Rekey via HTTPS
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-8-socket-server-connection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 8: Socket Server Connection
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#transition-to-production-via-fuota" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Transition to Production (via FUOTA)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Transition to Production (via FUOTA)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#step-9-production-firmware-ota" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 9: Production Firmware OTA
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-10-production-server-migration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 10: Production Server Migration
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#complete-lifecycle-diagram" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Complete Lifecycle Diagram
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#corecloud-device-management-rest-api" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CoreCloud Device Management REST API
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="CoreCloud Device Management REST API">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#registration-request" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Registration Request
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#search-request" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Search Request
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#validation-pipeline-implications" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Validation Pipeline Implications
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Validation Pipeline Implications">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#dedicated-validation-corecloud" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dedicated Validation CoreCloud
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#device-registration-strategy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Device Registration Strategy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#key-management-constraints" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key Management Constraints
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#server-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Server Configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fuota-interaction" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        FUOTA Interaction
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#validation-personalization-sequence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Validation Personalization Sequence
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#security-considerations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Security Considerations
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Security Considerations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#private-key-protection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Private Key Protection
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#re-personalization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Re-personalization
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#approtect" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        APPROTECT
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#session-key-rotation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Session Key Rotation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#open-questions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Open Questions
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+                
+
+
+
+  
+
+
+  <nav class="md-path" aria-label="Navigation" >
+    <ol class="md-path__list">
+      
+        
+  
+  
+    <li class="md-path__item">
+      <a href="../.." class="md-path__link">
+        
+  <span class="md-ellipsis">
+    Home
+  </span>
+
+      </a>
+    </li>
+  
+
+      
+      
+        
+  
+  
+    
+    
+      <li class="md-path__item">
+        <a href="../" class="md-path__link">
+          
+  <span class="md-ellipsis">
+    Research
+  </span>
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ol>
+  </nav>
+
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+<h1 id="device-personalization-and-key-provisioning">Device Personalization and Key Provisioning<a class="headerlink" href="#device-personalization-and-key-provisioning" title="Permanent link">&para;</a></h1>
+<h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
+<p>Device personalization is the process of giving each device a unique identity and cryptographic credentials so it can securely communicate with CoreCloud. This happens during manufacturing and must be replicated (or simulated) in the validation pipeline.</p>
+<p>Every device that leaves the factory has:
+- A <strong>unique Device ID</strong> (EUI-64 format)
+- An <strong>ECDSA P-256 key pair</strong> generated on-device (private key never leaves the device)
+- A <strong>registration record</strong> in CoreCloud linking the Device ID to its public key
+- <strong>Encrypted IPC</strong> between the app processor and comms processor
+- <strong>TLS client certificate</strong> and <strong>session keys</strong> for CoreCloud communication</p>
+<p>This document traces the full lifecycle from bare silicon through production deployment, then maps the implications for the validation pipeline.</p>
+<hr />
+<h2 id="personalization-flow-manufacturing">Personalization Flow (Manufacturing)<a class="headerlink" href="#personalization-flow-manufacturing" title="Permanent link">&para;</a></h2>
+<h3 id="step-1-device-id-assignment">Step 1: Device ID Assignment<a class="headerlink" href="#step-1-device-id-assignment" title="Permanent link">&para;</a></h3>
+<p>CoreOps API (or Concord) assigns a unique Device ID in EUI-64 format.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>Example EUI: 70B3D584C0201234
+</code></pre></div>
+<p>The EUI is sent to the comms processor via UART:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>personalize &lt;device_id&gt;
+</code></pre></div>
+<ul>
+<li>The device stores the ID in non-volatile storage (ZMS/NVS on the nRF9151)</li>
+<li>This ID is <strong>permanent</strong> and persists across firmware updates</li>
+<li>The ID is the device's primary identity across all CoreCloud environments</li>
+</ul>
+<h3 id="step-2-key-generation-on-device">Step 2: Key Generation (On-Device)<a class="headerlink" href="#step-2-key-generation-on-device" title="Permanent link">&para;</a></h3>
+<p>The device generates an ECDSA P-256 key pair internally on the comms processor:</p>
+<ul>
+<li><strong>Private key</strong> is generated and stored in secure storage on the nRF9151</li>
+<li><strong>Private key NEVER leaves the device</strong> -- there is no command or mechanism to export it</li>
+<li><strong>Public key</strong> is exported via UART using the <code>get_pub_key</code> command</li>
+</ul>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>&gt; get_pub_key
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>PUB_KEY:&lt;base64-encoded ECDSA P-256 public key&gt;
+</code></pre></div>
+<p>The key pair is bound to the device's identity. The comms processor manages all cryptographic operations.</p>
+<h3 id="step-3-public-key-upload-to-corecloud">Step 3: Public Key Upload to CoreCloud<a class="headerlink" href="#step-3-public-key-upload-to-corecloud" title="Permanent link">&para;</a></h3>
+<p>The test fixture (MTIB or manufacturing station) reads the public key from UART output and uploads it to the CoreCloud REST API:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>POST /System/Devices/Register
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>Content-Type: application/json
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>{
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>  &quot;deviceId&quot;: &quot;70B3D584C0201234&quot;,
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>  &quot;deviceType&quot;: 2,
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>  &quot;deviceVariant&quot;: 3,
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>  &quot;publicKey&quot;: &quot;&lt;base64-encoded public key&gt;&quot;
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>}
+</code></pre></div>
+<p>Registration parameters:
+| Field | Value | Description |
+|-------|-------|-------------|
+| <code>deviceId</code> | EUI-64 string | Unique device identifier |
+| <code>deviceType</code> | <code>2</code> | Alpha product family |
+| <code>deviceVariant</code> | <code>3</code> | B0 hardware revision |
+| <code>publicKey</code> | Base64 string | ECDSA P-256 public key from Step 2 |</p>
+<p>This creates the device record in CoreCloud's database, associating the device's identity with its public key.</p>
+<h3 id="step-4-ipc-rekey">Step 4: IPC Rekey<a class="headerlink" href="#step-4-ipc-rekey" title="Permanent link">&para;</a></h3>
+<p>The <code>rekey_ipc</code> UART command establishes encrypted communication between the two processors:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>&gt; rekey_ipc
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>IPC_REKEY:OK
+</code></pre></div>
+<ul>
+<li><strong>App processor</strong>: nRF52840 (sensors, BLE, application logic)</li>
+<li><strong>Comms processor</strong>: nRF9151 (LTE-M, CoreCloud communication)</li>
+<li><strong>IPC channel</strong>: LPUART between the two processors</li>
+</ul>
+<p>New AES keys are generated for the LPUART IPC channel. This ensures inter-processor messages cannot be sniffed even with physical access to the UART lines.</p>
+<hr />
+<h2 id="post-manufacturing-key-exchange">Post-Manufacturing Key Exchange<a class="headerlink" href="#post-manufacturing-key-exchange" title="Permanent link">&para;</a></h2>
+<p>After personalization, the device must establish secure communication with CoreCloud. This is a multi-step handshake.</p>
+<h3 id="step-5-time-server-contact">Step 5: Time Server Contact<a class="headerlink" href="#step-5-time-server-contact" title="Permanent link">&para;</a></h3>
+<p>The device boots with manufacturing firmware and connects to the manufacturing CoreCloud environment:</p>
+<ol>
+<li>Device powers on and connects to the cellular network (LTE-M)</li>
+<li>Contacts CoreCloud Time Server to get accurate UTC time</li>
+<li>Accurate time is required for TLS certificate validation (expiry checks, certificate chain verification)</li>
+</ol>
+<p>Without accurate time, the device cannot validate server certificates and will fail to establish TLS connections.</p>
+<h3 id="step-6-tls-certificate-acquisition">Step 6: TLS Certificate Acquisition<a class="headerlink" href="#step-6-tls-certificate-acquisition" title="Permanent link">&para;</a></h3>
+<p>The device uses its ECDSA key pair to authenticate with CoreCloud:</p>
+<ol>
+<li>Device presents its Device ID and signs a challenge with its private key</li>
+<li>CoreCloud verifies the signature against the registered public key</li>
+<li>CoreCloud's CA issues a TLS client certificate for the device</li>
+<li>Device stores the client certificate in secure storage</li>
+</ol>
+<p>The client certificate enables mutual TLS (mTLS) for all subsequent HTTPS communication with CoreCloud.</p>
+<h3 id="step-7-rekey-via-https">Step 7: Rekey via HTTPS<a class="headerlink" href="#step-7-rekey-via-https" title="Permanent link">&para;</a></h3>
+<p>The device performs an HTTPS POST to the CoreCloud REST Server using its client certificate:</p>
+<ol>
+<li>Server validates the client certificate against the registered public key</li>
+<li>Server generates and returns session keys:</li>
+<li><strong>AES-256 session key</strong> for payload encryption</li>
+<li><strong>HMAC-SHA-256 key</strong> for message authentication</li>
+<li>Device stores the session keys in secure storage</li>
+</ol>
+<p>These session keys are used for all subsequent Socket Server communications (the persistent bidirectional channel).</p>
+<h3 id="step-8-socket-server-connection">Step 8: Socket Server Connection<a class="headerlink" href="#step-8-socket-server-connection" title="Permanent link">&para;</a></h3>
+<p>The device connects to the CoreCloud Socket Server using the session keys:</p>
+<ul>
+<li>All uplink messages (sensor data, status reports) are encrypted with AES-256 and authenticated with HMAC-SHA-256</li>
+<li>All downlink messages (configuration, commands, FUOTA triggers) use the same encryption</li>
+<li>The device is now fully operational on the manufacturing CoreCloud environment</li>
+</ul>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>Device ──[AES-256 + HMAC-SHA-256]──&gt; CoreCloud Socket Server
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>Device &lt;──[AES-256 + HMAC-SHA-256]── CoreCloud Socket Server
+</code></pre></div>
+<hr />
+<h2 id="transition-to-production-via-fuota">Transition to Production (via FUOTA)<a class="headerlink" href="#transition-to-production-via-fuota" title="Permanent link">&para;</a></h2>
+<h3 id="step-9-production-firmware-ota">Step 9: Production Firmware OTA<a class="headerlink" href="#step-9-production-firmware-ota" title="Permanent link">&para;</a></h3>
+<p>A FUOTA (Firmware Update Over The Air) plan transitions the device from manufacturing firmware to production firmware:</p>
+<ol>
+<li>CoreCloud creates a FUOTA plan targeting the device</li>
+<li>FUOTA plan is delivered via Socket Server downlink</li>
+<li>Device downloads the production firmware image</li>
+<li>Device verifies the image signature (MCUBoot)</li>
+<li>Device reboots with production firmware</li>
+</ol>
+<h3 id="step-10-production-server-migration">Step 10: Production Server Migration<a class="headerlink" href="#step-10-production-server-migration" title="Permanent link">&para;</a></h3>
+<p>After the production firmware is running, the device must be migrated to the production CoreCloud environment:</p>
+<ol>
+<li><strong>Public key upload</strong>: The device's public key must be uploaded to the PRODUCTION CoreCloud REST API (same <code>POST /System/Devices/Register</code> call, different server)</li>
+<li><strong>Configuration downlink</strong>: A downlink message changes the device's server endpoints from manufacturing to production URLs</li>
+<li><strong>Production rekey</strong>: The device performs the same rekey sequence (Steps 5-8) with the production CoreCloud</li>
+<li><strong>Operational</strong>: The device is now connected to production infrastructure</li>
+</ol>
+<p>This is a one-way transition. Moving a device back to manufacturing requires re-personalization.</p>
+<hr />
+<h2 id="complete-lifecycle-diagram">Complete Lifecycle Diagram<a class="headerlink" href="#complete-lifecycle-diagram" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>Manufacturing Line
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>    │
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>    ├─ Step 1: personalize &lt;EUI&gt;           → Device ID in NVS
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>    ├─ Step 2: (on-device key gen)         → ECDSA P-256 key pair in secure storage
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>    ├─ Step 3: get_pub_key → API upload    → Device registered in MFG CoreCloud
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>    ├─ Step 4: rekey_ipc                   → Encrypted IPC between processors
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>    │
+<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>    ▼
+<a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>Manufacturing CoreCloud
+<a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a>    │
+<a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a>    ├─ Step 5: Time Server contact         → Accurate UTC time
+<a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a>    ├─ Step 6: TLS certificate             → mTLS client cert
+<a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a>    ├─ Step 7: HTTPS rekey                 → AES-256 + HMAC session keys
+<a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a>    ├─ Step 8: Socket Server connect       → Fully operational (MFG environment)
+<a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a>    │
+<a id="__codelineno-6-16" name="__codelineno-6-16" href="#__codelineno-6-16"></a>    ▼
+<a id="__codelineno-6-17" name="__codelineno-6-17" href="#__codelineno-6-17"></a>Production Transition (FUOTA)
+<a id="__codelineno-6-18" name="__codelineno-6-18" href="#__codelineno-6-18"></a>    │
+<a id="__codelineno-6-19" name="__codelineno-6-19" href="#__codelineno-6-19"></a>    ├─ Step 9: Production FW OTA           → New firmware, reboot
+<a id="__codelineno-6-20" name="__codelineno-6-20" href="#__codelineno-6-20"></a>    ├─ Step 10: Production server migration → Rekey with production CoreCloud
+<a id="__codelineno-6-21" name="__codelineno-6-21" href="#__codelineno-6-21"></a>    │
+<a id="__codelineno-6-22" name="__codelineno-6-22" href="#__codelineno-6-22"></a>    ▼
+<a id="__codelineno-6-23" name="__codelineno-6-23" href="#__codelineno-6-23"></a>Production CoreCloud
+<a id="__codelineno-6-24" name="__codelineno-6-24" href="#__codelineno-6-24"></a>    └─ Device operational in production
+</code></pre></div>
+<hr />
+<h2 id="corecloud-device-management-rest-api">CoreCloud Device Management REST API<a class="headerlink" href="#corecloud-device-management-rest-api" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Method</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>/System/Devices/Register</code></td>
+<td>POST</td>
+<td>Register new device with type, variant, and public key</td>
+</tr>
+<tr>
+<td><code>/System/Devices/Search</code></td>
+<td>GET</td>
+<td>Search devices with filters (type, variant, ID)</td>
+</tr>
+<tr>
+<td><code>/System/Devices/Update</code></td>
+<td>PATCH</td>
+<td>Update device type or variant</td>
+</tr>
+<tr>
+<td><code>/System/Devices/Set-Account</code></td>
+<td>POST</td>
+<td>Transfer device between accounts</td>
+</tr>
+<tr>
+<td><code>/System/Devices/Move-To-System-Account</code></td>
+<td>POST</td>
+<td>Reset device to system account (unassign from user)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="registration-request">Registration Request<a class="headerlink" href="#registration-request" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="err">POST /System/Devices/Register</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="err">Content-Type: application/json</span>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="err">{</span>
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="err">  &quot;deviceId&quot;: &quot;70B3D584C0201234&quot;,</span>
+<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="err">  &quot;deviceType&quot;: 2,</span>
+<a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="err">  &quot;deviceVariant&quot;: 3,</span>
+<a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a><span class="err">  &quot;publicKey&quot;: &quot;&lt;base64-encoded ECDSA P-256 public key&gt;&quot;</span>
+<a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a><span class="err">}</span>
+</code></pre></div>
+<h3 id="search-request">Search Request<a class="headerlink" href="#search-request" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="err">GET /System/Devices/Search?deviceId=70B3D584C0201234</span>
+</code></pre></div>
+<p>These endpoints are available on all CoreCloud instances (manufacturing, validation, production). The validation pipeline will need authenticated access to the validation CoreCloud's REST API.</p>
+<hr />
+<h2 id="validation-pipeline-implications">Validation Pipeline Implications<a class="headerlink" href="#validation-pipeline-implications" title="Permanent link">&para;</a></h2>
+<p>For Stage 4 validation (end-to-end CoreCloud connectivity testing), the personalization lifecycle has direct impact on how the pipeline is designed and operated.</p>
+<h3 id="dedicated-validation-corecloud">Dedicated Validation CoreCloud<a class="headerlink" href="#dedicated-validation-corecloud" title="Permanent link">&para;</a></h3>
+<p>A separate CoreCloud instance (VAL_1_0 namespace) is required so that validation devices connect to an isolated environment. This keeps validation traffic completely separate from manufacturing and production.</p>
+<table>
+<thead>
+<tr>
+<th>Environment</th>
+<th>CoreCloud Instance</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Manufacturing</td>
+<td>MFG CoreCloud</td>
+<td>Factory line personalization and initial provisioning</td>
+</tr>
+<tr>
+<td>Validation</td>
+<td>VAL_1_0 CoreCloud</td>
+<td>Automated test pipeline (Stage 4)</td>
+</tr>
+<tr>
+<td>Production</td>
+<td>PROD CoreCloud</td>
+<td>End-user devices in the field</td>
+</tr>
+</tbody>
+</table>
+<h3 id="device-registration-strategy">Device Registration Strategy<a class="headerlink" href="#device-registration-strategy" title="Permanent link">&para;</a></h3>
+<p>Each validation DUT must be registered with the validation CoreCloud before testing begins. Two approaches are possible:</p>
+<p><strong>Option A: Pre-registered persistent test devices</strong>
+- A fixed set of DUTs are personalized once and permanently registered with the validation CoreCloud
+- Devices stay in the validation environment across test runs
+- Simpler operationally; no per-run registration overhead
+- Risk: keys or NVS state may drift over time with repeated reflashing</p>
+<p><strong>Option B: Dynamically registered per test run</strong>
+- Fresh devices are personalized and registered at the start of each test run
+- Requires manufacturing firmware to be flashed before each run
+- More realistic (tests the full personalization flow) but slower
+- Better for testing the personalization flow itself</p>
+<p>For most validation work, <strong>Option A is recommended</strong> with periodic re-personalization if key state becomes corrupted.</p>
+<h3 id="key-management-constraints">Key Management Constraints<a class="headerlink" href="#key-management-constraints" title="Permanent link">&para;</a></h3>
+<ul>
+<li>If devices are already personalized (from manufacturing), their ECDSA key pairs are already generated and stored on-device</li>
+<li>The <strong>public key must be registered with the VALIDATION CoreCloud</strong>, not the manufacturing or production instance</li>
+<li>Session keys (AES-256, HMAC-SHA-256) will be established with the validation server during the rekey flow</li>
+<li><strong>Private keys cannot be extracted</strong> -- if a device's key state is corrupted, re-personalization (reflash + <code>personalize</code> + <code>rekey_ipc</code>) is required</li>
+</ul>
+<h3 id="server-configuration">Server Configuration<a class="headerlink" href="#server-configuration" title="Permanent link">&para;</a></h3>
+<p>Devices must be configured to point to the validation CoreCloud endpoints. Two approaches:</p>
+<ol>
+<li><strong>Build-time configuration</strong>: The validation firmware build has validation server URLs compiled in (preferred for simplicity)</li>
+<li><strong>Runtime configuration downlink</strong>: After FUOTA, a configuration downlink redirects the device to validation server endpoints</li>
+</ol>
+<p>For the validation pipeline, build-time configuration is simpler and avoids the chicken-and-egg problem of needing a CoreCloud connection to configure the CoreCloud connection.</p>
+<h3 id="fuota-interaction">FUOTA Interaction<a class="headerlink" href="#fuota-interaction" title="Permanent link">&para;</a></h3>
+<p>FUOTA plans in the validation CoreCloud control firmware transitions during testing:</p>
+<ul>
+<li>The device <strong>must be registered and have valid session keys BEFORE FUOTA can work</strong> (the device must be connected to the Socket Server to receive FUOTA downlinks)</li>
+<li>After each FUOTA, the device reboots and re-establishes its connection with the new firmware</li>
+<li>FUOTA testing validates both the firmware update mechanism and the post-update reconnection flow</li>
+</ul>
+<h3 id="validation-personalization-sequence">Validation Personalization Sequence<a class="headerlink" href="#validation-personalization-sequence" title="Permanent link">&para;</a></h3>
+<p>For a fresh device entering the validation pipeline:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>1. Flash manufacturing firmware (nrfjprog --recover + --program)
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>2. Open UART, power on DUT at 4.5V
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>3. Lock manufacturing shell (lock_shell within 2s of boot)
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>4. Send: personalize &lt;EUI&gt;
+<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>5. Send: get_pub_key → capture base64 public key
+<a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a>6. Upload public key to VAL CoreCloud: POST /System/Devices/Register
+<a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a>7. Send: rekey_ipc
+<a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a>8. Device connects to VAL CoreCloud (Steps 5-8 of lifecycle)
+<a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a>9. Device is ready for validation test sequences
+</code></pre></div>
+<p>For a pre-registered device returning for another test run:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>1. Flash test firmware (nrfjprog --recover + --program)
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>2. Power on DUT at 4.5V
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>3. Device boots, connects to VAL CoreCloud using existing keys
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>4. Device is ready for validation test sequences
+</code></pre></div>
+<hr />
+<h2 id="security-considerations">Security Considerations<a class="headerlink" href="#security-considerations" title="Permanent link">&para;</a></h2>
+<h3 id="private-key-protection">Private Key Protection<a class="headerlink" href="#private-key-protection" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Private keys <strong>never leave the device</strong> -- the validation pipeline cannot extract or inject keys</li>
+<li>All cryptographic operations (signing, key agreement) happen on the comms processor (nRF9151)</li>
+<li>There is no debug command or JTAG interface to read the private key from secure storage</li>
+</ul>
+<h3 id="re-personalization">Re-personalization<a class="headerlink" href="#re-personalization" title="Permanent link">&para;</a></h3>
+<p>If a device needs new keys (e.g., corrupted state, moving between environments):</p>
+<ol>
+<li>Flash manufacturing firmware onto the comms processor (nRF9151)</li>
+<li>Run <code>nrfjprog --recover</code> to clear APPROTECT and reset the debug port</li>
+<li>Flash the manufacturing firmware image</li>
+<li>Re-run the full personalization sequence (Steps 1-4)</li>
+<li>Re-register the new public key with the target CoreCloud</li>
+</ol>
+<h3 id="approtect">APPROTECT<a class="headerlink" href="#approtect" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Production firmware</strong> enables APPROTECT, which locks the debug port (SWD/JTAG)</li>
+<li><strong>Debug/validation firmware</strong> should NOT enable APPROTECT to allow iterative flashing</li>
+<li>Recovery (<code>nrfjprog --recover --speed 4000</code>) clears APPROTECT but <strong>erases all flash</strong>, including keys</li>
+<li>After recovery, the device must be fully re-personalized</li>
+</ul>
+<h3 id="session-key-rotation">Session Key Rotation<a class="headerlink" href="#session-key-rotation" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Session keys (AES-256, HMAC-SHA-256) are generated during the rekey flow</li>
+<li>Keys can be rotated by repeating the HTTPS rekey (Step 7)</li>
+<li>If session keys are compromised, the device can rekey without re-personalization (the ECDSA identity key pair remains valid)</li>
+</ul>
+<hr />
+<h2 id="open-questions">Open Questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
+<p>The following items need resolution before the validation pipeline can fully automate device personalization:</p>
+<ol>
+<li>
+<p><strong>Device reuse across test runs</strong>: Can validation devices be pre-registered once and reused across test runs, or does each reflash cycle invalidate the stored keys?</p>
+</li>
+<li>
+<p><strong>Key persistence across reflash</strong>: Does reflashing manufacturing firmware (via <code>nrfjprog --program --chiperase</code>) reset the device's ECDSA keys, or are they preserved in NVS/secure storage? If <code>--chiperase</code> wipes NVS, the device must be re-personalized after every flash.</p>
+</li>
+<li>
+<p><strong>Factory reset capability</strong>: Is there a "factory reset" command that wipes keys and requires re-personalization? If so, what is the command and what exactly does it erase?</p>
+</li>
+<li>
+<p><strong>Validation CoreCloud API access</strong>: What CoreCloud REST endpoints are needed for automated device registration in the validation pipeline? Are there service account credentials or API keys available for machine-to-machine access?</p>
+</li>
+<li>
+<p><strong>API parity</strong>: Does the validation CoreCloud instance have the same device management APIs as production, or is it a reduced subset?</p>
+</li>
+<li>
+<p><strong>Concurrent device registration</strong>: Can the validation pipeline register multiple devices in parallel, or are there rate limits on the <code>/System/Devices/Register</code> endpoint?</p>
+</li>
+<li>
+<p><strong>Device deregistration</strong>: Is there an API to deregister a device from one CoreCloud instance before registering it with another? Or can the same Device ID be registered on multiple CoreCloud instances simultaneously?</p>
+</li>
+<li>
+<p><strong>Key state inspection</strong>: Is there a UART command to check whether a device has valid keys without triggering a rekey? Something like <code>key_status</code> that reports whether ECDSA keys, IPC keys, and session keys are present and valid.</p>
+</li>
+</ol>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://zensical.org/" target="_blank" rel="noopener">
+      Zensical
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      
+      <script id="__config" type="application/json">{"annotate":null,"base":"../..","features":["navigation.sections","navigation.expand","navigation.path","navigation.indexes","search.suggest","content.code.copy","toc.follow"],"search":"../../assets/javascripts/workers/search.e2d2d235.min.js","tags":null,"translations":{"clipboard.copied":"Copied to clipboard","clipboard.copy":"Copy to clipboard","search.result.more.one":"1 more on this page","search.result.more.other":"# more on this page","search.result.none":"No matching documents","search.result.one":"1 matching document","search.result.other":"# matching documents","search.result.placeholder":"Type to start searching","search.result.term.missing":"Missing","select.version":"Select version"},"version":null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.5fd3284f.min.js"></script>
+      
+        <script src="../../assets/js/external-links.js"></script>
+      
+    
+  </body>
+</html>

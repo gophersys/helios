@@ -1,0 +1,3807 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Continuous delivery platform for embedded systems">
+      
+      
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../../assets/images/favicon.png">
+      <meta name="generator" content="zensical-0.0.27">
+    
+    
+      
+        <title>LSM6DSO Motion Driver Deep Analysis - Concord</title>
+      
+    
+    
+      
+        
+      
+      <link rel="stylesheet" href="../../../../assets/stylesheets/modern/main.50057488.min.css">
+      
+        
+          
+        
+        <link rel="stylesheet" href="../../../../assets/stylesheets/modern/palette.dfe2e883.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,500,500i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../../../..",location),__md_hash=e=>[...e].reduce(((e,t)=>(e<<5)-e+t.charCodeAt(0)),0),__md_get=(e,t=localStorage,a=__md_scope)=>JSON.parse(t.getItem(a.pathname+"."+e)),__md_set=(e,t,a=localStorage,_=__md_scope)=>{try{a.setItem(_.pathname+"."+e,JSON.stringify(t))}catch(e){}},document.documentElement.setAttribute("data-platform",navigator.platform)</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="deep-purple" data-md-color-accent="amber">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer" aria-label="Navigation"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#lsm6dso-motion-driver-deep-analysis" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../../.." title="Concord" class="md-header__button md-logo" aria-label="Concord" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer" aria-label="Navigation">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-menu" viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h16"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Concord
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              LSM6DSO Motion Driver Deep Analysis
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="none" data-md-color-scheme="slate" data-md-color-primary="deep-purple" data-md-color-accent="amber"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="none" data-md-color-scheme="default" data-md-color-primary="deep-purple" data-md-color-accent="amber"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search" aria-label="Search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-search" viewBox="0 0 24 24"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog" aria-label="Search">
+  <button type="button" class="md-search__button">
+    Search
+  </button>
+</div>
+      
+    
+    <div class="md-header__source">
+      
+    </div>
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../../.." title="Concord" class="md-nav__button md-logo" aria-label="Concord" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+
+    </a>
+    Concord
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../vision/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vision
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2" id="__nav_2_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Vision
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../vision/thesis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Thesis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../vision/validation-philosophy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation Philosophy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../architecture/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3" id="__nav_3_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Architecture
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_2" id="__nav_3_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Platform
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Platform
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/platform/unified-platform/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Unified Platform
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/platform/hardware-registry/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hardware Registry
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/platform/log-streaming/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Log Streaming
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/platform/ci-pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CI Pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/platform/corecloud-library/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CoreCloud Library
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_3" id="__nav_3_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Validation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/validation/stages-overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stages Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/validation/system/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    System Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/validation/stage1-software-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 1: Software Tests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/validation/stage2-driver-hw-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 2: Driver HW Tests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/validation/stage3-integration-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 3: Integration Tests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/validation/stage4-product-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 4: Product Tests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/validation/stage4-fuota-flow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 4: FUOTA Flow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/validation/stage4-pr-flow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 4: PR Flow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/validation/stage5-gate-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 5: Gate Tests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/validation/test-runner/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Test Runner
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_4" id="__nav_3_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Build
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/build/build-service/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build Service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/build/builder-nodes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Builder Nodes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../reference/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/fuota-workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FUOTA Workflow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/fuota-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FUOTA API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/alpha-test-cases/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Alpha Test Cases
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/traceability-matrix/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Traceability Matrix
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/twister-hil/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Twister HIL
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/stage4-connectivity/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 4 Connectivity
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/stage4-long-term-vision/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 4 Long-Term Vision
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/validation-flow-ui/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation Flow UI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/interfaces/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interfaces
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../guides/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_2" id="__nav_5_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Alpha
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Alpha
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../guides/alpha/stage1/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 1
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../guides/alpha/stage2/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 2
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../guides/alpha/stage3/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 3
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../guides/alpha/stage4/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 4
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../guides/alpha/stage5/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 5
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../research/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Research
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_6" id="__nav_6_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Research
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../research/01-sigma5-firmware-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sigma5 Firmware
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../research/02-alpha-firmware-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Alpha Firmware
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../research/03-sensor-drivers-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sensor Drivers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../research/05-mtib-server-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MTIB Server
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../research/06-fuota-corecloud-v1/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FUOTA CoreCloud
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../research/07-alpha-manufacturing-firmware-and-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Alpha MFG Firmware
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../research/08-device-personalization-and-key-provisioning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Device Personalization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../research/08-firmware-build-and-fuota-delivery/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Firmware Build & FUOTA
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../research/09-corecloud-validation-integration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CoreCloud Integration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../journals/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Journals
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Journals
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-driver-architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Driver Architecture
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. Driver Architecture">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#layer-diagram" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Layer Diagram
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#key-design-decisions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key Design Decisions
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-odr-output-data-rate-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. ODR (Output Data Rate) Configuration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. ODR (Output Data Rate) Configuration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#accelerometer-odr" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Accelerometer ODR
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#gyroscope-odr" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Gyroscope ODR
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fifo-batch-data-rate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        FIFO Batch Data Rate
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-full-scale-range" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Full-Scale Range
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Full-Scale Range">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#accelerometer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Accelerometer
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#gyroscope" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Gyroscope
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-fifo-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. FIFO Configuration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. FIFO Configuration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fifo-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        FIFO Mode
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#watermark" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Watermark
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fifo-size-and-overflow-protection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        FIFO Size and Overflow Protection
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#batch-data-rate-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Batch Data Rate Summary
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#data-ready-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data Ready Mode
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-data-format" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Data Format
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Data Format">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#raw-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Raw Data
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#converted-units" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Converted Units
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#output-data-structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Output Data Structure
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#zephyr-sensor_channel_get-format" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Zephyr sensor_channel_get() Format
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-interrupt-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Interrupt Configuration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. Interrupt Configuration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#current-interrupt-usage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Current Interrupt Usage
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#motion-detection-interrupt-path" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Motion Detection Interrupt Path
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#interrupt-latching" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Interrupt Latching
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-is-not-interrupt-driven" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What is NOT Interrupt-Driven
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-power-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Power Mode
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7. Power Mode">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#boot-state-init_low_power_mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Boot State (init_low_power_mode)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#active-state-lsm6dso_init" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Active State (lsm6dso_init)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#deinit-state-lsm6dso_deinit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Deinit State (lsm6dso_deinit)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-how-data-is-read" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. How Data is Read
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="8. How Data is Read">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fifo-batch-read-primary-data-path" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        FIFO Batch Read (Primary Data Path)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#timestamp-synthesis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Timestamp Synthesis
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#per-sample-i2cspi-cost" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Per-Sample I2C/SPI Cost
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-i2cspi-interface-details" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. I2C/SPI Interface Details
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="9. I2C&#x2f;SPI Interface Details">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#i2c-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        I2C Configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#spi-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SPI Configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bus-mutex" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bus Mutex
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#i2c-retry-logic" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        I2C Retry Logic
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#i2c-metrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        I2C Metrics
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-motion-detection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. Motion Detection
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="10. Motion Detection">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#wake-on-motion-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Wake-on-Motion Configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#activity-recognition-pedometer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Activity Recognition / Pedometer
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#11-critical-vsm-analysis-accel-odr-vs-ppg-odr-synchronization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11. Critical VSM Analysis: Accel ODR vs PPG ODR Synchronization
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="11. Critical VSM Analysis: Accel ODR vs PPG ODR Synchronization">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-core-problem" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The Core Problem
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#current-configuration-assessment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Current Configuration Assessment
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#timestamp-accuracy-concerns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Timestamp Accuracy Concerns
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#quantified-timing-error-estimate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quantified Timing Error Estimate
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#recommendations-for-vsm-improvement" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Recommendations for VSM Improvement
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#summary-table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Summary Table
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+                
+
+
+
+  
+
+
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+<h1 id="lsm6dso-motion-driver-deep-analysis">LSM6DSO Motion Driver Deep Analysis<a class="headerlink" href="#lsm6dso-motion-driver-deep-analysis" title="Permanent link">&para;</a></h1>
+<p><strong>Date:</strong> 2026-02-09
+<strong>Purpose:</strong> Comprehensive analysis of the LSM6DSO accelerometer/gyroscope driver as used in the Alpha wearable device, with specific focus on how motion data feeds into the Philips PSP library for heart rate computation.</p>
+<p><strong>Files Analyzed:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Category</th>
+<th>File</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CK Wrapper</td>
+<td><code>_fw_build/lsm6dso_drv/drivers/corekinect/sensors/lsm6dso/lsm6dso.c</code></td>
+</tr>
+<tr>
+<td>CK Header</td>
+<td><code>_fw_build/lsm6dso_drv/drivers/corekinect/sensors/lsm6dso/lsm6dso.h</code></td>
+</tr>
+<tr>
+<td>ST Vendor Reg</td>
+<td><code>_fw_build/lsm6dso_drv/drivers/corekinect/sensors/lsm6dso/LSM6DSO/lsm6dso_reg.c</code></td>
+</tr>
+<tr>
+<td>ST Vendor Reg Header</td>
+<td><code>_fw_build/lsm6dso_drv/drivers/corekinect/sensors/lsm6dso/LSM6DSO/lsm6dso_reg.h</code></td>
+</tr>
+<tr>
+<td>Bus Abstraction</td>
+<td><code>_fw_build/lsm6dso_drv/drivers/corekinect/sensors/lsm6dso/LSM6DSO/stmemsc.h</code></td>
+</tr>
+<tr>
+<td>I2C Transport</td>
+<td><code>_fw_build/lsm6dso_drv/drivers/corekinect/sensors/lsm6dso/LSM6DSO/stmemsc_i2c.c</code></td>
+</tr>
+<tr>
+<td>SPI Transport</td>
+<td><code>_fw_build/lsm6dso_drv/drivers/corekinect/sensors/lsm6dso/LSM6DSO/stmemsc_spi.c</code></td>
+</tr>
+<tr>
+<td>Sample App</td>
+<td><code>_fw_build/lsm6dso_drv/samples/fifo_motion/src/main.c</code></td>
+</tr>
+<tr>
+<td>Sample Config</td>
+<td><code>_fw_build/lsm6dso_drv/samples/fifo_motion/prj.conf</code></td>
+</tr>
+<tr>
+<td>DTS Binding</td>
+<td><code>_fw_build/lsm6dso_drv/dts/bindings/sensor/ck,lsm6dso.yaml</code></td>
+</tr>
+<tr>
+<td>DTS I2C Binding</td>
+<td><code>_fw_build/lsm6dso_drv/dts/bindings/sensor/ck,lsm6dso-i2c.yaml</code></td>
+</tr>
+<tr>
+<td>DTS SPI Binding</td>
+<td><code>_fw_build/lsm6dso_drv/dts/bindings/sensor/ck,lsm6dso-spi.yaml</code></td>
+</tr>
+<tr>
+<td>Kconfig</td>
+<td><code>_fw_build/lsm6dso_drv/Kconfig</code></td>
+</tr>
+<tr>
+<td>Build Files</td>
+<td><code>_fw_build/lsm6dso_drv/CMakeLists.txt</code> (+ nested)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="1-driver-architecture">1. Driver Architecture<a class="headerlink" href="#1-driver-architecture" title="Permanent link">&para;</a></h2>
+<h3 id="layer-diagram">Layer Diagram<a class="headerlink" href="#layer-diagram" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>+----------------------------------------------------------+
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>|  Application / VSM Module                                 |
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>|  - sensor_sample_fetch() / sensor_channel_get()           |
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>|  - sensor_trigger_set(SENSOR_TRIG_MOTION, ...)            |
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>+----------------------------------------------------------+
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>                          |
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>                  Zephyr Sensor API
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>                          |
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>+----------------------------------------------------------+
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>|  CoreKinect Wrapper (lsm6dso.c / lsm6dso.h)             |
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>|  - lsm6dso_init() / lsm6dso_deinit()                     |
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>|  - lsm6dso_fifo_read()  [FIFO batch consumer]            |
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>|  - lsm6dso_trigger_set() [motion interrupt handler]       |
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>|  - lsm6dso_attr_set()   [runtime ODR/FS config]          |
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>|  - Two-phase init: boot low-power + explicit full init    |
+<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>+----------------------------------------------------------+
+<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>                          |
+<a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>              stmdev_ctx_t function pointers
+<a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>              (.read_reg / .write_reg / .mdelay)
+<a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>                          |
+<a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>+----------------------------------------------------------+
+<a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>|  ST Vendor Library (lsm6dso_reg.c / lsm6dso_reg.h)       |
+<a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>|  - Pure register-level helpers (no bus knowledge)          |
+<a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>|  - All functions take stmdev_ctx_t* context                |
+<a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a>|  - ~6500 lines covering every register in the LSM6DSO     |
+<a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a>+----------------------------------------------------------+
+<a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a>                          |
+<a id="__codelineno-0-28" name="__codelineno-0-28" href="#__codelineno-0-28"></a>              stmdev_ctx_t callbacks resolve to:
+<a id="__codelineno-0-29" name="__codelineno-0-29" href="#__codelineno-0-29"></a>                          |
+<a id="__codelineno-0-30" name="__codelineno-0-30" href="#__codelineno-0-30"></a>+----------------------------------------------------------+
+<a id="__codelineno-0-31" name="__codelineno-0-31" href="#__codelineno-0-31"></a>|  Bus Transport (stmemsc_i2c.c / stmemsc_spi.c)           |
+<a id="__codelineno-0-32" name="__codelineno-0-32" href="#__codelineno-0-32"></a>|  - stmemsc_i2c_read/write -&gt; Zephyr i2c_burst_read_dt()  |
+<a id="__codelineno-0-33" name="__codelineno-0-33" href="#__codelineno-0-33"></a>|  - stmemsc_spi_read/write -&gt; Zephyr spi_transceive_dt()  |
+<a id="__codelineno-0-34" name="__codelineno-0-34" href="#__codelineno-0-34"></a>|  - Optional bus mutex (CONFIG_CK_LSM6DSO_BUS_MUTEX)       |
+<a id="__codelineno-0-35" name="__codelineno-0-35" href="#__codelineno-0-35"></a>|  - Optional I2C metrics (CONFIG_CK_LSM6DSO_I2C_METRICS)   |
+<a id="__codelineno-0-36" name="__codelineno-0-36" href="#__codelineno-0-36"></a>|  - I2C has 3-retry logic on failure (without mutex mode)   |
+<a id="__codelineno-0-37" name="__codelineno-0-37" href="#__codelineno-0-37"></a>+----------------------------------------------------------+
+<a id="__codelineno-0-38" name="__codelineno-0-38" href="#__codelineno-0-38"></a>                          |
+<a id="__codelineno-0-39" name="__codelineno-0-39" href="#__codelineno-0-39"></a>                 Zephyr I2C / SPI drivers
+<a id="__codelineno-0-40" name="__codelineno-0-40" href="#__codelineno-0-40"></a>                          |
+<a id="__codelineno-0-41" name="__codelineno-0-41" href="#__codelineno-0-41"></a>+----------------------------------------------------------+
+<a id="__codelineno-0-42" name="__codelineno-0-42" href="#__codelineno-0-42"></a>|  Hardware: LSM6DSO @ I2C 0x6A/0x6B or SPI up to 10 MHz   |
+<a id="__codelineno-0-43" name="__codelineno-0-43" href="#__codelineno-0-43"></a>+----------------------------------------------------------+
+</code></pre></div>
+<h3 id="key-design-decisions">Key Design Decisions<a class="headerlink" href="#key-design-decisions" title="Permanent link">&para;</a></h3>
+<ol>
+<li>
+<p><strong>Two-phase initialization.</strong> At Zephyr boot, <code>DEVICE_DT_INST_DEFINE</code> calls <code>init_low_power_mode()</code> which verifies the chip ID, performs a software reset, and sets the sensor into ultra-low power mode with FIFO disabled. The application explicitly calls <code>lsm6dso_init()</code> later when it is ready to begin sampling. This keeps the sensor drawing minimal current until the firmware is ready.</p>
+</li>
+<li>
+<p><strong>CK wrapper owns FIFO and motion logic.</strong> The ST vendor library is used purely for register-level access. All FIFO management (read loop, tag parsing, timestamp synthesis, overflow handling) and all motion detection setup (threshold scaling, duration conversion, interrupt routing, trigger thread) live in the CK wrapper.</p>
+</li>
+<li>
+<p><strong>Devicetree-driven configuration.</strong> ODR, full-scale range, power mode, interrupt pin selection, and bus type are all configured via devicetree properties. The CK wrapper reads these from the <code>lsm6dso_config</code> structure populated by DT macros.</p>
+</li>
+<li>
+<p><strong>Bus abstraction via <code>stmemsc.h</code>.</strong> The <code>STMEMSC_CTX_I2C</code> and <code>STMEMSC_CTX_SPI</code> macros populate the <code>stmdev_ctx_t</code> function pointer structure at compile time, so the ST vendor library never needs to know which bus is being used.</p>
+</li>
+</ol>
+<hr />
+<h2 id="2-odr-output-data-rate-configuration">2. ODR (Output Data Rate) Configuration<a class="headerlink" href="#2-odr-output-data-rate-configuration" title="Permanent link">&para;</a></h2>
+<h3 id="accelerometer-odr">Accelerometer ODR<a class="headerlink" href="#accelerometer-odr" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>ODR Index</th>
+<th>Frequency (Hz)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>Off</td>
+</tr>
+<tr>
+<td>1</td>
+<td>12.5</td>
+</tr>
+<tr>
+<td>2</td>
+<td>26</td>
+</tr>
+<tr>
+<td>3</td>
+<td><strong>52</strong></td>
+</tr>
+<tr>
+<td>4</td>
+<td>104</td>
+</tr>
+<tr>
+<td>5</td>
+<td>208</td>
+</tr>
+<tr>
+<td>6</td>
+<td>417</td>
+</tr>
+<tr>
+<td>7</td>
+<td>833</td>
+</tr>
+<tr>
+<td>8</td>
+<td>1667</td>
+</tr>
+<tr>
+<td>9</td>
+<td>3333</td>
+</tr>
+<tr>
+<td>10</td>
+<td>6667</td>
+</tr>
+<tr>
+<td>11</td>
+<td>1.6 (accel only)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Configured value:</strong> The driver hardcodes a validation check in <code>lsm6dso_init()</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">lsm6dso</span><span class="o">-&gt;</span><span class="n">accel_freq</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">lsm6dso_odr_to_freq_val</span><span class="p">(</span><span class="n">odr</span><span class="p">);</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">lsm6dso</span><span class="o">-&gt;</span><span class="n">accel_freq</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">LSM6DSO_SAMPLE_RATE_HZ</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span><span class="n">LOG_ERR</span><span class="p">(</span><span class="s">&quot;accel odr is not 52Hz, max is 52Hz&quot;</span><span class="p">);</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="o">-</span><span class="n">EIO</span><span class="p">;</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="p">}</span>
+</code></pre></div>
+<p>Where <code>LSM6DSO_SAMPLE_RATE_HZ = 52</code>. This means the driver <strong>enforces 52 Hz as the only acceptable accelerometer ODR</strong> and will fail initialization if the devicetree specifies anything else. The default devicetree configuration (<code>accel-odr = &lt;3&gt;</code>) maps to index 3 = 52 Hz.</p>
+<h3 id="gyroscope-odr">Gyroscope ODR<a class="headerlink" href="#gyroscope-odr" title="Permanent link">&para;</a></h3>
+<p>The gyroscope ODR is set from the devicetree <code>gyro-odr</code> property using the same index table. The default examples show <code>gyro-odr = &lt;3&gt;</code> (52 Hz), but <strong>there is no hard validation</strong> in <code>lsm6dso_init()</code> for gyro ODR -- only the accelerometer has the 52 Hz enforcement.</p>
+<h3 id="fifo-batch-data-rate">FIFO Batch Data Rate<a class="headerlink" href="#fifo-batch-data-rate" title="Permanent link">&para;</a></h3>
+<p>In <code>lsm6dso_init()</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">lsm6dso_fifo_xl_batch_set</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span><span class="w"> </span><span class="n">LSM6DSO_XL_BATCHED_AT_52Hz</span><span class="p">);</span>
+</code></pre></div>
+<p>The accelerometer FIFO batching is hardcoded to 52 Hz regardless of what the devicetree says. Gyroscope batching is <strong>disabled</strong> (commented out):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="cm">/*</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="cm"> * Note: Gyroscope batching is currently disabled to reduce I2C bus load.</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="cm"> * Enable the following line when gyroscope data is needed:</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="cm"> * lsm6dso_fifo_gy_batch_set(ctx, LSM6DSO_GY_BATCHED_AT_52Hz);</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="cm"> */</span>
+</code></pre></div>
+<p><strong>This means only accelerometer data is stored in the FIFO. Gyroscope samples are not being collected via FIFO.</strong></p>
+<hr />
+<h2 id="3-full-scale-range">3. Full-Scale Range<a class="headerlink" href="#3-full-scale-range" title="Permanent link">&para;</a></h2>
+<h3 id="accelerometer">Accelerometer<a class="headerlink" href="#accelerometer" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Index</th>
+<th>Range</th>
+<th>Sensitivity</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>+/-2g</td>
+<td>0.061 mg/LSB</td>
+</tr>
+<tr>
+<td>1</td>
+<td>+/-16g</td>
+<td>0.488 mg/LSB</td>
+</tr>
+<tr>
+<td>2</td>
+<td>+/-4g</td>
+<td>0.122 mg/LSB</td>
+</tr>
+<tr>
+<td>3</td>
+<td>+/-8g</td>
+<td>0.244 mg/LSB</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Configured value:</strong> The devicetree default is <code>accel-range = &lt;0&gt;</code> (+/-2g). However, regardless of what the devicetree specifies, <code>lsm6dso_init()</code> then <strong>overrides it</strong>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="cm">/* Set fixed full-scale values for FIFO operation */</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="n">lsm6dso_xl_full_scale_set</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span><span class="w"> </span><span class="n">LSM6DSO_2g</span><span class="p">);</span>
+</code></pre></div>
+<p>The FIFO conversion in <code>lsm6dso_fifo_read()</code> uses a hardcoded sensitivity:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="cm">/* Conversion factor: 0.061 mg/LSB at 2g full-scale */</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="n">data</span><span class="o">-&gt;</span><span class="n">data</span><span class="p">[</span><span class="n">accel_count</span><span class="p">].</span><span class="n">acceleration_mg_x</span><span class="w"> </span><span class="o">=</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">    </span><span class="p">((</span><span class="kt">float</span><span class="p">)</span><span class="n">data</span><span class="o">-&gt;</span><span class="n">data_raw_acceleration</span><span class="p">.</span><span class="n">i16bit</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mf">0.061f</span><span class="p">;</span>
+</code></pre></div>
+<p><strong>The 0.061 mg/LSB sensitivity is correct for +/-2g.</strong> This is the full 16-bit range over +/-2g: (2 * 2000 mg) / 65536 = 0.061 mg/LSB.</p>
+<h3 id="gyroscope">Gyroscope<a class="headerlink" href="#gyroscope" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Index</th>
+<th>Range</th>
+<th>Sensitivity</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>+/-250 dps</td>
+<td>8.75 mdps/LSB</td>
+</tr>
+<tr>
+<td>1</td>
+<td>+/-125 dps</td>
+<td>4.375 mdps/LSB</td>
+</tr>
+<tr>
+<td>2</td>
+<td>+/-500 dps</td>
+<td>17.50 mdps/LSB</td>
+</tr>
+<tr>
+<td>4</td>
+<td>+/-1000 dps</td>
+<td>35 mdps/LSB</td>
+</tr>
+<tr>
+<td>6</td>
+<td>+/-2000 dps</td>
+<td>70 mdps/LSB</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Configured value:</strong> <code>lsm6dso_init()</code> overrides the gyroscope full-scale to +/-2000 dps:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="n">lsm6dso_gy_full_scale_set</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span><span class="w"> </span><span class="n">LSM6DSO_2000dps</span><span class="p">);</span>
+</code></pre></div>
+<p>The FIFO conversion uses a hardcoded 70.0 mdps/LSB:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="cm">/* Conversion factor: 70 mdps/LSB at 2000dps full-scale */</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="n">data</span><span class="o">-&gt;</span><span class="n">data</span><span class="p">[</span><span class="n">gyro_count</span><span class="p">].</span><span class="n">angular_rate_mdps_x</span><span class="w"> </span><span class="o">=</span>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">    </span><span class="p">((</span><span class="kt">float</span><span class="p">)</span><span class="n">data</span><span class="o">-&gt;</span><span class="n">data_raw_angular_rate</span><span class="p">.</span><span class="n">i16bit</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mf">70.0f</span><span class="p">;</span>
+</code></pre></div>
+<p><strong>Note:</strong> Even though gyroscope FIFO batching is disabled, the gyro conversion code is present and would be active if batching were re-enabled.</p>
+<hr />
+<h2 id="4-fifo-configuration">4. FIFO Configuration<a class="headerlink" href="#4-fifo-configuration" title="Permanent link">&para;</a></h2>
+<h3 id="fifo-mode">FIFO Mode<a class="headerlink" href="#fifo-mode" title="Permanent link">&para;</a></h3>
+<p><strong>Stream Mode (Continuous)</strong> -- <code>LSM6DSO_STREAM_MODE</code> (value 6).</p>
+<p>In stream mode, the FIFO continuously stores samples. When the FIFO is full, the oldest sample is overwritten by the newest one. This ensures the consumer always gets the most recent data without needing to manage start/stop.</p>
+<h3 id="watermark">Watermark<a class="headerlink" href="#watermark" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="n">lsm6dso_fifo_watermark_set</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span><span class="w"> </span><span class="n">LSM6DSO_SAMPLE_RATE_HZ</span><span class="p">);</span><span class="w">  </span><span class="c1">// = 52</span>
+</code></pre></div>
+<p>The watermark is set to 52 samples, which at 52 Hz corresponds to exactly 1 second of data. However, <strong>the watermark interrupt is not routed to any GPIO pin</strong> -- the driver does not set <code>int1_fifo_th</code> or <code>int2_fifo_th</code>. The watermark is set but unused in the current configuration.</p>
+<h3 id="fifo-size-and-overflow-protection">FIFO Size and Overflow Protection<a class="headerlink" href="#fifo-size-and-overflow-protection" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Maximum FIFO buffer: <code>LSM6DSO_MAX_FIFO_SIZE = 512</code> samples (driver-side buffer for parsed output)</li>
+<li>Hardware FIFO: 512 words (each word = 7 bytes: 1 tag + 6 data)</li>
+<li>Flush threshold: <code>LSM6DSO_FIFO_FLUSH_SIZE = 60</code> samples</li>
+</ul>
+<p>If the FIFO level reaches 60 or more samples, the driver flushes it:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">num</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="n">LSM6DSO_FIFO_FLUSH_SIZE</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="w">    </span><span class="n">LOG_INF</span><span class="p">(</span><span class="s">&quot;Flushing LSM6DSO FIFO&quot;</span><span class="p">);</span>
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="w">    </span><span class="n">lsm6dso_fifo_mode_set</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span><span class="w"> </span><span class="n">LSM6DSO_BYPASS_MODE</span><span class="p">);</span>
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="w">    </span><span class="n">lsm6dso_fifo_mode_set</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span><span class="w"> </span><span class="n">LSM6DSO_STREAM_MODE</span><span class="p">);</span>
+<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="p">}</span>
+</code></pre></div>
+<p>At 52 Hz with only accelerometer batching, 60 samples = ~1.15 seconds of data. The sample app polls every 500 ms, yielding ~26 samples per read (confirmed by sample output). This gives comfortable margin before the 60-sample flush threshold.</p>
+<h3 id="batch-data-rate-summary">Batch Data Rate Summary<a class="headerlink" href="#batch-data-rate-summary" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Sensor</th>
+<th>Batched into FIFO</th>
+<th>BDR</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Accelerometer</td>
+<td>Yes</td>
+<td>52 Hz</td>
+</tr>
+<tr>
+<td>Gyroscope</td>
+<td><strong>No</strong> (disabled)</td>
+<td>N/A</td>
+</tr>
+<tr>
+<td>Temperature</td>
+<td>No</td>
+<td>N/A</td>
+</tr>
+<tr>
+<td>Timestamp</td>
+<td>No (not configured)</td>
+<td>N/A</td>
+</tr>
+</tbody>
+</table>
+<h3 id="data-ready-mode">Data Ready Mode<a class="headerlink" href="#data-ready-mode" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="n">lsm6dso_data_ready_mode_set</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span><span class="w"> </span><span class="n">LSM6DSO_DRDY_PULSED</span><span class="p">);</span>
+</code></pre></div>
+<p>Data-ready signals are configured as pulsed (75 us pulse), not latched.</p>
+<hr />
+<h2 id="5-data-format">5. Data Format<a class="headerlink" href="#5-data-format" title="Permanent link">&para;</a></h2>
+<h3 id="raw-data">Raw Data<a class="headerlink" href="#raw-data" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Resolution:</strong> 16-bit signed integers (int16_t) per axis</li>
+<li><strong>Axes:</strong> X, Y, Z in that order (i16bit[0] = X, i16bit[1] = Y, i16bit[2] = Z)</li>
+<li><strong>Byte order:</strong> Little-endian (matching nRF52840 and all ARM Cortex-M targets)</li>
+<li><strong>FIFO word format:</strong> 1 byte tag + 6 bytes data (3 x int16_t)</li>
+</ul>
+<h3 id="converted-units">Converted Units<a class="headerlink" href="#converted-units" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Measurement</th>
+<th>Raw Unit</th>
+<th>Converted Unit</th>
+<th>Conversion Factor</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Acceleration</td>
+<td>int16_t LSB</td>
+<td>float mg (milli-g)</td>
+<td>0.061 mg/LSB (at 2g FS)</td>
+</tr>
+<tr>
+<td>Angular Rate</td>
+<td>int16_t LSB</td>
+<td>float mdps (milli-dps)</td>
+<td>70.0 mdps/LSB (at 2000dps FS)</td>
+</tr>
+<tr>
+<td>Timestamp</td>
+<td>N/A</td>
+<td>int32_t ms</td>
+<td>Synthesized from k_uptime_get_32()</td>
+</tr>
+</tbody>
+</table>
+<h3 id="output-data-structure">Output Data Structure<a class="headerlink" href="#output-data-structure" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="k">typedef</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="w">    </span><span class="kt">int32_t</span><span class="w"> </span><span class="n">timestamp</span><span class="p">;</span><span class="w">              </span><span class="c1">// ms (Zephyr uptime)</span>
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="w">    </span><span class="kt">float</span><span class="w"> </span><span class="n">acceleration_mg_x</span><span class="p">;</span><span class="w">        </span><span class="c1">// milli-g</span>
+<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="w">    </span><span class="kt">float</span><span class="w"> </span><span class="n">acceleration_mg_y</span><span class="p">;</span><span class="w">        </span><span class="c1">// milli-g</span>
+<a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="w">    </span><span class="kt">float</span><span class="w"> </span><span class="n">acceleration_mg_z</span><span class="p">;</span><span class="w">        </span><span class="c1">// milli-g</span>
+<a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a><span class="w">    </span><span class="kt">float</span><span class="w"> </span><span class="n">angular_rate_mdps_x</span><span class="p">;</span><span class="w">      </span><span class="c1">// milli-degrees/sec</span>
+<a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a><span class="w">    </span><span class="kt">float</span><span class="w"> </span><span class="n">angular_rate_mdps_y</span><span class="p">;</span><span class="w">      </span><span class="c1">// milli-degrees/sec</span>
+<a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a><span class="w">    </span><span class="kt">float</span><span class="w"> </span><span class="n">angular_rate_mdps_z</span><span class="p">;</span><span class="w">      </span><span class="c1">// milli-degrees/sec</span>
+<a id="__codelineno-11-9" name="__codelineno-11-9" href="#__codelineno-11-9"></a><span class="p">}</span><span class="w"> </span><span class="n">lsm6dso_output_data_t</span><span class="p">;</span>
+</code></pre></div>
+<p>Each FIFO read populates an array of these structures: <code>data-&gt;data[LSM6DSO_MAX_FIFO_SIZE]</code>.</p>
+<h3 id="zephyr-sensor_channel_get-format">Zephyr sensor_channel_get() Format<a class="headerlink" href="#zephyr-sensor_channel_get-format" title="Permanent link">&para;</a></h3>
+<p>When reading via the standard Zephyr API (<code>SENSOR_CHAN_ACCEL_X</code>, etc.), the driver returns arrays of <code>sensor_value</code> structs where <code>val1</code> contains the mg or mdps value as a truncated integer and <code>val2</code> is set to 0. <strong>This truncates the float to integer precision -- the fractional part is lost.</strong> For VSM usage, the application should access <code>data-&gt;data[i].acceleration_mg_x</code> directly from the driver data structure for full floating-point precision.</p>
+<hr />
+<h2 id="6-interrupt-configuration">6. Interrupt Configuration<a class="headerlink" href="#6-interrupt-configuration" title="Permanent link">&para;</a></h2>
+<h3 id="current-interrupt-usage">Current Interrupt Usage<a class="headerlink" href="#current-interrupt-usage" title="Permanent link">&para;</a></h3>
+<p>The driver supports <strong>one interrupt purpose: motion detection (wake-up).</strong></p>
+<p>The interrupt system is <strong>not used for FIFO watermark or data-ready</strong>. FIFO data is consumed exclusively by polling.</p>
+<h3 id="motion-detection-interrupt-path">Motion Detection Interrupt Path<a class="headerlink" href="#motion-detection-interrupt-path" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>LSM6DSO WAKE_UP_SRC register
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>        |
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>    INT1 or INT2 pin (configurable via DTS &quot;int-pin&quot; property)
+<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a>        |
+<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a>    GPIO edge-to-active interrupt
+<a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a>        |
+<a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a>    lsm6dso_gpio_callback() [ISR context]
+<a id="__codelineno-12-8" name="__codelineno-12-8" href="#__codelineno-12-8"></a>        |
+<a id="__codelineno-12-9" name="__codelineno-12-9" href="#__codelineno-12-9"></a>    k_sem_give(&amp;data-&gt;gpio_sem)
+<a id="__codelineno-12-10" name="__codelineno-12-10" href="#__codelineno-12-10"></a>        |
+<a id="__codelineno-12-11" name="__codelineno-12-11" href="#__codelineno-12-11"></a>    lsm6dso_trigger_thread() [dedicated kernel thread, priority 8]
+<a id="__codelineno-12-12" name="__codelineno-12-12" href="#__codelineno-12-12"></a>        |
+<a id="__codelineno-12-13" name="__codelineno-12-13" href="#__codelineno-12-13"></a>    Reads WAKE_UP_SRC register to confirm and clear interrupt
+<a id="__codelineno-12-14" name="__codelineno-12-14" href="#__codelineno-12-14"></a>        |
+<a id="__codelineno-12-15" name="__codelineno-12-15" href="#__codelineno-12-15"></a>    Calls data-&gt;handler_motion(dev, trig)
+</code></pre></div>
+<h3 id="interrupt-latching">Interrupt Latching<a class="headerlink" href="#interrupt-latching" title="Permanent link">&para;</a></h3>
+<p>When motion trigger is first enabled, the driver sets:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="n">lsm6dso_int_notification_set</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span><span class="w"> </span><span class="n">LSM6DSO_ALL_INT_LATCHED</span><span class="p">);</span>
+</code></pre></div>
+<p>All interrupts are latched (sticky until read), preventing missed events.</p>
+<h3 id="what-is-not-interrupt-driven">What is NOT Interrupt-Driven<a class="headerlink" href="#what-is-not-interrupt-driven" title="Permanent link">&para;</a></h3>
+<ul>
+<li>FIFO watermark threshold (watermark is set but interrupt not routed)</li>
+<li>FIFO overflow</li>
+<li>Accelerometer data ready</li>
+<li>Gyroscope data ready</li>
+<li>Temperature data ready</li>
+</ul>
+<hr />
+<h2 id="7-power-mode">7. Power Mode<a class="headerlink" href="#7-power-mode" title="Permanent link">&para;</a></h2>
+<h3 id="boot-state-init_low_power_mode">Boot State (init_low_power_mode)<a class="headerlink" href="#boot-state-init_low_power_mode" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Mode</th>
+<th>Typical Current</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Accelerometer</td>
+<td>Ultra-Low Power</td>
+<td>~9 uA</td>
+</tr>
+<tr>
+<td>Gyroscope</td>
+<td>Normal</td>
+<td>~275 uA</td>
+</tr>
+<tr>
+<td>FIFO</td>
+<td>Bypass (disabled)</td>
+<td>--</td>
+</tr>
+</tbody>
+</table>
+<h3 id="active-state-lsm6dso_init">Active State (lsm6dso_init)<a class="headerlink" href="#active-state-lsm6dso_init" title="Permanent link">&para;</a></h3>
+<p>The active power mode is configured from devicetree. The default/recommended configuration from all examples:</p>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Mode</th>
+<th>Typical Current</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Accelerometer</td>
+<td>High Performance</td>
+<td>~170 uA</td>
+</tr>
+<tr>
+<td>Gyroscope</td>
+<td>High Performance</td>
+<td>~550 uA</td>
+</tr>
+<tr>
+<td>FIFO</td>
+<td>Stream Mode</td>
+<td>--</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Power mode mapping (accel):</strong></p>
+<table>
+<thead>
+<tr>
+<th>DTS accel-pm</th>
+<th>Enum</th>
+<th>Mode</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0 (default)</td>
+<td><code>LSM6DSO_HIGH_PERFORMANCE_MD</code></td>
+<td>Full bandwidth, lowest noise</td>
+</tr>
+<tr>
+<td>1</td>
+<td><code>LSM6DSO_LOW_NORMAL_POWER_MD</code></td>
+<td>Reduced bandwidth/noise</td>
+</tr>
+<tr>
+<td>2</td>
+<td><code>LSM6DSO_ULTRA_LOW_POWER_MD</code></td>
+<td>Minimum power</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Power mode mapping (gyro):</strong></p>
+<table>
+<thead>
+<tr>
+<th>DTS gyro-pm</th>
+<th>Enum</th>
+<th>Mode</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0 (default)</td>
+<td><code>LSM6DSO_GY_HIGH_PERFORMANCE</code></td>
+<td>Full bandwidth</td>
+</tr>
+<tr>
+<td>1</td>
+<td><code>LSM6DSO_GY_NORMAL</code></td>
+<td>Reduced bandwidth</td>
+</tr>
+</tbody>
+</table>
+<h3 id="deinit-state-lsm6dso_deinit">Deinit State (lsm6dso_deinit)<a class="headerlink" href="#deinit-state-lsm6dso_deinit" title="Permanent link">&para;</a></h3>
+<p>Returns to the same state as boot: accel ULP, gyro normal, FIFO bypass. Also cleanly shuts down the trigger thread if it was running.</p>
+<hr />
+<h2 id="8-how-data-is-read">8. How Data is Read<a class="headerlink" href="#8-how-data-is-read" title="Permanent link">&para;</a></h2>
+<h3 id="fifo-batch-read-primary-data-path">FIFO Batch Read (Primary Data Path)<a class="headerlink" href="#fifo-batch-read-primary-data-path" title="Permanent link">&para;</a></h3>
+<p>The FIFO read is the only supported <code>sensor_sample_fetch</code> path. The full sequence:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>1. Application calls sensor_sample_fetch(dev)  [or directly lsm6dso_fifo_read()]
+<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>2. Driver reads FIFO_STATUS1/STATUS2 to get sample count (lsm6dso_fifo_data_level_get)
+<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a>3. If count == 0: return immediately
+<a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a>4. If count &gt;= 60: flush FIFO (bypass + stream) and return 0 samples
+<a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a>5. For each sample in FIFO:
+<a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a>   a. Read FIFO_DATA_OUT_TAG (1 byte) to get the sensor tag
+<a id="__codelineno-14-7" name="__codelineno-14-7" href="#__codelineno-14-7"></a>   b. Read FIFO_DATA_OUT_X_L through FIFO_DATA_OUT_Z_H (6 bytes)
+<a id="__codelineno-14-8" name="__codelineno-14-8" href="#__codelineno-14-8"></a>   c. Based on tag:
+<a id="__codelineno-14-9" name="__codelineno-14-9" href="#__codelineno-14-9"></a>      - XL_NC_TAG: Parse as accelerometer, convert with 0.061 mg/LSB
+<a id="__codelineno-14-10" name="__codelineno-14-10" href="#__codelineno-14-10"></a>      - GYRO_NC_TAG: Parse as gyroscope, convert with 70.0 mdps/LSB
+<a id="__codelineno-14-11" name="__codelineno-14-11" href="#__codelineno-14-11"></a>      - Other tags: Discard (read into dummy buffer to advance FIFO pointer)
+<a id="__codelineno-14-12" name="__codelineno-14-12" href="#__codelineno-14-12"></a>6. Store accel_sample_count and gyro_sample_count
+<a id="__codelineno-14-13" name="__codelineno-14-13" href="#__codelineno-14-13"></a>7. Application calls sensor_channel_get() to retrieve per-axis arrays
+</code></pre></div>
+<h3 id="timestamp-synthesis">Timestamp Synthesis<a class="headerlink" href="#timestamp-synthesis" title="Permanent link">&para;</a></h3>
+<p><strong>The driver does NOT use the LSM6DSO's hardware timestamp counter.</strong> Instead, timestamps are synthesized from the Zephyr kernel uptime:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="kt">int32_t</span><span class="w"> </span><span class="n">current_time</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">k_uptime_get_32</span><span class="p">();</span>
+<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="k">const</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">sample_period_ms</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">1000.0f</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mf">52.0f</span><span class="p">;</span><span class="w">  </span><span class="c1">// ~19.23 ms</span>
+<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>
+<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a><span class="c1">// Most recent sample gets current_time</span>
+<a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a><span class="c1">// Older samples are back-calculated:</span>
+<a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a><span class="n">sample_time</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_time</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="p">(</span><span class="n">sample_period_ms</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">samples_back</span><span class="p">)</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">extra_ms</span><span class="p">;</span>
+</code></pre></div>
+<p>This approach has inherent timing uncertainty:
+- The "current_time" is the time of the bus read, not the time of the actual ADC conversion
+- Bus read latency (I2C or SPI transfer time for all samples) adds jitter
+- The back-calculation assumes perfectly uniform 52 Hz spacing, which is only approximately true</p>
+<h3 id="per-sample-i2cspi-cost">Per-Sample I2C/SPI Cost<a class="headerlink" href="#per-sample-i2cspi-cost" title="Permanent link">&para;</a></h3>
+<p>Each FIFO sample requires <strong>two bus transactions:</strong>
+1. Read FIFO_DATA_OUT_TAG register (1 byte): tag read
+2. Read FIFO_DATA_OUT_X_L through Z_H (6 bytes): data read</p>
+<p>For a typical 26-sample batch at 500 ms polling:
+- 26 tag reads + 26 data reads = <strong>52 I2C burst transactions</strong>
+- Plus 1 transaction for FIFO level read
+- Total: <strong>53 transactions per 500 ms poll</strong></p>
+<hr />
+<h2 id="9-i2cspi-interface-details">9. I2C/SPI Interface Details<a class="headerlink" href="#9-i2cspi-interface-details" title="Permanent link">&para;</a></h2>
+<h3 id="i2c-configuration">I2C Configuration<a class="headerlink" href="#i2c-configuration" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Addresses:</strong> 0x6A (SDO/SA0 = GND) or 0x6B (SDO/SA0 = VDD)</li>
+<li><strong>Speed:</strong> Standard (100 kHz), Fast (400 kHz), or Fast-Plus (1 MHz) -- determined by Zephyr I2C driver configuration, not by this driver</li>
+<li><strong>Protocol:</strong> Burst read/write via <code>i2c_burst_read_dt()</code> / <code>i2c_burst_write_dt()</code></li>
+<li><strong>I3C:</strong> Explicitly disabled at init (<code>lsm6dso_i3c_disable_set</code>)</li>
+</ul>
+<h3 id="spi-configuration">SPI Configuration<a class="headerlink" href="#spi-configuration" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Max frequency:</strong> 10 MHz (<code>spi-max-frequency = &lt;10000000&gt;</code> in DTS examples)</li>
+<li><strong>Mode:</strong> Master, 8-bit word, MSB-first (<code>SPI_OP_MODE_MASTER | SPI_WORD_SET(8) | SPI_TRANSFER_MSB</code>)</li>
+<li><strong>Read bit:</strong> Bit 7 set for reads (<code>reg_addr | 0x80</code>)</li>
+<li><strong>Write bit:</strong> Bit 7 cleared for writes (<code>reg_addr &amp; 0x7F</code>)</li>
+</ul>
+<h3 id="bus-mutex">Bus Mutex<a class="headerlink" href="#bus-mutex" title="Permanent link">&para;</a></h3>
+<p>When <code>CONFIG_CK_LSM6DSO_BUS_MUTEX=y</code>, all I2C/SPI transactions are wrapped with <code>k_mutex_lock/unlock</code>. This is needed when the bus is shared with other devices (e.g., another sensor on the same I2C bus). The mutex is obtained via <code>get_bus_mutex()</code> from the Zephyr bus_mutex library.</p>
+<h3 id="i2c-retry-logic">I2C Retry Logic<a class="headerlink" href="#i2c-retry-logic" title="Permanent link">&para;</a></h3>
+<p>When <strong>not</strong> using the bus mutex (and not using I2C metrics), the I2C transport implements a 3-retry loop with 1 ms delay between retries:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="kt">int</span><span class="w"> </span><span class="n">retry_count</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="kt">int</span><span class="w"> </span><span class="n">max_retries</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">3</span><span class="p">;</span>
+<a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="n">retry_count</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">max_retries</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a><span class="w">    </span><span class="n">ret</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">i2c_burst_read_dt</span><span class="p">(</span><span class="n">stmemsc</span><span class="p">,</span><span class="w"> </span><span class="n">reg_addr</span><span class="p">,</span><span class="w"> </span><span class="n">value</span><span class="p">,</span><span class="w"> </span><span class="n">len</span><span class="p">);</span>
+<a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">ret</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="n">ret</span><span class="p">;</span>
+<a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a><span class="w">    </span><span class="n">retry_count</span><span class="o">++</span><span class="p">;</span>
+<a id="__codelineno-16-7" name="__codelineno-16-7" href="#__codelineno-16-7"></a><span class="w">    </span><span class="n">k_msleep</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span>
+<a id="__codelineno-16-8" name="__codelineno-16-8" href="#__codelineno-16-8"></a><span class="p">}</span>
+</code></pre></div>
+<h3 id="i2c-metrics">I2C Metrics<a class="headerlink" href="#i2c-metrics" title="Permanent link">&para;</a></h3>
+<p>When <code>CONFIG_CK_LSM6DSO_I2C_METRICS=y</code>, the driver tracks per-second performance stats for both reads and writes: total operations, average/min/max latency (in microseconds), and total bus utilization time (in milliseconds). Metrics are logged at LOG_ERR level every ~1 second.</p>
+<hr />
+<h2 id="10-motion-detection">10. Motion Detection<a class="headerlink" href="#10-motion-detection" title="Permanent link">&para;</a></h2>
+<h3 id="wake-on-motion-configuration">Wake-on-Motion Configuration<a class="headerlink" href="#wake-on-motion-configuration" title="Permanent link">&para;</a></h3>
+<p>The driver implements the LSM6DSO's hardware wake-up detection feature, which operates independently of the FIFO:</p>
+<p><strong>Threshold (WAKE_UP_THS register, 0x5B):</strong>
+- 6-bit field (0-63)
+- Resolution depends on accelerometer full-scale: <code>LSB = FS_XL / 64</code>
+- At 2g FS: 31.25 mg per LSB, range 31.25 mg to 1969 mg
+- At 4g FS: 62.5 mg per LSB, range 62.5 mg to 3938 mg
+- The driver accepts threshold in milli-g and auto-scales based on current FS</p>
+<p><strong>Duration (WAKE_UP_DUR register, 0x5C):</strong>
+- 2-bit field (0-3 ODR cycles)
+- The driver accepts duration in milliseconds and converts to ODR cycles
+- At 52 Hz: 0=instant, ~19 ms=1 cycle, ~38 ms=2 cycles, ~58 ms=3 cycles (max)</p>
+<p><strong>Default values set by the driver on first trigger_set call:</strong>
+- Threshold: 250 mg (maps to register value 8 at 2g FS)
+- Duration: 0 ms (instant trigger)</p>
+<h3 id="activity-recognition-pedometer">Activity Recognition / Pedometer<a class="headerlink" href="#activity-recognition-pedometer" title="Permanent link">&para;</a></h3>
+<p><strong>Not configured.</strong> The LSM6DSO has embedded pedometer, tilt detection, significant motion, and Machine Learning Core (MLC) features, but none of these are configured or exposed by this driver.</p>
+<hr />
+<h2 id="11-critical-vsm-analysis-accel-odr-vs-ppg-odr-synchronization">11. Critical VSM Analysis: Accel ODR vs PPG ODR Synchronization<a class="headerlink" href="#11-critical-vsm-analysis-accel-odr-vs-ppg-odr-synchronization" title="Permanent link">&para;</a></h2>
+<h3 id="the-core-problem">The Core Problem<a class="headerlink" href="#the-core-problem" title="Permanent link">&para;</a></h3>
+<p>The Philips PSP (Photoplethysmography Signal Processing) library requires synchronized accelerometer and PPG data with accurate timestamps to perform motion artifact cancellation for heart rate computation. If the accel timestamps are inaccurate or the ODR is not properly related to the PPG ODR, the PSP library cannot correctly correlate motion artifacts with PPG signal disturbances, leading to degraded HR accuracy.</p>
+<h3 id="current-configuration-assessment">Current Configuration Assessment<a class="headerlink" href="#current-configuration-assessment" title="Permanent link">&para;</a></h3>
+<p><strong>Accel ODR: 52 Hz (hardcoded and enforced)</strong></p>
+<p>This is a reasonable choice for wrist-worn PPG applications. Typical PPG ODRs for wearables are 25 Hz, 50 Hz, or 100 Hz. The 52 Hz accel ODR:</p>
+<ul>
+<li>
+<p><strong>If PPG ODR is 25 Hz:</strong> Accel is approximately 2x the PPG rate. This is acceptable -- PSP can downsample or interpolate. However, 52/25 = 2.08, not exactly 2.0. This irrational ratio means the samples will slowly drift relative to each other, requiring timestamp-based resampling rather than simple decimation.</p>
+</li>
+<li>
+<p><strong>If PPG ODR is 50 Hz:</strong> Close match (52 vs 50), but the 4% frequency mismatch will cause sample phase to drift by ~1 sample every 25 seconds. PSP must use timestamp interpolation.</p>
+</li>
+<li>
+<p><strong>If PPG ODR is 100 Hz:</strong> Accel is approximately half the PPG rate. The 2:1 ratio is not exact (100/52 = 1.923), again requiring interpolation.</p>
+</li>
+<li>
+<p><strong>If PPG ODR is 52 Hz:</strong> Perfect 1:1 match. This would be ideal if the PPG sensor can be configured to exactly 52 Hz.</p>
+</li>
+</ul>
+<h3 id="timestamp-accuracy-concerns">Timestamp Accuracy Concerns<a class="headerlink" href="#timestamp-accuracy-concerns" title="Permanent link">&para;</a></h3>
+<p><strong>This is the most significant issue for VSM accuracy.</strong> The driver synthesizes timestamps rather than using the LSM6DSO's hardware timestamp counter:</p>
+<ol>
+<li>
+<p><strong>No hardware timestamp.</strong> The LSM6DSO FIFO supports timestamp tagging (<code>LSM6DSO_TIMESTAMP_TAG</code>) at configurable batch rates, but this feature is not enabled. The <code>odr_ts_batch</code> field in FIFO_CTRL4 is left at 0 (disabled).</p>
+</li>
+<li>
+<p><strong>Back-calculated timestamps assume perfect ODR.</strong> The code calculates <code>sample_period_ms = 1000.0f / 52.0f = 19.23 ms</code> and spaces samples backward from the current kernel time. But the LSM6DSO's actual ODR has tolerance of +/-1.5% (per datasheet), meaning the real period could be anywhere from 18.94 ms to 19.52 ms.</p>
+</li>
+<li>
+<p><strong>Bus read latency is not accounted for.</strong> The <code>current_time = k_uptime_get_32()</code> is captured before the FIFO read loop begins, but the actual most-recent sample may have been captured by the ADC at any point during the previous ~19.23 ms interval. For a 26-sample batch, the bus reads themselves take significant time (on I2C at 400 kHz: ~26 * 2 * ~200 us = ~10 ms of bus time).</p>
+</li>
+<li>
+<p><strong>Polling jitter.</strong> The 500 ms polling interval is subject to Zephyr scheduler jitter. If a higher-priority thread delays the FIFO read, the back-calculated timestamps will all shift together while the actual ADC sample times did not.</p>
+</li>
+</ol>
+<h3 id="quantified-timing-error-estimate">Quantified Timing Error Estimate<a class="headerlink" href="#quantified-timing-error-estimate" title="Permanent link">&para;</a></h3>
+<p>Assuming:
+- Actual ODR: 52 Hz +/- 1.5% = 51.22 to 52.78 Hz
+- Assumed ODR: exactly 52 Hz
+- Batch size: 26 samples (500 ms poll)
+- Bus read latency: ~10 ms for full batch</p>
+<p>Worst-case timestamp error for oldest sample in batch:
+- ODR drift: 26 samples * |19.23 - 19.52| ms = 7.5 ms
+- Bus latency: up to 10 ms (not compensated)
+- Scheduler jitter: typically 1-5 ms on RTOS
+- <strong>Total worst case: ~22 ms error on the oldest sample</strong></p>
+<p>For PPG motion artifact cancellation, timing errors above 10-15 ms at 50+ Hz sampling can cause significant phase misalignment between the motion and PPG signals, reducing the effectiveness of adaptive noise cancellation.</p>
+<h3 id="recommendations-for-vsm-improvement">Recommendations for VSM Improvement<a class="headerlink" href="#recommendations-for-vsm-improvement" title="Permanent link">&para;</a></h3>
+<ol>
+<li>
+<p><strong>Enable hardware timestamps.</strong> Configure <code>odr_ts_batch</code> in FIFO_CTRL4 to batch timestamps into the FIFO. The LSM6DSO's internal timestamp counter runs at 25 us resolution, providing far more accurate inter-sample timing than kernel uptime back-calculation.</p>
+</li>
+<li>
+<p><strong>Match accel ODR exactly to PPG ODR, or use an integer multiple.</strong> If PPG runs at 25 Hz, configure accel at 50 Hz (index 3 maps to 52 Hz, not 50 Hz -- there is no exact 50 Hz or 25 Hz setting on the LSM6DSO). The closest options:</p>
+</li>
+<li>26 Hz (index 2) -- close to 25 Hz</li>
+<li>52 Hz (index 3) -- close to 50 Hz / 2x 25 Hz</li>
+<li>104 Hz (index 4) -- close to 100 Hz / 4x 25 Hz</li>
+</ol>
+<p>Given the LSM6DSO's ODR options, 52 Hz or 104 Hz are the most practical. PSP must handle non-integer resampling regardless.</p>
+<ol>
+<li>
+<p><strong>Reduce polling interval for lower latency.</strong> Polling at 250 ms instead of 500 ms would halve the batch size (13 samples) and reduce worst-case timestamp back-calculation drift.</p>
+</li>
+<li>
+<p><strong>Consider enabling gyro FIFO batching.</strong> Some PSP configurations benefit from angular rate data for improved motion artifact removal during fast wrist rotation. The comment in the code notes this was disabled "to reduce I2C bus load" -- this tradeoff should be evaluated against HR accuracy requirements.</p>
+</li>
+</ol>
+<hr />
+<h2 id="summary-table">Summary Table<a class="headerlink" href="#summary-table" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Value</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Accel ODR</td>
+<td>52 Hz (enforced)</td>
+<td>lsm6dso.c:1353-1356</td>
+</tr>
+<tr>
+<td>Gyro ODR</td>
+<td>52 Hz (default, not enforced)</td>
+<td>DTS gyro-odr=3</td>
+</tr>
+<tr>
+<td>Accel Full Scale</td>
+<td>+/-2g (overridden to 2g)</td>
+<td>lsm6dso.c:1400</td>
+</tr>
+<tr>
+<td>Gyro Full Scale</td>
+<td>+/-2000 dps (overridden)</td>
+<td>lsm6dso.c:1401</td>
+</tr>
+<tr>
+<td>Accel Sensitivity</td>
+<td>0.061 mg/LSB</td>
+<td>Hardcoded in FIFO read</td>
+</tr>
+<tr>
+<td>Gyro Sensitivity</td>
+<td>70.0 mdps/LSB</td>
+<td>Hardcoded in FIFO read</td>
+</tr>
+<tr>
+<td>FIFO Mode</td>
+<td>Stream (continuous)</td>
+<td>lsm6dso.c:1405</td>
+</tr>
+<tr>
+<td>FIFO Watermark</td>
+<td>52 samples</td>
+<td>lsm6dso.c:1404</td>
+</tr>
+<tr>
+<td>FIFO Flush Threshold</td>
+<td>60 samples</td>
+<td>lsm6dso.h:40</td>
+</tr>
+<tr>
+<td>Accel FIFO Batching</td>
+<td>Enabled at 52 Hz</td>
+<td>lsm6dso.c:1407</td>
+</tr>
+<tr>
+<td>Gyro FIFO Batching</td>
+<td><strong>Disabled</strong></td>
+<td>lsm6dso.c:1409-1413</td>
+</tr>
+<tr>
+<td>DRDY Mode</td>
+<td>Pulsed</td>
+<td>lsm6dso.c:1406</td>
+</tr>
+<tr>
+<td>Accel Power Mode</td>
+<td>High Performance (default)</td>
+<td>DTS accel-pm=0</td>
+</tr>
+<tr>
+<td>Gyro Power Mode</td>
+<td>High Performance (default)</td>
+<td>DTS gyro-pm=0</td>
+</tr>
+<tr>
+<td>Interrupt Usage</td>
+<td>Motion/wake-up only</td>
+<td>lsm6dso.c:1086</td>
+</tr>
+<tr>
+<td>FIFO Read Method</td>
+<td>Polling (not interrupt)</td>
+<td>sample main.c:89</td>
+</tr>
+<tr>
+<td>Timestamp Source</td>
+<td>Zephyr k_uptime_get_32()</td>
+<td>lsm6dso.c:468</td>
+</tr>
+<tr>
+<td>HW Timestamp</td>
+<td><strong>Not enabled</strong></td>
+<td>odr_ts_batch not set</td>
+</tr>
+<tr>
+<td>I2C Addresses</td>
+<td>0x6A or 0x6B</td>
+<td>DTS/reg.h</td>
+</tr>
+<tr>
+<td>SPI Max Freq</td>
+<td>10 MHz</td>
+<td>DTS binding</td>
+</tr>
+<tr>
+<td>Bus Mutex</td>
+<td>Optional (CONFIG_CK_LSM6DSO_BUS_MUTEX)</td>
+<td>Kconfig</td>
+</tr>
+<tr>
+<td>I2C Retries</td>
+<td>3 (without mutex)</td>
+<td>stmemsc_i2c.c:195</td>
+</tr>
+<tr>
+<td>Motion Threshold</td>
+<td>250 mg default</td>
+<td>lsm6dso.c:1099</td>
+</tr>
+<tr>
+<td>Motion Duration</td>
+<td>0 ms (instant) default</td>
+<td>lsm6dso.c:1104</td>
+</tr>
+<tr>
+<td>Block Data Update</td>
+<td>Enabled</td>
+<td>lsm6dso.c:1394</td>
+</tr>
+<tr>
+<td>I3C</td>
+<td>Disabled</td>
+<td>lsm6dso.c:1203</td>
+</tr>
+<tr>
+<td>Thread Priority</td>
+<td>8 (trigger thread)</td>
+<td>lsm6dso.h:61</td>
+</tr>
+<tr>
+<td>Thread Stack</td>
+<td>1024 bytes</td>
+<td>lsm6dso.h:64</td>
+</tr>
+<tr>
+<td>Compatible String</td>
+<td>"ck,lsm6dso"</td>
+<td>DTS binding</td>
+</tr>
+<tr>
+<td>Chip ID</td>
+<td>0x6C</td>
+<td>lsm6dso_reg.h:195</td>
+</tr>
+</tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://zensical.org/" target="_blank" rel="noopener">
+      Zensical
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      
+      <script id="__config" type="application/json">{"annotate":null,"base":"../../../..","features":["navigation.sections","navigation.expand","navigation.path","navigation.indexes","search.suggest","content.code.copy","toc.follow"],"search":"../../../../assets/javascripts/workers/search.e2d2d235.min.js","tags":null,"translations":{"clipboard.copied":"Copied to clipboard","clipboard.copy":"Copy to clipboard","search.result.more.one":"1 more on this page","search.result.more.other":"# more on this page","search.result.none":"No matching documents","search.result.one":"1 matching document","search.result.other":"# matching documents","search.result.placeholder":"Type to start searching","search.result.term.missing":"Missing","select.version":"Select version"},"version":null}</script>
+    
+    
+      <script src="../../../../assets/javascripts/bundle.5fd3284f.min.js"></script>
+      
+        <script src="../../../../assets/js/external-links.js"></script>
+      
+    
+  </body>
+</html>

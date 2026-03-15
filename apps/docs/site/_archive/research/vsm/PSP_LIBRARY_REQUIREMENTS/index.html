@@ -1,0 +1,4744 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Continuous delivery platform for embedded systems">
+      
+      
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../../assets/images/favicon.png">
+      <meta name="generator" content="zensical-0.0.27">
+    
+    
+      
+        <title>PSP Library Integration Requirements - Concord</title>
+      
+    
+    
+      
+        
+      
+      <link rel="stylesheet" href="../../../../assets/stylesheets/modern/main.50057488.min.css">
+      
+        
+          
+        
+        <link rel="stylesheet" href="../../../../assets/stylesheets/modern/palette.dfe2e883.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,500,500i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../../../..",location),__md_hash=e=>[...e].reduce(((e,t)=>(e<<5)-e+t.charCodeAt(0)),0),__md_get=(e,t=localStorage,a=__md_scope)=>JSON.parse(t.getItem(a.pathname+"."+e)),__md_set=(e,t,a=localStorage,_=__md_scope)=>{try{a.setItem(_.pathname+"."+e,JSON.stringify(t))}catch(e){}},document.documentElement.setAttribute("data-platform",navigator.platform)</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="deep-purple" data-md-color-accent="amber">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer" aria-label="Navigation"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#psp-library-integration-requirements" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../../.." title="Concord" class="md-header__button md-logo" aria-label="Concord" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer" aria-label="Navigation">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-menu" viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h16"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Concord
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              PSP Library Integration Requirements
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="none" data-md-color-scheme="slate" data-md-color-primary="deep-purple" data-md-color-accent="amber"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="none" data-md-color-scheme="default" data-md-color-primary="deep-purple" data-md-color-accent="amber"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search" aria-label="Search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-search" viewBox="0 0 24 24"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog" aria-label="Search">
+  <button type="button" class="md-search__button">
+    Search
+  </button>
+</div>
+      
+    
+    <div class="md-header__source">
+      
+    </div>
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../../.." title="Concord" class="md-nav__button md-logo" aria-label="Concord" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+
+    </a>
+    Concord
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../vision/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vision
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2" id="__nav_2_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Vision
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../vision/thesis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Thesis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../vision/validation-philosophy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation Philosophy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../architecture/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3" id="__nav_3_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Architecture
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_2" id="__nav_3_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Platform
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Platform
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/platform/unified-platform/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Unified Platform
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/platform/hardware-registry/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hardware Registry
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/platform/log-streaming/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Log Streaming
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/platform/ci-pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CI Pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/platform/corecloud-library/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CoreCloud Library
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_3" id="__nav_3_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Validation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/validation/stages-overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stages Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/validation/system/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    System Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/validation/stage1-software-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 1: Software Tests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/validation/stage2-driver-hw-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 2: Driver HW Tests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/validation/stage3-integration-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 3: Integration Tests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/validation/stage4-product-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 4: Product Tests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/validation/stage4-fuota-flow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 4: FUOTA Flow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/validation/stage4-pr-flow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 4: PR Flow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/validation/stage5-gate-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 5: Gate Tests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/validation/test-runner/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Test Runner
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_4" id="__nav_3_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Build
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/build/build-service/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build Service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/build/builder-nodes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Builder Nodes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../reference/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/fuota-workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FUOTA Workflow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/fuota-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FUOTA API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/alpha-test-cases/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Alpha Test Cases
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/traceability-matrix/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Traceability Matrix
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/twister-hil/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Twister HIL
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/stage4-connectivity/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 4 Connectivity
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/stage4-long-term-vision/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 4 Long-Term Vision
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/validation-flow-ui/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation Flow UI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/interfaces/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interfaces
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../guides/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_2" id="__nav_5_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Alpha
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Alpha
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../guides/alpha/stage1/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 1
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../guides/alpha/stage2/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 2
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../guides/alpha/stage3/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 3
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../guides/alpha/stage4/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 4
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../guides/alpha/stage5/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 5
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../research/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Research
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_6" id="__nav_6_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Research
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../research/01-sigma5-firmware-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sigma5 Firmware
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../research/02-alpha-firmware-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Alpha Firmware
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../research/03-sensor-drivers-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sensor Drivers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../research/05-mtib-server-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MTIB Server
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../research/06-fuota-corecloud-v1/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FUOTA CoreCloud
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../research/07-alpha-manufacturing-firmware-and-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Alpha MFG Firmware
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../research/08-device-personalization-and-key-provisioning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Device Personalization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../research/08-firmware-build-and-fuota-delivery/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Firmware Build & FUOTA
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../research/09-corecloud-validation-integration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CoreCloud Integration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../journals/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Journals
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Journals
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#table-of-contents" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Table of Contents
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1-version-and-license-info" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Version and License Info
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. Version and License Info">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#library-version" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Library Version
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#license-configuration-corekinect-wellness" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        License Configuration (CoreKinect Wellness)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#licensed-metrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Licensed Metrics
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#known-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Known Issues
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-input-data-requirements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Input Data Requirements
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Input Data Requirements">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#21-ppg-signal-requirements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.1 PPG Signal Requirements
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#22-accelerometer-signal-requirements-standard-all-metrics-except-fall-occurrence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.2 Accelerometer Signal Requirements (Standard -- all metrics except Fall Occurrence)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#23-accelerometer-signal-requirements-fall-occurrence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.3 Accelerometer Signal Requirements (Fall Occurrence)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#24-skin-conductance-signal-requirements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.4 Skin Conductance Signal Requirements
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#25-gyroscope-signal-requirements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.5 Gyroscope Signal Requirements
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#26-barometer-signal-requirements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.6 Barometer Signal Requirements
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#27-led-wavelength-requirements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.7 LED Wavelength Requirements
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-interpolation-and-resampling-requirements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Interpolation and Resampling Requirements
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Interpolation and Resampling Requirements">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#31-core-requirement" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.1 Core Requirement
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#32-ppg-interpolation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.2 PPG Interpolation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#33-acc-resampling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.3 ACC Resampling
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#34-what-happens-without-proper-interpolation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.4 What Happens Without Proper Interpolation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#35-acc-signal-clipping" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.5 ACC Signal Clipping
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-data-format-specifications" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Data Format Specifications
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Data Format Specifications">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#41-ppg-metric-data-format" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.1 PPG Metric Data Format
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#42-acceleration-metric-data-format" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.2 Acceleration Metric Data Format
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#43-acceleration-sample-formats-table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.3 Acceleration Sample Formats Table
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#44-ppg-sample-formats-table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.4 PPG Sample Formats Table
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#45-acc-sensor-orientation-axis-conventions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.5 ACC Sensor Orientation (Axis Conventions)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#46-output-metric-data-format-general" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.6 Output Metric Data Format (General)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#47-key-output-metric-formats" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.7 Key Output Metric Formats
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-timing-and-synchronization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Timing and Synchronization
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Timing and Synchronization">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#51-ppg-acc-synchronization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.1 PPG-ACC Synchronization
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#52-recommended-synchronization-method" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.2 Recommended Synchronization Method
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#53-clock-drift-compensation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.3 Clock Drift Compensation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#54-time-tracking" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.4 Time Tracking
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#55-time-metric" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.5 Time Metric
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-buffer-sizes-and-samples-per-call" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Buffer Sizes and Samples Per Call
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. Buffer Sizes and Samples Per Call">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#61-per-call-input-requirements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.1 Per-Call Input Requirements
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#62-process-call-frequency" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.2 Process Call Frequency
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#63-metric-data-buffer-size" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.3 Metric Data Buffer Size
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-api-call-sequence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. API Call Sequence
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7. API Call Sequence">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#71-fresh-start-lifecycle" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.1 Fresh Start Lifecycle
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#72-restart-maintaining-history" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.2 Restart Maintaining History
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#73-protocol-state-machine" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.3 Protocol State Machine
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#74-critical-rules" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.4 Critical Rules
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-configuration-parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Configuration Parameters
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="8. Configuration Parameters">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#81-instance-parameters-psp_inst_params" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.1 Instance Parameters (PSP_INST_PARAMS)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#82-person-specific-input-metrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.2 Person-Specific Input Metrics
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#83-spo2-calibration-coefficients" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.3 SpO2 Calibration Coefficients
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#84-fall-occurrence-parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.4 Fall Occurrence Parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#85-source-id" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.5 Source ID
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#86-platform-macro" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.6 Platform Macro
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-quality-metrics-and-indicators" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Quality Metrics and Indicators
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="9. Quality Metrics and Indicators">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#91-quality-indicator-q" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9.1 Quality Indicator (Q)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#92-quality-vs-accuracy-heart-rate-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9.2 Quality vs Accuracy (Heart Rate Example)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#93-recommendations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9.3 Recommendations
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-error-conditions-and-limitations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. Error Conditions and Limitations
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="10. Error Conditions and Limitations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#101-conditions-that-produce-bad-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10.1 Conditions That Produce Bad Data
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#102-skin-proximity-limitations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10.2 Skin Proximity Limitations
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#103-resting-heart-rate-limitations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10.3 Resting Heart Rate Limitations
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#104-spo2-limitations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10.4 SpO2 Limitations
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#105-respiration-rate-limitations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10.5 Respiration Rate Limitations
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#106-heart-beat-timestamps-limitations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10.6 Heart Beat Timestamps Limitations
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#107-vo2max-and-fitness-index-limitations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10.7 VO2Max and Fitness Index Limitations
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#108-sleep-stages-limitations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10.8 Sleep Stages Limitations
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#109-stress-level-heart-rate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10.9 Stress Level Heart Rate
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#11-spo2-specifics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11. SpO2 Specifics
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="11. SpO2 Specifics">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#111-principle" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11.1 Principle
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#112-required-input-metrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11.2 Required Input Metrics
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#113-multi-wavelength-input" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11.3 Multi-Wavelength Input
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#114-calibration-requirements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11.4 Calibration Requirements
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#115-auto-scaling-for-spo2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11.5 Auto Scaling for SpO2
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#116-spo2-timing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11.6 SpO2 Timing
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#12-psp-s-vs-psp" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12. PSP-S vs PSP
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="12. PSP-S vs PSP">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#121-overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12.1 Overview
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#122-how-they-work-together" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12.2 How They Work Together
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#123-psp-s-key-requirements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12.3 PSP-S Key Requirements
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#124-sleep-session-detection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12.4 Sleep Session Detection
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#125-embedded-sleep-stages" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12.5 Embedded Sleep Stages
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#13-memory-and-resource-requirements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        13. Memory and Resource Requirements
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="13. Memory and Resource Requirements">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#131-memory-footprint-arm-cortex-m4f" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        13.1 Memory Footprint (ARM Cortex M4F)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#132-memory-allocation-rules" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        13.2 Memory Allocation Rules
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#133-data-logging-storage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        13.3 Data Logging Storage
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#134-library-deployment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        13.4 Library Deployment
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#14-sensor-signal-requirements-per-metric" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        14. Sensor Signal Requirements Per Metric
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#appendix-firing-sequence-for-max86178-afe" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Appendix: Firing Sequence for MAX86178 AFE
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#appendix-crosstalk-test-thresholds" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Appendix: Crosstalk Test Thresholds
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#appendix-snr-test-criteria" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Appendix: SNR Test Criteria
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+                
+
+
+
+  
+
+
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+<h1 id="psp-library-integration-requirements">PSP Library Integration Requirements<a class="headerlink" href="#psp-library-integration-requirements" title="Permanent link">&para;</a></h1>
+<p>Technical requirements extracted from the Philips PSP (Personal Signal Processing) library
+documentation suite. This document covers PSP version 6.1.x (x &gt;= 9), specifically the
+CoreKinect Wellness build for ARM Cortex M4F.</p>
+<p><strong>Source documents:</strong>
+- DG1901 PSP Library Integration Guide, Rev 1.3 (14-Jul-2023)
+- DG1903 PSP Biosensing by PPG Integration Guide, Rev 1.2 (07-Aug-2023)
+- SY1901 PSP API Specification, Rev 1.3 (30-Jul-2023)
+- SY1902 PSP Metrics Specification, Rev 1.3 (13-Jul-2023)
+- SY1903 PSP-S API Specification, Rev 1.2 (07-Aug-2023)
+- DS1905 PSP Metric Description, v1.1 (04-Aug-2023)
+- TS1611 SpO2 Measurement and Calibration, Rev 1.3 (01-Aug-2023)
+- Release Notes PSP_6.1.0.520-e2fc0616, Rev 1.1 (02-May-2025)
+- Info_ARM_M4F_CoreKinect_Wellness.txt (license info file)</p>
+<hr />
+<h2 id="table-of-contents">Table of Contents<a class="headerlink" href="#table-of-contents" title="Permanent link">&para;</a></h2>
+<ol>
+<li><a href="#1-version-and-license-info">Version and License Info</a></li>
+<li><a href="#2-input-data-requirements">Input Data Requirements</a></li>
+<li><a href="#3-interpolation-and-resampling-requirements">Interpolation and Resampling Requirements</a></li>
+<li><a href="#4-data-format-specifications">Data Format Specifications</a></li>
+<li><a href="#5-timing-and-synchronization">Timing and Synchronization</a></li>
+<li><a href="#6-buffer-sizes-and-samples-per-call">Buffer Sizes and Samples Per Call</a></li>
+<li><a href="#7-api-call-sequence">API Call Sequence</a></li>
+<li><a href="#8-configuration-parameters">Configuration Parameters</a></li>
+<li><a href="#9-quality-metrics-and-indicators">Quality Metrics and Indicators</a></li>
+<li><a href="#10-error-conditions-and-limitations">Error Conditions and Limitations</a></li>
+<li><a href="#11-spo2-specifics">SpO2 Specifics</a></li>
+<li><a href="#12-psp-s-vs-psp">PSP-S vs PSP</a></li>
+<li><a href="#13-memory-and-resource-requirements">Memory and Resource Requirements</a></li>
+<li><a href="#14-sensor-signal-requirements-per-metric">Sensor Signal Requirements Per Metric</a></li>
+</ol>
+<hr />
+<h2 id="1-version-and-license-info">1. Version and License Info<a class="headerlink" href="#1-version-and-license-info" title="Permanent link">&para;</a></h2>
+<h3 id="library-version">Library Version<a class="headerlink" href="#library-version" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>PSP version:</strong> 6.1.0.520-e2fc0616 (SLA special release based on PSP 6.1.9)</li>
+<li><strong>Previous release:</strong> PSP_6.1.9.519-1504cf96 (26-Jul-2024)</li>
+<li><strong>Current release date:</strong> 02-May-2025</li>
+<li><strong>Architecture:</strong> ARM Cortex M4F</li>
+<li><strong>Flash code starting address:</strong> 0x000E0000</li>
+</ul>
+<h3 id="license-configuration-corekinect-wellness">License Configuration (CoreKinect Wellness)<a class="headerlink" href="#license-configuration-corekinect-wellness" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Customer:</strong> CoreKinect_Wellness (0x00830002)</li>
+<li><strong>License Type:</strong> Full</li>
+<li><strong>SpO2 lower bound:</strong> 90%</li>
+<li><strong>Evaluation restrictions (6.1.0.520):</strong> None for HR (full range). SpO2 lower bound: 90%.</li>
+<li><strong>Evaluation restrictions (6.1.9.519):</strong> Heart rate upper bound: 120 BPM. SpO2 lower bound: 90%.</li>
+</ul>
+<h3 id="licensed-metrics">Licensed Metrics<a class="headerlink" href="#licensed-metrics" title="Permanent link">&para;</a></h3>
+<p>Acceleration, Activity Count, Activity Type, Compressed Acceleration, Compressed PPG,
+Energy Expenditure, Fitness Index, Heartbeats, Heart Rate, Low Power Energy Expenditure,
+Low Power Heart Rate, Motion Cadence, PPG Ambient, PPG Infrared, PPG Motion, PPG Green,
+PPG Red, Private Data, Respiration Rate, Resting Heart Rate, Skin Proximity, Sleep Stages,
+Speed, SpO2, Stress Level Heart Rate, VO2 Max.</p>
+<h3 id="known-issues">Known Issues<a class="headerlink" href="#known-issues" title="Permanent link">&para;</a></h3>
+<p>The release notes list no known issues (to be solved) and no accepted issues (not to be solved)
+for the 6.1.0.520 release.</p>
+<hr />
+<h2 id="2-input-data-requirements">2. Input Data Requirements<a class="headerlink" href="#2-input-data-requirements" title="Permanent link">&para;</a></h2>
+<h3 id="21-ppg-signal-requirements">2.1 PPG Signal Requirements<a class="headerlink" href="#21-ppg-signal-requirements" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Requirement</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Sampling Rate</strong></td>
+<td><strong>32 Hz</strong></td>
+</tr>
+<tr>
+<td><strong>Dynamic Range</strong></td>
+<td>0 to 65535 (2^16 - 1)</td>
+</tr>
+<tr>
+<td><strong>Resolution</strong></td>
+<td>16 bits unsigned (0 to 65535)</td>
+</tr>
+<tr>
+<td><strong>SNR (Green channel)</strong></td>
+<td>&gt; 80 dB</td>
+</tr>
+<tr>
+<td><strong>SNR (Red/IR channels)</strong></td>
+<td>&gt; 85 dB</td>
+</tr>
+<tr>
+<td><strong>PPG Signal</strong></td>
+<td>Ambient cancelled</td>
+</tr>
+<tr>
+<td><strong>Ambient Signal</strong></td>
+<td>Optional but recommended (improves Skin Proximity). If not available, set to zero but still feed to the library.</td>
+</tr>
+<tr>
+<td><strong>LED power / PD gain</strong></td>
+<td>Control interface must be available or automatic</td>
+</tr>
+<tr>
+<td><strong>Sample format</strong></td>
+<td>Only format 0x60 supported (32 samples per 1-second update)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>PPG channels required per metric:</strong>
+- Heart Rate: PPG-Green + PPG-Ambient
+- SpO2: PPG-Green + PPG-Ambient + PPG-Red + PPG-Infrared
+- Respiration Rate: PPG-Green + Acceleration
+- Heart Beat Timestamps: PPG-Green + Acceleration</p>
+<p><strong>Multi-stream support (PSP 6.1.8+):</strong>
+- Maximum 2x PPG-Green, 2x PPG-Ambient, 4x PPG-Motion, 2x PPG-Red, 2x PPG-Infrared
+- Multiple streams use the same metric ID but different Stream location identifiers (SI)
+- Streams are processed by a sophisticated internal algorithm (not averaged)
+- It is NOT recommended to combine streams outside the PSP library</p>
+<h3 id="22-accelerometer-signal-requirements-standard-all-metrics-except-fall-occurrence">2.2 Accelerometer Signal Requirements (Standard -- all metrics except Fall Occurrence)<a class="headerlink" href="#22-accelerometer-signal-requirements-standard-all-metrics-except-fall-occurrence" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Requirement</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Sampling Rate</strong></td>
+<td><strong>32 Hz</strong></td>
+</tr>
+<tr>
+<td><strong>Dynamic Range</strong></td>
+<td>+/- 8 g</td>
+</tr>
+<tr>
+<td><strong>Resolution</strong></td>
+<td>13 bits signed, 1/512 g per unit (-4096 to +4095)</td>
+</tr>
+<tr>
+<td><strong>Sensor Noise</strong></td>
+<td>&lt; 6 mg RMS</td>
+</tr>
+<tr>
+<td><strong>Allowed 0g Offset</strong></td>
+<td>&lt; 150 mg on any axis</td>
+</tr>
+<tr>
+<td><strong>Acceleration format ID</strong></td>
+<td>0x6E (32 samples at 32 Hz)</td>
+</tr>
+</tbody>
+</table>
+<p>If the accelerometer offset exceeds 150 mg, offset calibration is required.</p>
+<h3 id="23-accelerometer-signal-requirements-fall-occurrence">2.3 Accelerometer Signal Requirements (Fall Occurrence)<a class="headerlink" href="#23-accelerometer-signal-requirements-fall-occurrence" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Requirement</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Sampling Rate</strong></td>
+<td><strong>50 Hz</strong></td>
+</tr>
+<tr>
+<td><strong>Dynamic Range</strong></td>
+<td>+/- 16 g</td>
+</tr>
+<tr>
+<td><strong>Resolution</strong></td>
+<td>15 bits signed, 1/1024 g per unit (-16384 to +16383)</td>
+</tr>
+<tr>
+<td><strong>Sensor Noise</strong></td>
+<td>&lt; 6 mg RMS</td>
+</tr>
+<tr>
+<td><strong>Allowed 0g Offset</strong></td>
+<td>&lt; 150 mg on any axis</td>
+</tr>
+<tr>
+<td><strong>Acceleration format ID</strong></td>
+<td>0x70 (50 samples at 50 Hz)</td>
+</tr>
+</tbody>
+</table>
+<p>Fall Occurrence CANNOT be combined with other metrics in the same PSP package.</p>
+<h3 id="24-skin-conductance-signal-requirements">2.4 Skin Conductance Signal Requirements<a class="headerlink" href="#24-skin-conductance-signal-requirements" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Requirement</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Sampling Rate</strong></td>
+<td>25 Hz</td>
+</tr>
+<tr>
+<td><strong>Dynamic Range</strong></td>
+<td>0 to 1677 uS (Siemens)</td>
+</tr>
+<tr>
+<td><strong>Resolution</strong></td>
+<td>24 bits unsigned, 0.1 nS per unit (0 to 16,777,216)</td>
+</tr>
+<tr>
+<td><strong>SNR</strong></td>
+<td>&gt; 100 dB</td>
+</tr>
+<tr>
+<td><strong>Sensor Noise &amp; Interference</strong></td>
+<td>&lt; 1 nS peak-to-peak</td>
+</tr>
+<tr>
+<td><strong>Linearity</strong></td>
+<td>&lt; 0.003</td>
+</tr>
+</tbody>
+</table>
+<h3 id="25-gyroscope-signal-requirements">2.5 Gyroscope Signal Requirements<a class="headerlink" href="#25-gyroscope-signal-requirements" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Requirement</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Sampling Rate</strong></td>
+<td>50 Hz</td>
+</tr>
+<tr>
+<td><strong>Dynamic Range</strong></td>
+<td>+/- 2000 dps</td>
+</tr>
+<tr>
+<td><strong>Resolution</strong></td>
+<td>16 bits signed, 0.061 dps per unit (-32768 to +32767)</td>
+</tr>
+<tr>
+<td><strong>Sensor Noise</strong></td>
+<td>&lt; 0.1125 dps RMS</td>
+</tr>
+<tr>
+<td><strong>Angular Rate 0 offset</strong></td>
+<td>&lt; 0.75 dps</td>
+</tr>
+</tbody>
+</table>
+<h3 id="26-barometer-signal-requirements">2.6 Barometer Signal Requirements<a class="headerlink" href="#26-barometer-signal-requirements" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Requirement</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Sampling Rate</strong></td>
+<td>4 Hz</td>
+</tr>
+<tr>
+<td><strong>Dynamic Range</strong></td>
+<td>70,000 to 135,535 Pa</td>
+</tr>
+<tr>
+<td><strong>Resolution</strong></td>
+<td>16 bits unsigned, 1 Pa per unit</td>
+</tr>
+<tr>
+<td><strong>Sensor Noise</strong></td>
+<td>&lt; 1.5 Pa RMS</td>
+</tr>
+</tbody>
+</table>
+<p>The dynamic range starts at 70,000 Pa. This offset must be accounted for: a value of 0x01 means 70,001 Pa.</p>
+<h3 id="27-led-wavelength-requirements">2.7 LED Wavelength Requirements<a class="headerlink" href="#27-led-wavelength-requirements" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>LED Color</th>
+<th>Min (nm)</th>
+<th>Typical (nm)</th>
+<th>Max (nm)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Green</td>
+<td>515</td>
+<td>525</td>
+<td>535</td>
+</tr>
+<tr>
+<td>Red</td>
+<td>655</td>
+<td><strong>660</strong></td>
+<td>665</td>
+</tr>
+<tr>
+<td>Infrared</td>
+<td>870</td>
+<td><strong>880</strong></td>
+<td>890</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Critical for SpO2:</strong> The 660 nm Red wavelength is much more sensitive to deviation than IR.
+Deviation of the Red LED wavelength significantly influences SpO2 calibration and sensitivity.
+IR at 940 nm is sometimes used but may require different calibration parameters.</p>
+<hr />
+<h2 id="3-interpolation-and-resampling-requirements">3. Interpolation and Resampling Requirements<a class="headerlink" href="#3-interpolation-and-resampling-requirements" title="Permanent link">&para;</a></h2>
+<h3 id="31-core-requirement">3.1 Core Requirement<a class="headerlink" href="#31-core-requirement" title="Permanent link">&para;</a></h3>
+<p>PSP requires <strong>exactly 32 Hz PPG and 32 Hz ACC</strong> input signals, synchronized. If the hardware
+sensors do not natively sample at 32 Hz, the integrator MUST resample to 32 Hz before
+feeding data to the library.</p>
+<h3 id="32-ppg-interpolation">3.2 PPG Interpolation<a class="headerlink" href="#32-ppg-interpolation" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Use <strong>linear interpolation</strong> to convert from the native PPG sampling rate to 32 Hz.</li>
+<li>The interpolation formula is: <code>out = y1 + (y2 - y1) * (x - x1) / (x2 - x1)</code></li>
+<li>PPG signal is 16-bit unsigned; use saturation: <code>SATURATE_UINT16(X) = (X &lt; 0 ? 0 : X &gt; 65535 ? 65535 : X)</code></li>
+<li>The last sample of input and output arrays are aligned.</li>
+<li>State (last sample value) must be preserved between calls. Initialize state to zero at startup.</li>
+<li>It is recommended to minimize PPG resampling to preserve signal integrity. Use the PPG clock as the reference.</li>
+</ul>
+<h3 id="33-acc-resampling">3.3 ACC Resampling<a class="headerlink" href="#33-acc-resampling" title="Permanent link">&para;</a></h3>
+<p>ACC resampling is more complex because anti-aliasing filtering is required when downsampling:</p>
+<ul>
+<li><strong>~25 Hz ACC input:</strong> Use linear interpolation to get 32 Hz signals directly.</li>
+<li><strong>~50 Hz ACC input:</strong> Linear interpolation to 64 Hz, then 2x decimation with anti-aliasing filter to get 32 Hz.</li>
+<li><strong>~100 Hz ACC input:</strong> Linear interpolation to 128 Hz, then 4x decimation with anti-aliasing filter to get 32 Hz.</li>
+</ul>
+<p><strong>Rule of thumb:</strong> Interpolate ACC to the nearest multiple of 32 Hz (32, 64, 128, 256 Hz),
+apply anti-aliasing filtering, then downsample to 32 Hz.</p>
+<p>The ACC interpolation function for signed 16-bit values uses the same linear interpolation algorithm
+but with signed types (<code>FX_SINT16</code>).</p>
+<p>The decimation filters provided are efficient half-band IIR filters:
+- <code>Filter_Decimate_2x_SINT16</code> -- downsample by factor 2
+- <code>Filter_Decimate_4x_SINT16</code> -- downsample by factor 4
+- Both require state arrays initialized to zero at startup.</p>
+<h3 id="34-what-happens-without-proper-interpolation">3.4 What Happens Without Proper Interpolation<a class="headerlink" href="#34-what-happens-without-proper-interpolation" title="Permanent link">&para;</a></h3>
+<ul>
+<li>If PPG sampling rate is not correct and accurate, this <strong>directly affects accuracy of heart rate,
+  heartbeat timestamps</strong>, and all metrics requiring PPG signal.</li>
+<li>Without proper anti-aliasing filtering on ACC downsampling, the <strong>performance of heart rate
+  estimation is affected</strong>.</li>
+<li>Clock drift between PPG and ACC clock sources causes sampling drift that varies device to device,
+  making consistency control between devices difficult.</li>
+</ul>
+<h3 id="35-acc-signal-clipping">3.5 ACC Signal Clipping<a class="headerlink" href="#35-acc-signal-clipping" title="Permanent link">&para;</a></h3>
+<p>When feeding ACC signal to PSP, make sure the signal is actually within the +/- 8g operating range
+by <strong>clipping</strong> out-of-range values. If the accelerometer exceeds +/- 16g (for Fall Occurrence),
+the signal will clip and performance will degrade.</p>
+<hr />
+<h2 id="4-data-format-specifications">4. Data Format Specifications<a class="headerlink" href="#4-data-format-specifications" title="Permanent link">&para;</a></h2>
+<h3 id="41-ppg-metric-data-format">4.1 PPG Metric Data Format<a class="headerlink" href="#41-ppg-metric-data-format" title="Permanent link">&para;</a></h3>
+<p>PPG metrics (Green, Red, IR, Ambient, Motion) all use the same format (metric 0x7B structure):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>&lt;ID&gt; &lt;NL&gt; &lt;NH&gt; &lt;IX&gt; &lt;Q&gt; &lt;BPI&gt; &lt;PF&gt; &lt;SI&gt; &lt;OFS&gt; &lt;EXP&gt; &lt;L0..L3&gt; &lt;G0..G3&gt; &lt;P0_L&gt; &lt;P0_H&gt; ... &lt;P31_L&gt; &lt;P31_H&gt;
+</code></pre></div>
+<p>Field breakdown:
+- <strong>ID:</strong> Metric ID (0x7E=Green, 0x7B=IR, 0x7C=Red, 0x7F=Ambient, 0x7D=Motion)
+- <strong>NL, NH:</strong> Size of remaining metric data (little-endian). For 32 samples with EXP: (32 * 2) + 15 = 79 bytes. Without EXP: 78 bytes.
+- <strong>IX:</strong> Sequence index (0-255), increment by 1 each call, wraps around
+- <strong>Q:</strong> Quality -- set to 4 for input metrics
+- <strong>BPI:</strong> Body Position Index (0=unspecified, 1=left wrist, 2=right wrist, 3=unspecified wrist)
+- <strong>PF:</strong> PPG format -- fixed to 0x60 for 32 samples at 32 Hz
+- <strong>SI:</strong> Stream location identifier (bit7-4: LED position, bit3-0: photodiode position, clock positions 1-12)
+- <strong>OFS:</strong> PPG Offset -- set to 0x00 (not yet supported)
+- <strong>EXP:</strong> (optional) PPG Exponent + Offset extension -- set to 0x00 (not yet supported). Can be omitted (reduces total size by 1).
+- <strong>L0..L3:</strong> Relative LED power [0..100] for each quarter-second of samples
+- <strong>G0..G3:</strong> ADC gain (0=1x, 1=2x, 2=4x, 3=8x) for each quarter-second of samples
+- <strong>P0..P31:</strong> 32 PPG samples, each 16-bit unsigned, little-endian (LSB first)</p>
+<h3 id="42-acceleration-metric-data-format">4.2 Acceleration Metric Data Format<a class="headerlink" href="#42-acceleration-metric-data-format" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>&lt;ID&gt; &lt;NL&gt; &lt;NH&gt; &lt;IX&gt; &lt;Q&gt; &lt;BPI&gt; &lt;AF&gt; &lt;X0_L&gt; &lt;X0_H&gt; &lt;Y0_L&gt; &lt;Y0_H&gt; &lt;Z0_L&gt; &lt;Z0_H&gt; ... &lt;X31_L&gt; &lt;X31_H&gt; &lt;Y31_L&gt; &lt;Y31_H&gt; &lt;Z31_L&gt; &lt;Z31_H&gt;
+</code></pre></div>
+<p>Field breakdown:
+- <strong>ID:</strong> 0x2B (Acceleration)
+- <strong>NL, NH:</strong> Size = (32 * 6) + 4 = 196 bytes
+- <strong>IX:</strong> Sequence index
+- <strong>Q:</strong> Quality -- set to 4
+- <strong>BPI:</strong> Body Position Index
+- <strong>AF:</strong> Acceleration format -- 0x6E for 32 samples at 32 Hz (+/- 8g, 13-bit, 1/512 g). 0x70 for Fall Occurrence (50 samples at 50 Hz, +/- 32g, 16-bit, 1/1024 g).
+- <strong>X, Y, Z:</strong> 3-axis acceleration data, each 16-bit signed, little-endian</p>
+<h3 id="43-acceleration-sample-formats-table">4.3 Acceleration Sample Formats Table<a class="headerlink" href="#43-acceleration-sample-formats-table" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>AF (hex)</th>
+<th>Sample Rate (Hz)</th>
+<th>Update Interval (s)</th>
+<th>Samples/Update</th>
+<th>Range (g)</th>
+<th>Width (MSBs)</th>
+<th>Resolution (g)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0xFF</td>
+<td>128</td>
+<td>1/16</td>
+<td>8</td>
+<td>+/- 8</td>
+<td>12</td>
+<td>1/256</td>
+</tr>
+<tr>
+<td><strong>0x6E</strong></td>
+<td><strong>32</strong></td>
+<td><strong>1</strong></td>
+<td><strong>32</strong></td>
+<td><strong>+/- 8</strong></td>
+<td><strong>13</strong></td>
+<td><strong>1/512</strong></td>
+</tr>
+<tr>
+<td>0x70</td>
+<td>50</td>
+<td>1</td>
+<td>50</td>
+<td>+/- 32</td>
+<td>16</td>
+<td>1/1024</td>
+</tr>
+</tbody>
+</table>
+<h3 id="44-ppg-sample-formats-table">4.4 PPG Sample Formats Table<a class="headerlink" href="#44-ppg-sample-formats-table" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>PF (hex)</th>
+<th>Sample Rate (Hz)</th>
+<th>Update Interval (s)</th>
+<th>Samples/Update</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0x7F</td>
+<td>32</td>
+<td>1/16</td>
+<td>2</td>
+</tr>
+<tr>
+<td><strong>0x60</strong></td>
+<td><strong>32</strong></td>
+<td><strong>1</strong></td>
+<td><strong>32</strong></td>
+</tr>
+</tbody>
+</table>
+<h3 id="45-acc-sensor-orientation-axis-conventions">4.5 ACC Sensor Orientation (Axis Conventions)<a class="headerlink" href="#45-acc-sensor-orientation-axis-conventions" title="Permanent link">&para;</a></h3>
+<p>For a wrist-worn watch embodiment, the axes MUST be aligned such that:
+- <strong>X axis</strong> points to 12 o'clock (upward) -- reading 1g when 12 o'clock faces sky
+- <strong>Y axis</strong> points to 9 o'clock (left) -- reading 1g when 9 o'clock faces sky
+- <strong>Z axis</strong> points toward the wearer's nose (out of display) -- reading 1g when watch face faces up</p>
+<p>A remapping may be needed in the ACC driver if the physical sensor axes do not match this convention.</p>
+<h3 id="46-output-metric-data-format-general">4.6 Output Metric Data Format (General)<a class="headerlink" href="#46-output-metric-data-format-general" title="Permanent link">&para;</a></h3>
+<p>All output metrics follow this preamble:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>&lt;ID&gt; &lt;NL&gt; &lt;NH&gt; &lt;IX&gt; &lt;Q&gt; &lt;V0&gt; ... &lt;VN-3&gt;
+</code></pre></div></p>
+<p>Where:
+- ID: metric identifier
+- N: 2-byte little-endian size of remaining data
+- IX: index, incremented at every update
+- Q: quality indicator (0-4)
+- V: N-2 data value bytes</p>
+<h3 id="47-key-output-metric-formats">4.7 Key Output Metric Formats<a class="headerlink" href="#47-key-output-metric-formats" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>ID (hex)</th>
+<th>Update Interval</th>
+<th>Value Format</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Heart Rate</td>
+<td>0x20</td>
+<td>1 sec</td>
+<td>1 byte: HR in BPM (range 30-220)</td>
+</tr>
+<tr>
+<td>Resting Heart Rate</td>
+<td>0x21</td>
+<td>3600 sec</td>
+<td>1 byte: RHR in BPM (range 30-120)</td>
+</tr>
+<tr>
+<td>Skin Proximity</td>
+<td>0x22</td>
+<td>1 sec</td>
+<td>1 byte: 0=on-skin, 254=off-skin, 255=unspecified</td>
+</tr>
+<tr>
+<td>Active Energy Expenditure</td>
+<td>0x23</td>
+<td>1 sec</td>
+<td>2 bytes LE: kcal/h (range 0-1200)</td>
+</tr>
+<tr>
+<td>Speed</td>
+<td>0x24</td>
+<td>1 sec</td>
+<td>1 byte: 0.1 m/s (range 0-150)</td>
+</tr>
+<tr>
+<td>Cadence</td>
+<td>0x25</td>
+<td>1 sec</td>
+<td>1 byte: strides/min (range 20-120)</td>
+</tr>
+<tr>
+<td>Activity Type</td>
+<td>0x26</td>
+<td>1 sec</td>
+<td>1 byte: 0=unspecified, 1=other, 2=walk, 4=run, 6=cycle, 7=rest</td>
+</tr>
+<tr>
+<td>Heart Beat Timestamps</td>
+<td>0x27</td>
+<td>1 sec</td>
+<td>Complex: M beats (0-5), each with quality, time(ms), type</td>
+</tr>
+<tr>
+<td>VO2Max</td>
+<td>0x28</td>
+<td>60 sec</td>
+<td>1 byte: ml/kg/min (range 10-100)</td>
+</tr>
+<tr>
+<td>Fitness Index</td>
+<td>0x29</td>
+<td>60 sec</td>
+<td>1 byte: percentile (range 0-100)</td>
+</tr>
+<tr>
+<td>Respiration Rate</td>
+<td>0x2A</td>
+<td>1 sec</td>
+<td>1 byte: 0.25 breaths/min (range 20-180, = 5-45 brpm)</td>
+</tr>
+<tr>
+<td>Low Power Heart Rate</td>
+<td>0x2D</td>
+<td>60 sec</td>
+<td>1 byte: BPM (range 30-220)</td>
+</tr>
+<tr>
+<td>Activity Count</td>
+<td>0x2E</td>
+<td>1 sec</td>
+<td>2 bytes LE + BPI: arbitrary unit (range 0-65535)</td>
+</tr>
+<tr>
+<td>SpO2</td>
+<td>0x41</td>
+<td>1 sec</td>
+<td>1 byte: oxygen level % (range 0-100)</td>
+</tr>
+<tr>
+<td>Stress Level HR</td>
+<td>0x40</td>
+<td>1 sec</td>
+<td>2 bytes LE: arbitrary unit (range 0-1000)</td>
+</tr>
+<tr>
+<td>Fall Occurrence</td>
+<td>0x42</td>
+<td>1 sec</td>
+<td>1 byte: 0=no fall, 1=fall detected</td>
+</tr>
+<tr>
+<td>Private Data</td>
+<td>0x2F</td>
+<td>60 sec</td>
+<td>Variable length (0-300 bytes)</td>
+</tr>
+<tr>
+<td>Sleep Stages</td>
+<td>0x30</td>
+<td>Async</td>
+<td>Complex: session times, epochs (30s each), stages per epoch</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="5-timing-and-synchronization">5. Timing and Synchronization<a class="headerlink" href="#5-timing-and-synchronization" title="Permanent link">&para;</a></h2>
+<h3 id="51-ppg-acc-synchronization">5.1 PPG-ACC Synchronization<a class="headerlink" href="#51-ppg-acc-synchronization" title="Permanent link">&para;</a></h3>
+<p>The PSP library requires PPG and ACC to be <strong>synchronized and simultaneously fed</strong> at a constant
+number of samples per second. Both must be at <strong>exactly 32 Hz</strong> with an exact ratio of 1:1.</p>
+<p>The best scenario: PPG front-end, accelerometer, and MCU share a <strong>common 32768 Hz clock source</strong>.</p>
+<h3 id="52-recommended-synchronization-method">5.2 Recommended Synchronization Method<a class="headerlink" href="#52-recommended-synchronization-method" title="Permanent link">&para;</a></h3>
+<ol>
+<li>Use the <strong>PPG clock as the timing reference</strong> (let PPG dictate the time).</li>
+<li>Program the PPG AFE to provide an interrupt when 32 samples are available (once per second).</li>
+<li>On each PPG interrupt, also read the ACC FIFO.</li>
+<li>The ACC may have a variable number of samples due to clock drift. Resample the ACC
+   to exactly 32 samples to match the 32 PPG samples.</li>
+<li>Feed acceleration data <strong>before</strong> PPG data, following the order returned by <code>ListRequiredMetrics()</code>.</li>
+</ol>
+<h3 id="53-clock-drift-compensation">5.3 Clock Drift Compensation<a class="headerlink" href="#53-clock-drift-compensation" title="Permanent link">&para;</a></h3>
+<p>If different clocks are used for PPG and ACC:
+- Use PPG as the reference to avoid resampling PPG (preserves signal integrity).
+- Dynamically resample ACC: if PPG delivers 32 samples, and ACC delivered N samples (e.g., 31),
+  interpolate ACC from N to 32 samples.</p>
+<h3 id="54-time-tracking">5.4 Time Tracking<a class="headerlink" href="#54-time-tracking" title="Permanent link">&para;</a></h3>
+<p>PSP tracks elapsed time by counting PPG and ACC samples. If the PPG sample rate has drift,
+the internal time will drift. Compensation:</p>
+<p><div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>Adjusted HR = Reported HR / T32sample
+</code></pre></div>
+Where <code>T32sample</code> is the actual MCU-measured time (in seconds) for the PPG sensor to deliver
+32 samples. Example: if MCU takes 0.97s to receive 32 samples and library reports 100 BPM,
+adjusted HR = 100 / 0.97 = 103 BPM.</p>
+<p>This method does NOT correct heartbeat timestamps, where sampling variation directly propagates.</p>
+<h3 id="55-time-metric">5.5 Time Metric<a class="headerlink" href="#55-time-metric" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Time is set via <code>SetMetric(PSP_METRIC_ID_TIME, ...)</code> as UTC seconds since epoch (Unix time).</li>
+<li>Must be set at least once before enabling metrics that require time.</li>
+<li>PSP maintains time by counting samples. Set time regularly (e.g., from NTP) to prevent drift.</li>
+<li>Time is maintained as long as any metrics (other than Time itself) are enabled.</li>
+<li>When all metrics are disabled, time is "frozen."</li>
+<li>After re-enabling metrics, set the absolute time again.</li>
+</ul>
+<hr />
+<h2 id="6-buffer-sizes-and-samples-per-call">6. Buffer Sizes and Samples Per Call<a class="headerlink" href="#6-buffer-sizes-and-samples-per-call" title="Permanent link">&para;</a></h2>
+<h3 id="61-per-call-input-requirements">6.1 Per-Call Input Requirements<a class="headerlink" href="#61-per-call-input-requirements" title="Permanent link">&para;</a></h3>
+<p>Each call to <code>PSP_Process()</code> expects:
+- <strong>32 PPG samples</strong> per channel per second (PPG-Green, PPG-Ambient, PPG-Red, PPG-IR each get 32 samples)
+- <strong>32 ACC samples</strong> (X, Y, Z) per second
+- <strong>25 Skin Conductance samples</strong> per second (if EDA metrics enabled)
+- <strong>50 Gyroscope samples</strong> per second (if Fall Detection enabled)
+- <strong>4 Barometer samples</strong> per second (if Fall Detection with barometer enabled)</p>
+<h3 id="62-process-call-frequency">6.2 Process Call Frequency<a class="headerlink" href="#62-process-call-frequency" title="Permanent link">&para;</a></h3>
+<p><code>PSP_Process()</code> must be called <strong>at least once per second</strong> (determined by the smallest update
+interval of all required input metrics). The minimum is 16 calls per second for certain sub-processing,
+though the typical main loop is once per second with 32 samples.</p>
+<h3 id="63-metric-data-buffer-size">6.3 Metric Data Buffer Size<a class="headerlink" href="#63-metric-data-buffer-size" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Use <code>PSP_MAX_METRIC_SIZE</code> for the GetMetric output buffer.</li>
+<li>ListRequiredMetrics requires a buffer of at least 10 metric IDs.</li>
+<li>ListUpdatedMetrics requires a buffer large enough for all enabled metrics (at least 32).</li>
+</ul>
+<hr />
+<h2 id="7-api-call-sequence">7. API Call Sequence<a class="headerlink" href="#7-api-call-sequence" title="Permanent link">&para;</a></h2>
+<h3 id="71-fresh-start-lifecycle">7.1 Fresh Start Lifecycle<a class="headerlink" href="#71-fresh-start-lifecycle" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>1. Allocate static memory (uint32_t array, 32-bit aligned)
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>2. PSP_GetDefaultParams(&amp;params)        -- get minimum memory size
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>3. Set params.pMem, params.memorySize, params.pSourceID, params.calCoefSpO2, etc.
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>4. PSP_Initialise(&amp;params, &amp;instance)   -- create instance
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>5. [Main loop - repeat]:
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>   a. PSP_EnableMetrics(instance, count, metricIdList)   -- enable desired output metrics
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>   b. PSP_ListRequiredMetrics(instance, list, &amp;count)    -- check what inputs are needed
+<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>   c. For each required metric:
+<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>      PSP_SetMetric(instance, metricID, data, size)      -- feed sensor data
+<a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a>   d. PSP_Process(instance)                               -- process inputs
+<a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a>   e. PSP_ListUpdatedMetrics(instance, list, &amp;count)     -- check what outputs are ready
+<a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a>   f. For each updated metric:
+<a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a>      PSP_GetMetric(instance, metricID, data, &amp;size)     -- read output
+<a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a>
+<a id="__codelineno-4-16" name="__codelineno-4-16" href="#__codelineno-4-16"></a>6. PSP_DisableMetrics(instance, count, metricIdList)     -- disable metrics
+<a id="__codelineno-4-17" name="__codelineno-4-17" href="#__codelineno-4-17"></a>7. PSP_Terminate(&amp;instance)                               -- release resources
+</code></pre></div>
+<h3 id="72-restart-maintaining-history">7.2 Restart Maintaining History<a class="headerlink" href="#72-restart-maintaining-history" title="Permanent link">&para;</a></h3>
+<p>To preserve accumulated metrics (RHR, Stress, etc.) across resets:</p>
+<ol>
+<li>Stop feeding data to the library.</li>
+<li>Disable metrics that require reset (keep history-maintaining metrics like RHR enabled if desired).</li>
+<li>Save the entire instance RAM (<code>pspmem</code> array) and <code>pInst</code> to NVM.</li>
+<li>Save enabled metric list to NVM.</li>
+<li>Write a unique marker (e.g., 0xAB23EF88) to a NVM variable to indicate history is stored.</li>
+<li>After reset: check marker. If present, restore RAM from NVM, restore <code>pInst</code>, retrieve metric list.</li>
+<li>Set new TIME metric (with current time) to indicate time jump of reboot.</li>
+<li>Clear the marker in NVM.</li>
+<li>Continue normal processing.</li>
+</ol>
+<p>The <code>pspmem</code> array MUST be a static variable so its address is the same after reboot.</p>
+<h3 id="73-protocol-state-machine">7.3 Protocol State Machine<a class="headerlink" href="#73-protocol-state-machine" title="Permanent link">&para;</a></h3>
+<p>States: <strong>Idle</strong> -&gt; <strong>Active.Controlling</strong> -&gt; <strong>Active.Inputting</strong> -&gt; <strong>Active.Outputting</strong></p>
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th>Idle</th>
+<th>Controlling</th>
+<th>Inputting</th>
+<th>Outputting</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>EnableMetrics</td>
+<td>Y</td>
+<td>Y</td>
+<td></td>
+<td>Y</td>
+</tr>
+<tr>
+<td>DisableMetrics</td>
+<td></td>
+<td>Y</td>
+<td></td>
+<td>Y</td>
+</tr>
+<tr>
+<td>ListRequiredMetrics</td>
+<td></td>
+<td>Y</td>
+<td></td>
+<td>Y</td>
+</tr>
+<tr>
+<td>SetMetric</td>
+<td></td>
+<td></td>
+<td>Y</td>
+<td></td>
+</tr>
+<tr>
+<td>Process</td>
+<td></td>
+<td></td>
+<td>Y</td>
+<td></td>
+</tr>
+<tr>
+<td>ListUpdatedMetrics</td>
+<td></td>
+<td></td>
+<td></td>
+<td>Y</td>
+</tr>
+<tr>
+<td>GetMetric</td>
+<td></td>
+<td></td>
+<td></td>
+<td>Y</td>
+</tr>
+<tr>
+<td>GetVersion</td>
+<td>Y</td>
+<td>Y</td>
+<td>Y</td>
+<td>Y</td>
+</tr>
+<tr>
+<td>Terminate</td>
+<td>Y</td>
+<td>Y</td>
+<td>Y</td>
+<td>Y</td>
+</tr>
+</tbody>
+</table>
+<h3 id="74-critical-rules">7.4 Critical Rules<a class="headerlink" href="#74-critical-rules" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Functions must be called <strong>one after another, sequentially</strong> -- no parallel operation.</li>
+<li>In Active.Inputting state, <strong>exactly 1 value per required input metric</strong> must be set before calling <code>Process()</code>.</li>
+<li>The order of <code>SetMetric</code> calls should follow the order returned by <code>ListRequiredMetrics()</code> -- specifically, feed <strong>acceleration data before PPG data</strong>.</li>
+<li><code>ListRequiredMetrics()</code> may vary dynamically over time (e.g., Low Power HR only needs PPG 6-15 seconds per minute).</li>
+</ul>
+<hr />
+<h2 id="8-configuration-parameters">8. Configuration Parameters<a class="headerlink" href="#8-configuration-parameters" title="Permanent link">&para;</a></h2>
+<h3 id="81-instance-parameters-psp_inst_params">8.1 Instance Parameters (PSP_INST_PARAMS)<a class="headerlink" href="#81-instance-parameters-psp_inst_params" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">typedef</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">psp_inst_params_tag</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">    </span><span class="n">FX_VOID</span><span class="w">     </span><span class="o">*</span><span class="n">pMem</span><span class="p">;</span><span class="w">            </span><span class="c1">// Pointer to allocated memory block</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">    </span><span class="n">FX_UINT08</span><span class="w">   </span><span class="o">*</span><span class="n">pSourceID</span><span class="p">;</span><span class="w">       </span><span class="c1">// Pointer to unique source ID string</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">    </span><span class="n">FX_UINT32</span><span class="w">   </span><span class="n">memorySize</span><span class="p">;</span><span class="w">       </span><span class="c1">// Size of memory block</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">    </span><span class="n">FX_UINT16</span><span class="w">   </span><span class="n">sourceIDSize</span><span class="p">;</span><span class="w">     </span><span class="c1">// Size of source ID (string length + 1)</span>
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="w">    </span><span class="n">FX_SINT16</span><span class="w">   </span><span class="n">calCoefSpO2</span><span class="p">[</span><span class="mi">3</span><span class="p">];</span><span class="w">   </span><span class="c1">// SpO2 calibration coefficients: a, b, c (scaled x100)</span>
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="w">    </span><span class="n">FX_UINT08</span><span class="w">   </span><span class="n">alarmRateFall</span><span class="p">;</span><span class="w">    </span><span class="c1">// Fall false alarm rate: 0=daily, 1=weekly, 2=monthly</span>
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="p">}</span><span class="w"> </span><span class="n">PSP_INST_PARAMS</span><span class="p">;</span>
+</code></pre></div>
+<h3 id="82-person-specific-input-metrics">8.2 Person-Specific Input Metrics<a class="headerlink" href="#82-person-specific-input-metrics" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Format</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Age</td>
+<td>1 byte (0-120 years)</td>
+<td>Required for AEE, VO2Max, Fitness Index. AEE quality is low if Age &lt; 10.</td>
+</tr>
+<tr>
+<td>Profile</td>
+<td>Year(2B), Month, Day, Sex, Handedness</td>
+<td>Sex: 0=unspecified, 1=male, 2=female. Handedness: 0=unspecified, 1=right, 2=left, 3=mixed.</td>
+</tr>
+<tr>
+<td>Height</td>
+<td>1 byte (0-255 cm)</td>
+<td>Required for Speed, AEE, VO2Max, Fitness Index. 0=unspecified.</td>
+</tr>
+<tr>
+<td>Weight</td>
+<td>2 bytes LE (hectograms, 0-2000)</td>
+<td>E.g., 741 = 74.1 kg. Required for AEE, VO2Max, Fitness Index.</td>
+</tr>
+<tr>
+<td>Body Position Index</td>
+<td>Per metric</td>
+<td>0=unspecified, 1=left wrist, 2=right wrist, 3=unspecified wrist. Must be set correctly for SpO2 orientation check.</td>
+</tr>
+<tr>
+<td>Sleep Preference</td>
+<td>1 byte</td>
+<td>0=unspecified, 1=yes (intent to sleep), 2=no.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="83-spo2-calibration-coefficients">8.3 SpO2 Calibration Coefficients<a class="headerlink" href="#83-spo2-calibration-coefficients" title="Permanent link">&para;</a></h3>
+<p>Passed via <code>calCoefSpO2[3]</code> in <code>PSP_INST_PARAMS</code>:
+- <code>calCoefSpO2[0]</code> = a (quadratic term, 0 for linear)
+- <code>calCoefSpO2[1]</code> = b (linear term)
+- <code>calCoefSpO2[2]</code> = c (constant term)
+- Formula: <code>SpO2 = a * R^2 + b * R + c</code> where R is the Red/IR ratio
+- Coefficients are <strong>scaled by factor 100</strong> (e.g., 110 becomes 11000)
+- These are form-factor and sensor-specific -- each device design needs calibration.
+- Must be set <strong>before library initialization</strong>.</p>
+<h3 id="84-fall-occurrence-parameters">8.4 Fall Occurrence Parameters<a class="headerlink" href="#84-fall-occurrence-parameters" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>alarmRateFall</code> in instance params: 0 = once per day (more sensitive, more false positives), 1 = once per week, 2 = once per month (less sensitive, fewer false positives)</li>
+<li>Must be set before initialization.</li>
+</ul>
+<h3 id="85-source-id">8.5 Source ID<a class="headerlink" href="#85-source-id" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>pSourceID</code>: 8-byte unique identifier (including null terminator) identifying the data source for Sleep algorithm.</li>
+<li>Required for Sleep Stages. If not using sleep, set to NULL with sourceIDSize = 0.</li>
+</ul>
+<h3 id="86-platform-macro">8.6 Platform Macro<a class="headerlink" href="#86-platform-macro" title="Permanent link">&para;</a></h3>
+<p>Define <code>FX_PLATFORM_ARM_M4</code> for ARM Cortex M4F targets. This selects correct data types in <code>fx_datatypes.h</code>.</p>
+<hr />
+<h2 id="9-quality-metrics-and-indicators">9. Quality Metrics and Indicators<a class="headerlink" href="#9-quality-metrics-and-indicators" title="Permanent link">&para;</a></h2>
+<h3 id="91-quality-indicator-q">9.1 Quality Indicator (Q)<a class="headerlink" href="#91-quality-indicator-q" title="Permanent link">&para;</a></h3>
+<p>Every output metric includes a quality indicator (0-4):
+- <strong>0:</strong> Fully unreliable -- metric value SHALL be ignored
+- <strong>1-3:</strong> Increasing reliability
+- <strong>4:</strong> Most reliable value the metric source can provide</p>
+<p>Quality cannot be compared between different metrics or between library versions.</p>
+<h3 id="92-quality-vs-accuracy-heart-rate-example">9.2 Quality vs Accuracy (Heart Rate Example)<a class="headerlink" href="#92-quality-vs-accuracy-heart-rate-example" title="Permanent link">&para;</a></h3>
+<p>From validation data across activities:</p>
+<table>
+<thead>
+<tr>
+<th>Activity</th>
+<th>Availability Q&gt;=1</th>
+<th>Availability Q&gt;=4</th>
+<th>MAE Q&gt;=1 (BPM)</th>
+<th>MAE Q&gt;=4 (BPM)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Walk</td>
+<td>99.0%</td>
+<td>52.9%</td>
+<td>2.0</td>
+<td>0.8</td>
+</tr>
+<tr>
+<td>Run</td>
+<td>99.0%</td>
+<td>61.6%</td>
+<td>2.0</td>
+<td>0.5</td>
+</tr>
+<tr>
+<td>Cycle</td>
+<td>99.5%</td>
+<td>67.1%</td>
+<td>1.7</td>
+<td>0.6</td>
+</tr>
+<tr>
+<td>Gym</td>
+<td>98.6%</td>
+<td>53.1%</td>
+<td>3.0</td>
+<td>0.8</td>
+</tr>
+<tr>
+<td>Sit</td>
+<td>99.8%</td>
+<td>86.6%</td>
+<td>1.2</td>
+<td>0.6</td>
+</tr>
+<tr>
+<td>Free living</td>
+<td>99.6%</td>
+<td>56.1%</td>
+<td>2.3</td>
+<td>1.2</td>
+</tr>
+<tr>
+<td>Sleep</td>
+<td>99.9%</td>
+<td>96.6%</td>
+<td>0.4</td>
+<td>0.3</td>
+</tr>
+<tr>
+<td><strong>Overall</strong></td>
+<td><strong>99.5%</strong></td>
+<td><strong>75.4%</strong></td>
+<td><strong>1.4</strong></td>
+<td><strong>0.5</strong></td>
+</tr>
+</tbody>
+</table>
+<h3 id="93-recommendations">9.3 Recommendations<a class="headerlink" href="#93-recommendations" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Use metrics output when quality indicator is <strong>higher than zero</strong>.</li>
+<li>Quality evaluates input signal quality from PPG and ACC sensors. Potential misjudgment may occur in some cases -- use quality as a guideline alongside the metric value, not to alter or replace it.</li>
+</ul>
+<hr />
+<h2 id="10-error-conditions-and-limitations">10. Error Conditions and Limitations<a class="headerlink" href="#10-error-conditions-and-limitations" title="Permanent link">&para;</a></h2>
+<h3 id="101-conditions-that-produce-bad-data">10.1 Conditions That Produce Bad Data<a class="headerlink" href="#101-conditions-that-produce-bad-data" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>Incorrect PPG sampling rate</strong> -- directly affects HR, heartbeat timestamps, and all PPG-dependent metrics.</li>
+<li><strong>PPG/ACC not synchronized</strong> -- causes phase errors in motion artifact cancellation.</li>
+<li><strong>ACC offset &gt; 150 mg</strong> -- reduces effective dynamic range below +/- 8g.</li>
+<li><strong>Poor mechanical/optical design</strong> -- crosstalk (LED light path directly to photodiode) degrades SNR.</li>
+<li><strong>Incorrect axis orientation</strong> -- ACC axes must follow the 12-9-nose convention.</li>
+<li><strong>LED power control loop not functioning</strong> -- PPG signal outside optimal window causes signal quality degradation.</li>
+<li><strong>Incorrect body position index</strong> -- affects Activity Type, Speed, SpO2 orientation check.</li>
+<li><strong>Activity Type mismatch</strong> -- if set Activity Type does not match actual activity, HR calculation suffers.</li>
+<li><strong>Too frequent LED/gain adjustments</strong> -- introduces discontinuities in PPG signal.</li>
+<li><strong>Not feeding Ambient channel</strong> -- degrades Skin Proximity accuracy.</li>
+</ol>
+<h3 id="102-skin-proximity-limitations">10.2 Skin Proximity Limitations<a class="headerlink" href="#102-skin-proximity-limitations" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>False on-skin:</strong> Device in motion near reflective surface (e.g., handbag).</li>
+<li><strong>False on-skin:</strong> Device stationary near reflective surface (e.g., reflective table).</li>
+<li><strong>False on-skin:</strong> Device taken off in dark environment.</li>
+<li><strong>False off-skin:</strong> User asleep with body pressing on wrist (no blood flow to PPG).</li>
+<li>On-skin detection latency: ~30-35 seconds.</li>
+<li>Off-skin detection latency: 1-2 seconds to 15-20 seconds.</li>
+</ul>
+<h3 id="103-resting-heart-rate-limitations">10.3 Resting Heart Rate Limitations<a class="headerlink" href="#103-resting-heart-rate-limitations" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Initial value available after 1 hour of enabling.</li>
+<li>Stable value (Q=4) after 12-15 hours of wear. Longer if person was very active.</li>
+<li>History retained for up to 7 days. After 7+ days disabled, all history lost.</li>
+<li>RHR does not automatically disable during non-worn periods; the application must handle this.</li>
+</ul>
+<h3 id="104-spo2-limitations">10.4 SpO2 Limitations<a class="headerlink" href="#104-spo2-limitations" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Requires sitting still, wrist resting on table, no motion of hands or fingers.</li>
+<li>Strap must not touch the table or lift the backplate.</li>
+<li>Orientation check requires absolute pitch &lt; 45 degrees, absolute roll &lt; 90 degrees.</li>
+<li>Calibration is sensor-geometry and wavelength specific.</li>
+<li>SpO2 lower bound in the license: 90% (values below 90% are not reported in the licensed build).</li>
+</ul>
+<h3 id="105-respiration-rate-limitations">10.5 Respiration Rate Limitations<a class="headerlink" href="#105-respiration-rate-limitations" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Works only in the <strong>absence of motion</strong>.</li>
+<li>Requires 20-30 seconds acquisition time.</li>
+</ul>
+<h3 id="106-heart-beat-timestamps-limitations">10.6 Heart Beat Timestamps Limitations<a class="headerlink" href="#106-heart-beat-timestamps-limitations" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Only yields values when user is <strong>at rest or asleep</strong> (motion causes "last beat in sequence" type).</li>
+<li>Sampling time variation directly reflects in timestamp accuracy.</li>
+</ul>
+<h3 id="107-vo2max-and-fitness-index-limitations">10.7 VO2Max and Fitness Index Limitations<a class="headerlink" href="#107-vo2max-and-fitness-index-limitations" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Requires walking (&gt; 3 km/h) or running (&gt; 6 km/h) for at least 20 minutes (VO2Max) or 1 hour (Fitness Index).</li>
+<li>Information is discarded when metrics are disabled (no history retention).</li>
+</ul>
+<h3 id="108-sleep-stages-limitations">10.8 Sleep Stages Limitations<a class="headerlink" href="#108-sleep-stages-limitations" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Minimum sleep session length: 20 minutes.</li>
+<li>Maximum sleep session length: 960 minutes.</li>
+<li>Automatic session end detection has 100-minute latency after actual session end.</li>
+<li>Missing Private Data for &lt; 60 minutes results in "Unspecified" sleep stages.</li>
+<li>Missing Private Data for &gt; 60 minutes may cause missing or prematurely ended sessions.</li>
+<li>Time adjustments &gt; 60 seconds backward are interpreted as packet sorting errors and may cause session loss.</li>
+</ul>
+<h3 id="109-stress-level-heart-rate">10.9 Stress Level Heart Rate<a class="headerlink" href="#109-stress-level-heart-rate" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Takes approximately 52-60 seconds to produce the first Stress Level value after first valid PPG sample.</li>
+<li>"Lock-in time" (delay from system startup to first functionally valid output): roughly &lt; 5 minutes.</li>
+</ul>
+<hr />
+<h2 id="11-spo2-specifics">11. SpO2 Specifics<a class="headerlink" href="#11-spo2-specifics" title="Permanent link">&para;</a></h2>
+<h3 id="111-principle">11.1 Principle<a class="headerlink" href="#111-principle" title="Permanent link">&para;</a></h3>
+<p>SpO2 is calculated from the ratio (R) between Red and Infrared PPG signals using the formula:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>SpO2 = a * R^2 + b * R + c
+</code></pre></div>
+Where a, b, c are calibration coefficients specific to the sensor geometry and LED wavelengths.</p>
+<h3 id="112-required-input-metrics">11.2 Required Input Metrics<a class="headerlink" href="#112-required-input-metrics" title="Permanent link">&para;</a></h3>
+<ul>
+<li>PPG-Green (with Ambient)</li>
+<li>PPG-Red</li>
+<li>PPG-Infrared</li>
+<li>Acceleration</li>
+</ul>
+<p>Both AC and DC components of Red and IR signals must remain intact. If scaling is applied in
+preprocessing, the same scaling factor must be applied to both AC and DC. If subtraction is
+performed, the subtracted value must be known to reconstruct the original signals.</p>
+<h3 id="113-multi-wavelength-input">11.3 Multi-Wavelength Input<a class="headerlink" href="#113-multi-wavelength-input" title="Permanent link">&para;</a></h3>
+<p>For SpO2 measurement with the reference design (multi-color optical design):
+- Green LEDs (525 nm): 2x Green LEDs, center position, 128 mA max per LED
+- Red LEDs (660 nm): 3x Red LEDs (positions 12, 6, center), 128 mA max (64 mA for motion/center)
+- IR LEDs (880 nm): 2x IR LEDs (positions 12, 6), 128 mA max
+- 2x Photodiodes</p>
+<p>Firing sequence for SpO2: Red + IR + Green + Ambient, each sample period (1/32 Hz):
+M1=PD4+D1(Red top), M2=PD1+D5(Red bottom), M3=PD1+D9(IR top), M4=PD4+D3(IR bottom),
+M5=PD1+PD4+D2&amp;D6(Green center), M7=PD1+PD4(Ambient)</p>
+<p><strong>Red and IR LEDs should fire close together</strong> in time for SpO2 accuracy.</p>
+<h3 id="114-calibration-requirements">11.4 Calibration Requirements<a class="headerlink" href="#114-calibration-requirements" title="Permanent link">&para;</a></h3>
+<p><strong>Wellness domain (SpO2 &gt; 95%):</strong>
+- At least 20 healthy subjects
+- Minimum 30% each gender
+- 15% dark skin (Fitzpatrick scale V or VI)
+- Inclusion: aged 22-65, good health
+- Exclusion: BMI &gt; 35 or &lt; 18.5, tattoos/lesions at sensor site, current smoker
+- Protocol: 5 recordings of 3 minutes each per subject, wrist on table, Nellcor reference on finger</p>
+<p><strong>Medical domain (FDA clearance, SpO2 &gt; 70%):</strong>
+- Hypoxia lab with desaturation test
+- At least 20 subjects, 15% dark skin
+- Six plateaus: SpO2 of ~94%, 90%, 85%, 80%, 75%, 70%
+- Each plateau held for at least 1 minute for PPG signal stabilization
+- ABG or approved pulse oximeter reference
+- More stringent exclusion criteria (no heart/lung/kidney disease, no diabetes, no clotting disorders, etc.)</p>
+<h3 id="115-auto-scaling-for-spo2">11.5 Auto Scaling for SpO2<a class="headerlink" href="#115-auto-scaling-for-spo2" title="Permanent link">&para;</a></h3>
+<p>For sensors with automatic gain control (e.g., Pixart) that deliver 32-bit PPG:
+- Must scale from 32-bit to 16-bit unsigned for PSP library
+- <strong>Red and IR channels MUST use the same scaling factor (SF1)</strong> for SpO2 accuracy
+- A dynamic scaling function adjusts gain and scaling factor based on signal amplitude
+- Calibration period of N seconds at startup determines the initial scaling factor</p>
+<h3 id="116-spo2-timing">11.6 SpO2 Timing<a class="headerlink" href="#116-spo2-timing" title="Permanent link">&para;</a></h3>
+<ul>
+<li>First SpO2 value output: 20-30 seconds after feeding valid PPG and ACC signals</li>
+<li>Updates every 1 second thereafter</li>
+</ul>
+<hr />
+<h2 id="12-psp-s-vs-psp">12. PSP-S vs PSP<a class="headerlink" href="#12-psp-s-vs-psp" title="Permanent link">&para;</a></h2>
+<h3 id="121-overview">12.1 Overview<a class="headerlink" href="#121-overview" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>PSP</th>
+<th>PSP-S</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Full name</strong></td>
+<td>Philips Biosensing Platform</td>
+<td>Philips Biosensing Platform -- Sleep Sensing by PPG</td>
+</tr>
+<tr>
+<td><strong>Runs on</strong></td>
+<td>Embedded MCU (ARM Cortex M4F)</td>
+<td>Mobile device / resource-rich environment (Linux)</td>
+</tr>
+<tr>
+<td><strong>Form factor</strong></td>
+<td>Pre-built binary (psp.bin/psp.hex)</td>
+<td>C library for Linux (psp_s.a)</td>
+</tr>
+<tr>
+<td><strong>Primary function</strong></td>
+<td>Real-time metric extraction from sensors</td>
+<td>Sleep Stages extraction from Private Data</td>
+</tr>
+<tr>
+<td><strong>Input</strong></td>
+<td>Raw sensor data (PPG, ACC, SC, Gyro, Baro)</td>
+<td>Private Data metric output by PSP</td>
+</tr>
+<tr>
+<td><strong>Extraction control</strong></td>
+<td>Has its own EnableMetrics/DisableMetrics</td>
+<td>No own extraction control -- uses PSP's</td>
+</tr>
+</tbody>
+</table>
+<h3 id="122-how-they-work-together">12.2 How They Work Together<a class="headerlink" href="#122-how-they-work-together" title="Permanent link">&para;</a></h3>
+<ol>
+<li>PSP runs on the wearable, processes sensor data, and produces a <strong>Private Data</strong> metric packet once per minute.</li>
+<li>The application transfers Private Data packets (via Bluetooth or similar) to the mobile device.</li>
+<li>PSP-S on the mobile device receives Private Data and extracts <strong>Sleep Stages</strong>.</li>
+<li>Sleep Stages output includes: session start/end times, sleep stages per 30-second epoch (Wake, REM, Light, Deep, Unspecified), and sleeping heart rate.</li>
+</ol>
+<h3 id="123-psp-s-key-requirements">12.3 PSP-S Key Requirements<a class="headerlink" href="#123-psp-s-key-requirements" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Private Data packets must arrive <strong>in strictly original chronological order</strong>, without duplication.</li>
+<li>Out-of-order packets cause an exception and are ignored.</li>
+<li>PSP-S is robust to incidental packet loss, but &gt; 60 minutes of missing data may cause missing sessions.</li>
+<li>PSP-S version: 1.4 or above.</li>
+<li>Memory: application must provide instance memory (obtained via <code>GetDefaultParams()</code>).</li>
+<li>PSP-S instances are person-specific (one instance per user).</li>
+</ul>
+<h3 id="124-sleep-session-detection">12.4 Sleep Session Detection<a class="headerlink" href="#124-sleep-session-detection" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Automatic start:</strong> User inactive for &gt;= 20 minutes.</li>
+<li><strong>Manual start:</strong> Sleep Preference set to "Intent to Sleep" (overrides automatic).</li>
+<li><strong>Automatic end:</strong> User active for &gt;= 60 minutes.</li>
+<li><strong>Manual end:</strong> Sleep Preference set to "No Intent to Sleep."</li>
+<li>Manual end takes priority unless it occurs &gt; 20 minutes after activity start.</li>
+<li>Sleeping Heart Rate = minimum of averaged HR values (4.5-minute windows) over the entire session.</li>
+</ul>
+<h3 id="125-embedded-sleep-stages">12.5 Embedded Sleep Stages<a class="headerlink" href="#125-embedded-sleep-stages" title="Permanent link">&para;</a></h3>
+<p>Sleep Stages can also be enabled within PSP on the embedded device:
+- Requires enabling both Private Data and Sleep Stages metrics.
+- Mandatory inputs: PPG_G_INPUT (PPG-Green + Ambient), Sleep Preference, Height, Weight, Profile.
+- Sleep Preference is optional if automatic detection suffices.</p>
+<hr />
+<h2 id="13-memory-and-resource-requirements">13. Memory and Resource Requirements<a class="headerlink" href="#13-memory-and-resource-requirements" title="Permanent link">&para;</a></h2>
+<h3 id="131-memory-footprint-arm-cortex-m4f">13.1 Memory Footprint (ARM Cortex M4F)<a class="headerlink" href="#131-memory-footprint-arm-cortex-m4f" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Biosensing by PPG</th>
+<th>Biosensing by EDA</th>
+<th>Fall Detection (ACC+Gyro+Baro)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>ROM</strong></td>
+<td>78 KB</td>
+<td>21 KB</td>
+<td>24 KB</td>
+</tr>
+<tr>
+<td><strong>Data RAM</strong></td>
+<td>23 KB (per instance)</td>
+<td>25 KB</td>
+<td>43 KB</td>
+</tr>
+<tr>
+<td><strong>NVM</strong> (for history)</td>
+<td>23 KB</td>
+<td>25 KB</td>
+<td>43 KB</td>
+</tr>
+<tr>
+<td><strong>Stack RAM</strong></td>
+<td>3.5 KB</td>
+<td>0.8 KB</td>
+<td>1.7 KB</td>
+</tr>
+<tr>
+<td><strong>MIPS</strong></td>
+<td>0.6 MIPS</td>
+<td>1.5 MIPS</td>
+<td>Peak 91.8 / Median 0.2 MIPS</td>
+</tr>
+</tbody>
+</table>
+<h3 id="132-memory-allocation-rules">13.2 Memory Allocation Rules<a class="headerlink" href="#132-memory-allocation-rules" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Instance memory MUST be aligned to <strong>32-bit word boundary</strong> (use <code>uint32_t</code> array).</li>
+<li>Allocate at least the size returned by <code>PSP_GetDefaultParams()</code>.</li>
+<li>Example: <code>uint32_t pspmem[PSP_MEMORY_SIZE / 4];</code> with <code>PSP_MEMORY_SIZE = 50000</code>.</li>
+<li>Instance memory must be declared <strong>static</strong> so the address is the same after reboot (important for NVM restore).</li>
+<li>Do NOT modify the instance memory during the library's lifecycle.</li>
+</ul>
+<h3 id="133-data-logging-storage">13.3 Data Logging Storage<a class="headerlink" href="#133-data-logging-storage" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Approximately 20.5 KB per minute of sensor data.</li>
+<li>Approximately 0.5 MB per hour.</li>
+<li>Minimum transmission rate: 3.5 kbps for real-time streaming.</li>
+</ul>
+<h3 id="134-library-deployment">13.4 Library Deployment<a class="headerlink" href="#134-library-deployment" title="Permanent link">&para;</a></h3>
+<ul>
+<li>PSP binary is loaded at a <strong>fixed predetermined memory address</strong> (0x000E0000 for CoreKinect).</li>
+<li>Linker must reserve the code memory range for the library.</li>
+<li>Two methods: Keil uVision5 (scatter file + INCBIN) or IAR Embedded Workbench (--image_input linker option).</li>
+<li>Binary can also be merged with application image using <code>srec_cat.exe</code> before flashing.</li>
+</ul>
+<hr />
+<h2 id="14-sensor-signal-requirements-per-metric">14. Sensor Signal Requirements Per Metric<a class="headerlink" href="#14-sensor-signal-requirements-per-metric" title="Permanent link">&para;</a></h2>
+<p>Summary of which sensors must provide continuous data for each output metric:</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>PPG</th>
+<th>ACC</th>
+<th>SC</th>
+<th>Gyro/Baro</th>
+<th>Update Rate</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Heart Rate</td>
+<td>Continuous</td>
+<td>Continuous</td>
+<td>-</td>
+<td>-</td>
+<td>1 sec</td>
+</tr>
+<tr>
+<td>Low Power Heart Rate</td>
+<td>6-15 sec/min</td>
+<td>Continuous</td>
+<td>-</td>
+<td>-</td>
+<td>60 sec</td>
+</tr>
+<tr>
+<td>Resting Heart Rate</td>
+<td>1 min per 15 min inactive</td>
+<td>Continuous</td>
+<td>-</td>
+<td>-</td>
+<td>3600 sec</td>
+</tr>
+<tr>
+<td>Respiration Rate</td>
+<td>Continuous</td>
+<td>Continuous</td>
+<td>-</td>
+<td>-</td>
+<td>1 sec</td>
+</tr>
+<tr>
+<td>Heart Beat Timestamps</td>
+<td>Continuous</td>
+<td>Continuous</td>
+<td>-</td>
+<td>-</td>
+<td>1 sec</td>
+</tr>
+<tr>
+<td>Active Energy Expenditure</td>
+<td>Continuous</td>
+<td>Continuous</td>
+<td>-</td>
+<td>-</td>
+<td>1 sec</td>
+</tr>
+<tr>
+<td>Low Power AEE</td>
+<td>6-15 sec/min</td>
+<td>Continuous</td>
+<td>-</td>
+<td>-</td>
+<td>60 sec</td>
+</tr>
+<tr>
+<td>Activity Type</td>
+<td>-</td>
+<td>Continuous</td>
+<td>-</td>
+<td>-</td>
+<td>1 sec</td>
+</tr>
+<tr>
+<td>Activity Count</td>
+<td>-</td>
+<td>Continuous</td>
+<td>-</td>
+<td>-</td>
+<td>1 sec</td>
+</tr>
+<tr>
+<td>Cadence</td>
+<td>-</td>
+<td>Continuous</td>
+<td>-</td>
+<td>-</td>
+<td>1 sec</td>
+</tr>
+<tr>
+<td>Speed</td>
+<td>-</td>
+<td>Continuous</td>
+<td>-</td>
+<td>-</td>
+<td>1 sec</td>
+</tr>
+<tr>
+<td>VO2Max</td>
+<td>Continuous</td>
+<td>Continuous</td>
+<td>-</td>
+<td>-</td>
+<td>60 sec</td>
+</tr>
+<tr>
+<td>Fitness Index</td>
+<td>Continuous</td>
+<td>Continuous</td>
+<td>-</td>
+<td>-</td>
+<td>60 sec</td>
+</tr>
+<tr>
+<td>SpO2</td>
+<td>Continuous</td>
+<td>Continuous</td>
+<td>-</td>
+<td>-</td>
+<td>1 sec</td>
+</tr>
+<tr>
+<td>Skin Proximity</td>
+<td>Continuous (on-skin); during movement (off-skin)</td>
+<td>Continuous</td>
+<td>Optional</td>
+<td>-</td>
+<td>1 sec</td>
+</tr>
+<tr>
+<td>Stress Level HR</td>
+<td>Continuous</td>
+<td>Continuous</td>
+<td>-</td>
+<td>-</td>
+<td>1 sec</td>
+</tr>
+<tr>
+<td>Private Data</td>
+<td>-</td>
+<td>Continuous</td>
+<td>-</td>
+<td>-</td>
+<td>60 sec</td>
+</tr>
+<tr>
+<td>Sleep Stages</td>
+<td>Continuous</td>
+<td>Continuous</td>
+<td>-</td>
+<td>-</td>
+<td>Async (session end)</td>
+</tr>
+<tr>
+<td>Stress Level SC</td>
+<td>-</td>
+<td>-</td>
+<td>Continuous</td>
+<td>-</td>
+<td>1 sec</td>
+</tr>
+<tr>
+<td>Cognitive Zone</td>
+<td>-</td>
+<td>-</td>
+<td>Continuous</td>
+<td>-</td>
+<td>60 sec</td>
+</tr>
+<tr>
+<td>Fall Occurrence</td>
+<td>-</td>
+<td>Continuous</td>
+<td>-</td>
+<td>Continuous</td>
+<td>1 sec</td>
+</tr>
+<tr>
+<td>Compressed PPG</td>
+<td>Continuous</td>
+<td>-</td>
+<td>-</td>
+<td>-</td>
+<td>1 sec</td>
+</tr>
+<tr>
+<td>Compressed ACC</td>
+<td>-</td>
+<td>Continuous</td>
+<td>-</td>
+<td>-</td>
+<td>1 sec</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="appendix-firing-sequence-for-max86178-afe">Appendix: Firing Sequence for MAX86178 AFE<a class="headerlink" href="#appendix-firing-sequence-for-max86178-afe" title="Permanent link">&para;</a></h2>
+<p>For the Philips reference multi-color design with MAX86178 AFE:
+- 6 measurements per sample period at 32 Hz (31.25 ms interval)
+- LED pulse duration: 117 us each
+- SpO2 sequence: M1(Red-top), M2(Red-bottom), M3(IR-top), M4(IR-bottom), M5(Green-center), M7(Ambient)
+- HR-only sequence: M5(Green-center), M7(Ambient)
+- Red and IR firings should be close together in time</p>
+<h2 id="appendix-crosstalk-test-thresholds">Appendix: Crosstalk Test Thresholds<a class="headerlink" href="#appendix-crosstalk-test-thresholds" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Green LED (HR): PPG count &lt; 5K out of 2^19 (with black rubber patch, 100% LED current, max gain)</li>
+<li>Red/IR LED (SpO2): PPG count &lt; 600 out of 2^19</li>
+</ul>
+<h2 id="appendix-snr-test-criteria">Appendix: SNR Test Criteria<a class="headerlink" href="#appendix-snr-test-criteria" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Green channel: SNR &gt; 80 dB at required operating current</li>
+<li>Red and IR channels: SNR &gt; 85 dB at required operating current</li>
+<li>Measured with reflector in black box, staircase current profile, 3-second windows</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://zensical.org/" target="_blank" rel="noopener">
+      Zensical
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      
+      <script id="__config" type="application/json">{"annotate":null,"base":"../../../..","features":["navigation.sections","navigation.expand","navigation.path","navigation.indexes","search.suggest","content.code.copy","toc.follow"],"search":"../../../../assets/javascripts/workers/search.e2d2d235.min.js","tags":null,"translations":{"clipboard.copied":"Copied to clipboard","clipboard.copy":"Copy to clipboard","search.result.more.one":"1 more on this page","search.result.more.other":"# more on this page","search.result.none":"No matching documents","search.result.one":"1 matching document","search.result.other":"# matching documents","search.result.placeholder":"Type to start searching","search.result.term.missing":"Missing","select.version":"Select version"},"version":null}</script>
+    
+    
+      <script src="../../../../assets/javascripts/bundle.5fd3284f.min.js"></script>
+      
+        <script src="../../../../assets/js/external-links.js"></script>
+      
+    
+  </body>
+</html>
