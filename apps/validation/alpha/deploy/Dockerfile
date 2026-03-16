@@ -48,7 +48,6 @@ RUN pip3 install -e . && \
 
 # gRPC protocols for MTIB
 COPY libs/protocols/mtib /libs/protocols/mtib
-COPY libs/protocols/mtib_v2 /libs/protocols/mtib_v2
 
 # Python libraries
 COPY libs/python /libs/python
@@ -74,6 +73,10 @@ COPY apps/validation/alpha/fixtures fixtures
 
 # Modem firmware (only asset not in pipeline builds)
 COPY apps/manufacturing/alpha/assets/mfw_nrf91x1_2.0.2.zip /app/firmware/modem/mfw_nrf91x1_2.0.2.zip
+
+# Standalone FUOTA repeatability test + firmware artifacts
+COPY scripts/run_fuota_test.py /app/scripts/run_fuota_test.py
+COPY apps/firmware/products/alpha/artifacts/alpha_mfg_fw/alpha_b0/ /app/firmware/alpha_mfg_fw/
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Build Metadata

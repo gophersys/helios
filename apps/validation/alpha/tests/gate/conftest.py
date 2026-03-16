@@ -173,7 +173,7 @@ def _run_fuota_cleanup() -> None:
     log.info("Running FUOTA cleanup for %d device(s)...", len(_cleanup_registry))
 
     try:
-        from corekinect.test.validation.fuota_client import FuotaClient
+        from corekinect.test.fuota_client import FuotaClient
 
         client = FuotaClient(api_env="VAL_1_0")
 
@@ -275,7 +275,7 @@ def fuota(ctx, is_mock_mode):
         return None
 
     try:
-        from corekinect.test.validation.fuota_client import FuotaClient
+        from corekinect.test.fuota_client import FuotaClient
 
         return FuotaClient(api_env="VAL_1_0")
     except Exception as e:

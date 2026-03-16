@@ -22,18 +22,11 @@ appStorageClient: Optional[Minio] = None
 
 
 class StoragePrefixes:
-    FIRMWARE_RAW = "firmware/raw"
-    FIRMWARE_ENCRYPTED = "firmware/encrypted"
-    CODEBASES = "codebases"
-    TESTING_LOGS = "testing/logs"
-    TESTING_REPORTS = "testing/reports"
-    TESTING_EXPORTS = "testing/exports"
-    DEVICES_CALIBRATION = "devices/calibration"
-    DEVICES_CERTIFICATES = "devices/certificates"
-    DEVICES_DIAGNOSTICS = "devices/diagnostics"
-    FIRMWARE_BUILDS = "firmware/builds"
-    VALIDATION_RUNS = "validation/runs"  # Structured: runs/{run_id}/{tests,manifest.json,run.zip}
-    CI_BUILD_SCRIPTS = "ci/build-scripts"  # Build scripts per product: ci/build-scripts/{product}/build.sh
+    FIRMWARE_BUILDS = "firmware/builds"      # CI build artifacts: {product}/{build_id}/{filename}
+    FIRMWARE_UPLOADS = "firmware/uploads"    # Manual firmware uploads: {product}/{filename}
+    BUILD_SCRIPTS = "builds/scripts"        # Build automation: {product}/build.sh
+    SESSIONS = "sessions"                   # Test session data: {session_id}/{device_serial}/{test_name}/{step}.log
+    ICLE_LOGS = "icle"                      # ICLE power logs: {device_id}/{timestamp}_{filename}
 
 
 def storage_key(prefix: str, relative_path: str) -> str:

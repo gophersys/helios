@@ -122,7 +122,7 @@ def test_02_verify_boot(self, ctx):
 @pytest.mark.timeout(90)
 def test_03_personalize(self, ctx, config):
     """GATE-03: Personalize device (< 90s)."""
-    from corekinect.test.validation.device_personalizer import DevicePersonalizer
+    from corekinect.test.device_personalizer import DevicePersonalizer
 
     personalizer = DevicePersonalizer(
         mtib=ctx.mtib,

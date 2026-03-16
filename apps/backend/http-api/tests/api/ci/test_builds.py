@@ -252,7 +252,7 @@ class TestCreateBuild:
         created = _build_obj(id="build-new", status="QUEUED")
         mock_db.buildjob.create.return_value = created
 
-        with patch("src.api.v2.ci.builds.log_audit"):
+        with patch("src.api.v2.builds.builds.log_audit"):
             response = authed_client.post(
                 "/v2/builds",
                 data=json.dumps({
@@ -348,7 +348,7 @@ class TestCreateBuild:
         created = _build_obj(id="build-sha", commitSha="abc123")
         mock_db.buildjob.create.return_value = created
 
-        with patch("src.api.v2.ci.builds.log_audit"):
+        with patch("src.api.v2.builds.builds.log_audit"):
             response = authed_client.post(
                 "/v2/builds",
                 data=json.dumps({
@@ -369,7 +369,7 @@ class TestCreateBuild:
         created = _build_obj(id="build-mfg", variant="mfg", product="alpha_mfg_fw")
         mock_db.buildjob.create.return_value = created
 
-        with patch("src.api.v2.ci.builds.log_audit"):
+        with patch("src.api.v2.builds.builds.log_audit"):
             response = authed_client.post(
                 "/v2/builds",
                 data=json.dumps({
@@ -388,7 +388,7 @@ class TestCreateBuild:
         mock_db.product.find_first.return_value = None
         mock_db.buildjob.create.side_effect = Exception("DB connection lost")
 
-        with patch("src.api.v2.ci.builds.log_audit"):
+        with patch("src.api.v2.builds.builds.log_audit"):
             response = authed_client.post(
                 "/v2/builds",
                 data=json.dumps({
@@ -412,7 +412,7 @@ class TestCreateBuild:
         created = _build_obj(id="build-linked", productId="prod-linked")
         mock_db.buildjob.create.return_value = created
 
-        with patch("src.api.v2.ci.builds.log_audit"):
+        with patch("src.api.v2.builds.builds.log_audit"):
             response = authed_client.post(
                 "/v2/builds",
                 data=json.dumps({
@@ -439,7 +439,7 @@ class TestCreateBuild:
         created = _build_obj(id="build-board", board="custom_board_v2")
         mock_db.buildjob.create.return_value = created
 
-        with patch("src.api.v2.ci.builds.log_audit"):
+        with patch("src.api.v2.builds.builds.log_audit"):
             response = authed_client.post(
                 "/v2/builds",
                 data=json.dumps({
@@ -619,8 +619,8 @@ class TestUpdateBuild:
         dependent = _build_obj(id="build-dep", status="BLOCKED", baseJobId="build-base")
         mock_db.buildjob.find_many.return_value = [dependent]
 
-        # Mock pipeline completion check — the lazy import uses api.v2.ci.pipelines path
-        with patch("api.v2.ci.pipelines.check_pipeline_completion", return_value=None):
+        # Mock pipeline completion check — the lazy import uses api.v2.builds.pipelines path
+        with patch("api.v2.builds.pipelines.check_pipeline_completion", return_value=None):
             response = self._patch(authed_client, "/v2/builds/build-base", {
                 "status": "SUCCESS",
             })
@@ -753,7 +753,7 @@ class TestResetBuild:
         reset_result = _build_obj(id="build-fail", status="QUEUED")
         mock_db.buildjob.update.return_value = reset_result
 
-        with patch("src.api.v2.ci.builds.log_audit"):
+        with patch("src.api.v2.builds.builds.log_audit"):
             response = authed_client.post("/v2/builds/build-fail/reset")
 
         assert response.status_code == 200
@@ -802,7 +802,7 @@ class TestResetBuild:
         reset_result = _build_obj(id="build-clr", status="QUEUED")
         mock_db.buildjob.update.return_value = reset_result
 
-        with patch("src.api.v2.ci.builds.log_audit"):
+        with patch("src.api.v2.builds.builds.log_audit"):
             response = authed_client.post("/v2/builds/build-clr/reset")
 
         assert response.status_code == 200
@@ -823,7 +823,7 @@ class TestResetBuild:
         mock_db.buildjob.find_unique.return_value = existing
         mock_db.buildjob.update.side_effect = Exception("DB error")
 
-        with patch("src.api.v2.ci.builds.log_audit"):
+        with patch("src.api.v2.builds.builds.log_audit"):
             response = authed_client.post("/v2/builds/build-re/reset")
 
         assert response.status_code == 500

@@ -58,9 +58,9 @@ def extract_firmware_version(build_dir: str) -> str:
 def create_run(api_url: str, token: str, name: str, product_id: str,
                node_id: str, serial_number: str, firmware_variant: str,
                notes: str) -> dict:
-    """POST /v2/validation/runs — create a new validation run."""
+    """POST /v2/sessions — create a new validation run."""
     resp = requests.post(
-        f"{api_url}/v2/validation/runs",
+        f"{api_url}/v2/sessions",
         headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
         json={
             "name": name,
@@ -77,12 +77,12 @@ def create_run(api_url: str, token: str, name: str, product_id: str,
 
 def trigger_run(api_url: str, token: str, run_id: str,
                 firmware_version: str, firmware_path: str = "") -> dict:
-    """POST /v2/validation/runs/<run_id>/trigger — trigger K8s job."""
+    """POST /v2/sessions/<run_id>/trigger — trigger K8s job."""
     body = {"firmwareVersion": firmware_version}
     if firmware_path:
         body["firmwarePath"] = firmware_path
     resp = requests.post(
-        f"{api_url}/v2/validation/runs/{run_id}/trigger",
+        f"{api_url}/v2/sessions/{run_id}/trigger",
         headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
         json=body,
     )
@@ -91,9 +91,9 @@ def trigger_run(api_url: str, token: str, run_id: str,
 
 
 def get_run(api_url: str, token: str, run_id: str) -> dict:
-    """GET /v2/validation/runs/<run_id> — fetch run status."""
+    """GET /v2/sessions/<run_id> — fetch run status."""
     resp = requests.get(
-        f"{api_url}/v2/validation/runs/{run_id}",
+        f"{api_url}/v2/sessions/{run_id}",
         headers={"Authorization": f"Bearer {token}"},
     )
     resp.raise_for_status()
@@ -207,7 +207,7 @@ def main():
         print(f"  Total:     {final.get('completedCount', 0)}/{final.get('targetCount', 0)}")
     else:
         print("Done. Use --wait to poll until completion.")
-        print(f"  Monitor: GET {args.api_url}/v2/validation/runs/{run_id}")
+        print(f"  Monitor: GET {args.api_url}/v2/sessions/{run_id}")
 
 
 if __name__ == "__main__":

@@ -7,9 +7,7 @@ from ..unified_core.db_map import db_translation
 from ..unified_core.message_base import MessageBase
 from ..unified_core.message_codec import MessageCodec
 
-# Placeholder ORM imports; replace with your real models
 from corekinect.core_cloud.db_orm_v1_0 import Configgroundtbl as v1_Configgroundtbl
-from corekinect.core_cloud.db_orm_v0_9 import JumpTrackGndConfigV2MsgTbl as v09_Configgroundtbl
 
 
 @dataclass(frozen=True, slots=True)
@@ -27,7 +25,6 @@ class GroundModeConfigV2(ConfigMessageBase, MessageBase, MessageCodec):
 
     # ORM bindings for both schemas
     _orm_model_v1 = v1_Configgroundtbl
-    _orm_model_v09 = v09_Configgroundtbl
 
     # Header-ish fields used by packing
     message_id: int = UID

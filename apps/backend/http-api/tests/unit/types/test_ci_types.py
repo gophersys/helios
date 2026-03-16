@@ -1,7 +1,7 @@
 """Tests for CI request type validation."""
 import pytest
 
-from src.api.v2.ci.types import (
+from src.api.v2.builds.types import (
     BitbucketWebhookPayload,
     CiTriggerRequest,
     BuildCreateRequest,

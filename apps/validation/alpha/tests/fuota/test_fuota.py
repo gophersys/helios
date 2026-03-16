@@ -95,7 +95,7 @@ def pipeline_assets(request):
     PIPELINE_ID is set by the K8s job that triggers this test.
     All firmware versions, hex files, and CFW files come from the pipeline.
     """
-    from corekinect.test.validation.pipeline_assets import PipelineAssets
+    from corekinect.test.firmware import PipelineAssets
 
     # CLI option takes precedence over env var
     pipeline_id = request.config.getoption("--pipeline-id") or os.environ.get("PIPELINE_ID")
@@ -223,7 +223,7 @@ def device_id_override():
 @pytest.fixture(scope="module")
 def fuota_client():
     """Create FUOTA client."""
-    from corekinect.test.validation.fuota_client import FuotaClient
+    from corekinect.test.fuota_client import FuotaClient
     return FuotaClient(api_env="VAL_1_0")
 
 
@@ -409,7 +409,7 @@ def flash_firmware(client, app_hex: str, comms_hex: str):
 
 def personalize_device(client, snr: str, device_id: Optional[str] = None) -> dict:
     """Personalize device and upload EC public key to CoreCloud."""
-    from corekinect.test.validation.device_personalizer import DevicePersonalizer
+    from corekinect.test.device_personalizer import DevicePersonalizer
 
     # Known device info to skip modem read (UART too slow/unreliable)
     # Device 09J5 on MTIB 10.4.45.33
@@ -426,12 +426,11 @@ def personalize_device(client, snr: str, device_id: Optional[str] = None) -> dic
         require_corecloud_key=True,
     )
 
-    # Try with shell lock first; if COMMS shell lock fails (UART byte-by-byte
-    # latency often causes this), retry without shell lock
+    # Shell lock uses concurrent locking with 120s timeout — reliable with
+    # MTIB byte-by-byte UART delivery. No retry-without-lock fallback:
+    # personalization without locked shells causes IPC interleaving that
+    # corrupts the EC public key output.
     result, err = personalizer.repersonalize(power_cycle=True, lock_shells=True)
-    if err and "shell lock failed" in err.lower():
-        print(f"  Shell lock failed, retrying without lock: {err}")
-        result, err = personalizer.repersonalize(power_cycle=True, lock_shells=False)
 
     assert err is None, f"Personalization FAILED: {err}"
     assert result is not None, "Personalization returned no result"
@@ -547,10 +546,18 @@ def wait_for_fuota_completion(
     timeout_minutes: int = 90,
     mtib_client=None,
 ) -> bool:
-    """Wait for FUOTA to complete for both 108 (COMMS) and 109 (APP)."""
+    """Wait for FUOTA to complete for both 108 (COMMS) and 109 (APP).
+
+    Handles stale progress data: after creating a new plan, the progress
+    endpoint may return 100% from a PREVIOUS plan. We detect staleness by
+    checking lastUpdated timestamp — if it's older than our start time,
+    it's stale and we ignore it.
+    """
+    from datetime import datetime as _dt, timezone as _tz
     from protocols.mtib.mtib_pb2 import HostType, UartStreamRequest
 
     start_time = time.time()
+    start_dt = _dt.now(_tz.utc)
     timeout_s = timeout_minutes * 60
     poll_interval = 10
 
@@ -562,6 +569,7 @@ def wait_for_fuota_completion(
     last_progress_time = time.time()
     last_power_cycle_time = start_time
     power_cycle_interval = 180
+    saw_fresh_data = False
 
     # UART monitoring thread
     uart_stop = threading.Event()
@@ -629,6 +637,24 @@ def wait_for_fuota_completion(
                     pct = prog.get('percentComplete', 0)
                     pages = prog.get('pagesApplied', 0)
                     total = prog.get('totalPages', 1)
+                    last_updated = prog.get('lastUpdated', '')
+
+                    # Detect stale data from previous FUOTA plan.
+                    # After creating a new plan, the progress endpoint may
+                    # still return 100% from the PREVIOUS plan's delivery.
+                    if last_updated and not saw_fresh_data:
+                        try:
+                            updated_dt = _dt.fromisoformat(last_updated.replace("Z", "+00:00"))
+                            if updated_dt < start_dt:
+                                elapsed = (time.time() - start_time) / 60
+                                if last_status != "stale":
+                                    print(f"  [{elapsed:.1f}m] Ignoring stale progress (lastUpdated={last_updated[:19]})")
+                                    last_status = "stale"
+                                time.sleep(poll_interval)
+                                continue
+                        except (ValueError, TypeError):
+                            pass
+                    saw_fresh_data = True
 
                     status = f"{version}: {pct:.1f}% ({pages}/{total})"
 

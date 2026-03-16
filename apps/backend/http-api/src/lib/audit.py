@@ -26,7 +26,7 @@ def log_audit(
 
     Args:
         action:      dot-notation verb, e.g. "user.create", "component.delete"
-        entity_type: model name, e.g. "User", "Codebase", "Product"
+        entity_type: model name, e.g. "User", "Product", "Fixture"
         entity_id:   primary key of the affected entity (nullable for bulk ops)
         details:     freeform context — label, before/after, changed fields, etc.
     """

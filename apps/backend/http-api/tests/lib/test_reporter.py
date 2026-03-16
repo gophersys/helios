@@ -13,7 +13,7 @@ corekinect.test.__init__.py import chain (missing mtib_runner dep).
 The reporter module itself only depends on stdlib + requests + pytest.
 
 We mock `requests` by replacing the module attribute on the loaded module
-rather than using @patch("corekinect.test.validation.reporter.requests"),
+rather than using @patch("corekinect.test.reporter.requests"),
 because the string-based patch triggers the broken package __init__.py.
 """
 
@@ -29,9 +29,9 @@ import pytest
 # ── Module loader ────────────────────────────────────────
 
 _REPO_ROOT = Path(__file__).resolve().parents[5]  # lib → tests → http-api → backend → apps → repo
-_REPORTER_PATH = _REPO_ROOT / "libs" / "python" / "corekinect" / "test" / "validation" / "reporter.py"
+_REPORTER_PATH = _REPO_ROOT / "libs" / "python" / "corekinect" / "test" / "reporter.py"
 
-_MOD_NAME = "corekinect.test.validation.reporter"
+_MOD_NAME = "corekinect.test.reporter"
 
 
 def _load_reporter():
@@ -138,7 +138,7 @@ def test_session_start_posts(active_reporter, mock_requests):
 
     mock_requests.post.assert_called_once()
     url = mock_requests.post.call_args[0][0]
-    assert url == "http://localhost:9001/v2/validation/runs/run-123/report/start"
+    assert url == "http://localhost:9001/v2/sessions/run-123/report/start"
     assert mock_requests.post.call_args[1]["json"] == {"started": True}
 
 

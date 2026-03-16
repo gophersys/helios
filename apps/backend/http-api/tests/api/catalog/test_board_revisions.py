@@ -56,7 +56,7 @@ def test_create_board_revision(authed_client, mock_db):
         ],
     )
 
-    with patch("src.api.v2.catalog.board_revisions.log_audit"):
+    with patch("src.api.v2.products.board_revisions.log_audit"):
         response = authed_client.post(
             "/v2/products/prod-1/boards/board-1/revisions",
             data=json.dumps({
@@ -146,7 +146,7 @@ def test_update_board_revision(authed_client, mock_db):
         chipsets=[],
     )
 
-    with patch("src.api.v2.catalog.board_revisions.log_audit"):
+    with patch("src.api.v2.products.board_revisions.log_audit"):
         response = authed_client.put(
             "/v2/products/prod-1/boards/board-1/revisions/rev-1",
             data=json.dumps({
@@ -180,7 +180,7 @@ def test_delete_board_revision(authed_client, mock_db):
         updatedAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
     )
 
-    with patch("src.api.v2.catalog.board_revisions.log_audit"):
+    with patch("src.api.v2.products.board_revisions.log_audit"):
         response = authed_client.delete("/v2/products/prod-1/boards/board-1/revisions/rev-delete")
 
     assert response.status_code == 200
@@ -241,7 +241,7 @@ def test_create_board_revision_no_chipsets(authed_client, mock_db):
         chipsets=[],
     )
 
-    with patch("src.api.v2.catalog.board_revisions.log_audit"):
+    with patch("src.api.v2.products.board_revisions.log_audit"):
         response = authed_client.post(
             "/v2/products/prod-1/boards/board-1/revisions",
             data=json.dumps({"version": "3.0"}),
@@ -293,7 +293,7 @@ def test_update_board_revision_chipsets(authed_client, mock_db):
         ],
     )
 
-    with patch("src.api.v2.catalog.board_revisions.log_audit"):
+    with patch("src.api.v2.products.board_revisions.log_audit"):
         response = authed_client.put(
             "/v2/products/prod-1/boards/board-1/revisions/rev-1",
             data=json.dumps({"chipsetIds": ["chip-a", "chip-b"]}),

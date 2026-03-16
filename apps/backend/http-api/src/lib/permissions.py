@@ -2,7 +2,7 @@
 Concord platform permissions.
 
 Format: module:action
-Modules: products, builds, validation, manufacturing, fixtures, benches, devices, cluster, users, permissions, api-keys, system
+Modules: products, builds, validation, manufacturing, fixtures, devices, kubernetes, users, permissions, api-keys, system
 Actions: view, manage, trigger, run
 """
 
@@ -26,12 +26,10 @@ class Permissions:
     # Infrastructure
     FIXTURES_VIEW = "fixtures:view"
     FIXTURES_MANAGE = "fixtures:manage"
-    BENCHES_VIEW = "benches:view"
-    BENCHES_MANAGE = "benches:manage"
     DEVICES_VIEW = "devices:view"
     DEVICES_MANAGE = "devices:manage"
-    CLUSTER_VIEW = "cluster:view"
-    CLUSTER_MANAGE = "cluster:manage"
+    KUBERNETES_VIEW = "kubernetes:view"
+    KUBERNETES_MANAGE = "kubernetes:manage"
 
     # Platform
     USERS_VIEW = "users:view"
@@ -65,14 +63,12 @@ PERMISSION_REGISTRY = {
     "manufacturing:manage": {"module": "Testing", "label": "Manage Manufacturing", "description": "Configure manufacturing fixtures and test definitions"},
 
     # Infrastructure
-    "fixtures:view": {"module": "Infrastructure", "label": "View Fixtures", "description": "View manufacturing fixtures, slots, and assignments"},
-    "fixtures:manage": {"module": "Infrastructure", "label": "Manage Fixtures", "description": "Create, configure, and manage manufacturing fixtures"},
-    "benches:view": {"module": "Infrastructure", "label": "View Benches", "description": "View validation test benches, designs, and profiles"},
-    "benches:manage": {"module": "Infrastructure", "label": "Manage Benches", "description": "Create, configure, and manage validation benches"},
+    "fixtures:view": {"module": "Infrastructure", "label": "View Fixtures", "description": "View fixtures, test benches, designs, slots, and assignments"},
+    "fixtures:manage": {"module": "Infrastructure", "label": "Manage Fixtures", "description": "Create, configure, and manage fixtures and test benches"},
     "devices:view": {"module": "Infrastructure", "label": "View Devices", "description": "View ICLE devices, MTIB nodes, and edge infrastructure"},
     "devices:manage": {"module": "Infrastructure", "label": "Manage Devices", "description": "Configure, deploy, and manage edge devices"},
-    "cluster:view": {"module": "Infrastructure", "label": "View Cluster", "description": "View K8s cluster status, pods, deployments, services"},
-    "cluster:manage": {"module": "Infrastructure", "label": "Manage Cluster", "description": "Scale deployments, delete pods, manage K8s resources"},
+    "kubernetes:view": {"module": "Infrastructure", "label": "View Kubernetes", "description": "View K8s cluster status, pods, deployments, services"},
+    "kubernetes:manage": {"module": "Infrastructure", "label": "Manage Kubernetes", "description": "Scale deployments, delete pods, manage K8s resources"},
 
     # Platform
     "users:view": {"module": "Platform", "label": "View Users", "description": "View user accounts and their permission sets"},
@@ -90,26 +86,26 @@ DEFAULT_ROLES = {
     "Super Admin": list(Permissions.all()),
     "Admin": [
         p for p in Permissions.all()
-        if p not in {"cluster:manage", "system:manage", "permissions:manage"}
+        if p not in {"kubernetes:manage", "system:manage", "permissions:manage"}
     ],
     "Engineer": [
         "products:view", "builds:view", "builds:trigger",
         "validation:view", "validation:run",
         "manufacturing:view", "manufacturing:run",
-        "fixtures:view", "benches:view", "devices:view",
-        "cluster:view", "system:view",
+        "fixtures:view", "devices:view",
+        "kubernetes:view", "system:view",
         "api-keys:view", "api-keys:manage",
     ],
     "Operator": [
         "products:view", "builds:view",
         "validation:view", "manufacturing:view", "manufacturing:run",
-        "fixtures:view", "benches:view", "devices:view",
+        "fixtures:view", "devices:view",
         "system:view",
     ],
     "Viewer": [
         "products:view", "builds:view",
         "validation:view", "manufacturing:view",
-        "fixtures:view", "benches:view", "devices:view",
+        "fixtures:view", "devices:view",
         "system:view",
     ],
 }

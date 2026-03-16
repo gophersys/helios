@@ -15,7 +15,7 @@ sys.path.insert(0, "libs")
 from corekinect.mtib_client.v1.client.core import MtibV1Client
 from corekinect.mtib_client.v1.client.config import NetConfig
 from corekinect.mtib_client.v1.client.types import GpioDirection, GpioResistorConfig
-from corekinect.test.validation.uart_demuxer import UartDemuxer
+from corekinect.test.uart_demuxer import UartDemuxer
 
 MTIB_HOST = "10.4.45.33"
 MTIB_PORT = 50053

@@ -134,7 +134,7 @@ def pipeline_device():
 
 
 class TestCreateRun:
-    """POST /v2/validation/runs creates a Session + Device."""
+    """POST /v2/sessions creates a Session + Device."""
 
     def test_creates_session_and_device(self, authed_client, mock_db):
         """Run creation produces Session, Device, and pre-queued TestExecutions."""
@@ -151,9 +151,9 @@ class TestCreateRun:
         mock_db.testexecution.create.return_value = _make_execution()
         mock_db.session.update.return_value = session
 
-        with patch("src.api.v2.validation.runs.runs.log_audit"):
+        with patch("src.api.v2.sessions.runs.log_audit"):
             resp = authed_client.post(
-                "/v2/validation/runs",
+                "/v2/sessions",
                 data=json.dumps({
                     "name": "Alpha REV1.2 Smoke",
                     "productId": "prod-1",
@@ -186,9 +186,9 @@ class TestCreateRun:
         mock_db.test.find_many.return_value = []
         mock_db.session.update.return_value = session
 
-        with patch("src.api.v2.validation.runs.runs.log_audit"):
+        with patch("src.api.v2.sessions.runs.log_audit"):
             resp = authed_client.post(
-                "/v2/validation/runs",
+                "/v2/sessions",
                 data=json.dumps({
                     "name": "Test",
                     "productId": "prod-1",
@@ -214,7 +214,7 @@ class TestReportStart:
         mock_db.session.find_unique.return_value = pipeline_session
 
         resp = authed_client.post(
-            "/v2/validation/runs/sess-1/report/start",
+            "/v2/sessions/sess-1/report/start",
             data=json.dumps({"started": True}),
         )
 
@@ -231,11 +231,11 @@ class TestReportStart:
         assert "startedAt" in update_kwargs["data"]
 
     def test_rejects_completed_session(self, authed_client, mock_db):
-        """Start callback returns 409 for a COMPLETED session."""
-        mock_db.session.find_unique.return_value = _make_session(status="COMPLETED")
+        """Start callback returns 409 for a PASSED session."""
+        mock_db.session.find_unique.return_value = _make_session(status="PASSED")
 
         resp = authed_client.post(
-            "/v2/validation/runs/sess-1/report/start",
+            "/v2/sessions/sess-1/report/start",
             data=json.dumps({"started": True}),
         )
 
@@ -246,7 +246,7 @@ class TestReportStart:
         mock_db.session.find_unique.return_value = None
 
         resp = authed_client.post(
-            "/v2/validation/runs/nonexistent/report/start",
+            "/v2/sessions/nonexistent/report/start",
             data=json.dumps({"started": True}),
         )
 
@@ -257,7 +257,7 @@ class TestReportStart:
         mock_db.session.find_unique.return_value = pipeline_session
 
         resp = authed_client.post(
-            "/v2/validation/runs/sess-1/report/start",
+            "/v2/sessions/sess-1/report/start",
             data=None,
             content_type="application/json",
         )
@@ -281,7 +281,7 @@ class TestReportTestStart:
         mock_db.testexecution.find_first.return_value = _make_execution()
 
         resp = authed_client.post(
-            "/v2/validation/runs/sess-1/report/test-start",
+            "/v2/sessions/sess-1/report/test-start",
             data=json.dumps({
                 "testName": "test_power.test_boot_current",
                 "module": "power",
@@ -313,7 +313,7 @@ class TestReportTestStart:
         mock_db.testexecution.create.return_value = _make_execution(id="exec-new")
 
         resp = authed_client.post(
-            "/v2/validation/runs/sess-1/report/test-start",
+            "/v2/sessions/sess-1/report/test-start",
             data=json.dumps({
                 "testName": "test_new.test_discovery",
                 "module": "new",
@@ -342,7 +342,7 @@ class TestReportTestStart:
         )
 
         resp = authed_client.post(
-            "/v2/validation/runs/sess-1/report/test-start",
+            "/v2/sessions/sess-1/report/test-start",
             data=json.dumps({
                 "testName": "test_power.test_boot_current",
                 "module": "power",
@@ -367,7 +367,7 @@ class TestReportTestStart:
         mock_db.testexecution.find_first.return_value = _make_execution()
 
         resp = authed_client.post(
-            "/v2/validation/runs/sess-1/report/test-start",
+            "/v2/sessions/sess-1/report/test-start",
             data=json.dumps({"testName": "test_power.test_boot_current"}),
         )
 
@@ -381,7 +381,7 @@ class TestReportTestStart:
         mock_db.session.find_unique.return_value = pipeline_session
 
         resp = authed_client.post(
-            "/v2/validation/runs/sess-1/report/test-start",
+            "/v2/sessions/sess-1/report/test-start",
             data=json.dumps({"module": "power"}),
         )
 
@@ -396,7 +396,7 @@ class TestReportTestStart:
         mock_db.device.find_first.return_value = None  # No device
 
         resp = authed_client.post(
-            "/v2/validation/runs/sess-1/report/test-start",
+            "/v2/sessions/sess-1/report/test-start",
             data=json.dumps({"testName": "test_power.test_boot_current"}),
         )
 
@@ -414,7 +414,7 @@ class TestReportTestResult:
         mock_db.test.find_first.return_value = test
         mock_db.device.find_first.return_value = device
         mock_db.testexecution.find_first.return_value = execution
-        mock_db.testresult.count.return_value = 0
+        mock_db.teststep.count.return_value = 0
 
     def test_pass_result_creates_passed_record(
         self, authed_client, mock_db, pipeline_session, pipeline_device
@@ -423,10 +423,10 @@ class TestReportTestResult:
         test = _make_test()
         execution = _make_execution(status="RUNNING")
         self._setup_result_mocks(mock_db, pipeline_session, pipeline_device, test, execution)
-        mock_db.testresult.create.return_value = _make_result(passed=True)
+        mock_db.teststep.create.return_value = _make_result(passed=True)
 
         resp = authed_client.post(
-            "/v2/validation/runs/sess-1/report/test-result",
+            "/v2/sessions/sess-1/report/test-result",
             data=json.dumps({
                 "testName": "test_power.test_boot_current",
                 "passed": True,
@@ -445,7 +445,7 @@ class TestReportTestResult:
         assert "finishedAt" in exec_update
 
         # Result created with passed=True
-        mock_db.testresult.create.assert_called_once()
+        mock_db.teststep.create.assert_called_once()
 
     def test_fail_result_creates_failed_record(
         self, authed_client, mock_db, pipeline_session, pipeline_device
@@ -454,10 +454,10 @@ class TestReportTestResult:
         test = _make_test()
         execution = _make_execution(status="RUNNING")
         self._setup_result_mocks(mock_db, pipeline_session, pipeline_device, test, execution)
-        mock_db.testresult.create.return_value = _make_result(passed=False)
+        mock_db.teststep.create.return_value = _make_result(passed=False)
 
         resp = authed_client.post(
-            "/v2/validation/runs/sess-1/report/test-result",
+            "/v2/sessions/sess-1/report/test-result",
             data=json.dumps({
                 "testName": "test_power.test_boot_current",
                 "passed": False,
@@ -481,12 +481,12 @@ class TestReportTestResult:
         test = _make_test()
         execution = _make_execution(status="RUNNING")
         self._setup_result_mocks(mock_db, pipeline_session, pipeline_device, test, execution)
-        mock_db.testresult.create.return_value = _make_result()
+        mock_db.teststep.create.return_value = _make_result()
 
         measurements = {"currentMa": 33.5, "voltageV": 4.5, "bootTimeS": 3.2}
 
         resp = authed_client.post(
-            "/v2/validation/runs/sess-1/report/test-result",
+            "/v2/sessions/sess-1/report/test-result",
             data=json.dumps({
                 "testName": "test_power.test_boot_current",
                 "passed": True,
@@ -496,12 +496,12 @@ class TestReportTestResult:
         )
 
         assert resp.status_code == 200
-        # Verify the result JSON includes measurements
-        create_call = mock_db.testresult.create.call_args[1]["data"]
-        result_json = create_call["result"]
-        # result is wrapped in Json() — check the inner dict
-        assert result_json.data["measurements"] == measurements
-        assert result_json.data["durationS"] == 3.2
+        # Verify the step data includes measurements
+        create_call = mock_db.teststep.create.call_args[1]["data"]
+        measurements_json = create_call["measurements"]
+        # measurements is wrapped in Json() — check the inner dict
+        assert measurements_json.data == measurements
+        assert create_call["durationMs"] == 3200  # 3.2s -> 3200ms
 
     def test_step_index_increments(
         self, authed_client, mock_db, pipeline_session, pipeline_device
@@ -510,11 +510,11 @@ class TestReportTestResult:
         test = _make_test()
         execution = _make_execution(status="RUNNING")
         self._setup_result_mocks(mock_db, pipeline_session, pipeline_device, test, execution)
-        mock_db.testresult.count.return_value = 3  # 3 existing results
-        mock_db.testresult.create.return_value = _make_result(stepIndex=3)
+        mock_db.teststep.count.return_value = 3  # 3 existing results
+        mock_db.teststep.create.return_value = _make_result(stepIndex=3)
 
         resp = authed_client.post(
-            "/v2/validation/runs/sess-1/report/test-result",
+            "/v2/sessions/sess-1/report/test-result",
             data=json.dumps({
                 "testName": "test_power.test_boot_current",
                 "passed": True,
@@ -522,7 +522,7 @@ class TestReportTestResult:
         )
 
         assert resp.status_code == 200
-        create_data = mock_db.testresult.create.call_args[1]["data"]
+        create_data = mock_db.teststep.create.call_args[1]["data"]
         assert create_data["stepIndex"] == 3
 
     def test_rejects_missing_passed_field(
@@ -532,7 +532,7 @@ class TestReportTestResult:
         mock_db.session.find_unique.return_value = pipeline_session
 
         resp = authed_client.post(
-            "/v2/validation/runs/sess-1/report/test-result",
+            "/v2/sessions/sess-1/report/test-result",
             data=json.dumps({
                 "testName": "test_power.test_boot_current",
                 "durationS": 1.0,
@@ -550,7 +550,7 @@ class TestReportTestResult:
         mock_db.session.find_unique.return_value = pipeline_session
 
         resp = authed_client.post(
-            "/v2/validation/runs/sess-1/report/test-result",
+            "/v2/sessions/sess-1/report/test-result",
             data=json.dumps({
                 "testName": "test_power.test_boot_current",
                 "passed": "yes",
@@ -567,7 +567,7 @@ class TestReportTestResult:
         mock_db.test.find_first.return_value = None  # Test not found
 
         resp = authed_client.post(
-            "/v2/validation/runs/sess-1/report/test-result",
+            "/v2/sessions/sess-1/report/test-result",
             data=json.dumps({
                 "testName": "test_nonexistent.test_ghost",
                 "passed": True,
@@ -586,7 +586,7 @@ class TestReportTestResult:
         mock_db.testexecution.find_first.return_value = None  # No execution
 
         resp = authed_client.post(
-            "/v2/validation/runs/sess-1/report/test-result",
+            "/v2/sessions/sess-1/report/test-result",
             data=json.dumps({
                 "testName": "test_power.test_boot_current",
                 "passed": True,
@@ -610,7 +610,7 @@ class TestReportFinish:
         mock_db.device.find_first.return_value = pipeline_device
 
         resp = authed_client.post(
-            "/v2/validation/runs/sess-1/report/finish",
+            "/v2/sessions/sess-1/report/finish",
             data=json.dumps({
                 "total": 10,
                 "passed": 8,
@@ -621,7 +621,7 @@ class TestReportFinish:
 
         assert resp.status_code == 200
         body = json.loads(resp.data)
-        assert body["data"]["status"] == "COMPLETED"
+        assert body["data"]["status"] == "FAILED"
         assert body["data"]["total"] == 10
         assert body["data"]["passed"] == 8
         assert body["data"]["failed"] == 1
@@ -629,7 +629,7 @@ class TestReportFinish:
 
         # Verify DB update
         update_data = mock_db.session.update.call_args[1]["data"]
-        assert update_data["status"] == "COMPLETED"
+        assert update_data["status"] == "FAILED"
         assert update_data["completedCount"] == 10
         assert update_data["passedCount"] == 8
         assert update_data["failedCount"] == 2  # failed + errors
@@ -643,7 +643,7 @@ class TestReportFinish:
         mock_db.device.find_first.return_value = pipeline_device
 
         resp = authed_client.post(
-            "/v2/validation/runs/sess-1/report/finish",
+            "/v2/sessions/sess-1/report/finish",
             data=json.dumps({"total": 5, "passed": 5, "failed": 0, "errors": 0}),
         )
 
@@ -659,7 +659,7 @@ class TestReportFinish:
         mock_db.device.find_first.return_value = pipeline_device
 
         resp = authed_client.post(
-            "/v2/validation/runs/sess-1/report/finish",
+            "/v2/sessions/sess-1/report/finish",
             data=json.dumps({"total": 5, "passed": 3, "failed": 2, "errors": 0}),
         )
 
@@ -675,7 +675,7 @@ class TestReportFinish:
         mock_db.device.find_first.return_value = pipeline_device
 
         resp = authed_client.post(
-            "/v2/validation/runs/sess-1/report/finish",
+            "/v2/sessions/sess-1/report/finish",
             data=json.dumps({"total": 5, "passed": 4, "failed": 0, "errors": 1}),
         )
 
@@ -688,7 +688,7 @@ class TestReportFinish:
         mock_db.session.find_unique.return_value = pipeline_session
 
         resp = authed_client.post(
-            "/v2/validation/runs/sess-1/report/finish",
+            "/v2/sessions/sess-1/report/finish",
             data=json.dumps({"total": -1, "passed": 0, "failed": 0}),
         )
 
@@ -699,7 +699,7 @@ class TestReportFinish:
         mock_db.session.find_unique.return_value = pipeline_session
 
         resp = authed_client.post(
-            "/v2/validation/runs/sess-1/report/finish",
+            "/v2/sessions/sess-1/report/finish",
             data=json.dumps({"total": 5}),
         )
 
@@ -719,7 +719,7 @@ class TestFullPipeline:
     """
 
     def test_three_tests_two_pass_one_fail(self, authed_client, mock_db):
-        """Full sequence: 3 tests (2 pass, 1 fail) → COMPLETED session, FAILED device."""
+        """Full sequence: 3 tests (2 pass, 1 fail) → PASSED session, FAILED device."""
         # ── Step 1: Create run ──────────────────────────────
         product = _make_product()
         node = _make_node()
@@ -733,9 +733,9 @@ class TestFullPipeline:
         mock_db.test.find_many.return_value = []  # No pre-existing tests
         mock_db.session.update.return_value = session
 
-        with patch("src.api.v2.validation.runs.runs.log_audit"):
+        with patch("src.api.v2.sessions.runs.log_audit"):
             resp = authed_client.post(
-                "/v2/validation/runs",
+                "/v2/sessions",
                 data=json.dumps({
                     "name": "Alpha REV1.2 Smoke",
                     "productId": "prod-1",
@@ -750,7 +750,7 @@ class TestFullPipeline:
         mock_db.session.update.reset_mock()
 
         resp = authed_client.post(
-            "/v2/validation/runs/sess-1/report/start",
+            "/v2/sessions/sess-1/report/start",
             data=json.dumps({"started": True}),
         )
         assert resp.status_code == 200
@@ -783,7 +783,7 @@ class TestFullPipeline:
 
             # test-start
             resp = authed_client.post(
-                "/v2/validation/runs/sess-1/report/test-start",
+                "/v2/sessions/sess-1/report/test-start",
                 data=json.dumps({"testName": name, "module": module}),
             )
             assert resp.status_code == 200, f"test-start failed for {name}"
@@ -791,8 +791,8 @@ class TestFullPipeline:
             # Now set up the test-result mocks
             mock_db.test.find_first.return_value = test_obj
             mock_db.testexecution.find_first.return_value = exec_obj
-            mock_db.testresult.count.return_value = 0
-            mock_db.testresult.create.return_value = _make_result(
+            mock_db.teststep.count.return_value = 0
+            mock_db.teststep.create.return_value = _make_result(
                 id=f"result-{i}", executionId=f"exec-{i}", passed=passed
             )
 
@@ -804,7 +804,7 @@ class TestFullPipeline:
                 result_payload["errorMessage"] = "Assertion failed"
 
             resp = authed_client.post(
-                "/v2/validation/runs/sess-1/report/test-result",
+                "/v2/sessions/sess-1/report/test-result",
                 data=json.dumps(result_payload),
             )
             assert resp.status_code == 200, f"test-result failed for {name}"
@@ -821,7 +821,7 @@ class TestFullPipeline:
         mock_db.device.update.reset_mock()
 
         resp = authed_client.post(
-            "/v2/validation/runs/sess-1/report/finish",
+            "/v2/sessions/sess-1/report/finish",
             data=json.dumps({
                 "total": 3,
                 "passed": 2,
@@ -832,9 +832,9 @@ class TestFullPipeline:
         )
         assert resp.status_code == 200
 
-        # Session marked COMPLETED with correct counts
+        # Session marked FAILED with correct counts
         session_update = mock_db.session.update.call_args[1]["data"]
-        assert session_update["status"] == "COMPLETED"
+        assert session_update["status"] == "FAILED"
         assert session_update["completedCount"] == 3
         assert session_update["passedCount"] == 2
         assert session_update["failedCount"] == 1  # failed + errors
@@ -859,9 +859,9 @@ class TestFullPipeline:
         mock_db.testexecution.create.return_value = exec_obj
         mock_db.session.update.return_value = session
 
-        with patch("src.api.v2.validation.runs.runs.log_audit"):
+        with patch("src.api.v2.sessions.runs.log_audit"):
             resp = authed_client.post(
-                "/v2/validation/runs",
+                "/v2/sessions",
                 data=json.dumps({
                     "name": "Clean Run",
                     "productId": "prod-1",
@@ -874,7 +874,7 @@ class TestFullPipeline:
         # Start
         mock_db.session.find_unique.return_value = session
         resp = authed_client.post(
-            "/v2/validation/runs/sess-1/report/start",
+            "/v2/sessions/sess-1/report/start",
             data=json.dumps({"started": True}),
         )
         assert resp.status_code == 200
@@ -885,16 +885,16 @@ class TestFullPipeline:
         mock_db.testexecution.find_first.return_value = exec_obj
 
         resp = authed_client.post(
-            "/v2/validation/runs/sess-1/report/test-start",
+            "/v2/sessions/sess-1/report/test-start",
             data=json.dumps({"testName": "test_power.test_boot_current", "module": "power"}),
         )
         assert resp.status_code == 200
 
-        mock_db.testresult.count.return_value = 0
-        mock_db.testresult.create.return_value = _make_result(passed=True)
+        mock_db.teststep.count.return_value = 0
+        mock_db.teststep.create.return_value = _make_result(passed=True)
 
         resp = authed_client.post(
-            "/v2/validation/runs/sess-1/report/test-result",
+            "/v2/sessions/sess-1/report/test-result",
             data=json.dumps({
                 "testName": "test_power.test_boot_current",
                 "passed": True,
@@ -906,7 +906,7 @@ class TestFullPipeline:
         # Finish: all pass
         mock_db.device.update.reset_mock()
         resp = authed_client.post(
-            "/v2/validation/runs/sess-1/report/finish",
+            "/v2/sessions/sess-1/report/finish",
             data=json.dumps({"total": 1, "passed": 1, "failed": 0, "errors": 0}),
         )
         assert resp.status_code == 200
@@ -917,10 +917,10 @@ class TestFullPipeline:
     def test_unauthorized_reporter_rejected(self, client):
         """All reporter endpoints reject unauthenticated requests."""
         endpoints = [
-            ("/v2/validation/runs/sess-1/report/start", {"started": True}),
-            ("/v2/validation/runs/sess-1/report/test-start", {"testName": "x"}),
-            ("/v2/validation/runs/sess-1/report/test-result", {"testName": "x", "passed": True}),
-            ("/v2/validation/runs/sess-1/report/finish", {"total": 1, "passed": 1, "failed": 0}),
+            ("/v2/sessions/sess-1/report/start", {"started": True}),
+            ("/v2/sessions/sess-1/report/test-start", {"testName": "x"}),
+            ("/v2/sessions/sess-1/report/test-result", {"testName": "x", "passed": True}),
+            ("/v2/sessions/sess-1/report/finish", {"total": 1, "passed": 1, "failed": 0}),
         ]
 
         for url, payload in endpoints:

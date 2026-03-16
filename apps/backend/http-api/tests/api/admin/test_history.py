@@ -268,9 +268,9 @@ class TestGetHistoryEntry:
         """Should return a single audit log entry with user info."""
         entry = _audit_entry(
             id="audit-specific",
-            action="codebase.update",
-            entityType="Codebase",
-            entityId="cb-456",
+            action="product.update",
+            entityType="Product",
+            entityId="prod-456",
         )
         mock_db.auditlog.find_unique.return_value = entry
 
@@ -280,9 +280,9 @@ class TestGetHistoryEntry:
         body = json.loads(response.data)
         assert body["errors"] == []
         assert body["data"]["id"] == "audit-specific"
-        assert body["data"]["action"] == "codebase.update"
-        assert body["data"]["entityType"] == "Codebase"
-        assert body["data"]["entityId"] == "cb-456"
+        assert body["data"]["action"] == "product.update"
+        assert body["data"]["entityType"] == "Product"
+        assert body["data"]["entityId"] == "prod-456"
         assert body["data"]["user"]["name"] == "Alice"
         assert body["data"]["user"]["email"] == "alice@example.com"
         assert "createdAt" in body["data"]

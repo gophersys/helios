@@ -102,7 +102,7 @@ _state = _ChainState()
 @pytest.fixture(scope="module")
 def assets(request):
     """Load pipeline builds from Concord API."""
-    from corekinect.test.validation.pipeline_assets import PipelineAssets
+    from corekinect.test.firmware import PipelineAssets
 
     pipeline_id = (
         request.config.getoption("--pipeline-id")
@@ -152,7 +152,7 @@ def mtib(request):
 @pytest.fixture(scope="module")
 def fuota(request):
     """CoreCloud FUOTA client."""
-    from corekinect.test.validation.fuota_client import FuotaClient
+    from corekinect.test.fuota_client import FuotaClient
     return FuotaClient(api_env="VAL_1_0")
 
 
@@ -241,7 +241,7 @@ def flash_and_personalize(client, snr: str, app_hex: str, comms_hex: str,
 
     # Personalize
     print(f"  Personalizing device (SNR={snr})...")
-    from corekinect.test.validation.device_personalizer import DevicePersonalizer
+    from corekinect.test.device_personalizer import DevicePersonalizer
 
     imei = os.environ.get("DEVICE_IMEI", "355025931735979")
     iccids = os.environ.get("DEVICE_ICCIDS", "89148000009808558441,89457300000037582833").split(",")

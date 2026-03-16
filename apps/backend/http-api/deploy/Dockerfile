@@ -61,24 +61,8 @@ RUN export NVM_DIR="$HOME/.nvm" && \
     yarn && \
     yarn prisma generate
 
-# Download Prisma binary using prisma py fetch
-RUN echo "=== Running prisma py fetch ===" && \
-    cd prisma && \
-    prisma py fetch && \
-    echo "=== Checking where binary was downloaded ===" && \
-    find /root/.cache -name "*prisma*" -type f && \
-    echo "=== Checking binary cache directory structure ===" && \
-    ls -la /root/.cache/prisma-python/binaries/ && \
-    echo "=== Checking version directory ===" && \
-    ls -la /root/.cache/prisma-python/binaries/5.17.0/ && \
-    echo "=== Checking engine directory ===" && \
-    ls -la /root/.cache/prisma-python/binaries/5.17.0/393aa359c9ad4a4bb28630fb5613f9c281cde053/ && \
-    echo "=== Looking for ANY files in engine directory ===" && \
-    find /root/.cache/prisma-python/binaries/5.17.0/393aa359c9ad4a4bb28630fb5613f9c281cde053 -type f && \
-    echo "=== Looking for query-engine specifically ===" && \
-    find /root/.cache/prisma-python/binaries -name "*query-engine*" -type f && \
-    echo "=== Testing binary execution ===" && \
-    find /root/.cache/prisma-python/binaries -name "*query-engine*" -type f -executable -exec {} --version \;
+# Download Prisma query engine binary
+RUN cd prisma && prisma py fetch
 
 # ----------------------------------------------------
 #                                           Final Stage
@@ -131,10 +115,7 @@ WORKDIR /app
 COPY ./libs/python /libs/python
 
 # Copy the protocols used by the app
-COPY ./libs/protocols/cluster_test /libs/protocols/cluster_test
-COPY ./libs/protocols/cluster_operator /libs/protocols/cluster_operator
 COPY ./libs/protocols/mtib /libs/protocols/mtib
-COPY ./libs/protocols/mtib_v2 /libs/protocols/mtib_v2
 
 # Set the PYTHONPATH to include the libs directory
 ENV PYTHONPATH="/libs:/libs/python:/libs/protocols"
@@ -169,8 +150,6 @@ COPY ./apps/backend/http-api/src src
 
 # Copy firmware build scripts (served via /v2/ci/scripts/<product> endpoint)
 COPY ./apps/firmware/products/alpha/scripts /app/firmware/products/alpha/scripts
-COPY ./apps/firmware/products/sigma5/scripts /app/firmware/products/sigma5/scripts
-COPY ./apps/firmware/products/theta/scripts /app/firmware/products/theta/scripts
 
 # Copy validation tests (for K8s jobs running Stage 4 validation)
 COPY ./apps/validation/alpha /app/validation/alpha

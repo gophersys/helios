@@ -1,6 +1,6 @@
 """Tests for stage config request type validation."""
 import pytest
-from api.v2.ci.stage_config_types import StageConfigCreateRequest, StageConfigUpdateRequest
+from api.v2.builds.stage_config_types import StageConfigCreateRequest, StageConfigUpdateRequest
 
 
 class TestStageConfigCreateRequest:

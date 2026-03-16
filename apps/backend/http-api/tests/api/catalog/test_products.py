@@ -92,7 +92,7 @@ def test_create_product(authed_client, mock_db):
         **_product_defaults(),
     )
 
-    with patch("src.api.v2.catalog.products.log_audit"):
+    with patch("src.api.v2.products.products.log_audit"):
         response = authed_client.post(
             "/v2/products",
             data=json.dumps({
@@ -231,7 +231,7 @@ def test_update_product(authed_client, mock_db):
         **_product_defaults(),
     )
 
-    with patch("src.api.v2.catalog.products.log_audit"):
+    with patch("src.api.v2.products.products.log_audit"):
         response = authed_client.put(
             "/v2/products/prod-update",
             data=json.dumps({
@@ -275,7 +275,7 @@ def test_delete_product(authed_client, mock_db):
     mock_db.session.find_first.return_value = None
     mock_db.test.find_first.return_value = None
 
-    with patch("src.api.v2.catalog.products.log_audit"):
+    with patch("src.api.v2.products.products.log_audit"):
         response = authed_client.delete("/v2/products/prod-delete")
 
     assert response.status_code == 200
@@ -328,7 +328,7 @@ def test_update_product_duplicate_name(authed_client, mock_db):
 
     mock_db.product.find_unique.side_effect = [existing, dup]
 
-    with patch("src.api.v2.catalog.products.log_audit"):
+    with patch("src.api.v2.products.products.log_audit"):
         response = authed_client.put(
             "/v2/products/prod-update",
             data=json.dumps({"name": "Taken Name"}),

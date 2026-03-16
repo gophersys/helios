@@ -1,7 +1,7 @@
 """Unit tests for the Validation Runs CRUD endpoints.
 
 Tests the create, list, get, and cancel operations on
-/v2/validation/runs/ using the mock DB + authed client pattern.
+/v2/sessions/ using the mock DB + authed client pattern.
 """
 
 import json
@@ -112,9 +112,9 @@ class TestCreateRun:
         mock_db.test.find_many.return_value = []
         mock_db.session.update.return_value = _make_session(targetCount=0)
 
-        with patch("src.api.v2.validation.runs.runs.log_audit"):
+        with patch("src.api.v2.sessions.runs.log_audit"):
             resp = authed_client.post(
-                "/v2/validation/runs",
+                "/v2/sessions",
                 data=json.dumps({
                     "name": "Minimal Run",
                     "productId": "prod-1",
@@ -157,9 +157,9 @@ class TestCreateRun:
         mock_db.testexecution.create.side_effect = [exec1, exec2]
         mock_db.session.update.return_value = session
 
-        with patch("src.api.v2.validation.runs.runs.log_audit"):
+        with patch("src.api.v2.sessions.runs.log_audit"):
             resp = authed_client.post(
-                "/v2/validation/runs",
+                "/v2/sessions",
                 data=json.dumps({
                     "name": "Full Run",
                     "productId": "prod-1",
@@ -180,7 +180,7 @@ class TestCreateRun:
     def test_create_run_missing_product_id(self, authed_client, mock_db):
         """Missing productId returns 400."""
         resp = authed_client.post(
-            "/v2/validation/runs",
+            "/v2/sessions",
             data=json.dumps({
                 "name": "Test",
                 "nodeId": "node-1",
@@ -197,7 +197,7 @@ class TestCreateRun:
         mock_db.product.find_unique.return_value = None
 
         resp = authed_client.post(
-            "/v2/validation/runs",
+            "/v2/sessions",
             data=json.dumps({
                 "name": "Test",
                 "productId": "bad-id",
@@ -216,7 +216,7 @@ class TestCreateRun:
         mock_db.node.find_unique.return_value = None
 
         resp = authed_client.post(
-            "/v2/validation/runs",
+            "/v2/sessions",
             data=json.dumps({
                 "name": "Test",
                 "productId": "prod-1",
@@ -232,7 +232,7 @@ class TestCreateRun:
     def test_create_run_unauthorized(self, client):
         """No auth header returns 401."""
         resp = client.post(
-            "/v2/validation/runs",
+            "/v2/sessions",
             data=json.dumps({"name": "Test"}),
             content_type="application/json",
         )
@@ -249,7 +249,7 @@ class TestListRuns:
         mock_db.session.count.return_value = 0
         mock_db.session.find_many.return_value = []
 
-        resp = authed_client.get("/v2/validation/runs")
+        resp = authed_client.get("/v2/sessions")
         assert resp.status_code == 200
 
         body = json.loads(resp.data)
@@ -265,7 +265,7 @@ class TestListRuns:
         mock_db.session.count.return_value = 1
         mock_db.session.find_many.return_value = [session]
 
-        resp = authed_client.get("/v2/validation/runs")
+        resp = authed_client.get("/v2/sessions")
         assert resp.status_code == 200
 
         body = json.loads(resp.data)
@@ -281,7 +281,7 @@ class TestListRuns:
         mock_db.session.count.return_value = 150
         mock_db.session.find_many.return_value = []
 
-        resp = authed_client.get("/v2/validation/runs?page=3&limit=25")
+        resp = authed_client.get("/v2/sessions?page=3&limit=25")
         assert resp.status_code == 200
 
         body = json.loads(resp.data)
@@ -301,19 +301,19 @@ class TestListRuns:
         mock_db.session.count.return_value = 0
         mock_db.session.find_many.return_value = []
 
-        resp = authed_client.get("/v2/validation/runs?status=completed")
+        resp = authed_client.get("/v2/sessions?status=passed")
         assert resp.status_code == 200
 
         # Verify the where clause includes status
         count_where = mock_db.session.count.call_args[1]["where"]
-        assert count_where["status"] == "COMPLETED"
+        assert count_where["status"] == "PASSED"
 
     def test_list_runs_filter_by_product(self, authed_client, mock_db):
         """productId query param filters sessions."""
         mock_db.session.count.return_value = 0
         mock_db.session.find_many.return_value = []
 
-        resp = authed_client.get("/v2/validation/runs?productId=prod-1")
+        resp = authed_client.get("/v2/sessions?productId=prod-1")
         assert resp.status_code == 200
 
         count_where = mock_db.session.count.call_args[1]["where"]
@@ -324,7 +324,7 @@ class TestListRuns:
         mock_db.session.count.return_value = 0
         mock_db.session.find_many.return_value = []
 
-        resp = authed_client.get("/v2/validation/runs?limit=999")
+        resp = authed_client.get("/v2/sessions?limit=999")
         assert resp.status_code == 200
 
         body = json.loads(resp.data)
@@ -341,7 +341,7 @@ class TestGetRunDetail:
         session = _make_session()
         mock_db.session.find_unique.return_value = session
 
-        resp = authed_client.get("/v2/validation/runs/sess-1")
+        resp = authed_client.get("/v2/sessions/sess-1")
         assert resp.status_code == 200
 
         body = json.loads(resp.data)
@@ -354,7 +354,7 @@ class TestGetRunDetail:
         """Non-existent run returns 404."""
         mock_db.session.find_unique.return_value = None
 
-        resp = authed_client.get("/v2/validation/runs/nonexistent")
+        resp = authed_client.get("/v2/sessions/nonexistent")
         assert resp.status_code == 404
 
         body = json.loads(resp.data)
@@ -379,7 +379,7 @@ class TestGetRunDetail:
         session = _make_session(devices=[device])
         mock_db.session.find_unique.return_value = session
 
-        resp = authed_client.get("/v2/validation/runs/sess-1")
+        resp = authed_client.get("/v2/sessions/sess-1")
         assert resp.status_code == 200
 
         body = json.loads(resp.data)
@@ -389,8 +389,8 @@ class TestGetRunDetail:
         ex = body["data"]["executions"][0]
         assert ex["testId"] == "test-1"
         assert ex["test"]["name"] == "test_boot.test_power_cycle"
-        assert ex["resultCount"] == 1
-        assert ex["resultsPassed"] == 1
+        assert ex["stepCount"] == 1
+        assert ex["stepsPassed"] == 1
 
 
 # ── CancelRun ────────────────────────────────────────────
@@ -404,8 +404,8 @@ class TestCancelRun:
         mock_db.session.update.return_value = _make_session(status="CANCELLED")
         mock_db.testexecution.update_many = MagicMock(return_value=None)
 
-        with patch("src.api.v2.validation.runs.runs.log_audit"):
-            resp = authed_client.post("/v2/validation/runs/sess-1/cancel")
+        with patch("src.api.v2.sessions.runs.log_audit"):
+            resp = authed_client.post("/v2/sessions/sess-1/cancel")
 
         assert resp.status_code == 200
         body = json.loads(resp.data)
@@ -415,36 +415,36 @@ class TestCancelRun:
         mock_db.testexecution.update_many.assert_called_once()
 
     def test_cancel_paused_run(self, authed_client, mock_db):
-        """Cancel a PAUSED run also succeeds."""
-        mock_db.session.find_unique.return_value = _make_session(status="PAUSED")
+        """Cancel a PENDING run also succeeds."""
+        mock_db.session.find_unique.return_value = _make_session(status="PENDING")
         mock_db.session.update.return_value = _make_session(status="CANCELLED")
         mock_db.testexecution.update_many = MagicMock(return_value=None)
 
-        with patch("src.api.v2.validation.runs.runs.log_audit"):
-            resp = authed_client.post("/v2/validation/runs/sess-1/cancel")
+        with patch("src.api.v2.sessions.runs.log_audit"):
+            resp = authed_client.post("/v2/sessions/sess-1/cancel")
 
         assert resp.status_code == 200
 
     def test_cancel_completed_run_fails(self, authed_client, mock_db):
-        """Cancelling a COMPLETED run returns 409."""
-        mock_db.session.find_unique.return_value = _make_session(status="COMPLETED")
+        """Cancelling a PASSED run returns 409."""
+        mock_db.session.find_unique.return_value = _make_session(status="PASSED")
 
-        resp = authed_client.post("/v2/validation/runs/sess-1/cancel")
+        resp = authed_client.post("/v2/sessions/sess-1/cancel")
         assert resp.status_code == 409
 
         body = json.loads(resp.data)
-        assert "COMPLETED" in body["errors"][0]["message"]
+        assert "PASSED" in body["errors"][0]["message"]
 
     def test_cancel_cancelled_run_fails(self, authed_client, mock_db):
         """Cancelling an already CANCELLED run returns 409."""
         mock_db.session.find_unique.return_value = _make_session(status="CANCELLED")
 
-        resp = authed_client.post("/v2/validation/runs/sess-1/cancel")
+        resp = authed_client.post("/v2/sessions/sess-1/cancel")
         assert resp.status_code == 409
 
     def test_cancel_run_not_found(self, authed_client, mock_db):
         """Cancelling a non-existent run returns 404."""
         mock_db.session.find_unique.return_value = None
 
-        resp = authed_client.post("/v2/validation/runs/nonexistent/cancel")
+        resp = authed_client.post("/v2/sessions/nonexistent/cancel")
         assert resp.status_code == 404

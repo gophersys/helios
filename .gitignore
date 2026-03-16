@@ -58,6 +58,10 @@ __pycache__
 venv/
 .venv/
 .env
+.mypy_cache/
+
+# Build caches
+.cache/
 
 # Pytest
 .pytest_cache/

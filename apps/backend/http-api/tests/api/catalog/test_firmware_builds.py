@@ -13,7 +13,7 @@ from tests.conftest import make_obj
 @pytest.fixture(autouse=True)
 def _mock_presigned_url():
     """Mock presigned_url in catalog.shared so no real storage connection is made."""
-    with patch("api.v2.catalog.shared.presigned_get_url", return_value=None):
+    with patch("api.v2.products.shared.presigned_get_url", return_value=None):
         yield
 
 
@@ -124,7 +124,7 @@ def test_update_firmware_build(authed_client, mock_db):
         chipset=chipset_obj,
     )
 
-    with patch("api.v2.catalog.firmware_builds.log_audit"):
+    with patch("api.v2.products.firmware_builds.log_audit"):
         response = authed_client.put(
             "/v2/products/prod-1/firmware/build-1",
             data=json.dumps({
@@ -167,9 +167,9 @@ def test_delete_firmware_build(authed_client, mock_db):
     mock_storage = MagicMock()
     mock_storage.remove_object = MagicMock()
 
-    with patch("api.v2.catalog.firmware_builds.get_storage_client", return_value=mock_storage):
-        with patch("api.v2.catalog.firmware_builds.get_bucket_name", return_value="test-bucket"):
-            with patch("api.v2.catalog.firmware_builds.log_audit"):
+    with patch("api.v2.products.firmware_builds.get_storage_client", return_value=mock_storage):
+        with patch("api.v2.products.firmware_builds.get_bucket_name", return_value="test-bucket"):
+            with patch("api.v2.products.firmware_builds.log_audit"):
                 response = authed_client.delete("/v2/products/prod-1/firmware/build-delete")
 
     assert response.status_code == 200
@@ -227,9 +227,9 @@ def test_upload_firmware_build(authed_client, mock_db):
     mock_storage = MagicMock()
     auth_headers_no_ct = {k: v for k, v in authed_client._headers.items() if k != "Content-Type"}
 
-    with patch("api.v2.catalog.firmware_builds.get_storage_client", return_value=mock_storage):
-        with patch("api.v2.catalog.firmware_builds.get_bucket_name", return_value="test-bucket"):
-            with patch("api.v2.catalog.firmware_builds.log_audit"):
+    with patch("api.v2.products.firmware_builds.get_storage_client", return_value=mock_storage):
+        with patch("api.v2.products.firmware_builds.get_bucket_name", return_value="test-bucket"):
+            with patch("api.v2.products.firmware_builds.log_audit"):
                 response = authed_client._client.post(
                     "/v2/products/prod-1/firmware/upload",
                     data={
@@ -472,9 +472,9 @@ def test_upload_firmware_build_modem_success(authed_client, mock_db):
     mock_storage = MagicMock()
     auth_headers_no_ct = {k: v for k, v in authed_client._headers.items() if k != "Content-Type"}
 
-    with patch("api.v2.catalog.firmware_builds.get_storage_client", return_value=mock_storage):
-        with patch("api.v2.catalog.firmware_builds.get_bucket_name", return_value="test-bucket"):
-            with patch("api.v2.catalog.firmware_builds.log_audit"):
+    with patch("api.v2.products.firmware_builds.get_storage_client", return_value=mock_storage):
+        with patch("api.v2.products.firmware_builds.get_bucket_name", return_value="test-bucket"):
+            with patch("api.v2.products.firmware_builds.log_audit"):
                 response = authed_client._client.post(
                     "/v2/products/prod-1/firmware/upload",
                     data={
@@ -530,7 +530,7 @@ def test_download_firmware_build(authed_client, mock_db):
         filename="app.hex",
     )
 
-    with patch("api.v2.catalog.shared.presigned_get_url", return_value="https://storage.example.com/firmware/app.hex"):
+    with patch("api.v2.products.shared.presigned_get_url", return_value="https://storage.example.com/firmware/app.hex"):
         response = authed_client.get("/v2/products/firmware/build-1/download")
 
     assert response.status_code == 200
@@ -606,9 +606,9 @@ def test_delete_firmware_build_with_modem(authed_client, mock_db):
     mock_storage = MagicMock()
     mock_storage.remove_object = MagicMock()
 
-    with patch("api.v2.catalog.firmware_builds.get_storage_client", return_value=mock_storage):
-        with patch("api.v2.catalog.firmware_builds.get_bucket_name", return_value="test-bucket"):
-            with patch("api.v2.catalog.firmware_builds.log_audit"):
+    with patch("api.v2.products.firmware_builds.get_storage_client", return_value=mock_storage):
+        with patch("api.v2.products.firmware_builds.get_bucket_name", return_value="test-bucket"):
+            with patch("api.v2.products.firmware_builds.log_audit"):
                 response = authed_client.delete("/v2/products/prod-1/firmware/build-modem-del")
 
     assert response.status_code == 200

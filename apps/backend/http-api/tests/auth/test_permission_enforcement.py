@@ -299,28 +299,28 @@ class TestBuildScriptsPermissions:
 # ---------------------------------------------------------------------------
 
 class TestValidationRunsPermissions:
-    """Tests for /v2/validation/runs routes — requires validation:view / validation:run."""
+    """Tests for /v2/sessions routes — requires validation:view / validation:run."""
 
     def test_list_runs_unauthenticated(self, client):
-        response = client.get("/v2/validation/runs")
+        response = client.get("/v2/sessions")
         _assert_401(response)
 
     def test_list_runs_wrong_permission(self, client, auth_headers, mock_db):
         mock_db.permissionset.find_unique.return_value = _make_limited_perm_set(
             "products:view",
         )
-        response = client.get("/v2/validation/runs", headers=auth_headers)
+        response = client.get("/v2/sessions", headers=auth_headers)
         _assert_403(response)
 
     def test_list_runs_correct_permission(self, client, auth_headers, mock_db):
         mock_db.permissionset.find_unique.return_value = _make_limited_perm_set(
             "validation:view",
         )
-        response = client.get("/v2/validation/runs", headers=auth_headers)
+        response = client.get("/v2/sessions", headers=auth_headers)
         _assert_not_denied(response)
 
     def test_create_run_unauthenticated(self, client):
-        response = client.post("/v2/validation/runs", data=json.dumps({}),
+        response = client.post("/v2/sessions", data=json.dumps({}),
                                content_type="application/json")
         _assert_401(response)
 
@@ -329,7 +329,7 @@ class TestValidationRunsPermissions:
         mock_db.permissionset.find_unique.return_value = _make_limited_perm_set(
             "validation:view",
         )
-        response = client.post("/v2/validation/runs",
+        response = client.post("/v2/sessions",
                                data=json.dumps({"productId": "p", "nodeId": "n"}),
                                headers=auth_headers)
         _assert_403(response)
@@ -338,7 +338,7 @@ class TestValidationRunsPermissions:
         mock_db.permissionset.find_unique.return_value = _make_limited_perm_set(
             "validation:run",
         )
-        response = client.post("/v2/validation/runs",
+        response = client.post("/v2/sessions",
                                data=json.dumps({"productId": "p", "nodeId": "n"}),
                                headers=auth_headers)
         _assert_not_denied(response)
@@ -347,7 +347,7 @@ class TestValidationRunsPermissions:
         mock_db.permissionset.find_unique.return_value = _make_limited_perm_set(
             "builds:view",
         )
-        response = client.get("/v2/validation/runs/some-run-id", headers=auth_headers)
+        response = client.get("/v2/sessions/some-run-id", headers=auth_headers)
         _assert_403(response)
 
     def test_cancel_run_view_only(self, client, auth_headers, mock_db):
@@ -355,7 +355,7 @@ class TestValidationRunsPermissions:
         mock_db.permissionset.find_unique.return_value = _make_limited_perm_set(
             "validation:view",
         )
-        response = client.post("/v2/validation/runs/some-id/cancel",
+        response = client.post("/v2/sessions/some-id/cancel",
                                headers=auth_headers)
         _assert_403(response)
 
@@ -365,10 +365,10 @@ class TestValidationRunsPermissions:
 # ---------------------------------------------------------------------------
 
 class TestValidationTriggerPermissions:
-    """Tests for /v2/validation/runs/<id>/trigger — requires validation:run."""
+    """Tests for /v2/sessions/<id>/trigger — requires validation:run."""
 
     def test_trigger_unauthenticated(self, client):
-        response = client.post("/v2/validation/runs/some-id/trigger",
+        response = client.post("/v2/sessions/some-id/trigger",
                                data=json.dumps({}),
                                content_type="application/json")
         _assert_401(response)
@@ -378,7 +378,7 @@ class TestValidationTriggerPermissions:
         mock_db.permissionset.find_unique.return_value = _make_limited_perm_set(
             "validation:view",
         )
-        response = client.post("/v2/validation/runs/some-id/trigger",
+        response = client.post("/v2/sessions/some-id/trigger",
                                data=json.dumps({}), headers=auth_headers)
         _assert_403(response)
 
@@ -386,7 +386,7 @@ class TestValidationTriggerPermissions:
         mock_db.permissionset.find_unique.return_value = _make_limited_perm_set(
             "validation:run",
         )
-        response = client.post("/v2/validation/runs/some-id/trigger",
+        response = client.post("/v2/sessions/some-id/trigger",
                                data=json.dumps({}), headers=auth_headers)
         _assert_not_denied(response)
 
@@ -396,55 +396,55 @@ class TestValidationTriggerPermissions:
 # ---------------------------------------------------------------------------
 
 class TestBenchesPermissions:
-    """Tests for /v2/benches routes — requires benches:view / benches:manage."""
+    """Tests for /v2/benches routes — requires fixtures:view / fixtures:manage."""
 
     def test_list_benches_unauthenticated(self, client):
-        response = client.get("/v2/benches")
+        response = client.get("/v2/fixtures/benches")
         _assert_401(response)
 
     def test_list_benches_wrong_permission(self, client, auth_headers, mock_db):
         mock_db.permissionset.find_unique.return_value = _make_limited_perm_set(
             "products:view",
         )
-        response = client.get("/v2/benches", headers=auth_headers)
+        response = client.get("/v2/fixtures/benches", headers=auth_headers)
         _assert_403(response)
 
     def test_list_benches_correct_permission(self, client, auth_headers, mock_db):
         mock_db.permissionset.find_unique.return_value = _make_limited_perm_set(
-            "benches:view",
+            "fixtures:view",
         )
-        response = client.get("/v2/benches", headers=auth_headers)
+        response = client.get("/v2/fixtures/benches", headers=auth_headers)
         _assert_not_denied(response)
 
     def test_create_bench_unauthenticated(self, client):
-        response = client.post("/v2/benches", data=json.dumps({}),
+        response = client.post("/v2/fixtures/benches", data=json.dumps({}),
                                content_type="application/json")
         _assert_401(response)
 
     def test_create_bench_view_only(self, client, auth_headers, mock_db):
-        """benches:view should NOT allow creating benches (needs benches:manage)."""
+        """fixtures:view should NOT allow creating benches (needs fixtures:manage)."""
         mock_db.permissionset.find_unique.return_value = _make_limited_perm_set(
-            "benches:view",
+            "fixtures:view",
         )
-        response = client.post("/v2/benches",
+        response = client.post("/v2/fixtures/benches",
                                data=json.dumps({"name": "Test Bench"}),
                                headers=auth_headers)
         _assert_403(response)
 
     def test_create_bench_correct_permission(self, client, auth_headers, mock_db):
         mock_db.permissionset.find_unique.return_value = _make_limited_perm_set(
-            "benches:manage",
+            "fixtures:manage",
         )
-        response = client.post("/v2/benches",
+        response = client.post("/v2/fixtures/benches",
                                data=json.dumps({"name": "Test Bench"}),
                                headers=auth_headers)
         _assert_not_denied(response)
 
     def test_delete_bench_view_only(self, client, auth_headers, mock_db):
         mock_db.permissionset.find_unique.return_value = _make_limited_perm_set(
-            "benches:view",
+            "fixtures:view",
         )
-        response = client.delete("/v2/benches/some-id",
+        response = client.delete("/v2/fixtures/benches/some-id",
                                  headers=auth_headers)
         _assert_403(response)
 
@@ -454,31 +454,31 @@ class TestBenchesPermissions:
 # ---------------------------------------------------------------------------
 
 class TestDesignsPermissions:
-    """Tests for /v2/benches/designs routes — requires benches:view / benches:manage."""
+    """Tests for /v2/benches/designs routes — requires fixtures:view / fixtures:manage."""
 
     def test_list_designs_unauthenticated(self, client):
-        response = client.get("/v2/benches/designs")
+        response = client.get("/v2/fixtures/designs")
         _assert_401(response)
 
     def test_list_designs_wrong_permission(self, client, auth_headers, mock_db):
         mock_db.permissionset.find_unique.return_value = _make_limited_perm_set(
             "products:view",
         )
-        response = client.get("/v2/benches/designs", headers=auth_headers)
+        response = client.get("/v2/fixtures/designs", headers=auth_headers)
         _assert_403(response)
 
     def test_list_designs_correct_permission(self, client, auth_headers, mock_db):
         mock_db.permissionset.find_unique.return_value = _make_limited_perm_set(
-            "benches:view",
+            "fixtures:view",
         )
-        response = client.get("/v2/benches/designs", headers=auth_headers)
+        response = client.get("/v2/fixtures/designs", headers=auth_headers)
         _assert_not_denied(response)
 
     def test_create_design_view_only(self, client, auth_headers, mock_db):
         mock_db.permissionset.find_unique.return_value = _make_limited_perm_set(
-            "benches:view",
+            "fixtures:view",
         )
-        response = client.post("/v2/benches/designs",
+        response = client.post("/v2/fixtures/designs",
                                data=json.dumps({}), headers=auth_headers)
         _assert_403(response)
 
@@ -694,61 +694,61 @@ class TestSystemPermissions:
 # ---------------------------------------------------------------------------
 
 class TestKubernetesPermissions:
-    """Tests for /v2/cluster/* routes — requires cluster:view / cluster:manage."""
+    """Tests for /v2/cluster/* routes — requires kubernetes:view / kubernetes:manage."""
 
     def test_cluster_unauthenticated(self, client):
-        response = client.get("/v2/cluster/info")
+        response = client.get("/v2/kubernetes/info")
         _assert_401(response)
 
     def test_cluster_wrong_permission(self, client, auth_headers, mock_db):
         mock_db.permissionset.find_unique.return_value = _make_limited_perm_set(
             "devices:view",
         )
-        response = client.get("/v2/cluster/info", headers=auth_headers)
+        response = client.get("/v2/kubernetes/info", headers=auth_headers)
         _assert_403(response)
 
     def test_cluster_correct_permission(self, client, auth_headers, mock_db):
         mock_db.permissionset.find_unique.return_value = _make_limited_perm_set(
-            "cluster:view",
+            "kubernetes:view",
         )
-        response = client.get("/v2/cluster/info", headers=auth_headers)
+        response = client.get("/v2/kubernetes/info", headers=auth_headers)
         _assert_not_denied(response)
 
     def test_pods_unauthenticated(self, client):
-        response = client.get("/v2/cluster/pods")
+        response = client.get("/v2/kubernetes/pods")
         _assert_401(response)
 
     def test_pods_wrong_permission(self, client, auth_headers, mock_db):
         mock_db.permissionset.find_unique.return_value = _make_limited_perm_set(
             "builds:view",
         )
-        response = client.get("/v2/cluster/pods", headers=auth_headers)
+        response = client.get("/v2/kubernetes/pods", headers=auth_headers)
         _assert_403(response)
 
     def test_delete_pod_view_only(self, client, auth_headers, mock_db):
-        """cluster:view should NOT allow deleting pods (needs cluster:manage)."""
+        """kubernetes:view should NOT allow deleting pods (needs kubernetes:manage)."""
         mock_db.permissionset.find_unique.return_value = _make_limited_perm_set(
-            "cluster:view",
+            "kubernetes:view",
         )
-        response = client.delete("/v2/cluster/pods/default/my-pod",
+        response = client.delete("/v2/kubernetes/pods/default/my-pod",
                                  headers=auth_headers)
         _assert_403(response)
 
     def test_scale_deployment_view_only(self, client, auth_headers, mock_db):
-        """cluster:view should NOT allow scaling (needs cluster:manage)."""
+        """kubernetes:view should NOT allow scaling (needs kubernetes:manage)."""
         mock_db.permissionset.find_unique.return_value = _make_limited_perm_set(
-            "cluster:view",
+            "kubernetes:view",
         )
-        response = client.post("/v2/cluster/deployments/default/my-deploy/scale",
+        response = client.post("/v2/kubernetes/deployments/default/my-deploy/scale",
                                data=json.dumps({"replicas": 2}),
                                headers=auth_headers)
         _assert_403(response)
 
     def test_delete_job_view_only(self, client, auth_headers, mock_db):
         mock_db.permissionset.find_unique.return_value = _make_limited_perm_set(
-            "cluster:view",
+            "kubernetes:view",
         )
-        response = client.delete("/v2/cluster/jobs/default/my-job",
+        response = client.delete("/v2/kubernetes/jobs/default/my-job",
                                  headers=auth_headers)
         _assert_403(response)
 
@@ -910,79 +910,28 @@ class TestAPIKeysPermissions:
 
 
 # ---------------------------------------------------------------------------
-# Module: Codebases
-# ---------------------------------------------------------------------------
-
-class TestCodebasesPermissions:
-    """Tests for /v2/codebases routes — requires builds:view / builds:manage."""
-
-    def test_list_codebases_unauthenticated(self, client):
-        response = client.get("/v2/builds/codebases")
-        _assert_401(response)
-
-    def test_list_codebases_wrong_permission(self, client, auth_headers, mock_db):
-        mock_db.permissionset.find_unique.return_value = _make_limited_perm_set(
-            "products:view",
-        )
-        response = client.get("/v2/builds/codebases", headers=auth_headers)
-        _assert_403(response)
-
-    def test_list_codebases_correct_permission(self, client, auth_headers, mock_db):
-        mock_db.permissionset.find_unique.return_value = _make_limited_perm_set(
-            "builds:view",
-        )
-        response = client.get("/v2/builds/codebases", headers=auth_headers)
-        _assert_not_denied(response)
-
-    def test_create_codebase_view_only(self, client, auth_headers, mock_db):
-        """builds:view should NOT allow creating codebases (needs builds:manage)."""
-        mock_db.permissionset.find_unique.return_value = _make_limited_perm_set(
-            "builds:view",
-        )
-        response = client.post("/v2/builds/codebases",
-                               data=json.dumps({"name": "Test Codebase"}),
-                               headers=auth_headers)
-        _assert_403(response)
-
-    def test_create_codebase_correct_permission(self, client, auth_headers, mock_db):
-        mock_db.permissionset.find_unique.return_value = _make_limited_perm_set(
-            "builds:manage",
-        )
-        _request_passes_auth(client.post, "/v2/builds/codebases",
-                             data=json.dumps({"name": "Test Codebase"}),
-                             headers=auth_headers)
-
-    def test_delete_codebase_view_only(self, client, auth_headers, mock_db):
-        mock_db.permissionset.find_unique.return_value = _make_limited_perm_set(
-            "builds:view",
-        )
-        response = client.delete("/v2/builds/codebases/some-id", headers=auth_headers)
-        _assert_403(response)
-
-
-# ---------------------------------------------------------------------------
 # Module: Deployments (managed MTIB deployments)
 # ---------------------------------------------------------------------------
 
 class TestDeploymentsPermissions:
-    """Tests for /v2/cluster/managed-deployments routes — requires system:view / system:manage."""
+    """Tests for /v2/kubernetes/managed-deployments routes — requires system:view / system:manage."""
 
     def test_list_deployments_unauthenticated(self, client):
-        response = client.get("/v2/cluster/managed-deployments")
+        response = client.get("/v2/kubernetes/managed-deployments")
         _assert_401(response)
 
     def test_list_deployments_wrong_permission(self, client, auth_headers, mock_db):
         mock_db.permissionset.find_unique.return_value = _make_limited_perm_set(
             "products:view",
         )
-        response = client.get("/v2/cluster/managed-deployments", headers=auth_headers)
+        response = client.get("/v2/kubernetes/managed-deployments", headers=auth_headers)
         _assert_403(response)
 
     def test_list_deployments_correct_permission(self, client, auth_headers, mock_db):
         mock_db.permissionset.find_unique.return_value = _make_limited_perm_set(
             "system:view",
         )
-        response = client.get("/v2/cluster/managed-deployments", headers=auth_headers)
+        response = client.get("/v2/kubernetes/managed-deployments", headers=auth_headers)
         _assert_not_denied(response)
 
     def test_create_deployment_view_only(self, client, auth_headers, mock_db):
@@ -990,7 +939,7 @@ class TestDeploymentsPermissions:
         mock_db.permissionset.find_unique.return_value = _make_limited_perm_set(
             "system:view",
         )
-        response = client.post("/v2/cluster/managed-deployments",
+        response = client.post("/v2/kubernetes/managed-deployments",
                                data=json.dumps({}), headers=auth_headers)
         _assert_403(response)
 
@@ -998,7 +947,7 @@ class TestDeploymentsPermissions:
         mock_db.permissionset.find_unique.return_value = _make_limited_perm_set(
             "system:view",
         )
-        response = client.delete("/v2/cluster/managed-deployments/some-id", headers=auth_headers)
+        response = client.delete("/v2/kubernetes/managed-deployments/some-id", headers=auth_headers)
         _assert_403(response)
 
 
@@ -1029,50 +978,14 @@ class TestObservabilityPermissions:
 
 
 # ---------------------------------------------------------------------------
-# Module: Validation Test Catalog
-# ---------------------------------------------------------------------------
-
-class TestValidationCatalogPermissions:
-    """Tests for /v2/validation/catalog — sync requires validation:manage,
-    read endpoints require only authentication (require_auth)."""
-
-    def test_list_catalogs_unauthenticated(self, client):
-        response = client.get("/v2/validation/catalog")
-        _assert_401(response)
-
-    def test_list_catalogs_any_authenticated(self, client, auth_headers, mock_db):
-        """Catalog list uses require_auth only — any authenticated user can access."""
-        mock_db.permissionset.find_unique.return_value = _make_limited_perm_set(
-            "products:view",  # irrelevant permission
-        )
-        response = client.get("/v2/validation/catalog", headers=auth_headers)
-        _assert_not_denied(response)
-
-    def test_sync_catalog_unauthenticated(self, client):
-        response = client.post("/v2/validation/catalog/alpha/sync",
-                               data=json.dumps({}),
-                               content_type="application/json")
-        _assert_401(response)
-
-    def test_sync_catalog_view_only(self, client, auth_headers, mock_db):
-        """validation:view should NOT allow syncing catalog (needs validation:manage)."""
-        mock_db.permissionset.find_unique.return_value = _make_limited_perm_set(
-            "validation:view",
-        )
-        response = client.post("/v2/validation/catalog/alpha/sync",
-                               data=json.dumps({}), headers=auth_headers)
-        _assert_403(response)
-
-
-# ---------------------------------------------------------------------------
 # Module: Validation Tests (legacy manufacturing)
 # ---------------------------------------------------------------------------
 
 class TestValidationLegacyPermissions:
-    """Tests for /v2/validation/tests/run — requires validation:run."""
+    """Tests for /v2/sessions/manual/run — requires validation:run."""
 
     def test_run_tests_unauthenticated(self, client):
-        response = client.post("/v2/validation/tests/run",
+        response = client.post("/v2/sessions/manual/run",
                                data=json.dumps({}),
                                content_type="application/json")
         _assert_401(response)
@@ -1081,7 +994,7 @@ class TestValidationLegacyPermissions:
         mock_db.permissionset.find_unique.return_value = _make_limited_perm_set(
             "validation:view",
         )
-        response = client.post("/v2/validation/tests/run",
+        response = client.post("/v2/sessions/manual/run",
                                data=json.dumps({}), headers=auth_headers)
         _assert_403(response)
 
@@ -1089,7 +1002,7 @@ class TestValidationLegacyPermissions:
         mock_db.permissionset.find_unique.return_value = _make_limited_perm_set(
             "validation:run",
         )
-        response = client.post("/v2/validation/tests/run",
+        response = client.post("/v2/sessions/manual/run",
                                data=json.dumps({}), headers=auth_headers)
         _assert_not_denied(response)
 
@@ -1127,7 +1040,7 @@ class TestNoPermissionSet:
         _assert_403(response)
 
     def test_no_perm_set_validation(self, client, no_perm_headers, mock_db):
-        response = client.get("/v2/validation/runs", headers=no_perm_headers)
+        response = client.get("/v2/sessions", headers=no_perm_headers)
         _assert_403(response)
 
     def test_no_perm_set_fixtures(self, client, no_perm_headers, mock_db):
@@ -1165,7 +1078,7 @@ class TestPermissionSetNotFound:
 
     def test_missing_perm_set_validation(self, client, auth_headers, mock_db):
         mock_db.permissionset.find_unique.return_value = None
-        response = client.get("/v2/validation/runs", headers=auth_headers)
+        response = client.get("/v2/sessions", headers=auth_headers)
         _assert_403(response)
 
 
@@ -1187,7 +1100,7 @@ class TestPermissionIsolation:
         mock_db.permissionset.find_unique.return_value = _make_limited_perm_set(
             "builds:view", "builds:trigger", "builds:manage",
         )
-        response = client.get("/v2/validation/runs", headers=auth_headers)
+        response = client.get("/v2/sessions", headers=auth_headers)
         _assert_403(response)
 
     def test_validation_perm_cannot_access_system(self, client, auth_headers, mock_db):
@@ -1227,7 +1140,7 @@ class TestPermissionIsolation:
 
     def test_benches_perm_cannot_access_api_keys(self, client, auth_headers, mock_db):
         mock_db.permissionset.find_unique.return_value = _make_limited_perm_set(
-            "benches:view", "benches:manage",
+            "fixtures:view", "fixtures:manage",
         )
         response = client.get("/v2/api-keys", headers=auth_headers)
         _assert_403(response)
@@ -1236,7 +1149,7 @@ class TestPermissionIsolation:
         """Having all :view permissions should NOT allow any mutation."""
         mock_db.permissionset.find_unique.return_value = _make_limited_perm_set(
             "products:view", "builds:view", "validation:view",
-            "fixtures:view", "benches:view", "devices:view",
+            "fixtures:view", "fixtures:view", "devices:view",
             "users:view", "system:view", "api-keys:view",
         )
 
@@ -1250,8 +1163,8 @@ class TestPermissionIsolation:
                         headers=auth_headers)
         _assert_403(r)
 
-        # POST /v2/validation/runs (needs validation:run)
-        r = client.post("/v2/validation/runs",
+        # POST /v2/sessions (needs validation:run)
+        r = client.post("/v2/sessions",
                         data=json.dumps({"productId": "p", "nodeId": "n"}),
                         headers=auth_headers)
         _assert_403(r)
@@ -1286,7 +1199,7 @@ class TestEmptyPermissions:
 
     def test_empty_perms_validation(self, client, auth_headers, mock_db):
         mock_db.permissionset.find_unique.return_value = _make_limited_perm_set()
-        response = client.get("/v2/validation/runs", headers=auth_headers)
+        response = client.get("/v2/sessions", headers=auth_headers)
         _assert_403(response)
 
     def test_empty_perms_fixtures(self, client, auth_headers, mock_db):
@@ -1311,5 +1224,5 @@ class TestEmptyPermissions:
 
     def test_empty_perms_benches(self, client, auth_headers, mock_db):
         mock_db.permissionset.find_unique.return_value = _make_limited_perm_set()
-        response = client.get("/v2/benches", headers=auth_headers)
+        response = client.get("/v2/fixtures/benches", headers=auth_headers)
         _assert_403(response)

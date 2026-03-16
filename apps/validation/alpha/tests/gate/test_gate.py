@@ -203,7 +203,7 @@ class TestGate:
         if self.is_mock:
             pytest.skip("Device personalization requires real MTIB hardware")
 
-        from corekinect.test.validation.device_personalizer import DevicePersonalizer
+        from corekinect.test.device_personalizer import DevicePersonalizer
 
         log.info("Personalizing device: snr=%s device_id=%s",
                  self.config.device_snr, self.config.device_id)

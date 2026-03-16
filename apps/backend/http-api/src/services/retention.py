@@ -65,7 +65,7 @@ def cleanup_old_validation_runs(retention_days: int = DEFAULT_RETENTION_DAYS) ->
         logger.info(f"Cleaning up run {run_id} (finished {run.finishedAt})")
 
         # Delete MinIO objects
-        prefix = storage_key(StoragePrefixes.VALIDATION_RUNS, f"{run_id}/")
+        prefix = storage_key(StoragePrefixes.SESSIONS, f"{run_id}/")
         try:
             objects = list(storage.list_objects(bucket, prefix=prefix, recursive=True))
             for obj in objects:
@@ -108,7 +108,7 @@ def get_storage_usage() -> dict:
     """
     storage = get_storage_client()
     bucket = get_bucket_name()
-    prefix = storage_key(StoragePrefixes.VALIDATION_RUNS, "")
+    prefix = storage_key(StoragePrefixes.SESSIONS, "")
 
     total_size = 0
     total_objects = 0

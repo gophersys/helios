@@ -89,7 +89,7 @@ if MOCK_MODE:
     time.sleep = lambda s: _real_sleep(min(s, 0.01))
 
 # Auto-discover the Concord Reporter plugin (opt-in via CONCORD_RUN_ID env var).
-pytest_plugins = ["corekinect.test.validation.reporter"]
+pytest_plugins = ["corekinect.test.reporter"]
 
 
 # ── Product Config (Unified Infrastructure) ──────────────────────────────────

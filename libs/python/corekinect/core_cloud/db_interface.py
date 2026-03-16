@@ -287,13 +287,6 @@ def _run_codegen(conn_str, out_file):
         )
 
 
-def _update_cc_test_data_v0p9_orm():
-    load_dotenv(override=False)
-    _apply_namespace_env("DEV_0_9")
-    db = DBConfig(namespace="DEV_0_9")
-    _run_codegen(f"{db.driver}://{db.username}:{db.password}@{db.host}:{db.port}/{db.database_name}", "db_orm_v0_9.py")
-
-
 def _update_cc_test_data_v1p0_orm():
     load_dotenv(override=False)
     _apply_namespace_env("VAL_1_0")

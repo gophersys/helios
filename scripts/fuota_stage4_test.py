@@ -36,7 +36,7 @@ from dotenv import load_dotenv
 load_dotenv(override=False)
 
 from corekinect.utils import Logger
-from corekinect.test.validation.fuota_client import FuotaClient
+from corekinect.test.fuota_client import FuotaClient
 from corekinect.core_cloud.api_interface import CoreCloudRestInterface
 from corekinect.mtib_client.v1.client.core import MtibV1Client
 from corekinect.mtib_client.v1.client.config import NetConfig

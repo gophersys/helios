@@ -8,93 +8,53 @@ CREATE TYPE "NodeType" AS ENUM ('MANUFACTURING', 'VALIDATION');
 CREATE TYPE "DeploymentStatus" AS ENUM ('PENDING', 'RUNNING', 'STOPPED', 'FAILED');
 
 -- CreateEnum
-CREATE TYPE "SessionStatus" AS ENUM ('ACTIVE', 'PAUSED', 'COMPLETED', 'CANCELLED');
+CREATE TYPE "SessionType" AS ENUM ('MANUFACTURING', 'VALIDATION');
+
+-- CreateEnum
+CREATE TYPE "SessionStatus" AS ENUM ('PENDING', 'ACTIVE', 'PASSED', 'FAILED', 'CANCELLED');
 
 -- CreateEnum
 CREATE TYPE "DeviceStatus" AS ENUM ('PENDING', 'IN_PROGRESS', 'PASSED', 'FAILED');
 
 -- CreateEnum
-CREATE TYPE "TestExecutionStatus" AS ENUM ('QUEUED', 'RUNNING', 'PASSED', 'FAILED', 'CANCELLED', 'ERROR');
+CREATE TYPE "TestExecutionStatus" AS ENUM ('QUEUED', 'RUNNING', 'PASSED', 'FAILED', 'SKIPPED', 'CANCELLED', 'ERROR');
 
 -- CreateEnum
 CREATE TYPE "LogLevel" AS ENUM ('DEBUG', 'INFO', 'WARN', 'ERROR', 'FATAL');
 
 -- CreateEnum
-CREATE TYPE "InventoryCategory" AS ENUM ('SOM', 'CARRIER_BOARD', 'ACCESSORY');
+CREATE TYPE "LifecycleStatus" AS ENUM ('DRAFT', 'ACTIVE', 'DEPRECATED', 'EOL');
 
 -- CreateEnum
-CREATE TYPE "RevisionStatus" AS ENUM ('ACTIVE', 'DEPRECATED', 'EOL');
+CREATE TYPE "FixtureStatus" AS ENUM ('AVAILABLE', 'LOCKED', 'OFFLINE', 'MAINTENANCE');
 
 -- CreateEnum
-CREATE TYPE "ReleaseStatus" AS ENUM ('DRAFT', 'RELEASED', 'DEPRECATED');
+CREATE TYPE "IcleDeviceStatus" AS ENUM ('ONLINE', 'OFFLINE', 'LOGGING', 'CONFIG', 'BOOT', 'OTA');
 
 -- CreateEnum
-CREATE TYPE "ArtifactType" AS ENUM ('UPLOAD', 'EXTERNAL');
+CREATE TYPE "BuildJobStatus" AS ENUM ('QUEUED', 'BLOCKED', 'CLONING', 'BUILDING', 'SUCCESS', 'FAILED', 'CANCELLED', 'CACHED');
 
 -- CreateEnum
-CREATE TYPE "FirmwareBuildStatus" AS ENUM ('DRAFT', 'RELEASED', 'DEPRECATED');
+CREATE TYPE "QueueEntryStatus" AS ENUM ('QUEUED', 'ASSIGNED', 'RUNNING', 'COMPLETED', 'FAILED', 'CANCELLED');
 
--- CreateTable
-CREATE TABLE "permission_sets" (
-    "id" TEXT NOT NULL,
-    "name" TEXT NOT NULL,
-    "description" TEXT,
-    "permissions" TEXT[],
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "permission_sets_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "api_keys" (
-    "id" TEXT NOT NULL,
-    "name" TEXT NOT NULL,
-    "keyHash" TEXT NOT NULL,
-    "keyPrefix" TEXT NOT NULL,
-    "userId" TEXT NOT NULL,
-    "expiresAt" TIMESTAMP(3),
-    "lastUsedAt" TIMESTAMP(3),
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "api_keys_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "users" (
-    "id" TEXT NOT NULL,
-    "externalId" TEXT,
-    "email" TEXT NOT NULL,
-    "name" TEXT NOT NULL,
-    "permissionSetId" TEXT,
-    "active" BOOLEAN NOT NULL DEFAULT true,
-    "lastSeenAt" TIMESTAMP(3),
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "users_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "audit_logs" (
-    "id" TEXT NOT NULL,
-    "userId" TEXT,
-    "action" TEXT NOT NULL,
-    "entityType" TEXT NOT NULL,
-    "entityId" TEXT,
-    "details" JSONB,
-    "ipAddress" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "audit_logs_pkey" PRIMARY KEY ("id")
-);
+-- CreateEnum
+CREATE TYPE "PipelineStatus" AS ENUM ('PENDING', 'BUILDING', 'BUILD_FAILED', 'VALIDATING', 'SUCCESS', 'FAILED', 'CANCELLED');
 
 -- CreateTable
 CREATE TABLE "products" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
+    "slug" TEXT,
     "description" TEXT,
     "active" BOOLEAN NOT NULL DEFAULT true,
+    "repoSlug" TEXT,
+    "repoSshUrl" TEXT,
+    "repoBranch" TEXT,
+    "mfgRepoSlug" TEXT,
+    "mfgRepoSshUrl" TEXT,
+    "buildBoard" TEXT,
+    "buildWestDir" TEXT,
+    "buildMfgDir" TEXT,
     "metadata" JSONB,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -103,14 +63,281 @@ CREATE TABLE "products" (
 );
 
 -- CreateTable
+CREATE TABLE "boards" (
+    "id" TEXT NOT NULL,
+    "productId" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "description" TEXT,
+    "active" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "boards_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "board_revisions" (
+    "id" TEXT NOT NULL,
+    "boardId" TEXT NOT NULL,
+    "version" TEXT NOT NULL,
+    "status" "LifecycleStatus" NOT NULL DEFAULT 'ACTIVE',
+    "selectedBuilds" JSONB,
+    "notes" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "board_revisions_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "board_revision_chipsets" (
+    "id" TEXT NOT NULL,
+    "boardRevisionId" TEXT NOT NULL,
+    "chipsetId" TEXT NOT NULL,
+
+    CONSTRAINT "board_revision_chipsets_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "chipsets" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "manufacturer" TEXT,
+    "isModem" BOOLEAN NOT NULL DEFAULT false,
+    "description" TEXT,
+    "active" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "chipsets_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "firmware_builds" (
+    "id" TEXT NOT NULL,
+    "productId" TEXT NOT NULL,
+    "chipsetId" TEXT NOT NULL,
+    "version" TEXT NOT NULL,
+    "isManufacturing" BOOLEAN NOT NULL DEFAULT false,
+    "status" "LifecycleStatus" NOT NULL DEFAULT 'DRAFT',
+    "storageKey" TEXT NOT NULL,
+    "filename" TEXT NOT NULL,
+    "sizeBytes" BIGINT NOT NULL,
+    "checksum" TEXT NOT NULL,
+    "contentType" TEXT,
+    "modemStorageKey" TEXT,
+    "modemFilename" TEXT,
+    "modemSizeBytes" BIGINT,
+    "modemChecksum" TEXT,
+    "notes" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "firmware_builds_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "product_stage_configs" (
+    "id" TEXT NOT NULL,
+    "productId" TEXT NOT NULL,
+    "stage" INTEGER NOT NULL,
+    "name" TEXT NOT NULL,
+    "enabled" BOOLEAN NOT NULL DEFAULT true,
+    "buildScript" TEXT,
+    "buildTarget" TEXT,
+    "fwRepoUrl" TEXT,
+    "fwRepoBranch" TEXT,
+    "mfgRepoUrl" TEXT,
+    "mfgRepoBranch" TEXT,
+    "buildVariant" TEXT,
+    "configFlags" JSONB,
+    "buildMatrix" JSONB,
+    "testDirectory" TEXT,
+    "testMarker" TEXT,
+    "testTimeout" INTEGER NOT NULL DEFAULT 900,
+    "priority" INTEGER NOT NULL DEFAULT 50,
+    "blocksMerge" BOOLEAN NOT NULL DEFAULT false,
+    "requiresFuota" BOOLEAN NOT NULL DEFAULT false,
+    "requiresBench" BOOLEAN NOT NULL DEFAULT true,
+    "maxDurationSec" INTEGER NOT NULL DEFAULT 3600,
+    "description" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "product_stage_configs_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "validation_queue_entries" (
+    "id" TEXT NOT NULL,
+    "pipelineRunId" TEXT NOT NULL,
+    "stageConfigId" TEXT,
+    "stage" INTEGER NOT NULL,
+    "priority" INTEGER NOT NULL DEFAULT 50,
+    "status" "QueueEntryStatus" NOT NULL DEFAULT 'QUEUED',
+    "fixtureId" TEXT,
+    "sessionId" TEXT,
+    "reason" TEXT,
+    "errorMessage" TEXT,
+    "jobName" TEXT,
+    "requestedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "assignedAt" TIMESTAMP(3),
+    "startedAt" TIMESTAMP(3),
+    "completedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "validation_queue_entries_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "pipeline_runs" (
+    "id" TEXT NOT NULL,
+    "name" TEXT,
+    "productId" TEXT NOT NULL,
+    "board" TEXT NOT NULL,
+    "branch" TEXT NOT NULL,
+    "commitSha" TEXT,
+    "status" "PipelineStatus" NOT NULL DEFAULT 'PENDING',
+    "triggerType" TEXT NOT NULL DEFAULT 'manual',
+    "triggerData" JSONB,
+    "stage" INTEGER,
+    "stageConfigId" TEXT,
+    "expectedBuilds" INTEGER NOT NULL DEFAULT 2,
+    "completedBuilds" INTEGER NOT NULL DEFAULT 0,
+    "buildMatrix" JSONB,
+    "matrixMode" TEXT,
+    "autoValidate" BOOLEAN NOT NULL DEFAULT false,
+    "validationRunId" TEXT,
+    "startedAt" TIMESTAMP(3),
+    "finishedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "pipeline_runs_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "build_jobs" (
+    "id" TEXT NOT NULL,
+    "productId" TEXT NOT NULL,
+    "board" TEXT NOT NULL,
+    "target" TEXT NOT NULL,
+    "variant" TEXT NOT NULL DEFAULT 'release',
+    "mtibRev" TEXT NOT NULL DEFAULT '1.2',
+    "branch" TEXT NOT NULL,
+    "commitSha" TEXT,
+    "status" "BuildJobStatus" NOT NULL DEFAULT 'QUEUED',
+    "versionMajor" INTEGER,
+    "versionMinor" INTEGER,
+    "buildNum" SERIAL NOT NULL,
+    "versionString" TEXT,
+    "errorMessage" TEXT,
+    "buildLog" TEXT,
+    "webhookData" JSONB,
+    "matrixLabel" TEXT,
+    "matrixIndex" INTEGER,
+    "versionBump" BOOLEAN NOT NULL DEFAULT false,
+    "baseJobId" TEXT,
+    "buildFingerprint" TEXT,
+    "configFlags" JSONB,
+    "reusedFromId" TEXT,
+    "pipelineRunId" TEXT,
+    "startedAt" TIMESTAMP(3),
+    "finishedAt" TIMESTAMP(3),
+    "durationSeconds" INTEGER,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "build_jobs_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "build_job_artifacts" (
+    "id" TEXT NOT NULL,
+    "buildJobId" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "storageKey" TEXT NOT NULL,
+    "sizeBytes" BIGINT NOT NULL,
+    "checksum" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "build_job_artifacts_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "sessions" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "type" "SessionType" NOT NULL,
+    "productId" TEXT NOT NULL,
+    "status" "SessionStatus" NOT NULL DEFAULT 'PENDING',
+    "fixtureId" TEXT,
+    "pipelineRunId" TEXT,
+    "targetCount" INTEGER,
+    "completedCount" INTEGER NOT NULL DEFAULT 0,
+    "passedCount" INTEGER NOT NULL DEFAULT 0,
+    "failedCount" INTEGER NOT NULL DEFAULT 0,
+    "config" JSONB,
+    "notes" TEXT,
+    "errorMessage" TEXT,
+    "createdById" TEXT,
+    "startedAt" TIMESTAMP(3),
+    "finishedAt" TIMESTAMP(3),
+    "durationMs" INTEGER,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "sessions_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "devices" (
+    "id" TEXT NOT NULL,
+    "serialNumber" TEXT NOT NULL,
+    "sessionId" TEXT NOT NULL,
+    "status" "DeviceStatus" NOT NULL DEFAULT 'PENDING',
+    "metadata" JSONB,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "devices_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "fixture_designs" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "product" TEXT NOT NULL,
+    "revision" TEXT NOT NULL,
+    "capabilities" TEXT[],
+    "profileTemplate" JSONB NOT NULL,
+    "schematicUrl" TEXT,
+    "bomUrl" TEXT,
+    "assemblyGuide" TEXT,
+    "notes" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "fixture_designs_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "fixtures" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
+    "stationId" TEXT,
     "productId" TEXT NOT NULL,
     "type" "NodeType" NOT NULL,
+    "designId" TEXT,
+    "status" "FixtureStatus" NOT NULL DEFAULT 'AVAILABLE',
+    "lockedBy" TEXT,
+    "lockedAt" TIMESTAMP(3),
+    "profileOverrides" JSONB,
     "description" TEXT,
     "active" BOOLEAN NOT NULL DEFAULT true,
     "metadata" JSONB,
+    "lastHealthCheck" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -125,6 +352,14 @@ CREATE TABLE "fixture_slots" (
     "label" TEXT,
     "nodeId" TEXT,
     "active" BOOLEAN NOT NULL DEFAULT true,
+    "jlinkAppSerial" TEXT,
+    "jlinkCommsSerial" TEXT,
+    "uartAppPath" TEXT,
+    "uartCommsPath" TEXT,
+    "dutDeviceId" TEXT,
+    "dutSnr" TEXT,
+    "dutImei" TEXT,
+    "dutIccids" TEXT[],
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -148,6 +383,53 @@ CREATE TABLE "nodes" (
 );
 
 -- CreateTable
+CREATE TABLE "icle_devices" (
+    "id" TEXT NOT NULL,
+    "deviceId" TEXT NOT NULL,
+    "name" TEXT,
+    "ipAddress" TEXT,
+    "macAddress" TEXT,
+    "firmwareVersion" TEXT,
+    "status" "IcleDeviceStatus" NOT NULL DEFAULT 'OFFLINE',
+    "registered" BOOLEAN NOT NULL DEFAULT false,
+    "lastHeartbeat" TIMESTAMP(3),
+    "lastStatusData" JSONB,
+    "pendingConfig" JSONB,
+    "metadata" JSONB,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "icle_devices_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "icle_pending_commands" (
+    "id" TEXT NOT NULL,
+    "deviceId" TEXT NOT NULL,
+    "commandType" TEXT NOT NULL,
+    "payload" JSONB NOT NULL,
+    "priority" INTEGER NOT NULL DEFAULT 0,
+    "expiresAt" TIMESTAMP(3),
+    "acknowledged" BOOLEAN NOT NULL DEFAULT false,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "icle_pending_commands_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "icle_logs" (
+    "id" TEXT NOT NULL,
+    "deviceId" TEXT NOT NULL,
+    "filename" TEXT NOT NULL,
+    "storageKey" TEXT NOT NULL,
+    "sizeBytes" BIGINT NOT NULL,
+    "format" TEXT NOT NULL,
+    "uploadedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "icle_logs_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "deployments" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
@@ -160,41 +442,6 @@ CREATE TABLE "deployments" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "deployments_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "sessions" (
-    "id" TEXT NOT NULL,
-    "name" TEXT NOT NULL,
-    "productId" TEXT NOT NULL,
-    "fixtureId" TEXT,
-    "status" "SessionStatus" NOT NULL DEFAULT 'ACTIVE',
-    "config" JSONB,
-    "targetCount" INTEGER,
-    "completedCount" INTEGER NOT NULL DEFAULT 0,
-    "passedCount" INTEGER NOT NULL DEFAULT 0,
-    "failedCount" INTEGER NOT NULL DEFAULT 0,
-    "startedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "finishedAt" TIMESTAMP(3),
-    "notes" TEXT,
-    "createdById" TEXT NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "sessions_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "devices" (
-    "id" TEXT NOT NULL,
-    "serialNumber" TEXT NOT NULL,
-    "sessionId" TEXT NOT NULL,
-    "status" "DeviceStatus" NOT NULL DEFAULT 'PENDING',
-    "metadata" JSONB,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "devices_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -232,28 +479,78 @@ CREATE TABLE "test_executions" (
 );
 
 -- CreateTable
-CREATE TABLE "test_results" (
+CREATE TABLE "test_steps" (
     "id" TEXT NOT NULL,
     "executionId" TEXT NOT NULL,
     "stepIndex" INTEGER NOT NULL,
-    "groupIndex" INTEGER NOT NULL DEFAULT 0,
-    "passed" BOOLEAN NOT NULL,
-    "result" JSONB NOT NULL,
+    "name" TEXT NOT NULL,
+    "status" "TestExecutionStatus" NOT NULL DEFAULT 'QUEUED',
+    "passed" BOOLEAN,
+    "errorMessage" TEXT,
+    "measurements" JSONB,
+    "logOutput" TEXT,
+    "logStorageKey" TEXT,
+    "startedAt" TIMESTAMP(3),
+    "finishedAt" TIMESTAMP(3),
+    "durationMs" INTEGER,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    CONSTRAINT "test_results_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "test_steps_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
-CREATE TABLE "logs" (
+CREATE TABLE "users" (
     "id" TEXT NOT NULL,
-    "level" "LogLevel" NOT NULL DEFAULT 'INFO',
-    "message" TEXT NOT NULL,
-    "source" TEXT,
-    "executionId" TEXT,
+    "email" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "externalId" TEXT,
+    "permissionSetId" TEXT,
+    "active" BOOLEAN NOT NULL DEFAULT true,
+    "lastSeenAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "users_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "permission_sets" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "description" TEXT,
+    "permissions" TEXT[],
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "permission_sets_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "api_keys" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "keyHash" TEXT NOT NULL,
+    "keyPrefix" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "expiresAt" TIMESTAMP(3),
+    "lastUsedAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    CONSTRAINT "logs_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "api_keys_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "audit_logs" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT,
+    "action" TEXT NOT NULL,
+    "entityType" TEXT NOT NULL,
+    "entityId" TEXT,
+    "details" JSONB,
+    "ipAddress" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "audit_logs_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -268,224 +565,121 @@ CREATE TABLE "settings" (
 );
 
 -- CreateTable
-CREATE TABLE "inventory_components" (
+CREATE TABLE "logs" (
     "id" TEXT NOT NULL,
-    "name" TEXT NOT NULL,
-    "description" TEXT,
-    "category" "InventoryCategory" NOT NULL,
-    "manufacturer" TEXT NOT NULL,
-    "partNumber" TEXT NOT NULL,
-    "imageKey" TEXT,
+    "level" "LogLevel" NOT NULL DEFAULT 'INFO',
+    "message" TEXT NOT NULL,
+    "source" TEXT,
+    "executionId" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
 
-    CONSTRAINT "inventory_components_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "inventory_revisions" (
-    "id" TEXT NOT NULL,
-    "componentId" TEXT NOT NULL,
-    "version" TEXT NOT NULL,
-    "status" "RevisionStatus" NOT NULL DEFAULT 'ACTIVE',
-    "releaseNotes" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "inventory_revisions_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "assemblies" (
-    "id" TEXT NOT NULL,
-    "name" TEXT NOT NULL,
-    "description" TEXT,
-    "imageKey" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "assemblies_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "assembly_revisions" (
-    "id" TEXT NOT NULL,
-    "assemblyId" TEXT NOT NULL,
-    "version" TEXT NOT NULL,
-    "status" "RevisionStatus" NOT NULL DEFAULT 'ACTIVE',
-    "releaseNotes" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "assembly_revisions_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "assembly_revision_components" (
-    "id" TEXT NOT NULL,
-    "assemblyRevisionId" TEXT NOT NULL,
-    "inventoryRevisionId" TEXT NOT NULL,
-    "quantity" INTEGER NOT NULL DEFAULT 1,
-
-    CONSTRAINT "assembly_revision_components_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "codebases" (
-    "id" TEXT NOT NULL,
-    "name" TEXT NOT NULL,
-    "description" TEXT,
-    "repoUrl" TEXT,
-    "defaultBranch" TEXT NOT NULL DEFAULT 'main',
-    "imageKey" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "codebases_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "releases" (
-    "id" TEXT NOT NULL,
-    "codebaseId" TEXT NOT NULL,
-    "version" TEXT NOT NULL,
-    "status" "ReleaseStatus" NOT NULL DEFAULT 'DRAFT',
-    "releaseNotes" TEXT,
-    "tagName" TEXT,
-    "releasedAt" TIMESTAMP(3),
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "releases_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "release_artifacts" (
-    "id" TEXT NOT NULL,
-    "releaseId" TEXT NOT NULL,
-    "name" TEXT NOT NULL,
-    "filename" TEXT,
-    "type" "ArtifactType" NOT NULL,
-    "storageKey" TEXT,
-    "externalUrl" TEXT,
-    "sizeBytes" BIGINT,
-    "checksum" TEXT,
-    "contentType" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "release_artifacts_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "product_board_revisions" (
-    "id" TEXT NOT NULL,
-    "productId" TEXT NOT NULL,
-    "version" TEXT NOT NULL,
-    "chipsets" TEXT[],
-    "status" "RevisionStatus" NOT NULL DEFAULT 'ACTIVE',
-    "notes" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "product_board_revisions_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "firmware_applications" (
-    "id" TEXT NOT NULL,
-    "productId" TEXT NOT NULL,
-    "applicationId" INTEGER NOT NULL,
-    "name" TEXT NOT NULL,
-    "targetMcu" TEXT,
-    "chipset" TEXT,
-    "coreCloudDeviceType" TEXT,
-    "coreCloudVariant" TEXT,
-    "notes" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "firmware_applications_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "firmware_builds" (
-    "id" TEXT NOT NULL,
-    "productId" TEXT NOT NULL,
-    "applicationId" TEXT NOT NULL,
-    "boardRevisionId" TEXT,
-    "version" TEXT NOT NULL,
-    "majorVersion" INTEGER NOT NULL,
-    "minorVersion" INTEGER NOT NULL,
-    "buildNumber" INTEGER NOT NULL,
-    "bootloaderId" TEXT,
-    "isManufacturing" BOOLEAN NOT NULL DEFAULT false,
-    "storageKey" TEXT NOT NULL,
-    "filename" TEXT NOT NULL,
-    "sizeBytes" BIGINT NOT NULL,
-    "checksum" TEXT NOT NULL,
-    "contentType" TEXT,
-    "status" "FirmwareBuildStatus" NOT NULL DEFAULT 'DRAFT',
-    "notes" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "firmware_builds_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "logs_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "product_board_revisions_productId_version_key" ON "product_board_revisions"("productId", "version");
+CREATE UNIQUE INDEX "products_name_key" ON "products"("name");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "firmware_applications_productId_applicationId_key" ON "firmware_applications"("productId", "applicationId");
+CREATE UNIQUE INDEX "products_slug_key" ON "products"("slug");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "firmware_builds_applicationId_version_key" ON "firmware_builds"("applicationId", "version");
+CREATE UNIQUE INDEX "boards_productId_name_key" ON "boards"("productId", "name");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "board_revisions_boardId_version_key" ON "board_revisions"("boardId", "version");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "board_revision_chipsets_boardRevisionId_chipsetId_key" ON "board_revision_chipsets"("boardRevisionId", "chipsetId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "chipsets_name_key" ON "chipsets"("name");
 
 -- CreateIndex
 CREATE INDEX "firmware_builds_productId_idx" ON "firmware_builds"("productId");
 
 -- CreateIndex
-CREATE INDEX "firmware_builds_applicationId_idx" ON "firmware_builds"("applicationId");
-
--- AddForeignKey
-ALTER TABLE "product_board_revisions" ADD CONSTRAINT "product_board_revisions_productId_fkey" FOREIGN KEY ("productId") REFERENCES "products"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "firmware_applications" ADD CONSTRAINT "firmware_applications_productId_fkey" FOREIGN KEY ("productId") REFERENCES "products"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "firmware_builds" ADD CONSTRAINT "firmware_builds_productId_fkey" FOREIGN KEY ("productId") REFERENCES "products"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "firmware_builds" ADD CONSTRAINT "firmware_builds_applicationId_fkey" FOREIGN KEY ("applicationId") REFERENCES "firmware_applications"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "firmware_builds" ADD CONSTRAINT "firmware_builds_boardRevisionId_fkey" FOREIGN KEY ("boardRevisionId") REFERENCES "product_board_revisions"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+CREATE UNIQUE INDEX "firmware_builds_productId_chipsetId_version_key" ON "firmware_builds"("productId", "chipsetId", "version");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "permission_sets_name_key" ON "permission_sets"("name");
+CREATE INDEX "product_stage_configs_productId_idx" ON "product_stage_configs"("productId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "api_keys_keyHash_key" ON "api_keys"("keyHash");
+CREATE UNIQUE INDEX "product_stage_configs_productId_stage_key" ON "product_stage_configs"("productId", "stage");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "users_externalId_key" ON "users"("externalId");
+CREATE UNIQUE INDEX "validation_queue_entries_sessionId_key" ON "validation_queue_entries"("sessionId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "users_email_key" ON "users"("email");
+CREATE INDEX "validation_queue_entries_status_priority_idx" ON "validation_queue_entries"("status", "priority");
 
 -- CreateIndex
-CREATE INDEX "audit_logs_createdAt_idx" ON "audit_logs"("createdAt");
+CREATE INDEX "validation_queue_entries_pipelineRunId_idx" ON "validation_queue_entries"("pipelineRunId");
 
 -- CreateIndex
-CREATE INDEX "audit_logs_entityType_entityId_idx" ON "audit_logs"("entityType", "entityId");
+CREATE INDEX "validation_queue_entries_fixtureId_idx" ON "validation_queue_entries"("fixtureId");
 
 -- CreateIndex
-CREATE INDEX "audit_logs_userId_idx" ON "audit_logs"("userId");
+CREATE INDEX "pipeline_runs_productId_branch_idx" ON "pipeline_runs"("productId", "branch");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "products_name_key" ON "products"("name");
+CREATE INDEX "pipeline_runs_status_idx" ON "pipeline_runs"("status");
+
+-- CreateIndex
+CREATE INDEX "pipeline_runs_commitSha_idx" ON "pipeline_runs"("commitSha");
+
+-- CreateIndex
+CREATE INDEX "pipeline_runs_stage_idx" ON "pipeline_runs"("stage");
+
+-- CreateIndex
+CREATE INDEX "build_jobs_productId_branch_idx" ON "build_jobs"("productId", "branch");
+
+-- CreateIndex
+CREATE INDEX "build_jobs_matrixLabel_idx" ON "build_jobs"("matrixLabel");
+
+-- CreateIndex
+CREATE INDEX "build_jobs_productId_idx" ON "build_jobs"("productId");
+
+-- CreateIndex
+CREATE INDEX "build_jobs_status_idx" ON "build_jobs"("status");
+
+-- CreateIndex
+CREATE INDEX "build_jobs_pipelineRunId_idx" ON "build_jobs"("pipelineRunId");
+
+-- CreateIndex
+CREATE INDEX "build_jobs_buildFingerprint_idx" ON "build_jobs"("buildFingerprint");
+
+-- CreateIndex
+CREATE INDEX "build_job_artifacts_buildJobId_idx" ON "build_job_artifacts"("buildJobId");
+
+-- CreateIndex
+CREATE INDEX "sessions_productId_idx" ON "sessions"("productId");
+
+-- CreateIndex
+CREATE INDEX "sessions_type_status_idx" ON "sessions"("type", "status");
+
+-- CreateIndex
+CREATE INDEX "sessions_pipelineRunId_idx" ON "sessions"("pipelineRunId");
+
+-- CreateIndex
+CREATE INDEX "devices_serialNumber_idx" ON "devices"("serialNumber");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "devices_serialNumber_sessionId_key" ON "devices"("serialNumber", "sessionId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "fixture_designs_name_key" ON "fixture_designs"("name");
+
+-- CreateIndex
+CREATE INDEX "fixture_designs_product_idx" ON "fixture_designs"("product");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "fixtures_stationId_key" ON "fixtures"("stationId");
+
+-- CreateIndex
+CREATE INDEX "fixtures_productId_status_idx" ON "fixtures"("productId", "status");
+
+-- CreateIndex
+CREATE INDEX "fixtures_status_idx" ON "fixtures"("status");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "fixture_slots_nodeId_key" ON "fixture_slots"("nodeId");
@@ -497,19 +691,19 @@ CREATE UNIQUE INDEX "fixture_slots_fixtureId_slotIndex_key" ON "fixture_slots"("
 CREATE UNIQUE INDEX "nodes_hostname_key" ON "nodes"("hostname");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "icle_devices_deviceId_key" ON "icle_devices"("deviceId");
+
+-- CreateIndex
+CREATE INDEX "icle_devices_status_idx" ON "icle_devices"("status");
+
+-- CreateIndex
+CREATE INDEX "icle_pending_commands_deviceId_acknowledged_idx" ON "icle_pending_commands"("deviceId", "acknowledged");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "icle_logs_deviceId_filename_key" ON "icle_logs"("deviceId", "filename");
+
+-- CreateIndex
 CREATE INDEX "deployments_productId_idx" ON "deployments"("productId");
-
--- CreateIndex
-CREATE INDEX "sessions_productId_idx" ON "sessions"("productId");
-
--- CreateIndex
-CREATE INDEX "sessions_status_idx" ON "sessions"("status");
-
--- CreateIndex
-CREATE INDEX "devices_serialNumber_idx" ON "devices"("serialNumber");
-
--- CreateIndex
-CREATE UNIQUE INDEX "devices_serialNumber_sessionId_key" ON "devices"("serialNumber", "sessionId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "tests_productId_name_key" ON "tests"("productId", "name");
@@ -527,7 +721,28 @@ CREATE INDEX "test_executions_nodeId_idx" ON "test_executions"("nodeId");
 CREATE INDEX "test_executions_deviceId_idx" ON "test_executions"("deviceId");
 
 -- CreateIndex
-CREATE INDEX "test_results_executionId_idx" ON "test_results"("executionId");
+CREATE INDEX "test_steps_executionId_idx" ON "test_steps"("executionId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "users_email_key" ON "users"("email");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "users_externalId_key" ON "users"("externalId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "permission_sets_name_key" ON "permission_sets"("name");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "api_keys_keyHash_key" ON "api_keys"("keyHash");
+
+-- CreateIndex
+CREATE INDEX "audit_logs_createdAt_idx" ON "audit_logs"("createdAt");
+
+-- CreateIndex
+CREATE INDEX "audit_logs_entityType_entityId_idx" ON "audit_logs"("entityType", "entityId");
+
+-- CreateIndex
+CREATE INDEX "audit_logs_userId_idx" ON "audit_logs"("userId");
 
 -- CreateIndex
 CREATE INDEX "logs_createdAt_idx" ON "logs"("createdAt");
@@ -535,59 +750,56 @@ CREATE INDEX "logs_createdAt_idx" ON "logs"("createdAt");
 -- CreateIndex
 CREATE INDEX "logs_level_idx" ON "logs"("level");
 
--- CreateIndex
-CREATE UNIQUE INDEX "inventory_components_name_key" ON "inventory_components"("name");
-
--- CreateIndex
-CREATE UNIQUE INDEX "inventory_components_partNumber_key" ON "inventory_components"("partNumber");
-
--- CreateIndex
-CREATE UNIQUE INDEX "inventory_revisions_componentId_version_key" ON "inventory_revisions"("componentId", "version");
-
--- CreateIndex
-CREATE UNIQUE INDEX "assemblies_name_key" ON "assemblies"("name");
-
--- CreateIndex
-CREATE UNIQUE INDEX "assembly_revisions_assemblyId_version_key" ON "assembly_revisions"("assemblyId", "version");
-
--- CreateIndex
-CREATE UNIQUE INDEX "assembly_revision_components_assemblyRevisionId_inventoryR_key" ON "assembly_revision_components"("assemblyRevisionId", "inventoryRevisionId");
-
--- CreateIndex
-CREATE UNIQUE INDEX "codebases_name_key" ON "codebases"("name");
-
--- CreateIndex
-CREATE INDEX "releases_codebaseId_status_idx" ON "releases"("codebaseId", "status");
-
--- CreateIndex
-CREATE UNIQUE INDEX "releases_codebaseId_version_key" ON "releases"("codebaseId", "version");
-
--- CreateIndex
-CREATE INDEX "release_artifacts_releaseId_idx" ON "release_artifacts"("releaseId");
+-- AddForeignKey
+ALTER TABLE "boards" ADD CONSTRAINT "boards_productId_fkey" FOREIGN KEY ("productId") REFERENCES "products"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "api_keys" ADD CONSTRAINT "api_keys_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "board_revisions" ADD CONSTRAINT "board_revisions_boardId_fkey" FOREIGN KEY ("boardId") REFERENCES "boards"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "users" ADD CONSTRAINT "users_permissionSetId_fkey" FOREIGN KEY ("permissionSetId") REFERENCES "permission_sets"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "board_revision_chipsets" ADD CONSTRAINT "board_revision_chipsets_boardRevisionId_fkey" FOREIGN KEY ("boardRevisionId") REFERENCES "board_revisions"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "audit_logs" ADD CONSTRAINT "audit_logs_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "board_revision_chipsets" ADD CONSTRAINT "board_revision_chipsets_chipsetId_fkey" FOREIGN KEY ("chipsetId") REFERENCES "chipsets"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "fixtures" ADD CONSTRAINT "fixtures_productId_fkey" FOREIGN KEY ("productId") REFERENCES "products"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "firmware_builds" ADD CONSTRAINT "firmware_builds_productId_fkey" FOREIGN KEY ("productId") REFERENCES "products"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "fixture_slots" ADD CONSTRAINT "fixture_slots_fixtureId_fkey" FOREIGN KEY ("fixtureId") REFERENCES "fixtures"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "firmware_builds" ADD CONSTRAINT "firmware_builds_chipsetId_fkey" FOREIGN KEY ("chipsetId") REFERENCES "chipsets"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "fixture_slots" ADD CONSTRAINT "fixture_slots_nodeId_fkey" FOREIGN KEY ("nodeId") REFERENCES "nodes"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "product_stage_configs" ADD CONSTRAINT "product_stage_configs_productId_fkey" FOREIGN KEY ("productId") REFERENCES "products"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "deployments" ADD CONSTRAINT "deployments_productId_fkey" FOREIGN KEY ("productId") REFERENCES "products"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "validation_queue_entries" ADD CONSTRAINT "validation_queue_entries_pipelineRunId_fkey" FOREIGN KEY ("pipelineRunId") REFERENCES "pipeline_runs"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "deployments" ADD CONSTRAINT "deployments_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "validation_queue_entries" ADD CONSTRAINT "validation_queue_entries_stageConfigId_fkey" FOREIGN KEY ("stageConfigId") REFERENCES "product_stage_configs"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "validation_queue_entries" ADD CONSTRAINT "validation_queue_entries_fixtureId_fkey" FOREIGN KEY ("fixtureId") REFERENCES "fixtures"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "validation_queue_entries" ADD CONSTRAINT "validation_queue_entries_sessionId_fkey" FOREIGN KEY ("sessionId") REFERENCES "sessions"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "pipeline_runs" ADD CONSTRAINT "pipeline_runs_productId_fkey" FOREIGN KEY ("productId") REFERENCES "products"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "pipeline_runs" ADD CONSTRAINT "pipeline_runs_stageConfigId_fkey" FOREIGN KEY ("stageConfigId") REFERENCES "product_stage_configs"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "build_jobs" ADD CONSTRAINT "build_jobs_pipelineRunId_fkey" FOREIGN KEY ("pipelineRunId") REFERENCES "pipeline_runs"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "build_jobs" ADD CONSTRAINT "build_jobs_productId_fkey" FOREIGN KEY ("productId") REFERENCES "products"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "build_jobs" ADD CONSTRAINT "build_jobs_reusedFromId_fkey" FOREIGN KEY ("reusedFromId") REFERENCES "build_jobs"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "build_job_artifacts" ADD CONSTRAINT "build_job_artifacts_buildJobId_fkey" FOREIGN KEY ("buildJobId") REFERENCES "build_jobs"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "sessions" ADD CONSTRAINT "sessions_productId_fkey" FOREIGN KEY ("productId") REFERENCES "products"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -596,10 +808,37 @@ ALTER TABLE "sessions" ADD CONSTRAINT "sessions_productId_fkey" FOREIGN KEY ("pr
 ALTER TABLE "sessions" ADD CONSTRAINT "sessions_fixtureId_fkey" FOREIGN KEY ("fixtureId") REFERENCES "fixtures"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "sessions" ADD CONSTRAINT "sessions_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "sessions" ADD CONSTRAINT "sessions_pipelineRunId_fkey" FOREIGN KEY ("pipelineRunId") REFERENCES "pipeline_runs"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "sessions" ADD CONSTRAINT "sessions_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "devices" ADD CONSTRAINT "devices_sessionId_fkey" FOREIGN KEY ("sessionId") REFERENCES "sessions"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "fixtures" ADD CONSTRAINT "fixtures_productId_fkey" FOREIGN KEY ("productId") REFERENCES "products"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "fixtures" ADD CONSTRAINT "fixtures_designId_fkey" FOREIGN KEY ("designId") REFERENCES "fixture_designs"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "fixture_slots" ADD CONSTRAINT "fixture_slots_fixtureId_fkey" FOREIGN KEY ("fixtureId") REFERENCES "fixtures"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "fixture_slots" ADD CONSTRAINT "fixture_slots_nodeId_fkey" FOREIGN KEY ("nodeId") REFERENCES "nodes"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "icle_pending_commands" ADD CONSTRAINT "icle_pending_commands_deviceId_fkey" FOREIGN KEY ("deviceId") REFERENCES "icle_devices"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "icle_logs" ADD CONSTRAINT "icle_logs_deviceId_fkey" FOREIGN KEY ("deviceId") REFERENCES "icle_devices"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "deployments" ADD CONSTRAINT "deployments_productId_fkey" FOREIGN KEY ("productId") REFERENCES "products"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "deployments" ADD CONSTRAINT "deployments_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "tests" ADD CONSTRAINT "tests_productId_fkey" FOREIGN KEY ("productId") REFERENCES "products"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -620,26 +859,17 @@ ALTER TABLE "test_executions" ADD CONSTRAINT "test_executions_slotId_fkey" FOREI
 ALTER TABLE "test_executions" ADD CONSTRAINT "test_executions_triggeredById_fkey" FOREIGN KEY ("triggeredById") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "test_results" ADD CONSTRAINT "test_results_executionId_fkey" FOREIGN KEY ("executionId") REFERENCES "test_executions"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "test_steps" ADD CONSTRAINT "test_steps_executionId_fkey" FOREIGN KEY ("executionId") REFERENCES "test_executions"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "users" ADD CONSTRAINT "users_permissionSetId_fkey" FOREIGN KEY ("permissionSetId") REFERENCES "permission_sets"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "api_keys" ADD CONSTRAINT "api_keys_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "audit_logs" ADD CONSTRAINT "audit_logs_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "logs" ADD CONSTRAINT "logs_executionId_fkey" FOREIGN KEY ("executionId") REFERENCES "test_executions"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "inventory_revisions" ADD CONSTRAINT "inventory_revisions_componentId_fkey" FOREIGN KEY ("componentId") REFERENCES "inventory_components"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "assembly_revisions" ADD CONSTRAINT "assembly_revisions_assemblyId_fkey" FOREIGN KEY ("assemblyId") REFERENCES "assemblies"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "assembly_revision_components" ADD CONSTRAINT "assembly_revision_components_assemblyRevisionId_fkey" FOREIGN KEY ("assemblyRevisionId") REFERENCES "assembly_revisions"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "assembly_revision_components" ADD CONSTRAINT "assembly_revision_components_inventoryRevisionId_fkey" FOREIGN KEY ("inventoryRevisionId") REFERENCES "inventory_revisions"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "releases" ADD CONSTRAINT "releases_codebaseId_fkey" FOREIGN KEY ("codebaseId") REFERENCES "codebases"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "release_artifacts" ADD CONSTRAINT "release_artifacts_releaseId_fkey" FOREIGN KEY ("releaseId") REFERENCES "releases"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 

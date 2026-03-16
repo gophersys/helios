@@ -134,7 +134,7 @@ class ApiMonitor(threading.Thread):
         self._stop_event.set()
 
     def run(self):
-        from corekinect.test.validation.fuota_client import FuotaClient
+        from corekinect.test.fuota_client import FuotaClient
 
         print(f"{C.YELLOW}[API] Starting CoreCloud API monitor for {self._device_id}{C.RESET}")
         print(f"{C.YELLOW}[API] Poll interval: {self._poll_interval}s{C.RESET}")

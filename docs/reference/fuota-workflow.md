@@ -103,7 +103,7 @@ print(f"Current: {result.current_ma}mA")  # Should be >5mA
 **CRITICAL**: Open UART streams BEFORE power-on to capture boot output.
 
 ```python
-from corekinect.test.validation.device_personalizer import DevicePersonalizer
+from corekinect.test.device_personalizer import DevicePersonalizer
 
 personalizer = DevicePersonalizer(
     mtib=client,
@@ -127,7 +127,7 @@ print(f"Public Key: {result.public_key_b64}")
 ### Step 4: Verify Device Registration in CoreCloud
 
 ```python
-from corekinect.test.validation.fuota_client import FuotaClient
+from corekinect.test.fuota_client import FuotaClient
 
 fuota = FuotaClient(api_env="VAL_1_0")
 

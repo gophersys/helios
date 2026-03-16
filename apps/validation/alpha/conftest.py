@@ -56,7 +56,7 @@ try:
 except IndexError:
     pass  # Running in container without parent directories
 
-from corekinect.test.validation.test_context import TestContext
+from corekinect.test.context import TestContext
 from corekinect.utils import EnvConfig, Logger
 
 # ── Structured configuration via EnvConfig ──────────────────────────
@@ -125,7 +125,7 @@ if MOCK_MODE:
 
 # Auto-discover the Concord Reporter plugin (opt-in via CONCORD_RUN_ID env var).
 # When CONCORD_RUN_ID is not set, the reporter's pytest_configure is a no-op.
-pytest_plugins = ["corekinect.test.validation.reporter"]
+pytest_plugins = ["corekinect.test.reporter"]
 
 
 def pytest_configure(config):
@@ -253,13 +253,13 @@ def _is_mock_mode(config) -> bool:
 
 def _build_mock_context() -> TestContext:
     """Build a TestContext with all-mock components for offline testing."""
-    from corekinect.test.validation.mock_cloud import MockCloudClient
-    from corekinect.test.validation.mock_hardware import (
+    from corekinect.test.mock_cloud import MockCloudClient
+    from corekinect.test.mock_hardware import (
         MockFixtureController,
         MockPowerProfiler,
         MockUartDemuxer,
     )
-    from corekinect.test.validation.runner import ProductContext
+    from corekinect.test.runner import ProductContext
 
     device_id = int(cfg.DEVICE_ID, 16)
 
@@ -396,12 +396,12 @@ def mock_cloud(ctx):
     Usage in tests:
         def test_something(ctx, mock_cloud):
             if mock_cloud:
-                from corekinect.test.validation.mock_cloud import Scenario, ScenarioEngine
+                from corekinect.test.mock_cloud import Scenario, ScenarioEngine
                 engine = ScenarioEngine(mock_cloud)
                 engine.load(Scenario.happy_boot(device_id=mock_cloud.device_id))
             msg = ctx.cloud.wait_for_boot(timeout_s=5)
     """
-    from corekinect.test.validation.mock_cloud import MockCloudClient
+    from corekinect.test.mock_cloud import MockCloudClient
     if isinstance(ctx.cloud, MockCloudClient):
         return ctx.cloud
     return None
@@ -432,7 +432,7 @@ def pipeline_assets():
         return
 
     try:
-        from corekinect.test.validation.pipeline_assets import PipelineAssets
+        from corekinect.test.firmware import PipelineAssets
         assets = PipelineAssets(
             pipeline_id=cfg.PIPELINE_ID,
             logger=log,
@@ -487,7 +487,7 @@ def mfg_flash(ctx, pipeline_assets):
         device_snr = cfg.DEVICE_SNR
         if device_snr:
             log.info("MFG flash:Re-personalizing device...")
-            from corekinect.test.validation.device_personalizer import DevicePersonalizer
+            from corekinect.test.device_personalizer import DevicePersonalizer
 
             known_device_id = None
             if ctx.fixture.profile and ctx.fixture.profile.dut:
@@ -623,9 +623,9 @@ def firmware_build(ctx: TestContext, request) -> str:
         return
 
     # ── Mock mode: inject boot scenario instead of flashing ──
-    from corekinect.test.validation.mock_cloud import MockCloudClient
+    from corekinect.test.mock_cloud import MockCloudClient
     if isinstance(ctx.cloud, MockCloudClient):
-        from corekinect.test.validation.mock_cloud import Scenario, ScenarioEngine
+        from corekinect.test.mock_cloud import Scenario, ScenarioEngine
         # Simulate flash — resets transient fixture state (button, peltier, etc.)
         ctx.fixture.flash_firmware(f"mock_{variant}.hex")
         engine = ScenarioEngine(ctx.cloud)
@@ -674,7 +674,7 @@ def firmware_build(ctx: TestContext, request) -> str:
     personalized = False
 
     if device_snr:
-        from corekinect.test.validation.device_personalizer import DevicePersonalizer
+        from corekinect.test.device_personalizer import DevicePersonalizer
 
         # Use pre-known IMEI/ICCIDs if available (avoids modem read)
         imei = cfg.DEVICE_IMEI

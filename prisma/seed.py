@@ -43,12 +43,10 @@ ALL_PERMISSIONS = [
     # Infrastructure
     "fixtures:view",
     "fixtures:manage",
-    "benches:view",
-    "benches:manage",
     "devices:view",
     "devices:manage",
-    "cluster:view",
-    "cluster:manage",
+    "kubernetes:view",
+    "kubernetes:manage",
     # Platform
     "users:view",
     "users:manage",
@@ -61,7 +59,7 @@ ALL_PERMISSIONS = [
 
 # Default permission sets
 ADMIN_PERMISSIONS = [p for p in ALL_PERMISSIONS if p not in (
-    "cluster:manage",
+    "kubernetes:manage",
     "system:manage",
     "permissions:manage",
 )]
@@ -75,9 +73,8 @@ ENGINEER_PERMISSIONS = [
     "manufacturing:view",
     "manufacturing:run",
     "fixtures:view",
-    "benches:view",
     "devices:view",
-    "cluster:view",
+    "kubernetes:view",
     "system:view",
     "api-keys:view",
     "api-keys:manage",
@@ -90,7 +87,6 @@ OPERATOR_PERMISSIONS = [
     "manufacturing:view",
     "manufacturing:run",
     "fixtures:view",
-    "benches:view",
     "devices:view",
     "system:view",
 ]
@@ -101,7 +97,6 @@ VIEWER_PERMISSIONS = [
     "validation:view",
     "manufacturing:view",
     "fixtures:view",
-    "benches:view",
     "devices:view",
     "system:view",
 ]
@@ -784,22 +779,34 @@ def seed():
         )
         print(f"Fixture design: {theta_design.name} (id: {theta_design.id})")
 
-        # ── Test Benches ──
-        print("\n=== Seeding Test Benches ===")
+        # ── Fixtures (was Test Benches) ──
+        print("\n=== Seeding Fixtures ===")
         # Bench-33 DUT: Device 09J5 (current active test device)
-        bench_33 = db.testbench.upsert(
+        fixture_33 = db.fixture.upsert(
             where={"stationId": "bench-33"},
             data={
                 "create": {
                     "stationId": "bench-33",
                     "name": "Alpha B0 Bench 1 (MTIB 33)",
-                    "mtibAddress": "10.4.45.33:50053",
-                    "mtibRevision": "REV1.2",
-                    "productId": alpha_product.id,  # FK to Product
-                    "fixtureDesignId": alpha_design.id,
-                    "capabilities": ["button", "peltier", "charger_relay"],
-                    "dutProduct": "alpha",
-                    "dutRevision": "b0",
+                    "productId": alpha_product.id,
+                    "designId": alpha_design.id,
+                    "type": "VALIDATION",
+                    "status": "AVAILABLE",
+                },
+                "update": {
+                    "productId": alpha_product.id,
+                    "designId": alpha_design.id,
+                },
+            },
+        )
+        # Create slot with DUT and hardware info
+        db.fixtureslot.upsert(
+            where={"fixtureId_slotIndex": {"fixtureId": fixture_33.id, "slotIndex": 0}},
+            data={
+                "create": {
+                    "fixtureId": fixture_33.id,
+                    "slotIndex": 0,
+                    "label": "Primary",
                     "dutDeviceId": "70B3D584C01E1DDD",
                     "dutSnr": "09J5",
                     "dutImei": "355025931651952",
@@ -808,11 +815,8 @@ def seed():
                     "jlinkCommsSerial": "821009537",
                     "uartAppPath": "/dev/verdin-uart2",
                     "uartCommsPath": "/dev/verdin-uart1",
-                    "status": "AVAILABLE",
                 },
                 "update": {
-                    "productId": alpha_product.id,
-                    "fixtureDesignId": alpha_design.id,
                     "dutDeviceId": "70B3D584C01E1DDD",
                     "dutSnr": "09J5",
                     "dutImei": "355025931651952",
@@ -820,24 +824,16 @@ def seed():
                 },
             },
         )
-        print(f"Test bench: {bench_33.stationId} -> {bench_33.mtibAddress} (product: {alpha_product.name})")
+        print(f"Fixture: {fixture_33.stationId} (product: {alpha_product.name})")
 
-        bench_32 = db.testbench.upsert(
+        fixture_32 = db.fixture.upsert(
             where={"stationId": "bench-32"},
             data={
                 "create": {
                     "stationId": "bench-32",
                     "name": "Alpha B0 Bench 2 (MTIB 32)",
-                    "mtibAddress": "10.4.45.32:50053",
-                    "mtibRevision": "REV1.1",
-                    "productId": alpha_product.id,  # FK to Product
-                    "capabilities": ["button", "peltier", "charger_relay"],
-                    "dutProduct": "alpha",
-                    "dutRevision": "b0",
-                    "dutDeviceId": "70B3D584C01E20A2",
-                    "dutSnr": "097D",
-                    "uartAppPath": "/dev/verdin-uart2",
-                    "uartCommsPath": "/dev/verdin-uart1",
+                    "productId": alpha_product.id,
+                    "type": "VALIDATION",
                     "status": "AVAILABLE",
                 },
                 "update": {
@@ -845,59 +841,88 @@ def seed():
                 },
             },
         )
-        print(f"Test bench: {bench_32.stationId} -> {bench_32.mtibAddress} (product: {alpha_product.name})")
+        db.fixtureslot.upsert(
+            where={"fixtureId_slotIndex": {"fixtureId": fixture_32.id, "slotIndex": 0}},
+            data={
+                "create": {
+                    "fixtureId": fixture_32.id,
+                    "slotIndex": 0,
+                    "label": "Primary",
+                    "dutDeviceId": "70B3D584C01E20A2",
+                    "dutSnr": "097D",
+                    "uartAppPath": "/dev/verdin-uart2",
+                    "uartCommsPath": "/dev/verdin-uart1",
+                },
+                "update": {},
+            },
+        )
+        print(f"Fixture: {fixture_32.stationId} (product: {alpha_product.name})")
 
-        # Sigma5 C0 bench (MTIB 34 - IWSCK-A1)
-        bench_34 = db.testbench.upsert(
+        # Sigma5 C0 fixture (MTIB 34)
+        fixture_34 = db.fixture.upsert(
             where={"stationId": "bench-34"},
             data={
                 "create": {
                     "stationId": "bench-34",
                     "name": "Sigma5 C0 Bench (MTIB 34)",
-                    "mtibAddress": "10.4.45.34:50053",
-                    "mtibRevision": "REV1.2",
-                    "productId": sigma5_product.id,  # FK to Product
-                    "fixtureDesignId": sigma5_design.id,
-                    "capabilities": ["button", "motion"],
-                    "dutProduct": "sigma5",
-                    "dutRevision": "c0",
-                    "uartAppPath": "/dev/verdin-uart2",
-                    "uartCommsPath": "/dev/verdin-uart1",
+                    "productId": sigma5_product.id,
+                    "designId": sigma5_design.id,
+                    "type": "VALIDATION",
                     "status": "AVAILABLE",
                 },
                 "update": {
                     "productId": sigma5_product.id,
-                    "fixtureDesignId": sigma5_design.id,
+                    "designId": sigma5_design.id,
                 },
             },
         )
-        print(f"Test bench: {bench_34.stationId} -> {bench_34.mtibAddress} (product: {sigma5_product.name})")
+        db.fixtureslot.upsert(
+            where={"fixtureId_slotIndex": {"fixtureId": fixture_34.id, "slotIndex": 0}},
+            data={
+                "create": {
+                    "fixtureId": fixture_34.id,
+                    "slotIndex": 0,
+                    "label": "Primary",
+                    "uartAppPath": "/dev/verdin-uart2",
+                    "uartCommsPath": "/dev/verdin-uart1",
+                },
+                "update": {},
+            },
+        )
+        print(f"Fixture: {fixture_34.stationId} (product: {sigma5_product.name})")
 
-        # Theta C0 bench (MTIB 35 - placeholder for future deployment)
-        bench_35 = db.testbench.upsert(
+        # Theta C0 fixture (MTIB 35 - placeholder for future deployment)
+        fixture_35 = db.fixture.upsert(
             where={"stationId": "bench-35"},
             data={
                 "create": {
                     "stationId": "bench-35",
                     "name": "Theta C0 Bench (MTIB 35)",
-                    "mtibAddress": "10.4.45.35:50053",
-                    "mtibRevision": "REV1.2",
                     "productId": theta_product.id,
-                    "fixtureDesignId": theta_design.id,
-                    "capabilities": ["button", "motion", "gps"],
-                    "dutProduct": "theta",
-                    "dutRevision": "c0",
-                    "uartAppPath": "/dev/verdin-uart2",
-                    "uartCommsPath": "/dev/verdin-uart1",
-                    "status": "OFFLINE",  # Placeholder - not deployed yet
+                    "designId": theta_design.id,
+                    "type": "VALIDATION",
+                    "status": "OFFLINE",
                 },
                 "update": {
                     "productId": theta_product.id,
-                    "fixtureDesignId": theta_design.id,
+                    "designId": theta_design.id,
                 },
             },
         )
-        print(f"Test bench: {bench_35.stationId} -> {bench_35.mtibAddress} (product: {theta_product.name})")
+        db.fixtureslot.upsert(
+            where={"fixtureId_slotIndex": {"fixtureId": fixture_35.id, "slotIndex": 0}},
+            data={
+                "create": {
+                    "fixtureId": fixture_35.id,
+                    "slotIndex": 0,
+                    "label": "Primary",
+                    "uartAppPath": "/dev/verdin-uart2",
+                    "uartCommsPath": "/dev/verdin-uart1",
+                },
+                "update": {},
+            },
+        )
+        print(f"Fixture: {fixture_35.stationId} (product: {theta_product.name})")
 
         # ── CI Test API Key ──
         # Create a deterministic API key for CI testing
@@ -947,94 +972,8 @@ def seed():
         print(f"CI API key ready: {ci_api_key.keyPrefix}... (id: {ci_api_key.id})")
         print(f"  Use this key for testing: {ci_key}")
 
-        # ── Catalog Sync: ValidationDesign from catalog.yaml ──
-        print("\n=== Syncing Test Catalogs to ValidationDesign ===")
-        sync_product_catalog(db, "alpha", alpha_product.id)
-
     finally:
         db.disconnect()
-
-
-def sync_product_catalog(db: Prisma, product: str, product_id: str) -> None:
-    """
-    Sync catalog.yaml → ValidationDesign records.
-    Creates one ValidationDesign per stage (gate, nightly, integration).
-    Each test becomes a node in the flow graph.
-    """
-    import yaml as pyyaml
-    from pathlib import Path
-
-    catalog_path = Path(__file__).parent.parent / "apps" / "validation" / product / "catalog.yaml"
-    if not catalog_path.exists():
-        print(f"  Skipping {product}: catalog.yaml not found at {catalog_path}")
-        return
-
-    with open(catalog_path) as f:
-        catalog = pyyaml.safe_load(f)
-
-    stages = catalog.get("stages", {})
-    tests = catalog.get("tests", [])
-
-    for stage_name, stage_config in stages.items():
-        # Filter tests for this stage
-        stage_tests = [t for t in tests if t.get("stage") == stage_name]
-        if not stage_tests:
-            print(f"  Skipping {product}/{stage_name}: no tests")
-            continue
-
-        # Build flow graph: sequential test execution
-        nodes = []
-        edges = []
-        y_offset = 0
-        for i, test in enumerate(stage_tests):
-            node_id = f"node-{i}"
-            nodes.append({
-                "id": node_id,
-                "type": "test",
-                "position": {"x": 200, "y": y_offset},
-                "data": {
-                    "testId": test.get("id"),
-                    "name": test.get("name"),
-                    "timeout_s": test.get("timeout_s", 60),
-                    "hardware": test.get("hardware", []),
-                    "category": test.get("category", "general"),
-                },
-            })
-            # Connect to previous node
-            if i > 0:
-                edges.append({
-                    "id": f"edge-{i-1}-{i}",
-                    "source": f"node-{i-1}",
-                    "target": node_id,
-                    "type": "smoothstep",
-                })
-            y_offset += 100
-
-        design_slug = f"{product}-{stage_name}"
-        design_name = f"{product.title()} {stage_name.title()} Validation"
-        board = catalog.get("board", f"{product}_b0")
-
-        design = db.validationdesign.upsert(
-            where={"slug": design_slug},
-            data={
-                "create": {
-                    "name": design_name,
-                    "slug": design_slug,
-                    "product": product,
-                    "board": board,
-                    "description": stage_config.get("description", ""),
-                    "nodes": Json(nodes),
-                    "edges": Json(edges),
-                },
-                "update": {
-                    "name": design_name,
-                    "description": stage_config.get("description", ""),
-                    "nodes": Json(nodes),
-                    "edges": Json(edges),
-                },
-            },
-        )
-        print(f"  ValidationDesign: {design.slug} ({len(stage_tests)} tests)")
 
 
 if __name__ == "__main__":

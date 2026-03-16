@@ -142,7 +142,7 @@ def personalize_device(
     coreops_url: str = "http://coreops-proxy"
 ) -> dict:
     """Personalize device and upload keys to CoreCloud."""
-    from corekinect.test.validation.device_personalizer import DevicePersonalizer
+    from corekinect.test.device_personalizer import DevicePersonalizer
 
     log(f"Personalizing device SNR={snr}...")
 
@@ -172,7 +172,7 @@ def setup_fuota(
     cfw_dir: Path = DEFAULT_CFW_DIR,
 ) -> int:
     """Set up FUOTA plan and assign device."""
-    from corekinect.test.validation.fuota_client import FuotaClient
+    from corekinect.test.fuota_client import FuotaClient
 
     fuota = FuotaClient(api_env="VAL_1_0")
 

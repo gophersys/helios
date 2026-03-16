@@ -7,7 +7,7 @@ from unittest.mock import patch
 from tests.conftest import make_obj
 
 
-_OVERLAYS_MODULE = "api.v2.ci.overlays"
+_OVERLAYS_MODULE = "api.v2.builds.overlays"
 
 
 class TestGetOverlays:

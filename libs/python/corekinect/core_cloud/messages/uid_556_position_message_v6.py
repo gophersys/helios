@@ -8,7 +8,6 @@ from corekinect.utils.units.temp import celsius_to_fahrenheit
 from ..unified_core.db_map import db_translation
 from ..unified_core.message_base import MessageBase
 from ..unified_core.message_codec import MessageCodec
-from corekinect.core_cloud.db_orm_v0_9 import JumpTrack1CMsgTbl
 from corekinect.core_cloud.db_orm_v1_0 import Messagespositionv5tbl
 
 
@@ -21,7 +20,7 @@ class PositionMsgV6(MessageBase, MessageCodec):
 
     __type__ = "UID_556"
     UID = 556
-    _schema = {"V1_0": Messagespositionv5tbl, "V0_9": JumpTrack1CMsgTbl}
+    _schema = {"V1_0": Messagespositionv5tbl}
     _device_time_fields = {"V1_0": "timeoffix", "V0_9": "TimeOfFix"}
 
     # Base/universal fields

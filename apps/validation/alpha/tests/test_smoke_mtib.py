@@ -18,8 +18,8 @@ import pytest
 from corekinect.mtib_client.v1.client.core import MtibV1Client
 from corekinect.mtib_client.v1.client.config import NetConfig
 from corekinect.mtib_client.v1.client.types import GpioDirection, GpioResistorConfig
-from corekinect.test.validation.fixture_controller import FixtureController, FixtureProfile
-from corekinect.test.validation.power_profiler import PowerProfiler
+from corekinect.test.fixture_controller import FixtureController, FixtureProfile
+from corekinect.test.power_profiler import PowerProfiler
 
 log = logging.getLogger(__name__)
 

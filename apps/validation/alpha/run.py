@@ -54,7 +54,7 @@ try:
 except IndexError:
     pass  # Running in container — PYTHONPATH already configured
 
-from corekinect.test.validation.runner import ValidationRunner
+from corekinect.test.runner import ValidationRunner
 from corekinect.utils import Logger
 
 log = Logger(log_name="alpha.runner")

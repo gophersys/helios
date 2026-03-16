@@ -65,7 +65,7 @@ def test_create_chipset(authed_client, mock_db):
         updatedAt=datetime(2025, 1, 15, tzinfo=timezone.utc),
     )
 
-    with patch("src.api.v2.catalog.chipsets.log_audit"):
+    with patch("src.api.v2.products.chipsets.log_audit"):
         response = authed_client.post(
             "/v2/products/chipsets",
             data=json.dumps({
@@ -162,7 +162,7 @@ def test_update_chipset(authed_client, mock_db):
         updatedAt=datetime(2025, 1, 15, tzinfo=timezone.utc),
     )
 
-    with patch("src.api.v2.catalog.chipsets.log_audit"):
+    with patch("src.api.v2.products.chipsets.log_audit"):
         response = authed_client.put(
             "/v2/products/chipsets/chip-update",
             data=json.dumps({
@@ -194,7 +194,7 @@ def test_delete_chipset(authed_client, mock_db):
     mock_db.boardrevisionchipset.find_first.return_value = None
     mock_db.firmwarebuild.find_first.return_value = None
 
-    with patch("src.api.v2.catalog.chipsets.log_audit"):
+    with patch("src.api.v2.products.chipsets.log_audit"):
         response = authed_client.delete("/v2/products/chipsets/chip-delete")
 
     assert response.status_code == 200
@@ -280,7 +280,7 @@ def test_update_chipset_duplicate_name(authed_client, mock_db):
 
     mock_db.chipset.find_unique.side_effect = [existing, dup]
 
-    with patch("src.api.v2.catalog.chipsets.log_audit"):
+    with patch("src.api.v2.products.chipsets.log_audit"):
         response = authed_client.put(
             "/v2/products/chipsets/chip-update",
             data=json.dumps({"name": "nRF9160"}),

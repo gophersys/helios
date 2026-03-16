@@ -323,7 +323,7 @@ class TestCreatePipeline:
         """Create pipeline with valid payload returns 201."""
         self._mock_pipeline_creation(mock_db)
 
-        with patch("src.api.v2.ci.pipelines.log_audit"):
+        with patch("src.api.v2.builds.pipelines.log_audit"):
             response = authed_client.post(
                 "/v2/builds/pipelines",
                 data=json.dumps({
@@ -401,7 +401,7 @@ class TestCreatePipeline:
         """Create pipeline from git poller includes productId and repoSlug."""
         self._mock_pipeline_creation(mock_db, "pipe-poller")
 
-        with patch("src.api.v2.ci.pipelines.log_audit"):
+        with patch("src.api.v2.builds.pipelines.log_audit"):
             response = authed_client.post(
                 "/v2/builds/pipelines",
                 data=json.dumps({
@@ -421,7 +421,7 @@ class TestCreatePipeline:
         """Create pipeline with fuota matrix mode creates 8 builds."""
         self._mock_pipeline_creation(mock_db, "pipe-fuota")
 
-        with patch("src.api.v2.ci.pipelines.log_audit"):
+        with patch("src.api.v2.builds.pipelines.log_audit"):
             response = authed_client.post(
                 "/v2/builds/pipelines",
                 data=json.dumps({
@@ -441,7 +441,7 @@ class TestCreatePipeline:
         mock_db.product.find_first.return_value = product
         mock_db.pipelinerun.create.side_effect = Exception("DB error")
 
-        with patch("src.api.v2.ci.pipelines.log_audit"):
+        with patch("src.api.v2.builds.pipelines.log_audit"):
             response = authed_client.post(
                 "/v2/builds/pipelines",
                 data=json.dumps({
@@ -458,7 +458,7 @@ class TestCreatePipeline:
         """Create pipeline with custom name uses that name."""
         self._mock_pipeline_creation(mock_db, "pipe-named")
 
-        with patch("src.api.v2.ci.pipelines.log_audit"):
+        with patch("src.api.v2.builds.pipelines.log_audit"):
             response = authed_client.post(
                 "/v2/builds/pipelines",
                 data=json.dumps({
@@ -496,7 +496,7 @@ class TestCancelPipeline:
         cancelled = _pipeline_obj(id="pipe-cancel", status="CANCELLED")
         mock_db.pipelinerun.update.return_value = cancelled
 
-        with patch("src.api.v2.ci.pipelines.log_audit"):
+        with patch("src.api.v2.builds.pipelines.log_audit"):
             response = authed_client.post("/v2/builds/pipelines/pipe-cancel/cancel")
 
         assert response.status_code == 200
@@ -511,7 +511,7 @@ class TestCancelPipeline:
         cancelled = _pipeline_obj(id="pipe-building", status="CANCELLED")
         mock_db.pipelinerun.update.return_value = cancelled
 
-        with patch("src.api.v2.ci.pipelines.log_audit"):
+        with patch("src.api.v2.builds.pipelines.log_audit"):
             response = authed_client.post("/v2/builds/pipelines/pipe-building/cancel")
 
         assert response.status_code == 200
@@ -526,7 +526,7 @@ class TestCancelPipeline:
         cancelled = _pipeline_obj(id="pipe-cbuild", status="CANCELLED")
         mock_db.pipelinerun.update.return_value = cancelled
 
-        with patch("src.api.v2.ci.pipelines.log_audit"):
+        with patch("src.api.v2.builds.pipelines.log_audit"):
             response = authed_client.post("/v2/builds/pipelines/pipe-cbuild/cancel")
 
         assert response.status_code == 200
@@ -578,7 +578,7 @@ class TestCancelPipeline:
         mock_db.pipelinerun.find_unique.return_value = existing
         mock_db.pipelinerun.update.side_effect = Exception("DB connection lost")
 
-        with patch("src.api.v2.ci.pipelines.log_audit"):
+        with patch("src.api.v2.builds.pipelines.log_audit"):
             response = authed_client.post("/v2/builds/pipelines/pipe-dbe/cancel")
 
         assert response.status_code == 500

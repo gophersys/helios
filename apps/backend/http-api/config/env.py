@@ -6,7 +6,7 @@ from corekinect.utils import EnvConfig
 # -------------------------------------------------
 #                                        Env Config
 # -------------------------------------------------
-class ProxyConfig(EnvConfig):
+class AppConfig(EnvConfig):
     ENVIRONMENT: str
     DELETE_ALL_KEY: str
 
@@ -19,13 +19,6 @@ class ProxyConfig(EnvConfig):
 
     # CORS — comma-separated list of allowed origins
     CORS_ORIGINS: str = "http://localhost:4200"
-
-    # V1 Database
-    DB_STORAGE_PATH: str
-    DB_STORAGE_LIMIT_GB: int
-
-    # V1 Registry
-    SUPPORTED_REGISTRIES: List[str]
 
     # Auth
     AUTH_ENABLED: bool = True
@@ -49,17 +42,14 @@ class ProxyConfig(EnvConfig):
     STORAGE_SECRET_ACCESS_KEY: str
     STORAGE_BUCKET_NAME: str
 
-    # InfluxDB
-    INFLUXDB_URL: str
-    INFLUXDB_TOKEN: str
-    INFLUXDB_ORG: str
-    INFLUXDB_BUCKET_TELEMETRY: str
-    INFLUXDB_BUCKET_METRICS: str
-
     # Validation — MTIB gRPC port
     MTIB_PORT: int = 50053
     # Validation — K8s namespace for validation jobs (privileged namespace for hardware access)
     VALIDATION_NAMESPACE: str = "validation"
+
+    # Git poller — polls repos for new commits to trigger builds
+    GIT_POLLER_ENABLED: bool = True
+    GIT_POLLER_INTERVAL_S: int = 300
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -85,4 +75,4 @@ class ProxyConfig(EnvConfig):
             )
 
 
-env_config = ProxyConfig(namespace=None, auto_load_env=True)
+env_config = AppConfig(namespace=None, auto_load_env=True)

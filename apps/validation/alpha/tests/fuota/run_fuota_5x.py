@@ -30,8 +30,8 @@ urllib3.disable_warnings()
 from corekinect.mtib_client.v1.client.core import MtibV1Client
 from corekinect.mtib_client.v1.client.config import NetConfig
 from corekinect.mtib_client.v1.client.types import PowerChannel, GpioDirection, GpioResistorConfig, HostType
-from corekinect.test.validation.fuota_client import FuotaClient
-from corekinect.test.validation.device_personalizer import DevicePersonalizer
+from corekinect.test.fuota_client import FuotaClient
+from corekinect.test.device_personalizer import DevicePersonalizer
 
 # Config
 MTIB_ADDR = os.environ.get("MTIB_ADDR", "10.4.45.33")

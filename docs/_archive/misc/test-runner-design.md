@@ -180,7 +180,7 @@ class PreflightChecker:
             return True, "Not required for integration tests"
 
         try:
-            from corekinect.test.validation.fuota_client import FuotaClient
+            from corekinect.test.fuota_client import FuotaClient
             client = FuotaClient(api_env="VAL_1_0")
             # Simple API call to verify auth
             client._ensure_token()
@@ -401,7 +401,7 @@ def resume_run(run_id: str) -> ValidationRun:
 import sys
 import os
 
-from corekinect.test.validation.runner import ValidationRunner
+from corekinect.test.runner import ValidationRunner
 
 def main():
     stage = os.environ.get("STAGE", "gate")

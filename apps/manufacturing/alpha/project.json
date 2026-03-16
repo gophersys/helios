@@ -1,33 +1,87 @@
 {
-  "name": "manufacturing-theta-fixture",
+  "name": "manufacturing-alpha",
   "$schema": "../../../node_modules/nx/schemas/project-schema.json",
-  "sourceRoot": "apps/manufacturing/theta_fixture",
+  "sourceRoot": "apps/manufacturing/alpha",
   "projectType": "application",
+  "tags": ["scope:manufacturing", "type:app", "product:alpha"],
+  "implicitDependencies": ["protocols"],
   "targets": {
     "build": {
-      "command": "nx run manufacturing-theta-fixture:containerize",
-      "cwd": "{workspaceRoot}"
-    },
-    "push": {
-      "dependsOn": [
-        "build"
-      ],
-      "command": "docker push containers.ad.corekinect.com/concord-manufacturing-theta:latest"
+      "executor": "nx:run-commands",
+      "defaultConfiguration": "development",
+      "options": {
+        "cwd": "{workspaceRoot}"
+      },
+      "configurations": {
+        "development": {
+          "command": "nx run manufacturing-alpha:containerize -c development"
+        },
+        "staging": {
+          "command": "nx run manufacturing-alpha:containerize -c staging"
+        },
+        "production": {
+          "command": "nx run manufacturing-alpha:containerize -c production"
+        }
+      }
     },
     "containerize": {
       "executor": "@nx-tools/nx-container:build",
-      "cwd": "{workspaceRoot}",
+      "defaultConfiguration": "development",
       "options": {
         "context": "{workspaceRoot}",
-        "file": "apps/manufacturing/theta_fixture/Dockerfile",
-        "platforms": [
-          "linux/amd64"
-        ],
-        "load": true,
+        "cwd": "{workspaceRoot}",
+        "file": "apps/manufacturing/alpha/deploy/Dockerfile",
         "push": false,
-        "tags": [
-          "containers.ad.corekinect.com/concord-manufacturing-theta:latest"
-        ]
+        "load": true,
+        "platforms": ["linux/amd64"]
+      },
+      "configurations": {
+        "development": {
+          "tags": ["concord/manufacturing-alpha:development"]
+        },
+        "staging": {
+          "tags": [
+            "concord/manufacturing-alpha:staging",
+            "containers.ad.corekinect.com/concord-manufacturing-alpha:staging"
+          ]
+        },
+        "production": {
+          "tags": [
+            "concord/manufacturing-alpha:production",
+            "containers.ad.corekinect.com/concord-manufacturing-alpha:production"
+          ],
+          "push": true
+        }
+      }
+    },
+    "push": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["build"],
+      "options": {
+        "cwd": "{workspaceRoot}"
+      },
+      "defaultConfiguration": "staging",
+      "configurations": {
+        "staging": {
+          "command": "docker push containers.ad.corekinect.com/concord-manufacturing-alpha:staging"
+        },
+        "production": {
+          "command": "docker push containers.ad.corekinect.com/concord-manufacturing-alpha:production"
+        }
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/manufacturing/alpha",
+        "command": "PYTHONPATH=src:$(pwd)/../../../libs/python:$(pwd)/../../../libs:$(pwd)/../../../libs/protocols:. pytest tests/ -v"
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/manufacturing/alpha",
+        "command": "python3 -c \"import py_compile,glob;[py_compile.compile(f,doraise=True) for f in glob.glob('src/**/*.py',recursive=True)]\""
       }
     },
     "setup": {

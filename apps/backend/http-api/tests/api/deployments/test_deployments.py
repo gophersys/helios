@@ -23,7 +23,7 @@ def test_list_deployments(authed_client, mock_db):
         ),
     ]
 
-    response = authed_client.get("/v2/cluster/managed-deployments")
+    response = authed_client.get("/v2/kubernetes/managed-deployments")
     assert response.status_code == 200
     data = json.loads(response.data)
     assert len(data["data"]["data"]) == 1
@@ -45,7 +45,7 @@ def test_create_deployment(authed_client, mock_db):
     )
 
     with patch("api.v2.deployments.deployments.log_audit"):
-        response = authed_client.post("/v2/cluster/managed-deployments", data=json.dumps({
+        response = authed_client.post("/v2/kubernetes/managed-deployments", data=json.dumps({
             "name": "New Deploy", "fixtureId": "fix-1",
         }))
 
@@ -64,7 +64,7 @@ def test_delete_deployment(authed_client, mock_db):
     )
 
     with patch("api.v2.deployments.deployments.log_audit"):
-        response = authed_client.delete("/v2/cluster/managed-deployments/dep-del")
+        response = authed_client.delete("/v2/kubernetes/managed-deployments/dep-del")
 
     assert response.status_code == 200
     data = json.loads(response.data)
@@ -79,7 +79,7 @@ def test_delete_running_deployment(authed_client, mock_db):
         updatedAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
     )
 
-    response = authed_client.delete("/v2/cluster/managed-deployments/dep-running")
+    response = authed_client.delete("/v2/kubernetes/managed-deployments/dep-running")
     assert response.status_code == 409
 
 
@@ -94,7 +94,7 @@ def test_get_deployment(authed_client, mock_db):
         updatedAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
     )
 
-    response = authed_client.get("/v2/cluster/managed-deployments/dep-1")
+    response = authed_client.get("/v2/kubernetes/managed-deployments/dep-1")
     assert response.status_code == 200
     data = json.loads(response.data)
     assert data["data"]["id"] == "dep-1"

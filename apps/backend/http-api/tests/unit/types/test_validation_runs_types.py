@@ -1,5 +1,5 @@
 """
-Unit tests for validation run types in src/api/v2/validation/runs/types.py.
+Unit tests for validation run types in src/api/v2/sessions/types.py.
 
 Tests all from_json() methods.
 """
@@ -9,7 +9,7 @@ Tests all from_json() methods.
 
 
 def test_run_create_valid():
-    from src.api.v2.validation.runs.types import RunCreateRequest
+    from src.api.v2.sessions.types import RunCreateRequest
 
     data = {
         "name": "Alpha REV1.2 Debug",
@@ -32,7 +32,7 @@ def test_run_create_valid():
 
 
 def test_run_create_minimal():
-    from src.api.v2.validation.runs.types import RunCreateRequest
+    from src.api.v2.sessions.types import RunCreateRequest
 
     data = {
         "name": "Test Run",
@@ -51,7 +51,7 @@ def test_run_create_minimal():
 
 
 def test_run_create_missing_name():
-    from src.api.v2.validation.runs.types import RunCreateRequest
+    from src.api.v2.sessions.types import RunCreateRequest
 
     data = {"productId": "prod-1", "nodeId": "node-1", "serialNumber": "ABC"}
     req, err = RunCreateRequest.from_json(data)
@@ -60,7 +60,7 @@ def test_run_create_missing_name():
 
 
 def test_run_create_missing_product_id():
-    from src.api.v2.validation.runs.types import RunCreateRequest
+    from src.api.v2.sessions.types import RunCreateRequest
 
     data = {"name": "Test", "nodeId": "node-1", "serialNumber": "ABC"}
     req, err = RunCreateRequest.from_json(data)
@@ -69,7 +69,7 @@ def test_run_create_missing_product_id():
 
 
 def test_run_create_missing_node_id():
-    from src.api.v2.validation.runs.types import RunCreateRequest
+    from src.api.v2.sessions.types import RunCreateRequest
 
     data = {"name": "Test", "productId": "prod-1", "serialNumber": "ABC"}
     req, err = RunCreateRequest.from_json(data)
@@ -78,7 +78,7 @@ def test_run_create_missing_node_id():
 
 
 def test_run_create_missing_serial():
-    from src.api.v2.validation.runs.types import RunCreateRequest
+    from src.api.v2.sessions.types import RunCreateRequest
 
     data = {"name": "Test", "productId": "prod-1", "nodeId": "node-1"}
     req, err = RunCreateRequest.from_json(data)
@@ -87,7 +87,7 @@ def test_run_create_missing_serial():
 
 
 def test_run_create_empty_body():
-    from src.api.v2.validation.runs.types import RunCreateRequest
+    from src.api.v2.sessions.types import RunCreateRequest
 
     req, err = RunCreateRequest.from_json(None)
     assert req is None
@@ -99,7 +99,7 @@ def test_run_create_empty_body():
 
 
 def test_run_create_invalid_config():
-    from src.api.v2.validation.runs.types import RunCreateRequest
+    from src.api.v2.sessions.types import RunCreateRequest
 
     data = {
         "name": "Test",
@@ -114,7 +114,7 @@ def test_run_create_invalid_config():
 
 
 def test_run_create_with_test_filter():
-    from src.api.v2.validation.runs.types import RunCreateRequest
+    from src.api.v2.sessions.types import RunCreateRequest
 
     data = {
         "name": "Filtered",
@@ -129,7 +129,7 @@ def test_run_create_with_test_filter():
 
 
 def test_run_create_invalid_test_filter():
-    from src.api.v2.validation.runs.types import RunCreateRequest
+    from src.api.v2.sessions.types import RunCreateRequest
 
     data = {
         "name": "Test",
@@ -147,7 +147,7 @@ def test_run_create_invalid_test_filter():
 
 
 def test_report_start_valid():
-    from src.api.v2.validation.runs.types import ReportStartRequest
+    from src.api.v2.sessions.types import ReportStartRequest
 
     req, err = ReportStartRequest.from_json({"started": True})
     assert err is None
@@ -155,7 +155,7 @@ def test_report_start_valid():
 
 
 def test_report_start_empty():
-    from src.api.v2.validation.runs.types import ReportStartRequest
+    from src.api.v2.sessions.types import ReportStartRequest
 
     req, err = ReportStartRequest.from_json(None)
     assert req is None
@@ -166,7 +166,7 @@ def test_report_start_empty():
 
 
 def test_report_test_start_valid():
-    from src.api.v2.validation.runs.types import ReportTestStartRequest
+    from src.api.v2.sessions.types import ReportTestStartRequest
 
     data = {"testName": "test_boot.test_power_on", "module": "test_boot"}
     req, err = ReportTestStartRequest.from_json(data)
@@ -176,7 +176,7 @@ def test_report_test_start_valid():
 
 
 def test_report_test_start_missing_name():
-    from src.api.v2.validation.runs.types import ReportTestStartRequest
+    from src.api.v2.sessions.types import ReportTestStartRequest
 
     req, err = ReportTestStartRequest.from_json({"module": "test_boot"})
     assert req is None
@@ -187,7 +187,7 @@ def test_report_test_start_missing_name():
 
 
 def test_report_test_result_valid():
-    from src.api.v2.validation.runs.types import ReportTestResultRequest
+    from src.api.v2.sessions.types import ReportTestResultRequest
 
     data = {
         "testName": "test_power.test_boot_current",
@@ -204,7 +204,7 @@ def test_report_test_result_valid():
 
 
 def test_report_test_result_missing_passed():
-    from src.api.v2.validation.runs.types import ReportTestResultRequest
+    from src.api.v2.sessions.types import ReportTestResultRequest
 
     data = {"testName": "test_boot"}
     req, err = ReportTestResultRequest.from_json(data)
@@ -213,7 +213,7 @@ def test_report_test_result_missing_passed():
 
 
 def test_report_test_result_passed_not_bool():
-    from src.api.v2.validation.runs.types import ReportTestResultRequest
+    from src.api.v2.sessions.types import ReportTestResultRequest
 
     data = {"testName": "test_boot", "passed": "yes"}
     req, err = ReportTestResultRequest.from_json(data)
@@ -222,7 +222,7 @@ def test_report_test_result_passed_not_bool():
 
 
 def test_report_test_result_invalid_duration():
-    from src.api.v2.validation.runs.types import ReportTestResultRequest
+    from src.api.v2.sessions.types import ReportTestResultRequest
 
     data = {"testName": "test_boot", "passed": True, "durationS": "fast"}
     req, err = ReportTestResultRequest.from_json(data)
@@ -234,7 +234,7 @@ def test_report_test_result_invalid_duration():
 
 
 def test_report_finish_valid():
-    from src.api.v2.validation.runs.types import ReportFinishRequest
+    from src.api.v2.sessions.types import ReportFinishRequest
 
     data = {"total": 37, "passed": 35, "failed": 2, "errors": 0, "durationS": 120.5}
     req, err = ReportFinishRequest.from_json(data)
@@ -247,7 +247,7 @@ def test_report_finish_valid():
 
 
 def test_report_finish_missing_total():
-    from src.api.v2.validation.runs.types import ReportFinishRequest
+    from src.api.v2.sessions.types import ReportFinishRequest
 
     data = {"passed": 35, "failed": 2}
     req, err = ReportFinishRequest.from_json(data)
@@ -256,7 +256,7 @@ def test_report_finish_missing_total():
 
 
 def test_report_finish_negative_values():
-    from src.api.v2.validation.runs.types import ReportFinishRequest
+    from src.api.v2.sessions.types import ReportFinishRequest
 
     data = {"total": -1, "passed": 0, "failed": 0}
     req, err = ReportFinishRequest.from_json(data)
@@ -268,7 +268,7 @@ def test_report_finish_negative_values():
 
 
 def test_trigger_empty_body():
-    from src.api.v2.validation.runs.types import RunTriggerRequest
+    from src.api.v2.sessions.types import RunTriggerRequest
 
     req, err = RunTriggerRequest.from_json(None)
     assert req is None
@@ -280,7 +280,7 @@ def test_trigger_empty_body():
 
 
 def test_trigger_missing_firmware_version():
-    from src.api.v2.validation.runs.types import RunTriggerRequest
+    from src.api.v2.sessions.types import RunTriggerRequest
 
     req, err = RunTriggerRequest.from_json({"firmwarePath": "/path"})
     assert req is None
@@ -288,7 +288,7 @@ def test_trigger_missing_firmware_version():
 
 
 def test_trigger_valid_minimal():
-    from src.api.v2.validation.runs.types import RunTriggerRequest
+    from src.api.v2.sessions.types import RunTriggerRequest
 
     req, err = RunTriggerRequest.from_json({"firmwareVersion": "0.1.12"})
     assert err is None
@@ -299,7 +299,7 @@ def test_trigger_valid_minimal():
 
 
 def test_trigger_valid_full():
-    from src.api.v2.validation.runs.types import RunTriggerRequest
+    from src.api.v2.sessions.types import RunTriggerRequest
 
     data = {
         "firmwareVersion": "0.1.12",
@@ -314,7 +314,7 @@ def test_trigger_valid_full():
 
 
 def test_trigger_invalid_config():
-    from src.api.v2.validation.runs.types import RunTriggerRequest
+    from src.api.v2.sessions.types import RunTriggerRequest
 
     req, err = RunTriggerRequest.from_json({
         "firmwareVersion": "1.0",
@@ -325,7 +325,7 @@ def test_trigger_invalid_config():
 
 
 def test_trigger_firmware_version_trimmed():
-    from src.api.v2.validation.runs.types import RunTriggerRequest
+    from src.api.v2.sessions.types import RunTriggerRequest
 
     req, err = RunTriggerRequest.from_json({"firmwareVersion": "  0.1.12  "})
     assert err is None

@@ -1,6 +1,6 @@
 """Tests for the /validation WebSocket namespace.
 
-Source: src/api/v2/validation/runs/validation_ws.py
+Source: src/api/v2/sessions/validation_ws.py
 """
 
 import types as stdlib_types
@@ -8,7 +8,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-import src.api.v2.validation.runs.validation_ws as ws_mod
+import src.api.v2.sessions.validation_ws as ws_mod
 from src.lib.permissions import Permissions
 from src.services.auth.jwt import create_token
 

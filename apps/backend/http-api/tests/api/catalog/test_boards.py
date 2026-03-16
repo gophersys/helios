@@ -76,7 +76,7 @@ def test_create_board(authed_client, mock_db):
         revisions=[],
     )
 
-    with patch("src.api.v2.catalog.boards.log_audit"):
+    with patch("src.api.v2.products.boards.log_audit"):
         response = authed_client.post(
             "/v2/products/prod-1/boards",
             data=json.dumps({
@@ -198,7 +198,7 @@ def test_update_board(authed_client, mock_db):
         revisions=[],
     )
 
-    with patch("src.api.v2.catalog.boards.log_audit"):
+    with patch("src.api.v2.products.boards.log_audit"):
         response = authed_client.put(
             "/v2/products/prod-1/boards/board-update",
             data=json.dumps({
@@ -228,7 +228,7 @@ def test_delete_board(authed_client, mock_db):
     # No revisions
     mock_db.boardrevision.find_first.return_value = None
 
-    with patch("src.api.v2.catalog.boards.log_audit"):
+    with patch("src.api.v2.products.boards.log_audit"):
         response = authed_client.delete("/v2/products/prod-1/boards/board-delete")
 
     assert response.status_code == 200
@@ -294,7 +294,7 @@ def test_update_board_duplicate_name(authed_client, mock_db):
 
     mock_db.board.find_first.side_effect = [existing, dup]
 
-    with patch("src.api.v2.catalog.boards.log_audit"):
+    with patch("src.api.v2.products.boards.log_audit"):
         response = authed_client.put(
             "/v2/products/prod-1/boards/board-update",
             data=json.dumps({"name": "Taken Name"}),

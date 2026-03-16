@@ -104,16 +104,31 @@ def _serialize_fixture(f: Any, include_slots: bool = False) -> dict:
     data = {
         "id": f.id,
         "name": f.name,
+        "stationId": f.stationId if hasattr(f, "stationId") else None,
         "productId": f.productId,
         "type": f.type,
+        "designId": f.designId if hasattr(f, "designId") else None,
+        "status": f.status if hasattr(f, "status") else "AVAILABLE",
+        "lockedBy": f.lockedBy if hasattr(f, "lockedBy") else None,
+        "lockedAt": f.lockedAt.isoformat() if hasattr(f, "lockedAt") and f.lockedAt else None,
+        "profileOverrides": f.profileOverrides if hasattr(f, "profileOverrides") else None,
         "description": f.description,
         "active": f.active,
         "metadata": f.metadata,
+        "lastHealthCheck": f.lastHealthCheck.isoformat() if hasattr(f, "lastHealthCheck") and f.lastHealthCheck else None,
         "createdAt": f.createdAt.isoformat(),
         "updatedAt": f.updatedAt.isoformat(),
     }
     if hasattr(f, "product") and f.product:
         data["productName"] = f.product.name
+    if hasattr(f, "design") and f.design:
+        data["design"] = {
+            "id": f.design.id,
+            "name": f.design.name,
+            "product": f.design.product,
+            "revision": f.design.revision,
+            "capabilities": f.design.capabilities or [],
+        }
     if hasattr(f, "slots") and f.slots is not None:
         data["slotCount"] = len(f.slots)
         if include_slots:
@@ -129,6 +144,16 @@ def _serialize_slot(s: Any) -> dict:
         "label": s.label,
         "nodeId": s.nodeId,
         "active": s.active,
+        # Hardware paths
+        "jlinkAppSerial": s.jlinkAppSerial if hasattr(s, "jlinkAppSerial") else None,
+        "jlinkCommsSerial": s.jlinkCommsSerial if hasattr(s, "jlinkCommsSerial") else None,
+        "uartAppPath": s.uartAppPath if hasattr(s, "uartAppPath") else None,
+        "uartCommsPath": s.uartCommsPath if hasattr(s, "uartCommsPath") else None,
+        # DUT identity
+        "dutDeviceId": s.dutDeviceId if hasattr(s, "dutDeviceId") else None,
+        "dutSnr": s.dutSnr if hasattr(s, "dutSnr") else None,
+        "dutImei": s.dutImei if hasattr(s, "dutImei") else None,
+        "dutIccids": s.dutIccids if hasattr(s, "dutIccids") else [],
         "createdAt": s.createdAt.isoformat(),
         "updatedAt": s.updatedAt.isoformat(),
     }
@@ -201,6 +226,12 @@ def create_fixture():
     if existing:
         return conflict("Fixture with this name already exists")
 
+    # Check stationId uniqueness if provided
+    if hasattr(data, "stationId") and data.stationId:
+        existing_station = db.fixture.find_first(where={"stationId": data.stationId})
+        if existing_station:
+            return conflict(f"Fixture with stationId '{data.stationId}' already exists")
+
     # Build create payload
     create_data: dict = {
         "name": data.name,
@@ -208,6 +239,10 @@ def create_fixture():
         "type": data.type,
         "description": data.description,
     }
+    if hasattr(data, "stationId") and data.stationId:
+        create_data["stationId"] = data.stationId
+    if hasattr(data, "designId") and data.designId:
+        create_data["designId"] = data.designId
     if data.metadata is not None:
         create_data["metadata"] = Json(data.metadata)
 
@@ -238,6 +273,7 @@ def get_fixture(fixture_id: str):
         where={"id": fixture_id},
         include={
             "product": True,
+            "design": True,
             "slots": {
                 "order_by": {"slotIndex": "asc"},
                 "include": {"node": True},
@@ -323,12 +359,32 @@ def create_slot(fixture_id: str):
     if existing_slot:
         return conflict(f"Slot with index {data.slotIndex} already exists in this fixture")
 
+    slot_data = {
+        "fixtureId": fixture_id,
+        "slotIndex": data.slotIndex,
+        "label": data.label,
+    }
+    # Hardware paths
+    if data.jlinkAppSerial:
+        slot_data["jlinkAppSerial"] = data.jlinkAppSerial
+    if data.jlinkCommsSerial:
+        slot_data["jlinkCommsSerial"] = data.jlinkCommsSerial
+    if data.uartAppPath:
+        slot_data["uartAppPath"] = data.uartAppPath
+    if data.uartCommsPath:
+        slot_data["uartCommsPath"] = data.uartCommsPath
+    # DUT identity
+    if data.dutDeviceId:
+        slot_data["dutDeviceId"] = data.dutDeviceId
+    if data.dutSnr:
+        slot_data["dutSnr"] = data.dutSnr
+    if data.dutImei:
+        slot_data["dutImei"] = data.dutImei
+    if data.dutIccids:
+        slot_data["dutIccids"] = data.dutIccids
+
     slot = db.fixtureslot.create(
-        data={
-            "fixtureId": fixture_id,
-            "slotIndex": data.slotIndex,
-            "label": data.label,
-        },
+        data=slot_data,
         include={"node": True},
     )
     log_audit("fixture.slot.create", "FixtureSlot", slot.id, {"fixtureId": fixture_id, "slotIndex": data.slotIndex})

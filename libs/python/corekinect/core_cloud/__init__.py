@@ -1,1 +1,3 @@
-__all__ = []
+from .client import CoreCloudClient
+
+__all__ = ["CoreCloudClient"]

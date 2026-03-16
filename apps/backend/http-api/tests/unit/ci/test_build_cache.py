@@ -1,6 +1,6 @@
 """Tests for build cache / fingerprinting."""
 import pytest
-from api.v2.ci.build_cache import compute_build_fingerprint
+from api.v2.builds.build_cache import compute_build_fingerprint
 
 
 class TestBuildFingerprint:

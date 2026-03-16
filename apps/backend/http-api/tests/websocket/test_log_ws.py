@@ -179,8 +179,6 @@ class TestKubernetesDisconnect:
             # The disconnect handler uses lazy imports: `from .exec import cleanup_exec_session`
             # Patch the functions at their source modules so the lazy imports find mocks.
             with patch("src.api.v2.system.exec.cleanup_exec_session") as m_exec, \
-                 patch("src.api.v2.system.uart.cleanup_uart_sessions") as m_uart, \
-                 patch("src.api.v2.system.analyzer_stream.cleanup_analyzer_streams") as m_anal, \
                  patch("src.api.v2.system.observability_ws.cleanup_observability_sessions") as m_obs:
                 _k8s_disconnect(sio)
 
@@ -191,6 +189,4 @@ class TestKubernetesDisconnect:
                 assert "sid-2:room-c" in logs_mod._active_streams
 
                 m_exec.assert_called_once_with("sid-1")
-                m_uart.assert_called_once_with("sid-1")
-                m_anal.assert_called_once_with("sid-1")
                 m_obs.assert_called_once_with("sid-1")

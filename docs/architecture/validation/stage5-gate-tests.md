@@ -116,7 +116,7 @@ class TestGate:
     @pytest.mark.timeout(120)
     def test_03_personalize(self, ctx, stage5_config):
         """GATE-03: Personalize device (shell lock + EC keygen + upload)."""
-        from corekinect.test.validation.device_personalizer import DevicePersonalizer
+        from corekinect.test.device_personalizer import DevicePersonalizer
 
         personalizer = DevicePersonalizer(
             mtib=ctx.mtib,

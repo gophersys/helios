@@ -1,7 +1,7 @@
 from setuptools import find_packages, setup
 
 setup(
-    name="theta_fixture_manufacturing_tests",
+    name="manufacturing-alpha",
     version="1.0",
     packages=find_packages(),
     install_requires=[

@@ -13,7 +13,7 @@ from tests.conftest import make_obj
 @pytest.fixture(autouse=True)
 def _mock_presigned_url():
     """Mock presigned_url in catalog.shared so no real storage connection is made."""
-    with patch("api.v2.catalog.shared.presigned_get_url", return_value=None):
+    with patch("api.v2.products.shared.presigned_get_url", return_value=None):
         yield
 
 
@@ -49,7 +49,7 @@ def test_chipset_in_use_by_revision_blocks_delete(authed_client, mock_db):
     mock_db.boardrevisionchipset.find_first.return_value = None
     mock_db.firmwarebuild.find_first.return_value = None
 
-    with patch("src.api.v2.catalog.chipsets.log_audit"):
+    with patch("src.api.v2.products.chipsets.log_audit"):
         response = authed_client.delete("/v2/products/chipsets/chip-1")
 
     assert response.status_code == 200
@@ -206,7 +206,7 @@ def test_board_name_unique_per_product(authed_client, mock_db):
         revisions=[],
     )
 
-    with patch("src.api.v2.catalog.boards.log_audit"):
+    with patch("src.api.v2.products.boards.log_audit"):
         response = authed_client.post(
             "/v2/products/prod-2/boards",
             data=json.dumps({"name": "Main Board"}),
@@ -276,7 +276,7 @@ def test_revision_version_unique_per_board(authed_client, mock_db):
         chipsets=[],
     )
 
-    with patch("src.api.v2.catalog.board_revisions.log_audit"):
+    with patch("src.api.v2.products.board_revisions.log_audit"):
         response = authed_client.post(
             "/v2/products/prod-1/boards/board-2/revisions",
             data=json.dumps({"version": "1.0"}),
@@ -378,9 +378,9 @@ def test_firmware_version_unique_per_product_chipset(authed_client, mock_db):
     )
 
     mock_storage = MagicMock()
-    with patch("api.v2.catalog.firmware_builds.get_storage_client", return_value=mock_storage):
-        with patch("api.v2.catalog.firmware_builds.get_bucket_name", return_value="test-bucket"):
-            with patch("api.v2.catalog.firmware_builds.log_audit"):
+    with patch("api.v2.products.firmware_builds.get_storage_client", return_value=mock_storage):
+        with patch("api.v2.products.firmware_builds.get_bucket_name", return_value="test-bucket"):
+            with patch("api.v2.products.firmware_builds.log_audit"):
                 response = authed_client._client.post(
                     "/v2/products/prod-1/firmware/upload",
                     headers=auth_headers,
@@ -441,7 +441,7 @@ def test_update_revision_replaces_chipsets(authed_client, mock_db):
         ],
     )
 
-    with patch("src.api.v2.catalog.board_revisions.log_audit"):
+    with patch("src.api.v2.products.board_revisions.log_audit"):
         response = authed_client.put(
             "/v2/products/prod-1/boards/board-1/revisions/rev-1",
             data=json.dumps({
@@ -499,7 +499,7 @@ def test_update_revision_selected_builds(authed_client, mock_db):
         chipsets=[],
     )
 
-    with patch("src.api.v2.catalog.board_revisions.log_audit"):
+    with patch("src.api.v2.products.board_revisions.log_audit"):
         response = authed_client.put(
             "/v2/products/prod-1/boards/board-1/revisions/rev-1",
             data=json.dumps({

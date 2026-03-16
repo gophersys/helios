@@ -6,9 +6,9 @@ from unittest.mock import MagicMock, patch, PropertyMock
 
 from tests.conftest import make_obj
 
-# The router imports scripts via the `api.v2.ci.scripts` path (relative imports)
-# NOT `src.api.v2.ci.scripts`. Patches must target the correct module.
-_SCRIPTS_MODULE = "api.v2.ci.scripts"
+# The router imports scripts via the `api.v2.builds.scripts` path (relative imports)
+# NOT `src.api.v2.builds.scripts`. Patches must target the correct module.
+_SCRIPTS_MODULE = "api.v2.builds.scripts"
 
 
 # ---------------------------------------------------------------------------
@@ -228,32 +228,32 @@ class TestNormalizeProductDir:
 
     def test_strips_fw_suffix(self):
         """Strips _fw suffix from product key."""
-        from src.api.v2.ci.scripts import _normalize_product_dir
+        from src.api.v2.builds.scripts import _normalize_product_dir
         assert _normalize_product_dir("alpha_fw") == "alpha"
 
     def test_strips_mfg_fw_suffix(self):
         """Strips _mfg_fw suffix from product key."""
-        from src.api.v2.ci.scripts import _normalize_product_dir
+        from src.api.v2.builds.scripts import _normalize_product_dir
         assert _normalize_product_dir("alpha_mfg_fw") == "alpha"
 
     def test_strips_board_suffix(self):
         """Strips board variant suffix (_b0, _a0, etc.)."""
-        from src.api.v2.ci.scripts import _normalize_product_dir
+        from src.api.v2.builds.scripts import _normalize_product_dir
         assert _normalize_product_dir("sigma5_b0") == "sigma5"
 
     def test_strips_combined_suffixes(self):
         """Strips both _fw and board suffixes."""
-        from src.api.v2.ci.scripts import _normalize_product_dir
+        from src.api.v2.builds.scripts import _normalize_product_dir
         assert _normalize_product_dir("sigma5_fw") == "sigma5"
 
     def test_plain_product_name(self):
         """Plain product name without suffixes is returned as-is."""
-        from src.api.v2.ci.scripts import _normalize_product_dir
+        from src.api.v2.builds.scripts import _normalize_product_dir
         assert _normalize_product_dir("theta") == "theta"
 
     def test_empty_string_returns_none(self):
         """Empty string after normalization returns None."""
-        from src.api.v2.ci.scripts import _normalize_product_dir
+        from src.api.v2.builds.scripts import _normalize_product_dir
         result = _normalize_product_dir("_fw")
         # After stripping _fw: empty string -> None
         assert result is None or result == ""

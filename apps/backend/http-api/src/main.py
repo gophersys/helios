@@ -22,13 +22,11 @@ from flask import Flask
 from flask_cors import CORS
 from flask_socketio import SocketIO
 from src.services.database.prisma import init_postgres_client
-from src.services.influxdb.client import init_influxdb_client
 from src.services.kubernetes.client import init_kubernetes_client
 from src.services.log.logger import init_logger
 from src.services.scheduler import start_scheduler
 from src.services.storage.client import init_storage_client, close_storage_client
 from src.services.mtib_observability import init_observability_service, get_observability_service
-from src.services.proxy import ProxyServerConfiguration, appProxyServer
 
 # -------------------------------------------------
 #                                            Server
@@ -77,15 +75,7 @@ def graceful_shutdown(signum=None, frame=None):
     except Exception as e:
         logging.getLogger("server").warning("Error closing database connection: %s", e)
 
-    # 3. Close InfluxDB client
-    try:
-        from src.services.influxdb.client import close_influxdb_client
-        close_influxdb_client()
-        logging.getLogger("server").info("InfluxDB connection closed")
-    except Exception as e:
-        logging.getLogger("server").warning("Error closing InfluxDB connection: %s", e)
-
-    # 4. Close MinIO storage client (clear urllib3 connection pool)
+    # 3. Close MinIO storage client (clear urllib3 connection pool)
     try:
         close_storage_client()
         logging.getLogger("server").info("Storage client closed")
@@ -132,9 +122,6 @@ if __name__ == "__main__":
         # Initialize the database client
         init_postgres_client()
 
-        # Initialize the InfluxDB client
-        init_influxdb_client()
-
         # Initialize the Kubernetes client
         init_kubernetes_client()
 
@@ -143,15 +130,6 @@ if __name__ == "__main__":
 
         # Start background scheduler (audit log cleanup)
         start_scheduler()
-
-        # Instantiate server with desired configuration
-        app_config: ProxyServerConfiguration = ProxyServerConfiguration(
-            logger=logger,
-            db_storage_path=env_config.DB_STORAGE_PATH,
-            db_storage_limit_gb=env_config.DB_STORAGE_LIMIT_GB,
-            supported_registries=env_config.SUPPORTED_REGISTRIES,
-        )
-        appProxyServer.init(app_config)
 
         # Start observability polling service
         init_observability_service(poll_interval_s=5)
@@ -179,6 +157,6 @@ if __name__ == "__main__":
     except Exception as e:
         if logger:
             # Print the entire traceback
-            logger.error(f"Failed to initialize or run the Proxy: {e}")
+            logger.error(f"Failed to start server: {e}")
         else:
-            print(f"Failed to initialize or run the Proxy: {e}\n{traceback.format_exc()}")
+            print(f"Failed to start server: {e}\n{traceback.format_exc()}")

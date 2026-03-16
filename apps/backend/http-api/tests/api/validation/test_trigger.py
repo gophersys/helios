@@ -14,36 +14,61 @@ def _make_product(id="prod-1", name="Alpha", slug="alpha"):
     return make_obj(id=id, name=name, slug=slug)
 
 
-def _make_bench(**overrides):
+def _make_slot(**overrides):
     defaults = dict(
-        id="bench-1",
-        stationId="bench-33",
-        name="Test Bench",
-        status="AVAILABLE",
-        nodeId="node-1",
-        mtibAddress="10.4.45.33:50053",
-        mtibRevision="1.2",
-        fixtureDesignId=None,
-        profileOverrides={},
-        capabilities=["button"],
+        id="slot-1",
+        fixtureId="bench-1",
+        slotIndex=0,
+        active=True,
         dutDeviceId="70B3D584C01E1FCC",
         dutSnr="0964",
-        dutProduct="alpha",
-        dutRevision="b0",
         dutImei=None,
         dutIccids=[],
         jlinkAppSerial=None,
         jlinkCommsSerial=None,
         uartAppPath=None,
         uartCommsPath=None,
+        nodeId="node-1",
+        node=None,
+        createdAt=NOW,
+        updatedAt=NOW,
+    )
+    defaults.update(overrides)
+    return make_obj(**defaults)
+
+
+def _make_design(**overrides):
+    defaults = dict(
+        id="design-1",
+        name="alpha-fixture",
+        product="alpha",
+        revision="b0",
+        capabilities=["button", "jlink"],
+        profileTemplate={},
+        createdAt=NOW,
+        updatedAt=NOW,
+    )
+    defaults.update(overrides)
+    return make_obj(**defaults)
+
+
+def _make_bench(**overrides):
+    defaults = dict(
+        id="bench-1",
+        stationId="bench-33",
+        name="Test Bench",
+        productId="prod-1",
+        status="AVAILABLE",
+        active=True,
+        profileOverrides={},
+        design=_make_design(),
+        slots=[_make_slot()],
         lockedBy=None,
         lockedAt=None,
         lastHealthCheck=None,
         metadata={},
         createdAt=NOW,
         updatedAt=NOW,
-        node=None,
-        fixtureDesign=None,
     )
     defaults.update(overrides)
     return make_obj(**defaults)
@@ -82,7 +107,7 @@ def test_trigger_run_not_found(authed_client, mock_db):
     mock_db.session.find_unique.return_value = None
 
     response = authed_client.post(
-        "/v2/validation/runs/bad-id/trigger",
+        "/v2/sessions/bad-id/trigger",
         data=json.dumps({"firmwareVersion": "0.1.12"}),
     )
     assert response.status_code == 404
@@ -90,21 +115,21 @@ def test_trigger_run_not_found(authed_client, mock_db):
 
 def test_trigger_run_already_completed(authed_client, mock_db):
     """Test triggering a completed run returns 400."""
-    mock_db.session.find_unique.return_value = _make_session(status="COMPLETED")
+    mock_db.session.find_unique.return_value = _make_session(status="PASSED")
 
     response = authed_client.post(
-        "/v2/validation/runs/sess-1/trigger",
+        "/v2/sessions/sess-1/trigger",
         data=json.dumps({"firmwareVersion": "0.1.12"}),
     )
     assert response.status_code == 400
     data = json.loads(response.data)
-    assert "COMPLETED" in data["errors"][0]["message"]
+    assert "PASSED" in data["errors"][0]["message"]
 
 
 def test_trigger_run_missing_firmware_version(authed_client, mock_db):
     """Test triggering without firmwareVersion returns 400."""
     response = authed_client.post(
-        "/v2/validation/runs/sess-1/trigger",
+        "/v2/sessions/sess-1/trigger",
         data=json.dumps({"firmwarePath": "/some/path"}),
     )
     assert response.status_code == 400
@@ -112,16 +137,16 @@ def test_trigger_run_missing_firmware_version(authed_client, mock_db):
     assert data["errors"][0]["message"] == "firmwareVersion is required"
 
 
-@patch("api.v2.validation.runs.trigger.create_kubernetes_job")
-@patch("api.v2.validation.runs.trigger.log_audit")
+@patch("api.v2.sessions.trigger.create_kubernetes_job")
+@patch("api.v2.sessions.trigger.log_audit")
 def test_trigger_run_success(mock_audit, mock_k8s, authed_client, mock_db):
     """Test successful trigger creates K8s job."""
     mock_db.session.find_unique.return_value = _make_session()
-    mock_db.testbench.find_first.return_value = _make_bench()
+    mock_db.fixture.find_first.return_value = _make_bench()
     mock_k8s.return_value = "alpha-val-sess-1-0-1-12"
 
     response = authed_client.post(
-        "/v2/validation/runs/sess-1/trigger",
+        "/v2/sessions/sess-1/trigger",
         data=json.dumps({"firmwareVersion": "0.1.12"}),
     )
 
@@ -135,16 +160,16 @@ def test_trigger_run_success(mock_audit, mock_k8s, authed_client, mock_db):
     assert mock_audit.call_count == 2
 
 
-@patch("api.v2.validation.runs.trigger.create_kubernetes_job")
-@patch("api.v2.validation.runs.trigger.log_audit")
+@patch("api.v2.sessions.trigger.create_kubernetes_job")
+@patch("api.v2.sessions.trigger.log_audit")
 def test_trigger_run_k8s_failure(mock_audit, mock_k8s, authed_client, mock_db):
     """Test K8s job creation failure returns 500."""
     mock_db.session.find_unique.return_value = _make_session()
-    mock_db.testbench.find_first.return_value = _make_bench()
+    mock_db.fixture.find_first.return_value = _make_bench()
     mock_k8s.return_value = None  # Simulate failure
 
     response = authed_client.post(
-        "/v2/validation/runs/sess-1/trigger",
+        "/v2/sessions/sess-1/trigger",
         data=json.dumps({"firmwareVersion": "0.1.12"}),
     )
     assert response.status_code == 500
@@ -153,21 +178,21 @@ def test_trigger_run_k8s_failure(mock_audit, mock_k8s, authed_client, mock_db):
 def test_trigger_run_no_bench_available(authed_client, mock_db):
     """Test triggering when no bench is available returns 400."""
     mock_db.session.find_unique.return_value = _make_session()
-    mock_db.testbench.find_first.return_value = None  # No bench available
+    mock_db.fixture.find_first.return_value = None  # No bench available
 
     response = authed_client.post(
-        "/v2/validation/runs/sess-1/trigger",
+        "/v2/sessions/sess-1/trigger",
         data=json.dumps({"firmwareVersion": "0.1.12"}),
     )
     assert response.status_code == 400
     data = json.loads(response.data)
-    assert "No available test bench" in data["errors"][0]["message"]
+    assert "No available fixture" in data["errors"][0]["message"]
 
 
 def test_trigger_run_unauthorized(client):
     """Test triggering without auth returns 401."""
     response = client.post(
-        "/v2/validation/runs/sess-1/trigger",
+        "/v2/sessions/sess-1/trigger",
         data=json.dumps({"firmwareVersion": "0.1.12"}),
         content_type="application/json",
     )

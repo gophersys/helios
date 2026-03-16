@@ -27,33 +27,45 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 os.environ.setdefault("TLS_VERIFY", "false")
 os.environ.setdefault("VAL_1_0_API_URL", "https://val.office.corekinect.cloud:2018/api")
 os.environ.setdefault("VAL_1_0_AUTH_URL", "https://auth.office.corekinect.cloud:2013/authentication/tokens/request")
-os.environ.setdefault("VAL_1_0_AUTH_BASIC", "Basic bWF0ZW9AY29yZWtpbmVjdC5jb206NTxqWm03ZX59bnZPMzduQG9XRCw=")
 os.environ.setdefault("VAL_1_0_API_KEY", "KWh0dHBzOi8vdmFsLm9mZmljZS5jb3Jla2luZWN0LmNsb3VkOjIwMTgvABQAAAAAAAAABAAAAAAAAAACaahyopKZcpXyK7zqUWGY2biB/UXKhV7/7+6CUpAz2xMUklU8yc2vOsfX1Y5jbY5M2F9vHjFi73M75cQZ6Fc+l8AzWLQ=")
+
+# Build VAL_1_0_AUTH_BASIC from username/password if not set directly
+# (K8s secret has separate auth-username and auth-password fields)
+if not os.environ.get("VAL_1_0_AUTH_BASIC"):
+    _user = os.environ.get("VAL_1_0_AUTH_USERNAME", "mateo@corekinect.com")
+    _pass = os.environ.get("VAL_1_0_AUTH_PASSWORD", "5<jZm7e~}nvO37n@oWD,")
+    import base64
+    _creds = base64.b64encode(f"{_user}:{_pass}".encode()).decode()
+    os.environ["VAL_1_0_AUTH_BASIC"] = f"Basic {_creds}"
 
 from corekinect.mtib_client.v1.client.core import MtibV1Client
 from corekinect.mtib_client.v1.client.config import NetConfig
 from corekinect.mtib_client.v1.client.types import GpioDirection, GpioResistorConfig
-from corekinect.test.validation.fuota_client import FuotaClient
+from corekinect.test.fuota_client import FuotaClient
 from corekinect.shells.alpha_app import AlphaAppShell
 from corekinect.shells.comms_coproc import CommsCoprocShell
 from protocols.mtib.mtib_pb2 import HostType
 
-# ── Config ──────────────────────────────────────────────
-MTIB_HOST = "10.4.45.33"
-MTIB_PORT = 50053
-DEVICE_ID = "70B3D584C01E1FCC"
-DEVICE_SNR = "0964"
+# ── Config (env vars override for K8s container) ────────
+MTIB_HOST = os.environ.get("MTIB_HOST", os.environ.get("MTIB_ADDRESS", "10.4.45.33"))
+MTIB_PORT = int(os.environ.get("MTIB_PORT", "50053"))
+DEVICE_ID = os.environ.get("DEVICE_ID", "70B3D584C01E1FCC")
+DEVICE_SNR = os.environ.get("DEVICE_SNR", "0964")
 DEVICE_TYPE_ID = 2
 DEVICE_VARIANT_ID = 3
 
-# Firmware paths
-ARTIFACTS = Path("apps/firmware/products/alpha/artifacts/alpha_mfg_fw/alpha_b0")
+# Firmware paths — container uses /app/firmware/alpha_mfg_fw/,
+# local dev uses repo path
+_CONTAINER_ARTIFACTS = Path("/app/firmware/alpha_mfg_fw")
+_LOCAL_ARTIFACTS = Path("apps/firmware/products/alpha/artifacts/alpha_mfg_fw/alpha_b0")
+ARTIFACTS = _CONTAINER_ARTIFACTS if _CONTAINER_ARTIFACTS.exists() else _LOCAL_ARTIFACTS
 BASE_APP_HEX = ARTIFACTS / "0.5.2_app_nrf52840.hex"
 BASE_COMMS_HEX = ARTIFACTS / "0.5.2_comms_nrf9151.hex"
 
 # FUOTA targets — already on CoreCloud
 TARGET_CFWS = ["108.0.5.4-BM", "109.0.5.4-BM"]
 FUOTA_TIMEOUT_MIN = 45
+REPEAT_COUNT = int(os.environ.get("FUOTA_REPEAT", "1"))
 
 
 def power_on(client):
@@ -113,68 +125,93 @@ def flash_firmware(client):
     return None
 
 
+def _try_lock_and_personalize(client, max_attempts=3):
+    """Power cycle → lock shells → debug off → personalize.
+
+    If lock fails, power cycle and retry immediately (up to max_attempts).
+    Lock timeout is 10s — if the shell doesn't lock in the ~7s window,
+    it's not going to. Fail fast and retry with a fresh boot.
+    """
+    for attempt in range(1, max_attempts + 1):
+        print(f"  Attempt {attempt}/{max_attempts}...")
+
+        # Power cycle
+        power_off(client)
+        time.sleep(2)
+
+        # Open UART streams BEFORE power-on
+        app = AlphaAppShell(client)
+        comms = CommsCoprocShell(client)
+        app.start()
+        comms.start()
+
+        # Power on
+        power_on(client)
+        time.sleep(0.5)
+
+        # Concurrent lock — 10s timeout, fail fast
+        lock_results = {}
+        def _lock(shell, name):
+            lock_results[name] = shell.lock(timeout_s=10)
+
+        t_app = threading.Thread(target=_lock, args=(app, "APP"))
+        t_comms = threading.Thread(target=_lock, args=(comms, "COMMS"))
+        t_app.start()
+        t_comms.start()
+        t_app.join(timeout=15)
+        t_comms.join(timeout=15)
+
+        app_locked = lock_results.get("APP", False)
+        comms_locked = lock_results.get("COMMS", False)
+        print(f"    APP: {'locked' if app_locked else 'FAILED'}, COMMS: {'locked' if comms_locked else 'FAILED'}")
+
+        if not app_locked or not comms_locked:
+            failed = []
+            if not app_locked: failed.append("APP")
+            if not comms_locked: failed.append("COMMS")
+            print(f"    {'+'.join(failed)} lock failed — retrying with fresh power cycle...")
+            app.stop()
+            comms.stop()
+            continue
+
+        # Both (or at least COMMS) locked — disable debug immediately
+        comms.debug_off()
+        if app_locked:
+            app.debug_off()
+        else:
+            # APP not locked — spam raw debug_enable 0
+            for _ in range(3):
+                app._cmd._stream.write(b"\rdebug_enable 0\r")
+                time.sleep(0.3)
+
+        # Quick drain — just clear whatever's buffered
+        print("    Draining backlog...")
+        for i in range(20):  # 10s max
+            app._cmd._stream.clear()
+            comms._cmd._stream.clear()
+            time.sleep(0.5)
+            if len(comms._cmd._stream._buffer) < 10:
+                break
+        comms._cmd._stream.clear()
+        app._cmd._stream.clear()
+
+        return app, comms, app_locked, comms_locked
+
+    return None, None, False, False
+
+
 def personalize_with_concurrent_lock(client):
     """Power cycle, concurrent lock, personalize, upload key to CoreCloud.
 
-    Uses the POST test's concurrent locking pattern — both shells locked
-    simultaneously via threading to fit within the ~7s activation window.
+    Uses fast fail-and-retry: 10s lock timeout, power cycle on failure,
+    up to 3 attempts. Much faster than waiting 120s for a lock that
+    will never come.
     """
-    # Power cycle
-    print("  Power cycling...")
-    power_off(client)
-    time.sleep(3)
+    print("  Locking shells...")
+    app, comms, app_locked, comms_locked = _try_lock_and_personalize(client)
 
-    # Open UART streams BEFORE power-on
-    app = AlphaAppShell(client)
-    comms = CommsCoprocShell(client)
-    app.start()
-    comms.start()
-
-    # Power on
-    power_on(client)
-    time.sleep(1)
-
-    # Concurrent lock (must fit in ~7s window)
-    # Use shorter timeout — 30s is plenty, 120s wastes time on failure
-    print("  Locking shells (concurrent)...")
-    lock_results = {}
-
-    def _lock(shell, name):
-        lock_results[name] = shell.lock(timeout_s=30)
-
-    t_app = threading.Thread(target=_lock, args=(app, "APP"))
-    t_comms = threading.Thread(target=_lock, args=(comms, "COMMS"))
-    t_app.start()
-    t_comms.start()
-    t_app.join()
-    t_comms.join()
-
-    app_locked = lock_results.get("APP", False)
-    comms_locked = lock_results.get("COMMS", False)
-    print(f"  APP: {'locked' if app_locked else 'FAILED (non-fatal)'}")
-    print(f"  COMMS: {'locked' if comms_locked else 'FAILED'}")
-
-    if not comms_locked:
-        app.stop()
-        comms.stop()
-        return None, "COMMS shell lock failed"
-
-    # Silence debug output on both — send even if APP lock failed,
-    # the raw write still reaches the UART and can reduce noise
-    app._cmd._stream.write(b"\rdebug_enable 0\r")
-    comms._cmd._stream.write(b"\rdebug_enable 0\r")
-
-    print("  Draining UART backlog...")
-    for _ in range(60):
-        app._cmd._stream.clear()
-        comms._cmd._stream.clear()
-        time.sleep(0.5)
-        app_bytes = len(app._cmd._stream._buffer)
-        if app_bytes < 50:
-            break
-    app._cmd._stream.clear()
-    comms._cmd._stream.clear()
-    print("  Backlog drained")
+    if not app_locked or not comms_locked:
+        return None, "Shell lock failed after 3 attempts (APP=%s, COMMS=%s)" % (app_locked, comms_locked)
 
     # Personalize on COMMS shell
     print("  Running personalize command...")
@@ -307,12 +344,14 @@ def wait_for_fuota(fc, timeout_min=45):
     return False
 
 
-def main():
+def run_once(iteration: int = 1) -> int:
+    """Run a single FUOTA cycle. Returns 0 on success, 1 on failure."""
     t0 = time.time()
     print("=" * 60)
-    print("FUOTA TEST: Flash v0.5.2 → Personalize → FUOTA to v0.5.4")
+    print(f"FUOTA TEST (run {iteration}/{REPEAT_COUNT}): Flash v0.5.2 → Personalize → FUOTA to v0.5.4")
     print(f"Device: {DEVICE_ID} (SNR: {DEVICE_SNR})")
     print(f"MTIB: {MTIB_HOST}:{MTIB_PORT}")
+    print(f"Artifacts: {ARTIFACTS}")
     print("=" * 60)
 
     if not BASE_APP_HEX.exists() or not BASE_COMMS_HEX.exists():
@@ -346,6 +385,15 @@ def main():
             return 1
         print("  Personalization complete")
 
+        # Warm-up: let the modem complete LTE-M attach before creating
+        # the FUOTA plan. After chip erase, the modem does a cold network
+        # scan (~5-10 min). By waiting here, the modem attaches and caches
+        # network params. When we later power cycle for FUOTA check-in,
+        # the modem reconnects in ~1-2 min (warm attach).
+        print(f"\n[3.5] Modem warm-up — waiting for LTE-M attach [{time.time()-t0:.0f}s]...")
+        print("  (Cold attach after chip erase takes 2-5 min, subsequent cycles ~1 min)")
+        time.sleep(180)  # 3 min for cold LTE-M attach
+
         # Create FUOTA plan
         print(f"\n[4/5] Creating FUOTA plan [{time.time()-t0:.0f}s]...")
         fc = FuotaClient(api_env="VAL_1_0")
@@ -375,7 +423,9 @@ def main():
         fc.assign_device(plan_id, [DEVICE_ID], max_stage=0, enable=True)
         print(f"  Device assigned")
 
-        # Power cycle to trigger CoreCloud check-in
+        # Power cycle to trigger CoreCloud check-in.
+        # After the warm-up, the modem has cached network params and
+        # reconnects in ~1-2 min (warm attach) instead of 5-10 min.
         print(f"\n[4.5] Power cycling for check-in [{time.time()-t0:.0f}s]...")
         power_off(client)
         time.sleep(3)
@@ -393,9 +443,9 @@ def main():
         elapsed = time.time() - t0
         print(f"\n{'=' * 60}")
         if success:
-            print(f"FUOTA TEST PASSED ({elapsed:.0f}s / {elapsed/60:.1f}m)")
+            print(f"FUOTA TEST PASSED (run {iteration}, {elapsed:.0f}s / {elapsed/60:.1f}m)")
         else:
-            print(f"FUOTA TEST FAILED — timeout ({elapsed:.0f}s)")
+            print(f"FUOTA TEST FAILED (run {iteration}, {elapsed:.0f}s)")
         print(f"{'=' * 60}")
         return 0 if success else 1
 
@@ -411,6 +461,28 @@ def main():
         except Exception:
             pass
         print("Done.")
+
+
+def main():
+    """Run FUOTA test REPEAT_COUNT times. Fail on first failure."""
+    overall_start = time.time()
+    print(f"\n{'#' * 60}")
+    print(f"# FUOTA REPEATABILITY TEST — {REPEAT_COUNT} run(s)")
+    print(f"{'#' * 60}\n")
+
+    for i in range(1, REPEAT_COUNT + 1):
+        rc = run_once(iteration=i)
+        if rc != 0:
+            print(f"\nFATAL: Run {i}/{REPEAT_COUNT} FAILED. Stopping.")
+            return 1
+        if i < REPEAT_COUNT:
+            print(f"\n--- Run {i} complete, starting run {i+1} ---\n")
+
+    total = time.time() - overall_start
+    print(f"\n{'#' * 60}")
+    print(f"# ALL {REPEAT_COUNT} RUNS PASSED ({total:.0f}s / {total/60:.1f}m total)")
+    print(f"{'#' * 60}")
+    return 0
 
 
 if __name__ == "__main__":

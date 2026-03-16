@@ -43,7 +43,7 @@ def create_mtib_deployment(
     if len(deploy_name) > 63:
         deploy_name = deploy_name[:63].rstrip("-")
 
-    image = config.get("image", "containers.ad.corekinect.com/concord-mtib-server-v2:latest")
+    image = config.get("image", "containers.ad.corekinect.com/concord-mtib-server:latest")
 
     # Build env vars
     env_config = config.get("env", {})

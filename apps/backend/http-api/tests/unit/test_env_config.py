@@ -2,7 +2,7 @@
 Tests for environment configuration consistency.
 
 Validates that:
-- ProxyConfig correctly parses boolean fields (AUTH_ENABLED, etc.)
+- AppConfig correctly parses boolean fields (AUTH_ENABLED, etc.)
 - JWT_SECRET_KEY validation rejects the default value in production
 - All Helm values files define the required config/secrets keys
 - Local docker-compose defines the required environment variables
@@ -29,10 +29,10 @@ LOCAL_DIR = REPO_ROOT / "deploy" / "local"
 
 
 # ---------------------------------------------------------------------------
-# ProxyConfig boolean parsing
+# AppConfig boolean parsing
 # ---------------------------------------------------------------------------
 
-class TestProxyConfigBooleanParsing:
+class TestAppConfigBooleanParsing:
     """Verify that EnvConfig._parse_bool handles AUTH_ENABLED correctly."""
 
     def test_auth_enabled_false_string(self):
@@ -42,9 +42,9 @@ class TestProxyConfigBooleanParsing:
             "AUTH_ENABLED": "false",
         }
         with patch.dict(os.environ, env_override):
-            from config.env import ProxyConfig
+            from config.env import AppConfig
             # Create a new instance with the overridden env
-            config = ProxyConfig.__new__(ProxyConfig)
+            config = AppConfig.__new__(AppConfig)
             # Manually test the bool parsing
             from corekinect.utils.config.env import EnvConfig
             assert EnvConfig._parse_bool("false") is False
@@ -85,20 +85,12 @@ class TestJwtSecretValidation:
         "LOG_LEVEL": "10",
         "LOG_PATH": "/tmp/test.log",
         "SERVER_PORT": "9001",
-        "DB_STORAGE_PATH": "/tmp/test",
-        "DB_STORAGE_LIMIT_GB": "1",
-        "SUPPORTED_REGISTRIES": "[]",
         "COREOPS_SERVER_URL": "http://localhost:50050",
         "ASSETS_FOLDER": "/tmp/test-assets",
         "STORAGE_URL": "http://localhost:9000",
         "STORAGE_ACCESS_KEY": "test",
         "STORAGE_SECRET_ACCESS_KEY": "test",
         "STORAGE_BUCKET_NAME": "test",
-        "INFLUXDB_URL": "http://localhost:8086",
-        "INFLUXDB_TOKEN": "test",
-        "INFLUXDB_ORG": "test",
-        "INFLUXDB_BUCKET_TELEMETRY": "test",
-        "INFLUXDB_BUCKET_METRICS": "test",
     }
 
     def _make_env(self, **overrides):
@@ -109,26 +101,26 @@ class TestJwtSecretValidation:
     # --- default secret rejected in deployed environments ---
 
     def test_rejects_default_secret_in_production(self):
-        """ProxyConfig should raise RuntimeError if default JWT secret is used in production."""
+        """AppConfig should raise RuntimeError if default JWT secret is used in production."""
         env = self._make_env(
             ENVIRONMENT="production",
             JWT_SECRET_KEY="concord-dev-jwt-secret-change-in-production",
         )
         with patch.dict(os.environ, env, clear=False):
-            from config.env import ProxyConfig
+            from config.env import AppConfig
             with pytest.raises(RuntimeError, match="JWT_SECRET_KEY must be changed"):
-                ProxyConfig(namespace=None, auto_load_env=True)
+                AppConfig(namespace=None, auto_load_env=True)
 
     def test_rejects_default_secret_in_staging(self):
-        """ProxyConfig should raise RuntimeError if default JWT secret is used in staging."""
+        """AppConfig should raise RuntimeError if default JWT secret is used in staging."""
         env = self._make_env(
             ENVIRONMENT="staging",
             JWT_SECRET_KEY="concord-dev-jwt-secret-change-in-production",
         )
         with patch.dict(os.environ, env, clear=False):
-            from config.env import ProxyConfig
+            from config.env import AppConfig
             with pytest.raises(RuntimeError, match="JWT_SECRET_KEY must be changed"):
-                ProxyConfig(namespace=None, auto_load_env=True)
+                AppConfig(namespace=None, auto_load_env=True)
 
     # --- minimum length enforced in deployed environments ---
 
@@ -139,9 +131,9 @@ class TestJwtSecretValidation:
             JWT_SECRET_KEY="too-short",
         )
         with patch.dict(os.environ, env, clear=False):
-            from config.env import ProxyConfig
+            from config.env import AppConfig
             with pytest.raises(RuntimeError, match="JWT_SECRET_KEY is too short"):
-                ProxyConfig(namespace=None, auto_load_env=True)
+                AppConfig(namespace=None, auto_load_env=True)
 
     def test_rejects_short_secret_in_staging(self):
         """HS256 needs >= 32 chars; a short secret should be rejected in staging."""
@@ -150,28 +142,28 @@ class TestJwtSecretValidation:
             JWT_SECRET_KEY="too-short",
         )
         with patch.dict(os.environ, env, clear=False):
-            from config.env import ProxyConfig
+            from config.env import AppConfig
             with pytest.raises(RuntimeError, match="JWT_SECRET_KEY is too short"):
-                ProxyConfig(namespace=None, auto_load_env=True)
+                AppConfig(namespace=None, auto_load_env=True)
 
     # --- valid secrets accepted ---
 
     def test_accepts_custom_secret_in_production(self):
-        """ProxyConfig should accept a strong custom JWT secret in production."""
+        """AppConfig should accept a strong custom JWT secret in production."""
         secret = "my-strong-production-secret-2026!"  # 33 chars
         env = self._make_env(ENVIRONMENT="production", JWT_SECRET_KEY=secret)
         with patch.dict(os.environ, env, clear=False):
-            from config.env import ProxyConfig
-            config = ProxyConfig(namespace=None, auto_load_env=True)
+            from config.env import AppConfig
+            config = AppConfig(namespace=None, auto_load_env=True)
             assert config.JWT_SECRET_KEY == secret
 
     def test_accepts_custom_secret_in_staging(self):
-        """ProxyConfig should accept a strong custom JWT secret in staging."""
+        """AppConfig should accept a strong custom JWT secret in staging."""
         secret = "my-strong-staging-secret-20260311"  # 32 chars
         env = self._make_env(ENVIRONMENT="staging", JWT_SECRET_KEY=secret)
         with patch.dict(os.environ, env, clear=False):
-            from config.env import ProxyConfig
-            config = ProxyConfig(namespace=None, auto_load_env=True)
+            from config.env import AppConfig
+            config = AppConfig(namespace=None, auto_load_env=True)
             assert config.JWT_SECRET_KEY == secret
 
     # --- development / test are lenient ---
@@ -183,16 +175,16 @@ class TestJwtSecretValidation:
             JWT_SECRET_KEY="concord-dev-jwt-secret-change-in-production",
         )
         with patch.dict(os.environ, env, clear=False):
-            from config.env import ProxyConfig
-            config = ProxyConfig(namespace=None, auto_load_env=True)
+            from config.env import AppConfig
+            config = AppConfig(namespace=None, auto_load_env=True)
             assert config.JWT_SECRET_KEY == "concord-dev-jwt-secret-change-in-production"
 
     def test_allows_short_secret_in_development(self):
         """Development should accept short secrets for convenience."""
         env = self._make_env(ENVIRONMENT="development", JWT_SECRET_KEY="dev")
         with patch.dict(os.environ, env, clear=False):
-            from config.env import ProxyConfig
-            config = ProxyConfig(namespace=None, auto_load_env=True)
+            from config.env import AppConfig
+            config = AppConfig(namespace=None, auto_load_env=True)
             assert config.JWT_SECRET_KEY == "dev"
 
 
@@ -214,11 +206,6 @@ _REQUIRED_SECRET_KEYS = {
     "STORAGE_ACCESS_KEY",
     "STORAGE_SECRET_ACCESS_KEY",
     "STORAGE_BUCKET_NAME",
-    "INFLUXDB_URL",
-    "INFLUXDB_TOKEN",
-    "INFLUXDB_ORG",
-    "INFLUXDB_BUCKET_TELEMETRY",
-    "INFLUXDB_BUCKET_METRICS",
     "JWT_SECRET_KEY",
 }
 
@@ -314,20 +301,20 @@ class TestHelmValuesCompleteness:
 
 
 # ---------------------------------------------------------------------------
-# ProxyConfig field coverage
+# AppConfig field coverage
 # ---------------------------------------------------------------------------
 
-class TestProxyConfigFieldCoverage:
-    """Ensure ProxyConfig declares all fields referenced in deployment configs."""
+class TestAppConfigFieldCoverage:
+    """Ensure AppConfig declares all fields referenced in deployment configs."""
 
     def test_auth_enabled_field_exists(self):
-        """ProxyConfig must declare AUTH_ENABLED as a bool field."""
-        from config.env import ProxyConfig
+        """AppConfig must declare AUTH_ENABLED as a bool field."""
+        from config.env import AppConfig
         import typing
 
-        hints = typing.get_type_hints(ProxyConfig)
+        hints = typing.get_type_hints(AppConfig)
         assert "AUTH_ENABLED" in hints, (
-            "ProxyConfig must declare AUTH_ENABLED — "
+            "AppConfig must declare AUTH_ENABLED — "
             "this was the root cause of the production OAuth error"
         )
         assert hints["AUTH_ENABLED"] is bool, (

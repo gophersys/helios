@@ -37,23 +37,13 @@ def _make_design(**overrides):
     return make_obj(**defaults)
 
 
-def _make_bench(**overrides):
-    """Create a mock TestBench object."""
+def _make_slot(**overrides):
+    """Create a mock FixtureSlot object."""
     defaults = dict(
-        id="bench-1",
-        stationId="station-33",
-        name="Alpha B0 Bench 1",
-        mtibAddress="10.4.45.33:50053",
-        mtibRevision="REV1.2",
-        fixtureDesignId="design-1",
-        fixtureDesign=_make_design(),
-        profileOverrides={
-            "power_voltage_v": 4.6,  # Override the design default
-            "custom_setting": "test",
-        },
-        capabilities=["button", "peltier", "charger_relay", "ppg_servo"],
-        dutProduct="alpha",
-        dutRevision="b0",
+        id="slot-1",
+        fixtureId="bench-1",
+        slotIndex=0,
+        active=True,
         dutDeviceId="70B3D584C01E1FCC",
         dutSnr="0964",
         dutImei="355025931735979",
@@ -62,6 +52,31 @@ def _make_bench(**overrides):
         jlinkCommsSerial="821009537",
         uartAppPath="/dev/verdin-uart2",
         uartCommsPath="/dev/verdin-uart1",
+        nodeId=None,
+        node=None,
+        createdAt=NOW,
+        updatedAt=NOW,
+    )
+    defaults.update(overrides)
+    return make_obj(**defaults)
+
+
+def _make_bench(**overrides):
+    """Create a mock Fixture object with design and slots."""
+    design = overrides.pop("design", _make_design())
+    slots = overrides.pop("slots", [_make_slot()])
+    defaults = dict(
+        id="bench-1",
+        stationId="station-33",
+        name="Alpha B0 Bench 1",
+        designId="design-1",
+        design=design,
+        slots=slots,
+        profileOverrides={
+            "power_voltage_v": 4.6,  # Override the design default
+            "custom_setting": "test",
+        },
+        product=None,
         status="AVAILABLE",
         lockedBy=None,
         lockedAt=None,
@@ -80,9 +95,9 @@ def _make_bench(**overrides):
 def test_get_profile_returns_merged_data(authed_client, mock_db):
     """Test getting a bench profile returns merged design + overrides + DUT info."""
     bench = _make_bench()
-    mock_db.testbench.find_unique.return_value = bench
+    mock_db.fixture.find_unique.return_value = bench
 
-    response = authed_client.get("/v2/benches/bench-1/profile")
+    response = authed_client.get("/v2/fixtures/benches/bench-1/profile")
     assert response.status_code == 200
 
     data = json.loads(response.data)
@@ -111,20 +126,20 @@ def test_get_profile_returns_merged_data(authed_client, mock_db):
     assert profile["jlink_app_serial"] == "821009546"
     assert profile["jlink_comms_serial"] == "821009537"
 
-    # Capabilities from bench
-    assert profile["capabilities"] == ["button", "peltier", "charger_relay", "ppg_servo"]
+    # Capabilities from design
+    assert profile["capabilities"] == ["button", "peltier", "charger_relay"]
 
 
 def test_get_profile_without_design_returns_bench_only(authed_client, mock_db):
     """Test getting a bench profile without fixture design returns bench data only."""
     bench = _make_bench(
-        fixtureDesignId=None,
-        fixtureDesign=None,
+        designId=None,
+        design=None,
         profileOverrides={"standalone_config": True},
     )
-    mock_db.testbench.find_unique.return_value = bench
+    mock_db.fixture.find_unique.return_value = bench
 
-    response = authed_client.get("/v2/benches/bench-1/profile")
+    response = authed_client.get("/v2/fixtures/benches/bench-1/profile")
     assert response.status_code == 200
 
     data = json.loads(response.data)
@@ -144,13 +159,13 @@ def test_get_profile_without_design_returns_bench_only(authed_client, mock_db):
 def test_get_profile_without_design_or_overrides(authed_client, mock_db):
     """Test getting a bench profile with neither design nor overrides."""
     bench = _make_bench(
-        fixtureDesignId=None,
-        fixtureDesign=None,
+        designId=None,
+        design=None,
         profileOverrides=None,
     )
-    mock_db.testbench.find_unique.return_value = bench
+    mock_db.fixture.find_unique.return_value = bench
 
-    response = authed_client.get("/v2/benches/bench-1/profile")
+    response = authed_client.get("/v2/fixtures/benches/bench-1/profile")
     assert response.status_code == 200
 
     data = json.loads(response.data)
@@ -163,9 +178,9 @@ def test_get_profile_without_design_or_overrides(authed_client, mock_db):
 
 def test_get_profile_bench_not_found_returns_404(authed_client, mock_db):
     """Test getting profile for non-existent bench returns 404."""
-    mock_db.testbench.find_unique.return_value = None
+    mock_db.fixture.find_unique.return_value = None
 
-    response = authed_client.get("/v2/benches/bad-id/profile")
+    response = authed_client.get("/v2/fixtures/benches/bad-id/profile")
     assert response.status_code == 404
 
     data = json.loads(response.data)
@@ -175,7 +190,7 @@ def test_get_profile_bench_not_found_returns_404(authed_client, mock_db):
 
 def test_get_profile_requires_auth(client):
     """Test getting profile without auth returns 401."""
-    response = client.get("/v2/benches/bench-1/profile")
+    response = client.get("/v2/fixtures/benches/bench-1/profile")
     assert response.status_code == 401
 
 
@@ -195,7 +210,7 @@ def test_get_profile_deep_merges_nested_objects(authed_client, mock_db):
         }
     )
     bench = _make_bench(
-        fixtureDesign=design,
+        design=design,
         profileOverrides={
             "gpio": {
                 "peltier": 7,  # Override just this one
@@ -205,9 +220,9 @@ def test_get_profile_deep_merges_nested_objects(authed_client, mock_db):
             },
         },
     )
-    mock_db.testbench.find_unique.return_value = bench
+    mock_db.fixture.find_unique.return_value = bench
 
-    response = authed_client.get("/v2/benches/bench-1/profile")
+    response = authed_client.get("/v2/fixtures/benches/bench-1/profile")
     assert response.status_code == 200
 
     data = json.loads(response.data)
@@ -224,15 +239,16 @@ def test_get_profile_deep_merges_nested_objects(authed_client, mock_db):
 
 def test_get_profile_with_partial_dut_info(authed_client, mock_db):
     """Test getting profile when some DUT fields are missing."""
-    bench = _make_bench(
+    slot = _make_slot(
         dutDeviceId="70B3D584C01E1FCC",
         dutSnr=None,
         dutImei=None,
         dutIccids=None,
     )
-    mock_db.testbench.find_unique.return_value = bench
+    bench = _make_bench(slots=[slot])
+    mock_db.fixture.find_unique.return_value = bench
 
-    response = authed_client.get("/v2/benches/bench-1/profile")
+    response = authed_client.get("/v2/fixtures/benches/bench-1/profile")
     assert response.status_code == 200
 
     data = json.loads(response.data)

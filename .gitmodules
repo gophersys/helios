@@ -55,9 +55,6 @@
 [submodule "libs/zephyr/vsm_drv"]
 	path = libs/zephyr/vsm_drv
 	url = git@bitbucket.org:corekinect/vsm_drv.git
-[submodule "ui"]
-	path = apps/cloud/concord-app
-	url = git@bitbucket.org:corekinect/concord-app.git
 [submodule "libs/zephyr/mlx90614_drv"]
 	path = libs/zephyr/mlx90614_drv
 	url = git@bitbucket.org:corekinect/mlx90614_drv.git
