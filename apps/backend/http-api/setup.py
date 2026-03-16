@@ -26,7 +26,6 @@ setup(
         "minio==7.2.18",
         "PyJWT>=2.0.0",
         "flask-cors>=5.0.0",
-        "influxdb-client>=1.36.0",
         "apispec>=6.0.0",
         "apispec-webframeworks>=1.0.0",
     ],

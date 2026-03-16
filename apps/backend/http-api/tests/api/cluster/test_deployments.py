@@ -25,7 +25,7 @@ class TestListDeployments:
         """Should return 200 with a paginated list of deployments."""
         mock_list.return_value = [
             {"name": "http-api", "namespace": "staging", "replicas": 2, "availableReplicas": 2},
-            {"name": "concord-ui", "namespace": "staging", "replicas": 1, "availableReplicas": 1},
+            {"name": "concord-frontend", "namespace": "staging", "replicas": 1, "availableReplicas": 1},
         ]
 
         response = authed_client.get("/v2/kubernetes/deployments")

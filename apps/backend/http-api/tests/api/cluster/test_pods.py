@@ -25,7 +25,7 @@ class TestListPods:
         """Should return 200 with a paginated list of pods."""
         mock_list.return_value = [
             {"name": "http-api-abc12", "namespace": "staging", "status": "Running"},
-            {"name": "concord-ui-def34", "namespace": "staging", "status": "Running"},
+            {"name": "concord-frontend-def34", "namespace": "staging", "status": "Running"},
             {"name": "postgres-0", "namespace": "staging", "status": "Running"},
         ]
 
