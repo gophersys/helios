@@ -13,12 +13,12 @@ ENV PUBLIC_APP_VERSION=${PUBLIC_APP_VERSION}
 ENV PUBLIC_APP_ENVIRONMENT=${PUBLIC_APP_ENVIRONMENT}
 
 # Install dependencies first (better layer caching)
-COPY apps/frontend/concord-app-svelte/package.json ./
-COPY apps/frontend/concord-app-svelte/package-lock.json* ./
+COPY apps/frontend/app/package.json ./
+COPY apps/frontend/app/package-lock.json* ./
 RUN npm ci --ignore-scripts 2>/dev/null || npm install
 
 # Copy source
-COPY apps/frontend/concord-app-svelte/ ./
+COPY apps/frontend/app/ ./
 
 # Build static site (outputs to dist/)
 RUN npm run build
@@ -46,8 +46,8 @@ RUN printf '{"service":"concord-frontend","version":"%s","environment":"%s","git
   > /usr/share/nginx/html/build-info.json
 
 # Copy nginx config template + entrypoint
-COPY apps/frontend/concord-app-svelte/deploy/nginx.conf.template /etc/nginx/templates/default.conf.template
-COPY apps/frontend/concord-app-svelte/deploy/docker-entrypoint.sh /docker-entrypoint.d/40-envsubst-concord.sh
+COPY apps/frontend/app/deploy/nginx.conf.template /etc/nginx/templates/default.conf.template
+COPY apps/frontend/app/deploy/docker-entrypoint.sh /docker-entrypoint.d/40-envsubst-concord.sh
 RUN chmod +x /docker-entrypoint.d/40-envsubst-concord.sh
 
 # Default env vars (overridden at runtime)
