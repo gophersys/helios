@@ -73,7 +73,7 @@ def _serialize_build_job(b: Any) -> dict:
         "buildNum": b.buildNum,
         "versionString": b.versionString,
         "errorMessage": b.errorMessage,
-        "workerId": getattr(b, "workerId", None),
+        "workerId": getattr(b, "workerId", None) or (b.webhookData.get("workerId") if isinstance(getattr(b, "webhookData", None), dict) else None),
         "startedAt": b.startedAt.isoformat() if b.startedAt else None,
         "finishedAt": b.finishedAt.isoformat() if b.finishedAt else None,
         "durationSeconds": b.durationSeconds,
@@ -295,7 +295,10 @@ def update_build(build_id: str):
         update_data["status"] = status
 
     if "workerId" in data:
-        update_data["workerId"] = data["workerId"]
+        # Store workerId in webhookData (Prisma client needs regeneration for direct field)
+        webhook_data = dict(build.webhookData) if isinstance(build.webhookData, dict) else {}
+        webhook_data["workerId"] = data["workerId"]
+        update_data["webhookData"] = Json(webhook_data)
 
     if "errorMessage" in data:
         update_data["errorMessage"] = data["errorMessage"][:4000] if data["errorMessage"] else None
