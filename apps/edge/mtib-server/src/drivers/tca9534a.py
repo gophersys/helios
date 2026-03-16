@@ -8,15 +8,16 @@ This driver is only used on REV 1.2 boards where the TCA9534A controls:
 - P1: EEPROM_WP - EEPROM write protect
 - P2: VMM_EN - Motor power enable
 - P3-P7: Reserved
+
+Uses shared I2CBus instead of managing its own SMBus connection.
 """
 
 from __future__ import annotations
 
 import threading
 from enum import IntEnum
-from typing import Optional
 
-import smbus2
+from src.drivers.i2c_bus import I2CBus
 
 
 class TCA9534ARegister(IntEnum):
@@ -44,38 +45,31 @@ class TCA9534A:
     """Driver for the TCA9534A I2C GPIO expander on MTIB REV 1.2."""
 
     DEFAULT_ADDRESS = 0x38
-    DEFAULT_BUS = 3  # /dev/i2c-3 on Verdin iMX8MM
 
-    def __init__(self, bus_num: int = DEFAULT_BUS, address: int = DEFAULT_ADDRESS):
-        self._bus_num = bus_num
+    def __init__(self, i2c_bus: I2CBus, address: int = DEFAULT_ADDRESS):
+        """Initialize and configure the TCA9534A.
+
+        Configures all pins as outputs and sets all low.
+        Uses force=True to bypass kernel gpio-pca953x driver claim.
+
+        Args:
+            i2c_bus: Shared thread-safe I2C bus instance
+            address: I2C address (default: 0x38)
+
+        Raises:
+            OSError: If I2C communication fails
+        """
+        self._bus = i2c_bus
         self._address = address
-        self._bus: Optional[smbus2.SMBus] = None
         self._output_cache: int = 0x00
         self._lock = threading.Lock()
 
-    def init(self) -> None:
-        """Initialize: configure all pins as outputs, set all low.
-
-        Uses force=True to bypass kernel gpio-pca953x driver claim.
-        Raises OSError if I2C communication fails.
-        """
-        self._bus = smbus2.SMBus(self._bus_num)
+        # Configure all pins as outputs, set all low
         self._bus.write_byte_data(self._address, TCA9534ARegister.CONFIG, 0x00, force=True)
-        self._output_cache = 0x00
         self._bus.write_byte_data(self._address, TCA9534ARegister.OUTPUT, self._output_cache, force=True)
-
-    def close(self) -> None:
-        if self._bus is not None:
-            self._bus.close()
-            self._bus = None
-
-    def _ensure_open(self) -> None:
-        if self._bus is None:
-            raise RuntimeError("TCA9534A not initialized. Call init() first.")
 
     def set_pin(self, pin: TCA9534APin, value: bool) -> None:
         """Set a single pin output value."""
-        self._ensure_open()
         with self._lock:
             if value:
                 self._output_cache |= pin.mask
@@ -88,7 +82,7 @@ class TCA9534A:
         return (self._output_cache & pin.mask) != 0
 
     def set_jlink_mux(self, swap: bool) -> None:
-        """Set J-Link mux: swap=True → nRF52840 (P0=HIGH), swap=False → nRF9151 (P0=LOW)."""
+        """Set J-Link mux: swap=True -> nRF52840 (P0=HIGH), swap=False -> nRF9151 (P0=LOW)."""
         self.set_pin(TCA9534APin.JLINK_MUL, swap)
 
     def set_eeprom_write_protect(self, protect: bool) -> None:
@@ -96,13 +90,3 @@ class TCA9534A:
 
     def set_motor_power(self, enable: bool) -> None:
         self.set_pin(TCA9534APin.VMM_EN, enable)
-
-    def __enter__(self) -> TCA9534A:
-        self.init()
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
-        self.close()
-
-    def __del__(self) -> None:
-        self.close()

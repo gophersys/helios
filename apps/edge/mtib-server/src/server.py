@@ -1,72 +1,85 @@
-# Standard imports
+"""MtibV1Provider — thin gRPC router with driver/handler wiring."""
+
 import functools
-import json
 import socket
 import threading
 import time
 from dataclasses import dataclass
 from typing import Callable, Dict, Iterator, List, Optional
 
-# 3rd party imports
 import grpc
 import paho.mqtt.client as mqtt
 from gpiod.line import Direction
 
-# Corekinect imports
-LOG_MODULE = "grpc"
 from corekinect.utils import Logger
-
-# Protocol imports
 from protocols.mtib.mtib_pb2_grpc import MtibV1Servicer
-from src.shared.types import *
 
-# Function handlers makes it easier to write service handlers
-from .handlers.adc import AdcHandler
-from .handlers.firmware import FirmwareHandler
-from .handlers.gpio import Gpio, GpioHandler, Pin
-from .handlers.motion import MotionHandler
-from .handlers.power import PowerHandler
-from .handlers.nfc import NfcHandler
-from .handlers.sensors import SensorsHandler
-from .handlers.uart import UartHandler
+from src.shared.types import (
+    Empty,
+    GpioConfigRequest,
+    GpioConfigResponse,
+    GpioDirection,
+    GpioReadRequest,
+    GpioReadResponse,
+    GpioWriteRequest,
+    GpioWriteResponse,
+    GpioWatchRequest,
+    GpioWatchEvent,
+    AdcReadRequest,
+    AdcReadResponse,
+    AdcReadAllResponse,
+    AdcStreamRequest,
+    AdcStreamResponse,
+    PowerEnableRequest,
+    PowerDisableRequest,
+    PowerReadRequest,
+    PowerReadResponse,
+    PowerMeasureRequest,
+    PowerMeasureResponse,
+    PowerResponse,
+    PowerStreamRequest,
+    PowerStreamResponse,
+    AltimeterReadResponse,
+    AccelReadResponse,
+    GetMotionStatusResponse,
+    MotionStartRequest,
+    MotionStartResponse,
+    MotionHomeResponse,
+    MotionStopResponse,
+    ListProgrammersResponse,
+    ListFwFilesResponse,
+    UploadFwFileRequest,
+    UploadFwFileResponse,
+    DeleteFwFileRequest,
+    DeleteFwFileResponse,
+    FlashFwFileRequest,
+    FlashFwFileResponse,
+    EraseFlashRequest,
+    EraseFlashResponse,
+    EnableAppProtectRequest,
+    EnableAppProtectResponse,
+    UartStreamRequest,
+    UartStreamResponse,
+    NfcPollRequest,
+    NfcPollResponse,
+    NfcReadNdefRequest,
+    NfcReadNdefResponse,
+    HealthCheckResponse,
+    GetSnapshotResponse,
+)
 
-# -------------------------------------------------
-#                             Toradex SoM GPIO Maps
-# -------------------------------------------------
-HARDWARE_REV_1_1_GPIO_PIN_MAP = {
-    # Main connector
-    0: Pin.SODIMM_206,  # GPIO_0 - available on gpiochip2, line 4
-    1: Pin.SODIMM_208,  # GPIO_1 - available on gpiochip4, line 5
-    2: Pin.SODIMM_210,  # GPIO_2 - available on gpiochip4, line 26
-    3: Pin.SODIMM_212,  # GPIO_3 - available on gpiochip4, line 27
-    4: Pin.SODIMM_34,  # I2S1_D_OUT - available on gpiochip3, line 26
-    5: Pin.SODIMM_30,  # I2S1_BCLK - available on gpiochip3, line 25
-    6: Pin.SODIMM_32,  # I2S1_SYNC - available on gpiochip3, line 24
-    # Auxiliary connector
-    7: Pin.SODIMM_15,  # PWM_1 - available on gpiochip4, line 10
-    8: Pin.SODIMM_16,  # PWM_2 - available on gpiochip4, line 12
-}
+from src.config import MtibV1ProviderConfig, GPIO_PIN_MAP, FLUIDNC_SERIAL_PORT, FLUIDNC_RESET_PIN
+from src.drivers.gpio import Gpio
 
-# Where the serial port is located
-HARDWARE_REV_1_1_SERIAL_PORT: str = "/dev/ttyUSB0"
-HARDWARE_REV_1_1_RESET_PIN: Pin = Pin.SODIMM_36
+from src.handlers.adc import AdcHandler
+from src.handlers.firmware import FirmwareHandler
+from src.handlers.gpio import GpioHandler
+from src.handlers.motion import MotionHandler
+from src.handlers.power import PowerHandler
+from src.handlers.nfc import NfcHandler
+from src.handlers.sensors import SensorsHandler
+from src.handlers.uart import UartHandler
 
-HARDWARE_REV_1_2_GPIO_PIN_MAP = {
-    # Main connector
-    0: Pin.SODIMM_206,  # GPIO_0 - available on gpiochip2, line 4
-    1: Pin.SODIMM_208,  # GPIO_1 - available on gpiochip4, line 5
-    2: Pin.SODIMM_210,  # GPIO_2 - available on gpiochip4, line 26
-    3: Pin.SODIMM_212,  # GPIO_3 - available on gpiochip4, line 27
-    4: Pin.SODIMM_34,  # I2S1_D_OUT - available on gpiochip3, line 26
-    5: Pin.SODIMM_30,  # I2S1_BCLK - available on gpiochip3, line 25
-    6: Pin.SODIMM_32,  # I2S1_SYNC - available on gpiochip3, line 24
-    # Auxiliary connector
-    7: Pin.SODIMM_15,  # PWM_1 - available on gpiochip4, line 10
-    8: Pin.SODIMM_16,  # PWM_2 - available on gpiochip4, line 12
-}
-
-HARDWARE_REV_1_2_SERIAL_PORT: str = "/dev/ttyUSB0"
-HARDWARE_REV_1_2_RESET_PIN: Pin = Pin.SODIMM_36
 
 # -------------------------------------------------
 #                             gRPC Method Decorator
@@ -108,30 +121,6 @@ def grpc_method(func: Callable) -> Callable:
 
 
 # -------------------------------------------------
-#                                            Config
-# -------------------------------------------------
-@dataclass
-class MtibV1ProviderConfig:
-    # Supported hardware versions:
-    # - REV1.1
-    # - REV1.2
-    HARDWARE_VERSION: str
-
-    # Where the server will look for assets for all of its components
-    # that need configurations or firmware files (e.g. FluidNC)
-    ASSETS_DIR: str
-
-    # Whether to enable metrics
-    METRICS_ENABLED: bool
-
-    # Where the metrics broker is located
-    METRICS_BROKER_URL: str
-
-    # Whether to enable motion
-    MOTION_ENABLED: bool
-
-
-# -------------------------------------------------
 #                           Capabilities list
 # -------------------------------------------------
 _BASE_CAPABILITIES = ["power", "gpio", "adc", "uart", "flash"]
@@ -156,7 +145,7 @@ class MtibV1Provider(MtibV1Servicer):
         if self.logger is None:
             raise ValueError("Logger is required")
         else:
-            self.logger = logger.from_parent(LOG_MODULE)
+            self.logger = logger.from_parent("grpc")
 
         # Global error list for all components
         self.errors: List[str] = []
@@ -170,6 +159,9 @@ class MtibV1Provider(MtibV1Servicer):
         # NFC handler (set in _init_handlers, may be None if init fails)
         self._nfc_handlers = None
 
+        # Thread-safe I2C bus (shared by MCP4017, TCA9534A, BME280)
+        self._i2c_bus = None
+
         # Metrics client
         self._metrics_client: Optional[mqtt.Client] = None
         self._metrics_thread: Optional[threading.Thread] = None
@@ -182,6 +174,15 @@ class MtibV1Provider(MtibV1Servicer):
         if err := self._config_gpio():
             self.logger.error(f"Failed to initialize the components: {err}")
             raise Exception(err)
+
+        # Create shared I2C bus
+        try:
+            from src.drivers.i2c_bus import I2CBus
+            self._i2c_bus = I2CBus(3)
+            self.logger.info("I2C bus initialized")
+        except Exception as e:
+            self.logger.error(f"Failed to initialize I2C bus: {e}")
+            raise Exception(f"I2C bus init failed: {e}")
 
         if err := self._init_hw_extensions():
             self.logger.error(f"Failed to initialize hardware extensions: {err}")
@@ -198,19 +199,12 @@ class MtibV1Provider(MtibV1Servicer):
         self.logger.info("MtibV1Provider initialized OK in %s ms", (time.time() - start_time) * 1000)
 
     def _config_gpio(self) -> Optional[str]:
-        """
-        Configure the GPIOs.
-        """
-        # Determine which GPIO map to use based on the hardware version
-        if self.config.HARDWARE_VERSION == "REV1.1":
-            gpio_map = HARDWARE_REV_1_1_GPIO_PIN_MAP
-        elif self.config.HARDWARE_VERSION == "REV1.2":
-            gpio_map = HARDWARE_REV_1_2_GPIO_PIN_MAP
-        else:
+        """Configure the GPIOs."""
+        if self.config.HARDWARE_VERSION not in ("REV1.1", "REV1.2"):
             return f"Unsupported hardware version: {self.config.HARDWARE_VERSION}"
 
         # Initialize all GPIOs as INPUTs by default
-        for logical_num, pin in gpio_map.items():
+        for logical_num, pin in GPIO_PIN_MAP.items():
             # Initialize as INPUT with initial value INACTIVE (0)
             gpio = Gpio(consumer=f"mtib-gpio-{logical_num}", pin=pin, direction=Direction.INPUT)
             if err := gpio.init():
@@ -227,9 +221,8 @@ class MtibV1Provider(MtibV1Servicer):
             return None
 
         try:
-            from src.hardware.tca9534a import TCA9534A
-            self._gpio_expander = TCA9534A(bus_num=3)
-            self._gpio_expander.init()
+            from src.drivers.tca9534a import TCA9534A
+            self._gpio_expander = TCA9534A(self._i2c_bus)
             self.logger.info("TCA9534A GPIO expander initialized (REV 1.2)")
             return None
         except ImportError:
@@ -241,22 +234,32 @@ class MtibV1Provider(MtibV1Servicer):
             return None
 
     def _init_handlers(self) -> Optional[str]:
-        """
-        Initialize the servicer function handlers.
-        """
-        # Determine which GPIO map to use based on the hardware version
-        if self.config.HARDWARE_VERSION == "REV1.1":
-            gpio_map = HARDWARE_REV_1_1_GPIO_PIN_MAP
-        elif self.config.HARDWARE_VERSION == "REV1.2":
-            gpio_map = HARDWARE_REV_1_2_GPIO_PIN_MAP
-        else:
-            return f"Unsupported hardware version: {self.config.HARDWARE_VERSION}"
+        """Initialize the servicer function handlers."""
+        # Create I2C-based drivers with shared bus
+        from src.drivers.mcp4017 import MCP4017
+        from src.drivers.bme280 import BME280
+
+        mcp4017 = MCP4017(i2c_bus=self._i2c_bus, logger=self.logger)
+
+        # Try BME280 at common addresses
+        bme280 = None
+        for address in [0x77, 0x76]:
+            try:
+                candidate = BME280(i2c_bus=self._i2c_bus, address=address, logger=self.logger)
+                if candidate.initialize():
+                    bme280 = candidate
+                    self.logger.info(f"BME280 initialized at address 0x{address:02x}")
+                    break
+            except Exception as e:
+                self.logger.debug(f"BME280 at 0x{address:02x} not available: {e}")
+        if bme280 is None:
+            self.logger.warning("BME280 sensor not found on I2C bus")
 
         self._gpio_handlers = GpioHandler(self._gpios, self.logger)
         self._adc_handlers = AdcHandler(self.logger)
-        self._power_handlers = PowerHandler(self.logger)
+        self._power_handlers = PowerHandler(self.logger, mcp4017)
         self._firmware_handlers = FirmwareHandler(self.logger)
-        self._sensors_handlers = SensorsHandler(self.logger)
+        self._sensors_handlers = SensorsHandler(self.logger, bme280)
         self._uart_handlers = UartHandler(self.logger)
         self._nfc_handlers = NfcHandler(self.logger)
 
@@ -264,21 +267,14 @@ class MtibV1Provider(MtibV1Servicer):
         if self._gpio_expander is not None:
             self._firmware_handlers.set_gpio_expander(self._gpio_expander)
 
-        # Initialize the motion handler based on the hardware version
+        # Initialize motion handler
         if self.config.MOTION_ENABLED:
-            if self.config.HARDWARE_VERSION == "REV1.1":
-                self._motion_handlers = MotionHandler(
-                    self.logger, self.config.ASSETS_DIR, HARDWARE_REV_1_1_SERIAL_PORT, HARDWARE_REV_1_1_RESET_PIN
-                )
-            elif self.config.HARDWARE_VERSION == "REV1.2":
-                self._motion_handlers = MotionHandler(
-                    self.logger, self.config.ASSETS_DIR, HARDWARE_REV_1_2_SERIAL_PORT, HARDWARE_REV_1_2_RESET_PIN
-                )
-                # Pass TCA9534A for VMM_EN motor power switch
-                if self._gpio_expander is not None:
-                    self._motion_handlers.set_gpio_expander(self._gpio_expander)
-            else:
-                return f"Unsupported hardware version: {self.config.HARDWARE_VERSION}"
+            self._motion_handlers = MotionHandler(
+                self.logger, self.config.ASSETS_DIR, FLUIDNC_SERIAL_PORT, FLUIDNC_RESET_PIN
+            )
+            # Pass TCA9534A for VMM_EN motor power switch (REV 1.2)
+            if self._gpio_expander is not None:
+                self._motion_handlers.set_gpio_expander(self._gpio_expander)
 
         return None
 
@@ -413,9 +409,9 @@ class MtibV1Provider(MtibV1Servicer):
 
     def __del__(self):
         self.stop_metrics()
-        if self._gpio_expander is not None:
+        if self._i2c_bus is not None:
             try:
-                self._gpio_expander.close()
+                self._i2c_bus.close()
             except Exception:
                 pass
 

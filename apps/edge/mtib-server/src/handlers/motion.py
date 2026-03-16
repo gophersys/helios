@@ -1,14 +1,28 @@
-import sys
+# Standard library
 import threading
 import time
 from typing import Optional
 
+# Third party
 import grpc
-from corekinect.utils import Logger
-from src.services.fluidnc import FluidNC
-from src.shared.types import *
 
-from .gpio import Pin
+# Corekinect
+from corekinect.utils import Logger
+
+# Proto types
+from src.shared.types import (
+    Empty,
+    GetMotionStatusResponse,
+    MotionStartRequest,
+    MotionStartResponse,
+    MotionStatus,
+    MotionHomeResponse,
+    MotionStopResponse,
+)
+
+# Drivers
+from src.drivers.fluidnc import FluidNC
+from src.drivers.gpio import Pin
 
 
 class MotionHandler:

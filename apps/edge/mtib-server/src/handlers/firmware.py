@@ -1,15 +1,40 @@
+# Standard library
 import hashlib
 import os
 import shutil
 import subprocess
 import tempfile
+import threading
 import time
 from pathlib import Path
 from typing import Dict, Iterator, Optional, Tuple
 
+# Third party
 import grpc
+
+# Corekinect
 from corekinect.utils import Logger
-from src.shared.types import *
+
+# Proto types
+from src.shared.types import (
+    DeleteFwFileRequest,
+    DeleteFwFileResponse,
+    Empty,
+    EnableAppProtectRequest,
+    EnableAppProtectResponse,
+    EraseFlashRequest,
+    EraseFlashResponse,
+    FlashFwFileRequest,
+    FlashFwFileResponse,
+    FwFileInfo,
+    HostType,
+    ListFwFilesResponse,
+    ListProgrammersResponse,
+    Programmer,
+    ProgrammerType,
+    UploadFwFileRequest,
+    UploadFwFileResponse,
+)
 
 
 class FirmwareHandler:
@@ -17,6 +42,9 @@ class FirmwareHandler:
 
     def __init__(self, logger: Logger):
         self.logger = logger
+
+        # Flash lock to serialize mux-select + scan + flash/erase operations
+        self._flash_lock = threading.Lock()
 
         # Initialize RAM storage directory in /dev/shm
         self.ram_storage = Path("/dev/shm/mtib_fw_files")
@@ -50,7 +78,7 @@ class FirmwareHandler:
 
         try:
             # REV 1.2: P0 controls SN74CBT3257C mux
-            # Empirically verified: P0=LOW → nRF9151, P0=HIGH → nRF52840
+            # Empirically verified: P0=LOW -> nRF9151, P0=HIGH -> nRF52840
             is_nrf52840 = target in (HostType.HOST_TYPE_NRF52840, HostType.HOST_TYPE_NRF5340)
             swap = is_nrf52840  # P0=HIGH for nRF52840, P0=LOW for nRF9151
             self._gpio_expander.set_jlink_mux(swap)
@@ -87,8 +115,8 @@ class FirmwareHandler:
         # setups where different probes connect to different targets.
         if self._gpio_expander:
             mux_positions = [
-                (HostType.HOST_TYPE_NRF52840, True, "nRF52840"),   # swap=True → P0=HIGH
-                (HostType.HOST_TYPE_NRF9151, False, "nRF9151"),    # swap=False → P0=LOW
+                (HostType.HOST_TYPE_NRF52840, True, "nRF52840"),   # swap=True -> P0=HIGH
+                (HostType.HOST_TYPE_NRF9151, False, "nRF9151"),    # swap=False -> P0=LOW
             ]
             for target_type, swap, target_name in mux_positions:
                 self._gpio_expander.set_jlink_mux(swap)
@@ -235,6 +263,27 @@ class FirmwareHandler:
         else:
             return ["-f", "NRF52"]
 
+    # Modem-compatible targets: nRF9160/nRF9151 programmer can flash modem targets
+    _MODEM_TARGETS = {HostType.HOST_TYPE_NRF9160, HostType.HOST_TYPE_NRF9160_MODEM, HostType.HOST_TYPE_NRF9151_MODEM}
+    _MODEM_PROGRAMMERS = {HostType.HOST_TYPE_NRF9160, HostType.HOST_TYPE_NRF9151}
+
+    def _find_programmer(self, target: HostType) -> Optional[str]:
+        """Find a connected programmer serial number suitable for the given target.
+
+        Returns the serial string, or None if no suitable programmer found.
+        """
+        for key, (host_type, is_connected) in self.programmers.items():
+            if not is_connected:
+                continue
+            serial = key.split(":")[0]
+            if target in self._MODEM_TARGETS:
+                if host_type in self._MODEM_PROGRAMMERS:
+                    return serial
+            else:
+                if host_type == target:
+                    return serial
+        return None
+
     def _calculate_sha256(self, file_path: Path) -> str:
         """Calculate SHA256 hash of a file."""
         sha256_hash = hashlib.sha256()
@@ -257,7 +306,7 @@ class FirmwareHandler:
         """List available programmers."""
         self.logger.info("ListProgrammers request received")
         try:
-            # Scan for J-Link probes on every call — probes may be
+            # Scan for J-Link probes on every call -- probes may be
             # connected/disconnected at any time and the server has no
             # persistent state about them from startup.
             self._assign_jlinks(force_recovery=False)
@@ -376,157 +425,143 @@ class FirmwareHandler:
     def flash_fw_file(self, request: FlashFwFileRequest, context: grpc.ServicerContext) -> FlashFwFileResponse:
         """Flash a firmware file from RAM."""
         self.logger.info(f"FlashFwFile request received for {request.file_info.name}")
-        try:
-            # Select J-Link mux target on REV 1.2
-            if err := self._select_jlink_target(request.file_info.target):
-                return FlashFwFileResponse(success=False, message=err, time_ms=0)
+        with self._flash_lock:
+            try:
+                # Select J-Link mux target on REV 1.2
+                if err := self._select_jlink_target(request.file_info.target):
+                    return FlashFwFileResponse(success=False, message=err, time_ms=0)
 
-            # Re-scan and update programmer assignments before flashing
-            self._assign_jlinks(force_recovery=True)
+                # Re-scan and update programmer assignments before flashing
+                self._assign_jlinks(force_recovery=True)
 
-            if request.file_info.name not in self.active_files:
-                return FlashFwFileResponse(
-                    success=False, message=f"Firmware file {request.file_info.name} not found", time_ms=0
-                )
-
-            file_path, stored_target = self.active_files[request.file_info.name]
-            if not file_path.exists():
-                return FlashFwFileResponse(
-                    success=False, message=f"Firmware file {request.file_info.name} no longer exists", time_ms=0
-                )
-
-            # Verify SHA256 if provided
-            if request.file_info.sha256_digest:
-                current_sha256 = self._calculate_sha256(file_path)
-                if current_sha256 != request.file_info.sha256_digest:
-                    return FlashFwFileResponse(success=False, message="SHA256 digest mismatch", time_ms=0)
-
-            # Find a suitable programmer
-            programmer = None
-            for key, (host_type, is_connected) in self.programmers.items():
-                if not is_connected:
-                    continue
-                # Extract serial from key (handles both "serial" and "serial:target" formats)
-                serial = key.split(":")[0]
-                # Allow NRF9160 or NRF9151 programmer for modem targets
-                if request.file_info.target in [HostType.HOST_TYPE_NRF9160, HostType.HOST_TYPE_NRF9160_MODEM, HostType.HOST_TYPE_NRF9151_MODEM]:
-                    if host_type in [HostType.HOST_TYPE_NRF9160, HostType.HOST_TYPE_NRF9151]:
-                        programmer = serial
-                        break
-                else:
-                    if host_type == request.file_info.target:
-                        programmer = serial
-                        break
-
-            if not programmer:
-                return FlashFwFileResponse(
-                    success=False,
-                    message=f"No suitable programmer found for target {request.file_info.target}",
-                    time_ms=0,
-                )
-
-            # Determine nrfjprog family flag based on target
-            family_flag = self._get_family_flag(request.file_info.target)
-
-            # Flash the firmware
-            start_time = time.time()
-            # Step 1: Recover if requested
-            if request.recover:
-                try:
-                    recover_cmd = [
-                        "nrfjprog",
-                        "--recover",
-                        "--snr",
-                        programmer,
-                        "--clockspeed",
-                        str(self.JLINK_CLOCKSPEED_KHZ),
-                    ] + family_flag
-                    self.logger.info(f"Running recover: {' '.join(recover_cmd)}")
-                    subprocess.run(
-                        recover_cmd,
-                        capture_output=True,
-                        text=True,
-                        check=True,
-                        timeout=60,  # 1 minute timeout
+                if request.file_info.name not in self.active_files:
+                    return FlashFwFileResponse(
+                        success=False, message=f"Firmware file {request.file_info.name} not found", time_ms=0
                     )
-                except subprocess.TimeoutExpired:
-                    error_msg = f"Recover operation timed out after 1 minute for programmer {programmer}"
-                    self.logger.error(error_msg)
-                    return FlashFwFileResponse(success=False, message=error_msg, time_ms=0)
-                except subprocess.CalledProcessError as e:
-                    error_msg = f"Failed to recover programmer {programmer}: {e.stderr if e.stderr else str(e)}"
-                    if e.stdout:
-                        error_msg += f"\nstdout: {e.stdout}"
-                    self.logger.error(error_msg)
-                    return FlashFwFileResponse(success=False, message=error_msg, time_ms=0)
-                except FileNotFoundError:
-                    error_msg = "nrfjprog command not found. Please ensure nRF Command Line Tools are installed."
-                    self.logger.error(error_msg)
-                    return FlashFwFileResponse(success=False, message=error_msg, time_ms=0)
-                except Exception as e:
-                    error_msg = f"Unexpected error during recover operation: {str(e)}"
-                    self.logger.error(error_msg)
-                    return FlashFwFileResponse(success=False, message=error_msg, time_ms=0)
 
-            # Step 2: Build the nrfjprog programming command
-            is_nrf91 = request.file_info.target in (
-                HostType.HOST_TYPE_NRF9160,
-                HostType.HOST_TYPE_NRF9151,
-                HostType.HOST_TYPE_NRF9160_MODEM,
-                HostType.HOST_TYPE_NRF9151_MODEM,
-            )
-            cmd = [
-                "nrfjprog",
-                "--program",
-                str(file_path),
-                "--snr",
-                programmer,
-                "--clockspeed",
-                str(self.JLINK_CLOCKSPEED_KHZ),
-            ] + family_flag
+                file_path, stored_target = self.active_files[request.file_info.name]
+                if not file_path.exists():
+                    return FlashFwFileResponse(
+                        success=False, message=f"Firmware file {request.file_info.name} no longer exists", time_ms=0
+                    )
 
-            # nRF91 secure firmware enables APPROTECT after programming,
-            # which prevents read-back verification. Skip --verify for nRF91.
-            if not is_nrf91:
-                cmd.append("--verify")
+                # Verify SHA256 if provided
+                if request.file_info.sha256_digest:
+                    current_sha256 = self._calculate_sha256(file_path)
+                    if current_sha256 != request.file_info.sha256_digest:
+                        return FlashFwFileResponse(success=False, message="SHA256 digest mismatch", time_ms=0)
 
-            if request.sector_erase:
-                cmd.append("--sectorerase")
-            else:
-                cmd.append("--chiperase")
+                # Find a suitable programmer
+                programmer = self._find_programmer(request.file_info.target)
+                if not programmer:
+                    return FlashFwFileResponse(
+                        success=False,
+                        message=f"No suitable programmer found for target {request.file_info.target}",
+                        time_ms=0,
+                    )
 
-            cmd.append("--reset")
+                # Determine nrfjprog family flag based on target
+                family_flag = self._get_family_flag(request.file_info.target)
 
-            # Step 3: Run the programming command
-            self.logger.info(f"Running program: {' '.join(cmd)}")
-            result = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                check=True,
-                timeout=120,
-            )
-            time_ms = int((time.time() - start_time) * 1000)
-            self.logger.info(f"Successfully flashed firmware in {time_ms}ms")
-            return FlashFwFileResponse(success=True, message="", time_ms=time_ms)
+                # Flash the firmware
+                start_time = time.time()
+                # Step 1: Recover if requested
+                if request.recover:
+                    try:
+                        recover_cmd = [
+                            "nrfjprog",
+                            "--recover",
+                            "--snr",
+                            programmer,
+                            "--clockspeed",
+                            str(self.JLINK_CLOCKSPEED_KHZ),
+                        ] + family_flag
+                        self.logger.info(f"Running recover: {' '.join(recover_cmd)}")
+                        subprocess.run(
+                            recover_cmd,
+                            capture_output=True,
+                            text=True,
+                            check=True,
+                            timeout=60,  # 1 minute timeout
+                        )
+                    except subprocess.TimeoutExpired:
+                        error_msg = f"Recover operation timed out after 1 minute for programmer {programmer}"
+                        self.logger.error(error_msg)
+                        return FlashFwFileResponse(success=False, message=error_msg, time_ms=0)
+                    except subprocess.CalledProcessError as e:
+                        error_msg = f"Failed to recover programmer {programmer}: {e.stderr if e.stderr else str(e)}"
+                        if e.stdout:
+                            error_msg += f"\nstdout: {e.stdout}"
+                        self.logger.error(error_msg)
+                        return FlashFwFileResponse(success=False, message=error_msg, time_ms=0)
+                    except FileNotFoundError:
+                        error_msg = "nrfjprog command not found. Please ensure nRF Command Line Tools are installed."
+                        self.logger.error(error_msg)
+                        return FlashFwFileResponse(success=False, message=error_msg, time_ms=0)
+                    except Exception as e:
+                        error_msg = f"Unexpected error during recover operation: {str(e)}"
+                        self.logger.error(error_msg)
+                        return FlashFwFileResponse(success=False, message=error_msg, time_ms=0)
 
-        except subprocess.TimeoutExpired:
-            error_msg = f"Flash operation timed out after 1 minute for programmer {programmer}"
-            self.logger.error(error_msg)
-            return FlashFwFileResponse(success=False, message=error_msg, time_ms=0)
-        except subprocess.CalledProcessError as e:
-            error_msg = f"Failed to flash firmware: {e.stderr if e.stderr else str(e)}"
-            if e.stdout:
-                error_msg += f"\nstdout: {e.stdout}"
-            self.logger.error(error_msg)
-            return FlashFwFileResponse(success=False, message=error_msg, time_ms=0)
-        except FileNotFoundError:
-            error_msg = "nrfjprog command not found. Please ensure nRF Command Line Tools are installed."
-            self.logger.error(error_msg)
-            return FlashFwFileResponse(success=False, message=error_msg, time_ms=0)
-        except Exception as e:
-            self.logger.error(f"Error flashing firmware: {e}")
-            return FlashFwFileResponse(success=False, message=f"Failed to flash firmware: {str(e)}", time_ms=0)
+                # Step 2: Build the nrfjprog programming command
+                is_nrf91 = request.file_info.target in (
+                    HostType.HOST_TYPE_NRF9160,
+                    HostType.HOST_TYPE_NRF9151,
+                    HostType.HOST_TYPE_NRF9160_MODEM,
+                    HostType.HOST_TYPE_NRF9151_MODEM,
+                )
+                cmd = [
+                    "nrfjprog",
+                    "--program",
+                    str(file_path),
+                    "--snr",
+                    programmer,
+                    "--clockspeed",
+                    str(self.JLINK_CLOCKSPEED_KHZ),
+                ] + family_flag
+
+                # nRF91 secure firmware enables APPROTECT after programming,
+                # which prevents read-back verification. Skip --verify for nRF91.
+                if not is_nrf91:
+                    cmd.append("--verify")
+
+                if request.sector_erase:
+                    cmd.append("--sectorerase")
+                else:
+                    cmd.append("--chiperase")
+
+                cmd.append("--reset")
+
+                # Step 3: Run the programming command
+                self.logger.info(f"Running program: {' '.join(cmd)}")
+                result = subprocess.run(
+                    cmd,
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                    timeout=120,
+                )
+                time_ms = int((time.time() - start_time) * 1000)
+                self.logger.info(f"Successfully flashed firmware in {time_ms}ms")
+                return FlashFwFileResponse(success=True, message="", time_ms=time_ms)
+
+            except subprocess.TimeoutExpired:
+                error_msg = f"Flash operation timed out after 1 minute for programmer {programmer}"
+                self.logger.error(error_msg)
+                return FlashFwFileResponse(success=False, message=error_msg, time_ms=0)
+            except subprocess.CalledProcessError as e:
+                error_msg = f"Failed to flash firmware: {e.stderr if e.stderr else str(e)}"
+                if e.stdout:
+                    error_msg += f"\nstdout: {e.stdout}"
+                self.logger.error(error_msg)
+                return FlashFwFileResponse(success=False, message=error_msg, time_ms=0)
+            except FileNotFoundError:
+                error_msg = "nrfjprog command not found. Please ensure nRF Command Line Tools are installed."
+                self.logger.error(error_msg)
+                return FlashFwFileResponse(success=False, message=error_msg, time_ms=0)
+            except Exception as e:
+                self.logger.error(f"Error flashing firmware: {e}")
+                return FlashFwFileResponse(success=False, message=f"Failed to flash firmware: {str(e)}", time_ms=0)
 
     def erase_flash(self, request: EraseFlashRequest, context: grpc.ServicerContext) -> EraseFlashResponse:
         """Erase the flash memory on a target device.
@@ -536,54 +571,46 @@ class FirmwareHandler:
         - --recover: Erases all user flash memory, UICR, and readback protection mechanism
         """
         self.logger.info(f"EraseFlash request received for {request.target}, recover={request.recover}")
-        try:
-            # Select J-Link mux target on REV 1.2
-            if err := self._select_jlink_target(request.target):
-                return EraseFlashResponse(success=False, message=err)
+        with self._flash_lock:
+            try:
+                # Select J-Link mux target on REV 1.2
+                if err := self._select_jlink_target(request.target):
+                    return EraseFlashResponse(success=False, message=err)
 
-            # Re-scan and update programmer assignments before erasing flash
-            # Use force_recovery=True when recover flag is set, otherwise False
-            self._assign_jlinks(force_recovery=request.recover)
+                # Re-scan and update programmer assignments before erasing flash
+                # Use force_recovery=True when recover flag is set, otherwise False
+                self._assign_jlinks(force_recovery=request.recover)
 
-            # Find a suitable programmer
-            programmer = None
-            for key, (host_type, is_connected) in self.programmers.items():
-                if not is_connected:
-                    continue
-                # Extract serial from key (handles both "serial" and "serial:target" formats)
-                serial = key.split(":")[0]
-                if host_type == request.target:
-                    programmer = serial
-                    break
+                # Find a suitable programmer
+                programmer = self._find_programmer(request.target)
+                if not programmer:
+                    return EraseFlashResponse(
+                        success=False, message=f"No suitable programmer found for target {request.target}"
+                    )
 
-            if not programmer:
-                return EraseFlashResponse(
-                    success=False, message=f"No suitable programmer found for target {request.target}"
+                # Choose the appropriate erase command based on recover flag
+                # --chiperase: Erases all non-volatile memory and UICR (when recover=False)
+                # --recover: Erases everything including readback protection (when recover=True)
+                family_flag = self._get_family_flag(request.target)
+                if request.recover:
+                    cmd = ["nrfjprog", "--recover", "--snr", programmer, "--clockspeed", str(self.JLINK_CLOCKSPEED_KHZ)] + family_flag
+                    self.logger.info(f"Running recover erase: {' '.join(cmd)}")
+                else:
+                    cmd = ["nrfjprog", "--chiperase", "--snr", programmer, "--clockspeed", str(self.JLINK_CLOCKSPEED_KHZ)] + family_flag
+                    self.logger.info(f"Running chip erase: {' '.join(cmd)}")
+
+                result = subprocess.run(
+                    cmd,
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                    timeout=60,  # 1 minute timeout
                 )
-
-            # Choose the appropriate erase command based on recover flag
-            # --chiperase: Erases all non-volatile memory and UICR (when recover=False)
-            # --recover: Erases everything including readback protection (when recover=True)
-            family_flag = self._get_family_flag(request.target)
-            if request.recover:
-                cmd = ["nrfjprog", "--recover", "--snr", programmer, "--clockspeed", str(self.JLINK_CLOCKSPEED_KHZ)] + family_flag
-                self.logger.info(f"Running recover erase: {' '.join(cmd)}")
-            else:
-                cmd = ["nrfjprog", "--chiperase", "--snr", programmer, "--clockspeed", str(self.JLINK_CLOCKSPEED_KHZ)] + family_flag
-                self.logger.info(f"Running chip erase: {' '.join(cmd)}")
-
-            result = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                check=True,
-                timeout=60,  # 1 minute timeout
-            )
-            self.logger.info(f"Successfully erased flash (recover={request.recover})")
-            return EraseFlashResponse(success=True, message="")
-        except Exception as e:
-            self.logger.error(f"Error erasing flash: {e}")
-            return EraseFlashResponse(success=False, message=f"Failed to erase flash: {str(e)}")
+                self.logger.info(f"Successfully erased flash (recover={request.recover})")
+                return EraseFlashResponse(success=True, message="")
+            except Exception as e:
+                self.logger.error(f"Error erasing flash: {e}")
+                return EraseFlashResponse(success=False, message=f"Failed to erase flash: {str(e)}")
 
     def enable_app_protect(
         self, request: EnableAppProtectRequest, context: grpc.ServicerContext
@@ -596,22 +623,7 @@ class FirmwareHandler:
             self._assign_jlinks(False)
 
             # Find a suitable programmer for the target
-            programmer = None
-            for key, (host_type, is_connected) in self.programmers.items():
-                if not is_connected:
-                    continue
-                # Extract serial from key (handles both "serial" and "serial:target" formats)
-                serial = key.split(":")[0]
-                # Allow NRF9160 or NRF9151 programmer for modem targets
-                if request.target in [HostType.HOST_TYPE_NRF9160, HostType.HOST_TYPE_NRF9160_MODEM, HostType.HOST_TYPE_NRF9151_MODEM]:
-                    if host_type in [HostType.HOST_TYPE_NRF9160, HostType.HOST_TYPE_NRF9151]:
-                        programmer = serial
-                        break
-                else:
-                    if host_type == request.target:
-                        programmer = serial
-                        break
-
+            programmer = self._find_programmer(request.target)
             if not programmer:
                 return EnableAppProtectResponse(
                     success=False, message=f"No suitable programmer found for target {request.target}"

@@ -5,11 +5,17 @@ Auto-detects reader presence at init; RPCs return graceful errors when
 no reader is connected.
 """
 
+# Standard library
 import time
 from typing import Optional
 
+# Third party
 import grpc
+
+# Corekinect
 from corekinect.utils import Logger
+
+# Proto types
 from src.shared.types import (
     NfcPollRequest,
     NfcPollResponse,
@@ -147,13 +153,13 @@ class NfcHandler:
                 message=f"NFC read error: {e}",
             )
 
-    # ── Hardware-specific methods (PN532 I2C) ────────────────────────
+    # -- Hardware-specific methods (PN532 I2C) ----
 
     def _poll_tag(self, timeout_ms: int):
         """Poll for NFC tag presence. Returns (tag_present, uid_bytes)."""
         # TODO: Implement PN532 InListPassiveTarget command via I2C
         # For now, return not-found until hardware is wired and driver is tested
-        self.logger.warning("NFC poll not yet implemented — hardware driver pending")
+        self.logger.warning("NFC poll not yet implemented -- hardware driver pending")
         return False, None
 
     def _read_ndef_records(self, timeout_ms: int):
@@ -163,5 +169,5 @@ class NfcHandler:
         # 2. InDataExchange to read NDEF sectors
         # 3. Parse TLV to find NDEF message
         # 4. Parse NDEF records
-        self.logger.warning("NFC NDEF read not yet implemented — hardware driver pending")
+        self.logger.warning("NFC NDEF read not yet implemented -- hardware driver pending")
         return None

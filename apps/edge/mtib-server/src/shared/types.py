@@ -59,7 +59,6 @@ from protocols.mtib.mtib_pb2 import (
     SnapshotGpio,
     SnapshotAdc,
     GetSnapshotResponse,
-    # NFC types
     NfcPollRequest,
     NfcPollResponse,
     NfcReadNdefRequest,
@@ -68,4 +67,4 @@ from protocols.mtib.mtib_pb2 import (
 )
 
 # Import gRPC service types
-from protocols.mtib.mtib_pb2_grpc import MtibV1Servicer, MtibV1Stub
+from protocols.mtib.mtib_pb2_grpc import MtibV1Servicer

@@ -1,6 +1,7 @@
-"""
-BME280 temperature, humidity, and pressure sensor driver.
+"""BME280 temperature, humidity, and pressure sensor driver.
+
 Simplified implementation based on Adafruit BME280 library.
+Uses shared I2CBus instead of subprocess-based I2CDevice.
 """
 
 import struct
@@ -9,7 +10,7 @@ from typing import Optional, Tuple
 
 from corekinect.utils import Logger
 
-from .i2c import I2CDevice
+from src.drivers.i2c_bus import I2CBus
 
 
 class BME280:
@@ -34,17 +35,17 @@ class BME280:
     MODE_FORCE = 0x01
     MODE_NORMAL = 0x03
 
-    def __init__(self, bus_number: int, device_address: int, logger: Logger = None):
-        """
-        Initialize BME280 sensor.
+    def __init__(self, i2c_bus: I2CBus, address: int, logger: Logger = None):
+        """Initialize BME280 sensor.
 
         Args:
-            bus_number: I2C bus number
-            device_address: I2C device address (0x76 or 0x77)
+            i2c_bus: Shared thread-safe I2C bus instance
+            address: I2C device address (0x76 or 0x77)
             logger: Logger instance
         """
         self.logger = logger
-        self.i2c = I2CDevice(bus_number, device_address, logger)
+        self._bus = i2c_bus
+        self._addr = address
         self._temp_calib = [0] * 3
         self._pressure_calib = [0] * 9
         self._humidity_calib = [0] * 6
@@ -53,24 +54,25 @@ class BME280:
         self.sea_level_pressure = 1013.25
 
         if self.logger:
-            self.logger.debug(f"BME280 initialized on bus {bus_number}, address 0x{device_address:02x}")
+            self.logger.debug(f"BME280 initialized on address 0x{address:02x}")
 
     def initialize(self) -> bool:
-        """
-        Initialize the BME280 sensor.
+        """Initialize the BME280 sensor.
 
         Returns:
             True if initialization successful, False otherwise
         """
         try:
             # Check if sensor is responding
-            if not self.i2c.ping():
+            try:
+                self._bus.read_byte_data(self._addr, 0x00, force=True)
+            except Exception:
                 if self.logger:
                     self.logger.error("BME280 sensor not responding")
                 return False
 
             # Check chip ID
-            chip_id = self.i2c.read_register_uint8(self.REGISTER_CHIPID)
+            chip_id = self._bus.read_byte_data(self._addr, self.REGISTER_CHIPID, force=True)
             if chip_id != self.CHIP_ID_BME280:
                 if self.logger:
                     self.logger.error(f"Invalid chip ID: 0x{chip_id:02x}, expected 0x{self.CHIP_ID_BME280:02x}")
@@ -80,7 +82,7 @@ class BME280:
                 self.logger.info(f"BME280 chip ID verified: 0x{chip_id:02x}")
 
             # Reset the device
-            self.i2c.write_register_uint8(self.REGISTER_SOFTRESET, 0xB6)
+            self._bus.write_byte_data(self._addr, self.REGISTER_SOFTRESET, 0xB6, force=True)
             time.sleep(0.004)  # Wait for reset (datasheet says 2ms, using 4ms to be safe)
 
             # Read calibration data
@@ -104,7 +106,7 @@ class BME280:
         """Read & save the calibration coefficients using struct.unpack like Adafruit."""
         try:
             # Read temperature and pressure calibration (24 bytes starting at 0x88)
-            coeff = self.i2c.read_register(0x88, 24)
+            coeff = self._bus.read_i2c_block_data(self._addr, 0x88, 24, force=True)
             coeff = list(struct.unpack("<HhhHhhhhhhhh", bytes(coeff)))
             coeff = [float(i) for i in coeff]
             self._temp_calib = coeff[:3]
@@ -112,8 +114,8 @@ class BME280:
 
             # Read humidity calibration
             self._humidity_calib = [0] * 6
-            self._humidity_calib[0] = self.i2c.read_register_uint8(0xA1)  # H1
-            coeff = self.i2c.read_register(0xE1, 7)  # H2-H6
+            self._humidity_calib[0] = self._bus.read_byte_data(self._addr, 0xA1, force=True)  # H1
+            coeff = self._bus.read_i2c_block_data(self._addr, 0xE1, 7, force=True)  # H2-H6
             coeff = list(struct.unpack("<hBbBbb", bytes(coeff)))
             self._humidity_calib[1] = float(coeff[0])  # H2
             self._humidity_calib[2] = float(coeff[1])  # H3
@@ -132,18 +134,18 @@ class BME280:
     def _write_ctrl_meas(self):
         """Write the values to the ctrl_meas and ctrl_hum registers."""
         # Set humidity oversampling (1x)
-        self.i2c.write_register_uint8(self.REGISTER_CONTROLHUMID, 0x01)
+        self._bus.write_byte_data(self._addr, self.REGISTER_CONTROLHUMID, 0x01, force=True)
         # Set temperature (1x), pressure (1x), and mode (forced)
-        self.i2c.write_register_uint8(self.REGISTER_CONTROL, 0x25)
+        self._bus.write_byte_data(self._addr, self.REGISTER_CONTROL, 0x25, force=True)
 
     def _write_config(self):
         """Write the value to the config register."""
         # Set filter (16) and standby time (125ms)
-        self.i2c.write_register_uint8(self.REGISTER_CONFIG, 0xA0)
+        self._bus.write_byte_data(self._addr, self.REGISTER_CONFIG, 0xA0, force=True)
 
     def _get_status(self):
         """Get the value from the status register."""
-        return self.i2c.read_register_uint8(self.REGISTER_STATUS)
+        return self._bus.read_byte_data(self._addr, self.REGISTER_STATUS, force=True)
 
     def _read_temperature(self):
         """Read temperature and calculate t_fine (internal method)."""
@@ -154,7 +156,7 @@ class BME280:
 
         try:
             # Trigger measurement in forced mode
-            self.i2c.write_register_uint8(self.REGISTER_CONTROL, 0x25)  # forced mode
+            self._bus.write_byte_data(self._addr, self.REGISTER_CONTROL, 0x25, force=True)
             # Wait for conversion to complete
             while self._get_status() & 0x08:
                 time.sleep(0.002)
@@ -177,8 +179,7 @@ class BME280:
             raise
 
     def read_temperature(self) -> Optional[float]:
-        """
-        Read temperature from the sensor.
+        """Read temperature from the sensor.
 
         Returns:
             Temperature in Celsius, or None if error
@@ -194,15 +195,14 @@ class BME280:
     def _read24(self, register: int) -> float:
         """Read an unsigned 24-bit value as a floating point and return it."""
         ret = 0.0
-        data = self.i2c.read_register(register, 3)
+        data = self._bus.read_i2c_block_data(self._addr, register, 3, force=True)
         for b in data:
             ret *= 256.0
             ret += float(b & 0xFF)
         return ret
 
     def read_pressure(self) -> Optional[float]:
-        """
-        Read pressure from the sensor.
+        """Read pressure from the sensor.
 
         Returns:
             Pressure in hectoPascals, or None if error
@@ -247,8 +247,7 @@ class BME280:
             return None
 
     def read_humidity(self) -> Optional[float]:
-        """
-        Read humidity from the sensor.
+        """Read humidity from the sensor.
 
         Returns:
             Humidity in %RH, or None if error
@@ -262,7 +261,7 @@ class BME280:
             self._read_temperature()
 
             # Read raw humidity data (16 bits)
-            hum = self.i2c.read_register(0xFD, 2)  # BME280_REGISTER_HUMIDDATA
+            hum = self._bus.read_i2c_block_data(self._addr, 0xFD, 2, force=True)
             adc = float(hum[0] << 8 | hum[1])
 
             # Humidity compensation calculation (Adafruit algorithm)
@@ -289,8 +288,7 @@ class BME280:
             return None
 
     def read_all(self) -> Tuple[Optional[float], Optional[float], Optional[float]]:
-        """
-        Read all sensor values (temperature, pressure, humidity).
+        """Read all sensor values (temperature, pressure, humidity).
 
         Returns:
             Tuple of (temperature_celsius, pressure_hectopascals, humidity_percent)
@@ -302,8 +300,7 @@ class BME280:
         return temperature, pressure, humidity
 
     def calculate_altitude(self, sea_level_pressure: float = None) -> Optional[float]:
-        """
-        Calculate altitude from pressure reading.
+        """Calculate altitude from pressure reading.
 
         Args:
             sea_level_pressure: Sea level pressure in hPa (uses self.sea_level_pressure if None)

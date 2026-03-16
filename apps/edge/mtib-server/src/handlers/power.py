@@ -1,25 +1,41 @@
-# Corekinect imports
+# Standard library
 import glob
 import os
-import pickle
-import queue
 import struct
 import threading
 import time
 from typing import Dict, Iterator, Optional, Tuple
 
+# Third party
 import gpiod
-
-# 3rd party imports
 import grpc
+
+# Corekinect
 from corekinect.utils import Logger
-from src.services.mcp4017 import MCP4017
+
+# Proto types
+from src.shared.types import (
+    PowerChannel,
+    PowerResponse,
+    PowerEnableRequest,
+    PowerDisableRequest,
+    PowerReadRequest,
+    PowerReadResponse,
+    PowerMeasureRequest,
+    PowerMeasureResponse,
+    PowerSample,
+    PowerStreamRequest,
+    PowerStreamResponse,
+    SnapshotPower,
+)
+
+# Drivers
+from src.drivers.gpio import Gpio, Pin
+from src.drivers.ina219 import INA219
+from src.drivers.mcp4017 import MCP4017
+
+# Shared
 from src.shared.streaming import BatchConfig, BatchStrategy, StreamBroadcaster
-
-# Private imports
-from src.shared.types import *
-
-from .gpio import Gpio, Pin
 
 
 # INA219 I2C address mapping per power channel
@@ -34,59 +50,10 @@ _MAX_VOLTAGE_V = 5.5
 
 
 class PowerHandler:
-    def __init__(self, logger: Logger):
+    def __init__(self, logger: Logger, mcp4017: MCP4017):
         self.logger = logger
-        self.mcp4017 = MCP4017(logger=logger)
-
-        # Find the ADS1015 ADC device
-        self.adc_path = None
-        for device in glob.glob("/sys/bus/iio/devices/iio:device*"):
-            try:
-                with open(os.path.join(device, "name"), "r") as f:
-                    if f.read().strip() == "ads1015":
-                        self.adc_path = device
-                        # Read the scale factor for voltage3
-                        with open(os.path.join(device, "in_voltage3_scale"), "r") as sf:
-                            self.adc_scale = float(sf.read().strip())
-                        self.logger.info(f"Found ADS1015 ADC at {device} with scale {self.adc_scale}")
-                        break
-            except Exception as e:
-                self.logger.warning(f"Error checking IIO device {device}: {e}")
-                continue
-
-        if not self.adc_path:
-            self.logger.error("Failed to find ADS1015 ADC device")
-            raise Exception("Required ADS1015 ADC device not found")
-
-        # Voltage divider ratio (actual voltage is 2x the ADC reading)
-        self.voltage_divider_ratio = 2.0
-
-        # Initialize INA219 power monitoring devices
-        self._ina_paths: dict[int, str] = {}  # i2c_addr -> hwmon path
-
-        # Scan hwmon devices to find our INA219s
-        for hwmon in glob.glob("/sys/class/hwmon/hwmon*"):
-            try:
-                with open(os.path.join(hwmon, "name"), "r") as f:
-                    if f.read().strip() != "ina219":
-                        continue
-
-                # Read the I2C address from the device tree
-                with open(os.path.join(hwmon, "device/of_node/reg"), "rb") as f:
-                    reg = int.from_bytes(f.read(), byteorder="big")
-                    self._ina_paths[reg] = hwmon
-                    self.logger.info(f"Found INA219 at 0x{reg:02X}: {hwmon}")
-            except Exception as e:
-                self.logger.warning(f"Error checking hwmon device {hwmon}: {e}")
-                continue
-
-        if 0x40 not in self._ina_paths or 0x41 not in self._ina_paths:
-            self.logger.error("Failed to find both INA219 power monitoring devices")
-            raise Exception("Required INA219 power monitoring devices not found")
-
-        # Convenience aliases
-        self.power_ina_path = self._ina_paths[0x40]
-        self.chg_power_ina_path = self._ina_paths[0x41]
+        self.mcp4017 = mcp4017
+        self._ina219 = INA219(logger)
 
         # We use GPIOs to control the power to the DUT and the charging power to the DUT.
         self.dut_pwr_en = Gpio(consumer="mtib-dut-pwr-en", pin=Pin.SODIMM_55, direction=gpiod.line.Direction.OUTPUT)
@@ -120,29 +87,16 @@ class PowerHandler:
     #                           Internal helpers
     # -------------------------------------------------
 
-    def _get_ina_path(self, channel: int) -> Optional[str]:
-        """Get INA219 hwmon path for a power channel enum value."""
-        addr = _CHANNEL_INA_ADDR.get(channel)
-        if addr is None:
-            return None
-        return self._ina_paths.get(addr)
+    def _get_ina_addr(self, channel: int) -> Optional[int]:
+        """Get INA219 I2C address for a power channel enum value."""
+        return _CHANNEL_INA_ADDR.get(channel)
 
-    def _read_ina219(self, hwmon_path: str) -> Tuple[Optional[str], float, float, float]:
-        """Read voltage (V), current (mA), power (mW) from INA219 hwmon.
+    def _read_ina219(self, addr: int) -> Tuple[Optional[str], float, float, float]:
+        """Read voltage (V), current (mA), power (mW) from INA219.
 
         Returns (error, voltage_v, current_ma, power_mw). Error is None on success.
         """
-        try:
-            with open(os.path.join(hwmon_path, "in1_input"), "r") as f:
-                voltage_v = float(f.read().strip()) / 1000.0  # mV -> V
-            with open(os.path.join(hwmon_path, "curr1_input"), "r") as f:
-                current_ma = float(f.read().strip())  # already in mA
-            with open(os.path.join(hwmon_path, "power1_input"), "r") as f:
-                power_mw = float(f.read().strip()) / 1000.0  # uW -> mW
-            return None, voltage_v, current_ma, power_mw
-        except Exception as e:
-            self.logger.error(f"Failed to read INA219 at {hwmon_path}: {e}")
-            return str(e), 0.0, 0.0, 0.0
+        return self._ina219.read(addr)
 
     def _get_en_gpio(self, channel: int) -> Tuple[Gpio, str]:
         """Get the enable GPIO and label for a channel."""
@@ -163,10 +117,11 @@ class PowerHandler:
             self._chg_enabled = val
 
     def _read_adc_voltage(self) -> Tuple[Optional[float], Optional[str]]:
-        """Read voltage from ADS1015 ADC channel 3 (for feedback loop)."""
+        """Read voltage from INA219 at DUT address (for feedback loop)."""
         try:
-            with open(os.path.join(self.power_ina_path, "in1_input"), "r") as f:
-                voltage_v = float(f.read().strip()) / 1000.0
+            err, voltage_v, _, _ = self._ina219.read(0x40)
+            if err:
+                return None, err
             return voltage_v, None
         except Exception as e:
             self.logger.error(f"Error reading ADC voltage: {e}")
@@ -261,11 +216,11 @@ class PowerHandler:
         """Read power status for a channel ."""
         self.logger.info(f"PowerRead: channel={request.channel}")
         try:
-            ina_path = self._get_ina_path(request.channel)
-            if not ina_path:
+            addr = self._get_ina_addr(request.channel)
+            if addr is None:
                 return PowerReadResponse(success=False, message=f"No INA219 for channel {request.channel}")
 
-            err, voltage_v, current_ma, power_mw = self._read_ina219(ina_path)
+            err, voltage_v, current_ma, power_mw = self._read_ina219(addr)
             if err:
                 return PowerReadResponse(success=False, message=f"Failed to read INA219: {err}")
             return PowerReadResponse(
@@ -282,8 +237,8 @@ class PowerHandler:
         """Measure power over a duration and compute statistics ."""
         self.logger.info(f"PowerMeasure: channel={request.channel}, duration={request.duration_s}s")
         try:
-            ina_path = self._get_ina_path(request.channel)
-            if not ina_path:
+            addr = self._get_ina_addr(request.channel)
+            if addr is None:
                 return PowerMeasureResponse(success=False, message=f"No INA219 for channel {request.channel}")
 
             currents_ma = []
@@ -293,7 +248,7 @@ class PowerHandler:
             while (time.time() - start_time) < request.duration_s:
                 if not context.is_active():
                     break
-                err, voltage_v, current_ma, _ = self._read_ina219(ina_path)
+                err, voltage_v, current_ma, _ = self._read_ina219(addr)
                 if err:
                     continue  # skip bad samples, keep collecting
                 currents_ma.append(current_ma)
@@ -343,14 +298,14 @@ class PowerHandler:
                 batch_config=batch_config,
             )
 
-            ina_path = self._get_ina_path(channel)
-            if not ina_path:
+            addr = self._get_ina_addr(channel)
+            if addr is None:
                 raise ValueError(f"No INA219 for channel {channel}")
 
             start_time = time.time()
 
             def read_power() -> Optional[bytes]:
-                err, voltage_v, current_ma, _ = self._read_ina219(ina_path)
+                err, voltage_v, current_ma, _ = self._read_ina219(addr)
                 if err:
                     time.sleep(0.1)
                     return None
@@ -384,8 +339,8 @@ class PowerHandler:
         Uses multi-subscriber broadcasting so multiple clients can
         receive the same power data without duplicating hardware reads.
         """
-        ina_path = self._get_ina_path(request.channel)
-        if not ina_path:
+        addr = self._get_ina_addr(request.channel)
+        if addr is None:
             yield PowerStreamResponse(samples=[])
             return
 
@@ -435,10 +390,7 @@ class PowerHandler:
         """Return current power readings for GetSnapshot."""
         result = []
         for channel, addr in _CHANNEL_INA_ADDR.items():
-            hwmon = self._ina_paths.get(addr)
-            if not hwmon:
-                continue
-            err, voltage_v, current_ma, _ = self._read_ina219(hwmon)
+            err, voltage_v, current_ma, _ = self._read_ina219(addr)
             if err:
                 continue
             result.append(SnapshotPower(

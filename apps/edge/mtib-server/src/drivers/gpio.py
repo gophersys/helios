@@ -6,7 +6,8 @@ from typing import Optional
 import gpiod
 
 # Corekinect imports
-from gpiod.line import Direction, Value
+from gpiod.line import Bias, Direction, Value
+
 
 # -------------------------------------------------
 #                   Toradex Verdin iMX8MM SoM pins
@@ -101,10 +102,11 @@ class Pin(Enum):
 #                                        GPIO Class
 # -------------------------------------------------
 class Gpio:
-    def __init__(self, consumer: str, pin: Pin, direction: Direction):
+    def __init__(self, consumer: str, pin: Pin, direction: Direction, bias: Bias = Bias.AS_IS):
         self.consumer = consumer
         self.pin = pin
         self.direction = direction
+        self.bias = bias
         self.request: Optional[gpiod.LineRequest] = None
         self._state: int = 0  # Track the current state of the pin
 
@@ -116,7 +118,11 @@ class Gpio:
                 try:
                     with gpiod.Chip(f"/dev/gpiochip{chip_num}") as gpio_chip:
                         config = {
-                            self.pin.value: gpiod.LineSettings(direction=self.direction, output_value=Value.INACTIVE)
+                            self.pin.value: gpiod.LineSettings(
+                                direction=self.direction,
+                                bias=self.bias,
+                                output_value=Value.INACTIVE,
+                            )
                         }
                         self.request = gpio_chip.request_lines(config=config, consumer=self.consumer)
                         # Initialize state to 0 (INACTIVE)

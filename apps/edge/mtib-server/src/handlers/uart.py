@@ -1,3 +1,4 @@
+# Standard library
 import os
 import queue
 import threading
@@ -6,10 +7,19 @@ import weakref
 from queue import Queue
 from typing import Dict, Iterator, Optional, Set
 
+# Third party
 import grpc
 import serial
+
+# Corekinect
 from corekinect.utils import Logger
-from src.shared.types import *
+
+# Proto types
+from src.shared.types import (
+    HostType,
+    UartStreamRequest,
+    UartStreamResponse,
+)
 
 
 class UartHandler:

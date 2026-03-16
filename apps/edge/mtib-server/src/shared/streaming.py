@@ -153,6 +153,7 @@ class StreamBroadcaster:
 
     _next_broadcaster_id = 0
     _next_subscriber_id = 0
+    _id_lock = threading.Lock()
 
     def __init__(
         self,
@@ -167,8 +168,9 @@ class StreamBroadcaster:
             logger: Logger instance
             batch_config: Batching configuration (defaults to newline/256 bytes)
         """
-        StreamBroadcaster._next_broadcaster_id += 1
-        self._id = StreamBroadcaster._next_broadcaster_id
+        with StreamBroadcaster._id_lock:
+            StreamBroadcaster._next_broadcaster_id += 1
+            self._id = StreamBroadcaster._next_broadcaster_id
 
         self._name = name
         self._logger = logger.from_parent(f"broadcaster-{name}")
@@ -215,8 +217,9 @@ class StreamBroadcaster:
         Returns:
             A Subscription object for receiving data
         """
-        StreamBroadcaster._next_subscriber_id += 1
-        sub_id = StreamBroadcaster._next_subscriber_id
+        with StreamBroadcaster._id_lock:
+            StreamBroadcaster._next_subscriber_id += 1
+            sub_id = StreamBroadcaster._next_subscriber_id
 
         data_queue: queue.Queue[bytes] = queue.Queue(maxsize=queue_size)
 

@@ -1,6 +1,6 @@
 # Standard library imports
-import threading
 import time
+from datetime import timedelta
 from typing import Dict, Iterator, Optional
 
 # Third party imports
@@ -9,11 +9,24 @@ import grpc
 
 # Corekinect imports
 from corekinect.utils import Logger
-from gpiod.line import Direction, Edge, Value
+from gpiod.line import Bias, Direction, Edge, Value
 
 # Protocol imports
-from src.services.gpio import Gpio, Pin
-from src.shared.types import *
+from src.drivers.gpio import Gpio, Pin
+from src.shared.types import (
+    GpioConfigRequest,
+    GpioConfigResponse,
+    GpioDirection,
+    GpioReadRequest,
+    GpioReadResponse,
+    GpioResistorConfig,
+    GpioWriteRequest,
+    GpioWriteResponse,
+    GpioEdge,
+    GpioWatchRequest,
+    GpioWatchEvent,
+    SnapshotGpio,
+)
 
 
 # -------------------------------------------------
@@ -23,6 +36,13 @@ class GpioHandler:
     def __init__(self, gpios: Dict[int, Gpio], logger: Logger):
         self.gpios = gpios
         self.logger = logger
+
+    # Map proto resistor config to gpiod Bias
+    _RESISTOR_MAP = {
+        GpioResistorConfig.GPIO_RESISTOR_PULL_UP: Bias.PULL_UP,
+        GpioResistorConfig.GPIO_RESISTOR_PULL_DOWN: Bias.PULL_DOWN,
+        GpioResistorConfig.GPIO_RESISTOR_NONE: Bias.DISABLED,
+    }
 
     def config(self, request: GpioConfigRequest, context: grpc.ServicerContext) -> GpioConfigResponse:
         """Configure a GPIO pin's direction and resistor settings."""
@@ -36,6 +56,11 @@ class GpioHandler:
 
         direction = Direction.OUTPUT if request.direction == GpioDirection.GPIO_DIRECTION_OUTPUT else Direction.INPUT
         gpio.direction = direction
+
+        # Apply resistor/bias config if specified
+        bias = self._RESISTOR_MAP.get(request.resistor)
+        if bias is not None:
+            gpio.bias = bias
 
         if err := gpio.init():
             return GpioConfigResponse(success=False, message=f"Failed to configure GPIO: {err}")
@@ -72,7 +97,7 @@ class GpioHandler:
         return GpioReadResponse(success=True, message="", state=bool(value))
 
     def watch(self, request: GpioWatchRequest, context: grpc.ServicerContext) -> Iterator[GpioWatchEvent]:
-        """Server-streaming GPIO edge detection (V2 RPC)."""
+        """Server-streaming GPIO edge detection."""
         self.logger.info(f"GpioWatch: gpio={request.gpio}, edge={request.edge}")
 
         if request.gpio not in self.gpios:
@@ -89,13 +114,11 @@ class GpioHandler:
         }
         gpiod_edge = edge_map.get(request.edge, Edge.BOTH)
 
-        # We need to temporarily release the pin from the existing request
-        # and re-request it with edge detection enabled
+        # Temporarily release the pin and re-request with edge detection
         gpio.deinit()
 
         watch_request = None
         try:
-            # Find the chip and request with edge detection
             for chip_num in range(5):
                 try:
                     chip = gpiod.Chip(f"/dev/gpiochip{chip_num}")
@@ -103,20 +126,9 @@ class GpioHandler:
                         pin.value: gpiod.LineSettings(
                             direction=Direction.INPUT,
                             edge_detection=gpiod_edge,
-                            debounce_period=gpiod.line.clock.Monotonic if hasattr(gpiod.line, 'clock') else None,
                         )
                     }
-                    # Try simpler config if the above fails
-                    try:
-                        config = {
-                            pin.value: gpiod.LineSettings(
-                                direction=Direction.INPUT,
-                                edge_detection=gpiod_edge,
-                            )
-                        }
-                        watch_request = chip.request_lines(config=config, consumer="mtib-gpio-watch")
-                    except Exception:
-                        continue
+                    watch_request = chip.request_lines(config=config, consumer="mtib-gpio-watch")
                     break
                 except Exception:
                     continue
@@ -129,26 +141,22 @@ class GpioHandler:
             start_time = time.time()
 
             while context.is_active():
-                # Wait for edge events with timeout
-                if watch_request.wait_edge_events(timeout=gpiod.line.clock.Monotonic if hasattr(gpiod.line, 'clock') else None):
-                    pass
-
-                try:
-                    # Use a polling approach that works across gpiod versions
-                    events = watch_request.read_edge_events()
-                    for event in events:
-                        if not context.is_active():
-                            break
-                        elapsed_ms = int((time.time() - start_time) * 1000)
-                        state = event.event_type == gpiod.EdgeEvent.Type.RISING_EDGE
-                        yield GpioWatchEvent(
-                            gpio=request.gpio,
-                            state=state,
-                            timestamp_ms=elapsed_ms,
-                        )
-                except Exception:
-                    # No events available, poll with short sleep
-                    time.sleep(0.01)
+                # Wait for edge events with 100ms timeout (timedelta, not clock type)
+                if watch_request.wait_edge_events(timeout=timedelta(milliseconds=100)):
+                    try:
+                        events = watch_request.read_edge_events()
+                        for event in events:
+                            if not context.is_active():
+                                break
+                            elapsed_ms = int((time.time() - start_time) * 1000)
+                            state = event.event_type == gpiod.EdgeEvent.Type.RISING_EDGE
+                            yield GpioWatchEvent(
+                                gpio=request.gpio,
+                                state=state,
+                                timestamp_ms=elapsed_ms,
+                            )
+                    except Exception:
+                        pass
 
         except Exception as e:
             self.logger.error(f"GpioWatch error: {e}")

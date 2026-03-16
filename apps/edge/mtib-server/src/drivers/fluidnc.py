@@ -14,7 +14,7 @@ import serial
 from corekinect.utils import Logger
 
 # Project imports
-from src.services.gpio import Gpio, Pin, Direction
+from src.drivers.gpio import Gpio, Pin, Direction
 from xmodem import XMODEM
 
 
