@@ -539,6 +539,11 @@ class PipelineAssets:
                 # Fetch artifacts separately if count > 0 but not inline
                 self._log.debug("Fetching artifacts for build %s (%d expected)", label, b["artifactCount"])
                 artifacts = self._fetch_build_artifacts(b["id"])
+            elif b.get("reusedFromId"):
+                # CACHED build — artifacts live on the original build
+                reused_id = b["reusedFromId"]
+                self._log.debug("Build %s is CACHED, fetching artifacts from original %s", label, reused_id)
+                artifacts = self._fetch_build_artifacts(reused_id)
 
             build = PipelineBuild(
                 id=b["id"],
@@ -717,40 +722,48 @@ class PipelineAssets:
     def get_fuota_transitions(self) -> List[tuple]:
         """Get the FUOTA transition sequence for this pipeline.
 
-        Returns list of (from_label, to_label, purpose) tuples.
-        Only returns transitions where:
-        - The "to" build is a version_bump of the "from" build
-        - Both builds have CFW files (produces_cfw=True)
+        Returns list of (flash_label, fuota_label, purpose) tuples.
+        Each transition: flash firmware via J-Link, then FUOTA to target.
 
-        Stage 5 defines 4 valid FUOTA transitions:
-        - MFG_BASE -> MFG_BUMP (sanity test: same code, bumped version)
-        - FUT_DEBUG_A -> FUT_DEBUG_B (debug build FUOTA)
-        - FUT_RELEASE_A -> FUT_RELEASE_B (release build FUOTA)
-        - MAIN_BASELINE -> MAIN_MERGED (field upgrade path)
+        Pipeline build labels:
+        - MFG_FLASH_*       MFG firmware to flash via J-Link
+        - MFG_BASE_*        MFG firmware base (newer version)
+        - FLASH_BASE_*      App firmware base (for reference)
+        - FUOTA_TARGET_*    App firmware target (for FUOTA delivery)
         """
-        # These are the only valid FUOTA transitions per stage_builds.py
-        # (where is_version_bump=True and base_label points to from_build)
         return [
-            ("MFG_BASE", "MFG_BUMP", "MFG FUOTA sanity (same code, bumped version)"),
-            ("FUT_DEBUG_A", "FUT_DEBUG_B", "Debug build FUOTA"),
-            ("FUT_RELEASE_A", "FUT_RELEASE_B", "Release build FUOTA"),
-            ("MAIN_BASELINE", "MAIN_MERGED", "Field upgrade path (main -> merged)"),
+            ("MFG_FLASH_DEBUG", "FUOTA_TARGET_RELEASE", "MFG flash -> prod FUOTA (release)"),
+            ("MFG_FLASH_DEBUG", "FUOTA_TARGET_DEBUG", "MFG flash -> prod FUOTA (debug)"),
         ]
 
     def has_all_builds(self) -> bool:
-        """Check if all 8 Stage 4 builds are present and completed."""
-        required = [
-            "MFG_BASE", "MFG_BUMP",
-            "FUT_DEBUG_A", "FUT_DEBUG_B",
-            "FUT_RELEASE_A", "FUT_RELEASE_B",
-            "MAIN_BASELINE", "MAIN_MERGED",
-        ]
+        """Check if the pipeline has the minimum required builds.
+
+        At minimum we need a flash base (MFG) and a FUOTA target.
+        Additional builds are optional.
+        """
         builds = self.builds
-        for label in required:
-            if label not in builds:
+        if not builds:
+            return False
+
+        # Need at least one MFG flash build and one FUOTA target
+        has_flash = any(
+            "MFG_FLASH" in label or "MFG_BASE" in label
+            for label in builds
+        )
+        has_fuota = any(
+            "FUOTA_TARGET" in label
+            for label in builds
+        )
+
+        if not has_flash or not has_fuota:
+            return False
+
+        # All present builds must be SUCCESS or CACHED
+        for label, build in builds.items():
+            if build.status not in ("SUCCESS", "CACHED"):
                 return False
-            if builds[label].status != "SUCCESS":
-                return False
+
         return True
 
     def summary(self) -> str:

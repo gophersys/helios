@@ -25,11 +25,16 @@ from .stage_builds import (
 logger = logging.getLogger(__name__)
 
 
-def _safe_product_str(obj) -> str | None:
-    """Safely extract product slug string from a model field that could be a string or relation."""
+def _safe_product_str(obj, target: str | None = None) -> str | None:
+    """Safely extract product slug string from a model field that could be a string or relation.
+
+    If target is "mfg", returns mfgRepoSlug instead of repoSlug.
+    """
     if isinstance(obj, str):
         return obj
     if obj and hasattr(obj, "repoSlug"):
+        if target == "mfg" and getattr(obj, "mfgRepoSlug", None):
+            return obj.mfgRepoSlug
         return obj.repoSlug or obj.slug or obj.name
     return None
 
@@ -224,7 +229,7 @@ def _serialize_pipeline(p) -> Dict[str, Any]:
         data["builds"] = [
             {
                 "id": b.id,
-                "product": _safe_product_str(getattr(b, "product", None)) or getattr(b, "productId", None),
+                "product": _safe_product_str(getattr(b, "product", None), getattr(b, "target", None)) or getattr(b, "productId", None),
                 "status": b.status,
                 "variant": b.variant,
                 "buildNum": b.buildNum,
@@ -268,7 +273,7 @@ def _serialize_pipeline_summary(p) -> Dict[str, Any]:
         data["builds"] = [
             {
                 "id": b.id,
-                "product": _safe_product_str(getattr(b, "product", None)) or getattr(b, "productId", None),
+                "product": _safe_product_str(getattr(b, "product", None), getattr(b, "target", None)) or getattr(b, "productId", None),
                 "status": b.status,
                 "variant": b.variant,
                 "versionString": b.versionString,
