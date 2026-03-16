@@ -17,6 +17,8 @@ spec:
     metadata:
       labels:
         app: concord-git-poller
+      annotations:
+        rollme: {{ randAlphaNum 10 | quote }}
     spec:
       containers:
         - name: git-poller

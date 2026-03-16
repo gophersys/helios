@@ -24,6 +24,7 @@ spec:
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
         checksum/secret: {{ include (print $.Template.BasePath "/secrets.yaml") . | sha256sum }}
+        rollme: {{ randAlphaNum 10 | quote }}
     spec:
       terminationGracePeriodSeconds: 30
       {{- if .Values.httpApi.serviceAccount.create }}

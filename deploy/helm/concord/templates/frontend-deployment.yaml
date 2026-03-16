@@ -21,6 +21,8 @@ spec:
       labels:
         {{- include "concord.labels" . | nindent 8 }}
         {{- include "concord.frontend.selectorLabels" . | nindent 8 }}
+      annotations:
+        rollme: {{ randAlphaNum 10 | quote }}
     spec:
       terminationGracePeriodSeconds: 15
       containers:
