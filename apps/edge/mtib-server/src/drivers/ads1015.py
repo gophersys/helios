@@ -123,7 +123,7 @@ class ADS1015:
         else:
             raise ValueError(f"Invalid channel {channel}. Must be between 0 and 7.")
 
-    def _calculate_real_voltage(self, raw_value: int, channel: int) -> float:
+    def calculate_real_voltage(self, raw_value: int, channel: int) -> float:
         """Calculate the real voltage after accounting for voltage divider."""
         scale_factor = self.scale_factors.get(channel, self.optimal_scale)
         voltage_mV = float(raw_value) * scale_factor
@@ -167,5 +167,5 @@ class ADS1015:
         if err:
             return err, 0.0
 
-        voltage = self._calculate_real_voltage(raw_value, channel)
+        voltage = self.calculate_real_voltage(raw_value, channel)
         return None, voltage
