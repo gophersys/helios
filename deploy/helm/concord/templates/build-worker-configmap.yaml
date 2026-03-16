@@ -799,8 +799,10 @@ data:
                 self.update_job(job.id, "CLONING")
                 main_fw = f"{product_base}_fw"
                 main_fw_dir = work_dir / main_fw
-                log.info("Cloning %s (branch=%s)...", main_fw, job.branch)
-                if not self.git_ops.clone_repo(main_fw, main_fw_dir, job.commit_sha, branch=job.branch, job_id=job.id):
+                # For mfg target builds, the commitSha belongs to the mfg repo — clone main fw at latest
+                main_commit = job.commit_sha if job.target != "mfg" else None
+                log.info("Cloning %s (branch=%s, commit=%s)...", main_fw, job.branch, (main_commit or "latest")[:8])
+                if not self.git_ops.clone_repo(main_fw, main_fw_dir, main_commit, branch=job.branch, job_id=job.id):
                     self.update_job(job.id, "FAILED", f"Failed to clone {main_fw} (branch={job.branch})")
                     return False
 
@@ -816,9 +818,9 @@ data:
                 # 4. Clone manufacturing firmware repo (e.g., alpha_mfg_fw)
                 mfg_fw = f"{product_base}_mfg_fw"
                 mfg_fw_dir = work_dir / mfg_fw
-                log.info("Cloning %s (branch=%s)...", mfg_fw, job.branch)
-                # For mfg builds, use same commit; for production builds, just get latest
-                mfg_commit = job.commit_sha if "_mfg" in job.product else None
+                # For mfg target builds, the commitSha belongs to the mfg repo
+                mfg_commit = job.commit_sha if job.target == "mfg" else None
+                log.info("Cloning %s (branch=%s, commit=%s)...", mfg_fw, job.branch, (mfg_commit or "latest")[:8] if mfg_commit else "latest")
                 if not self.git_ops.clone_repo(mfg_fw, mfg_fw_dir, mfg_commit, branch=job.branch, job_id=job.id):
                     log.warning("Failed to clone %s - mfg builds may fail", mfg_fw)
                     # Don't fail here, mfg repo might not exist for all products
