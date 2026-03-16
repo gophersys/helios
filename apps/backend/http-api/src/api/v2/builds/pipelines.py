@@ -881,6 +881,7 @@ def trigger_pipeline_validation(pipeline_id: str, pipeline, builds: list) -> Opt
     """
     Trigger a validation job for a completed pipeline.
     Creates a validation session and K8s job with the build artifacts.
+    Uses the Fixture model (not legacy TestBench).
     Returns the validation run ID if successful.
     """
     import hashlib
@@ -893,55 +894,97 @@ def trigger_pipeline_validation(pipeline_id: str, pipeline, builds: list) -> Opt
     db = get_db_client()
 
     try:
-        # Look up the product by name
-        product = db.product.find_first(
-            where={"name": {"contains": pipeline.product, "mode": "insensitive"}},
-        )
+        # Look up the product
+        product = db.product.find_unique(where={"id": pipeline.productId}) if pipeline.productId else None
         if not product:
-            logger.warning("Product not found for pipeline %s: %s", pipeline_id, pipeline.product)
+            product = db.product.find_first(
+                where={"name": {"contains": pipeline.product, "mode": "insensitive"}} if hasattr(pipeline, "product") and pipeline.product else {},
+            )
+        if not product:
+            logger.warning("Product not found for pipeline %s", pipeline_id)
             return None
 
-        # Find an available test bench for this product
-        bench = db.testbench.find_first(
+        # Find an available fixture for this product
+        fixture = db.fixture.find_first(
             where={
-                "dutProduct": pipeline.product.lower(),
+                "productId": product.id,
                 "status": "AVAILABLE",
+                "active": True,
+            },
+            include={
+                "slots": True,
+                "design": True,
             },
         )
-        if not bench:
-            logger.warning("No available test bench for product %s", pipeline.product)
+        if not fixture:
+            logger.warning("No available fixture for product %s", product.name)
             return None
 
-        # Lock the bench for this pipeline
-        db.testbench.update(
-            where={"id": bench.id},
+        # Get the first active slot with DUT identity
+        slot = None
+        for s in (fixture.slots or []):
+            if s.active and s.dutSnr:
+                slot = s
+                break
+
+        if not slot:
+            logger.warning("Fixture %s has no active slot with DUT identity", fixture.name)
+            return None
+
+        # Lock the fixture
+        db.fixture.update(
+            where={"id": fixture.id},
             data={
                 "status": "LOCKED",
-                "lockedBy": pipeline_id,
+                "lockedBy": f"pipeline:{pipeline_id}",
                 "lockedAt": datetime.now(timezone.utc),
             },
         )
-        logger.info("Locked bench %s (%s) for pipeline %s", bench.stationId, bench.id, pipeline_id)
+        logger.info("Locked fixture %s for pipeline %s", fixture.name, pipeline_id[:8])
+
+        # Get MTIB address from the node linked to the slot
+        mtib_address = None
+        if slot.nodeId:
+            node = db.node.find_unique(where={"id": slot.nodeId})
+            if node:
+                mtib_address = node.address
+        if not mtib_address:
+            # Fallback: check fixture metadata
+            meta = fixture.metadata if isinstance(fixture.metadata, dict) else {}
+            mtib_address = meta.get("mtibAddress", "")
 
         # Create a validation session
+        build_summaries = []
+        for b in builds:
+            slug = _derive_build_product_slug(b)
+            build_summaries.append({"id": b.id, "product": slug, "variant": b.variant, "version": b.versionString})
+
         session = db.session.create(
             data={
-                "name": f"Pipeline {pipeline.name} - {pipeline.branch}",
+                "name": f"FUOTA validation — {product.name} {pipeline.branch}",
+                "type": "VALIDATION",
                 "productId": product.id,
+                "fixtureId": fixture.id,
                 "pipelineRunId": pipeline_id,
                 "status": "ACTIVE",
                 "config": Json({
                     "pipelineId": pipeline_id,
                     "branch": pipeline.branch,
-                    "builds": [{"id": b.id, "product": b.product, "buildNum": b.buildNum} for b in builds],
-                    "bench": {
-                        "id": bench.id,
-                        "stationId": bench.stationId,
-                        "mtibAddress": bench.mtibAddress,
-                        "dutDeviceId": bench.dutDeviceId,
-                        "dutSnr": bench.dutSnr,
+                    "builds": build_summaries,
+                    "fixture": {
+                        "id": fixture.id,
+                        "name": fixture.name,
+                        "stationId": fixture.stationId,
                     },
+                    "slot": {
+                        "dutDeviceId": slot.dutDeviceId,
+                        "dutSnr": slot.dutSnr,
+                        "dutImei": slot.dutImei,
+                        "dutIccids": slot.dutIccids,
+                    },
+                    "mtibAddress": mtib_address,
                 }),
+                "createdById": _get_system_user_id(db),
             },
         )
 
@@ -949,23 +992,12 @@ def trigger_pipeline_validation(pipeline_id: str, pipeline, builds: list) -> Opt
         raw_key = f"ck_run_{secrets.token_urlsafe(32)}"
         key_hash = hashlib.sha256(raw_key.encode()).hexdigest()
 
-        # Use a system user for pipeline-triggered runs
-        system_user = db.user.find_first(where={"email": "system@concord.local"})
-        if not system_user:
-            # Create system user if it doesn't exist
-            system_user = db.user.create(
-                data={
-                    "name": "System",
-                    "email": "system@concord.local",
-                },
-            )
-
         db.apikey.create(
             data={
                 "name": f"Pipeline validation {session.id}",
                 "keyHash": key_hash,
                 "keyPrefix": raw_key[:12],
-                "userId": system_user.id,
+                "userId": _get_system_user_id(db),
                 "expiresAt": datetime.now(timezone.utc) + timedelta(hours=24),
             },
         )
@@ -973,54 +1005,48 @@ def trigger_pipeline_validation(pipeline_id: str, pipeline, builds: list) -> Opt
         # Get API URL for reporter
         api_url = os.environ.get("CONCORD_API_URL", "https://10.4.45.11:443")
 
-        # Get firmware artifacts from builds
-        # Look for the mfg hex files (used for J-Link flash)
-        firmware_path = ""
-        for build in builds:
-            if "_mfg_" in build.product:
-                # Use mfg firmware for initial flash
-                artifacts = db.buildjobartifact.find_many(
-                    where={"buildJobId": build.id, "name": {"contains": "merged.hex"}},
-                )
-                if artifacts:
-                    firmware_path = artifacts[0].storageKey
-                    break
-
-        # Determine test configuration
-        test_enable = {
-            "electrical": True,
-            "app_post": True,
-            "comm_post": True,
-        }
-
-        # Get firmware version from one of the builds
+        # Get firmware version from the FUOTA target build (release variant)
         firmware_version = None
         for build in builds:
-            if build.versionString:
+            if build.versionString and build.variant == "release":
                 firmware_version = build.versionString
                 break
+        if not firmware_version:
+            for build in builds:
+                if build.versionString:
+                    firmware_version = build.versionString
+                    break
+
+        # Determine fixture profile path
+        fixture_profile_path = ""
+        if fixture.design and hasattr(fixture.design, "profileTemplate"):
+            fixture_profile_path = f"fixtures/{product.slug}.json"
 
         # Create K8s Job
+        test_enable = {"electrical": False, "app_post": False, "comm_post": False}
+
         job_name = create_kubernetes_job(
             product=product.name,
             job_id=session.id,
-            firmware_path=firmware_path,
+            firmware_path="",  # Validation runner fetches from MinIO by build ID
             test_type="validation",
             test_enable=test_enable,
-            firmware_version=firmware_version,
+            firmware_version=firmware_version or "unknown",
             run_id=session.id,
             api_key=raw_key,
             api_url=api_url,
-            # Bench params from scheduler
-            mtib_address=bench.mtibAddress,
-            bench_id=bench.id,
-            device_id=bench.dutDeviceId,
-            device_snr=bench.dutSnr,
-            fixture_profile_path=bench.profilePath,
+            mtib_address=mtib_address or "",
+            bench_id=fixture.id,
+            device_id=slot.dutDeviceId or "",
+            device_snr=slot.dutSnr or "",
+            fixture_profile_path=fixture_profile_path,
+            stage="fuota",
         )
 
         if not job_name:
             logger.error("Failed to create K8s job for pipeline %s", pipeline_id)
+            # Unlock fixture
+            db.fixture.update(where={"id": fixture.id}, data={"status": "AVAILABLE", "lockedBy": None, "lockedAt": None})
             return None
 
         # Update session with job info
@@ -1031,11 +1057,6 @@ def trigger_pipeline_validation(pipeline_id: str, pipeline, builds: list) -> Opt
             "triggeredAt": datetime.now(timezone.utc).isoformat(),
         }
         config["apiUrl"] = api_url
-        config["concordRunId"] = session.id
-        # Store bench info for unlock on finish
-        config["benchId"] = bench.id
-        config["benchStationId"] = bench.stationId
-        config["mtibAddress"] = bench.mtibAddress
 
         db.session.update(
             where={"id": session.id},
@@ -1045,15 +1066,36 @@ def trigger_pipeline_validation(pipeline_id: str, pipeline, builds: list) -> Opt
         log_audit("ci.pipeline.validation_trigger", "PipelineRun", pipeline_id, {
             "sessionId": session.id,
             "jobName": job_name,
-            "benchId": bench.id,
-            "stationId": bench.stationId,
+            "fixtureId": fixture.id,
+            "fixtureStationId": fixture.stationId,
         })
 
+        logger.info("Validation triggered for pipeline %s: session=%s, job=%s", pipeline_id[:8], session.id[:8], job_name)
         return session.id
 
     except Exception as e:
         logger.error("Failed to trigger validation for pipeline %s: %s", pipeline_id, e)
         return None
+
+
+def _derive_build_product_slug(b) -> str:
+    """Get product slug from build for session metadata."""
+    product = getattr(b, "product", None)
+    if isinstance(product, str):
+        return product
+    if product and hasattr(product, "repoSlug"):
+        if getattr(b, "target", "") == "mfg" and getattr(product, "mfgRepoSlug", None):
+            return product.mfgRepoSlug
+        return product.repoSlug or product.slug
+    return getattr(b, "productId", "unknown")
+
+
+def _get_system_user_id(db) -> str:
+    """Get or create system user for automated actions."""
+    system_user = db.user.find_first(where={"email": "system@concord.local"})
+    if not system_user:
+        system_user = db.user.create(data={"name": "System", "email": "system@concord.local"})
+    return system_user.id
 
 
 @require_permissions(Permissions.BUILDS_VIEW)
