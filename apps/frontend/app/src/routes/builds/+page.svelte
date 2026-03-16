@@ -25,10 +25,10 @@
     Zap,
   } from 'lucide-svelte';
   import { getAuth } from '$lib/stores/auth.svelte';
-  import type { Pipeline, MatrixLabel, ValidationStage } from '$lib/types/ci';
+  import type { BuildJob, Pipeline, MatrixLabel, ValidationStage } from '$lib/types/ci';
   import { MATRIX_LABEL_DISPLAY, STAGE_DISPLAY } from '$lib/types/ci';
   import type { Pagination } from '$lib/types/models';
-  import { fetchPipelines, triggerPipeline } from '$lib/services/ci';
+  import { fetchPipelines, fetchBuilds, triggerPipeline } from '$lib/services/ci';
   import { formatTimeAgo, formatDateTime, formatDuration } from '$lib/utils/formatting';
   import EmptyState from '$lib/components/ui/empty-state.svelte';
   import ErrorAlert from '$lib/components/ui/error-alert.svelte';
@@ -119,7 +119,11 @@
     return Array.from(variants).join(', ');
   }
 
+  type ViewMode = 'pipelines' | 'jobs';
+  let viewMode = $state<ViewMode>('jobs');
+
   let pipelines = $state<Pipeline[]>([]);
+  let buildJobs = $state<BuildJob[]>([]);
   let pagination = $state<Pagination>({ page: 1, limit: 25, total: 0, pages: 0 });
   let loading = $state(true);
   let error = $state<string | null>(null);
@@ -171,9 +175,32 @@
     }
   }
 
+  async function loadBuildJobs(): Promise<void> {
+    try {
+      const res = await fetchBuilds({
+        page: currentPage,
+        limit: 25,
+        status: statusFilter || undefined,
+      });
+      buildJobs = res.data;
+      pagination = res.pagination;
+      error = null;
+    } catch (err: unknown) {
+      error = err instanceof Error ? err.message : 'Failed to load build jobs';
+    } finally {
+      loading = false;
+      refreshing = false;
+    }
+  }
+
+  function loadData(): void {
+    if (viewMode === 'pipelines') loadPipelines();
+    else loadBuildJobs();
+  }
+
   function refresh(): void {
     refreshing = true;
-    loadPipelines();
+    loadData();
   }
 
   function resetForm(): void {
@@ -230,18 +257,18 @@
       goto('/');
       return;
     }
-    loadPipelines();
+    loadData();
 
     // Auto-refresh every 10s
     const interval = setInterval(() => {
-      loadPipelines();
+      loadData();
     }, 10000);
     return () => clearInterval(interval);
   });
 
   $effect(() => {
     const _p = currentPage;
-    loadPipelines();
+    loadData();
   });
 
   $effect(() => {
@@ -363,8 +390,90 @@
     {/if}
   </div>
 
+  <!-- View toggle -->
+  <div class="mb-4 flex gap-1 border-b border-border">
+    <button
+      onclick={() => { viewMode = 'jobs'; loading = true; loadData(); }}
+      class="px-4 py-2 text-sm font-medium transition-colors {viewMode === 'jobs' ? 'border-b-2 border-accent text-accent' : 'text-text-tertiary hover:text-text-secondary'}"
+    >
+      Build Jobs
+    </button>
+    <button
+      onclick={() => { viewMode = 'pipelines'; loading = true; loadData(); }}
+      class="px-4 py-2 text-sm font-medium transition-colors {viewMode === 'pipelines' ? 'border-b-2 border-accent text-accent' : 'text-text-tertiary hover:text-text-secondary'}"
+    >
+      Pipelines
+    </button>
+  </div>
+
   {#if loading}
-    <LoadingState message="Loading pipelines..." />
+    <LoadingState message="Loading {viewMode === 'pipelines' ? 'pipelines' : 'build jobs'}..." />
+  {:else if viewMode === 'jobs'}
+    {#if buildJobs.length === 0}
+      <EmptyState message="No build jobs found." />
+    {:else}
+      <div class="space-y-2">
+        {#each buildJobs as build (build.id)}
+          <button
+            onclick={() => goto(`/builds/${build.id}`)}
+            class="w-full rounded-lg border border-border bg-surface-0 px-4 py-3 text-left transition-colors hover:bg-surface-1"
+          >
+            <div class="flex items-center justify-between gap-4">
+              <div class="flex items-center gap-3 min-w-0">
+                <Hammer size={16} class="flex-shrink-0 text-text-tertiary" />
+                <span class="text-sm font-medium text-text-primary">
+                  {build.product || 'Unknown'}
+                </span>
+                <span class="inline-flex items-center rounded bg-surface-2 px-1.5 py-0.5 text-2xs text-text-secondary font-mono">
+                  {build.variant}
+                </span>
+                {#if build.board}
+                  <span class="inline-flex items-center rounded bg-surface-2 px-1.5 py-0.5 text-2xs text-text-tertiary">
+                    {build.board}
+                  </span>
+                {/if}
+                {#if build.branch}
+                  <span class="inline-flex items-center gap-1 rounded bg-surface-2 px-1.5 py-0.5 text-2xs text-text-secondary">
+                    <GitBranch size={10} />
+                    {build.branch}
+                  </span>
+                {/if}
+                {#if build.versionString}
+                  <span class="inline-flex items-center rounded bg-accent-muted px-1.5 py-0.5 text-2xs text-accent font-mono font-medium">
+                    v{build.versionString}
+                  </span>
+                {/if}
+                <StatusBadge status={build.status} />
+              </div>
+              <div class="flex items-center gap-3 text-2xs text-text-tertiary flex-shrink-0">
+                {#if build.durationSeconds}
+                  <span class="tabular-nums">{formatDuration(build.durationSeconds * 1000)}</span>
+                {/if}
+                <span title={formatDateTime(build.createdAt)}>
+                  {formatTimeAgo(build.createdAt)}
+                </span>
+              </div>
+            </div>
+            {#if build.configFlags?.versionOverride}
+              <div class="mt-1.5 text-2xs text-text-tertiary">
+                Version override: <span class="font-mono text-text-secondary">{build.configFlags.versionOverride}</span>
+              </div>
+            {/if}
+            {#if build.artifacts && build.artifacts.length > 0}
+              <div class="mt-1.5 flex items-center gap-2 text-2xs text-text-tertiary">
+                <span>{build.artifacts.length} artifact{build.artifacts.length !== 1 ? 's' : ''}</span>
+                {#each build.artifacts.slice(0, 4) as art}
+                  <span class="font-mono bg-surface-2 px-1 py-0.5 rounded">{art.name}</span>
+                {/each}
+                {#if build.artifacts.length > 4}
+                  <span>+{build.artifacts.length - 4} more</span>
+                {/if}
+              </div>
+            {/if}
+          </button>
+        {/each}
+      </div>
+    {/if}
   {:else if pipelines.length === 0}
     <EmptyState message="No pipelines found." />
   {:else}
