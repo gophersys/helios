@@ -18,13 +18,10 @@ infrastructure:
     rootUser: concordadmin
     rootPassword: concord-minio-prod-2026
     storage: 10Gi
-  influxdb:
     enabled: true
     user: admin
-    password: concord-influx-prod-2026
     org: concord
     bucket: telemetry_raw
-    token: concord-influx-prod-token-2026
     storage: 10Gi
 
 httpApi:
@@ -56,13 +53,12 @@ config:
   SERVER_PORT: "9001"
   LOG_LEVEL: "2"
   LOG_PATH: "logs"
-  DB_STORAGE_PATH: "db"
-  DB_STORAGE_LIMIT_GB: "64"
   AUTH_ENABLED: "false"
   ASSETS_FOLDER: "assets"
   CORS_ORIGINS: "https://concord.local,http://concord.local"
-  SUPPORTED_REGISTRIES: "none"
   MTIB_PORT: "50053"
+  GIT_POLLER_ENABLED: "true"
+  GIT_POLLER_INTERVAL_S: "300"
 
 secrets:
   DATABASE_URL: "postgresql://concord:concord-prod-2026@concord-postgres:5432/concord"
@@ -70,11 +66,6 @@ secrets:
   STORAGE_ACCESS_KEY: "concordadmin"
   STORAGE_SECRET_ACCESS_KEY: "concord-minio-prod-2026"
   STORAGE_BUCKET_NAME: "concord"
-  INFLUXDB_URL: "http://concord-influxdb:8086"
-  INFLUXDB_TOKEN: "concord-influx-prod-token-2026"
-  INFLUXDB_ORG: "concord"
-  INFLUXDB_BUCKET_TELEMETRY: "telemetry_raw"
-  INFLUXDB_BUCKET_METRICS: "telemetry_metrics"
   JWT_SECRET_KEY: "concord-prod-jwt-secret-key-2026"
   COREOPS_SERVER_URL: "http://10.4.45.30:8001"
   AUTH_SERVER_URL: "https://auth.office.corekinect.cloud:2013"

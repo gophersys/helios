@@ -7,144 +7,184 @@ metadata:
   labels:
     app: concord-build-worker
 data:
-  worker.py: |
-    #!/usr/bin/env python3
-    """Build Worker — picks up QUEUED jobs, compiles firmware, uploads artifacts.
+  __init__.py: ""
+  config.py: |
+    """Build worker configuration."""
 
-    Architecture:
-      - Worker polls Concord API for QUEUED BuildJobs
-      - Claims a job by setting status to BUILDING
-      - Fetches build script and overlays from API
-      - Clones firmware repos (alpha_fw, alpha_mfg_fw) as subdirectories
-      - Runs the build script with proper directory structure
-      - Uploads artifacts (hex, cfw, logs) to MinIO via API
-      - Updates job status to SUCCESS/FAILED
+    import os
+    import socket
+    from dataclasses import dataclass
 
-    Directory structure created for each build:
-      /tmp/builds/<job_id>/
-        scripts/build.sh      # Fetched from API
-        overlays/             # Fetched from API (tarball extracted)
-        alpha_fw/             # Cloned from Bitbucket
-        alpha_mfg_fw/         # Cloned from Bitbucket (if building mfg)
 
-    Environment:
-      CONCORD_API_URL:  https://staging.concord.local
-      CONCORD_API_KEY:  API key for auth
-      WORKER_ID:        Unique worker identifier (default: hostname)
-      POLL_INTERVAL:    Seconds between polls (default: 5)
-      WORKSPACE_DIR:    Where to clone repos (default: /tmp/builds)
-      SSH_KEY_PATH:     SSH key for git clone (default: /root/.ssh/id_rsa)
+    @dataclass
+    class BuildConfig:
+        """Configuration loaded from environment variables."""
+        api_url: str
+        api_key: str
+        worker_id: str
+        poll_interval: int
+        workspace_dir: str
+        ssh_key_path: str
+        ncs_version: str | None  # Filter for specific NCS version (e.g., "2.7.0")
 
-    The build script receives env vars:
-      BUILD_DIR:        Where to output artifacts
-      VARIANT:          debug/release/mfg
-      MTIB_REV:         1.1/1.2
-      COMMIT_SHA:       Full commit hash
-      BRANCH:           Branch name
-    """
+        @classmethod
+        def from_env(cls) -> "BuildConfig":
+            return cls(
+                api_url=os.environ.get("CONCORD_API_URL", "https://staging.concord.local"),
+                api_key=os.environ.get("CONCORD_API_KEY", ""),
+                worker_id=os.environ.get("WORKER_ID", socket.gethostname()),
+                poll_interval=int(os.environ.get("POLL_INTERVAL", "5")),
+                workspace_dir=os.environ.get("WORKSPACE_DIR", "/tmp/builds"),
+                ssh_key_path=os.environ.get("SSH_KEY_PATH", "/root/.ssh/id_rsa"),
+                ncs_version=os.environ.get("NCS_VERSION"),
+            )
+  api_client.py: |
+    """HTTP client for the Concord API."""
+
+    import logging
+    from pathlib import Path
+    from typing import Dict, Optional
+
+    import requests
+    import urllib3
+
+    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+    log = logging.getLogger("build-worker")
+
+
+    class ConcordApiClient:
+        """HTTP client for Concord API requests."""
+
+        def __init__(self, api_url: str, api_key: str):
+            self.api_url = api_url.rstrip("/")
+            self.api_key = api_key
+
+        def _headers(self) -> Dict[str, str]:
+            return {
+                "Authorization": f"ApiKey {self.api_key}",
+                "Content-Type": "application/json",
+            }
+
+        def api_get(self, path: str) -> Optional[dict]:
+            """GET request to API."""
+            try:
+                resp = requests.get(
+                    f"{self.api_url}{path}",
+                    headers=self._headers(),
+                    timeout=30,
+                    verify=False,
+                )
+                if resp.status_code >= 400:
+                    log.error("API GET %s: %d %s", path, resp.status_code, resp.text[:200])
+                    return None
+                return resp.json()
+            except Exception as e:
+                log.error("API GET %s failed: %s", path, e)
+                return None
+
+        def api_post(self, path: str, data: dict) -> Optional[dict]:
+            """POST request to API."""
+            try:
+                resp = requests.post(
+                    f"{self.api_url}{path}",
+                    json=data,
+                    headers=self._headers(),
+                    timeout=30,
+                    verify=False,
+                )
+                if resp.status_code >= 400:
+                    log.error("API POST %s: %d %s", path, resp.status_code, resp.text[:200])
+                    return None
+                return resp.json()
+            except Exception as e:
+                log.error("API POST %s failed: %s", path, e)
+                return None
+
+        def api_patch(self, path: str, data: dict) -> Optional[dict]:
+            """PATCH request to API."""
+            try:
+                resp = requests.patch(
+                    f"{self.api_url}{path}",
+                    json=data,
+                    headers=self._headers(),
+                    timeout=30,
+                    verify=False,
+                )
+                if resp.status_code >= 400:
+                    log.error("API PATCH %s: %d %s", path, resp.status_code, resp.text[:200])
+                    return None
+                return resp.json()
+            except Exception as e:
+                log.error("API PATCH %s failed: %s", path, e)
+                return None
+
+        def upload_file(self, path: str, file_path: Path, name: str) -> bool:
+            """Upload a file as multipart form data."""
+            try:
+                with open(file_path, "rb") as f:
+                    resp = requests.post(
+                        f"{self.api_url}{path}",
+                        files={"file": (name, f)},
+                        headers={"Authorization": f"ApiKey {self.api_key}"},
+                        timeout=120,
+                        verify=False,
+                    )
+                if resp.status_code >= 400:
+                    log.error("Upload %s: %d %s", name, resp.status_code, resp.text[:200])
+                    return False
+                return True
+            except Exception as e:
+                log.error("Upload %s failed: %s", name, e)
+                return False
+
+        def stream_log_chunk(self, job_id: str, chunk: str) -> None:
+            """Stream a log chunk to the API for WebSocket broadcast."""
+            try:
+                # Fire and forget - don't block build on API calls
+                requests.post(
+                    f"{self.api_url}/v2/builds/{job_id}/log",
+                    json={"chunk": chunk},
+                    headers=self._headers(),
+                    timeout=5,
+                    verify=False,
+                )
+            except Exception:
+                pass  # Don't fail build if streaming fails
+  git_ops.py: |
+    """Git operations — repo cloning, NCS version check, build script/overlay fetching."""
 
     import json
     import logging
     import os
-    import shutil
-    import socket
+    import re
     import subprocess
     import tarfile
-    import time
-    from dataclasses import dataclass
     from io import BytesIO
     from pathlib import Path
-    from typing import Dict, List, Optional, Tuple
+    from typing import Dict, Optional
 
     import requests
 
-    # Firmware validation - try to import, fallback if not available in container
-    try:
-        from corekinect.firmware.validator import FirmwarePackageValidator, ValidationResult
-        HAS_VALIDATOR = True
-    except ImportError:
-        HAS_VALIDATOR = False
-        ValidationResult = None  # type: ignore
+    from src.api_client import ConcordApiClient
 
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s [%(levelname)s] %(message)s",
-        datefmt="%H:%M:%S",
-    )
     log = logging.getLogger("build-worker")
 
-    # Suppress SSL warnings for self-signed certs
-    import urllib3
-    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
+    class GitOps:
+        """Git operations and source artifact fetching."""
 
-    @dataclass
-    class BuildJob:
-        """A build job from the API."""
-        id: str
-        product: str
-        board: str
-        target: str
-        variant: str
-        mtib_rev: str
-        branch: str
-        commit_sha: str
-        status: str
-        version_bump: bool = False
-        base_job_id: str = None
-        matrix_label: str = None
-        version_override: str = None  # Explicit version override (e.g., "0.5.0")
-
-
-    def _extract_version_override(job_data: dict) -> Optional[str]:
-        """Extract version override from job data (configFlags or direct field)."""
-        config_flags = job_data.get("configFlags") or {}
-        if isinstance(config_flags, dict) and config_flags.get("versionOverride"):
-            return config_flags["versionOverride"]
-        return job_data.get("versionOverride") or job_data.get("firmwareVersion")
-
-
-    class BuildWorker:
-        """Firmware build worker that processes jobs from the Concord API.
-
-        Each worker instance handles jobs for a specific NCS version.
-        Multiple workers with different NCS versions can run in parallel.
-
-        Repo configs are fetched from the API at startup instead of hardcoded.
-        This allows adding new products via REPO_PRODUCT_MAP in types.py
-        without changing the worker code.
-        """
-
-        def __init__(
-            self,
-            api_url: str,
-            api_key: str,
-            worker_id: str = None,
-            poll_interval: int = 5,
-            workspace_dir: str = "/tmp/builds",
-            ssh_key_path: str = "/root/.ssh/id_rsa",
-            ncs_version: str = None,
-        ):
-            self.api_url = api_url.rstrip("/")
-            self.api_key = api_key
-            self.worker_id = worker_id or socket.gethostname()
-            self.poll_interval = poll_interval
-            self.workspace_dir = Path(workspace_dir)
+        def __init__(self, ssh_key_path: str, api_client: ConcordApiClient):
             self.ssh_key_path = ssh_key_path
-            self.ncs_version = ncs_version  # Filter jobs by NCS version (None = all)
-
-            self.workspace_dir.mkdir(parents=True, exist_ok=True)
+            self.api_client = api_client
 
             # Repo configs fetched from API (populated by _load_repo_configs)
             self._repo_configs: Dict[str, dict] = {}
             self._configs_loaded = False
 
-            # NCS version cache: product -> ncs_version (learned from devcontainer)
-            self._product_ncs_cache: Dict[str, str] = {}
-
         def _load_repo_configs(self) -> bool:
             """Fetch repo configs from API. Called once at startup and on cache miss."""
-            result = self._api_get("/v2/builds/settings/repos")
+            result = self.api_client.api_get("/v2/builds/settings/repos")
             if not result or not result.get("data"):
                 log.error("Failed to fetch repo configs from API")
                 return False
@@ -178,89 +218,11 @@ data:
 
             return config
 
-        def _headers(self) -> Dict[str, str]:
-            return {
-                "Authorization": f"ApiKey {self.api_key}",
-                "Content-Type": "application/json",
-            }
-
-        def _api_get(self, path: str) -> Optional[dict]:
-            """GET request to API."""
-            try:
-                resp = requests.get(
-                    f"{self.api_url}{path}",
-                    headers=self._headers(),
-                    timeout=30,
-                    verify=False,
-                )
-                if resp.status_code >= 400:
-                    log.error("API GET %s: %d %s", path, resp.status_code, resp.text[:200])
-                    return None
-                return resp.json()
-            except Exception as e:
-                log.error("API GET %s failed: %s", path, e)
-                return None
-
-        def _api_post(self, path: str, data: dict) -> Optional[dict]:
-            """POST request to API."""
-            try:
-                resp = requests.post(
-                    f"{self.api_url}{path}",
-                    json=data,
-                    headers=self._headers(),
-                    timeout=30,
-                    verify=False,
-                )
-                if resp.status_code >= 400:
-                    log.error("API POST %s: %d %s", path, resp.status_code, resp.text[:200])
-                    return None
-                return resp.json()
-            except Exception as e:
-                log.error("API POST %s failed: %s", path, e)
-                return None
-
-        def _api_patch(self, path: str, data: dict) -> Optional[dict]:
-            """PATCH request to API."""
-            try:
-                resp = requests.patch(
-                    f"{self.api_url}{path}",
-                    json=data,
-                    headers=self._headers(),
-                    timeout=30,
-                    verify=False,
-                )
-                if resp.status_code >= 400:
-                    log.error("API PATCH %s: %d %s", path, resp.status_code, resp.text[:200])
-                    return None
-                return resp.json()
-            except Exception as e:
-                log.error("API PATCH %s failed: %s", path, e)
-                return None
-
-        def _upload_file(self, path: str, file_path: Path, name: str) -> bool:
-            """Upload a file as multipart form data."""
-            try:
-                with open(file_path, "rb") as f:
-                    resp = requests.post(
-                        f"{self.api_url}{path}",
-                        files={"file": (name, f)},
-                        headers={"Authorization": f"ApiKey {self.api_key}"},
-                        timeout=120,
-                        verify=False,
-                    )
-                if resp.status_code >= 400:
-                    log.error("Upload %s: %d %s", name, resp.status_code, resp.text[:200])
-                    return False
-                return True
-            except Exception as e:
-                log.error("Upload %s failed: %s", name, e)
-                return False
-
         def fetch_build_script(self, product: str) -> Optional[str]:
             """Fetch build script content from API."""
             # Map product names to script keys (alpha_fw -> alpha)
             script_key = product.lower().replace("_fw", "").replace("_mfg", "")
-            result = self._api_get(f"/v2/builds/scripts/{script_key}")
+            result = self.api_client.api_get(f"/v2/builds/scripts/{script_key}")
             if not result or not result.get("data"):
                 log.error("Failed to fetch build script for %s", product)
                 return None
@@ -271,8 +233,8 @@ data:
             script_key = product.lower().replace("_fw", "").replace("_mfg", "")
             try:
                 resp = requests.get(
-                    f"{self.api_url}/v2/builds/overlays/{script_key}",
-                    headers=self._headers(),
+                    f"{self.api_client.api_url}/v2/builds/overlays/{script_key}",
+                    headers=self.api_client._headers(),
                     timeout=30,
                     verify=False,
                 )
@@ -292,67 +254,6 @@ data:
             except Exception as e:
                 log.warning("Failed to fetch overlays for %s: %s", product, e)
                 return False
-
-        def fetch_queued_job(self) -> Optional[BuildJob]:
-            """Fetch the next QUEUED build job matching this worker's NCS version."""
-            result = self._api_get("/v2/builds?status=QUEUED&limit=20")
-            if not result or not result.get("data"):
-                return None
-
-            jobs = result["data"]
-            if not jobs:
-                return None
-
-            for j in jobs:
-                product = j["product"]
-                # Skip products we already know need a different NCS version
-                if self.ncs_version and product in self._product_ncs_cache:
-                    cached_ncs = self._product_ncs_cache[product]
-                    if cached_ncs != self.ncs_version:
-                        continue
-
-                return BuildJob(
-                    id=j["id"],
-                    product=j["product"],
-                    board=j["board"],
-                    target=j["target"],
-                    variant=j["variant"],
-                    mtib_rev=j["mtibRev"],
-                    branch=j["branch"],
-                    commit_sha=j["commitSha"] or "",
-                    status=j["status"],
-                    version_bump=j.get("versionBump", False),
-                    base_job_id=j.get("baseJobId"),
-                    matrix_label=j.get("matrixLabel"),
-                    version_override=_extract_version_override(j),
-                )
-
-            return None  # All queued jobs are for incompatible NCS versions
-
-        def claim_job(self, job_id: str) -> bool:
-            """Claim a job by setting status to BUILDING."""
-            result = self._api_patch(f"/v2/builds/{job_id}", {
-                "status": "BUILDING",
-                "workerId": self.worker_id,
-                "startedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-            })
-            return result is not None and not result.get("errors")
-
-        def update_job(self, job_id: str, status: str, error: str = None,
-                       version_string: str = None, duration: int = None) -> bool:
-            """Update job status."""
-            data = {"status": status}
-            if error:
-                data["errorMessage"] = error[:2000]  # Truncate long errors
-            if version_string:
-                data["versionString"] = version_string
-            if duration is not None:
-                data["durationSeconds"] = duration
-            if status in ("SUCCESS", "FAILED", "CANCELLED"):
-                data["finishedAt"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-
-            result = self._api_patch(f"/v2/builds/{job_id}", data)
-            return result is not None
 
         def clone_repo(self, repo_slug: str, dest_dir: Path, commit_sha: str = None,
                        branch: str = None, job_id: str = None) -> bool:
@@ -377,7 +278,7 @@ data:
             def _log(msg: str):
                 log.info(msg)
                 if job_id:
-                    self._stream_log_chunk(job_id, msg + "\n")
+                    self.api_client.stream_log_chunk(job_id, msg + "\n")
 
             try:
                 # Clone — use specific branch if provided
@@ -391,10 +292,11 @@ data:
                     clone_cmd,
                     env=env, check=True, capture_output=True, timeout=120,
                 )
+                # Git clone progress goes to stderr
                 if result.stderr:
                     clone_output = result.stderr.decode("utf-8", errors="replace").strip()
                     if job_id and clone_output:
-                        self._stream_log_chunk(job_id, clone_output + "\n")
+                        self.api_client.stream_log_chunk(job_id, clone_output + "\n")
 
                 # Checkout specific commit if provided
                 if commit_sha:
@@ -407,13 +309,13 @@ data:
                 # Initialize submodules (must pass env for SSH key)
                 _log(f"[clone] Initializing submodules...")
                 result = subprocess.run(
-                    ["git", "submodule", "update", "--init", "--recursive", "--progress"],
+                    ["git", "submodule", "update", "--init", "--recursive", "--progress", "--jobs", "8"],
                     cwd=dest_dir, env=env, check=True, capture_output=True, timeout=300,
                 )
                 if result.stderr:
                     sub_output = result.stderr.decode("utf-8", errors="replace").strip()
                     if job_id and sub_output:
-                        self._stream_log_chunk(job_id, sub_output + "\n")
+                        self.api_client.stream_log_chunk(job_id, sub_output + "\n")
 
                 _log(f"[clone] {repo_slug} ready")
                 return True
@@ -425,7 +327,7 @@ data:
                 log.error("Clone failed: %s", e)
                 return False
 
-        def _check_ncs_version(self, repo_dir: Path) -> Optional[str]:
+        def check_ncs_version(self, repo_dir: Path) -> Optional[str]:
             """Read NCS version from repo's .devcontainer/devcontainer.json.
 
             Returns the NCS version string (e.g., '2.7.0') or None if not found.
@@ -434,7 +336,6 @@ data:
             if not devcontainer.exists():
                 return None
             try:
-                import re
                 text = devcontainer.read_text()
                 # Remove JSON comments (// style)
                 text = re.sub(r'//.*$', '', text, flags=re.MULTILINE)
@@ -447,13 +348,68 @@ data:
             except Exception as e:
                 log.warning("Could not parse devcontainer.json: %s", e)
             return None
+  builder.py: |
+    """Build execution, artifact collection, and verification."""
 
-        def _get_base_build_version(self, base_job_id: str) -> Optional[int]:
+    import logging
+    import os
+    import re
+    import subprocess
+    from dataclasses import dataclass
+    from pathlib import Path
+    from typing import List, Optional, Tuple
+
+    from src.api_client import ConcordApiClient
+
+    # Firmware validation - try to import, fallback if not available in container
+    try:
+        from corekinect.firmware.validator import FirmwarePackageValidator, ValidationResult
+        HAS_VALIDATOR = True
+    except ImportError:
+        HAS_VALIDATOR = False
+        ValidationResult = None  # type: ignore
+
+    log = logging.getLogger("build-worker")
+
+
+    @dataclass
+    class BuildJob:
+        """A build job from the API."""
+        id: str
+        product: str
+        board: str
+        target: str
+        variant: str
+        mtib_rev: str
+        branch: str
+        commit_sha: str
+        status: str
+        version_bump: bool = False
+        base_job_id: str = None
+        matrix_label: str = None
+        version_override: str = None  # Explicit version override (e.g., "0.5.0")
+
+
+    def _extract_version_override(job_data: dict) -> Optional[str]:
+        """Extract version override from job data (configFlags or direct field)."""
+        config_flags = job_data.get("configFlags") or {}
+        if isinstance(config_flags, dict) and config_flags.get("versionOverride"):
+            return config_flags["versionOverride"]
+        return job_data.get("versionOverride") or job_data.get("firmwareVersion")
+
+
+    class BuildExecutor:
+        """Executes firmware builds and handles artifacts."""
+
+        def __init__(self, api_client: ConcordApiClient):
+            self.api_client = api_client
+
+        def get_base_build_version(self, base_job_id: str) -> Optional[int]:
             """Fetch the build number from a completed base build."""
             if not base_job_id:
                 return None
 
-            result = self._api_get(f"/v2/builds/{base_job_id}")
+            result = self.api_client.api_get(f"/v2/builds/{base_job_id}")
             if not result or not result.get("data"):
                 return None
 
@@ -462,7 +418,6 @@ data:
                 return None
 
             # Parse version string like "0.8.3" or "v0.8.3" -> extract build number (3)
-            import re
             match = re.search(r"(\d+)\.(\d+)\.(\d+)", version_string)
             if match:
                 return int(match.group(3))  # build number
@@ -512,7 +467,8 @@ data:
                 "MTIB_REV": job.mtib_rev,
                 "COMMIT_SHA": job.commit_sha or "",
                 "BRANCH": job.branch,
-                "TARGET": job.target,
+                "TARGET": build_target,
+                "FIRMWARE_TYPE": build_target,
                 "BOARD": job.board,
                 # Zephyr/NCS paths (assuming ncs-build container)
                 "ZEPHYR_BASE": os.environ.get("ZEPHYR_BASE", "/workdir/zephyr"),
@@ -534,7 +490,7 @@ data:
 
             # Handle version bumping for N+1 builds (same code, incremented version)
             elif job.version_bump and job.base_job_id:
-                base_version = self._get_base_build_version(job.base_job_id)
+                base_version = self.get_base_build_version(job.base_job_id)
                 if base_version is not None:
                     bumped_version = base_version + 1
                     env["VERSION_BUILD_OVERRIDE"] = str(bumped_version)
@@ -583,12 +539,12 @@ data:
                             log_buffer.append(line)
                             buffer_size = sum(len(l) for l in log_buffer)
                             if len(log_buffer) >= 10 or buffer_size >= 1024:
-                                self._stream_log_chunk(job.id, "".join(log_buffer))
+                                self.api_client.stream_log_chunk(job.id, "".join(log_buffer))
                                 log_buffer = []
 
                     # Flush remaining buffer
                     if log_buffer:
-                        self._stream_log_chunk(job.id, "".join(log_buffer))
+                        self.api_client.stream_log_chunk(job.id, "".join(log_buffer))
 
                 return_code = process.wait(timeout=1800)
                 output = "".join(log_lines)
@@ -604,27 +560,23 @@ data:
             except Exception as e:
                 return False, "".join(log_lines) + f"\n\nBuild failed: {e}"
 
-        def _stream_log_chunk(self, job_id: str, chunk: str) -> None:
-            """Stream a log chunk to the API for WebSocket broadcast."""
-            try:
-                # Fire and forget - don't block build on API calls
-                requests.post(
-                    f"{self.api_url}/v2/builds/{job_id}/log",
-                    json={"chunk": chunk},
-                    headers=self._headers(),
-                    timeout=5,
-                    verify=False,
-                )
-            except Exception:
-                pass  # Don't fail build if streaming fails
-
         def collect_artifacts(self, output_dir: Path) -> List[Path]:
-            """Find final build artifacts only — no intermediates."""
+            """Find final build artifacts only — no intermediates.
+
+            Final artifacts:
+              - {appId}.{version}.hex (e.g. 109.0.8.1.hex, 108.0.8.1.hex)
+              - {appId}.{version}.cfw (e.g. 109.0.8.1.cfw, 108.0.8.1.cfw)
+              - build.json (build metadata)
+              - build.log (added separately by caller)
+
+            Hex and CFW files share the same naming scheme: {appId}.{major}.{minor}.{build}
+            """
             artifacts = []
             # CFW files
             artifacts.extend(output_dir.glob("**/*.cfw"))
             # Versioned hex files (109.0.8.1.hex, 108.0.8.1.hex)
             for f in output_dir.glob("**/*.hex"):
+                # Only include hex files named with appId prefix (digits.digits.digits.digits.hex)
                 name = f.name
                 if name[0].isdigit() and name.endswith(".hex"):
                     artifacts.append(f)
@@ -687,9 +639,115 @@ data:
             count = 0
             for artifact in artifacts:
                 log.info("Uploading %s...", artifact.name)
-                if self._upload_file(f"/v2/builds/{job_id}/artifacts", artifact, artifact.name):
+                if self.api_client.upload_file(f"/v2/builds/{job_id}/artifacts", artifact, artifact.name):
                     count += 1
             return count
+  worker.py: |
+    """Build worker — poll loop and job orchestration."""
+
+    import logging
+    import re
+    import shutil
+    import time
+    from pathlib import Path
+    from typing import Dict, Optional
+
+    from src.api_client import ConcordApiClient
+    from src.builder import BuildExecutor, BuildJob, _extract_version_override
+    from src.config import BuildConfig
+    from src.git_ops import GitOps
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(message)s",
+        datefmt="%H:%M:%S",
+    )
+    log = logging.getLogger("build-worker")
+
+
+    class BuildWorker:
+        """Firmware build worker that processes jobs from the Concord API.
+
+        Each worker instance handles jobs for a specific NCS version.
+        Multiple workers with different NCS versions can run in parallel.
+
+        Repo configs are fetched from the API at startup instead of hardcoded.
+        This allows adding new products via REPO_PRODUCT_MAP in types.py
+        without changing the worker code.
+        """
+
+        def __init__(self, config: BuildConfig):
+            self.config = config
+            self.workspace_dir = Path(config.workspace_dir)
+            self.workspace_dir.mkdir(parents=True, exist_ok=True)
+
+            self.api_client = ConcordApiClient(config.api_url, config.api_key)
+            self.git_ops = GitOps(config.ssh_key_path, self.api_client)
+            self.builder = BuildExecutor(self.api_client)
+
+            # NCS version cache: product -> ncs_version (learned from devcontainer)
+            self._product_ncs_cache: Dict[str, str] = {}
+
+        def fetch_queued_job(self) -> Optional[BuildJob]:
+            """Fetch the next QUEUED build job matching this worker's NCS version."""
+            result = self.api_client.api_get("/v2/builds?status=QUEUED&limit=20")
+            if not result or not result.get("data"):
+                return None
+
+            jobs = result["data"]
+            if not jobs:
+                return None
+
+            for j in jobs:
+                product = j["product"]
+                # Skip products we already know need a different NCS version
+                if self.config.ncs_version and product in self._product_ncs_cache:
+                    cached_ncs = self._product_ncs_cache[product]
+                    if cached_ncs != self.config.ncs_version:
+                        continue
+
+                return BuildJob(
+                    id=j["id"],
+                    product=j["product"],
+                    board=j["board"],
+                    target=j["target"],
+                    variant=j["variant"],
+                    mtib_rev=j["mtibRev"],
+                    branch=j["branch"],
+                    commit_sha=j["commitSha"] or "",
+                    status=j["status"],
+                    version_bump=j.get("versionBump", False),
+                    base_job_id=j.get("baseJobId"),
+                    matrix_label=j.get("matrixLabel"),
+                    version_override=_extract_version_override(j),
+                )
+
+            return None  # All queued jobs are for incompatible NCS versions
+
+        def claim_job(self, job_id: str) -> bool:
+            """Claim a job by setting status to BUILDING."""
+            result = self.api_client.api_patch(f"/v2/builds/{job_id}", {
+                "status": "BUILDING",
+                "workerId": self.config.worker_id,
+                "startedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            })
+            return result is not None and not result.get("errors")
+
+        def update_job(self, job_id: str, status: str, error: str = None,
+                       version_string: str = None, duration: int = None) -> bool:
+            """Update job status."""
+            data = {"status": status}
+            if error:
+                data["errorMessage"] = error[:2000]  # Truncate long errors
+            if version_string:
+                data["versionString"] = version_string
+            if duration is not None:
+                data["durationSeconds"] = duration
+            if status in ("SUCCESS", "FAILED", "CANCELLED"):
+                data["finishedAt"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+
+            result = self.api_client.api_patch(f"/v2/builds/{job_id}", data)
+            return result is not None
 
         def process_job(self, job: BuildJob) -> bool:
             """Process a single build job.
@@ -721,7 +779,7 @@ data:
 
                 # 1. Fetch build script from API
                 log.info("Fetching build script...")
-                script_content = self.fetch_build_script(job.product)
+                script_content = self.git_ops.fetch_build_script(job.product)
                 if not script_content:
                     self.update_job(job.id, "FAILED", f"Failed to fetch build script for {job.product}")
                     return False
@@ -735,23 +793,23 @@ data:
                 # 2. Fetch overlays from API
                 log.info("Fetching overlays...")
                 overlays_dir = work_dir / "overlays"
-                self.fetch_overlays(job.product, overlays_dir)  # Optional, don't fail if missing
+                self.git_ops.fetch_overlays(job.product, overlays_dir)  # Optional, don't fail if missing
 
                 # 3. Clone production firmware repo (e.g., alpha_fw)
                 self.update_job(job.id, "CLONING")
                 main_fw = f"{product_base}_fw"
                 main_fw_dir = work_dir / main_fw
                 log.info("Cloning %s (branch=%s)...", main_fw, job.branch)
-                if not self.clone_repo(main_fw, main_fw_dir, job.commit_sha, branch=job.branch, job_id=job.id):
+                if not self.git_ops.clone_repo(main_fw, main_fw_dir, job.commit_sha, branch=job.branch, job_id=job.id):
                     self.update_job(job.id, "FAILED", f"Failed to clone {main_fw} (branch={job.branch})")
                     return False
 
                 # 3.5. Check NCS version compatibility from repo's devcontainer
-                repo_ncs = self._check_ncs_version(main_fw_dir)
+                repo_ncs = self.git_ops.check_ncs_version(main_fw_dir)
                 if repo_ncs:
                     self._product_ncs_cache[job.product] = repo_ncs
-                    if self.ncs_version and repo_ncs != self.ncs_version:
-                        log.warning("NCS version mismatch: repo requires %s, worker has %s — releasing job", repo_ncs, self.ncs_version)
+                    if self.config.ncs_version and repo_ncs != self.config.ncs_version:
+                        log.warning("NCS version mismatch: repo requires %s, worker has %s — releasing job", repo_ncs, self.config.ncs_version)
                         self.update_job(job.id, "QUEUED")  # Release back for correct worker
                         return False
 
@@ -761,7 +819,7 @@ data:
                 log.info("Cloning %s (branch=%s)...", mfg_fw, job.branch)
                 # For mfg builds, use same commit; for production builds, just get latest
                 mfg_commit = job.commit_sha if "_mfg" in job.product else None
-                if not self.clone_repo(mfg_fw, mfg_fw_dir, mfg_commit, branch=job.branch, job_id=job.id):
+                if not self.git_ops.clone_repo(mfg_fw, mfg_fw_dir, mfg_commit, branch=job.branch, job_id=job.id):
                     log.warning("Failed to clone %s - mfg builds may fail", mfg_fw)
                     # Don't fail here, mfg repo might not exist for all products
 
@@ -780,7 +838,7 @@ data:
 
                 # 6. Run build (writes log to output_dir/build.log during execution)
                 log_file = output_dir / "build.log"
-                success, log_output = self.run_build(job, work_dir, output_dir)
+                success, log_output = self.builder.run_build(job, work_dir, output_dir)
                 duration = int(time.time() - start_time)
 
                 if not success:
@@ -789,31 +847,30 @@ data:
                     error_summary = log_output[-4000:] if len(log_output) > 4000 else log_output
                     self.update_job(job.id, "FAILED", error_summary, duration=duration)
                     # Upload full log as artifact
-                    self._upload_file(f"/v2/builds/{job.id}/artifacts", log_file, "build.log")
+                    self.api_client.upload_file(f"/v2/builds/{job.id}/artifacts", log_file, "build.log")
                     return False
 
                 # 6. Collect and upload artifacts (final hex/cfw only, no intermediates)
-                artifacts = self.collect_artifacts(output_dir)
+                artifacts = self.builder.collect_artifacts(output_dir)
                 artifacts.append(log_file)  # Include build log
 
                 # 6.5. Verify artifacts before upload
-                valid, verify_msg = self.verify_artifacts(output_dir, job.version_override)
+                valid, verify_msg = self.builder.verify_artifacts(output_dir, job.version_override)
                 if not valid:
                     log.error("Artifact verification failed: %s", verify_msg)
                     self.update_job(job.id, "FAILED", f"Verification failed: {verify_msg}", duration=duration)
                     # Still upload artifacts for debugging
-                    self._upload_file(f"/v2/builds/{job.id}/artifacts", log_file, "build.log")
+                    self.api_client.upload_file(f"/v2/builds/{job.id}/artifacts", log_file, "build.log")
                     return False
 
                 # 7. Upload artifacts
-                artifact_count = self.upload_artifacts(job.id, artifacts)
+                artifact_count = self.builder.upload_artifacts(job.id, artifacts)
                 log.info("Uploaded %d artifacts", artifact_count)
 
                 # Extract version from build script output
                 # Build script prints "Resolved version: X.Y.Z" — use that, not greedy regex
                 # (greedy regex picks up NCS container versions like "2.7.0" first)
                 version_string = None
-                import re
                 ver_match = re.search(r"Resolved version:\s*(\d+\.\d+\.\d+)", log_output)
                 if ver_match:
                     version_string = ver_match.group(1)
@@ -842,8 +899,8 @@ data:
 
         def run(self):
             """Main worker loop."""
-            ncs_info = f", ncs={self.ncs_version}" if self.ncs_version else ", ncs=all"
-            log.info("Build worker starting (id=%s, poll=%ds%s)", self.worker_id, self.poll_interval, ncs_info)
+            ncs_info = f", ncs={self.config.ncs_version}" if self.config.ncs_version else ", ncs=all"
+            log.info("Build worker starting (id=%s, poll=%ds%s)", self.config.worker_id, self.config.poll_interval, ncs_info)
 
             while True:
                 try:
@@ -862,23 +919,20 @@ data:
                 except Exception as e:
                     log.exception("Worker loop error: %s", e)
 
-                time.sleep(self.poll_interval)
+                time.sleep(self.config.poll_interval)
+  main.py: |
+    """Build worker entry point."""
+
+    from src.config import BuildConfig
+    from src.worker import BuildWorker
 
 
     def main():
-        worker = BuildWorker(
-            api_url=os.environ.get("CONCORD_API_URL", "https://staging.concord.local"),
-            api_key=os.environ.get("CONCORD_API_KEY", ""),
-            worker_id=os.environ.get("WORKER_ID"),
-            poll_interval=int(os.environ.get("POLL_INTERVAL", "5")),
-            workspace_dir=os.environ.get("WORKSPACE_DIR", "/tmp/builds"),
-            ssh_key_path=os.environ.get("SSH_KEY_PATH", "/root/.ssh/id_rsa"),
-            ncs_version=os.environ.get("NCS_VERSION"),  # Filter for specific NCS version (e.g., "2.7.0")
-        )
+        config = BuildConfig.from_env()
+        worker = BuildWorker(config)
         worker.run()
 
 
     if __name__ == "__main__":
         main()
-
 {{- end }}

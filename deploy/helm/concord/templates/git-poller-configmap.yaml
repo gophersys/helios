@@ -34,12 +34,6 @@ data:
             branch="concord-main",
             product_id="cmmgsdsnh0001sktijmewtmwg",
         ),
-        RepoConfig(
-            name="sigma5_fw",
-            ssh_url="git@bitbucket.org:corekinect/sigma5_fw.git",
-            branch="concord-main",
-            product_id="cmmixeo6h00007ryw9rvyixd2",
-        ),
     ]
 
     class GitPoller:

@@ -18,13 +18,11 @@ infrastructure:
     rootUser: minioadmin
     rootPassword: minioadmin-staging
     storage: 5Gi
-  influxdb:
     enabled: true
     user: admin
     password: concord-staging
     org: concord
     bucket: telemetry_raw
-    token: concord-influx-staging-token
     storage: 5Gi
 
 httpApi:
@@ -60,13 +58,12 @@ config:
   SERVER_PORT: "9001"
   LOG_LEVEL: "4"
   LOG_PATH: "logs"
-  DB_STORAGE_PATH: "db"
-  DB_STORAGE_LIMIT_GB: "64"
   AUTH_ENABLED: "true"
   ASSETS_FOLDER: "assets"
   CORS_ORIGINS: "https://staging.concord.local,http://staging.concord.local,http://localhost:4200"
-  SUPPORTED_REGISTRIES: "none"
   MTIB_PORT: "50053"
+  GIT_POLLER_ENABLED: "true"
+  GIT_POLLER_INTERVAL_S: "15"
   # CI Pipeline — device identity defaults for validation K8s Jobs
   DEVICE_ID: "70B3D584C01E1FCC"
   DEVICE_SNR: "0964"
@@ -88,12 +85,12 @@ buildWorker:
     limits:
       cpu: "14"
       memory: "28Gi"
-  # NCS 2.4.2 for sigma5_fw
+  # NCS 2.4.2 builder (disabled — no active products)
   ncs242:
-    enabled: true
+    enabled: false
     image: containers.ad.corekinect.com/ncs-build:2.4.2
 
-# Git Poller — polls alpha_fw and sigma5_fw repos for new commits
+# Git Poller — polls firmware repos for new commits
 gitPoller:
   enabled: true
   pollInterval: "15"
@@ -104,11 +101,6 @@ secrets:
   STORAGE_ACCESS_KEY: "minioadmin"
   STORAGE_SECRET_ACCESS_KEY: "minioadmin-staging"
   STORAGE_BUCKET_NAME: "concord"
-  INFLUXDB_URL: "http://concord-influxdb:8086"
-  INFLUXDB_TOKEN: "concord-influx-staging-token"
-  INFLUXDB_ORG: "concord"
-  INFLUXDB_BUCKET_TELEMETRY: "telemetry_raw"
-  INFLUXDB_BUCKET_METRICS: "telemetry_metrics"
   JWT_SECRET_KEY: "concord-staging-jwt-secret-key-2026"
   COREOPS_SERVER_URL: "http://10.4.45.30:8001"
   AUTH_SERVER_URL: "https://auth.office.corekinect.cloud:2013"
