@@ -45,6 +45,8 @@ import requests
 
 from corekinect.mtib_client.v1.client.core import MtibV1Client
 from corekinect.mtib_client.v1.client.types import GpioDirection, GpioResistorConfig, PowerChannel
+from corekinect.shells._uart_cmd import lock_shell_app, lock_shell_comms, debug_disable_app, debug_disable_comms
+from corekinect.shells.alpha import AlphaShell
 from corekinect.utils import Logger
 from corekinect.utils.encoding.byte_str import bytes_to_base64
 from corekinect.utils.timeutil.tzutils import dt_to_utc
@@ -129,6 +131,7 @@ class DevicePersonalizer:
         require_corecloud_key: bool = True,  # FUOTA requires key in CoreCloud - fail if upload fails
     ):
         self._mtib = mtib
+        self._shell = AlphaShell(mtib)
         self._snr = snr
         self._imei = imei
         self._iccids = iccids
@@ -250,27 +253,30 @@ class DevicePersonalizer:
     # Step implementations
     # ------------------------------------------------------------------
 
-    def _lock_shells_concurrent(self, timeout_s: float = 15.0) -> Tuple[bool, bool]:
+    def _lock_shells_concurrent(self, timeout_s: float = 10.0) -> Tuple[bool, bool]:
         """Lock both shells concurrently using threads.
 
         The mfg shell activation window is only ~7s (0.4s–7.4s post-boot).
-        MTIB byte-by-byte UART latency means sequential locking takes 5-30s
-        per shell — the second shell always misses the window. Concurrent
-        locking fits both within the window reliably.
+        Concurrent locking sends lock_shell on both UARTs simultaneously to
+        fit within the window.
+
+        10s timeout: if the shell doesn't lock within the ~7s activation
+        window, it won't. Caller should power cycle and retry rather than
+        waiting longer.
 
         Returns:
             (app_locked, comms_locked) tuple.
         """
         results = {}
 
-        def _lock(name, lock_fn):
-            results[name] = lock_fn(timeout_s=timeout_s)
+        def _lock(name, lock_fn, client):
+            results[name] = lock_fn(client, timeout_s=timeout_s)
 
         t_app = threading.Thread(
-            target=_lock, args=("APP", self._mtib.lock_shell_app)
+            target=_lock, args=("APP", lock_shell_app, self._mtib)
         )
         t_comms = threading.Thread(
-            target=_lock, args=("COMMS", self._mtib.lock_shell_comms)
+            target=_lock, args=("COMMS", lock_shell_comms, self._mtib)
         )
         t_app.start()
         t_comms.start()
@@ -287,83 +293,89 @@ class DevicePersonalizer:
         )
         return app_ok, comms_ok
 
-    def _power_cycle_and_lock_shells(self, boot_wait_s: float, lock_shells: bool) -> Optional[str]:
+    def _power_cycle_and_lock_shells(
+        self, boot_wait_s: float, lock_shells: bool, max_attempts: int = 3,
+    ) -> Optional[str]:
         """Power cycle DUT and lock shells using manufacturing pattern.
 
-        Manufacturing sequence:
-        1. Power off, wait 2s
-        2. Configure GPIOs
-        3. Power on
-        4. Wait 1s for boot
-        5. Lock BOTH shells concurrently (must fit within ~7s window)
-        6. Disable debug output on both
+        Fast fail-and-retry: 10s lock timeout per attempt. If the shell
+        doesn't lock in the ~7s activation window, power cycle and try
+        again (up to max_attempts). Much faster than a single long timeout.
 
         GPIO 0+1 must be configured as output LOW before power-on — these
         control the SWD level shifter enable lines.
         """
-        self._log.debug("Power cycling DUT...")
+        for attempt in range(1, max_attempts + 1):
+            self._log.debug("Power cycle attempt %d/%d...", attempt, max_attempts)
 
-        # Step 1: Power off BOTH channels
-        err = self._mtib.PowerDisable(channel=PowerChannel.DUT)
-        if err:
-            return err
-        err = self._mtib.PowerDisable(channel=PowerChannel.CHARGER)
-        if err:
-            return err
-        time.sleep(2)
-
-        # Step 2: Configure GPIOs (required for DUT boot)
-        for gpio in (0, 1):
-            err = self._mtib.GpioConfig(gpio, GpioDirection.OUTPUT, GpioResistorConfig.NONE)
+            # Power off BOTH channels
+            err = self._mtib.PowerDisable(channel=PowerChannel.DUT)
             if err:
-                return f"GpioConfig({gpio}) failed: {err}"
-            err = self._mtib.GpioWrite(gpio, False)
+                return err
+            err = self._mtib.PowerDisable(channel=PowerChannel.CHARGER)
             if err:
-                return f"GpioWrite({gpio}) failed: {err}"
+                return err
+            time.sleep(2)
 
-        # Step 3: Power on BOTH channels
-        err = self._mtib.PowerEnable(channel=PowerChannel.DUT, voltage_v=4.5)
-        if err:
-            return err
-        err = self._mtib.PowerEnable(channel=PowerChannel.CHARGER, voltage_v=5.0)
-        if err:
-            return err
+            # Configure GPIOs (required for DUT boot)
+            for gpio in (0, 1):
+                err = self._mtib.GpioConfig(gpio, GpioDirection.OUTPUT, GpioResistorConfig.NONE)
+                if err:
+                    return f"GpioConfig({gpio}) failed: {err}"
+                err = self._mtib.GpioWrite(gpio, False)
+                if err:
+                    return f"GpioWrite({gpio}) failed: {err}"
 
-        self._log.debug("DUT powered on (ch0 + ch1)")
+            # Power on BOTH channels
+            err = self._mtib.PowerEnable(channel=PowerChannel.DUT, voltage_v=4.5)
+            if err:
+                return err
+            err = self._mtib.PowerEnable(channel=PowerChannel.CHARGER, voltage_v=5.0)
+            if err:
+                return err
 
-        # Step 4: Wait for boot — shell activates ~0.4s, deactivates ~7.4s
-        time.sleep(min(boot_wait_s, 1.0))
+            self._log.debug("DUT powered on (ch0 + ch1)")
 
-        # Step 5: Lock BOTH shells concurrently
-        # CRITICAL: Sequential locking FAILS — MTIB byte-by-byte UART latency
-        # means each lock takes 5-30s, causing the second shell to always miss
-        # the ~7s activation window. Concurrent locking fits both in the window.
-        if lock_shells:
-            self._log.info("Locking shells (concurrent)...")
-            app_ok, comms_ok = self._lock_shells_concurrent(timeout_s=15.0)
+            # Wait for boot — shell activates ~0.4s
+            time.sleep(min(boot_wait_s, 0.5))
+
+            if not lock_shells:
+                break
+
+            # Lock BOTH shells concurrently — 10s timeout, fail fast
+            self._log.info("Locking shells (concurrent, attempt %d)...", attempt)
+            app_ok, comms_ok = self._lock_shells_concurrent()
 
             # Disable debug output (reduces UART noise for subsequent commands)
             if app_ok:
-                self._mtib.debug_disable_app()
+                debug_disable_app(self._mtib)
             if comms_ok:
-                self._mtib.debug_disable_comms()
+                debug_disable_comms(self._mtib)
 
-            if not comms_ok:
-                return "COMMS shell lock failed — device may not have booted or window missed"
+            if app_ok and comms_ok:
+                self._log.debug("Power cycle and shell lock complete")
+                return None
 
-        self._log.debug("Power cycle and shell lock complete")
-        return None
+            failed = []
+            if not app_ok: failed.append("APP")
+            if not comms_ok: failed.append("COMMS")
+            self._log.warning(
+                "%s lock failed (attempt %d/%d) — retrying with fresh power cycle",
+                "+".join(failed), attempt, max_attempts,
+            )
+
+        return "Shell lock failed after %d attempts" % max_attempts
 
     def _lock_shells_only(self) -> Optional[str]:
         """Lock shells without power cycling (for when device is already booted)."""
         self._log.debug("Locking shells (no power cycle)...")
 
-        app_ok, comms_ok = self._lock_shells_concurrent(timeout_s=15.0)
+        app_ok, comms_ok = self._lock_shells_concurrent()
 
         if app_ok:
-            self._mtib.debug_disable_app()
+            debug_disable_app(self._mtib)
         if comms_ok:
-            self._mtib.debug_disable_comms()
+            debug_disable_comms(self._mtib)
 
         if not comms_ok:
             return "COMMS shell lock failed — device may not have booted or window missed"
@@ -373,7 +385,7 @@ class DevicePersonalizer:
     def _read_imei_iccids(self) -> Tuple[Optional[str], Optional[List[str]], Optional[str]]:
         """Read IMEI and ICCIDs from the cellular modem."""
         self._log.debug("Reading IMEI/ICCIDs from modem...")
-        imei, iccids_str, err = self._mtib.alpha_cmd_get_imei_iccids(
+        imei, iccids_str, err = self._shell.alpha_cmd_get_imei_iccids(
             target=COMMS_TARGET
         )
         if err:
@@ -417,7 +429,7 @@ class DevicePersonalizer:
 
     def _personalize(self, device_id: str) -> Tuple[Optional[str], Optional[str], Optional[str]]:
         """Send personalize command via UART, returns (hex_key, b64_key, error)."""
-        return self._mtib.alpha_cmd_personalize(
+        return self._shell.alpha_cmd_personalize(
             device_id=device_id, target=COMMS_TARGET
         )
 
@@ -454,7 +466,7 @@ class DevicePersonalizer:
     def _rekey_ipc(self) -> Optional[str]:
         """Rekey IPC to replace hardcoded keys with device-specific keys."""
         self._log.debug("Rekeying IPC...")
-        success, err = self._mtib.cmd_comms_coproc_rekey_ipc(target=COMMS_TARGET)
+        success, err = self._shell.cmd_comms_coproc_rekey_ipc(target=COMMS_TARGET)
         if err:
             return err
         if not success:
