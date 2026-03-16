@@ -809,9 +809,9 @@ def check_pipeline_completion(pipeline_id: str) -> Optional[str]:
         if not builds:
             return None
 
-        # Count build statuses
-        completed = sum(1 for b in builds if b.status in ("SUCCESS", "FAILED", "CANCELLED"))
-        succeeded = sum(1 for b in builds if b.status == "SUCCESS")
+        # Count build statuses (CACHED counts as completed/succeeded)
+        completed = sum(1 for b in builds if b.status in ("SUCCESS", "CACHED", "FAILED", "CANCELLED"))
+        succeeded = sum(1 for b in builds if b.status in ("SUCCESS", "CACHED"))
         failed = sum(1 for b in builds if b.status in ("FAILED", "CANCELLED"))
 
         # Fail-fast: if any build fails, cancel all pending/blocked/building siblings

@@ -61,12 +61,12 @@
   let downloadingAll = $state(false);
   let triggeringValidation = $state(false);
 
-  // Can trigger validation: builds succeeded but no validation yet
+  // Can trigger validation: builds succeeded/cached but no validation yet
   const canTriggerValidation = $derived(
     pipeline && !pipeline.validationRunId &&
-    pipeline.status === 'SUCCESS' &&
+    (pipeline.status === 'SUCCESS' || pipeline.status === 'BUILDING') &&
     pipeline.builds && pipeline.builds.length > 0 &&
-    pipeline.builds.some(b => b.status === 'SUCCESS')
+    pipeline.builds.every(b => b.status === 'SUCCESS' || b.status === 'CACHED')
   );
 
   // Check if all builds are complete (success or failed)
@@ -530,7 +530,7 @@
                 <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-75"></span>
                 <span class="relative inline-flex rounded-full h-2 w-2 bg-accent"></span>
               </span>
-              BUILDING
+              {pipeline.status}
             </span>
           {:else}
             <StatusBadge status={pipeline.status} />

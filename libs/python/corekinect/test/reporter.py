@@ -203,6 +203,7 @@ class ConcordReporter:
 
         # Live log streaming state
         self._current_test_name: Optional[str] = None
+        self._current_test_nodeid: Optional[str] = None
         self._log_buffer: str = ""
         self._log_buffer_lock = threading.Lock()
         self._log_offset: int = 0
@@ -311,6 +312,12 @@ class ConcordReporter:
         """Callback for captured stdout/stderr data."""
         with self._log_buffer_lock:
             self._log_buffer += data
+            # Also accumulate per-test output for the test-result logOutput field.
+            # This ensures logOutput is populated even with -s (no pytest capture).
+            nodeid = self._current_test_nodeid
+            if nodeid:
+                prev = self._test_output.get(nodeid, "")
+                self._test_output[nodeid] = prev + data
 
     def _flush_log_buffer(self) -> None:
         """Send buffered log data to API."""
@@ -417,8 +424,9 @@ class ConcordReporter:
             if file_part.endswith(".py"):
                 module = file_part[:-3]
 
-        # Set current test for log streaming
+        # Set current test for log streaming + per-test output accumulation
         self._current_test_name = test_name
+        self._current_test_nodeid = nodeid
         # Flush any pending logs before starting new test
         self._flush_log_buffer()
 
@@ -499,7 +507,11 @@ class ConcordReporter:
         if report.failed and report.longrepr:
             error_message = str(report.longrepr)[:2000]  # Truncate for API
 
-        # Collect captured log output for this test
+        # Flush any pending stream capture so _test_output is complete
+        self._flush_log_buffer()
+
+        # Collect captured log output for this test.
+        # Sources: pytest capstdout (lines 468-482) + StreamCapture _on_output
         log_output = self._test_output.pop(item.nodeid, None)
         if log_output:
             log_output = log_output.strip()[:10000]  # Cap at 10KB

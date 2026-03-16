@@ -75,7 +75,7 @@ class TestMfgFuota:
             f"MFG_BASE build is not SUCCESS: {base_build.status}"
         )
 
-        print(f"  MFG_BASE: v{base_build.version_string}")
+        print(f"MFG_BASE: v{base_build.version_string}")
 
         app_hex = pipeline_assets.get_hex("MFG_BASE", "app")
         assert app_hex and Path(app_hex).exists(), "MFG_BASE app hex download failed"
@@ -83,8 +83,8 @@ class TestMfgFuota:
         comms_hex = pipeline_assets.get_hex("MFG_BASE", "comms")
         assert comms_hex and Path(comms_hex).exists(), "MFG_BASE comms hex download failed"
 
-        print(f"  App hex:   {Path(app_hex).name} ({Path(app_hex).stat().st_size} bytes)")
-        print(f"  Comms hex: {Path(comms_hex).name} ({Path(comms_hex).stat().st_size} bytes)")
+        print(f"App hex:   {Path(app_hex).name} ({Path(app_hex).stat().st_size} bytes)")
+        print(f"Comms hex: {Path(comms_hex).name} ({Path(comms_hex).stat().st_size} bytes)")
 
         TestMfgFuota._app_hex = app_hex
         TestMfgFuota._comms_hex = comms_hex
@@ -96,7 +96,7 @@ class TestMfgFuota:
             f"MFG_BUMP build is not SUCCESS: {bump_build.status}"
         )
 
-        print(f"  MFG_BUMP: v{bump_build.version_string}")
+        print(f"MFG_BUMP: v{bump_build.version_string}")
 
         cfw_paths = pipeline_assets.get_cfw_files("MFG_BUMP")
         assert cfw_paths, "MFG_BUMP has no CFW files"
@@ -109,7 +109,7 @@ class TestMfgFuota:
             meta = parse_cfw_header(Path(cfw_path))
             target_strings.append(meta["target_string"])
             app_ids_found.add(meta["app_id"])
-            print(f"  CFW: {Path(cfw_path).name} -> {meta['target_string']}")
+            print(f"CFW: {Path(cfw_path).name} -> {meta['target_string']}")
 
         assert 108 in app_ids_found, "MFG_BUMP missing comms CFW (app_id=108)"
         assert 109 in app_ids_found, "MFG_BUMP missing app CFW (app_id=109)"
@@ -118,7 +118,7 @@ class TestMfgFuota:
         TestMfgFuota._target_strings = target_strings
         TestMfgFuota._target_version = bump_build.version_string
 
-        print(f"  Artifacts ready: 2 hex files, {len(cfw_paths)} CFW files")
+        print(f"Artifacts ready: 2 hex files, {len(cfw_paths)} CFW files")
 
     # =====================================================================
     # 02: Flash firmware
@@ -144,7 +144,7 @@ class TestMfgFuota:
             TestMfgFuota._comms_hex,
         )
 
-        print(f"  Flash complete: nRF52840={app_ms}ms, nRF9151={comms_ms}ms")
+        print(f"Flash complete: nRF52840={app_ms}ms, nRF9151={comms_ms}ms")
 
     # =====================================================================
     # 03: Verify boot
@@ -161,7 +161,7 @@ class TestMfgFuota:
             f"(expected >5mA — check power rails and GPIO configuration)"
         )
 
-        print(f"  DUT booted: avg current = {avg_current:.2f}mA")
+        print(f"DUT booted: avg current = {avg_current:.2f}mA")
 
     # =====================================================================
     # 04: Personalize
@@ -173,11 +173,11 @@ class TestMfgFuota:
             "DEVICE_SNR required for personalization"
         )
 
-        print(f"  SNR={device_config.device_snr}, pre-known IMEI={device_config.device_imei}")
+        print(f"SNR={device_config.device_snr}, pre-known IMEI={device_config.device_imei}")
         if device_config.device_imei:
             print("  Using pre-known IMEI (skipping modem read)")
         if device_config.device_iccids:
-            print(f"  Using pre-known ICCIDs: {len(device_config.device_iccids)} entries")
+            print(f"Using pre-known ICCIDs: {len(device_config.device_iccids)} entries")
 
         result = personalize_device(
             mtib_client,
@@ -189,8 +189,8 @@ class TestMfgFuota:
 
         TestMfgFuota._device_id = result["device_id"]
 
-        print(f"  Device personalized: {result['device_id']}")
-        print(f"  Public key: {result['public_key'][:24]}...")
+        print(f"Device personalized: {result['device_id']}")
+        print(f"Public key: {result['public_key'][:24]}...")
 
     # =====================================================================
     # 05: Cloud check-in
@@ -212,7 +212,7 @@ class TestMfgFuota:
             timeout_s=150,
         )
 
-        print(f"  CoreCloud check-in confirmed (recordId={record_id})")
+        print(f"CoreCloud check-in confirmed (recordId={record_id})")
 
     # =====================================================================
     # 06: Upload CFW
@@ -226,7 +226,7 @@ class TestMfgFuota:
 
         upload_cfw_files(fuota_client, TestMfgFuota._target_cfw_paths)
 
-        print(f"  {len(TestMfgFuota._target_cfw_paths)} CFW file(s) uploaded")
+        print(f"{len(TestMfgFuota._target_cfw_paths)} CFW file(s) uploaded")
 
     # =====================================================================
     # 07: Create FUOTA plan
@@ -258,7 +258,7 @@ class TestMfgFuota:
         # Register cleanup so FUOTA is disabled even if later tests fail
         register_fuota_cleanup(TestMfgFuota._device_id, plan_id)
 
-        print(f"  Plan {plan_id} created and device assigned")
+        print(f"Plan {plan_id} created and device assigned")
 
     # =====================================================================
     # 08: FUOTA delivery
@@ -304,7 +304,7 @@ class TestMfgFuota:
             timeout_s=90.0,
         )
 
-        print(f"  Post-FUOTA versions: comms={versions['comms']}, app={versions['app']}")
+        print(f"Post-FUOTA versions: comms={versions['comms']}, app={versions['app']}")
 
     # =====================================================================
     # 10: Cleanup
@@ -320,7 +320,7 @@ class TestMfgFuota:
                 TestMfgFuota._device_id,
                 TestMfgFuota._plan_id,
             )
-            print(f"  FUOTA disabled for device {TestMfgFuota._device_id}")
+            print(f"FUOTA disabled for device {TestMfgFuota._device_id}")
         except Exception as e:
             # Cleanup failure is not a test failure — atexit handler will retry
-            print(f"  Warning: cleanup failed ({e}) — atexit handler will retry")
+            print(f"Warning: cleanup failed ({e}) — atexit handler will retry")

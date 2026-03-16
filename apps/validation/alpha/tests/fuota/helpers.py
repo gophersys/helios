@@ -144,13 +144,13 @@ def flash_both_processors(client, app_hex: str, comms_hex: str) -> Tuple[int, in
     """
     from protocols.mtib.mtib_pb2 import HostType
 
-    print(f"  Flashing nRF52840: {Path(app_hex).name}")
+    print(f"Flashing nRF52840: {Path(app_hex).name}")
     app_ms = flash_processor(client, app_hex, HostType.HOST_TYPE_NRF52840)
-    print(f"  nRF52840 flashed in {app_ms}ms")
+    print(f"nRF52840 flashed in {app_ms}ms")
 
-    print(f"  Flashing nRF9151: {Path(comms_hex).name}")
+    print(f"Flashing nRF9151: {Path(comms_hex).name}")
     comms_ms = flash_processor(client, comms_hex, HostType.HOST_TYPE_NRF9151)
-    print(f"  nRF9151 flashed in {comms_ms}ms")
+    print(f"nRF9151 flashed in {comms_ms}ms")
 
     return app_ms, comms_ms
 
@@ -178,7 +178,7 @@ def personalize_device(
     Raises:
         AssertionError: On personalization failure.
     """
-    from corekinect.test.validation.device_personalizer import DevicePersonalizer
+    from corekinect.test.device_personalizer import DevicePersonalizer
 
     personalizer = DevicePersonalizer(
         mtib=client,
@@ -234,9 +234,9 @@ def wait_for_cloud_checkin(
         devices = resp.json().get("devices", [])
         if devices:
             initial_record_id = devices[0].get("positionInfo", {}).get("recordId", 0)
-        print(f"  Baseline recordId: {initial_record_id}")
+        print(f"Baseline recordId: {initial_record_id}")
     except Exception as e:
-        print(f"  Warning: could not read baseline status: {e}")
+        print(f"Warning: could not read baseline status: {e}")
 
     # Poll for change
     start = time.time()
@@ -253,11 +253,11 @@ def wait_for_cloud_checkin(
             if devices:
                 current = devices[0].get("positionInfo", {}).get("recordId", 0)
                 if current > initial_record_id:
-                    print(f"  [{elapsed}s] Device checked in: recordId {initial_record_id} -> {current}")
+                    print(f"[{elapsed}s] Device checked in: recordId {initial_record_id} -> {current}")
                     return current
-                print(f"  [{elapsed}s] Waiting... (recordId={current})")
+                print(f"[{elapsed}s] Waiting... (recordId={current})")
         except Exception as e:
-            print(f"  [{elapsed}s] Status check error: {e}")
+            print(f"[{elapsed}s] Status check error: {e}")
 
         time.sleep(poll_interval_s)
 
@@ -280,7 +280,7 @@ def upload_cfw_files(fuota_client, cfw_paths: List[str]) -> None:
     """
     for cfw_path in cfw_paths:
         name = Path(cfw_path).name
-        print(f"  Uploading {name}...")
+        print(f"Uploading {name}...")
         fuota_client.upload_cfw(cfw_path)
 
 
@@ -308,7 +308,7 @@ def create_and_assign_fuota_plan(
         AssertionError: If post-assignment verification fails.
     """
     # Ensure device is registered (FUOTA fails on unregistered devices)
-    print(f"  Ensuring device {device_id} is registered...")
+    print(f"Ensuring device {device_id} is registered...")
     fuota_client.ensure_device_registered(
         device_id=device_id,
         device_type_id=device_type_id,
@@ -322,10 +322,10 @@ def create_and_assign_fuota_plan(
         for d in resp.json().get("devicesFound", []):
             if d.get("deviceId") == device_id:
                 old_plan = d.get("planId")
-                print(f"  Removing from existing plan {old_plan}")
+                print(f"Removing from existing plan {old_plan}")
                 fuota_client.disable_device(device_id, old_plan)
     except Exception as e:
-        print(f"  Warning: could not check existing assignments: {e}")
+        print(f"Warning: could not check existing assignments: {e}")
 
     # Create plan
     stages = [{
@@ -334,17 +334,17 @@ def create_and_assign_fuota_plan(
         "isSkippable": False,
     }]
 
-    print(f"  Creating plan: targets={target_strings}")
+    print(f"Creating plan: targets={target_strings}")
     plan_id = fuota_client.create_plan(
         stages=stages,
         description=description,
         device_type_id=device_type_id,
         device_variant_id=device_variant_id,
     )
-    print(f"  Plan created: id={plan_id}")
+    print(f"Plan created: id={plan_id}")
 
     # Assign device
-    print(f"  Assigning device {device_id} to plan {plan_id}...")
+    print(f"Assigning device {device_id} to plan {plan_id}...")
     fuota_client.assign_device(
         plan_id=plan_id,
         device_ids=[device_id],
@@ -368,7 +368,7 @@ def create_and_assign_fuota_plan(
             break
 
     assert found, f"Device {device_id} not found in FUOTA settings after assignment"
-    print(f"  Assignment verified: planId={plan_id}, enabled=True")
+    print(f"Assignment verified: planId={plan_id}, enabled=True")
 
     return plan_id
 
@@ -424,7 +424,7 @@ def wait_for_fuota_completion(
                             "fuota", "cfw", "download", "mcuboot", "swap", "upgrade"
                         ]):
                             elapsed = (time.time() - start) / 60
-                            print(f"  [UART {elapsed:.1f}m] {line.strip()}")
+                            print(f"[UART {elapsed:.1f}m] {line.strip()}")
         except Exception:
             pass
 
@@ -437,14 +437,14 @@ def wait_for_fuota_completion(
         if not mtib_client:
             return
         elapsed = (time.time() - start) / 60
-        print(f"  [{elapsed:.1f}m] Power cycling DUT to force check-in...")
+        print(f"[{elapsed:.1f}m] Power cycling DUT to force check-in...")
         try:
             power_off(mtib_client)
             power_on(mtib_client)
             time.sleep(5)
             last_power_cycle = time.time()
         except Exception as e:
-            print(f"  Power cycle failed: {e}")
+            print(f"Power cycle failed: {e}")
 
     try:
         while time.time() - start < timeout_s:
@@ -456,7 +456,7 @@ def wait_for_fuota_completion(
                     "GET", f"firmwareupdates/progress?deviceId={device_id}"
                 )
             except Exception as e:
-                print(f"  [{elapsed_min:.1f}m] Progress request failed: {e}")
+                print(f"[{elapsed_min:.1f}m] Progress request failed: {e}")
                 time.sleep(10)
                 continue
 
@@ -470,7 +470,7 @@ def wait_for_fuota_completion(
                     status = f"{ver}: {pct:.1f}% ({pages}/{total})"
 
                     if status != last_status:
-                        print(f"  [{elapsed_min:.1f}m] {status}")
+                        print(f"[{elapsed_min:.1f}m] {status}")
                         last_status = status
 
                     if pct < 100:
@@ -480,14 +480,14 @@ def wait_for_fuota_completion(
                         if ver in seen_active:
                             if ver not in completed:
                                 completed.add(ver)
-                                print(f"  {ver} COMPLETE!")
+                                print(f"{ver} COMPLETE!")
                         else:
                             if ver not in completed and last_status != f"stale_{ver}":
-                                print(f"  [{elapsed_min:.1f}m] {ver} at 100% (stale from previous plan, ignoring)")
+                                print(f"[{elapsed_min:.1f}m] {ver} at 100% (stale from previous plan, ignoring)")
                                 last_status = f"stale_{ver}"
 
                         if any("108" in v for v in completed) and any("109" in v for v in completed):
-                            print(f"  [{elapsed_min:.1f}m] Both 108 and 109 complete — FUOTA done!")
+                            print(f"[{elapsed_min:.1f}m] Both 108 and 109 complete — FUOTA done!")
                             return
 
             elif resp.status_code == 404:
@@ -495,15 +495,15 @@ def wait_for_fuota_completion(
                 has_109 = any("109" in v for v in completed)
 
                 if has_108 and has_109:
-                    print(f"  [{elapsed_min:.1f}m] Both processors complete (404 after completion)")
+                    print(f"[{elapsed_min:.1f}m] Both processors complete (404 after completion)")
                     return
                 elif has_108 and not has_109:
                     if last_status != "wait_109":
-                        print(f"  [{elapsed_min:.1f}m] 108 done, waiting for 109...")
+                        print(f"[{elapsed_min:.1f}m] 108 done, waiting for 109...")
                         last_status = "wait_109"
                 elif not completed:
                     if last_status != "wait_start":
-                        print(f"  [{elapsed_min:.1f}m] Waiting for device check-in...")
+                        print(f"[{elapsed_min:.1f}m] Waiting for device check-in...")
                         last_status = "wait_start"
 
             # Periodic power cycle to force check-in
@@ -631,10 +631,10 @@ def verify_firmware_version(
     Raises:
         AssertionError: If COMMS version doesn't match expected.
     """
-    print(f"  Capturing boot logs (expecting v{expected_version})...")
+    print(f"Capturing boot logs (expecting v{expected_version})...")
     versions = capture_boot_versions(client, timeout_s=timeout_s)
 
-    print(f"  Detected versions: comms={versions['comms']}, app={versions['app']}")
+    print(f"Detected versions: comms={versions['comms']}, app={versions['app']}")
 
     # COMMS version is ground truth (MFG nRF52840 doesn't always print version)
     if versions["comms"] is not None:
@@ -642,7 +642,7 @@ def verify_firmware_version(
             f"COMMS version mismatch: expected {expected_version}, got {versions['comms']}"
         )
     else:
-        print(f"  WARNING: COMMS version not detected from boot logs")
-        print(f"  (MFG firmware may not log version — continuing without verification)")
+        print(f"WARNING: COMMS version not detected from boot logs")
+        print(f"(MFG firmware may not log version — continuing without verification)")
 
     return versions
