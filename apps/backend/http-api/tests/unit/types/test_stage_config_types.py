@@ -38,7 +38,7 @@ class TestStageConfigCreateRequest:
     def test_full_create(self):
         req, err = StageConfigCreateRequest.from_json({
             "stage": 5,
-            "name": "Gate",
+            "name": "FUOTA",
             "enabled": True,
             "buildTarget": "alpha_b0",
             "fwRepoUrl": "git@bb:ck/alpha_fw.git",

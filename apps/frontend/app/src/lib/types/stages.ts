@@ -45,7 +45,7 @@ export const STAGE_NAMES: Record<number, string> = {
   2: 'Silicon',
   3: 'Integration',
   4: 'Nightly',
-  5: 'Gate',
+  5: 'FUOTA',
 };
 
 export const STAGE_DESCRIPTIONS: Record<number, string> = {
@@ -53,7 +53,7 @@ export const STAGE_DESCRIPTIONS: Record<number, string> = {
   2: 'Driver hardware tests on dev kits',
   3: 'Subsystem integration tests with harness instrumentation',
   4: 'Comprehensive product validation — nightly runs',
-  5: 'PR gate with FUOTA verification — blocks merge',
+  5: 'Over-the-air firmware update verification — blocks merge',
 };
 
 export const STAGE_COLORS: Record<number, string> = {

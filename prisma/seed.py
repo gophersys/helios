@@ -940,7 +940,7 @@ def seed():
 
         alpha_stages = [
             {
-                "stage": 1, "name": "Smoke", "enabled": True,
+                "stage": 1, "name": "Smoke", "enabled": False,
                 "priority": 10, "blocksMerge": True, "requiresFuota": False, "requiresBench": False,
                 "testTimeout": 120, "maxDurationSec": 300,
                 "buildScript": alpha_build_script or None,
@@ -948,12 +948,10 @@ def seed():
                 "buildVariant": "debug",
                 "fwRepoUrl": "git@bitbucket.org:corekinect/alpha_fw.git",
                 "fwRepoBranch": "concord-main",
-                "testDirectory": None,
-                "testMarker": None,
                 "description": "Quick smoke build to verify compilation",
             },
             {
-                "stage": 2, "name": "Unit", "enabled": True,
+                "stage": 2, "name": "Silicon", "enabled": False,
                 "priority": 20, "blocksMerge": True, "requiresFuota": False, "requiresBench": False,
                 "testTimeout": 300, "maxDurationSec": 600,
                 "buildTarget": "native_sim",
@@ -963,7 +961,7 @@ def seed():
                 "description": "Native simulator unit tests",
             },
             {
-                "stage": 3, "name": "Integration", "enabled": True,
+                "stage": 3, "name": "Integration", "enabled": False,
                 "priority": 30, "blocksMerge": True, "requiresFuota": False, "requiresBench": True,
                 "testTimeout": 600, "maxDurationSec": 1200,
                 "buildTarget": "alpha_b0",
@@ -973,7 +971,7 @@ def seed():
                 "description": "Hardware-in-the-loop gate tests on MTIB bench",
             },
             {
-                "stage": 4, "name": "Nightly", "enabled": True,
+                "stage": 4, "name": "Nightly", "enabled": False,
                 "priority": 40, "blocksMerge": False, "requiresFuota": False, "requiresBench": True,
                 "testTimeout": 1800, "maxDurationSec": 3600,
                 "buildTarget": "alpha_b0",
@@ -987,9 +985,10 @@ def seed():
                 "description": "Extended nightly test suite with power profiling",
             },
             {
-                "stage": 5, "name": "Gate", "enabled": True,
+                "stage": 5, "name": "FUOTA", "enabled": True,
                 "priority": 100, "blocksMerge": True, "requiresFuota": True, "requiresBench": True,
                 "testTimeout": 600, "maxDurationSec": 900,
+                "buildScript": alpha_build_script or None,
                 "buildTarget": "alpha_b0",
                 "buildVariant": "release",
                 "fwRepoUrl": "git@bitbucket.org:corekinect/alpha_fw.git",

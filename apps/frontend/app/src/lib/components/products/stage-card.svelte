@@ -21,7 +21,15 @@
     2: 'SI',
     3: 'IN',
     4: 'NY',
-    5: 'GT',
+    5: 'FU',
+  };
+
+  const stageBadgeColors: Record<number, string> = {
+    1: 'bg-blue-500/10 text-blue-400',
+    2: 'bg-cyan-500/10 text-cyan-400',
+    3: 'bg-amber-500/10 text-amber-400',
+    4: 'bg-purple-500/10 text-purple-400',
+    5: 'bg-red-500/10 text-red-400',
   };
 
   async function handleToggleEnabled(e: Event) {
@@ -51,29 +59,23 @@
     class="w-full flex items-center gap-3 px-4 py-3 hover:bg-surface-2 transition-colors text-left"
     onclick={() => expanded = !expanded}
   >
-    <span class="flex items-center justify-center w-8 h-8 rounded bg-surface-2 text-xs font-bold text-text-secondary">
+    <span class="flex items-center justify-center w-8 h-8 rounded {stageBadgeColors[stage] || 'bg-surface-2 text-text-secondary'} text-xs font-bold">
       {stageIcons[stage] || stage}
     </span>
     <div class="flex-1 min-w-0">
       <div class="flex items-center gap-2">
         <span class="font-medium text-text-primary">
-          Stage {stage} — {STAGE_NAMES[stage] || 'Unknown'}
+          Stage {stage}
         </span>
-        {#if config?.blocksMerge}
-          <span class="px-1.5 py-0.5 text-2xs rounded bg-error-muted text-error font-medium">Blocks Merge</span>
-        {/if}
-        {#if config?.requiresFuota}
-          <span class="px-1.5 py-0.5 text-2xs rounded bg-accent-muted text-accent font-medium">FUOTA</span>
-        {/if}
+        <span class="px-1.5 py-0.5 text-2xs rounded font-medium {stageBadgeColors[stage] || 'bg-surface-2 text-text-tertiary'}">
+          {STAGE_NAMES[stage] || 'Unknown'}
+        </span>
       </div>
       <p class="text-sm text-text-tertiary truncate">{STAGE_DESCRIPTIONS[stage]}</p>
     </div>
 
     <div class="flex items-center gap-3">
       {#if config}
-        <span class="text-xs text-text-tertiary">
-          Priority: {config.priority}
-        </span>
         <button
           class="px-2 py-1 text-xs rounded font-medium {config.enabled ? 'bg-success-muted text-success' : 'bg-surface-2 text-text-tertiary'}"
           onclick={handleToggleEnabled}

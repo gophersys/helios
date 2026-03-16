@@ -19,13 +19,13 @@ logger = logging.getLogger(__name__)
 DEFAULT_STAGES = [
     {"stage": 1, "name": "Smoke", "priority": 10, "blocksMerge": True, "maxDurationSec": 300,
      "testTimeout": 120, "requiresFuota": False, "requiresBench": False},
-    {"stage": 2, "name": "Unit", "priority": 20, "blocksMerge": True, "maxDurationSec": 600,
+    {"stage": 2, "name": "Silicon", "priority": 20, "blocksMerge": True, "maxDurationSec": 600,
      "testTimeout": 300, "requiresFuota": False, "requiresBench": False},
     {"stage": 3, "name": "Integration", "priority": 30, "blocksMerge": True, "maxDurationSec": 1200,
      "testTimeout": 600, "requiresFuota": False, "requiresBench": True},
-    {"stage": 4, "name": "FUOTA", "priority": 40, "blocksMerge": True, "maxDurationSec": 3600,
-     "testTimeout": 1800, "requiresFuota": True, "requiresBench": True},
-    {"stage": 5, "name": "Gate", "priority": 100, "blocksMerge": True, "maxDurationSec": 900,
+    {"stage": 4, "name": "Nightly", "priority": 40, "blocksMerge": False, "maxDurationSec": 3600,
+     "testTimeout": 1800, "requiresFuota": False, "requiresBench": True},
+    {"stage": 5, "name": "FUOTA", "priority": 100, "blocksMerge": True, "maxDurationSec": 900,
      "testTimeout": 600, "requiresFuota": True, "requiresBench": True},
 ]
 

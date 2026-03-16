@@ -11,7 +11,7 @@ STAGE_NAMES = {
     2: "Silicon",
     3: "Integration",
     4: "Nightly",
-    5: "Gate",
+    5: "FUOTA",
 }
 VALID_VARIANTS = {"debug", "release", "mfg", "test"}
 MFG_REPO_STAGES = {4, 5}

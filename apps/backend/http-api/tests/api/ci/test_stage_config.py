@@ -34,7 +34,7 @@ class TestCreateStageConfig:
         mock_db.product.find_unique.return_value = make_obj(id="prod-1", name="Alpha")
         mock_db.productstageconfig.find_first.return_value = None  # No existing
         mock_db.productstageconfig.create.return_value = make_obj(
-            id="sc-new", productId="prod-1", stage=5, name="Gate", enabled=True,
+            id="sc-new", productId="prod-1", stage=5, name="FUOTA", enabled=True,
             buildScript=None, buildTarget="alpha_b0", fwRepoUrl=None, fwRepoBranch=None,
             mfgRepoUrl=None, mfgRepoBranch=None, buildVariant="release", configFlags=None,
             buildMatrix=None, testDirectory="tests/stage5/", testMarker=None,
@@ -43,7 +43,7 @@ class TestCreateStageConfig:
             createdAt="2026-01-01T00:00:00Z", updatedAt="2026-01-01T00:00:00Z",
         )
         resp = authed_client.post("/v2/products/prod-1/stages", json={
-            "stage": 5, "name": "Gate", "priority": 100,
+            "stage": 5, "name": "FUOTA", "priority": 100,
             "blocksMerge": True, "requiresFuota": True,
         })
         assert resp.status_code == 201
@@ -52,7 +52,7 @@ class TestCreateStageConfig:
         mock_db.product.find_unique.return_value = make_obj(id="prod-1", name="Alpha")
         mock_db.productstageconfig.find_first.return_value = make_obj(id="existing")
         resp = authed_client.post("/v2/products/prod-1/stages", json={
-            "stage": 5, "name": "Gate",
+            "stage": 5, "name": "FUOTA",
         })
         assert resp.status_code == 409
 
