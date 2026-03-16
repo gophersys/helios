@@ -9,6 +9,7 @@
     ChevronDown,
     ChevronRight,
     Clock,
+    Cpu,
     Download,
     ExternalLink,
     FileText,
@@ -1216,6 +1217,29 @@
           {:else}
             <p class="text-xs text-text-tertiary">Validation run pending...</p>
           {/if}
+        </div>
+      </div>
+    {/if}
+
+    <!-- Modem Firmware -->
+    {#if pipeline.triggerData?.modemFirmware}
+      {@const modem = pipeline.triggerData.modemFirmware}
+      <div class="mb-6 rounded-lg border border-border bg-surface-0 px-4 py-3">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <Cpu size={16} class="text-text-tertiary" />
+            <span class="text-sm font-medium text-text-primary">Modem Firmware</span>
+            <span class="inline-flex items-center rounded bg-surface-2 px-1.5 py-0.5 text-2xs text-text-secondary font-mono">
+              nRF91x1
+            </span>
+            <span class="inline-flex items-center rounded bg-accent-muted px-1.5 py-0.5 text-2xs text-accent font-mono font-medium">
+              v{modem.version}
+            </span>
+          </div>
+          <span class="text-2xs font-mono text-text-tertiary">{modem.name}</span>
+        </div>
+        <div class="mt-1 text-2xs text-text-tertiary">
+          MinIO: <span class="font-mono">{modem.storageKey}</span>
         </div>
       </div>
     {/if}

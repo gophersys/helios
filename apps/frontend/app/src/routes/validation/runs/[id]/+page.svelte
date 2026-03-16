@@ -290,6 +290,8 @@
             expanded: status === 'failed', // Auto-expand failures
           });
         }
+        // Sort tests by name to maintain sequential order (test_01, test_02, ...)
+        hydratedTests.sort((a, b) => a.name.localeCompare(b.name));
         liveTests = hydratedTests;
 
         // Check if run is finished
