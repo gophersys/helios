@@ -6,39 +6,45 @@ version: "1.0.0"
 product: alpha
 board: alpha_b0
 
-# Stage definitions
+# Stage definitions — one stage runs per container invocation
 stages:
-  gate:
-    name: Gate
-    description: PR merge blocker - flash, boot, personalize, FUOTA
-    timing_budget_s: 900
+  smoke:
+    name: Smoke
+    description: Software tests on native_sim — no hardware required
+    timing_budget_s: 300
     trigger: pr
-    blocks_merge: true
-    directory: tests/gate
+    directory: tests/smoke
 
-  nightly:
-    name: Nightly
-    description: Comprehensive validation - sensors, power, GPS, charger
-    timing_budget_s: 3600
-    trigger: cron
-    cron: "0 2 * * *"
-    directory: tests/nightly
+  silicon:
+    name: Silicon
+    description: Driver hardware tests on dev kits
+    timing_budget_s: 600
+    trigger: manual
+    directory: tests/silicon
 
   integration:
     name: Integration
-    description: Instrumented firmware testing via harness
+    description: Subsystem integration tests with harness instrumentation
     timing_budget_s: 1800
     trigger: manual
     requires_harness: true
     directory: tests/integration
 
-  post:
-    name: POST
-    description: Manufacturing Power-On Self Test - run on production floor
-    timing_budget_s: 600
-    trigger: manual
-    system: manufacturing
-    directory: ../../../manufacturing/alpha/src/tests/post
+  nightly:
+    name: Nightly
+    description: Comprehensive product validation — nightly runs
+    timing_budget_s: 3600
+    trigger: cron
+    cron: "0 2 * * *"
+    directory: tests/nightly
+
+  fuota:
+    name: FUOTA
+    description: Over-the-air firmware update verification — blocks merge
+    timing_budget_s: 7200
+    trigger: pipeline
+    blocks_merge: true
+    directory: tests/fuota
 
 # Hardware capabilities referenced by tests
 hardware:
@@ -61,78 +67,15 @@ hardware:
 # Test definitions
 tests:
   # ═══════════════════════════════════════════════════════════════════════════
-  # GATE TESTS (Stage 5) - PR merge blocker
+  # FUOTA TESTS (Stage 5) - OTA firmware update, blocks merge
   # ═══════════════════════════════════════════════════════════════════════════
 
-  - id: GATE-ALPHA-001
-    name: test_01_download_artifacts
-    stage: gate
-    timeout_s: 60
-    description: Download firmware artifacts from pipeline
-    hardware: []
-
-  - id: GATE-ALPHA-002
-    name: test_02_flash_firmware
-    stage: gate
-    timeout_s: 150
-    description: Flash all 3 targets via J-Link (nRF52840, modem, nRF9151)
+  - id: FUOTA-ALPHA-001
+    name: test_all_fuota_transitions
+    stage: fuota
+    timeout_s: 7200
+    description: Run all FUOTA transitions from pipeline (flash, personalize, OTA, verify)
     hardware: [mtib, jlink]
-
-  - id: GATE-ALPHA-003
-    name: test_03_verify_boot
-    stage: gate
-    timeout_s: 30
-    description: Verify device boots after flash (current check)
-    hardware: [mtib]
-
-  - id: GATE-ALPHA-004
-    name: test_04_personalize
-    stage: gate
-    timeout_s: 120
-    description: Shell lock + EC keygen + key upload
-    hardware: [mtib]
-
-  - id: GATE-ALPHA-005
-    name: test_05_cloud_checkin
-    stage: gate
-    timeout_s: 150
-    description: Wait for device to check into CoreCloud
-    hardware: [mtib]
-
-  - id: GATE-ALPHA-006
-    name: test_06_upload_cfw
-    stage: gate
-    timeout_s: 60
-    description: Upload CFW files to CoreCloud
-    hardware: []
-
-  - id: GATE-ALPHA-007
-    name: test_07_fuota_plan
-    stage: gate
-    timeout_s: 30
-    description: Create FUOTA plan and assign device
-    hardware: []
-
-  - id: GATE-ALPHA-008
-    name: test_08_fuota_delivery
-    stage: gate
-    timeout_s: 480
-    description: Wait for FUOTA delivery to complete
-    hardware: [mtib]
-
-  - id: GATE-ALPHA-009
-    name: test_09_cleanup_fuota
-    stage: gate
-    timeout_s: 15
-    description: Disable FUOTA for device (cleanup)
-    hardware: []
-
-  - id: GATE-ALPHA-010
-    name: test_10_post_fuota_boot
-    stage: gate
-    timeout_s: 30
-    description: Verify device boots after FUOTA
-    hardware: [mtib]
 
   # ═══════════════════════════════════════════════════════════════════════════
   # NIGHTLY TESTS (Stage 4) - Comprehensive validation
@@ -314,95 +257,3 @@ tests:
     description: Comms->App message delivery
     hardware: [mtib]
     category: ipc
-
-  # ═══════════════════════════════════════════════════════════════════════════
-  # POST TESTS - Manufacturing Power-On Self Test
-  # ═══════════════════════════════════════════════════════════════════════════
-
-  - id: POST-ALPHA-001
-    name: step_0_boot_and_lock
-    stage: post
-    timeout_s: 600
-    description: Boot device and lock comms + app shells
-    hardware: [mtib]
-    category: boot
-
-  - id: POST-ALPHA-002
-    name: step_1_chip_id
-    stage: post
-    timeout_s: 30
-    description: Read and verify nRF52840 chip ID
-    hardware: [mtib]
-    category: identity
-
-  - id: POST-ALPHA-003
-    name: step_2_ext_flash
-    stage: post
-    timeout_s: 60
-    description: External flash read/write/verify
-    hardware: [mtib]
-    category: memory
-
-  - id: POST-ALPHA-004
-    name: step_3_bms_status
-    stage: post
-    timeout_s: 30
-    description: BQ25180 charger/BMS status check
-    hardware: [mtib]
-    category: power
-
-  - id: POST-ALPHA-005
-    name: step_4_charger
-    stage: post
-    timeout_s: 30
-    description: Charger detection and current verification
-    hardware: [mtib]
-    category: power
-
-  - id: POST-ALPHA-006
-    name: step_5_sensors
-    stage: post
-    timeout_s: 30
-    description: Onboard sensor presence check (accel, baro, temp)
-    hardware: [mtib]
-    category: sensors
-
-  - id: POST-ALPHA-007
-    name: step_6_gps
-    stage: post
-    timeout_s: 60
-    description: GPS module communication check
-    hardware: [mtib]
-    category: gps
-
-  - id: POST-ALPHA-008
-    name: step_7_imei_iccid
-    stage: post
-    timeout_s: 30
-    description: Read IMEI and ICCIDs from nRF9151
-    hardware: [mtib]
-    category: identity
-
-  - id: POST-ALPHA-009
-    name: step_8_flash_verify
-    stage: post
-    timeout_s: 120
-    description: Verify firmware on both processors
-    hardware: [mtib]
-    category: firmware
-
-  - id: POST-ALPHA-010
-    name: step_9_personalize
-    stage: post
-    timeout_s: 30
-    description: Personalize device with CoreOps data
-    hardware: [mtib]
-    category: identity
-
-  - id: POST-ALPHA-011
-    name: step_10_rekey_ipc
-    stage: post
-    timeout_s: 30
-    description: Replace hardcoded IPC keys with device-specific keys
-    hardware: [mtib]
-    category: security

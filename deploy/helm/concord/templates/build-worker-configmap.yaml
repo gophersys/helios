@@ -837,6 +837,7 @@ data:
                                 log.info("Copied shared key %s to %s", key_file.name, target_dir.name)
 
                 # 6. Run build (writes log to output_dir/build.log during execution)
+                self.update_job(job.id, "BUILDING")
                 log_file = output_dir / "build.log"
                 success, log_output = self.builder.run_build(job, work_dir, output_dir)
                 duration = int(time.time() - start_time)

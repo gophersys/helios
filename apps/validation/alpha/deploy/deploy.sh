@@ -87,7 +87,7 @@ if [ "$TRIGGER" = true ]; then
     echo "   curl -X POST $API_URL/v2/validation/runs/<RUN_ID>/trigger \\"
     echo "     -H 'Authorization: ApiKey \$CONCORD_API_KEY' \\"
     echo "     -H 'Content-Type: application/json' \\"
-    echo "     -d '{\"firmwareVersion\":\"0.5.0\",\"pipelineId\":\"...\",\"stage\":\"gate\"}'"
+    echo "     -d '{\"firmwareVersion\":\"0.5.0\",\"pipelineId\":\"...\",\"stage\":\"fuota\"}'"
 fi
 
 echo ""

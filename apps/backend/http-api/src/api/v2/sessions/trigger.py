@@ -85,12 +85,12 @@ def trigger_run(run_id: str):
         product_revision = run_config.get("revision", "b0")  # Default to b0
 
         # Required capabilities from config (optional)
-        # Stage-specific defaults: fuota/gate/smoke need jlink for firmware flashing
+        # Stage-specific defaults
         stage_capability_defaults = {
             "fuota": ["button", "jlink"],
-            "gate": ["button", "jlink"],
-            "smoke": ["button", "jlink"],
             "nightly": ["button", "jlink"],
+            "silicon": ["button", "jlink"],
+            "smoke": [],
             "integration": ["button"],
         }
         default_caps = stage_capability_defaults.get(data.stage, ["button"])

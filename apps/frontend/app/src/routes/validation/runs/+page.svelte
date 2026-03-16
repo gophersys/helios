@@ -50,10 +50,11 @@
   ];
 
   const STAGE_OPTIONS = [
-    { value: 'gate', label: 'Gate Tests' },
     { value: 'smoke', label: 'Smoke' },
+    { value: 'silicon', label: 'Silicon' },
     { value: 'integration', label: 'Integration' },
     { value: 'nightly', label: 'Nightly' },
+    { value: 'fuota', label: 'FUOTA' },
   ];
 
   // List state
@@ -73,7 +74,7 @@
   let formNodeId = $state('');
   let formSerialNumber = $state('');
   let formVariant = $state('');
-  let formStage = $state('gate');
+  let formStage = $state('fuota');
   let formNotes = $state('');
   let submitting = $state(false);
 
@@ -134,11 +135,12 @@
     const config = run.config as Record<string, unknown> | null;
     if (config?.stage) return config.stage as ValidationStage;
     const name = run.name.toLowerCase();
-    if (name.includes('gate')) return 'gate';
+    if (name.includes('fuota')) return 'fuota';
     if (name.includes('nightly')) return 'nightly';
     if (name.includes('integration')) return 'integration';
     if (name.includes('smoke')) return 'smoke';
-    return 'gate';
+    if (name.includes('silicon')) return 'silicon';
+    return 'fuota';
   }
 
   function getTriggerContext(run: ValidationRun): { icon: typeof BitbucketIcon | typeof Moon | typeof Hand | typeof GitBranch; text: string; iconClass: string } {
@@ -181,12 +183,14 @@
 
   function getStageDisplay(stage: ValidationStage): { label: string; icon: typeof Shield; colorClass: string; bgClass: string } {
     switch (stage) {
-      case 'gate':
-        return { label: 'GATE TESTS', icon: Shield, colorClass: 'text-accent', bgClass: 'bg-accent' };
+      case 'fuota':
+        return { label: 'FUOTA', icon: Shield, colorClass: 'text-accent', bgClass: 'bg-accent' };
       case 'nightly':
         return { label: 'NIGHTLY', icon: Moon, colorClass: 'text-purple-400', bgClass: 'bg-purple-500' };
       case 'integration':
         return { label: 'INTEGRATION', icon: FlaskConical, colorClass: 'text-blue-400', bgClass: 'bg-blue-500' };
+      case 'silicon':
+        return { label: 'SILICON', icon: Zap, colorClass: 'text-yellow-400', bgClass: 'bg-yellow-500' };
       case 'smoke':
         return { label: 'SMOKE', icon: Flame, colorClass: 'text-orange-400', bgClass: 'bg-orange-500' };
       default:
@@ -283,7 +287,7 @@
     formNodeId = '';
     formSerialNumber = '';
     formVariant = '';
-    formStage = 'gate';
+    formStage = 'fuota';
     formNotes = '';
     showForm = false;
   }

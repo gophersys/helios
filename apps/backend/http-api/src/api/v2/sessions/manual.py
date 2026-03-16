@@ -195,7 +195,7 @@ def create_kubernetes_job(
     # Product slug for catalog API lookup
     product_slug: Optional[str] = None,
     # Validation stage and image tag
-    stage: str = "gate",
+    stage: str = "fuota",
     image_tag: Optional[str] = None,
 ) -> Optional[str]:
     """

@@ -107,7 +107,7 @@ ENV ARTIFACTS_DIR=/var/log/validation
 # Entry point: ValidationRunner with preflight, reporting, artifacts
 #
 # Environment variables (set by K8s Job template):
-#   STAGE                 - Test stage (gate, nightly, integration, smoke)
+#   STAGE                 - Test stage (smoke, silicon, integration, nightly, fuota)
 #   CONCORD_RUN_ID        - Validation run ID for reporting
 #   CONCORD_API_URL       - Concord API base URL
 #   CONCORD_API_KEY       - API key for reporting

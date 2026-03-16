@@ -8,23 +8,23 @@ Unified entry point for all validation stages. Wraps pytest with:
 - Consistent error handling and cleanup
 
 Usage:
-    # Run Gate tests (Stage 5)
-    python run.py --stage gate
+    # Run FUOTA tests (Stage 5 — merge blocker)
+    python run.py --stage fuota
 
     # Run Nightly tests
     python run.py --stage nightly
 
     # Preflight only (check dependencies without running tests)
-    python run.py --stage gate --preflight-only
+    python run.py --stage fuota --preflight-only
 
     # With Concord run ID (enables result reporting)
-    python run.py --stage gate --run-id clxyz...
+    python run.py --stage fuota --run-id clxyz...
 
 Environment variables (all optional with defaults):
     CONCORD_RUN_ID: Validation run ID (for result reporting)
     CONCORD_API_URL: API base URL
     CONCORD_API_KEY: API key for auth
-    STAGE: Test stage (default: gate)
+    STAGE: Test stage (default: fuota)
     MTIB_ADDRESS: MTIB server address (host:port)
     DEVICE_SNR: J-Link probe serial number
     FIXTURE_PROFILE_PATH: Path to fixture profile JSON
@@ -71,9 +71,9 @@ def main():
     )
     parser.add_argument(
         "--stage",
-        default=os.environ.get("STAGE", "gate"),
-        choices=["gate", "nightly", "integration", "smoke", "fuota"],
-        help="Test stage to run (default: gate)",
+        default=os.environ.get("STAGE", "fuota"),
+        choices=["smoke", "silicon", "integration", "nightly", "fuota"],
+        help="Test stage to run (default: fuota)",
     )
     parser.add_argument(
         "--run-id",

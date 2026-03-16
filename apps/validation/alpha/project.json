@@ -115,18 +115,18 @@
         "command": "PYTHONPATH=$(pwd)/../../../libs/python:$(pwd)/../../../libs:$(pwd)/../../../libs/protocols:. MOCK_CLOUD=1 pytest tests/ -v"
       }
     },
-    "test:gate": {
+    "test:fuota": {
       "executor": "nx:run-commands",
       "options": {
         "cwd": "apps/validation/alpha",
-        "command": "PYTHONPATH=$(pwd)/../../../libs/python:$(pwd)/../../../libs:$(pwd)/../../../libs/protocols:. pytest tests/gate/ -v --timeout=900"
+        "command": "PYTHONPATH=$(pwd)/../../../libs/python:$(pwd)/../../../libs:$(pwd)/../../../libs/protocols:. pytest tests/fuota/ -v -s --timeout=7200"
       }
     },
     "preflight": {
       "executor": "nx:run-commands",
       "options": {
         "cwd": "apps/validation/alpha",
-        "command": "PYTHONPATH=$(pwd)/../../../libs/python:$(pwd)/../../../libs:$(pwd)/../../../libs/protocols:. python3 run.py --stage gate --preflight-only"
+        "command": "PYTHONPATH=$(pwd)/../../../libs/python:$(pwd)/../../../libs:$(pwd)/../../../libs/protocols:. python3 run.py --stage fuota --preflight-only"
       }
     },
     "typecheck": {

@@ -4,18 +4,18 @@ This is the single entry point for all validation test execution.
 It handles preflight checks, pytest execution, result reporting, and cleanup.
 
 Usage:
-    runner = ValidationRunner(stage="gate", run_id="clxyz...")
+    runner = ValidationRunner(stage="fuota", run_id="clxyz...")
     exit_code = runner.run()
 
 Environment variables:
     CONCORD_RUN_ID: Validation run ID (required)
     CONCORD_API_URL: API base URL for reporting
     CONCORD_API_KEY: API key for auth
-    STAGE: Test stage (gate, nightly, integration)
+    STAGE: Test stage (smoke, silicon, integration, nightly, fuota)
     MTIB_ADDRESS: MTIB server address (host:port)
     DEVICE_SNR: J-Link probe serial number
     FIXTURE_PROFILE_PATH: Path to fixture profile JSON
-    PIPELINE_ID: CI pipeline ID (for gate stage)
+    PIPELINE_ID: CI pipeline ID (for fuota stage)
     ARTIFACTS_DIR: Directory for test artifacts
     PRODUCT_SLUG: Product slug for catalog API lookup (e.g., "alpha_b0")
 """
@@ -156,15 +156,6 @@ class StageConfig:
     def load(cls, stage: str) -> "StageConfig":
         """Load configuration for a stage."""
         configs = {
-            "gate": cls(
-                stage="gate",
-                timeout_s=900,
-                retry_count=0,
-                test_path="tests/gate/",
-                pytest_args=["-v", "--tb=short", "-x"],  # -x = fail fast
-                required_checks=["mtib", "storage", "device", "fixture", "firmware"],
-                artifact_patterns=["*.log", "*.uart", "*.csv"],
-            ),
             "nightly": cls(
                 stage="nightly",
                 timeout_s=3600,
@@ -187,10 +178,19 @@ class StageConfig:
                 stage="smoke",
                 timeout_s=300,
                 retry_count=0,
-                test_path="tests/test_smoke_mtib.py",
+                test_path="tests/smoke/",
                 pytest_args=["-v", "--tb=short"],
-                required_checks=["mtib"],
+                required_checks=[],
                 artifact_patterns=[],
+            ),
+            "silicon": cls(
+                stage="silicon",
+                timeout_s=600,
+                retry_count=0,
+                test_path="tests/silicon/",
+                pytest_args=["-v", "--tb=short"],
+                required_checks=["mtib", "device"],
+                artifact_patterns=["*.log", "*.uart"],
             ),
             "fuota": cls(
                 stage="fuota",
@@ -397,9 +397,9 @@ class PreflightChecker:
         """Verify firmware artifacts are available."""
         pipeline_id = os.environ.get("PIPELINE_ID")
         if not pipeline_id:
-            # For gate, PIPELINE_ID is required
-            if self.config.stage == "gate":
-                return False, "PIPELINE_ID required for gate tests"
+            # For fuota, PIPELINE_ID is required
+            if self.config.stage == "fuota":
+                return False, "PIPELINE_ID required for fuota tests"
             return True, "Not required for this stage"
 
         # TODO: Actually verify the pipeline has artifacts
@@ -407,8 +407,8 @@ class PreflightChecker:
 
     def _check_corecloud(self) -> Tuple[bool, str]:
         """Verify CoreCloud API authentication."""
-        # Only required for gate (FUOTA)
-        if self.config.stage not in ("gate",):
+        # Only required for fuota stage
+        if self.config.stage not in ("fuota",):
             return True, "Not required for this stage"
 
         api_key = os.environ.get("VAL_1_0_API_KEY")
@@ -622,8 +622,8 @@ def main():
     parser = argparse.ArgumentParser(description="Run validation tests")
     parser.add_argument(
         "--stage",
-        default=os.environ.get("STAGE", "gate"),
-        choices=["gate", "nightly", "integration", "smoke"],
+        default=os.environ.get("STAGE", "fuota"),
+        choices=["smoke", "silicon", "integration", "nightly", "fuota"],
         help="Test stage to run",
     )
     parser.add_argument(

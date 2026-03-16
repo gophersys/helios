@@ -298,11 +298,11 @@ model ProductStageConfig {
 
     // Test configuration
     testDirectory  String?  /// Pytest path: "tests/stage5/"
-    testMarker     String?  /// Pytest marker: "-m gate"
+    testMarker     String?  /// Pytest marker: "-m fuota"
     testTimeout    Int      @default(900) /// Max seconds for test execution
 
     // Queue / scheduling
-    priority       Int      @default(50)  /// Higher = more urgent (Gate=100, Nightly=50)
+    priority       Int      @default(50)  /// Higher = more urgent (FUOTA=100, Nightly=50)
     blocksMerge    Boolean  @default(false)
     requiresFuota  Boolean  @default(false)
     requiresBench  Boolean  @default(true) /// Stage 1 doesn't need hardware

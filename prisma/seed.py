@@ -966,9 +966,9 @@ def seed():
                 "testTimeout": 600, "maxDurationSec": 1200,
                 "buildTarget": "alpha_b0",
                 "buildVariant": "debug",
-                "testDirectory": "tests/gate/",
-                "testMarker": "-m gate",
-                "description": "Hardware-in-the-loop gate tests on MTIB bench",
+                "testDirectory": "tests/integration/",
+                "testMarker": "-m integration",
+                "description": "Subsystem integration tests with harness instrumentation",
             },
             {
                 "stage": 4, "name": "Nightly", "enabled": False,

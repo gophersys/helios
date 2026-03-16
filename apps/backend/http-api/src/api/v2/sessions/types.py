@@ -242,7 +242,7 @@ class RunTriggerRequest:
     firmware_version: str
     firmware_path: Optional[str] = None  # Legacy: MinIO path (deprecated)
     pipeline_id: Optional[str] = None  # Stage 4: CI pipeline ID (preferred)
-    stage: str = "gate"  # Test stage: gate, nightly, integration, smoke
+    stage: str = "fuota"  # Test stage: smoke, silicon, integration, nightly, fuota
     config: Optional[Dict[str, Any]] = None
 
     @classmethod
@@ -262,9 +262,9 @@ class RunTriggerRequest:
         if pipeline_id is not None:
             pipeline_id = pipeline_id.strip() or None
 
-        stage = (data.get("stage") or "gate").strip().lower()
-        if stage not in ("gate", "nightly", "integration", "smoke", "fuota"):
-            return None, "stage must be one of: gate, nightly, integration, smoke, fuota"
+        stage = (data.get("stage") or "fuota").strip().lower()
+        if stage not in ("smoke", "silicon", "integration", "nightly", "fuota"):
+            return None, "stage must be one of: smoke, silicon, integration, nightly, fuota"
 
         config = data.get("config")
         if config is not None and not isinstance(config, dict):

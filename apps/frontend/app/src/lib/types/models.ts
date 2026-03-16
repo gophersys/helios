@@ -543,7 +543,7 @@ export interface ValidationExecution {
 }
 
 export type ValidationTrigger = 'manual' | 'bitbucket' | 'nightly' | 'scheduled' | 'ci';
-export type ValidationStage = 'gate' | 'nightly' | 'integration' | 'fuota' | 'smoke';
+export type ValidationStage = 'smoke' | 'silicon' | 'integration' | 'nightly' | 'fuota';
 
 export interface ValidationRun {
   id: string;
