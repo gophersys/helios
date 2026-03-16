@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 def _serialize_chipset(c: Any) -> dict:
-    return {
+    data = {
         "id": c.id,
         "name": c.name,
         "manufacturer": c.manufacturer,
@@ -27,6 +27,19 @@ def _serialize_chipset(c: Any) -> dict:
         "createdAt": c.createdAt.isoformat(),
         "updatedAt": c.updatedAt.isoformat(),
     }
+    # Include product count if board revision chipsets were included
+    if hasattr(c, "boardRevisionChipsets") and c.boardRevisionChipsets is not None:
+        product_ids = set()
+        for brc in c.boardRevisionChipsets:
+            if (
+                hasattr(brc, "boardRevision")
+                and brc.boardRevision is not None
+                and hasattr(brc.boardRevision, "board")
+                and brc.boardRevision.board is not None
+            ):
+                product_ids.add(brc.boardRevision.board.productId)
+        data["productCount"] = len(product_ids)
+    return data
 
 
 # ── Chipsets CRUD ─────────────────────────────────────────
@@ -45,6 +58,17 @@ def list_chipsets():
         skip=skip,
         take=limit,
         order={"name": "asc"},
+        include={
+            "boardRevisionChipsets": {
+                "include": {
+                    "boardRevision": {
+                        "include": {
+                            "board": True,
+                        },
+                    },
+                },
+            },
+        },
     )
     return jsonify(ApiResponse.ok({
         "data": [_serialize_chipset(c) for c in chipsets],

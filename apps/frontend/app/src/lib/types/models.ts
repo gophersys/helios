@@ -49,6 +49,7 @@ export interface Chipset {
   isModem: boolean;
   description: string | null;
   active: boolean;
+  productCount?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -101,8 +102,18 @@ export interface FirmwareBuild {
 export interface Product {
   id: string;
   name: string;
+  slug: string | null;
   description: string | null;
   active: boolean;
+  repoSlug: string | null;
+  repoSshUrl: string | null;
+  repoBranch: string | null;
+  mfgRepoSlug: string | null;
+  mfgRepoSshUrl: string | null;
+  buildBoard: string | null;
+  buildWestDir: string | null;
+  buildMfgDir: string | null;
+  metadata: Record<string, unknown> | null;
   boardCount?: number;
   firmwareBuildCount?: number;
   boards?: Board[];

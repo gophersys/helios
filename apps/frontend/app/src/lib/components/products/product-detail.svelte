@@ -3,9 +3,11 @@
   import ErrorAlert from '$lib/components/ui/error-alert.svelte';
   import BoardList from './board-list.svelte';
   import FirmwareBuildManager from './firmware-app-list.svelte';
+  import ProductStages from './product-stages.svelte';
+  import { GitBranch, Cpu, Layers } from 'lucide-svelte';
   import type { Product, Chipset } from '$lib/types/models';
 
-  type Tab = 'boards' | 'firmware' | 'usage';
+  type Tab = 'stages' | 'boards' | 'firmware' | 'usage';
 
   interface Props {
     product: Product;
@@ -17,10 +19,11 @@
 
   let { product, chipsets, canManage, onBack, onRefresh }: Props = $props();
 
-  let activeTab = $state<Tab>('boards');
+  let activeTab = $state<Tab>('stages');
   let error = $state<string | null>(null);
 
   const tabs: { key: Tab; label: string }[] = [
+    { key: 'stages', label: 'Build & Test Stages' },
     { key: 'boards', label: 'Boards' },
     { key: 'firmware', label: 'Firmware' },
     { key: 'usage', label: 'Usage' },
@@ -58,12 +61,28 @@
           <p class="mt-1 text-sm text-text-secondary">{product.description}</p>
         {/if}
 
-        <div class="mt-3 flex gap-4 text-2xs text-text-tertiary">
-          <span>
+        <!-- Metadata row -->
+        <div class="mt-3 flex flex-wrap gap-4 text-2xs text-text-tertiary">
+          {#if product.slug}
+            <span class="font-mono bg-surface-2 px-2 py-0.5 rounded">{product.slug}</span>
+          {/if}
+          {#if product.repoSlug}
+            <span class="flex items-center gap-1">
+              <GitBranch size={12} />
+              <span class="font-mono">{product.repoSlug}</span>
+              {#if product.repoBranch}
+                <span class="text-text-tertiary/50">:</span>
+                <span class="font-mono">{product.repoBranch}</span>
+              {/if}
+            </span>
+          {/if}
+          <span class="flex items-center gap-1">
+            <Layers size={12} />
             <strong class="text-text-secondary">{boards.length}</strong> board{boards.length !== 1 ? 's' : ''}
           </span>
-          <span>
-            <strong class="text-text-secondary">{firmwareBuilds.length}</strong> firmware build{firmwareBuilds.length !== 1 ? 's' : ''}
+          <span class="flex items-center gap-1">
+            <Cpu size={12} />
+            <strong class="text-text-secondary">{firmwareBuilds.length}</strong> build{firmwareBuilds.length !== 1 ? 's' : ''}
           </span>
         </div>
       </div>
@@ -88,6 +107,10 @@
 
     <!-- Tab content -->
     <div class="mt-5">
+      {#if activeTab === 'stages'}
+        <ProductStages productId={product.id} productName={product.name} />
+      {/if}
+
       {#if activeTab === 'boards'}
         <BoardList
           productId={product.id}

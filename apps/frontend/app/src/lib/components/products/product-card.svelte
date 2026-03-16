@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Package, Pencil, Trash2 } from 'lucide-svelte';
+  import { Package, Pencil, Trash2, GitBranch, Cpu, Layers } from 'lucide-svelte';
   import type { Product } from '$lib/types/models';
 
   interface Props {
@@ -20,17 +20,18 @@
   onkeydown={(e) => e.key === 'Enter' && onSelect(product)}
   class="card card-interactive group relative flex flex-col overflow-hidden"
 >
-  <!-- Hero -->
-  <div class="flex h-36 flex-col items-center justify-center gap-2 bg-surface-2">
-    <Package size={32} strokeWidth={1} class="text-text-tertiary opacity-40" />
-  </div>
-
-  <!-- Body -->
-  <div class="flex flex-1 flex-col p-3.5">
-    <div class="mb-1 flex items-center gap-2">
-      <h3 class="truncate text-sm font-semibold text-text-primary">
-        {product.name}
-      </h3>
+  <div class="p-4">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-2">
+      <div class="flex items-center gap-2.5">
+        <div class="flex items-center justify-center w-9 h-9 rounded-lg bg-accent/10">
+          <Package size={18} class="text-accent" />
+        </div>
+        <div>
+          <h3 class="text-sm font-semibold text-text-primary">{product.name}</h3>
+          <span class="text-2xs font-mono text-text-tertiary">{product.slug || '—'}</span>
+        </div>
+      </div>
       <span
         class={[
           'inline-flex items-center rounded-full px-1.5 py-0.5 text-2xs font-medium',
@@ -42,15 +43,33 @@
         {product.active ? 'Active' : 'Inactive'}
       </span>
     </div>
+
     {#if product.description}
-      <p class="mb-2 text-2xs text-text-tertiary line-clamp-2">
-        {product.description}
-      </p>
+      <p class="text-2xs text-text-tertiary mb-3 line-clamp-2">{product.description}</p>
     {/if}
 
-    <div class="mt-auto flex gap-3 text-2xs text-text-tertiary">
-      <span>{product.boardCount ?? 0} board{(product.boardCount ?? 0) !== 1 ? 's' : ''}</span>
-      <span>{product.firmwareBuildCount ?? 0} build{(product.firmwareBuildCount ?? 0) !== 1 ? 's' : ''}</span>
+    <!-- Repo info -->
+    {#if product.repoSlug}
+      <div class="flex items-center gap-1.5 mb-3 text-2xs text-text-tertiary">
+        <GitBranch size={12} class="shrink-0" />
+        <span class="font-mono truncate">{product.repoSlug}</span>
+        {#if product.repoBranch}
+          <span class="text-text-tertiary/50">/</span>
+          <span class="font-mono">{product.repoBranch}</span>
+        {/if}
+      </div>
+    {/if}
+
+    <!-- Stats -->
+    <div class="flex gap-4 text-2xs text-text-tertiary">
+      <div class="flex items-center gap-1">
+        <Layers size={12} />
+        <span><strong class="text-text-secondary">{product.boardCount ?? 0}</strong> board{(product.boardCount ?? 0) !== 1 ? 's' : ''}</span>
+      </div>
+      <div class="flex items-center gap-1">
+        <Cpu size={12} />
+        <span><strong class="text-text-secondary">{product.firmwareBuildCount ?? 0}</strong> build{(product.firmwareBuildCount ?? 0) !== 1 ? 's' : ''}</span>
+      </div>
     </div>
   </div>
 
@@ -69,7 +88,7 @@
         title="Edit"
         aria-label="Edit"
       >
-        <Pencil size={16} />
+        <Pencil size={14} />
       </button>
       <button
         onclick={() => onDelete(product.id)}
@@ -77,7 +96,7 @@
         title="Delete"
         aria-label="Delete"
       >
-        <Trash2 size={16} />
+        <Trash2 size={14} />
       </button>
     </div>
   {/if}

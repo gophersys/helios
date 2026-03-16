@@ -134,14 +134,14 @@
 </script>
 
 <svelte:head>
-  <title>Catalog — Concord</title>
+  <title>Products — Concord</title>
 </svelte:head>
 
 <div class="animate-fade-in">
   <div class="mb-6">
     <PageHeader
-      title="Catalog"
-      description="Manage products, boards, chipsets, and firmware builds."
+      title="Products"
+      description="Manage products, firmware stages, and chipsets."
     />
   </div>
 

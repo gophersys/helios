@@ -178,6 +178,7 @@
           <tr class="border-b border-border">
             <th class="table-header">Name</th>
             <th class="table-header">Manufacturer</th>
+            <th class="table-header">Products</th>
             <th class="table-header">Modem</th>
             <th class="table-header">Status</th>
             {#if canManage}
@@ -190,6 +191,7 @@
             <tr class="table-row">
               <td class="table-cell font-medium text-text-primary">{c.name}</td>
               <td class="table-cell text-text-secondary">{c.manufacturer || '-'}</td>
+              <td class="table-cell text-text-secondary">{c.productCount ?? '-'}</td>
               <td class="table-cell">
                 {#if c.isModem}
                   <span class="rounded-full bg-accent-muted px-2 py-0.5 text-2xs font-medium text-accent">Modem</span>
