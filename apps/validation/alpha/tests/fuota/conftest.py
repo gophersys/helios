@@ -121,7 +121,7 @@ def mtib_client(request):
 @pytest.fixture(scope="session")
 def pipeline_assets(request):
     """Pipeline builds from Concord API. Downloads hex/CFW on demand."""
-    from corekinect.test.firmware import PipelineAssets
+    from corekinect.test.validation.pipeline_assets import PipelineAssets
 
     pipeline_id = (
         request.config.getoption("--pipeline-id", default=None)
@@ -141,7 +141,7 @@ def pipeline_assets(request):
 @pytest.fixture(scope="session")
 def fuota_client():
     """CoreCloud FUOTA API client (lazy-init on first use)."""
-    from corekinect.test.fuota_client import FuotaClient
+    from corekinect.test.validation.fuota_client import FuotaClient
     return FuotaClient(api_env="VAL_1_0")
 
 
@@ -222,7 +222,7 @@ def _run_fuota_cleanup() -> None:
     log.info("Running FUOTA cleanup for %d device(s)...", len(_cleanup_registry))
 
     try:
-        from corekinect.test.fuota_client import FuotaClient
+        from corekinect.test.validation.fuota_client import FuotaClient
 
         client = FuotaClient(api_env="VAL_1_0")
 

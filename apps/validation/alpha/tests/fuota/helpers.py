@@ -178,7 +178,7 @@ def personalize_device(
     Raises:
         AssertionError: On personalization failure.
     """
-    from corekinect.test.device_personalizer import DevicePersonalizer
+    from corekinect.test.validation.device_personalizer import DevicePersonalizer
 
     personalizer = DevicePersonalizer(
         mtib=client,

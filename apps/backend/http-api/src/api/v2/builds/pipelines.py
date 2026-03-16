@@ -25,6 +25,15 @@ from .stage_builds import (
 logger = logging.getLogger(__name__)
 
 
+def _safe_product_str(obj) -> str | None:
+    """Safely extract product slug string from a model field that could be a string or relation."""
+    if isinstance(obj, str):
+        return obj
+    if obj and hasattr(obj, "repoSlug"):
+        return obj.repoSlug or obj.slug or obj.name
+    return None
+
+
 def _generate_build_specs(
     stage: ValidationStage,
     product_base: str,
@@ -187,7 +196,7 @@ def _serialize_pipeline(p) -> Dict[str, Any]:
     data = {
         "id": p.id,
         "name": p.name,
-        "product": p.product if isinstance(getattr(p, "product", None), str) else ((p.product.repoSlug or p.product.slug or p.product.name) if hasattr(p, "product") and p.product and hasattr(p.product, "repoSlug") else getattr(p, "productId", None)),
+        "product": _safe_product_str(getattr(p, "product", None)) or getattr(p, "productId", None),
         "board": p.board,
         "branch": p.branch,
         "commitSha": p.commitSha,
@@ -210,7 +219,7 @@ def _serialize_pipeline(p) -> Dict[str, Any]:
         data["builds"] = [
             {
                 "id": b.id,
-                "product": b.product,
+                "product": _safe_product_str(getattr(b, "product", None)) or getattr(b, "productId", None),
                 "status": b.status,
                 "variant": b.variant,
                 "buildNum": b.buildNum,
@@ -234,7 +243,7 @@ def _serialize_pipeline_summary(p) -> Dict[str, Any]:
     data = {
         "id": p.id,
         "name": p.name,
-        "product": p.product if isinstance(getattr(p, "product", None), str) else ((p.product.repoSlug or p.product.slug or p.product.name) if hasattr(p, "product") and p.product and hasattr(p.product, "repoSlug") else getattr(p, "productId", None)),
+        "product": _safe_product_str(getattr(p, "product", None)) or getattr(p, "productId", None),
         "branch": p.branch,
         "commitSha": p.commitSha,
         "status": p.status,
@@ -254,7 +263,7 @@ def _serialize_pipeline_summary(p) -> Dict[str, Any]:
         data["builds"] = [
             {
                 "id": b.id,
-                "product": b.product,
+                "product": _safe_product_str(getattr(b, "product", None)) or getattr(b, "productId", None),
                 "status": b.status,
                 "variant": b.variant,
                 "versionString": b.versionString,
