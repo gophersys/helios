@@ -111,7 +111,7 @@ class GitPoller:
             return []
 
         try:
-            url = f"{self.api_url}/v2/catalog/products"
+            url = f"{self.api_url}/v2/products"
             headers = {
                 "Authorization": f"ApiKey {self.api_key}",
                 "Content-Type": "application/json",
@@ -123,7 +123,7 @@ class GitPoller:
                 return []
 
             data = resp.json()
-            products = data.get("data", {}).get("data", [])
+            products = data.get("data", [])
 
             repos = []
             for p in products:

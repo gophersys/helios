@@ -22,6 +22,7 @@ IMAGE_FRONTEND="concord/frontend"
 REGISTRY="containers.ad.corekinect.com"
 REGISTRY_API="${REGISTRY}/concord-http-api"
 REGISTRY_FRONTEND="${REGISTRY}/concord-frontend"
+REGISTRY_GIT_POLLER="${REGISTRY}/concord-git-poller"
 
 # Colors
 RED='\033[0;31m'
@@ -96,6 +97,13 @@ cmd_build() {
     log "  → ${IMAGE_FRONTEND}:${env}"
   fi
 
+  if [[ "${target}" == "all" || "${target}" == "git-poller" ]]; then
+    log "Building git-poller via Nx..."
+    npx nx run git-poller:containerize -c "${env}"
+    docker tag "concord/git-poller:${env}" "concord/git-poller:${env}-${version}" 2>/dev/null || true
+    log "  → concord/git-poller:${env}"
+  fi
+
   echo ""
   log "Build complete.  Tags: ${env}, ${env}-${version}"
 }
@@ -162,14 +170,16 @@ cmd_staging() {
         log "Importing images into K3s..."
         docker save "${IMAGE_API}:staging" | sudo k3s ctr images import - 2>/dev/null || true
         docker save "${IMAGE_FRONTEND}:staging" | sudo k3s ctr images import - 2>/dev/null || true
+        docker save "concord/git-poller:staging" | sudo k3s ctr images import - 2>/dev/null || true
       elif command -v k3d &>/dev/null; then
         log "Importing images into K3d..."
-        k3d image import "${IMAGE_API}:staging" "${IMAGE_FRONTEND}:staging" 2>/dev/null || true
+        k3d image import "${IMAGE_API}:staging" "${IMAGE_FRONTEND}:staging" "concord/git-poller:staging" 2>/dev/null || true
       else
         # Push to registry for remote clusters
         log "Pushing images to registry..."
         docker push "${REGISTRY_API}:staging" 2>/dev/null || true
         docker push "${REGISTRY_FRONTEND}:staging" 2>/dev/null || true
+        docker push "${REGISTRY_GIT_POLLER}:staging" 2>/dev/null || true
       fi
 
       echo ""
@@ -182,6 +192,7 @@ cmd_staging() {
         -f "${SCRIPT_DIR}/helm/values-staging.yaml"
         --set "httpApi.image.tag=staging"
         --set "frontend.image.tag=staging"
+        --set "gitPoller.image.tag=staging"
       )
 
       # Include secrets file if it exists (gitignored)
@@ -255,10 +266,12 @@ cmd_production() {
         log "Importing images into K3s..."
         docker save "${IMAGE_API}:production" | sudo k3s ctr images import - 2>/dev/null || true
         docker save "${IMAGE_FRONTEND}:production" | sudo k3s ctr images import - 2>/dev/null || true
+        docker save "concord/git-poller:production" | sudo k3s ctr images import - 2>/dev/null || true
       else
         log "Pushing images to registry..."
         docker push "${REGISTRY_API}:production"
         docker push "${REGISTRY_FRONTEND}:production"
+        docker push "${REGISTRY_GIT_POLLER}:production" 2>/dev/null || true
       fi
 
       echo ""
@@ -271,6 +284,7 @@ cmd_production() {
         -f "${SCRIPT_DIR}/helm/values-production.yaml"
         --set "httpApi.image.tag=production"
         --set "frontend.image.tag=production"
+        --set "gitPoller.image.tag=production"
       )
 
       # Include secrets file if it exists (gitignored)

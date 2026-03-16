@@ -91,6 +91,14 @@ config:
   GIT_POLLER_ENABLED: "true"
   GIT_POLLER_INTERVAL_S: "300"
 
+# ── Git Poller ────────────────────────────────────────────────
+gitPoller:
+  enabled: false
+  pollInterval: "15"
+  image:
+    repository: containers.ad.corekinect.com/concord-git-poller
+    tag: latest
+
 # ── Secrets ─────────────────────────────────────────────────
 # IMPORTANT: Override these in your values-<env>.yaml or use --set
 secrets:

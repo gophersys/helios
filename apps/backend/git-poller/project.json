@@ -1,0 +1,87 @@
+{
+  "name": "git-poller",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/backend/git-poller",
+  "projectType": "application",
+  "tags": ["scope:backend", "type:app"],
+  "targets": {
+    "build": {
+      "executor": "nx:run-commands",
+      "defaultConfiguration": "development",
+      "options": {
+        "cwd": "{workspaceRoot}"
+      },
+      "configurations": {
+        "development": {
+          "command": "nx run git-poller:containerize -c development"
+        },
+        "staging": {
+          "command": "nx run git-poller:containerize -c staging"
+        },
+        "production": {
+          "command": "nx run git-poller:containerize -c production"
+        }
+      }
+    },
+    "containerize": {
+      "executor": "@nx-tools/nx-container:build",
+      "defaultConfiguration": "development",
+      "options": {
+        "context": "{workspaceRoot}",
+        "cwd": "{workspaceRoot}",
+        "file": "apps/backend/git-poller/deploy/Dockerfile",
+        "push": false,
+        "load": true
+      },
+      "configurations": {
+        "development": {
+          "tags": ["concord/git-poller:development"],
+          "platforms": []
+        },
+        "staging": {
+          "tags": [
+            "concord/git-poller:staging",
+            "containers.ad.corekinect.com/concord-git-poller:staging"
+          ]
+        },
+        "production": {
+          "tags": [
+            "concord/git-poller:production",
+            "containers.ad.corekinect.com/concord-git-poller:production"
+          ],
+          "platforms": ["linux/amd64"]
+        }
+      }
+    },
+    "push": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["build"],
+      "options": {
+        "cwd": "{workspaceRoot}"
+      },
+      "defaultConfiguration": "staging",
+      "configurations": {
+        "staging": {
+          "command": "docker push containers.ad.corekinect.com/concord-git-poller:staging"
+        },
+        "production": {
+          "command": "docker push containers.ad.corekinect.com/concord-git-poller:production"
+        }
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/backend/git-poller",
+        "command": "python3 -c \"import py_compile,glob;[py_compile.compile(f,doraise=True) for f in glob.glob('src/**/*.py',recursive=True)]\""
+      }
+    },
+    "serve": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/backend/git-poller",
+        "command": "PYTHONPATH=src:. python3 -m src.main"
+      }
+    }
+  }
+}

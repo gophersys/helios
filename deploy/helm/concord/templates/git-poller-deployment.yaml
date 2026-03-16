@@ -7,7 +7,7 @@ metadata:
   labels:
     app: concord-git-poller
     app.kubernetes.io/component: git-poller
-    app.kubernetes.io/part-of: concord-ci
+    app.kubernetes.io/part-of: concord
 spec:
   replicas: 1
   selector:
@@ -17,21 +17,11 @@ spec:
     metadata:
       labels:
         app: concord-git-poller
-      annotations:
-        checksum/config: {{ include (print $.Template.BasePath "/git-poller-configmap.yaml") . | sha256sum }}
     spec:
       containers:
         - name: git-poller
-          image: python:3.11-slim
-          command: ["/bin/bash", "-c"]
-          args:
-            - |
-              set -ex
-              apt-get update
-              apt-get install -y git openssh-client
-              pip install requests urllib3
-              cat /app/git_poller.py | head -20
-              exec python3 /app/git_poller.py
+          image: "{{ .Values.gitPoller.image.repository }}:{{ .Values.gitPoller.image.tag }}"
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
           env:
             - name: GIT_SSH_KEY_PATH
               value: "/root/.ssh/id_rsa"
@@ -47,27 +37,17 @@ spec:
           resources:
             requests:
               cpu: "50m"
-              memory: "128Mi"
+              memory: "64Mi"
             limits:
-              cpu: "500m"
-              memory: "512Mi"
+              cpu: "200m"
+              memory: "128Mi"
           volumeMounts:
-            - name: poller-script
-              mountPath: /app
             - name: ssh-key
               mountPath: /root/.ssh
               readOnly: true
-            - name: state
-              mountPath: /tmp
       volumes:
-        - name: poller-script
-          configMap:
-            name: concord-git-poller-script
-            defaultMode: 0755
         - name: ssh-key
           secret:
             secretName: bitbucket-ssh-key
             defaultMode: 0600
-        - name: state
-          emptyDir: {}
 {{- end }}

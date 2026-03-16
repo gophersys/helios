@@ -60,6 +60,14 @@ config:
   GIT_POLLER_ENABLED: "true"
   GIT_POLLER_INTERVAL_S: "300"
 
+# Git Poller — polls firmware repos for new commits
+gitPoller:
+  enabled: true
+  pollInterval: "300"
+  image:
+    repository: containers.ad.corekinect.com/concord-git-poller
+    tag: production
+
 secrets:
   DATABASE_URL: "postgresql://concord:concord-prod-2026@concord-postgres:5432/concord"
   STORAGE_URL: "http://concord-minio:9000"

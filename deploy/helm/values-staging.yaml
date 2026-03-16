@@ -94,6 +94,9 @@ buildWorker:
 gitPoller:
   enabled: true
   pollInterval: "15"
+  image:
+    repository: containers.ad.corekinect.com/concord-git-poller
+    tag: staging
 
 secrets:
   DATABASE_URL: "postgresql://concord:concord-staging@concord-postgres:5432/concord"
