@@ -1,11 +1,11 @@
 """Sigma5 app processor shell commands.
 
 Usage:
-    from corekinect.shells.sigma5 import Sigma5Shell
+    from corekinect.shells.sigma5 import Sigma5AppShell
 
-    shell = Sigma5Shell(mtib_client)
-    success, err = shell.cmd_sigma5_app_lock_shell()
-    accel_id, alt_id, flash_id, gps_hw, ble_mac, err = shell.cmd_sigma5_app_get_chip_ids()
+    shell = Sigma5AppShell(mtib_client)
+    success, err = shell.lock_shell()
+    accel_id, alt_id, flash_id, gps_hw, ble_mac, err = shell.get_chip_ids()
 """
 
 import re
@@ -16,14 +16,14 @@ from protocols.mtib.mtib_pb2 import HostType
 from corekinect.shells._uart_cmd import send_uart_cmd
 
 
-class Sigma5Shell:
+class Sigma5AppShell:
     """Sigma5 app processor shell commands."""
 
     def __init__(self, client):
         self._client = client
         self.logger = client.logger
 
-    def cmd_sigma5_app_lock_shell(self) -> Tuple[Optional[bool], Optional[str]]:
+    def lock_shell(self) -> Tuple[Optional[bool], Optional[str]]:
         """Lock shell mode for the Sigma5 app processor.
 
         Returns:
@@ -40,7 +40,7 @@ class Sigma5Shell:
             return None, err
         return "Locking shell mode ON" in (response or ""), None
 
-    def cmd_sigma5_app_debug_uart_disable(self) -> Tuple[Optional[bool], Optional[str]]:
+    def debug_uart_disable(self) -> Tuple[Optional[bool], Optional[str]]:
         """Disable debug UART for the Sigma5 app processor.
 
         Returns:
@@ -57,7 +57,7 @@ class Sigma5Shell:
             return None, err
         return "Debug is not enabled" in (response or ""), None
 
-    def cmd_sigma5_app_get_chip_ids(
+    def get_chip_ids(
         self,
     ) -> Tuple[Optional[str], Optional[str], Optional[str], Optional[str], Optional[str], Optional[str]]:
         """Get chip IDs from the Sigma5 app processor.
@@ -93,7 +93,7 @@ class Sigma5Shell:
             None,
         )
 
-    def cmd_sigma5_app_get_ublox_version_info(
+    def get_ublox_version_info(
         self,
     ) -> Tuple[Optional[str], Optional[str], Optional[str], Optional[str], Optional[str], Optional[str]]:
         """Get ublox version info from the Sigma5 app processor.
@@ -128,7 +128,7 @@ class Sigma5Shell:
             None,
         )
 
-    def cmd_sigma5_app_read_accel(
+    def read_accel(
         self,
     ) -> Tuple[Optional[float], Optional[float], Optional[float], Optional[float], Optional[str]]:
         """Get accelerometer values from the Sigma5 app processor.
@@ -156,7 +156,7 @@ class Sigma5Shell:
                 pass
         return None, None, None, None, f"Failed to parse accel from: {full_response[:200]}"
 
-    def cmd_sigma5_app_read_altimeter(self) -> Tuple[Optional[float], Optional[float], Optional[str]]:
+    def read_altimeter(self) -> Tuple[Optional[float], Optional[float], Optional[str]]:
         """Get altimeter values from the Sigma5 app processor.
 
         Returns:

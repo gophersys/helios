@@ -1,39 +1,37 @@
 """Product-specific shell command interfaces over MTIB UART.
 
-Each shell class wraps an MtibV1Client and exposes firmware-specific
-manufacturing shell commands as clean Python functions returning dataclasses.
+Each shell class wraps an MtibV1Client and provides manufacturing shell
+commands for a specific processor target (app or comms).
 
 Architecture:
-    MtibV1Client (gRPC transport) → ShellCommander (line assembly) → ProductShell (commands)
+    MtibV1Client (gRPC transport) → ShellCommander (line assembly) → Shell (commands)
+
+Shells are split by processor target, not product:
+    - app shells:   AlphaAppShell, ThetaAppShell, Sigma5AppShell
+    - comms shells: CommsCoprocShell (shared across products)
 
 Usage:
-    from corekinect.shells.alpha_app import AlphaAppShell
-    from corekinect.shells.comms_coproc import CommsCoprocShell
-
     app = AlphaAppShell(mtib_client)
     comms = CommsCoprocShell(mtib_client)
 
-    app.lock()
-    app.debug_off()
-    ids = app.get_chip_ids()
-    print(ids.ble_mac)
+    app.start()
+    comms.start()
 
+    app.lock()
     comms.lock()
-    comms.debug_off()
-    sim = comms.get_sim_info()
-    print(sim.imei)
+
+    ids, err = app.get_chip_ids()
+    sim, err = comms.get_sim_info()
 """
 
 from corekinect.shells.alpha_app import AlphaAppShell
 from corekinect.shells.comms_coproc import CommsCoprocShell
-from corekinect.shells.alpha import AlphaShell
-from corekinect.shells.theta import ThetaShell
-from corekinect.shells.sigma5 import Sigma5Shell
+from corekinect.shells.theta import ThetaAppShell
+from corekinect.shells.sigma5 import Sigma5AppShell
 
 __all__ = [
     "AlphaAppShell",
     "CommsCoprocShell",
-    "AlphaShell",
-    "ThetaShell",
-    "Sigma5Shell",
+    "ThetaAppShell",
+    "Sigma5AppShell",
 ]

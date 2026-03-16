@@ -1,11 +1,11 @@
 """Theta app processor shell commands.
 
 Usage:
-    from corekinect.shells.theta import ThetaShell
+    from corekinect.shells.theta import ThetaAppShell
 
-    shell = ThetaShell(mtib_client)
-    success, err = shell.cmd_theta_app_lock_shell()
-    id_1, id_2, err = shell.cmd_theta_app_get_chip_ids()
+    shell = ThetaAppShell(mtib_client)
+    success, err = shell.lock_shell()
+    id_1, id_2, err = shell.get_chip_ids()
 """
 
 import queue
@@ -18,14 +18,14 @@ from protocols.mtib.mtib_pb2 import HostType, UartStreamRequest
 from corekinect.shells._uart_cmd import send_uart_cmd
 
 
-class ThetaShell:
+class ThetaAppShell:
     """Theta app processor shell commands."""
 
     def __init__(self, client):
         self._client = client
         self.logger = client.logger
 
-    def cmd_theta_app_lock_shell(self) -> Tuple[Optional[bool], Optional[str]]:
+    def lock_shell(self) -> Tuple[Optional[bool], Optional[str]]:
         """Lock shell on theta app processor.
 
         Returns:
@@ -42,7 +42,7 @@ class ThetaShell:
             return None, err
         return "Shell locked" in (response or "") or "Locking shell mode" in (response or ""), None
 
-    def cmd_theta_app_debug_uart_disable(self) -> Tuple[Optional[bool], Optional[str]]:
+    def debug_uart_disable(self) -> Tuple[Optional[bool], Optional[str]]:
         """Disable debug UART on theta app processor.
 
         Returns:
@@ -59,7 +59,7 @@ class ThetaShell:
             return None, err
         return any(p in (response or "") for p in ["Debug disabled", "Debug output disabled", "Debug is not enabled"]), None
 
-    def cmd_theta_app_get_chip_ids(self) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+    def get_chip_ids(self) -> Tuple[Optional[str], Optional[str], Optional[str]]:
         """Get chip IDs from theta app processor.
 
         Supports two firmware response formats:
@@ -105,7 +105,7 @@ class ThetaShell:
 
         return None, None, f"Unrecognized format: {full_response[:200]}"
 
-    def cmd_theta_app_read_accel(
+    def read_accel(
         self,
     ) -> Tuple[Optional[float], Optional[float], Optional[float], Optional[float], Optional[str]]:
         """Read accelerometer from theta app processor.
@@ -132,7 +132,7 @@ class ThetaShell:
                 pass
         return None, None, None, None, f"Failed to parse accel: {full_response[:200]}"
 
-    def cmd_theta_app_read_alt(self) -> Tuple[Optional[float], Optional[float], Optional[str]]:
+    def read_alt(self) -> Tuple[Optional[float], Optional[float], Optional[str]]:
         """Read altimeter from theta app processor.
 
         Returns:
@@ -157,7 +157,7 @@ class ThetaShell:
                 pass
         return None, None, f"Failed to parse altimeter: {full_response[:200]}"
 
-    def cmd_theta_app_drone_test(
+    def drone_test(
         self, timeout_ms: int = 10000
     ) -> Tuple[Optional[bool], Optional[int], Optional[int], Optional[str]]:
         """Run drone detection test on theta app processor.
@@ -190,7 +190,7 @@ class ThetaShell:
             None,
         )
 
-    def cmd_theta_app_meas_bat_voltage(self) -> Tuple[Optional[float], Optional[str]]:
+    def meas_bat_voltage(self) -> Tuple[Optional[float], Optional[str]]:
         """Measure battery voltage on theta app processor.
 
         Returns:
@@ -215,7 +215,7 @@ class ThetaShell:
                 pass
         return None, f"Failed to parse voltage: {full_response[:200]}"
 
-    def cmd_theta_app_membrane_test(self) -> Tuple[Optional[dict], Optional[str]]:
+    def membrane_test(self) -> Tuple[Optional[dict], Optional[str]]:
         """Run complete membrane board test on theta app processor.
 
         Returns:
@@ -245,7 +245,7 @@ class ThetaShell:
 
         return results, None
 
-    def cmd_theta_app_env_test(self) -> Tuple[Optional[dict], Optional[str]]:
+    def env_test(self) -> Tuple[Optional[dict], Optional[str]]:
         """Read BME280 environmental sensors on theta app processor.
 
         Returns:
@@ -281,7 +281,7 @@ class ThetaShell:
             return readings, None
         return None, f"Failed to parse env data: {full_response[:200]}"
 
-    def cmd_theta_app_vib_test(self, duration_ms: int = 200) -> Tuple[Optional[bool], Optional[str]]:
+    def vib_test(self, duration_ms: int = 200) -> Tuple[Optional[bool], Optional[str]]:
         """Test vibration motor on theta app processor
 
         Args:
@@ -330,7 +330,7 @@ class ThetaShell:
         except Exception as e:
             return None, f"Exception: {str(e)}"
 
-    def cmd_theta_app_gps_status(self) -> Tuple[Optional[dict], Optional[str]]:
+    def gps_status(self) -> Tuple[Optional[dict], Optional[str]]:
         """Get GPS status from theta app processor
 
         Returns:
@@ -384,7 +384,7 @@ class ThetaShell:
         except Exception as e:
             return None, f"Exception: {str(e)}"
 
-    def cmd_theta_app_gps_start(self) -> Tuple[Optional[bool], Optional[str]]:
+    def gps_start(self) -> Tuple[Optional[bool], Optional[str]]:
         """Start GPS tracking on theta app processor
 
         Returns:
@@ -434,7 +434,7 @@ class ThetaShell:
         except Exception as e:
             return None, f"Exception: {str(e)}"
 
-    def cmd_theta_app_gps_stop(self) -> Tuple[Optional[bool], Optional[str]]:
+    def gps_stop(self) -> Tuple[Optional[bool], Optional[str]]:
         """Stop GPS tracking on theta app processor
 
         Returns:
@@ -484,7 +484,7 @@ class ThetaShell:
         except Exception as e:
             return None, f"Exception: {str(e)}"
 
-    def cmd_theta_app_get_ublox(self) -> Tuple[Optional[dict], Optional[str]]:
+    def get_ublox(self) -> Tuple[Optional[dict], Optional[str]]:
         """Get u-blox GPS info from theta app processor
 
         Returns:
@@ -540,7 +540,7 @@ class ThetaShell:
         except Exception as e:
             return None, f"Exception: {str(e)}"
 
-    def cmd_theta_app_set_gps_power(self, enable: bool) -> Tuple[Optional[bool], Optional[str]]:
+    def set_gps_power(self, enable: bool) -> Tuple[Optional[bool], Optional[str]]:
         """Set GPS power state on theta app processor
 
         Args:
@@ -590,7 +590,7 @@ class ThetaShell:
         except Exception as e:
             return None, f"Exception: {str(e)}"
 
-    def cmd_theta_app_test_ble(self) -> Tuple[Optional[bool], Optional[str]]:
+    def test_ble(self) -> Tuple[Optional[bool], Optional[str]]:
         """Test BLE advertising on theta app processor
 
         Returns:
@@ -641,7 +641,7 @@ class ThetaShell:
         except Exception as e:
             return None, f"Exception: {str(e)}"
 
-    def cmd_theta_app_test_bms(self) -> Tuple[Optional[dict], Optional[str]]:
+    def test_bms(self) -> Tuple[Optional[dict], Optional[str]]:
         """Test BMS (gas gauge) chip on theta app processor
 
         Returns:
@@ -710,7 +710,7 @@ class ThetaShell:
         except Exception as e:
             return None, f"Exception: {str(e)}"
 
-    def cmd_theta_app_test_charger(self) -> Tuple[Optional[dict], Optional[str]]:
+    def test_charger(self) -> Tuple[Optional[dict], Optional[str]]:
         """Test battery charger chip on theta app processor
 
         Returns:
@@ -773,7 +773,7 @@ class ThetaShell:
         except Exception as e:
             return None, f"Exception: {str(e)}"
 
-    def cmd_theta_app_test_gps(self) -> Tuple[Optional[dict], Optional[str]]:
+    def test_gps(self) -> Tuple[Optional[dict], Optional[str]]:
         """Test GPS (GNSS) module on theta app processor
 
         Returns:
@@ -829,7 +829,7 @@ class ThetaShell:
         except Exception as e:
             return None, f"Exception: {str(e)}"
 
-    def cmd_theta_app_read_ext_flash(
+    def read_ext_flash(
         self, address: str, num_bytes: int
     ) -> Tuple[Optional[str], Optional[str]]:
         """Read data from app processor external flash
@@ -900,7 +900,7 @@ class ThetaShell:
         except Exception as e:
             return None, f"Exception in read_ext_flash: {str(e)}"
 
-    def cmd_theta_app_write_ext_flash(
+    def write_ext_flash(
         self, address: str, data: str
     ) -> Tuple[Optional[bool], Optional[str]]:
         """Write data to app processor external flash (data should be base64 encoded)
@@ -963,7 +963,7 @@ class ThetaShell:
         except Exception as e:
             return None, f"Exception in write_ext_flash: {str(e)}"
 
-    def cmd_theta_app_erase_ext_flash(self) -> Tuple[Optional[bool], Optional[str]]:
+    def erase_ext_flash(self) -> Tuple[Optional[bool], Optional[str]]:
         """Erase app processor external flash
 
         Returns:

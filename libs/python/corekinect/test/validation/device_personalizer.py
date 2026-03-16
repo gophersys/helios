@@ -45,8 +45,8 @@ import requests
 
 from corekinect.mtib_client.v1.client.core import MtibV1Client
 from corekinect.mtib_client.v1.client.types import GpioDirection, GpioResistorConfig, PowerChannel
-from corekinect.shells._uart_cmd import lock_shell_app, lock_shell_comms, debug_disable_app, debug_disable_comms
-from corekinect.shells.alpha import AlphaShell
+from corekinect.shells.alpha_app import AlphaAppShell
+from corekinect.shells.comms_coproc import CommsCoprocShell
 from corekinect.utils import Logger
 from corekinect.utils.encoding.byte_str import bytes_to_base64
 from corekinect.utils.timeutil.tzutils import dt_to_utc
@@ -131,7 +131,8 @@ class DevicePersonalizer:
         require_corecloud_key: bool = True,  # FUOTA requires key in CoreCloud - fail if upload fails
     ):
         self._mtib = mtib
-        self._shell = AlphaShell(mtib)
+        self._app = AlphaAppShell(mtib)
+        self._comms = CommsCoprocShell(mtib)
         self._snr = snr
         self._imei = imei
         self._iccids = iccids
@@ -269,22 +270,23 @@ class DevicePersonalizer:
         """
         results = {}
 
-        def _lock(name, lock_fn, client):
-            results[name] = lock_fn(client, timeout_s=timeout_s)
+        def _lock(name, shell):
+            try:
+                shell.start()
+                results[name] = shell.lock(timeout_s=timeout_s)
+            except Exception as e:
+                self._log.error("Lock %s exception: %s", name, e)
+                results[name] = False
 
-        t_app = threading.Thread(
-            target=_lock, args=("APP", lock_shell_app, self._mtib)
-        )
-        t_comms = threading.Thread(
-            target=_lock, args=("COMMS", lock_shell_comms, self._mtib)
-        )
+        t_app = threading.Thread(target=_lock, args=("APP", self._app))
+        t_comms = threading.Thread(target=_lock, args=("COMMS", self._comms))
         t_app.start()
         t_comms.start()
         t_app.join(timeout=timeout_s + 5)
         t_comms.join(timeout=timeout_s + 5)
 
-        app_ok = results.get("APP", (False, ""))[0]
-        comms_ok = results.get("COMMS", (False, ""))[0]
+        app_ok = results.get("APP", False)
+        comms_ok = results.get("COMMS", False)
 
         self._log.info(
             "Concurrent lock: APP=%s, COMMS=%s",
@@ -348,9 +350,9 @@ class DevicePersonalizer:
 
             # Disable debug output (reduces UART noise for subsequent commands)
             if app_ok:
-                debug_disable_app(self._mtib)
+                self._app.debug_off()
             if comms_ok:
-                debug_disable_comms(self._mtib)
+                self._comms.debug_off()
 
             if app_ok and comms_ok:
                 self._log.debug("Power cycle and shell lock complete")
@@ -373,9 +375,9 @@ class DevicePersonalizer:
         app_ok, comms_ok = self._lock_shells_concurrent()
 
         if app_ok:
-            debug_disable_app(self._mtib)
+            self._app.debug_off()
         if comms_ok:
-            debug_disable_comms(self._mtib)
+            self._comms.debug_off()
 
         if not comms_ok:
             return "COMMS shell lock failed — device may not have booted or window missed"
@@ -385,19 +387,12 @@ class DevicePersonalizer:
     def _read_imei_iccids(self) -> Tuple[Optional[str], Optional[List[str]], Optional[str]]:
         """Read IMEI and ICCIDs from the cellular modem."""
         self._log.debug("Reading IMEI/ICCIDs from modem...")
-        imei, iccids_str, err = self._shell.alpha_cmd_get_imei_iccids(
-            target=COMMS_TARGET
-        )
+        sim_info, err = self._comms.get_sim_info()
         if err:
             return None, None, err
 
-        # Parse ICCIDs (comma-separated string -> list)
-        iccids = None
-        if iccids_str:
-            iccids = [s.strip() for s in iccids_str.split(",") if s.strip()]
-
-        self._log.debug("IMEI: %s, ICCIDs: %s", imei, iccids)
-        return imei, iccids, None
+        self._log.debug("IMEI: %s, ICCIDs: %s", sim_info.imei, sim_info.iccids)
+        return sim_info.imei, sim_info.iccids, None
 
     def _get_device_id(self) -> Tuple[Optional[str], Optional[str]]:
         """Get device ID from CoreOps or use known_device_id fallback.
@@ -429,9 +424,10 @@ class DevicePersonalizer:
 
     def _personalize(self, device_id: str) -> Tuple[Optional[str], Optional[str], Optional[str]]:
         """Send personalize command via UART, returns (hex_key, b64_key, error)."""
-        return self._shell.alpha_cmd_personalize(
-            device_id=device_id, target=COMMS_TARGET
-        )
+        result, err = self._comms.personalize(device_id)
+        if err:
+            return None, None, err
+        return result.hex_key, result.base64_key, None
 
     def _save_device_info(
         self,
@@ -466,7 +462,7 @@ class DevicePersonalizer:
     def _rekey_ipc(self) -> Optional[str]:
         """Rekey IPC to replace hardcoded keys with device-specific keys."""
         self._log.debug("Rekeying IPC...")
-        success, err = self._shell.cmd_comms_coproc_rekey_ipc(target=COMMS_TARGET)
+        success, err = self._comms.rekey_ipc()
         if err:
             return err
         if not success:
