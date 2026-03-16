@@ -25,12 +25,12 @@ class TestPreflight:
         print(f"MTIB address: {addr}")
 
         # Verify the connection is live by reading power state
-        result, err = mtib_client.DutPowerRead(channel=PowerChannel.DUT)
+        result, err = mtib_client.PowerRead(channel=PowerChannel.DUT)
         assert err is None, f"MTIB power read failed: {err}"
 
         print(f"Ch0 (DUT):     {result.voltage_v:.2f}V  {result.current_ma:.2f}mA")
 
-        result_ch1, err_ch1 = mtib_client.DutPowerRead(channel=PowerChannel.CHARGER)
+        result_ch1, err_ch1 = mtib_client.PowerRead(channel=PowerChannel.CHARGER)
         if not err_ch1:
             print(f"Ch1 (Charger): {result_ch1.voltage_v:.2f}V  {result_ch1.current_ma:.2f}mA")
 

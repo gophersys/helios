@@ -97,15 +97,15 @@ def _generate_build_specs(
     return builds
 
 
-def _auto_increment_version(db, product_id: str, variant: str) -> Optional[str]:
+def _auto_increment_version(db, product_id: str, variant: str, target: str = "app") -> Optional[str]:
     """Auto-increment the build number from the latest successful build.
 
-    Finds the most recent SUCCESS build for the product+variant, parses its
+    Finds the most recent SUCCESS build for the product+variant+target, parses its
     version string (major.minor.build), and increments the build number.
     Returns None if no previous build exists.
     """
     latest = db.buildjob.find_first(
-        where={"productId": product_id, "variant": variant, "status": "SUCCESS"},
+        where={"productId": product_id, "variant": variant, "target": target, "status": "SUCCESS"},
         order={"createdAt": "desc"},
     )
     if latest and latest.versionString:
@@ -134,6 +134,10 @@ def _generate_matrix_build_specs(
     - source == "head": new build from the triggering commit, auto-versioned.
     - source == "latest": reference to the latest successful build (CACHED).
 
+    The firmware field determines the target type:
+    - Contains "_mfg" -> target="mfg" (manufacturing firmware)
+    - Otherwise -> target="app" (production firmware)
+
     Returns a flat list of build spec dicts.
     """
     builds = []
@@ -145,18 +149,20 @@ def _generate_matrix_build_specs(
         firmware = entry.get("firmware", f"{repo_base}_fw")
         source = entry.get("source", "head")
 
+        # Derive target from firmware name
+        target = "mfg" if "_mfg" in firmware else "app"
+
         # Each role produces both debug and release variants
         for variant in ("debug", "release"):
             label = f"{role.upper()}_{variant.upper()}"
 
             if source == "head":
-                # New build from triggering commit
-                version_override = _auto_increment_version(db, product_id, variant) if product_id else None
+                # New build from triggering commit — auto-version based on target type
+                version_override = _auto_increment_version(db, product_id, variant, target) if product_id else None
 
                 builds.append({
-                    "product": firmware,
                     "board": board,
-                    "target": "nrf52840",
+                    "target": target,
                     "variant": variant,
                     "mtibRev": "1.2",
                     "branch": branch,
@@ -170,15 +176,14 @@ def _generate_matrix_build_specs(
                     "versionOverride": version_override,
                 })
             else:
-                # "latest" — find cached build or create placeholder
+                # "latest" — will be resolved to CACHED in pipeline creation
                 builds.append({
-                    "product": firmware,
                     "board": board,
-                    "target": "nrf52840",
+                    "target": target,
                     "variant": variant,
                     "mtibRev": "1.2",
                     "branch": branch,
-                    "commitSha": commit_sha,
+                    "commitSha": None,  # Will be filled from cached build
                     "status": "QUEUED",
                     "matrixLabel": label,
                     "matrixIndex": idx,

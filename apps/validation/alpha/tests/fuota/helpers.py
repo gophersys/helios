@@ -69,8 +69,8 @@ def read_total_current_ma(client, samples: int = 10, interval_s: float = 0.5) ->
     readings = []
     for _ in range(samples):
         try:
-            ch0, err0 = client.DutPowerRead(channel=PowerChannel.DUT)
-            ch1, err1 = client.DutPowerRead(channel=PowerChannel.CHARGER)
+            ch0, err0 = client.PowerRead(channel=PowerChannel.DUT)
+            ch1, err1 = client.PowerRead(channel=PowerChannel.CHARGER)
 
             current = 0.0
             if not err0 and ch0:
