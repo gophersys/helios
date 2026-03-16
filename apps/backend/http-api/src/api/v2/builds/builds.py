@@ -38,7 +38,7 @@ def _serialize_build_job(b: Any) -> dict:
     """Serialize a BuildJob model to a JSON-friendly dict."""
     data = {
         "id": b.id,
-        "product": b.product,
+        "product": (b.product.repoSlug or b.product.slug) if hasattr(b, "product") and b.product and hasattr(b.product, "repoSlug") else getattr(b, "productId", None),
         "productId": getattr(b, "productId", None),
         "board": b.board,
         "target": b.target,
@@ -121,7 +121,7 @@ def list_builds():
         skip=skip,
         take=limit,
         order={"createdAt": "desc"},
-        include={"artifacts": True},
+        include={"artifacts": True, "product": True},
     )
 
     pages = math.ceil(total / limit) if limit > 0 else 0
@@ -142,7 +142,7 @@ def get_build(build_id: str):
 
     build = db.buildjob.find_unique(
         where={"id": build_id},
-        include={"artifacts": True},
+        include={"artifacts": True, "product": True},
     )
 
     if not build:
@@ -215,10 +215,14 @@ def create_build():
     if product_record and product_record.buildBoard and not data.board:
         board = product_record.buildBoard
 
+    # Build configFlags — merge versionOverride if present
+    config_flags = dict(data.config) if data.config else {"source": "manual"}
+    if data.version_override:
+        config_flags["versionOverride"] = data.version_override
+
     try:
         build = db.buildjob.create(
             data={
-                "product": data.product,
                 "productId": product_id,
                 "board": board,
                 "target": data.target,
@@ -227,10 +231,10 @@ def create_build():
                 "branch": data.branch,
                 "commitSha": data.commit_sha,
                 "status": "QUEUED",
-                "webhookData": Json(data.config) if data.config else Json({"source": "manual"}),
-                "configFlags": Json(data.config) if data.config else None,
+                "webhookData": Json(config_flags),
+                "configFlags": Json(config_flags),
             },
-            include={"artifacts": True},
+            include={"artifacts": True, "product": True},
         )
 
         log_audit("ci.build.create", "BuildJob", build.id, {
@@ -318,7 +322,7 @@ def update_build(build_id: str):
         updated = db.buildjob.update(
             where={"id": build_id},
             data=update_data,
-            include={"artifacts": True},
+            include={"artifacts": True, "product": True},
         )
 
         # Update pipeline status based on build status changes
@@ -397,7 +401,7 @@ def reset_build(build_id: str):
                 "errorMessage": None,
                 "durationSeconds": None,
             },
-            include={"artifacts": True},
+            include={"artifacts": True, "product": True},
         )
 
         log_audit("ci.build.reset", "BuildJob", build_id, {

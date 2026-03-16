@@ -145,6 +145,7 @@ class BuildCreateRequest:
     mtib_rev: str = "1.2"
     commit_sha: Optional[str] = None
     config: Optional[Dict[str, Any]] = None
+    version_override: Optional[str] = None
 
     @classmethod
     def from_json(cls, data: dict) -> Tuple[Optional["BuildCreateRequest"], Optional[str]]:
@@ -184,6 +185,10 @@ class BuildCreateRequest:
         if config is not None and not isinstance(config, dict):
             return None, "config must be an object"
 
+        version_override = data.get("versionOverride") or data.get("firmwareVersion")
+        if version_override:
+            version_override = str(version_override).strip()
+
         return cls(
             product=product,
             board=board,
@@ -193,6 +198,7 @@ class BuildCreateRequest:
             mtib_rev=mtib_rev,
             commit_sha=commit_sha,
             config=config,
+            version_override=version_override,
         ), None
 
 
