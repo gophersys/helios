@@ -998,6 +998,12 @@ def seed():
                 "testDirectory": "tests/fuota/",
                 "testMarker": "-m fuota",
                 "description": "FUOTA delivery verification and boot confirmation",
+                "buildMatrix": Json([
+                    {"role": "flash_base", "firmware": "alpha_mfg_fw", "source": "latest",
+                     "description": "MFG firmware to flash via J-Link for personalization"},
+                    {"role": "fuota_target", "firmware": "alpha_fw", "source": "head",
+                     "description": "Production firmware CFW for OTA delivery"},
+                ]),
             },
         ]
 

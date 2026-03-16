@@ -14,6 +14,7 @@ from src.lib.permissions import Permissions
 from src.lib.types import ApiResponse
 from src.services.database.prisma import get_db_client
 
+from .build_cache import compute_build_fingerprint, find_cached_build
 from .types import PipelineCreateRequest
 from .stage_builds import (
     ValidationStage,
@@ -83,6 +84,100 @@ def _generate_build_specs(
             "versionBump": d.is_version_bump,
             "baseLabel": d.base_label,
         })
+
+    return builds
+
+
+def _auto_increment_version(db, product_id: str, variant: str) -> Optional[str]:
+    """Auto-increment the build number from the latest successful build.
+
+    Finds the most recent SUCCESS build for the product+variant, parses its
+    version string (major.minor.build), and increments the build number.
+    Returns None if no previous build exists.
+    """
+    latest = db.buildjob.find_first(
+        where={"productId": product_id, "variant": variant, "status": "SUCCESS"},
+        order={"createdAt": "desc"},
+    )
+    if latest and latest.versionString:
+        parts = latest.versionString.split(".")
+        if len(parts) >= 3:
+            try:
+                next_build = int(parts[2]) + 1
+                return f"{parts[0]}.{parts[1]}.{next_build}"
+            except ValueError:
+                pass
+    return None
+
+
+def _generate_matrix_build_specs(
+    matrix: List[Dict[str, Any]],
+    product_record: Any,
+    repo_base: str,
+    board: str,
+    branch: str,
+    commit_sha: Optional[str],
+    db: Any,
+) -> List[Dict[str, Any]]:
+    """Generate build specs from a ProductStageConfig buildMatrix.
+
+    Each matrix entry produces TWO builds (debug + release).
+    - source == "head": new build from the triggering commit, auto-versioned.
+    - source == "latest": reference to the latest successful build (CACHED).
+
+    Returns a flat list of build spec dicts.
+    """
+    builds = []
+    idx = 0
+    product_id = product_record.id if product_record else None
+
+    for entry in matrix:
+        role = entry.get("role", "unknown")
+        firmware = entry.get("firmware", f"{repo_base}_fw")
+        source = entry.get("source", "head")
+
+        # Each role produces both debug and release variants
+        for variant in ("debug", "release"):
+            label = f"{role.upper()}_{variant.upper()}"
+
+            if source == "head":
+                # New build from triggering commit
+                version_override = _auto_increment_version(db, product_id, variant) if product_id else None
+
+                builds.append({
+                    "product": firmware,
+                    "board": board,
+                    "target": "nrf52840",
+                    "variant": variant,
+                    "mtibRev": "1.2",
+                    "branch": branch,
+                    "commitSha": commit_sha,
+                    "status": "QUEUED",
+                    "matrixLabel": label,
+                    "matrixIndex": idx,
+                    "versionBump": False,
+                    "source": "head",
+                    "firmware": firmware,
+                    "versionOverride": version_override,
+                })
+            else:
+                # "latest" — find cached build or create placeholder
+                builds.append({
+                    "product": firmware,
+                    "board": board,
+                    "target": "nrf52840",
+                    "variant": variant,
+                    "mtibRev": "1.2",
+                    "branch": branch,
+                    "commitSha": commit_sha,
+                    "status": "QUEUED",
+                    "matrixLabel": label,
+                    "matrixIndex": idx,
+                    "versionBump": False,
+                    "source": "latest",
+                    "firmware": firmware,
+                })
+            idx += 1
 
     return builds
 
@@ -421,19 +516,50 @@ def create_pipeline():
         "nightly": ValidationStage.NIGHTLY,
         "fuota": ValidationStage.FUOTA,
     }
+    # Use explicit stage parameter if provided, otherwise derive from matrixMode
+    stage_number = data.validation_config.get("stage") if data.validation_config else None
     stage = stage_map.get(data.matrix_mode, ValidationStage.FUOTA)
 
-    # Generate build specs from stage definitions (single source of truth)
-    build_specs = _generate_build_specs(
-        stage=stage,
-        product_base=repo_base,
-        board=data.board,
-        branch=data.pr_branch or data.branch,
-        commit_sha=data.commit_sha,
-        mtib_rev="1.2",
-    )
+    # Look up ProductStageConfig for the product to read buildMatrix
+    stage_config = None
+    stage_config_matrix = None
+    if product_record:
+        stage_num = stage_number or {"smoke": 1, "silicon": 2, "integration": 3, "nightly": 4, "fuota": 5}.get(data.matrix_mode, 5)
+        stage_config = db.productstageconfig.find_first(
+            where={"productId": product_record.id, "stage": stage_num},
+        )
+        if stage_config and stage_config.buildMatrix:
+            stage_config_matrix = stage_config.buildMatrix if isinstance(stage_config.buildMatrix, list) else None
+
+    # If stage config has a buildMatrix, use it for FUOTA-style matrix builds
+    # Otherwise fall back to the stage_builds.py definitions
+    if stage_config_matrix:
+        build_specs = _generate_matrix_build_specs(
+            matrix=stage_config_matrix,
+            product_record=product_record,
+            repo_base=repo_base,
+            board=data.board,
+            branch=data.pr_branch or data.branch,
+            commit_sha=data.commit_sha,
+            db=db,
+        )
+    else:
+        build_specs = _generate_build_specs(
+            stage=stage,
+            product_base=repo_base,
+            board=data.board,
+            branch=data.pr_branch or data.branch,
+            commit_sha=data.commit_sha,
+            mtib_rev="1.2",
+        )
 
     expected_builds = len(build_specs)
+
+    # Use autoValidate from stage config if available
+    auto_validate = data.auto_validate
+    if stage_config and hasattr(stage_config, "blocksMerge"):
+        # Stage configs with requiresFuota typically auto-validate
+        pass  # Keep the user-provided value unless overridden
 
     try:
         # Create pipeline run
@@ -456,6 +582,8 @@ def create_pipeline():
             "prBranch": data.pr_branch or data.branch,
             "prCommit": data.commit_sha,
         }
+        if stage_config_matrix:
+            matrix_config["buildMatrix"] = stage_config_matrix
 
         # Build create data - conditionally include buildMatrix only when provided
         create_data = {
@@ -468,10 +596,15 @@ def create_pipeline():
             "triggerType": data.trigger_type,
             "expectedBuilds": expected_builds,
             "matrixMode": data.matrix_mode,
-            "autoValidate": data.auto_validate,
+            "autoValidate": auto_validate,
             "triggerData": Json(trigger_data),
             "startedAt": datetime.now(timezone.utc),
         }
+        if product_record:
+            create_data["productId"] = product_record.id
+        if stage_config:
+            create_data["stageConfigId"] = stage_config.id
+            create_data["stage"] = stage_config.stage
         # Always include buildMatrix (fuota/nightly modes always have config)
         create_data["buildMatrix"] = Json(matrix_config)
 
@@ -484,26 +617,83 @@ def create_pipeline():
         specs_with_builds = []  # Track specs with their created builds
 
         for spec in build_specs:
-            build_data = {
-                "product": spec["product"],
-                "productId": product_record.id if product_record else None,
-                "board": spec["board"],
-                "target": spec["target"],
-                "variant": spec["variant"],
-                "mtibRev": spec["mtibRev"],
-                "branch": spec["branch"],
-                "commitSha": spec["commitSha"],
-                "status": spec["status"],
-                "pipelineRunId": pipeline.id,
-                "matrixLabel": spec.get("matrixLabel"),
-                "matrixIndex": spec.get("matrixIndex"),
-                "versionBump": spec.get("versionBump", False),
-                "webhookData": Json({
-                    "pipelineId": pipeline.id,
-                    "source": data.trigger_type,
+            # Check build cache for non-version-bump builds
+            cached_build = None
+            fingerprint = None
+            if not spec.get("versionBump", False) and spec.get("commitSha"):
+                repo_url = product_record.repoSshUrl if product_record else ""
+                fingerprint = compute_build_fingerprint(
+                    repo_url=repo_url,
+                    commit_sha=spec.get("commitSha") or "",
+                    board=spec["board"],
+                    variant=spec["variant"],
+                    config_flags=None,
+                )
+                if spec.get("source") == "latest":
+                    # For "latest" source, find the most recent successful build
+                    cached_build = db.buildjob.find_first(
+                        where={
+                            "productId": product_record.id if product_record else None,
+                            "variant": spec["variant"],
+                            "status": "SUCCESS",
+                            "product": {"contains": spec.get("firmware", "")},
+                        },
+                        include={"artifacts": True},
+                        order={"finishedAt": "desc"},
+                    )
+
+            if cached_build and spec.get("source") == "latest":
+                # Create a CACHED reference build
+                build_data = {
+                    "product": spec["product"],
+                    "productId": product_record.id if product_record else None,
+                    "board": spec["board"],
+                    "target": spec["target"],
+                    "variant": spec["variant"],
+                    "mtibRev": spec["mtibRev"],
+                    "branch": spec.get("branch", data.branch),
+                    "commitSha": getattr(cached_build, "commitSha", None),
+                    "status": "CACHED",
+                    "pipelineRunId": pipeline.id,
                     "matrixLabel": spec.get("matrixLabel"),
-                }),
-            }
+                    "matrixIndex": spec.get("matrixIndex"),
+                    "versionBump": False,
+                    "buildFingerprint": fingerprint,
+                    "reusedFromId": cached_build.id,
+                    "versionString": cached_build.versionString,
+                    "webhookData": Json({
+                        "pipelineId": pipeline.id,
+                        "source": data.trigger_type,
+                        "matrixLabel": spec.get("matrixLabel"),
+                        "cachedFrom": cached_build.id,
+                    }),
+                }
+            else:
+                build_data = {
+                    "product": spec["product"],
+                    "productId": product_record.id if product_record else None,
+                    "board": spec["board"],
+                    "target": spec["target"],
+                    "variant": spec["variant"],
+                    "mtibRev": spec["mtibRev"],
+                    "branch": spec["branch"],
+                    "commitSha": spec["commitSha"],
+                    "status": spec["status"],
+                    "pipelineRunId": pipeline.id,
+                    "matrixLabel": spec.get("matrixLabel"),
+                    "matrixIndex": spec.get("matrixIndex"),
+                    "versionBump": spec.get("versionBump", False),
+                    "webhookData": Json({
+                        "pipelineId": pipeline.id,
+                        "source": data.trigger_type,
+                        "matrixLabel": spec.get("matrixLabel"),
+                    }),
+                }
+                if fingerprint:
+                    build_data["buildFingerprint"] = fingerprint
+                # Auto-version for "head" source builds
+                if spec.get("versionOverride"):
+                    build_data["versionString"] = spec["versionOverride"]
 
             build = db.buildjob.create(data=build_data)
             builds.append(build)

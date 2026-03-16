@@ -225,9 +225,12 @@ class GitPoller:
                 "commitSha": commit_sha,
                 "board": repo.build_board,
                 "triggerType": "poller",
+                "matrixMode": "fuota",
                 # Include mfg repo info if configured
                 "mfgRepoSlug": repo.mfg_repo_slug or None,
                 "mfgSshUrl": repo.mfg_ssh_url or None,
+                # Stage parameter for buildMatrix lookup
+                "validationConfig": {"stage": 5},
             }
 
             log.info("Triggering pipeline for %s @ %s (board=%s)", repo.name, commit_sha[:8], repo.build_board)

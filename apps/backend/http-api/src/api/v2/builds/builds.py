@@ -14,6 +14,7 @@ from src.lib.permissions import Permissions
 from src.lib.types import ApiResponse
 from src.services.database.prisma import get_db_client
 
+from .build_cache import compute_build_fingerprint, find_cached_build
 from .types import BuildCreateRequest
 
 logger = logging.getLogger(__name__)
@@ -85,6 +86,8 @@ def _serialize_build_job(b: Any) -> dict:
         "versionBump": getattr(b, "versionBump", False),
         "baseJobId": getattr(b, "baseJobId", None),
         "configFlags": getattr(b, "configFlags", None),
+        "reusedFromId": getattr(b, "reusedFromId", None),
+        "buildFingerprint": getattr(b, "buildFingerprint", None),
     }
     if hasattr(b, "artifacts") and b.artifacts is not None:
         data["artifacts"] = [_serialize_build_artifact(a) for a in b.artifacts]
@@ -242,6 +245,43 @@ def create_build():
     if data.version_override:
         config_flags["versionOverride"] = data.version_override
 
+    # Compute build fingerprint for cache lookup
+    fingerprint = compute_build_fingerprint(
+        repo_url=product_record.repoSshUrl if product_record and hasattr(product_record, "repoSshUrl") else "",
+        commit_sha=data.commit_sha or "",
+        board=board,
+        variant=data.variant,
+        config_flags=config_flags,
+    )
+
+    # Check cache — reuse existing build if same fingerprint and no version override
+    cached = find_cached_build(db, fingerprint)
+    if cached and not data.version_override:
+        try:
+            build = db.buildjob.create(
+                data={
+                    "productId": product_id,
+                    "board": board,
+                    "target": data.target,
+                    "variant": data.variant,
+                    "mtibRev": data.mtib_rev,
+                    "branch": data.branch,
+                    "commitSha": data.commit_sha,
+                    "status": "CACHED",
+                    "buildFingerprint": fingerprint,
+                    "reusedFromId": cached.id,
+                    "versionString": cached.versionString,
+                    "webhookData": Json(config_flags),
+                    "configFlags": Json(config_flags),
+                },
+                include={"artifacts": True, "product": True},
+            )
+            log_audit("ci.build.cached", "BuildJob", build.id, {"reusedFromId": cached.id})
+            return jsonify(ApiResponse.created(_serialize_build_job(build)).to_dict()), 201
+        except Exception as e:
+            logger.error("Failed to create cached build job: %s", e)
+            return internal_error("Failed to create build job")
+
     try:
         build = db.buildjob.create(
             data={
@@ -253,6 +293,7 @@ def create_build():
                 "branch": data.branch,
                 "commitSha": data.commit_sha,
                 "status": "QUEUED",
+                "buildFingerprint": fingerprint,
                 "webhookData": Json(config_flags),
                 "configFlags": Json(config_flags),
             },
