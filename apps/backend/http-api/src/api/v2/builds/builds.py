@@ -34,12 +34,33 @@ def _sanitize_filename(filename: str) -> str:
 #                                      Serializers
 # -------------------------------------------------
 
+def _derive_product_slug(b: Any) -> str | None:
+    """Derive the correct firmware repo slug from build + product relation.
+
+    For mfg variant builds, returns mfgRepoSlug (e.g. alpha_mfg_fw).
+    For all others, returns repoSlug (e.g. alpha_fw).
+    """
+    product = getattr(b, "product", None)
+
+    # Handle string product field (legacy/test mocks)
+    if isinstance(product, str):
+        return product
+
+    if not product or not hasattr(product, "repoSlug"):
+        return getattr(b, "productId", None)
+
+    if b.variant == "mfg" and getattr(product, "mfgRepoSlug", None):
+        return product.mfgRepoSlug
+    return product.repoSlug or product.slug
+
+
 def _serialize_build_job(b: Any) -> dict:
     """Serialize a BuildJob model to a JSON-friendly dict."""
     data = {
         "id": b.id,
-        "product": (b.product.repoSlug or b.product.slug) if hasattr(b, "product") and b.product and hasattr(b.product, "repoSlug") else getattr(b, "productId", None),
+        "product": _derive_product_slug(b),
         "productId": getattr(b, "productId", None),
+        "productName": b.product.name if hasattr(b, "product") and b.product and hasattr(b.product, "name") else None,
         "board": b.board,
         "target": b.target,
         "variant": b.variant,
