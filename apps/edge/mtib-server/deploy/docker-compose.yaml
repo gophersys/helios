@@ -4,7 +4,7 @@ services:
     pull_policy: always
     privileged: true
     ports:
-      - 50053:50053
+      - ${SERVER_PORT:-50053}:${SERVER_PORT:-50053}
     env_file:
       - ../.env
     volumes:

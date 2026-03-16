@@ -60,7 +60,7 @@
     },
     {
       "plugin": "@nx/vite/plugin",
-      "exclude": ["apps/frontend/concord-app-svelte/**"],
+      "exclude": ["apps/frontend/app/**"],
       "options": {
         "buildTargetName": "build",
         "testTargetName": "test",

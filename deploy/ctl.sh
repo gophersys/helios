@@ -47,7 +47,7 @@ get_version() {
     echo "${tag}"
   else
     local pkg_version
-    pkg_version=$(node -p "require('./apps/frontend/concord-app-svelte/package.json').version" 2>/dev/null || echo "0.0.1")
+    pkg_version=$(node -p "require('./apps/frontend/app/package.json').version" 2>/dev/null || echo "0.0.1")
     local sha
     sha=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
     echo "${pkg_version}-${sha}"
@@ -89,8 +89,8 @@ cmd_build() {
   fi
 
   if [[ "${target}" == "all" || "${target}" == "frontend" || "${target}" == "ui" ]]; then
-    log "Building concord-ui via Nx..."
-    npx nx run concord-ui:containerize -c "${env}"
+    log "Building app via Nx..."
+    npx nx run app:containerize -c "${env}"
     # Also tag with version
     docker tag "${IMAGE_FRONTEND}:${env}" "${IMAGE_FRONTEND}:${env}-${version}" 2>/dev/null || true
     log "  → ${IMAGE_FRONTEND}:${env}"
@@ -118,10 +118,10 @@ cmd_development() {
       echo ""
       info "Start apps via Nx (recommended):"
       info "  npx nx serve http-api         # Backend on :9001"
-      info "  npx nx dev concord-ui         # Frontend on :4200"
+      info "  npx nx dev app         # Frontend on :4200"
       echo ""
       info "Or run both in parallel:"
-      info "  npx nx run-many -t serve dev -p http-api concord-ui"
+      info "  npx nx run-many -t serve dev -p http-api app"
       ;;
     down)
       log "Stopping development infrastructure..."

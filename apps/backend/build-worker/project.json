@@ -1,0 +1,95 @@
+{
+  "name": "build-worker",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/backend/build-worker",
+  "projectType": "application",
+  "tags": ["scope:backend", "type:app"],
+  "implicitDependencies": ["protocols"],
+  "targets": {
+    "build": {
+      "executor": "nx:run-commands",
+      "defaultConfiguration": "development",
+      "options": {
+        "cwd": "{workspaceRoot}"
+      },
+      "configurations": {
+        "development": {
+          "command": "nx run build-worker:containerize -c development"
+        },
+        "staging": {
+          "command": "nx run build-worker:containerize -c staging"
+        },
+        "production": {
+          "command": "nx run build-worker:containerize -c production"
+        }
+      }
+    },
+    "containerize": {
+      "executor": "@nx-tools/nx-container:build",
+      "defaultConfiguration": "development",
+      "options": {
+        "context": "{workspaceRoot}",
+        "cwd": "{workspaceRoot}",
+        "file": "apps/backend/build-worker/deploy/Dockerfile",
+        "push": false,
+        "load": true
+      },
+      "configurations": {
+        "development": {
+          "tags": ["concord/build-worker:development"],
+          "platforms": []
+        },
+        "staging": {
+          "tags": [
+            "concord/build-worker:staging",
+            "containers.ad.corekinect.com/concord-build-worker:staging"
+          ]
+        },
+        "production": {
+          "tags": [
+            "concord/build-worker:production",
+            "containers.ad.corekinect.com/concord-build-worker:production"
+          ],
+          "platforms": ["linux/amd64"]
+        }
+      }
+    },
+    "push": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["build"],
+      "options": {
+        "cwd": "{workspaceRoot}"
+      },
+      "defaultConfiguration": "staging",
+      "configurations": {
+        "staging": {
+          "command": "docker push containers.ad.corekinect.com/concord-build-worker:staging"
+        },
+        "production": {
+          "command": "docker push containers.ad.corekinect.com/concord-build-worker:production"
+        }
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/backend/build-worker",
+        "command": "PYTHONPATH=src:$(pwd)/../../../libs/python:$(pwd)/../../../libs:$(pwd)/../../../libs/protocols:. pytest tests/ -v"
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/backend/build-worker",
+        "command": "python3 -c \"import py_compile,glob;[py_compile.compile(f,doraise=True) for f in glob.glob('src/**/*.py',recursive=True)]\""
+      }
+    },
+    "serve": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/backend/build-worker",
+        "command": "PYTHONPATH=src:$(pwd)/../../../libs/python:$(pwd)/../../../libs:$(pwd)/../../../libs/protocols:. python3 -m src.main"
+      }
+    }
+  }
+}

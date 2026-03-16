@@ -1,0 +1,92 @@
+{
+  "version": "1",
+  "description": "Tracks which source files generated or informed .claude/ rules and when they were last updated.",
+  "files": {
+    ".claude/rules/docs-system.md": {
+      "created": "2026-03-13",
+      "updated": "2026-03-13",
+      "action": "created",
+      "sources": [
+        "docs/",
+        "apps/docs/mkdocs.yml"
+      ],
+      "summary": "Documentation layer map and conventions. Defines function-first organization: vision, architecture, reference, guides, research."
+    },
+    ".claude/rules/docs-governance.md": {
+      "created": "2026-03-13",
+      "updated": "2026-03-13",
+      "action": "created",
+      "sources": [
+        "docs/",
+        ".claude/rules/docs-system.md"
+      ],
+      "summary": "Editor protocol, freshness tracking, cohesion checks, ADR immutability rules."
+    },
+    ".claude/rules/mtib-hardware.md": {
+      "created": "2026-03-01",
+      "updated": "2026-03-11",
+      "action": "enriched",
+      "sources": [
+        "libs/python/corekinect/mtib_client/",
+        "apps/validation/alpha/"
+      ],
+      "summary": "MTIB hardware rules: power, UART, GPIO, J-Link, fixture profiles. Updated with battery mode, shell lock fixes."
+    },
+    ".claude/rules/development-workflow.md": {
+      "created": "2026-03-01",
+      "updated": "2026-03-13",
+      "action": "enriched",
+      "sources": [
+        "deploy/",
+        "nx.json",
+        "package.json"
+      ],
+      "summary": "Three-environment workflow: development, staging, production. Nx commands, deploy gates."
+    },
+    ".claude/rules/deployment-safety.md": {
+      "created": "2026-03-01",
+      "updated": "2026-03-13",
+      "action": "enriched",
+      "sources": [
+        "deploy/helm/"
+      ],
+      "summary": "Helm rolling updates, health probes, rollback procedures, forbidden actions."
+    },
+    ".claude/rules/nx-workflow.md": {
+      "created": "2026-03-01",
+      "updated": "2026-03-13",
+      "action": "enriched",
+      "sources": [
+        "nx.json",
+        "apps/*/project.json"
+      ],
+      "summary": "Nx-first commands for build, test, deploy. Never bypass Nx."
+    },
+    ".claude/rules/git-commits.md": {
+      "created": "2026-03-01",
+      "updated": "2026-03-13",
+      "action": "created",
+      "sources": [],
+      "summary": "No AI references in commit messages."
+    },
+    ".claude/rules/repersonalization-workflow.md": {
+      "created": "2026-03-10",
+      "updated": "2026-03-11",
+      "action": "enriched",
+      "sources": [
+        "apps/manufacturing/alpha/",
+        "libs/python/corekinect/test/validation/device_personalizer.py"
+      ],
+      "summary": "Re-personalization required after every J-Link flash. CoreOps API calls, key upload, IPC rekey."
+    },
+    ".claude/rules/icle-monitoring.md": {
+      "created": "2026-03-01",
+      "updated": "2026-03-13",
+      "action": "created",
+      "sources": [
+        "apps/firmware/products/icle/"
+      ],
+      "summary": "ICLE ESP32 power monitor: UART setup, SD card ops, log formats, device states."
+    }
+  }
+}
