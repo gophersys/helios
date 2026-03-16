@@ -165,10 +165,7 @@ class BuildCreateRequest:
             return None, "target is required"
 
         variant = (data.get("variant") or "release").strip()
-        # mfg_fw products always use "mfg" variant, others use release/debug
-        if "_mfg" in product.lower():
-            variant = "mfg"  # Manufacturing firmware has no debug/release variants
-        elif variant not in ("release", "debug"):
+        if variant not in ("release", "debug"):
             return None, "variant must be 'release' or 'debug'"
 
         branch = (data.get("branch") or "").strip()
