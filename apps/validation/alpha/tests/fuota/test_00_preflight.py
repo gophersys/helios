@@ -46,15 +46,16 @@ class TestPreflight:
             f"Available: {list(pipeline_assets.builds.keys())}"
         )
 
-        print(f"{'Label':<20} {'Target':<8} {'Variant':<10} {'Version':<12} {'Status'}")
-        print(f"{'-'*70}")
+        print(f"{'Label':<24} {'Variant':<10} {'Version':<12} {'Status':<10} {'Artifacts'}")
+        print(f"{'-'*78}")
         for label, build in sorted(pipeline_assets.builds.items()):
-            print(f"{label:<20} {build.target:<8} {build.variant:<10} v{build.version_string:<11} {build.status}")
-            assert build.status == "SUCCESS", (
-                f"Build {label} is not SUCCESS (status={build.status})"
+            art_count = len(build.artifacts)
+            print(f"{label:<24} {build.variant:<10} v{build.version_string or '?':<11} {build.status:<10} {art_count} files")
+            assert build.status in ("SUCCESS", "CACHED"), (
+                f"Build {label} is {build.status}, expected SUCCESS or CACHED"
             )
 
-        print(f"All {len(pipeline_assets.builds)} builds present and SUCCESS")
+        print(f"All {len(pipeline_assets.builds)} builds OK")
 
     def test_corecloud_auth(self, fuota_client):
         """Verify CoreCloud FUOTA API authentication works."""

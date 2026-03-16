@@ -231,12 +231,15 @@ def _serialize_pipeline(p) -> Dict[str, Any]:
                 "id": b.id,
                 "product": _safe_product_str(getattr(b, "product", None), getattr(b, "target", None)) or getattr(b, "productId", None),
                 "status": b.status,
+                "target": b.target,
                 "variant": b.variant,
+                "board": b.board,
+                "commitSha": b.commitSha,
                 "buildNum": b.buildNum,
                 "versionString": b.versionString,
                 "durationSeconds": b.durationSeconds,
                 "artifactCount": len(b.artifacts) if hasattr(b, "artifacts") and b.artifacts else 0,
-                # Stage 4 matrix fields
+                "reusedFromId": getattr(b, "reusedFromId", None),
                 "matrixLabel": getattr(b, "matrixLabel", None),
                 "matrixIndex": getattr(b, "matrixIndex", None),
                 "versionBump": getattr(b, "versionBump", False),
@@ -268,16 +271,19 @@ def _serialize_pipeline_summary(p) -> Dict[str, Any]:
         "createdAt": p.createdAt.isoformat(),
     }
 
-    # Include builds summary for Stage 4 matrix display
+    # Include builds summary
     if hasattr(p, "builds") and p.builds:
         data["builds"] = [
             {
                 "id": b.id,
                 "product": _safe_product_str(getattr(b, "product", None), getattr(b, "target", None)) or getattr(b, "productId", None),
                 "status": b.status,
+                "target": b.target,
                 "variant": b.variant,
+                "commitSha": b.commitSha,
                 "versionString": b.versionString,
                 "durationSeconds": b.durationSeconds,
+                "reusedFromId": getattr(b, "reusedFromId", None),
                 "matrixLabel": getattr(b, "matrixLabel", None),
                 "matrixIndex": getattr(b, "matrixIndex", None),
                 "versionBump": getattr(b, "versionBump", False),
