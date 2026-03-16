@@ -924,6 +924,99 @@ def seed():
         )
         print(f"Fixture: {fixture_35.stationId} (product: {theta_product.name})")
 
+        # ── Stage Configs ──
+        # === Seeding Stage Configs ===
+        print("\n=== Seeding Stage Configs ===")
+
+        # Read Alpha build script from repo
+        build_script_path = os.path.join(os.path.dirname(__file__), "..", "apps", "firmware", "products", "alpha", "scripts", "build.sh")
+        alpha_build_script = ""
+        if os.path.exists(build_script_path):
+            with open(build_script_path) as f:
+                alpha_build_script = f.read()
+            print(f"  Loaded build script: {len(alpha_build_script)} bytes")
+        else:
+            print(f"  WARNING: Build script not found at {build_script_path}")
+
+        alpha_stages = [
+            {
+                "stage": 1, "name": "Smoke", "enabled": True,
+                "priority": 10, "blocksMerge": True, "requiresFuota": False, "requiresBench": False,
+                "testTimeout": 120, "maxDurationSec": 300,
+                "buildScript": alpha_build_script or None,
+                "buildTarget": "alpha_b0",
+                "buildVariant": "debug",
+                "fwRepoUrl": "git@bitbucket.org:corekinect/alpha_fw.git",
+                "fwRepoBranch": "concord-main",
+                "testDirectory": None,
+                "testMarker": None,
+                "description": "Quick smoke build to verify compilation",
+            },
+            {
+                "stage": 2, "name": "Unit", "enabled": True,
+                "priority": 20, "blocksMerge": True, "requiresFuota": False, "requiresBench": False,
+                "testTimeout": 300, "maxDurationSec": 600,
+                "buildTarget": "native_sim",
+                "buildVariant": "test",
+                "testDirectory": "tests/unit/",
+                "testMarker": "-m unit",
+                "description": "Native simulator unit tests",
+            },
+            {
+                "stage": 3, "name": "Integration", "enabled": True,
+                "priority": 30, "blocksMerge": True, "requiresFuota": False, "requiresBench": True,
+                "testTimeout": 600, "maxDurationSec": 1200,
+                "buildTarget": "alpha_b0",
+                "buildVariant": "debug",
+                "testDirectory": "tests/gate/",
+                "testMarker": "-m gate",
+                "description": "Hardware-in-the-loop gate tests on MTIB bench",
+            },
+            {
+                "stage": 4, "name": "Nightly", "enabled": True,
+                "priority": 40, "blocksMerge": False, "requiresFuota": False, "requiresBench": True,
+                "testTimeout": 1800, "maxDurationSec": 3600,
+                "buildTarget": "alpha_b0",
+                "buildVariant": "debug",
+                "fwRepoUrl": "git@bitbucket.org:corekinect/alpha_fw.git",
+                "fwRepoBranch": "concord-main",
+                "mfgRepoUrl": "git@bitbucket.org:corekinect/alpha_mfg_fw.git",
+                "mfgRepoBranch": "concord-main",
+                "testDirectory": "tests/nightly/",
+                "testMarker": "-m nightly",
+                "description": "Extended nightly test suite with power profiling",
+            },
+            {
+                "stage": 5, "name": "Gate", "enabled": True,
+                "priority": 100, "blocksMerge": True, "requiresFuota": True, "requiresBench": True,
+                "testTimeout": 600, "maxDurationSec": 900,
+                "buildTarget": "alpha_b0",
+                "buildVariant": "release",
+                "fwRepoUrl": "git@bitbucket.org:corekinect/alpha_fw.git",
+                "fwRepoBranch": "concord-main",
+                "mfgRepoUrl": "git@bitbucket.org:corekinect/alpha_mfg_fw.git",
+                "mfgRepoBranch": "concord-main",
+                "testDirectory": "tests/fuota/",
+                "testMarker": "-m fuota",
+                "description": "FUOTA delivery verification and boot confirmation",
+            },
+        ]
+
+        # Find Alpha product ID
+        alpha_product_for_stages = db.product.find_first(where={"slug": {"startswith": "alpha"}})
+        if alpha_product_for_stages:
+            # Delete existing configs first (idempotent re-seed)
+            db.productstageconfig.delete_many(where={"productId": alpha_product_for_stages.id})
+
+            for stage_data in alpha_stages:
+                db.productstageconfig.create(data={
+                    "productId": alpha_product_for_stages.id,
+                    **stage_data,
+                })
+            print(f"  Alpha: {len(alpha_stages)} stage configs seeded")
+        else:
+            print("  WARNING: Alpha product not found, skipping stage config seed")
+
         # ── CI Test API Key ──
         # Create a deterministic API key for CI testing
         # Key: ck_ci_admin_x8K2mP9vL4nQ7wR1tY6uI3oA5sD0fG

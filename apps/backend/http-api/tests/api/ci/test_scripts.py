@@ -199,7 +199,7 @@ class TestUploadBuildScript:
 
         body = json.loads(response.data)
         assert len(body["errors"]) > 0
-        assert "not implemented" in body["errors"][0]["message"].lower()
+        assert "stages" in body["errors"][0]["message"].lower() or "stage" in body["errors"][0]["message"].lower()
 
 
 # ---------------------------------------------------------------------------
@@ -210,50 +210,50 @@ class TestDeleteBuildScript:
     """Tests for DELETE /v2/builds/scripts/<product>."""
 
     def test_delete_script_not_implemented(self, authed_client, mock_db):
-        """Delete build script returns 501 Not Implemented."""
+        """Delete build script returns 501 directing to stage config API."""
         response = authed_client.delete("/v2/builds/scripts/alpha_fw")
         assert response.status_code == 501
 
         body = json.loads(response.data)
         assert len(body["errors"]) > 0
-        assert "not implemented" in body["errors"][0]["message"].lower()
+        assert "stages" in body["errors"][0]["message"].lower() or "stage" in body["errors"][0]["message"].lower()
 
 
 # ---------------------------------------------------------------------------
-#  _normalize_product_dir helper
+#  _normalize_product_key helper
 # ---------------------------------------------------------------------------
 
 class TestNormalizeProductDir:
-    """Unit tests for the _normalize_product_dir helper function."""
+    """Unit tests for the _normalize_product_key helper function."""
 
     def test_strips_fw_suffix(self):
         """Strips _fw suffix from product key."""
-        from src.api.v2.builds.scripts import _normalize_product_dir
-        assert _normalize_product_dir("alpha_fw") == "alpha"
+        from src.api.v2.builds.scripts import _normalize_product_key
+        assert _normalize_product_key("alpha_fw") == "alpha"
 
     def test_strips_mfg_fw_suffix(self):
         """Strips _mfg_fw suffix from product key."""
-        from src.api.v2.builds.scripts import _normalize_product_dir
-        assert _normalize_product_dir("alpha_mfg_fw") == "alpha"
+        from src.api.v2.builds.scripts import _normalize_product_key
+        assert _normalize_product_key("alpha_mfg_fw") == "alpha"
 
     def test_strips_board_suffix(self):
         """Strips board variant suffix (_b0, _a0, etc.)."""
-        from src.api.v2.builds.scripts import _normalize_product_dir
-        assert _normalize_product_dir("sigma5_b0") == "sigma5"
+        from src.api.v2.builds.scripts import _normalize_product_key
+        assert _normalize_product_key("sigma5_b0") == "sigma5"
 
     def test_strips_combined_suffixes(self):
         """Strips both _fw and board suffixes."""
-        from src.api.v2.builds.scripts import _normalize_product_dir
-        assert _normalize_product_dir("sigma5_fw") == "sigma5"
+        from src.api.v2.builds.scripts import _normalize_product_key
+        assert _normalize_product_key("sigma5_fw") == "sigma5"
 
     def test_plain_product_name(self):
         """Plain product name without suffixes is returned as-is."""
-        from src.api.v2.builds.scripts import _normalize_product_dir
-        assert _normalize_product_dir("theta") == "theta"
+        from src.api.v2.builds.scripts import _normalize_product_key
+        assert _normalize_product_key("theta") == "theta"
 
     def test_empty_string_returns_none(self):
         """Empty string after normalization returns None."""
-        from src.api.v2.builds.scripts import _normalize_product_dir
-        result = _normalize_product_dir("_fw")
+        from src.api.v2.builds.scripts import _normalize_product_key
+        result = _normalize_product_key("_fw")
         # After stripping _fw: empty string -> None
         assert result is None or result == ""

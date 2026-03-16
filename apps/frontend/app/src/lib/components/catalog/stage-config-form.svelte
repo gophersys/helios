@@ -177,11 +177,49 @@
   </div>
 
   <!-- Build Script -->
-  <label class="block">
-    <span class="text-xs text-[var(--color-text-tertiary)]">Build Script (bash)</span>
-    <textarea bind:value={buildScript} rows="8" placeholder="#!/bin/bash&#10;west build ..."
-      class="w-full mt-1 px-3 py-2 rounded bg-[var(--color-surface-0)] border border-[var(--color-border)] text-[var(--color-text-primary)] text-sm font-mono"></textarea>
-  </label>
+  <div class="space-y-2">
+    <div class="flex items-center justify-between">
+      <span class="text-xs text-[var(--color-text-tertiary)]">Build Script (bash)</span>
+      {#if buildScript}
+        <span class="text-2xs text-[var(--color-text-tertiary)]">{buildScript.split('\n').length} lines</span>
+      {/if}
+    </div>
+    <textarea bind:value={buildScript} rows="20" spellcheck="false" placeholder="#!/bin/bash&#10;# Build script for this stage&#10;west build ..."
+      class="w-full px-4 py-3 rounded bg-[var(--color-surface-0)] border border-[var(--color-border)] text-[var(--color-text-primary)] text-sm font-mono leading-relaxed resize-y tab-size-4"
+      style="min-height: 200px;"
+      onkeydown={(e) => {
+        if (e.key === 'Tab') {
+          e.preventDefault();
+          const target = e.currentTarget;
+          const start = target.selectionStart;
+          const end = target.selectionEnd;
+          buildScript = buildScript.substring(0, start) + '  ' + buildScript.substring(end);
+          // Restore cursor after Svelte updates the DOM
+          requestAnimationFrame(() => { target.selectionStart = target.selectionEnd = start + 2; });
+        }
+      }}></textarea>
+
+    <!-- Environment Variables Reference -->
+    <details class="text-xs">
+      <summary class="text-[var(--color-text-tertiary)] cursor-pointer hover:text-[var(--color-text-secondary)] select-none">
+        Available environment variables
+      </summary>
+      <div class="mt-2 p-3 rounded bg-[var(--color-surface-0)] border border-[var(--color-border)] grid grid-cols-2 gap-x-4 gap-y-1 font-mono">
+        <div><span class="text-[var(--color-accent)]">$BUILD_DIR</span> <span class="text-[var(--color-text-tertiary)]">— output directory</span></div>
+        <div><span class="text-[var(--color-accent)]">$REPO_DIR</span> <span class="text-[var(--color-text-tertiary)]">— cloned repo path</span></div>
+        <div><span class="text-[var(--color-accent)]">$COMMIT_SHA</span> <span class="text-[var(--color-text-tertiary)]">— git commit hash</span></div>
+        <div><span class="text-[var(--color-accent)]">$BRANCH</span> <span class="text-[var(--color-text-tertiary)]">— git branch name</span></div>
+        <div><span class="text-[var(--color-accent)]">$VARIANT</span> <span class="text-[var(--color-text-tertiary)]">— debug/release/mfg</span></div>
+        <div><span class="text-[var(--color-accent)]">$BOARD</span> <span class="text-[var(--color-text-tertiary)]">— board target name</span></div>
+        <div><span class="text-[var(--color-accent)]">$MTIB_REV</span> <span class="text-[var(--color-text-tertiary)]">— MTIB hardware rev</span></div>
+        <div><span class="text-[var(--color-accent)]">$TARGET</span> <span class="text-[var(--color-text-tertiary)]">— app or mfg</span></div>
+        <div><span class="text-[var(--color-accent)]">$OUTPUT_DIR</span> <span class="text-[var(--color-text-tertiary)]">— same as BUILD_DIR</span></div>
+        <div><span class="text-[var(--color-accent)]">$VERSION_BUILD_OVERRIDE</span> <span class="text-[var(--color-text-tertiary)]">— explicit version</span></div>
+        <div><span class="text-[var(--color-accent)]">$ZEPHYR_BASE</span> <span class="text-[var(--color-text-tertiary)]">— Zephyr SDK path</span></div>
+        <div><span class="text-[var(--color-accent)]">$ZEPHYR_SDK_INSTALL_DIR</span> <span class="text-[var(--color-text-tertiary)]">— toolchain path</span></div>
+      </div>
+    </details>
+  </div>
 
   <label class="block">
     <span class="text-xs text-[var(--color-text-tertiary)]">Description</span>

@@ -158,8 +158,11 @@
 
         {#if config.buildScript}
           <div class="mt-4">
-            <h4 class="font-medium text-text-secondary mb-2">Build Script</h4>
-            <pre class="bg-surface-0 rounded p-3 text-xs font-mono text-text-primary overflow-x-auto max-h-48">{config.buildScript}</pre>
+            <div class="flex items-center justify-between mb-2">
+              <h4 class="font-medium text-text-secondary">Build Script</h4>
+              <span class="text-2xs text-text-tertiary">{config.buildScript.split('\n').length} lines</span>
+            </div>
+            <pre class="bg-surface-0 rounded p-3 text-xs font-mono text-text-primary overflow-x-auto max-h-96 overflow-y-auto">{config.buildScript}</pre>
           </div>
         {/if}
 
