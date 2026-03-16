@@ -76,6 +76,20 @@ if [ "$CI_MODE" == "true" ]; then
         fi
     fi
 
+    # Patch build metadata (git SHA + variant) into VersionDevice.h
+    local git_sha_short="${COMMIT_SHA:0:7}"
+    [ -z "$git_sha_short" ] && git_sha_short="unknown"
+    local build_variant="${VARIANT:-release}"
+
+    VERSION_FILES=$(find "${REPO_DIR}" -name "VersionDevice.h" -type f 2>/dev/null)
+    for version_file in $VERSION_FILES; do
+        if grep -q "^#define BUILD_GIT_SHA" "$version_file"; then
+            sed -i "s/^#define BUILD_GIT_SHA.*/#define BUILD_GIT_SHA     \"${git_sha_short}\"/" "$version_file"
+            sed -i "s/^#define BUILD_VARIANT.*/#define BUILD_VARIANT     \"${build_variant}\"/" "$version_file"
+            echo -e "${GREEN}Patched build metadata: sha=${git_sha_short} variant=${build_variant}${NC}"
+        fi
+    done
+
     # Set FW_DIR based on product type (same directory in CI mode)
     APP_FW_DIR="${REPO_DIR}"
     MFG_FW_DIR="${REPO_DIR}"
