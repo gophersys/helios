@@ -511,6 +511,26 @@ collect_artifacts() {
 
     mkdir -p "$out_dir"
 
+    # Determine CFW flags and track string (needed for ALL artifact naming)
+    # - Track: 0=Bench (for CI/validation builds)
+    # - Mfg: 1 if label contains "mfg"
+    # - Debug: 1 if VARIANT=debug
+    local cfw_track=0
+    local cfw_mfg=0
+    local cfw_debug=0
+
+    if [[ "$label" == *"mfg"* ]]; then
+        cfw_mfg=1
+    fi
+    if [[ "$variant_folder" == "debug" ]]; then
+        cfw_debug=1
+    fi
+
+    # Build track string for filenames: B=Bench, M=Mfg, D=Debug
+    local track_str="B"
+    [ $cfw_mfg -eq 1 ] && track_str="${track_str}M"
+    [ $cfw_debug -eq 1 ] && track_str="${track_str}D"
+
     # Name hex files: {appId}.{version}-{track}.hex (e.g. 109.0.8.4-BD.hex)
     local app_hex_name="109.${version_major}.${version_minor}.${version_build}-${track_str}.hex"
     local comms_hex_name="108.${version_major}.${version_minor}.${version_build}-${track_str}.hex"
@@ -528,27 +548,7 @@ collect_artifacts() {
     fi
 
     echo -e "  ${CYAN}Version: ${version_string}${NC}"
-    echo -e "  ${CYAN}Variant: ${variant_folder}${NC}"
-
-    # Determine CFW flags:
-    # - Track: 0=Bench (for CI/validation builds)
-    # - Mfg: 1 if label contains "mfg"
-    # - Debug: 1 if VARIANT=debug (determined by variant_folder)
-    local cfw_track=0  # Always Bench for CI builds
-    local cfw_mfg=0
-    local cfw_debug=0
-
-    if [[ "$label" == *"mfg"* ]]; then
-        cfw_mfg=1
-    fi
-    if [[ "$variant_folder" == "debug" ]]; then
-        cfw_debug=1
-    fi
-
-    # Build track string for filenames: B=Bench, M=Mfg, D=Debug
-    local track_str="B"
-    [ $cfw_mfg -eq 1 ] && track_str="${track_str}M"
-    [ $cfw_debug -eq 1 ] && track_str="${track_str}D"
+    echo -e "  ${CYAN}Variant: ${variant_folder} (${track_str})${NC}"
 
     # Generate CFW files from encrypted signed bins
     echo -e "${CYAN}Generating CFW files...${NC}"
