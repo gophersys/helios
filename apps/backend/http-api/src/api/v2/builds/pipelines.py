@@ -187,7 +187,7 @@ def _serialize_pipeline(p) -> Dict[str, Any]:
     data = {
         "id": p.id,
         "name": p.name,
-        "product": p.product,
+        "product": p.product if isinstance(getattr(p, "product", None), str) else ((p.product.repoSlug or p.product.slug or p.product.name) if hasattr(p, "product") and p.product and hasattr(p.product, "repoSlug") else getattr(p, "productId", None)),
         "board": p.board,
         "branch": p.branch,
         "commitSha": p.commitSha,
@@ -234,7 +234,7 @@ def _serialize_pipeline_summary(p) -> Dict[str, Any]:
     data = {
         "id": p.id,
         "name": p.name,
-        "product": p.product,
+        "product": p.product if isinstance(getattr(p, "product", None), str) else ((p.product.repoSlug or p.product.slug or p.product.name) if hasattr(p, "product") and p.product and hasattr(p.product, "repoSlug") else getattr(p, "productId", None)),
         "branch": p.branch,
         "commitSha": p.commitSha,
         "status": p.status,
@@ -301,7 +301,7 @@ def list_pipelines():
             skip=skip,
             take=limit,
             order={"createdAt": "desc"},
-            include={"builds": True},  # Include builds for Stage 4 matrix display
+            include={"builds": {"include": {"product": True}}, "product": True},  # Include builds for Stage 4 matrix display
         )
 
         pages = (total + limit - 1) // limit if limit > 0 else 0
@@ -327,7 +327,7 @@ def get_pipeline(pipeline_id: str):
     try:
         pipeline = db.pipelinerun.find_unique(
             where={"id": pipeline_id},
-            include={"builds": {"include": {"artifacts": True}}},
+            include={"builds": {"include": {"artifacts": True, "product": True}}, "product": True},
         )
         if not pipeline:
             return not_found(f"Pipeline not found: {pipeline_id}")
@@ -371,7 +371,7 @@ def download_pipeline_artifacts(pipeline_id: str):
 
     pipeline = db.pipelinerun.find_unique(
         where={"id": pipeline_id},
-        include={"builds": {"include": {"artifacts": True}}},
+        include={"builds": {"include": {"artifacts": True, "product": True}}, "product": True},
     )
     if not pipeline:
         return not_found(f"Pipeline not found: {pipeline_id}")
@@ -588,7 +588,6 @@ def create_pipeline():
         # Build create data - conditionally include buildMatrix only when provided
         create_data = {
             "name": data.name or f"{product_base}-{data.branch[:8]}" + (f"-{data.commit_sha[:7]}" if data.commit_sha else ""),
-            "product": product_base,
             "board": data.board,
             "branch": data.branch,
             "commitSha": data.commit_sha,
@@ -727,7 +726,7 @@ def create_pipeline():
         # Refetch with builds
         pipeline = db.pipelinerun.find_unique(
             where={"id": pipeline.id},
-            include={"builds": True},
+            include={"builds": {"include": {"product": True}}, "product": True},
         )
 
         return jsonify(ApiResponse.created(_serialize_pipeline(pipeline)).to_dict()), 201
@@ -763,7 +762,7 @@ def cancel_pipeline(pipeline_id: str):
         pipeline = db.pipelinerun.update(
             where={"id": pipeline_id},
             data={"status": "CANCELLED", "finishedAt": datetime.now(timezone.utc)},
-            include={"builds": True},
+            include={"builds": {"include": {"product": True}}, "product": True},
         )
 
         log_audit("ci.pipeline.cancel", "PipelineRun", pipeline_id, {})
@@ -787,7 +786,7 @@ def check_pipeline_completion(pipeline_id: str) -> Optional[str]:
     try:
         pipeline = db.pipelinerun.find_unique(
             where={"id": pipeline_id},
-            include={"builds": True},
+            include={"builds": {"include": {"product": True}}, "product": True},
         )
         if not pipeline:
             return None
@@ -1170,7 +1169,7 @@ def validate_pipeline(pipeline_id: str):
     try:
         pipeline = db.pipelinerun.find_unique(
             where={"id": pipeline_id},
-            include={"builds": True},
+            include={"builds": {"include": {"product": True}}, "product": True},
         )
         if not pipeline:
             return not_found(f"Pipeline not found: {pipeline_id}")
