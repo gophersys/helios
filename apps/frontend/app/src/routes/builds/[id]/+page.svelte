@@ -95,7 +95,8 @@
       buildId,
       {
         onLog: (data: CiBuildLogEvent) => {
-          logLines = [...logLines, data.line];
+          const newLines = data.chunk.split('\n').filter(l => l.length > 0);
+          logLines = [...logLines, ...newLines];
         },
         onComplete: (_data: CiBuildCompleteEvent) => {
           loadBuild();

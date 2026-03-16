@@ -730,7 +730,7 @@ export interface CiBuildStartEvent {
 
 export interface CiBuildLogEvent {
   buildId: string;
-  line: string;
+  chunk: string;
 }
 
 export interface CiBuildCompleteEvent {
