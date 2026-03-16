@@ -775,18 +775,22 @@
                             {:else}
                               <ChevronRight size={14} class="text-text-tertiary flex-shrink-0" />
                             {/if}
-                            <!-- Build name with version prominently displayed -->
-                            {#if matrixInfo}
-                              <span class="text-xs font-medium text-text-primary flex-shrink-0">
-                                {matrixInfo.name}
-                                {#if build.versionString}
-                                  <span class="font-mono text-accent ml-1">v{build.versionString}</span>
-                                {:else if build.status === 'QUEUED'}
-                                  <span class="text-text-tertiary ml-1">(pending)</span>
-                                {/if}
+                            <!-- Build info -->
+                            <span class="text-xs font-medium text-text-primary flex-shrink-0">
+                              {build.product || 'Unknown'}
+                            </span>
+                            <span class="inline-flex items-center rounded bg-surface-2 px-1 py-0.5 text-2xs text-text-secondary font-mono flex-shrink-0">
+                              {build.variant}
+                            </span>
+                            {#if build.commitSha}
+                              <span class="inline-flex items-center rounded bg-info-muted px-1 py-0.5 text-2xs text-info font-mono font-medium flex-shrink-0">
+                                {build.commitSha.slice(0, 7)}
                               </span>
-                            {:else}
-                              <span class="text-xs text-text-secondary truncate">{build.product}</span>
+                            {/if}
+                            {#if build.versionString}
+                              <span class="inline-flex items-center rounded bg-accent-muted px-1 py-0.5 text-2xs text-accent font-mono font-medium flex-shrink-0">
+                                v{build.versionString}
+                              </span>
                             {/if}
                             <StatusBadge status={build.status} />
                             {#if build.versionBump}

@@ -259,12 +259,17 @@
           let measurements: Record<string, unknown> | null = null;
           let durationS: number | null = null;
 
-          if (ex.results?.length) {
-            const result = ex.results[0].result || {};
-            logOutput = result.logOutput || null;
-            errorMessage = result.errorMessage || null;
-            measurements = result.measurements || null;
-            durationS = result.durationS || null;
+          // Steps may come as 'steps' (new API) or 'results' (legacy)
+          const steps = ex.steps || ex.results || [];
+          if (steps.length) {
+            const step = steps[0];
+            // Step fields are at top level (not nested in 'result')
+            logOutput = step.logOutput || (step.result && step.result.logOutput) || null;
+            errorMessage = step.errorMessage || (step.result && step.result.errorMessage) || null;
+            measurements = step.measurements || (step.result && step.result.measurements) || null;
+            if (step.durationMs) {
+              durationS = step.durationMs / 1000;
+            }
           }
 
           // Calculate duration from timestamps if not in result

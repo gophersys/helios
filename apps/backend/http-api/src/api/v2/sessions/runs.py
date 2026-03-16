@@ -115,6 +115,7 @@ def _serialize_step(step: Any) -> dict:
         "passed": step.passed,
         "errorMessage": step.errorMessage if hasattr(step, "errorMessage") else None,
         "measurements": step.measurements if hasattr(step, "measurements") else None,
+        "logOutput": step.logOutput if hasattr(step, "logOutput") else None,
         "durationMs": step.durationMs if hasattr(step, "durationMs") else None,
         "startedAt": step.startedAt.isoformat() if hasattr(step, "startedAt") and step.startedAt else None,
         "finishedAt": step.finishedAt.isoformat() if hasattr(step, "finishedAt") and step.finishedAt else None,
