@@ -51,7 +51,7 @@
 
   // Primary navigation items
   const primaryItems: NavItem[] = [
-    { to: '/catalog', icon: Package, label: 'Products', permission: 'products:view' },
+    { to: '/products', icon: Package, label: 'Products', permission: 'products:view' },
     { to: '/builds', icon: Hammer, label: 'Builds', permission: 'builds:view' },
     { to: '/validation', icon: FlaskConical, label: 'Validation' },
     { to: '/mtib', icon: Cpu, label: 'Hardware', permission: 'devices:view' },

@@ -5,9 +5,9 @@
   import { getAuth } from '$lib/stores/auth.svelte';
   import { apiFetch, api } from '$lib/api';
   import { PageHeader, ErrorAlert, EmptyState, LoadingState, ConfirmDeleteDialog, FormCard } from '$lib/components/ui';
-  import ProductCard from '$lib/components/catalog/product-card.svelte';
-  import ProductDetail from '$lib/components/catalog/product-detail.svelte';
-  import ChipsetManagement from '$lib/components/catalog/chipset-management.svelte';
+  import ProductCard from '$lib/components/products/product-card.svelte';
+  import ProductDetail from '$lib/components/products/product-detail.svelte';
+  import ChipsetManagement from '$lib/components/products/chipset-management.svelte';
   import { useChipsets } from '$lib/hooks/use-chipsets.svelte';
   import type { Product } from '$lib/types/models';
   import type { ApiResponse } from '$lib/types';
@@ -146,7 +146,7 @@
   </div>
 
   {#if loading}
-    <LoadingState message="Loading catalog..." />
+    <LoadingState message="Loading products..." />
   {:else if selectedProduct}
     <ProductDetail
       product={selectedProduct}

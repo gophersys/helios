@@ -1,4 +1,4 @@
-// Hook for fetching chipsets from the catalog
+// Hook for fetching chipsets from the products API
 import { apiFetch } from '$lib/api';
 import type { ApiResponse } from '$lib/types';
 import type { Chipset } from '$lib/types/models';

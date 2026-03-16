@@ -31,7 +31,7 @@
 </script>
 
 <div class="animate-fade-in">
-  <BackButton label="Back to catalog" onclick={onBack} />
+  <BackButton label="Back to products" onclick={onBack} />
 
   <ErrorAlert message={error} />
 

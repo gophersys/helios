@@ -48,8 +48,8 @@ Read every `.svelte` file in the target scope and verify:
 6. **Snippet usage** — Components that accept children or slots use `Snippet` type, rendered with `{@render children()}`
 
 **Reference files:**
-- `apps/frontend/app/src/lib/components/catalog/product-detail.svelte`
-- `apps/frontend/app/src/lib/components/catalog/board-list.svelte`
+- `apps/frontend/app/src/lib/components/products/product-detail.svelte`
+- `apps/frontend/app/src/lib/components/products/board-list.svelte`
 - `apps/frontend/app/src/lib/components/ui/card.svelte`
 
 ### Agent 2: Design Token & Styling Review
@@ -204,7 +204,7 @@ Read every route `+page.svelte` and verify:
 **Reference files:**
 - `apps/frontend/app/src/lib/stores/auth.svelte.ts`
 - `apps/frontend/app/src/lib/components/sidebar.svelte`
-- `apps/frontend/app/src/routes/catalog/+page.svelte`
+- `apps/frontend/app/src/routes/products/+page.svelte`
 
 ### Agent 6: CRUD Page Pattern Review
 
