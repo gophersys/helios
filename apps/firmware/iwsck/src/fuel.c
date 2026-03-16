@@ -1,12 +1,19 @@
-/* BQ35100 fuel gauge — I2C commands + P0.02 interrupt, P0.03 enable */
+/* BQ35100 fuel gauge — I2C commands + interrupt + enable
+ * A0: bit-bang I2C (i2c_bb), INT P0.00, EN P0.01
+ * A1: hardware TWIM21 (i2c21), INT P0.02, EN P0.03
+ */
 
 #include <zephyr/kernel.h>
 #include <zephyr/shell/shell.h>
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/drivers/i2c.h>
 
-/* Hardware I2C on TWIM21 (P1.04 SCL, P1.05 SDA) */
+/* I2C bus: hardware TWIM21 on A1, bit-bang on A0 */
+#if DT_NODE_HAS_STATUS_OKAY(DT_NODELABEL(i2c21))
 static const struct device *const i2c = DEVICE_DT_GET(DT_NODELABEL(i2c21));
+#else
+static const struct device *const i2c = DEVICE_DT_GET(DT_NODELABEL(i2c_bb));
+#endif
 
 /* Fuel gauge interrupt — P0.02, active-low */
 static const struct gpio_dt_spec fuel_int =

@@ -454,6 +454,9 @@ model BuildJob {
     pipelineRunId String?
     pipelineRun   PipelineRun? @relation(fields: [pipelineRunId], references: [id])
 
+    // Worker info
+    workerId        String?  /// Node/host that built this (e.g. "wanda")
+
     // Timing
     startedAt       DateTime?
     finishedAt      DateTime?

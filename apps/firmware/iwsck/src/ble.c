@@ -10,7 +10,12 @@
 #include <string.h>
 
 static const struct device *const temp_dev = DEVICE_DT_GET(DT_NODELABEL(temp));
+/* I2C bus: hardware TWIM21 on A1, bit-bang on A0 */
+#if DT_NODE_HAS_STATUS_OKAY(DT_NODELABEL(i2c21))
 static const struct device *const i2c_dev = DEVICE_DT_GET(DT_NODELABEL(i2c21));
+#else
+static const struct device *const i2c_dev = DEVICE_DT_GET(DT_NODELABEL(i2c_bb));
+#endif
 
 static bool advertising;
 static bool ready;
