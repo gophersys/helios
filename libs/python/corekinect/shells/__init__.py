@@ -26,5 +26,14 @@ Usage:
 
 from corekinect.shells.alpha_app import AlphaAppShell
 from corekinect.shells.comms_coproc import CommsCoprocShell
+from corekinect.shells.alpha import AlphaShell
+from corekinect.shells.theta import ThetaShell
+from corekinect.shells.sigma5 import Sigma5Shell
 
-__all__ = ["AlphaAppShell", "CommsCoprocShell"]
+__all__ = [
+    "AlphaAppShell",
+    "CommsCoprocShell",
+    "AlphaShell",
+    "ThetaShell",
+    "Sigma5Shell",
+]
