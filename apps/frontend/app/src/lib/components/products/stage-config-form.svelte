@@ -1,36 +1,39 @@
 <script lang="ts">
-  import { createEventDispatcher } from 'svelte';
   import type { ProductStageConfig } from '$lib/types/stages';
   import { createStageConfig, updateStageConfig } from '$lib/services/stages';
   import { STAGE_NAMES } from '$lib/types/stages';
 
-  export let productId: string;
-  export let stage: number;
-  export let config: ProductStageConfig | undefined = undefined;
+  interface Props {
+    productId: string;
+    stage: number;
+    config?: ProductStageConfig;
+    onSaved?: () => void;
+    onCancel?: () => void;
+  }
 
-  const dispatch = createEventDispatcher();
+  let { productId, stage, config, onSaved, onCancel }: Props = $props();
 
-  let saving = false;
-  let error = '';
+  let saving = $state(false);
+  let error = $state('');
 
   // Form state
-  let enabled = config?.enabled ?? true;
-  let buildTarget = config?.buildTarget ?? '';
-  let fwRepoUrl = config?.fwRepoUrl ?? '';
-  let fwRepoBranch = config?.fwRepoBranch ?? '';
-  let mfgRepoUrl = config?.mfgRepoUrl ?? '';
-  let mfgRepoBranch = config?.mfgRepoBranch ?? '';
-  let buildVariant = config?.buildVariant ?? '';
-  let testDirectory = config?.testDirectory ?? '';
-  let testMarker = config?.testMarker ?? '';
-  let testTimeout = config?.testTimeout ?? 900;
-  let priority = config?.priority ?? 50;
-  let blocksMerge = config?.blocksMerge ?? false;
-  let requiresFuota = config?.requiresFuota ?? false;
-  let requiresBench = config?.requiresBench ?? true;
-  let maxDurationSec = config?.maxDurationSec ?? 3600;
-  let buildScript = config?.buildScript ?? '';
-  let description = config?.description ?? '';
+  let enabled = $state(config?.enabled ?? true);
+  let buildTarget = $state(config?.buildTarget ?? '');
+  let fwRepoUrl = $state(config?.fwRepoUrl ?? '');
+  let fwRepoBranch = $state(config?.fwRepoBranch ?? '');
+  let mfgRepoUrl = $state(config?.mfgRepoUrl ?? '');
+  let mfgRepoBranch = $state(config?.mfgRepoBranch ?? '');
+  let buildVariant = $state(config?.buildVariant ?? '');
+  let testDirectory = $state(config?.testDirectory ?? '');
+  let testMarker = $state(config?.testMarker ?? '');
+  let testTimeout = $state(config?.testTimeout ?? 900);
+  let priority = $state(config?.priority ?? 50);
+  let blocksMerge = $state(config?.blocksMerge ?? false);
+  let requiresFuota = $state(config?.requiresFuota ?? false);
+  let requiresBench = $state(config?.requiresBench ?? true);
+  let maxDurationSec = $state(config?.maxDurationSec ?? 3600);
+  let buildScript = $state(config?.buildScript ?? '');
+  let description = $state(config?.description ?? '');
 
   async function handleSubmit() {
     saving = true;
@@ -61,7 +64,7 @@
       } else {
         await createStageConfig(productId, { ...data, stage, name: STAGE_NAMES[stage] });
       }
-      dispatch('saved');
+      onSaved?.();
     } catch (e: any) {
       error = e.message || 'Failed to save';
     } finally {
@@ -70,7 +73,7 @@
   }
 </script>
 
-<form on:submit|preventDefault={handleSubmit} class="space-y-4">
+<form onsubmit={(e) => { e.preventDefault(); handleSubmit(); }} class="space-y-4">
   {#if error}
     <div class="p-3 rounded bg-red-500/10 border border-red-500/30 text-red-400 text-sm">{error}</div>
   {/if}
@@ -228,7 +231,7 @@
   </label>
 
   <div class="flex justify-end gap-3">
-    <button type="button" on:click={() => dispatch('cancel')}
+    <button type="button" onclick={() => onCancel?.()}
       class="px-4 py-2 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors">
       Cancel
     </button>
