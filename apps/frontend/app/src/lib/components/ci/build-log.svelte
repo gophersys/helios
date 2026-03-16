@@ -159,6 +159,18 @@
     </button>
   </div>
 
+  <!-- Errors/Warnings detail -->
+  {#if analysis.errors.length > 0 || analysis.warnings.length > 0}
+    <div class="border-b border-border bg-surface-1 px-3 py-2 space-y-1 max-h-48 overflow-y-auto">
+      {#each analysis.errors as err}
+        <div class="text-2xs font-mono text-error truncate" title={err}>{err}</div>
+      {/each}
+      {#each analysis.warnings as warn}
+        <div class="text-2xs font-mono text-warning truncate" title={warn}>{warn}</div>
+      {/each}
+    </div>
+  {/if}
+
   <!-- Log content -->
   <pre
     bind:this={containerEl}

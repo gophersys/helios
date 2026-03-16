@@ -6,9 +6,13 @@
     ArrowLeft,
     Clock,
     Download,
+    ExternalLink,
     FileText,
     GitBranch,
+    GitCommit,
+    Hammer,
     RefreshCw,
+    Server,
   } from 'lucide-svelte';
   import { getAuth } from '$lib/stores/auth.svelte';
   import type { BuildJob, BuildJobArtifact } from '$lib/types/ci';
@@ -35,7 +39,21 @@
   let retriggering = $state(false);
   let unsubscribeWs: (() => void) | null = null;
 
-  const isBuilding = $derived(build?.status === 'BUILDING' || build?.status === 'QUEUED');
+  const isActive = $derived(
+    build?.status === 'BUILDING' || build?.status === 'QUEUED' || build?.status === 'CLONING'
+  );
+
+  // Bitbucket URL for the commit
+  const commitUrl = $derived(
+    build?.commitSha && build?.product
+      ? `https://bitbucket.org/corekinect/${build.product}/commits/${build.commitSha}`
+      : null
+  );
+  const branchUrl = $derived(
+    build?.branch && build?.product
+      ? `https://bitbucket.org/corekinect/${build.product}/branch/${build.branch}`
+      : null
+  );
 
   async function loadBuild(): Promise<void> {
     if (!buildId) return;
@@ -121,13 +139,12 @@
     loadArtifacts();
     setupWebSocket();
 
-    // Auto-refresh status + log every 5s while building
     const interval = setInterval(() => {
-      if (build && (build.status === 'QUEUED' || build.status === 'CLONING' || build.status === 'BUILDING')) {
+      if (build && isActive) {
         loadBuild();
         loadLog();
       } else if (build && (build.status === 'SUCCESS' || build.status === 'FAILED')) {
-        // Final load then stop
+        loadLog();
         loadArtifacts();
         clearInterval(interval);
       }
@@ -141,7 +158,7 @@
 </script>
 
 <svelte:head>
-  <title>Build {buildId?.slice(0, 8) ?? ''} - CI - Concord</title>
+  <title>Build {buildId?.slice(0, 8) ?? ''} - Concord</title>
 </svelte:head>
 
 <div class="animate-fade-in">
@@ -161,33 +178,50 @@
     <ErrorAlert message={error} />
 
     <!-- Header -->
-    <div class="flex items-start justify-between gap-4 mb-6">
+    <div class="flex items-start justify-between gap-4 mb-4">
       <div>
         <div class="flex items-center gap-3">
-          <h1 class="text-lg font-semibold text-text-primary">
-            {build.product}
-          </h1>
+          <h1 class="text-lg font-semibold text-text-primary">{build.product}</h1>
+          <span class="inline-flex items-center rounded bg-surface-2 px-2 py-0.5 text-xs text-text-secondary font-mono">{build.variant}</span>
+          <span class="inline-flex items-center rounded bg-surface-2 px-2 py-0.5 text-xs text-text-tertiary">{build.board} / {build.target}</span>
           <StatusBadge status={build.status} />
-          {#if isBuilding}
+          {#if isActive}
             <span class="inline-flex items-center gap-1.5 rounded-full bg-accent-muted px-2 py-0.5 text-2xs font-medium text-accent">
               <span class="relative flex h-2 w-2">
                 <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-75"></span>
                 <span class="relative inline-flex rounded-full h-2 w-2 bg-accent"></span>
               </span>
-              BUILDING
+              {build.status}
             </span>
           {/if}
         </div>
-        <div class="mt-1 flex items-center gap-4 text-xs text-text-tertiary">
-          <span class="inline-flex items-center gap-1">
-            <GitBranch size={12} />
-            {build.branch}
+
+        <!-- Branch + Commit with Bitbucket links -->
+        <div class="mt-2 flex items-center gap-3 text-xs">
+          <span class="inline-flex items-center gap-1.5 text-text-secondary">
+            <GitBranch size={14} />
+            {#if branchUrl}
+              <a href={branchUrl} target="_blank" rel="noopener" class="font-mono hover:text-accent transition-colors">
+                {build.branch}
+                <ExternalLink size={10} class="inline ml-0.5 opacity-50" />
+              </a>
+            {:else}
+              <span class="font-mono">{build.branch}</span>
+            {/if}
           </span>
           {#if build.commitSha}
-            <span class="font-mono">{build.commitSha.slice(0, 7)}</span>
+            <span class="inline-flex items-center gap-1.5 text-info">
+              <GitCommit size={14} />
+              {#if commitUrl}
+                <a href={commitUrl} target="_blank" rel="noopener" class="font-mono font-medium hover:underline">
+                  {build.commitSha.slice(0, 7)}
+                  <ExternalLink size={10} class="inline ml-0.5 opacity-50" />
+                </a>
+              {:else}
+                <span class="font-mono font-medium">{build.commitSha.slice(0, 7)}</span>
+              {/if}
+            </span>
           {/if}
-          <span class="capitalize">{build.variant}</span>
-          <span>{build.board} / {build.target}</span>
         </div>
       </div>
 
@@ -206,7 +240,7 @@
     </div>
 
     <!-- Metadata cards -->
-    <div class="grid grid-cols-2 gap-3 sm:grid-cols-4 mb-6">
+    <div class="grid grid-cols-2 gap-3 sm:grid-cols-5 mb-6">
       <div class="card card-sm">
         <div class="text-2xs font-medium uppercase tracking-wider text-text-tertiary">Version</div>
         <div class="mt-1 text-sm font-mono font-semibold text-text-primary">
@@ -216,7 +250,7 @@
       <div class="card card-sm">
         <div class="text-2xs font-medium uppercase tracking-wider text-text-tertiary">Duration</div>
         <div class="mt-1 flex items-center gap-1.5">
-          <Clock size={16} class="text-text-tertiary" />
+          <Clock size={14} class="text-text-tertiary" />
           <span class="text-sm font-semibold tabular-nums text-text-primary">
             {build.durationSeconds ? formatDuration(build.durationSeconds * 1000) : '--'}
           </span>
@@ -224,32 +258,41 @@
       </div>
       <div class="card card-sm">
         <div class="text-2xs font-medium uppercase tracking-wider text-text-tertiary">Builder</div>
-        <div class="mt-1 text-sm font-semibold text-text-primary">
-          {build.workerId ?? '--'}
+        <div class="mt-1 flex items-center gap-1.5">
+          <Server size={14} class="text-text-tertiary" />
+          <span class="text-sm font-semibold text-text-primary">{build.workerId ?? '--'}</span>
         </div>
       </div>
       <div class="card card-sm">
         <div class="text-2xs font-medium uppercase tracking-wider text-text-tertiary">Artifacts</div>
         <div class="mt-1 flex items-center gap-1.5">
-          <FileText size={16} class="text-text-tertiary" />
+          <FileText size={14} class="text-text-tertiary" />
           <span class="text-sm font-semibold tabular-nums text-text-primary">{artifacts.length}</span>
         </div>
       </div>
-      <div class="card card-sm">
-        <div class="text-2xs font-medium uppercase tracking-wider text-text-tertiary">Commit</div>
-        <div class="mt-1 text-sm font-mono text-text-primary">
-          {build.commitSha ? build.commitSha.slice(0, 12) : '--'}
+      {#if build.configFlags?.versionOverride}
+        <div class="card card-sm">
+          <div class="text-2xs font-medium uppercase tracking-wider text-text-tertiary">Override</div>
+          <div class="mt-1 text-sm font-mono text-accent">{build.configFlags.versionOverride}</div>
         </div>
-      </div>
+      {/if}
     </div>
+
+    <!-- Error message (for FAILED builds) -->
+    {#if build.status === 'FAILED' && build.errorMessage}
+      <div class="mb-6 rounded-lg border border-error/30 bg-error/5 p-4">
+        <h3 class="text-sm font-medium text-error mb-2">Build Failed</h3>
+        <pre class="text-xs font-mono text-error/80 whitespace-pre-wrap overflow-auto max-h-48">{build.errorMessage}</pre>
+      </div>
+    {/if}
 
     <!-- Build Log -->
     {#if logLines.length > 0}
       <div class="mb-6">
         <h2 class="mb-3 text-sm font-medium text-text-primary">Build Log</h2>
-        <BuildLogViewer lines={logLines} streaming={isBuilding} />
+        <BuildLogViewer lines={logLines} streaming={isActive} />
       </div>
-    {:else if isBuilding}
+    {:else if isActive}
       <div class="mb-6">
         <h2 class="mb-3 text-sm font-medium text-text-primary">Build Log</h2>
         <div class="card card-sm text-center text-xs text-text-tertiary">
@@ -275,7 +318,7 @@
                 {formatSize(String(artifact.sizeBytes))}
               </span>
               {#if artifact.checksum}
-                <span class="font-mono text-2xs text-text-tertiary" title="Checksum">
+                <span class="font-mono text-2xs text-text-tertiary" title="SHA-256: {artifact.checksum}">
                   {artifact.checksum.slice(0, 8)}
                 </span>
               {/if}
@@ -291,7 +334,7 @@
           {/each}
         </div>
       </div>
-    {:else if !isBuilding && build.status !== 'QUEUED'}
+    {:else if !isActive && build.status !== 'QUEUED'}
       <div class="mb-6">
         <h2 class="mb-3 text-sm font-medium text-text-primary flex items-center gap-2">
           <FileText size={16} class="text-text-tertiary" />
@@ -304,7 +347,7 @@
     {/if}
 
     <!-- Metadata footer -->
-    <div class="mt-6 flex items-center gap-4 text-2xs text-text-tertiary">
+    <div class="mt-6 flex flex-wrap items-center gap-4 text-2xs text-text-tertiary">
       <span>Created {formatDateTime(build.createdAt)}</span>
       {#if build.startedAt}
         <span>Started {formatDateTime(build.startedAt)}</span>
@@ -312,7 +355,7 @@
       {#if build.finishedAt}
         <span>Finished {formatDateTime(build.finishedAt)}</span>
       {/if}
-      <span class="font-mono">{build.id}</span>
+      <span class="font-mono opacity-50">{build.id}</span>
     </div>
   {/if}
 </div>
