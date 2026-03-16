@@ -438,6 +438,12 @@
                     {build.branch}
                   </span>
                 {/if}
+                {#if build.commitSha}
+                  <span class="inline-flex items-center gap-1 rounded bg-info-muted px-1.5 py-0.5 text-2xs text-info font-mono font-medium">
+                    <GitCommit size={10} />
+                    {build.commitSha.slice(0, 7)}
+                  </span>
+                {/if}
                 {#if build.versionString}
                   <span class="inline-flex items-center rounded bg-accent-muted px-1.5 py-0.5 text-2xs text-accent font-mono font-medium">
                     v{build.versionString}
