@@ -3,6 +3,7 @@
   import { STAGE_NAMES, STAGE_DESCRIPTIONS } from '$lib/types/stages';
   import { updateStageConfig } from '$lib/services/stages';
   import StageConfigForm from './stage-config-form.svelte';
+  import CodeEditor from '$lib/components/ui/code-editor.svelte';
 
   interface Props {
     stage: number;
@@ -96,7 +97,7 @@
 
   <!-- Expanded content -->
   {#if expanded}
-    <div class="border-t border-border px-4 py-4">
+    <div class="border-t border-border px-4 py-4 overflow-hidden min-w-0">
       {#if editing}
         <StageConfigForm
           {productId}
@@ -164,7 +165,7 @@
               <h4 class="font-medium text-text-secondary">Build Script</h4>
               <span class="text-2xs text-text-tertiary">{config.buildScript.split('\n').length} lines</span>
             </div>
-            <pre class="bg-surface-0 rounded p-3 text-xs font-mono text-text-primary overflow-x-auto max-h-96 overflow-y-auto">{config.buildScript}</pre>
+            <CodeEditor value={config.buildScript} readonly maxHeight="400px" />
           </div>
         {/if}
 

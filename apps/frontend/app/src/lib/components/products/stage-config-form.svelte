@@ -2,6 +2,7 @@
   import type { ProductStageConfig } from '$lib/types/stages';
   import { createStageConfig, updateStageConfig } from '$lib/services/stages';
   import { STAGE_NAMES } from '$lib/types/stages';
+  import CodeEditor from '$lib/components/ui/code-editor.svelte';
 
   interface Props {
     productId: string;
@@ -125,19 +126,7 @@
         <span class="text-2xs text-text-tertiary">{buildScript.split('\n').length} lines</span>
       {/if}
     </div>
-    <textarea bind:value={buildScript} rows="20" spellcheck="false" placeholder="#!/bin/bash&#10;# Build script for this stage&#10;west build ..."
-      class="w-full px-4 py-3 rounded bg-surface-0 border border-border text-text-primary text-sm font-mono leading-relaxed resize-y"
-      style="min-height: 200px; tab-size: 4;"
-      onkeydown={(e) => {
-        if (e.key === 'Tab') {
-          e.preventDefault();
-          const target = e.currentTarget;
-          const start = target.selectionStart;
-          const end = target.selectionEnd;
-          buildScript = buildScript.substring(0, start) + '  ' + buildScript.substring(end);
-          requestAnimationFrame(() => { target.selectionStart = target.selectionEnd = start + 2; });
-        }
-      }}></textarea>
+    <CodeEditor value={buildScript} maxHeight="500px" onchange={(v) => buildScript = v} />
 
     <details class="text-xs">
       <summary class="text-text-tertiary cursor-pointer hover:text-text-secondary select-none">
