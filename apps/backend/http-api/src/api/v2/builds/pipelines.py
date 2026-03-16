@@ -691,12 +691,14 @@ def create_pipeline():
                 # Auto-version for "head" source builds — put in configFlags
                 # so the build worker picks it up as VERSION_BUILD_OVERRIDE
                 if spec.get("versionOverride"):
-                    config_flags = build_data.get("webhookData", {})
-                    if isinstance(config_flags, Json):
-                        config_flags = dict(config_flags)
-                    config_flags["versionOverride"] = spec["versionOverride"]
-                    build_data["configFlags"] = Json(config_flags)
-                    build_data["webhookData"] = Json(config_flags)
+                    override_flags = {
+                        "pipelineId": pipeline.id,
+                        "source": data.trigger_type,
+                        "matrixLabel": spec.get("matrixLabel"),
+                        "versionOverride": spec["versionOverride"],
+                    }
+                    build_data["configFlags"] = Json(override_flags)
+                    build_data["webhookData"] = Json(override_flags)
 
             build = db.buildjob.create(data=build_data)
             builds.append(build)
