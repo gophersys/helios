@@ -218,6 +218,7 @@ def _serialize_pipeline(p) -> Dict[str, Any]:
         "matrixMode": getattr(p, "matrixMode", None),
         "autoValidate": getattr(p, "autoValidate", False),
         "buildMatrix": p.buildMatrix if hasattr(p, "buildMatrix") else None,
+        "triggerData": p.triggerData if hasattr(p, "triggerData") else None,
         "startedAt": p.startedAt.isoformat() if p.startedAt else None,
         "finishedAt": p.finishedAt.isoformat() if p.finishedAt else None,
         "createdAt": p.createdAt.isoformat(),
@@ -592,6 +593,12 @@ def create_pipeline():
             "source": data.trigger_type,
             "repoSlug": data.repo_slug,
             "mfgRepoSlug": data.mfg_repo_slug,
+            # Modem firmware is a product-level asset, always included
+            "modemFirmware": {
+                "storageKey": f"firmware/modem/{repo_base}/mfw_nrf91x1_2.0.2.zip",
+                "version": "2.0.2",
+                "name": "mfw_nrf91x1_2.0.2.zip",
+            },
         }
         if data.validation_config:
             trigger_data.update(data.validation_config)

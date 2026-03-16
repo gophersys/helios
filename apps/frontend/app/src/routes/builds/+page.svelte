@@ -415,7 +415,7 @@
       <div class="space-y-2">
         {#each buildJobs as build (build.id)}
           <button
-            onclick={() => goto(`/builds/${build.id}`)}
+            onclick={() => goto(`/builds/${build.status === 'CACHED' && build.reusedFromId ? build.reusedFromId : build.id}`)}
             class="w-full rounded-lg border border-border bg-surface-0 px-4 py-3 text-left transition-colors hover:bg-surface-1"
           >
             <div class="flex items-center justify-between gap-4">

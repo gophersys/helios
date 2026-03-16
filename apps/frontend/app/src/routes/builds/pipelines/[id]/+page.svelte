@@ -793,6 +793,16 @@
                               </span>
                             {/if}
                             <StatusBadge status={build.status} />
+                            {#if build.status === 'CACHED' && build.reusedFromId}
+                              <a
+                                href="/builds/{build.reusedFromId}"
+                                onclick={(e) => e.stopPropagation()}
+                                class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-surface-2 text-text-tertiary text-2xs hover:text-accent transition-colors flex-shrink-0"
+                                title="View original build"
+                              >
+                                View Original
+                              </a>
+                            {/if}
                             {#if build.versionBump}
                               <span class="text-2xs text-info px-1 py-0.5 rounded bg-info-muted flex-shrink-0" title="Version bump (+1 from base)">+1</span>
                             {/if}

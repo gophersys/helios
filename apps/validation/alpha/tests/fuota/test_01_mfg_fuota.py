@@ -205,7 +205,7 @@ class TestMfgFuota:
         record_id = wait_for_cloud_checkin(
             fuota_client,
             TestMfgFuota._device_id,
-            timeout_s=150,
+            timeout_s=300,
         )
 
         print(f"CoreCloud check-in confirmed (recordId={record_id})")

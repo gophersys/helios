@@ -586,14 +586,15 @@ class PipelineAssets:
         return self._minio
 
     def _download(self, storage_key: str) -> str:
-        """Download file from MinIO to temp location."""
+        """Download file from MinIO to temp directory, preserving original filename."""
         minio = self._get_minio()
         bucket = self._config.STORAGE_BUCKET
 
-        suffix = Path(storage_key).suffix or ".bin"
-        fd, local_path = tempfile.mkstemp(suffix=suffix, prefix="fw_")
-        os.close(fd)
-        self._temp_files.append(local_path)
+        # Preserve the original filename so logs and MTIB uploads are readable
+        original_name = Path(storage_key).name
+        temp_dir = tempfile.mkdtemp(prefix="fw_")
+        local_path = os.path.join(temp_dir, original_name)
+        self._temp_files.append(temp_dir)
 
         self._log.info("Downloading %s/%s -> %s", bucket, storage_key, local_path)
         minio.fget_object(bucket, storage_key, local_path)
@@ -706,10 +707,13 @@ class PipelineAssets:
         return Path(local_path).name
 
     def cleanup(self) -> None:
-        """Delete downloaded temp files."""
+        """Delete downloaded temp files and directories."""
+        import shutil
         for path in list(self._temp_files):
             try:
-                if os.path.exists(path):
+                if os.path.isdir(path):
+                    shutil.rmtree(path, ignore_errors=True)
+                elif os.path.exists(path):
                     os.unlink(path)
             except Exception:
                 pass
