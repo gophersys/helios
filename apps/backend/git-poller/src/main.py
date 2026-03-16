@@ -123,7 +123,9 @@ class GitPoller:
                 return []
 
             data = resp.json()
-            products = data.get("data", [])
+            # Paginated response: {"data": {"data": [...], "pagination": {...}}}
+            inner = data.get("data", {})
+            products = inner.get("data", []) if isinstance(inner, dict) else inner
 
             repos = []
             for p in products:
