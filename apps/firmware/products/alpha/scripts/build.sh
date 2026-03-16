@@ -511,9 +511,9 @@ collect_artifacts() {
 
     mkdir -p "$out_dir"
 
-    # Name hex files to match CFW naming: {appId}.{version}.hex
-    local app_hex_name="109.${version_major}.${version_minor}.${version_build}.hex"
-    local comms_hex_name="108.${version_major}.${version_minor}.${version_build}.hex"
+    # Name hex files: {appId}.{version}-{track}.hex (e.g. 109.0.8.4-BD.hex)
+    local app_hex_name="109.${version_major}.${version_minor}.${version_build}-${track_str}.hex"
+    local comms_hex_name="108.${version_major}.${version_minor}.${version_build}-${track_str}.hex"
     if [ -f "$app_hex" ]; then
         cp "$app_hex" "$out_dir/${app_hex_name}"
         echo -e "  ${GREEN}${app_hex_name}${NC}"
@@ -545,6 +545,11 @@ collect_artifacts() {
         cfw_debug=1
     fi
 
+    # Build track string for filenames: B=Bench, M=Mfg, D=Debug
+    local track_str="B"
+    [ $cfw_mfg -eq 1 ] && track_str="${track_str}M"
+    [ $cfw_debug -eq 1 ] && track_str="${track_str}D"
+
     # Generate CFW files from encrypted signed bins
     echo -e "${CYAN}Generating CFW files...${NC}"
 
@@ -563,14 +568,14 @@ collect_artifacts() {
     done
     if [ -n "$app_bin" ] && [ -f "$app_bin" ]; then
         generate_cfw "$app_bin" 109 "$version_major" "$version_minor" "$version_build" \
-            $cfw_track $cfw_mfg $cfw_debug "$out_dir/109.${version_major}.${version_minor}.${version_build}.cfw"
+            $cfw_track $cfw_mfg $cfw_debug "$out_dir/109.${version_major}.${version_minor}.${version_build}-${track_str}.cfw"
     fi
 
     # Comms processor CFW (app_id=108 for nRF9151)
     local comms_bin="${comms_dir}/build/comm_coproc_mfg/zephyr/zephyr.signed.encrypted.bin"
     if [ -f "$comms_bin" ]; then
         generate_cfw "$comms_bin" 108 "$version_major" "$version_minor" "$version_build" \
-            $cfw_track $cfw_mfg $cfw_debug "$out_dir/108.${version_major}.${version_minor}.${version_build}.cfw"
+            $cfw_track $cfw_mfg $cfw_debug "$out_dir/108.${version_major}.${version_minor}.${version_build}-${track_str}.cfw"
     fi
 
     # Validate generated CFW files
@@ -617,10 +622,6 @@ print(f'{appid} {major} {minor} {build} {imglen}')
 
     # Generate build.json with version info
     if [ "$CI_MODE" == "true" ]; then
-        # Build flag string for JSON
-        local track_str="B"  # Bench
-        [ $cfw_mfg -eq 1 ] && track_str="${track_str}M"
-        [ $cfw_debug -eq 1 ] && track_str="${track_str}D"
         local cfw_flags=$(( (cfw_track << 1) | cfw_mfg | (cfw_debug << 3) ))
 
         cat > "$out_dir/build.json" << EOF
