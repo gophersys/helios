@@ -49,7 +49,7 @@ def _derive_product_slug(b: Any) -> str | None:
     if not product or not hasattr(product, "repoSlug"):
         return getattr(b, "productId", None)
 
-    if b.variant == "mfg" and getattr(product, "mfgRepoSlug", None):
+    if getattr(b, "target", "") == "mfg" and getattr(product, "mfgRepoSlug", None):
         return product.mfgRepoSlug
     return product.repoSlug or product.slug
 
@@ -449,7 +449,7 @@ def upload_build_artifact(build_id: str):
 
     db = get_db_client()
 
-    build = db.buildjob.find_unique(where={"id": build_id})
+    build = db.buildjob.find_unique(where={"id": build_id}, include={"product": True})
     if not build:
         return not_found("Build job not found")
 
@@ -466,10 +466,11 @@ def upload_build_artifact(build_id: str):
         size_bytes = len(content)
         checksum = hashlib.sha256(content).hexdigest()
 
-        # Generate storage key
+        # Generate storage key using the derived product slug
+        product_slug = _derive_product_slug(build) or "unknown"
         key = storage_key(
             StoragePrefixes.FIRMWARE_BUILDS,
-            f"{build.product}/{build.id}/{file.filename}"
+            f"{product_slug}/{build.id}/{file.filename}"
         )
 
         # Upload to MinIO
