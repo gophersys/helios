@@ -635,17 +635,16 @@ def create_pipeline():
                         where={
                             "productId": product_record.id if product_record else None,
                             "variant": spec["variant"],
+                            "target": spec.get("target", "app"),
                             "status": "SUCCESS",
-                            "product": {"contains": spec.get("firmware", "")},
                         },
-                        include={"artifacts": True},
+                        include={"artifacts": True, "product": True},
                         order={"finishedAt": "desc"},
                     )
 
             if cached_build and spec.get("source") == "latest":
                 # Create a CACHED reference build
                 build_data = {
-                    "product": spec["product"],
                     "productId": product_record.id if product_record else None,
                     "board": spec["board"],
                     "target": spec["target"],
@@ -670,7 +669,6 @@ def create_pipeline():
                 }
             else:
                 build_data = {
-                    "product": spec["product"],
                     "productId": product_record.id if product_record else None,
                     "board": spec["board"],
                     "target": spec["target"],
@@ -691,9 +689,15 @@ def create_pipeline():
                 }
                 if fingerprint:
                     build_data["buildFingerprint"] = fingerprint
-                # Auto-version for "head" source builds
+                # Auto-version for "head" source builds — put in configFlags
+                # so the build worker picks it up as VERSION_BUILD_OVERRIDE
                 if spec.get("versionOverride"):
-                    build_data["versionString"] = spec["versionOverride"]
+                    config_flags = build_data.get("webhookData", {})
+                    if isinstance(config_flags, Json):
+                        config_flags = dict(config_flags)
+                    config_flags["versionOverride"] = spec["versionOverride"]
+                    build_data["configFlags"] = Json(config_flags)
+                    build_data["webhookData"] = Json(config_flags)
 
             build = db.buildjob.create(data=build_data)
             builds.append(build)
