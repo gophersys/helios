@@ -43,7 +43,10 @@ static void fuel_ge_on(void)
 		gpio_pin_set_dt(&fuel_en, 1);
 		ge_enabled = true;
 		k_msleep(1000); /* BQ35100 needs ~1s after GE rising edge for valid readings */
-		printk("[fuel] GE enabled (P0.03 HIGH)\n");
+		printk("[fuel] GE enabled (P%d.%02d HIGH)\n",
+		       fuel_en.port == DEVICE_DT_GET(DT_NODELABEL(gpio0)) ? 0 :
+		       fuel_en.port == DEVICE_DT_GET(DT_NODELABEL(gpio1)) ? 1 : 2,
+		       fuel_en.pin);
 	}
 }
 

@@ -120,6 +120,20 @@
     loadLog();
     loadArtifacts();
     setupWebSocket();
+
+    // Auto-refresh status + log every 5s while building
+    const interval = setInterval(() => {
+      if (build && (build.status === 'QUEUED' || build.status === 'CLONING' || build.status === 'BUILDING')) {
+        loadBuild();
+        loadLog();
+      } else if (build && (build.status === 'SUCCESS' || build.status === 'FAILED')) {
+        // Final load then stop
+        loadArtifacts();
+        clearInterval(interval);
+      }
+    }, 5000);
+
+    return () => clearInterval(interval);
   });
 
   onDestroy(cleanup);
@@ -206,6 +220,12 @@
           <span class="text-sm font-semibold tabular-nums text-text-primary">
             {build.durationSeconds ? formatDuration(build.durationSeconds * 1000) : '--'}
           </span>
+        </div>
+      </div>
+      <div class="card card-sm">
+        <div class="text-2xs font-medium uppercase tracking-wider text-text-tertiary">Builder</div>
+        <div class="mt-1 text-sm font-semibold text-text-primary">
+          {build.workerId ?? '--'}
         </div>
       </div>
       <div class="card card-sm">
