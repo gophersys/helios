@@ -652,21 +652,13 @@ def create_pipeline():
         specs_with_builds = []  # Track specs with their created builds
 
         for spec in build_specs:
-            # Check build cache for non-version-bump builds
+            # Check build cache
             cached_build = None
             fingerprint = None
-            if not spec.get("versionBump", False) and spec.get("commitSha"):
-                repo_url = product_record.repoSshUrl if product_record else ""
-                fingerprint = compute_build_fingerprint(
-                    repo_url=repo_url,
-                    commit_sha=spec.get("commitSha") or "",
-                    board=spec["board"],
-                    variant=spec["variant"],
-                    config_flags=None,
-                )
-                if spec.get("source") == "latest":
-                    # For "latest" source, find the most recent successful build
-                    cached_build = db.buildjob.find_first(
+
+            if spec.get("source") == "latest":
+                # Find the most recent successful build for this target+variant
+                cached_build = db.buildjob.find_first(
                         where={
                             "productId": product_record.id if product_record else None,
                             "variant": spec["variant"],
@@ -676,6 +668,17 @@ def create_pipeline():
                         include={"artifacts": True, "product": True},
                         order={"finishedAt": "desc"},
                     )
+
+            elif spec.get("source") == "head" and spec.get("commitSha"):
+                # For "head" builds, check fingerprint cache to avoid rebuilding same commit
+                repo_url = product_record.repoSshUrl if product_record else ""
+                fingerprint = compute_build_fingerprint(
+                    repo_url=repo_url, commit_sha=spec["commitSha"],
+                    board=spec["board"], variant=spec["variant"], config_flags=None,
+                )
+                cached_build = find_cached_build(db, fingerprint)
+                if cached_build:
+                    logger.info("Cache hit for %s: reusing build %s", spec["matrixLabel"], cached_build.id[:8])
 
             if cached_build and spec.get("source") == "latest":
                 # Create a CACHED reference build

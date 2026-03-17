@@ -25,6 +25,7 @@
     Activity,
     PanelBottomClose,
     PanelBottomOpen,
+    Search,
   } from 'lucide-svelte';
   import { getAuth } from '$lib/stores/auth.svelte';
   import { apiFetch, api } from '$lib/api';
@@ -88,6 +89,43 @@
   let uartAppLines = $state<string[]>([]);
   let uartCommsLines = $state<string[]>([]);
   let bottomPanelCollapsed = $state(false);
+
+  // UART search
+  let uartAppSearch = $state('');
+  let uartCommsSearch = $state('');
+  let uartAppSearchIndex = $state(0);
+  let uartCommsSearchIndex = $state(0);
+
+  // UART search match helpers
+  function getSearchMatches(lines: string[], query: string): number[] {
+    if (!query.trim()) return [];
+    const q = query.toLowerCase();
+    return lines.reduce((acc: number[], line, i) => {
+      if (line.toLowerCase().includes(q)) acc.push(i);
+      return acc;
+    }, []);
+  }
+
+  function scrollToMatch(containerId: string, matchIndex: number, matches: number[]) {
+    if (matches.length === 0) return;
+    const idx = matches[matchIndex % matches.length];
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    const lines = container.querySelectorAll('[data-line-index]');
+    const target = lines[idx] as HTMLElement;
+    if (target) {
+      target.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    }
+  }
+
+  // Power profiler data
+  interface PowerSample {
+    t: number;  // seconds since start
+    mA: number; // current in milliamps
+    mV: number; // voltage in millivolts
+  }
+  let powerSamples = $state<PowerSample[]>([]);
+  const POWER_WINDOW_S = 60; // show last 60 seconds
   let logContent = $state<string | null>(null);
   let logArtifactName = $state<string | null>(null);
 
@@ -601,7 +639,7 @@
 
     <!-- ═══ GITHUB ACTIONS STYLE: Two-column layout ═══ -->
     {#if liveTests.length > 0 || buildJobs.length > 0}
-      <div class="flex gap-4" style="min-height: 300px; max-height: calc(100vh - 320px); overflow-y: auto;">
+      <div class="flex gap-3" style="min-height: 280px; max-height: calc(100vh - 340px); overflow-y: auto;">
         <!-- Left sidebar: Stage list (Jobs in GH Actions) -->
         <div class="w-64 flex-shrink-0">
           <div class="sticky top-4 space-y-1">
@@ -889,6 +927,79 @@
             </div>
           {/if}
         </div>
+
+        <!-- Power profiler panel (right side, hidden on narrow screens) -->
+        <div class="w-72 flex-shrink-0 hidden xl:block">
+          <div class="sticky top-4 rounded-lg border border-border bg-surface-0 overflow-hidden" style="height: 280px;">
+            <div class="flex items-center gap-2 px-3 py-1.5 border-b border-border bg-surface-1">
+              <Activity size={12} class="text-accent" />
+              <span class="text-xs font-medium text-text-primary">Power</span>
+              {#if powerSamples.length > 0}
+                {@const last = powerSamples[powerSamples.length - 1]}
+                <span class="ml-auto text-2xs font-mono text-text-secondary">{last.mA.toFixed(1)} mA · {(last.mV / 1000).toFixed(2)} V</span>
+              {:else}
+                <span class="ml-auto text-2xs text-text-tertiary">No data</span>
+              {/if}
+            </div>
+            <div class="bg-[#0d1117] p-2" style="height: calc(280px - 32px);">
+              {#if powerSamples.length > 1}
+                {@const windowSamples = powerSamples.filter(s => s.t >= (powerSamples[powerSamples.length-1].t - POWER_WINDOW_S))}
+                {@const minMA = Math.max(0, Math.min(...windowSamples.map(s => s.mA)) - 5)}
+                {@const maxMA = Math.max(...windowSamples.map(s => s.mA)) + 5}
+                {@const rangeMA = Math.max(maxMA - minMA, 1)}
+                {@const tMin = windowSamples[0].t}
+                {@const tMax = windowSamples[windowSamples.length-1].t}
+                {@const tRange = Math.max(tMax - tMin, 1)}
+                {@const w = 240}
+                {@const h = 200}
+                {@const pad = { top: 8, right: 8, bottom: 20, left: 36 }}
+                {@const pw = w - pad.left - pad.right}
+                {@const ph = h - pad.top - pad.bottom}
+                <svg viewBox="0 0 {w} {h}" class="w-full h-full">
+                  <!-- Y axis labels -->
+                  <text x={pad.left - 4} y={pad.top + 4} text-anchor="end" class="fill-text-tertiary" style="font-size: 8px;">{maxMA.toFixed(0)}</text>
+                  <text x={pad.left - 4} y={pad.top + ph / 2 + 3} text-anchor="end" class="fill-text-tertiary" style="font-size: 8px;">{((maxMA + minMA) / 2).toFixed(0)}</text>
+                  <text x={pad.left - 4} y={pad.top + ph + 3} text-anchor="end" class="fill-text-tertiary" style="font-size: 8px;">{minMA.toFixed(0)}</text>
+                  <text x={4} y={pad.top + ph / 2} text-anchor="start" class="fill-text-tertiary" style="font-size: 7px;" transform="rotate(-90, 4, {pad.top + ph / 2})">mA</text>
+                  <!-- X axis -->
+                  <text x={pad.left} y={h - 4} class="fill-text-tertiary" style="font-size: 7px;">{tMin.toFixed(0)}s</text>
+                  <text x={pad.left + pw} y={h - 4} text-anchor="end" class="fill-text-tertiary" style="font-size: 7px;">{tMax.toFixed(0)}s</text>
+                  <!-- Grid lines -->
+                  <line x1={pad.left} y1={pad.top} x2={pad.left + pw} y2={pad.top} stroke="#1e2a3a" stroke-width="0.5" />
+                  <line x1={pad.left} y1={pad.top + ph / 2} x2={pad.left + pw} y2={pad.top + ph / 2} stroke="#1e2a3a" stroke-width="0.5" stroke-dasharray="2,2" />
+                  <line x1={pad.left} y1={pad.top + ph} x2={pad.left + pw} y2={pad.top + ph} stroke="#1e2a3a" stroke-width="0.5" />
+                  <!-- Data line -->
+                  <polyline
+                    fill="none"
+                    stroke="#22d3ee"
+                    stroke-width="1.5"
+                    points={windowSamples.map(s => {
+                      const x = pad.left + ((s.t - tMin) / tRange) * pw;
+                      const y = pad.top + ph - ((s.mA - minMA) / rangeMA) * ph;
+                      return `${x},${y}`;
+                    }).join(' ')}
+                  />
+                  <!-- Fill under curve -->
+                  <polygon
+                    fill="rgba(34,211,238,0.08)"
+                    points={`${pad.left},${pad.top + ph} ${windowSamples.map(s => {
+                      const x = pad.left + ((s.t - tMin) / tRange) * pw;
+                      const y = pad.top + ph - ((s.mA - minMA) / rangeMA) * ph;
+                      return `${x},${y}`;
+                    }).join(' ')} ${pad.left + pw},${pad.top + ph}`}
+                  />
+                </svg>
+              {:else}
+                <div class="h-full flex items-center justify-center">
+                  <div class="text-center">
+                    <Activity size={20} class="mx-auto text-text-tertiary opacity-20 mb-1" />
+                    <div class="text-2xs text-text-tertiary">Waiting for power data</div>
+                  </div>
+                </div>
+              {/if}
+            </div>
+          </div>
+        </div>
       </div>
     {:else}
       <!-- No tests yet -->
@@ -900,101 +1011,140 @@
       </div>
     {/if}
 
-    <!-- ═══ BOTTOM PANEL: UART Terminals + Power Profiler ═══ -->
-    <div class="mt-3 rounded-lg border border-border bg-surface-0 overflow-hidden" class:h-10={bottomPanelCollapsed}>
-      <!-- Tab bar -->
-      <div class="flex items-center border-b border-border bg-surface-1 px-2">
-        <button
-          onclick={() => { bottomTab = 'uart_app'; bottomPanelCollapsed = false; }}
-          class="flex items-center gap-1.5 px-3 py-2 text-xs font-medium border-b-2 transition-colors
-            {bottomTab === 'uart_app' && !bottomPanelCollapsed
-              ? 'border-accent text-accent'
-              : 'border-transparent text-text-tertiary hover:text-text-secondary'
-            }"
-        >
-          <Terminal size={12} />
-          UART APP
-          {#if uartAppLines.length > 0}
-            <span class="text-2xs opacity-60">{uartAppLines.length}</span>
-          {/if}
-        </button>
-        <button
-          onclick={() => { bottomTab = 'uart_comms'; bottomPanelCollapsed = false; }}
-          class="flex items-center gap-1.5 px-3 py-2 text-xs font-medium border-b-2 transition-colors
-            {bottomTab === 'uart_comms' && !bottomPanelCollapsed
-              ? 'border-accent text-accent'
-              : 'border-transparent text-text-tertiary hover:text-text-secondary'
-            }"
-        >
-          <Terminal size={12} />
-          UART COMMS
-          {#if uartCommsLines.length > 0}
-            <span class="text-2xs opacity-60">{uartCommsLines.length}</span>
-          {/if}
-        </button>
-        <button
-          onclick={() => { bottomTab = 'power'; bottomPanelCollapsed = false; }}
-          class="flex items-center gap-1.5 px-3 py-2 text-xs font-medium border-b-2 transition-colors
-            {bottomTab === 'power' && !bottomPanelCollapsed
-              ? 'border-accent text-accent'
-              : 'border-transparent text-text-tertiary hover:text-text-secondary'
-            }"
-        >
-          <Activity size={12} />
-          Power
-        </button>
+    <!-- ═══ BOTTOM PANEL: Side-by-side UART Terminals ═══ -->
+    <div class="mt-3" class:hidden={bottomPanelCollapsed}>
+      <!-- Wide screens: side-by-side terminals -->
+      <div class="hidden md:grid md:grid-cols-2 gap-3">
+        <!-- UART APP -->
+        <div class="rounded-lg border border-border bg-surface-0 overflow-hidden">
+          <div class="flex items-center gap-2 px-3 py-1.5 border-b border-border bg-surface-1">
+            <Terminal size={12} class="text-green-400" />
+            <span class="text-xs font-medium text-text-primary">UART APP</span>
+            <span class="text-2xs text-text-tertiary">nRF52840</span>
+            {#if uartAppLines.length > 0}
+              <span class="text-2xs text-text-tertiary ml-auto">{uartAppLines.length} lines</span>
+            {/if}
+          </div>
+          <!-- Search bar -->
+          <div class="flex items-center gap-1 px-2 py-1 border-b border-border bg-[#161b22]">
+            <input
+              type="text"
+              bind:value={uartAppSearch}
+              placeholder="Search..."
+              class="flex-1 bg-transparent text-xs text-[#c9d1d9] placeholder:text-text-tertiary outline-none font-mono"
+            />
+            {#if uartAppSearch && appMatches.length > 0}
+              <span class="text-2xs text-text-tertiary">{(uartAppSearchIndex % appMatches.length) + 1}/{appMatches.length}</span>
+              <button onclick={() => { uartAppSearchIndex = Math.max(0, uartAppSearchIndex - 1); scrollToMatch('uart-app-scroll', uartAppSearchIndex, appMatches); }} class="text-text-tertiary hover:text-text-primary p-0.5">&#x25B2;</button>
+              <button onclick={() => { uartAppSearchIndex = uartAppSearchIndex + 1; scrollToMatch('uart-app-scroll', uartAppSearchIndex, appMatches); }} class="text-text-tertiary hover:text-text-primary p-0.5">&#x25BC;</button>
+            {:else if uartAppSearch}
+              <span class="text-2xs text-text-tertiary">0 results</span>
+            {/if}
+          </div>
+          <div id="uart-app-scroll" class="max-h-[36rem] overflow-y-auto bg-[#0d1117] p-2 font-mono text-xs leading-relaxed">
+            {#if uartAppLines.length > 0}
+              {#each uartAppLines as line, i}
+                <div data-line-index={i} class="whitespace-pre {appMatches.includes(i) ? 'bg-yellow-500/20 text-yellow-200' : 'text-[#c9d1d9]'}">{line}</div>
+              {/each}
+            {:else}
+              <div class="text-text-tertiary italic text-2xs">Waiting for UART APP data...</div>
+            {/if}
+          </div>
+        </div>
 
-        <div class="flex-1"></div>
-
-        <button
-          onclick={() => { bottomPanelCollapsed = !bottomPanelCollapsed; }}
-          class="p-1 text-text-tertiary hover:text-text-primary transition-colors"
-          title={bottomPanelCollapsed ? 'Expand panel' : 'Collapse panel'}
-        >
-          {#if bottomPanelCollapsed}
-            <PanelBottomOpen size={14} />
-          {:else}
-            <PanelBottomClose size={14} />
-          {/if}
-        </button>
+        <!-- UART COMMS -->
+        {@const commsMatches = getSearchMatches(uartCommsLines, uartCommsSearch)}
+        <div class="rounded-lg border border-border bg-surface-0 overflow-hidden">
+          <div class="flex items-center gap-2 px-3 py-1.5 border-b border-border bg-surface-1">
+            <Terminal size={12} class="text-blue-400" />
+            <span class="text-xs font-medium text-text-primary">UART COMMS</span>
+            <span class="text-2xs text-text-tertiary">nRF9151</span>
+            {#if uartCommsLines.length > 0}
+              <span class="text-2xs text-text-tertiary ml-auto">{uartCommsLines.length} lines</span>
+            {/if}
+          </div>
+          <!-- Search bar -->
+          <div class="flex items-center gap-1 px-2 py-1 border-b border-border bg-[#161b22]">
+            <input
+              type="text"
+              bind:value={uartCommsSearch}
+              placeholder="Search..."
+              class="flex-1 bg-transparent text-xs text-[#c9d1d9] placeholder:text-text-tertiary outline-none font-mono"
+            />
+            {#if uartCommsSearch && commsMatches.length > 0}
+              <span class="text-2xs text-text-tertiary">{(uartCommsSearchIndex % commsMatches.length) + 1}/{commsMatches.length}</span>
+              <button onclick={() => { uartCommsSearchIndex = Math.max(0, uartCommsSearchIndex - 1); scrollToMatch('uart-comms-scroll', uartCommsSearchIndex, commsMatches); }} class="text-text-tertiary hover:text-text-primary p-0.5">&#x25B2;</button>
+              <button onclick={() => { uartCommsSearchIndex = uartCommsSearchIndex + 1; scrollToMatch('uart-comms-scroll', uartCommsSearchIndex, commsMatches); }} class="text-text-tertiary hover:text-text-primary p-0.5">&#x25BC;</button>
+            {:else if uartCommsSearch}
+              <span class="text-2xs text-text-tertiary">0 results</span>
+            {/if}
+          </div>
+          <div id="uart-comms-scroll" class="max-h-[36rem] overflow-y-auto bg-[#0d1117] p-2 font-mono text-xs leading-relaxed">
+            {#if uartCommsLines.length > 0}
+              {#each uartCommsLines as line, i}
+                <div data-line-index={i} class="whitespace-pre {commsMatches.includes(i) ? 'bg-yellow-500/20 text-yellow-200' : 'text-[#c9d1d9]'}">{line}</div>
+              {/each}
+            {:else}
+              <div class="text-text-tertiary italic text-2xs">Waiting for UART COMMS data...</div>
+            {/if}
+          </div>
+        </div>
       </div>
 
-      <!-- Tab content -->
-      {#if !bottomPanelCollapsed}
-        <div class="h-64 overflow-hidden">
+      <!-- Narrow screens: tabbed fallback -->
+      <div class="md:hidden rounded-lg border border-border bg-surface-0 overflow-hidden">
+        <div class="flex items-center border-b border-border bg-surface-1 px-2">
+          <button
+            onclick={() => { bottomTab = 'uart_app'; }}
+            class="flex items-center gap-1.5 px-3 py-2 text-xs font-medium border-b-2 transition-colors
+              {bottomTab === 'uart_app' ? 'border-accent text-accent' : 'border-transparent text-text-tertiary hover:text-text-secondary'}"
+          >
+            <Terminal size={12} />
+            APP
+          </button>
+          <button
+            onclick={() => { bottomTab = 'uart_comms'; }}
+            class="flex items-center gap-1.5 px-3 py-2 text-xs font-medium border-b-2 transition-colors
+              {bottomTab === 'uart_comms' ? 'border-accent text-accent' : 'border-transparent text-text-tertiary hover:text-text-secondary'}"
+          >
+            <Terminal size={12} />
+            COMMS
+          </button>
+        </div>
+        <div class="max-h-[36rem] overflow-y-auto bg-[#0d1117] p-2 font-mono text-xs leading-relaxed">
           {#if bottomTab === 'uart_app'}
-            <div class="h-full overflow-y-auto bg-[#0d1117] p-3 font-mono text-xs leading-relaxed">
-              {#if uartAppLines.length > 0}
-                {#each uartAppLines as line}
-                  <div class="text-[#c9d1d9] whitespace-pre">{line}</div>
-                {/each}
-              {:else}
-                <div class="text-text-tertiary italic">Waiting for UART APP data...</div>
-                <div class="text-text-tertiary italic text-2xs mt-1">Data streams automatically when tests interact with the nRF52840 app processor</div>
-              {/if}
-            </div>
-          {:else if bottomTab === 'uart_comms'}
-            <div class="h-full overflow-y-auto bg-[#0d1117] p-3 font-mono text-xs leading-relaxed">
-              {#if uartCommsLines.length > 0}
-                {#each uartCommsLines as line}
-                  <div class="text-[#c9d1d9] whitespace-pre">{line}</div>
-                {/each}
-              {:else}
-                <div class="text-text-tertiary italic">Waiting for UART COMMS data...</div>
-                <div class="text-text-tertiary italic text-2xs mt-1">Data streams automatically when tests interact with the nRF9151 comms coprocessor</div>
-              {/if}
-            </div>
-          {:else if bottomTab === 'power'}
-            <div class="h-full flex items-center justify-center bg-[#0d1117]">
-              <div class="text-center">
-                <Activity size={32} class="mx-auto text-text-tertiary opacity-30 mb-2" />
-                <div class="text-xs text-text-tertiary">Power profiler — coming soon</div>
-                <div class="text-2xs text-text-tertiary mt-1">Live current/voltage plot during test execution</div>
-              </div>
-            </div>
+            {#if uartAppLines.length > 0}
+              {#each uartAppLines as line}
+                <div class="text-[#c9d1d9] whitespace-pre">{line}</div>
+              {/each}
+            {:else}
+              <div class="text-text-tertiary italic text-2xs">Waiting for UART APP data...</div>
+            {/if}
+          {:else}
+            {#if uartCommsLines.length > 0}
+              {#each uartCommsLines as line}
+                <div class="text-[#c9d1d9] whitespace-pre">{line}</div>
+              {/each}
+            {:else}
+              <div class="text-text-tertiary italic text-2xs">Waiting for UART COMMS data...</div>
+            {/if}
           {/if}
         </div>
-      {/if}
+      </div>
     </div>
+
+    <!-- Collapse/expand toggle -->
+    <button
+      onclick={() => { bottomPanelCollapsed = !bottomPanelCollapsed; }}
+      class="mt-1 w-full flex items-center justify-center gap-1 py-1 text-2xs text-text-tertiary hover:text-text-secondary transition-colors"
+    >
+      {#if bottomPanelCollapsed}
+        <PanelBottomOpen size={12} />
+        Show UART terminals
+      {:else}
+        <PanelBottomClose size={12} />
+        Hide UART terminals
+      {/if}
+    </button>
   {/if}
 </div>

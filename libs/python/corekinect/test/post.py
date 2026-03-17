@@ -103,8 +103,8 @@ def run_post(mtib_client, skip_ext_flash: bool = False) -> PostResult:
         time.sleep(0.5)  # Let streams initialize
 
         print("Locking manufacturing shells...")
-        comms_locked = comms.lock(timeout_s=120)
-        app_locked = app.lock(timeout_s=120)
+        comms_locked = comms.lock(timeout_s=10)
+        app_locked = app.lock(timeout_s=10)
 
         if not comms_locked or not app_locked:
             msg = f"comms={'locked' if comms_locked else 'FAILED'}, app={'locked' if app_locked else 'FAILED'}"
