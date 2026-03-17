@@ -21,7 +21,8 @@ Flow:
     09. Wait for FUOTA delivery (both 108 + 109 at 100%)
     10. Verify production firmware version via UART boot logs
     11. POST after FUOTA — verify production firmware works
-    12. Cleanup (disable FUOTA assignment)
+    12. Post-FUOTA smoke — CoreCloud check-in on production firmware
+    13. Cleanup (disable FUOTA assignment)
 """
 
 import time
@@ -433,5 +434,30 @@ class TestMfgToProdFuota:
         assert result.passed, (
             f"Post-FUOTA POST failed: {sum(1 for s in result.steps if not s.passed)} step(s) failed"
         )
+
+    # =====================================================================
+    # 12: Post-FUOTA smoke test
+    # =====================================================================
+
+    def test_12_post_fuota_smoke(self, fuota_client, ctx):
+        """Power cycle and wait for CoreCloud check-in on production firmware.
+
+        After FUOTA + POST, power cycle and confirm the device checks into
+        CoreCloud with the production firmware. This proves end-to-end: the
+        production firmware boots, initializes the modem, and successfully
+        communicates with the cloud backend.
+        """
+        assert TestMfgToProdFuota._device_id, "No device_id — test_05 must pass first"
+
+        print("Power cycling to trigger CoreCloud check-in on production firmware...")
+        power_cycle(ctx.mtib, off_s=2.0, settle_s=15.0)
+
+        record_id = wait_for_cloud_checkin(
+            fuota_client,
+            TestMfgToProdFuota._device_id,
+            timeout_s=180,
+        )
+
+        print(f"Post-FUOTA CoreCloud check-in confirmed (recordId={record_id})")
 
     # Cleanup is handled by the _fuota_cleanup fixture (runs after all tests, even on failure)
