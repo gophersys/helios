@@ -9,7 +9,7 @@ from flask import jsonify, request
 
 from src.lib.audit import log_audit
 from src.lib.decorators import require_permissions
-from src.lib.errors import bad_request, internal_error, not_found
+from src.lib.errors import bad_request, conflict, internal_error, not_found
 from src.lib.permissions import Permissions
 from src.lib.types import ApiResponse
 from src.services.database.prisma import get_db_client
@@ -333,6 +333,12 @@ def update_build(build_id: str):
         status = data["status"].upper()
         if status not in ("QUEUED", "BLOCKED", "CLONING", "BUILDING", "SUCCESS", "FAILED", "CANCELLED"):
             return bad_request("Invalid status")
+
+        # Atomic claim: if transitioning to BUILDING, verify build is still QUEUED
+        # This prevents two workers from claiming the same build
+        if status == "BUILDING" and build.status != "QUEUED":
+            return conflict(f"Build already claimed (status={build.status})")
+
         update_data["status"] = status
 
     if "workerId" in data:

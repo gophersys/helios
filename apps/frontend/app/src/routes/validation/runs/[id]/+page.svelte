@@ -566,29 +566,21 @@
     if (!outputLog) return;
 
     try {
-      const headers: Record<string, string> = {};
-      const token = getToken();
-      if (token) headers['Authorization'] = `Bearer ${token}`;
-      const res = await fetch(`/v2/sessions/${runId}/artifacts/logs/output.log`, { headers });
-      if (!res.ok) return;
-      const text = await res.text();
-      if (!text) return;
+      // Fetch via apiFetch (handles auth properly — JWT from cookie or token)
+      let text: string;
+      try {
+        const headers: Record<string, string> = {};
+        const token = getToken();
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+        const res = await fetch(`/v2/sessions/${runId}/artifacts/logs/output.log`, { headers });
+        if (!res.ok) return;
+        text = await res.text();
+      } catch { return; }
+      if (!text || text.startsWith('{')) return; // skip JSON error responses
 
-      // Find the start of the current test's output by looking for its name
-      // The reporter prints "tests/fuota/test_file.py::TestClass::test_name" before each test
+      // Take last 500 lines of stdout as the running test's output
       const lines = text.split('\n');
-      let startIdx = 0;
-
-      // Search backwards for the test name marker
-      for (let i = lines.length - 1; i >= 0; i--) {
-        if (lines[i].includes(runningTest.name)) {
-          startIdx = i + 1; // start AFTER the marker line
-          break;
-        }
-      }
-
-      // Take everything from the test start to the end
-      const testOutput = lines.slice(startIdx).join('\n').trim();
+      const testOutput = lines.slice(-500).join('\n').trim();
       if (testOutput) {
         runningTest.logOutput = testOutput;
         liveTests = liveTests;
@@ -984,7 +976,7 @@
                       {stage.tests.length} test{stage.tests.length !== 1 ? 's' : ''}
                     {/if}
                     {#if stage.durationS > 0}
-                      · {stage.durationS.toFixed(1)}s
+                      · {formatDuration(stage.durationS * 1000)}
                     {/if}
                   </div>
                 </div>
@@ -1044,7 +1036,7 @@
                 {#if selectedStageData.durationS > 0}
                   <span class="ml-auto text-xs text-text-tertiary flex items-center gap-1">
                     <Clock size={12} />
-                    {selectedStageData.durationS.toFixed(1)}s
+                    {formatDuration(selectedStageData.durationS * 1000)}
                   </span>
                 {/if}
               </div>
@@ -1102,7 +1094,7 @@
                         <!-- Duration -->
                         {#if build.durationSeconds !== null}
                           <span class="text-xs tabular-nums text-text-tertiary">
-                            {build.durationSeconds}s
+                            {formatDuration((build.durationSeconds ?? 0) * 1000)}
                           </span>
                         {/if}
                       </button>
@@ -1183,7 +1175,7 @@
                         <!-- Duration -->
                         {#if test.durationS !== null}
                           <span class="text-xs tabular-nums text-text-tertiary">
-                            {test.durationS.toFixed(2)}s
+                            {formatDuration((test.durationS ?? 0) * 1000)}
                           </span>
                         {/if}
                       </button>

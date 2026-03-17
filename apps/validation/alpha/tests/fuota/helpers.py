@@ -511,7 +511,7 @@ def wait_for_fuota_completion(
 
             # Smart power cycle: only if pages haven't advanced in 5 minutes
             stall_duration = time.time() - last_progress_time
-            if mtib_client and stall_duration > 300 and stall_cycles >= 6:
+            if mtib_client and stall_duration > 600 and stall_cycles >= 30:
                 _force_power_cycle(f"no page progress for {int(stall_duration)}s ({stall_cycles} stale polls)")
 
             time.sleep(10)
@@ -604,12 +604,18 @@ def capture_boot_versions(
     # Power on
     power_on(client)
 
-    # Wait for at least COMMS version (more reliable than APP for MFG firmware)
+    # Wait for BOTH versions (APP may take longer after FUOTA — MCUboot swap)
     deadline = time.time() + timeout_s
     while time.time() < deadline:
-        if found["comms"].is_set():
+        both_found = found["comms"].is_set() and found["app"].is_set()
+        if both_found:
             time.sleep(2)  # Let a few more lines flow
             break
+        # If only COMMS found, keep waiting for APP (MCUboot swap may be in progress)
+        if found["comms"].is_set() and not found["app"].is_set():
+            elapsed = int(time.time() - (deadline - timeout_s))
+            if elapsed % 10 == 0 and elapsed > 0:
+                print(f"  COMMS version detected, waiting for APP (MCUboot swap may be in progress)... {elapsed}s")
         time.sleep(0.5)
 
     stop.set()
@@ -622,31 +628,54 @@ def capture_boot_versions(
 def verify_firmware_version(
     client,
     expected_version: str,
-    timeout_s: float = 90.0,
+    timeout_s: float = 180.0,
+    require_both: bool = True,
 ) -> Dict[str, Optional[str]]:
     """Power cycle, capture boot logs, verify firmware version.
 
-    Asserts COMMS version matches expected. APP version is best-effort
-    (MFG firmware may not output it in a parseable format).
+    After FUOTA, MCUboot may need 30-60 seconds to swap the APP image.
+    This function waits for BOTH processors to report their version.
+
+    If the APP processor is in a boot loop (firmware crash), app version
+    will be None and the test will fail — which is the correct behavior
+    since it means the FUOTA'd firmware doesn't work.
+
+    Args:
+        client: MTIB V1 client.
+        expected_version: Expected version string (e.g., "0.5.4").
+        timeout_s: Max seconds to wait for boot + version detection.
+        require_both: If True, fail if either processor's version is missing.
 
     Returns:
         Detected versions dict.
 
     Raises:
-        AssertionError: If COMMS version doesn't match expected.
+        AssertionError: If versions don't match or are missing.
     """
-    print(f"Capturing boot logs (expecting v{expected_version})...")
+    print(f"Verifying firmware version (expecting v{expected_version})...")
+    print(f"  Timeout: {int(timeout_s)}s (MCUboot swap may take 30-60s after FUOTA)")
     versions = capture_boot_versions(client, timeout_s=timeout_s)
 
-    print(f"Detected versions: comms={versions['comms']}, app={versions['app']}")
+    print(f"  COMMS: {versions['comms'] or 'NOT DETECTED'}")
+    print(f"  APP:   {versions['app'] or 'NOT DETECTED'}")
 
-    # COMMS version is ground truth (MFG nRF52840 doesn't always print version)
-    if versions["comms"] is not None:
-        assert versions["comms"] == expected_version, (
-            f"COMMS version mismatch: expected {expected_version}, got {versions['comms']}"
+    # Verify COMMS
+    assert versions["comms"] is not None, (
+        f"COMMS version not detected from boot logs within {int(timeout_s)}s"
+    )
+    assert versions["comms"] == expected_version, (
+        f"COMMS version mismatch: expected {expected_version}, got {versions['comms']}"
+    )
+
+    # Verify APP
+    if require_both:
+        assert versions["app"] is not None, (
+            f"APP version not detected from boot logs within {int(timeout_s)}s. "
+            f"The APP processor may be in a boot loop (firmware crash after FUOTA). "
+            f"Check UART logs for MCUboot swap errors."
         )
-    else:
-        print(f"WARNING: COMMS version not detected from boot logs")
-        print(f"(MFG firmware may not log version — continuing without verification)")
+        assert versions["app"] == expected_version, (
+            f"APP version mismatch: expected {expected_version}, got {versions['app']}"
+        )
 
     return versions
