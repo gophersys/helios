@@ -22,6 +22,9 @@
     Zap,
     Terminal,
     Layers,
+    Activity,
+    PanelBottomClose,
+    PanelBottomOpen,
   } from 'lucide-svelte';
   import { getAuth } from '$lib/stores/auth.svelte';
   import { apiFetch, api } from '$lib/api';
@@ -78,6 +81,13 @@
   }
   let artifacts = $state<Artifact[]>([]);
   let artifactsLoading = $state(false);
+
+  // Bottom panel: UART terminals + power profiler
+  type BottomTab = 'uart_app' | 'uart_comms' | 'power';
+  let bottomTab = $state<BottomTab>('uart_app');
+  let uartAppLines = $state<string[]>([]);
+  let uartCommsLines = $state<string[]>([]);
+  let bottomPanelCollapsed = $state(false);
   let logContent = $state<string | null>(null);
   let logArtifactName = $state<string | null>(null);
 
@@ -520,164 +530,78 @@
   {:else if run}
     <ErrorAlert message={error} />
 
-    <!-- Header -->
-    <div class="flex items-start justify-between gap-4 mb-4">
-      <div>
-        <div class="flex items-center gap-3">
-          <h1 class="text-lg font-semibold text-text-primary">{run.name}</h1>
-          <StatusBadge status={run.status} />
-          {#if liveRunning}
-            <span class="inline-flex items-center gap-1.5 rounded-full bg-success-muted px-2 py-0.5 text-2xs font-medium text-success">
-              <span class="relative flex h-2 w-2">
-                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75"></span>
-                <span class="relative inline-flex rounded-full h-2 w-2 bg-success"></span>
-              </span>
-              LIVE
-            </span>
-          {/if}
-        </div>
-        <div class="mt-1 flex items-center gap-4 text-xs text-text-tertiary">
-          {#if run.product}
-            <span>{run.product.name}</span>
-          {/if}
-          {#if serialNumber}
-            <span class="font-mono">{serialNumber}</span>
-          {/if}
-          {#if firmwareVariant}
-            <span class="capitalize">{firmwareVariant}</span>
-          {/if}
-          {#if run.createdBy}
-            <span>by {run.createdBy.name}</span>
-          {/if}
-        </div>
+    <!-- Compact header bar: title + status + counts + duration in 1 row -->
+    <div class="flex items-center gap-3 mb-3 px-4 py-2.5 rounded-lg bg-surface-1 border border-border">
+      <!-- Title + status -->
+      <h1 class="text-sm font-semibold text-text-primary truncate">{run.name}</h1>
+      <StatusBadge status={run.status} />
+      {#if liveRunning}
+        <span class="inline-flex items-center gap-1 rounded-full bg-success-muted px-2 py-0.5 text-2xs font-medium text-success flex-shrink-0">
+          <span class="relative flex h-1.5 w-1.5">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-1.5 w-1.5 bg-success"></span>
+          </span>
+          LIVE
+        </span>
+      {/if}
+
+      <!-- Separator -->
+      <div class="w-px h-4 bg-border"></div>
+
+      <!-- Metadata -->
+      <div class="flex items-center gap-3 text-xs text-text-tertiary">
+        {#if run.product}
+          <span>{run.product.name}</span>
+        {/if}
+        {#if serialNumber}
+          <span class="font-mono">{serialNumber}</span>
+        {/if}
       </div>
 
-      <div class="flex items-center gap-2">
-        <!-- Demo buttons -->
-        <div class="flex items-center gap-1">
-          <button
-            onclick={() => startDemo('happy')}
-            disabled={simulating}
-            class="btn btn-sm flex items-center gap-1.5 text-success"
-            title="Simulate all tests passing"
-          >
-            <Zap size={14} />
-            Demo
-          </button>
-          <button
-            onclick={() => startDemo('mixed')}
-            disabled={simulating}
-            class="btn btn-sm flex items-center gap-1.5 text-warning"
-            title="Simulate realistic mixed results"
-          >
-            <Zap size={14} />
-            Mixed
-          </button>
-        </div>
+      <!-- Spacer -->
+      <div class="flex-1"></div>
 
+      <!-- Test counts -->
+      <div class="flex items-center gap-3 text-xs text-text-secondary flex-shrink-0">
+        <span class="flex items-center gap-1">
+          <CheckCircle2 size={12} class="text-success" />
+          {livePassedCount}
+        </span>
+        <span class="flex items-center gap-1">
+          <XCircle size={12} class="{liveFailedCount > 0 ? 'text-error' : 'text-text-tertiary'}" />
+          {liveFailedCount}
+        </span>
+        <span class="flex items-center gap-1">
+          <SkipForward size={12} class="text-text-tertiary" />
+          {liveSkippedCount}
+        </span>
+      </div>
+
+      <!-- Duration -->
+      <div class="flex items-center gap-1 text-xs text-text-tertiary flex-shrink-0">
+        <Clock size={12} />
+        {#if liveSummary?.durationS}
+          {formatDuration(liveSummary.durationS * 1000)}
+        {:else if durationMs !== null}
+          {formatDuration(durationMs)}
+        {:else}
+          —
+        {/if}
+      </div>
+
+      <!-- Action buttons -->
+      <div class="flex items-center gap-1 flex-shrink-0">
         {#if isActive && auth.hasPermission('validation:manage')}
-          <button
-            onclick={() => { showTrigger = !showTrigger; }}
-            class="btn btn-sm btn-primary flex items-center gap-1.5"
-          >
-            <Play size={14} />
-            Trigger
-          </button>
-          <button
-            onclick={cancelRun}
-            disabled={cancelling}
-            class="btn btn-sm btn-danger flex items-center gap-1.5"
-          >
-            <Ban size={14} />
-            {cancelling ? 'Cancelling...' : 'Cancel'}
+          <button onclick={cancelRun} disabled={cancelling} class="btn btn-xs btn-danger" title="Cancel run">
+            <Ban size={12} />
           </button>
         {/if}
       </div>
     </div>
 
-    <!-- Trigger form -->
-    {#if showTrigger}
-      <div class="card mb-4">
-        <div class="flex items-center justify-between mb-3">
-          <h3 class="text-sm font-medium text-text-primary">Trigger K8s Validation Job</h3>
-          <button onclick={() => { showTrigger = false; }} class="text-text-tertiary hover:text-text-primary text-xs">
-            Cancel
-          </button>
-        </div>
-        <form onsubmit={(e) => { e.preventDefault(); triggerRun(); }} class="flex items-end gap-3">
-          <div class="flex-1">
-            <label for="fw-version" class="mb-1 block text-2xs font-medium text-text-tertiary">Firmware Version</label>
-            <input
-              id="fw-version"
-              bind:value={triggerFwVersion}
-              placeholder="e.g. 0.1.12"
-              required
-              class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
-            />
-          </div>
-          <button type="submit" disabled={triggering || !triggerFwVersion.trim()} class="btn btn-sm btn-primary">
-            {triggering ? 'Triggering...' : 'Trigger'}
-          </button>
-        </form>
-      </div>
-    {/if}
-
-    <!-- Summary stats bar -->
-    {#if liveTests.length > 0 || liveSummary}
-      <div class="flex items-center gap-6 mb-4 px-4 py-3 rounded-lg bg-surface-1 border border-border">
-        <!-- Progress -->
-        <div class="flex items-center gap-2">
-          {#if liveRunning}
-            <Loader2 size={16} class="text-accent animate-spin" />
-          {:else if liveSummary && liveSummary.failed > 0}
-            <XCircle size={16} class="text-error" />
-          {:else if liveSummary}
-            <CheckCircle2 size={16} class="text-success" />
-          {/if}
-          <span class="text-sm font-medium text-text-primary">
-            {#if liveRunning}
-              Running...
-            {:else if liveSummary && liveSummary.failed > 0}
-              {liveSummary.failed} failed
-            {:else if liveSummary}
-              All tests passed
-            {/if}
-          </span>
-        </div>
-
-        <!-- Counts -->
-        <div class="flex items-center gap-4 text-xs text-text-secondary">
-          <span class="flex items-center gap-1">
-            <CheckCircle2 size={12} class="text-success" />
-            {livePassedCount} passed
-          </span>
-          <span class="flex items-center gap-1">
-            <XCircle size={12} class="{liveFailedCount > 0 ? 'text-error' : 'text-text-tertiary'}" />
-            {liveFailedCount} failed
-          </span>
-          <span class="flex items-center gap-1">
-            <SkipForward size={12} class="text-text-tertiary" />
-            {liveSkippedCount} skipped
-          </span>
-        </div>
-
-        <!-- Duration -->
-        <div class="ml-auto flex items-center gap-1 text-xs text-text-tertiary">
-          <Clock size={12} />
-          {#if liveSummary?.durationS}
-            {formatDuration(liveSummary.durationS * 1000)}
-          {:else if durationMs !== null}
-            {formatDuration(durationMs)}
-          {:else}
-            —
-          {/if}
-        </div>
-      </div>
-    {/if}
-
     <!-- ═══ GITHUB ACTIONS STYLE: Two-column layout ═══ -->
     {#if liveTests.length > 0 || buildJobs.length > 0}
-      <div class="flex gap-4" style="min-height: 500px;">
+      <div class="flex gap-4" style="min-height: 300px; max-height: calc(100vh - 320px); overflow-y: auto;">
         <!-- Left sidebar: Stage list (Jobs in GH Actions) -->
         <div class="w-64 flex-shrink-0">
           <div class="sticky top-4 space-y-1">
@@ -973,13 +897,104 @@
         <div class="text-sm text-text-tertiary mb-4">
           No test executions yet.
         </div>
-        <div class="flex justify-center gap-2">
-          <button onclick={() => startDemo('happy')} disabled={simulating} class="btn btn-sm btn-primary">
-            <Zap size={14} class="mr-1" />
-            Start Demo
-          </button>
-        </div>
       </div>
     {/if}
+
+    <!-- ═══ BOTTOM PANEL: UART Terminals + Power Profiler ═══ -->
+    <div class="mt-3 rounded-lg border border-border bg-surface-0 overflow-hidden" class:h-10={bottomPanelCollapsed}>
+      <!-- Tab bar -->
+      <div class="flex items-center border-b border-border bg-surface-1 px-2">
+        <button
+          onclick={() => { bottomTab = 'uart_app'; bottomPanelCollapsed = false; }}
+          class="flex items-center gap-1.5 px-3 py-2 text-xs font-medium border-b-2 transition-colors
+            {bottomTab === 'uart_app' && !bottomPanelCollapsed
+              ? 'border-accent text-accent'
+              : 'border-transparent text-text-tertiary hover:text-text-secondary'
+            }"
+        >
+          <Terminal size={12} />
+          UART APP
+          {#if uartAppLines.length > 0}
+            <span class="text-2xs opacity-60">{uartAppLines.length}</span>
+          {/if}
+        </button>
+        <button
+          onclick={() => { bottomTab = 'uart_comms'; bottomPanelCollapsed = false; }}
+          class="flex items-center gap-1.5 px-3 py-2 text-xs font-medium border-b-2 transition-colors
+            {bottomTab === 'uart_comms' && !bottomPanelCollapsed
+              ? 'border-accent text-accent'
+              : 'border-transparent text-text-tertiary hover:text-text-secondary'
+            }"
+        >
+          <Terminal size={12} />
+          UART COMMS
+          {#if uartCommsLines.length > 0}
+            <span class="text-2xs opacity-60">{uartCommsLines.length}</span>
+          {/if}
+        </button>
+        <button
+          onclick={() => { bottomTab = 'power'; bottomPanelCollapsed = false; }}
+          class="flex items-center gap-1.5 px-3 py-2 text-xs font-medium border-b-2 transition-colors
+            {bottomTab === 'power' && !bottomPanelCollapsed
+              ? 'border-accent text-accent'
+              : 'border-transparent text-text-tertiary hover:text-text-secondary'
+            }"
+        >
+          <Activity size={12} />
+          Power
+        </button>
+
+        <div class="flex-1"></div>
+
+        <button
+          onclick={() => { bottomPanelCollapsed = !bottomPanelCollapsed; }}
+          class="p-1 text-text-tertiary hover:text-text-primary transition-colors"
+          title={bottomPanelCollapsed ? 'Expand panel' : 'Collapse panel'}
+        >
+          {#if bottomPanelCollapsed}
+            <PanelBottomOpen size={14} />
+          {:else}
+            <PanelBottomClose size={14} />
+          {/if}
+        </button>
+      </div>
+
+      <!-- Tab content -->
+      {#if !bottomPanelCollapsed}
+        <div class="h-64 overflow-hidden">
+          {#if bottomTab === 'uart_app'}
+            <div class="h-full overflow-y-auto bg-[#0d1117] p-3 font-mono text-xs leading-relaxed">
+              {#if uartAppLines.length > 0}
+                {#each uartAppLines as line}
+                  <div class="text-[#c9d1d9] whitespace-pre">{line}</div>
+                {/each}
+              {:else}
+                <div class="text-text-tertiary italic">Waiting for UART APP data...</div>
+                <div class="text-text-tertiary italic text-2xs mt-1">Data streams automatically when tests interact with the nRF52840 app processor</div>
+              {/if}
+            </div>
+          {:else if bottomTab === 'uart_comms'}
+            <div class="h-full overflow-y-auto bg-[#0d1117] p-3 font-mono text-xs leading-relaxed">
+              {#if uartCommsLines.length > 0}
+                {#each uartCommsLines as line}
+                  <div class="text-[#c9d1d9] whitespace-pre">{line}</div>
+                {/each}
+              {:else}
+                <div class="text-text-tertiary italic">Waiting for UART COMMS data...</div>
+                <div class="text-text-tertiary italic text-2xs mt-1">Data streams automatically when tests interact with the nRF9151 comms coprocessor</div>
+              {/if}
+            </div>
+          {:else if bottomTab === 'power'}
+            <div class="h-full flex items-center justify-center bg-[#0d1117]">
+              <div class="text-center">
+                <Activity size={32} class="mx-auto text-text-tertiary opacity-30 mb-2" />
+                <div class="text-xs text-text-tertiary">Power profiler — coming soon</div>
+                <div class="text-2xs text-text-tertiary mt-1">Live current/voltage plot during test execution</div>
+              </div>
+            </div>
+          {/if}
+        </div>
+      {/if}
+    </div>
   {/if}
 </div>

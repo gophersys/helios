@@ -47,7 +47,7 @@ from .helpers import (
 )
 
 # Pipeline build labels
-FLASH_LABEL = "MFG_FLASH_DEBUG"       # MFG firmware to flash via J-Link
+FLASH_LABEL = "MFG_BASE"       # MFG firmware to flash via J-Link
 FUOTA_LABEL = "FUOTA_TARGET_RELEASE"   # Production firmware to deliver via FUOTA
 
 
@@ -145,7 +145,7 @@ class TestMfgFuota:
     # 02: Flash firmware (nRF52840 + modem + nRF9151)
     # =====================================================================
 
-    def test_02_flash_firmware(self, mtib_client):
+    def test_02_flash_firmware(self, ctx):
         """Flash MFG firmware via J-Link (nRF52840 + modem + nRF9151)."""
         assert TestMfgFuota._app_hex, "No app hex — test_01 must pass first"
         assert TestMfgFuota._comms_hex, "No comms hex — test_01 must pass first"
@@ -154,25 +154,25 @@ class TestMfgFuota:
         from .helpers import flash_processor
 
         print("Powering DUT for J-Link access...")
-        power_on(mtib_client)
+        power_on(ctx.mtib)
         time.sleep(3)
 
         # Flash nRF52840 (app processor)
         print(f"Flashing nRF52840: {Path(TestMfgFuota._app_hex).name}")
-        app_ms = flash_processor(mtib_client, TestMfgFuota._app_hex, HostType.HOST_TYPE_NRF52840)
+        app_ms = flash_processor(ctx.mtib, TestMfgFuota._app_hex, HostType.HOST_TYPE_NRF52840)
         print(f"nRF52840 flashed in {app_ms}ms")
 
         # Flash modem baseband (must be before nRF9151 app — chiperase wipes both)
         if TestMfgFuota._modem_zip:
             print(f"Flashing modem: {Path(TestMfgFuota._modem_zip).name}")
-            modem_ms = flash_processor(mtib_client, TestMfgFuota._modem_zip, HostType.HOST_TYPE_NRF9160_MODEM)
+            modem_ms = flash_processor(ctx.mtib, TestMfgFuota._modem_zip, HostType.HOST_TYPE_NRF9160_MODEM)
             print(f"Modem flashed in {modem_ms}ms")
         else:
             print("Modem flash skipped (no modem firmware)")
 
         # Flash nRF9151 (comms coprocessor)
         print(f"Flashing nRF9151: {Path(TestMfgFuota._comms_hex).name}")
-        comms_ms = flash_processor(mtib_client, TestMfgFuota._comms_hex, HostType.HOST_TYPE_NRF9151)
+        comms_ms = flash_processor(ctx.mtib, TestMfgFuota._comms_hex, HostType.HOST_TYPE_NRF9151)
         print(f"nRF9151 flashed in {comms_ms}ms")
 
         print("All processors flashed successfully")
@@ -181,12 +181,12 @@ class TestMfgFuota:
     # 03: Verify boot
     # =====================================================================
 
-    def test_03_verify_boot(self, mtib_client):
+    def test_03_verify_boot(self, ctx):
         """Power cycle and verify DUT boots (>5mA current)."""
         print("Power cycling DUT...")
-        power_cycle(mtib_client, off_s=2.0, settle_s=5.0)
+        power_cycle(ctx.mtib, off_s=2.0, settle_s=5.0)
 
-        avg_current = read_total_current_ma(mtib_client, samples=10, interval_s=0.5)
+        avg_current = read_total_current_ma(ctx.mtib, samples=10, interval_s=0.5)
         assert avg_current > 5.0, (
             f"DUT not drawing sufficient current: {avg_current:.2f}mA "
             f"(expected >5mA)"
@@ -198,12 +198,12 @@ class TestMfgFuota:
     # 04: POST — power-on self-test
     # =====================================================================
 
-    def test_04_post(self, mtib_client):
+    def test_04_post(self, ctx):
         """Run POST on both processors (chip IDs, BMS, GPS, modem, IMEI, flash)."""
         from corekinect.test.post import run_post
 
         print("Running POST suite...")
-        result = run_post(mtib_client, skip_ext_flash=False)
+        result = run_post(ctx.mtib, skip_ext_flash=False)
 
         # Store collected data for subsequent steps
         if result.imei:
@@ -220,7 +220,7 @@ class TestMfgFuota:
     # 05: Personalize
     # =====================================================================
 
-    def test_05_personalize(self, mtib_client, device_config):
+    def test_05_personalize(self, ctx, device_config):
         """Lock shells, generate EC keypair, upload key to CoreCloud."""
         assert device_config.device_snr, "DEVICE_SNR required"
 
@@ -233,7 +233,7 @@ class TestMfgFuota:
             print(f"IMEI={imei} (from {'POST' if TestMfgFuota._imei else 'env'})")
 
         result = personalize_device(
-            mtib_client,
+            ctx.mtib,
             snr=device_config.device_snr,
             device_id=device_config.device_id or None,
             imei=imei,
@@ -249,12 +249,12 @@ class TestMfgFuota:
     # 06: Cloud check-in
     # =====================================================================
 
-    def test_06_cloud_checkin(self, fuota_client, mtib_client):
+    def test_06_cloud_checkin(self, fuota_client, ctx):
         """Power cycle and wait for device to check into CoreCloud."""
         assert TestMfgFuota._device_id, "No device_id — test_05 must pass first"
 
         print("Power cycling to trigger CoreCloud check-in...")
-        power_cycle(mtib_client, off_s=2.0, settle_s=15.0)
+        power_cycle(ctx.mtib, off_s=2.0, settle_s=15.0)
 
         record_id = wait_for_cloud_checkin(
             fuota_client,
@@ -310,20 +310,20 @@ class TestMfgFuota:
     # 09: FUOTA delivery
     # =====================================================================
 
-    def test_09_fuota_delivery(self, fuota_client, mtib_client):
+    def test_09_fuota_delivery(self, fuota_client, ctx):
         """Wait for FUOTA delivery (both 108 + 109 to 100%)."""
         assert TestMfgFuota._device_id, "No device_id — test_05 must pass first"
         assert TestMfgFuota._plan_id, "No plan_id — test_08 must pass first"
 
         print("Power cycling to trigger FUOTA...")
-        power_cycle(mtib_client, off_s=2.0, settle_s=5.0)
+        power_cycle(ctx.mtib, off_s=2.0, settle_s=5.0)
 
         print("Monitoring FUOTA progress...")
         wait_for_fuota_completion(
             fuota_client,
             device_id=TestMfgFuota._device_id,
             timeout_s=5400,
-            mtib_client=mtib_client,
+            mtib_client=ctx.mtib,
             power_cycle_interval_s=180,
         )
 
@@ -333,12 +333,12 @@ class TestMfgFuota:
     # 10: Verify version
     # =====================================================================
 
-    def test_10_verify_version(self, mtib_client):
+    def test_10_verify_version(self, ctx):
         """Power cycle and verify new firmware version via UART boot logs."""
         assert TestMfgFuota._target_version, "No target version — test_01 must pass first"
 
         versions = verify_firmware_version(
-            mtib_client,
+            ctx.mtib,
             expected_version=TestMfgFuota._target_version,
             timeout_s=90.0,
         )

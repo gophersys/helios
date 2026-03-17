@@ -2,9 +2,12 @@
 
 Stage 5: Over-the-air firmware update verification — blocks merge.
 
-Fixtures (session-scoped, shared across all test files):
-    mtib_client:      Connected MTIB V1 client
-    pipeline_assets:  PipelineAssets with builds downloaded from Concord API
+MTIB, UART, power, and artifact infrastructure come from the root conftest's
+``ctx`` fixture (TestContext). FUOTA tests use ``ctx.mtib`` for hardware
+access, and get background UART capture + artifact streaming for free.
+
+FUOTA-specific fixtures (defined here):
+    pipeline_assets:  PipelineAssets — strict (fails if PIPELINE_ID missing)
     fuota_client:     CoreCloud FUOTA API client
     device_config:    Device identity (SNR, device_id, IMEI, ICCIDs)
 
@@ -25,6 +28,22 @@ import pytest
 from corekinect.utils import Logger
 
 log = Logger(log_name="fuota")
+
+
+# =============================================================================
+# PYTEST HOOKS
+# =============================================================================
+
+
+def pytest_configure(config):
+    """Amend -k expression to always include preflight tests.
+
+    Preflight checks (test_00_preflight.py) validate the environment before
+    any hardware interaction. They must always run regardless of -k filtering.
+    """
+    keyword = config.option.keyword
+    if keyword and "test_00_preflight" not in keyword:
+        config.option.keyword = f"(test_00_preflight) or ({keyword})"
 
 
 # =============================================================================
@@ -49,17 +68,25 @@ class DeviceConfig:
 
 
 # =============================================================================
-# SESSION-SCOPED FIXTURES
+# FUOTA-SPECIFIC FIXTURES
+# =============================================================================
+#
+# The root conftest provides:
+#   ctx           — TestContext (session-scoped): MTIB, UART, power, artifacts
+#   product       — ProductContext from Concord catalog API
+#   mock_cloud    — MockCloudClient for offline testing
+#
+# The root conftest's _test_lifecycle autouse fixture calls:
+#   ctx.setup_test()    — clears UART buffer, marks test start
+#   ctx.teardown_test() — dumps UART logs, uploads artifacts
+#
+# These run automatically for any test that requests ``ctx``.
 # =============================================================================
 
 
 @pytest.fixture(scope="session")
 def device_config(request) -> DeviceConfig:
-    """Device identity from environment variables or CLI options.
-
-    All required fields are validated — test run fails immediately
-    if device identity is incomplete.
-    """
+    """Device identity from environment variables or CLI options."""
     config = DeviceConfig(
         device_id=os.environ.get("DEVICE_ID", ""),
         device_snr=(
@@ -78,49 +105,13 @@ def device_config(request) -> DeviceConfig:
 
 
 @pytest.fixture(scope="session")
-def mtib_client(request):
-    """Connected MTIB V1 client. Powers off DUT on teardown."""
-    from corekinect.mtib_client.v1.client.core import MtibV1Client
-    from corekinect.mtib_client.v1.client.config import NetConfig
-
-    mtib_addr = (
-        request.config.getoption("--mtib-addr", default=None)
-        or os.environ.get("MTIB_ADDRESS")
-        or os.environ.get("MTIB_HOST", "")
-    )
-    if not mtib_addr:
-        pytest.fail("MTIB_ADDRESS or MTIB_HOST is required")
-
-    # Parse host:port
-    if ":" in mtib_addr:
-        host, port_str = mtib_addr.rsplit(":", 1)
-        port = int(port_str)
-    else:
-        host = mtib_addr
-        port = 50053
-
-    cfg = MtibV1Client.Config(net=NetConfig(addr=host, port=port))
-    client = MtibV1Client(cfg)
-
-    err = client.connect()
-    if err is not None:
-        pytest.fail(f"MTIB connection failed ({host}:{port}): {err}")
-
-    log.info("MTIB connected: %s:%d", host, port)
-    yield client
-
-    # Teardown: power off DUT (best-effort)
-    from corekinect.mtib_client.v1.client.types import PowerChannel
-    try:
-        client.PowerDisable(channel=PowerChannel.DUT)
-        client.PowerDisable(channel=PowerChannel.CHARGER)
-    except Exception:
-        pass
-
-
-@pytest.fixture(scope="session")
 def pipeline_assets(request):
-    """Pipeline builds from Concord API. Downloads hex/CFW on demand."""
+    """Pipeline builds from Concord API. Downloads hex/CFW on demand.
+
+    Shadows the root conftest's pipeline_assets fixture with a stricter
+    version that fails immediately if PIPELINE_ID is not set (FUOTA stage
+    always requires a pipeline).
+    """
     from corekinect.test.firmware import PipelineAssets
 
     pipeline_id = (

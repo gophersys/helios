@@ -157,9 +157,13 @@ def _generate_matrix_build_specs(
         # Derive target from firmware name
         target = "mfg" if "_mfg" in firmware else "app"
 
-        # Each role produces both debug and release variants
-        for variant in ("debug", "release"):
-            label = f"{role.upper()}_{variant.upper()}"
+        # Mfg firmware only needs debug variant (always has mfg shell + logging)
+        # Production firmware needs both debug (for testing) and release (for deployment)
+        variants = ("debug",) if target == "mfg" else ("debug", "release")
+
+        for variant in variants:
+            # Mfg builds get clean label (no variant suffix since there's only one)
+            label = f"{role.upper()}_{variant.upper()}" if target != "mfg" else role.upper()
 
             if source == "head":
                 # New build from triggering commit — auto-version based on target type

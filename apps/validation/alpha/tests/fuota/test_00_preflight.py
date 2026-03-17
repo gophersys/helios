@@ -2,60 +2,21 @@
 
 Every check is a separate test function so the frontend shows exactly
 which prerequisite failed. With -x (fail fast), any failure here stops
-the entire run immediately — no point flashing if MTIB isn't connected.
+the entire run immediately.
 
-Run order: pytest discovers files alphabetically, so test_00_* runs
-before test_01_*, test_02_*, etc.
+Tests that don't need MTIB (device_config, corecloud_auth, pipeline_builds,
+modem_firmware, storage_access) use standalone fixtures and run even if
+MTIB is unreachable. Tests that need MTIB (mtib_connection, jlink_probes)
+use the root conftest's ``ctx`` fixture.
 """
 
 import os
-import time
 
 import pytest
 
 
 class TestPreflight:
     """Environment validation — all checks must pass before FUOTA flows."""
-
-    def test_mtib_connection(self, mtib_client):
-        """Verify MTIB server is reachable and responding to RPCs."""
-        from corekinect.mtib_client.v1.client.types import PowerChannel
-
-        addr = os.environ.get("MTIB_ADDRESS", "?")
-        print(f"MTIB address: {addr}")
-
-        # Verify the connection is live by reading power state
-        result, err = mtib_client.PowerRead(channel=PowerChannel.DUT)
-        assert err is None, f"MTIB power read failed: {err}"
-
-        print(f"Ch0 (DUT):     {result.voltage_v:.2f}V  {result.current_ma:.2f}mA")
-
-        result_ch1, err_ch1 = mtib_client.PowerRead(channel=PowerChannel.CHARGER)
-        if not err_ch1:
-            print(f"Ch1 (Charger): {result_ch1.voltage_v:.2f}V  {result_ch1.current_ma:.2f}mA")
-
-        print(f"MTIB connection OK")
-
-    def test_pipeline_builds(self, pipeline_assets):
-        """Verify all pipeline builds are present and successful."""
-        pipeline_id = os.environ.get("PIPELINE_ID", "?")
-        print(f"Pipeline ID: {pipeline_id}")
-
-        assert pipeline_assets.has_all_builds(), (
-            f"Pipeline missing required builds. "
-            f"Available: {list(pipeline_assets.builds.keys())}"
-        )
-
-        print(f"{'Label':<24} {'Variant':<10} {'Version':<12} {'Status':<10} {'Artifacts'}")
-        print(f"{'-'*78}")
-        for label, build in sorted(pipeline_assets.builds.items()):
-            art_count = len(build.artifacts)
-            print(f"{label:<24} {build.variant:<10} v{build.version_string or '?':<11} {build.status:<10} {art_count} files")
-            assert build.status in ("SUCCESS", "CACHED"), (
-                f"Build {label} is {build.status}, expected SUCCESS or CACHED"
-            )
-
-        print(f"All {len(pipeline_assets.builds)} builds OK")
 
     def test_corecloud_auth(self, fuota_client):
         """Verify CoreCloud FUOTA API authentication works."""
@@ -99,15 +60,13 @@ class TestPreflight:
         print(f"Device Type:      {device_config.device_type_id}")
         print(f"Device Variant:   {device_config.device_variant_id}")
 
-    def test_jlink_probes(self, mtib_client):
+    def test_jlink_probes(self, ctx):
         """Verify J-Link programmers are available on MTIB.
 
-        Note: ListProgrammers scans via nrfjprog --deviceversion which requires
-        the DUT to be powered. Since the DUT may be off during preflight, we
-        also accept the case where probes are detected but targets are unknown.
-        Full SWD verification happens during the flash step.
+        Uses ctx.mtib — if MTIB connection failed, this test fails
+        (which is correct: no point continuing without MTIB).
         """
-        programmers, err = mtib_client.ListProgrammers()
+        programmers, err = ctx.mtib.ListProgrammers()
         assert err is None, f"ListProgrammers RPC failed: {err}"
 
         if programmers and len(programmers) > 0:
@@ -115,9 +74,6 @@ class TestPreflight:
                 print(f"Probe: SNR={p.serial}  host={p.host}  connected={p.connected}")
             print(f"{len(programmers)} J-Link probe(s) detected")
         else:
-            # ListProgrammers may return empty if DUT is unpowered (nrfjprog
-            # can't detect device type without SWD). This is OK for preflight —
-            # the flash step will power the DUT and recover the probes.
             print("ListProgrammers returned empty (DUT likely unpowered)")
             print("J-Link probes will be verified during flash step")
             print("WARNING: If flash fails, check J-Link USB connections")
@@ -134,6 +90,53 @@ class TestPreflight:
             print("WARNING: No modem firmware in pipeline triggerData")
             print("Modem flash will be skipped during test_02_flash_firmware")
             print("This may cause POST step 7 (modem FW version) to fail")
+
+    def test_mtib_connection(self, ctx):
+        """Verify MTIB server is reachable and responding to RPCs.
+
+        Uses ctx.mtib — TestContext.connect() already verified connectivity,
+        but we do a power read to confirm the link is active.
+        """
+        from corekinect.mtib_client.v1.client.types import PowerChannel
+
+        addr = os.environ.get("MTIB_ADDRESS", "?")
+        print(f"MTIB address: {addr}")
+
+        result, err = ctx.mtib.PowerRead(channel=PowerChannel.DUT)
+        assert err is None, f"MTIB power read failed: {err}"
+
+        print(f"Ch0 (DUT):     {result.voltage_v:.2f}V  {result.current_ma:.2f}mA")
+
+        result_ch1, err_ch1 = ctx.mtib.PowerRead(channel=PowerChannel.CHARGER)
+        if not err_ch1:
+            print(f"Ch1 (Charger): {result_ch1.voltage_v:.2f}V  {result_ch1.current_ma:.2f}mA")
+
+        # Verify UART capture is running (from TestContext.connect())
+        uart_status = "running" if ctx.uart._running else "stopped"
+        print(f"UART capture:  {uart_status}")
+
+        print(f"MTIB connection OK")
+
+    def test_pipeline_builds(self, pipeline_assets):
+        """Verify all pipeline builds are present and successful."""
+        pipeline_id = os.environ.get("PIPELINE_ID", "?")
+        print(f"Pipeline ID: {pipeline_id}")
+
+        assert pipeline_assets.has_all_builds(), (
+            f"Pipeline missing required builds. "
+            f"Available: {list(pipeline_assets.builds.keys())}"
+        )
+
+        print(f"{'Label':<24} {'Variant':<10} {'Version':<12} {'Status':<10} {'Artifacts'}")
+        print(f"{'-'*78}")
+        for label, build in sorted(pipeline_assets.builds.items()):
+            art_count = len(build.artifacts)
+            print(f"{label:<24} {build.variant:<10} v{build.version_string or '?':<11} {build.status:<10} {art_count} files")
+            assert build.status in ("SUCCESS", "CACHED"), (
+                f"Build {label} is {build.status}, expected SUCCESS or CACHED"
+            )
+
+        print(f"All {len(pipeline_assets.builds)} builds OK")
 
     def test_storage_access(self, pipeline_assets):
         """Verify MinIO storage is accessible for firmware artifacts."""
