@@ -51,7 +51,11 @@ export interface PipelineStageInfo {
 
 // Build matrix labels (FUOTA mode uses all, nightly uses subset)
 export type MatrixLabel =
-  | 'MFG_BASE' | 'MFG_BUMP'
+  | 'MFG_BASE'
+  | 'FLASH_BASE_DEBUG' | 'FLASH_BASE_RELEASE'
+  | 'FUOTA_TARGET_DEBUG' | 'FUOTA_TARGET_RELEASE'
+  // Legacy labels (kept for backwards compat)
+  | 'MFG_BUMP'
   | 'FUT_DEBUG_A' | 'FUT_DEBUG_B'
   | 'FUT_RELEASE_A' | 'FUT_RELEASE_B'
   | 'MAIN_BASELINE' | 'MAIN_MERGED';
@@ -81,73 +85,77 @@ export const MATRIX_LABEL_DISPLAY: Record<MatrixLabel, {
   fuotaStep: number;
   priority: number;  // Lower = higher priority (build first)
 }> = {
-  // Step 1: Factory flash (J-Link, highest priority)
+  // MFG firmware — flash base for personalization
   MFG_BASE: {
-    name: 'Mfg v1',
-    description: 'Manufacturing firmware for J-Link flash',
-    group: 'factory',
-    groupTitle: 'Step 1: Factory Flash',
+    name: 'MFG Flash',
+    description: 'Manufacturing firmware for J-Link flash + personalization',
+    group: 'mfg',
+    groupTitle: 'Manufacturing Firmware',
     fuotaStep: 1,
     priority: 0,
   },
-  MFG_BUMP: {
-    name: 'Mfg v2',
-    description: 'Mfg firmware +1 for FUOTA sanity test',
-    group: 'factory',
-    groupTitle: 'Step 1: Factory Flash',
-    fuotaStep: 1,
+  // Production firmware — cached baseline
+  FLASH_BASE_DEBUG: {
+    name: 'Baseline Debug',
+    description: 'Previous production firmware (debug, cached)',
+    group: 'baseline',
+    groupTitle: 'Cached Baseline',
+    fuotaStep: 2,
     priority: 1,
   },
-  // Step 2: Debug FUOTA (can start validation early)
-  FUT_DEBUG_A: {
-    name: 'Debug v1',
-    description: 'Debug firmware under test',
-    group: 'debug',
-    groupTitle: 'Step 2: Debug FUOTA',
+  FLASH_BASE_RELEASE: {
+    name: 'Baseline Release',
+    description: 'Previous production firmware (release, cached)',
+    group: 'baseline',
+    groupTitle: 'Cached Baseline',
     fuotaStep: 2,
     priority: 2,
   },
-  FUT_DEBUG_B: {
-    name: 'Debug v2',
-    description: 'Debug firmware +1 for FUOTA test',
-    group: 'debug',
-    groupTitle: 'Step 2: Debug FUOTA',
-    fuotaStep: 2,
+  // FUOTA targets — newly built from commit
+  FUOTA_TARGET_DEBUG: {
+    name: 'FUOTA Debug',
+    description: 'New production firmware for debug validation',
+    group: 'fuota',
+    groupTitle: 'FUOTA Target',
+    fuotaStep: 3,
     priority: 3,
   },
-  // Step 3: Release FUOTA
-  FUT_RELEASE_A: {
-    name: 'Release v1',
-    description: 'Release firmware under test (shipping binary)',
-    group: 'release',
-    groupTitle: 'Step 3: Release FUOTA',
+  FUOTA_TARGET_RELEASE: {
+    name: 'FUOTA Release',
+    description: 'New production firmware CFW for OTA delivery',
+    group: 'fuota',
+    groupTitle: 'FUOTA Target',
     fuotaStep: 3,
     priority: 4,
   },
-  FUT_RELEASE_B: {
-    name: 'Release v2',
-    description: 'Release firmware +1 for FUOTA test',
-    group: 'release',
-    groupTitle: 'Step 3: Release FUOTA',
-    fuotaStep: 3,
-    priority: 5,
+  // Legacy labels (kept for backwards compat with old pipelines)
+  MFG_BUMP: {
+    name: 'Mfg v2', description: 'Legacy', group: 'factory',
+    groupTitle: 'Legacy', fuotaStep: 99, priority: 99,
   },
-  // Step 4: Field upgrade path (can potentially reuse existing baseline)
+  FUT_DEBUG_A: {
+    name: 'Debug v1', description: 'Legacy', group: 'debug',
+    groupTitle: 'Legacy', fuotaStep: 99, priority: 99,
+  },
+  FUT_DEBUG_B: {
+    name: 'Debug v2', description: 'Legacy', group: 'debug',
+    groupTitle: 'Legacy', fuotaStep: 99, priority: 99,
+  },
+  FUT_RELEASE_A: {
+    name: 'Release v1', description: 'Legacy', group: 'release',
+    groupTitle: 'Legacy', fuotaStep: 99, priority: 99,
+  },
+  FUT_RELEASE_B: {
+    name: 'Release v2', description: 'Legacy', group: 'release',
+    groupTitle: 'Legacy', fuotaStep: 99, priority: 99,
+  },
   MAIN_BASELINE: {
-    name: 'Baseline',
-    description: 'Current main branch release (may reuse existing)',
-    group: 'baseline',
-    groupTitle: 'Step 4: Field Upgrade',
-    fuotaStep: 4,
-    priority: 6,
+    name: 'Baseline', description: 'Legacy', group: 'baseline',
+    groupTitle: 'Legacy', fuotaStep: 99, priority: 99,
   },
   MAIN_MERGED: {
-    name: 'Merged',
-    description: 'Simulated PR merge for field upgrade test',
-    group: 'baseline',
-    groupTitle: 'Step 4: Field Upgrade',
-    fuotaStep: 4,
-    priority: 7,
+    name: 'Merged', description: 'Legacy', group: 'baseline',
+    groupTitle: 'Legacy', fuotaStep: 99, priority: 99,
   },
 };
 

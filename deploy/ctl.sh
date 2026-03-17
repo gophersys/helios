@@ -68,16 +68,18 @@ get_version() {
 # ─── Prisma Schema Change Detection ──────────────────────────
 
 _prisma_needs_regen() {
-  # Compare local schema hash to what's in the running API image
+  # Compare local schema hash to the last deployed hash (stored in .nx/cache)
   local local_hash
   local_hash=$(sha256sum prisma/schema.prisma 2>/dev/null | awk '{print $1}')
 
-  # Check if the current API image has a matching schema
-  local image_hash
-  image_hash=$(docker run --rm --entrypoint sh "${REGISTRY_API}:${1:-staging}" \
-    -c "sha256sum /prisma/schema.prisma 2>/dev/null | awk '{print \$1}'" 2>/dev/null || echo "none")
+  local cache_file="${REPO_ROOT}/.nx/prisma-schema-hash"
+  local cached_hash=""
+  [[ -f "${cache_file}" ]] && cached_hash=$(cat "${cache_file}" 2>/dev/null)
 
-  if [[ "${local_hash}" != "${image_hash}" ]]; then
+  if [[ "${local_hash}" != "${cached_hash}" ]]; then
+    # Update the cache after build
+    mkdir -p "$(dirname "${cache_file}")"
+    echo "${local_hash}" > "${cache_file}"
     return 0  # Needs regen
   fi
   return 1  # Schema matches

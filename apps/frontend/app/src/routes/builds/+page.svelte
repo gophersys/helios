@@ -528,11 +528,13 @@
             <span class="text-text-tertiary">
               {pipeline.completedBuilds ?? 0}/{pipeline.expectedBuilds ?? 0} builds
             </span>
-            <!-- Trigger source badge -->
-            <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded {trigger.color} font-medium">
-              <svelte:component this={trigger.icon} size={10} />
-              {trigger.label}
-            </span>
+            <!-- Trigger source badge (only for non-manual triggers) -->
+            {#if pipeline.triggerType && pipeline.triggerType !== 'manual'}
+              <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded {trigger.color} font-medium">
+                <svelte:component this={trigger.icon} size={10} />
+                {trigger.label}
+              </span>
+            {/if}
             <!-- Stage indicator -->
             {#if pipeline.matrixMode && STAGE_BADGE[pipeline.matrixMode]}
               {@const badge = STAGE_BADGE[pipeline.matrixMode]}
