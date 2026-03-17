@@ -668,7 +668,7 @@ def create_pipeline():
                             "status": "SUCCESS",
                         },
                         include={"artifacts": True, "product": True},
-                        order={"finishedAt": "desc"},
+                        order={"buildNum": "desc"},
                         take=skip_count + 1,
                     )
                 cached_build = cached_builds[skip_count] if len(cached_builds) > skip_count else (cached_builds[0] if cached_builds else None)
