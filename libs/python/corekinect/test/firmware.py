@@ -675,6 +675,38 @@ class PipelineAssets:
         build = self.get_build(matrix_label)
         return build.version_string
 
+    def get_modem_firmware(self) -> Optional[str]:
+        """Download modem firmware zip from pipeline triggerData.
+
+        The pipeline response includes:
+            triggerData.modemFirmware = {
+                "storageKey": "firmware/modem/alpha/mfw_nrf91x1_2.0.2.zip",
+                "version": "2.0.2",
+                "name": "mfw_nrf91x1_2.0.2.zip"
+            }
+
+        Returns:
+            Local file path to downloaded zip, or None if not available.
+        """
+        data = self._fetch_pipeline()
+        trigger_data = data.get("triggerData") or {}
+        modem = trigger_data.get("modemFirmware")
+
+        if not modem or not modem.get("storageKey"):
+            self._log.info("No modem firmware in pipeline triggerData")
+            return None
+
+        storage_key = modem["storageKey"]
+        self._log.info("Downloading modem firmware: %s", storage_key)
+        return self._download(storage_key)
+
+    @property
+    def modem_firmware_info(self) -> Optional[dict]:
+        """Get modem firmware metadata from pipeline triggerData (without downloading)."""
+        data = self._fetch_pipeline()
+        trigger_data = data.get("triggerData") or {}
+        return trigger_data.get("modemFirmware")
+
     def upload_to_mtib(self, local_path: str, mtib, target: str = "nrf52840") -> str:
         """Upload a local file to MTIB server.
 

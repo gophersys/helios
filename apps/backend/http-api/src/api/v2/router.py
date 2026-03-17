@@ -380,6 +380,10 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     v2.add_url_rule("/system/retention/validation/cleanup",   endpoint="cleanup_validation_runs",     view_func=cleanup_validation_runs,      methods=["POST"])
     v2.add_url_rule("/system/retention/validation/usage",     endpoint="get_validation_storage_usage", view_func=get_validation_storage_usage, methods=["GET"])
 
+    # Storage download
+    from .storage_download import download_storage_file
+    v2.add_url_rule("/storage/download",                                                               endpoint="download_storage_file",        view_func=download_storage_file,    methods=["GET"])
+
     # Sessions (was /validation/runs)
     v2.add_url_rule("/sessions",                                                                    endpoint="list_sessions",                view_func=list_runs,                methods=["GET"])
     v2.add_url_rule("/sessions",                                                                    endpoint="create_session",               view_func=create_run,               methods=["POST"])

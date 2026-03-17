@@ -122,6 +122,19 @@ class TestPreflight:
             print("J-Link probes will be verified during flash step")
             print("WARNING: If flash fails, check J-Link USB connections")
 
+    def test_modem_firmware(self, pipeline_assets):
+        """Verify modem firmware is available in pipeline triggerData."""
+        modem_info = pipeline_assets.modem_firmware_info
+
+        if modem_info:
+            print(f"Modem FW:     {modem_info.get('name', '?')}")
+            print(f"Version:      {modem_info.get('version', '?')}")
+            print(f"Storage key:  {modem_info.get('storageKey', '?')}")
+        else:
+            print("WARNING: No modem firmware in pipeline triggerData")
+            print("Modem flash will be skipped during test_02_flash_firmware")
+            print("This may cause POST step 7 (modem FW version) to fail")
+
     def test_storage_access(self, pipeline_assets):
         """Verify MinIO storage is accessible for firmware artifacts."""
         storage_url = os.environ.get("STORAGE_URL", "?")
@@ -129,8 +142,6 @@ class TestPreflight:
         print(f"MinIO URL:    {storage_url}")
         print(f"Bucket:       {bucket}")
 
-        # The pipeline_assets fixture already connected to MinIO during init.
-        # Verify by attempting to list the first build's artifacts.
         first_label = next(iter(pipeline_assets.builds.keys()), None)
         if first_label:
             build = pipeline_assets.get_build(first_label)

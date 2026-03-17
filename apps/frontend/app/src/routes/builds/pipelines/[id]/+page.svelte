@@ -1235,11 +1235,16 @@
             <span class="inline-flex items-center rounded bg-accent-muted px-1.5 py-0.5 text-2xs text-accent font-mono font-medium">
               v{modem.version}
             </span>
+            <span class="text-2xs font-mono text-text-tertiary">{modem.name}</span>
           </div>
-          <span class="text-2xs font-mono text-text-tertiary">{modem.name}</span>
-        </div>
-        <div class="mt-1 text-2xs text-text-tertiary">
-          MinIO: <span class="font-mono">{modem.storageKey}</span>
+          <a
+            href="/v2/storage/download?key={encodeURIComponent(modem.storageKey)}"
+            class="btn btn-sm text-2xs flex items-center gap-1"
+            target="_blank"
+          >
+            <Download size={12} />
+            Download
+          </a>
         </div>
       </div>
     {/if}
