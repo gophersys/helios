@@ -197,7 +197,7 @@ def _generate_matrix_build_specs(
                     "matrixLabel": label,
                     "matrixIndex": idx,
                     "versionBump": False,
-                    "source": "latest",
+                    "source": source,
                     "firmware": firmware,
                 })
             idx += 1
@@ -688,7 +688,7 @@ def create_pipeline():
                 if cached_build:
                     logger.info("Cache hit for %s: reusing build %s", spec["matrixLabel"], cached_build.id[:8])
 
-            if cached_build and spec.get("source") == "latest":
+            if cached_build and spec.get("source") in ("latest", "latest_prev"):
                 # Create a CACHED reference build
                 build_data = {
                     "productId": product_record.id if product_record else None,
