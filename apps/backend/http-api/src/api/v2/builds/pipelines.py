@@ -184,8 +184,8 @@ def _generate_matrix_build_specs(
                     "firmware": firmware,
                     "versionOverride": version_override,
                 })
-            else:
-                # "latest" — will be resolved to CACHED in pipeline creation
+            elif source in ("latest", "latest_prev"):
+                # "latest" or "latest_prev" — will be resolved to CACHED in pipeline creation
                 builds.append({
                     "board": board,
                     "target": target,
@@ -656,9 +656,11 @@ def create_pipeline():
             cached_build = None
             fingerprint = None
 
-            if spec.get("source") == "latest":
-                # Find the most recent successful build for this target+variant
-                cached_build = db.buildjob.find_first(
+            if spec.get("source") in ("latest", "latest_prev"):
+                # Find successful build for this target+variant
+                # "latest" = most recent, "latest_prev" = second most recent (N-1)
+                skip_count = 1 if spec.get("source") == "latest_prev" else 0
+                cached_builds = db.buildjob.find_many(
                         where={
                             "productId": product_record.id if product_record else None,
                             "variant": spec["variant"],
@@ -667,7 +669,9 @@ def create_pipeline():
                         },
                         include={"artifacts": True, "product": True},
                         order={"finishedAt": "desc"},
+                        take=skip_count + 1,
                     )
+                cached_build = cached_builds[skip_count] if len(cached_builds) > skip_count else (cached_builds[0] if cached_builds else None)
 
             elif spec.get("source") == "head" and spec.get("commitSha"):
                 # For "head" builds, check fingerprint cache to avoid rebuilding same commit
@@ -991,7 +995,7 @@ def trigger_pipeline_validation(pipeline_id: str, pipeline, builds: list) -> Opt
         if slot.nodeId:
             node = db.node.find_unique(where={"id": slot.nodeId})
             if node:
-                mtib_address = node.address
+                mtib_address = node.ipAddress
         if not mtib_address:
             # Fallback: check fixture metadata
             meta = fixture.metadata if isinstance(fixture.metadata, dict) else {}
@@ -1046,8 +1050,8 @@ def trigger_pipeline_validation(pipeline_id: str, pipeline, builds: list) -> Opt
             },
         )
 
-        # Get API URL for reporter
-        api_url = os.environ.get("CONCORD_API_URL", "https://10.4.45.11:443")
+        # Get API URL for reporter — prefer internal cluster URL (no SSL issues)
+        api_url = os.environ.get("CONCORD_API_URL", "http://concord-http-api.staging.svc.cluster.local:9001")
 
         # Get firmware version from the FUOTA target build (release variant)
         firmware_version = None
@@ -1083,7 +1087,10 @@ def trigger_pipeline_validation(pipeline_id: str, pipeline, builds: list) -> Opt
             bench_id=fixture.id,
             device_id=slot.dutDeviceId or "",
             device_snr=slot.dutSnr or "",
+            device_imei=slot.dutImei or "",
+            device_iccids=",".join(slot.dutIccids) if slot.dutIccids else "",
             fixture_profile_path=fixture_profile_path,
+            pipeline_id=pipeline_id,
             stage="fuota",
         )
 

@@ -47,7 +47,7 @@ from .helpers import (
 )
 
 # Pipeline build labels
-FLASH_LABEL = "MFG_FLASH"              # MFG firmware to flash via J-Link
+FLASH_LABEL = "MFG_BASE"               # MFG firmware to flash via J-Link
 FUOTA_LABEL = "FUOTA_TARGET_RELEASE"    # Production firmware to deliver via FUOTA
 
 

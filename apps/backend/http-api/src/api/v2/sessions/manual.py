@@ -194,6 +194,9 @@ def create_kubernetes_job(
     pipeline_id: Optional[str] = None,
     # Product slug for catalog API lookup
     product_slug: Optional[str] = None,
+    # Device identity (from fixture slot)
+    device_imei: Optional[str] = None,
+    device_iccids: Optional[str] = None,
     # Validation stage and image tag
     stage: str = "fuota",
     image_tag: Optional[str] = None,
@@ -247,8 +250,8 @@ def create_kubernetes_job(
         job_yaml = job_yaml.replace("{{DEVICE_SNR}}", device_snr or os.environ.get("DEVICE_SNR", ""))
         job_yaml = job_yaml.replace("{{FIXTURE_PROFILE_PATH}}", fixture_profile_path or os.environ.get("FIXTURE_PROFILE_PATH", "fixtures/alpha_b0.json"))
         job_yaml = job_yaml.replace("{{PROXY_SERVER_URL}}", os.environ.get("PROXY_SERVER_URL", ""))
-        job_yaml = job_yaml.replace("{{DEVICE_IMEI}}", os.environ.get("DEVICE_IMEI", ""))
-        job_yaml = job_yaml.replace("{{DEVICE_ICCIDS}}", os.environ.get("DEVICE_ICCIDS", ""))
+        job_yaml = job_yaml.replace("{{DEVICE_IMEI}}", device_imei or os.environ.get("DEVICE_IMEI", ""))
+        job_yaml = job_yaml.replace("{{DEVICE_ICCIDS}}", device_iccids or os.environ.get("DEVICE_ICCIDS", ""))
         # Bench-specific: MTIB address from bench scheduler
         job_yaml = job_yaml.replace("{{MTIB_ADDRESS}}", mtib_address or os.environ.get("MTIB_ADDRESS", ""))
         job_yaml = job_yaml.replace("{{BENCH_ID}}", bench_id or "")

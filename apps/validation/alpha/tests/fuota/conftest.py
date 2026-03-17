@@ -36,23 +36,37 @@ log = Logger(log_name="fuota")
 
 
 _failed_classes = set()  # Track which test classes have failures
+_preflight_failed = False  # If preflight fails, block everything
 
 
 def pytest_runtest_makereport(item, call):
     """Track test failures per class for sequential dependency skipping."""
+    global _preflight_failed
     if call.when == "call" and call.excinfo is not None:
         cls = item.cls
         if cls:
             _failed_classes.add(cls.__name__)
+            if cls.__name__ == "TestPreflight":
+                _preflight_failed = True
 
 
 def pytest_runtest_setup(item):
-    """Skip remaining tests in a class if a previous test in the same class failed.
+    """Skip tests based on failure hierarchy:
+
+    1. If preflight failed → skip ALL remaining tests (environment is broken)
+    2. If a class has a failure → skip remaining tests in that class only
 
     This gives us fail-fast WITHIN a class (sequential test steps) while
-    allowing different test files/classes to continue independently.
+    allowing different test files/classes to continue independently —
+    unless preflight failed, in which case nothing should run.
     """
     cls = item.cls
+
+    # Preflight failure blocks everything
+    if _preflight_failed and cls and cls.__name__ != "TestPreflight":
+        pytest.skip("Skipped — preflight failed")
+
+    # Class-level fail-fast
     if cls and cls.__name__ in _failed_classes:
         pytest.skip(f"Skipped — earlier step in {cls.__name__} failed")
 

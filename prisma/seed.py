@@ -999,8 +999,10 @@ def seed():
                 "testMarker": "-m fuota",
                 "description": "FUOTA delivery verification and boot confirmation",
                 "buildMatrix": Json([
+                    {"role": "mfg_flash", "firmware": "alpha_mfg_fw", "source": "latest_prev",
+                     "description": "Older MFG firmware to flash via J-Link (FUOTA base, N-1)"},
                     {"role": "mfg_base", "firmware": "alpha_mfg_fw", "source": "latest",
-                     "description": "MFG firmware to flash via J-Link for personalization"},
+                     "description": "Newer MFG firmware CFW for MFG-to-MFG FUOTA test (N)"},
                     {"role": "flash_base", "firmware": "alpha_fw", "source": "latest",
                      "description": "Previous production firmware (cached baseline)"},
                     {"role": "fuota_target", "firmware": "alpha_fw", "source": "head",

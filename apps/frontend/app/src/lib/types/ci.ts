@@ -51,7 +51,7 @@ export interface PipelineStageInfo {
 
 // Build matrix labels (FUOTA mode uses all, nightly uses subset)
 export type MatrixLabel =
-  | 'MFG_BASE'
+  | 'MFG_FLASH' | 'MFG_BASE'
   | 'FLASH_BASE_DEBUG' | 'FLASH_BASE_RELEASE'
   | 'FUOTA_TARGET_DEBUG' | 'FUOTA_TARGET_RELEASE'
   // Legacy labels (kept for backwards compat)
@@ -85,7 +85,15 @@ export const MATRIX_LABEL_DISPLAY: Record<MatrixLabel, {
   fuotaStep: number;
   priority: number;  // Lower = higher priority (build first)
 }> = {
-  // MFG firmware — flash base for personalization
+  // MFG firmware — two versions for MFG-to-MFG FUOTA test
+  MFG_FLASH: {
+    name: 'MFG Flash (N-1)',
+    description: 'Older MFG firmware to flash via J-Link (FUOTA base)',
+    group: 'mfg',
+    groupTitle: 'Manufacturing Firmware',
+    fuotaStep: 1,
+    priority: 0,
+  },
   MFG_BASE: {
     name: 'MFG Flash',
     description: 'Manufacturing firmware for J-Link flash + personalization',
