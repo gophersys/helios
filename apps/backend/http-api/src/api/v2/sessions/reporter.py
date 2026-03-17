@@ -101,6 +101,43 @@ def report_start(run_id: str):
 
 
 @require_auth
+def report_test_list(run_id: str):
+    """POST /v2/sessions/<id>/report/test-list — Full test list after collection.
+
+    Sent by the reporter after pytest collection finishes, before any tests run.
+    Broadcast via WebSocket AND persist in session config so the frontend can
+    pre-populate test steps on both live subscription and page reload.
+    """
+    data = request.get_json()
+    if not data:
+        return bad_request("Request body required")
+
+    tests = data.get("tests", [])
+
+    # Persist test list in session config for page-reload hydration
+    db = get_db_client()
+    try:
+        session = db.session.find_unique(where={"id": run_id})
+        if session:
+            existing_config = session.config if isinstance(session.config, dict) else {}
+            existing_config["testList"] = tests
+            db.session.update(
+                where={"id": run_id},
+                data={"config": Json(existing_config)},
+            )
+    except Exception as e:
+        logger.warning("Failed to persist test list for run %s: %s", run_id, e)
+
+    # Broadcast via WebSocket for live subscribers
+    _emit_validation_event("validation_test_list", {
+        "runId": run_id,
+        "tests": tests,
+    })
+
+    return jsonify(ApiResponse.ok({"count": len(tests)}).to_dict()), 200
+
+
+@require_auth
 def report_test_start(run_id: str):
     """POST /v2/validation/runs/<id>/report/test-start — Individual test started."""
     data, error = ReportTestStartRequest.from_json(request.get_json())
@@ -627,3 +664,42 @@ def report_step_result(run_id: str):
         "stepIndex": data.step_index,
         "passed": data.passed,
     }).to_dict()), 200
+
+
+# -------------------------------------------------
+#           Telemetry Streaming Endpoint
+# -------------------------------------------------
+
+
+@require_auth
+def report_telemetry(run_id: str):
+    """POST /v2/sessions/<id>/report/telemetry — Receive telemetry batch.
+
+    Receives batched telemetry samples (UART lines, power measurements,
+    sensor data) and broadcasts immediately via WebSocket for live rendering.
+
+    No database storage — telemetry is ephemeral for live viewing.
+    Persistent storage is handled by the test runner writing JSONL files
+    to MinIO directly.
+
+    Payload:
+        {"samples": [
+            {"t": 1710000.123, "type": "uart", "target": "app", "test": "test_02", "line": "MCUboot starting"},
+            {"t": 1710000.456, "type": "power", "test": "test_03", "mA": 25.4, "mV": 4520},
+        ]}
+    """
+    data = request.get_json()
+    if not data:
+        return bad_request("Request body required")
+
+    samples = data.get("samples", [])
+    if not samples:
+        return jsonify(ApiResponse.ok({"count": 0}).to_dict()), 200
+
+    # Broadcast to WebSocket subscribers immediately (low latency path)
+    _emit_validation_event("telemetry", {
+        "runId": run_id,
+        "samples": samples,
+    })
+
+    return jsonify(ApiResponse.ok({"count": len(samples)}).to_dict()), 200

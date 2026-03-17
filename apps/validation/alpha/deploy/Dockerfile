@@ -46,6 +46,9 @@ RUN pip3 install -e . && \
 # Libraries (shared with http-api)
 # ─────────────────────────────────────────────────────────────────────────────
 
+# Cache bust — invalidates source layers when code changes (allows dropping --no-cache)
+ARG CACHE_BUST=0
+
 # gRPC protocols for MTIB
 COPY libs/protocols/mtib /libs/protocols/mtib
 

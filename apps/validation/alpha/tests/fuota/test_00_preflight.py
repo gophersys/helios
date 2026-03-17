@@ -92,29 +92,35 @@ class TestPreflight:
             print("This may cause POST step 7 (modem FW version) to fail")
 
     def test_mtib_connection(self, ctx):
-        """Verify MTIB server is reachable and responding to RPCs.
+        """Verify MTIB server is reachable. Sets both power rails OFF as baseline.
 
         Uses ctx.mtib — TestContext.connect() already verified connectivity,
-        but we do a power read to confirm the link is active.
+        but we do a power read to confirm the link is active, then disable
+        both power rails to ensure a clean starting state.
         """
         from corekinect.mtib_client.v1.client.types import PowerChannel
 
         addr = os.environ.get("MTIB_ADDRESS", "?")
         print(f"MTIB address: {addr}")
 
+        # Disable both power rails first (clean baseline)
+        ctx.mtib.PowerDisable(channel=PowerChannel.DUT)
+        ctx.mtib.PowerDisable(channel=PowerChannel.CHARGER)
+        print(f"Power rails: both OFF (clean baseline)")
+
+        import time
+        time.sleep(1)
+
         result, err = ctx.mtib.PowerRead(channel=PowerChannel.DUT)
         assert err is None, f"MTIB power read failed: {err}"
-
         print(f"Ch0 (DUT):     {result.voltage_v:.2f}V  {result.current_ma:.2f}mA")
 
         result_ch1, err_ch1 = ctx.mtib.PowerRead(channel=PowerChannel.CHARGER)
         if not err_ch1:
             print(f"Ch1 (Charger): {result_ch1.voltage_v:.2f}V  {result_ch1.current_ma:.2f}mA")
 
-        # Verify UART capture is running (from TestContext.connect())
         uart_status = "running" if ctx.uart._running else "stopped"
         print(f"UART capture:  {uart_status}")
-
         print(f"MTIB connection OK")
 
     def test_pipeline_builds(self, pipeline_assets):

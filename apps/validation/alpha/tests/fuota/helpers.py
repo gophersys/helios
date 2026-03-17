@@ -390,73 +390,49 @@ def wait_for_fuota_completion(
     Raises:
         pytest.fail: If timeout expires without completion.
     """
-    from protocols.mtib.mtib_pb2 import HostType, UartStreamRequest
 
     start = time.time()
     completed = set()
-    seen_active = set()  # Versions seen at < 100% (guards against stale data)
+    seen_active = set()
     last_status = None
-    last_power_cycle = start
+    last_pages_by_ver = {}   # track pages per version for smart power cycling
+    last_progress_time = start  # when pages last advanced
 
-    # UART monitor thread (background, best-effort)
-    uart_stop = threading.Event()
+    print(f"FUOTA delivery started (device={device_id})")
+    print(f"Targets: comms (108) + app (109)")
+    print(f"Timeout: {timeout_s // 60:.0f} minutes")
+    print(f"Power cycle: only if stalled for 5+ minutes")
+    print(f"---")
+    stall_cycles = 0         # consecutive polls with no progress
 
-    def _uart_monitor():
-        if not mtib_client:
-            return
-        partial = ""
+    # NOTE: UART output is captured by UartDemuxer → telemetry → UART terminals.
+    # No separate UART monitor thread needed here — keeps test step output clean.
 
-        def req_gen():
-            yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9151, data=b"")
-            while not uart_stop.is_set():
-                time.sleep(0.1)
-                yield UartStreamRequest(target=HostType.HOST_TYPE_NRF9151, data=b"")
-
-        try:
-            for resp in mtib_client.UartStream(HostType.HOST_TYPE_NRF9151, req_gen()):
-                if uart_stop.is_set():
-                    break
-                if resp.data:
-                    partial += resp.data.decode("utf-8", errors="replace")
-                    while "\n" in partial:
-                        line, partial = partial.split("\n", 1)
-                        if any(kw in line.lower() for kw in [
-                            "fuota", "cfw", "download", "mcuboot", "swap", "upgrade"
-                        ]):
-                            elapsed = (time.time() - start) / 60
-                            print(f"[UART {elapsed:.1f}m] {line.strip()}")
-        except Exception:
-            pass
-
-    if mtib_client:
-        uart_thread = threading.Thread(target=_uart_monitor, daemon=True)
-        uart_thread.start()
-
-    def _force_power_cycle():
-        nonlocal last_power_cycle
+    def _force_power_cycle(reason: str):
+        nonlocal last_progress_time, stall_cycles
         if not mtib_client:
             return
         elapsed = (time.time() - start) / 60
-        print(f"[{elapsed:.1f}m] Power cycling DUT to force check-in...")
+        print(f"[{elapsed:.1f}m] Power cycling — {reason}")
         try:
             power_off(mtib_client)
             power_on(mtib_client)
             time.sleep(5)
-            last_power_cycle = time.time()
+            last_progress_time = time.time()
+            stall_cycles = 0
         except Exception as e:
-            print(f"Power cycle failed: {e}")
+            print(f"[{elapsed:.1f}m] Power cycle failed: {e}")
 
     try:
         while time.time() - start < timeout_s:
             elapsed_min = (time.time() - start) / 60
-            elapsed_s = int(time.time() - start)
 
             try:
                 resp = fuota_client._singleton_request(
                     "GET", f"firmwareupdates/progress?deviceId={device_id}"
                 )
             except Exception as e:
-                print(f"[{elapsed_min:.1f}m] Progress request failed: {e}")
+                print(f"[{elapsed_min:.1f}m] Progress API error: {e}")
                 time.sleep(10)
                 continue
 
@@ -467,48 +443,76 @@ def wait_for_fuota_completion(
                     pct = prog.get("percentComplete", 0)
                     pages = prog.get("pagesApplied", 0)
                     total = prog.get("totalPages", 1)
-                    status = f"{ver}: {pct:.1f}% ({pages}/{total})"
-
-                    if status != last_status:
-                        print(f"[{elapsed_min:.1f}m] {status}")
-                        last_status = status
 
                     if pct < 100:
                         seen_active.add(ver)
+
+                    # Announce when a processor first starts downloading
+                    if ver not in seen_active and pct < 100:
+                        chip = "comms (nRF9151)" if "108" in ver else "app (nRF52840)" if "109" in ver else ver
+                        elapsed_str = f"{int(elapsed_min)}m{int((elapsed_min % 1) * 60):02d}s" if elapsed_min >= 1 else f"{int(elapsed_min * 60)}s"
+                        print(f"[{elapsed_str}] Starting download: {chip} -> {ver} ({total} pages)")
+
+                    # Log progress on every change
+                    status = f"{ver}: {pct:.1f}% ({pages}/{total})"
+                    if status != last_status:
+                        bar_len = 30
+                        filled = int(bar_len * pct / 100)
+                        bar = "#" * filled + "-" * (bar_len - filled)
+                        elapsed_str = f"{int(elapsed_min)}m{int((elapsed_min % 1) * 60):02d}s" if elapsed_min >= 1 else f"{int(elapsed_min * 60)}s"
+                        print(f"[{elapsed_str}] {ver} [{bar}] {pct:.1f}% ({pages}/{total} pages)")
+                        last_status = status
+
+                    # Track page advancement PER VERSION for smart power cycling
+                    prev_pages = last_pages_by_ver.get(ver, 0)
+                    if pages > prev_pages:
+                        last_pages_by_ver[ver] = pages
+                        last_progress_time = time.time()
+                        stall_cycles = 0
+                    elif pct < 100:
+                        stall_cycles += 1
 
                     if pct >= 100:
                         if ver in seen_active:
                             if ver not in completed:
                                 completed.add(ver)
-                                print(f"{ver} COMPLETE!")
+                                elapsed_str = f"{int(elapsed_min)}m{int((elapsed_min % 1) * 60):02d}s"
+                                print(f"[{elapsed_str}] DONE: {ver} -- {total} pages in {elapsed_str}")
                         else:
-                            if ver not in completed and last_status != f"stale_{ver}":
-                                print(f"[{elapsed_min:.1f}m] {ver} at 100% (stale from previous plan, ignoring)")
-                                last_status = f"stale_{ver}"
+                            if ver not in completed:
+                                print(f"[{int(elapsed_min * 60)}s] {ver} at 100% (stale from previous plan, skipping)")
 
                         if any("108" in v for v in completed) and any("109" in v for v in completed):
-                            print(f"[{elapsed_min:.1f}m] Both 108 and 109 complete — FUOTA done!")
+                            elapsed_str = f"{int(elapsed_min)}m{int((elapsed_min % 1) * 60):02d}s"
+                            print(f"[{elapsed_str}] DONE: Both 108 (comms) + 109 (app) complete")
                             return
 
             elif resp.status_code == 404:
                 has_108 = any("108" in v for v in completed)
                 has_109 = any("109" in v for v in completed)
+                elapsed_str = f"{int(elapsed_min)}m{int((elapsed_min % 1) * 60):02d}s" if elapsed_min >= 1 else f"{int(elapsed_min * 60)}s"
 
                 if has_108 and has_109:
-                    print(f"[{elapsed_min:.1f}m] Both processors complete (404 after completion)")
+                    print(f"[{elapsed_str}] DONE: Both processors complete")
                     return
                 elif has_108 and not has_109:
                     if last_status != "wait_109":
-                        print(f"[{elapsed_min:.1f}m] 108 done, waiting for 109...")
+                        print(f"[{elapsed_str}] Comms (108) delivered. Awaiting app (109) download to begin...")
                         last_status = "wait_109"
+                elif has_109 and not has_108:
+                    if last_status != "wait_108":
+                        print(f"[{elapsed_str}] App (109) delivered. Awaiting comms (108) download to begin...")
+                        last_status = "wait_108"
                 elif not completed:
                     if last_status != "wait_start":
-                        print(f"[{elapsed_min:.1f}m] Waiting for device check-in...")
+                        print(f"[{elapsed_str}] Awaiting first CoreCloud check-in to begin FUOTA download...")
                         last_status = "wait_start"
+                    stall_cycles += 1
 
-            # Periodic power cycle to force check-in
-            if mtib_client and time.time() - last_power_cycle > power_cycle_interval_s:
-                _force_power_cycle()
+            # Smart power cycle: only if pages haven't advanced in 5 minutes
+            stall_duration = time.time() - last_progress_time
+            if mtib_client and stall_duration > 300 and stall_cycles >= 6:
+                _force_power_cycle(f"no page progress for {int(stall_duration)}s ({stall_cycles} stale polls)")
 
             time.sleep(10)
 
@@ -525,7 +529,7 @@ def wait_for_fuota_completion(
         )
 
     finally:
-        uart_stop.set()
+        pass  # Cleanup handled by TestContext
 
 
 # =============================================================================

@@ -483,6 +483,7 @@
   .dark .ansi-white { color: #f0f0f0; }
 }
 
+
 /* Print styles for Case Study PDF export */
 @media print {
   /* Hide navigation and non-essential elements */

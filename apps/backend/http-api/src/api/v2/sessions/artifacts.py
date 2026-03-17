@@ -53,7 +53,14 @@ def list_artifacts(run_id: str):
 
 @require_permissions(Permissions.VALIDATION_VIEW)
 def download_artifact(run_id: str, name: str):
-    """GET /v2/validation/runs/<id>/artifacts/<name> — Download artifact via presigned URL."""
+    """GET /v2/validation/runs/<id>/artifacts/<name> — Download artifact content.
+
+    Proxies the file content from MinIO directly instead of redirecting to a
+    presigned URL (which would point to an internal K8s service DNS unreachable
+    from the browser).
+    """
+    from flask import Response
+
     # Security: reject path traversal attempts
     if '..' in name or name.startswith('/'):
         return bad_request("Invalid artifact name")
@@ -69,20 +76,32 @@ def download_artifact(run_id: str, name: str):
         bucket = get_bucket_name()
         object_name = storage_key(StoragePrefixes.SESSIONS, f"{run_id}/{name}")
 
-        # Verify the object exists
+        # Get the object
         try:
-            storage.stat_object(bucket, object_name)
+            response = storage.get_object(bucket, object_name)
+            data = response.read()
+            response.close()
+            response.release_conn()
         except Exception:
             return not_found("Artifact not found")
 
-        from datetime import timedelta
-        url = storage.presigned_get_object(
-            bucket,
-            object_name,
-            expires=timedelta(hours=1),
-        )
+        # Determine content type
+        content_type = "application/octet-stream"
+        if name.endswith('.log') or name.endswith('.txt'):
+            content_type = "text/plain; charset=utf-8"
+        elif name.endswith('.jsonl') or name.endswith('.json'):
+            content_type = "application/json; charset=utf-8"
+        elif name.endswith('.csv'):
+            content_type = "text/csv; charset=utf-8"
 
-        return redirect(url)
+        return Response(
+            data,
+            content_type=content_type,
+            headers={
+                "Content-Disposition": f'inline; filename="{name.split("/")[-1]}"',
+                "Content-Length": str(len(data)),
+            },
+        )
 
     except Exception as e:
         logger.error(f"Failed to get artifact {name} for run {run_id}: {e}")

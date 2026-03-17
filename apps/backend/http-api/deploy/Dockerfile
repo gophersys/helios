@@ -111,6 +111,9 @@ RUN chmod +x /app/prisma-query-engine-debian-openssl-3.0.x && \
 # ----------------------------------------------------
 WORKDIR /app
 
+# Cache bust — invalidates source layers when code changes (allows dropping --no-cache)
+ARG CACHE_BUST=0
+
 # Copy the Python libraries used by the app
 COPY ./libs/python /libs/python
 

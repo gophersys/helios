@@ -35,6 +35,28 @@ log = Logger(log_name="fuota")
 # =============================================================================
 
 
+_failed_classes = set()  # Track which test classes have failures
+
+
+def pytest_runtest_makereport(item, call):
+    """Track test failures per class for sequential dependency skipping."""
+    if call.when == "call" and call.excinfo is not None:
+        cls = item.cls
+        if cls:
+            _failed_classes.add(cls.__name__)
+
+
+def pytest_runtest_setup(item):
+    """Skip remaining tests in a class if a previous test in the same class failed.
+
+    This gives us fail-fast WITHIN a class (sequential test steps) while
+    allowing different test files/classes to continue independently.
+    """
+    cls = item.cls
+    if cls and cls.__name__ in _failed_classes:
+        pytest.skip(f"Skipped — earlier step in {cls.__name__} failed")
+
+
 def pytest_configure(config):
     """Amend -k expression to always include preflight tests.
 

@@ -48,11 +48,11 @@ class ArtifactUploader:
         return self._client
 
     def upload(self, local_path: str, remote_name: str) -> bool:
-        """Upload a local file to MinIO under validation/runs/{run_id}/."""
+        """Upload a local file to MinIO under sessions/{run_id}/."""
         if not self.enabled:
             return False
         try:
-            object_name = f"validation/runs/{self.run_id}/{remote_name}"
+            object_name = f"sessions/{self.run_id}/{remote_name}"
             self._get_client().fput_object(self.bucket, object_name, local_path)
             log.info("Uploaded artifact: %s -> %s", local_path, object_name)
             return True

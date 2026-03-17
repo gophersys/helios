@@ -514,6 +514,22 @@ export interface ValidationLogChunkEvent {
   timestamp: number;
 }
 
+export interface TelemetrySample {
+  t: number;       // POSIX timestamp (seconds, microsecond precision)
+  type: string;    // "uart" | "power" | "accel" | ...
+  target?: string; // "app" | "comms" (for UART)
+  test?: string;   // test step name
+  line?: string;   // UART line content
+  mA?: number;     // power: current in milliamps
+  mV?: number;     // power: voltage in millivolts
+  [key: string]: unknown; // extensible for future sensor types
+}
+
+export interface TelemetryEvent {
+  runId: string;
+  samples: TelemetrySample[];
+}
+
 /**
  * Subscribe to real-time validation run events using the /kubernetes namespace.
  * Receives test-start, test-result, and run-finish events as they happen.
@@ -583,6 +599,8 @@ export function subscribeValidationRunWithLogs(
     onRunFinish?: (data: ValidationRunFinishEvent) => void;
     onRunStart?: (data: { runId: string; status: string }) => void;
     onLogChunk?: (data: ValidationLogChunkEvent) => void;
+    onTelemetry?: (data: TelemetryEvent) => void;
+    onTestList?: (data: { runId: string; tests: { name: string; module: string | null }[] }) => void;
   },
   onError?: (message: string) => void
 ): () => void {
@@ -613,6 +631,14 @@ export function subscribeValidationRunWithLogs(
     callbacks.onLogChunk?.(data);
   };
 
+  const telemetryHandler = (data: TelemetryEvent) => {
+    callbacks.onTelemetry?.(data);
+  };
+
+  const testListHandler = (data: { runId: string; tests: { name: string; module: string | null }[] }) => {
+    callbacks.onTestList?.(data);
+  };
+
   const errorHandler = (data: { message: string }) => {
     onError?.(data.message);
   };
@@ -627,6 +653,8 @@ export function subscribeValidationRunWithLogs(
   socket.on('validation_test_result', testResultHandler);
   socket.on('validation_run_finish', runFinishHandler);
   socket.on('validation_log_chunk', logChunkHandler);
+  socket.on('telemetry', telemetryHandler);
+  socket.on('validation_test_list', testListHandler);
   socket.on('error', errorHandler);
   socket.on('subscribed', subscribedHandler);
 
@@ -652,6 +680,8 @@ export function subscribeValidationRunWithLogs(
     socket.off('validation_test_result', testResultHandler);
     socket.off('validation_run_finish', runFinishHandler);
     socket.off('validation_log_chunk', logChunkHandler);
+    socket.off('telemetry', telemetryHandler);
+    socket.off('validation_test_list', testListHandler);
     socket.off('error', errorHandler);
     socket.off('subscribed', subscribedHandler);
     socket.off('connect', connectHandler);

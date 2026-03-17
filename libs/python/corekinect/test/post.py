@@ -94,13 +94,35 @@ def run_post(mtib_client, skip_ext_flash: bool = False) -> PostResult:
     app = AlphaAppShell(mtib_client)
 
     try:
-        # ── Step 1: Boot + lock shells ─────────────────────────────────
+        # ── Step 1: Power cycle + lock shells ─────────────────────────
         t0 = time.time()
-        print("Starting UART streams...")
 
+        # CRITICAL: Power cycle BEFORE opening UART streams.
+        # The mfg shell activates ~0.4s after boot and auto-deactivates at ~8s.
+        # By the time POST runs (after flash + verify_boot), the device has been
+        # up for 15+ seconds — the shell window is already closed.
+        # Power cycle gives us a fresh boot with the full shell window.
+        from corekinect.mtib_client.v1.client.types import (
+            PowerChannel, GpioDirection, GpioResistorConfig,
+        )
+        print("Power cycling DUT for fresh shell window...")
+        mtib_client.PowerDisable(channel=PowerChannel.DUT)
+        mtib_client.PowerDisable(channel=PowerChannel.CHARGER)
+        time.sleep(2)
+
+        # Start UART streams BEFORE power-on (capture boot output from byte 0)
+        print("Starting UART streams...")
         comms.start()
         app.start()
-        time.sleep(0.5)  # Let streams initialize
+        time.sleep(0.5)  # Let gRPC streams initialize
+
+        # Power on
+        for gpio in (0, 1):
+            mtib_client.GpioConfig(gpio, GpioDirection.OUTPUT, GpioResistorConfig.NONE)
+            mtib_client.GpioWrite(gpio, False)
+        mtib_client.PowerEnable(channel=PowerChannel.DUT, voltage_v=4.5)
+        mtib_client.PowerEnable(channel=PowerChannel.CHARGER, voltage_v=5.0)
+        time.sleep(5)  # Wait for boot + shell activation (APP may take longer after FUOTA swap)
 
         print("Locking manufacturing shells...")
         comms_locked = comms.lock(timeout_s=10)
@@ -190,11 +212,22 @@ def run_post(mtib_client, skip_ext_flash: bool = False) -> PostResult:
             _step(result, "Modem firmware", True, msg, int((time.time() - t0) * 1000))
 
         # ── Step 8: IMEI + ICCIDs ──────────────────────────────────────
+        # Modem needs warmup after power cycle — retry up to 3 times
         t0 = time.time()
-        sim, err = comms.get_sim_info()
-        if err:
-            _step(result, "IMEI + ICCIDs", False, f"Error: {err}", int((time.time() - t0) * 1000))
-        else:
+        sim = None
+        sim_err = None
+        for attempt in range(3):
+            sim, sim_err = comms.get_sim_info(timeout_s=15)
+            if sim and sim.imei and sim.iccids:
+                sim_err = None
+                break
+            if attempt < 2:
+                print(f"IMEI/ICCID retry {attempt + 1}/3 (modem warming up)...")
+                time.sleep(3)
+
+        if sim_err:
+            _step(result, "IMEI + ICCIDs", False, f"Error: {sim_err}", int((time.time() - t0) * 1000))
+        elif sim:
             result.imei = sim.imei
             result.iccids = sim.iccids
             ok = bool(sim.imei and sim.iccids)
@@ -202,28 +235,46 @@ def run_post(mtib_client, skip_ext_flash: bool = False) -> PostResult:
             if not ok:
                 msg += " (missing IMEI or ICCIDs)"
             _step(result, "IMEI + ICCIDs", ok, msg, int((time.time() - t0) * 1000))
+        else:
+            _step(result, "IMEI + ICCIDs", False, "No response from modem after 3 attempts", int((time.time() - t0) * 1000))
 
         # ── Step 9: External flash ─────────────────────────────────────
         if skip_ext_flash:
             _step(result, "External flash", True, "Skipped (skip_ext_flash=True)", 0)
         else:
             t0 = time.time()
-            errors = []
+            results_msg = []
 
-            # Comms ext flash
-            flash_result, err = comms.write_ext_flash("0x100000", "UFBPU1RfVEVTVA==")  # "POST_TEST" b64
-            if err:
-                errors.append(f"comms write: {err}")
+            # Comms ext flash (write + read via CommsCoprocShell)
+            try:
+                write_ok, err = comms.write_ext_flash("0x100000", "UFBPU1RfVEVTVA==")  # "POST_TEST" b64
+                if err:
+                    results_msg.append(f"comms: write error ({err})")
+                else:
+                    read_data, err = comms.read_ext_flash("0x100000", 9)
+                    if err:
+                        results_msg.append(f"comms: read error ({err})")
+                    elif read_data and "504F53545F54455354" in read_data.upper().replace(" ", ""):
+                        results_msg.append("comms: OK")
+                    else:
+                        results_msg.append(f"comms: data mismatch")
+            except Exception as e:
+                results_msg.append(f"comms: {e}")
 
-            # App ext flash
-            flash_result, err = app.test_ext_flash()
-            if err:
-                errors.append(f"app: {err}")
-            elif not flash_result.data_match:
-                errors.append(f"app: data mismatch (write_ok={flash_result.write_ok}, read_ok={flash_result.read_ok})")
+            # App ext flash (write+read+verify via AlphaAppShell)
+            try:
+                flash_result, err = app.test_ext_flash()
+                if err:
+                    results_msg.append(f"app: {err}")
+                elif flash_result.data_match:
+                    results_msg.append("app: OK")
+                else:
+                    results_msg.append(f"app: data mismatch (write={flash_result.write_ok})")
+            except Exception as e:
+                results_msg.append(f"app: {e}")
 
-            ok = len(errors) == 0
-            msg = "Both processors OK" if ok else "; ".join(errors)
+            ok = all("OK" in m for m in results_msg)
+            msg = "; ".join(results_msg) if results_msg else "No results"
             _step(result, "External flash", ok, msg, int((time.time() - t0) * 1000))
 
         # ── Final result ───────────────────────────────────────────────

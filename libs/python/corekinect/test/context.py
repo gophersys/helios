@@ -6,6 +6,8 @@ pytest fixture.
 """
 
 import os
+import threading
+import time
 from typing import Optional
 
 from corekinect.mtib_client.v1.client.core import MtibV1Client
@@ -19,6 +21,7 @@ from .firmware import FirmwareAssetManager
 from .fixture_controller import FixtureController
 from .profiles import FixtureProfile
 from .power_profiler import PowerProfiler
+from .telemetry import TelemetryStreamer
 from .uart_demuxer import UartDemuxer
 
 log = Logger(log_name="test_context")
@@ -63,6 +66,22 @@ class TestContext:
         self.firmware = FirmwareAssetManager(mtib=mtib, auto_cleanup=False)
         self.artifacts = ArtifactUploader()
         self.artifact_writer = ArtifactWriter()
+
+        # Telemetry streamer — wired to UART and power callbacks in connect()
+        run_id = os.environ.get("CONCORD_RUN_ID", "")
+        api_url = os.environ.get("CONCORD_API_URL", "")
+        api_key = os.environ.get("CONCORD_API_KEY", "")
+
+        def _telemetry_storage(object_path: str, content_bytes: bytes) -> None:
+            """Write telemetry JSONL to MinIO via ArtifactWriter."""
+            self.artifact_writer.write_bytes(object_path, content_bytes)
+
+        self.telemetry = TelemetryStreamer(
+            run_id=run_id,
+            api_url=api_url,
+            api_key=api_key,
+            on_flush_storage=_telemetry_storage if run_id else None,
+        )
 
     @classmethod
     def from_env(cls) -> "TestContext":
@@ -174,7 +193,7 @@ class TestContext:
         )
 
     def connect(self) -> None:
-        """Connect to MTIB server and start UART capture."""
+        """Connect to MTIB server, start UART capture and telemetry streaming."""
         err = self.mtib.connect()
         if err:
             raise ConnectionError(f"MTIB connection failed: {err}")
@@ -189,8 +208,26 @@ class TestContext:
         log.info("Connected to MTIB, starting UART capture")
         self.uart.start()
 
+        # Wire UART lines to telemetry streamer for live streaming + storage
+        self.uart.on_line = self.telemetry.push_uart
+        self.telemetry.start()
+
+        # Start background power polling (reads both channels every 500ms)
+        self._power_poll_stop = threading.Event()
+        self._power_poll_thread = threading.Thread(
+            target=self._power_poll_loop, daemon=True, name="power-poll"
+        )
+        self._power_poll_thread.start()
+
     def disconnect(self) -> None:
-        """Stop UART capture, cleanup firmware assets, and disconnect from MTIB."""
+        """Stop power polling, telemetry, UART capture, cleanup firmware assets, and disconnect from MTIB."""
+        # Stop power polling
+        if hasattr(self, '_power_poll_stop'):
+            self._power_poll_stop.set()
+            if self._power_poll_thread and self._power_poll_thread.is_alive():
+                self._power_poll_thread.join(timeout=3)
+
+        self.telemetry.stop()
         self.uart.stop()
         # Cleanup uploaded firmware files from MTIB server
         try:
@@ -202,10 +239,33 @@ class TestContext:
             log.warning("MTIB disconnect error: %s", err)
         log.info("Disconnected from MTIB")
 
-    def setup_test(self) -> None:
+    def _power_poll_loop(self) -> None:
+        """Background thread: read power from both channels every 500ms."""
+        from corekinect.mtib_client.v1.client.types import PowerChannel
+
+        while not self._power_poll_stop.wait(0.5):
+            try:
+                ts = time.time()
+                # Read DUT channel (ch0)
+                ch0, err0 = self.mtib.PowerRead(channel=PowerChannel.DUT)
+                if not err0 and ch0:
+                    self.telemetry.push_power(ts, ch0.current_ma, ch0.voltage_v * 1000)
+
+                # Read Charger channel (ch1) — push as separate type for dual-line chart
+                ch1, err1 = self.mtib.PowerRead(channel=PowerChannel.CHARGER)
+                if not err1 and ch1:
+                    self.telemetry.push(
+                        "power_chg", {"mA": round(ch1.current_ma, 2), "mV": round(ch1.voltage_v * 1000, 1)},
+                    )
+            except Exception:
+                pass  # Don't fail on power read errors
+
+    def setup_test(self, test_name: Optional[str] = None) -> None:
         """Per-test setup: mark test start time, clear UART buffer, reset fixture state."""
         self.cloud.mark_test_start()
         self.uart.clear()
+        if test_name:
+            self.telemetry.set_test(test_name)
         # Reset transient mock fixture state (button press, etc.) between tests.
         if hasattr(self.fixture, '_button_pressed'):
             self.fixture._button_pressed = False

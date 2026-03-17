@@ -103,9 +103,11 @@ from .sessions.artifacts import (
 )
 from .sessions.reporter import (
     report_start,
+    report_test_list,
     report_test_start,
     report_test_result,
     report_finish,
+    report_telemetry,
 )
 from .sessions.trigger import trigger_run
 from .sessions.demo import simulate_run
@@ -404,7 +406,9 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     v2.add_url_rule("/sessions/<run_id>/report/test-start",                                         endpoint="report_test_start",            view_func=report_test_start,        methods=["POST"])
     v2.add_url_rule("/sessions/<run_id>/report/test-result",                                        endpoint="report_test_result",           view_func=report_test_result,       methods=["POST"])
     v2.add_url_rule("/sessions/<run_id>/report/finish",                                             endpoint="report_run_finish",            view_func=report_finish,            methods=["POST"])
+    v2.add_url_rule("/sessions/<run_id>/report/test-list",                                          endpoint="report_test_list",             view_func=report_test_list,         methods=["POST"])
     v2.add_url_rule("/sessions/<run_id>/report/log-chunk",                                          endpoint="report_log_chunk",             view_func=report_log_chunk,         methods=["POST"])
+    v2.add_url_rule("/sessions/<run_id>/report/telemetry",                                         endpoint="report_telemetry",             view_func=report_telemetry,         methods=["POST"])
 
     # Sessions - Log & artifact retrieval
     v2.add_url_rule("/sessions/<run_id>/logs/<path:file_path>",                                     endpoint="get_run_log_file",             view_func=get_log_file,             methods=["GET"])

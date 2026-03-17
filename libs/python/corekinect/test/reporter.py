@@ -400,6 +400,26 @@ class ConcordReporter:
         # Start live log streaming
         self._start_stream_capture()
 
+    def pytest_collection_finish(self, session: pytest.Session) -> None:
+        """Called after collection is complete — send full test list for pre-population."""
+        if not self.enabled:
+            return
+
+        tests = []
+        for item in session.items:
+            parts = item.nodeid.split("::")
+            test_name = parts[-1] if parts else item.nodeid
+            module = None
+            if len(parts) >= 2:
+                file_part = parts[0]
+                if "/" in file_part:
+                    file_part = file_part.rsplit("/", 1)[-1]
+                if file_part.endswith(".py"):
+                    module = file_part[:-3]
+            tests.append({"name": test_name, "module": module})
+
+        self._post("report/test-list", {"tests": tests})
+
     def pytest_runtest_logstart(self, nodeid: str, location: tuple) -> None:
         """Called at the start of running a test item."""
         if not self.enabled:

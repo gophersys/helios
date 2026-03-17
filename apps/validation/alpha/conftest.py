@@ -535,7 +535,7 @@ def _test_lifecycle(request):
         return
 
     ctx = request.getfixturevalue("ctx")
-    ctx.setup_test()  # mark_test_start + clear UART
+    ctx.setup_test(test_name=request.node.name)  # mark_test_start + clear UART + set telemetry test
 
     yield
     artifacts_dir = cfg.ARTIFACTS_DIR

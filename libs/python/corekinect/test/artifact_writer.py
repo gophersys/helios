@@ -180,8 +180,8 @@ class ArtifactWriter:
         """Build full object path in MinIO."""
         test = test_name or self._current_test
         if test:
-            return f"validation/runs/{self.run_id}/{test}/{filename}"
-        return f"validation/runs/{self.run_id}/{filename}"
+            return f"sessions/{self.run_id}/{test}/{filename}"
+        return f"sessions/{self.run_id}/{filename}"
 
     def _notify_chunk(self, object_name: str, offset: int, size: int) -> None:
         """Fire-and-forget HTTP notification about new artifact chunk.
@@ -333,7 +333,7 @@ class ArtifactWriter:
             with self._lock:
                 manifest_data = json.dumps(self._manifest, indent=2).encode("utf-8")
 
-            object_name = f"validation/runs/{self.run_id}/manifest.json"
+            object_name = f"sessions/{self.run_id}/manifest.json"
             self._write_object(object_name, manifest_data)
         except Exception as e:
             log.warning("Failed to update manifest: %s", e)
@@ -361,6 +361,38 @@ class ArtifactWriter:
     def append_console(self, text: str, test_name: Optional[str] = None) -> bool:
         """Append console/stdout output to console.log."""
         return self.append_log(text, filename="console.log", test_name=test_name)
+
+    def write_bytes(self, object_path: str, content: bytes) -> bool:
+        """Write raw bytes to a specific object path.
+
+        Unlike append_log, this writes the full content at once (put, not append).
+        Used by TelemetryStreamer for per-test JSONL files.
+
+        Args:
+            object_path: Relative path within the run (e.g., "telemetry/test_02.jsonl").
+            content: Raw bytes to write.
+
+        Returns:
+            True if write succeeded.
+        """
+        if not self.enabled:
+            return False
+
+        import io as _io
+        full_path = f"sessions/{self.run_id}/{object_path}"
+        try:
+            client = self._get_client()
+            client.put_object(
+                self.bucket,
+                full_path,
+                _io.BytesIO(content),
+                len(content),
+                content_type="application/x-ndjson",
+            )
+            return True
+        except Exception as e:
+            log.warning("write_bytes failed for %s: %s", full_path, e)
+            return False
 
     # ── UART capture ─────────────────────────────────────────
 

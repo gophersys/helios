@@ -28,23 +28,54 @@
     Search,
   } from 'lucide-svelte';
   import { getAuth } from '$lib/stores/auth.svelte';
-  import { apiFetch, api } from '$lib/api';
+  import { apiFetch, api, getToken } from '$lib/api';
   import type { ValidationRun, ValidationExecution } from '$lib/types/models';
   import type { ApiResponse } from '$lib/types';
   import { formatTimeAgo, formatDateTime, formatDuration } from '$lib/utils/formatting';
   import ErrorAlert from '$lib/components/ui/error-alert.svelte';
   import LoadingState from '$lib/components/ui/loading-state.svelte';
   import StatusBadge from '$lib/components/ui/status-badge.svelte';
+  import { parseAnsi, stripAnsi } from '$lib/utils/ansi';
+  import { highlightTraceback } from '$lib/utils/python-highlight';
   import {
     subscribeValidationRunWithLogs,
     type ValidationTestStartEvent,
     type ValidationTestResultEvent,
     type ValidationRunFinishEvent,
     type ValidationLogChunkEvent,
+    type TelemetryEvent,
   } from '$lib/services/websocket';
 
   const auth = getAuth();
   const runId = $derived($page.params.id);
+
+  // Svelte action: auto-scroll a container to bottom when content changes
+  function autoScroll(node: HTMLElement, _trigger: unknown) {
+    requestAnimationFrame(() => node.scrollTop = node.scrollHeight);
+    return {
+      update() {
+        requestAnimationFrame(() => node.scrollTop = node.scrollHeight);
+      }
+    };
+  }
+
+  // Svelte action: removes max-w-7xl from the parent content wrapper
+  // so this page can use the full viewport width for UART/power panels
+  function fullWidth(node: HTMLElement) {
+    const parent = node.closest('.max-w-7xl');
+    if (parent) {
+      parent.classList.remove('max-w-7xl');
+      parent.classList.add('max-w-full');
+    }
+    return {
+      destroy() {
+        if (parent) {
+          parent.classList.remove('max-w-full');
+          parent.classList.add('max-w-7xl');
+        }
+      }
+    };
+  }
 
   let run = $state<ValidationRun | null>(null);
   let executions = $state<ValidationExecution[]>([]);
@@ -91,6 +122,41 @@
   let uartCommsLines = $state<string[]>([]);
   let bottomPanelCollapsed = $state(false);
 
+  // Resizable split between test results and UART terminals
+  let topPanelHeight = $state(45); // percentage of flex column wrapper
+  let resizing = $state(false);
+  let flexColumnEl: HTMLElement | null = null;
+
+  function startResize(e: MouseEvent) {
+    e.preventDefault();
+    resizing = true;
+    const startY = e.clientY;
+    const startHeight = topPanelHeight;
+    // Find the flex column wrapper (parent of the resize bar)
+    const wrapper = (e.target as HTMLElement).closest('[data-resize-container]') as HTMLElement;
+    if (!wrapper) return;
+    const wrapperHeight = wrapper.getBoundingClientRect().height;
+
+    function onMove(ev: MouseEvent) {
+      const delta = ev.clientY - startY;
+      const deltaPercent = (delta / wrapperHeight) * 100;
+      topPanelHeight = Math.max(15, Math.min(80, startHeight + deltaPercent));
+    }
+
+    function onUp() {
+      resizing = false;
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    }
+
+    document.body.style.cursor = 'row-resize';
+    document.body.style.userSelect = 'none';
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  }
+
   // UART search
   let uartAppSearch = $state('');
   let uartCommsSearch = $state('');
@@ -102,7 +168,7 @@
     if (!query.trim()) return [];
     const q = query.toLowerCase();
     return lines.reduce((acc: number[], line, i) => {
-      if (line.toLowerCase().includes(q)) acc.push(i);
+      if (stripAnsi(line).toLowerCase().includes(q)) acc.push(i);
       return acc;
     }, []);
   }
@@ -121,16 +187,63 @@
 
   // Power profiler data
   interface PowerSample {
-    t: number;  // seconds since start
+    t: number;  // POSIX seconds
     mA: number; // current in milliamps
     mV: number; // voltage in millivolts
   }
-  let powerSamples = $state<PowerSample[]>([]);
+  let powerSamples = $state<PowerSample[]>([]);      // DUT (ch0)
+  let powerChgSamples = $state<PowerSample[]>([]);    // Charger (ch1)
   const POWER_WINDOW_S = 60; // show last 60 seconds
 
   // Derived search matches (reactive)
   const appMatches = $derived(getSearchMatches(uartAppLines, uartAppSearch));
   const commsMatches = $derived(getSearchMatches(uartCommsLines, uartCommsSearch));
+
+  // Performance: throttle UART + log updates to avoid excessive re-renders
+  const MAX_UART_LINES = 1500; // keep last N lines per terminal (perf: 5000 causes lag during FUOTA)
+  let _uartAppPending: string[] = [];
+  let _uartCommsPending: string[] = [];
+  let _logChunkPending = '';
+  let _flushTimer: ReturnType<typeof setTimeout> | null = null;
+
+  function _scheduleFlush() {
+    if (_flushTimer) return;
+    _flushTimer = setTimeout(() => {
+      _flushTimer = null;
+      // Flush UART
+      if (_uartAppPending.length > 0) {
+        uartAppLines = [...uartAppLines, ..._uartAppPending].slice(-MAX_UART_LINES);
+        _uartAppPending = [];
+      }
+      if (_uartCommsPending.length > 0) {
+        uartCommsLines = [...uartCommsLines, ..._uartCommsPending].slice(-MAX_UART_LINES);
+        _uartCommsPending = [];
+      }
+      // Flush log output
+      if (_logChunkPending) {
+        const runningTest = liveTests.find(t => t.status === 'running');
+        if (runningTest) {
+          runningTest.logOutput = (runningTest.logOutput || '') + _logChunkPending;
+          liveTests = liveTests;
+        }
+        _logChunkPending = '';
+      }
+    }, 1000); // flush every 1s (perf: 500ms causes stutter during heavy FUOTA streaming)
+  }
+
+  // Auto-scroll UART terminals to bottom when new lines arrive
+  $effect(() => {
+    if (uartAppLines.length > 0 && !uartAppSearch) {
+      const el = document.getElementById('uart-app-scroll');
+      if (el) requestAnimationFrame(() => el.scrollTop = el.scrollHeight);
+    }
+  });
+  $effect(() => {
+    if (uartCommsLines.length > 0 && !uartCommsSearch) {
+      const el = document.getElementById('uart-comms-scroll');
+      if (el) requestAnimationFrame(() => el.scrollTop = el.scrollHeight);
+    }
+  });
   let logContent = $state<string | null>(null);
   let logArtifactName = $state<string | null>(null);
 
@@ -294,58 +407,79 @@
         }));
       }
 
-      // Hydrate liveTests from executions (for page reload)
-      // Only hydrate if liveTests is empty (WebSocket hasn't populated it yet)
+      // Hydrate liveTests: merge config.testList (all tests) with executions (completed tests)
+      // This ensures ALL tests show up even if only some have run
       const executions = (res.data as any).executions as any[] | undefined;
-      if (executions?.length && liveTests.length === 0) {
-        const hydratedTests: LiveTest[] = [];
-        for (const ex of executions) {
-          const testName = ex.test?.name || 'Unknown';
-          const module = ex.test?.category || null;
-          let status: LiveTest['status'] = 'queued';
-          if (ex.status === 'RUNNING') status = 'running';
-          else if (ex.status === 'PASSED') status = 'passed';
-          else if (ex.status === 'FAILED') status = 'failed';
-          else if (ex.status === 'SKIPPED') status = 'skipped';
+      const configTestList = (res.data as any).config?.testList as { name: string; module: string | null }[] | undefined;
 
-          // Extract log output from first result if present
+      if (liveTests.length === 0) {
+        // Build a map of execution results keyed by test name
+        const execMap = new Map<string, any>();
+        if (executions) {
+          for (const ex of executions) {
+            const name = ex.test?.name || 'Unknown';
+            execMap.set(name, ex);
+          }
+        }
+
+        // Start from the full test list (all tests as queued)
+        const allTestNames: { name: string; module: string | null }[] = [];
+        if (configTestList?.length) {
+          allTestNames.push(...configTestList);
+        }
+        // Add any executions not in the test list (edge case)
+        if (executions) {
+          for (const ex of executions) {
+            const name = ex.test?.name || 'Unknown';
+            if (!allTestNames.find(t => t.name === name)) {
+              allTestNames.push({ name, module: ex.test?.category || null });
+            }
+          }
+        }
+
+        const hydratedTests: LiveTest[] = [];
+        for (const t of allTestNames) {
+          const ex = execMap.get(t.name);
+
+          let status: LiveTest['status'] = 'queued';
           let logOutput: string | null = null;
           let errorMessage: string | null = null;
           let measurements: Record<string, unknown> | null = null;
           let durationS: number | null = null;
 
-          // Steps may come as 'steps' (new API) or 'results' (legacy)
-          const steps = ex.steps || ex.results || [];
-          if (steps.length) {
-            const step = steps[0];
-            // Step fields are at top level (not nested in 'result')
-            logOutput = step.logOutput || (step.result && step.result.logOutput) || null;
-            errorMessage = step.errorMessage || (step.result && step.result.errorMessage) || null;
-            measurements = step.measurements || (step.result && step.result.measurements) || null;
-            if (step.durationMs) {
-              durationS = step.durationMs / 1000;
+          if (ex) {
+            if (ex.status === 'RUNNING') status = 'running';
+            else if (ex.status === 'PASSED') status = 'passed';
+            else if (ex.status === 'FAILED') status = 'failed';
+            else if (ex.status === 'SKIPPED') status = 'skipped';
+
+            const steps = ex.steps || ex.results || [];
+            if (steps.length) {
+              const step = steps[0];
+              logOutput = step.logOutput || (step.result && step.result.logOutput) || null;
+              errorMessage = step.errorMessage || (step.result && step.result.errorMessage) || null;
+              measurements = step.measurements || (step.result && step.result.measurements) || null;
+              if (step.durationMs) durationS = step.durationMs / 1000;
+            }
+
+            if (durationS === null && ex.startedAt && ex.finishedAt) {
+              const start = new Date(ex.startedAt).getTime();
+              const end = new Date(ex.finishedAt).getTime();
+              durationS = (end - start) / 1000;
             }
           }
 
-          // Calculate duration from timestamps if not in result
-          if (durationS === null && ex.startedAt && ex.finishedAt) {
-            const start = new Date(ex.startedAt).getTime();
-            const end = new Date(ex.finishedAt).getTime();
-            durationS = (end - start) / 1000;
-          }
-
           hydratedTests.push({
-            name: testName,
-            module,
+            name: t.name,
+            module: t.module,
             status,
             durationS,
             errorMessage,
             measurements,
             logOutput,
-            expanded: status === 'failed', // Auto-expand failures
+            expanded: status === 'failed',
           });
         }
-        // Sort tests by name to maintain sequential order (test_01, test_02, ...)
         hydratedTests.sort((a, b) => a.name.localeCompare(b.name));
         liveTests = hydratedTests;
 
@@ -410,10 +544,135 @@
     try {
       const res = await apiFetch<ApiResponse<Artifact[]>>(`/v2/sessions/${runId}/artifacts`);
       artifacts = res.data;
+      // Load telemetry from artifacts (for post-run viewing)
+      loadTelemetryFromArtifacts(res.data);
+      // Load historical test output for the currently running test
+      loadRunningTestOutput(res.data);
     } catch {
       artifacts = [];
     } finally {
       artifactsLoading = false;
+    }
+  }
+
+  async function loadRunningTestOutput(arts: Artifact[]): Promise<void> {
+    // If a test is running but has no logOutput (page loaded mid-test),
+    // fetch the output.log which contains all stdout, find the current
+    // test's section, and populate it
+    const runningTest = liveTests.find(t => t.status === 'running' && !t.logOutput);
+    if (!runningTest) return;
+
+    const outputLog = arts.find(a => a.name === 'logs/output.log');
+    if (!outputLog) return;
+
+    try {
+      const headers: Record<string, string> = {};
+      const token = getToken();
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      const res = await fetch(`/v2/sessions/${runId}/artifacts/logs/output.log`, { headers });
+      if (!res.ok) return;
+      const text = await res.text();
+      if (!text) return;
+
+      // Find the start of the current test's output by looking for its name
+      // The reporter prints "tests/fuota/test_file.py::TestClass::test_name" before each test
+      const lines = text.split('\n');
+      let startIdx = 0;
+
+      // Search backwards for the test name marker
+      for (let i = lines.length - 1; i >= 0; i--) {
+        if (lines[i].includes(runningTest.name)) {
+          startIdx = i + 1; // start AFTER the marker line
+          break;
+        }
+      }
+
+      // Take everything from the test start to the end
+      const testOutput = lines.slice(startIdx).join('\n').trim();
+      if (testOutput) {
+        runningTest.logOutput = testOutput;
+        liveTests = liveTests;
+      }
+    } catch {
+      // Ignore — log-chunk streaming will populate going forward
+    }
+  }
+
+  async function loadTelemetryFromArtifacts(arts: Artifact[]): Promise<void> {
+    // Find telemetry JSONL files (per-test-step)
+    const telemetryArts = arts.filter(a => a.name.startsWith('telemetry/') && a.name.endsWith('.jsonl'));
+    // Fallback: legacy UART log files
+    const uartArts = arts.filter(a => a.name.endsWith('_uart.log'));
+
+    const artList = telemetryArts.length > 0 ? telemetryArts : uartArts;
+    if (artList.length === 0) return;
+
+    const appLines: string[] = [];
+    const commsLines: string[] = [];
+    const power: typeof powerSamples = [];
+
+    for (const art of artList) {
+      try {
+        // Fetch artifact content (proxied through API, not a redirect)
+        const headers: Record<string, string> = {};
+        const token = getToken();
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+
+        const res = await fetch(`/v2/sessions/${runId}/artifacts/${art.name}`, { headers });
+        if (!res.ok) continue;
+        const text = await res.text();
+
+        if (!text) continue;
+
+        if (art.name.endsWith('.jsonl')) {
+          // Parse JSONL telemetry
+          for (const line of text.split('\n')) {
+            if (!line.trim()) continue;
+            try {
+              const s = JSON.parse(line);
+              if (s.type === 'uart') {
+                const ts = new Date(s.t * 1000).toISOString().slice(11, 23);
+                const formatted = `\x1b[36m[${ts}]\x1b[0m ${s.line}`;
+                if (s.target === 'app') appLines.push(formatted);
+                else if (s.target === 'comms') commsLines.push(formatted);
+              } else if (s.type === 'power') {
+                power.push({ t: s.t, mA: s.mA, mV: s.mV });
+              }
+            } catch {
+              // Skip malformed lines
+            }
+          }
+        } else {
+          // Legacy: raw UART log (both processors mixed)
+          const header = `── ${art.name} ──`;
+          const lines = text.split('\n').filter(l => l.length > 0);
+          appLines.push(header, ...lines);
+          commsLines.push(header, ...lines);
+        }
+      } catch {
+        // Skip artifacts that can't be loaded
+      }
+    }
+
+    // Cap lines to prevent browser lag (keep last MAX_UART_LINES)
+    if (appLines.length > MAX_UART_LINES) {
+      const truncated = appLines.length - MAX_UART_LINES;
+      uartAppLines = [`--- ${truncated.toLocaleString()} earlier lines truncated ---`, ...appLines.slice(-MAX_UART_LINES)];
+    } else if (appLines.length > 0) {
+      uartAppLines = appLines;
+    }
+    if (commsLines.length > MAX_UART_LINES) {
+      const truncated = commsLines.length - MAX_UART_LINES;
+      uartCommsLines = [`--- ${truncated.toLocaleString()} earlier lines truncated ---`, ...commsLines.slice(-MAX_UART_LINES)];
+    } else if (commsLines.length > 0) {
+      uartCommsLines = commsLines;
+    }
+    // Power: keep last 2 min only
+    if (power.length > 300) {
+      const cutoff = power[power.length - 1].t - 120;
+      powerSamples = power.filter(s => s.t > cutoff);
+    } else if (power.length > 0) {
+      powerSamples = power;
     }
   }
 
@@ -455,13 +714,9 @@
 
   function setupWebSocket(): void {
     if (!runId) return;
-    unsubscribeWs = subscribeValidationRun(
+    unsubscribeWs = subscribeValidationRunWithLogs(
       runId,
       {
-        onRunStart: () => {
-          liveRunning = true;
-          liveFinished = false;
-        },
         onTestStart: (data: ValidationTestStartEvent) => {
           liveRunning = true;
           const existing = liveTests.find(t => t.name === data.testName);
@@ -510,11 +765,70 @@
             durationS: data.durationS,
           };
           fetchRun();
+          // Reload artifacts to pick up UART logs written during the run
+          fetchArtifacts();
+        },
+        onLogChunk: (data: ValidationLogChunkEvent) => {
+          // Buffer log chunks and flush every 500ms (avoids per-chunk re-renders)
+          try {
+            const text = data.data ? atob(data.data) : (data.chunk || '');
+            if (!text) return;
+            _logChunkPending += text;
+            _scheduleFlush();
+          } catch {
+            // Ignore decode errors
+          }
+        },
+        onTestList: (data) => {
+          // Pre-populate all test steps as 'queued' before they run
+          if (liveTests.length === 0 || liveTests.every(t => t.status === 'queued')) {
+            const tests: LiveTest[] = data.tests.map(t => ({
+              name: t.name,
+              module: t.module,
+              status: 'queued' as const,
+              durationS: null,
+              errorMessage: null,
+              measurements: null,
+              logOutput: null,
+              expanded: false,
+            }));
+            tests.sort((a, b) => a.name.localeCompare(b.name));
+            liveTests = tests;
+          }
+        },
+        onTelemetry: (data: TelemetryEvent) => {
+          // Buffer UART samples and flush at 2Hz (500ms) for smooth performance.
+          // Power samples update immediately (small data, chart needs real-time feel).
+          let powerChanged = false;
+
+          for (const s of data.samples) {
+            if (s.type === 'uart') {
+              const ts = new Date(s.t * 1000).toISOString().slice(11, 23);
+              const formatted = `\x1b[36m[${ts}]\x1b[0m ${s.line}`;
+              if (s.target === 'app') _uartAppPending.push(formatted);
+              else if (s.target === 'comms') _uartCommsPending.push(formatted);
+            } else if (s.type === 'power') {
+              powerSamples.push({ t: s.t!, mA: s.mA!, mV: s.mV! });
+              powerChanged = true;
+            } else if (s.type === 'power_chg') {
+              powerChgSamples.push({ t: s.t!, mA: s.mA!, mV: s.mV! });
+              powerChanged = true;
+            }
+          }
+
+          // Power: trim to last 60s and max 120 samples (avoid SVG lag)
+          if (powerChanged) {
+            const cutoff = (powerSamples.at(-1)?.t ?? 0) - 60;
+            if (powerSamples.length > 120) powerSamples = powerSamples.filter(s => s.t > cutoff).slice(-120);
+            if (powerChgSamples.length > 120) powerChgSamples = powerChgSamples.filter(s => s.t > cutoff).slice(-120);
+            powerSamples = powerSamples;
+            powerChgSamples = powerChgSamples;
+          }
+
+          // Schedule UART flush (batched at 500ms)
+          if (_uartAppPending.length > 0 || _uartCommsPending.length > 0) _scheduleFlush();
         },
       },
-      (msg) => {
-        console.warn('Validation WebSocket error:', msg);
-      }
     );
   }
 
@@ -558,16 +872,7 @@
   <title>{run?.name ?? 'Run'} — Validation — Concord</title>
 </svelte:head>
 
-<div class="animate-fade-in">
-  <!-- Back link -->
-  <button
-    onclick={() => goto('/validation/runs')}
-    class="flex items-center gap-1 text-xs text-text-tertiary hover:text-text-primary transition-colors mb-3"
-  >
-    <ArrowLeft size={14} />
-    Validation Runs
-  </button>
-
+<div class="animate-fade-in" use:fullWidth>
   {#if loading}
     <LoadingState message="Loading run..." />
   {:else if error && !run}
@@ -575,9 +880,12 @@
   {:else if run}
     <ErrorAlert message={error} />
 
-    <!-- Compact header bar: title + status + counts + duration in 1 row -->
-    <div class="flex items-center gap-3 mb-3 px-4 py-2.5 rounded-lg bg-surface-1 border border-border">
-      <!-- Title + status -->
+    <!-- Compact header bar: back + title + status + counts + duration in 1 row -->
+    <div class="flex items-center gap-2 mb-2 px-3 py-1.5 rounded-lg bg-surface-1 border border-border">
+      <button onclick={() => goto('/validation/runs')} class="text-text-tertiary hover:text-text-primary transition-colors flex-shrink-0" title="Back to runs">
+        <ArrowLeft size={14} />
+      </button>
+      <div class="w-px h-4 bg-border"></div>
       <h1 class="text-sm font-semibold text-text-primary truncate">{run.name}</h1>
       <StatusBadge status={run.status} />
       {#if liveRunning}
@@ -644,9 +952,10 @@
       </div>
     </div>
 
-    <!-- ═══ GITHUB ACTIONS STYLE: Two-column layout ═══ -->
+    <!-- ═══ RESIZABLE SPLIT: Test results (top) + UART terminals (bottom) ═══ -->
     {#if liveTests.length > 0 || buildJobs.length > 0}
-      <div class="flex gap-3" style="min-height: 280px; height: calc(100vh - 340px);">
+    <div class="flex flex-col" data-resize-container style="height: calc(100vh - 90px);">
+      <div class="flex gap-3 overflow-hidden" style="flex: 0 0 {topPanelHeight}%;">
         <!-- Left sidebar: Stage list -->
         <div class="w-64 flex-shrink-0 overflow-y-auto">
           <div class="space-y-1">
@@ -882,10 +1191,30 @@
                       <!-- Expanded log panel (GitHub Actions style) -->
                       {#if test.expanded}
                         <div class="border-t border-border bg-[#0d1117]">
-                          <!-- Error message -->
+                          <!-- Error traceback with Python syntax highlighting -->
                           {#if test.errorMessage}
-                            <div class="px-4 py-2 bg-error-muted/50 border-b border-error/20">
-                              <pre class="text-xs text-error whitespace-pre-wrap font-mono leading-relaxed">{test.errorMessage}</pre>
+                            {@const highlighted = highlightTraceback(test.errorMessage)}
+                            {@const fileLine = highlighted.find(l => l.isFilePath)}
+                            <div class="border-b border-error/20">
+                              <!-- File badge -->
+                              {#if fileLine}
+                                <div class="px-4 py-1.5 bg-[#161b22] border-b border-border/30 flex items-center gap-2">
+                                  <FileText size={12} class="text-text-tertiary" />
+                                  <span class="text-xs font-mono text-accent">{fileLine.filePath}</span>
+                                  {#if fileLine.fileLineNum}
+                                    <span class="text-2xs font-mono text-orange-300">line {fileLine.fileLineNum}</span>
+                                  {/if}
+                                </div>
+                              {/if}
+                              <!-- Highlighted code -->
+                              <div class="px-2 py-2 bg-[#0d1117] max-h-80 overflow-auto font-mono text-xs leading-relaxed">
+                                {#each highlighted as line}
+                                  <div class="flex {line.isMarker ? 'bg-warning/10 border-l-2 border-warning' : line.isError ? 'bg-error/5 border-l-2 border-error' : line.isFilePath ? 'hidden' : ''}">
+                                    <span class="w-8 text-right pr-2 select-none flex-shrink-0" style="color: #4b5563">{line.lineNum || ''}</span>
+                                    <span class="flex-1 whitespace-pre-wrap">{#each line.segments as seg}<span style={seg.cls}>{seg.text}</span>{/each}</span>
+                                  </div>
+                                {/each}
+                              </div>
                             </div>
                           {/if}
 
@@ -904,21 +1233,30 @@
 
                           <!-- Log output (terminal style) -->
                           {#if test.logOutput}
-                            <div class="p-4 max-h-96 overflow-auto">
-                              <pre class="text-xs text-[#c9d1d9] whitespace-pre-wrap font-mono leading-relaxed">{test.logOutput}</pre>
+                            <div class="border-t border-border/20">
+                              <div class="px-4 py-1 text-2xs font-medium text-text-tertiary bg-[#161b22]">Output</div>
+                              <div class="px-4 py-2 max-h-96 overflow-auto bg-[#0d1117] font-mono text-xs leading-relaxed" use:autoScroll={test.logOutput}>
+                                {#each test.logOutput.split('\n') as line}
+                                  <div class="whitespace-pre-wrap">{#each parseAnsi(line) as seg}<span class="{seg.classes || 'text-[#c9d1d9]'}">{seg.text}</span>{/each}</div>
+                                {/each}
+                              </div>
                             </div>
                           {:else if test.status === 'skipped'}
                             <div class="px-4 py-3 text-xs text-text-tertiary">
-                              Test was skipped (fixture/firmware mismatch or xfail).
+                              Test was skipped.
                             </div>
-                          {:else if test.status === 'passed' || test.status === 'failed'}
-                            <div class="px-4 py-3 text-xs text-text-tertiary italic">
-                              No log output captured for this test.
-                            </div>
-                          {:else}
+                          {:else if test.status === 'running'}
                             <div class="px-4 py-3 flex items-center gap-2 text-xs text-text-tertiary">
                               <Loader2 size={12} class="animate-spin" />
                               Waiting for output...
+                            </div>
+                          {:else if test.status === 'passed' || test.status === 'failed'}
+                            <div class="px-4 py-3 text-xs text-text-tertiary italic">
+                              No log output captured.
+                            </div>
+                          {:else}
+                            <div class="px-4 py-3 text-xs text-text-tertiary italic">
+                              Queued
                             </div>
                           {/if}
                         </div>
@@ -936,14 +1274,19 @@
         </div>
 
         <!-- Power profiler panel (right side, hidden on narrow screens) -->
-        <div class="w-72 flex-shrink-0 hidden xl:block">
-          <div class="rounded-lg border border-border bg-surface-0 overflow-hidden h-full">
-            <div class="flex items-center gap-2 px-3 py-1.5 border-b border-border bg-surface-1">
+        <div class="flex-shrink-0 hidden xl:block self-start" style="width: 360px;">
+          <div class="rounded-lg border border-border bg-surface-0 overflow-hidden flex flex-col" style="height: 320px;">
+            <div class="flex items-center gap-2 px-3 py-1.5 border-b border-border bg-surface-1 flex-shrink-0">
               <Activity size={12} class="text-accent" />
               <span class="text-xs font-medium text-text-primary">Power</span>
               {#if powerSamples.length > 0}
                 {@const last = powerSamples[powerSamples.length - 1]}
-                <span class="ml-auto text-2xs font-mono text-text-secondary">{last.mA.toFixed(1)} mA · {(last.mV / 1000).toFixed(2)} V</span>
+                {@const lastChg = powerChgSamples.length > 0 ? powerChgSamples[powerChgSamples.length - 1] : null}
+                <span class="ml-auto text-2xs font-mono">
+                  <span class="text-cyan-400">{last.mA.toFixed(1)}</span>
+                  {#if lastChg}<span class="text-text-tertiary"> / </span><span class="text-orange-400">{lastChg.mA.toFixed(1)}</span>{/if}
+                  <span class="text-text-tertiary"> mA</span>
+                </span>
               {:else}
                 <span class="ml-auto text-2xs text-text-tertiary">No data</span>
               {/if}
@@ -951,8 +1294,9 @@
             <div class="bg-[#0d1117] p-2 flex-1 overflow-hidden">
               {#if powerSamples.length > 1}
                 {@const windowSamples = powerSamples.filter(s => s.t >= (powerSamples[powerSamples.length-1].t - POWER_WINDOW_S))}
-                {@const minMA = Math.max(0, Math.min(...windowSamples.map(s => s.mA)) - 5)}
-                {@const maxMA = Math.max(...windowSamples.map(s => s.mA)) + 5}
+                {@const allSamples = [...windowSamples, ...powerChgSamples.filter(s => s.t >= windowSamples[0].t)]}
+                {@const minMA = 0}
+                {@const maxMA = Math.max(120, ...allSamples.map(s => s.mA)) * 1.1}
                 {@const rangeMA = Math.max(maxMA - minMA, 1)}
                 {@const tMin = windowSamples[0].t}
                 {@const tMax = windowSamples[windowSamples.length-1].t}
@@ -969,8 +1313,7 @@
                   <text x={pad.left - 4} y={pad.top + ph + 3} text-anchor="end" class="fill-text-tertiary" style="font-size: 8px;">{minMA.toFixed(0)}</text>
                   <text x={4} y={pad.top + ph / 2} text-anchor="start" class="fill-text-tertiary" style="font-size: 7px;" transform="rotate(-90, 4, {pad.top + ph / 2})">mA</text>
                   <!-- X axis -->
-                  <text x={pad.left} y={h - 4} class="fill-text-tertiary" style="font-size: 7px;">{tMin.toFixed(0)}s</text>
-                  <text x={pad.left + pw} y={h - 4} text-anchor="end" class="fill-text-tertiary" style="font-size: 7px;">{tMax.toFixed(0)}s</text>
+                  <text x={pad.left + pw} y={h - 4} text-anchor="end" class="fill-text-tertiary" style="font-size: 7px;">-{(tMax - tMin).toFixed(0)}s</text>
                   <!-- Grid lines -->
                   <line x1={pad.left} y1={pad.top} x2={pad.left + pw} y2={pad.top} stroke="#1e2a3a" stroke-width="0.5" />
                   <line x1={pad.left} y1={pad.top + ph / 2} x2={pad.left + pw} y2={pad.top + ph / 2} stroke="#1e2a3a" stroke-width="0.5" stroke-dasharray="2,2" />
@@ -986,7 +1329,7 @@
                       return `${x},${y}`;
                     }).join(' ')}
                   />
-                  <!-- Fill under curve -->
+                  <!-- Fill under DUT curve -->
                   <polygon
                     fill="rgba(34,211,238,0.08)"
                     points={`${pad.left},${pad.top + ph} ${windowSamples.map(s => {
@@ -995,12 +1338,35 @@
                       return `${x},${y}`;
                     }).join(' ')} ${pad.left + pw},${pad.top + ph}`}
                   />
+                  <!-- Charger line (orange) -->
+                  {#if powerChgSamples.length > 1}
+                    {@const chgWindow = powerChgSamples.filter(s => s.t >= tMin && s.t <= tMax)}
+                    {#if chgWindow.length > 1}
+                      <polyline
+                        fill="none"
+                        stroke="#fb923c"
+                        stroke-width="1"
+                        stroke-opacity="0.8"
+                        points={chgWindow.map(s => {
+                          const x = pad.left + ((s.t - tMin) / tRange) * pw;
+                          const y = pad.top + ph - ((s.mA - minMA) / rangeMA) * ph;
+                          return `${x},${y}`;
+                        }).join(' ')}
+                      />
+                    {/if}
+                  {/if}
+                  <!-- Legend -->
+                  <line x1={pad.left} y1={h - 12} x2={pad.left + 12} y2={h - 12} stroke="#22d3ee" stroke-width="1.5" />
+                  <text x={pad.left + 15} y={h - 9} class="fill-text-tertiary" style="font-size: 6px;">DUT</text>
+                  <line x1={pad.left + 35} y1={h - 12} x2={pad.left + 47} y2={h - 12} stroke="#fb923c" stroke-width="1" />
+                  <text x={pad.left + 50} y={h - 9} class="fill-text-tertiary" style="font-size: 6px;">CHG</text>
                 </svg>
               {:else}
-                <div class="h-full flex items-center justify-center">
+                <div class="w-full h-full flex items-center justify-center" style="min-height: 250px;">
                   <div class="text-center">
-                    <Activity size={20} class="mx-auto text-text-tertiary opacity-20 mb-1" />
-                    <div class="text-2xs text-text-tertiary">Waiting for power data</div>
+                    <Activity size={24} class="mx-auto text-text-tertiary opacity-20 mb-2" />
+                    <div class="text-xs text-text-tertiary">Waiting for power data</div>
+                    <div class="text-2xs text-text-tertiary mt-1 opacity-60">Streams when DUT is powered</div>
                   </div>
                 </div>
               {/if}
@@ -1008,90 +1374,79 @@
           </div>
         </div>
       </div>
-    {:else}
-      <!-- No tests yet -->
-      <div class="card text-center py-12">
-        <Terminal size={48} class="mx-auto text-text-tertiary opacity-50 mb-4" />
-        <div class="text-sm text-text-tertiary mb-4">
-          No test executions yet.
-        </div>
-      </div>
-    {/if}
+
+    <!-- Resize bar -->
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div
+      onmousedown={startResize}
+      class="h-3 my-1 flex items-center justify-center cursor-row-resize group rounded transition-colors
+        {resizing ? 'bg-accent/20' : 'hover:bg-surface-2'}"
+    >
+      <div class="w-16 h-1 rounded-full transition-colors {resizing ? 'bg-accent' : 'bg-border group-hover:bg-text-tertiary'}"></div>
+    </div>
 
     <!-- ═══ BOTTOM PANEL: Side-by-side UART Terminals ═══ -->
-    <div class="mt-3" class:hidden={bottomPanelCollapsed}>
+    <div class="flex-1 min-h-0 overflow-hidden">
       <!-- Wide screens: side-by-side terminals -->
-      <div class="hidden md:grid md:grid-cols-2 gap-3">
+      <div class="hidden md:grid md:grid-cols-2 gap-2 h-full" style="grid-template-columns: 1fr 1fr;">
         <!-- UART APP -->
-        <div class="rounded-lg border border-border bg-surface-0 overflow-hidden">
-          <div class="flex items-center gap-2 px-3 py-1.5 border-b border-border bg-surface-1">
+        <div class="rounded-lg border border-border bg-surface-0 overflow-hidden flex flex-col">
+          <div class="flex items-center gap-2 px-3 py-1 border-b border-border bg-surface-1 flex-shrink-0">
             <Terminal size={12} class="text-green-400" />
-            <span class="text-xs font-medium text-text-primary">UART APP</span>
-            <span class="text-2xs text-text-tertiary">nRF52840</span>
+            <span class="text-xs font-medium text-text-primary">nRF52840</span>
             {#if uartAppLines.length > 0}
               <span class="text-2xs text-text-tertiary ml-auto">{uartAppLines.length} lines</span>
             {/if}
           </div>
-          <!-- Search bar -->
-          <div class="flex items-center gap-1 px-2 py-1 border-b border-border bg-[#161b22]">
-            <input
-              type="text"
-              bind:value={uartAppSearch}
-              placeholder="Search..."
-              class="flex-1 bg-transparent text-xs text-[#c9d1d9] placeholder:text-text-tertiary outline-none font-mono"
-            />
+          <div class="flex items-center gap-1 px-2 py-0.5 border-b border-border bg-[#161b22]">
+            <Search size={10} class="text-text-tertiary" />
+            <input type="text" bind:value={uartAppSearch} placeholder="Search..." class="flex-1 bg-transparent text-xs text-[#c9d1d9] placeholder:text-text-tertiary outline-none font-mono" />
             {#if uartAppSearch && appMatches.length > 0}
               <span class="text-2xs text-text-tertiary">{(uartAppSearchIndex % appMatches.length) + 1}/{appMatches.length}</span>
-              <button onclick={() => { uartAppSearchIndex = Math.max(0, uartAppSearchIndex - 1); scrollToMatch('uart-app-scroll', uartAppSearchIndex, appMatches); }} class="text-text-tertiary hover:text-text-primary p-0.5">&#x25B2;</button>
-              <button onclick={() => { uartAppSearchIndex = uartAppSearchIndex + 1; scrollToMatch('uart-app-scroll', uartAppSearchIndex, appMatches); }} class="text-text-tertiary hover:text-text-primary p-0.5">&#x25BC;</button>
+              <button onclick={() => { uartAppSearchIndex = Math.max(0, uartAppSearchIndex - 1); scrollToMatch('uart-app-scroll', uartAppSearchIndex, appMatches); }} class="text-text-tertiary hover:text-text-primary p-0.5 text-xs">&#x25B2;</button>
+              <button onclick={() => { uartAppSearchIndex = uartAppSearchIndex + 1; scrollToMatch('uart-app-scroll', uartAppSearchIndex, appMatches); }} class="text-text-tertiary hover:text-text-primary p-0.5 text-xs">&#x25BC;</button>
             {:else if uartAppSearch}
               <span class="text-2xs text-text-tertiary">0 results</span>
             {/if}
           </div>
-          <div id="uart-app-scroll" class="max-h-[36rem] overflow-y-auto bg-[#0d1117] p-2 font-mono text-xs leading-relaxed">
+          <div id="uart-app-scroll" class="flex-1 overflow-y-auto overflow-x-auto bg-[#0d1117] px-2 py-1 font-mono text-xs leading-snug">
             {#if uartAppLines.length > 0}
               {#each uartAppLines as line, i}
-                <div data-line-index={i} class="whitespace-pre {appMatches.includes(i) ? 'bg-yellow-500/20 text-yellow-200' : 'text-[#c9d1d9]'}">{line}</div>
+                <div data-line-index={i} class="whitespace-pre {appMatches.includes(i) ? 'bg-yellow-500/20' : ''}">{#each parseAnsi(line) as seg}<span class="{seg.classes || 'text-[#c9d1d9]'}">{seg.text}</span>{/each}</div>
               {/each}
             {:else}
-              <div class="text-text-tertiary italic text-2xs">Waiting for UART APP data...</div>
+              <div class="text-text-tertiary italic">Waiting for UART APP data...</div>
             {/if}
           </div>
         </div>
 
         <!-- UART COMMS -->
-        <div class="rounded-lg border border-border bg-surface-0 overflow-hidden">
-          <div class="flex items-center gap-2 px-3 py-1.5 border-b border-border bg-surface-1">
+        <div class="rounded-lg border border-border bg-surface-0 overflow-hidden flex flex-col">
+          <div class="flex items-center gap-2 px-3 py-1 border-b border-border bg-surface-1 flex-shrink-0">
             <Terminal size={12} class="text-blue-400" />
-            <span class="text-xs font-medium text-text-primary">UART COMMS</span>
-            <span class="text-2xs text-text-tertiary">nRF9151</span>
+            <span class="text-xs font-medium text-text-primary">nRF9151</span>
             {#if uartCommsLines.length > 0}
               <span class="text-2xs text-text-tertiary ml-auto">{uartCommsLines.length} lines</span>
             {/if}
           </div>
-          <!-- Search bar -->
-          <div class="flex items-center gap-1 px-2 py-1 border-b border-border bg-[#161b22]">
-            <input
-              type="text"
-              bind:value={uartCommsSearch}
-              placeholder="Search..."
-              class="flex-1 bg-transparent text-xs text-[#c9d1d9] placeholder:text-text-tertiary outline-none font-mono"
-            />
+          <div class="flex items-center gap-1 px-2 py-0.5 border-b border-border bg-[#161b22]">
+            <Search size={10} class="text-text-tertiary" />
+            <input type="text" bind:value={uartCommsSearch} placeholder="Search..." class="flex-1 bg-transparent text-xs text-[#c9d1d9] placeholder:text-text-tertiary outline-none font-mono" />
             {#if uartCommsSearch && commsMatches.length > 0}
               <span class="text-2xs text-text-tertiary">{(uartCommsSearchIndex % commsMatches.length) + 1}/{commsMatches.length}</span>
-              <button onclick={() => { uartCommsSearchIndex = Math.max(0, uartCommsSearchIndex - 1); scrollToMatch('uart-comms-scroll', uartCommsSearchIndex, commsMatches); }} class="text-text-tertiary hover:text-text-primary p-0.5">&#x25B2;</button>
-              <button onclick={() => { uartCommsSearchIndex = uartCommsSearchIndex + 1; scrollToMatch('uart-comms-scroll', uartCommsSearchIndex, commsMatches); }} class="text-text-tertiary hover:text-text-primary p-0.5">&#x25BC;</button>
+              <button onclick={() => { uartCommsSearchIndex = Math.max(0, uartCommsSearchIndex - 1); scrollToMatch('uart-comms-scroll', uartCommsSearchIndex, commsMatches); }} class="text-text-tertiary hover:text-text-primary p-0.5 text-xs">&#x25B2;</button>
+              <button onclick={() => { uartCommsSearchIndex = uartCommsSearchIndex + 1; scrollToMatch('uart-comms-scroll', uartCommsSearchIndex, commsMatches); }} class="text-text-tertiary hover:text-text-primary p-0.5 text-xs">&#x25BC;</button>
             {:else if uartCommsSearch}
               <span class="text-2xs text-text-tertiary">0 results</span>
             {/if}
           </div>
-          <div id="uart-comms-scroll" class="max-h-[36rem] overflow-y-auto bg-[#0d1117] p-2 font-mono text-xs leading-relaxed">
+          <div id="uart-comms-scroll" class="flex-1 overflow-y-auto overflow-x-auto bg-[#0d1117] px-2 py-1 font-mono text-xs leading-snug">
             {#if uartCommsLines.length > 0}
               {#each uartCommsLines as line, i}
-                <div data-line-index={i} class="whitespace-pre {commsMatches.includes(i) ? 'bg-yellow-500/20 text-yellow-200' : 'text-[#c9d1d9]'}">{line}</div>
+                <div data-line-index={i} class="whitespace-pre {commsMatches.includes(i) ? 'bg-yellow-500/20' : ''}">{#each parseAnsi(line) as seg}<span class="{seg.classes || 'text-[#c9d1d9]'}">{seg.text}</span>{/each}</div>
               {/each}
             {:else}
-              <div class="text-text-tertiary italic text-2xs">Waiting for UART COMMS data...</div>
+              <div class="text-text-tertiary italic">Waiting for UART COMMS data...</div>
             {/if}
           </div>
         </div>
@@ -1138,19 +1493,7 @@
         </div>
       </div>
     </div>
-
-    <!-- Collapse/expand toggle -->
-    <button
-      onclick={() => { bottomPanelCollapsed = !bottomPanelCollapsed; }}
-      class="mt-1 w-full flex items-center justify-center gap-1 py-1 text-2xs text-text-tertiary hover:text-text-secondary transition-colors"
-    >
-      {#if bottomPanelCollapsed}
-        <PanelBottomOpen size={12} />
-        Show UART terminals
-      {:else}
-        <PanelBottomClose size={12} />
-        Hide UART terminals
-      {/if}
-    </button>
+    </div><!-- end flex column wrapper -->
+    {/if}
   {/if}
 </div>

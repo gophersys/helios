@@ -17,6 +17,9 @@ COPY apps/frontend/app/package.json ./
 COPY apps/frontend/app/package-lock.json* ./
 RUN npm ci --ignore-scripts 2>/dev/null || npm install
 
+# Cache bust — invalidates source layer when code changes (allows dropping --no-cache)
+ARG CACHE_BUST=0
+
 # Copy source
 COPY apps/frontend/app/ ./
 
