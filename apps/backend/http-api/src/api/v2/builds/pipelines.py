@@ -672,6 +672,10 @@ def create_pipeline():
                         take=skip_count + 1,
                     )
                 cached_build = cached_builds[skip_count] if len(cached_builds) > skip_count else (cached_builds[0] if cached_builds else None)
+                if cached_build:
+                    logger.info("Cache %s: found %s v=%s (source=%s, skip=%d, total=%d)",
+                               spec.get("matrixLabel"), cached_build.id[:8], cached_build.versionString,
+                               spec.get("source"), skip_count, len(cached_builds))
 
             elif spec.get("source") == "head" and spec.get("commitSha"):
                 # For "head" builds, check fingerprint cache to avoid rebuilding same commit
