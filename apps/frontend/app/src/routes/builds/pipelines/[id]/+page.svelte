@@ -1192,35 +1192,6 @@
       </div>
     {/if}
 
-    <!-- Validation section (only if linked) -->
-    {#if pipeline.validationRunId || pipeline.validationRun}
-      <div class="mb-6">
-        <h2 class="mb-3 text-sm font-medium text-text-primary flex items-center gap-2">
-          <FlaskConical size={16} class="text-text-tertiary" />
-          Validation
-        </h2>
-        <div class="card card-sm">
-          {#if pipeline.validationRun}
-            <div class="flex items-center justify-between">
-              <div class="flex items-center gap-3">
-                <span class="text-sm text-text-primary">{pipeline.validationRun.name}</span>
-                <StatusBadge status={pipeline.validationRun.status} />
-              </div>
-              <a
-                href="/validation/runs/{pipeline.validationRun.id}"
-                class="btn btn-sm flex items-center gap-1.5"
-              >
-                <ExternalLink size={14} />
-                View Run
-              </a>
-            </div>
-          {:else}
-            <p class="text-xs text-text-tertiary">Validation run pending...</p>
-          {/if}
-        </div>
-      </div>
-    {/if}
-
     <!-- Modem Firmware -->
     {#if pipeline.triggerData?.modemFirmware}
       {@const modem = pipeline.triggerData.modemFirmware}

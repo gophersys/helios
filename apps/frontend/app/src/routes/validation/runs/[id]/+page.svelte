@@ -36,10 +36,11 @@
   import LoadingState from '$lib/components/ui/loading-state.svelte';
   import StatusBadge from '$lib/components/ui/status-badge.svelte';
   import {
-    subscribeValidationRun,
+    subscribeValidationRunWithLogs,
     type ValidationTestStartEvent,
     type ValidationTestResultEvent,
     type ValidationRunFinishEvent,
+    type ValidationLogChunkEvent,
   } from '$lib/services/websocket';
 
   const auth = getAuth();
@@ -126,6 +127,10 @@
   }
   let powerSamples = $state<PowerSample[]>([]);
   const POWER_WINDOW_S = 60; // show last 60 seconds
+
+  // Derived search matches (reactive)
+  const appMatches = $derived(getSearchMatches(uartAppLines, uartAppSearch));
+  const commsMatches = $derived(getSearchMatches(uartCommsLines, uartCommsSearch));
   let logContent = $state<string | null>(null);
   let logArtifactName = $state<string | null>(null);
 
@@ -238,7 +243,9 @@
       if (test.durationS) stage.durationS += test.durationS;
     }
 
-    stageList.push(...Array.from(stageMap.values()));
+    // Sort test stages by name so test_00_preflight is always first
+    const sortedStages = Array.from(stageMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+    stageList.push(...sortedStages);
     return stageList;
   });
 
@@ -639,10 +646,10 @@
 
     <!-- ═══ GITHUB ACTIONS STYLE: Two-column layout ═══ -->
     {#if liveTests.length > 0 || buildJobs.length > 0}
-      <div class="flex gap-3" style="min-height: 280px; max-height: calc(100vh - 340px); overflow-y: auto;">
-        <!-- Left sidebar: Stage list (Jobs in GH Actions) -->
-        <div class="w-64 flex-shrink-0">
-          <div class="sticky top-4 space-y-1">
+      <div class="flex gap-3" style="min-height: 280px; height: calc(100vh - 340px);">
+        <!-- Left sidebar: Stage list -->
+        <div class="w-64 flex-shrink-0 overflow-y-auto">
+          <div class="space-y-1">
             {#each stages as stage (stage.name)}
               {@const statusInfo = getStageStatusIcon(stage)}
               <button
@@ -706,8 +713,8 @@
           </div>
         </div>
 
-        <!-- Right panel: Test list or build logs for selected stage -->
-        <div class="flex-1 min-w-0">
+        <!-- Center panel: Test list or build logs for selected stage -->
+        <div class="flex-1 min-w-0 overflow-y-auto">
           {#if selectedStageData}
             <div class="rounded-lg border border-border bg-surface-0 overflow-hidden">
               <!-- Stage header -->
@@ -930,7 +937,7 @@
 
         <!-- Power profiler panel (right side, hidden on narrow screens) -->
         <div class="w-72 flex-shrink-0 hidden xl:block">
-          <div class="sticky top-4 rounded-lg border border-border bg-surface-0 overflow-hidden" style="height: 280px;">
+          <div class="rounded-lg border border-border bg-surface-0 overflow-hidden h-full">
             <div class="flex items-center gap-2 px-3 py-1.5 border-b border-border bg-surface-1">
               <Activity size={12} class="text-accent" />
               <span class="text-xs font-medium text-text-primary">Power</span>
@@ -941,7 +948,7 @@
                 <span class="ml-auto text-2xs text-text-tertiary">No data</span>
               {/if}
             </div>
-            <div class="bg-[#0d1117] p-2" style="height: calc(280px - 32px);">
+            <div class="bg-[#0d1117] p-2 flex-1 overflow-hidden">
               {#if powerSamples.length > 1}
                 {@const windowSamples = powerSamples.filter(s => s.t >= (powerSamples[powerSamples.length-1].t - POWER_WINDOW_S))}
                 {@const minMA = Math.max(0, Math.min(...windowSamples.map(s => s.mA)) - 5)}
@@ -1053,7 +1060,6 @@
         </div>
 
         <!-- UART COMMS -->
-        {@const commsMatches = getSearchMatches(uartCommsLines, uartCommsSearch)}
         <div class="rounded-lg border border-border bg-surface-0 overflow-hidden">
           <div class="flex items-center gap-2 px-3 py-1.5 border-b border-border bg-surface-1">
             <Terminal size={12} class="text-blue-400" />
