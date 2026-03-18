@@ -156,11 +156,14 @@ cmd_build() {
 
       validation|val)
         timer_start
+        local val_git_hash
+        val_git_hash=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
         docker buildx build \
           --build-arg APP_VERSION --build-arg ENVIRONMENT \
           --build-arg GIT_COMMIT --build-arg GIT_BRANCH --build-arg BUILD_TIME \
           --file apps/validation/alpha/deploy/Dockerfile \
           --tag "${REGISTRY_VALIDATION}:${env}" \
+          --tag "${REGISTRY_VALIDATION}:${env}-${val_git_hash}" \
           --load . > /dev/null 2>&1
         timer_end "Validation build"
         ;;

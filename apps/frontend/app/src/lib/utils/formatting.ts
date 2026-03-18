@@ -54,7 +54,7 @@ export function formatSize(bytes: string | null): string {
  */
 export function formatDuration(ms: number): string {
   if (ms < 0) return '-';
-  if (ms < 1000) return ms + 'ms';
+  if (ms < 1000) return Math.round(ms) + 'ms';
 
   const seconds = Math.floor(ms / 1000) % 60;
   const minutes = Math.floor(ms / 60000) % 60;

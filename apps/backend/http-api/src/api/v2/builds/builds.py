@@ -334,9 +334,9 @@ def update_build(build_id: str):
         if status not in ("QUEUED", "BLOCKED", "CLONING", "BUILDING", "SUCCESS", "FAILED", "CANCELLED"):
             return bad_request("Invalid status")
 
-        # Atomic claim: if transitioning to BUILDING, verify build is still QUEUED
-        # This prevents two workers from claiming the same build
-        if status == "BUILDING" and build.status != "QUEUED":
+        # Atomic claim: if transitioning to BUILDING from QUEUED, verify not already claimed
+        # CLONING → BUILDING is allowed (normal progression)
+        if status == "BUILDING" and build.status not in ("QUEUED", "CLONING"):
             return conflict(f"Build already claimed (status={build.status})")
 
         update_data["status"] = status

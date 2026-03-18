@@ -6,36 +6,35 @@ parametrization. Tests receive a connected, ready-to-use context.
 Mock mode (MOCK_CLOUD=1):
     Replaces all hardware and cloud dependencies with in-memory mocks.
     No MTIB connection, no CoreCloud DB, no physical hardware needed.
-    Use ScenarioEngine to inject mock cloud messages in test bodies.
 
-Required environment variables (hardware mode, default):
-    MTIB_HOST, MTIB_PORT, DEVICE_ID, FIXTURE_PROFILE_PATH
+Required environment variables (set by K8s Job template):
+    MTIB_HOST or MTIB_ADDRESS  - MTIB server IP (e.g., 10.4.45.33)
+    MTIB_PORT                  - MTIB gRPC port (default: 50053)
+    DEVICE_ID                  - Device ID hex string
+    DEVICE_SNR                 - J-Link probe serial number (e.g., 0964)
+    FIXTURE_PROFILE_PATH       - Fixture profile JSON path
 
-    CoreCloud env vars (DEV_1_0 namespace — requires SSH tunnel for DB):
-    DEV_1_0_DB_DRIVER, DEV_1_0_DB_USERNAME, DEV_1_0_DB_PASSWORD, DEV_1_0_DB_HOST,
-    DEV_1_0_DB_PORT, DEV_1_0_DB_DATABASE_NAME, DEV_1_0_SSH_HOST, DEV_1_0_SSH_PORT,
-    DEV_1_0_SSH_USERNAME, DEV_1_0_SSH_PASSWORD (or DEV_1_0_SSH_PKEY_PATH)
+    CoreCloud API (VAL_1_0 namespace — from corecloud-validation K8s secret):
+    VAL_1_0_API_KEY                    - CoreCloud API key
+    VAL_1_0_API_AUTH_USERNAME          - CoreCloud auth username
+    VAL_1_0_API_AUTH_PASSWORD          - CoreCloud auth password
+    VAL_1_0_API_AUTH_SERVER_HOST_NAME  - Auth server (auth.office.corekinect.cloud:2013)
+    VAL_1_0_API_REST_SERVER_HOST_NAME  - REST API (val.office.corekinect.cloud:2018/api)
+
+    Storage (MinIO — from K8s configmap):
+    STORAGE_URL, STORAGE_ACCESS_KEY, STORAGE_SECRET_ACCESS_KEY, STORAGE_BUCKET
 
 Optional:
-    MOCK_CLOUD: Set to "1" to run in mock mode (no hardware required)
-    DEVICE_ID: Device ID hex string (default in mock: 70B3D584C01E1FCC)
-    FW_DEBUG_HEX: Path to debug nRF52840 app firmware hex on MTIB filesystem
-    FW_RELEASE_HEX: Path to release nRF52840 app firmware hex on MTIB filesystem
-    FW_DEBUG_COMMS_HEX: Path to debug nRF9151 comms coprocessor hex on MTIB filesystem
-    FW_RELEASE_COMMS_HEX: Path to release nRF9151 comms coprocessor hex on MTIB filesystem
-    FW_MODEM_ZIP: Path to nRF9151 modem firmware zip on MTIB filesystem (e.g., mfw_nrf91x1_2.0.2.zip)
-    ARTIFACTS_DIR: Directory for test artifacts (UART logs, power traces)
-    PROXY_SERVER_URL: CoreOps proxy URL for re-personalization (e.g., http://10.4.45.30:8001)
-    DEVICE_SNR: J-Link probe serial number (e.g., 0964) — needed for re-personalization
-    DEVICE_IMEI: Pre-known IMEI — skips modem read if set
-    DEVICE_ICCIDS: Comma-separated ICCIDs — skips modem read if set
+    MOCK_CLOUD       - "1" for mock mode (no hardware)
+    PIPELINE_ID      - Pipeline ID for firmware artifact fetching from MinIO
+    DEVICE_IMEI      - Pre-known IMEI (skips modem shell read)
+    DEVICE_ICCIDS    - Comma-separated ICCIDs (skips modem shell read)
+    ARTIFACTS_DIR    - Directory for test artifacts
 
-Concord Reporter (opt-in, Phase 6B):
-    CONCORD_RUN_ID: Validation run ID — activates the reporter plugin.
-    CONCORD_API_URL: Concord HTTP API base URL (e.g., http://concord-api:9001).
-    CONCORD_API_KEY: API key for reporter auth.
-    When set, test results are streamed to Concord in real-time.
-    When NOT set, the reporter is completely inactive.
+Concord Reporter (auto-activated by K8s Job):
+    CONCORD_RUN_ID   - Validation run ID — activates the reporter plugin
+    CONCORD_API_URL  - Concord HTTP API base URL
+    CONCORD_API_KEY  - API key for reporter auth
 """
 
 import os

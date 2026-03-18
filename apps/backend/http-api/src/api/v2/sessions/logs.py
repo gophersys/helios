@@ -102,8 +102,11 @@ def report_log_chunk(run_id: str):
         logger.error(f"Failed to store log chunk for run {run_id}: {e}")
         return internal_error("Failed to store log chunk")
 
-    # Broadcast to WebSocket subscribers in this run's room
-    emit_to_run("validation_log_chunk", {
+    # Broadcast to WebSocket subscribers via the same path as test events
+    # (reporter._emit_validation_event handles both /kubernetes broadcast
+    # and /validation room-targeted delivery)
+    from .reporter import _emit_validation_event
+    _emit_validation_event("validation_log_chunk", {
         "runId": run_id,
         "file": data.file,
         "offset": data.offset,

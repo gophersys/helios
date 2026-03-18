@@ -956,32 +956,59 @@ def trigger_pipeline_validation(pipeline_id: str, pipeline, builds: list) -> Opt
             logger.warning("Product not found for pipeline %s", pipeline_id)
             return None
 
-        # Find an available fixture for this product
-        fixture = db.fixture.find_first(
+        # Find an available fixture with a ready slot:
+        # - Fixture: active, AVAILABLE (not locked by another run)
+        # - Slot: active, has DUT identity (snr + deviceId)
+        # - Node: linked to slot, ONLINE, has ipAddress
+        fixtures = db.fixture.find_many(
             where={
                 "productId": product.id,
-                "status": "AVAILABLE",
                 "active": True,
             },
             include={
-                "slots": True,
+                "slots": {"include": {"node": True}},
                 "design": True,
             },
         )
-        if not fixture:
-            logger.warning("No available fixture for product %s", product.name)
-            return None
 
-        # Get the first active slot with DUT identity
+        fixture = None
         slot = None
-        for s in (fixture.slots or []):
-            if s.active and s.dutSnr:
-                slot = s
+        mtib_address = None
+
+        for f in fixtures:
+            if f.status != "AVAILABLE":
+                logger.debug("Fixture %s skipped: status=%s", f.name, f.status)
+                continue
+            for s in (f.slots or []):
+                if not (s.active and s.dutSnr and s.dutDeviceId):
+                    continue
+                node = getattr(s, "node", None)
+                if node and node.status == "ONLINE" and node.ipAddress:
+                    fixture = f
+                    slot = s
+                    mtib_address = node.ipAddress
+                    break
+            if fixture:
                 break
 
-        if not slot:
-            logger.warning("Fixture %s has no active slot with DUT identity", fixture.name)
+        if not fixture:
+            # No ready bench — check why for a useful log
+            locked = [f.name for f in fixtures if f.status != "AVAILABLE"]
+            no_slot = [f.name for f in fixtures if f.status == "AVAILABLE"
+                       and not any(s.active and s.dutSnr for s in (f.slots or []))]
+            offline = [f.name for f in fixtures if f.status == "AVAILABLE"
+                       and any(s.active and s.dutSnr and getattr(getattr(s, "node", None), "status", None) != "ONLINE"
+                               for s in (f.slots or []))]
+            logger.info(
+                "No ready bench for %s: locked=%s offline=%s unconfigured=%s",
+                product.name, locked, offline, no_slot,
+            )
             return None
+
+        logger.info(
+            "Selected: fixture=%s slot=%s (SNR=%s device=%s) MTIB=%s",
+            fixture.name, slot.id[:8], slot.dutSnr, slot.dutDeviceId, mtib_address,
+        )
 
         # Lock the fixture
         db.fixture.update(
@@ -993,17 +1020,6 @@ def trigger_pipeline_validation(pipeline_id: str, pipeline, builds: list) -> Opt
             },
         )
         logger.info("Locked fixture %s for pipeline %s", fixture.name, pipeline_id[:8])
-
-        # Get MTIB address from the node linked to the slot
-        mtib_address = None
-        if slot.nodeId:
-            node = db.node.find_unique(where={"id": slot.nodeId})
-            if node:
-                mtib_address = node.ipAddress
-        if not mtib_address:
-            # Fallback: check fixture metadata
-            meta = fixture.metadata if isinstance(fixture.metadata, dict) else {}
-            mtib_address = meta.get("mtibAddress", "")
 
         # Create a validation session
         build_summaries = []
@@ -1037,6 +1053,21 @@ def trigger_pipeline_validation(pipeline_id: str, pipeline, builds: list) -> Opt
                     "mtibAddress": mtib_address,
                 }),
                 "createdById": _get_system_user_id(db),
+            },
+        )
+
+        # Create device record (required by reporter for test execution tracking)
+        db.device.create(
+            data={
+                "serialNumber": slot.dutSnr,
+                "sessionId": session.id,
+                "status": "IN_PROGRESS",
+                "metadata": Json({
+                    "deviceId": slot.dutDeviceId,
+                    "imei": slot.dutImei,
+                    "iccids": slot.dutIccids,
+                    "fixtureSlotId": slot.id,
+                }),
             },
         )
 
@@ -1074,6 +1105,14 @@ def trigger_pipeline_validation(pipeline_id: str, pipeline, builds: list) -> Opt
         if fixture.design and hasattr(fixture.design, "profileTemplate"):
             fixture_profile_path = f"fixtures/{product.slug}.json"
 
+        # Validation image tag: use environment name (e.g., "staging").
+        # This is the stable tag that ctl.sh always pushes. imagePullPolicy=Always
+        # ensures the latest version is pulled. Git hash is stored as metadata
+        # for traceability but NOT used in the image reference — the API server's
+        # GIT_COMMIT may differ from the validation image's build commit.
+        image_tag = os.environ.get("ENVIRONMENT", "staging")
+        git_commit = os.environ.get("GIT_COMMIT", "unknown")[:7]
+
         # Create K8s Job
         test_enable = {"electrical": False, "app_post": False, "comm_post": False}
 
@@ -1096,6 +1135,7 @@ def trigger_pipeline_validation(pipeline_id: str, pipeline, builds: list) -> Opt
             fixture_profile_path=fixture_profile_path,
             pipeline_id=pipeline_id,
             stage="fuota",
+            image_tag=image_tag,
         )
 
         if not job_name:
@@ -1109,6 +1149,8 @@ def trigger_pipeline_validation(pipeline_id: str, pipeline, builds: list) -> Opt
         config["trigger"] = {
             "jobName": job_name,
             "firmwareVersion": firmware_version,
+            "imageTag": image_tag,
+            "apiCommit": git_commit,
             "triggeredAt": datetime.now(timezone.utc).isoformat(),
         }
         config["apiUrl"] = api_url
@@ -1233,9 +1275,23 @@ def validate_pipeline(pipeline_id: str):
             return bad_request(f"Cannot trigger validation for pipeline in {pipeline.status} state")
 
         builds = pipeline.builds or []
-        succeeded = [b for b in builds if b.status == "SUCCESS"]
+        succeeded = [b for b in builds if b.status in ("SUCCESS", "CACHED")]
         if not succeeded:
             return bad_request("No successful builds — cannot trigger validation")
+
+        # If there's a prior validation run, cancel it and unlock its fixture
+        if pipeline.validationRunId:
+            prior_run = db.session.find_unique(where={"id": pipeline.validationRunId})
+            if prior_run:
+                if prior_run.status in ("ACTIVE", "RUNNING"):
+                    db.session.update(where={"id": prior_run.id}, data={
+                        "status": "CANCELLED", "finishedAt": datetime.now(timezone.utc),
+                    })
+                if prior_run.fixtureId:
+                    db.fixture.update(where={"id": prior_run.fixtureId}, data={
+                        "status": "AVAILABLE", "lockedBy": None, "lockedAt": None,
+                    })
+                logger.info("Cancelled prior run %s, unlocked fixture", pipeline.validationRunId[:8])
 
         # Trigger validation
         validation_run_id = trigger_pipeline_validation(pipeline_id, pipeline, builds)

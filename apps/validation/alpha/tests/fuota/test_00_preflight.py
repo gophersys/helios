@@ -65,6 +65,11 @@ class TestPreflight:
 
         Uses ctx.mtib — if MTIB connection failed, this test fails
         (which is correct: no point continuing without MTIB).
+
+        TODO: Read the DUT SNR from the J-Link probe or MFG shell and verify
+        it matches DEVICE_SNR. This would catch fixture slot misconfiguration
+        (wrong device in the slot definition) before wasting time on flash +
+        personalize + FUOTA for the wrong device.
         """
         programmers, err = ctx.mtib.ListProgrammers()
         assert err is None, f"ListProgrammers RPC failed: {err}"

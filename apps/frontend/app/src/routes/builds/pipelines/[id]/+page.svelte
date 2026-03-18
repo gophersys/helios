@@ -62,12 +62,12 @@
   let downloadingAll = $state(false);
   let triggeringValidation = $state(false);
 
-  // Can trigger validation: builds succeeded/cached but no validation yet
+  // Can trigger validation: builds have at least some successes and pipeline isn't actively building
   const canTriggerValidation = $derived(
-    pipeline && !pipeline.validationRunId &&
-    (pipeline.status === 'SUCCESS' || pipeline.status === 'BUILDING') &&
+    pipeline &&
+    ['SUCCESS', 'FAILED', 'BUILD_FAILED', 'VALIDATING'].includes(pipeline.status ?? '') &&
     pipeline.builds && pipeline.builds.length > 0 &&
-    pipeline.builds.every(b => b.status === 'SUCCESS' || b.status === 'CACHED')
+    pipeline.builds.some(b => b.status === 'SUCCESS' || b.status === 'CACHED')
   );
 
   // Check if all builds are complete (success or failed)
@@ -691,7 +691,6 @@
         </div>
         <div class="flex items-center gap-2">
           {#if pipeline.validationRunId}
-            <StatusBadge status={pipeline.status === 'VALIDATING' ? 'RUNNING' : pipeline.status === 'SUCCESS' ? 'PASSED' : pipeline.status === 'FAILED' ? 'FAILED' : pipeline.status} />
             <button
               onclick={() => goto(`/validation/runs/${pipeline?.validationRunId}`)}
               class="btn btn-sm flex items-center gap-1.5 text-2xs"
@@ -699,7 +698,8 @@
               <ExternalLink size={12} />
               View Run
             </button>
-          {:else if canTriggerValidation}
+          {/if}
+          {#if canTriggerValidation}
             <button
               onclick={handleTriggerValidation}
               disabled={triggeringValidation}
@@ -710,20 +710,11 @@
                 Triggering...
               {:else}
                 <FlaskConical size={12} />
-                Run Validation
+                {pipeline.validationRunId ? 'Re-run' : 'Run Validation'}
               {/if}
             </button>
           {:else if pipeline.status === 'BUILDING' || pipeline.status === 'PENDING'}
             <span class="text-2xs text-text-tertiary">Waiting for builds...</span>
-          {:else if pipeline.status === 'BUILD_FAILED'}
-            <span class="text-2xs text-error">Builds failed</span>
-          {:else if pipeline.status === 'VALIDATING'}
-            <span class="inline-flex items-center gap-1.5 text-2xs text-accent">
-              <Loader2 size={12} class="animate-spin" />
-              Running...
-            </span>
-          {:else}
-            <span class="text-2xs text-text-tertiary">Not configured</span>
           {/if}
         </div>
       </div>

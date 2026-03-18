@@ -102,6 +102,10 @@
   let liveTests = $state<LiveTest[]>([]);
   let liveRunning = $state(false);
   let liveFinished = $state(false);
+  // Auto-follow: automatically expand the running test and collapse the previous one.
+  // Disabled when the user manually clicks a non-running test. Re-enabled when
+  // the user clicks the currently-running test.
+  let autoFollow = $state(true);
   let liveSummary = $state<{ total: number; passed: number; failed: number; errors: number; durationS: number | null } | null>(null);
 
   // Artifacts
@@ -283,11 +287,16 @@
     return end - start;
   });
 
+  const runConfig = $derived(run?.config as Record<string, unknown> | null);
   const serialNumber = $derived(
-    (run?.config as Record<string, unknown> | null)?.serialNumber as string | undefined
+    (runConfig?.slot as Record<string, unknown> | null)?.dutSnr as string | undefined
+    ?? runConfig?.serialNumber as string | undefined
   );
   const firmwareVariant = $derived(
-    (run?.config as Record<string, unknown> | null)?.firmwareVariant as string | undefined
+    runConfig?.firmwareVariant as string | undefined
+  );
+  const imageTag = $derived(
+    (runConfig?.trigger as Record<string, unknown> | null)?.imageTag as string | undefined
   );
 
   // Stage type: can be tests or builds
@@ -701,7 +710,16 @@
 
   function toggleTestExpanded(testName: string): void {
     const test = liveTests.find(t => t.name === testName);
-    if (test) test.expanded = !test.expanded;
+    if (!test) return;
+    test.expanded = !test.expanded;
+
+    // Auto-follow logic: if user clicks the running test, resume following.
+    // If user clicks any other test, stop following.
+    if (test.status === 'running') {
+      autoFollow = test.expanded;
+    } else {
+      autoFollow = false;
+    }
   }
 
   function setupWebSocket(): void {
@@ -731,6 +749,13 @@
           if (data.module && data.module !== selectedStage) {
             selectedStage = data.module;
           }
+          // Auto-follow: expand the new running test, collapse the previous one
+          if (autoFollow) {
+            for (const t of liveTests) {
+              t.expanded = (t.name === data.testName);
+            }
+            liveTests = liveTests;
+          }
         },
         onTestResult: (data: ValidationTestResultEvent) => {
           const existing = liveTests.find(t => t.name === data.testName);
@@ -740,8 +765,12 @@
             existing.errorMessage = data.errorMessage;
             existing.measurements = data.measurements;
             existing.logOutput = data.logOutput;
-            // Auto-expand failures
-            if (!data.passed && !data.skipped) existing.expanded = true;
+            // Auto-expand failures, auto-collapse passes (if following)
+            if (!data.passed && !data.skipped) {
+              existing.expanded = true;
+            } else if (autoFollow) {
+              existing.expanded = false;
+            }
             liveTests = liveTests;
           }
         },
@@ -900,6 +929,9 @@
         {/if}
         {#if serialNumber}
           <span class="font-mono">{serialNumber}</span>
+        {/if}
+        {#if imageTag}
+          <span class="font-mono text-2xs bg-surface-2 px-1.5 py-0.5 rounded" title="Validation image tag">{imageTag}</span>
         {/if}
       </div>
 
@@ -1265,9 +1297,10 @@
           {/if}
         </div>
 
-        <!-- Power profiler panel (right side, hidden on narrow screens) -->
-        <div class="flex-shrink-0 hidden xl:block self-start" style="width: 360px;">
-          <div class="rounded-lg border border-border bg-surface-0 overflow-hidden flex flex-col" style="height: 320px;">
+        <!-- Telemetry panels (right side, hidden on narrow screens) -->
+        <div class="flex-shrink-0 hidden xl:block self-start flex flex-col gap-2" style="width: 420px;">
+          <!-- Power profiler -->
+          <div class="rounded-lg border border-border bg-surface-0 overflow-hidden flex flex-col" style="height: 340px;">
             <div class="flex items-center gap-2 px-3 py-1.5 border-b border-border bg-surface-1 flex-shrink-0">
               <Activity size={12} class="text-accent" />
               <span class="text-xs font-medium text-text-primary">Power</span>
@@ -1293,8 +1326,8 @@
                 {@const tMin = windowSamples[0].t}
                 {@const tMax = windowSamples[windowSamples.length-1].t}
                 {@const tRange = Math.max(tMax - tMin, 1)}
-                {@const w = 240}
-                {@const h = 200}
+                {@const w = 320}
+                {@const h = 220}
                 {@const pad = { top: 8, right: 8, bottom: 20, left: 36 }}
                 {@const pw = w - pad.left - pad.right}
                 {@const ph = h - pad.top - pad.bottom}
@@ -1354,7 +1387,7 @@
                   <text x={pad.left + 50} y={h - 9} class="fill-text-tertiary" style="font-size: 6px;">CHG</text>
                 </svg>
               {:else}
-                <div class="w-full h-full flex items-center justify-center" style="min-height: 250px;">
+                <div class="w-full h-full flex items-center justify-center" style="min-height: 220px;">
                   <div class="text-center">
                     <Activity size={24} class="mx-auto text-text-tertiary opacity-20 mb-2" />
                     <div class="text-xs text-text-tertiary">Waiting for power data</div>
@@ -1362,6 +1395,24 @@
                   </div>
                 </div>
               {/if}
+            </div>
+          </div>
+
+          <!-- Accelerometer (XYZ) -->
+          <div class="rounded-lg border border-border bg-surface-0 overflow-hidden flex flex-col" style="height: 340px;">
+            <div class="flex items-center gap-2 px-3 py-1.5 border-b border-border bg-surface-1 flex-shrink-0">
+              <Cpu size={12} class="text-accent" />
+              <span class="text-xs font-medium text-text-primary">Accelerometer</span>
+              <span class="ml-auto text-2xs text-text-tertiary">No data</span>
+            </div>
+            <div class="bg-[#0d1117] p-2 flex-1 overflow-hidden">
+              <div class="w-full h-full flex items-center justify-center">
+                <div class="text-center">
+                  <Cpu size={24} class="mx-auto text-text-tertiary opacity-20 mb-2" />
+                  <div class="text-xs text-text-tertiary">Waiting for accelerometer data</div>
+                  <div class="text-2xs text-text-tertiary mt-1 opacity-60">XYZ from MTIB motion controller</div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
