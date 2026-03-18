@@ -157,9 +157,9 @@ def _generate_matrix_build_specs(
         # Derive target from firmware name
         target = "mfg" if "_mfg" in firmware else "app"
 
-        # Mfg firmware only needs debug variant (always has mfg shell + logging)
-        # Production firmware needs both debug (for testing) and release (for deployment)
-        variants = ("debug",) if target == "mfg" else ("debug", "release")
+        # Mfg firmware: release only (BM flags — CoreCloud requires no debug bit for FUOTA delivery)
+        # Production firmware: both debug (for testing) and release (for deployment)
+        variants = ("release",) if target == "mfg" else ("debug", "release")
 
         for variant in variants:
             # Mfg builds get clean label (no variant suffix since there's only one)

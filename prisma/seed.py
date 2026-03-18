@@ -781,7 +781,7 @@ def seed():
 
         # ── Fixtures (was Test Benches) ──
         print("\n=== Seeding Fixtures ===")
-        # Bench-33 DUT: Device 09J5 (current active test device)
+        # Bench-33 DUT: Device 0964 (physical device on MTIB REV 1.2 at 10.4.45.33)
         fixture_33 = db.fixture.upsert(
             where={"stationId": "bench-33"},
             data={
@@ -807,20 +807,22 @@ def seed():
                     "fixtureId": fixture_33.id,
                     "slotIndex": 0,
                     "label": "Primary",
-                    "dutDeviceId": "70B3D584C01E1DDD",
-                    "dutSnr": "09J5",
-                    "dutImei": "355025931651952",
-                    "dutIccids": ["89148000009808560116", "89457300000037581199"],
-                    "jlinkAppSerial": "821009546",
-                    "jlinkCommsSerial": "821009537",
+                    "dutDeviceId": "70B3D584C01E1FCC",
+                    "dutSnr": "0964",
+                    "dutImei": "355025931735979",
+                    "dutIccids": ["89148000009808558441", "89457300000037582833"],
+                    "jlinkAppSerial": "821009543",
+                    "jlinkCommsSerial": "821009541",
                     "uartAppPath": "/dev/verdin-uart2",
                     "uartCommsPath": "/dev/verdin-uart1",
+                    "nodeId": "node_mtib_rev12",
                 },
                 "update": {
-                    "dutDeviceId": "70B3D584C01E1DDD",
-                    "dutSnr": "09J5",
-                    "dutImei": "355025931651952",
-                    "dutIccids": ["89148000009808560116", "89457300000037581199"],
+                    "dutDeviceId": "70B3D584C01E1FCC",
+                    "dutSnr": "0964",
+                    "dutImei": "355025931735979",
+                    "dutIccids": ["89148000009808558441", "89457300000037582833"],
+                    "nodeId": "node_mtib_rev12",
                 },
             },
         )
