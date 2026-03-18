@@ -691,13 +691,14 @@
         </div>
         <div class="flex items-center gap-2">
           {#if pipeline.validationRunId}
-            <button
-              onclick={() => goto(`/validation/runs/${pipeline?.validationRunId}`)}
+            <a
+              href="/validation/runs/{pipeline?.validationRunId}"
+              target="_blank"
               class="btn btn-sm flex items-center gap-1.5 text-2xs"
             >
               <ExternalLink size={12} />
               View Run
-            </button>
+            </a>
           {/if}
           {#if canTriggerValidation}
             <button
