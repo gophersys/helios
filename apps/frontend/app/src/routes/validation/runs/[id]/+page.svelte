@@ -567,25 +567,52 @@
           }, 100);
         }
 
-        // For active runs: load partial output from output.log artifact
-        // so page reload shows existing output, not just new chunks
+        // For active runs: backfill data from completed test artifacts on reload
         if (res.data.status === 'ACTIVE') {
+          const authHeaders = { 'Authorization': `Bearer ${getToken()}` };
+
+          // Backfill log output for the running test
           try {
-            const logRes = await fetch(`/v2/sessions/${runId}/artifacts/logs/output.log`, {
-              headers: { 'Authorization': `Bearer ${getToken()}` },
-            });
+            const logRes = await fetch(`/v2/sessions/${runId}/artifacts/logs/output.log`, { headers: authHeaders });
             if (logRes.ok) {
               const fullLog = await logRes.text();
-              // Find the running test and prepend any existing output
-              const runningTest = liveTests.find(t => t.status === 'running');
-              if (runningTest && fullLog) {
-                runningTest.logOutput = fullLog.slice(-10000); // last 10KB
+              const runningTest2 = liveTests.find(t => t.status === 'running');
+              if (runningTest2 && fullLog) {
+                runningTest2.logOutput = fullLog.slice(-10000);
                 liveTests = liveTests;
               }
             }
-          } catch {
-            // Non-critical — new chunks will still arrive via WebSocket
-          }
+          } catch { /* non-critical */ }
+
+          // Backfill power/UART from completed test telemetry JSONL files
+          try {
+            const artRes = await fetch(`/v2/sessions/${runId}/artifacts`, { headers: authHeaders });
+            if (artRes.ok) {
+              const artData = await artRes.json();
+              const jsonlFiles = (artData.data || []).filter((a: any) => a.name?.startsWith('telemetry/') && a.name?.endsWith('.jsonl'));
+              for (const art of jsonlFiles) {
+                try {
+                  const jRes = await fetch(`/v2/sessions/${runId}/artifacts/${art.name}`, { headers: authHeaders });
+                  if (!jRes.ok) continue;
+                  const text = await jRes.text();
+                  for (const line of text.split('\n')) {
+                    if (!line.trim()) continue;
+                    try {
+                      const s = JSON.parse(line);
+                      if (s.type === 'power' && s.mA !== undefined) {
+                        powerSamples.push({ t: s.t, mA: s.mA, mV: s.mV });
+                      } else if (s.type === 'power_chg' && s.mA !== undefined) {
+                        powerChgSamples.push({ t: s.t, mA: s.mA, mV: s.mV });
+                      }
+                    } catch { /* skip */ }
+                  }
+                } catch { /* skip */ }
+              }
+              // Trigger reactivity
+              if (powerSamples.length > 0) powerSamples = [...powerSamples];
+              if (powerChgSamples.length > 0) powerChgSamples = [...powerChgSamples];
+            }
+          } catch { /* non-critical */ }
         }
       }
     } catch (err: unknown) {
@@ -947,6 +974,11 @@
               t.expanded = (t.name === data.testName && (data.module ? t.module === data.module : true));
             }
             liveTests = liveTests;
+            // Scroll the test step into view in the test list panel
+            setTimeout(() => {
+              const el = document.querySelector(`[data-test-name="${data.testName}"][data-test-module="${data.module}"]`);
+              el?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+            }, 100);
           }
         },
         onTestResult: (data: ValidationTestResultEvent) => {
@@ -960,6 +992,17 @@
             // Auto-expand failures, auto-collapse passes (if following)
             if (!data.passed && !data.skipped) {
               existing.expanded = true;
+              // Mark remaining queued/running tests in this module as skipped
+              // (class-level fail-fast means they won't run)
+              let foundFailed = false;
+              for (const t of liveTests) {
+                if (t.module === existing.module) {
+                  if (t === existing) { foundFailed = true; continue; }
+                  if (foundFailed && (t.status === 'queued' || t.status === 'running')) {
+                    t.status = 'skipped';
+                  }
+                }
+              }
             } else if (autoFollow) {
               existing.expanded = false;
             }

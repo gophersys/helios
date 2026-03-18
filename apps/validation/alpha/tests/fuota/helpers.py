@@ -630,52 +630,92 @@ def verify_firmware_version(
     expected_version: str,
     timeout_s: float = 180.0,
     require_both: bool = True,
+    max_boot_cycles: int = 3,
 ) -> Dict[str, Optional[str]]:
-    """Power cycle, capture boot logs, verify firmware version.
+    """Power cycle and verify firmware version via UART boot logs.
 
-    After FUOTA, MCUboot may need 30-60 seconds to swap the APP image.
-    This function waits for BOTH processors to report their version.
+    After FUOTA delivery, the firmware update process is:
+      1. First boot: FUOTA handler copies pages from external flash → MCUboot secondary slot
+      2. FUOTA handler sets the pending swap flag
+      3. Second boot: MCUboot sees pending flag, swaps primary ↔ secondary
+      4. Third boot (if needed): MCUboot confirms the swap
 
-    If the APP processor is in a boot loop (firmware crash), app version
-    will be None and the test will fail — which is the correct behavior
-    since it means the FUOTA'd firmware doesn't work.
+    The APP and COMMS processors may swap on different boot cycles.
+    This function retries up to max_boot_cycles to give both processors
+    time to complete the swap.
 
     Args:
         client: MTIB V1 client.
-        expected_version: Expected version string (e.g., "0.5.4").
-        timeout_s: Max seconds to wait for boot + version detection.
+        expected_version: Expected version string (e.g., "0.5.14").
+        timeout_s: Max seconds to wait PER boot cycle for version detection.
         require_both: If True, fail if either processor's version is missing.
+        max_boot_cycles: Max power cycles to attempt before failing.
 
     Returns:
         Detected versions dict.
 
     Raises:
-        AssertionError: If versions don't match or are missing.
+        AssertionError: If versions don't match after all retries.
     """
     print(f"Verifying firmware version (expecting v{expected_version})...")
-    print(f"  Timeout: {int(timeout_s)}s (MCUboot swap may take 30-60s after FUOTA)")
-    versions = capture_boot_versions(client, timeout_s=timeout_s)
+    print(f"  Max boot cycles: {max_boot_cycles}, timeout per cycle: {int(timeout_s)}s")
 
-    print(f"  COMMS: {versions['comms'] or 'NOT DETECTED'}")
-    print(f"  APP:   {versions['app'] or 'NOT DETECTED'}")
+    best_versions: Dict[str, Optional[str]] = {"comms": None, "app": None}
 
-    # Verify COMMS
-    assert versions["comms"] is not None, (
-        f"COMMS version not detected from boot logs within {int(timeout_s)}s"
+    for cycle in range(1, max_boot_cycles + 1):
+        print(f"  Boot cycle {cycle}/{max_boot_cycles}...")
+
+        # Wait longer on first cycle (FUOTA processing + MCUboot swap)
+        cycle_timeout = timeout_s if cycle == 1 else 60.0
+        versions = capture_boot_versions(client, timeout_s=cycle_timeout)
+
+        print(f"    COMMS: {versions['comms'] or 'NOT DETECTED'}")
+        print(f"    APP:   {versions['app'] or 'NOT DETECTED'}")
+
+        # Track best result across cycles
+        if versions["comms"]:
+            best_versions["comms"] = versions["comms"]
+        if versions["app"]:
+            best_versions["app"] = versions["app"]
+
+        # Check if we have the expected version on both
+        comms_ok = best_versions["comms"] == expected_version
+        app_ok = best_versions["app"] == expected_version if require_both else True
+
+        if comms_ok and app_ok:
+            print(f"  Both processors verified at v{expected_version} (cycle {cycle})")
+            return best_versions
+
+        # If a processor updated but the other didn't, try another cycle
+        if cycle < max_boot_cycles:
+            if not comms_ok:
+                print(f"    COMMS not yet at v{expected_version}, power cycling again...")
+            if require_both and not app_ok:
+                print(f"    APP not yet at v{expected_version}, power cycling again...")
+            time.sleep(5)  # Brief pause before next cycle
+
+    # Final result after all cycles
+    print(f"  Final versions after {max_boot_cycles} cycles:")
+    print(f"    COMMS: {best_versions['comms'] or 'NOT DETECTED'}")
+    print(f"    APP:   {best_versions['app'] or 'NOT DETECTED'}")
+
+    assert best_versions["comms"] is not None, (
+        f"COMMS version not detected after {max_boot_cycles} boot cycles"
     )
-    assert versions["comms"] == expected_version, (
-        f"COMMS version mismatch: expected {expected_version}, got {versions['comms']}"
+    assert best_versions["comms"] == expected_version, (
+        f"COMMS version mismatch: expected {expected_version}, "
+        f"got {best_versions['comms']} after {max_boot_cycles} boot cycles. "
+        f"The COMMS MCUboot may not have swapped the secondary image."
     )
 
-    # Verify APP
     if require_both:
-        assert versions["app"] is not None, (
-            f"APP version not detected from boot logs within {int(timeout_s)}s. "
-            f"The APP processor may be in a boot loop (firmware crash after FUOTA). "
-            f"Check UART logs for MCUboot swap errors."
+        assert best_versions["app"] is not None, (
+            f"APP version not detected after {max_boot_cycles} boot cycles. "
+            f"The APP processor may be in a boot loop (firmware crash after FUOTA)."
         )
-        assert versions["app"] == expected_version, (
-            f"APP version mismatch: expected {expected_version}, got {versions['app']}"
+        assert best_versions["app"] == expected_version, (
+            f"APP version mismatch: expected {expected_version}, "
+            f"got {best_versions['app']} after {max_boot_cycles} boot cycles."
         )
 
-    return versions
+    return best_versions
