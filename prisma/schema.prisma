@@ -831,7 +831,7 @@ model Test {
     product    Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
     executions TestExecution[]
 
-    @@unique([productId, name])
+    @@unique([productId, name, category])
     @@map("tests")
 }
 

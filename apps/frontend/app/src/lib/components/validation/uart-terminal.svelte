@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Terminal, Search } from 'lucide-svelte';
+  import { Terminal, Search, ArrowDown } from 'lucide-svelte';
   import { parseAnsi, stripAnsi } from '$lib/utils/ansi';
 
   interface Props {
@@ -15,62 +15,97 @@
   let searchIndex = $state(0);
   let scrollEl: HTMLElement;
 
-  // Track rendered line count to detect new data without deep diffing
-  let renderedCount = $state(0);
+  // Two modes:
+  // followTail=true  → always show last WINDOW lines, auto-scroll to bottom
+  // followTail=false → freeze visible window, user browses freely
+  const WINDOW = 200;
+  let followTail = $state(true);
   let displayLines = $state<string[]>([]);
-
-  // Use RAF to batch-check for new lines instead of reacting on every prop change
-  let rafId: number | null = null;
-  let mounted = false;
+  let displayOffset = $state(0);
+  let lastLinesRef: string[] = []; // track array REFERENCE, not just length
 
   onMount(() => {
-    mounted = true;
-    function tick() {
-      if (lines.length !== renderedCount || lines !== displayLines) {
-        // Only update if lines actually changed (new data appended or replaced)
-        if (lines.length !== displayLines.length || lines !== displayLines) {
-          displayLines = lines;
-          renderedCount = lines.length;
+    // Seed with initial data
+    if (lines.length > 0) {
+      displayOffset = Math.max(0, lines.length - WINDOW);
+      displayLines = lines.slice(displayOffset);
+      lastLinesRef = lines;
+      requestAnimationFrame(() => {
+        if (scrollEl) scrollEl.scrollTop = scrollEl.scrollHeight;
+      });
+    }
+
+    // RAF loop: detect new data by comparing array reference
+    // (parent creates a NEW array on every flush, even if length is same)
+    let rafId = requestAnimationFrame(function loop() {
+      if (lines !== lastLinesRef) {
+        lastLinesRef = lines;
+        if (followTail) {
+          displayOffset = Math.max(0, lines.length - WINDOW);
+          displayLines = lines.slice(displayOffset);
+          requestAnimationFrame(() => {
+            if (scrollEl) scrollEl.scrollTop = scrollEl.scrollHeight;
+          });
         }
       }
-      rafId = requestAnimationFrame(tick);
-    }
-    rafId = requestAnimationFrame(tick);
-    return () => {
-      mounted = false;
-      if (rafId !== null) cancelAnimationFrame(rafId);
-    };
+      rafId = requestAnimationFrame(loop);
+    });
+
+    return () => cancelAnimationFrame(rafId);
   });
 
+  // Mouse wheel UP = user wants to browse → stop following
+  function onWheel(e: WheelEvent) {
+    if (e.deltaY < 0) {
+      followTail = false;
+    }
+  }
+
+  // Jump back to live tail
+  function jumpToLatest() {
+    followTail = true;
+    displayOffset = Math.max(0, lines.length - WINDOW);
+    displayLines = lines.slice(displayOffset);
+    requestAnimationFrame(() => {
+      if (scrollEl) scrollEl.scrollTop = scrollEl.scrollHeight;
+    });
+  }
+
+  // Show jump button when not following and there are newer lines
+  const showJump = $derived(!followTail && lines.length > displayOffset + WINDOW);
+
+  // Search across ALL lines (not just displayed)
   const matches = $derived.by(() => {
     if (!search.trim()) return [];
     const q = search.toLowerCase();
-    return displayLines.reduce((acc: number[], line, i) => {
+    return lines.reduce((acc: number[], line, i) => {
       if (stripAnsi(line).toLowerCase().includes(q)) acc.push(i);
       return acc;
     }, []);
   });
 
   function scrollToMatch(idx: number) {
-    if (!scrollEl || matches.length === 0) return;
-    const target = scrollEl.querySelectorAll('[data-line-index]')[matches[idx % matches.length]] as HTMLElement;
-    target?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    if (matches.length === 0) return;
+    const globalIdx = matches[idx % matches.length];
+    // Move window to show the match
+    followTail = false;
+    displayOffset = Math.max(0, globalIdx - Math.floor(WINDOW / 2));
+    displayLines = lines.slice(displayOffset, displayOffset + WINDOW);
+    requestAnimationFrame(() => {
+      if (!scrollEl) return;
+      const localIdx = globalIdx - displayOffset;
+      const el = scrollEl.querySelectorAll('[data-line-index]')[localIdx] as HTMLElement;
+      el?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    });
   }
-
-  // Auto-scroll to bottom when new lines arrive (only if not searching)
-  $effect(() => {
-    if (displayLines.length > 0 && scrollEl && !search) {
-      requestAnimationFrame(() => { scrollEl.scrollTop = scrollEl.scrollHeight; });
-    }
-  });
 </script>
 
 <div class="rounded-lg border border-border bg-surface-0 overflow-hidden flex flex-col h-full">
   <div class="flex items-center gap-2 px-3 py-1 border-b border-border bg-surface-1 flex-shrink-0">
     <Terminal size={12} class={iconColor} />
     <span class="text-xs font-medium text-text-primary">{label}</span>
-    {#if displayLines.length > 0}
-      <span class="text-2xs text-text-tertiary ml-auto">{displayLines.length} lines</span>
+    {#if lines.length > 0}
+      <span class="text-2xs text-text-tertiary ml-auto">{lines.length} lines</span>
     {/if}
   </div>
   <div class="flex items-center gap-1 px-2 py-0.5 border-b border-border bg-[#161b22]">
@@ -84,13 +119,29 @@
       <span class="text-2xs text-text-tertiary">0 results</span>
     {/if}
   </div>
-  <div bind:this={scrollEl} class="flex-1 overflow-y-auto overflow-x-auto bg-[#0d1117] px-2 py-1 font-mono text-xs leading-snug">
-    {#if displayLines.length > 0}
-      {#each displayLines as line, i (line)}
-        <div data-line-index={i} class="whitespace-pre {matches.includes(i) ? 'bg-yellow-500/20' : ''}">{#each parseAnsi(line) as seg}<span class="{seg.classes || 'text-[#c9d1d9]'}">{seg.text}</span>{/each}</div>
-      {/each}
-    {:else}
-      <div class="text-text-tertiary italic py-2">Waiting for {label} data...</div>
+  <div class="relative flex-1 min-h-0">
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div bind:this={scrollEl} onwheel={onWheel} class="absolute inset-0 overflow-y-auto overflow-x-auto bg-[#0d1117] px-2 py-1 font-mono text-xs leading-snug">
+      {#if displayLines.length > 0}
+        {#if displayOffset > 0}
+          <div class="text-text-tertiary text-2xs py-1 text-center opacity-50">↑ {displayOffset} earlier lines</div>
+        {/if}
+        {#each displayLines as line, i (displayOffset + i)}
+          {@const globalIdx = displayOffset + i}
+          <div data-line-index={i} class="whitespace-pre {matches.includes(globalIdx) ? 'bg-yellow-500/20' : ''}">{#each parseAnsi(line) as seg}<span class="{seg.classes || 'text-[#c9d1d9]'}">{seg.text}</span>{/each}</div>
+        {/each}
+      {:else}
+        <div class="text-text-tertiary italic py-2">Waiting for {label} data...</div>
+      {/if}
+    </div>
+    {#if showJump}
+      <button
+        onclick={jumpToLatest}
+        class="absolute bottom-2 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-accent/90 hover:bg-accent text-xs text-white font-medium shadow-lg backdrop-blur-sm transition-colors z-10 flex items-center gap-1"
+      >
+        <ArrowDown size={12} />
+        Jump to latest
+      </button>
     {/if}
   </div>
 </div>

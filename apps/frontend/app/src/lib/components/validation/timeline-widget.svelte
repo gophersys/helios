@@ -6,84 +6,60 @@
     name: string;
     module: string | null;
     status: 'queued' | 'running' | 'passed' | 'failed' | 'skipped';
-    durationS: number | null;
-    errorMessage: string | null;
-    measurements: Record<string, unknown> | null;
-    logOutput: string | null;
-    expanded: boolean;
+    [key: string]: unknown;
   }
 
   interface Props {
     manifest: TelemetryManifest;
     liveTests: LiveTest[];
     selectedRange: TimeRange | null;
-    onRangeChange?: (range: TimeRange | null) => void;
   }
 
-  let { manifest, liveTests, selectedRange = $bindable(null), onRangeChange }: Props = $props();
+  let { manifest, liveTests, selectedRange = $bindable(null) }: Props = $props();
 
   let canvas: HTMLCanvasElement;
   let containerEl: HTMLElement;
-  let labelsEl: HTMLElement;
-  let w = $state(600);
-  let h = $state(48);
+  let w = $state(300);
+  const h = 24;
   let dpr = 1;
 
-  const pad = { left: 48, right: 48, top: 4, bottom: 4 };
+  // Tooltip
+  let tooltip = $state<{ x: number; text: string } | null>(null);
 
-  // Interaction state
-  let dragging = $state<'left' | 'right' | 'body' | null>(null);
-  let dragStartX = 0;
-  let dragStartRange: TimeRange | null = null;
-
-  // Derived timeline bounds
   const timeStart = $derived(manifest.startedAt ?? 0);
   const timeEnd = $derived(manifest.finishedAt ?? (manifest.startedAt ?? 0));
   const timeDuration = $derived(Math.max(timeEnd - timeStart, 1));
 
-  // Map steps to their test status
   function getStepStatus(step: StepInfo): string {
-    // Try to find a matching liveTest by name and module
-    const match = liveTests.find(
-      (t) => t.name === step.name && (t.module === step.module || (!t.module && !step.module))
-    );
+    const match = liveTests.find(t => t.name === step.name && t.module === step.module);
     return match?.status ?? step.status ?? 'queued';
   }
 
-  function statusColor(status: string): string {
-    switch (status) {
-      case 'passed': return '#22c55e';
-      case 'failed': return '#ef4444';
-      case 'running': return '#3b82f6';
-      case 'skipped': return '#6b7280';
-      default: return '#4b5563';
+  // Use different hues per module for visual grouping
+  const moduleColors: Record<string, string> = {};
+  const hues = ['#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#06b6d4'];
+  let hueIdx = 0;
+  function moduleColor(module: string | null): string {
+    const key = module || '_default';
+    if (!moduleColors[key]) {
+      moduleColors[key] = hues[hueIdx % hues.length];
+      hueIdx++;
     }
+    return moduleColors[key];
   }
 
-  function statusColorFaint(status: string): string {
-    switch (status) {
-      case 'passed': return 'rgba(34, 197, 94, 0.15)';
-      case 'failed': return 'rgba(239, 68, 68, 0.15)';
-      case 'running': return 'rgba(59, 130, 246, 0.15)';
-      case 'skipped': return 'rgba(107, 114, 128, 0.10)';
-      default: return 'rgba(75, 85, 99, 0.10)';
-    }
+  function statusColor(status: string, module: string | null): string {
+    if (status === 'failed') return '#ef4444';
+    if (status === 'skipped') return '#4b5563';
+    return moduleColor(module);
   }
 
   function timeToX(t: number): number {
-    const plotW = w - pad.left - pad.right;
-    return pad.left + ((t - timeStart) / timeDuration) * plotW;
+    return ((t - timeStart) / timeDuration) * w;
   }
 
   function xToTime(x: number): number {
-    const plotW = w - pad.left - pad.right;
-    return timeStart + ((x - pad.left) / plotW) * timeDuration;
-  }
-
-  function formatElapsed(seconds: number): string {
-    const m = Math.floor(seconds / 60);
-    const s = Math.floor(seconds % 60);
-    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    return timeStart + (x / w) * timeDuration;
   }
 
   function draw() {
@@ -95,208 +71,98 @@
     ctx.scale(dpr, dpr);
     ctx.clearRect(0, 0, w, h);
 
-    const barY = pad.top;
-    const barH = h - pad.top - pad.bottom;
-    const plotW = w - pad.left - pad.right;
-
     // Background track
-    ctx.fillStyle = '#161b22';
+    ctx.fillStyle = '#1e2a3a';
     ctx.beginPath();
-    ctx.roundRect(pad.left, barY, plotW, barH, 4);
+    ctx.roundRect(0, 4, w, h - 8, 3);
     ctx.fill();
 
-    // Draw step segments
+    // Step segments
     for (const step of manifest.steps) {
       const status = getStepStatus(step);
-      const x1 = Math.max(timeToX(step.startedAt), pad.left);
-      const x2 = Math.min(timeToX(step.finishedAt), pad.left + plotW);
-      if (x2 <= x1) continue;
+      const x1 = Math.max(timeToX(step.startedAt), 0);
+      const x2 = Math.min(timeToX(step.finishedAt), w);
+      if (x2 <= x1 + 0.5) continue;
 
-      ctx.fillStyle = statusColor(status);
-      ctx.globalAlpha = 0.7;
+      ctx.fillStyle = statusColor(status, step.module);
+      ctx.globalAlpha = 0.8;
       ctx.beginPath();
-      ctx.roundRect(x1 + 0.5, barY + 1, Math.max(x2 - x1 - 1, 2), barH - 2, 2);
+      ctx.roundRect(x1 + 0.5, 5, Math.max(x2 - x1 - 1, 1.5), h - 10, 2);
       ctx.fill();
       ctx.globalAlpha = 1;
     }
 
-    // Draw gap regions (between steps) as darker
-    // Already covered by background track
-
-    // Draw selection overlay
+    // Selection overlay
     if (selectedRange) {
-      const sx1 = Math.max(timeToX(selectedRange.start), pad.left);
-      const sx2 = Math.min(timeToX(selectedRange.end), pad.left + plotW);
+      const sx1 = Math.max(timeToX(selectedRange.start), 0);
+      const sx2 = Math.min(timeToX(selectedRange.end), w);
 
-      // Dim everything outside selection
+      // Dim outside
       ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-      if (sx1 > pad.left) {
-        ctx.fillRect(pad.left, barY, sx1 - pad.left, barH);
-      }
-      if (sx2 < pad.left + plotW) {
-        ctx.fillRect(sx2, barY, pad.left + plotW - sx2, barH);
-      }
+      if (sx1 > 0) ctx.fillRect(0, 4, sx1, h - 8);
+      if (sx2 < w) ctx.fillRect(sx2, 4, w - sx2, h - 8);
 
       // Selection border
       ctx.strokeStyle = '#58a6ff';
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.roundRect(sx1, barY, sx2 - sx1, barH, 2);
-      ctx.stroke();
-
-      // Handles
-      const handleW = 4;
-      const handleH = barH * 0.6;
-      const handleY = barY + (barH - handleH) / 2;
-      ctx.fillStyle = '#58a6ff';
-      // Left handle
-      ctx.beginPath();
-      ctx.roundRect(sx1 - handleW / 2, handleY, handleW, handleH, 2);
-      ctx.fill();
-      // Right handle
-      ctx.beginPath();
-      ctx.roundRect(sx2 - handleW / 2, handleY, handleW, handleH, 2);
-      ctx.fill();
+      ctx.lineWidth = 1;
+      ctx.strokeRect(sx1, 4, sx2 - sx1, h - 8);
     }
-
-    // Time labels at start and end
-    ctx.font = '10px ui-monospace, monospace';
-    ctx.textBaseline = 'middle';
-    ctx.fillStyle = '#6b7280';
-    ctx.textAlign = 'right';
-    ctx.fillText(formatElapsed(0), pad.left - 6, barY + barH / 2);
-    ctx.textAlign = 'left';
-    ctx.fillText(formatElapsed(timeDuration), pad.left + plotW + 6, barY + barH / 2);
 
     ctx.restore();
   }
 
-  // Redraw on any relevant change
   $effect(() => {
-    // Touch reactive deps
-    void manifest;
-    void liveTests;
-    void selectedRange;
-    void w;
-    void h;
+    void manifest; void liveTests; void selectedRange; void w;
     draw();
   });
 
-  function hitTest(clientX: number): { type: 'left-handle' | 'right-handle' | 'body' | 'step'; step?: StepInfo } | null {
-    if (!canvas) return null;
+  function onClick(e: MouseEvent) {
     const rect = canvas.getBoundingClientRect();
-    const x = (clientX - rect.left);
-
-    // Check selection handles first
-    if (selectedRange) {
-      const sx1 = timeToX(selectedRange.start);
-      const sx2 = timeToX(selectedRange.end);
-      if (Math.abs(x - sx1) < 8) return { type: 'left-handle' };
-      if (Math.abs(x - sx2) < 8) return { type: 'right-handle' };
-      if (x >= sx1 && x <= sx2) return { type: 'body' };
-    }
-
-    // Check steps
+    const x = e.clientX - rect.left;
     const t = xToTime(x);
+
     for (const step of manifest.steps) {
       if (t >= step.startedAt && t <= step.finishedAt) {
-        return { type: 'step', step };
+        if (selectedRange && Math.abs(selectedRange.start - step.startedAt) < 0.5 && Math.abs(selectedRange.end - step.finishedAt) < 0.5) {
+          selectedRange = null;
+        } else {
+          selectedRange = { start: step.startedAt, end: step.finishedAt };
+        }
+        return;
       }
     }
-    return null;
+    selectedRange = null;
   }
 
-  function onPointerDown(e: PointerEvent) {
-    const hit = hitTest(e.clientX);
-    if (!hit) return;
-
-    if (hit.type === 'left-handle' && selectedRange) {
-      dragging = 'left';
-      dragStartX = e.clientX;
-      dragStartRange = { ...selectedRange };
-      (e.target as HTMLElement).setPointerCapture(e.pointerId);
-    } else if (hit.type === 'right-handle' && selectedRange) {
-      dragging = 'right';
-      dragStartX = e.clientX;
-      dragStartRange = { ...selectedRange };
-      (e.target as HTMLElement).setPointerCapture(e.pointerId);
-    } else if (hit.type === 'body' && selectedRange) {
-      dragging = 'body';
-      dragStartX = e.clientX;
-      dragStartRange = { ...selectedRange };
-      (e.target as HTMLElement).setPointerCapture(e.pointerId);
-    } else if (hit.type === 'step' && hit.step) {
-      // Click step to select/deselect
-      const step = hit.step;
-      if (
-        selectedRange &&
-        Math.abs(selectedRange.start - step.startedAt) < 0.5 &&
-        Math.abs(selectedRange.end - step.finishedAt) < 0.5
-      ) {
-        // Same step clicked again — clear selection
-        selectedRange = null;
-        onRangeChange?.(null);
-      } else {
-        selectedRange = { start: step.startedAt, end: step.finishedAt };
-        onRangeChange?.(selectedRange);
-      }
-    }
-  }
-
-  function onPointerMove(e: PointerEvent) {
-    if (!dragging || !dragStartRange) return;
+  function onHover(e: MouseEvent) {
     const rect = canvas.getBoundingClientRect();
-    const dx = e.clientX - dragStartX;
-    const plotW = w - pad.left - pad.right;
-    const dt = (dx / plotW) * timeDuration;
+    const x = e.clientX - rect.left;
+    const t = xToTime(x);
 
-    if (dragging === 'left') {
-      const newStart = Math.max(timeStart, Math.min(dragStartRange.start + dt, dragStartRange.end - 1));
-      selectedRange = { start: newStart, end: dragStartRange.end };
-      onRangeChange?.(selectedRange);
-    } else if (dragging === 'right') {
-      const newEnd = Math.min(timeEnd, Math.max(dragStartRange.end + dt, dragStartRange.start + 1));
-      selectedRange = { start: dragStartRange.start, end: newEnd };
-      onRangeChange?.(selectedRange);
-    } else if (dragging === 'body') {
-      const rangeDur = dragStartRange.end - dragStartRange.start;
-      let newStart = dragStartRange.start + dt;
-      let newEnd = dragStartRange.end + dt;
-      // Clamp
-      if (newStart < timeStart) { newStart = timeStart; newEnd = timeStart + rangeDur; }
-      if (newEnd > timeEnd) { newEnd = timeEnd; newStart = timeEnd - rangeDur; }
-      selectedRange = { start: newStart, end: newEnd };
-      onRangeChange?.(selectedRange);
+    for (const step of manifest.steps) {
+      if (t >= step.startedAt && t <= step.finishedAt) {
+        const dur = step.finishedAt - step.startedAt;
+        const m = Math.floor(dur / 60);
+        const s = Math.floor(dur % 60);
+        tooltip = {
+          x: e.clientX - rect.left,
+          text: `${step.module ? step.module + ' → ' : ''}${step.name} (${m}m ${s}s)`,
+        };
+        canvas.style.cursor = 'pointer';
+        return;
+      }
     }
+    tooltip = null;
+    canvas.style.cursor = 'default';
   }
 
-  function onPointerUp(e: PointerEvent) {
-    if (dragging) {
-      dragging = null;
-      dragStartRange = null;
-    }
+  function onLeave() {
+    tooltip = null;
   }
 
-  // Cursor style
-  function updateCursor(e: MouseEvent) {
-    if (!canvas) return;
-    const hit = hitTest(e.clientX);
-    if (hit?.type === 'left-handle' || hit?.type === 'right-handle') {
-      canvas.style.cursor = 'ew-resize';
-    } else if (hit?.type === 'body') {
-      canvas.style.cursor = 'grab';
-    } else if (hit?.type === 'step') {
-      canvas.style.cursor = 'pointer';
-    } else {
-      canvas.style.cursor = 'default';
-    }
-  }
-
-  function updateCanvasSize() {
+  function updateSize() {
     if (!containerEl) return;
-    const r = containerEl.getBoundingClientRect();
-    w = Math.max(Math.floor(r.width), 200);
-    h = 48;
+    w = Math.max(Math.floor(containerEl.getBoundingClientRect().width), 100);
     dpr = typeof window !== 'undefined' ? (window.devicePixelRatio || 1) : 1;
     if (canvas) {
       canvas.width = w * dpr;
@@ -307,53 +173,40 @@
     draw();
   }
 
-  // Build step label data for HTML overlay
-  const stepLabels = $derived.by(() => {
-    if (!manifest.steps.length) return [];
-    const plotW = w - pad.left - pad.right;
-    return manifest.steps.map((step) => {
-      const x1 = timeToX(step.startedAt);
-      const x2 = timeToX(step.finishedAt);
-      const stepW = x2 - x1;
-      // Only show label if segment is wide enough
-      if (stepW < 20) return null;
-      // Short name: strip test_ prefix, truncate
-      let label = step.name.replace(/^test_/, '');
-      const maxChars = Math.floor(stepW / 6);
-      if (label.length > maxChars) label = label.slice(0, maxChars - 1) + '\u2026';
-      return { x: x1, w: stepW, label, status: getStepStatus(step) };
-    }).filter(Boolean) as { x: number; w: number; label: string; status: string }[];
-  });
-
   onMount(() => {
-    const ro = new ResizeObserver(() => updateCanvasSize());
+    const ro = new ResizeObserver(() => updateSize());
     ro.observe(containerEl);
-    updateCanvasSize();
+    updateSize();
     return () => ro.disconnect();
   });
 </script>
 
-<div class="rounded-lg border border-border bg-surface-0 overflow-hidden mb-2">
-  <div bind:this={containerEl} class="relative" style="height: 48px;">
+<div class="flex items-center gap-1.5" style="height: {h}px;">
+  <span class="text-2xs font-mono text-text-tertiary flex-shrink-0">{timeStart ? new Date(timeStart * 1000).toISOString().slice(11, 19) : ''}</span>
+  <div bind:this={containerEl} class="relative flex-1 min-w-0" style="height: {h}px;">
     <canvas
       bind:this={canvas}
       class="block absolute inset-0 touch-none"
-      onpointermove={(e) => { onPointerMove(e); updateCursor(e); }}
-      onpointerdown={onPointerDown}
-      onpointerup={onPointerUp}
+      onclick={onClick}
+      onmousemove={onHover}
+      onmouseleave={onLeave}
     ></canvas>
-    <!-- Step labels overlay -->
-    <div class="absolute inset-0 pointer-events-none" style="padding-left: {pad.left}px; padding-right: {pad.right}px;">
-      <div class="relative h-full">
-        {#each stepLabels as sl (sl.label + sl.x)}
-          <span
-            class="absolute text-2xs font-mono truncate text-center leading-none"
-            style="left: {sl.x - pad.left}px; width: {sl.w}px; top: 50%; transform: translateY(-50%); color: {statusColor(sl.status)}; opacity: 0.9;"
-          >
-            {sl.label}
-          </span>
-        {/each}
+    {#if tooltip}
+      <div
+        class="absolute bottom-full mb-1 px-2 py-1 rounded bg-surface-2 border border-border text-2xs text-text-primary whitespace-nowrap pointer-events-none z-10"
+        style="left: {Math.min(tooltip.x, w - 150)}px; transform: translateX(-50%);"
+      >
+        {tooltip.text}
       </div>
-    </div>
+    {/if}
   </div>
+  <span class="text-2xs font-mono text-text-tertiary flex-shrink-0">{timeEnd ? new Date(timeEnd * 1000).toISOString().slice(11, 19) : ''}</span>
+  {#if selectedRange}
+    <button
+      onclick={() => { selectedRange = null; }}
+      class="flex-shrink-0 flex items-center gap-1 rounded px-2 py-0.5 text-2xs transition-all whitespace-nowrap
+        bg-accent/15 border border-accent/40 text-accent hover:bg-accent/25 cursor-pointer"
+      title="Clear selection (Esc)"
+    >Clear ✕</button>
+  {/if}
 </div>

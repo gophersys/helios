@@ -149,29 +149,25 @@ def report_test_start(run_id: str):
     if err:
         return err
 
-    # Find the test definition by name
+    # Find or create the test definition.
+    # Unique constraint: (productId, name, category). Tests with the same name
+    # in different modules are DISTINCT records — no collision.
     test = db.test.find_first(
         where={
             "name": data.test_name,
             "productId": session.productId,
+            "category": data.module or "uncategorized",
         },
     )
 
     if not test:
-        # Auto-create test definition if it doesn't exist (first run with new tests)
         test = db.test.create(
             data={
                 "name": data.test_name,
                 "productId": session.productId,
-                "category": data.module,
+                "category": data.module or "uncategorized",
                 "enabled": True,
             },
-        )
-    elif data.module and test.category != data.module:
-        # Update category if it changed (e.g., test moved to different module/file)
-        test = db.test.update(
-            where={"id": test.id},
-            data={"category": data.module},
         )
 
     # Find the device for this session
@@ -179,7 +175,7 @@ def report_test_start(run_id: str):
     if not device:
         return internal_error("No device found for this run")
 
-    # Find existing execution or create one
+    # Find existing execution or create one (simple lookup — test ID is unique per module)
     execution = db.testexecution.find_first(
         where={
             "testId": test.id,
@@ -192,22 +188,15 @@ def report_test_start(run_id: str):
     if execution:
         db.testexecution.update(
             where={"id": execution.id},
-            data={
-                "status": "RUNNING",
-                "startedAt": now,
-            },
+            data={"status": "RUNNING", "startedAt": now},
         )
     else:
-        # Get the node from session config
         node_id = None
         if session.config and isinstance(session.config, dict):
             node_id = session.config.get("nodeId")
-
         if not node_id:
-            # Fall back to first available node
             node = db.node.find_first()
             node_id = node.id if node else None
-
         if not node_id:
             return internal_error("No node configured for this run")
 
@@ -254,14 +243,19 @@ def report_test_result(run_id: str):
     if err:
         return err
 
-    # Find the test + execution
+    # Find the test + execution (unique by productId + name + category)
     test = db.test.find_first(
         where={
             "name": data.test_name,
             "productId": session.productId,
+            "category": data.module or "uncategorized",
         },
     )
-
+    if not test:
+        # Fallback: name-only (backward compat with old test records)
+        test = db.test.find_first(
+            where={"name": data.test_name, "productId": session.productId},
+        )
     if not test:
         return not_found(f"Test '{data.test_name}' not found")
 
@@ -270,10 +264,7 @@ def report_test_result(run_id: str):
         return internal_error("No device found for this run")
 
     execution = db.testexecution.find_first(
-        where={
-            "testId": test.id,
-            "deviceId": device.id,
-        },
+        where={"testId": test.id, "deviceId": device.id},
     )
 
     if not execution:

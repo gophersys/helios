@@ -79,6 +79,7 @@
   let loading = $state(true);
   let error = $state<string | null>(null);
   let cancelling = $state(false);
+  let confirmCancel = $state(false);
   let triggering = $state(false);
   let showTrigger = $state(false);
   let triggerFwVersion = $state('');
@@ -91,6 +92,7 @@
     module: string | null;
     status: 'queued' | 'running' | 'passed' | 'failed' | 'skipped';
     durationS: number | null;
+    startedAtMs: number | null; // epoch ms — for live running timer
     errorMessage: string | null;
     measurements: Record<string, unknown> | null;
     logOutput: string | null;
@@ -99,6 +101,10 @@
   let liveTests = $state<LiveTest[]>([]);
   let liveRunning = $state(false);
   let liveFinished = $state(false);
+
+  // Live clock for running timers (ticks every second)
+  let nowMs = $state(Date.now());
+  let clockInterval: ReturnType<typeof setInterval> | null = null;
   // Auto-follow: automatically expand the running test and collapse the previous one.
   // Disabled when the user manually clicks a non-running test. Re-enabled when
   // the user clicks the currently-running test.
@@ -126,6 +132,41 @@
   let topPanelHeight = $state(50); // percentage of flex column wrapper
   let resizing = $state(false);
   let flexColumnEl: HTMLElement | null = null;
+
+  // Vertical column widths (pixels)
+  let sidebarWidth = $state(192); // w-48 = 192px
+  let chartsWidth = $state(576);
+  let vResizing = $state<'sidebar' | 'charts' | null>(null);
+
+  function startVerticalResize(which: 'sidebar' | 'charts', e: MouseEvent) {
+    e.preventDefault();
+    vResizing = which;
+    const startX = e.clientX;
+    const startW = which === 'sidebar' ? sidebarWidth : chartsWidth;
+
+    function onMove(ev: MouseEvent) {
+      const delta = ev.clientX - startX;
+      if (which === 'sidebar') {
+        sidebarWidth = Math.max(120, Math.min(400, startW + delta));
+      } else {
+        // Charts resize is inverted — dragging right makes charts narrower
+        chartsWidth = Math.max(300, Math.min(800, startW - delta));
+      }
+    }
+
+    function onUp() {
+      vResizing = null;
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    }
+
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  }
 
   function startResize(e: MouseEvent) {
     e.preventDefault();
@@ -170,8 +211,11 @@
   let selectedRange = $state<TimeRange | null>(null);
   let historicalPower = $state<PowerSample[]>([]);
   let historicalPowerChg = $state<PowerSample[]>([]);
-  let historicalUartApp = $state<string[]>([]);
-  let historicalUartComms = $state<string[]>([]);
+  interface TimestampedLine { t: number; line: string; }
+  let historicalUartAppTs = $state<TimestampedLine[]>([]);
+  let historicalUartCommsTs = $state<TimestampedLine[]>([]);
+  let historicalUartApp = $derived(historicalUartAppTs.map(l => l.line));
+  let historicalUartComms = $derived(historicalUartCommsTs.map(l => l.line));
   let telemetryLoading = $state(false);
 
   const analysisMode = $derived(run?.status !== 'ACTIVE' && telemetryManifest !== null);
@@ -186,14 +230,16 @@
     return historicalPowerChg.filter(s => s.t >= selectedRange!.start && s.t <= selectedRange!.end);
   });
   const filteredUartApp = $derived.by(() => {
-    if (!selectedRange || historicalUartApp.length === 0) return historicalUartApp;
-    // UART lines have timestamps embedded as [HH:MM:SS.mmm] — filter by parsing
-    // For simplicity, return all lines when range is set (UART is text, not easily time-filterable)
-    return historicalUartApp;
+    if (!selectedRange || historicalUartAppTs.length === 0) return historicalUartApp;
+    return historicalUartAppTs
+      .filter(l => l.t >= selectedRange!.start && l.t <= selectedRange!.end)
+      .map(l => l.line);
   });
   const filteredUartComms = $derived.by(() => {
-    if (!selectedRange || historicalUartComms.length === 0) return historicalUartComms;
-    return historicalUartComms;
+    if (!selectedRange || historicalUartCommsTs.length === 0) return historicalUartComms;
+    return historicalUartCommsTs
+      .filter(l => l.t >= selectedRange!.start && l.t <= selectedRange!.end)
+      .map(l => l.line);
   });
 
   // Effective samples for components — live data during active, historical during analysis
@@ -240,7 +286,7 @@
       if (dirty) {
         liveTests = liveTests;
       }
-    }, 1000); // flush every 1s (perf: 500ms causes stutter during heavy FUOTA streaming)
+    }, 200); // flush at 5Hz (perf optimizations: memoized ANSI, RAF rendering, canvas chart)
   }
 
   // Auto-scroll moved into UartTerminal component
@@ -417,7 +463,7 @@
       const executions = (res.data as any).executions as any[] | undefined;
       const configTestList = (res.data as any).config?.testList as { name: string; module: string | null }[] | undefined;
 
-      if (liveTests.length === 0) {
+      if (liveTests.length === 0 || liveTests.every(t => t.status === 'queued')) {
         // Build a map of execution results keyed by "module::name" for unique matching
         // (test_01 and test_02 have identical test method names, only module differs)
         const execMap = new Map<string, any>();
@@ -482,6 +528,7 @@
             module: t.module,
             status,
             durationS,
+            startedAtMs: ex?.startedAt ? new Date(ex.startedAt).getTime() : null,
             errorMessage,
             measurements,
             logOutput,
@@ -495,6 +542,50 @@
         if (res.data.status !== 'ACTIVE' && res.data.status !== 'PENDING') {
           liveFinished = true;
           liveRunning = false;
+        }
+
+        // Auto-focus: expand the running test and select its stage on page load/reload
+        const runningTest = liveTests.find(t => t.status === 'running');
+        // If no running test found in hydration, check if WebSocket already set one
+        // (onTestStart may have fired before fetchRun completed)
+        if (runningTest) {
+          liveRunning = true;
+          autoFollow = true;
+          // Expand running test, collapse others
+          for (const t of liveTests) {
+            t.expanded = (t === runningTest);
+          }
+          liveTests = liveTests;
+          // Select its stage
+          if (runningTest.module) {
+            selectedStage = runningTest.module;
+          }
+          // Scroll to it after DOM update
+          setTimeout(() => {
+            const el = document.querySelector(`[data-test-name="${runningTest.name}"][data-test-module="${runningTest.module}"]`);
+            el?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+          }, 100);
+        }
+
+        // For active runs: load partial output from output.log artifact
+        // so page reload shows existing output, not just new chunks
+        if (res.data.status === 'ACTIVE') {
+          try {
+            const logRes = await fetch(`/v2/sessions/${runId}/artifacts/logs/output.log`, {
+              headers: { 'Authorization': `Bearer ${getToken()}` },
+            });
+            if (logRes.ok) {
+              const fullLog = await logRes.text();
+              // Find the running test and prepend any existing output
+              const runningTest = liveTests.find(t => t.status === 'running');
+              if (runningTest && fullLog) {
+                runningTest.logOutput = fullLog.slice(-10000); // last 10KB
+                liveTests = liveTests;
+              }
+            }
+          } catch {
+            // Non-critical — new chunks will still arrive via WebSocket
+          }
         }
       }
     } catch (err: unknown) {
@@ -517,7 +608,14 @@
         }
       }
       liveTests = liveTests;
+      // Clean up WebSocket subscription — run is no longer active
+      if (unsubscribeWs) {
+        unsubscribeWs();
+        unsubscribeWs = null;
+      }
       await fetchRun();
+      // Trigger post-analysis mode (load telemetry manifest the backend just generated)
+      fetchTelemetryManifest();
     } catch (err: unknown) {
       error = err instanceof Error ? err.message : 'Failed to cancel run';
     } finally {
@@ -729,17 +827,17 @@
             if (name === 'power') historicalPower = samples;
             else historicalPowerChg = samples;
           } else if (name === 'uart_app' || name === 'uart_comms') {
-            const lines: string[] = [];
+            const tsLines: TimestampedLine[] = [];
             for (const line of text.split('\n')) {
               if (!line.trim()) continue;
               try {
                 const s = JSON.parse(line);
                 const ts = new Date(s.t * 1000).toISOString().slice(11, 23);
-                lines.push(`\x1b[36m[${ts}]\x1b[0m ${s.line}`);
+                tsLines.push({ t: s.t, line: `\x1b[36m[${ts}]\x1b[0m ${s.line}` });
               } catch { /* skip malformed */ }
             }
-            if (name === 'uart_app') historicalUartApp = lines;
-            else historicalUartComms = lines;
+            if (name === 'uart_app') historicalUartAppTs = tsLines;
+            else historicalUartCommsTs = tsLines;
           }
         } catch { /* skip failed channels */ }
       }));
@@ -779,12 +877,31 @@
     }
   }
 
+  // Find a test by name + module. When module is null/undefined in the event,
+  // fall back to name-only match (finds the first). When module IS set, exact match.
+  function findTest(name: string, module?: string | null): LiveTest | undefined {
+    if (module) {
+      return liveTests.find(t => t.name === name && t.module === module);
+    }
+    return liveTests.find(t => t.name === name);
+  }
+
   function toggleTestExpanded(testName: string, module?: string | null): void {
     const test = module
       ? liveTests.find(t => t.name === testName && t.module === module)
       : liveTests.find(t => t.name === testName);
     if (!test) return;
     test.expanded = !test.expanded;
+
+    // In analysis mode, set the time range for cross-widget filtering
+    if (analysisMode && telemetryManifest && test.expanded) {
+      const step = telemetryManifest.steps.find(s => s.name === testName && s.module === module);
+      if (step) {
+        selectedRange = { start: step.startedAt, end: step.finishedAt };
+      }
+    } else if (analysisMode && !test.expanded) {
+      selectedRange = null; // collapsed = show all
+    }
 
     // Auto-follow logic: if user clicks the running test, resume following.
     // If user clicks any other test, stop following.
@@ -802,15 +919,17 @@
       {
         onTestStart: (data: ValidationTestStartEvent) => {
           liveRunning = true;
-          const existing = liveTests.find(t => t.name === data.testName && t.module === data.module);
+          const existing = findTest(data.testName, data.module);
           if (existing) {
             existing.status = 'running';
+            existing.startedAtMs = Date.now();
           } else {
             liveTests.push({
               name: data.testName,
               module: data.module,
               status: 'running',
               durationS: null,
+              startedAtMs: Date.now(),
               errorMessage: null,
               measurements: null,
               logOutput: null,
@@ -825,13 +944,13 @@
           // Auto-follow: expand the new running test, collapse the previous one
           if (autoFollow) {
             for (const t of liveTests) {
-              t.expanded = (t.name === data.testName);
+              t.expanded = (t.name === data.testName && (data.module ? t.module === data.module : true));
             }
             liveTests = liveTests;
           }
         },
         onTestResult: (data: ValidationTestResultEvent) => {
-          const existing = liveTests.find(t => t.name === data.testName && t.module === data.module);
+          const existing = findTest(data.testName, data.module);
           if (existing) {
             existing.status = data.skipped ? 'skipped' : data.passed ? 'passed' : 'failed';
             existing.durationS = data.durationS;
@@ -881,6 +1000,7 @@
               module: t.module,
               status: 'queued' as const,
               durationS: null,
+              startedAtMs: null,
               errorMessage: null,
               measurements: null,
               logOutput: null,
@@ -927,14 +1047,9 @@
   }
 
   function cleanup(): void {
-    if (pollInterval) {
-      clearInterval(pollInterval);
-      pollInterval = null;
-    }
-    if (unsubscribeWs) {
-      unsubscribeWs();
-      unsubscribeWs = null;
-    }
+    if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
+    if (clockInterval) { clearInterval(clockInterval); clockInterval = null; }
+    if (unsubscribeWs) { unsubscribeWs(); unsubscribeWs = null; }
   }
 
   function getStageStatusIcon(stage: typeof stages[0]) {
@@ -965,11 +1080,51 @@
     pollInterval = setInterval(() => {
       if (run?.status === 'ACTIVE' && !liveRunning) fetchRun();
     }, 5000);
+    clockInterval = setInterval(() => { nowMs = Date.now(); }, 1000);
+  });
+
+  function handleKeydown(e: KeyboardEvent) {
+    if (e.key === 'Escape' && selectedRange) {
+      selectedRange = null;
+      e.preventDefault();
+    }
+  }
+
+  // When selectedRange changes (from timeline click), auto-expand the matching test step
+  // and auto-select the correct stage
+  $effect(() => {
+    if (!analysisMode || !telemetryManifest || !selectedRange) return;
+
+    // Find which step matches this range
+    const step = telemetryManifest.steps.find(
+      s => Math.abs(s.startedAt - selectedRange!.start) < 1 && Math.abs(s.finishedAt - selectedRange!.end) < 1
+    );
+    if (!step) return;
+
+    // Auto-select the stage (module)
+    if (step.module && step.module !== selectedStage) {
+      selectedStage = step.module;
+    }
+
+    // Auto-expand just this test, collapse others
+    for (const t of liveTests) {
+      t.expanded = (t.name === step.name && t.module === step.module);
+    }
+    liveTests = liveTests;
+
+    // Scroll the expanded test step to the top of the test list panel
+    // Use a short delay so the DOM has time to expand the test content
+    setTimeout(() => {
+      const el = document.querySelector(`[data-test-name="${step.name}"][data-test-module="${step.module}"]`);
+      el?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    }, 50);
   });
 
   onDestroy(cleanup);
   beforeNavigate(cleanup);
 </script>
+
+<svelte:window onkeydown={handleKeydown} />
 
 <svelte:head>
   <title>{run?.name ?? 'Run'} — Validation — Concord</title>
@@ -1017,11 +1172,19 @@
         {/if}
       </div>
 
-      <!-- Spacer -->
-      <div class="flex-1"></div>
+      <!-- Timeline (inline in header for post-analysis) — before counts -->
+      {#if analysisMode && telemetryManifest}
+        <div class="flex-[3] min-w-48 rounded border border-border bg-surface-0 px-1.5 py-0.5">
+          <TimelineWidget
+            manifest={telemetryManifest}
+            {liveTests}
+            bind:selectedRange
+          />
+        </div>
+      {/if}
 
-      <!-- Test counts -->
-      <div class="flex items-center gap-3 text-xs text-text-secondary flex-shrink-0">
+      <!-- Counts + Duration pinned to the right -->
+      <div class="flex items-center gap-3 text-xs text-text-secondary flex-shrink-0 ml-auto">
         <span class="flex items-center gap-1">
           <CheckCircle2 size={12} class="text-success" />
           {livePassedCount}
@@ -1034,57 +1197,66 @@
           <SkipForward size={12} class="text-text-tertiary" />
           {liveSkippedCount}
         </span>
+        <div class="w-px h-4 bg-border"></div>
+        <span class="flex items-center gap-1 text-text-tertiary tabular-nums">
+          <Clock size={12} />
+          {#if isActive && run?.startedAt}
+            {formatDuration(nowMs - new Date(run.startedAt).getTime())}
+          {:else if liveSummary?.durationS}
+            {formatDuration(liveSummary.durationS * 1000)}
+          {:else if durationMs !== null}
+            {formatDuration(durationMs)}
+          {:else}
+            —
+          {/if}
+        </span>
       </div>
 
-      <!-- Duration -->
-      <div class="flex items-center gap-1 text-xs text-text-tertiary flex-shrink-0">
-        <Clock size={12} />
-        {#if liveSummary?.durationS}
-          {formatDuration(liveSummary.durationS * 1000)}
-        {:else if durationMs !== null}
-          {formatDuration(durationMs)}
-        {:else}
-          —
-        {/if}
-      </div>
-
-      <!-- Action buttons -->
-      <div class="flex items-center gap-1 flex-shrink-0">
-        {#if isActive}
-          <button onclick={cancelRun} disabled={cancelling} class="btn btn-xs flex items-center gap-1.5 text-error border-error/30 hover:bg-error/10" title="Cancel run">
-            {#if cancelling}
-              <Loader2 size={12} class="animate-spin" />
-            {:else}
-              <Ban size={12} />
-            {/if}
-            Cancel
-          </button>
-        {/if}
-      </div>
+      <!-- Cancel button -->
+      {#if isActive}
+        <button
+          onclick={() => { confirmCancel = true; }}
+          class="flex-shrink-0 flex items-center gap-1.5 rounded-lg border border-error/30 bg-error/10 px-3 py-1.5 text-xs font-medium text-error hover:bg-error/20 transition-colors"
+        >
+          <Ban size={12} />
+          Cancel Run
+        </button>
+      {/if}
     </div>
 
-    <!-- Timeline widget for post-analysis (completed/failed/cancelled runs) -->
-    {#if analysisMode && telemetryManifest}
-      <TimelineWidget
-        manifest={telemetryManifest}
-        {liveTests}
-        bind:selectedRange
-      />
-    {/if}
-
-    <!-- ═══ MAIN LAYOUT: [Left: resizable tests+UART] [Right: fixed telemetry] ═══ -->
+    <!-- ═══ MAIN LAYOUT: Top row (stages+tests+charts) → resize → UART bottom ═══ -->
     {#if liveTests.length > 0 || buildJobs.length > 0}
-    <div class="flex gap-3" style="height: calc(100vh - 90px);">
-      <!-- Left side: resizable split between tests (top) and UART (bottom) -->
-      <div class="flex-1 flex flex-col min-w-0" data-resize-container>
-      <div class="flex gap-3 overflow-hidden" style="flex: 0 0 {topPanelHeight}%;">
-        <!-- Left sidebar: Stage list -->
-        <div class="w-56 flex-shrink-0 overflow-y-auto">
+    <div class="flex flex-col relative" data-resize-container style="height: calc(100vh - 90px);">
+      <!-- Telemetry loading overlay (analysis mode) -->
+      {#if telemetryLoading && analysisMode}
+        <div class="absolute inset-0 z-20 flex items-center justify-center bg-surface-0/60 backdrop-blur-sm rounded-lg">
+          <div class="flex flex-col items-center gap-3">
+            <Loader2 size={28} class="text-accent animate-spin" />
+            <span class="text-sm text-text-secondary font-medium">Loading telemetry data...</span>
+          </div>
+        </div>
+      {/if}
+      <!-- Top row: stages + test steps + telemetry charts (with vertical drag bars) -->
+      <div class="flex overflow-hidden" style="flex: 0 0 {topPanelHeight}%;">
+        <!-- Stage sidebar -->
+        <div class="flex-shrink-0 overflow-y-auto" style="width: {sidebarWidth}px;">
           <div class="space-y-1">
             {#each stages as stage (stage.name)}
               {@const statusInfo = getStageStatusIcon(stage)}
               <button
-                onclick={() => { selectedStage = stage.name; }}
+                onclick={() => {
+                  selectedStage = stage.name;
+                  // In analysis mode, select the entire stage's time range
+                  if (analysisMode && telemetryManifest) {
+                    const stageSteps = telemetryManifest.steps.filter(s => s.module === stage.name);
+                    if (stageSteps.length > 0) {
+                      selectedRange = {
+                        start: Math.min(...stageSteps.map(s => s.startedAt)),
+                        end: Math.max(...stageSteps.map(s => s.finishedAt)),
+                      };
+                    }
+                  }
+                }}
                 class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-colors
                   {selectedStage === stage.name
                     ? 'bg-accent-muted border border-accent/30 text-text-primary'
@@ -1142,6 +1314,16 @@
               </div>
             {/if}
           </div>
+        </div>
+
+        <!-- Vertical drag bar: sidebar ↔ test steps -->
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div
+          onmousedown={(e) => startVerticalResize('sidebar', e)}
+          class="w-3 mx-0.5 flex-shrink-0 flex items-center justify-center cursor-col-resize group rounded
+            {vResizing === 'sidebar' ? 'bg-accent/20' : 'hover:bg-surface-2'}"
+        >
+          <div class="w-0.5 h-8 rounded-full transition-colors {vResizing === 'sidebar' ? 'bg-accent' : 'bg-border group-hover:bg-text-tertiary'}"></div>
         </div>
 
         <!-- Center panel: Test list or build logs for selected stage -->
@@ -1266,6 +1448,8 @@
                     <div class="group">
                       <!-- Test row header -->
                       <button
+                        data-test-name={test.name}
+                        data-test-module={test.module}
                         onclick={() => toggleTestExpanded(test.name, test.module)}
                         class="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-surface-1 transition-colors
                           {test.status === 'failed' ? 'bg-error-muted/30' : ''}
@@ -1302,8 +1486,12 @@
                           {test.name}
                         </span>
 
-                        <!-- Duration -->
-                        {#if test.durationS !== null}
+                        <!-- Duration (live timer when running, final when done) -->
+                        {#if test.status === 'running' && test.startedAtMs}
+                          <span class="text-xs tabular-nums text-accent">
+                            {formatDuration(nowMs - test.startedAtMs)}
+                          </span>
+                        {:else if test.durationS !== null}
                           <span class="text-xs tabular-nums text-text-tertiary">
                             {formatDuration((test.durationS ?? 0) * 1000)}
                           </span>
@@ -1395,37 +1583,83 @@
           {/if}
         </div>
 
-      </div><!-- end top row (stages + test steps) -->
-
-        <!-- Resize bar -->
+        <!-- Vertical drag bar: test steps ↔ charts -->
         <!-- svelte-ignore a11y_no_static_element_interactions -->
         <div
-          onmousedown={startResize}
-          class="h-3 my-1 flex items-center justify-center cursor-row-resize group rounded transition-colors
-            {resizing ? 'bg-accent/20' : 'hover:bg-surface-2'}"
+          onmousedown={(e) => startVerticalResize('charts', e)}
+          class="w-3 mx-0.5 flex-shrink-0 hidden xl:flex items-center justify-center cursor-col-resize group rounded
+            {vResizing === 'charts' ? 'bg-accent/20' : 'hover:bg-surface-2'}"
         >
-          <div class="w-16 h-1 rounded-full transition-colors {resizing ? 'bg-accent' : 'bg-border group-hover:bg-text-tertiary'}"></div>
+          <div class="w-0.5 h-8 rounded-full transition-colors {vResizing === 'charts' ? 'bg-accent' : 'bg-border group-hover:bg-text-tertiary'}"></div>
         </div>
 
-        <!-- UART Terminals -->
-        <div class="flex-1 min-h-0 overflow-hidden">
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-2 h-full">
-            <UartTerminal lines={effectiveUartApp} label="nRF52840" iconColor="text-green-400" />
-            <UartTerminal lines={effectiveUartComms} label="nRF9151" iconColor="text-blue-400" />
+        <!-- Telemetry charts (right side of top row, min-height prevents collapse) -->
+        <div class="flex-shrink-0 hidden xl:flex flex-col gap-2" style="width: {chartsWidth}px;">
+          <div class="flex-shrink-0" style="min-height: 232px; height: 232px;">
+            <PowerChart samples={effectivePower} chgSamples={effectivePowerChg} windowSeconds={analysisMode ? 99999 : POWER_WINDOW_S} />
+          </div>
+          <div class="flex-shrink-0" style="min-height: 232px; height: 232px;">
+            <AccelChart samples={accelSamples} />
           </div>
         </div>
-      </div><!-- end left column (resizable) -->
+      </div><!-- end top row -->
 
-      <!-- Right column: telemetry (fixed, independent of resize) -->
-      <div class="w-80 flex-shrink-0 hidden xl:flex flex-col gap-2">
-        <div class="flex-1 min-h-0">
-          <PowerChart samples={effectivePower} chgSamples={effectivePowerChg} windowSeconds={analysisMode ? 99999 : POWER_WINDOW_S} />
-        </div>
-        <div class="flex-1 min-h-0">
-          <AccelChart samples={accelSamples} />
+      <!-- Resize bar -->
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div
+        onmousedown={startResize}
+        class="h-3 my-1 flex items-center justify-center cursor-row-resize group rounded transition-colors
+          {resizing ? 'bg-accent/20' : 'hover:bg-surface-2'}"
+      >
+        <div class="w-16 h-1 rounded-full transition-colors {resizing ? 'bg-accent' : 'bg-border group-hover:bg-text-tertiary'}"></div>
+      </div>
+
+      <!-- UART Terminals (full width bottom, resizable) -->
+      <div class="flex-1 min-h-0 overflow-hidden">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-2 h-full">
+          <UartTerminal lines={effectiveUartApp} label="nRF52840" iconColor="text-green-400" />
+          <UartTerminal lines={effectiveUartComms} label="nRF9151" iconColor="text-blue-400" />
         </div>
       </div>
-    </div><!-- end main layout row -->
+    </div><!-- end main layout -->
     {/if}
+  {/if}
+
+  <!-- Cancel confirmation dialog -->
+  {#if confirmCancel}
+    <div class="fixed inset-0 z-50 bg-black/50 animate-fade-in" onclick={() => { confirmCancel = false; }} role="presentation" tabindex="-1"></div>
+    <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div class="w-full max-w-sm rounded-xl border border-border bg-surface-1 shadow-xl animate-fade-in">
+        <div class="flex items-center gap-3 border-b border-border px-5 py-4">
+          <div class="flex h-9 w-9 items-center justify-center rounded-lg bg-error-muted">
+            <Ban size={20} class="text-error" />
+          </div>
+          <h2 class="text-sm font-semibold text-text-primary">Cancel Validation Run</h2>
+        </div>
+        <div class="px-5 py-4">
+          <p class="text-sm text-text-secondary">
+            This will stop the running tests, kill the K8s job, and unlock the fixture. You can re-run from the pipeline page.
+          </p>
+          {#if run?.name}
+            <p class="mt-2 text-xs text-text-tertiary font-mono truncate">{run.name}</p>
+          {/if}
+        </div>
+        <div class="flex justify-end gap-2 border-t border-border px-5 py-4">
+          <button onclick={() => { confirmCancel = false; }} class="rounded-lg px-4 py-2 text-sm font-medium text-text-secondary hover:bg-surface-2">
+            Keep Running
+          </button>
+          <button
+            onclick={() => { confirmCancel = false; cancelRun(); }}
+            disabled={cancelling}
+            class="rounded-lg bg-error px-4 py-2 text-sm font-medium text-white hover:bg-error/90 disabled:opacity-50 flex items-center gap-2"
+          >
+            {#if cancelling}
+              <Loader2 size={14} class="animate-spin" />
+            {/if}
+            Cancel Run
+          </button>
+        </div>
+      </div>
+    </div>
   {/if}
 </div>

@@ -180,7 +180,7 @@ class TestMfgToMfgFuota:
         TestMfgToMfgFuota._target_strings = target_strings
         TestMfgToMfgFuota._target_version = fuota_build.version_string
 
-        print(f"Ready: flash MFG v{flash_build.version_string} -> FUOTA to prod v{fuota_build.version_string}")
+        print(f"Ready: flash MFG v{flash_build.version_string} -> FUOTA to MFG v{fuota_build.version_string}")
 
     # =====================================================================
     # 02: Flash firmware (nRF52840 + modem + nRF9151)

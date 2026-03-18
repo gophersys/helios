@@ -1,3 +1,5 @@
+import io
+import json
 import logging
 import math
 from datetime import datetime, timezone
@@ -12,6 +14,7 @@ from src.lib.errors import bad_request, conflict, internal_error, not_found
 from src.lib.permissions import Permissions
 from src.lib.types import ApiResponse
 from src.services.database.prisma import get_db_client
+from src.services.storage.client import StoragePrefixes, get_bucket_name, get_storage_client, storage_key
 
 from .types import RunCreateRequest, SessionRerunRequest
 
@@ -408,12 +411,13 @@ def cancel_run(run_id: str):
     if job_name:
         try:
             from src.services.kubernetes.client import get_batch_v1_api
-            from src.lib.config import env_config
+            from config.env import env_config
             batch_v1 = get_batch_v1_api()
+            from kubernetes.client import V1DeleteOptions
             batch_v1.delete_namespaced_job(
                 name=job_name,
                 namespace=env_config.VALIDATION_NAMESPACE,
-                propagation_policy="Foreground",
+                body=V1DeleteOptions(propagation_policy="Foreground"),
             )
             logger.info("Deleted K8s job %s for cancelled run %s", job_name, run_id)
         except Exception as e:
@@ -425,6 +429,16 @@ def cancel_run(run_id: str):
             db.fixture.update(
                 where={"id": session.fixtureId},
                 data={"status": "AVAILABLE", "lockedBy": None, "lockedAt": None},
+            )
+        except Exception:
+            pass
+
+    # Reset pipeline status from VALIDATING back to SUCCESS
+    if session.pipelineRunId:
+        try:
+            db.pipelinerun.update(
+                where={"id": session.pipelineRunId},
+                data={"status": "SUCCESS"},
             )
         except Exception:
             pass
@@ -449,6 +463,43 @@ def cancel_run(run_id: str):
         "failed": 0,
         "errors": 0,
     }, run_id)
+
+    # Generate synthetic manifest from test execution timestamps
+    # so the cancelled run can enter post-analysis mode
+    try:
+        device = db.device.find_first(
+            where={"sessionId": run_id},
+            include={"executions": {"include": {"test": True}}},
+        )
+        if device and device.executions:
+            steps = []
+            for ex in device.executions:
+                if ex.startedAt:
+                    steps.append({
+                        "name": ex.test.name if ex.test else "unknown",
+                        "module": ex.test.category if ex.test else None,
+                        "startedAt": ex.startedAt.timestamp(),
+                        "finishedAt": ex.finishedAt.timestamp() if ex.finishedAt else datetime.now(timezone.utc).timestamp(),
+                        "status": ex.status,
+                    })
+            if steps:
+                manifest = {
+                    "version": 1,
+                    "runId": run_id,
+                    "startedAt": min(s["startedAt"] for s in steps),
+                    "finishedAt": max(s["finishedAt"] for s in steps),
+                    "totalSamples": 0,
+                    "channels": {},
+                    "steps": steps,
+                }
+                # Save manifest to MinIO
+                storage = get_storage_client()
+                bucket = get_bucket_name()
+                manifest_bytes = json.dumps(manifest, indent=2).encode("utf-8")
+                object_name = storage_key(StoragePrefixes.SESSIONS, f"{run_id}/telemetry/manifest.json")
+                storage.put_object(bucket, object_name, io.BytesIO(manifest_bytes), length=len(manifest_bytes), content_type="application/json")
+    except Exception as e:
+        logger.warning("Failed to generate synthetic manifest for cancelled run %s: %s", run_id, e)
 
     log_audit("validation.run.cancel", "Session", run_id, {"previousStatus": "ACTIVE"})
 

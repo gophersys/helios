@@ -6,6 +6,7 @@
     AlertTriangle,
     ArrowLeft,
     Calendar,
+    CheckCircle2,
     ChevronDown,
     ChevronRight,
     Clock,
@@ -24,6 +25,7 @@
     XCircle,
   } from 'lucide-svelte';
   import { getAuth } from '$lib/stores/auth.svelte';
+  import { apiFetch } from '$lib/api';
   import type { Pipeline, PipelineBuildSummary, MatrixLabel, ValidationStage } from '$lib/types/ci';
   import { MATRIX_LABEL_DISPLAY, STAGE_DISPLAY } from '$lib/types/ci';
   import { fetchPipeline, fetchBuildLog, fetchBuildArtifacts, resetBuild, downloadBuildArtifacts, downloadPipelineArtifacts, downloadSingleArtifact, triggerPipelineValidation } from '$lib/services/ci';
@@ -61,6 +63,35 @@
   let downloadingArtifacts = $state<Set<string>>(new Set());
   let downloadingAll = $state(false);
   let triggeringValidation = $state(false);
+
+  // Validation runs triggered from this pipeline
+  interface ValidationRunSummary {
+    id: string;
+    name: string;
+    status: string;
+    startedAt: string | null;
+    finishedAt: string | null;
+    passedCount: number;
+    failedCount: number;
+    config: Record<string, unknown> | null;
+  }
+  let validationRuns = $state<ValidationRunSummary[]>([]);
+
+  async function fetchValidationRuns() {
+    try {
+      const res = await apiFetch<Record<string, unknown>>(`/v2/builds/pipelines/${pipelineId}/sessions`);
+      console.log('[validation-runs] raw response:', JSON.stringify(res).slice(0, 200));
+      const items = res?.data;
+      if (Array.isArray(items)) {
+        validationRuns = items as ValidationRunSummary[];
+        console.log('[validation-runs] loaded', validationRuns.length, 'runs');
+      } else {
+        console.warn('[validation-runs] data is not array:', typeof items);
+      }
+    } catch (err) {
+      console.warn('[validation-runs] fetch failed:', err);
+    }
+  }
 
   // Can trigger validation: builds have at least some successes and pipeline isn't actively building
   const canTriggerValidation = $derived(
@@ -128,8 +159,9 @@
     triggeringValidation = true;
     try {
       await triggerPipelineValidation(pipeline.id);
-      // Refresh pipeline to show updated status
+      // Refresh pipeline and validation runs list
       pipeline = await fetchPipeline(pipelineId);
+      await fetchValidationRuns();
       error = null;
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to trigger validation';
@@ -445,6 +477,7 @@
       return;
     }
     loadPipeline(true); // Initial load - wait for all data
+    fetchValidationRuns();
     setupWebSocket();
     pollInterval = setInterval(() => {
       if (isRunning) loadPipeline(false); // Refresh - don't block
@@ -670,10 +703,10 @@
     </div>
 
     <!-- Validation section -->
-    <div class="mb-6 rounded-lg border border-border bg-surface-0 px-4 py-3">
-      <div class="flex items-center justify-between">
+    <div class="mb-6 rounded-lg border border-border bg-surface-0 overflow-hidden">
+      <div class="flex items-center justify-between px-4 py-3 border-b border-border bg-surface-1">
         <div class="flex items-center gap-3">
-          <FlaskConical size={16} class="text-text-tertiary" />
+          <FlaskConical size={16} class="text-accent" />
           <span class="text-sm font-medium text-text-primary">Validation</span>
           {#if pipeline.autoValidate}
             <span class="inline-flex items-center rounded bg-accent-muted px-1.5 py-0.5 text-2xs font-medium text-accent">
@@ -690,16 +723,6 @@
           {/if}
         </div>
         <div class="flex items-center gap-2">
-          {#if pipeline.validationRunId}
-            <a
-              href="/validation/runs/{pipeline?.validationRunId}"
-              target="_blank"
-              class="btn btn-sm flex items-center gap-1.5 text-2xs"
-            >
-              <ExternalLink size={12} />
-              View Run
-            </a>
-          {/if}
           {#if canTriggerValidation}
             <button
               onclick={handleTriggerValidation}
@@ -711,7 +734,7 @@
                 Triggering...
               {:else}
                 <FlaskConical size={12} />
-                {pipeline.validationRunId ? 'Re-run' : 'Run Validation'}
+                {validationRuns.length > 0 ? 'Re-run' : 'Run Validation'}
               {/if}
             </button>
           {:else if pipeline.status === 'BUILDING' || pipeline.status === 'PENDING'}
@@ -719,6 +742,38 @@
           {/if}
         </div>
       </div>
+      <!-- Validation runs list -->
+      {#if validationRuns.length > 0}
+        <div class="divide-y divide-border">
+          {#each validationRuns as vr (vr.id)}
+            <a href="/validation/runs/{vr.id}" class="flex items-center gap-3 px-4 py-2.5 hover:bg-surface-1 transition-colors">
+              <StatusBadge status={vr.status} />
+              <span class="text-xs font-medium text-text-primary truncate flex-1 min-w-0">{vr.name}</span>
+              <span class="inline-flex items-center rounded bg-surface-2 px-1.5 py-0.5 text-2xs text-text-tertiary flex-shrink-0">
+                {pipeline.autoValidate ? 'Auto' : 'Manual'}
+              </span>
+              {#if vr.passedCount > 0}
+                <span class="flex items-center gap-1 text-2xs text-success flex-shrink-0">
+                  <CheckCircle2 size={10} />
+                  {vr.passedCount}
+                </span>
+              {/if}
+              {#if vr.failedCount > 0}
+                <span class="flex items-center gap-1 text-2xs text-error flex-shrink-0">
+                  <XCircle size={10} />
+                  {vr.failedCount}
+                </span>
+              {/if}
+              {#if vr.startedAt}
+                <span class="text-2xs text-text-tertiary flex-shrink-0">{formatTimeAgo(vr.startedAt)}</span>
+              {/if}
+              <ExternalLink size={10} class="text-text-tertiary flex-shrink-0" />
+            </a>
+          {/each}
+        </div>
+      {:else}
+        <div class="px-4 py-3 text-xs text-text-tertiary">No validation runs yet</div>
+      {/if}
     </div>
 
     <!-- Builds section -->

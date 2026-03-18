@@ -24,6 +24,10 @@
   let lastDrawnH = 0;
   let rafId: number | null = null;
 
+  // Cursor crosshair state
+  let mouseX = $state<number | null>(null);
+  let lastDrawnMouseX: number | null = null;
+
   const pad = { top: 8, right: 8, bottom: 22, left: 38 };
 
   function formatTime(posixS: number): string {
@@ -163,44 +167,125 @@
       ctx.globalAlpha = 1;
     }
 
-    // Legend
-    ctx.lineWidth = 1.5;
-    ctx.strokeStyle = '#22d3ee';
-    ctx.beginPath();
-    ctx.moveTo(pad.left, h - 18);
-    ctx.lineTo(pad.left + 12, h - 18);
-    ctx.stroke();
+    // Cursor crosshair
+    if (mouseX !== null && mouseX >= pad.left && mouseX <= pad.left + pw) {
+      // Vertical dashed line
+      ctx.setLineDash([4, 3]);
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(mouseX, pad.top);
+      ctx.lineTo(mouseX, pad.top + ph);
+      ctx.stroke();
+      ctx.setLineDash([]);
 
-    ctx.font = '6px sans-serif';
-    ctx.fillStyle = '#6b7280';
-    ctx.textAlign = 'start';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('DUT', pad.left + 15, h - 18);
+      // Find nearest time at mouseX
+      const cursorT = tMin + ((mouseX - pad.left) / pw) * tRange;
 
-    ctx.strokeStyle = '#fb923c';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(pad.left + 35, h - 18);
-    ctx.lineTo(pad.left + 47, h - 18);
-    ctx.stroke();
+      // Find nearest DUT sample
+      let nearestDut: PowerSample | null = null;
+      let bestDist = Infinity;
+      for (const s of windowSamples) {
+        const d = Math.abs(s.t - cursorT);
+        if (d < bestDist) { bestDist = d; nearestDut = s; }
+      }
 
-    ctx.fillText('CHG', pad.left + 50, h - 18);
+      // Find nearest CHG sample
+      let nearestChg: PowerSample | null = null;
+      bestDist = Infinity;
+      for (const s of chgWindow) {
+        const d = Math.abs(s.t - cursorT);
+        if (d < bestDist) { bestDist = d; nearestChg = s; }
+      }
+
+      // Draw intersection dots
+      if (nearestDut) {
+        const dx = toX(nearestDut.t);
+        const dy = toY(nearestDut.mA);
+        ctx.beginPath();
+        ctx.arc(dx, dy, 3, 0, Math.PI * 2);
+        ctx.fillStyle = '#22d3ee';
+        ctx.fill();
+        ctx.strokeStyle = '#0d1117';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+      if (nearestChg) {
+        const cx = toX(nearestChg.t);
+        const cy = toY(nearestChg.mA);
+        ctx.beginPath();
+        ctx.arc(cx, cy, 3, 0, Math.PI * 2);
+        ctx.fillStyle = '#fb923c';
+        ctx.fill();
+        ctx.strokeStyle = '#0d1117';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+
+      // Tooltip box
+      const tooltipLines: string[] = [];
+      tooltipLines.push(formatTime(cursorT));
+      if (nearestDut) tooltipLines.push(`DUT: ${nearestDut.mA.toFixed(1)} mA`);
+      if (nearestChg) tooltipLines.push(`CHG: ${nearestChg.mA.toFixed(1)} mA`);
+
+      const lineH = 16;
+      const tooltipPad = 8;
+      const tooltipW = 130;
+      const tooltipH = tooltipLines.length * lineH + tooltipPad * 2;
+
+      // Position tooltip: prefer right of cursor, flip if near edge
+      let tx = mouseX + 10;
+      if (tx + tooltipW > w - 4) tx = mouseX - tooltipW - 10;
+      let ty = pad.top + 8;
+
+      // Background
+      ctx.fillStyle = 'rgba(22, 27, 34, 0.92)';
+      ctx.beginPath();
+      ctx.roundRect(tx, ty, tooltipW, tooltipH, 4);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(48, 54, 61, 0.8)';
+      ctx.lineWidth = 0.5;
+      ctx.stroke();
+
+      // Text
+      ctx.font = '12px monospace';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'top';
+      for (let i = 0; i < tooltipLines.length; i++) {
+        const line = tooltipLines[i];
+        if (line.startsWith('DUT:')) ctx.fillStyle = '#22d3ee';
+        else if (line.startsWith('CHG:')) ctx.fillStyle = '#fb923c';
+        else ctx.fillStyle = '#9ca3af';
+        ctx.fillText(line, tx + tooltipPad, ty + tooltipPad + i * lineH);
+      }
+    }
 
     ctx.restore();
   }
 
+  let lastDrawnFirstT = 0;
+  let lastDrawnLastT = 0;
+
   function rafLoop() {
+    const firstT = samples.length > 0 ? samples[0].t : 0;
+    const lastT = samples.length > 0 ? samples[samples.length - 1].t : 0;
     const needsRedraw =
       samples.length !== lastDrawnSamplesLen ||
       chgSamples.length !== lastDrawnChgLen ||
       w !== lastDrawnW ||
-      h !== lastDrawnH;
+      h !== lastDrawnH ||
+      mouseX !== lastDrawnMouseX ||
+      firstT !== lastDrawnFirstT ||
+      lastT !== lastDrawnLastT;
 
     if (needsRedraw) {
       lastDrawnSamplesLen = samples.length;
       lastDrawnChgLen = chgSamples.length;
       lastDrawnW = w;
       lastDrawnH = h;
+      lastDrawnMouseX = mouseX;
+      lastDrawnFirstT = firstT;
+      lastDrawnLastT = lastT;
       drawChart();
     }
     rafId = requestAnimationFrame(rafLoop);
@@ -209,26 +294,26 @@
   function updateCanvasSize() {
     if (!canvas || !containerEl) return;
     const r = containerEl.getBoundingClientRect();
-    w = Math.max(Math.floor(r.width), 100);
-    h = Math.max(Math.floor(r.height), 80);
+    const newW = Math.floor(r.width);
+    const newH = Math.floor(r.height);
+    if (newW < 50 || newH < 30) return; // Layout not settled yet
+    w = newW;
+    h = newH;
     dpr = window.devicePixelRatio || 1;
     canvas.width = w * dpr;
     canvas.height = h * dpr;
     canvas.style.width = `${w}px`;
     canvas.style.height = `${h}px`;
-    // Force redraw on resize
-    lastDrawnW = 0;
+    lastDrawnW = 0; // Force redraw
   }
 
   onMount(() => {
     dpr = window.devicePixelRatio || 1;
 
-    const ro = new ResizeObserver(() => {
-      updateCanvasSize();
-    });
+    const ro = new ResizeObserver(() => updateCanvasSize());
     ro.observe(containerEl);
-    updateCanvasSize();
 
+    updateCanvasSize();
     rafId = requestAnimationFrame(rafLoop);
 
     return () => {
@@ -236,12 +321,32 @@
       if (rafId !== null) cancelAnimationFrame(rafId);
     };
   });
+
+  function handleMouseMove(e: MouseEvent) {
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    mouseX = e.clientX - rect.left;
+  }
+
+  function handleMouseLeave() {
+    mouseX = null;
+  }
 </script>
 
 <div class="rounded-lg border border-border bg-surface-0 overflow-hidden flex flex-col h-full">
   <div class="flex items-center gap-2 px-3 py-1.5 border-b border-border bg-surface-1 flex-shrink-0">
     <Activity size={12} class="text-accent" />
     <span class="text-xs font-medium text-text-primary">Power</span>
+    <span class="flex items-center gap-2 ml-1">
+      <span class="flex items-center gap-1">
+        <span class="inline-block w-3 h-0.5 rounded" style="background: #22d3ee;"></span>
+        <span class="text-2xs text-text-tertiary">DUT</span>
+      </span>
+      <span class="flex items-center gap-1">
+        <span class="inline-block w-3 h-0.5 rounded" style="background: #fb923c;"></span>
+        <span class="text-2xs text-text-tertiary">CHG</span>
+      </span>
+    </span>
     {#if samples.length > 0}
       {@const last = samples[samples.length - 1]}
       {@const lastChg = chgSamples.length > 0 ? chgSamples[chgSamples.length - 1] : null}
@@ -255,10 +360,9 @@
     {/if}
   </div>
   <div bind:this={containerEl} class="bg-[#0d1117] flex-1 overflow-hidden relative">
-    {#if samples.length > 1}
-      <canvas bind:this={canvas} class="block absolute inset-0"></canvas>
-    {:else}
-      <div class="w-full h-full flex items-center justify-center">
+    <canvas bind:this={canvas} class="block absolute inset-0" onmousemove={handleMouseMove} onmouseleave={handleMouseLeave}></canvas>
+    {#if samples.length < 2}
+      <div class="absolute inset-0 flex items-center justify-center z-10">
         <div class="text-center">
           <Activity size={24} class="mx-auto text-text-tertiary opacity-20 mb-2" />
           <div class="text-xs text-text-tertiary">Waiting for power data</div>
