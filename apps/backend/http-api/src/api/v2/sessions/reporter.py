@@ -435,6 +435,10 @@ def report_finish(run_id: str):
             data={"status": device_status},
         )
 
+    # Flush any buffered log data to MinIO before announcing finish
+    from .logs import flush_log_buffers_for_run
+    flush_log_buffers_for_run(run_id)
+
     _emit_validation_event("validation_run_finish", {
         "runId": run_id,
         "status": final_status,

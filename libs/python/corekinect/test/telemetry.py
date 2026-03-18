@@ -2,13 +2,28 @@
 
 Dual-path delivery:
   1. WebSocket relay (live) — batched POST to backend every 200ms
-  2. MinIO storage (persistent) — per-test JSONL files flushed on test completion
+  2. MinIO storage (persistent) — per-channel JSONL files + manifest
 
 Every sample is timestamped (POSIX seconds with microsecond precision) and
-tagged with the active test step name, enabling:
-  - Live rendering in the frontend during test execution
-  - Post-run reconstruction from artifacts
-  - Per-test-step filtering (click a step → see its telemetry slice)
+belongs to a named channel. Channels are auto-discovered from sample types:
+  - "power" → channel "power"
+  - "power_chg" → channel "power_chg"
+  - "uart" + target "app" → channel "uart_app"
+  - "accel" → channel "accel"
+  - Any new type → channel auto-created (no code changes needed)
+
+Storage layout (MinIO):
+  sessions/{run_id}/telemetry/
+    manifest.json       ← channel index + step boundaries + time ranges
+    power.jsonl         ← {t, mA, mV}
+    power_chg.jsonl     ← {t, mA, mV}
+    uart_app.jsonl      ← {t, line}
+    uart_comms.jsonl    ← {t, line}
+    accel.jsonl         ← {t, x, y, z}  (future)
+    adc_ch0.jsonl       ← (future — no code changes needed)
+
+The manifest enables post-analysis: the frontend loads it on page open,
+then lazy-loads channel files for the selected time range.
 
 Usage:
     streamer = TelemetryStreamer(run_id, api_url, api_key)
@@ -16,19 +31,18 @@ Usage:
 
     # Wire data sources
     uart_demuxer.on_line = streamer.push_uart
-    # power_profiler.on_sample = streamer.push_power  # when ready
+    # power_profiler.on_sample = streamer.push_power
 
     # Track test steps (called by pytest lifecycle hooks)
-    streamer.set_test("test_02_flash_firmware")
-    # ... test runs, UART/power data flows ...
-    streamer.set_test("test_03_verify_boot")  # flushes previous test to MinIO
+    streamer.set_test("test_02_flash_firmware", module="test_01_mfg_to_mfg_fuota")
+    # ... test runs, data flows ...
+    streamer.set_test("test_03_verify_boot", module="test_01_mfg_to_mfg_fuota")
     # ...
-    streamer.set_test(None)  # flushes last test
+    streamer.set_test(None)  # marks last step as finished
 
-    streamer.stop()  # final flush + cleanup
+    streamer.stop()  # writes channel files + manifest to MinIO
 """
 
-import io
 import json
 import os
 import threading
@@ -39,7 +53,6 @@ from corekinect.utils import Logger
 
 log = Logger(log_name="telemetry")
 
-# Attempt to import requests; if not installed, WebSocket relay is disabled.
 try:
     import requests as _requests
     _HAS_REQUESTS = True
@@ -52,15 +65,21 @@ _TLS_VERIFY = os.environ.get("TLS_VERIFY", "true").lower() in ("1", "true", "yes
 class TelemetryStreamer:
     """Batched telemetry streaming with dual-path delivery.
 
+    Samples are routed to channels based on their type + target:
+      - type="power" → channel "power"
+      - type="uart", target="app" → channel "uart_app"
+      - type="accel" → channel "accel"
+
+    Adding a new channel requires only a new push call — no other changes.
+
     Args:
         run_id: Validation run ID (for MinIO paths and WebSocket routing).
         api_url: Concord API base URL (for WebSocket relay).
         api_key: API key for authentication.
-        on_flush_storage: Callback to write JSONL content to persistent storage.
+        on_flush_storage: Callback to write content to persistent storage.
             Signature: (object_path: str, content_bytes: bytes) -> None
             If None, persistent storage is disabled (live-only mode).
         flush_interval_s: How often to flush WebSocket batches (seconds).
-            Lower = more real-time but more HTTP overhead.
     """
 
     def __init__(
@@ -79,12 +98,26 @@ class TelemetryStreamer:
 
         # Current test step (set by pytest hooks)
         self._current_test: Optional[str] = None
+        self._current_module: Optional[str] = None
 
         # WebSocket batch buffer (flushed every flush_interval_s)
         self._ws_buffer: List[Dict[str, Any]] = []
         self._ws_lock = threading.Lock()
 
-        # Per-test accumulator (flushed to MinIO on test step change)
+        # Per-channel accumulators (flushed to MinIO on stop)
+        # Key: channel name (e.g., "power", "uart_app")
+        self._channel_data: Dict[str, List[Dict[str, Any]]] = {}
+        self._channel_lock = threading.Lock()
+
+        # Channel metadata (auto-discovered from samples)
+        # Key: channel name → {type, unit, ...}
+        self._channel_meta: Dict[str, Dict[str, Any]] = {}
+
+        # Test step boundaries (for manifest)
+        self._steps: List[Dict[str, Any]] = []
+        self._step_start_t: Optional[float] = None
+
+        # Also keep per-test accumulators for backward-compatible per-test JSONL
         self._test_data: Dict[str, List[Dict[str, Any]]] = {}
         self._test_lock = threading.Lock()
 
@@ -98,6 +131,24 @@ class TelemetryStreamer:
         self._total_flushes = 0
 
         self.enabled = bool(run_id)
+
+    # ── Channel name resolution ────────────────────────────────
+
+    @staticmethod
+    def _channel_name(sample_type: str, target: Optional[str] = None) -> str:
+        """Derive channel name from sample type + optional target.
+
+        Examples:
+            ("power", None) → "power"
+            ("uart", "app") → "uart_app"
+            ("power_chg", None) → "power_chg"
+            ("accel", None) → "accel"
+            ("adc", "ch0") → "adc_ch0"
+            ("gpio", "3") → "gpio_3"
+        """
+        if target:
+            return f"{sample_type}_{target}"
+        return sample_type
 
     # ── Lifecycle ─────────────────────────────────────────────
 
@@ -116,7 +167,7 @@ class TelemetryStreamer:
                  self._run_id, self._flush_interval * 1000)
 
     def stop(self) -> None:
-        """Stop the flush thread and flush remaining data."""
+        """Stop the flush thread, write channel files + manifest to storage."""
         if not self._started:
             return
 
@@ -127,31 +178,56 @@ class TelemetryStreamer:
         # Final WebSocket flush
         self._flush_ws_batch()
 
-        # Flush any remaining test data to storage
+        # Close the last test step
         if self._current_test:
+            self._close_step()
+            # Flush per-test data (backward compat)
             self._flush_test_to_storage(self._current_test)
             self._current_test = None
 
+        # Write per-channel JSONL files + manifest
+        self._flush_channels_to_storage()
+
         self._started = False
-        log.info("Telemetry streamer stopped (%d samples, %d flushes)",
-                 self._total_samples, self._total_flushes)
+        log.info("Telemetry streamer stopped (%d samples, %d flushes, %d channels)",
+                 self._total_samples, self._total_flushes, len(self._channel_data))
 
     # ── Test step tracking ────────────────────────────────────
 
-    def set_test(self, test_name: Optional[str]) -> None:
-        """Set the current test step. Flushes previous test's data to storage.
+    def set_test(
+        self,
+        test_name: Optional[str],
+        module: Optional[str] = None,
+    ) -> None:
+        """Set the current test step. Records step boundaries for the manifest.
 
         Called by pytest lifecycle hooks:
-          - set_test("test_02_flash") on test start
-          - set_test("test_03_boot") on next test (flushes test_02 data)
-          - set_test(None) on session end (flushes last test)
+          - set_test("test_02_flash", module="test_01_mfg_to_mfg_fuota")
+          - set_test("test_03_boot", module="test_01_mfg_to_mfg_fuota")
+          - set_test(None) on session end
         """
-        prev_test = self._current_test
-        self._current_test = test_name
+        # Close previous step
+        if self._current_test:
+            self._close_step()
+            # Flush per-test data (backward compat)
+            self._flush_test_to_storage(self._current_test)
 
-        # Flush previous test's data to persistent storage
-        if prev_test:
-            self._flush_test_to_storage(prev_test)
+        self._current_test = test_name
+        self._current_module = module
+
+        # Open new step
+        if test_name:
+            self._step_start_t = time.time()
+
+    def _close_step(self) -> None:
+        """Record the end of the current test step."""
+        if self._current_test and self._step_start_t is not None:
+            self._steps.append({
+                "name": self._current_test,
+                "module": self._current_module,
+                "startedAt": self._step_start_t,
+                "finishedAt": time.time(),
+            })
 
     # ── Data ingestion ────────────────────────────────────────
 
@@ -163,14 +239,25 @@ class TelemetryStreamer:
             posix_us: POSIX timestamp in microseconds
             line: UART line content
         """
-        sample = {
-            "t": posix_us / 1_000_000,
+        t = posix_us / 1_000_000
+        channel = self._channel_name("uart", target_name)
+
+        # Channel sample (for per-channel JSONL — lean, no redundant fields)
+        channel_sample = {"t": t, "line": line}
+
+        # WebSocket sample (includes type/target for frontend routing)
+        ws_sample = {
+            "t": t,
             "type": "uart",
             "target": target_name,
             "test": self._current_test,
             "line": line,
         }
-        self._push(sample)
+
+        self._push_to_channel(channel, channel_sample, "text")
+        self._push_to_ws(ws_sample)
+        self._push_to_test(ws_sample)
+        self._total_samples += 1
 
     def push_power(self, timestamp_s: float, current_ma: float, voltage_mv: float) -> None:
         """Push a power measurement sample.
@@ -180,45 +267,80 @@ class TelemetryStreamer:
             current_ma: Current in milliamps
             voltage_mv: Voltage in millivolts
         """
-        sample = {
+        mA = round(current_ma, 2)
+        mV = round(voltage_mv, 1)
+
+        channel_sample = {"t": timestamp_s, "mA": mA, "mV": mV}
+        ws_sample = {
             "t": timestamp_s,
             "type": "power",
             "test": self._current_test,
-            "mA": round(current_ma, 2),
-            "mV": round(voltage_mv, 1),
+            "mA": mA,
+            "mV": mV,
         }
-        self._push(sample)
+
+        self._push_to_channel("power", channel_sample, "timeseries", unit="mA")
+        self._push_to_ws(ws_sample)
+        self._push_to_test(ws_sample)
+        self._total_samples += 1
 
     def push(self, sample_type: str, data: Dict[str, Any],
              target: Optional[str] = None) -> None:
-        """Push a generic telemetry sample (for future sensor types).
+        """Push a generic telemetry sample.
+
+        Works for any sensor type — the channel is auto-created on first push.
+        Adding a new data stream is just: streamer.push("adc", {"value": 3.3}, target="ch0")
 
         Args:
-            sample_type: e.g., "accel", "temp", "gps"
-            data: Payload dict (e.g., {"x": 0.02, "y": -0.98, "z": 0.01})
-            target: Optional target identifier
+            sample_type: e.g., "power_chg", "accel", "temp", "adc", "gpio"
+            data: Payload dict (must NOT include "t" — timestamp is added automatically)
+            target: Optional sub-target (e.g., "ch0" for ADC channels)
         """
-        sample = {
-            "t": time.time(),
+        t = time.time()
+        channel = self._channel_name(sample_type, target)
+
+        channel_sample = {"t": t, **data}
+        ws_sample = {
+            "t": t,
             "type": sample_type,
             "test": self._current_test,
             **data,
         }
         if target:
-            sample["target"] = target
-        self._push(sample)
+            ws_sample["target"] = target
 
-    # ── Internal ──────────────────────────────────────────────
+        # Infer channel type from data shape
+        ch_type = "timeseries"
+        if "line" in data:
+            ch_type = "text"
+        elif "state" in data and len(data) == 1:
+            ch_type = "event"
 
-    def _push(self, sample: Dict[str, Any]) -> None:
-        """Add a sample to both WebSocket buffer and test accumulator."""
+        self._push_to_channel(channel, channel_sample, ch_type)
+        self._push_to_ws(ws_sample)
+        self._push_to_test(ws_sample)
         self._total_samples += 1
 
-        # WebSocket batch buffer
+    # ── Internal: routing to buffers ───────────────────────────
+
+    def _push_to_channel(self, channel: str, sample: Dict[str, Any],
+                         ch_type: str, unit: Optional[str] = None) -> None:
+        """Accumulate a sample in the per-channel buffer."""
+        with self._channel_lock:
+            if channel not in self._channel_data:
+                self._channel_data[channel] = []
+                self._channel_meta[channel] = {"type": ch_type}
+                if unit:
+                    self._channel_meta[channel]["unit"] = unit
+            self._channel_data[channel].append(sample)
+
+    def _push_to_ws(self, sample: Dict[str, Any]) -> None:
+        """Add a sample to the WebSocket batch buffer."""
         with self._ws_lock:
             self._ws_buffer.append(sample)
 
-        # Per-test accumulator for MinIO storage
+    def _push_to_test(self, sample: Dict[str, Any]) -> None:
+        """Add a sample to the per-test accumulator (backward compat)."""
         test = sample.get("test")
         if test:
             with self._test_lock:
@@ -226,11 +348,12 @@ class TelemetryStreamer:
                     self._test_data[test] = []
                 self._test_data[test].append(sample)
 
+    # ── Internal: flushing ─────────────────────────────────────
+
     def _flush_loop(self) -> None:
         """Background thread: flush WebSocket batch at regular intervals."""
         while not self._stop_event.wait(self._flush_interval):
             self._flush_ws_batch()
-        # Final flush on stop
         self._flush_ws_batch()
 
     def _flush_ws_batch(self) -> None:
@@ -254,7 +377,6 @@ class TelemetryStreamer:
                 else:
                     headers["Authorization"] = f"Bearer {self._api_key}"
 
-            # Include Host header override if configured
             host_header = os.environ.get("CONCORD_API_HOST")
             if host_header:
                 headers["Host"] = host_header
@@ -270,23 +392,91 @@ class TelemetryStreamer:
             pass  # Fire-and-forget — never fail tests on telemetry errors
 
     def _flush_test_to_storage(self, test_name: str) -> None:
-        """Write a test's accumulated telemetry to persistent storage as JSONL."""
+        """Write a test's accumulated telemetry to per-test JSONL (backward compat)."""
         with self._test_lock:
             data = self._test_data.pop(test_name, [])
 
         if not data or not self._on_flush_storage:
             return
 
-        # Build JSONL content
         lines = [json.dumps(s, separators=(",", ":")) for s in data]
         content = "\n".join(lines) + "\n"
-        content_bytes = content.encode("utf-8")
-
-        object_path = f"telemetry/{test_name}.jsonl"
 
         try:
-            self._on_flush_storage(object_path, content_bytes)
-            log.debug("Flushed %d samples for %s (%d bytes)",
-                      len(data), test_name, len(content_bytes))
+            self._on_flush_storage(
+                f"telemetry/{test_name}.jsonl",
+                content.encode("utf-8"),
+            )
         except Exception as e:
-            log.warning("Failed to flush telemetry for %s: %s", test_name, e)
+            log.warning("Failed to flush per-test telemetry for %s: %s", test_name, e)
+
+    def _flush_channels_to_storage(self) -> None:
+        """Write per-channel JSONL files and manifest to persistent storage."""
+        if not self._on_flush_storage:
+            return
+
+        with self._channel_lock:
+            channels = dict(self._channel_data)
+            self._channel_data.clear()
+            meta = dict(self._channel_meta)
+
+        if not channels:
+            return
+
+        # Write each channel's JSONL file
+        manifest_channels: Dict[str, Any] = {}
+
+        for channel_name, samples in channels.items():
+            if not samples:
+                continue
+
+            # Build JSONL content
+            lines = [json.dumps(s, separators=(",", ":")) for s in samples]
+            content = "\n".join(lines) + "\n"
+            filename = f"{channel_name}.jsonl"
+
+            try:
+                self._on_flush_storage(
+                    f"telemetry/{filename}",
+                    content.encode("utf-8"),
+                )
+            except Exception as e:
+                log.warning("Failed to flush channel %s: %s", channel_name, e)
+                continue
+
+            # Channel metadata for manifest
+            timestamps = [s["t"] for s in samples if "t" in s]
+            ch_meta = meta.get(channel_name, {})
+            manifest_channels[channel_name] = {
+                "type": ch_meta.get("type", "timeseries"),
+                "file": filename,
+                "sampleCount": len(samples),
+                "minT": min(timestamps) if timestamps else None,
+                "maxT": max(timestamps) if timestamps else None,
+            }
+            if "unit" in ch_meta:
+                manifest_channels[channel_name]["unit"] = ch_meta["unit"]
+
+        # Build manifest
+        all_min_t = [c["minT"] for c in manifest_channels.values() if c.get("minT")]
+        all_max_t = [c["maxT"] for c in manifest_channels.values() if c.get("maxT")]
+
+        manifest = {
+            "version": 1,
+            "runId": self._run_id,
+            "startedAt": min(all_min_t) if all_min_t else None,
+            "finishedAt": max(all_max_t) if all_max_t else None,
+            "totalSamples": self._total_samples,
+            "channels": manifest_channels,
+            "steps": self._steps,
+        }
+
+        try:
+            manifest_bytes = json.dumps(manifest, indent=2).encode("utf-8")
+            self._on_flush_storage("telemetry/manifest.json", manifest_bytes)
+            log.info(
+                "Telemetry manifest written: %d channels, %d steps, %d samples",
+                len(manifest_channels), len(self._steps), self._total_samples,
+            )
+        except Exception as e:
+            log.warning("Failed to write telemetry manifest: %s", e)

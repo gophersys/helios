@@ -6,10 +6,12 @@ These endpoints support:
 - Run ZIP download generation (GET /download)
 - Run manifest retrieval (GET /manifest)
 """
+import atexit
 import base64
 import io
 import json
 import logging
+import threading
 import zipfile
 from datetime import timedelta
 
@@ -33,6 +35,130 @@ from .validation_ws import emit_to_run
 logger = logging.getLogger(__name__)
 
 
+# ---------------------------------------------------------------------------
+# In-memory log buffer — avoids O(n^2) read-append-write on every chunk
+# ---------------------------------------------------------------------------
+_log_buffers: dict[str, bytearray] = {}  # key: "run_id/file" -> accumulated bytes
+_log_lock = threading.Lock()
+_flush_timer: threading.Timer | None = None
+_FLUSH_INTERVAL_S = 30.0
+
+
+def _buffer_key(run_id: str, file: str) -> str:
+    return f"{run_id}/{file}"
+
+
+def _flush_log_buffers() -> None:
+    """Flush all buffered log data to MinIO."""
+    global _flush_timer
+    with _log_lock:
+        if not _log_buffers:
+            _flush_timer = None
+            return
+        to_flush = dict(_log_buffers)
+        _log_buffers.clear()
+        _flush_timer = None
+
+    try:
+        storage = get_storage_client()
+        bucket = get_bucket_name()
+    except Exception as e:
+        logger.error(f"Failed to get storage client for log flush: {e}")
+        # Put data back so it isn't lost
+        with _log_lock:
+            for k, v in to_flush.items():
+                if k in _log_buffers:
+                    _log_buffers[k] = v + _log_buffers[k]
+                else:
+                    _log_buffers[k] = v
+        return
+
+    for buf_key, new_bytes in to_flush.items():
+        run_id, file = buf_key.split("/", 1)
+        object_name = storage_key(StoragePrefixes.SESSIONS, f"{run_id}/logs/{file}")
+        try:
+            # Fetch existing data (may not exist yet)
+            existing_data = b""
+            try:
+                response = storage.get_object(bucket, object_name)
+                existing_data = response.read()
+                response.close()
+                response.release_conn()
+            except Exception:
+                pass
+
+            combined = existing_data + bytes(new_bytes)
+            storage.put_object(
+                bucket,
+                object_name,
+                io.BytesIO(combined),
+                length=len(combined),
+                content_type="text/plain",
+            )
+        except Exception as e:
+            logger.error(f"Failed to flush log buffer for {buf_key}: {e}")
+
+
+def _schedule_flush() -> None:
+    """Schedule a periodic flush if not already scheduled."""
+    global _flush_timer
+    with _log_lock:
+        if _flush_timer is None:
+            _flush_timer = threading.Timer(_FLUSH_INTERVAL_S, _flush_log_buffers)
+            _flush_timer.daemon = True
+            _flush_timer.start()
+
+
+def flush_log_buffers_for_run(run_id: str) -> None:
+    """Flush any buffered log data for a specific run (called on session finish)."""
+    keys_to_flush: list[str] = []
+    buffers_to_flush: dict[str, bytearray] = {}
+
+    with _log_lock:
+        for k in list(_log_buffers.keys()):
+            if k.startswith(f"{run_id}/"):
+                keys_to_flush.append(k)
+                buffers_to_flush[k] = _log_buffers.pop(k)
+
+    if not buffers_to_flush:
+        return
+
+    try:
+        storage = get_storage_client()
+        bucket = get_bucket_name()
+    except Exception as e:
+        logger.error(f"Failed to get storage for run flush {run_id}: {e}")
+        return
+
+    for buf_key, new_bytes in buffers_to_flush.items():
+        _, file = buf_key.split("/", 1)
+        object_name = storage_key(StoragePrefixes.SESSIONS, f"{run_id}/logs/{file}")
+        try:
+            existing_data = b""
+            try:
+                response = storage.get_object(bucket, object_name)
+                existing_data = response.read()
+                response.close()
+                response.release_conn()
+            except Exception:
+                pass
+
+            combined = existing_data + bytes(new_bytes)
+            storage.put_object(
+                bucket,
+                object_name,
+                io.BytesIO(combined),
+                length=len(combined),
+                content_type="text/plain",
+            )
+        except Exception as e:
+            logger.error(f"Failed to flush log buffer for {buf_key}: {e}")
+
+
+# Ensure buffers are flushed on process exit
+atexit.register(_flush_log_buffers)
+
+
 def _get_session_or_404(db, run_id: str):
     session = db.session.find_unique(where={"id": run_id})
     if not session:
@@ -45,8 +171,8 @@ def report_log_chunk(run_id: str):
     """POST /v2/validation/runs/<id>/report/log-chunk — Receive log chunk from test runner.
 
     The pytest reporter sends log chunks as tests execute. We:
-    1. Store the chunk in MinIO at the appropriate offset
-    2. Broadcast to WebSocket subscribers for live streaming
+    1. Buffer the chunk in memory (flushed to MinIO every 30s or on session finish)
+    2. Broadcast to WebSocket subscribers immediately for live streaming
     """
     data, error = ReportLogChunkRequest.from_json(request.get_json())
     if error:
@@ -63,48 +189,17 @@ def report_log_chunk(run_id: str):
     except Exception:
         return bad_request("Invalid base64 data")
 
-    # Store chunk in MinIO
-    try:
-        storage = get_storage_client()
-        bucket = get_bucket_name()
-        object_name = storage_key(StoragePrefixes.SESSIONS, f"{run_id}/logs/{data.file}")
+    # Buffer chunk in memory — avoids O(n^2) read-append-write per chunk
+    buf_key = _buffer_key(run_id, data.file)
+    with _log_lock:
+        if buf_key not in _log_buffers:
+            _log_buffers[buf_key] = bytearray()
+        _log_buffers[buf_key].extend(chunk_bytes)
 
-        # For log files, we append chunks by fetching existing content and appending
-        # This is a simple approach; for high-throughput we'd use multipart uploads
-        existing_data = b""
-        try:
-            response = storage.get_object(bucket, object_name)
-            existing_data = response.read()
-            response.close()
-            response.release_conn()
-        except Exception:
-            # Object doesn't exist yet, start fresh
-            pass
+    # Schedule periodic flush to MinIO
+    _schedule_flush()
 
-        # Validate offset matches expected position
-        if data.offset != len(existing_data):
-            logger.warning(
-                f"Log chunk offset mismatch for {data.file}: expected {len(existing_data)}, got {data.offset}"
-            )
-            # Allow anyway for resilience, but log the warning
-
-        # Append new data
-        new_data = existing_data + chunk_bytes
-        storage.put_object(
-            bucket,
-            object_name,
-            io.BytesIO(new_data),
-            length=len(new_data),
-            content_type="text/plain",
-        )
-
-    except Exception as e:
-        logger.error(f"Failed to store log chunk for run {run_id}: {e}")
-        return internal_error("Failed to store log chunk")
-
-    # Broadcast to WebSocket subscribers via the same path as test events
-    # (reporter._emit_validation_event handles both /kubernetes broadcast
-    # and /validation room-targeted delivery)
+    # Broadcast to WebSocket subscribers immediately (no need to wait for MinIO)
     from .reporter import _emit_validation_event
     _emit_validation_event("validation_log_chunk", {
         "runId": run_id,

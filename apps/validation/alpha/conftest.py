@@ -534,7 +534,13 @@ def _test_lifecycle(request):
         return
 
     ctx = request.getfixturevalue("ctx")
-    ctx.setup_test(test_name=request.node.name)  # mark_test_start + clear UART + set telemetry test
+    # Extract module name from the test's file path (e.g., "test_01_mfg_to_mfg_fuota")
+    module_name = None
+    if hasattr(request.node, "module") and request.node.module:
+        mod_file = getattr(request.node.module, "__name__", "")
+        if "." in mod_file:
+            module_name = mod_file.rsplit(".", 1)[-1]
+    ctx.setup_test(test_name=request.node.name, module=module_name)
 
     yield
     artifacts_dir = cfg.ARTIFACTS_DIR

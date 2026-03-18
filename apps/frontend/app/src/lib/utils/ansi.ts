@@ -38,12 +38,25 @@ function ansiToClass(code: string): string {
   }
 }
 
+// --- Memoization cache for parseAnsi ---
+// Lines are immutable strings that never change after creation, so parsed
+// results can be cached indefinitely.  We cap size to avoid memory leaks
+// on very long-running sessions.
+const _parseCache = new Map<string, AnsiSegment[]>();
+const _PARSE_CACHE_MAX = 5000;
+
 /**
  * Parse a line containing ANSI escape codes into styled segments.
+ *
+ * Results are memoized per input string — repeated calls with the same
+ * line return the cached result instantly.
  *
  * Handles both real escape codes (\x1b[...m) and Unicode control pictures (␛[...m).
  */
 export function parseAnsi(line: string): AnsiSegment[] {
+  const cached = _parseCache.get(line);
+  if (cached) return cached;
+
   // Normalize Unicode control picture (␛) to real escape
   const normalized = line.replace(/\u241b/g, '\x1b');
 
@@ -76,6 +89,13 @@ export function parseAnsi(line: string): AnsiSegment[] {
   if (segments.length === 0) {
     segments.push({ text: line, classes: '' });
   }
+
+  // Evict oldest entries when cache is full
+  if (_parseCache.size >= _PARSE_CACHE_MAX) {
+    const first = _parseCache.keys().next().value;
+    if (first !== undefined) _parseCache.delete(first);
+  }
+  _parseCache.set(line, segments);
 
   return segments;
 }

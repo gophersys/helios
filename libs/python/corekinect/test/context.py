@@ -260,12 +260,12 @@ class TestContext:
             except Exception:
                 pass  # Don't fail on power read errors
 
-    def setup_test(self, test_name: Optional[str] = None) -> None:
+    def setup_test(self, test_name: Optional[str] = None, module: Optional[str] = None) -> None:
         """Per-test setup: mark test start time, clear UART buffer, reset fixture state."""
         self.cloud.mark_test_start()
         self.uart.clear()
         if test_name:
-            self.telemetry.set_test(test_name)
+            self.telemetry.set_test(test_name, module=module)
         # Reset transient mock fixture state (button press, etc.) between tests.
         if hasattr(self.fixture, '_button_pressed'):
             self.fixture._button_pressed = False
