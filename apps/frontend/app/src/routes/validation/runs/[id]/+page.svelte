@@ -127,7 +127,7 @@
   let bottomPanelCollapsed = $state(false);
 
   // Resizable split between test results and UART terminals
-  let topPanelHeight = $state(45); // percentage of flex column wrapper
+  let topPanelHeight = $state(50); // percentage of flex column wrapper
   let resizing = $state(false);
   let flexColumnEl: HTMLElement | null = null;
 
@@ -422,12 +422,14 @@
       const configTestList = (res.data as any).config?.testList as { name: string; module: string | null }[] | undefined;
 
       if (liveTests.length === 0) {
-        // Build a map of execution results keyed by test name
+        // Build a map of execution results keyed by "module::name" for unique matching
+        // (test_01 and test_02 have identical test method names, only module differs)
         const execMap = new Map<string, any>();
         if (executions) {
           for (const ex of executions) {
             const name = ex.test?.name || 'Unknown';
-            execMap.set(name, ex);
+            const module = ex.test?.category || '';
+            execMap.set(`${module}::${name}`, ex);
           }
         }
 
@@ -440,15 +442,16 @@
         if (executions) {
           for (const ex of executions) {
             const name = ex.test?.name || 'Unknown';
-            if (!allTestNames.find(t => t.name === name)) {
-              allTestNames.push({ name, module: ex.test?.category || null });
+            const module = ex.test?.category || null;
+            if (!allTestNames.find(t => t.name === name && t.module === module)) {
+              allTestNames.push({ name, module });
             }
           }
         }
 
         const hydratedTests: LiveTest[] = [];
         for (const t of allTestNames) {
-          const ex = execMap.get(t.name);
+          const ex = execMap.get(`${t.module || ''}::${t.name}`);
 
           let status: LiveTest['status'] = 'queued';
           let logOutput: string | null = null;
@@ -457,10 +460,10 @@
           let durationS: number | null = null;
 
           if (ex) {
-            if (ex.status === 'RUNNING') status = 'running';
+            if (ex.status === 'RUNNING') status = run?.status === 'ACTIVE' ? 'running' : 'skipped';
             else if (ex.status === 'PASSED') status = 'passed';
             else if (ex.status === 'FAILED') status = 'failed';
-            else if (ex.status === 'SKIPPED') status = 'skipped';
+            else if (ex.status === 'SKIPPED' || ex.status === 'CANCELLED') status = 'skipped';
 
             const steps = ex.steps || ex.results || [];
             if (steps.length) {
@@ -493,8 +496,9 @@
         liveTests = hydratedTests;
 
         // Check if run is finished
-        if (res.data.status === 'COMPLETED' || res.data.status === 'CANCELLED') {
+        if (res.data.status !== 'ACTIVE' && res.data.status !== 'PENDING') {
           liveFinished = true;
+          liveRunning = false;
         }
       }
     } catch (err: unknown) {
@@ -508,7 +512,16 @@
     cancelling = true;
     try {
       await api.post(`/v2/sessions/${runId}/cancel`);
-      fetchRun();
+      // Update UI state immediately — don't wait for WebSocket
+      liveRunning = false;
+      liveFinished = true;
+      for (const t of liveTests) {
+        if (t.status === 'queued' || t.status === 'running') {
+          t.status = 'skipped';
+        }
+      }
+      liveTests = liveTests;
+      await fetchRun();
     } catch (err: unknown) {
       error = err instanceof Error ? err.message : 'Failed to cancel run';
     } finally {
@@ -708,8 +721,10 @@
     }
   }
 
-  function toggleTestExpanded(testName: string): void {
-    const test = liveTests.find(t => t.name === testName);
+  function toggleTestExpanded(testName: string, module?: string | null): void {
+    const test = module
+      ? liveTests.find(t => t.name === testName && t.module === module)
+      : liveTests.find(t => t.name === testName);
     if (!test) return;
     test.expanded = !test.expanded;
 
@@ -729,7 +744,7 @@
       {
         onTestStart: (data: ValidationTestStartEvent) => {
           liveRunning = true;
-          const existing = liveTests.find(t => t.name === data.testName);
+          const existing = liveTests.find(t => t.name === data.testName && t.module === data.module);
           if (existing) {
             existing.status = 'running';
           } else {
@@ -758,7 +773,7 @@
           }
         },
         onTestResult: (data: ValidationTestResultEvent) => {
-          const existing = liveTests.find(t => t.name === data.testName);
+          const existing = liveTests.find(t => t.name === data.testName && t.module === data.module);
           if (existing) {
             existing.status = data.skipped ? 'skipped' : data.passed ? 'passed' : 'failed';
             existing.durationS = data.durationS;
@@ -909,7 +924,7 @@
       <div class="w-px h-4 bg-border"></div>
       <h1 class="text-sm font-semibold text-text-primary truncate">{run.name}</h1>
       <StatusBadge status={run.status} />
-      {#if liveRunning}
+      {#if liveRunning && run.status === 'ACTIVE'}
         <span class="inline-flex items-center gap-1 rounded-full bg-success-muted px-2 py-0.5 text-2xs font-medium text-success flex-shrink-0">
           <span class="relative flex h-1.5 w-1.5">
             <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75"></span>
@@ -968,9 +983,14 @@
 
       <!-- Action buttons -->
       <div class="flex items-center gap-1 flex-shrink-0">
-        {#if isActive && auth.hasPermission('validation:manage')}
-          <button onclick={cancelRun} disabled={cancelling} class="btn btn-xs btn-danger" title="Cancel run">
-            <Ban size={12} />
+        {#if isActive}
+          <button onclick={cancelRun} disabled={cancelling} class="btn btn-xs flex items-center gap-1.5 text-error border-error/30 hover:bg-error/10" title="Cancel run">
+            {#if cancelling}
+              <Loader2 size={12} class="animate-spin" />
+            {:else}
+              <Ban size={12} />
+            {/if}
+            Cancel
           </button>
         {/if}
       </div>
@@ -1168,7 +1188,7 @@
                     <div class="group">
                       <!-- Test row header -->
                       <button
-                        onclick={() => toggleTestExpanded(test.name)}
+                        onclick={() => toggleTestExpanded(test.name, test.module)}
                         class="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-surface-1 transition-colors
                           {test.status === 'failed' ? 'bg-error-muted/30' : ''}
                           {test.status === 'running' ? 'bg-accent-muted/30' : ''}
@@ -1267,7 +1287,7 @@
                             </div>
                           {:else if test.status === 'skipped'}
                             <div class="px-4 py-3 text-xs text-text-tertiary">
-                              Test was skipped.
+                              {run?.status === 'CANCELLED' ? 'Run was cancelled.' : 'Test was skipped.'}
                             </div>
                           {:else if test.status === 'running'}
                             <div class="px-4 py-3 flex items-center gap-2 text-xs text-text-tertiary">
@@ -1297,10 +1317,10 @@
           {/if}
         </div>
 
-        <!-- Telemetry panels (right side, hidden on narrow screens) -->
-        <div class="flex-shrink-0 hidden xl:block self-start flex flex-col gap-2" style="width: 420px;">
+        <!-- Telemetry panels (right side, fixed height, not affected by resize) -->
+        <div class="flex-1 hidden xl:flex flex-col gap-2 min-w-0" style="height: 100%; max-height: calc(100vh - 100px);">
           <!-- Power profiler -->
-          <div class="rounded-lg border border-border bg-surface-0 overflow-hidden flex flex-col" style="height: 340px;">
+          <div class="rounded-lg border border-border bg-surface-0 overflow-hidden flex flex-col" style="height: 50%; min-height: 180px;">
             <div class="flex items-center gap-2 px-3 py-1.5 border-b border-border bg-surface-1 flex-shrink-0">
               <Activity size={12} class="text-accent" />
               <span class="text-xs font-medium text-text-primary">Power</span>
@@ -1326,8 +1346,8 @@
                 {@const tMin = windowSamples[0].t}
                 {@const tMax = windowSamples[windowSamples.length-1].t}
                 {@const tRange = Math.max(tMax - tMin, 1)}
-                {@const w = 320}
-                {@const h = 220}
+                {@const w = 480}
+                {@const h = 200}
                 {@const pad = { top: 8, right: 8, bottom: 20, left: 36 }}
                 {@const pw = w - pad.left - pad.right}
                 {@const ph = h - pad.top - pad.bottom}
@@ -1399,7 +1419,7 @@
           </div>
 
           <!-- Accelerometer (XYZ) -->
-          <div class="rounded-lg border border-border bg-surface-0 overflow-hidden flex flex-col" style="height: 340px;">
+          <div class="rounded-lg border border-border bg-surface-0 overflow-hidden flex flex-col" style="height: 50%; min-height: 180px;">
             <div class="flex items-center gap-2 px-3 py-1.5 border-b border-border bg-surface-1 flex-shrink-0">
               <Cpu size={12} class="text-accent" />
               <span class="text-xs font-medium text-text-primary">Accelerometer</span>

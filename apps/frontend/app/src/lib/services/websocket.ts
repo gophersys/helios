@@ -486,6 +486,7 @@ export interface ValidationTestStartEvent {
 export interface ValidationTestResultEvent {
   runId: string;
   testName: string;
+  module: string | null;
   passed: boolean;
   skipped?: boolean;
   durationS: number | null;

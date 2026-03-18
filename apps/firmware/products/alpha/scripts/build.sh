@@ -294,18 +294,14 @@ fix_sysbuild_key_path() {
         return
     fi
 
-    # In CI mode, ALWAYS use the mounted shared key directory (/keys/{product}/)
+    # In CI mode, ALWAYS use the mounted shared key directory (/keys/alpha/)
     # to ensure both alpha_fw and alpha_mfg_fw use the SAME encryption key.
     # Without this, each repo's own key would be used, causing MCUboot decryption
     # failures when FUOTA delivers a CFW encrypted with a different key than
     # what the device's MCUboot expects.
-    if [ "$CI_MODE" == "true" ]; then
-        local product_base=$(basename "$(dirname "$(dirname "$conf_file")")" | sed 's/_fw$//' | sed 's/_mfg//')
-        local shared_key_dir="/keys/${product_base}"
-        if [ -d "$shared_key_dir" ]; then
-            key_dir="$shared_key_dir"
-            echo -e "${CYAN}Using shared keys from ${key_dir} for ${conf_file}${NC}"
-        fi
+    if [ "$CI_MODE" == "true" ] && [ -d "/keys/alpha" ]; then
+        key_dir="/keys/alpha"
+        echo -e "${CYAN}Using shared keys from ${key_dir} for $(basename ${conf_file})${NC}"
     fi
 
     # Fix all SB_CONFIG_BOOT_ENCRYPTION_KEY_FILE references:

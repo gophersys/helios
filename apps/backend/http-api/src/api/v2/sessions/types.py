@@ -129,6 +129,7 @@ class ReportTestResultRequest:
     """Individual test finished — create TestStep, update TestExecution."""
     test_name: str
     passed: bool
+    module: Optional[str] = None
     duration_s: Optional[float] = None
     error_message: Optional[str] = None
     measurements: Optional[Dict[str, Any]] = None
@@ -173,9 +174,14 @@ class ReportTestResultRequest:
         if log_output is not None:
             log_output = str(log_output)[:10000] or None  # Cap at 10KB
 
+        module = data.get("module")
+        if module is not None:
+            module = str(module).strip() or None
+
         return cls(
             test_name=test_name,
             passed=passed,
+            module=module,
             duration_s=duration_s,
             error_message=error_message,
             measurements=measurements,

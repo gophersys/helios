@@ -324,6 +324,7 @@ def report_test_result(run_id: str):
     _emit_validation_event("validation_test_result", {
         "runId": run_id,
         "testName": data.test_name,
+        "module": data.module,
         "passed": data.passed,
         "skipped": data.skipped,
         "durationS": data.duration_s,

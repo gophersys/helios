@@ -402,6 +402,33 @@ def cancel_run(run_id: str):
         data={"status": "CANCELLED"},
     )
 
+    # Kill the K8s job if one exists
+    config = session.config if isinstance(session.config, dict) else {}
+    job_name = (config.get("trigger") or {}).get("jobName")
+    if job_name:
+        try:
+            from src.services.kubernetes.client import get_batch_v1_api
+            from src.lib.config import env_config
+            batch_v1 = get_batch_v1_api()
+            batch_v1.delete_namespaced_job(
+                name=job_name,
+                namespace=env_config.VALIDATION_NAMESPACE,
+                propagation_policy="Foreground",
+            )
+            logger.info("Deleted K8s job %s for cancelled run %s", job_name, run_id)
+        except Exception as e:
+            logger.warning("Could not delete K8s job %s: %s", job_name, e)
+
+    # Unlock the fixture
+    if session.fixtureId:
+        try:
+            db.fixture.update(
+                where={"id": session.fixtureId},
+                data={"status": "AVAILABLE", "lockedBy": None, "lockedAt": None},
+            )
+        except Exception:
+            pass
+
     # Update session
     session = db.session.update(
         where={"id": run_id},
@@ -411,6 +438,17 @@ def cancel_run(run_id: str):
         },
         include={"product": True, "createdBy": True},
     )
+
+    # Notify WebSocket subscribers
+    from .reporter import _emit_validation_event
+    _emit_validation_event("validation_run_finish", {
+        "runId": run_id,
+        "status": "CANCELLED",
+        "total": 0,
+        "passed": 0,
+        "failed": 0,
+        "errors": 0,
+    }, run_id)
 
     log_audit("validation.run.cancel", "Session", run_id, {"previousStatus": "ACTIVE"})
 

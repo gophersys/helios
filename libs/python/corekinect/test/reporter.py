@@ -549,8 +549,19 @@ class ConcordReporter:
                     "duration_s": getattr(meas, "duration_s", None),
                 }
 
+        # Resolve module from nodeid (same logic as test-start)
+        parts = item.nodeid.split("::")
+        module = None
+        if len(parts) >= 2:
+            file_part = parts[0]
+            if "/" in file_part:
+                file_part = file_part.rsplit("/", 1)[-1]
+            if file_part.endswith(".py"):
+                module = file_part[:-3]
+
         payload = {
             "testName": test_name,
+            "module": module,
             "passed": passed,
             "durationS": duration_s,
             "errorMessage": error_message,
