@@ -157,8 +157,23 @@ def _generate_matrix_build_specs(
         # Derive target from firmware name
         target = "mfg" if "_mfg" in firmware else "app"
 
-        # Mfg firmware: release only (BM flags — CoreCloud requires no debug bit for FUOTA delivery)
-        # Production firmware: both debug (for testing) and release (for deployment)
+        # CRITICAL: MFG firmware MUST use release variant (produces BM flags).
+        #
+        # The CFW flags encode: track (bits 1-2), mfg (bit 0), debug (bit 3).
+        #   - release mfg → flags=0x01, track string "BM" (Bench+Mfg)
+        #   - debug mfg   → flags=0x09, track string "BMD" (Bench+Mfg+Debug)
+        #
+        # CoreCloud FUOTA plan targets use the version_string format:
+        #   "{appId}.{major}.{minor}.{build}-{track}"
+        #   e.g. "108.0.5.14-BM" or "109.0.5.14-BM"
+        #
+        # CoreCloud STRIPS the 'D' flag when matching device firmware to plan
+        # targets. A device reporting BMD firmware will NOT match a BM plan
+        # target, causing CoreCloud to silently skip FUOTA delivery.
+        # This was verified 2026-03-18: BMD builds → 0 pages delivered.
+        #
+        # Production firmware builds both debug (for validation testing with
+        # extra logging) and release (for actual OTA deployment).
         variants = ("release",) if target == "mfg" else ("debug", "release")
 
         for variant in variants:

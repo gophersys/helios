@@ -12,6 +12,7 @@
     Clock,
     Download,
     FileText,
+    Layers,
     Loader2,
     Package,
     SkipForward,
@@ -30,7 +31,9 @@
   import UartTerminal from '$lib/components/validation/uart-terminal.svelte';
   import PowerChart from '$lib/components/validation/power-chart.svelte';
   import AccelChart from '$lib/components/validation/accel-chart.svelte';
+  import TimelineWidget from '$lib/components/validation/timeline-widget.svelte';
   import type { PowerSample, AccelSample } from '$lib/components/validation/types';
+  import type { TelemetryManifest, TimeRange } from '$lib/components/validation/time-context';
   import {
     subscribeValidationRunWithLogs,
     type ValidationTestStartEvent,
@@ -161,6 +164,43 @@
   let powerChgSamples = $state<PowerSample[]>([]);
   let accelSamples = $state<AccelSample[]>([]);
   const POWER_WINDOW_S = 60;
+
+  // Post-analysis telemetry state
+  let telemetryManifest = $state<TelemetryManifest | null>(null);
+  let selectedRange = $state<TimeRange | null>(null);
+  let historicalPower = $state<PowerSample[]>([]);
+  let historicalPowerChg = $state<PowerSample[]>([]);
+  let historicalUartApp = $state<string[]>([]);
+  let historicalUartComms = $state<string[]>([]);
+  let telemetryLoading = $state(false);
+
+  const analysisMode = $derived(run?.status !== 'ACTIVE' && telemetryManifest !== null);
+
+  // Filtered data based on selected time range
+  const filteredPower = $derived.by(() => {
+    if (!selectedRange) return historicalPower;
+    return historicalPower.filter(s => s.t >= selectedRange!.start && s.t <= selectedRange!.end);
+  });
+  const filteredPowerChg = $derived.by(() => {
+    if (!selectedRange) return historicalPowerChg;
+    return historicalPowerChg.filter(s => s.t >= selectedRange!.start && s.t <= selectedRange!.end);
+  });
+  const filteredUartApp = $derived.by(() => {
+    if (!selectedRange || historicalUartApp.length === 0) return historicalUartApp;
+    // UART lines have timestamps embedded as [HH:MM:SS.mmm] — filter by parsing
+    // For simplicity, return all lines when range is set (UART is text, not easily time-filterable)
+    return historicalUartApp;
+  });
+  const filteredUartComms = $derived.by(() => {
+    if (!selectedRange || historicalUartComms.length === 0) return historicalUartComms;
+    return historicalUartComms;
+  });
+
+  // Effective samples for components — live data during active, historical during analysis
+  const effectivePower = $derived(analysisMode ? filteredPower : powerSamples);
+  const effectivePowerChg = $derived(analysisMode ? filteredPowerChg : powerChgSamples);
+  const effectiveUartApp = $derived(analysisMode ? (filteredUartApp.length > 0 ? filteredUartApp : uartAppLines) : uartAppLines);
+  const effectiveUartComms = $derived(analysisMode ? (filteredUartComms.length > 0 ? filteredUartComms : uartCommsLines) : uartCommsLines);
 
   // Derived search matches (reactive)
   // UART search matches now computed inside UartTerminal component
@@ -646,6 +686,68 @@
     }
   }
 
+  async function fetchTelemetryManifest(): Promise<void> {
+    try {
+      const res = await apiFetch<{ data: TelemetryManifest }>(`/v2/sessions/${runId}/telemetry/manifest`);
+      if (res.data) {
+        telemetryManifest = res.data;
+        // Auto-load all channels
+        await loadTelemetryChannels();
+      }
+    } catch {
+      // No telemetry available — that's fine, feature degrades gracefully
+      telemetryManifest = null;
+    }
+  }
+
+  async function loadTelemetryChannels(): Promise<void> {
+    if (!telemetryManifest) return;
+    telemetryLoading = true;
+    try {
+      const headers: Record<string, string> = {};
+      const token = getToken();
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      // Load each channel in parallel
+      const channelEntries = Object.entries(telemetryManifest.channels);
+      await Promise.all(channelEntries.map(async ([name, info]) => {
+        try {
+          const res = await fetch(`/v2/sessions/${runId}/telemetry/${name}`, { headers });
+          if (!res.ok) return;
+          const text = await res.text();
+          if (!text) return;
+
+          if (name === 'power' || name === 'power_chg') {
+            const samples: PowerSample[] = [];
+            for (const line of text.split('\n')) {
+              if (!line.trim()) continue;
+              try {
+                const s = JSON.parse(line);
+                samples.push({ t: s.t, mA: s.mA, mV: s.mV });
+              } catch { /* skip malformed */ }
+            }
+            if (name === 'power') historicalPower = samples;
+            else historicalPowerChg = samples;
+          } else if (name === 'uart_app' || name === 'uart_comms') {
+            const lines: string[] = [];
+            for (const line of text.split('\n')) {
+              if (!line.trim()) continue;
+              try {
+                const s = JSON.parse(line);
+                const ts = new Date(s.t * 1000).toISOString().slice(11, 23);
+                lines.push(`\x1b[36m[${ts}]\x1b[0m ${s.line}`);
+              } catch { /* skip malformed */ }
+            }
+            if (name === 'uart_app') historicalUartApp = lines;
+            else historicalUartComms = lines;
+          }
+        } catch { /* skip failed channels */ }
+      }));
+    } finally {
+      telemetryLoading = false;
+    }
+  }
+
   function formatFileSize(bytes: number): string {
     if (bytes < 1024) return `${bytes} B`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -842,6 +944,15 @@
     return { icon: Circle, class: 'text-text-tertiary' };
   }
 
+  // Fetch telemetry manifest when run finishes or page loads for a completed run
+  let telemetryFetched = false;
+  $effect(() => {
+    if (run && run.status !== 'ACTIVE' && run.status !== 'PENDING' && !telemetryFetched) {
+      telemetryFetched = true;
+      fetchTelemetryManifest();
+    }
+  });
+
   onMount(() => {
     if (!auth.hasPermission('validation:view')) {
       goto('/');
@@ -951,6 +1062,15 @@
         {/if}
       </div>
     </div>
+
+    <!-- Timeline widget for post-analysis (completed/failed/cancelled runs) -->
+    {#if analysisMode && telemetryManifest}
+      <TimelineWidget
+        manifest={telemetryManifest}
+        {liveTests}
+        bind:selectedRange
+      />
+    {/if}
 
     <!-- ═══ MAIN LAYOUT: [Left: resizable tests+UART] [Right: fixed telemetry] ═══ -->
     {#if liveTests.length > 0 || buildJobs.length > 0}
@@ -1290,8 +1410,8 @@
         <!-- UART Terminals -->
         <div class="flex-1 min-h-0 overflow-hidden">
           <div class="grid grid-cols-1 md:grid-cols-2 gap-2 h-full">
-            <UartTerminal lines={uartAppLines} label="nRF52840" iconColor="text-green-400" />
-            <UartTerminal lines={uartCommsLines} label="nRF9151" iconColor="text-blue-400" />
+            <UartTerminal lines={effectiveUartApp} label="nRF52840" iconColor="text-green-400" />
+            <UartTerminal lines={effectiveUartComms} label="nRF9151" iconColor="text-blue-400" />
           </div>
         </div>
       </div><!-- end left column (resizable) -->
@@ -1299,7 +1419,7 @@
       <!-- Right column: telemetry (fixed, independent of resize) -->
       <div class="w-80 flex-shrink-0 hidden xl:flex flex-col gap-2">
         <div class="flex-1 min-h-0">
-          <PowerChart samples={powerSamples} chgSamples={powerChgSamples} windowSeconds={POWER_WINDOW_S} />
+          <PowerChart samples={effectivePower} chgSamples={effectivePowerChg} windowSeconds={analysisMode ? 99999 : POWER_WINDOW_S} />
         </div>
         <div class="flex-1 min-h-0">
           <AccelChart samples={accelSamples} />

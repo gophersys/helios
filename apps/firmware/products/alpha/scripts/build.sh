@@ -540,6 +540,12 @@ collect_artifacts() {
     # - Track: 0=Bench (for CI/validation builds)
     # - Mfg: 1 if label contains "mfg"
     # - Debug: 1 if VARIANT=debug
+    #
+    # IMPORTANT: CoreCloud FUOTA strips the 'D' (debug) flag when matching
+    # device firmware to plan targets. MFG builds MUST use variant=release
+    # (no debug flag) to produce BM track strings. If variant=debug is used,
+    # the device reports BMD but CoreCloud plan targets are BM → no match →
+    # FUOTA delivery silently fails (0 pages sent). Verified 2026-03-18.
     local cfw_track=0
     local cfw_mfg=0
     local cfw_debug=0

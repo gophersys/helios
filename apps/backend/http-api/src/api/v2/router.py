@@ -118,6 +118,10 @@ from .sessions.logs import (
     download_run,
     get_manifest,
 )
+from .sessions.telemetry_api import (
+    get_telemetry_manifest,
+    get_telemetry_channel,
+)
 from .sessions.manual import run_tests
 from .sessions.queue import (
     list_queue,
@@ -414,6 +418,10 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     v2.add_url_rule("/sessions/<run_id>/logs/<path:file_path>",                                     endpoint="get_run_log_file",             view_func=get_log_file,             methods=["GET"])
     v2.add_url_rule("/sessions/<run_id>/download",                                                  endpoint="download_session",             view_func=download_run,             methods=["GET"])
     v2.add_url_rule("/sessions/<run_id>/manifest",                                                  endpoint="get_run_manifest",             view_func=get_manifest,             methods=["GET"])
+
+    # Sessions - Telemetry (post-analysis)
+    v2.add_url_rule("/sessions/<run_id>/telemetry/manifest",                                       endpoint="get_telemetry_manifest",       view_func=get_telemetry_manifest,   methods=["GET"])
+    v2.add_url_rule("/sessions/<run_id>/telemetry/<channel>",                                      endpoint="get_telemetry_channel",        view_func=get_telemetry_channel,    methods=["GET"])
 
     # Sessions - Demo (simulate a run via WebSocket events)
     v2.add_url_rule("/sessions/<run_id>/demo/simulate",                                            endpoint="simulate_session",             view_func=simulate_run,             methods=["POST"])
