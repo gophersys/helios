@@ -15,17 +15,14 @@
   let searchIndex = $state(0);
   let scrollEl: HTMLElement;
 
-  // Two modes:
-  // followTail=true  → always show last WINDOW lines, auto-scroll to bottom
-  // followTail=false → freeze visible window, user browses freely
   const WINDOW = 200;
   let followTail = $state(true);
   let displayLines = $state<string[]>([]);
   let displayOffset = $state(0);
-  let lastLinesRef: string[] = []; // track array REFERENCE, not just length
+  let lastLinesRef: string[] = [];
+  let scrollLock = false; // prevent scroll handler from firing during programmatic scrolls
 
   onMount(() => {
-    // Seed with initial data
     if (lines.length > 0) {
       displayOffset = Math.max(0, lines.length - WINDOW);
       displayLines = lines.slice(displayOffset);
@@ -35,16 +32,16 @@
       });
     }
 
-    // RAF loop: detect new data by comparing array reference
-    // (parent creates a NEW array on every flush, even if length is same)
     let rafId = requestAnimationFrame(function loop() {
       if (lines !== lastLinesRef) {
         lastLinesRef = lines;
         if (followTail) {
           displayOffset = Math.max(0, lines.length - WINDOW);
           displayLines = lines.slice(displayOffset);
+          scrollLock = true;
           requestAnimationFrame(() => {
             if (scrollEl) scrollEl.scrollTop = scrollEl.scrollHeight;
+            setTimeout(() => { scrollLock = false; }, 50);
           });
         }
       }
@@ -54,27 +51,61 @@
     return () => cancelAnimationFrame(rafId);
   });
 
-  // Mouse wheel UP = user wants to browse → stop following
   function onWheel(e: WheelEvent) {
-    if (e.deltaY < 0) {
-      followTail = false;
+    if (e.deltaY < 0) followTail = false;
+  }
+
+  function onScroll() {
+    if (!scrollEl || scrollLock) return;
+    const { scrollTop, scrollHeight, clientHeight } = scrollEl;
+
+    // Scrolled to top — load earlier lines
+    if (scrollTop < 10 && displayOffset > 0) {
+      const prevOffset = displayOffset;
+      displayOffset = Math.max(0, displayOffset - 100);
+      displayLines = lines.slice(displayOffset, displayOffset + WINDOW);
+      scrollLock = true;
+      requestAnimationFrame(() => {
+        if (scrollEl) {
+          const linesAdded = prevOffset - displayOffset;
+          scrollEl.scrollTop = linesAdded * 16;
+        }
+        setTimeout(() => { scrollLock = false; }, 50);
+      });
+      return;
+    }
+
+    // Scrolled to bottom — load later lines or re-enable follow
+    if (scrollHeight - scrollTop - clientHeight < 10) {
+      const maxOffset = Math.max(0, lines.length - WINDOW);
+      if (displayOffset < maxOffset) {
+        displayOffset = Math.min(displayOffset + 100, maxOffset);
+        displayLines = lines.slice(displayOffset, displayOffset + WINDOW);
+        scrollLock = true;
+        requestAnimationFrame(() => {
+          if (scrollEl) scrollEl.scrollTop = 0;
+          setTimeout(() => { scrollLock = false; }, 50);
+        });
+      }
+      if (displayOffset >= maxOffset) {
+        followTail = true;
+      }
     }
   }
 
-  // Jump back to live tail
   function jumpToLatest() {
     followTail = true;
     displayOffset = Math.max(0, lines.length - WINDOW);
     displayLines = lines.slice(displayOffset);
+    scrollLock = true;
     requestAnimationFrame(() => {
       if (scrollEl) scrollEl.scrollTop = scrollEl.scrollHeight;
+      setTimeout(() => { scrollLock = false; }, 50);
     });
   }
 
-  // Show jump button when not following and there are newer lines
   const showJump = $derived(!followTail && lines.length > displayOffset + WINDOW);
 
-  // Search across ALL lines (not just displayed)
   const matches = $derived.by(() => {
     if (!search.trim()) return [];
     const q = search.toLowerCase();
@@ -87,7 +118,6 @@
   function scrollToMatch(idx: number) {
     if (matches.length === 0) return;
     const globalIdx = matches[idx % matches.length];
-    // Move window to show the match
     followTail = false;
     displayOffset = Math.max(0, globalIdx - Math.floor(WINDOW / 2));
     displayLines = lines.slice(displayOffset, displayOffset + WINDOW);
@@ -121,11 +151,8 @@
   </div>
   <div class="relative flex-1 min-h-0">
     <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div bind:this={scrollEl} onwheel={onWheel} class="absolute inset-0 overflow-y-auto overflow-x-auto bg-[#0d1117] px-2 py-1 font-mono text-xs leading-snug">
+    <div bind:this={scrollEl} onwheel={onWheel} onscroll={onScroll} class="absolute inset-0 overflow-y-auto overflow-x-auto bg-[#0d1117] px-2 py-1 font-mono text-xs leading-snug">
       {#if displayLines.length > 0}
-        {#if displayOffset > 0}
-          <div class="text-text-tertiary text-2xs py-1 text-center opacity-50">↑ {displayOffset} earlier lines</div>
-        {/if}
         {#each displayLines as line, i (displayOffset + i)}
           {@const globalIdx = displayOffset + i}
           <div data-line-index={i} class="whitespace-pre {matches.includes(globalIdx) ? 'bg-yellow-500/20' : ''}">{#each parseAnsi(line) as seg}<span class="{seg.classes || 'text-[#c9d1d9]'}">{seg.text}</span>{/each}</div>
