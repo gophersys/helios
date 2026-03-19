@@ -29,6 +29,9 @@ auth:
   enabled: true
   password: ""  # Set via --set auth.password=<password>
 
+nodeSelector:
+  kubernetes.io/arch: arm64
+
 config:
   maxmemory: "200mb"
   maxmemoryPolicy: "allkeys-lru"

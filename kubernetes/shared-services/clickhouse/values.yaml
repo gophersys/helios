@@ -40,6 +40,10 @@ databases:
     user: fintel
     password: ""  # Set via --set databases[1].password=<password>
 
+nodeSelector:
+  kubernetes.io/arch: arm64
+  kubernetes.io/hostname: code-kit-agent-1
+
 config:
   maxMemoryUsage: "2000000000"           # 2 GB per query
   maxMemoryUsageForAllQueries: "3000000000"  # 3 GB total

@@ -1,0 +1,72 @@
+# Cluster Autoscaler — scales K3s nodes based on pod demand
+#
+# Watches for pending pods, matches against node profiles, and
+# starts/stops or creates/terminates cloud instances as needed.
+#
+# Two modes:
+#   startstop  — Pre-existing instance, just start/stop (e.g. agent-01)
+#   lifecycle  — Ephemeral instance, create on demand, terminate when idle
+
+namespace: kube-system
+
+image:
+  # Needs: kubectl, curl, jq, bash. OCI CLI installed at runtime.
+  repository: bitnami/kubectl
+  tag: "1.31"
+
+schedule: "*/2 * * * *"
+
+profiles:
+  # x86 workload node — IB Gateway and anything x86-only
+  x86-workload:
+    enabled: true
+    provider: oci
+    mode: startstop
+    instanceId: "ocid1.instance.oc1.phx.anyhqljtslzce6actpj53hffsoo5o5vciq4h2eo3gnyqgs5ek5zomhd2wttq"
+    nodeName: agent-01
+    match:
+      arch: amd64
+    scaleDown:
+      idleMinutes: 15
+
+  # ARM overflow — paid A1.Flex, created on demand when free ARM is full
+  arm-overflow:
+    enabled: true
+    provider: oci
+    mode: lifecycle
+    shape: VM.Standard.A1.Flex
+    ocpus: 1
+    memoryGb: 6
+    bootVolumeSizeGb: 50
+    # Resolved at deploy time from existing infra
+    subnetId: ""           # --set profiles.arm-overflow.subnetId=...
+    imageId: ""            # --set profiles.arm-overflow.imageId=... (Ubuntu 22.04 ARM)
+    nodeNamePrefix: "arm-worker"
+    maxInstances: 2        # Never create more than 2 overflow nodes
+    match:
+      arch: arm64
+      # Only triggers when ALL existing ARM nodes are full (CPU or memory pressure)
+      pressureThreshold: 85  # % utilization before scaling up
+    scaleDown:
+      idleMinutes: 10
+
+# OCI credentials
+oci:
+  tenancyOcid: ""
+  userOcid: ""
+  fingerprint: ""
+  privateKeyB64: ""
+  region: "us-phoenix-1"
+  compartmentOcid: ""
+
+# Tailscale (for new nodes to join the mesh)
+tailscale:
+  authKey: ""              # Reusable, pre-authorized auth key
+  # Or API key to generate auth keys on demand:
+  apiKey: ""
+
+# K3s (for new nodes to join the cluster)
+k3s:
+  serverUrl: "https://100.72.160.20:6443"   # Tailscale IP of control plane
+  token: ""                                   # From /var/lib/rancher/k3s/server/node-token
+  version: "v1.34.5+k3s1"
