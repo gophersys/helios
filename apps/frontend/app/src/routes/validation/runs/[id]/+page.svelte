@@ -502,7 +502,15 @@
           let durationS: number | null = null;
 
           if (ex) {
-            if (ex.status === 'RUNNING') status = run?.status === 'ACTIVE' ? 'running' : 'skipped';
+            if (ex.status === 'RUNNING') {
+              // If the run is active, show as running. If not, show as skipped.
+              // Also: if a PRIOR test in the same module FAILED, this test was skipped by fail-fast
+              // even though its execution status is still RUNNING in the DB.
+              const moduleHasFailure = hydratedTests.some(
+                h => h.module === t.module && h.status === 'failed'
+              );
+              status = (run?.status === 'ACTIVE' && !moduleHasFailure) ? 'running' : 'skipped';
+            }
             else if (ex.status === 'PASSED') status = 'passed';
             else if (ex.status === 'FAILED') status = 'failed';
             else if (ex.status === 'SKIPPED' || ex.status === 'CANCELLED') status = 'skipped';

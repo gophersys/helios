@@ -409,13 +409,15 @@ def report_finish(run_id: str):
         },
     )
 
-    # Mark any remaining QUEUED executions as SKIPPED (planned but never ran)
+    # Mark any remaining QUEUED or RUNNING executions as SKIPPED.
+    # RUNNING executions happen when test-start fired but the test was then
+    # skipped by class-level fail-fast before test-result could update them.
     device = db.device.find_first(where={"sessionId": run_id})
     if device:
         db.testexecution.update_many(
             where={
                 "deviceId": device.id,
-                "status": "QUEUED",
+                "status": {"in": ["QUEUED", "RUNNING"]},
             },
             data={"status": "SKIPPED"},
         )
