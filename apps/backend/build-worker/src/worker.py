@@ -80,9 +80,9 @@ class BuildWorker:
         return None  # All queued jobs are for incompatible NCS versions
 
     def claim_job(self, job_id: str) -> bool:
-        """Claim a job by setting status to BUILDING."""
+        """Claim a job by setting status to CLONING (first phase of processing)."""
         result = self.api_client.api_patch(f"/v2/builds/{job_id}", {
-            "status": "BUILDING",
+            "status": "CLONING",
             "workerId": self.config.worker_id,
             "startedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         })
@@ -151,12 +151,13 @@ class BuildWorker:
             self.git_ops.fetch_overlays(job.product, overlays_dir)  # Optional, don't fail if missing
 
             # 3. Clone production firmware repo (e.g., alpha_fw)
-            self.update_job(job.id, "CLONING")
+            # Status is already CLONING from claim_job()
             main_fw = f"{product_base}_fw"
             main_fw_dir = work_dir / main_fw
             # For mfg target builds, the commitSha belongs to the mfg repo — clone main fw at latest
             main_commit = job.commit_sha if job.target != "mfg" else None
             log.info("Cloning %s (branch=%s, commit=%s)...", main_fw, job.branch, (main_commit or "latest")[:8])
+            self.api_client.heartbeat(job.id)  # Keep alive during clone
             if not self.git_ops.clone_repo(main_fw, main_fw_dir, main_commit, branch=job.branch, job_id=job.id):
                 self.update_job(job.id, "FAILED", f"Failed to clone {main_fw} (branch={job.branch})")
                 return False
@@ -176,6 +177,7 @@ class BuildWorker:
             # For mfg target builds, the commitSha belongs to the mfg repo
             mfg_commit = job.commit_sha if job.target == "mfg" else None
             log.info("Cloning %s (branch=%s, commit=%s)...", mfg_fw, job.branch, (mfg_commit or "latest")[:8] if mfg_commit else "latest")
+            self.api_client.heartbeat(job.id)  # Keep alive during second clone
             if not self.git_ops.clone_repo(mfg_fw, mfg_fw_dir, mfg_commit, branch=job.branch, job_id=job.id):
                 log.warning("Failed to clone %s - mfg builds may fail", mfg_fw)
                 # Don't fail here, mfg repo might not exist for all products

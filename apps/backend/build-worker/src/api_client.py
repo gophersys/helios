@@ -110,3 +110,21 @@ class ConcordApiClient:
             )
         except Exception:
             pass  # Don't fail build if streaming fails
+
+    def heartbeat(self, job_id: str) -> None:
+        """Send a heartbeat to keep the build alive during long operations.
+
+        Resets startedAt to now, preventing the recovery service from
+        treating this build as stale while the worker is still active.
+        """
+        import time
+        try:
+            requests.patch(
+                f"{self.api_url}/v2/builds/{job_id}",
+                json={"startedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())},
+                headers=self._headers(),
+                timeout=5,
+                verify=False,
+            )
+        except Exception:
+            pass  # Don't fail build if heartbeat fails

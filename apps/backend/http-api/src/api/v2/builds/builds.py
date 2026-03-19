@@ -334,8 +334,10 @@ def update_build(build_id: str):
         if status not in ("QUEUED", "BLOCKED", "CLONING", "BUILDING", "SUCCESS", "FAILED", "CANCELLED"):
             return bad_request("Invalid status")
 
-        # Atomic claim: if transitioning to BUILDING from QUEUED, verify not already claimed
-        # CLONING → BUILDING is allowed (normal progression)
+        # Atomic claim: workers claim by setting CLONING (from QUEUED only)
+        # CLONING → BUILDING is normal progression after repos are cloned
+        if status == "CLONING" and build.status != "QUEUED":
+            return conflict(f"Build already claimed (status={build.status})")
         if status == "BUILDING" and build.status not in ("QUEUED", "CLONING"):
             return conflict(f"Build already claimed (status={build.status})")
 
@@ -397,15 +399,15 @@ def update_build(build_id: str):
         if updated.pipelineRunId:
             new_status = update_data.get("status")
 
-            # When a build starts, update pipeline from PENDING to BUILDING
-            if new_status == "BUILDING":
+            # When a build starts (claimed by worker), update pipeline from PENDING to BUILDING
+            if new_status in ("CLONING", "BUILDING"):
                 pipeline = db.pipelinerun.find_unique(where={"id": updated.pipelineRunId})
                 if pipeline and pipeline.status == "PENDING":
                     db.pipelinerun.update(
                         where={"id": updated.pipelineRunId},
                         data={"status": "BUILDING"},
                     )
-                    logger.info("Build %s started, pipeline %s now BUILDING",
+                    logger.info("Build %s claimed, pipeline %s now BUILDING",
                                build_id, updated.pipelineRunId)
 
             # When a build succeeds, unblock dependent version-bump builds

@@ -80,6 +80,7 @@
   let error = $state<string | null>(null);
   let cancelling = $state(false);
   let confirmCancel = $state(false);
+  let cancelConfirmText = $state('');
   let triggering = $state(false);
   let showTrigger = $state(false);
   let triggerFwVersion = $state('');
@@ -1117,7 +1118,12 @@
   function getStageStatusIcon(stage: typeof stages[0]) {
     if (stage.running > 0) return { icon: Loader2, class: 'text-accent animate-spin' };
     if (stage.failed > 0) return { icon: XCircle, class: 'text-error' };
-    if (stage.passed > 0 && stage.failed === 0) return { icon: CheckCircle2, class: 'text-success' };
+    // Only show green if ALL tests passed (no skipped from cancel/fail-fast)
+    const totalTests = stage.tests.length;
+    const allPassed = stage.passed === totalTests && totalTests > 0;
+    if (allPassed) return { icon: CheckCircle2, class: 'text-success' };
+    if (stage.passed > 0 && stage.skipped > 0) return { icon: SkipForward, class: 'text-text-tertiary' };
+    if (stage.passed > 0) return { icon: CheckCircle2, class: 'text-success' };
     return { icon: Circle, class: 'text-text-tertiary' };
   }
 
@@ -1702,18 +1708,24 @@
           <p class="text-sm text-text-secondary">
             This will stop the running tests, kill the K8s job, and unlock the fixture. You can re-run from the pipeline page.
           </p>
-          {#if run?.name}
-            <p class="mt-2 text-xs text-text-tertiary font-mono truncate">{run.name}</p>
-          {/if}
+          <p class="mt-3 mb-1 text-2xs font-medium text-text-tertiary">
+            Type <span class="font-mono text-text-primary">{runId}</span> to confirm
+          </p>
+          <input
+            type="text"
+            bind:value={cancelConfirmText}
+            placeholder={runId}
+            class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none font-mono"
+          />
         </div>
         <div class="flex justify-end gap-2 border-t border-border px-5 py-4">
-          <button onclick={() => { confirmCancel = false; }} class="rounded-lg px-4 py-2 text-sm font-medium text-text-secondary hover:bg-surface-2">
+          <button onclick={() => { confirmCancel = false; cancelConfirmText = ''; }} class="rounded-lg px-4 py-2 text-sm font-medium text-text-secondary hover:bg-surface-2">
             Keep Running
           </button>
           <button
-            onclick={() => { confirmCancel = false; cancelRun(); }}
-            disabled={cancelling}
-            class="rounded-lg bg-error px-4 py-2 text-sm font-medium text-white hover:bg-error/90 disabled:opacity-50 flex items-center gap-2"
+            onclick={() => { confirmCancel = false; cancelConfirmText = ''; cancelRun(); }}
+            disabled={cancelling || cancelConfirmText !== runId}
+            class="rounded-lg bg-error px-4 py-2 text-sm font-medium text-white hover:bg-error/90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
             {#if cancelling}
               <Loader2 size={14} class="animate-spin" />
