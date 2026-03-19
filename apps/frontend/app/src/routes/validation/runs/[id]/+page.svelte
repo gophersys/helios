@@ -974,11 +974,21 @@
               t.expanded = (t.name === data.testName && (data.module ? t.module === data.module : true));
             }
             liveTests = liveTests;
-            // Scroll the test step into view in the test list panel
+            // Scroll the test step into view within the test list panel
             setTimeout(() => {
-              const el = document.querySelector(`[data-test-name="${data.testName}"][data-test-module="${data.module}"]`);
-              el?.scrollIntoView({ block: 'start', behavior: 'smooth' });
-            }, 100);
+              const el = document.querySelector(`[data-test-name="${data.testName}"][data-test-module="${data.module}"]`) as HTMLElement;
+              if (el) {
+                // Find the scrollable parent (overflow-y-auto)
+                const panel = el.closest('.overflow-y-auto');
+                if (panel) {
+                  const panelRect = panel.getBoundingClientRect();
+                  const elRect = el.getBoundingClientRect();
+                  panel.scrollTop += elRect.top - panelRect.top;
+                } else {
+                  el.scrollIntoView({ block: 'start', behavior: 'smooth' });
+                }
+              }
+            }, 150);
           }
         },
         onTestResult: (data: ValidationTestResultEvent) => {
@@ -992,15 +1002,16 @@
             // Auto-expand failures, auto-collapse passes (if following)
             if (!data.passed && !data.skipped) {
               existing.expanded = true;
-              // Mark remaining queued/running tests in this module as skipped
-              // (class-level fail-fast means they won't run)
-              let foundFailed = false;
+              // Mark ALL remaining queued/running tests in this module as skipped
+              const mod = data.module || existing.module;
+              let afterFailed = false;
               for (const t of liveTests) {
-                if (t.module === existing.module) {
-                  if (t === existing) { foundFailed = true; continue; }
-                  if (foundFailed && (t.status === 'queued' || t.status === 'running')) {
-                    t.status = 'skipped';
-                  }
+                if (t === existing || (t.name === existing.name && t.module === existing.module)) {
+                  afterFailed = true;
+                  continue;
+                }
+                if (afterFailed && (!mod || t.module === mod) && (t.status === 'queued' || t.status === 'running')) {
+                  t.status = 'skipped';
                 }
               }
             } else if (autoFollow) {

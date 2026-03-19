@@ -166,40 +166,62 @@ def personalize_device(
     device_id: Optional[str] = None,
     imei: Optional[str] = None,
     iccids: Optional[List[str]] = None,
+    max_retries: int = 3,
 ) -> Dict[str, str]:
     """Personalize device: EC keygen + key upload to CoreCloud.
 
     Wraps DevicePersonalizer with pre-known IMEI/ICCIDs to skip modem read
     (UART byte-by-byte latency makes modem read unreliable).
 
+    Retries up to max_retries times on UART timeout failures (intermittent
+    due to MTIB byte-by-byte UART delivery at 115200 baud).
+
     Returns:
         Dict with "device_id" and "public_key" on success.
 
     Raises:
-        AssertionError: On personalization failure.
+        AssertionError: On personalization failure after all retries.
     """
     from corekinect.test.device_personalizer import DevicePersonalizer
 
-    personalizer = DevicePersonalizer(
-        mtib=client,
-        snr=snr,
-        imei=imei,
-        iccids=iccids,
-        known_device_id=device_id,
-        db_env="VAL_1_0",
-        require_corecloud_key=True,
-    )
+    last_err = None
+    for attempt in range(1, max_retries + 1):
+        if attempt > 1:
+            print(f"  Personalization retry {attempt}/{max_retries} (previous: UART timeout)")
+            time.sleep(5)
 
-    result, err = personalizer.repersonalize(power_cycle=True, lock_shells=True)
+        personalizer = DevicePersonalizer(
+            mtib=client,
+            snr=snr,
+            imei=imei,
+            iccids=iccids,
+            known_device_id=device_id,
+            db_env="VAL_1_0",
+            require_corecloud_key=True,
+        )
 
-    assert err is None, f"Personalization failed: {err}"
-    assert result is not None, "Personalization returned no result"
-    assert result.device_id, "No device ID assigned"
-    assert result.pub_key_base64, "No public key generated"
+        result, err = personalizer.repersonalize(power_cycle=True, lock_shells=True)
 
-    return {
-        "device_id": result.device_id,
-        "public_key": result.pub_key_base64,
+        if err is None and result and result.device_id and result.pub_key_base64:
+            if attempt > 1:
+                print(f"  Personalization succeeded on attempt {attempt}")
+            return {
+                "device_id": result.device_id,
+                "public_key": result.pub_key_base64,
+            }
+
+        last_err = err
+        # Only retry on UART timeout, not on other errors
+        if err and "Timeout" in str(err):
+            print(f"  UART timeout on attempt {attempt}/{max_retries}")
+            continue
+        break  # Non-timeout error, don't retry
+
+    assert False, f"Personalization failed after {max_retries} attempts: {last_err}"
+
+    return {  # unreachable but keeps type checker happy
+        "device_id": "",
+        "public_key": "",
     }
 
 
