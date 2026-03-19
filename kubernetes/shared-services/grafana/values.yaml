@@ -1,0 +1,63 @@
+# Shared Grafana — observability dashboards backed by ClickHouse
+# Portable: deploy to any cluster by setting the datasource addresses.
+#
+# Deploy:
+#   helm install grafana kubernetes/shared-services/grafana \
+#     -n shared-services \
+#     --set auth.adminPassword=<password> \
+#     --set ingress.host=obsv.mateosegura.com
+
+replicaCount: 1
+
+image:
+  repository: grafana/grafana
+  tag: "11.4.0"
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 3000
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+nodeSelector:
+  kubernetes.io/arch: arm64
+
+# Auth
+auth:
+  adminUser: admin
+  adminPassword: ""  # --set auth.adminPassword=<password>
+
+# Ingress
+ingress:
+  enabled: true
+  host: "obsv.mateosegura.com"
+  clusterIssuer: "letsencrypt"
+  tlsSecretName: "grafana-tls"
+
+# ClickHouse datasource (auto-configured)
+datasource:
+  clickhouse:
+    enabled: true
+    host: "clickhouse.shared-services.svc.cluster.local"
+    httpPort: 8123
+    database: "fintel_otel"
+    user: "default"
+    password: ""  # --set datasource.clickhouse.password=<password>
+
+# Dashboards to auto-provision
+dashboards:
+  # K8s cluster overview
+  kubernetesCluster: true
+  # Node metrics (CPU, memory, disk, network)
+  nodeMetrics: true
+  # Pod metrics
+  podMetrics: true
+  # OTEL traces
+  otelTraces: true

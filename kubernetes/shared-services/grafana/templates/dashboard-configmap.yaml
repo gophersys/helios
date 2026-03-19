@@ -1,0 +1,82 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards
+  labels:
+    {{- include "shared-grafana.labels" . | nindent 4 }}
+data:
+  cluster-overview.json: |
+    {
+      "annotations": { "list": [] },
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 1,
+      "panels": [
+        {
+          "title": "Cluster Nodes",
+          "type": "table",
+          "gridPos": { "h": 6, "w": 24, "x": 0, "y": 0 },
+          "datasource": { "type": "grafana-clickhouse-datasource", "uid": "${DS_CLICKHOUSE}" },
+          "targets": [{
+            "rawSql": "SELECT ResourceAttributes['k8s.node.name'] AS node, count() AS spans, max(Timestamp) AS last_seen FROM otel_traces WHERE Timestamp > now() - INTERVAL 1 HOUR GROUP BY node ORDER BY spans DESC",
+            "format": "table"
+          }]
+        },
+        {
+          "title": "Request Rate (5m)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
+          "datasource": { "type": "grafana-clickhouse-datasource", "uid": "${DS_CLICKHOUSE}" },
+          "targets": [{
+            "rawSql": "SELECT toStartOfInterval(Timestamp, INTERVAL 5 minute) AS time, count() AS requests FROM otel_traces WHERE Timestamp > now() - INTERVAL 6 HOUR GROUP BY time ORDER BY time",
+            "format": "timeseries"
+          }]
+        },
+        {
+          "title": "Error Rate (5m)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
+          "datasource": { "type": "grafana-clickhouse-datasource", "uid": "${DS_CLICKHOUSE}" },
+          "targets": [{
+            "rawSql": "SELECT toStartOfInterval(Timestamp, INTERVAL 5 minute) AS time, countIf(StatusCode = 'STATUS_CODE_ERROR') AS errors, count() AS total FROM otel_traces WHERE Timestamp > now() - INTERVAL 6 HOUR GROUP BY time ORDER BY time",
+            "format": "timeseries"
+          }]
+        },
+        {
+          "title": "Slowest Spans (p99)",
+          "type": "table",
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 14 },
+          "datasource": { "type": "grafana-clickhouse-datasource", "uid": "${DS_CLICKHOUSE}" },
+          "targets": [{
+            "rawSql": "SELECT SpanName, ServiceName, quantile(0.99)(Duration) / 1e6 AS p99_ms, count() AS count FROM otel_traces WHERE Timestamp > now() - INTERVAL 1 HOUR GROUP BY SpanName, ServiceName ORDER BY p99_ms DESC LIMIT 20",
+            "format": "table"
+          }]
+        },
+        {
+          "title": "Recent Logs",
+          "type": "table",
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 22 },
+          "datasource": { "type": "grafana-clickhouse-datasource", "uid": "${DS_CLICKHOUSE}" },
+          "targets": [{
+            "rawSql": "SELECT Timestamp, SeverityText, ServiceName, Body FROM otel_logs WHERE Timestamp > now() - INTERVAL 30 MINUTE ORDER BY Timestamp DESC LIMIT 50",
+            "format": "table"
+          }]
+        },
+        {
+          "title": "Service Map",
+          "type": "table",
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 30 },
+          "datasource": { "type": "grafana-clickhouse-datasource", "uid": "${DS_CLICKHOUSE}" },
+          "targets": [{
+            "rawSql": "SELECT ServiceName, count() AS spans, countIf(StatusCode = 'STATUS_CODE_ERROR') AS errors, avg(Duration) / 1e6 AS avg_ms FROM otel_traces WHERE Timestamp > now() - INTERVAL 1 HOUR GROUP BY ServiceName ORDER BY spans DESC",
+            "format": "table"
+          }]
+        }
+      ],
+      "schemaVersion": 39,
+      "tags": ["kubernetes", "otel", "clickhouse"],
+      "templating": { "list": [] },
+      "time": { "from": "now-6h", "to": "now" },
+      "title": "Cluster Overview",
+      "uid": "cluster-overview"
+    }
