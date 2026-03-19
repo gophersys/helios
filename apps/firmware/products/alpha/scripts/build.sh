@@ -746,7 +746,7 @@ build_app_fw() {
         -- \
         -DBOARD_ROOT="${FW_DIR}/ck_boards/current/" \
         "-DEXTRA_CONF_FILE=${APP_EXTRA_CONF}" \
-        -DCONFIG_MCUBOOT_IMGTOOL_SIGN_VERSION="${MCUBOOT_IMG_VER}" \
+        -DCONFIG_MCUBOOT_IMGTOOL_SIGN_VERSION=\"${MCUBOOT_IMG_VER}\" \
         ${APP_DTS_OVERLAY}
 
     # --- Merge VSM PSP hex ---
@@ -768,7 +768,7 @@ build_app_fw() {
         -- \
         -DBOARD_ROOT="${FW_DIR}/ck_boards/current/" \
         "-DEXTRA_CONF_FILE=${COMMS_EXTRA_CONF}" \
-        -DCONFIG_MCUBOOT_IMGTOOL_SIGN_VERSION="${MCUBOOT_IMG_VER}" \
+        -DCONFIG_MCUBOOT_IMGTOOL_SIGN_VERSION=\"${MCUBOOT_IMG_VER}\" \
         ${COMMS_DTS_OVERLAY}
 
     # --- FIPS hash recalculation + final rebuild ---
@@ -787,7 +787,7 @@ build_app_fw() {
         -- \
         -DBOARD_ROOT="${FW_DIR}/ck_boards/current/" \
         "-DEXTRA_CONF_FILE=${COMMS_FIPS_CONF}" \
-        -DCONFIG_MCUBOOT_IMGTOOL_SIGN_VERSION="${MCUBOOT_IMG_VER}" \
+        -DCONFIG_MCUBOOT_IMGTOOL_SIGN_VERSION=\"${MCUBOOT_IMG_VER}\" \
         ${COMMS_DTS_OVERLAY}
 
     echo -e "\n${GREEN}alpha_fw build complete${NC}"
