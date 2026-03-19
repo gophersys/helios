@@ -4,14 +4,19 @@
   "postCreateCommand": "chmod +x .devcontainer/ctl.sh && .devcontainer/ctl.sh post-create && npm install",
   "postStartCommand": "chmod +x .devcontainer/ctl.sh && .devcontainer/ctl.sh post-start",
   "containerEnv": {
-    "KUBECONFIG": "/workspaces/infrastructure/cloud/oracle/kubeconfig"
+    "KUBECONFIG": "/workspaces/infrastructure/cloud/oracle/kubeconfig",
+    "IS_SANDBOX": "1",
+    "BW_SERVER": "https://secrets.mateosegura.com"
+  },
+  "remoteEnv": {
+    "BW_SESSION": "${localEnv:BW_SESSION}"
   },
   "runArgs": [
-    "--init",
-    "--env-file=.devcontainer/.env"
+    "--init"
   ],
   "mounts": [
     "source=${localEnv:HOME}/.claude,target=/root/.claude,type=bind,consistency=cached",
+    "source=${localEnv:HOME}/.config/Bitwarden CLI,target=/root/.config/Bitwarden CLI,type=bind,consistency=cached",
     "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind"
   ],
   "customizations": {
