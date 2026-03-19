@@ -48,7 +48,7 @@ from .helpers import (
 
 # Pipeline build labels
 FLASH_LABEL = "MFG_FLASH"              # MFG firmware to flash via J-Link
-FUOTA_LABEL = "FUOTA_TARGET_RELEASE"    # Production firmware to deliver via FUOTA
+FUOTA_LABEL = "FUOTA_TARGET_DEBUG"      # Production firmware (debug variant — has CONFIG_LOG=y for UART version detection)
 
 
 @pytest.fixture(autouse=True, scope="class")
