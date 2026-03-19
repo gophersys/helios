@@ -481,6 +481,8 @@ def wait_for_fuota_completion(
                         else:
                             if ver not in completed:
                                 print(f"[{int(elapsed_min * 60)}s] {ver} at 100% (stale from previous plan, skipping)")
+                            # Stale 100% counts as stall — CoreCloud hasn't started new plan yet
+                            stall_cycles += 1
 
                         if any("108" in v for v in completed) and any("109" in v for v in completed):
                             elapsed_str = f"{int(elapsed_min)}m{int((elapsed_min % 1) * 60):02d}s"
@@ -509,9 +511,9 @@ def wait_for_fuota_completion(
                         last_status = "wait_start"
                     stall_cycles += 1
 
-            # Smart power cycle: only if pages haven't advanced in 5 minutes
+            # Smart power cycle: if no progress for 3 minutes (was 10 min — too long for stale data)
             stall_duration = time.time() - last_progress_time
-            if mtib_client and stall_duration > 600 and stall_cycles >= 30:
+            if mtib_client and stall_duration > 180 and stall_cycles >= 18:
                 _force_power_cycle(f"no page progress for {int(stall_duration)}s ({stall_cycles} stale polls)")
 
             time.sleep(10)
