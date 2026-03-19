@@ -730,6 +730,13 @@ build_app_fw() {
     # --- Fix key paths in sysbuild configs (CI clones to different path) ---
     fix_sysbuild_key_path "${FW_DIR}/sysbuild.conf" "${FW_DIR}"
 
+    # MCUboot image version: must include the build number so that same-variant
+    # FUOTA updates (e.g., 0.5.13 → 0.5.14) are recognized as newer by MCUboot's
+    # downgrade prevention. Without this, both builds get version 0.5.0+0 and
+    # MCUboot refuses to overwrite.
+    local MCUBOOT_IMG_VER="${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_BUILD:-0}"
+    echo -e "${CYAN}MCUboot image version: ${MCUBOOT_IMG_VER}${NC}"
+
     # --- Application processor (nRF52840) ---
     echo -e "\n${CYAN}[1/4] Application Processor (nRF52840)${NC}"
     west build ${PRISTINE:---pristine} \
@@ -739,6 +746,7 @@ build_app_fw() {
         -- \
         -DBOARD_ROOT="${FW_DIR}/ck_boards/current/" \
         "-DEXTRA_CONF_FILE=${APP_EXTRA_CONF}" \
+        -DCONFIG_MCUBOOT_IMGTOOL_SIGN_VERSION="${MCUBOOT_IMG_VER}" \
         ${APP_DTS_OVERLAY}
 
     # --- Merge VSM PSP hex ---
@@ -760,6 +768,7 @@ build_app_fw() {
         -- \
         -DBOARD_ROOT="${FW_DIR}/ck_boards/current/" \
         "-DEXTRA_CONF_FILE=${COMMS_EXTRA_CONF}" \
+        -DCONFIG_MCUBOOT_IMGTOOL_SIGN_VERSION="${MCUBOOT_IMG_VER}" \
         ${COMMS_DTS_OVERLAY}
 
     # --- FIPS hash recalculation + final rebuild ---
@@ -778,6 +787,7 @@ build_app_fw() {
         -- \
         -DBOARD_ROOT="${FW_DIR}/ck_boards/current/" \
         "-DEXTRA_CONF_FILE=${COMMS_FIPS_CONF}" \
+        -DCONFIG_MCUBOOT_IMGTOOL_SIGN_VERSION="${MCUBOOT_IMG_VER}" \
         ${COMMS_DTS_OVERLAY}
 
     echo -e "\n${GREEN}alpha_fw build complete${NC}"
