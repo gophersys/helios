@@ -313,6 +313,15 @@ fix_sysbuild_key_path() {
     sed -i -E \
         "s|SB_CONFIG_BOOT_SIGNATURE_KEY_FILE=\"[^\"]*/([-_a-zA-Z0-9]+\.pem)\"|SB_CONFIG_BOOT_SIGNATURE_KEY_FILE=\"${key_dir}/\1\"|g" \
         "$conf_file"
+
+    # Verify: dump the actual key path and hash for build traceability
+    local enc_key_path=$(grep "SB_CONFIG_BOOT_ENCRYPTION_KEY_FILE" "$conf_file" 2>/dev/null | head -1 | sed 's/.*="\(.*\)"/\1/')
+    if [ -n "$enc_key_path" ] && [ -f "$enc_key_path" ]; then
+        local key_hash=$(md5sum "$enc_key_path" | awk '{print $1}')
+        echo -e "  ${CYAN}MCUBoot encryption key: ${enc_key_path} (md5: ${key_hash})${NC}"
+    elif [ -n "$enc_key_path" ]; then
+        echo -e "  ${RED}WARNING: Encryption key file NOT FOUND: ${enc_key_path}${NC}"
+    fi
 }
 
 generate_cfw() {
@@ -651,9 +660,72 @@ print(f'{appid} {major} {minor} {build} {imglen}')
     fi
     echo -e "${GREEN}CFW validation passed${NC}"
 
+    # ── Key Verification ─────────────────────────────────────────
+    # Verify ALL encryption keys used during this build match the
+    # shared key. This catches key mismatches BEFORE artifacts are
+    # uploaded, preventing FUOTA boot loops.
+    if [ "$CI_MODE" == "true" ] && [ -d "/keys/alpha" ]; then
+        echo -e "${CYAN}Verifying encryption key consistency...${NC}"
+        local shared_key_hash=$(md5sum /keys/alpha/encryption_key.pem 2>/dev/null | awk '{print $1}')
+        local shared_comms_hash=$(md5sum /keys/alpha/comms_encryption_key.pem 2>/dev/null | awk '{print $1}')
+        local key_mismatch=0
+
+        # Check every encryption key file that west/MCUboot actually used
+        # These are in the build directories after compilation
+        for build_dir in "${fw_dir}/build" "${comms_dir}/build"; do
+            if [ ! -d "$build_dir" ]; then continue; fi
+
+            # Find MCUboot's actual config to see which key was compiled in
+            for mcuboot_conf in $(find "$build_dir" -path "*/mcuboot/zephyr/.config" 2>/dev/null); do
+                local boot_enc_key=$(grep "CONFIG_BOOT_ENCRYPTION_KEY_FILE" "$mcuboot_conf" 2>/dev/null | sed 's/.*="\(.*\)"/\1/' | head -1)
+                if [ -n "$boot_enc_key" ] && [ -f "$boot_enc_key" ]; then
+                    local actual_hash=$(md5sum "$boot_enc_key" | awk '{print $1}')
+                    local proc_name=$(echo "$mcuboot_conf" | grep -o "nrf[0-9]*" | head -1)
+                    if [[ "$boot_enc_key" == *"comms"* ]]; then
+                        if [ "$actual_hash" != "$shared_comms_hash" ]; then
+                            echo -e "  ${RED}KEY MISMATCH [$proc_name COMMS]: $boot_enc_key (md5: $actual_hash) != shared (md5: $shared_comms_hash)${NC}"
+                            key_mismatch=1
+                        else
+                            echo -e "  ${GREEN}KEY OK [$proc_name COMMS]: md5=$actual_hash${NC}"
+                        fi
+                    else
+                        if [ "$actual_hash" != "$shared_key_hash" ]; then
+                            echo -e "  ${RED}KEY MISMATCH [$proc_name APP]: $boot_enc_key (md5: $actual_hash) != shared (md5: $shared_key_hash)${NC}"
+                            key_mismatch=1
+                        else
+                            echo -e "  ${GREEN}KEY OK [$proc_name APP]: md5=$actual_hash${NC}"
+                        fi
+                    fi
+                fi
+            done
+        done
+
+        # Also check the encryption key files in the repo dirs (what sysbuild referenced)
+        for repo_key in "${fw_dir}/encryption_key.pem" "${comms_dir}/encryption_key.pem"; do
+            if [ -f "$repo_key" ]; then
+                local repo_hash=$(md5sum "$repo_key" | awk '{print $1}')
+                if [ "$repo_hash" != "$shared_key_hash" ]; then
+                    echo -e "  ${RED}REPO KEY MISMATCH: $repo_key (md5: $repo_hash) != shared (md5: $shared_key_hash)${NC}"
+                    key_mismatch=1
+                fi
+            fi
+        done
+
+        if [ $key_mismatch -eq 1 ]; then
+            echo -e "${RED}ENCRYPTION KEY VERIFICATION FAILED${NC}"
+            echo -e "${RED}FUOTA will fail — MFG and PROD MCUboot keys don't match.${NC}"
+            echo -e "${RED}Check /keys/alpha/ and sysbuild.conf paths.${NC}"
+            exit 1
+        fi
+        echo -e "${GREEN}Encryption key verification passed — all keys match shared /keys/alpha/${NC}"
+    fi
+
     # Generate build.json with version info
     if [ "$CI_MODE" == "true" ]; then
         local cfw_flags=$(( (cfw_track << 1) | cfw_mfg | (cfw_debug << 3) ))
+
+        local app_key_hash=$(md5sum /keys/alpha/encryption_key.pem 2>/dev/null | awk '{print $1}')
+        local comms_key_hash=$(md5sum /keys/alpha/comms_encryption_key.pem 2>/dev/null | awk '{print $1}')
 
         cat > "$out_dir/build.json" << EOF
 {
@@ -665,6 +737,8 @@ print(f'{appid} {major} {minor} {build} {imglen}')
   "version": "${version_string}",
   "cfw_flags": ${cfw_flags},
   "cfw_track": "${track_str}",
+  "encryption_key_md5": "${app_key_hash:-unknown}",
+  "comms_encryption_key_md5": "${comms_key_hash:-unknown}",
   "built_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 }
 EOF
