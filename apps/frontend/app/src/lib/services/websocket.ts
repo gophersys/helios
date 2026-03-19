@@ -54,8 +54,9 @@ export function getSystemSocket(): Socket | null {
     auth: { token },
     transports: ['polling', 'websocket'],
     reconnection: true,
-    reconnectionAttempts: 5,
+    reconnectionAttempts: Infinity,
     reconnectionDelay: 1000,
+    reconnectionDelayMax: 10000,
   });
 
   systemSocket.on('connect', () => {
@@ -112,8 +113,9 @@ export function getValidationSocket(): Socket | null {
     auth: { token },
     transports: ['polling', 'websocket'],
     reconnection: true,
-    reconnectionAttempts: 5,
+    reconnectionAttempts: Infinity,
     reconnectionDelay: 1000,
+    reconnectionDelayMax: 10000,
   });
 
   validationSocket.on('connect', () => {
@@ -126,6 +128,7 @@ export function getValidationSocket(): Socket | null {
 
   validationSocket.on('disconnect', (reason) => {
     console.log('Validation WebSocket disconnected:', reason);
+    // If transport closed, the socket will auto-reconnect (Infinity attempts)
   });
 
   return validationSocket;

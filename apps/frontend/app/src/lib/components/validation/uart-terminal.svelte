@@ -41,7 +41,7 @@
           scrollLock = true;
           requestAnimationFrame(() => {
             if (scrollEl) scrollEl.scrollTop = scrollEl.scrollHeight;
-            setTimeout(() => { scrollLock = false; }, 50);
+            setTimeout(() => { scrollLock = false; }, 200);
           });
         }
       }
@@ -70,7 +70,7 @@
           const linesAdded = prevOffset - displayOffset;
           scrollEl.scrollTop = linesAdded * 16;
         }
-        setTimeout(() => { scrollLock = false; }, 50);
+        setTimeout(() => { scrollLock = false; }, 200);
       });
       return;
     }
@@ -84,7 +84,7 @@
         scrollLock = true;
         requestAnimationFrame(() => {
           if (scrollEl) scrollEl.scrollTop = 0;
-          setTimeout(() => { scrollLock = false; }, 50);
+          setTimeout(() => { scrollLock = false; }, 200);
         });
       }
       if (displayOffset >= maxOffset) {
@@ -100,7 +100,7 @@
     scrollLock = true;
     requestAnimationFrame(() => {
       if (scrollEl) scrollEl.scrollTop = scrollEl.scrollHeight;
-      setTimeout(() => { scrollLock = false; }, 50);
+      setTimeout(() => { scrollLock = false; }, 200);
     });
   }
 

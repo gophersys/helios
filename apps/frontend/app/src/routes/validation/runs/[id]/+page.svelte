@@ -569,11 +569,18 @@
           if (runningTest.module) {
             selectedStage = runningTest.module;
           }
-          // Scroll to it after DOM update
+          // Scroll to it after DOM update (500ms to let stages render + test list populate)
           setTimeout(() => {
             const el = document.querySelector(`[data-test-name="${runningTest.name}"][data-test-module="${runningTest.module}"]`);
-            el?.scrollIntoView({ block: 'start', behavior: 'smooth' });
-          }, 100);
+            if (el) {
+              const panel = el.closest('.overflow-y-auto');
+              if (panel) {
+                const panelRect = panel.getBoundingClientRect();
+                const elRect = el.getBoundingClientRect();
+                panel.scrollTop += elRect.top - panelRect.top;
+              }
+            }
+          }, 500);
         }
 
         // For active runs: backfill data from completed test artifacts on reload
