@@ -20,6 +20,7 @@ from .cloud_client import CloudClient
 from .firmware import FirmwareAssetManager
 from .fixture_controller import FixtureController
 from .profiles import FixtureProfile
+from .acceleration_profiler import AccelerationProfiler
 from .power_profiler import PowerProfiler
 from .telemetry import TelemetryStreamer
 from .uart_demuxer import UartDemuxer
@@ -42,6 +43,7 @@ class TestContext:
         fixture: Physical stimulus controller (GPIO/power/motion).
         uart: UART log capture (debug builds only).
         power: Power measurement profiler.
+        accel: Accelerometer profiler (optional, started only if hardware supports it).
         firmware: Firmware asset manager (MinIO → MTIB upload/cleanup).
         artifacts: Simple file uploader (legacy).
         artifact_writer: Unified artifact writer with streaming support.
@@ -82,6 +84,9 @@ class TestContext:
             api_key=api_key,
             on_flush_storage=_telemetry_storage if run_id else None,
         )
+
+        # Accelerometer profiler — probed and started in connect() if hardware supports it
+        self.accel: Optional[AccelerationProfiler] = None
 
     @classmethod
     def from_env(cls) -> "TestContext":
@@ -219,6 +224,14 @@ class TestContext:
         )
         self._power_poll_thread.start()
 
+        # Start accelerometer profiler if hardware supports it
+        accel_profiler = AccelerationProfiler(mtib=self.mtib, streamer=self.telemetry)
+        if accel_profiler.probe():
+            accel_profiler.start()
+            self.accel = accel_profiler
+        else:
+            log.info("Accelerometer not available — profiler disabled")
+
     def disconnect(self) -> None:
         """Stop power polling, telemetry, UART capture, cleanup firmware assets, and disconnect from MTIB."""
         # Stop power polling
@@ -226,6 +239,10 @@ class TestContext:
             self._power_poll_stop.set()
             if self._power_poll_thread and self._power_poll_thread.is_alive():
                 self._power_poll_thread.join(timeout=3)
+
+        # Stop accelerometer profiler
+        if self.accel:
+            self.accel.stop()
 
         self.telemetry.stop()
         self.uart.stop()

@@ -385,6 +385,29 @@ def report_finish(run_id: str):
     # Release fixture lock before updating session status
     _unlock_fixture_if_locked(db, session)
 
+    # Mark the queue entry as COMPLETED if one exists for this session
+    try:
+        queue_entry = db.validationqueueentry.find_first(
+            where={"sessionId": run_id},
+        )
+        if queue_entry and queue_entry.status == "RUNNING":
+            db.validationqueueentry.update(
+                where={"id": queue_entry.id},
+                data={
+                    "status": "COMPLETED",
+                    "completedAt": datetime.now(timezone.utc),
+                },
+            )
+    except Exception as e:
+        logger.warning("Failed to update queue entry for run %s: %s", run_id, e)
+
+    # Process the queue — start the next pending entry if a fixture is now free
+    try:
+        from src.api.v2.sessions.queue import process_queue
+        process_queue(db)
+    except Exception as e:
+        logger.warning("Queue processing after run finish failed: %s", e)
+
     # Determine final status using new SessionStatus enum (PASSED/FAILED)
     if data.failed == 0 and data.errors == 0:
         final_status = "PASSED"

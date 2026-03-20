@@ -37,6 +37,7 @@ class BuildJob:
     base_job_id: str = None
     matrix_label: str = None
     version_override: str = None  # Explicit version override (e.g., "0.5.0")
+    config_flags: dict = None  # Extra build flags (e.g., {"forceLog": true})
 
 
 def _extract_version_override(job_data: dict) -> Optional[str]:
@@ -147,10 +148,16 @@ class BuildExecutor:
             else:
                 log.warning("Could not get base build version for bump, using default")
 
-        # Build command: bash scripts/build.sh <target> --mtib-rev <rev> [--variant <variant>]
+        # Build command: bash scripts/build.sh <target> --mtib-rev <rev> [--variant <variant>] [--force-log]
         cmd = ["bash", str(script_path), build_target, "--mtib-rev", job.mtib_rev, "-b", job.board]
         if job.variant and job.variant not in ("mfg", "release"):
             cmd.extend(["--variant", job.variant])
+
+        # Pass --force-log if configFlags.forceLog is set (release + UART logging)
+        config_flags = getattr(job, "config_flags", None) or {}
+        if isinstance(config_flags, dict) and config_flags.get("forceLog"):
+            cmd.append("--force-log")
+            log.info("Force-log mode: release CFW flags with UART logging")
 
         log_file = output_dir / "build.log"
         log_lines: List[str] = []

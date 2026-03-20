@@ -13,9 +13,10 @@
     manifest: TelemetryManifest;
     liveTests: LiveTest[];
     selectedRange: TimeRange | null;
+    interactive?: boolean;
   }
 
-  let { manifest, liveTests, selectedRange = $bindable(null) }: Props = $props();
+  let { manifest, liveTests, selectedRange = $bindable(null), interactive = true }: Props = $props();
 
   let canvas: HTMLCanvasElement;
   let containerEl: HTMLElement;
@@ -111,12 +112,25 @@
     ctx.restore();
   }
 
+  // Redraw when data changes. In live mode, manifest changes every second
+  // (nowMs ticks). Throttle redraws to avoid interfering with hover/click.
+  let _lastDrawTime = 0;
   $effect(() => {
     void manifest; void liveTests; void selectedRange; void w;
+    const now = Date.now();
+    // In live mode (manifest changes frequently), limit redraws to 2/sec
+    // unless selectedRange changed or width changed
+    if (now - _lastDrawTime < 400 && !selectedRange) {
+      // Skip this redraw, schedule one soon
+      const timer = setTimeout(() => { _lastDrawTime = Date.now(); draw(); }, 400);
+      return () => clearTimeout(timer);
+    }
+    _lastDrawTime = now;
     draw();
   });
 
   function onClick(e: MouseEvent) {
+    if (!interactive) return;
     const rect = canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const t = xToTime(x);
@@ -181,7 +195,7 @@
   });
 </script>
 
-<div class="flex items-center gap-1.5" style="height: {h}px;">
+<div class="flex items-center gap-1.5 min-w-0" style="height: {h}px;">
   <span class="text-2xs font-mono text-text-tertiary flex-shrink-0">{timeStart ? new Date(timeStart * 1000).toISOString().slice(11, 19) : ''}</span>
   <div bind:this={containerEl} class="relative flex-1 min-w-0" style="height: {h}px;">
     <canvas
@@ -193,7 +207,7 @@
     ></canvas>
     {#if tooltip}
       <div
-        class="absolute bottom-full mb-1 px-2 py-1 rounded bg-surface-2 border border-border text-2xs text-text-primary whitespace-nowrap pointer-events-none z-10"
+        class="absolute bottom-full mb-1 px-2 py-1 rounded bg-surface-2 border border-border text-2xs text-text-primary whitespace-nowrap pointer-events-none z-50"
         style="left: {Math.min(tooltip.x, w - 150)}px; transform: translateX(-50%);"
       >
         {tooltip.text}

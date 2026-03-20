@@ -118,6 +118,7 @@ else
     PRISTINE=""
     MTIB_REV="1.1"       # Default: REV 1.1 (pin swap) for backward compatibility
     VARIANT=""            # Default: release-like (no extra logging). Options: debug
+    FORCE_LOG=""          # --force-log: add logging.conf to release builds (UART output without debug CFW flags)
 
     while [[ $# -gt 0 ]]; do
         case $1 in
@@ -125,6 +126,7 @@ else
             --pristine)     PRISTINE="--pristine"; shift ;;
             --mtib-rev)     MTIB_REV="$2"; shift 2 ;;
             --variant)      VARIANT="$2"; shift 2 ;;
+            --force-log)    FORCE_LOG="true"; shift ;;
             *)              echo -e "${RED}Unknown option: $1${NC}"; exit 1 ;;
         esac
     done
@@ -545,16 +547,37 @@ collect_artifacts() {
 
     mkdir -p "$out_dir"
 
-    # Determine CFW flags and track string (needed for ALL artifact naming)
-    # - Track: 0=Bench (for CI/validation builds)
-    # - Mfg: 1 if label contains "mfg"
-    # - Debug: 1 if VARIANT=debug
+    # ── CFW Flags & Version Strategy ──────────────────────────────────────
     #
-    # IMPORTANT: CoreCloud FUOTA strips the 'D' (debug) flag when matching
-    # device firmware to plan targets. MFG builds MUST use variant=release
-    # (no debug flag) to produce BM track strings. If variant=debug is used,
-    # the device reports BMD but CoreCloud plan targets are BM → no match →
-    # FUOTA delivery silently fails (0 pages sent). Verified 2026-03-18.
+    # CFW flags encode: track (bits 1-2), mfg (bit 0), debug (bit 3).
+    # The track string appears in CFW filenames: B=Bench, M=Mfg, D=Debug.
+    #
+    #   Flags  Track   Example CFW         CoreCloud sees
+    #   0x01   BM      109.0.5.21-BM.cfw   109.0.5.21-BM    ← MFG firmware
+    #   0x00   B       109.0.8.22-B.cfw    109.0.8.22-B     ← Prod release
+    #   0x08   BD      109.0.8.18-BD.cfw   109.0.8.18-B     ← COLLISION!
+    #
+    # CRITICAL: CoreCloud strips the 'D' flag when matching CFW versions.
+    #   - A plan targeting "109.0.8.18-BD" matches "109.0.8.18-B" on the server
+    #   - If BOTH -B and -BD exist at the same version, CoreCloud delivers -B
+    #   - The -B (release) firmware has CONFIG_LOG=n → zero UART output
+    #   - Validation cannot detect the version → test fails
+    #
+    # SOLUTION: Use --force-log for validation builds.
+    #   --force-log builds as variant=release (CFW flags -B, no D flag) but
+    #   adds logging.conf (CONFIG_LOG=y) so UART output is present.
+    #   Each version number is used by exactly ONE build — no collisions.
+    #
+    #   Version allocation (per pipeline):
+    #     MFG_FLASH:          v0.5.N   BM   (J-Link flash, has logs by default)
+    #     MFG_BUMP:           v0.5.N+1 BM   (MFG→MFG FUOTA target)
+    #     PROD_QUIET:         v0.8.M   B    (prod release, no logs)
+    #     PROD_QUIET_BUMP:    v0.8.M+1 B    (prod→prod no-logs target)
+    #     PROD_VERBOSE:       v0.8.M+2 B    (prod release + forced logs)
+    #     PROD_VERBOSE_BUMP:  v0.8.M+3 B    (prod→prod with-logs target)
+    #
+    # Verified 2026-03-20: D-flag stripping causes silent FUOTA failures.
+    # ───────────────────────────────────────────────────────────────────────
     local cfw_track=0
     local cfw_mfg=0
     local cfw_debug=0
@@ -784,6 +807,12 @@ build_app_fw() {
         else
             echo -e "${YELLOW}WARNING: ${COMM_DIR}/dev.conf not found — shell/logging from val_server.conf fallback${NC}"
         fi
+    elif [[ "$FORCE_LOG" == "true" ]]; then
+        # Release variant with forced UART logging. CFW flags stay -B (no D flag),
+        # but firmware has CONFIG_LOG=y for UART version detection during validation.
+        # This avoids CoreCloud's D-flag stripping issue while keeping UART output.
+        APP_EXTRA_CONF="${FW_DIR}/version.conf;${FW_DIR}/logging.conf"
+        echo -e "${CYAN}Force-log mode: release flags + UART logging enabled${NC}"
     fi
     # In CI mode, add VAL server config to override DEV defaults
     if [ "$CI_MODE" == "true" ] && [ -f "${OVERLAYS_DIR}/val_server.conf" ]; then

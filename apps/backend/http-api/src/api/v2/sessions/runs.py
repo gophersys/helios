@@ -433,6 +433,29 @@ def cancel_run(run_id: str):
         except Exception:
             pass
 
+    # Mark the queue entry as CANCELLED if one exists for this session
+    try:
+        queue_entry = db.validationqueueentry.find_first(
+            where={"sessionId": run_id},
+        )
+        if queue_entry and queue_entry.status == "RUNNING":
+            db.validationqueueentry.update(
+                where={"id": queue_entry.id},
+                data={
+                    "status": "CANCELLED",
+                    "completedAt": datetime.now(timezone.utc),
+                },
+            )
+    except Exception as e:
+        logger.warning("Failed to update queue entry for cancelled run %s: %s", run_id, e)
+
+    # Process the queue — start the next pending entry if a fixture is now free
+    try:
+        from src.api.v2.sessions.queue import process_queue
+        process_queue(db)
+    except Exception as e:
+        logger.warning("Queue processing after run cancel failed: %s", e)
+
     # Reset pipeline status from VALIDATING back to SUCCESS
     if session.pipelineRunId:
         try:

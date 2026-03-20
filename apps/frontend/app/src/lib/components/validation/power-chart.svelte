@@ -40,13 +40,15 @@
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Compute window
-    const tMax = samples[samples.length - 1].t;
+    // Compute window — ensure samples are time-sorted (backfill + live can mix)
+    const sorted = [...samples].sort((a, b) => a.t - b.t);
+    const tMax = sorted[sorted.length - 1].t;
     const tMin0 = tMax - windowSeconds;
-    const windowSamples = samples.filter(s => s.t >= tMin0);
+    const windowSamples = sorted.filter(s => s.t >= tMin0);
     if (windowSamples.length < 2) return;
 
-    const chgWindow = chgSamples.filter(s => s.t >= windowSamples[0].t && s.t <= tMax);
+    const chgSorted = [...chgSamples].sort((a, b) => a.t - b.t);
+    const chgWindow = chgSorted.filter(s => s.t >= windowSamples[0].t && s.t <= tMax);
 
     const allMA = windowSamples.map(s => s.mA);
     if (chgWindow.length > 0) allMA.push(...chgWindow.map(s => s.mA));

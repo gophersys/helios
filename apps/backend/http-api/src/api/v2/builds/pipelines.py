@@ -124,6 +124,35 @@ def _auto_increment_version(db, product_id: str, variant: str, target: str = "ap
     return None
 
 
+def _get_max_build_number(db, product_id: str, target: str = "app") -> tuple[Optional[str], int]:
+    """Get the highest build number across ALL variants for a product+target.
+
+    Returns (version_prefix, max_build_num) e.g. ("0.8", 17).
+    Used to allocate non-colliding version numbers for debug+release pairs.
+
+    CoreCloud strips the D (debug) flag from CFW version strings, so
+    debug v0.8.18-BD and release v0.8.18-B collide. By allocating
+    sequential build numbers (debug=N, release=N+1), each variant
+    gets a unique version on CoreCloud.
+    """
+    latest = db.buildjob.find_first(
+        where={
+            "productId": product_id,
+            "target": target,
+            "status": {"in": ["SUCCESS", "CACHED"]},
+        },
+        order={"buildNum": "desc"},
+    )
+    if latest and latest.versionString:
+        parts = latest.versionString.split(".")
+        if len(parts) >= 3:
+            try:
+                return f"{parts[0]}.{parts[1]}", int(parts[2])
+            except ValueError:
+                pass
+    return None, 0
+
+
 def _generate_matrix_build_specs(
     matrix: List[Dict[str, Any]],
     product_record: Any,
@@ -157,31 +186,76 @@ def _generate_matrix_build_specs(
         # Derive target from firmware name
         target = "mfg" if "_mfg" in firmware else "app"
 
-        # CRITICAL: MFG firmware MUST use release variant (produces BM flags).
+        # ── FUOTA Version & Variant Strategy ─────────────────────────────
         #
-        # The CFW flags encode: track (bits 1-2), mfg (bit 0), debug (bit 3).
-        #   - release mfg → flags=0x01, track string "BM" (Bench+Mfg)
-        #   - debug mfg   → flags=0x09, track string "BMD" (Bench+Mfg+Debug)
+        # CoreCloud strips the 'D' (debug) flag from CFW version strings.
+        # This means debug (BD) and release (B) at the same version COLLIDE
+        # on CoreCloud — it delivers the release firmware even when the plan
+        # targets the debug version. The release firmware has CONFIG_LOG=n,
+        # producing zero UART output, making version detection impossible.
         #
-        # CoreCloud FUOTA plan targets use the version_string format:
-        #   "{appId}.{major}.{minor}.{build}-{track}"
-        #   e.g. "108.0.5.14-BM" or "109.0.5.14-BM"
+        # SOLUTION: All builds use variant=release (CFW flags -B or -BM).
+        # "Verbose" builds add --force-log to enable CONFIG_LOG=y at build
+        # time without setting the debug flag. Each version number is unique.
         #
-        # CoreCloud STRIPS the 'D' flag when matching device firmware to plan
-        # targets. A device reporting BMD firmware will NOT match a BM plan
-        # target, causing CoreCloud to silently skip FUOTA delivery.
-        # This was verified 2026-03-18: BMD builds → 0 pages delivered.
+        # Build matrix (6 builds per FUOTA pipeline):
+        #   MFG_FLASH          mfg release  v0.5.N    BM  J-Link flash base
+        #   MFG_BUMP           mfg release  v0.5.N+1  BM  MFG→MFG FUOTA target
+        #   PROD_VERBOSE       app release  v0.8.M    B   Prod + UART logs (forceLog)
+        #   PROD_VERBOSE_BUMP  app release  v0.8.M+1  B   Prod→Prod logged target
+        #   PROD_QUIET         app release  v0.8.M+2  B   Prod without logs
+        #   PROD_QUIET_BUMP    app release  v0.8.M+3  B   Prod→Prod silent target
         #
-        # Production firmware builds both debug (for validation testing with
-        # extra logging) and release (for actual OTA deployment).
-        variants = ("release",) if target == "mfg" else ("debug", "release")
+        # Verified 2026-03-20: D-flag stripping causes silent FUOTA failures.
+        # ──────────────────────────────────────────────────────────────────
+
+        # All builds are release variant — no debug flag in CFW
+        variants = ("release",)
+
+        # For "head" app builds, generate 4 sub-builds with sequential versions:
+        # PROD_VERBOSE, PROD_VERBOSE_BUMP, PROD_QUIET, PROD_QUIET_BUMP
+        if source == "head" and target == "app":
+            prefix, max_build = _get_max_build_number(db, product_id, target) if product_id else (None, 0)
+            if prefix:
+                sub_builds = [
+                    ("PROD_VERBOSE",      prefix, max_build + 1, True),   # release + forceLog
+                    ("PROD_VERBOSE_BUMP", prefix, max_build + 2, True),   # release + forceLog (bumped)
+                    ("PROD_QUIET",        prefix, max_build + 3, False),  # release (no logs)
+                    ("PROD_QUIET_BUMP",   prefix, max_build + 4, False),  # release (bumped, no logs)
+                ]
+                logger.info(
+                    "FUOTA version allocation: VERBOSE=v%s.%d/%d, QUIET=v%s.%d/%d (max=%s.%d)",
+                    prefix, max_build + 1, max_build + 2,
+                    prefix, max_build + 3, max_build + 4,
+                    prefix, max_build,
+                )
+                for sub_label, ver_prefix, ver_build, force_log in sub_builds:
+                    config = {"forceLog": True} if force_log else {}
+                    builds.append({
+                        "board": board,
+                        "target": target,
+                        "variant": "release",
+                        "mtibRev": "1.2",
+                        "branch": branch,
+                        "commitSha": commit_sha,
+                        "status": "QUEUED",
+                        "matrixLabel": sub_label,
+                        "matrixIndex": idx,
+                        "versionBump": False,
+                        "source": "head",
+                        "firmware": firmware,
+                        "versionOverride": f"{ver_prefix}.{ver_build}",
+                        "extraConfig": config,
+                    })
+                    idx += 1
+                # Skip the normal variant loop — we generated all sub-builds
+                continue
 
         for variant in variants:
             # Mfg builds get clean label (no variant suffix since there's only one)
             label = f"{role.upper()}_{variant.upper()}" if target != "mfg" else role.upper()
 
             if source == "head":
-                # New build from triggering commit — auto-version based on target type
                 version_override = _auto_increment_version(db, product_id, variant, target) if product_id else None
 
                 builds.append({
@@ -913,13 +987,20 @@ def check_pipeline_completion(pipeline_id: str) -> Optional[str]:
             )
             logger.info("Pipeline %s builds complete, auto-triggering validation", pipeline_id)
 
-            validation_run_id = trigger_pipeline_validation(pipeline_id, pipeline, builds)
-            if validation_run_id:
+            result = trigger_pipeline_validation(pipeline_id, pipeline, builds)
+            if result and result.get("started"):
+                validation_run_id = result["sessionId"]
                 db.pipelinerun.update(
                     where={"id": pipeline_id},
                     data={"validationRunId": validation_run_id},
                 )
                 logger.info("Pipeline %s validation triggered: %s", pipeline_id, validation_run_id)
+            elif result and result.get("queued"):
+                # Queued — keep VALIDATING status so the frontend knows it's waiting
+                logger.info(
+                    "Pipeline %s validation queued: entry=%s reason=%s",
+                    pipeline_id, result["entryId"][:8], result.get("reason"),
+                )
             else:
                 # Validation trigger failed (no bench, etc.) — mark SUCCESS, user can trigger manually
                 new_status = "SUCCESS"
@@ -944,12 +1025,16 @@ def check_pipeline_completion(pipeline_id: str) -> Optional[str]:
         return None
 
 
-def trigger_pipeline_validation(pipeline_id: str, pipeline, builds: list) -> Optional[str]:
+def trigger_pipeline_validation(pipeline_id: str, pipeline, builds: list) -> Optional[dict]:
     """
     Trigger a validation job for a completed pipeline.
     Creates a validation session and K8s job with the build artifacts.
     Uses the Fixture model (not legacy TestBench).
-    Returns the validation run ID if successful.
+
+    Returns:
+        ``{"started": True, "sessionId": "..."}`` — run started immediately
+        ``{"queued": True, "entryId": "..."}`` — queued for later execution
+        ``None`` — unrecoverable failure
     """
     import hashlib
     import os
@@ -1018,6 +1103,42 @@ def trigger_pipeline_validation(pipeline_id: str, pipeline, builds: list) -> Opt
                 "No ready bench for %s: locked=%s offline=%s unconfigured=%s",
                 product.name, locked, offline, no_slot,
             )
+
+            # If fixtures exist but are locked, queue instead of failing
+            if locked:
+                # Avoid duplicate QUEUED entries for the same pipeline
+                existing = db.validationqueueentry.find_first(
+                    where={"pipelineRunId": pipeline_id, "status": "QUEUED"},
+                )
+                if existing:
+                    logger.info("Queue entry already exists for pipeline %s: %s", pipeline_id[:8], existing.id[:8])
+                    return {"queued": True, "entryId": existing.id, "reason": f"Fixture locked: {locked}"}
+
+                reason_parts = []
+                if locked:
+                    reason_parts.append(f"locked={locked}")
+                if offline:
+                    reason_parts.append(f"offline={offline}")
+                if no_slot:
+                    reason_parts.append(f"unconfigured={no_slot}")
+                reason = f"No fixture available: {'; '.join(reason_parts)}"
+
+                queue_entry = db.validationqueueentry.create(data={
+                    "pipelineRunId": pipeline_id,
+                    "stage": 4,
+                    "priority": 0,
+                    "status": "QUEUED",
+                    "reason": reason,
+                    "requestedAt": datetime.now(timezone.utc),
+                })
+
+                logger.info(
+                    "Queued validation for pipeline %s: entry=%s reason=%s",
+                    pipeline_id[:8], queue_entry.id[:8], reason,
+                )
+                return {"queued": True, "entryId": queue_entry.id, "reason": reason}
+
+            # No fixtures at all (offline or unconfigured) — nothing to queue for
             return None
 
         logger.info(
@@ -1183,7 +1304,7 @@ def trigger_pipeline_validation(pipeline_id: str, pipeline, builds: list) -> Opt
         })
 
         logger.info("Validation triggered for pipeline %s: session=%s, job=%s", pipeline_id[:8], session.id[:8], job_name)
-        return session.id
+        return {"started": True, "sessionId": session.id}
 
     except Exception as e:
         logger.error("Failed to trigger validation for pipeline %s: %s", pipeline_id, e)
@@ -1283,10 +1404,8 @@ def validate_pipeline(pipeline_id: str):
         if not pipeline:
             return not_found(f"Pipeline not found: {pipeline_id}")
 
-        # Allow from SUCCESS (never auto-validated) or FAILED (re-trigger after fix)
-        if pipeline.status not in ("SUCCESS", "FAILED", "BUILD_FAILED"):
-            if pipeline.status == "VALIDATING":
-                return bad_request("Pipeline is already validating")
+        # Allow from SUCCESS, FAILED, BUILD_FAILED, or VALIDATING (queue another run)
+        if pipeline.status not in ("SUCCESS", "FAILED", "BUILD_FAILED", "VALIDATING"):
             return bad_request(f"Cannot trigger validation for pipeline in {pipeline.status} state")
 
         builds = pipeline.builds or []
@@ -1294,25 +1413,68 @@ def validate_pipeline(pipeline_id: str):
         if not succeeded:
             return bad_request("No successful builds — cannot trigger validation")
 
-        # If there's a prior validation run, cancel it and unlock its fixture
+        # If there's a prior validation run that already finished, allow re-trigger.
+        # If it's still ACTIVE, queue the new request instead of cancelling the running test.
         if pipeline.validationRunId:
             prior_run = db.session.find_unique(where={"id": pipeline.validationRunId})
-            if prior_run:
-                if prior_run.status in ("ACTIVE", "RUNNING"):
-                    db.session.update(where={"id": prior_run.id}, data={
-                        "status": "CANCELLED", "finishedAt": datetime.now(timezone.utc),
+            if prior_run and prior_run.status in ("ACTIVE", "RUNNING"):
+                # Prior run still active — queue this request, don't cancel it
+                logger.info("Prior run %s still active, queuing new validation", pipeline.validationRunId[:8])
+                result = {"queued": True, "entryId": None, "reason": "Prior run still active"}
+                try:
+                    entry = db.validationqueueentry.create(data={
+                        "pipelineRunId": pipeline_id,
+                        "stage": 4,
+                        "priority": 0,
+                        "status": "QUEUED",
+                        "reason": f"Prior run {pipeline.validationRunId[:8]} still active",
+                        "requestedAt": datetime.now(timezone.utc),
                     })
+                    result["entryId"] = entry.id
+                except Exception as e:
+                    logger.warning("Failed to create queue entry: %s", e)
+                    return bad_request("Prior validation still running. Try again after it completes.")
+
+                log_audit("ci.pipeline.validate_queued", "PipelineRun", pipeline_id, {
+                    "queueEntryId": result["entryId"],
+                    "reason": result.get("reason"),
+                })
+                return jsonify(ApiResponse.ok({
+                    "pipelineId": pipeline_id,
+                    "queued": True,
+                    "queueEntryId": result["entryId"],
+                    "reason": result.get("reason"),
+                    "status": "QUEUED",
+                }).to_dict()), 202
+            elif prior_run and prior_run.status not in ("ACTIVE", "RUNNING"):
+                # Prior run finished — unlock its fixture if still locked
                 if prior_run.fixtureId:
                     db.fixture.update(where={"id": prior_run.fixtureId}, data={
                         "status": "AVAILABLE", "lockedBy": None, "lockedAt": None,
                     })
-                logger.info("Cancelled prior run %s, unlocked fixture", pipeline.validationRunId[:8])
+                logger.info("Prior run %s finished (%s), unlocked fixture", pipeline.validationRunId[:8], prior_run.status)
 
         # Trigger validation
-        validation_run_id = trigger_pipeline_validation(pipeline_id, pipeline, builds)
-        if not validation_run_id:
-            return internal_error("Failed to create validation run (no bench available?)")
+        result = trigger_pipeline_validation(pipeline_id, pipeline, builds)
+        if result is None:
+            return internal_error("Failed to create validation run (no fixtures available)")
 
+        if result.get("queued"):
+            # Queued — pipeline stays at current status, will move to VALIDATING when dequeued
+            log_audit("ci.pipeline.validate_queued", "PipelineRun", pipeline_id, {
+                "queueEntryId": result["entryId"],
+                "reason": result.get("reason"),
+            })
+            return jsonify(ApiResponse.ok({
+                "pipelineId": pipeline_id,
+                "queued": True,
+                "queueEntryId": result["entryId"],
+                "reason": result.get("reason"),
+                "status": "QUEUED",
+            }).to_dict()), 202
+
+        # Started immediately
+        validation_run_id = result["sessionId"]
         db.pipelinerun.update(
             where={"id": pipeline_id},
             data={"status": "VALIDATING", "validationRunId": validation_run_id},

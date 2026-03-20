@@ -232,12 +232,16 @@ def parse_cfw_header(cfw_path: Path) -> Dict[str, Any]:
 # CLEANUP
 # =============================================================================
 
-_cleanup_registry: Dict[str, int] = {}  # device_id -> plan_id
+_cleanup_registry: List[tuple] = []  # [(device_id, plan_id), ...]
 
 
 def register_fuota_cleanup(device_id: str, plan_id: int) -> None:
-    """Register device+plan for cleanup on exit."""
-    _cleanup_registry[device_id] = plan_id
+    """Register device+plan for cleanup on exit.
+
+    Uses a list (not dict) so both setup and upgrade plans from two-phase
+    tests are tracked — a dict would overwrite the setup plan entry.
+    """
+    _cleanup_registry.append((device_id, plan_id))
     log.info("Registered FUOTA cleanup: device=%s plan=%d", device_id, plan_id)
 
 
@@ -246,14 +250,14 @@ def _run_fuota_cleanup() -> None:
     if not _cleanup_registry:
         return
 
-    log.info("Running FUOTA cleanup for %d device(s)...", len(_cleanup_registry))
+    log.info("Running FUOTA cleanup for %d assignment(s)...", len(_cleanup_registry))
 
     try:
         from corekinect.test.fuota_client import FuotaClient
 
         client = FuotaClient(api_env="VAL_1_0")
 
-        for device_id, plan_id in _cleanup_registry.items():
+        for device_id, plan_id in _cleanup_registry:
             try:
                 client.disable_device(device_id, plan_id)
                 log.info("Cleaned up: device=%s plan=%d", device_id, plan_id)

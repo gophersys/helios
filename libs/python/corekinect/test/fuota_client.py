@@ -275,7 +275,10 @@ class FuotaClient:
 
         plan = resp.json()
         plan_id = plan["planId"]
-        self._log.info("Plan created: id=%d, stages=%d", plan_id, len(stages))
+        self._log.info(
+            "Plan created: id=%d, stages=%d (raw response: %s)",
+            plan_id, len(stages), str(plan)[:200],
+        )
         return plan_id
 
     def list_plans(self) -> List[Dict[str, Any]]:

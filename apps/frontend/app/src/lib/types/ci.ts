@@ -49,13 +49,18 @@ export interface PipelineStageInfo {
   detail: string | null;
 }
 
-// Build matrix labels (FUOTA mode uses all, nightly uses subset)
+// Build matrix labels — FUOTA pipeline uses 6 builds, all release variant.
+// "Verbose" builds have CONFIG_LOG=y forced on (UART output for version detection).
+// "Quiet" builds are standard release (no UART logs, production-like).
+// All CFW flags are -B or -BM — no -D flag, avoiding CoreCloud D-flag stripping.
 export type MatrixLabel =
-  | 'MFG_FLASH' | 'MFG_BASE'
+  | 'MFG_FLASH' | 'MFG_BUMP'
+  | 'PROD_VERBOSE' | 'PROD_VERBOSE_BUMP'
+  | 'PROD_QUIET' | 'PROD_QUIET_BUMP'
+  // Legacy labels (kept for backwards compat with old pipelines)
+  | 'MFG_BASE'
   | 'FLASH_BASE_DEBUG' | 'FLASH_BASE_RELEASE'
   | 'FUOTA_TARGET_DEBUG' | 'FUOTA_TARGET_RELEASE'
-  // Legacy labels (kept for backwards compat)
-  | 'MFG_BUMP'
   | 'FUT_DEBUG_A' | 'FUT_DEBUG_B'
   | 'FUT_RELEASE_A' | 'FUT_RELEASE_B'
   | 'MAIN_BASELINE' | 'MAIN_MERGED';
@@ -85,60 +90,76 @@ export const MATRIX_LABEL_DISPLAY: Record<MatrixLabel, {
   fuotaStep: number;
   priority: number;  // Lower = higher priority (build first)
 }> = {
-  // MFG firmware — two versions for MFG-to-MFG FUOTA test
+  // ── MFG firmware — two versions for MFG-to-MFG FUOTA test ──
   MFG_FLASH: {
-    name: 'MFG Flash (N-1)',
-    description: 'Older MFG firmware to flash via J-Link (FUOTA base)',
-    group: 'mfg',
-    groupTitle: 'Manufacturing Firmware',
-    fuotaStep: 1,
-    priority: 0,
-  },
-  MFG_BASE: {
     name: 'MFG Flash',
-    description: 'Manufacturing firmware for J-Link flash + personalization',
+    description: 'Manufacturing firmware flashed via J-Link (FUOTA base)',
     group: 'mfg',
-    groupTitle: 'Manufacturing Firmware',
+    groupTitle: 'Manufacturing',
     fuotaStep: 1,
     priority: 0,
   },
-  // Production firmware — cached baseline
-  FLASH_BASE_DEBUG: {
-    name: 'Baseline Debug',
-    description: 'Previous production firmware (debug, cached)',
-    group: 'baseline',
-    groupTitle: 'Baseline',
-    fuotaStep: 2,
+  MFG_BUMP: {
+    name: 'MFG Bump',
+    description: 'MFG firmware with bumped version (MFG→MFG FUOTA target)',
+    group: 'mfg',
+    groupTitle: 'Manufacturing',
+    fuotaStep: 1,
     priority: 1,
   },
-  FLASH_BASE_RELEASE: {
-    name: 'Baseline Release',
-    description: 'Previous production firmware (release, cached)',
-    group: 'baseline',
-    groupTitle: 'Baseline',
+  // ── Prod Verbose — release + CONFIG_LOG=y for UART version detection ──
+  PROD_VERBOSE: {
+    name: 'Prod Verbose',
+    description: 'Production firmware with UART logging (release flags, no D-flag)',
+    group: 'prod_verbose',
+    groupTitle: 'Prod (Verbose)',
     fuotaStep: 2,
     priority: 2,
   },
-  // FUOTA targets — newly built from commit
-  FUOTA_TARGET_DEBUG: {
-    name: 'FUOTA Debug',
-    description: 'New production firmware for debug validation',
-    group: 'fuota',
-    groupTitle: 'FUOTA Target',
-    fuotaStep: 3,
+  PROD_VERBOSE_BUMP: {
+    name: 'Prod Verbose Bump',
+    description: 'Verbose prod with bumped version (Prod→Prod logged FUOTA target)',
+    group: 'prod_verbose',
+    groupTitle: 'Prod (Verbose)',
+    fuotaStep: 2,
     priority: 3,
   },
-  FUOTA_TARGET_RELEASE: {
-    name: 'FUOTA Release',
-    description: 'New production firmware CFW for OTA delivery',
-    group: 'fuota',
-    groupTitle: 'FUOTA Target',
+  // ── Prod Quiet — standard release, no UART logs ──
+  PROD_QUIET: {
+    name: 'Prod Quiet',
+    description: 'Production firmware without UART logging (standard release)',
+    group: 'prod_quiet',
+    groupTitle: 'Prod (Quiet)',
     fuotaStep: 3,
     priority: 4,
   },
+  PROD_QUIET_BUMP: {
+    name: 'Prod Quiet Bump',
+    description: 'Quiet prod with bumped version (Prod→Prod silent FUOTA target)',
+    group: 'prod_quiet',
+    groupTitle: 'Prod (Quiet)',
+    fuotaStep: 3,
+    priority: 5,
+  },
   // Legacy labels (kept for backwards compat with old pipelines)
-  MFG_BUMP: {
-    name: 'Mfg v2', description: 'Legacy', group: 'factory',
+  MFG_BASE: {
+    name: 'MFG Base', description: 'Legacy (now MFG_BUMP)', group: 'legacy',
+    groupTitle: 'Legacy', fuotaStep: 99, priority: 99,
+  },
+  FLASH_BASE_DEBUG: {
+    name: 'Baseline Debug', description: 'Legacy (removed)', group: 'legacy',
+    groupTitle: 'Legacy', fuotaStep: 99, priority: 99,
+  },
+  FLASH_BASE_RELEASE: {
+    name: 'Baseline Release', description: 'Legacy (removed)', group: 'legacy',
+    groupTitle: 'Legacy', fuotaStep: 99, priority: 99,
+  },
+  FUOTA_TARGET_DEBUG: {
+    name: 'FUOTA Debug', description: 'Legacy (now PROD_VERBOSE)', group: 'legacy',
+    groupTitle: 'Legacy', fuotaStep: 99, priority: 99,
+  },
+  FUOTA_TARGET_RELEASE: {
+    name: 'FUOTA Release', description: 'Legacy (now PROD_QUIET)', group: 'legacy',
     groupTitle: 'Legacy', fuotaStep: 99, priority: 99,
   },
   FUT_DEBUG_A: {
@@ -168,13 +189,13 @@ export const MATRIX_LABEL_DISPLAY: Record<MatrixLabel, {
 };
 
 // FUOTA validation order: which firmware transitions to which
+// All transitions use release-flagged firmware (-B or -BM). No D-flag.
 export const FUOTA_TRANSITIONS: Array<{ from: MatrixLabel; to: MatrixLabel; purpose: string }> = [
-  { from: 'MFG_BASE', to: 'MFG_BUMP', purpose: 'FUOTA sanity (same code, version bump)' },
-  { from: 'MFG_BUMP', to: 'FUT_DEBUG_A', purpose: 'Factory → production transition' },
-  { from: 'FUT_DEBUG_A', to: 'FUT_DEBUG_B', purpose: 'Debug FUOTA test' },
-  { from: 'FUT_DEBUG_B', to: 'FUT_RELEASE_A', purpose: 'Debug → release transition' },
-  { from: 'FUT_RELEASE_A', to: 'FUT_RELEASE_B', purpose: 'Release FUOTA test' },
-  { from: 'MAIN_BASELINE', to: 'MAIN_MERGED', purpose: 'Field upgrade path' },
+  { from: 'MFG_FLASH', to: 'MFG_BUMP', purpose: 'MFG→MFG FUOTA (version bump sanity)' },
+  { from: 'MFG_FLASH', to: 'PROD_VERBOSE', purpose: 'MFG→Prod FUOTA (with UART logs)' },
+  { from: 'PROD_VERBOSE', to: 'PROD_VERBOSE_BUMP', purpose: 'Prod→Prod verbose FUOTA' },
+  { from: 'MFG_FLASH', to: 'PROD_QUIET', purpose: 'MFG→Prod FUOTA (no logs, current-only check)' },
+  { from: 'PROD_QUIET', to: 'PROD_QUIET_BUMP', purpose: 'Prod→Prod quiet FUOTA' },
 ];
 
 export interface Pipeline {

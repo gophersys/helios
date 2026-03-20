@@ -200,6 +200,9 @@ def create_kubernetes_job(
     # Validation stage and image tag
     stage: str = "fuota",
     image_tag: Optional[str] = None,
+    # Test filtering
+    pytest_filter: Optional[str] = None,
+    fuota_label: Optional[str] = None,
 ) -> Optional[str]:
     """
     Create a new kubernetes job with the new firmware file environment variables.
@@ -266,6 +269,10 @@ def create_kubernetes_job(
         job_yaml = job_yaml.replace("{{STAGE}}", stage)
         resolved_image_tag = image_tag or env_config.ENVIRONMENT
         job_yaml = job_yaml.replace("{{IMAGE_TAG}}", resolved_image_tag)
+
+        # Test filtering (temporary — revert once FUOTA debug-flag issue is resolved)
+        job_yaml = job_yaml.replace("{{PYTEST_FILTER}}", pytest_filter or "")
+        job_yaml = job_yaml.replace("{{FUOTA_LABEL}}", fuota_label or "")
 
         # Parse the YAML and create the job
         job_spec = yaml.safe_load(job_yaml)

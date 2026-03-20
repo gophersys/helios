@@ -75,6 +75,7 @@ class BuildWorker:
                 base_job_id=j.get("baseJobId"),
                 matrix_label=j.get("matrixLabel"),
                 version_override=_extract_version_override(j),
+                config_flags=j.get("configFlags") or {},
             )
 
         return None  # All queued jobs are for incompatible NCS versions

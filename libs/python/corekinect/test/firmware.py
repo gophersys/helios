@@ -761,33 +761,37 @@ class PipelineAssets:
         Returns list of (flash_label, fuota_label, purpose) tuples.
         Each transition: flash MFG firmware via J-Link, then FUOTA to target.
 
-        Pipeline build labels (6 builds):
-            MFG_BASE             MFG FW for flash + personalize (debug, cached)
-            MFG_FLASH            Older MFG FW (debug, cached)
-            FLASH_BASE_DEBUG     Previous prod FW debug (cached)
-            FLASH_BASE_RELEASE   Previous prod FW release (cached)
-            FUOTA_TARGET_DEBUG   New prod FW debug (built from commit)
-            FUOTA_TARGET_RELEASE New prod FW release (built from commit)
+        Pipeline build labels:
+            MFG_FLASH            MFG FW for J-Link flash (release, cached)
+            MFG_BUMP             Newer MFG FW for MFG→MFG FUOTA (release, cached)
+            PROD_VERBOSE         Prod FW with CONFIG_LOG=y (release + LOG override)
+            PROD_VERBOSE_BUMP    Prod FW with CONFIG_LOG=y, bumped version
+            PROD_QUIET           Prod FW with CONFIG_LOG=n (release, default)
+            PROD_QUIET_BUMP      Prod FW with CONFIG_LOG=n, bumped version
+
+        TODO(corecloud-fix): When CoreCloud fixes D-flag stripping, switch
+        PROD_VERBOSE* to debug builds and update CFW flags from -B to -BD.
         """
         return [
-            ("MFG_BASE", "FUOTA_TARGET_RELEASE", "MFG flash -> prod FUOTA (release)"),
-            ("MFG_BASE", "FUOTA_TARGET_DEBUG", "MFG flash -> prod FUOTA (debug)"),
+            ("MFG_FLASH", "MFG_BUMP", "MFG -> MFG FUOTA (version bump)"),
+            ("MFG_FLASH", "PROD_VERBOSE", "MFG -> prod FUOTA (verbose)"),
+            ("MFG_FLASH", "PROD_QUIET", "MFG -> prod FUOTA (quiet)"),
         ]
 
     def has_all_builds(self) -> bool:
         """Check if the pipeline has the minimum required builds.
 
-        At minimum we need MFG_BASE (for flash) and at least one
-        FUOTA_TARGET (for OTA delivery).
+        At minimum we need MFG_FLASH (for J-Link flash) and at least one
+        other build (for OTA delivery target).
         """
         builds = self.builds
         if not builds:
             return False
 
-        has_mfg = "MFG_BASE" in builds
-        has_fuota = any("FUOTA_TARGET" in label for label in builds)
+        has_mfg = "MFG_FLASH" in builds
+        has_other = len(builds) >= 2
 
-        if not has_mfg or not has_fuota:
+        if not has_mfg or not has_other:
             return False
 
         # All present builds must be SUCCESS or CACHED

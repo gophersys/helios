@@ -151,6 +151,11 @@ spec:
           value: "{{DEVICE_IMEI}}"
         - name: DEVICE_ICCIDS
           value: "{{DEVICE_ICCIDS}}"
+        # ── Test Filtering ──
+        - name: PYTEST_FILTER
+          value: "{{PYTEST_FILTER}}"
+        - name: FUOTA_LABEL
+          value: "{{FUOTA_LABEL}}"
         # ── Test Artifacts ──
         - name: ARTIFACTS_DIR
           value: "/var/log/validation"

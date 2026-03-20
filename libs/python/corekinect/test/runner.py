@@ -590,6 +590,12 @@ class ValidationRunner:
             *self.config.pytest_args,
         ]
 
+        # Optional test filter from env (e.g. "test_02" to skip test_01)
+        pytest_filter = os.environ.get("PYTEST_FILTER", "").strip()
+        if pytest_filter:
+            args.extend(["-k", pytest_filter])
+            log.info("pytest filter: -k %s", pytest_filter)
+
         log.info("pytest command: %s", " ".join(args))
 
         env = os.environ.copy()

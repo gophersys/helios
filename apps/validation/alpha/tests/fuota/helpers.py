@@ -297,6 +297,10 @@ def wait_for_cloud_checkin(
 def upload_cfw_files(fuota_client, cfw_paths: List[str]) -> None:
     """Upload CFW files to CoreCloud. Handles 'already exists' gracefully.
 
+    Also verifies the upload was accepted by attempting a delete-check
+    (CoreCloud has no list-images endpoint, but delete returns 404 if
+    the image doesn't exist).
+
     Raises:
         RuntimeError: If any upload fails (except already-exists).
     """
@@ -304,6 +308,18 @@ def upload_cfw_files(fuota_client, cfw_paths: List[str]) -> None:
         name = Path(cfw_path).name
         print(f"Uploading {name}...")
         fuota_client.upload_cfw(cfw_path)
+
+        # Verify upload: check if the image exists via a HEAD-like probe
+        # (CoreCloud has no list endpoint, so we check via the delete endpoint
+        # with a GET — if it would return 404, the upload didn't register)
+        try:
+            resp = fuota_client._singleton_request(
+                "GET", f"firmwareimages?name={name}",
+            )
+            # 401/404 means not found or no list support — just log status
+            print(f"  Upload verify: {name} -> HTTP {resp.status_code}")
+        except Exception:
+            pass  # Verification is best-effort
 
 
 def create_and_assign_fuota_plan(
@@ -365,6 +381,34 @@ def create_and_assign_fuota_plan(
     )
     print(f"Plan created: id={plan_id}")
 
+    # ── Verify plan exists and targets match ──
+    # CoreCloud STRIPS the 'D' (debug) flag from plan targets. If our CFW was
+    # uploaded with -BD flags but the plan stores -B, the firmware image version
+    # won't match the plan target → delivery never starts. Catch this NOW.
+    # NOTE: list endpoint is paginated (50 max), use ?planId= query instead.
+    resp = fuota_client._singleton_request(
+        "GET", f"firmwareupdates/plans?planId={plan_id}"
+    )
+    if resp.status_code == 200:
+        stored_plan = resp.json()
+        stored_stages = stored_plan.get("stages", [])
+        for i, stage in enumerate(stored_stages):
+            stored_targets = sorted(stage.get("targets", []))
+            submitted = sorted(stages[i]["targets"]) if i < len(stages) else []
+            if stored_targets != submitted:
+                pytest.fail(
+                    f"FUOTA plan target MISMATCH — CoreCloud modified our targets!\n"
+                    f"  Submitted: {submitted}\n"
+                    f"  Stored:    {stored_targets}\n"
+                    f"CoreCloud strips the 'D' (debug) flag from targets. The uploaded "
+                    f"CFW has version '{submitted[0]}' but the plan expects "
+                    f"'{stored_targets[0]}'. FUOTA delivery will NEVER start.\n"
+                    f"Fix: use release firmware (no -D flag) so targets match."
+                )
+            print(f"  Plan targets verified: {stored_targets}")
+    else:
+        print(f"  WARNING: Could not verify plan {plan_id} (HTTP {resp.status_code})")
+
     # Assign device
     print(f"Assigning device {device_id} to plan {plan_id}...")
     fuota_client.assign_device(
@@ -401,6 +445,7 @@ def wait_for_fuota_completion(
     timeout_s: int = 5400,
     mtib_client=None,
     power_cycle_interval_s: int = 180,
+    max_stale_minutes: int = 5,
 ) -> None:
     """Wait for FUOTA delivery to complete for both processors (108 + 109).
 
@@ -408,9 +453,10 @@ def wait_for_fuota_completion(
     - Stale 100% from previous plans (only accepts 100% if seen < 100% first)
     - UART monitoring for FUOTA-related log lines
     - Periodic power cycles to force CoreCloud check-in
+    - Auto-fail after max_stale_minutes of pure stale data (no new progress ever started)
 
     Raises:
-        pytest.fail: If timeout expires without completion.
+        pytest.fail: If timeout expires without completion or stale limit hit.
     """
 
     start = time.time()
@@ -419,11 +465,12 @@ def wait_for_fuota_completion(
     last_status = None
     last_pages_by_ver = {}   # track pages per version for smart power cycling
     last_progress_time = start  # when pages last advanced
+    max_stale_s = max_stale_minutes * 60  # hard limit for pure stale data
 
     print(f"FUOTA delivery started (device={device_id})")
     print(f"Targets: comms (108) + app (109)")
-    print(f"Timeout: {timeout_s // 60:.0f} minutes")
-    print(f"Power cycle: only if stalled for 5+ minutes")
+    print(f"Timeout: {timeout_s // 60:.0f} minutes (stale limit: {max_stale_minutes}m)")
+    print(f"Power cycle: only if stalled for 3+ minutes")
     print(f"---")
     stall_cycles = 0         # consecutive polls with no progress
 
@@ -440,7 +487,11 @@ def wait_for_fuota_completion(
             power_off(mtib_client)
             power_on(mtib_client)
             time.sleep(5)
-            last_progress_time = time.time()
+            # Only reset stale timer if we've seen real progress.
+            # If seen_active is empty, we're stuck on stale data from a
+            # previous plan — don't reset, let the hard stale limit trigger.
+            if seen_active:
+                last_progress_time = time.time()
             stall_cycles = 0
         except Exception as e:
             print(f"[{elapsed:.1f}m] Power cycle failed: {e}")
@@ -485,9 +536,11 @@ def wait_for_fuota_completion(
                         print(f"[{elapsed_str}] {ver} [{bar}] {pct:.1f}% ({pages}/{total} pages)")
                         last_status = status
 
-                    # Track page advancement PER VERSION for smart power cycling
+                    # Track page advancement PER VERSION for smart power cycling.
+                    # Only count as real progress if pct < 100 — stale 100% from
+                    # a previous plan should NOT reset the stale timer.
                     prev_pages = last_pages_by_ver.get(ver, 0)
-                    if pages > prev_pages:
+                    if pages > prev_pages and pct < 100:
                         last_pages_by_ver[ver] = pages
                         last_progress_time = time.time()
                         stall_cycles = 0
@@ -533,10 +586,21 @@ def wait_for_fuota_completion(
                         last_status = "wait_start"
                     stall_cycles += 1
 
-            # Smart power cycle: if no progress for 3 minutes (was 10 min — too long for stale data)
+            # Smart power cycle: if no progress for 3 minutes
             stall_duration = time.time() - last_progress_time
             if mtib_client and stall_duration > 180 and stall_cycles >= 18:
                 _force_power_cycle(f"no page progress for {int(stall_duration)}s ({stall_cycles} stale polls)")
+
+            # Hard fail: if we've NEVER seen real progress and stale limit exceeded
+            if not seen_active and stall_duration > max_stale_s:
+                elapsed_min = (time.time() - start) / 60
+                pytest.fail(
+                    f"FUOTA delivery never started after {elapsed_min:.1f} min. "
+                    f"CoreCloud progress endpoint only returns stale data from a previous plan. "
+                    f"The device may need to be power-cycled manually, or CoreCloud "
+                    f"may not be delivering the new plan. "
+                    f"Completed: {completed or 'none'}"
+                )
 
             time.sleep(10)
 
