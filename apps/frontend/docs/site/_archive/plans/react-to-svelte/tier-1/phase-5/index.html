@@ -1,0 +1,2946 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Continuous delivery platform for embedded systems">
+      
+      
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../../../assets/images/favicon.png">
+      <meta name="generator" content="zensical-0.0.27">
+    
+    
+      
+        <title>Phase 5 — Sidebar and Navigation - Concord</title>
+      
+    
+    
+      
+        
+      
+      <link rel="stylesheet" href="../../../../../assets/stylesheets/modern/main.50057488.min.css">
+      
+        
+          
+        
+        <link rel="stylesheet" href="../../../../../assets/stylesheets/modern/palette.dfe2e883.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,500,500i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../../../../..",location),__md_hash=e=>[...e].reduce(((e,t)=>(e<<5)-e+t.charCodeAt(0)),0),__md_get=(e,t=localStorage,a=__md_scope)=>JSON.parse(t.getItem(a.pathname+"."+e)),__md_set=(e,t,a=localStorage,_=__md_scope)=>{try{a.setItem(_.pathname+"."+e,JSON.stringify(t))}catch(e){}},document.documentElement.setAttribute("data-platform",navigator.platform)</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="deep-purple" data-md-color-accent="amber">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer" aria-label="Navigation"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#phase-5-sidebar-and-navigation" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../../../.." title="Concord" class="md-header__button md-logo" aria-label="Concord" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer" aria-label="Navigation">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-menu" viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h16"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Concord
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Phase 5 — Sidebar and Navigation
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="none" data-md-color-scheme="slate" data-md-color-primary="deep-purple" data-md-color-accent="amber"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="none" data-md-color-scheme="default" data-md-color-primary="deep-purple" data-md-color-accent="amber"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search" aria-label="Search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-search" viewBox="0 0 24 24"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog" aria-label="Search">
+  <button type="button" class="md-search__button">
+    Search
+  </button>
+</div>
+      
+    
+    <div class="md-header__source">
+      
+    </div>
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../../../.." title="Concord" class="md-nav__button md-logo" aria-label="Concord" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+
+    </a>
+    Concord
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../../vision/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vision
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2" id="__nav_2_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Vision
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../vision/thesis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Thesis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../vision/validation-philosophy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation Philosophy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../../architecture/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3" id="__nav_3_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Architecture
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_2" id="__nav_3_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Platform
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Platform
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../architecture/platform/unified-platform/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Unified Platform
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../architecture/platform/hardware-registry/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hardware Registry
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../architecture/platform/log-streaming/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Log Streaming
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../architecture/platform/ci-pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CI Pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../architecture/platform/corecloud-library/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CoreCloud Library
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_3" id="__nav_3_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Validation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../architecture/validation/stages-overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stages Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../architecture/validation/system/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    System Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../architecture/validation/stage1-software-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 1: Software Tests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../architecture/validation/stage2-driver-hw-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 2: Driver HW Tests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../architecture/validation/stage3-integration-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 3: Integration Tests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../architecture/validation/stage4-product-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 4: Product Tests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../architecture/validation/stage4-fuota-flow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 4: FUOTA Flow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../architecture/validation/stage4-pr-flow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 4: PR Flow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../architecture/validation/stage5-gate-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 5: Gate Tests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../architecture/validation/test-runner/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Test Runner
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_4" id="__nav_3_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Build
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../architecture/build/build-service/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build Service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../architecture/build/builder-nodes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Builder Nodes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../../reference/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../reference/fuota-workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FUOTA Workflow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../reference/fuota-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FUOTA API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../reference/alpha-test-cases/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Alpha Test Cases
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../reference/traceability-matrix/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Traceability Matrix
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../reference/twister-hil/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Twister HIL
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../reference/stage4-connectivity/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 4 Connectivity
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../reference/stage4-long-term-vision/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 4 Long-Term Vision
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../reference/validation-flow-ui/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation Flow UI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../reference/interfaces/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interfaces
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../../guides/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_2" id="__nav_5_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Alpha
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Alpha
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../guides/alpha/stage1/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 1
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../guides/alpha/stage2/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 2
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../guides/alpha/stage3/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 3
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../guides/alpha/stage4/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 4
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../guides/alpha/stage5/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 5
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../../research/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Research
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_6" id="__nav_6_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Research
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../research/01-sigma5-firmware-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sigma5 Firmware
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../research/02-alpha-firmware-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Alpha Firmware
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../research/03-sensor-drivers-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sensor Drivers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../research/05-mtib-server-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MTIB Server
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../research/06-fuota-corecloud-v1/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FUOTA CoreCloud
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../research/07-alpha-manufacturing-firmware-and-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Alpha MFG Firmware
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../research/08-device-personalization-and-key-provisioning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Device Personalization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../research/08-firmware-build-and-fuota-delivery/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Firmware Build & FUOTA
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../research/09-corecloud-validation-integration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CoreCloud Integration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../../journals/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Journals
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Journals
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#objective" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Objective
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1-update-srclibcomponentssidebarsvelte" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Update src/lib/components/sidebar.svelte
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-create-placeholder-routes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Create Placeholder Routes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#verification" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verification
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#files-createdmodified" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Files Created/Modified
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#next-phase" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Next Phase
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+                
+
+
+
+  
+
+
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+<h1 id="phase-5-sidebar-and-navigation">Phase 5 — Sidebar and Navigation<a class="headerlink" href="#phase-5-sidebar-and-navigation" title="Permanent link">&para;</a></h1>
+<h2 id="objective">Objective<a class="headerlink" href="#objective" title="Permanent link">&para;</a></h2>
+<p>Fully implement the sidebar with navigation links, mode toggle (Manufacturing/Validation), user info section, and permission-gated admin links. This must be pixel-perfect to the React version.</p>
+<hr />
+<h2 id="1-update-srclibcomponentssidebarsvelte">1. Update <code>src/lib/components/sidebar.svelte</code><a class="headerlink" href="#1-update-srclibcomponentssidebarsvelte" title="Permanent link">&para;</a></h2>
+<p>Full implementation porting all React sidebar functionality:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>&lt;script lang=&quot;ts&quot;&gt;
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>  import { page } from &#39;$app/stores&#39;;
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>  import { goto } from &#39;$app/navigation&#39;;
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>  import { browser } from &#39;$app/environment&#39;;
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>  import {
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    LayoutDashboard,
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    FlaskConical,
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    Container,
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    Server,
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    ClipboardCheck,
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>    ScrollText,
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>    BarChart3,
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>    Settings,
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>    Users,
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>    ShieldCheck,
+<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>    Cpu,
+<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>    Package,
+<a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>    GitBranch,
+<a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>    BookOpen,
+<a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>    History,
+<a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>    LogOut,
+<a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>    PanelLeftClose,
+<a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>    Monitor
+<a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>  } from &#39;lucide-svelte&#39;;
+<a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a>  import { getTheme } from &#39;$lib/stores/theme.svelte&#39;;
+<a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a>  import { getAuth } from &#39;$lib/stores/auth.svelte&#39;;
+<a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a>
+<a id="__codelineno-0-28" name="__codelineno-0-28" href="#__codelineno-0-28"></a>  let {
+<a id="__codelineno-0-29" name="__codelineno-0-29" href="#__codelineno-0-29"></a>    collapsed,
+<a id="__codelineno-0-30" name="__codelineno-0-30" href="#__codelineno-0-30"></a>    onToggle,
+<a id="__codelineno-0-31" name="__codelineno-0-31" href="#__codelineno-0-31"></a>    onSettingsClick
+<a id="__codelineno-0-32" name="__codelineno-0-32" href="#__codelineno-0-32"></a>  }: {
+<a id="__codelineno-0-33" name="__codelineno-0-33" href="#__codelineno-0-33"></a>    collapsed: boolean;
+<a id="__codelineno-0-34" name="__codelineno-0-34" href="#__codelineno-0-34"></a>    onToggle: () =&gt; void;
+<a id="__codelineno-0-35" name="__codelineno-0-35" href="#__codelineno-0-35"></a>    onSettingsClick: () =&gt; void;
+<a id="__codelineno-0-36" name="__codelineno-0-36" href="#__codelineno-0-36"></a>  } = $props();
+<a id="__codelineno-0-37" name="__codelineno-0-37" href="#__codelineno-0-37"></a>
+<a id="__codelineno-0-38" name="__codelineno-0-38" href="#__codelineno-0-38"></a>  const theme = getTheme();
+<a id="__codelineno-0-39" name="__codelineno-0-39" href="#__codelineno-0-39"></a>  const auth = getAuth();
+<a id="__codelineno-0-40" name="__codelineno-0-40" href="#__codelineno-0-40"></a>
+<a id="__codelineno-0-41" name="__codelineno-0-41" href="#__codelineno-0-41"></a>  type Mode = &#39;manufacturing&#39; | &#39;validation&#39;;
+<a id="__codelineno-0-42" name="__codelineno-0-42" href="#__codelineno-0-42"></a>  const STORAGE_KEY = &#39;concord-mode&#39;;
+<a id="__codelineno-0-43" name="__codelineno-0-43" href="#__codelineno-0-43"></a>
+<a id="__codelineno-0-44" name="__codelineno-0-44" href="#__codelineno-0-44"></a>  function getInitialMode(): Mode {
+<a id="__codelineno-0-45" name="__codelineno-0-45" href="#__codelineno-0-45"></a>    if (!browser) return &#39;manufacturing&#39;;
+<a id="__codelineno-0-46" name="__codelineno-0-46" href="#__codelineno-0-46"></a>    const stored = localStorage.getItem(STORAGE_KEY);
+<a id="__codelineno-0-47" name="__codelineno-0-47" href="#__codelineno-0-47"></a>    if (stored === &#39;manufacturing&#39; || stored === &#39;validation&#39;) return stored;
+<a id="__codelineno-0-48" name="__codelineno-0-48" href="#__codelineno-0-48"></a>    return &#39;manufacturing&#39;;
+<a id="__codelineno-0-49" name="__codelineno-0-49" href="#__codelineno-0-49"></a>  }
+<a id="__codelineno-0-50" name="__codelineno-0-50" href="#__codelineno-0-50"></a>
+<a id="__codelineno-0-51" name="__codelineno-0-51" href="#__codelineno-0-51"></a>  let mode = $state&lt;Mode&gt;(getInitialMode());
+<a id="__codelineno-0-52" name="__codelineno-0-52" href="#__codelineno-0-52"></a>
+<a id="__codelineno-0-53" name="__codelineno-0-53" href="#__codelineno-0-53"></a>  function handleModeChange(newMode: Mode): void {
+<a id="__codelineno-0-54" name="__codelineno-0-54" href="#__codelineno-0-54"></a>    mode = newMode;
+<a id="__codelineno-0-55" name="__codelineno-0-55" href="#__codelineno-0-55"></a>    if (browser) {
+<a id="__codelineno-0-56" name="__codelineno-0-56" href="#__codelineno-0-56"></a>      localStorage.setItem(STORAGE_KEY, newMode);
+<a id="__codelineno-0-57" name="__codelineno-0-57" href="#__codelineno-0-57"></a>    }
+<a id="__codelineno-0-58" name="__codelineno-0-58" href="#__codelineno-0-58"></a>  }
+<a id="__codelineno-0-59" name="__codelineno-0-59" href="#__codelineno-0-59"></a>
+<a id="__codelineno-0-60" name="__codelineno-0-60" href="#__codelineno-0-60"></a>  const manufacturingNav = [
+<a id="__codelineno-0-61" name="__codelineno-0-61" href="#__codelineno-0-61"></a>    { to: &#39;/&#39;, icon: LayoutDashboard, label: &#39;Dashboard&#39; },
+<a id="__codelineno-0-62" name="__codelineno-0-62" href="#__codelineno-0-62"></a>    { to: &#39;/tests&#39;, icon: FlaskConical, label: &#39;Tests&#39; },
+<a id="__codelineno-0-63" name="__codelineno-0-63" href="#__codelineno-0-63"></a>    { to: &#39;/deployments&#39;, icon: Container, label: &#39;Deployments&#39; },
+<a id="__codelineno-0-64" name="__codelineno-0-64" href="#__codelineno-0-64"></a>    { to: &#39;/nodes&#39;, icon: Server, label: &#39;Nodes&#39; },
+<a id="__codelineno-0-65" name="__codelineno-0-65" href="#__codelineno-0-65"></a>    { to: &#39;/results&#39;, icon: ClipboardCheck, label: &#39;Test Results&#39; },
+<a id="__codelineno-0-66" name="__codelineno-0-66" href="#__codelineno-0-66"></a>    { to: &#39;/logs&#39;, icon: ScrollText, label: &#39;Logs&#39; },
+<a id="__codelineno-0-67" name="__codelineno-0-67" href="#__codelineno-0-67"></a>    { to: &#39;/statistics&#39;, icon: BarChart3, label: &#39;Statistics&#39; }
+<a id="__codelineno-0-68" name="__codelineno-0-68" href="#__codelineno-0-68"></a>  ];
+<a id="__codelineno-0-69" name="__codelineno-0-69" href="#__codelineno-0-69"></a>
+<a id="__codelineno-0-70" name="__codelineno-0-70" href="#__codelineno-0-70"></a>  const validationNav = [
+<a id="__codelineno-0-71" name="__codelineno-0-71" href="#__codelineno-0-71"></a>    { to: &#39;/&#39;, icon: LayoutDashboard, label: &#39;Dashboard&#39; },
+<a id="__codelineno-0-72" name="__codelineno-0-72" href="#__codelineno-0-72"></a>    { to: &#39;/tests&#39;, icon: FlaskConical, label: &#39;Tests&#39; },
+<a id="__codelineno-0-73" name="__codelineno-0-73" href="#__codelineno-0-73"></a>    { to: &#39;/deployments&#39;, icon: Container, label: &#39;Deployments&#39; },
+<a id="__codelineno-0-74" name="__codelineno-0-74" href="#__codelineno-0-74"></a>    { to: &#39;/nodes&#39;, icon: Server, label: &#39;Nodes&#39; },
+<a id="__codelineno-0-75" name="__codelineno-0-75" href="#__codelineno-0-75"></a>    { to: &#39;/results&#39;, icon: ClipboardCheck, label: &#39;Test Results&#39; },
+<a id="__codelineno-0-76" name="__codelineno-0-76" href="#__codelineno-0-76"></a>    { to: &#39;/logs&#39;, icon: ScrollText, label: &#39;Logs&#39; },
+<a id="__codelineno-0-77" name="__codelineno-0-77" href="#__codelineno-0-77"></a>    { to: &#39;/statistics&#39;, icon: BarChart3, label: &#39;Statistics&#39; }
+<a id="__codelineno-0-78" name="__codelineno-0-78" href="#__codelineno-0-78"></a>  ];
+<a id="__codelineno-0-79" name="__codelineno-0-79" href="#__codelineno-0-79"></a>
+<a id="__codelineno-0-80" name="__codelineno-0-80" href="#__codelineno-0-80"></a>  const navItems = $derived(mode === &#39;manufacturing&#39; ? manufacturingNav : validationNav);
+<a id="__codelineno-0-81" name="__codelineno-0-81" href="#__codelineno-0-81"></a>
+<a id="__codelineno-0-82" name="__codelineno-0-82" href="#__codelineno-0-82"></a>  const isAdmin = $derived(
+<a id="__codelineno-0-83" name="__codelineno-0-83" href="#__codelineno-0-83"></a>    auth.hasPermission(&#39;Concord.Admin.Users.View&#39;) ||
+<a id="__codelineno-0-84" name="__codelineno-0-84" href="#__codelineno-0-84"></a>    auth.hasPermission(&#39;Concord.Admin.Inventory.View&#39;) ||
+<a id="__codelineno-0-85" name="__codelineno-0-85" href="#__codelineno-0-85"></a>    auth.hasPermission(&#39;Concord.Admin.Codebases.View&#39;) ||
+<a id="__codelineno-0-86" name="__codelineno-0-86" href="#__codelineno-0-86"></a>    auth.hasPermission(&#39;Concord.Admin.Products.View&#39;) ||
+<a id="__codelineno-0-87" name="__codelineno-0-87" href="#__codelineno-0-87"></a>    auth.hasPermission(&#39;Concord.Admin.History.View&#39;) ||
+<a id="__codelineno-0-88" name="__codelineno-0-88" href="#__codelineno-0-88"></a>    auth.hasPermission(&#39;Concord.Admin.System.View&#39;)
+<a id="__codelineno-0-89" name="__codelineno-0-89" href="#__codelineno-0-89"></a>  );
+<a id="__codelineno-0-90" name="__codelineno-0-90" href="#__codelineno-0-90"></a>
+<a id="__codelineno-0-91" name="__codelineno-0-91" href="#__codelineno-0-91"></a>  function handleLogout(): void {
+<a id="__codelineno-0-92" name="__codelineno-0-92" href="#__codelineno-0-92"></a>    auth.logout();
+<a id="__codelineno-0-93" name="__codelineno-0-93" href="#__codelineno-0-93"></a>    goto(&#39;/login&#39;);
+<a id="__codelineno-0-94" name="__codelineno-0-94" href="#__codelineno-0-94"></a>  }
+<a id="__codelineno-0-95" name="__codelineno-0-95" href="#__codelineno-0-95"></a>
+<a id="__codelineno-0-96" name="__codelineno-0-96" href="#__codelineno-0-96"></a>  function isActive(path: string, end = false): boolean {
+<a id="__codelineno-0-97" name="__codelineno-0-97" href="#__codelineno-0-97"></a>    if (end) {
+<a id="__codelineno-0-98" name="__codelineno-0-98" href="#__codelineno-0-98"></a>      return $page.url.pathname === path;
+<a id="__codelineno-0-99" name="__codelineno-0-99" href="#__codelineno-0-99"></a>    }
+<a id="__codelineno-0-100" name="__codelineno-0-100" href="#__codelineno-0-100"></a>    return $page.url.pathname === path || $page.url.pathname.startsWith(path + &#39;/&#39;);
+<a id="__codelineno-0-101" name="__codelineno-0-101" href="#__codelineno-0-101"></a>  }
+<a id="__codelineno-0-102" name="__codelineno-0-102" href="#__codelineno-0-102"></a>&lt;/script&gt;
+<a id="__codelineno-0-103" name="__codelineno-0-103" href="#__codelineno-0-103"></a>
+<a id="__codelineno-0-104" name="__codelineno-0-104" href="#__codelineno-0-104"></a>&lt;aside
+<a id="__codelineno-0-105" name="__codelineno-0-105" href="#__codelineno-0-105"></a>  class=&quot;fixed inset-y-0 left-0 z-30 flex flex-col border-r border-border bg-sidebar-bg transition-[width] duration-200 ease-in-out&quot;
+<a id="__codelineno-0-106" name="__codelineno-0-106" href="#__codelineno-0-106"></a>  class:w-16={collapsed}
+<a id="__codelineno-0-107" name="__codelineno-0-107" href="#__codelineno-0-107"></a>  class:w-sidebar={!collapsed}
+<a id="__codelineno-0-108" name="__codelineno-0-108" href="#__codelineno-0-108"></a>&gt;
+<a id="__codelineno-0-109" name="__codelineno-0-109" href="#__codelineno-0-109"></a>  &lt;!-- Brand + collapse toggle --&gt;
+<a id="__codelineno-0-110" name="__codelineno-0-110" href="#__codelineno-0-110"></a>  &lt;div
+<a id="__codelineno-0-111" name="__codelineno-0-111" href="#__codelineno-0-111"></a>    class=&quot;flex h-14 items-center&quot;
+<a id="__codelineno-0-112" name="__codelineno-0-112" href="#__codelineno-0-112"></a>    class:justify-center={collapsed}
+<a id="__codelineno-0-113" name="__codelineno-0-113" href="#__codelineno-0-113"></a>    class:px-2={collapsed}
+<a id="__codelineno-0-114" name="__codelineno-0-114" href="#__codelineno-0-114"></a>    class:justify-between={!collapsed}
+<a id="__codelineno-0-115" name="__codelineno-0-115" href="#__codelineno-0-115"></a>    class:px-5={!collapsed}
+<a id="__codelineno-0-116" name="__codelineno-0-116" href="#__codelineno-0-116"></a>  &gt;
+<a id="__codelineno-0-117" name="__codelineno-0-117" href="#__codelineno-0-117"></a>    {#if collapsed}
+<a id="__codelineno-0-118" name="__codelineno-0-118" href="#__codelineno-0-118"></a>      &lt;button
+<a id="__codelineno-0-119" name="__codelineno-0-119" href="#__codelineno-0-119"></a>        onclick={onToggle}
+<a id="__codelineno-0-120" name="__codelineno-0-120" href="#__codelineno-0-120"></a>        title=&quot;Expand sidebar&quot;
+<a id="__codelineno-0-121" name="__codelineno-0-121" href="#__codelineno-0-121"></a>        aria-label=&quot;Expand sidebar&quot;
+<a id="__codelineno-0-122" name="__codelineno-0-122" href="#__codelineno-0-122"></a>        class=&quot;flex items-center justify-center&quot;
+<a id="__codelineno-0-123" name="__codelineno-0-123" href="#__codelineno-0-123"></a>      &gt;
+<a id="__codelineno-0-124" name="__codelineno-0-124" href="#__codelineno-0-124"></a>        &lt;img
+<a id="__codelineno-0-125" name="__codelineno-0-125" href="#__codelineno-0-125"></a>          src={theme.theme === &#39;dark&#39; ? &#39;/assets/ck-logo.png&#39; : &#39;/assets/ck-logo-dark.png&#39;}
+<a id="__codelineno-0-126" name="__codelineno-0-126" href="#__codelineno-0-126"></a>          alt=&quot;CoreKinect&quot;
+<a id="__codelineno-0-127" name="__codelineno-0-127" href="#__codelineno-0-127"></a>          class=&quot;h-4&quot;
+<a id="__codelineno-0-128" name="__codelineno-0-128" href="#__codelineno-0-128"></a>        /&gt;
+<a id="__codelineno-0-129" name="__codelineno-0-129" href="#__codelineno-0-129"></a>      &lt;/button&gt;
+<a id="__codelineno-0-130" name="__codelineno-0-130" href="#__codelineno-0-130"></a>    {:else}
+<a id="__codelineno-0-131" name="__codelineno-0-131" href="#__codelineno-0-131"></a>      &lt;div class=&quot;flex flex-col gap-1.5&quot;&gt;
+<a id="__codelineno-0-132" name="__codelineno-0-132" href="#__codelineno-0-132"></a>        &lt;img
+<a id="__codelineno-0-133" name="__codelineno-0-133" href="#__codelineno-0-133"></a>          src={theme.theme === &#39;dark&#39; ? &#39;/assets/corekinect-logo.png&#39; : &#39;/assets/corekinect-logo-dark.png&#39;}
+<a id="__codelineno-0-134" name="__codelineno-0-134" href="#__codelineno-0-134"></a>          alt=&quot;CoreKinect&quot;
+<a id="__codelineno-0-135" name="__codelineno-0-135" href="#__codelineno-0-135"></a>          class=&quot;h-3.5&quot;
+<a id="__codelineno-0-136" name="__codelineno-0-136" href="#__codelineno-0-136"></a>        /&gt;
+<a id="__codelineno-0-137" name="__codelineno-0-137" href="#__codelineno-0-137"></a>        &lt;span class=&quot;text-2xs font-medium uppercase tracking-widest text-text-tertiary&quot;&gt;
+<a id="__codelineno-0-138" name="__codelineno-0-138" href="#__codelineno-0-138"></a>          Concord
+<a id="__codelineno-0-139" name="__codelineno-0-139" href="#__codelineno-0-139"></a>        &lt;/span&gt;
+<a id="__codelineno-0-140" name="__codelineno-0-140" href="#__codelineno-0-140"></a>      &lt;/div&gt;
+<a id="__codelineno-0-141" name="__codelineno-0-141" href="#__codelineno-0-141"></a>      &lt;button
+<a id="__codelineno-0-142" name="__codelineno-0-142" href="#__codelineno-0-142"></a>        onclick={onToggle}
+<a id="__codelineno-0-143" name="__codelineno-0-143" href="#__codelineno-0-143"></a>        title=&quot;Collapse sidebar&quot;
+<a id="__codelineno-0-144" name="__codelineno-0-144" href="#__codelineno-0-144"></a>        aria-label=&quot;Collapse sidebar&quot;
+<a id="__codelineno-0-145" name="__codelineno-0-145" href="#__codelineno-0-145"></a>        class=&quot;flex h-7 w-7 items-center justify-center rounded-lg text-text-tertiary transition-colors hover:bg-sidebar-hover hover:text-text-primary&quot;
+<a id="__codelineno-0-146" name="__codelineno-0-146" href="#__codelineno-0-146"></a>      &gt;
+<a id="__codelineno-0-147" name="__codelineno-0-147" href="#__codelineno-0-147"></a>        &lt;PanelLeftClose size={16} strokeWidth={1.75} /&gt;
+<a id="__codelineno-0-148" name="__codelineno-0-148" href="#__codelineno-0-148"></a>      &lt;/button&gt;
+<a id="__codelineno-0-149" name="__codelineno-0-149" href="#__codelineno-0-149"></a>    {/if}
+<a id="__codelineno-0-150" name="__codelineno-0-150" href="#__codelineno-0-150"></a>  &lt;/div&gt;
+<a id="__codelineno-0-151" name="__codelineno-0-151" href="#__codelineno-0-151"></a>
+<a id="__codelineno-0-152" name="__codelineno-0-152" href="#__codelineno-0-152"></a>  &lt;!-- Divider --&gt;
+<a id="__codelineno-0-153" name="__codelineno-0-153" href="#__codelineno-0-153"></a>  &lt;div class=&quot;border-t border-border&quot; class:mx-2={collapsed} class:mx-4={!collapsed}&gt;&lt;/div&gt;
+<a id="__codelineno-0-154" name="__codelineno-0-154" href="#__codelineno-0-154"></a>
+<a id="__codelineno-0-155" name="__codelineno-0-155" href="#__codelineno-0-155"></a>  &lt;!-- Mode toggle --&gt;
+<a id="__codelineno-0-156" name="__codelineno-0-156" href="#__codelineno-0-156"></a>  &lt;div
+<a id="__codelineno-0-157" name="__codelineno-0-157" href="#__codelineno-0-157"></a>    class=&quot;flex rounded-lg bg-surface-2 p-0.5&quot;
+<a id="__codelineno-0-158" name="__codelineno-0-158" href="#__codelineno-0-158"></a>    class:mx-2={collapsed}
+<a id="__codelineno-0-159" name="__codelineno-0-159" href="#__codelineno-0-159"></a>    class:mt-3={true}
+<a id="__codelineno-0-160" name="__codelineno-0-160" href="#__codelineno-0-160"></a>    class:mx-4={!collapsed}
+<a id="__codelineno-0-161" name="__codelineno-0-161" href="#__codelineno-0-161"></a>  &gt;
+<a id="__codelineno-0-162" name="__codelineno-0-162" href="#__codelineno-0-162"></a>    &lt;button
+<a id="__codelineno-0-163" name="__codelineno-0-163" href="#__codelineno-0-163"></a>      onclick={() =&gt; handleModeChange(&#39;manufacturing&#39;)}
+<a id="__codelineno-0-164" name="__codelineno-0-164" href="#__codelineno-0-164"></a>      class=&quot;flex-1 rounded-md text-center text-2xs font-medium transition-all&quot;
+<a id="__codelineno-0-165" name="__codelineno-0-165" href="#__codelineno-0-165"></a>      class:px-1={collapsed}
+<a id="__codelineno-0-166" name="__codelineno-0-166" href="#__codelineno-0-166"></a>      class:py-1.5={true}
+<a id="__codelineno-0-167" name="__codelineno-0-167" href="#__codelineno-0-167"></a>      class:px-2={!collapsed}
+<a id="__codelineno-0-168" name="__codelineno-0-168" href="#__codelineno-0-168"></a>      class:bg-accent-muted={mode === &#39;manufacturing&#39;}
+<a id="__codelineno-0-169" name="__codelineno-0-169" href="#__codelineno-0-169"></a>      class:text-accent={mode === &#39;manufacturing&#39;}
+<a id="__codelineno-0-170" name="__codelineno-0-170" href="#__codelineno-0-170"></a>      class:shadow-sm={mode === &#39;manufacturing&#39;}
+<a id="__codelineno-0-171" name="__codelineno-0-171" href="#__codelineno-0-171"></a>      class:text-text-tertiary={mode !== &#39;manufacturing&#39;}
+<a id="__codelineno-0-172" name="__codelineno-0-172" href="#__codelineno-0-172"></a>      class:hover:text-text-secondary={mode !== &#39;manufacturing&#39;}
+<a id="__codelineno-0-173" name="__codelineno-0-173" href="#__codelineno-0-173"></a>    &gt;
+<a id="__codelineno-0-174" name="__codelineno-0-174" href="#__codelineno-0-174"></a>      {collapsed ? &#39;M&#39; : &#39;Manufacturing&#39;}
+<a id="__codelineno-0-175" name="__codelineno-0-175" href="#__codelineno-0-175"></a>    &lt;/button&gt;
+<a id="__codelineno-0-176" name="__codelineno-0-176" href="#__codelineno-0-176"></a>    &lt;button
+<a id="__codelineno-0-177" name="__codelineno-0-177" href="#__codelineno-0-177"></a>      onclick={() =&gt; handleModeChange(&#39;validation&#39;)}
+<a id="__codelineno-0-178" name="__codelineno-0-178" href="#__codelineno-0-178"></a>      class=&quot;flex-1 rounded-md text-center text-2xs font-medium transition-all&quot;
+<a id="__codelineno-0-179" name="__codelineno-0-179" href="#__codelineno-0-179"></a>      class:px-1={collapsed}
+<a id="__codelineno-0-180" name="__codelineno-0-180" href="#__codelineno-0-180"></a>      class:py-1.5={true}
+<a id="__codelineno-0-181" name="__codelineno-0-181" href="#__codelineno-0-181"></a>      class:px-2={!collapsed}
+<a id="__codelineno-0-182" name="__codelineno-0-182" href="#__codelineno-0-182"></a>      class:bg-accent-muted={mode === &#39;validation&#39;}
+<a id="__codelineno-0-183" name="__codelineno-0-183" href="#__codelineno-0-183"></a>      class:text-accent={mode === &#39;validation&#39;}
+<a id="__codelineno-0-184" name="__codelineno-0-184" href="#__codelineno-0-184"></a>      class:shadow-sm={mode === &#39;validation&#39;}
+<a id="__codelineno-0-185" name="__codelineno-0-185" href="#__codelineno-0-185"></a>      class:text-text-tertiary={mode !== &#39;validation&#39;}
+<a id="__codelineno-0-186" name="__codelineno-0-186" href="#__codelineno-0-186"></a>      class:hover:text-text-secondary={mode !== &#39;validation&#39;}
+<a id="__codelineno-0-187" name="__codelineno-0-187" href="#__codelineno-0-187"></a>    &gt;
+<a id="__codelineno-0-188" name="__codelineno-0-188" href="#__codelineno-0-188"></a>      {collapsed ? &#39;V&#39; : &#39;Validation&#39;}
+<a id="__codelineno-0-189" name="__codelineno-0-189" href="#__codelineno-0-189"></a>    &lt;/button&gt;
+<a id="__codelineno-0-190" name="__codelineno-0-190" href="#__codelineno-0-190"></a>  &lt;/div&gt;
+<a id="__codelineno-0-191" name="__codelineno-0-191" href="#__codelineno-0-191"></a>
+<a id="__codelineno-0-192" name="__codelineno-0-192" href="#__codelineno-0-192"></a>  &lt;!-- Navigation --&gt;
+<a id="__codelineno-0-193" name="__codelineno-0-193" href="#__codelineno-0-193"></a>  &lt;nav
+<a id="__codelineno-0-194" name="__codelineno-0-194" href="#__codelineno-0-194"></a>    class=&quot;flex-1 space-y-0.5 pt-4 pb-2&quot;
+<a id="__codelineno-0-195" name="__codelineno-0-195" href="#__codelineno-0-195"></a>    class:px-2={collapsed}
+<a id="__codelineno-0-196" name="__codelineno-0-196" href="#__codelineno-0-196"></a>    class:px-3={!collapsed}
+<a id="__codelineno-0-197" name="__codelineno-0-197" href="#__codelineno-0-197"></a>  &gt;
+<a id="__codelineno-0-198" name="__codelineno-0-198" href="#__codelineno-0-198"></a>    {#each navItems as { to, icon: Icon, label }}
+<a id="__codelineno-0-199" name="__codelineno-0-199" href="#__codelineno-0-199"></a>      &lt;a
+<a id="__codelineno-0-200" name="__codelineno-0-200" href="#__codelineno-0-200"></a>        href={to}
+<a id="__codelineno-0-201" name="__codelineno-0-201" href="#__codelineno-0-201"></a>        ondblclick={onToggle}
+<a id="__codelineno-0-202" name="__codelineno-0-202" href="#__codelineno-0-202"></a>        title={collapsed ? label : undefined}
+<a id="__codelineno-0-203" name="__codelineno-0-203" href="#__codelineno-0-203"></a>        class=&quot;group relative flex items-center rounded-lg text-[13px] font-medium transition-all&quot;
+<a id="__codelineno-0-204" name="__codelineno-0-204" href="#__codelineno-0-204"></a>        class:justify-center={collapsed}
+<a id="__codelineno-0-205" name="__codelineno-0-205" href="#__codelineno-0-205"></a>        class:px-0={collapsed}
+<a id="__codelineno-0-206" name="__codelineno-0-206" href="#__codelineno-0-206"></a>        class:py-2={true}
+<a id="__codelineno-0-207" name="__codelineno-0-207" href="#__codelineno-0-207"></a>        class:gap-3={!collapsed}
+<a id="__codelineno-0-208" name="__codelineno-0-208" href="#__codelineno-0-208"></a>        class:px-3={!collapsed}
+<a id="__codelineno-0-209" name="__codelineno-0-209" href="#__codelineno-0-209"></a>        class:bg-sidebar-active={isActive(to, to === &#39;/&#39;)}
+<a id="__codelineno-0-210" name="__codelineno-0-210" href="#__codelineno-0-210"></a>        class:text-accent={isActive(to, to === &#39;/&#39;)}
+<a id="__codelineno-0-211" name="__codelineno-0-211" href="#__codelineno-0-211"></a>        class:text-text-secondary={!isActive(to, to === &#39;/&#39;)}
+<a id="__codelineno-0-212" name="__codelineno-0-212" href="#__codelineno-0-212"></a>        class:hover:bg-sidebar-hover={!isActive(to, to === &#39;/&#39;)}
+<a id="__codelineno-0-213" name="__codelineno-0-213" href="#__codelineno-0-213"></a>        class:hover:text-text-primary={!isActive(to, to === &#39;/&#39;)}
+<a id="__codelineno-0-214" name="__codelineno-0-214" href="#__codelineno-0-214"></a>      &gt;
+<a id="__codelineno-0-215" name="__codelineno-0-215" href="#__codelineno-0-215"></a>        {#if isActive(to, to === &#39;/&#39;)}
+<a id="__codelineno-0-216" name="__codelineno-0-216" href="#__codelineno-0-216"></a>          &lt;div class=&quot;absolute left-0 top-1/2 h-4 w-0.5 -translate-y-1/2 rounded-r bg-accent&quot;&gt;&lt;/div&gt;
+<a id="__codelineno-0-217" name="__codelineno-0-217" href="#__codelineno-0-217"></a>        {/if}
+<a id="__codelineno-0-218" name="__codelineno-0-218" href="#__codelineno-0-218"></a>        &lt;Icon size={18} strokeWidth={1.75} class=&quot;shrink-0&quot; /&gt;
+<a id="__codelineno-0-219" name="__codelineno-0-219" href="#__codelineno-0-219"></a>        {#if !collapsed}
+<a id="__codelineno-0-220" name="__codelineno-0-220" href="#__codelineno-0-220"></a>          &lt;span class=&quot;truncate&quot;&gt;{label}&lt;/span&gt;
+<a id="__codelineno-0-221" name="__codelineno-0-221" href="#__codelineno-0-221"></a>        {/if}
+<a id="__codelineno-0-222" name="__codelineno-0-222" href="#__codelineno-0-222"></a>      &lt;/a&gt;
+<a id="__codelineno-0-223" name="__codelineno-0-223" href="#__codelineno-0-223"></a>    {/each}
+<a id="__codelineno-0-224" name="__codelineno-0-224" href="#__codelineno-0-224"></a>
+<a id="__codelineno-0-225" name="__codelineno-0-225" href="#__codelineno-0-225"></a>    &lt;!-- Admin section --&gt;
+<a id="__codelineno-0-226" name="__codelineno-0-226" href="#__codelineno-0-226"></a>    {#if isAdmin}
+<a id="__codelineno-0-227" name="__codelineno-0-227" href="#__codelineno-0-227"></a>      &lt;div class=&quot;pt-4&quot;&gt;
+<a id="__codelineno-0-228" name="__codelineno-0-228" href="#__codelineno-0-228"></a>        &lt;div class=&quot;border-t border-border&quot; class:mx-0={collapsed} class:mx-1={!collapsed}&gt;&lt;/div&gt;
+<a id="__codelineno-0-229" name="__codelineno-0-229" href="#__codelineno-0-229"></a>        &lt;div class=&quot;pt-4&quot;&gt;
+<a id="__codelineno-0-230" name="__codelineno-0-230" href="#__codelineno-0-230"></a>          {#if !collapsed}
+<a id="__codelineno-0-231" name="__codelineno-0-231" href="#__codelineno-0-231"></a>            &lt;span class=&quot;mb-2 block px-3 text-2xs font-medium uppercase tracking-widest text-text-tertiary&quot;&gt;
+<a id="__codelineno-0-232" name="__codelineno-0-232" href="#__codelineno-0-232"></a>              Admin
+<a id="__codelineno-0-233" name="__codelineno-0-233" href="#__codelineno-0-233"></a>            &lt;/span&gt;
+<a id="__codelineno-0-234" name="__codelineno-0-234" href="#__codelineno-0-234"></a>          {/if}
+<a id="__codelineno-0-235" name="__codelineno-0-235" href="#__codelineno-0-235"></a>
+<a id="__codelineno-0-236" name="__codelineno-0-236" href="#__codelineno-0-236"></a>          {#if auth.hasPermission(&#39;Concord.Admin.System.View&#39;)}
+<a id="__codelineno-0-237" name="__codelineno-0-237" href="#__codelineno-0-237"></a>            &lt;a
+<a id="__codelineno-0-238" name="__codelineno-0-238" href="#__codelineno-0-238"></a>              href=&quot;/system&quot;
+<a id="__codelineno-0-239" name="__codelineno-0-239" href="#__codelineno-0-239"></a>              ondblclick={onToggle}
+<a id="__codelineno-0-240" name="__codelineno-0-240" href="#__codelineno-0-240"></a>              title={collapsed ? &#39;System&#39; : undefined}
+<a id="__codelineno-0-241" name="__codelineno-0-241" href="#__codelineno-0-241"></a>              class=&quot;group relative flex items-center rounded-lg text-[13px] font-medium transition-all&quot;
+<a id="__codelineno-0-242" name="__codelineno-0-242" href="#__codelineno-0-242"></a>              class:justify-center={collapsed}
+<a id="__codelineno-0-243" name="__codelineno-0-243" href="#__codelineno-0-243"></a>              class:px-0={collapsed}
+<a id="__codelineno-0-244" name="__codelineno-0-244" href="#__codelineno-0-244"></a>              class:py-2={true}
+<a id="__codelineno-0-245" name="__codelineno-0-245" href="#__codelineno-0-245"></a>              class:gap-3={!collapsed}
+<a id="__codelineno-0-246" name="__codelineno-0-246" href="#__codelineno-0-246"></a>              class:px-3={!collapsed}
+<a id="__codelineno-0-247" name="__codelineno-0-247" href="#__codelineno-0-247"></a>              class:bg-sidebar-active={isActive(&#39;/system&#39;)}
+<a id="__codelineno-0-248" name="__codelineno-0-248" href="#__codelineno-0-248"></a>              class:text-accent={isActive(&#39;/system&#39;)}
+<a id="__codelineno-0-249" name="__codelineno-0-249" href="#__codelineno-0-249"></a>              class:text-text-secondary={!isActive(&#39;/system&#39;)}
+<a id="__codelineno-0-250" name="__codelineno-0-250" href="#__codelineno-0-250"></a>              class:hover:bg-sidebar-hover={!isActive(&#39;/system&#39;)}
+<a id="__codelineno-0-251" name="__codelineno-0-251" href="#__codelineno-0-251"></a>              class:hover:text-text-primary={!isActive(&#39;/system&#39;)}
+<a id="__codelineno-0-252" name="__codelineno-0-252" href="#__codelineno-0-252"></a>            &gt;
+<a id="__codelineno-0-253" name="__codelineno-0-253" href="#__codelineno-0-253"></a>              {#if isActive(&#39;/system&#39;)}
+<a id="__codelineno-0-254" name="__codelineno-0-254" href="#__codelineno-0-254"></a>                &lt;div class=&quot;absolute left-0 top-1/2 h-4 w-0.5 -translate-y-1/2 rounded-r bg-accent&quot;&gt;&lt;/div&gt;
+<a id="__codelineno-0-255" name="__codelineno-0-255" href="#__codelineno-0-255"></a>              {/if}
+<a id="__codelineno-0-256" name="__codelineno-0-256" href="#__codelineno-0-256"></a>              &lt;Monitor size={18} strokeWidth={1.75} class=&quot;shrink-0&quot; /&gt;
+<a id="__codelineno-0-257" name="__codelineno-0-257" href="#__codelineno-0-257"></a>              {#if !collapsed}&lt;span class=&quot;truncate&quot;&gt;System&lt;/span&gt;{/if}
+<a id="__codelineno-0-258" name="__codelineno-0-258" href="#__codelineno-0-258"></a>            &lt;/a&gt;
+<a id="__codelineno-0-259" name="__codelineno-0-259" href="#__codelineno-0-259"></a>          {/if}
+<a id="__codelineno-0-260" name="__codelineno-0-260" href="#__codelineno-0-260"></a>
+<a id="__codelineno-0-261" name="__codelineno-0-261" href="#__codelineno-0-261"></a>          {#if auth.hasPermission(&#39;Concord.Admin.Inventory.View&#39;)}
+<a id="__codelineno-0-262" name="__codelineno-0-262" href="#__codelineno-0-262"></a>            &lt;a
+<a id="__codelineno-0-263" name="__codelineno-0-263" href="#__codelineno-0-263"></a>              href=&quot;/inventory&quot;
+<a id="__codelineno-0-264" name="__codelineno-0-264" href="#__codelineno-0-264"></a>              ondblclick={onToggle}
+<a id="__codelineno-0-265" name="__codelineno-0-265" href="#__codelineno-0-265"></a>              title={collapsed ? &#39;Inventory&#39; : undefined}
+<a id="__codelineno-0-266" name="__codelineno-0-266" href="#__codelineno-0-266"></a>              class=&quot;group relative flex items-center rounded-lg text-[13px] font-medium transition-all&quot;
+<a id="__codelineno-0-267" name="__codelineno-0-267" href="#__codelineno-0-267"></a>              class:justify-center={collapsed}
+<a id="__codelineno-0-268" name="__codelineno-0-268" href="#__codelineno-0-268"></a>              class:px-0={collapsed}
+<a id="__codelineno-0-269" name="__codelineno-0-269" href="#__codelineno-0-269"></a>              class:py-2={true}
+<a id="__codelineno-0-270" name="__codelineno-0-270" href="#__codelineno-0-270"></a>              class:gap-3={!collapsed}
+<a id="__codelineno-0-271" name="__codelineno-0-271" href="#__codelineno-0-271"></a>              class:px-3={!collapsed}
+<a id="__codelineno-0-272" name="__codelineno-0-272" href="#__codelineno-0-272"></a>              class:bg-sidebar-active={isActive(&#39;/inventory&#39;)}
+<a id="__codelineno-0-273" name="__codelineno-0-273" href="#__codelineno-0-273"></a>              class:text-accent={isActive(&#39;/inventory&#39;)}
+<a id="__codelineno-0-274" name="__codelineno-0-274" href="#__codelineno-0-274"></a>              class:text-text-secondary={!isActive(&#39;/inventory&#39;)}
+<a id="__codelineno-0-275" name="__codelineno-0-275" href="#__codelineno-0-275"></a>              class:hover:bg-sidebar-hover={!isActive(&#39;/inventory&#39;)}
+<a id="__codelineno-0-276" name="__codelineno-0-276" href="#__codelineno-0-276"></a>              class:hover:text-text-primary={!isActive(&#39;/inventory&#39;)}
+<a id="__codelineno-0-277" name="__codelineno-0-277" href="#__codelineno-0-277"></a>            &gt;
+<a id="__codelineno-0-278" name="__codelineno-0-278" href="#__codelineno-0-278"></a>              {#if isActive(&#39;/inventory&#39;)}
+<a id="__codelineno-0-279" name="__codelineno-0-279" href="#__codelineno-0-279"></a>                &lt;div class=&quot;absolute left-0 top-1/2 h-4 w-0.5 -translate-y-1/2 rounded-r bg-accent&quot;&gt;&lt;/div&gt;
+<a id="__codelineno-0-280" name="__codelineno-0-280" href="#__codelineno-0-280"></a>              {/if}
+<a id="__codelineno-0-281" name="__codelineno-0-281" href="#__codelineno-0-281"></a>              &lt;Cpu size={18} strokeWidth={1.75} class=&quot;shrink-0&quot; /&gt;
+<a id="__codelineno-0-282" name="__codelineno-0-282" href="#__codelineno-0-282"></a>              {#if !collapsed}&lt;span class=&quot;truncate&quot;&gt;Inventory&lt;/span&gt;{/if}
+<a id="__codelineno-0-283" name="__codelineno-0-283" href="#__codelineno-0-283"></a>            &lt;/a&gt;
+<a id="__codelineno-0-284" name="__codelineno-0-284" href="#__codelineno-0-284"></a>          {/if}
+<a id="__codelineno-0-285" name="__codelineno-0-285" href="#__codelineno-0-285"></a>
+<a id="__codelineno-0-286" name="__codelineno-0-286" href="#__codelineno-0-286"></a>          {#if auth.hasPermission(&#39;Concord.Admin.Codebases.View&#39;)}
+<a id="__codelineno-0-287" name="__codelineno-0-287" href="#__codelineno-0-287"></a>            &lt;a
+<a id="__codelineno-0-288" name="__codelineno-0-288" href="#__codelineno-0-288"></a>              href=&quot;/codebases&quot;
+<a id="__codelineno-0-289" name="__codelineno-0-289" href="#__codelineno-0-289"></a>              ondblclick={onToggle}
+<a id="__codelineno-0-290" name="__codelineno-0-290" href="#__codelineno-0-290"></a>              title={collapsed ? &#39;Codebases&#39; : undefined}
+<a id="__codelineno-0-291" name="__codelineno-0-291" href="#__codelineno-0-291"></a>              class=&quot;group relative flex items-center rounded-lg text-[13px] font-medium transition-all&quot;
+<a id="__codelineno-0-292" name="__codelineno-0-292" href="#__codelineno-0-292"></a>              class:justify-center={collapsed}
+<a id="__codelineno-0-293" name="__codelineno-0-293" href="#__codelineno-0-293"></a>              class:px-0={collapsed}
+<a id="__codelineno-0-294" name="__codelineno-0-294" href="#__codelineno-0-294"></a>              class:py-2={true}
+<a id="__codelineno-0-295" name="__codelineno-0-295" href="#__codelineno-0-295"></a>              class:gap-3={!collapsed}
+<a id="__codelineno-0-296" name="__codelineno-0-296" href="#__codelineno-0-296"></a>              class:px-3={!collapsed}
+<a id="__codelineno-0-297" name="__codelineno-0-297" href="#__codelineno-0-297"></a>              class:bg-sidebar-active={isActive(&#39;/codebases&#39;)}
+<a id="__codelineno-0-298" name="__codelineno-0-298" href="#__codelineno-0-298"></a>              class:text-accent={isActive(&#39;/codebases&#39;)}
+<a id="__codelineno-0-299" name="__codelineno-0-299" href="#__codelineno-0-299"></a>              class:text-text-secondary={!isActive(&#39;/codebases&#39;)}
+<a id="__codelineno-0-300" name="__codelineno-0-300" href="#__codelineno-0-300"></a>              class:hover:bg-sidebar-hover={!isActive(&#39;/codebases&#39;)}
+<a id="__codelineno-0-301" name="__codelineno-0-301" href="#__codelineno-0-301"></a>              class:hover:text-text-primary={!isActive(&#39;/codebases&#39;)}
+<a id="__codelineno-0-302" name="__codelineno-0-302" href="#__codelineno-0-302"></a>            &gt;
+<a id="__codelineno-0-303" name="__codelineno-0-303" href="#__codelineno-0-303"></a>              {#if isActive(&#39;/codebases&#39;)}
+<a id="__codelineno-0-304" name="__codelineno-0-304" href="#__codelineno-0-304"></a>                &lt;div class=&quot;absolute left-0 top-1/2 h-4 w-0.5 -translate-y-1/2 rounded-r bg-accent&quot;&gt;&lt;/div&gt;
+<a id="__codelineno-0-305" name="__codelineno-0-305" href="#__codelineno-0-305"></a>              {/if}
+<a id="__codelineno-0-306" name="__codelineno-0-306" href="#__codelineno-0-306"></a>              &lt;GitBranch size={18} strokeWidth={1.75} class=&quot;shrink-0&quot; /&gt;
+<a id="__codelineno-0-307" name="__codelineno-0-307" href="#__codelineno-0-307"></a>              {#if !collapsed}&lt;span class=&quot;truncate&quot;&gt;Codebases&lt;/span&gt;{/if}
+<a id="__codelineno-0-308" name="__codelineno-0-308" href="#__codelineno-0-308"></a>            &lt;/a&gt;
+<a id="__codelineno-0-309" name="__codelineno-0-309" href="#__codelineno-0-309"></a>          {/if}
+<a id="__codelineno-0-310" name="__codelineno-0-310" href="#__codelineno-0-310"></a>
+<a id="__codelineno-0-311" name="__codelineno-0-311" href="#__codelineno-0-311"></a>          {#if auth.hasPermission(&#39;Concord.Admin.Products.View&#39;)}
+<a id="__codelineno-0-312" name="__codelineno-0-312" href="#__codelineno-0-312"></a>            &lt;a
+<a id="__codelineno-0-313" name="__codelineno-0-313" href="#__codelineno-0-313"></a>              href=&quot;/products&quot;
+<a id="__codelineno-0-314" name="__codelineno-0-314" href="#__codelineno-0-314"></a>              ondblclick={onToggle}
+<a id="__codelineno-0-315" name="__codelineno-0-315" href="#__codelineno-0-315"></a>              title={collapsed ? &#39;Products&#39; : undefined}
+<a id="__codelineno-0-316" name="__codelineno-0-316" href="#__codelineno-0-316"></a>              class=&quot;group relative flex items-center rounded-lg text-[13px] font-medium transition-all&quot;
+<a id="__codelineno-0-317" name="__codelineno-0-317" href="#__codelineno-0-317"></a>              class:justify-center={collapsed}
+<a id="__codelineno-0-318" name="__codelineno-0-318" href="#__codelineno-0-318"></a>              class:px-0={collapsed}
+<a id="__codelineno-0-319" name="__codelineno-0-319" href="#__codelineno-0-319"></a>              class:py-2={true}
+<a id="__codelineno-0-320" name="__codelineno-0-320" href="#__codelineno-0-320"></a>              class:gap-3={!collapsed}
+<a id="__codelineno-0-321" name="__codelineno-0-321" href="#__codelineno-0-321"></a>              class:px-3={!collapsed}
+<a id="__codelineno-0-322" name="__codelineno-0-322" href="#__codelineno-0-322"></a>              class:bg-sidebar-active={isActive(&#39;/products&#39;)}
+<a id="__codelineno-0-323" name="__codelineno-0-323" href="#__codelineno-0-323"></a>              class:text-accent={isActive(&#39;/products&#39;)}
+<a id="__codelineno-0-324" name="__codelineno-0-324" href="#__codelineno-0-324"></a>              class:text-text-secondary={!isActive(&#39;/products&#39;)}
+<a id="__codelineno-0-325" name="__codelineno-0-325" href="#__codelineno-0-325"></a>              class:hover:bg-sidebar-hover={!isActive(&#39;/products&#39;)}
+<a id="__codelineno-0-326" name="__codelineno-0-326" href="#__codelineno-0-326"></a>              class:hover:text-text-primary={!isActive(&#39;/products&#39;)}
+<a id="__codelineno-0-327" name="__codelineno-0-327" href="#__codelineno-0-327"></a>            &gt;
+<a id="__codelineno-0-328" name="__codelineno-0-328" href="#__codelineno-0-328"></a>              {#if isActive(&#39;/products&#39;)}
+<a id="__codelineno-0-329" name="__codelineno-0-329" href="#__codelineno-0-329"></a>                &lt;div class=&quot;absolute left-0 top-1/2 h-4 w-0.5 -translate-y-1/2 rounded-r bg-accent&quot;&gt;&lt;/div&gt;
+<a id="__codelineno-0-330" name="__codelineno-0-330" href="#__codelineno-0-330"></a>              {/if}
+<a id="__codelineno-0-331" name="__codelineno-0-331" href="#__codelineno-0-331"></a>              &lt;Package size={18} strokeWidth={1.75} class=&quot;shrink-0&quot; /&gt;
+<a id="__codelineno-0-332" name="__codelineno-0-332" href="#__codelineno-0-332"></a>              {#if !collapsed}&lt;span class=&quot;truncate&quot;&gt;Products&lt;/span&gt;{/if}
+<a id="__codelineno-0-333" name="__codelineno-0-333" href="#__codelineno-0-333"></a>            &lt;/a&gt;
+<a id="__codelineno-0-334" name="__codelineno-0-334" href="#__codelineno-0-334"></a>          {/if}
+<a id="__codelineno-0-335" name="__codelineno-0-335" href="#__codelineno-0-335"></a>
+<a id="__codelineno-0-336" name="__codelineno-0-336" href="#__codelineno-0-336"></a>          {#if auth.hasPermission(&#39;Concord.Admin.History.View&#39;)}
+<a id="__codelineno-0-337" name="__codelineno-0-337" href="#__codelineno-0-337"></a>            &lt;a
+<a id="__codelineno-0-338" name="__codelineno-0-338" href="#__codelineno-0-338"></a>              href=&quot;/history&quot;
+<a id="__codelineno-0-339" name="__codelineno-0-339" href="#__codelineno-0-339"></a>              ondblclick={onToggle}
+<a id="__codelineno-0-340" name="__codelineno-0-340" href="#__codelineno-0-340"></a>              title={collapsed ? &#39;History&#39; : undefined}
+<a id="__codelineno-0-341" name="__codelineno-0-341" href="#__codelineno-0-341"></a>              class=&quot;group relative flex items-center rounded-lg text-[13px] font-medium transition-all&quot;
+<a id="__codelineno-0-342" name="__codelineno-0-342" href="#__codelineno-0-342"></a>              class:justify-center={collapsed}
+<a id="__codelineno-0-343" name="__codelineno-0-343" href="#__codelineno-0-343"></a>              class:px-0={collapsed}
+<a id="__codelineno-0-344" name="__codelineno-0-344" href="#__codelineno-0-344"></a>              class:py-2={true}
+<a id="__codelineno-0-345" name="__codelineno-0-345" href="#__codelineno-0-345"></a>              class:gap-3={!collapsed}
+<a id="__codelineno-0-346" name="__codelineno-0-346" href="#__codelineno-0-346"></a>              class:px-3={!collapsed}
+<a id="__codelineno-0-347" name="__codelineno-0-347" href="#__codelineno-0-347"></a>              class:bg-sidebar-active={isActive(&#39;/history&#39;)}
+<a id="__codelineno-0-348" name="__codelineno-0-348" href="#__codelineno-0-348"></a>              class:text-accent={isActive(&#39;/history&#39;)}
+<a id="__codelineno-0-349" name="__codelineno-0-349" href="#__codelineno-0-349"></a>              class:text-text-secondary={!isActive(&#39;/history&#39;)}
+<a id="__codelineno-0-350" name="__codelineno-0-350" href="#__codelineno-0-350"></a>              class:hover:bg-sidebar-hover={!isActive(&#39;/history&#39;)}
+<a id="__codelineno-0-351" name="__codelineno-0-351" href="#__codelineno-0-351"></a>              class:hover:text-text-primary={!isActive(&#39;/history&#39;)}
+<a id="__codelineno-0-352" name="__codelineno-0-352" href="#__codelineno-0-352"></a>            &gt;
+<a id="__codelineno-0-353" name="__codelineno-0-353" href="#__codelineno-0-353"></a>              {#if isActive(&#39;/history&#39;)}
+<a id="__codelineno-0-354" name="__codelineno-0-354" href="#__codelineno-0-354"></a>                &lt;div class=&quot;absolute left-0 top-1/2 h-4 w-0.5 -translate-y-1/2 rounded-r bg-accent&quot;&gt;&lt;/div&gt;
+<a id="__codelineno-0-355" name="__codelineno-0-355" href="#__codelineno-0-355"></a>              {/if}
+<a id="__codelineno-0-356" name="__codelineno-0-356" href="#__codelineno-0-356"></a>              &lt;History size={18} strokeWidth={1.75} class=&quot;shrink-0&quot; /&gt;
+<a id="__codelineno-0-357" name="__codelineno-0-357" href="#__codelineno-0-357"></a>              {#if !collapsed}&lt;span class=&quot;truncate&quot;&gt;History&lt;/span&gt;{/if}
+<a id="__codelineno-0-358" name="__codelineno-0-358" href="#__codelineno-0-358"></a>            &lt;/a&gt;
+<a id="__codelineno-0-359" name="__codelineno-0-359" href="#__codelineno-0-359"></a>          {/if}
+<a id="__codelineno-0-360" name="__codelineno-0-360" href="#__codelineno-0-360"></a>
+<a id="__codelineno-0-361" name="__codelineno-0-361" href="#__codelineno-0-361"></a>          &lt;a
+<a id="__codelineno-0-362" name="__codelineno-0-362" href="#__codelineno-0-362"></a>            href=&quot;/guides&quot;
+<a id="__codelineno-0-363" name="__codelineno-0-363" href="#__codelineno-0-363"></a>            ondblclick={onToggle}
+<a id="__codelineno-0-364" name="__codelineno-0-364" href="#__codelineno-0-364"></a>            title={collapsed ? &#39;Guides&#39; : undefined}
+<a id="__codelineno-0-365" name="__codelineno-0-365" href="#__codelineno-0-365"></a>            class=&quot;group relative flex items-center rounded-lg text-[13px] font-medium transition-all&quot;
+<a id="__codelineno-0-366" name="__codelineno-0-366" href="#__codelineno-0-366"></a>            class:justify-center={collapsed}
+<a id="__codelineno-0-367" name="__codelineno-0-367" href="#__codelineno-0-367"></a>            class:px-0={collapsed}
+<a id="__codelineno-0-368" name="__codelineno-0-368" href="#__codelineno-0-368"></a>            class:py-2={true}
+<a id="__codelineno-0-369" name="__codelineno-0-369" href="#__codelineno-0-369"></a>            class:gap-3={!collapsed}
+<a id="__codelineno-0-370" name="__codelineno-0-370" href="#__codelineno-0-370"></a>            class:px-3={!collapsed}
+<a id="__codelineno-0-371" name="__codelineno-0-371" href="#__codelineno-0-371"></a>            class:bg-sidebar-active={isActive(&#39;/guides&#39;)}
+<a id="__codelineno-0-372" name="__codelineno-0-372" href="#__codelineno-0-372"></a>            class:text-accent={isActive(&#39;/guides&#39;)}
+<a id="__codelineno-0-373" name="__codelineno-0-373" href="#__codelineno-0-373"></a>            class:text-text-secondary={!isActive(&#39;/guides&#39;)}
+<a id="__codelineno-0-374" name="__codelineno-0-374" href="#__codelineno-0-374"></a>            class:hover:bg-sidebar-hover={!isActive(&#39;/guides&#39;)}
+<a id="__codelineno-0-375" name="__codelineno-0-375" href="#__codelineno-0-375"></a>            class:hover:text-text-primary={!isActive(&#39;/guides&#39;)}
+<a id="__codelineno-0-376" name="__codelineno-0-376" href="#__codelineno-0-376"></a>          &gt;
+<a id="__codelineno-0-377" name="__codelineno-0-377" href="#__codelineno-0-377"></a>            {#if isActive(&#39;/guides&#39;)}
+<a id="__codelineno-0-378" name="__codelineno-0-378" href="#__codelineno-0-378"></a>              &lt;div class=&quot;absolute left-0 top-1/2 h-4 w-0.5 -translate-y-1/2 rounded-r bg-accent&quot;&gt;&lt;/div&gt;
+<a id="__codelineno-0-379" name="__codelineno-0-379" href="#__codelineno-0-379"></a>            {/if}
+<a id="__codelineno-0-380" name="__codelineno-0-380" href="#__codelineno-0-380"></a>            &lt;BookOpen size={18} strokeWidth={1.75} class=&quot;shrink-0&quot; /&gt;
+<a id="__codelineno-0-381" name="__codelineno-0-381" href="#__codelineno-0-381"></a>            {#if !collapsed}&lt;span class=&quot;truncate&quot;&gt;Guides&lt;/span&gt;{/if}
+<a id="__codelineno-0-382" name="__codelineno-0-382" href="#__codelineno-0-382"></a>          &lt;/a&gt;
+<a id="__codelineno-0-383" name="__codelineno-0-383" href="#__codelineno-0-383"></a>
+<a id="__codelineno-0-384" name="__codelineno-0-384" href="#__codelineno-0-384"></a>          {#if auth.hasPermission(&#39;Concord.Admin.Users.View&#39;)}
+<a id="__codelineno-0-385" name="__codelineno-0-385" href="#__codelineno-0-385"></a>            &lt;a
+<a id="__codelineno-0-386" name="__codelineno-0-386" href="#__codelineno-0-386"></a>              href=&quot;/users&quot;
+<a id="__codelineno-0-387" name="__codelineno-0-387" href="#__codelineno-0-387"></a>              ondblclick={onToggle}
+<a id="__codelineno-0-388" name="__codelineno-0-388" href="#__codelineno-0-388"></a>              title={collapsed ? &#39;Users&#39; : undefined}
+<a id="__codelineno-0-389" name="__codelineno-0-389" href="#__codelineno-0-389"></a>              class=&quot;group relative flex items-center rounded-lg text-[13px] font-medium transition-all&quot;
+<a id="__codelineno-0-390" name="__codelineno-0-390" href="#__codelineno-0-390"></a>              class:justify-center={collapsed}
+<a id="__codelineno-0-391" name="__codelineno-0-391" href="#__codelineno-0-391"></a>              class:px-0={collapsed}
+<a id="__codelineno-0-392" name="__codelineno-0-392" href="#__codelineno-0-392"></a>              class:py-2={true}
+<a id="__codelineno-0-393" name="__codelineno-0-393" href="#__codelineno-0-393"></a>              class:gap-3={!collapsed}
+<a id="__codelineno-0-394" name="__codelineno-0-394" href="#__codelineno-0-394"></a>              class:px-3={!collapsed}
+<a id="__codelineno-0-395" name="__codelineno-0-395" href="#__codelineno-0-395"></a>              class:bg-sidebar-active={isActive(&#39;/users&#39;)}
+<a id="__codelineno-0-396" name="__codelineno-0-396" href="#__codelineno-0-396"></a>              class:text-accent={isActive(&#39;/users&#39;)}
+<a id="__codelineno-0-397" name="__codelineno-0-397" href="#__codelineno-0-397"></a>              class:text-text-secondary={!isActive(&#39;/users&#39;)}
+<a id="__codelineno-0-398" name="__codelineno-0-398" href="#__codelineno-0-398"></a>              class:hover:bg-sidebar-hover={!isActive(&#39;/users&#39;)}
+<a id="__codelineno-0-399" name="__codelineno-0-399" href="#__codelineno-0-399"></a>              class:hover:text-text-primary={!isActive(&#39;/users&#39;)}
+<a id="__codelineno-0-400" name="__codelineno-0-400" href="#__codelineno-0-400"></a>            &gt;
+<a id="__codelineno-0-401" name="__codelineno-0-401" href="#__codelineno-0-401"></a>              {#if isActive(&#39;/users&#39;)}
+<a id="__codelineno-0-402" name="__codelineno-0-402" href="#__codelineno-0-402"></a>                &lt;div class=&quot;absolute left-0 top-1/2 h-4 w-0.5 -translate-y-1/2 rounded-r bg-accent&quot;&gt;&lt;/div&gt;
+<a id="__codelineno-0-403" name="__codelineno-0-403" href="#__codelineno-0-403"></a>              {/if}
+<a id="__codelineno-0-404" name="__codelineno-0-404" href="#__codelineno-0-404"></a>              &lt;Users size={18} strokeWidth={1.75} class=&quot;shrink-0&quot; /&gt;
+<a id="__codelineno-0-405" name="__codelineno-0-405" href="#__codelineno-0-405"></a>              {#if !collapsed}&lt;span class=&quot;truncate&quot;&gt;Users&lt;/span&gt;{/if}
+<a id="__codelineno-0-406" name="__codelineno-0-406" href="#__codelineno-0-406"></a>            &lt;/a&gt;
+<a id="__codelineno-0-407" name="__codelineno-0-407" href="#__codelineno-0-407"></a>
+<a id="__codelineno-0-408" name="__codelineno-0-408" href="#__codelineno-0-408"></a>            &lt;a
+<a id="__codelineno-0-409" name="__codelineno-0-409" href="#__codelineno-0-409"></a>              href=&quot;/permission-sets&quot;
+<a id="__codelineno-0-410" name="__codelineno-0-410" href="#__codelineno-0-410"></a>              ondblclick={onToggle}
+<a id="__codelineno-0-411" name="__codelineno-0-411" href="#__codelineno-0-411"></a>              title={collapsed ? &#39;Permission Sets&#39; : undefined}
+<a id="__codelineno-0-412" name="__codelineno-0-412" href="#__codelineno-0-412"></a>              class=&quot;group relative flex items-center rounded-lg text-[13px] font-medium transition-all&quot;
+<a id="__codelineno-0-413" name="__codelineno-0-413" href="#__codelineno-0-413"></a>              class:justify-center={collapsed}
+<a id="__codelineno-0-414" name="__codelineno-0-414" href="#__codelineno-0-414"></a>              class:px-0={collapsed}
+<a id="__codelineno-0-415" name="__codelineno-0-415" href="#__codelineno-0-415"></a>              class:py-2={true}
+<a id="__codelineno-0-416" name="__codelineno-0-416" href="#__codelineno-0-416"></a>              class:gap-3={!collapsed}
+<a id="__codelineno-0-417" name="__codelineno-0-417" href="#__codelineno-0-417"></a>              class:px-3={!collapsed}
+<a id="__codelineno-0-418" name="__codelineno-0-418" href="#__codelineno-0-418"></a>              class:bg-sidebar-active={isActive(&#39;/permission-sets&#39;)}
+<a id="__codelineno-0-419" name="__codelineno-0-419" href="#__codelineno-0-419"></a>              class:text-accent={isActive(&#39;/permission-sets&#39;)}
+<a id="__codelineno-0-420" name="__codelineno-0-420" href="#__codelineno-0-420"></a>              class:text-text-secondary={!isActive(&#39;/permission-sets&#39;)}
+<a id="__codelineno-0-421" name="__codelineno-0-421" href="#__codelineno-0-421"></a>              class:hover:bg-sidebar-hover={!isActive(&#39;/permission-sets&#39;)}
+<a id="__codelineno-0-422" name="__codelineno-0-422" href="#__codelineno-0-422"></a>              class:hover:text-text-primary={!isActive(&#39;/permission-sets&#39;)}
+<a id="__codelineno-0-423" name="__codelineno-0-423" href="#__codelineno-0-423"></a>            &gt;
+<a id="__codelineno-0-424" name="__codelineno-0-424" href="#__codelineno-0-424"></a>              {#if isActive(&#39;/permission-sets&#39;)}
+<a id="__codelineno-0-425" name="__codelineno-0-425" href="#__codelineno-0-425"></a>                &lt;div class=&quot;absolute left-0 top-1/2 h-4 w-0.5 -translate-y-1/2 rounded-r bg-accent&quot;&gt;&lt;/div&gt;
+<a id="__codelineno-0-426" name="__codelineno-0-426" href="#__codelineno-0-426"></a>              {/if}
+<a id="__codelineno-0-427" name="__codelineno-0-427" href="#__codelineno-0-427"></a>              &lt;ShieldCheck size={18} strokeWidth={1.75} class=&quot;shrink-0&quot; /&gt;
+<a id="__codelineno-0-428" name="__codelineno-0-428" href="#__codelineno-0-428"></a>              {#if !collapsed}&lt;span class=&quot;truncate&quot;&gt;Permission Sets&lt;/span&gt;{/if}
+<a id="__codelineno-0-429" name="__codelineno-0-429" href="#__codelineno-0-429"></a>            &lt;/a&gt;
+<a id="__codelineno-0-430" name="__codelineno-0-430" href="#__codelineno-0-430"></a>          {/if}
+<a id="__codelineno-0-431" name="__codelineno-0-431" href="#__codelineno-0-431"></a>        &lt;/div&gt;
+<a id="__codelineno-0-432" name="__codelineno-0-432" href="#__codelineno-0-432"></a>      &lt;/div&gt;
+<a id="__codelineno-0-433" name="__codelineno-0-433" href="#__codelineno-0-433"></a>    {/if}
+<a id="__codelineno-0-434" name="__codelineno-0-434" href="#__codelineno-0-434"></a>  &lt;/nav&gt;
+<a id="__codelineno-0-435" name="__codelineno-0-435" href="#__codelineno-0-435"></a>
+<a id="__codelineno-0-436" name="__codelineno-0-436" href="#__codelineno-0-436"></a>  &lt;!-- Bottom --&gt;
+<a id="__codelineno-0-437" name="__codelineno-0-437" href="#__codelineno-0-437"></a>  &lt;div
+<a id="__codelineno-0-438" name="__codelineno-0-438" href="#__codelineno-0-438"></a>    class=&quot;border-t border-border space-y-0.5&quot;
+<a id="__codelineno-0-439" name="__codelineno-0-439" href="#__codelineno-0-439"></a>    class:p-2={collapsed}
+<a id="__codelineno-0-440" name="__codelineno-0-440" href="#__codelineno-0-440"></a>    class:p-3={!collapsed}
+<a id="__codelineno-0-441" name="__codelineno-0-441" href="#__codelineno-0-441"></a>  &gt;
+<a id="__codelineno-0-442" name="__codelineno-0-442" href="#__codelineno-0-442"></a>    &lt;button
+<a id="__codelineno-0-443" name="__codelineno-0-443" href="#__codelineno-0-443"></a>      onclick={onSettingsClick}
+<a id="__codelineno-0-444" name="__codelineno-0-444" href="#__codelineno-0-444"></a>      ondblclick={onToggle}
+<a id="__codelineno-0-445" name="__codelineno-0-445" href="#__codelineno-0-445"></a>      title={collapsed ? &#39;Settings&#39; : undefined}
+<a id="__codelineno-0-446" name="__codelineno-0-446" href="#__codelineno-0-446"></a>      class=&quot;group relative flex w-full items-center rounded-lg text-[13px] font-medium transition-all text-text-secondary hover:bg-sidebar-hover hover:text-text-primary&quot;
+<a id="__codelineno-0-447" name="__codelineno-0-447" href="#__codelineno-0-447"></a>      class:justify-center={collapsed}
+<a id="__codelineno-0-448" name="__codelineno-0-448" href="#__codelineno-0-448"></a>      class:px-0={collapsed}
+<a id="__codelineno-0-449" name="__codelineno-0-449" href="#__codelineno-0-449"></a>      class:py-2={true}
+<a id="__codelineno-0-450" name="__codelineno-0-450" href="#__codelineno-0-450"></a>      class:gap-3={!collapsed}
+<a id="__codelineno-0-451" name="__codelineno-0-451" href="#__codelineno-0-451"></a>      class:px-3={!collapsed}
+<a id="__codelineno-0-452" name="__codelineno-0-452" href="#__codelineno-0-452"></a>    &gt;
+<a id="__codelineno-0-453" name="__codelineno-0-453" href="#__codelineno-0-453"></a>      &lt;Settings size={18} strokeWidth={1.75} class=&quot;shrink-0&quot; /&gt;
+<a id="__codelineno-0-454" name="__codelineno-0-454" href="#__codelineno-0-454"></a>      {#if !collapsed}&lt;span class=&quot;truncate&quot;&gt;Settings&lt;/span&gt;{/if}
+<a id="__codelineno-0-455" name="__codelineno-0-455" href="#__codelineno-0-455"></a>    &lt;/button&gt;
+<a id="__codelineno-0-456" name="__codelineno-0-456" href="#__codelineno-0-456"></a>
+<a id="__codelineno-0-457" name="__codelineno-0-457" href="#__codelineno-0-457"></a>    &lt;!-- User info + logout --&gt;
+<a id="__codelineno-0-458" name="__codelineno-0-458" href="#__codelineno-0-458"></a>    {#if auth.user}
+<a id="__codelineno-0-459" name="__codelineno-0-459" href="#__codelineno-0-459"></a>      &lt;div
+<a id="__codelineno-0-460" name="__codelineno-0-460" href="#__codelineno-0-460"></a>        class=&quot;mt-1 flex items-center rounded-lg&quot;
+<a id="__codelineno-0-461" name="__codelineno-0-461" href="#__codelineno-0-461"></a>        class:justify-center={collapsed}
+<a id="__codelineno-0-462" name="__codelineno-0-462" href="#__codelineno-0-462"></a>        class:py-2={collapsed}
+<a id="__codelineno-0-463" name="__codelineno-0-463" href="#__codelineno-0-463"></a>        class:gap-2={!collapsed}
+<a id="__codelineno-0-464" name="__codelineno-0-464" href="#__codelineno-0-464"></a>        class:px-3={!collapsed}
+<a id="__codelineno-0-465" name="__codelineno-0-465" href="#__codelineno-0-465"></a>        class:py-2={!collapsed}
+<a id="__codelineno-0-466" name="__codelineno-0-466" href="#__codelineno-0-466"></a>      &gt;
+<a id="__codelineno-0-467" name="__codelineno-0-467" href="#__codelineno-0-467"></a>        &lt;div
+<a id="__codelineno-0-468" name="__codelineno-0-468" href="#__codelineno-0-468"></a>          class=&quot;flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent-muted text-2xs font-semibold text-accent&quot;
+<a id="__codelineno-0-469" name="__codelineno-0-469" href="#__codelineno-0-469"></a>          title={collapsed
+<a id="__codelineno-0-470" name="__codelineno-0-470" href="#__codelineno-0-470"></a>            ? `${auth.user.name}${auth.user.permissionSetName ? ` (${auth.user.permissionSetName})` : &#39;&#39;}`
+<a id="__codelineno-0-471" name="__codelineno-0-471" href="#__codelineno-0-471"></a>            : undefined}
+<a id="__codelineno-0-472" name="__codelineno-0-472" href="#__codelineno-0-472"></a>        &gt;
+<a id="__codelineno-0-473" name="__codelineno-0-473" href="#__codelineno-0-473"></a>          {auth.user.name.charAt(0).toUpperCase()}
+<a id="__codelineno-0-474" name="__codelineno-0-474" href="#__codelineno-0-474"></a>        &lt;/div&gt;
+<a id="__codelineno-0-475" name="__codelineno-0-475" href="#__codelineno-0-475"></a>        {#if !collapsed}
+<a id="__codelineno-0-476" name="__codelineno-0-476" href="#__codelineno-0-476"></a>          &lt;div class=&quot;min-w-0 flex-1&quot;&gt;
+<a id="__codelineno-0-477" name="__codelineno-0-477" href="#__codelineno-0-477"></a>            &lt;div class=&quot;truncate text-2xs font-medium text-text-primary&quot;&gt;
+<a id="__codelineno-0-478" name="__codelineno-0-478" href="#__codelineno-0-478"></a>              {auth.user.name}
+<a id="__codelineno-0-479" name="__codelineno-0-479" href="#__codelineno-0-479"></a>            &lt;/div&gt;
+<a id="__codelineno-0-480" name="__codelineno-0-480" href="#__codelineno-0-480"></a>            &lt;div class=&quot;truncate text-2xs text-text-tertiary&quot;&gt;
+<a id="__codelineno-0-481" name="__codelineno-0-481" href="#__codelineno-0-481"></a>              {auth.user.permissionSetName || auth.user.email}
+<a id="__codelineno-0-482" name="__codelineno-0-482" href="#__codelineno-0-482"></a>            &lt;/div&gt;
+<a id="__codelineno-0-483" name="__codelineno-0-483" href="#__codelineno-0-483"></a>          &lt;/div&gt;
+<a id="__codelineno-0-484" name="__codelineno-0-484" href="#__codelineno-0-484"></a>          &lt;button
+<a id="__codelineno-0-485" name="__codelineno-0-485" href="#__codelineno-0-485"></a>            onclick={handleLogout}
+<a id="__codelineno-0-486" name="__codelineno-0-486" href="#__codelineno-0-486"></a>            title=&quot;Sign out&quot;
+<a id="__codelineno-0-487" name="__codelineno-0-487" href="#__codelineno-0-487"></a>            aria-label=&quot;Log out&quot;
+<a id="__codelineno-0-488" name="__codelineno-0-488" href="#__codelineno-0-488"></a>            class=&quot;shrink-0 rounded p-1 text-text-tertiary transition-colors hover:bg-sidebar-hover hover:text-text-primary&quot;
+<a id="__codelineno-0-489" name="__codelineno-0-489" href="#__codelineno-0-489"></a>          &gt;
+<a id="__codelineno-0-490" name="__codelineno-0-490" href="#__codelineno-0-490"></a>            &lt;LogOut size={14} strokeWidth={1.75} /&gt;
+<a id="__codelineno-0-491" name="__codelineno-0-491" href="#__codelineno-0-491"></a>          &lt;/button&gt;
+<a id="__codelineno-0-492" name="__codelineno-0-492" href="#__codelineno-0-492"></a>        {/if}
+<a id="__codelineno-0-493" name="__codelineno-0-493" href="#__codelineno-0-493"></a>      &lt;/div&gt;
+<a id="__codelineno-0-494" name="__codelineno-0-494" href="#__codelineno-0-494"></a>    {/if}
+<a id="__codelineno-0-495" name="__codelineno-0-495" href="#__codelineno-0-495"></a>  &lt;/div&gt;
+<a id="__codelineno-0-496" name="__codelineno-0-496" href="#__codelineno-0-496"></a>&lt;/aside&gt;
+</code></pre></div>
+<hr />
+<h2 id="2-create-placeholder-routes">2. Create Placeholder Routes<a class="headerlink" href="#2-create-placeholder-routes" title="Permanent link">&para;</a></h2>
+<p>Create placeholder pages for routes that aren't fully implemented yet:</p>
+<p><strong><code>src/routes/tests/+page.svelte</code>:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>&lt;script&gt;
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>  import PageHeader from &#39;$lib/components/ui/page-header.svelte&#39;;
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>&lt;/script&gt;
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>&lt;div class=&quot;animate-fade-in&quot;&gt;
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>  &lt;PageHeader title=&quot;Tests&quot; description=&quot;Coming in a future tier.&quot; /&gt;
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>  &lt;div class=&quot;mt-6 rounded-xl border border-border bg-surface-1 p-6&quot;&gt;
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>    &lt;p class=&quot;text-sm text-text-tertiary&quot;&gt;This page is a placeholder.&lt;/p&gt;
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>  &lt;/div&gt;
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>&lt;/div&gt;
+</code></pre></div></p>
+<p>Create similar files for:
+- <code>/deployments</code>
+- <code>/nodes</code>
+- <code>/results</code>
+- <code>/logs</code>
+- <code>/statistics</code>
+- <code>/users</code>
+- <code>/permission-sets</code>
+- <code>/inventory</code>
+- <code>/codebases</code>
+- <code>/products</code>
+- <code>/history</code>
+- <code>/guides</code>
+- <code>/system</code></p>
+<hr />
+<h2 id="verification">Verification<a class="headerlink" href="#verification" title="Permanent link">&para;</a></h2>
+<ol>
+<li><code>npm run dev</code> starts without errors</li>
+<li>All sidebar navigation links render</li>
+<li>Active link is highlighted with accent color and left indicator</li>
+<li>Mode toggle switches between Manufacturing/Validation</li>
+<li>Mode persists on page refresh</li>
+<li>Sidebar collapses/expands correctly</li>
+<li>Double-click on any link toggles sidebar collapse</li>
+<li>Admin section shows only if user has relevant permissions</li>
+<li>User avatar shows first initial</li>
+<li>Logout button works</li>
+<li>Visual comparison to React app shows identical styling</li>
+</ol>
+<hr />
+<h2 id="files-createdmodified">Files Created/Modified<a class="headerlink" href="#files-createdmodified" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Action</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>src/lib/components/sidebar.svelte</code></td>
+<td>Replace</td>
+<td>Full sidebar implementation</td>
+</tr>
+<tr>
+<td><code>src/routes/*/+page.svelte</code></td>
+<td>Create</td>
+<td>Placeholder pages for all routes</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="next-phase">Next Phase<a class="headerlink" href="#next-phase" title="Permanent link">&para;</a></h2>
+<p>Phase 6 will implement the remaining UI components (status-badge, error-alert, etc.).</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://zensical.org/" target="_blank" rel="noopener">
+      Zensical
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      
+      <script id="__config" type="application/json">{"annotate":null,"base":"../../../../..","features":["navigation.sections","navigation.expand","navigation.path","navigation.indexes","search.suggest","content.code.copy","toc.follow"],"search":"../../../../../assets/javascripts/workers/search.e2d2d235.min.js","tags":null,"translations":{"clipboard.copied":"Copied to clipboard","clipboard.copy":"Copy to clipboard","search.result.more.one":"1 more on this page","search.result.more.other":"# more on this page","search.result.none":"No matching documents","search.result.one":"1 matching document","search.result.other":"# matching documents","search.result.placeholder":"Type to start searching","search.result.term.missing":"Missing","select.version":"Select version"},"version":null}</script>
+    
+    
+      <script src="../../../../../assets/javascripts/bundle.5fd3284f.min.js"></script>
+      
+        <script src="../../../../../assets/js/external-links.js"></script>
+      
+    
+  </body>
+</html>

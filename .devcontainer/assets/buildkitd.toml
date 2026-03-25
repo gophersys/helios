@@ -9,9 +9,11 @@ debug = true
   http = true
   insecure = true
 
+# CoreKinect container registry — HTTPS with internal CA
+# CA certs are injected into the buildkit container by ctl.sh
 [registry."containers.ad.corekinect.com"]
-  http = true
-  insecure = true
+  http = false
+  insecure = false
 
 # Worker settings
 [worker.oci]
@@ -21,6 +23,6 @@ debug = true
 [worker.containerd]
   enabled = false
 
-# SSL Configuration
+# SSL Configuration — buildkit reads CA bundle from here
 [worker.oci.ssl]
-  certs = ["/etc/ssl/certs/ca-certificates.crt"] 
+  certs = ["/etc/ssl/certs/ca-certificates.crt"]

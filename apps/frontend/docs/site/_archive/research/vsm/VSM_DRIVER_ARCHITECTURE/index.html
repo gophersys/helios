@@ -1,0 +1,4350 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Continuous delivery platform for embedded systems">
+      
+      
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../../assets/images/favicon.png">
+      <meta name="generator" content="zensical-0.0.27">
+    
+    
+      
+        <title>VSM (Vital Signs Monitor) Driver -- Deep Architectural Analysis - Concord</title>
+      
+    
+    
+      
+        
+      
+      <link rel="stylesheet" href="../../../../assets/stylesheets/modern/main.50057488.min.css">
+      
+        
+          
+        
+        <link rel="stylesheet" href="../../../../assets/stylesheets/modern/palette.dfe2e883.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,500,500i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../../../..",location),__md_hash=e=>[...e].reduce(((e,t)=>(e<<5)-e+t.charCodeAt(0)),0),__md_get=(e,t=localStorage,a=__md_scope)=>JSON.parse(t.getItem(a.pathname+"."+e)),__md_set=(e,t,a=localStorage,_=__md_scope)=>{try{a.setItem(_.pathname+"."+e,JSON.stringify(t))}catch(e){}},document.documentElement.setAttribute("data-platform",navigator.platform)</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="deep-purple" data-md-color-accent="amber">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer" aria-label="Navigation"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#vsm-vital-signs-monitor-driver-deep-architectural-analysis" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../../.." title="Concord" class="md-header__button md-logo" aria-label="Concord" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer" aria-label="Navigation">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-menu" viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h16"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Concord
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              VSM (Vital Signs Monitor) Driver -- Deep Architectural Analysis
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="none" data-md-color-scheme="slate" data-md-color-primary="deep-purple" data-md-color-accent="amber"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="none" data-md-color-scheme="default" data-md-color-primary="deep-purple" data-md-color-accent="amber"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search" aria-label="Search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-search" viewBox="0 0 24 24"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog" aria-label="Search">
+  <button type="button" class="md-search__button">
+    Search
+  </button>
+</div>
+      
+    
+    <div class="md-header__source">
+      
+    </div>
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../../.." title="Concord" class="md-nav__button md-logo" aria-label="Concord" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+
+    </a>
+    Concord
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../vision/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vision
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2" id="__nav_2_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Vision
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../vision/thesis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Thesis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../vision/validation-philosophy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation Philosophy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../architecture/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3" id="__nav_3_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Architecture
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_2" id="__nav_3_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Platform
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Platform
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/platform/unified-platform/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Unified Platform
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/platform/hardware-registry/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hardware Registry
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/platform/log-streaming/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Log Streaming
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/platform/ci-pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CI Pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/platform/corecloud-library/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CoreCloud Library
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_3" id="__nav_3_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Validation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/validation/stages-overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stages Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/validation/system/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    System Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/validation/stage1-software-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 1: Software Tests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/validation/stage2-driver-hw-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 2: Driver HW Tests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/validation/stage3-integration-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 3: Integration Tests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/validation/stage4-product-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 4: Product Tests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/validation/stage4-fuota-flow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 4: FUOTA Flow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/validation/stage4-pr-flow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 4: PR Flow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/validation/stage5-gate-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 5: Gate Tests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/validation/test-runner/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Test Runner
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_4" id="__nav_3_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Build
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/build/build-service/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build Service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/build/builder-nodes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Builder Nodes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../reference/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/fuota-workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FUOTA Workflow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/fuota-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FUOTA API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/alpha-test-cases/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Alpha Test Cases
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/traceability-matrix/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Traceability Matrix
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/twister-hil/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Twister HIL
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/stage4-connectivity/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 4 Connectivity
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/stage4-long-term-vision/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 4 Long-Term Vision
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/validation-flow-ui/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation Flow UI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/interfaces/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interfaces
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../guides/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_2" id="__nav_5_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Alpha
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Alpha
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../guides/alpha/stage1/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 1
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../guides/alpha/stage2/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 2
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../guides/alpha/stage3/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 3
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../guides/alpha/stage4/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 4
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../guides/alpha/stage5/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 5
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../research/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Research
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_6" id="__nav_6_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Research
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../research/01-sigma5-firmware-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sigma5 Firmware
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../research/02-alpha-firmware-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Alpha Firmware
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../research/03-sensor-drivers-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sensor Drivers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../research/05-mtib-server-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MTIB Server
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../research/06-fuota-corecloud-v1/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FUOTA CoreCloud
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../research/07-alpha-manufacturing-firmware-and-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Alpha MFG Firmware
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../research/08-device-personalization-and-key-provisioning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Device Personalization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../research/08-firmware-build-and-fuota-delivery/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Firmware Build & FUOTA
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../research/09-corecloud-validation-integration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CoreCloud Integration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../journals/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Journals
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Journals
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#table-of-contents" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Table of Contents
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1-architecture-overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Architecture Overview
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. Architecture Overview">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#11-module-boundaries" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.1 Module Boundaries
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#12-hardware-sensors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.2 Hardware Sensors
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#13-file-structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.3 File Structure
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-data-pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Data Pipeline
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Data Pipeline">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#21-end-to-end-data-flow-ascii-diagram" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.1 End-to-End Data Flow (ASCII Diagram)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#22-detailed-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.2 Detailed Steps
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-sampling-rate-handling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Sampling Rate Handling
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Sampling Rate Handling">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#31-sensor-rates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.1 Sensor Rates
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#32-accelerometer-downsampling-52-hz-to-32-hz" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.2 Accelerometer Downsampling (52 Hz to 32 Hz)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#33-ppg-signal-scaling-and-calibration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.3 PPG Signal Scaling and Calibration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#34-accelerometer-unit-conversion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.4 Accelerometer Unit Conversion
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-psp-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. PSP Integration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. PSP Integration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#41-library-architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.1 Library Architecture
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#42-psp-api-functions-used" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.2 PSP API Functions Used
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#43-psp-memory" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.3 PSP Memory
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#44-psp-metric-data-format" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.4 PSP Metric Data Format
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#45-enabled-psp-outputs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.5 Enabled PSP Outputs
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#46-psp-reset" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.6 PSP Reset
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-thread-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Thread Model
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Thread Model">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#51-vitals-thread" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.1 Vitals Thread
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#52-bluetooth-thread-optional" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.2 Bluetooth Thread (Optional)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#53-thread-timing-diagram" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.3 Thread Timing Diagram
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-state-machine" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. State Machine
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. State Machine">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#61-states" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.1 States
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#62-state-transitions-detail" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.2 State Transitions Detail
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#63-skin-detection-algorithm" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.3 Skin Detection Algorithm
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Configuration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7. Configuration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#71-kconfig-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.1 Kconfig Options
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#72-compile-time-constants-configh" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.2 Compile-Time Constants (config.h)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#73-runtime-configuration-vsm_config_t" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.3 Runtime Configuration (vsm_config_t)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-ble-output-format" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. BLE Output Format
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="8. BLE Output Format">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#81-gatt-service" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.1 GATT Service
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#82-characteristics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.2 Characteristics
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#83-ble-data-streams-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.3 BLE Data Streams Configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#84-ble-bandwidth-estimate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.4 BLE Bandwidth Estimate
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-test-coverage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Test Coverage
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="9. Test Coverage">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#91-cross-talk-test-implemented" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9.1 Cross-Talk Test (Implemented)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#92-snr-test-stub" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9.2 SNR Test (Stub)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#93-reflectivity-test-stub" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9.3 Reflectivity Test (Stub)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#94-test-infrastructure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9.4 Test Infrastructure
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-potential-issues-and-risks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. Potential Issues and Risks
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="10. Potential Issues and Risks">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#101-isr-duration-concerns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10.1 ISR Duration Concerns
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#102-deskin-detection-shortcut" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10.2 Deskin Detection Shortcut
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#103-deactivate-monitoring-not-functional" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10.3 Deactivate Monitoring Not Functional
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#104-static-variable-in-transform" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10.4 Static Variable in Transform
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#105-ble-disconnection-causes-system-reboot" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10.5 BLE Disconnection Causes System Reboot
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#106-timestamp-domain-mismatch-risk" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10.6 Timestamp Domain Mismatch Risk
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#107-buffer-overflow-risk-in-imu-read" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10.7 Buffer Overflow Risk in IMU Read
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#108-ppg-warmup-period-interaction" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10.8 PPG Warmup Period Interaction
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#109-memory-leak-risk-in-ble-thread" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10.9 Memory Leak Risk in BLE Thread
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1010-sequence-number-wrapping" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10.10 Sequence Number Wrapping
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1011-no-gyroscope-data-used" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10.11 No Gyroscope Data Used
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1012-sample-app-runs-initdeinit-in-loop" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10.12 Sample App Runs Init/Deinit in Loop
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#appendix-a-memory-budget" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Appendix A: Memory Budget
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#appendix-b-key-source-file-cross-references" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Appendix B: Key Source File Cross-References
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+                
+
+
+
+  
+
+
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+<h1 id="vsm-vital-signs-monitor-driver-deep-architectural-analysis">VSM (Vital Signs Monitor) Driver -- Deep Architectural Analysis<a class="headerlink" href="#vsm-vital-signs-monitor-driver-deep-architectural-analysis" title="Permanent link">&para;</a></h1>
+<p><strong>Module:</strong> <code>_fw_build/vsm_drv/</code>
+<strong>Platform:</strong> Zephyr RTOS on nRF52840 (ARM Cortex-M4F)
+<strong>Copyright:</strong> CoreKinect Inc. 2024-2025
+<strong>Date of Analysis:</strong> 2026-02-09</p>
+<hr />
+<h2 id="table-of-contents">Table of Contents<a class="headerlink" href="#table-of-contents" title="Permanent link">&para;</a></h2>
+<ol>
+<li><a href="#1-architecture-overview">Architecture Overview</a></li>
+<li><a href="#2-data-pipeline">Data Pipeline</a></li>
+<li><a href="#3-sampling-rate-handling">Sampling Rate Handling</a></li>
+<li><a href="#4-psp-integration">PSP Integration</a></li>
+<li><a href="#5-thread-model">Thread Model</a></li>
+<li><a href="#6-state-machine">State Machine</a></li>
+<li><a href="#7-configuration">Configuration</a></li>
+<li><a href="#8-ble-output-format">BLE Output Format</a></li>
+<li><a href="#9-test-coverage">Test Coverage</a></li>
+<li><a href="#10-potential-issues-and-risks">Potential Issues and Risks</a></li>
+</ol>
+<hr />
+<h2 id="1-architecture-overview">1. Architecture Overview<a class="headerlink" href="#1-architecture-overview" title="Permanent link">&para;</a></h2>
+<p>The VSM driver is a Zephyr RTOS module that orchestrates three hardware sensors and a proprietary Philips PSP (Philips Sensing Platform) signal processing library to extract vital signs from a wearable wrist device (Alpha prototype). It produces heart rate (BPM), SpO2 (blood oxygen %), and skin temperature (Fahrenheit) readings.</p>
+<h3 id="11-module-boundaries">1.1 Module Boundaries<a class="headerlink" href="#11-module-boundaries" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>+------------------------------------------------------------------+
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>|                        Application Layer                          |
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>|  (samples/simple/src/main.c -- callback-driven, event-based)     |
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>+---------+--------------------------------------------------------+
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>          |  vsm_init() / vsm_deinit() / vsm_activate_monitoring()
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>          v
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>+---------+--------------------------------------------------------+
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>|                         VSM Module (vsm.h)                        |
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>|  Aggregates vitals thread API + optional Bluetooth thread API     |
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>+---------+--------------------------+-----------------------------+
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>          |                          |
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>          v                          v
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>+---------+---------+    +-----------+-----------+
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>|   Vitals Thread   |    |   Bluetooth Thread    |  (optional)
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>|   (thread.c)      |---&gt;|   (bluetooth/thread.c)|
+<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>|   Priority: 3     |    |   Priority: 4         |
+<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>+---------+---------+    +-----------+-----------+
+<a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>          |                          |
+<a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>    +-----+------+------+           |
+<a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>    |     |      |      |           |
+<a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>    v     v      v      v           v
+<a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>+-----+ +-----+ +----+ +-----+  +-------+
+<a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>| PPG | | IMU | |Temp| | PSP |  | BLE   |
+<a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>|8151 | |6DSO | |614 | | Lib |  | Stack |
+<a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a>+-----+ +-----+ +----+ +-----+  +-------+
+<a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a>  I2C     I2C    I2C   ROM-resident  Zephyr BT
+</code></pre></div>
+<h3 id="12-hardware-sensors">1.2 Hardware Sensors<a class="headerlink" href="#12-hardware-sensors" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Sensor</th>
+<th>IC</th>
+<th>Interface</th>
+<th>Purpose</th>
+<th>Sample Rate</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>PPG</td>
+<td>PAH8151 (PixArt)</td>
+<td>I2C (0x15)</td>
+<td>Photoplethysmography -- red, green, IR LED intensities</td>
+<td>32 Hz (batched at ~1 Hz)</td>
+</tr>
+<tr>
+<td>IMU</td>
+<td>LSM6DSO (STMicro)</td>
+<td>I2C (0x6A) or SPI</td>
+<td>Accelerometer + Gyroscope for motion artifact rejection</td>
+<td>52 Hz (FIFO-buffered)</td>
+</tr>
+<tr>
+<td>Temperature</td>
+<td>MLX90614 (Melexis)</td>
+<td>I2C (0x5A)</td>
+<td>Infrared skin temperature measurement</td>
+<td>1 Hz (timer-driven)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="13-file-structure">1.3 File Structure<a class="headerlink" href="#13-file-structure" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>vsm_drv/
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>  CMakeLists.txt                    # Top-level build: guards on CONFIG_CK_MODULES_VSM
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>  Kconfig                           # All Kconfig options
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>  README.md                         # Module readme
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>  src/
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>    CMakeLists.txt
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>    corekinect/module/vsm/
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>      vsm.h                         # Main module header (aggregator)
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>      CMakeLists.txt
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>      threads/
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>        CMakeLists.txt              # Conditionally adds bluetooth/
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>        vitals/
+<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>          api.h                     # Public API: vsm_init, vsm_deinit, vsm_activate_monitoring, etc.
+<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>          types.h                   # All type definitions: vsm_t, vsm_config_t, enums, sample structs
+<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>          config.h                  # Compile-time constants: stack size, rates, thresholds
+<a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a>          output.h                  # Output metrics struct: vitals_output_metrics_t, vitals_hw_error_t
+<a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>          priv.h                    # Internal function declarations
+<a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a>          thread.c                  # Main thread entry, event loop, state machine, ISR handlers
+<a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a>          init.c                    # Sensor init, I2C scan, trigger setup, PSP init, thread creation
+<a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a>          deinit.c                  # Graceful shutdown, sensor deinit, thread join/abort
+<a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a>          monitor.c                 # vsm_activate_monitoring / vsm_deactivate_monitoring
+<a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a>          CMakeLists.txt            # Compiles: init.c, deinit.c, thread.c, monitor.c, psp.c
+<a id="__codelineno-1-23" name="__codelineno-1-23" href="#__codelineno-1-23"></a>          utils/
+<a id="__codelineno-1-24" name="__codelineno-1-24" href="#__codelineno-1-24"></a>            api.h                   # Internal utility function declarations
+<a id="__codelineno-1-25" name="__codelineno-1-25" href="#__codelineno-1-25"></a>            transform.c             # Accel downsampling 52Hz-&gt;32Hz, PPG scaling, PSP format conversion
+<a id="__codelineno-1-26" name="__codelineno-1-26" href="#__codelineno-1-26"></a>            psp.c                   # PSP library wrapper: init, process, set/get metrics, reset
+<a id="__codelineno-1-27" name="__codelineno-1-27" href="#__codelineno-1-27"></a>            ble.c                   # BLE data formatting and queueing
+<a id="__codelineno-1-28" name="__codelineno-1-28" href="#__codelineno-1-28"></a>          tests/
+<a id="__codelineno-1-29" name="__codelineno-1-29" href="#__codelineno-1-29"></a>            cross_talk.c            # Cross-talk (light leakage) manufacturing test
+<a id="__codelineno-1-30" name="__codelineno-1-30" href="#__codelineno-1-30"></a>            snr.c                   # SNR test (stub -- not yet implemented)
+<a id="__codelineno-1-31" name="__codelineno-1-31" href="#__codelineno-1-31"></a>            reflectivity.c          # Reflectivity test (stub -- not yet implemented)
+<a id="__codelineno-1-32" name="__codelineno-1-32" href="#__codelineno-1-32"></a>          lib/inc/
+<a id="__codelineno-1-33" name="__codelineno-1-33" href="#__codelineno-1-33"></a>            psp.h                   # Philips PSP library C header (API declarations)
+<a id="__codelineno-1-34" name="__codelineno-1-34" href="#__codelineno-1-34"></a>            psp.c                   # PSP library C shim (function pointer trampolines to ROM)
+<a id="__codelineno-1-35" name="__codelineno-1-35" href="#__codelineno-1-35"></a>            psp_map.h               # ROM address map for PSP library functions
+<a id="__codelineno-1-36" name="__codelineno-1-36" href="#__codelineno-1-36"></a>            fx_datatypes.h          # Philips fixed-width type definitions (FX_UINT08, etc.)
+<a id="__codelineno-1-37" name="__codelineno-1-37" href="#__codelineno-1-37"></a>        bluetooth/
+<a id="__codelineno-1-38" name="__codelineno-1-38" href="#__codelineno-1-38"></a>          thread.h                  # Bluetooth thread public API
+<a id="__codelineno-1-39" name="__codelineno-1-39" href="#__codelineno-1-39"></a>          types.h                   # BLE data structures, FIFO types, config
+<a id="__codelineno-1-40" name="__codelineno-1-40" href="#__codelineno-1-40"></a>          thread.c                  # BLE GATT server, advertising, notification management
+<a id="__codelineno-1-41" name="__codelineno-1-41" href="#__codelineno-1-41"></a>  samples/simple/
+<a id="__codelineno-1-42" name="__codelineno-1-42" href="#__codelineno-1-42"></a>    src/main.c                      # Sample application demonstrating VSM usage
+<a id="__codelineno-1-43" name="__codelineno-1-43" href="#__codelineno-1-43"></a>    prj.conf                        # Zephyr project configuration
+</code></pre></div>
+<hr />
+<h2 id="2-data-pipeline">2. Data Pipeline<a class="headerlink" href="#2-data-pipeline" title="Permanent link">&para;</a></h2>
+<h3 id="21-end-to-end-data-flow-ascii-diagram">2.1 End-to-End Data Flow (ASCII Diagram)<a class="headerlink" href="#21-end-to-end-data-flow-ascii-diagram" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>     HARDWARE                    ISR CONTEXT                  THREAD CONTEXT               OUTPUT
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>  +-----------+             +------------------+          +--------------------+        +----------+
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>  | PAH8151   |--INT-------&gt;| _ppg_data_ready_ |          |                    |        |          |
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>  | PPG Sensor|  (1Hz batch)| handler()        |          | _process_accel_    |        | Callback |
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>  | 32 samp/s |             | 1. Read IMU FIFO |          | data()             |        | to App:  |
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>  +-----------+             | 2. Read PPG batch |          | (ACTIVE_MONITORING)|        | HR, SpO2,|
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>                            | 3. Store samples  |         |   |                |        | Temp     |
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>  +-----------+             | 4. Signal sem     |          |   v                |        +----------+
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>  | LSM6DSO   |  (FIFO)    +--------+---------+          | _prepare_sensor_   |             |
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>  | IMU 52Hz  |---(read in           |                    | samples()          |             |
+<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>  | Accel+Gyro|   ISR)               v                    |   |                |             v
+<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>  +-----------+             +------------------+          |   +-&gt; _downsample_ |        +----------+
+<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a>                            | ppg_data_ready_  |          |   |   accel_to_32Hz|        | BLE      |
+<a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a>  +-----------+             | sem signaled     |          |   |                |        | Thread   |
+<a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a>  | MLX90614  |             +--------+---------+          |   +-&gt; _convert_raw_|        | (optional|
+<a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a>  | Temp 1Hz  |---(timer)            |                    |       samples_for_ |        |  32Hz +  |
+<a id="__codelineno-2-17" name="__codelineno-2-17" href="#__codelineno-2-17"></a>  | IR thermo |             +--------v---------+          |       psp()        |        |  25Hz +  |
+<a id="__codelineno-2-18" name="__codelineno-2-18" href="#__codelineno-2-18"></a>  +-----------+             |  k_poll() wakes  |          |   |                |        |  1Hz)    |
+<a id="__codelineno-2-19" name="__codelineno-2-19" href="#__codelineno-2-19"></a>                            |  vitals thread   |          |   v                |        +----------+
+<a id="__codelineno-2-20" name="__codelineno-2-20" href="#__codelineno-2-20"></a>                            +--------+---------+          | _send_ble_sensor_  |
+<a id="__codelineno-2-21" name="__codelineno-2-21" href="#__codelineno-2-21"></a>                                     |                    | samples() [if BLE] |
+<a id="__codelineno-2-22" name="__codelineno-2-22" href="#__codelineno-2-22"></a>                                     v                    |   |                |
+<a id="__codelineno-2-23" name="__codelineno-2-23" href="#__codelineno-2-23"></a>                            +------------------+          |   v                |
+<a id="__codelineno-2-24" name="__codelineno-2-24" href="#__codelineno-2-24"></a>                            | Event dispatch:  |          | _psp_update_input_ |
+<a id="__codelineno-2-25" name="__codelineno-2-25" href="#__codelineno-2-25"></a>                            | - HW_ERROR       |          | metrics()          |
+<a id="__codelineno-2-26" name="__codelineno-2-26" href="#__codelineno-2-26"></a>                            | - WATCHDOG       |          |   |                |
+<a id="__codelineno-2-27" name="__codelineno-2-27" href="#__codelineno-2-27"></a>                            | - SHUTDOWN       |          |   v                |
+<a id="__codelineno-2-28" name="__codelineno-2-28" href="#__codelineno-2-28"></a>                            | - PPG_TOUCH      |          | _psp_process()     |
+<a id="__codelineno-2-29" name="__codelineno-2-29" href="#__codelineno-2-29"></a>                            | - TEMP_READY     |          |   |                |
+<a id="__codelineno-2-30" name="__codelineno-2-30" href="#__codelineno-2-30"></a>                            | - STATE_CHANGE   |          |   v                |
+<a id="__codelineno-2-31" name="__codelineno-2-31" href="#__codelineno-2-31"></a>                            | - PPG_DATA_READY |          | _psp_get_output_   |
+<a id="__codelineno-2-32" name="__codelineno-2-32" href="#__codelineno-2-32"></a>                            +------------------+          | metrics()          |
+<a id="__codelineno-2-33" name="__codelineno-2-33" href="#__codelineno-2-33"></a>                                                          |   |                |
+<a id="__codelineno-2-34" name="__codelineno-2-34" href="#__codelineno-2-34"></a>                                                          |   v                |
+<a id="__codelineno-2-35" name="__codelineno-2-35" href="#__codelineno-2-35"></a>                                                          | callback(METRICS_  |
+<a id="__codelineno-2-36" name="__codelineno-2-36" href="#__codelineno-2-36"></a>                                                          |   UPDATED)         |
+<a id="__codelineno-2-37" name="__codelineno-2-37" href="#__codelineno-2-37"></a>                                                          +--------------------+
+</code></pre></div>
+<h3 id="22-detailed-steps">2.2 Detailed Steps<a class="headerlink" href="#22-detailed-steps" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>Sensor Interrupt (ISR context in <code>_ppg_data_ready_handler</code>):</strong></li>
+<li>PPG sensor fires a data-ready interrupt at approximately 1 Hz (one batch of 32 samples).</li>
+<li>The handler immediately reads the IMU FIFO (<code>_read_imu_samples</code>) to get the ~52 accelerometer samples accumulated since the last interrupt.</li>
+<li>Then reads the PPG batch: for each of the 32 samples, it reads timestamp, red/green/IR intensity, exposure time, DAC values, and LED current.</li>
+<li>Stores both datasets into the <code>vsm_t</code> structure's interrupt sample buffers.</li>
+<li>
+<p>Signals <code>ppg_data_ready_sem</code> to wake the vitals thread.</p>
+</li>
+<li>
+<p><strong>Thread Processing (in <code>_handle_ppg_data_ready_event</code> / <code>_process_accel_data</code>):</strong></p>
+</li>
+<li>Only processed in <code>VITALS_STATE_ACTIVE_MONITORING</code>.</li>
+<li>Calls <code>_prepare_sensor_samples()</code> which:<ul>
+<li>Downsamples accelerometer from 52 Hz to 32 Hz using timestamp-weighted interpolation.</li>
+<li>Copies PPG data directly (already at 32 Hz).</li>
+<li>Converts raw sensor values to PSP input format (scaling, clamping, unit conversion).</li>
+</ul>
+</li>
+<li>
+<p>If BLE is enabled, sends raw sensor data to the Bluetooth thread.</p>
+</li>
+<li>
+<p><strong>PSP Algorithm Execution:</strong></p>
+</li>
+<li><code>_psp_update_input_metrics()</code> formats and writes 5 metric buffers to PSP: PPG IR, PPG Red, PPG Green, PPG Ambient, and Acceleration.</li>
+<li><code>_psp_process()</code> invokes the Philips algorithm.</li>
+<li>
+<p><code>_psp_get_output_metrics()</code> reads heart rate and SpO2 results. Also reads back the propagated PPG/accel data for BLE transmission.</p>
+</li>
+<li>
+<p><strong>Output Delivery:</strong></p>
+</li>
+<li>Application callback invoked with <code>VITALS_EVENT_METRICS_UPDATED</code> carrying the latest <code>vitals_output_metrics_t</code>.</li>
+<li>BLE thread (if enabled) transmits data via GATT notifications at 1 Hz (vitals), 25 Hz (raw), and 32 Hz (PSP input/output).</li>
+</ol>
+<hr />
+<h2 id="3-sampling-rate-handling">3. Sampling Rate Handling<a class="headerlink" href="#3-sampling-rate-handling" title="Permanent link">&para;</a></h2>
+<h3 id="31-sensor-rates">3.1 Sensor Rates<a class="headerlink" href="#31-sensor-rates" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Signal</th>
+<th>Native Rate</th>
+<th>PSP Required Rate</th>
+<th>Alignment Method</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>PPG (PAH8151)</td>
+<td>32 Hz (batched ~1 Hz)</td>
+<td>32 Hz</td>
+<td>Direct copy -- no resampling needed</td>
+</tr>
+<tr>
+<td>Accelerometer (LSM6DSO)</td>
+<td>52 Hz (FIFO)</td>
+<td>32 Hz</td>
+<td>Timestamp-weighted downsampling</td>
+</tr>
+<tr>
+<td>Temperature (MLX90614)</td>
+<td>1 Hz (timer)</td>
+<td>N/A (not fed to PSP)</td>
+<td>Read on timer, stored directly</td>
+</tr>
+</tbody>
+</table>
+<h3 id="32-accelerometer-downsampling-52-hz-to-32-hz">3.2 Accelerometer Downsampling (52 Hz to 32 Hz)<a class="headerlink" href="#32-accelerometer-downsampling-52-hz-to-32-hz" title="Permanent link">&para;</a></h3>
+<p><strong>Implementation:</strong> <code>_downsample_accel_to_32Hz()</code> in <code>transform.c</code></p>
+<p>The downsampling uses a <strong>timestamp-based weighted average</strong> approach:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>For each of the 32 PSP output samples:
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>  1. Determine the PPG timestamp window [ppg_timestamp[i], ppg_timestamp[i+1])
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>  2. Find all IMU samples that fall within this window
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>  3. For each matching IMU sample, compute weight = 1.0 - (time_offset / window_duration)
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>     (Closer samples to the PPG timestamp get higher weight)
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>  4. Weighted average of X, Y, Z accelerometer values
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>  5. If no samples found in window:
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>     a. Search with 2x wider window for nearest neighbor
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>     b. If still nothing, use the previous output sample (zero-order hold)
+</code></pre></div>
+<p><strong>Key characteristics:</strong>
+- This is a <strong>non-uniform resampling</strong> scheme driven by PPG timestamps.
+- The weight function is linear, favoring samples nearer the start of each PPG window.
+- The fallback chain (weighted avg -&gt; nearest neighbor -&gt; zero-order hold) provides robustness against timing jitter and missed samples.
+- A warning is logged when the timestamp mismatch exceeds half the PPG sample period (~15.6 ms).</p>
+<h3 id="33-ppg-signal-scaling-and-calibration">3.3 PPG Signal Scaling and Calibration<a class="headerlink" href="#33-ppg-signal-scaling-and-calibration" title="Permanent link">&para;</a></h3>
+<p><strong>Implementation:</strong> <code>_convert_raw_samples_for_psp()</code> in <code>transform.c</code></p>
+<p>The PPG signals undergo dynamic scaling to fit the PSP library's expected 16-bit unsigned input range (0-65535):</p>
+<ol>
+<li><strong>Initial Calibration (first 3 seconds = 96 samples at 32 Hz):</strong></li>
+<li>Track maximum values for Red, IR, and Green channels.</li>
+<li>Compute scaling factor: <code>SF = (65535 / 2) / max_observed_value</code>.</li>
+<li>Red and IR share the same scaling factor (required for SpO2 ratio accuracy).</li>
+<li>
+<p>Green gets its own independent scaling factor.</p>
+</li>
+<li>
+<p><strong>Dynamic Gain Adjustment (every 1 second = 32 samples):</strong></p>
+</li>
+<li>If scaled value exceeds 90% of max (58982), halve the scaling factor and decrement the virtual ADC gain.</li>
+<li>If scaled value falls below 20% of max (13107), double the scaling factor and increment the virtual ADC gain.</li>
+<li>ADC gain is tracked per-channel in range [1, 3] and reported to PSP via the metric preamble.</li>
+<li>
+<p>Red and IR gains are always kept in sync.</p>
+</li>
+<li>
+<p><strong>Output Clamping:</strong></p>
+</li>
+<li>Final scaled values clamped to [0, 65535] via <code>CLAMP()</code> macro.</li>
+</ol>
+<h3 id="34-accelerometer-unit-conversion">3.4 Accelerometer Unit Conversion<a class="headerlink" href="#34-accelerometer-unit-conversion" title="Permanent link">&para;</a></h3>
+<p>Raw accelerometer data arrives in m/s^2 (converted from mg in the ISR: <code>val1 * 0.00981</code>).</p>
+<p>For PSP input format:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>1. Normalize to g-force:     accel_g = accel_ms2 / 9.81
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>2. Convert to PSP units:     accel_psp = accel_g * 512  (1/512 g per unit)
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>3. Clamp to 13-bit signed:   [-4096, 4095]
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>4. Cast to int16_t
+</code></pre></div></p>
+<p>The PSP accelerometer format byte is <code>0x6E</code>: 32 Hz, +/- 8G range, 13-bit signed, 1/512 g/unit resolution.</p>
+<hr />
+<h2 id="4-psp-integration">4. PSP Integration<a class="headerlink" href="#4-psp-integration" title="Permanent link">&para;</a></h2>
+<h3 id="41-library-architecture">4.1 Library Architecture<a class="headerlink" href="#41-library-architecture" title="Permanent link">&para;</a></h3>
+<p>The Philips PSP library is a <strong>pre-compiled binary blob</strong> resident in flash ROM at address range <code>0xE0000 - 0xF2FD2</code> (approximately 77 KB). It is accessed through function pointer trampolines defined in <code>psp.c</code> / <code>psp_map.h</code>. Each API function cast the ROM address to the appropriate function pointer type and calls it.</p>
+<p>This is a ROM-resident library pattern common in embedded systems where the algorithm IP is pre-flashed and the application code calls into it via a well-defined ABI.</p>
+<h3 id="42-psp-api-functions-used">4.2 PSP API Functions Used<a class="headerlink" href="#42-psp-api-functions-used" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th>Purpose</th>
+<th>When Called</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>PSP_GetDefaultParams</code></td>
+<td>Get memory requirements</td>
+<td>During <code>_psp_init</code></td>
+</tr>
+<tr>
+<td><code>PSP_Initialise</code></td>
+<td>Create PSP instance</td>
+<td>During <code>_psp_init</code></td>
+</tr>
+<tr>
+<td><code>PSP_EnableMetrics</code></td>
+<td>Enable HR + SpO2 output</td>
+<td>During <code>_psp_init</code></td>
+</tr>
+<tr>
+<td><code>PSP_ListRequiredMetrics</code></td>
+<td>Query required inputs</td>
+<td>During <code>_psp_init</code></td>
+</tr>
+<tr>
+<td><code>PSP_SetMetric</code></td>
+<td>Feed input data per metric</td>
+<td>During <code>_psp_update_input_metrics</code></td>
+</tr>
+<tr>
+<td><code>PSP_Process</code></td>
+<td>Execute algorithm</td>
+<td>During <code>_psp_process</code></td>
+</tr>
+<tr>
+<td><code>PSP_ListUpdatedMetrics</code></td>
+<td>Check which outputs updated</td>
+<td>During <code>_psp_get_output_metrics</code></td>
+</tr>
+<tr>
+<td><code>PSP_GetMetric</code></td>
+<td>Read output values</td>
+<td>During <code>_psp_get_output_metrics</code></td>
+</tr>
+<tr>
+<td><code>PSP_Terminate</code></td>
+<td>Destroy PSP instance</td>
+<td>During <code>_psp_deinit</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="43-psp-memory">4.3 PSP Memory<a class="headerlink" href="#43-psp-memory" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Heap size:</strong> 27,000 bytes (<code>CONFIG_PSP_MEMORY_SIZE</code>), allocated from a dedicated <code>k_heap</code>.</li>
+<li>The heap is 8-byte aligned.</li>
+<li>Two allocations from the heap: <code>pMem</code> (main instance memory, size determined by <code>PSP_GetDefaultParams</code>) and <code>pSourceID</code>.</li>
+</ul>
+<h3 id="44-psp-metric-data-format">4.4 PSP Metric Data Format<a class="headerlink" href="#44-psp-metric-data-format" title="Permanent link">&para;</a></h3>
+<p>Each metric sent to PSP follows this binary format:</p>
+<p><strong>PPG Metric (per channel: IR, Red, Green, Ambient):</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>Offset  Size  Field
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>0       1     Metric ID (0x7B=IR, 0x7C=Red, 0x7E=Green, 0x7F=Ambient)
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>1       2     Data length (little-endian, excludes first 3 bytes)
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>3       1     Sequence index (incrementing)
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>4       1     Quality (0 during warmup, 4 after calibration)
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>5       1     Body Position Index (2 = right wrist)
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>6       1     PPG Sample Format (0x60)
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>7       1     Stream Identifier (0x00)
+<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>8       1     PPG Offset (0x00)
+<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a>9       1     PPG Exponent (0x00)
+<a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a>10      4     LED Power (DAC value, repeated 4 bytes)
+<a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a>14      4     ADC Gain (calibration gain, repeated 4 bytes)
+<a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a>18      64    PPG Samples (32 x uint16_t, little-endian)
+<a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a>---
+<a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a>Total:  82 bytes per PPG metric
+</code></pre></div></p>
+<p><strong>Accelerometer Metric:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>Offset  Size  Field
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>0       1     Metric ID (0x2B)
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>1       2     Data length (little-endian)
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>3       1     Sequence index
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>4       1     Quality
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>5       1     Body Position Index (0 = unspecified)
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>6       1     Accelerometer Format (0x6E: 32Hz, +/-8G, 13-bit, 1/512 g/unit)
+<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>7       192   Samples (32 x 3 axes x int16_t = 32 x 6 bytes)
+<a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>---
+<a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a>Total:  199 bytes
+</code></pre></div></p>
+<p><strong>Output Metrics (Heart Rate, SpO2):</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>Offset  Size  Field
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>0       1     Metric ID (0x20=HR, 0x41=SpO2)
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>1       2     Data length
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>3       1     Sequence index
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>4       1     Quality (0-4, higher = better)
+<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>5       1     Value (HR in BPM, SpO2 in %)
+<a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>---
+<a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a>Total:  6 bytes per output metric
+</code></pre></div></p>
+<h3 id="45-enabled-psp-outputs">4.5 Enabled PSP Outputs<a class="headerlink" href="#45-enabled-psp-outputs" title="Permanent link">&para;</a></h3>
+<p>Only two output metrics are enabled:
+- <code>PSP_METRIC_ID_HEARTRATE</code> (0x20)
+- <code>PSP_METRIC_ID_SPO2</code> (0x41)</p>
+<p>The PSP library is capable of many more (activity type, sleep stages, respiration rate, VO2max, etc.) but they are not enabled.</p>
+<h3 id="46-psp-reset">4.6 PSP Reset<a class="headerlink" href="#46-psp-reset" title="Permanent link">&para;</a></h3>
+<p>When transitioning to <code>VITALS_STATE_TOUCH_DETECTED</code> (i.e., a new measurement session), the PSP algorithm is fully reset via <code>_psp_reset()</code> which performs a complete deinit/init cycle. This clears all internal algorithm state, forcing it to re-converge from scratch.</p>
+<hr />
+<h2 id="5-thread-model">5. Thread Model<a class="headerlink" href="#5-thread-model" title="Permanent link">&para;</a></h2>
+<h3 id="51-vitals-thread">5.1 Vitals Thread<a class="headerlink" href="#51-vitals-thread" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Entry point</strong></td>
+<td><code>_vitals_thread_entry()</code> in <code>thread.c</code></td>
+</tr>
+<tr>
+<td><strong>Stack size</strong></td>
+<td>8,192 bytes (<code>CONFIG_VITALS_THREAD_STACK_SIZE = 4096 * 2</code>)</td>
+</tr>
+<tr>
+<td><strong>Priority</strong></td>
+<td>3 (<code>CONFIG_VITALS_THREAD_PRIORITY</code>)</td>
+</tr>
+<tr>
+<td><strong>Scheduling</strong></td>
+<td>Preemptive (priority &gt; 0)</td>
+</tr>
+<tr>
+<td><strong>Event model</strong></td>
+<td><code>k_poll()</code> on 7 semaphore events</td>
+</tr>
+<tr>
+<td><strong>Name</strong></td>
+<td><code>"vitals_thread"</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Events polled (in priority order of processing):</strong></p>
+<table>
+<thead>
+<tr>
+<th>Index</th>
+<th>Event</th>
+<th>Source</th>
+<th>Processing</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td><code>HW_ERROR</code></td>
+<td>Any sensor failure</td>
+<td>Callback + thread exit</td>
+</tr>
+<tr>
+<td>1</td>
+<td><code>SHUTDOWN</code></td>
+<td><code>vsm_deinit()</code></td>
+<td>Thread exit</td>
+</tr>
+<tr>
+<td>2</td>
+<td><code>WATCHDOG_TIMEOUT</code></td>
+<td>2-second timer (active monitoring only)</td>
+<td>Callback + thread exit</td>
+</tr>
+<tr>
+<td>3</td>
+<td><code>PPG_TOUCH</code></td>
+<td>PPG sensor touch/release interrupt</td>
+<td>State machine transition</td>
+</tr>
+<tr>
+<td>4</td>
+<td><code>TEMP_DATA_READY</code></td>
+<td>1-second timer</td>
+<td>Skin detection / temperature monitoring</td>
+</tr>
+<tr>
+<td>5</td>
+<td><code>STATE_CHANGE</code></td>
+<td><code>vsm_activate_monitoring()</code> / <code>vsm_deactivate_monitoring()</code></td>
+<td>State transition</td>
+</tr>
+<tr>
+<td>6</td>
+<td><code>PPG_DATA_READY</code></td>
+<td>PPG sensor data interrupt (~1 Hz)</td>
+<td>Main data processing pipeline</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Synchronization primitives:</strong>
+- 7 binary semaphores (max count 1) for event signaling
+- <code>k_timer</code> for temperature polling (1 Hz) and PPG watchdog (2 seconds)
+- <code>k_heap</code> for PSP memory allocation
+- <code>k_mutex</code> declared but not actively used in the current implementation</p>
+<h3 id="52-bluetooth-thread-optional">5.2 Bluetooth Thread (Optional)<a class="headerlink" href="#52-bluetooth-thread-optional" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Entry point</strong></td>
+<td><code>bluetooth_thread_entry()</code> in <code>bluetooth/thread.c</code></td>
+</tr>
+<tr>
+<td><strong>Stack size</strong></td>
+<td>4,096 bytes (<code>CONFIG_VSM_BT_THREAD_STACK_SIZE</code>)</td>
+</tr>
+<tr>
+<td><strong>Priority</strong></td>
+<td>4 (<code>CONFIG_VSM_BT_THREAD_PRIORITY</code>)</td>
+</tr>
+<tr>
+<td><strong>Event model</strong></td>
+<td><code>k_poll()</code> on 5 events</td>
+</tr>
+<tr>
+<td><strong>Heap size</strong></td>
+<td>20,480 bytes (<code>CONFIG_VSM_BT_THREAD_HEAP_SIZE</code>)</td>
+</tr>
+<tr>
+<td><strong>Name</strong></td>
+<td><code>"bluetooth"</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Events polled:</strong>
+- <code>CONNECTED</code> -- BLE connection established
+- <code>DISCONNECTED</code> -- BLE connection lost (triggers system reboot!)
+- <code>TIMER_1HZ</code> -- Vitals data transmission
+- <code>TIMER_25HZ</code> -- Raw sensor data transmission
+- <code>TIMER_32HZ</code> -- PSP-rate data transmission</p>
+<p><strong>Data flow between threads:</strong>
+- Vitals thread enqueues data into 5 Zephyr FIFOs: <code>data_fifo_1hz</code>, <code>data_fifo_25hz</code>, <code>data_fifo_32hz</code>, <code>data_fifo_psp_32hz</code>, <code>data_fifo_psp_read_32hz</code>.
+- Each FIFO item is heap-allocated from the Bluetooth thread's dedicated <code>k_heap</code>.
+- Bluetooth thread dequeues and transmits via <code>bt_gatt_notify()</code>.
+- Timer intervals are dynamically adjusted to compensate for processing time, maintaining target notification rates.</p>
+<h3 id="53-thread-timing-diagram">5.3 Thread Timing Diagram<a class="headerlink" href="#53-thread-timing-diagram" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>Time (ms) 0        250       500       750       1000
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>          |---------|---------|---------|---------|
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>Vitals:   [PPG ISR + process..]                   [PPG ISR + process..]
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>          ^--- ~1Hz interrupt triggers pipeline
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>
+<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>Temp:                         [read]              [read]
+<a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a>          |---- 1000ms timer ----|---- 1000ms ----|
+<a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a>
+<a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a>BT 32Hz:  [tx][tx][tx][tx]...[tx][tx][tx][tx]...[tx]  (32 notifications/sec)
+<a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a>          |31ms|31ms|31ms|...
+<a id="__codelineno-8-11" name="__codelineno-8-11" href="#__codelineno-8-11"></a>
+<a id="__codelineno-8-12" name="__codelineno-8-12" href="#__codelineno-8-12"></a>BT 1Hz:   [tx]                                    [tx]
+<a id="__codelineno-8-13" name="__codelineno-8-13" href="#__codelineno-8-13"></a>          |------------- 1000ms ------------------|
+</code></pre></div>
+<hr />
+<h2 id="6-state-machine">6. State Machine<a class="headerlink" href="#6-state-machine" title="Permanent link">&para;</a></h2>
+<h3 id="61-states">6.1 States<a class="headerlink" href="#61-states" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>  +------+     touch      +-----------+    temp OK     +----------+    user cmd    +--------+
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>  | IDLE |---------------&gt;| TOUCH_    |  (after skin   | SKIN_    |  activate_    | ACTIVE_ |
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>  |      |                | DETECTED  |  detection     | CONFIRMED|  monitoring() | MONITOR |
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>  +------+                +-----------+  period)       +----------+               +--------+
+<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>     ^                         |  ^                         |                         |
+<a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a>     |                  touch  |  | touch                   |                         |
+<a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a>     |                  lost   |  | regained                |                         |
+<a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a>     |                         v  |                         |                         |
+<a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a>     |                    +-----------+                     |                         |
+<a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a>     |                    | TOUCH_    |&lt;--------------------+-------------------------+
+<a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a>     |                    | LOST      |     (touch lost from any active state)
+<a id="__codelineno-9-12" name="__codelineno-9-12" href="#__codelineno-9-12"></a>     |                    +-----------+
+<a id="__codelineno-9-13" name="__codelineno-9-13" href="#__codelineno-9-13"></a>     |                         |
+<a id="__codelineno-9-14" name="__codelineno-9-14" href="#__codelineno-9-14"></a>     |                  temp confirms
+<a id="__codelineno-9-15" name="__codelineno-9-15" href="#__codelineno-9-15"></a>     |                  deskin (immediate
+<a id="__codelineno-9-16" name="__codelineno-9-16" href="#__codelineno-9-16"></a>     |                  in current impl)
+<a id="__codelineno-9-17" name="__codelineno-9-17" href="#__codelineno-9-17"></a>     |                         v
+<a id="__codelineno-9-18" name="__codelineno-9-18" href="#__codelineno-9-18"></a>     |                    +-----------+
+<a id="__codelineno-9-19" name="__codelineno-9-19" href="#__codelineno-9-19"></a>     +--------------------| DESKIN_   |
+<a id="__codelineno-9-20" name="__codelineno-9-20" href="#__codelineno-9-20"></a>       user cmd           | CONFIRMED |
+<a id="__codelineno-9-21" name="__codelineno-9-21" href="#__codelineno-9-21"></a>       deactivate()       +-----------+
+<a id="__codelineno-9-22" name="__codelineno-9-22" href="#__codelineno-9-22"></a>       (commented out)
+</code></pre></div>
+<h3 id="62-state-transitions-detail">6.2 State Transitions Detail<a class="headerlink" href="#62-state-transitions-detail" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>From</th>
+<th>Event</th>
+<th>To</th>
+<th>Actions</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>IDLE</code></td>
+<td>PPG touch detected</td>
+<td><code>TOUCH_DETECTED</code></td>
+<td>Start temp timer (1 Hz), reset PSP algorithm</td>
+</tr>
+<tr>
+<td><code>TOUCH_DETECTED</code></td>
+<td>Temp in range for <code>skin_detection_period_ms</code></td>
+<td><code>SKIN_CONFIRMED</code></td>
+<td>Callback: state changed</td>
+</tr>
+<tr>
+<td><code>TOUCH_DETECTED</code></td>
+<td>Temp verification timeout (2x period)</td>
+<td><code>IDLE</code></td>
+<td>Stop temp timer</td>
+</tr>
+<tr>
+<td><code>TOUCH_DETECTED</code></td>
+<td>Touch released</td>
+<td><code>TOUCH_LOST</code></td>
+<td>--</td>
+</tr>
+<tr>
+<td><code>SKIN_CONFIRMED</code></td>
+<td><code>vsm_activate_monitoring()</code></td>
+<td><code>ACTIVE_MONITORING</code></td>
+<td>Start watchdog timer (2s)</td>
+</tr>
+<tr>
+<td><code>SKIN_CONFIRMED</code></td>
+<td>Touch released</td>
+<td><code>TOUCH_LOST</code></td>
+<td>--</td>
+</tr>
+<tr>
+<td><code>ACTIVE_MONITORING</code></td>
+<td>Touch released</td>
+<td><code>TOUCH_LOST</code></td>
+<td>Stop watchdog timer</td>
+</tr>
+<tr>
+<td><code>ACTIVE_MONITORING</code></td>
+<td>Watchdog timeout (2s no PPG data)</td>
+<td>Thread exit</td>
+<td>HW error callback</td>
+</tr>
+<tr>
+<td><code>TOUCH_LOST</code></td>
+<td>Deskin temp confirmed</td>
+<td><code>DESKIN_CONFIRMED</code></td>
+<td>Stop temp timer</td>
+</tr>
+<tr>
+<td><code>TOUCH_LOST</code></td>
+<td>Touch regained</td>
+<td><code>TOUCH_DETECTED</code></td>
+<td>Reset PSP, restart skin detection</td>
+</tr>
+<tr>
+<td><code>DESKIN_CONFIRMED</code></td>
+<td>Touch regained</td>
+<td><code>TOUCH_DETECTED</code></td>
+<td>Reset PSP</td>
+</tr>
+<tr>
+<td><code>DESKIN_CONFIRMED</code></td>
+<td><code>vsm_deactivate_monitoring()</code></td>
+<td>(commented out)</td>
+<td>Would return to IDLE</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Note:</strong> The deskin detection logic in <code>_handle_temp_data_ready_event</code> for <code>VITALS_STATE_TOUCH_LOST</code> currently forces <code>temp_below_threshold = true</code> and the condition <code>if (true)</code>, meaning deskin is confirmed immediately upon touch loss without waiting for temperature drop. This appears to be a development shortcut.</p>
+<h3 id="63-skin-detection-algorithm">6.3 Skin Detection Algorithm<a class="headerlink" href="#63-skin-detection-algorithm" title="Permanent link">&para;</a></h3>
+<p>Skin detection uses the MLX90614 infrared temperature sensor:
+- PPG touch interrupt provides initial touch/release detection.
+- Temperature must be within <code>[skin_temp_min_threshold_f, skin_temp_max_threshold_f]</code> for at least <code>skin_detection_period_ms</code> to confirm skin contact.
+- Default thresholds: 70-100 F (sample app), valid range: 65-105 F (config.h).
+- Default detection period: 1000 ms (sample app), valid range: 500-10000 ms.</p>
+<hr />
+<h2 id="7-configuration">7. Configuration<a class="headerlink" href="#7-configuration" title="Permanent link">&para;</a></h2>
+<h3 id="71-kconfig-options">7.1 Kconfig Options<a class="headerlink" href="#71-kconfig-options" title="Permanent link">&para;</a></h3>
+<p><strong>Main Module:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>CONFIG_CK_MODULES_VSM</code></td>
+<td>bool</td>
+<td>n</td>
+<td>Master enable for VSM module</td>
+</tr>
+<tr>
+<td><code>CONFIG_CK_MODULES_VSM_BLE_SERVER</code></td>
+<td>bool</td>
+<td>n</td>
+<td>Enable BLE GATT server thread</td>
+</tr>
+<tr>
+<td><code>CONFIG_CK_MODULES_VSM_TESTS_ENABLED</code></td>
+<td>bool</td>
+<td>n</td>
+<td>Enable manufacturing test functions</td>
+</tr>
+<tr>
+<td><code>CONFIG_CK_MODULES_VSM_I2C_METRICS_ENABLED</code></td>
+<td>bool</td>
+<td>n</td>
+<td>Enable I2C bus performance metrics</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Thread Configuration:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>CONFIG_VITALS_THREAD_PRIORITY</code></td>
+<td>int</td>
+<td>3</td>
+<td>Vitals thread priority (lower = higher priority)</td>
+</tr>
+<tr>
+<td><code>CONFIG_VSM_SENSOR_PRIORITY</code></td>
+<td>int</td>
+<td>8</td>
+<td>Sensor thread priority</td>
+</tr>
+<tr>
+<td><code>CONFIG_VSM_BUS_MUTEX</code></td>
+<td>bool</td>
+<td>y</td>
+<td>Guard I2C/SPI bus with mutex</td>
+</tr>
+<tr>
+<td><code>CONFIG_VSM_BT_THREAD_PRIORITY</code></td>
+<td>int</td>
+<td>4</td>
+<td>Bluetooth thread priority</td>
+</tr>
+<tr>
+<td><code>CONFIG_VSM_BT_THREAD_STACK_SIZE</code></td>
+<td>int</td>
+<td>4096</td>
+<td>Bluetooth thread stack (bytes)</td>
+</tr>
+<tr>
+<td><code>CONFIG_VSM_BT_THREAD_HEAP_SIZE</code></td>
+<td>int</td>
+<td>20480</td>
+<td>Bluetooth data heap (bytes)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Debug:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Type</th>
+<th>Default</th>
+<th>Range</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>CONFIG_CK_MODULES_VSM_THREADS_DEBUG_LEVEL</code></td>
+<td>int</td>
+<td>3 (INF)</td>
+<td>0-4</td>
+<td>Log level for VSM threads</td>
+</tr>
+<tr>
+<td><code>CONFIG_CK_MODULES_VSM_SENSOR_DEBUG_LEVEL</code></td>
+<td>int</td>
+<td>3 (INF)</td>
+<td>0-4</td>
+<td>Log level for sensor ops</td>
+</tr>
+</tbody>
+</table>
+<p><strong>BLE Stack Defaults (when BLE server enabled):</strong></p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>BT_DEVICE_NAME</code></td>
+<td>"Alpha Prototype"</td>
+<td>BLE device name</td>
+</tr>
+<tr>
+<td><code>BT_DEVICE_APPEARANCE</code></td>
+<td>833</td>
+<td>BLE appearance code</td>
+</tr>
+<tr>
+<td><code>BT_MAX_CONN</code></td>
+<td>1</td>
+<td>Max simultaneous connections</td>
+</tr>
+<tr>
+<td><code>BT_PERIPHERAL_PREF_MIN_INT</code></td>
+<td>6 (7.5 ms)</td>
+<td>Min connection interval</td>
+</tr>
+<tr>
+<td><code>BT_PERIPHERAL_PREF_MAX_INT</code></td>
+<td>6 (7.5 ms)</td>
+<td>Max connection interval</td>
+</tr>
+<tr>
+<td><code>BT_L2CAP_TX_MTU</code></td>
+<td>498</td>
+<td>L2CAP TX MTU</td>
+</tr>
+<tr>
+<td><code>BT_BUF_ACL_RX_SIZE</code></td>
+<td>1024</td>
+<td>ACL RX buffer size</td>
+</tr>
+<tr>
+<td><code>BT_BUF_ACL_TX_SIZE</code></td>
+<td>1024</td>
+<td>ACL TX buffer size</td>
+</tr>
+</tbody>
+</table>
+<h3 id="72-compile-time-constants-configh">7.2 Compile-Time Constants (config.h)<a class="headerlink" href="#72-compile-time-constants-configh" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Constant</th>
+<th>Value</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>CONFIG_VITALS_THREAD_STACK_SIZE</code></td>
+<td>8192 (4096*2)</td>
+<td>Vitals thread stack</td>
+</tr>
+<tr>
+<td><code>CONFIG_PSP_MEMORY_SIZE</code></td>
+<td>27000</td>
+<td>PSP heap size</td>
+</tr>
+<tr>
+<td><code>CONFIG_PSP_NUM_INPUT_METRICS</code></td>
+<td>15</td>
+<td>Max PSP input metrics</td>
+</tr>
+<tr>
+<td><code>CONFIG_PSP_NUM_OUTPUT_METRICS</code></td>
+<td>24</td>
+<td>Max PSP output metrics</td>
+</tr>
+<tr>
+<td><code>CONFIG_PSP_ALGORITHM_SAMPLES_PER_SECOND</code></td>
+<td>32</td>
+<td>PSP processing rate</td>
+</tr>
+<tr>
+<td><code>CONFIG_ACCEL_SAMPLES_PER_SECOND</code></td>
+<td>52</td>
+<td>IMU sample rate</td>
+</tr>
+<tr>
+<td><code>CONFIG_PPG_SAMPLES_PER_BATCH</code></td>
+<td>32</td>
+<td>PPG samples per 1Hz batch</td>
+</tr>
+<tr>
+<td><code>CONFIG_VITALS_WARMUP_PERIOD</code></td>
+<td>6000</td>
+<td>Warmup period (ms)</td>
+</tr>
+<tr>
+<td><code>CONFIG_VITALS_SKIN_TEMP_MIN_THRESHOLD_F</code></td>
+<td>65.0</td>
+<td>Min valid skin temp</td>
+</tr>
+<tr>
+<td><code>CONFIG_VITALS_SKIN_TEMP_MAX_THRESHOLD_F</code></td>
+<td>105.0</td>
+<td>Max valid skin temp</td>
+</tr>
+<tr>
+<td><code>CONFIG_VITALS_SKIN_DETECTION_MIN_PERIOD_MS</code></td>
+<td>500</td>
+<td>Min detection period</td>
+</tr>
+<tr>
+<td><code>CONFIG_VITALS_SKIN_DETECTION_MAX_PERIOD_MS</code></td>
+<td>10000</td>
+<td>Max detection period</td>
+</tr>
+<tr>
+<td><code>CONFIG_VITALS_DESKIN_DETECTION_MIN_PERIOD_MS</code></td>
+<td>500</td>
+<td>Min deskin period</td>
+</tr>
+<tr>
+<td><code>CONFIG_VITALS_DESKIN_DETECTION_MAX_PERIOD_MS</code></td>
+<td>10000</td>
+<td>Max deskin period</td>
+</tr>
+</tbody>
+</table>
+<h3 id="73-runtime-configuration-vsm_config_t">7.3 Runtime Configuration (vsm_config_t)<a class="headerlink" href="#73-runtime-configuration-vsm_config_t" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>p_ppg_dev</code></td>
+<td><code>const struct device*</code></td>
+<td>PPG sensor device pointer</td>
+</tr>
+<tr>
+<td><code>p_imu_dev</code></td>
+<td><code>const struct device*</code></td>
+<td>IMU device pointer</td>
+</tr>
+<tr>
+<td><code>p_temp_dev</code></td>
+<td><code>const struct device*</code></td>
+<td>Temperature sensor device pointer</td>
+</tr>
+<tr>
+<td><code>p_ppg_enable_gpio</code></td>
+<td><code>struct gpio_dt_spec</code></td>
+<td>GPIO to enable PPG subsystem power</td>
+</tr>
+<tr>
+<td><code>callback</code></td>
+<td>function pointer</td>
+<td>Application callback for events</td>
+</tr>
+<tr>
+<td><code>callback_user_data</code></td>
+<td><code>void*</code></td>
+<td>User data passed to callback</td>
+</tr>
+<tr>
+<td><code>skin_temp_min_threshold_f</code></td>
+<td>float</td>
+<td>Minimum skin temperature (F)</td>
+</tr>
+<tr>
+<td><code>skin_temp_max_threshold_f</code></td>
+<td>float</td>
+<td>Maximum skin temperature (F)</td>
+</tr>
+<tr>
+<td><code>skin_detection_period_ms</code></td>
+<td>uint32_t</td>
+<td>Time to confirm skin contact</td>
+</tr>
+<tr>
+<td><code>deskin_detection_period_ms</code></td>
+<td>uint32_t</td>
+<td>Time to confirm skin removal</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="8-ble-output-format">8. BLE Output Format<a class="headerlink" href="#8-ble-output-format" title="Permanent link">&para;</a></h2>
+<h3 id="81-gatt-service">8.1 GATT Service<a class="headerlink" href="#81-gatt-service" title="Permanent link">&para;</a></h3>
+<p><strong>Service UUID:</strong> <code>12345678-1234-5678-1234-56789abcdef0</code></p>
+<h3 id="82-characteristics">8.2 Characteristics<a class="headerlink" href="#82-characteristics" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Characteristic</th>
+<th>UUID Suffix</th>
+<th>Rate</th>
+<th>Data Type</th>
+<th>Content</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Vitals 1Hz</td>
+<td><code>...def1</code></td>
+<td>1 Hz</td>
+<td><code>vitals_data_t</code> (packed)</td>
+<td>HR (int16), HR quality (int8), HR index (int16), SpO2 (int16), SpO2 quality (int8), SpO2 index (int16), Temp F (float) -- 12 bytes packed</td>
+</tr>
+<tr>
+<td>PPG Intensity 25Hz</td>
+<td><code>...def2</code></td>
+<td>25 Hz</td>
+<td><code>ppg_intensity_data_t</code></td>
+<td>Green intensity only (uint32) -- 4 bytes</td>
+</tr>
+<tr>
+<td>PPG Intensity 32Hz</td>
+<td><code>...def3</code></td>
+<td>32 Hz</td>
+<td><code>ppg_intensity_data_t</code></td>
+<td>Green intensity only (uint32) -- 4 bytes</td>
+</tr>
+<tr>
+<td>Accel 25Hz</td>
+<td><code>...def4</code></td>
+<td>25 Hz</td>
+<td><code>accelerometer_data_t</code></td>
+<td>X, Y, Z floats (m/s^2) -- 12 bytes</td>
+</tr>
+<tr>
+<td>Accel 32Hz</td>
+<td><code>...def5</code></td>
+<td>32 Hz</td>
+<td><code>accelerometer_data_t</code></td>
+<td>X, Y, Z floats (m/s^2) -- 12 bytes</td>
+</tr>
+<tr>
+<td>PSP PPG 32Hz</td>
+<td><code>...def6</code></td>
+<td>32 Hz</td>
+<td><code>psp_input_ppg_intensity_data_t</code></td>
+<td>Green intensity (uint16) -- 2 bytes</td>
+</tr>
+<tr>
+<td>PSP Accel 32Hz</td>
+<td><code>...def7</code></td>
+<td>32 Hz</td>
+<td><code>psp_input_accelerometer_data_t</code></td>
+<td>Padding (6 bytes) + X, Y, Z int16 -- 12 bytes</td>
+</tr>
+<tr>
+<td>PSP Read PPG 32Hz</td>
+<td><code>...def8</code></td>
+<td>32 Hz</td>
+<td>(same as PSP PPG)</td>
+<td>PSP-propagated green PPG</td>
+</tr>
+<tr>
+<td>PSP Read Accel 32Hz</td>
+<td><code>...def9</code></td>
+<td>32 Hz</td>
+<td>(same as PSP Accel)</td>
+<td>PSP-propagated accel</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Notes:</strong>
+- Red and IR PPG channels are commented out in the BLE structs to reduce bandwidth. Only green is transmitted.
+- All characteristics support NOTIFY and READ.
+- Connection interval is set to 7.5 ms (minimum BLE spec), MTU is 498 bytes, allowing burst of multiple notifications per connection event.
+- Each notification requires a CCC (Client Characteristic Configuration) write to enable.</p>
+<h3 id="83-ble-data-streams-configuration">8.3 BLE Data Streams Configuration<a class="headerlink" href="#83-ble-data-streams-configuration" title="Permanent link">&para;</a></h3>
+<p>The Bluetooth thread configuration (<code>bluetooth_thread_config_t</code>) allows independently enabling/disabling each stream:
+- <code>vitals_1hz_enabled</code>
+- <code>sensor_data_25hz_enabled</code>
+- <code>sensor_data_32hz_enabled</code>
+- <code>psp_input_data_32hz_enabled</code>
+- <code>psp_read_input_data_32hz_enabled</code></p>
+<h3 id="84-ble-bandwidth-estimate">8.4 BLE Bandwidth Estimate<a class="headerlink" href="#84-ble-bandwidth-estimate" title="Permanent link">&para;</a></h3>
+<p>At maximum with all streams enabled:
+- 1 Hz vitals: 12 bytes/sec
+- 25 Hz sensor data (accel + PPG): 25 * 16 = 400 bytes/sec
+- 32 Hz sensor data: 32 * 16 = 512 bytes/sec
+- 32 Hz PSP input: 32 * 14 = 448 bytes/sec
+- 32 Hz PSP read-back: 32 * 14 = 448 bytes/sec
+- <strong>Total: ~1,820 bytes/sec</strong> (well within BLE 5.0 throughput with 7.5 ms interval and large MTU)</p>
+<hr />
+<h2 id="9-test-coverage">9. Test Coverage<a class="headerlink" href="#9-test-coverage" title="Permanent link">&para;</a></h2>
+<h3 id="91-cross-talk-test-implemented">9.1 Cross-Talk Test (Implemented)<a class="headerlink" href="#91-cross-talk-test-implemented" title="Permanent link">&para;</a></h3>
+<p><strong>File:</strong> <code>tests/cross_talk.c</code>
+<strong>Purpose:</strong> Measures light leakage from LEDs directly to the photodetector, bypassing the intended optical path. The device must be covered with a black rubber patch during this test.</p>
+<p><strong>Procedure:</strong>
+1. Initialize PPG I2C communication (NOT the full driver -- uses direct register access).
+2. Configure the PAH8151 sensor in factory test mode using vendor-provided register arrays (<code>pah_815x_verify_light_leakage_array</code>).
+3. Take 5 samples at 60 ms intervals.
+4. Average the ADC readings for each channel (Red, Green, IR).
+5. Compare against thresholds.</p>
+<p><strong>Pass Criteria (16-bit ADC):</strong></p>
+<table>
+<thead>
+<tr>
+<th>Channel</th>
+<th>Threshold</th>
+<th>Condition</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Green</td>
+<td>&lt; 690 counts</td>
+<td>Must be below</td>
+</tr>
+<tr>
+<td>Red</td>
+<td>&lt; 82 counts</td>
+<td>Must be below</td>
+</tr>
+<tr>
+<td>IR</td>
+<td>&lt; 82 counts</td>
+<td>Must be below</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Result structure</strong> provides per-channel pass/fail with raw counts and thresholds.</p>
+<h3 id="92-snr-test-stub">9.2 SNR Test (Stub)<a class="headerlink" href="#92-snr-test-stub" title="Permanent link">&para;</a></h3>
+<p><strong>File:</strong> <code>tests/snr.c</code>
+<strong>Status:</strong> Not yet implemented (returns <code>passed = false</code>).</p>
+<p><strong>Planned functionality (from api.h documentation):</strong>
+- Measures PPG sensor SNR at various light levels using a reflector at different positions.
+- Uses a step callback to allow fixture adjustment between measurements.
+- Reports per-step results: mean signal, standard deviation, SNR in dB.
+- Pass criteria: Green &gt; 80 dB, Red/IR &gt; 85 dB at required operating current.</p>
+<h3 id="93-reflectivity-test-stub">9.3 Reflectivity Test (Stub)<a class="headerlink" href="#93-reflectivity-test-stub" title="Permanent link">&para;</a></h3>
+<p><strong>File:</strong> <code>tests/reflectivity.c</code>
+<strong>Status:</strong> Not yet implemented (returns <code>passed = false</code>).</p>
+<p><strong>Planned functionality (from api.h documentation):</strong>
+- Measures LED-to-photodiode reflectivity using a calibrated fixture.
+- Supports "golden unit" mode (measure reference values) and DUT mode (compare to golden).
+- Reports per-channel: ADC PPG level, maximum ADC, photodiode current, LED current, reflectivity ratio.</p>
+<h3 id="94-test-infrastructure">9.4 Test Infrastructure<a class="headerlink" href="#94-test-infrastructure" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Tests are conditionally compiled via <code>CONFIG_CK_MODULES_VSM_TESTS_ENABLED</code> (also selects <code>CK_PAH8151_FACTORY_TEST</code>).</li>
+<li>The cross-talk test uses low-level PAH8151 register manipulation via <code>pah_815x_comm_write/read</code> functions, bypassing the Zephyr sensor API entirely.</li>
+<li>Tests are designed for production validation on the manufacturing line, not unit testing.</li>
+</ul>
+<hr />
+<h2 id="10-potential-issues-and-risks">10. Potential Issues and Risks<a class="headerlink" href="#10-potential-issues-and-risks" title="Permanent link">&para;</a></h2>
+<h3 id="101-isr-duration-concerns">10.1 ISR Duration Concerns<a class="headerlink" href="#101-isr-duration-concerns" title="Permanent link">&para;</a></h3>
+<p><strong>Severity: High</strong></p>
+<p>The <code>_ppg_data_ready_handler</code> runs in ISR context (sensor trigger callback) but performs substantial work:
+- Reads the entire IMU FIFO (<code>sensor_sample_fetch</code> + multiple <code>sensor_channel_get</code> calls) -- this involves I2C transactions.
+- Reads ~12 PPG channels for all 32 samples -- also I2C transactions.
+- Total I2C bytes transferred in a single ISR: potentially hundreds of bytes at 400 kHz I2C.</p>
+<p>At 400 kHz I2C, reading 500+ bytes takes approximately 10-15 ms. During this time, all lower-priority interrupts are blocked. This could cause:
+- Missed UART characters.
+- BLE connection event timing violations.
+- Other sensor interrupt latency.</p>
+<p><strong>Recommendation:</strong> Move sensor reads to the vitals thread context using a deferred work pattern.</p>
+<h3 id="102-deskin-detection-shortcut">10.2 Deskin Detection Shortcut<a class="headerlink" href="#102-deskin-detection-shortcut" title="Permanent link">&para;</a></h3>
+<p><strong>Severity: Medium</strong></p>
+<p>In <code>_handle_temp_data_ready_event</code> for <code>VITALS_STATE_TOUCH_LOST</code>, the temperature check is hardcoded:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="kt">bool</span><span class="w"> </span><span class="n">temp_below_threshold</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span><span class="w">  </span><span class="c1">// For now just force deskin</span>
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="c1">// ...</span>
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nb">true</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">  </span><span class="c1">// immediately confirms deskin</span>
+</code></pre></div></p>
+<p>This means the device immediately transitions to <code>DESKIN_CONFIRMED</code> upon touch loss without waiting for temperature confirmation. The intended behavior (commented out) would verify the temperature drops below the skin threshold for <code>deskin_detection_period_ms</code>.</p>
+<h3 id="103-deactivate-monitoring-not-functional">10.3 Deactivate Monitoring Not Functional<a class="headerlink" href="#103-deactivate-monitoring-not-functional" title="Permanent link">&para;</a></h3>
+<p><strong>Severity: Medium</strong></p>
+<p>The <code>STATE_REQUEST_DEACTIVATE_MONITORING</code> handler in <code>_handle_state_change_event</code> has its implementation entirely commented out:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="k">case</span><span class="w"> </span><span class="no">STATE_REQUEST_DEACTIVATE_MONITORING</span><span class="p">:</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">p_thread</span><span class="o">-&gt;</span><span class="n">state</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">VITALS_STATE_DESKIN_CONFIRMED</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="w">        </span><span class="c1">// Entire block commented out</span>
+<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="w">    </span><span class="p">}</span>
+</code></pre></div></p>
+<p>Once monitoring is activated, the only way to return to IDLE is through hardware error, watchdog timeout, or <code>vsm_deinit()</code>.</p>
+<h3 id="104-static-variable-in-transform">10.4 Static Variable in Transform<a class="headerlink" href="#104-static-variable-in-transform" title="Permanent link">&para;</a></h3>
+<p><strong>Severity: Medium</strong></p>
+<p><code>_convert_raw_samples_for_psp()</code> uses a static variable <code>samples_since_last_check</code> for gain adjustment timing. This persists across PSP resets and could cause incorrect gain adjustment timing after a state transition. The calibration state (<code>ppg_cal_state.cal_timer</code>) is only reset when it equals 0, meaning a full PSP reset does not clear the calibration state in the <code>vsm_t</code> structure.</p>
+<h3 id="105-ble-disconnection-causes-system-reboot">10.5 BLE Disconnection Causes System Reboot<a class="headerlink" href="#105-ble-disconnection-causes-system-reboot" title="Permanent link">&para;</a></h3>
+<p><strong>Severity: High</strong></p>
+<p>In <code>process_event_disconnected()</code>, the very first action is:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="n">LOG_WRN</span><span class="p">(</span><span class="s">&quot;Disconnected from device, rebooting in 2 seconds&quot;</span><span class="p">);</span>
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="n">k_sleep</span><span class="p">(</span><span class="n">K_SECONDS</span><span class="p">(</span><span class="mi">2</span><span class="p">));</span>
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="n">sys_reboot</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span>
+</code></pre></div></p>
+<p>This means any BLE disconnection causes a full system reboot. The reconnection and cleanup code below this <code>sys_reboot</code> call is unreachable dead code. This is clearly a development workaround, not production behavior.</p>
+<h3 id="106-timestamp-domain-mismatch-risk">10.6 Timestamp Domain Mismatch Risk<a class="headerlink" href="#106-timestamp-domain-mismatch-risk" title="Permanent link">&para;</a></h3>
+<p><strong>Severity: Medium</strong></p>
+<p>The accelerometer downsampling relies on timestamp matching between PPG and IMU samples. PPG timestamps are reconstructed from sensor registers (64-bit combining val1 and val2), while IMU timestamps come from the LSM6DSO hardware FIFO. If these timestamp domains are not synchronized (e.g., different clock sources), the weighted interpolation could produce incorrect results.</p>
+<p>The code has fallback mechanisms (nearest neighbor, zero-order hold), but persistent timestamp skew would degrade accelerometer alignment quality throughout the measurement session.</p>
+<h3 id="107-buffer-overflow-risk-in-imu-read">10.7 Buffer Overflow Risk in IMU Read<a class="headerlink" href="#107-buffer-overflow-risk-in-imu-read" title="Permanent link">&para;</a></h3>
+<p><strong>Severity: Low-Medium</strong></p>
+<p>The IMU sample count check allows up to <code>CONFIG_ACCEL_SAMPLES_PER_SECOND + 2</code> (54) samples, but the buffer <code>accel_interrupt_samples</code> is sized to <code>CONFIG_ACCEL_SAMPLES_PER_SECOND</code> (52). The storage loop uses:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">count</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">p_thread</span><span class="o">-&gt;</span><span class="n">imu_sample_count</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span>
+</code></pre></div>
+where <code>imu_sample_count</code> was set to <code>count</code> (which passed the 54 check). This means if 53 or 54 samples arrive, the loop would try to write beyond the 52-element buffer. However, the VLA declarations on the stack (<code>struct sensor_value timestamp[count]</code>) would correctly hold all samples, and the channel_get calls fill them. The issue is only in the copy-to-thread-buffer loop which is bounded by <code>imu_sample_count</code>.</p>
+<p><strong>Actually:</strong> Looking more carefully, the loop condition <code>i &lt; count &amp;&amp; i &lt; p_thread-&gt;imu_sample_count</code> is equivalent to <code>i &lt; count</code> since they are set equal, so the buffer can overflow by up to 2 elements.</p>
+<h3 id="108-ppg-warmup-period-interaction">10.8 PPG Warmup Period Interaction<a class="headerlink" href="#108-ppg-warmup-period-interaction" title="Permanent link">&para;</a></h3>
+<p><strong>Severity: Low</strong></p>
+<p>The 6-second warmup period (<code>CONFIG_VITALS_WARMUP_PERIOD</code>) starts from <code>touch_detection_start_time</code>, but this timestamp is set during the <code>TOUCH_DETECTED</code> state's temperature verification flow. The warmup flag <code>is_warmup_period</code> is checked in <code>_handle_ppg_data_ready_event</code> but is never explicitly set to <code>true</code> in the code -- it would need to be initialized or set somewhere during the touch detection to active monitoring transition.</p>
+<h3 id="109-memory-leak-risk-in-ble-thread">10.9 Memory Leak Risk in BLE Thread<a class="headerlink" href="#109-memory-leak-risk-in-ble-thread" title="Permanent link">&para;</a></h3>
+<p><strong>Severity: Low</strong></p>
+<p>The <code>bluetooth_send_sensor_data</code> function allocates from <code>data_heap</code> for every data item. If the Bluetooth thread cannot keep up (e.g., FIFO fills faster than BLE can transmit), allocations will fail with a 20 ms timeout. The error path correctly reports the failure but does not implement backpressure. If the vitals thread continues to enqueue data while BLE cannot drain, the heap could become fragmented over time.</p>
+<h3 id="1010-sequence-number-wrapping">10.10 Sequence Number Wrapping<a class="headerlink" href="#1010-sequence-number-wrapping" title="Permanent link">&para;</a></h3>
+<p><strong>Severity: Low</strong></p>
+<p>The PSP metric sequence number (<code>p_thread-&gt;sequence_number</code>) is a <code>uint32_t</code> that increments each processing cycle (approximately 1 Hz). It would take ~136 years to overflow, so this is not a practical concern. However, the PSP preamble only uses the low 8 bits (<code>data[3] = p_thread-&gt;sequence_number</code>), so the PSP library sees wrapping every 256 seconds. This should be fine as PSP likely only uses it for ordering/deduplication.</p>
+<h3 id="1011-no-gyroscope-data-used">10.11 No Gyroscope Data Used<a class="headerlink" href="#1011-no-gyroscope-data-used" title="Permanent link">&para;</a></h3>
+<p><strong>Severity: Informational</strong></p>
+<p>The IMU read collects both accelerometer and gyroscope data (X/Y/Z for both), but only accelerometer data is used in the processing pipeline. Gyroscope data is read and discarded. The PSP library does support gyroscope input (<code>PSP_METRIC_ID_GYRO</code>), but it is not being fed. This represents unused I2C bandwidth and processing time in the ISR.</p>
+<h3 id="1012-sample-app-runs-initdeinit-in-loop">10.12 Sample App Runs Init/Deinit in Loop<a class="headerlink" href="#1012-sample-app-runs-initdeinit-in-loop" title="Permanent link">&para;</a></h3>
+<p><strong>Severity: Informational</strong></p>
+<p>The sample application (<code>samples/simple/src/main.c</code>) runs VSM init, sleeps 20 seconds, then deinits, sleeps 5 seconds, and repeats forever. This is useful for testing the init/deinit lifecycle but would not be how a real application operates (it would typically keep VSM running and rely on the state machine).</p>
+<hr />
+<h2 id="appendix-a-memory-budget">Appendix A: Memory Budget<a class="headerlink" href="#appendix-a-memory-budget" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Size</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Vitals thread stack</td>
+<td>8,192 bytes</td>
+<td><code>CONFIG_VITALS_THREAD_STACK_SIZE</code></td>
+</tr>
+<tr>
+<td>Vitals thread struct (<code>vsm_t</code>)</td>
+<td>~30,000 bytes</td>
+<td>Includes PSP heap (27,000), sample buffers, etc.</td>
+</tr>
+<tr>
+<td>PSP heap</td>
+<td>27,000 bytes</td>
+<td>For PSP library instance memory</td>
+</tr>
+<tr>
+<td>PSP ROM</td>
+<td>~77,000 bytes</td>
+<td>Flash ROM at 0xE0000</td>
+</tr>
+<tr>
+<td>BLE thread stack</td>
+<td>4,096 bytes</td>
+<td><code>CONFIG_VSM_BT_THREAD_STACK_SIZE</code></td>
+</tr>
+<tr>
+<td>BLE thread struct</td>
+<td>~21,000 bytes</td>
+<td>Includes data heap (20,480)</td>
+</tr>
+<tr>
+<td>BLE data heap</td>
+<td>20,480 bytes</td>
+<td><code>CONFIG_VSM_BT_THREAD_HEAP_SIZE</code></td>
+</tr>
+<tr>
+<td><strong>Total RAM (vitals only)</strong></td>
+<td><strong>~38 KB</strong></td>
+<td></td>
+</tr>
+<tr>
+<td><strong>Total RAM (with BLE)</strong></td>
+<td><strong>~63 KB</strong></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h2 id="appendix-b-key-source-file-cross-references">Appendix B: Key Source File Cross-References<a class="headerlink" href="#appendix-b-key-source-file-cross-references" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Functionality</th>
+<th>Primary File</th>
+<th>Related Files</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Public API</td>
+<td><code>api.h</code></td>
+<td><code>types.h</code>, <code>output.h</code></td>
+</tr>
+<tr>
+<td>Thread event loop</td>
+<td><code>thread.c</code></td>
+<td><code>priv.h</code>, <code>utils/api.h</code></td>
+</tr>
+<tr>
+<td>Sensor init/deinit</td>
+<td><code>init.c</code>, <code>deinit.c</code></td>
+<td><code>api.h</code></td>
+</tr>
+<tr>
+<td>State control</td>
+<td><code>monitor.c</code></td>
+<td><code>api.h</code></td>
+</tr>
+<tr>
+<td>Accel downsampling</td>
+<td><code>utils/transform.c</code></td>
+<td><code>types.h</code>, <code>config.h</code></td>
+</tr>
+<tr>
+<td>PPG scaling</td>
+<td><code>utils/transform.c</code></td>
+<td><code>types.h</code></td>
+</tr>
+<tr>
+<td>PSP interface</td>
+<td><code>utils/psp.c</code></td>
+<td><code>lib/inc/psp.h</code>, <code>lib/inc/psp_map.h</code></td>
+</tr>
+<tr>
+<td>BLE data output</td>
+<td><code>utils/ble.c</code></td>
+<td><code>bluetooth/types.h</code>, <code>bluetooth/thread.h</code></td>
+</tr>
+<tr>
+<td>BLE GATT server</td>
+<td><code>bluetooth/thread.c</code></td>
+<td><code>bluetooth/types.h</code></td>
+</tr>
+<tr>
+<td>Cross-talk test</td>
+<td><code>tests/cross_talk.c</code></td>
+<td><code>api.h</code>, PAH8151 factory test headers</td>
+</tr>
+<tr>
+<td>Build system</td>
+<td><code>CMakeLists.txt</code> (all levels)</td>
+<td><code>Kconfig</code></td>
+</tr>
+<tr>
+<td>Sample usage</td>
+<td><code>samples/simple/src/main.c</code></td>
+<td><code>samples/simple/prj.conf</code></td>
+</tr>
+</tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://zensical.org/" target="_blank" rel="noopener">
+      Zensical
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      
+      <script id="__config" type="application/json">{"annotate":null,"base":"../../../..","features":["navigation.sections","navigation.expand","navigation.path","navigation.indexes","search.suggest","content.code.copy","toc.follow"],"search":"../../../../assets/javascripts/workers/search.e2d2d235.min.js","tags":null,"translations":{"clipboard.copied":"Copied to clipboard","clipboard.copy":"Copy to clipboard","search.result.more.one":"1 more on this page","search.result.more.other":"# more on this page","search.result.none":"No matching documents","search.result.one":"1 matching document","search.result.other":"# matching documents","search.result.placeholder":"Type to start searching","search.result.term.missing":"Missing","select.version":"Select version"},"version":null}</script>
+    
+    
+      <script src="../../../../assets/javascripts/bundle.5fd3284f.min.js"></script>
+      
+        <script src="../../../../assets/js/external-links.js"></script>
+      
+    
+  </body>
+</html>

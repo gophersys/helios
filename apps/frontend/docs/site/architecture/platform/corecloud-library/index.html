@@ -1,0 +1,4838 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Continuous delivery platform for embedded systems">
+      
+      
+      
+      
+        <link rel="prev" href="../ci-pipeline/">
+      
+      
+        <link rel="next" href="../../validation/stages-overview/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="zensical-0.0.27">
+    
+    
+      
+        <title>CoreCloud Library Architecture - Concord</title>
+      
+    
+    
+      
+        
+      
+      <link rel="stylesheet" href="../../../assets/stylesheets/modern/main.50057488.min.css">
+      
+        
+          
+        
+        <link rel="stylesheet" href="../../../assets/stylesheets/modern/palette.dfe2e883.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,500,500i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,t)=>(e<<5)-e+t.charCodeAt(0)),0),__md_get=(e,t=localStorage,a=__md_scope)=>JSON.parse(t.getItem(a.pathname+"."+e)),__md_set=(e,t,a=localStorage,_=__md_scope)=>{try{a.setItem(_.pathname+"."+e,JSON.stringify(t))}catch(e){}},document.documentElement.setAttribute("data-platform",navigator.platform)</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="deep-purple" data-md-color-accent="amber">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer" aria-label="Navigation"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#corecloud-library-architecture" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../.." title="Concord" class="md-header__button md-logo" aria-label="Concord" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer" aria-label="Navigation">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-menu" viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h16"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Concord
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              CoreCloud Library Architecture
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="none" data-md-color-scheme="slate" data-md-color-primary="deep-purple" data-md-color-accent="amber"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="none" data-md-color-scheme="default" data-md-color-primary="deep-purple" data-md-color-accent="amber"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search" aria-label="Search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-search" viewBox="0 0 24 24"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog" aria-label="Search">
+  <button type="button" class="md-search__button">
+    Search
+  </button>
+</div>
+      
+    
+    <div class="md-header__source">
+      
+    </div>
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="Concord" class="md-nav__button md-logo" aria-label="Concord" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+
+    </a>
+    Concord
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../vision/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vision
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2" id="__nav_2_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Vision
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../vision/thesis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Thesis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../vision/validation-philosophy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation Philosophy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3" id="__nav_3_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Architecture
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3_2" id="__nav_3_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Platform
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Platform
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../unified-platform/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Unified Platform
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../hardware-registry/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hardware Registry
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../log-streaming/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Log Streaming
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ci-pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CI Pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CoreCloud Library
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="././" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CoreCloud Library
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-current-state" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Current State
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. Current State">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#11-module-inventory" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.1 Module Inventory
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#12-dependency-graph" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.2 Dependency Graph
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#13-design-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.3 Design Patterns
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#14-environment-namespaces" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.4 Environment Namespaces
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#15-public-api-surface" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.5 Public API Surface
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1.5 Public API Surface">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#message-query-interface-msgbase-classmethods" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Message Query Interface (MsgBase classmethods)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#config-send-interface-confmsgbase-methods" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Config Send Interface (ConfMsgBase methods)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#context-managers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Context Managers
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#16-message-types-v10" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.6 Message Types (v1.0)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-v09-deadweight-analysis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. v0.9 Deadweight Analysis
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. v0.9 Deadweight Analysis">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#21-what-v09-contains" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.1 What v0.9 Contains
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#22-why-v09-is-deadweight-for-validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.2 Why v0.9 Is Deadweight for Validation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#23-recommendation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.3 Recommendation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-proposed-v10-target-structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Proposed v1.0 Target Structure
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Proposed v1.0 Target Structure">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#31-current-vs-proposed-layout" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.1 Current vs Proposed Layout
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#32-new-module-fuotapy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.2 New Module: fuota.py
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#33-new-module-device_managementpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.3 New Module: device_management.py
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#34-__init__py-improvements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.4 __init__.py Improvements
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-missing-capabilities-for-validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Missing Capabilities for Validation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Missing Capabilities for Validation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#41-fuota-management-critical-stage-4-blocker" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.1 FUOTA Management (Critical — Stage 4 blocker)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#42-session-device-state-tracking" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.2 Session / Device State Tracking
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#43-ground-mode-config-v2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.3 Ground Mode Config V2
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#44-new-message-types-needed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.4 New Message Types Needed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#45-rest-endpoint-discovery" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.5 REST Endpoint Discovery
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-access-strategy-db-orm-vs-rest" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Access Strategy: DB ORM vs REST
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Access Strategy: DB ORM vs REST">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#51-decision-matrix" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.1 Decision Matrix
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#52-db-orm-write-risks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.2 DB ORM Write Risks
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#53-migration-path" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.3 Migration Path
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-integration-with-validation-pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Integration with Validation Pipeline
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. Integration with Validation Pipeline">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#61-architecture-diagram" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.1 Architecture Diagram
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#62-integration-points" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.2 Integration Points
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#63-pytest-fixture-pattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.3 Pytest Fixture Pattern
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#64-message-verification-pattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.4 Message Verification Pattern
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-fuota-via-db-orm-detailed-design" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. FUOTA via DB ORM — Detailed Design
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7. FUOTA via DB ORM — Detailed Design">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#71-fuota-data-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.1 FUOTA Data Model
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#72-plan-creation-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.2 Plan Creation Example
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#73-progress-monitoring" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.3 Progress Monitoring
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#74-fuota-rules-and-constraints" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.4 FUOTA Rules and Constraints
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-open-questions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Open Questions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="8. Open Questions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#81-for-the-corecloud-backend-team" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.1 For the CoreCloud Backend Team
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#82-for-the-firmware-team" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.2 For the Firmware Team
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#83-for-the-devops-team" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.3 For the DevOps Team
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-implementation-priority" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Implementation Priority
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-references" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. References
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_3" id="__nav_3_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Validation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../validation/stages-overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stages Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../validation/system/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    System Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../validation/stage1-software-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 1: Software Tests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../validation/stage2-driver-hw-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 2: Driver HW Tests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../validation/stage3-integration-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 3: Integration Tests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../validation/stage4-product-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 4: Product Tests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../validation/stage4-fuota-flow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 4: FUOTA Flow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../validation/stage4-pr-flow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 4: PR Flow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../validation/stage5-gate-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 5: Gate Tests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../validation/test-runner/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Test Runner
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_4" id="__nav_3_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Build
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../build/build-service/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build Service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../build/builder-nodes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Builder Nodes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../reference/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/fuota-workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FUOTA Workflow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/fuota-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FUOTA API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/alpha-test-cases/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Alpha Test Cases
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/traceability-matrix/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Traceability Matrix
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/twister-hil/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Twister HIL
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/stage4-connectivity/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 4 Connectivity
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/stage4-long-term-vision/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 4 Long-Term Vision
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/validation-flow-ui/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation Flow UI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/interfaces/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interfaces
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../guides/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_2" id="__nav_5_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Alpha
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Alpha
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../guides/alpha/stage1/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 1
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../guides/alpha/stage2/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 2
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../guides/alpha/stage3/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 3
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../guides/alpha/stage4/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 4
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../guides/alpha/stage5/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 5
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../research/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Research
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_6" id="__nav_6_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Research
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../research/01-sigma5-firmware-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sigma5 Firmware
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../research/02-alpha-firmware-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Alpha Firmware
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../research/03-sensor-drivers-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sensor Drivers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../research/05-mtib-server-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MTIB Server
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../research/06-fuota-corecloud-v1/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FUOTA CoreCloud
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../research/07-alpha-manufacturing-firmware-and-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Alpha MFG Firmware
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../research/08-device-personalization-and-key-provisioning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Device Personalization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../research/08-firmware-build-and-fuota-delivery/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Firmware Build & FUOTA
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../research/09-corecloud-validation-integration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CoreCloud Integration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../journals/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Journals
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Journals
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-current-state" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Current State
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. Current State">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#11-module-inventory" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.1 Module Inventory
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#12-dependency-graph" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.2 Dependency Graph
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#13-design-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.3 Design Patterns
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#14-environment-namespaces" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.4 Environment Namespaces
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#15-public-api-surface" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.5 Public API Surface
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1.5 Public API Surface">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#message-query-interface-msgbase-classmethods" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Message Query Interface (MsgBase classmethods)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#config-send-interface-confmsgbase-methods" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Config Send Interface (ConfMsgBase methods)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#context-managers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Context Managers
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#16-message-types-v10" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.6 Message Types (v1.0)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-v09-deadweight-analysis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. v0.9 Deadweight Analysis
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. v0.9 Deadweight Analysis">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#21-what-v09-contains" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.1 What v0.9 Contains
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#22-why-v09-is-deadweight-for-validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.2 Why v0.9 Is Deadweight for Validation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#23-recommendation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.3 Recommendation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-proposed-v10-target-structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Proposed v1.0 Target Structure
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Proposed v1.0 Target Structure">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#31-current-vs-proposed-layout" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.1 Current vs Proposed Layout
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#32-new-module-fuotapy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.2 New Module: fuota.py
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#33-new-module-device_managementpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.3 New Module: device_management.py
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#34-__init__py-improvements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.4 __init__.py Improvements
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-missing-capabilities-for-validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Missing Capabilities for Validation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Missing Capabilities for Validation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#41-fuota-management-critical-stage-4-blocker" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.1 FUOTA Management (Critical — Stage 4 blocker)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#42-session-device-state-tracking" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.2 Session / Device State Tracking
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#43-ground-mode-config-v2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.3 Ground Mode Config V2
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#44-new-message-types-needed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.4 New Message Types Needed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#45-rest-endpoint-discovery" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.5 REST Endpoint Discovery
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-access-strategy-db-orm-vs-rest" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Access Strategy: DB ORM vs REST
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Access Strategy: DB ORM vs REST">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#51-decision-matrix" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.1 Decision Matrix
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#52-db-orm-write-risks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.2 DB ORM Write Risks
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#53-migration-path" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.3 Migration Path
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-integration-with-validation-pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Integration with Validation Pipeline
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. Integration with Validation Pipeline">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#61-architecture-diagram" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.1 Architecture Diagram
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#62-integration-points" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.2 Integration Points
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#63-pytest-fixture-pattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.3 Pytest Fixture Pattern
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#64-message-verification-pattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.4 Message Verification Pattern
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-fuota-via-db-orm-detailed-design" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. FUOTA via DB ORM — Detailed Design
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7. FUOTA via DB ORM — Detailed Design">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#71-fuota-data-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.1 FUOTA Data Model
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#72-plan-creation-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.2 Plan Creation Example
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#73-progress-monitoring" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.3 Progress Monitoring
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#74-fuota-rules-and-constraints" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.4 FUOTA Rules and Constraints
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-open-questions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Open Questions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="8. Open Questions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#81-for-the-corecloud-backend-team" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.1 For the CoreCloud Backend Team
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#82-for-the-firmware-team" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.2 For the Firmware Team
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#83-for-the-devops-team" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.3 For the DevOps Team
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-implementation-priority" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Implementation Priority
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-references" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. References
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+                
+
+
+
+  
+
+
+  <nav class="md-path" aria-label="Navigation" >
+    <ol class="md-path__list">
+      
+        
+  
+  
+    <li class="md-path__item">
+      <a href="../../.." class="md-path__link">
+        
+  <span class="md-ellipsis">
+    Home
+  </span>
+
+      </a>
+    </li>
+  
+
+      
+      
+        
+  
+  
+    
+    
+      <li class="md-path__item">
+        <a href="../../" class="md-path__link">
+          
+  <span class="md-ellipsis">
+    Architecture
+  </span>
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+    
+    
+      <li class="md-path__item">
+        <a href="../unified-platform/" class="md-path__link">
+          
+  <span class="md-ellipsis">
+    Platform
+  </span>
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ol>
+  </nav>
+
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+<h1 id="corecloud-library-architecture">CoreCloud Library Architecture<a class="headerlink" href="#corecloud-library-architecture" title="Permanent link">&para;</a></h1>
+<blockquote>
+<p>Architecture analysis and restructuring proposal for the CoreCloud Python SDK
+(<code>libs/python/corekinect/core_cloud/</code>). This document captures the current state
+of the library, identifies v0.9 deadweight that can be removed, proposes a
+v1.0-only target structure, catalogs missing capabilities needed for the
+validation pipeline (FUOTA management, sessions, Ground Mode Config V2), and
+lists open questions for the CoreCloud backend team.</p>
+<p><strong>This is a documentation-only analysis. No code changes are proposed here.</strong></p>
+</blockquote>
+<hr />
+<h2 id="1-current-state">1. Current State<a class="headerlink" href="#1-current-state" title="Permanent link">&para;</a></h2>
+<h3 id="11-module-inventory">1.1 Module Inventory<a class="headerlink" href="#11-module-inventory" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>libs/python/corekinect/core_cloud/
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>├── __init__.py              # Empty (__all__ = [])
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>├── READ_ME.md               # User guide with usage examples
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>├── .env.example             # Environment variable template (3 namespaces)
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>├── api_interface.py          # REST API client (auth, rate limiting, singleton)
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>├── db_interface.py           # Database connector (SQLAlchemy, SSH tunnel)
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>├── db_orm_v1_0.py            # v1.0 SQLAlchemy ORM models (PostgreSQL)
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>├── db_orm_v0_9.py            # v0.9 legacy ORM models (MySQL)
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>├── msg_def_v1_0.py           # v1.0 message classes + DB query helpers
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>└── msg_def_v0_9.py           # v0.9 legacy message classes (MySQL backend)
+</code></pre></div>
+<h3 id="12-dependency-graph">1.2 Dependency Graph<a class="headerlink" href="#12-dependency-graph" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>msg_def_v1_0.py ─────────────────────────────────────────────┐
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>  ├── db_interface.py                                         │
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>  │     └── sqlalchemy, sshtunnel, dotenv                     │
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>  ├── api_interface.py                                        │
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>  │     └── requests, dotenv                                  │
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>  ├── db_orm_v1_0.py                                          │
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>  │     └── sqlalchemy ORM (DeclarativeBase, Mapped, mapped_column)
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>  └── corekinect.utils (Serializable, EnvConfig, SingletonThreadSafeMeta)
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>msg_def_v0_9.py ──────────────────────────────────────────────┐
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>  ├── db_interface.py (shared with v1.0)                      │
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>  ├── db_orm_v0_9.py                                          │
+<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>  │     └── sqlalchemy ORM (declarative_base, Column) — legacy syntax
+<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>  └── corekinect.utils (shared)
+</code></pre></div>
+<h3 id="13-design-patterns">1.3 Design Patterns<a class="headerlink" href="#13-design-patterns" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Pattern</th>
+<th>Implementation</th>
+<th>Location</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Singleton + Context Manager</td>
+<td><code>SingletonThreadSafeMeta</code> with <code>__enter__</code>/<code>__exit__</code>, <code>_depth</code> reentry guard, <code>atexit</code> cleanup</td>
+<td><code>api_interface.py</code>, <code>db_interface.py</code></td>
+</tr>
+<tr>
+<td>Frozen Dataclass + ORM Mapping</td>
+<td><code>@dataclass(frozen=True, slots=True)</code> with <code>orm_field_map</code> dict for column aliasing</td>
+<td>All <code>msg_def_*.py</code> classes</td>
+</tr>
+<tr>
+<td>API Payload Marshalling</td>
+<td>Bidirectional <code>to_api_payload()</code>/<code>from_api_payload()</code> with <code>api_field_map</code> and <code>api_types</code> coercion</td>
+<td><code>ConfMsgBase</code> subclasses</td>
+</tr>
+<tr>
+<td>Version-Parallel APIs</td>
+<td>v0.9 and v1.0 expose identical class names and method signatures; internal ORM differs</td>
+<td><code>msg_def_v0_9.py</code> mirrors <code>msg_def_v1_0.py</code></td>
+</tr>
+<tr>
+<td>Namespace-Based Config</td>
+<td>Env vars prefixed by namespace (<code>VAL_1_0_DB_HOST</code>, <code>DEV_1_0_API_KEY</code>, etc.)</td>
+<td>All interface modules</td>
+</tr>
+</tbody>
+</table>
+<h3 id="14-environment-namespaces">1.4 Environment Namespaces<a class="headerlink" href="#14-environment-namespaces" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Namespace</th>
+<th>Backend</th>
+<th>Database</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>VAL_1_0</code></td>
+<td>PostgreSQL</td>
+<td><code>validation.ad.corekinect.com:5432</code></td>
+<td>Validation environment (Stage 4 pipeline target)</td>
+</tr>
+<tr>
+<td><code>DEV_1_0</code></td>
+<td>PostgreSQL</td>
+<td>via SSH tunnel through <code>dmz-pg02.dmz.corekinect.com</code></td>
+<td>Development/office environment</td>
+</tr>
+<tr>
+<td><code>DEV_0_9</code></td>
+<td>MySQL</td>
+<td><code>coreserver005.ad.corekinect.com:3306</code></td>
+<td>Legacy v0.9 (MySQL)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="15-public-api-surface">1.5 Public API Surface<a class="headerlink" href="#15-public-api-surface" title="Permanent link">&para;</a></h3>
+<h4 id="message-query-interface-msgbase-classmethods">Message Query Interface (<code>MsgBase</code> classmethods)<a class="headerlink" href="#message-query-interface-msgbase-classmethods" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># Get the most recent message for a device</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="n">msg</span> <span class="o">=</span> <span class="n">SomeMsg</span><span class="o">.</span><span class="n">last</span><span class="p">(</span><span class="n">device_id</span><span class="p">,</span> <span class="n">db_env</span><span class="o">=</span><span class="s2">&quot;VAL_1_0&quot;</span><span class="p">)</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="c1"># Messages within a server-time window</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="n">msgs</span> <span class="o">=</span> <span class="n">SomeMsg</span><span class="o">.</span><span class="n">since_server_time</span><span class="p">(</span><span class="n">device_id</span><span class="p">,</span> <span class="n">start</span><span class="p">,</span> <span class="n">end</span><span class="p">,</span> <span class="n">db_env</span><span class="o">=</span><span class="s2">&quot;VAL_1_0&quot;</span><span class="p">)</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="c1"># Messages within a device-time window</span>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="n">msgs</span> <span class="o">=</span> <span class="n">SomeMsg</span><span class="o">.</span><span class="n">since_device_time</span><span class="p">(</span><span class="n">device_id</span><span class="p">,</span> <span class="n">start</span><span class="p">,</span> <span class="n">end</span><span class="p">,</span> <span class="n">db_env</span><span class="o">=</span><span class="s2">&quot;VAL_1_0&quot;</span><span class="p">)</span>
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="c1"># Messages within a record ID range</span>
+<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="n">msgs</span> <span class="o">=</span> <span class="n">SomeMsg</span><span class="o">.</span><span class="n">since_record_id</span><span class="p">(</span><span class="n">device_id</span><span class="p">,</span> <span class="n">start_id</span><span class="p">,</span> <span class="n">end_id</span><span class="p">,</span> <span class="n">db_env</span><span class="o">=</span><span class="s2">&quot;VAL_1_0&quot;</span><span class="p">)</span>
+</code></pre></div>
+<h4 id="config-send-interface-confmsgbase-methods">Config Send Interface (<code>ConfMsgBase</code> methods)<a class="headerlink" href="#config-send-interface-confmsgbase-methods" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1"># Send configuration via REST</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="n">resp</span> <span class="o">=</span> <span class="n">cfg</span><span class="o">.</span><span class="n">send_via_rest</span><span class="p">(</span><span class="n">device_id</span><span class="o">=</span><span class="nb">id</span><span class="p">,</span> <span class="n">env_namespace</span><span class="o">=</span><span class="s2">&quot;VAL_1_0&quot;</span><span class="p">)</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="c1"># Search configurations via REST</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="n">resp</span> <span class="o">=</span> <span class="n">SomeConf</span><span class="o">.</span><span class="n">search_via_rest</span><span class="p">(</span><span class="n">criteria</span><span class="p">,</span> <span class="n">env_namespace</span><span class="o">=</span><span class="s2">&quot;VAL_1_0&quot;</span><span class="p">)</span>
+</code></pre></div>
+<h4 id="context-managers">Context Managers<a class="headerlink" href="#context-managers" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># Database session (raw ORM access)</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="k">with</span> <span class="n">CoreCloudDBInterface</span><span class="p">(</span><span class="n">db_env</span><span class="o">=</span><span class="s2">&quot;VAL_1_0&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">session</span><span class="p">:</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>    <span class="n">result</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="n">SomeTable</span><span class="p">)</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="o">...</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="c1"># REST API client (authenticated HTTP)</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="k">with</span> <span class="n">CoreCloudRestInterface</span><span class="p">(</span><span class="n">env_namespace</span><span class="o">=</span><span class="s2">&quot;VAL_1_0&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">api</span><span class="p">:</span>
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>    <span class="n">resp</span> <span class="o">=</span> <span class="n">api</span><span class="o">.</span><span class="n">request</span><span class="p">(</span><span class="s2">&quot;GET&quot;</span><span class="p">,</span> <span class="s2">&quot;/System/Devices/Status&quot;</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="p">{</span><span class="o">...</span><span class="p">})</span>
+</code></pre></div>
+<h3 id="16-message-types-v10">1.6 Message Types (v1.0)<a class="headerlink" href="#16-message-types-v10" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Class</th>
+<th>UID</th>
+<th>ORM Table</th>
+<th>Key Fields</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>BootMsgV2</code></td>
+<td>548</td>
+<td><code>messagesboottbl</code></td>
+<td><code>time_of_boot</code>, <code>flags</code> (MCU type, boot reason), <code>num_exceptions</code></td>
+</tr>
+<tr>
+<td><code>PositionMsgV6</code></td>
+<td>556</td>
+<td><code>messagespositionv5tbl</code></td>
+<td><code>latitude</code>, <code>longitude</code>, <code>gps_altitude</code>, <code>horizontal_accuracy</code>, <code>num_sat</code>, <code>fix_type</code></td>
+</tr>
+<tr>
+<td><code>BiometricDataMsg</code></td>
+<td>557</td>
+<td><code>messagesbiometricdatatbl</code></td>
+<td><code>heart_rate</code>, <code>spo2</code>, <code>skin_temperature</code>, <code>on_body</code></td>
+</tr>
+<tr>
+<td><code>NetworkStatusMsgV4</code></td>
+<td>512</td>
+<td><code>messagesnetworkstatusv4tbl</code></td>
+<td><code>did_lte_conn</code>, <code>did_sock_conn</code>, <code>send_success</code>, <code>rsrp</code></td>
+</tr>
+<tr>
+<td><code>GPSConfMsg</code></td>
+<td>524</td>
+<td><code>configgpstbl</code></td>
+<td><code>is_psm_enabled</code>, <code>gnss_update_freq</code>, <code>target_fix_accuracy</code></td>
+</tr>
+<tr>
+<td><code>GroundModeConfigV2</code></td>
+<td>538</td>
+<td><code>configgroundhistorytbl</code></td>
+<td>GPS heartbeat period, motion thresholds</td>
+</tr>
+<tr>
+<td><code>AlphaHwFailureMsg</code></td>
+<td>559</td>
+<td><code>messagesalphahwfailtbl</code></td>
+<td><code>xlr_fails</code>, <code>gps_fails</code>, <code>bms_fails</code>, <code>ppg_fails</code>, <code>imu_fails</code></td>
+</tr>
+<tr>
+<td><code>CommsHwFailureMsg</code></td>
+<td>549</td>
+<td><code>messagescommshwfailtbl</code></td>
+<td><code>sim_fails</code>, <code>sx1262_fails</code>, <code>ipc_fails</code>, <code>ext_flash_fails</code></td>
+</tr>
+<tr>
+<td><code>Sigma5HwFailureMsg</code></td>
+<td>552</td>
+<td><code>messagessigma5hwfailtbl</code></td>
+<td>Sigma5 variant hardware failure counts</td>
+</tr>
+<tr>
+<td><code>DeviceMessageLog</code></td>
+<td>--</td>
+<td><code>devicemessagestbl</code></td>
+<td><code>record_id</code>, <code>is_uplink</code>, <code>message_uid</code>, <code>interface_type</code></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="2-v09-deadweight-analysis">2. v0.9 Deadweight Analysis<a class="headerlink" href="#2-v09-deadweight-analysis" title="Permanent link">&para;</a></h2>
+<h3 id="21-what-v09-contains">2.1 What v0.9 Contains<a class="headerlink" href="#21-what-v09-contains" title="Permanent link">&para;</a></h3>
+<p>The v0.9 modules (<code>msg_def_v0_9.py</code> + <code>db_orm_v0_9.py</code>) provide a MySQL-backed
+alternative that mirrors the v1.0 API surface. They were needed historically when
+the codebase targeted both the legacy MySQL-based CoreCloud and the newer
+PostgreSQL-based v1.0.</p>
+<table>
+<thead>
+<tr>
+<th>Module</th>
+<th>Lines</th>
+<th>ORM Tables</th>
+<th>Message Classes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>db_orm_v0_9.py</code></td>
+<td>~250</td>
+<td>7 (MySQL, <code>declarative_base()</code> syntax)</td>
+<td>--</td>
+</tr>
+<tr>
+<td><code>msg_def_v0_9.py</code></td>
+<td>~600</td>
+<td>--</td>
+<td>7 (<code>BootMsgV2</code>, <code>PositionMsgV6</code>, <code>HipsDataMsg</code>, <code>BiometricDataMsg</code>, <code>NetworkStatusMsgV4</code>, <code>HardwareFailureV2Msg</code>, <code>GroundConfigV2</code>)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="22-why-v09-is-deadweight-for-validation">2.2 Why v0.9 Is Deadweight for Validation<a class="headerlink" href="#22-why-v09-is-deadweight-for-validation" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>Validation uses <code>VAL_1_0</code> exclusively.</strong> The validation pipeline targets the
+   v1.0 CoreCloud instance. There is no v0.9 validation environment.</li>
+<li><strong>No new development on v0.9.</strong> No new message types, FUOTA tables, or REST
+   endpoints will be added to the MySQL backend.</li>
+<li><strong>Maintenance burden.</strong> Any API change to <code>MsgBase</code> must be replicated across
+   both <code>msg_def_v1_0.py</code> and <code>msg_def_v0_9.py</code>. The v0.9 module imports from
+   <code>db_orm_v0_9.py</code> using legacy MySQL table names (<code>JumpTrack1CMsgTbl</code>,
+   <code>JumpTrackBootMessageTbl</code>, etc.) that predate the standardized naming.</li>
+<li><strong>Import side effects.</strong> Even if test code only uses v1.0 imports, having v0.9
+   present means the MySQL ORM models are registered with SQLAlchemy metadata,
+   adding startup cost and potential confusion.</li>
+</ol>
+<h3 id="23-recommendation">2.3 Recommendation<a class="headerlink" href="#23-recommendation" title="Permanent link">&para;</a></h3>
+<p><strong>Keep v0.9 modules but freeze them.</strong> The v0.9 modules may still be used by
+internal tools or ad-hoc scripts that query the legacy database. Rather than
+deleting them:</p>
+<ul>
+<li>Mark <code>msg_def_v0_9.py</code> and <code>db_orm_v0_9.py</code> as frozen/deprecated (docstring +
+  module-level comment)</li>
+<li>Do not add new message types to v0.9</li>
+<li>Do not extend the v0.9 <code>MsgBase</code> with new query methods</li>
+<li>New validation pipeline code imports exclusively from <code>msg_def_v1_0</code></li>
+<li>The <code>DEV_0_9</code> namespace remains in <code>.env.example</code> for backward compatibility
+  but is not used by the validation pipeline</li>
+</ul>
+<hr />
+<h2 id="3-proposed-v10-target-structure">3. Proposed v1.0 Target Structure<a class="headerlink" href="#3-proposed-v10-target-structure" title="Permanent link">&para;</a></h2>
+<h3 id="31-current-vs-proposed-layout">3.1 Current vs Proposed Layout<a class="headerlink" href="#31-current-vs-proposed-layout" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>Current:                              Proposed:
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>core_cloud/                           core_cloud/
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>├── __init__.py                       ├── __init__.py          (typed re-exports)
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>├── api_interface.py                  ├── api_interface.py     (unchanged)
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>├── db_interface.py                   ├── db_interface.py      (unchanged)
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>├── db_orm_v1_0.py                    ├── db_orm_v1_0.py       (+ FUOTA message classes)
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>├── db_orm_v0_9.py         ◄ freeze   ├── db_orm_v0_9.py       (frozen, deprecated)
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>├── msg_def_v1_0.py                   ├── msg_def_v1_0.py      (+ new message types)
+<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>├── msg_def_v0_9.py        ◄ freeze   ├── msg_def_v0_9.py      (frozen, deprecated)
+<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a>├── .env.example                      ├── fuota.py             (NEW: FUOTA plan management)
+<a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a>└── READ_ME.md                        ├── device_management.py (NEW: device registration/status)
+<a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a>                                      ├── .env.example
+<a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a>                                      └── READ_ME.md
+</code></pre></div>
+<h3 id="32-new-module-fuotapy">3.2 New Module: <code>fuota.py</code><a class="headerlink" href="#32-new-module-fuotapy" title="Permanent link">&para;</a></h3>
+<p>A high-level FUOTA management module that wraps the existing ORM tables into a
+validation-friendly API. This module is the primary new capability needed for
+Stage 4.</p>
+<p><strong>Proposed API surface:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="k">class</span><span class="w"> </span><span class="nc">FuotaPlanBuilder</span><span class="p">:</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Builds and persists FUOTA plans via direct DB ORM.&quot;&quot;&quot;</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">create_plan</span><span class="p">(</span><span class="n">description</span><span class="p">,</span> <span class="n">device_type_id</span><span class="p">,</span> <span class="n">device_variant_id</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;Create a FUOTA plan, return plan_id.&quot;&quot;&quot;</span>
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">add_stage</span><span class="p">(</span><span class="n">plan_id</span><span class="p">,</span> <span class="n">stage_num</span><span class="p">,</span> <span class="n">description</span><span class="p">,</span> <span class="n">targets</span><span class="p">,</span> <span class="n">skippable</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;Add an ordered stage with firmware version targets.&quot;&quot;&quot;</span>
+<a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>
+<a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">enroll_device</span><span class="p">(</span><span class="n">device_id</span><span class="p">,</span> <span class="n">plan_id</span><span class="p">,</span> <span class="n">max_stage</span><span class="p">,</span> <span class="n">enable</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+<a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;Set per-device FUOTA settings.&quot;&quot;&quot;</span>
+<a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a>
+<a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">disable_device</span><span class="p">(</span><span class="n">device_id</span><span class="p">):</span>
+<a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;Disable FUOTA for a device.&quot;&quot;&quot;</span>
+<a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a>
+<a id="__codelineno-6-16" name="__codelineno-6-16" href="#__codelineno-6-16"></a>
+<a id="__codelineno-6-17" name="__codelineno-6-17" href="#__codelineno-6-17"></a><span class="k">class</span><span class="w"> </span><span class="nc">FuotaMonitor</span><span class="p">:</span>
+<a id="__codelineno-6-18" name="__codelineno-6-18" href="#__codelineno-6-18"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Polls FUOTA progress and firmware version state.&quot;&quot;&quot;</span>
+<a id="__codelineno-6-19" name="__codelineno-6-19" href="#__codelineno-6-19"></a>
+<a id="__codelineno-6-20" name="__codelineno-6-20" href="#__codelineno-6-20"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">get_progress</span><span class="p">(</span><span class="n">device_id</span><span class="p">,</span> <span class="n">app_id</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">FuotaProgress</span><span class="p">]:</span>
+<a id="__codelineno-6-21" name="__codelineno-6-21" href="#__codelineno-6-21"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;Current transfer progress (pages applied / total).&quot;&quot;&quot;</span>
+<a id="__codelineno-6-22" name="__codelineno-6-22" href="#__codelineno-6-22"></a>
+<a id="__codelineno-6-23" name="__codelineno-6-23" href="#__codelineno-6-23"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">is_complete</span><span class="p">(</span><span class="n">device_id</span><span class="p">,</span> <span class="n">app_id</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<a id="__codelineno-6-24" name="__codelineno-6-24" href="#__codelineno-6-24"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;True if pagesapplied == totalpages.&quot;&quot;&quot;</span>
+<a id="__codelineno-6-25" name="__codelineno-6-25" href="#__codelineno-6-25"></a>
+<a id="__codelineno-6-26" name="__codelineno-6-26" href="#__codelineno-6-26"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">wait_for_completion</span><span class="p">(</span><span class="n">device_id</span><span class="p">,</span> <span class="n">app_id</span><span class="p">,</span> <span class="n">timeout_s</span><span class="o">=</span><span class="mi">600</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<a id="__codelineno-6-27" name="__codelineno-6-27" href="#__codelineno-6-27"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;Block until FUOTA transfer completes or timeout.&quot;&quot;&quot;</span>
+<a id="__codelineno-6-28" name="__codelineno-6-28" href="#__codelineno-6-28"></a>
+<a id="__codelineno-6-29" name="__codelineno-6-29" href="#__codelineno-6-29"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">get_current_firmware</span><span class="p">(</span><span class="n">device_id</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">FirmwareVersion</span><span class="p">]:</span>
+<a id="__codelineno-6-30" name="__codelineno-6-30" href="#__codelineno-6-30"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;Current firmware version per app ID.&quot;&quot;&quot;</span>
+<a id="__codelineno-6-31" name="__codelineno-6-31" href="#__codelineno-6-31"></a>
+<a id="__codelineno-6-32" name="__codelineno-6-32" href="#__codelineno-6-32"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">verify_firmware_version</span><span class="p">(</span><span class="n">device_id</span><span class="p">,</span> <span class="n">app_id</span><span class="p">,</span> <span class="n">expected</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<a id="__codelineno-6-33" name="__codelineno-6-33" href="#__codelineno-6-33"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;Check if device reports expected firmware version.&quot;&quot;&quot;</span>
+</code></pre></div>
+<p><strong>Implementation path:</strong> Direct DB ORM via <code>CoreCloudDBInterface</code> with
+<code>VAL_1_0</code> namespace. The ORM tables (<code>Fuotaplanstbl</code>, <code>Fuotaplanstagestbl</code>,
+<code>Fuotaplanstagetargetstbl</code>, <code>Fuotasettingsperdevicetbl</code>, <code>Fuotaprogresstbl</code>,
+<code>Devicefirmwarecurrenttbl</code>) are already defined in <code>db_orm_v1_0.py</code>.</p>
+<p><strong>Why DB ORM instead of REST:</strong> No REST endpoints exist in the Python SDK for
+FUOTA plan CRUD. The C# server may have endpoints, but they are undocumented.
+Direct DB access works immediately and is acceptable in the isolated validation
+environment. See Section 5.1 for the migration path to REST.</p>
+<h3 id="33-new-module-device_managementpy">3.3 New Module: <code>device_management.py</code><a class="headerlink" href="#33-new-module-device_managementpy" title="Permanent link">&para;</a></h3>
+<p>REST wrappers for device lifecycle operations that the C# server exposes but the
+Python SDK does not wrap.</p>
+<p><strong>Proposed API surface:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="k">class</span><span class="w"> </span><span class="nc">DeviceManager</span><span class="p">:</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Device registration and status via REST API.&quot;&quot;&quot;</span>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">register_device</span><span class="p">(</span><span class="n">device_id</span><span class="p">,</span> <span class="n">device_type_id</span><span class="p">,</span> <span class="n">device_variant_id</span><span class="p">,</span> <span class="n">account_id</span><span class="p">):</span>
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;POST /System/Devices/Register&quot;&quot;&quot;</span>
+<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>
+<a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">get_device_status</span><span class="p">(</span><span class="n">device_id</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DeviceStatus</span><span class="p">:</span>
+<a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;GET /System/Devices/Status&quot;&quot;&quot;</span>
+<a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a>
+<a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">get_device_firmware_versions</span><span class="p">(</span><span class="n">device_id</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">FirmwareVersion</span><span class="p">]:</span>
+<a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;Query devicefirmwarecurrenttbl via DB ORM.&quot;&quot;&quot;</span>
+</code></pre></div>
+<h3 id="34-__init__py-improvements">3.4 <code>__init__.py</code> Improvements<a class="headerlink" href="#34-__init__py-improvements" title="Permanent link">&para;</a></h3>
+<p>The current <code>__init__.py</code> exports nothing (<code>__all__ = []</code>). The proposed version
+adds typed re-exports for discoverability:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">corekinect.core_cloud.api_interface</span><span class="w"> </span><span class="kn">import</span> <span class="n">CoreCloudRestInterface</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">corekinect.core_cloud.db_interface</span><span class="w"> </span><span class="kn">import</span> <span class="n">CoreCloudDBInterface</span>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">corekinect.core_cloud.msg_def_v1_0</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>    <span class="n">BootMsgV2</span><span class="p">,</span>
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>    <span class="n">PositionMsgV6</span><span class="p">,</span>
+<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>    <span class="n">BiometricDataMsg</span><span class="p">,</span>
+<a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a>    <span class="n">NetworkStatusMsgV4</span><span class="p">,</span>
+<a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a>    <span class="n">GPSConfMsg</span><span class="p">,</span>
+<a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a>    <span class="c1"># ... etc</span>
+<a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a><span class="p">)</span>
+<a id="__codelineno-8-11" name="__codelineno-8-11" href="#__codelineno-8-11"></a>
+<a id="__codelineno-8-12" name="__codelineno-8-12" href="#__codelineno-8-12"></a><span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
+<a id="__codelineno-8-13" name="__codelineno-8-13" href="#__codelineno-8-13"></a>    <span class="s2">&quot;CoreCloudRestInterface&quot;</span><span class="p">,</span>
+<a id="__codelineno-8-14" name="__codelineno-8-14" href="#__codelineno-8-14"></a>    <span class="s2">&quot;CoreCloudDBInterface&quot;</span><span class="p">,</span>
+<a id="__codelineno-8-15" name="__codelineno-8-15" href="#__codelineno-8-15"></a>    <span class="s2">&quot;BootMsgV2&quot;</span><span class="p">,</span>
+<a id="__codelineno-8-16" name="__codelineno-8-16" href="#__codelineno-8-16"></a>    <span class="s2">&quot;PositionMsgV6&quot;</span><span class="p">,</span>
+<a id="__codelineno-8-17" name="__codelineno-8-17" href="#__codelineno-8-17"></a>    <span class="c1"># ... etc</span>
+<a id="__codelineno-8-18" name="__codelineno-8-18" href="#__codelineno-8-18"></a><span class="p">]</span>
+</code></pre></div>
+<hr />
+<h2 id="4-missing-capabilities-for-validation">4. Missing Capabilities for Validation<a class="headerlink" href="#4-missing-capabilities-for-validation" title="Permanent link">&para;</a></h2>
+<h3 id="41-fuota-management-critical-stage-4-blocker">4.1 FUOTA Management (Critical — Stage 4 blocker)<a class="headerlink" href="#41-fuota-management-critical-stage-4-blocker" title="Permanent link">&para;</a></h3>
+<p><strong>Current state:</strong> The ORM tables exist in <code>db_orm_v1_0.py</code> (11 FUOTA-related
+tables). There are no Python wrapper classes, no REST wrappers, and no
+convenience methods.</p>
+<p><strong>What's needed:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Capability</th>
+<th>Method</th>
+<th>Underlying Access</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Create FUOTA plan</td>
+<td><code>FuotaPlanBuilder.create_plan()</code></td>
+<td>DB ORM: <code>Fuotaplanstbl</code></td>
+</tr>
+<tr>
+<td>Add plan stages with targets</td>
+<td><code>FuotaPlanBuilder.add_stage()</code></td>
+<td>DB ORM: <code>Fuotaplanstagestbl</code> + <code>Fuotaplanstagetargetstbl</code></td>
+</tr>
+<tr>
+<td>Enroll device in plan</td>
+<td><code>FuotaPlanBuilder.enroll_device()</code></td>
+<td>DB ORM: <code>Fuotasettingsperdevicetbl</code></td>
+</tr>
+<tr>
+<td>Monitor transfer progress</td>
+<td><code>FuotaMonitor.get_progress()</code></td>
+<td>DB ORM: <code>Fuotaprogresstbl</code></td>
+</tr>
+<tr>
+<td>Wait for completion</td>
+<td><code>FuotaMonitor.wait_for_completion()</code></td>
+<td>DB ORM: <code>Fuotaprogresstbl</code> polling</td>
+</tr>
+<tr>
+<td>Verify post-FUOTA firmware</td>
+<td><code>FuotaMonitor.verify_firmware_version()</code></td>
+<td>DB ORM: <code>Devicefirmwarecurrenttbl</code></td>
+</tr>
+<tr>
+<td>Query transfer history</td>
+<td><code>FuotaMonitor.get_history()</code></td>
+<td>DB ORM: <code>Fuotaprogresshistorytbl</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>The 12-step FUOTA validation flow</strong> (defined in
+<a href="../../validation/stage4-fuota-flow/">stage4-fuota-validation-flow.md</a>) requires
+all of these capabilities to orchestrate the firmware transition sequence.</p>
+<h3 id="42-session-device-state-tracking">4.2 Session / Device State Tracking<a class="headerlink" href="#42-session-device-state-tracking" title="Permanent link">&para;</a></h3>
+<p><strong>Current state:</strong> No session concept exists. Each <code>MsgBase.last()</code> call opens a
+new DB connection (via the singleton pattern, which caches the engine but not
+query context).</p>
+<p><strong>What's needed for validation:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Capability</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Record ID bookmarking</td>
+<td>Tests need "messages since I last checked" semantics — <code>since_record_id()</code> exists but requires the caller to track the bookmark</td>
+</tr>
+<tr>
+<td>Server time anchoring</td>
+<td>Tests need "messages since test started" — <code>since_server_time()</code> exists but requires the caller to snapshot <code>datetime.utcnow()</code></td>
+</tr>
+<tr>
+<td>Multi-message correlation</td>
+<td>A FUOTA transition produces boot messages from both MCUs (App Core and Comms Core); validation must correlate them by <code>flag_mcu</code> field</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Proposed approach:</strong> A lightweight <code>ValidationSession</code> context that tracks
+start time, last-seen record IDs per message type, and provides
+<code>messages_since_start()</code> and <code>new_messages()</code> helpers. This is a convenience
+layer, not a fundamental architectural change.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="k">class</span><span class="w"> </span><span class="nc">ValidationSession</span><span class="p">:</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Tracks message state across a validation test run.&quot;&quot;&quot;</span>
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">device_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">db_env</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;VAL_1_0&quot;</span><span class="p">):</span>
+<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">device_id</span> <span class="o">=</span> <span class="n">device_id</span>
+<a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">db_env</span> <span class="o">=</span> <span class="n">db_env</span>
+<a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">start_time</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">utcnow</span><span class="p">()</span>
+<a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_bookmarks</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="n">Type</span><span class="p">[</span><span class="n">MsgBase</span><span class="p">],</span> <span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+<a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a>
+<a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">messages_since_start</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">msg_class</span><span class="p">:</span> <span class="n">Type</span><span class="p">[</span><span class="n">MsgBase</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">MsgBase</span><span class="p">]:</span>
+<a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;All messages of this type since session started.&quot;&quot;&quot;</span>
+<a id="__codelineno-9-12" name="__codelineno-9-12" href="#__codelineno-9-12"></a>        <span class="k">return</span> <span class="n">msg_class</span><span class="o">.</span><span class="n">since_server_time</span><span class="p">(</span>
+<a id="__codelineno-9-13" name="__codelineno-9-13" href="#__codelineno-9-13"></a>            <span class="bp">self</span><span class="o">.</span><span class="n">device_id</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">start_time</span><span class="p">,</span> <span class="n">db_env</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">db_env</span>
+<a id="__codelineno-9-14" name="__codelineno-9-14" href="#__codelineno-9-14"></a>        <span class="p">)</span>
+<a id="__codelineno-9-15" name="__codelineno-9-15" href="#__codelineno-9-15"></a>
+<a id="__codelineno-9-16" name="__codelineno-9-16" href="#__codelineno-9-16"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">new_messages</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">msg_class</span><span class="p">:</span> <span class="n">Type</span><span class="p">[</span><span class="n">MsgBase</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">MsgBase</span><span class="p">]:</span>
+<a id="__codelineno-9-17" name="__codelineno-9-17" href="#__codelineno-9-17"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;Messages since last call to new_messages() for this type.&quot;&quot;&quot;</span>
+<a id="__codelineno-9-18" name="__codelineno-9-18" href="#__codelineno-9-18"></a>        <span class="n">bookmark</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_bookmarks</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">msg_class</span><span class="p">)</span>
+<a id="__codelineno-9-19" name="__codelineno-9-19" href="#__codelineno-9-19"></a>        <span class="k">if</span> <span class="n">bookmark</span><span class="p">:</span>
+<a id="__codelineno-9-20" name="__codelineno-9-20" href="#__codelineno-9-20"></a>            <span class="n">msgs</span> <span class="o">=</span> <span class="n">msg_class</span><span class="o">.</span><span class="n">since_record_id</span><span class="p">(</span>
+<a id="__codelineno-9-21" name="__codelineno-9-21" href="#__codelineno-9-21"></a>                <span class="bp">self</span><span class="o">.</span><span class="n">device_id</span><span class="p">,</span> <span class="n">bookmark</span><span class="p">,</span> <span class="n">db_env</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">db_env</span>
+<a id="__codelineno-9-22" name="__codelineno-9-22" href="#__codelineno-9-22"></a>            <span class="p">)</span>
+<a id="__codelineno-9-23" name="__codelineno-9-23" href="#__codelineno-9-23"></a>        <span class="k">else</span><span class="p">:</span>
+<a id="__codelineno-9-24" name="__codelineno-9-24" href="#__codelineno-9-24"></a>            <span class="n">msgs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">messages_since_start</span><span class="p">(</span><span class="n">msg_class</span><span class="p">)</span>
+<a id="__codelineno-9-25" name="__codelineno-9-25" href="#__codelineno-9-25"></a>        <span class="k">if</span> <span class="n">msgs</span><span class="p">:</span>
+<a id="__codelineno-9-26" name="__codelineno-9-26" href="#__codelineno-9-26"></a>            <span class="bp">self</span><span class="o">.</span><span class="n">_bookmarks</span><span class="p">[</span><span class="n">msg_class</span><span class="p">]</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">device_message_id</span> <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">msgs</span><span class="p">)</span>
+<a id="__codelineno-9-27" name="__codelineno-9-27" href="#__codelineno-9-27"></a>        <span class="k">return</span> <span class="n">msgs</span>
+</code></pre></div>
+<h3 id="43-ground-mode-config-v2">4.3 Ground Mode Config V2<a class="headerlink" href="#43-ground-mode-config-v2" title="Permanent link">&para;</a></h3>
+<p><strong>Current state:</strong> <code>GroundModeConfigV2</code> exists in <code>msg_def_v1_0.py</code> as a
+message class mapped to <code>configgroundhistorytbl</code>. It supports DB reads.</p>
+<p><strong>What's missing:</strong> REST send capability. Stage 4 tests need to configure
+ground mode parameters (GPS heartbeat period, motion detection thresholds,
+motion timeouts) before running timing-sensitive product tests. The
+<code>ConfMsgBase.send_via_rest()</code> infrastructure exists and works for <code>GPSConfMsg</code>
+but has not been wired up for <code>GroundModeConfigV2</code>.</p>
+<p><strong>What's needed:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Capability</th>
+<th>Current</th>
+<th>Needed</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Read ground config from DB</td>
+<td>Yes (<code>since_server_time</code>, <code>last</code>)</td>
+<td>No change</td>
+</tr>
+<tr>
+<td>Send ground config via REST</td>
+<td>No</td>
+<td>Add <code>api_endpoint</code>, <code>api_field_map</code>, <code>api_types</code> to <code>GroundModeConfigV2</code></td>
+</tr>
+<tr>
+<td>Search ground configs via REST</td>
+<td>No</td>
+<td>Add <code>search_endpoint</code>, <code>search_field_map</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Implementation:</strong> Extend <code>GroundModeConfigV2</code> to inherit from <code>ConfMsgBase</code>
+instead of <code>MsgBase</code>, then add the REST endpoint path and field maps following
+the same pattern as <code>GPSConfMsg</code>. Requires knowing the C# REST endpoint path
+for ground configuration.</p>
+<h3 id="44-new-message-types-needed">4.4 New Message Types Needed<a class="headerlink" href="#44-new-message-types-needed" title="Permanent link">&para;</a></h3>
+<p>The validation pipeline exercises device behaviors that produce message types
+not yet wrapped in <code>msg_def_v1_0.py</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Message</th>
+<th>UID</th>
+<th>Need</th>
+<th>Priority</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Firmware V3</td>
+<td>544</td>
+<td>Post-FUOTA firmware version confirmation</td>
+<td>High — FUOTA verification</td>
+</tr>
+<tr>
+<td>Boot V2</td>
+<td>548</td>
+<td>Already implemented (<code>BootMsgV2</code>)</td>
+<td>--</td>
+</tr>
+<tr>
+<td>Firmware Update Response V2</td>
+<td>546</td>
+<td>Track individual chunk acknowledgments</td>
+<td>Medium — progress diagnostics</td>
+</tr>
+<tr>
+<td>Biometric Config</td>
+<td>558</td>
+<td>Configure biometric sensor parameters</td>
+<td>Medium — biometric tests</td>
+</tr>
+<tr>
+<td>Device Session</td>
+<td>--</td>
+<td>Device connection/disconnection tracking</td>
+<td>Low — nice to have</td>
+</tr>
+</tbody>
+</table>
+<h3 id="45-rest-endpoint-discovery">4.5 REST Endpoint Discovery<a class="headerlink" href="#45-rest-endpoint-discovery" title="Permanent link">&para;</a></h3>
+<p>The <code>CoreCloudRestInterface</code> provides a generic <code>request(method, path, ...)</code>
+method that can call any C# REST endpoint. The following endpoints are known or
+suspected to exist on the C# server but have no Python wrapper:</p>
+<table>
+<thead>
+<tr>
+<th>Endpoint (suspected)</th>
+<th>Method</th>
+<th>Purpose</th>
+<th>SDK Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>/System/Devices/Register</code></td>
+<td>POST</td>
+<td>Register new device</td>
+<td>No wrapper</td>
+</tr>
+<tr>
+<td><code>/System/Devices/Status</code></td>
+<td>GET</td>
+<td>Device connection status</td>
+<td>No wrapper</td>
+</tr>
+<tr>
+<td><code>/System/Devices/Configurations/Gps</code></td>
+<td>POST/GET</td>
+<td>GPS configuration</td>
+<td><code>GPSConfMsg</code> wraps this</td>
+</tr>
+<tr>
+<td><code>/System/Devices/Configurations/Ground</code></td>
+<td>POST/GET</td>
+<td>Ground mode config</td>
+<td>No wrapper</td>
+</tr>
+<tr>
+<td><code>/System/FUOTA/Plans</code></td>
+<td>???</td>
+<td>FUOTA plan CRUD</td>
+<td>Unknown if exists</td>
+</tr>
+<tr>
+<td><code>/System/FUOTA/Settings</code></td>
+<td>???</td>
+<td>Per-device FUOTA settings</td>
+<td>Unknown if exists</td>
+</tr>
+<tr>
+<td><code>/System/Devices/Firmware</code></td>
+<td>GET</td>
+<td>Current firmware versions</td>
+<td>No wrapper</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Action required:</strong> The C# server team needs to document available REST
+endpoints, or we need to discover them through the C# source code / Swagger
+documentation.</p>
+<hr />
+<h2 id="5-access-strategy-db-orm-vs-rest">5. Access Strategy: DB ORM vs REST<a class="headerlink" href="#5-access-strategy-db-orm-vs-rest" title="Permanent link">&para;</a></h2>
+<h3 id="51-decision-matrix">5.1 Decision Matrix<a class="headerlink" href="#51-decision-matrix" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Operation</th>
+<th>Recommended Access</th>
+<th>Rationale</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Read device messages</strong></td>
+<td>DB ORM via <code>msg_def_v1_0</code> classes</td>
+<td>Already implemented, type-safe, battle-tested</td>
+</tr>
+<tr>
+<td><strong>Read FUOTA progress</strong></td>
+<td>DB ORM via <code>Fuotaprogresstbl</code></td>
+<td>Already implemented, polling-friendly</td>
+</tr>
+<tr>
+<td><strong>Read firmware versions</strong></td>
+<td>DB ORM via <code>Devicefirmwarecurrenttbl</code></td>
+<td>Already implemented</td>
+</tr>
+<tr>
+<td><strong>Create FUOTA plans</strong></td>
+<td>DB ORM (fallback)</td>
+<td>No REST endpoint known; validation env is isolated</td>
+</tr>
+<tr>
+<td><strong>Set device FUOTA settings</strong></td>
+<td>DB ORM (fallback)</td>
+<td>No REST endpoint known; validation env is isolated</td>
+</tr>
+<tr>
+<td><strong>Send GPS config</strong></td>
+<td>REST via <code>GPSConfMsg.send_via_rest()</code></td>
+<td>Already implemented</td>
+</tr>
+<tr>
+<td><strong>Send ground config</strong></td>
+<td>REST (needs wrapper)</td>
+<td>Follow <code>GPSConfMsg</code> pattern</td>
+</tr>
+<tr>
+<td><strong>Register devices</strong></td>
+<td>REST (needs wrapper)</td>
+<td>C# endpoint exists</td>
+</tr>
+<tr>
+<td><strong>Query device status</strong></td>
+<td>REST (needs wrapper)</td>
+<td>C# endpoint likely exists</td>
+</tr>
+</tbody>
+</table>
+<h3 id="52-db-orm-write-risks">5.2 DB ORM Write Risks<a class="headerlink" href="#52-db-orm-write-risks" title="Permanent link">&para;</a></h3>
+<p>Using DB ORM for writes (FUOTA plan creation, device enrollment) bypasses the
+C# server's business logic:</p>
+<table>
+<thead>
+<tr>
+<th>Risk</th>
+<th>Impact</th>
+<th>Mitigation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>No server-side validation</td>
+<td>Invalid plan structures could break the Singleton FUOTA evaluator</td>
+<td>Validate locally before insert; test on isolated VAL_1_0 instance</td>
+</tr>
+<tr>
+<td>No audit trail</td>
+<td>Server normally logs plan changes to history tables</td>
+<td>Manually insert history records, or accept no audit for validation</td>
+</tr>
+<tr>
+<td>Race conditions</td>
+<td>Server and validation pipeline could modify settings concurrently</td>
+<td>VAL_1_0 is dedicated to automation; no concurrent human/server modifications expected</td>
+</tr>
+<tr>
+<td>Schema drift</td>
+<td>DB ORM may diverge from server expectations</td>
+<td>Pin ORM to known-good schema version; re-validate after CoreCloud upgrades</td>
+</tr>
+</tbody>
+</table>
+<h3 id="53-migration-path">5.3 Migration Path<a class="headerlink" href="#53-migration-path" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>Phase 1 (now):    DB ORM for reads + writes
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>                  REST for GPS config (existing)
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>                  ↓
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>Phase 2 (short):  Discover C# REST endpoints for FUOTA
+<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>                  Add Python wrappers for known endpoints
+<a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a>                  ↓
+<a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a>Phase 3 (target): REST for all writes (plan CRUD, device enrollment)
+<a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a>                  DB ORM for reads only (messages, progress, versions)
+</code></pre></div>
+<hr />
+<h2 id="6-integration-with-validation-pipeline">6. Integration with Validation Pipeline<a class="headerlink" href="#6-integration-with-validation-pipeline" title="Permanent link">&para;</a></h2>
+<h3 id="61-architecture-diagram">6.1 Architecture Diagram<a class="headerlink" href="#61-architecture-diagram" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>┌──────────────────────────────────────────────────────────────┐
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>│ Validation Pipeline (K8s Pod)                                │
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>│                                                              │
+<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a>│  ┌───────────────┐    ┌──────────────────┐                  │
+<a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a>│  │ Test Runner    │    │ CoreCloud Client  │                  │
+<a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a>│  │ (pytest)       │◄──►│ (Python SDK)      │                  │
+<a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a>│  └───────┬───────┘    └────────┬─────────┘                  │
+<a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a>│          │                     │                             │
+<a id="__codelineno-11-9" name="__codelineno-11-9" href="#__codelineno-11-9"></a>│          │  MTIB gRPC          │  REST API + DB ORM          │
+<a id="__codelineno-11-10" name="__codelineno-11-10" href="#__codelineno-11-10"></a>│          ▼                     ▼                             │
+<a id="__codelineno-11-11" name="__codelineno-11-11" href="#__codelineno-11-11"></a>│  ┌───────────────┐    ┌──────────────────┐                  │
+<a id="__codelineno-11-12" name="__codelineno-11-12" href="#__codelineno-11-12"></a>│  │ MTIB V2       │    │ VAL_1_0          │                  │
+<a id="__codelineno-11-13" name="__codelineno-11-13" href="#__codelineno-11-13"></a>│  │ Client        │    │ Interfaces       │                  │
+<a id="__codelineno-11-14" name="__codelineno-11-14" href="#__codelineno-11-14"></a>│  │ (gRPC)        │    │ (REST + DB)      │                  │
+<a id="__codelineno-11-15" name="__codelineno-11-15" href="#__codelineno-11-15"></a>│  └───────┬───────┘    └────────┬─────────┘                  │
+<a id="__codelineno-11-16" name="__codelineno-11-16" href="#__codelineno-11-16"></a>│          │                     │                             │
+<a id="__codelineno-11-17" name="__codelineno-11-17" href="#__codelineno-11-17"></a>└──────────┼─────────────────────┼─────────────────────────────┘
+<a id="__codelineno-11-18" name="__codelineno-11-18" href="#__codelineno-11-18"></a>           │                     │
+<a id="__codelineno-11-19" name="__codelineno-11-19" href="#__codelineno-11-19"></a>           ▼                     ▼
+<a id="__codelineno-11-20" name="__codelineno-11-20" href="#__codelineno-11-20"></a>    ┌──────────────┐    ┌────────────────────────┐
+<a id="__codelineno-11-21" name="__codelineno-11-21" href="#__codelineno-11-21"></a>    │ MTIB V2      │    │ CoreCloud v1.0 Server  │
+<a id="__codelineno-11-22" name="__codelineno-11-22" href="#__codelineno-11-22"></a>    │ Server       │    │ (validation instance)  │
+<a id="__codelineno-11-23" name="__codelineno-11-23" href="#__codelineno-11-23"></a>    │ (edge node)  │    │                        │
+<a id="__codelineno-11-24" name="__codelineno-11-24" href="#__codelineno-11-24"></a>    └──────┬───────┘    │  ┌─────────────────┐   │
+<a id="__codelineno-11-25" name="__codelineno-11-25" href="#__codelineno-11-25"></a>           │            │  │ REST Server     │   │
+<a id="__codelineno-11-26" name="__codelineno-11-26" href="#__codelineno-11-26"></a>           ▼            │  │ Socket Server   │   │
+<a id="__codelineno-11-27" name="__codelineno-11-27" href="#__codelineno-11-27"></a>    ┌──────────────┐    │  │ Time Server     │   │
+<a id="__codelineno-11-28" name="__codelineno-11-28" href="#__codelineno-11-28"></a>    │ Alpha DUT    │    │  │ Singleton       │   │
+<a id="__codelineno-11-29" name="__codelineno-11-29" href="#__codelineno-11-29"></a>    │ (product     │◄──►│  │ PostgreSQL DB   │   │
+<a id="__codelineno-11-30" name="__codelineno-11-30" href="#__codelineno-11-30"></a>    │  board)      │    │  └─────────────────┘   │
+<a id="__codelineno-11-31" name="__codelineno-11-31" href="#__codelineno-11-31"></a>    └──────────────┘    └────────────────────────┘
+</code></pre></div>
+<h3 id="62-integration-points">6.2 Integration Points<a class="headerlink" href="#62-integration-points" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Integration</th>
+<th>Protocol</th>
+<th>SDK Module</th>
+<th>Direction</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Test Runner → MTIB</td>
+<td>gRPC</td>
+<td><code>corekinect.mtib_client</code></td>
+<td>Command (power, UART, GPIO)</td>
+</tr>
+<tr>
+<td>Test Runner → CoreCloud REST</td>
+<td>HTTPS</td>
+<td><code>core_cloud.api_interface</code></td>
+<td>Config, device management</td>
+</tr>
+<tr>
+<td>Test Runner → CoreCloud DB</td>
+<td>PostgreSQL</td>
+<td><code>core_cloud.db_interface</code></td>
+<td>Message queries, FUOTA management</td>
+</tr>
+<tr>
+<td>DUT → CoreCloud</td>
+<td>TLS Socket</td>
+<td>N/A (device firmware)</td>
+<td>Uplink messages, FUOTA delivery</td>
+</tr>
+</tbody>
+</table>
+<h3 id="63-pytest-fixture-pattern">6.3 Pytest Fixture Pattern<a class="headerlink" href="#63-pytest-fixture-pattern" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="c1"># conftest.py for Stage 4 tests</span>
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="kn">import</span><span class="w"> </span><span class="nn">pytest</span>
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">corekinect.core_cloud.api_interface</span><span class="w"> </span><span class="kn">import</span> <span class="n">CoreCloudRestInterface</span>
+<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="kn">from</span><span class="w"> </span><span class="nn">corekinect.core_cloud.db_interface</span><span class="w"> </span><span class="kn">import</span> <span class="n">CoreCloudDBInterface</span>
+<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a>
+<a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a><span class="n">CC_NAMESPACE</span> <span class="o">=</span> <span class="s2">&quot;VAL_1_0&quot;</span>
+<a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a>
+<a id="__codelineno-12-8" name="__codelineno-12-8" href="#__codelineno-12-8"></a><span class="nd">@pytest</span><span class="o">.</span><span class="n">fixture</span><span class="p">(</span><span class="n">scope</span><span class="o">=</span><span class="s2">&quot;session&quot;</span><span class="p">)</span>
+<a id="__codelineno-12-9" name="__codelineno-12-9" href="#__codelineno-12-9"></a><span class="k">def</span><span class="w"> </span><span class="nf">cc_rest</span><span class="p">():</span>
+<a id="__codelineno-12-10" name="__codelineno-12-10" href="#__codelineno-12-10"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Session-scoped CoreCloud REST client.&quot;&quot;&quot;</span>
+<a id="__codelineno-12-11" name="__codelineno-12-11" href="#__codelineno-12-11"></a>    <span class="k">with</span> <span class="n">CoreCloudRestInterface</span><span class="p">(</span><span class="n">env_namespace</span><span class="o">=</span><span class="n">CC_NAMESPACE</span><span class="p">)</span> <span class="k">as</span> <span class="n">api</span><span class="p">:</span>
+<a id="__codelineno-12-12" name="__codelineno-12-12" href="#__codelineno-12-12"></a>        <span class="k">yield</span> <span class="n">api</span>
+<a id="__codelineno-12-13" name="__codelineno-12-13" href="#__codelineno-12-13"></a>
+<a id="__codelineno-12-14" name="__codelineno-12-14" href="#__codelineno-12-14"></a><span class="nd">@pytest</span><span class="o">.</span><span class="n">fixture</span><span class="p">(</span><span class="n">scope</span><span class="o">=</span><span class="s2">&quot;session&quot;</span><span class="p">)</span>
+<a id="__codelineno-12-15" name="__codelineno-12-15" href="#__codelineno-12-15"></a><span class="k">def</span><span class="w"> </span><span class="nf">cc_db</span><span class="p">():</span>
+<a id="__codelineno-12-16" name="__codelineno-12-16" href="#__codelineno-12-16"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Session-scoped CoreCloud DB session.&quot;&quot;&quot;</span>
+<a id="__codelineno-12-17" name="__codelineno-12-17" href="#__codelineno-12-17"></a>    <span class="k">with</span> <span class="n">CoreCloudDBInterface</span><span class="p">(</span><span class="n">db_env</span><span class="o">=</span><span class="n">CC_NAMESPACE</span><span class="p">)</span> <span class="k">as</span> <span class="n">db</span><span class="p">:</span>
+<a id="__codelineno-12-18" name="__codelineno-12-18" href="#__codelineno-12-18"></a>        <span class="k">yield</span> <span class="n">db</span>
+<a id="__codelineno-12-19" name="__codelineno-12-19" href="#__codelineno-12-19"></a>
+<a id="__codelineno-12-20" name="__codelineno-12-20" href="#__codelineno-12-20"></a><span class="nd">@pytest</span><span class="o">.</span><span class="n">fixture</span>
+<a id="__codelineno-12-21" name="__codelineno-12-21" href="#__codelineno-12-21"></a><span class="k">def</span><span class="w"> </span><span class="nf">device_id</span><span class="p">(</span><span class="n">request</span><span class="p">):</span>
+<a id="__codelineno-12-22" name="__codelineno-12-22" href="#__codelineno-12-22"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Device ID for the current DUT under test.&quot;&quot;&quot;</span>
+<a id="__codelineno-12-23" name="__codelineno-12-23" href="#__codelineno-12-23"></a>    <span class="k">return</span> <span class="n">request</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">getoption</span><span class="p">(</span><span class="s2">&quot;--device-id&quot;</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="64-message-verification-pattern">6.4 Message Verification Pattern<a class="headerlink" href="#64-message-verification-pattern" title="Permanent link">&para;</a></h3>
+<p>All Stage 4 tests verify device behavior by polling CoreCloud for messages after
+physical actions (power-on, FUOTA, button press, sensor stimulus):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="k">def</span><span class="w"> </span><span class="nf">wait_for_message</span><span class="p">(</span><span class="n">msg_class</span><span class="p">,</span> <span class="n">device_id</span><span class="p">,</span> <span class="n">predicate</span><span class="p">,</span> <span class="n">timeout_s</span><span class="o">=</span><span class="mi">120</span><span class="p">,</span>
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>                     <span class="n">poll_interval_s</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">db_env</span><span class="o">=</span><span class="s2">&quot;VAL_1_0&quot;</span><span class="p">):</span>
+<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Poll CoreCloud for a message matching a predicate.&quot;&quot;&quot;</span>
+<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a>    <span class="n">deadline</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">+</span> <span class="n">timeout_s</span>
+<a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a>    <span class="k">while</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">&lt;</span> <span class="n">deadline</span><span class="p">:</span>
+<a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a>        <span class="n">msg</span> <span class="o">=</span> <span class="n">msg_class</span><span class="o">.</span><span class="n">last</span><span class="p">(</span><span class="n">device_id</span><span class="p">,</span> <span class="n">db_env</span><span class="o">=</span><span class="n">db_env</span><span class="p">)</span>
+<a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a>        <span class="k">if</span> <span class="n">msg</span> <span class="ow">and</span> <span class="n">predicate</span><span class="p">(</span><span class="n">msg</span><span class="p">):</span>
+<a id="__codelineno-13-8" name="__codelineno-13-8" href="#__codelineno-13-8"></a>            <span class="k">return</span> <span class="n">msg</span>
+<a id="__codelineno-13-9" name="__codelineno-13-9" href="#__codelineno-13-9"></a>        <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">poll_interval_s</span><span class="p">)</span>
+<a id="__codelineno-13-10" name="__codelineno-13-10" href="#__codelineno-13-10"></a>    <span class="k">raise</span> <span class="ne">TimeoutError</span><span class="p">(</span>
+<a id="__codelineno-13-11" name="__codelineno-13-11" href="#__codelineno-13-11"></a>        <span class="sa">f</span><span class="s2">&quot;No </span><span class="si">{</span><span class="n">msg_class</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2"> matching predicate for device &quot;</span>
+<a id="__codelineno-13-12" name="__codelineno-13-12" href="#__codelineno-13-12"></a>        <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">device_id</span><span class="si">:</span><span class="s2">#X</span><span class="si">}</span><span class="s2"> within </span><span class="si">{</span><span class="n">timeout_s</span><span class="si">}</span><span class="s2">s&quot;</span>
+<a id="__codelineno-13-13" name="__codelineno-13-13" href="#__codelineno-13-13"></a>    <span class="p">)</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Verification</th>
+<th>Message Class</th>
+<th>Predicate Focus</th>
+<th>Typical Timeout</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Boot after power-on</td>
+<td><code>BootMsgV2</code></td>
+<td><code>boot_reason == 0</code>, MCU type</td>
+<td>60s</td>
+</tr>
+<tr>
+<td>Boot after FUOTA</td>
+<td><code>BootMsgV2</code></td>
+<td><code>boot_reason == 2</code></td>
+<td>120s</td>
+</tr>
+<tr>
+<td>GPS fix</td>
+<td><code>PositionMsgV6</code></td>
+<td><code>gnss_fix_ok</code>, <code>num_sat</code>, accuracy</td>
+<td>300s</td>
+</tr>
+<tr>
+<td>Biometrics on-body</td>
+<td><code>BiometricDataMsg</code></td>
+<td><code>on_body</code>, HR range, SpO2 range</td>
+<td>120s</td>
+</tr>
+<tr>
+<td>Network uplink</td>
+<td><code>NetworkStatusMsgV4</code></td>
+<td><code>did_lte_conn</code>, <code>send_success</code></td>
+<td>120s</td>
+</tr>
+<tr>
+<td>No HW failures</td>
+<td><code>AlphaHwFailureMsg</code></td>
+<td>No messages since test start</td>
+<td>N/A (query)</td>
+</tr>
+<tr>
+<td>Config confirmed</td>
+<td><code>GPSConfMsg</code></td>
+<td><code>lastconfirmed is not None</code></td>
+<td>120s</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="7-fuota-via-db-orm-detailed-design">7. FUOTA via DB ORM — Detailed Design<a class="headerlink" href="#7-fuota-via-db-orm-detailed-design" title="Permanent link">&para;</a></h2>
+<h3 id="71-fuota-data-model">7.1 FUOTA Data Model<a class="headerlink" href="#71-fuota-data-model" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>fuotaplanstbl (Plan)
+<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>  PK: planid (auto-increment)
+<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a>  Fields: plandesc, devicetypeid, devicevariantid, timecreated, lastmodified
+<a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a>  │
+<a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a>  ├── fuotaplanstagestbl (Stages)
+<a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a>  │     PK: (planid, updatestage)
+<a id="__codelineno-14-7" name="__codelineno-14-7" href="#__codelineno-14-7"></a>  │     Fields: stagedesc, skippable, timecreated, lastmodified
+<a id="__codelineno-14-8" name="__codelineno-14-8" href="#__codelineno-14-8"></a>  │
+<a id="__codelineno-14-9" name="__codelineno-14-9" href="#__codelineno-14-9"></a>  ├── fuotaplanstagetargetstbl (Stage Targets)
+<a id="__codelineno-14-10" name="__codelineno-14-10" href="#__codelineno-14-10"></a>  │     PK: (planid, updatestage, appid)
+<a id="__codelineno-14-11" name="__codelineno-14-11" href="#__codelineno-14-11"></a>  │     Fields: releasetrack, ismfg, majorversion, minorversion, revision, updateorder
+<a id="__codelineno-14-12" name="__codelineno-14-12" href="#__codelineno-14-12"></a>  │
+<a id="__codelineno-14-13" name="__codelineno-14-13" href="#__codelineno-14-13"></a>  ├── fuotasettingsperdevicetbl (Per-Device Settings)
+<a id="__codelineno-14-14" name="__codelineno-14-14" href="#__codelineno-14-14"></a>  │     PK: deviceid
+<a id="__codelineno-14-15" name="__codelineno-14-15" href="#__codelineno-14-15"></a>  │     FK: planid → fuotaplanstbl
+<a id="__codelineno-14-16" name="__codelineno-14-16" href="#__codelineno-14-16"></a>  │     Fields: enablefuota, maxstage, timecreated
+<a id="__codelineno-14-17" name="__codelineno-14-17" href="#__codelineno-14-17"></a>  │
+<a id="__codelineno-14-18" name="__codelineno-14-18" href="#__codelineno-14-18"></a>  └── fuotasettingsperdevicetypetbl (Per-Type Defaults)
+<a id="__codelineno-14-19" name="__codelineno-14-19" href="#__codelineno-14-19"></a>        PK: (devicetypeid, devicevariantid, accountid)
+<a id="__codelineno-14-20" name="__codelineno-14-20" href="#__codelineno-14-20"></a>        Fields: planid, enablefuota, maxstage
+<a id="__codelineno-14-21" name="__codelineno-14-21" href="#__codelineno-14-21"></a>
+<a id="__codelineno-14-22" name="__codelineno-14-22" href="#__codelineno-14-22"></a>fuotaprogresstbl (Active Transfers)
+<a id="__codelineno-14-23" name="__codelineno-14-23" href="#__codelineno-14-23"></a>  PK: (deviceid, appid)
+<a id="__codelineno-14-24" name="__codelineno-14-24" href="#__codelineno-14-24"></a>  Fields: majorversion, minorversion, revision, releasetrack, ismfg,
+<a id="__codelineno-14-25" name="__codelineno-14-25" href="#__codelineno-14-25"></a>          pagesapplied, totalpages, timestarted, lastupdated
+<a id="__codelineno-14-26" name="__codelineno-14-26" href="#__codelineno-14-26"></a>
+<a id="__codelineno-14-27" name="__codelineno-14-27" href="#__codelineno-14-27"></a>fuotaprogresshistorytbl (Completed Transfers)
+<a id="__codelineno-14-28" name="__codelineno-14-28" href="#__codelineno-14-28"></a>  PK: recordid
+<a id="__codelineno-14-29" name="__codelineno-14-29" href="#__codelineno-14-29"></a>  Indexed: deviceid
+<a id="__codelineno-14-30" name="__codelineno-14-30" href="#__codelineno-14-30"></a>  Fields: (same as progress) + timefinished
+<a id="__codelineno-14-31" name="__codelineno-14-31" href="#__codelineno-14-31"></a>
+<a id="__codelineno-14-32" name="__codelineno-14-32" href="#__codelineno-14-32"></a>devicefirmwarecurrenttbl (Current FW Versions)
+<a id="__codelineno-14-33" name="__codelineno-14-33" href="#__codelineno-14-33"></a>  PK: (deviceid, appid)
+<a id="__codelineno-14-34" name="__codelineno-14-34" href="#__codelineno-14-34"></a>  Fields: majorversion, minorversion, revision, releasetrack, ismfg, lastupdated
+</code></pre></div>
+<h3 id="72-plan-creation-example">7.2 Plan Creation Example<a class="headerlink" href="#72-plan-creation-example" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">datetime</span>
+<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">corekinect.core_cloud.db_interface</span><span class="w"> </span><span class="kn">import</span> <span class="n">CoreCloudDBInterface</span>
+<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">corekinect.core_cloud.db_orm_v1_0</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a>    <span class="n">Fuotaplanstbl</span><span class="p">,</span> <span class="n">Fuotaplanstagestbl</span><span class="p">,</span> <span class="n">Fuotaplanstagetargetstbl</span><span class="p">,</span>
+<a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a>    <span class="n">Fuotasettingsperdevicetbl</span><span class="p">,</span>
+<a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a><span class="p">)</span>
+<a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a>
+<a id="__codelineno-15-8" name="__codelineno-15-8" href="#__codelineno-15-8"></a><span class="n">ALPHA_DEVICE_TYPE_ID</span> <span class="o">=</span> <span class="mi">2</span>
+<a id="__codelineno-15-9" name="__codelineno-15-9" href="#__codelineno-15-9"></a><span class="n">ALPHA_B0_VARIANT_ID</span> <span class="o">=</span> <span class="mi">3</span>
+<a id="__codelineno-15-10" name="__codelineno-15-10" href="#__codelineno-15-10"></a><span class="n">APP_CORE_APP_ID</span> <span class="o">=</span> <span class="mi">109</span>    <span class="c1"># nRF52840</span>
+<a id="__codelineno-15-11" name="__codelineno-15-11" href="#__codelineno-15-11"></a><span class="n">COMMS_CORE_APP_ID</span> <span class="o">=</span> <span class="mi">108</span>  <span class="c1"># nRF9151</span>
+<a id="__codelineno-15-12" name="__codelineno-15-12" href="#__codelineno-15-12"></a>
+<a id="__codelineno-15-13" name="__codelineno-15-13" href="#__codelineno-15-13"></a><span class="k">with</span> <span class="n">CoreCloudDBInterface</span><span class="p">(</span><span class="n">db_env</span><span class="o">=</span><span class="s2">&quot;VAL_1_0&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">db</span><span class="p">:</span>
+<a id="__codelineno-15-14" name="__codelineno-15-14" href="#__codelineno-15-14"></a>    <span class="n">now</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">utcnow</span><span class="p">()</span>
+<a id="__codelineno-15-15" name="__codelineno-15-15" href="#__codelineno-15-15"></a>
+<a id="__codelineno-15-16" name="__codelineno-15-16" href="#__codelineno-15-16"></a>    <span class="c1"># 1. Create plan</span>
+<a id="__codelineno-15-17" name="__codelineno-15-17" href="#__codelineno-15-17"></a>    <span class="n">plan</span> <span class="o">=</span> <span class="n">Fuotaplanstbl</span><span class="p">(</span>
+<a id="__codelineno-15-18" name="__codelineno-15-18" href="#__codelineno-15-18"></a>        <span class="n">plandesc</span><span class="o">=</span><span class="s2">&quot;Validation: Alpha B0 Mfg → Prod Debug&quot;</span><span class="p">,</span>
+<a id="__codelineno-15-19" name="__codelineno-15-19" href="#__codelineno-15-19"></a>        <span class="n">devicetypeid</span><span class="o">=</span><span class="n">ALPHA_DEVICE_TYPE_ID</span><span class="p">,</span>
+<a id="__codelineno-15-20" name="__codelineno-15-20" href="#__codelineno-15-20"></a>        <span class="n">devicevariantid</span><span class="o">=</span><span class="n">ALPHA_B0_VARIANT_ID</span><span class="p">,</span>
+<a id="__codelineno-15-21" name="__codelineno-15-21" href="#__codelineno-15-21"></a>        <span class="n">timecreated</span><span class="o">=</span><span class="n">now</span><span class="p">,</span>
+<a id="__codelineno-15-22" name="__codelineno-15-22" href="#__codelineno-15-22"></a>        <span class="n">lastmodified</span><span class="o">=</span><span class="n">now</span><span class="p">,</span>
+<a id="__codelineno-15-23" name="__codelineno-15-23" href="#__codelineno-15-23"></a>    <span class="p">)</span>
+<a id="__codelineno-15-24" name="__codelineno-15-24" href="#__codelineno-15-24"></a>    <span class="n">db</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">plan</span><span class="p">)</span>
+<a id="__codelineno-15-25" name="__codelineno-15-25" href="#__codelineno-15-25"></a>    <span class="n">db</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span>  <span class="c1"># get planid</span>
+<a id="__codelineno-15-26" name="__codelineno-15-26" href="#__codelineno-15-26"></a>
+<a id="__codelineno-15-27" name="__codelineno-15-27" href="#__codelineno-15-27"></a>    <span class="c1"># 2. Create stage</span>
+<a id="__codelineno-15-28" name="__codelineno-15-28" href="#__codelineno-15-28"></a>    <span class="n">stage</span> <span class="o">=</span> <span class="n">Fuotaplanstagestbl</span><span class="p">(</span>
+<a id="__codelineno-15-29" name="__codelineno-15-29" href="#__codelineno-15-29"></a>        <span class="n">planid</span><span class="o">=</span><span class="n">plan</span><span class="o">.</span><span class="n">planid</span><span class="p">,</span>
+<a id="__codelineno-15-30" name="__codelineno-15-30" href="#__codelineno-15-30"></a>        <span class="n">updatestage</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+<a id="__codelineno-15-31" name="__codelineno-15-31" href="#__codelineno-15-31"></a>        <span class="n">stagedesc</span><span class="o">=</span><span class="s2">&quot;Mfg → Prod Debug v2.1.0&quot;</span><span class="p">,</span>
+<a id="__codelineno-15-32" name="__codelineno-15-32" href="#__codelineno-15-32"></a>        <span class="n">timecreated</span><span class="o">=</span><span class="n">now</span><span class="p">,</span>
+<a id="__codelineno-15-33" name="__codelineno-15-33" href="#__codelineno-15-33"></a>        <span class="n">lastmodified</span><span class="o">=</span><span class="n">now</span><span class="p">,</span>
+<a id="__codelineno-15-34" name="__codelineno-15-34" href="#__codelineno-15-34"></a>        <span class="n">skippable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+<a id="__codelineno-15-35" name="__codelineno-15-35" href="#__codelineno-15-35"></a>    <span class="p">)</span>
+<a id="__codelineno-15-36" name="__codelineno-15-36" href="#__codelineno-15-36"></a>    <span class="n">db</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">stage</span><span class="p">)</span>
+<a id="__codelineno-15-37" name="__codelineno-15-37" href="#__codelineno-15-37"></a>
+<a id="__codelineno-15-38" name="__codelineno-15-38" href="#__codelineno-15-38"></a>    <span class="c1"># 3. Add stage target (app core)</span>
+<a id="__codelineno-15-39" name="__codelineno-15-39" href="#__codelineno-15-39"></a>    <span class="n">target</span> <span class="o">=</span> <span class="n">Fuotaplanstagetargetstbl</span><span class="p">(</span>
+<a id="__codelineno-15-40" name="__codelineno-15-40" href="#__codelineno-15-40"></a>        <span class="n">planid</span><span class="o">=</span><span class="n">plan</span><span class="o">.</span><span class="n">planid</span><span class="p">,</span>
+<a id="__codelineno-15-41" name="__codelineno-15-41" href="#__codelineno-15-41"></a>        <span class="n">updatestage</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+<a id="__codelineno-15-42" name="__codelineno-15-42" href="#__codelineno-15-42"></a>        <span class="n">appid</span><span class="o">=</span><span class="n">APP_CORE_APP_ID</span><span class="p">,</span>
+<a id="__codelineno-15-43" name="__codelineno-15-43" href="#__codelineno-15-43"></a>        <span class="n">releasetrack</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>  <span class="c1"># Production</span>
+<a id="__codelineno-15-44" name="__codelineno-15-44" href="#__codelineno-15-44"></a>        <span class="n">ismfg</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+<a id="__codelineno-15-45" name="__codelineno-15-45" href="#__codelineno-15-45"></a>        <span class="n">majorversion</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+<a id="__codelineno-15-46" name="__codelineno-15-46" href="#__codelineno-15-46"></a>        <span class="n">minorversion</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+<a id="__codelineno-15-47" name="__codelineno-15-47" href="#__codelineno-15-47"></a>        <span class="n">revision</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+<a id="__codelineno-15-48" name="__codelineno-15-48" href="#__codelineno-15-48"></a>        <span class="n">updateorder</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+<a id="__codelineno-15-49" name="__codelineno-15-49" href="#__codelineno-15-49"></a>    <span class="p">)</span>
+<a id="__codelineno-15-50" name="__codelineno-15-50" href="#__codelineno-15-50"></a>    <span class="n">db</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">target</span><span class="p">)</span>
+<a id="__codelineno-15-51" name="__codelineno-15-51" href="#__codelineno-15-51"></a>
+<a id="__codelineno-15-52" name="__codelineno-15-52" href="#__codelineno-15-52"></a>    <span class="c1"># 4. Enroll device</span>
+<a id="__codelineno-15-53" name="__codelineno-15-53" href="#__codelineno-15-53"></a>    <span class="n">settings</span> <span class="o">=</span> <span class="n">Fuotasettingsperdevicetbl</span><span class="p">(</span>
+<a id="__codelineno-15-54" name="__codelineno-15-54" href="#__codelineno-15-54"></a>        <span class="n">deviceid</span><span class="o">=</span><span class="n">DEVICE_ID</span><span class="p">,</span>
+<a id="__codelineno-15-55" name="__codelineno-15-55" href="#__codelineno-15-55"></a>        <span class="n">planid</span><span class="o">=</span><span class="n">plan</span><span class="o">.</span><span class="n">planid</span><span class="p">,</span>
+<a id="__codelineno-15-56" name="__codelineno-15-56" href="#__codelineno-15-56"></a>        <span class="n">enablefuota</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<a id="__codelineno-15-57" name="__codelineno-15-57" href="#__codelineno-15-57"></a>        <span class="n">maxstage</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+<a id="__codelineno-15-58" name="__codelineno-15-58" href="#__codelineno-15-58"></a>        <span class="n">timecreated</span><span class="o">=</span><span class="n">now</span><span class="p">,</span>
+<a id="__codelineno-15-59" name="__codelineno-15-59" href="#__codelineno-15-59"></a>    <span class="p">)</span>
+<a id="__codelineno-15-60" name="__codelineno-15-60" href="#__codelineno-15-60"></a>    <span class="n">db</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">settings</span><span class="p">)</span>
+<a id="__codelineno-15-61" name="__codelineno-15-61" href="#__codelineno-15-61"></a>    <span class="n">db</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+</code></pre></div>
+<h3 id="73-progress-monitoring">7.3 Progress Monitoring<a class="headerlink" href="#73-progress-monitoring" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="k">def</span><span class="w"> </span><span class="nf">wait_for_fuota_completion</span><span class="p">(</span><span class="n">session</span><span class="p">,</span> <span class="n">device_id</span><span class="p">,</span> <span class="n">app_id</span><span class="p">,</span> <span class="n">timeout_s</span><span class="o">=</span><span class="mi">600</span><span class="p">):</span>
+<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Poll FUOTA progress until complete or timeout.&quot;&quot;&quot;</span>
+<a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a>    <span class="kn">from</span><span class="w"> </span><span class="nn">corekinect.core_cloud.db_orm_v1_0</span><span class="w"> </span><span class="kn">import</span> <span class="n">Fuotaprogresstbl</span>
+<a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a>    <span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
+<a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a>
+<a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a>    <span class="n">start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+<a id="__codelineno-16-7" name="__codelineno-16-7" href="#__codelineno-16-7"></a>    <span class="k">while</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">start</span> <span class="o">&lt;</span> <span class="n">timeout_s</span><span class="p">:</span>
+<a id="__codelineno-16-8" name="__codelineno-16-8" href="#__codelineno-16-8"></a>        <span class="n">progress</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="n">Fuotaprogresstbl</span><span class="p">)</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+<a id="__codelineno-16-9" name="__codelineno-16-9" href="#__codelineno-16-9"></a>            <span class="n">Fuotaprogresstbl</span><span class="o">.</span><span class="n">deviceid</span> <span class="o">==</span> <span class="n">device_id</span><span class="p">,</span>
+<a id="__codelineno-16-10" name="__codelineno-16-10" href="#__codelineno-16-10"></a>            <span class="n">Fuotaprogresstbl</span><span class="o">.</span><span class="n">appid</span> <span class="o">==</span> <span class="n">app_id</span><span class="p">,</span>
+<a id="__codelineno-16-11" name="__codelineno-16-11" href="#__codelineno-16-11"></a>        <span class="p">)</span><span class="o">.</span><span class="n">first</span><span class="p">()</span>
+<a id="__codelineno-16-12" name="__codelineno-16-12" href="#__codelineno-16-12"></a>
+<a id="__codelineno-16-13" name="__codelineno-16-13" href="#__codelineno-16-13"></a>        <span class="k">if</span> <span class="n">progress</span> <span class="ow">and</span> <span class="n">progress</span><span class="o">.</span><span class="n">pagesapplied</span> <span class="o">==</span> <span class="n">progress</span><span class="o">.</span><span class="n">totalpages</span><span class="p">:</span>
+<a id="__codelineno-16-14" name="__codelineno-16-14" href="#__codelineno-16-14"></a>            <span class="k">return</span> <span class="kc">True</span>  <span class="c1"># Transfer complete, device will reboot</span>
+<a id="__codelineno-16-15" name="__codelineno-16-15" href="#__codelineno-16-15"></a>
+<a id="__codelineno-16-16" name="__codelineno-16-16" href="#__codelineno-16-16"></a>        <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>  <span class="c1"># Poll every 10 seconds</span>
+<a id="__codelineno-16-17" name="__codelineno-16-17" href="#__codelineno-16-17"></a>    <span class="k">return</span> <span class="kc">False</span>  <span class="c1"># Timeout</span>
+</code></pre></div>
+<h3 id="74-fuota-rules-and-constraints">7.4 FUOTA Rules and Constraints<a class="headerlink" href="#74-fuota-rules-and-constraints" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Rule</th>
+<th>Description</th>
+<th>Validation Impact</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Version ordering</td>
+<td>Firmware versions may only increase (major.minor.build)</td>
+<td>Plans must target higher versions than currently installed</td>
+</tr>
+<tr>
+<td>Mfg-to-prod exception</td>
+<td>Manufacturing FW can be replaced by production FW of same or higher version</td>
+<td>First FUOTA transition in the 12-step flow uses this exception</td>
+</tr>
+<tr>
+<td>No release track switching</td>
+<td>Bench, Engineering, Production are separate tracks</td>
+<td>Validation plans must stay on one track</td>
+</tr>
+<tr>
+<td>5-minute cooldown</td>
+<td>Server enforces 5-min wait between FUOTA completions</td>
+<td>Pipeline must sleep between transitions; 12-step flow has ~30 min cooldown total</td>
+</tr>
+<tr>
+<td>Dual-processor sync</td>
+<td>Both App ID 108 (comms) and 109 (app) must reach stage target before advancing</td>
+<td>Plans must include targets for both processors</td>
+</tr>
+<tr>
+<td><code>updateorder</code></td>
+<td>Controls which processor updates first within a stage</td>
+<td>Must be set correctly for dual-MCU devices</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="8-open-questions">8. Open Questions<a class="headerlink" href="#8-open-questions" title="Permanent link">&para;</a></h2>
+<h3 id="81-for-the-corecloud-backend-team">8.1 For the CoreCloud Backend Team<a class="headerlink" href="#81-for-the-corecloud-backend-team" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Question</th>
+<th>Impact</th>
+<th>Priority</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>What REST endpoints exist for FUOTA plan CRUD?</td>
+<td>Determines whether we use DB ORM (fallback) or REST (preferred) for plan management</td>
+<td>High</td>
+</tr>
+<tr>
+<td>2</td>
+<td>What REST endpoint exists for per-device FUOTA settings?</td>
+<td>Same as above — affects how we enroll devices</td>
+<td>High</td>
+</tr>
+<tr>
+<td>3</td>
+<td>How are <code>.cfw</code> firmware artifacts associated with FUOTA plan stage targets?</td>
+<td>Pipeline must upload <code>.cfw</code> files and link them to plan targets</td>
+<td>High</td>
+</tr>
+<tr>
+<td>4</td>
+<td>What is the <code>.cfw</code> upload mechanism?</td>
+<td>REST endpoint, S3 bucket, manual upload?</td>
+<td>High</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Can the Singleton FUOTA evaluator be triggered on demand?</td>
+<td>Determines latency between plan setup and FUOTA delivery start</td>
+<td>Medium</td>
+</tr>
+<tr>
+<td>6</td>
+<td>What is the default device uplink interval?</td>
+<td>Determines minimum wait time before FUOTA chunks start flowing</td>
+<td>Medium</td>
+</tr>
+<tr>
+<td>7</td>
+<td>Can a device be forced to uplink immediately?</td>
+<td>Could reduce pipeline execution time</td>
+<td>Medium</td>
+</tr>
+<tr>
+<td>8</td>
+<td>What happens if FUOTA fails mid-transfer?</td>
+<td>Need retry/reset behavior: automatic, manual, or stuck?</td>
+<td>Medium</td>
+</tr>
+<tr>
+<td>9</td>
+<td>Does <code>POST /System/Devices/Register</code> exist? What fields does it require?</td>
+<td>Needed for automated device setup in VAL_1_0</td>
+<td>Medium</td>
+</tr>
+<tr>
+<td>10</td>
+<td>What <code>devicetypeid</code> and <code>devicevariantid</code> values correspond to Alpha B0?</td>
+<td>Needed for FUOTA plan creation (suspected: type=2, variant=3)</td>
+<td>Medium</td>
+</tr>
+</tbody>
+</table>
+<h3 id="82-for-the-firmware-team">8.2 For the Firmware Team<a class="headerlink" href="#82-for-the-firmware-team" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Question</th>
+<th>Impact</th>
+<th>Priority</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>What DUT firmware configuration points the device at the validation CoreCloud instance?</td>
+<td>Socket server URL, time server URL, TLS certificates</td>
+<td>High</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Can the validation Socket Server URL be set via manufacturing shell or FUOTA, or is it baked into firmware?</td>
+<td>Determines if we need a validation-specific firmware build or can reconfigure at runtime</td>
+<td>High</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Is there a way to force an uplink from the shell (manufacturing or debug firmware)?</td>
+<td>Reduces FUOTA wait times during testing</td>
+<td>Medium</td>
+</tr>
+</tbody>
+</table>
+<h3 id="83-for-the-devops-team">8.3 For the DevOps Team<a class="headerlink" href="#83-for-the-devops-team" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Question</th>
+<th>Impact</th>
+<th>Priority</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Is SSH tunneling required for DB access from K8s pods, or is direct PostgreSQL connectivity available?</td>
+<td>Determines whether <code>VAL_1_0_SSH_*</code> env vars are needed</td>
+<td>Medium</td>
+</tr>
+<tr>
+<td>2</td>
+<td>What service account credentials will the validation pipeline use?</td>
+<td>Must be provisioned and stored as K8s secrets</td>
+<td>Medium</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Does the validation CoreCloud instance support concurrent device connections?</td>
+<td>Affects parallel testing throughput</td>
+<td>Low</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="9-implementation-priority">9. Implementation Priority<a class="headerlink" href="#9-implementation-priority" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Priority</th>
+<th>Component</th>
+<th>Effort</th>
+<th>Dependency</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>P0</strong></td>
+<td><code>fuota.py</code> — FUOTA plan builder + monitor</td>
+<td>16-24h</td>
+<td>Answer to Q1-4 in Section 8.1 (can start with DB ORM fallback)</td>
+</tr>
+<tr>
+<td><strong>P0</strong></td>
+<td>Extend <code>GroundModeConfigV2</code> with REST send</td>
+<td>4-8h</td>
+<td>C# endpoint path for ground config</td>
+</tr>
+<tr>
+<td><strong>P1</strong></td>
+<td><code>device_management.py</code> — register + status wrappers</td>
+<td>8-12h</td>
+<td>Answer to Q9 in Section 8.1</td>
+</tr>
+<tr>
+<td><strong>P1</strong></td>
+<td><code>ValidationSession</code> context manager</td>
+<td>4-8h</td>
+<td>None</td>
+</tr>
+<tr>
+<td><strong>P1</strong></td>
+<td>New message type: <code>FirmwareV3Msg</code> (UID 544)</td>
+<td>4-8h</td>
+<td>ORM table mapping</td>
+</tr>
+<tr>
+<td><strong>P2</strong></td>
+<td>Migrate FUOTA writes from DB ORM to REST</td>
+<td>8-16h</td>
+<td>C# REST endpoints documented</td>
+</tr>
+<tr>
+<td><strong>P2</strong></td>
+<td><code>__init__.py</code> typed re-exports</td>
+<td>2h</td>
+<td>None</td>
+</tr>
+<tr>
+<td><strong>P3</strong></td>
+<td>Deprecation markers on v0.9 modules</td>
+<td>1h</td>
+<td>None</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="10-references">10. References<a class="headerlink" href="#10-references" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Resource</th>
+<th>Path</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CoreCloud SDK (source)</td>
+<td><code>libs/python/corekinect/core_cloud/</code></td>
+</tr>
+<tr>
+<td>v1.0 ORM Models</td>
+<td><code>libs/python/corekinect/core_cloud/db_orm_v1_0.py</code></td>
+</tr>
+<tr>
+<td>v1.0 Message Definitions</td>
+<td><code>libs/python/corekinect/core_cloud/msg_def_v1_0.py</code></td>
+</tr>
+<tr>
+<td>REST API Interface</td>
+<td><code>libs/python/corekinect/core_cloud/api_interface.py</code></td>
+</tr>
+<tr>
+<td>DB Connection Interface</td>
+<td><code>libs/python/corekinect/core_cloud/db_interface.py</code></td>
+</tr>
+<tr>
+<td>SDK README</td>
+<td><code>libs/python/corekinect/core_cloud/READ_ME.md</code></td>
+</tr>
+<tr>
+<td>Environment Template</td>
+<td><code>libs/python/corekinect/core_cloud/.env.example</code></td>
+</tr>
+<tr>
+<td>FUOTA Research</td>
+<td><code>docs/validation/research/06-fuota-corecloud-v1.md</code></td>
+</tr>
+<tr>
+<td>CoreCloud Integration Research</td>
+<td><code>docs/validation/research/09-corecloud-validation-integration.md</code></td>
+</tr>
+<tr>
+<td>Stage 4 FUOTA Flow</td>
+<td><code>docs/validation/architecture/stage4-fuota-validation-flow.md</code></td>
+</tr>
+<tr>
+<td>Stage 4 Product Tests</td>
+<td><code>docs/validation/architecture/stage4-product-tests.md</code></td>
+</tr>
+<tr>
+<td>Stage 3 &amp; 4 Overview</td>
+<td><code>docs/validation/plans/stage3-and-4/overview.md</code></td>
+</tr>
+</tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://zensical.org/" target="_blank" rel="noopener">
+      Zensical
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      
+      <script id="__config" type="application/json">{"annotate":null,"base":"../../..","features":["navigation.sections","navigation.expand","navigation.path","navigation.indexes","search.suggest","content.code.copy","toc.follow"],"search":"../../../assets/javascripts/workers/search.e2d2d235.min.js","tags":null,"translations":{"clipboard.copied":"Copied to clipboard","clipboard.copy":"Copy to clipboard","search.result.more.one":"1 more on this page","search.result.more.other":"# more on this page","search.result.none":"No matching documents","search.result.one":"1 matching document","search.result.other":"# matching documents","search.result.placeholder":"Type to start searching","search.result.term.missing":"Missing","select.version":"Select version"},"version":null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.5fd3284f.min.js"></script>
+      
+        <script src="../../../assets/js/external-links.js"></script>
+      
+    
+  </body>
+</html>

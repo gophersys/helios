@@ -1,0 +1,3188 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Continuous delivery platform for embedded systems">
+      
+      
+      
+      
+        <link rel="prev" href="../fuota-api/">
+      
+      
+        <link rel="next" href="../traceability-matrix/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="zensical-0.0.27">
+    
+    
+      
+        <title>Alpha Test Cases (PRDTST) — Reference - Concord</title>
+      
+    
+    
+      
+        
+      
+      <link rel="stylesheet" href="../../assets/stylesheets/modern/main.50057488.min.css">
+      
+        
+          
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/modern/palette.dfe2e883.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,500,500i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,t)=>(e<<5)-e+t.charCodeAt(0)),0),__md_get=(e,t=localStorage,a=__md_scope)=>JSON.parse(t.getItem(a.pathname+"."+e)),__md_set=(e,t,a=localStorage,_=__md_scope)=>{try{a.setItem(_.pathname+"."+e,JSON.stringify(t))}catch(e){}},document.documentElement.setAttribute("data-platform",navigator.platform)</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="deep-purple" data-md-color-accent="amber">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer" aria-label="Navigation"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#alpha-test-cases-prdtst-reference" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Concord" class="md-header__button md-logo" aria-label="Concord" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer" aria-label="Navigation">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-menu" viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h16"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Concord
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Alpha Test Cases (PRDTST) — Reference
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="none" data-md-color-scheme="slate" data-md-color-primary="deep-purple" data-md-color-accent="amber"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="none" data-md-color-scheme="default" data-md-color-primary="deep-purple" data-md-color-accent="amber"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search" aria-label="Search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-search" viewBox="0 0 24 24"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog" aria-label="Search">
+  <button type="button" class="md-search__button">
+    Search
+  </button>
+</div>
+      
+    
+    <div class="md-header__source">
+      
+    </div>
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Concord" class="md-nav__button md-logo" aria-label="Concord" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+
+    </a>
+    Concord
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../vision/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vision
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2" id="__nav_2_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Vision
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../vision/thesis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Thesis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../vision/validation-philosophy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation Philosophy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../architecture/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3" id="__nav_3_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Architecture
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_2" id="__nav_3_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Platform
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Platform
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/platform/unified-platform/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Unified Platform
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/platform/hardware-registry/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hardware Registry
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/platform/log-streaming/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Log Streaming
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/platform/ci-pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CI Pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/platform/corecloud-library/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CoreCloud Library
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_3" id="__nav_3_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Validation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/validation/stages-overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stages Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/validation/system/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    System Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/validation/stage1-software-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 1: Software Tests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/validation/stage2-driver-hw-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 2: Driver HW Tests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/validation/stage3-integration-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 3: Integration Tests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/validation/stage4-product-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 4: Product Tests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/validation/stage4-fuota-flow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 4: FUOTA Flow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/validation/stage4-pr-flow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 4: PR Flow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/validation/stage5-gate-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 5: Gate Tests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/validation/test-runner/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Test Runner
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_4" id="__nav_3_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Build
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/build/build-service/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build Service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/build/builder-nodes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Builder Nodes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../fuota-workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FUOTA Workflow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../fuota-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FUOTA API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Alpha Test Cases
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="././" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Alpha Test Cases
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#power-runtime-7-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Power / Runtime (7 tests)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#config-values-heartbeat-motion-gps-18-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Config Values (Heartbeat, Motion, GPS) (18 tests)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#motion-detection-5-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Motion Detection (5 tests)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#charging-bms-29-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Charging / BMS (29 tests)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#environmental-sensors-bme280-mlx90614-7-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Environmental Sensors (BME280, MLX90614) (7 tests)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#gnss-7-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GNSS (7 tests)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#on-skin-biometrics-3-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        On-Skin / Biometrics (3 tests)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#button-sos-haptic-9-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Button / SOS / Haptic (9 tests)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#nfc-1-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NFC (1 tests)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#fuota-1-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        FUOTA (1 tests)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#vsm-ipc-1-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        VSM / IPC (1 tests)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#operating-temperature-1-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Operating Temperature (1 tests)
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../traceability-matrix/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Traceability Matrix
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../twister-hil/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Twister HIL
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../stage4-connectivity/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 4 Connectivity
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../stage4-long-term-vision/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 4 Long-Term Vision
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../validation-flow-ui/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation Flow UI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../interfaces/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interfaces
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../guides/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_2" id="__nav_5_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Alpha
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Alpha
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/alpha/stage1/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 1
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/alpha/stage2/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 2
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/alpha/stage3/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 3
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/alpha/stage4/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 4
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/alpha/stage5/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 5
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../research/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Research
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_6" id="__nav_6_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Research
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../research/01-sigma5-firmware-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sigma5 Firmware
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../research/02-alpha-firmware-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Alpha Firmware
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../research/03-sensor-drivers-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sensor Drivers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../research/05-mtib-server-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MTIB Server
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../research/06-fuota-corecloud-v1/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FUOTA CoreCloud
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../research/07-alpha-manufacturing-firmware-and-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Alpha MFG Firmware
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../research/08-device-personalization-and-key-provisioning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Device Personalization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../research/08-firmware-build-and-fuota-delivery/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Firmware Build & FUOTA
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../research/09-corecloud-validation-integration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CoreCloud Integration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../journals/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Journals
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Journals
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#power-runtime-7-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Power / Runtime (7 tests)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#config-values-heartbeat-motion-gps-18-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Config Values (Heartbeat, Motion, GPS) (18 tests)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#motion-detection-5-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Motion Detection (5 tests)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#charging-bms-29-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Charging / BMS (29 tests)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#environmental-sensors-bme280-mlx90614-7-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Environmental Sensors (BME280, MLX90614) (7 tests)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#gnss-7-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GNSS (7 tests)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#on-skin-biometrics-3-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        On-Skin / Biometrics (3 tests)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#button-sos-haptic-9-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Button / SOS / Haptic (9 tests)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#nfc-1-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NFC (1 tests)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#fuota-1-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        FUOTA (1 tests)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#vsm-ipc-1-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        VSM / IPC (1 tests)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#operating-temperature-1-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Operating Temperature (1 tests)
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+                
+
+
+
+  
+
+
+  <nav class="md-path" aria-label="Navigation" >
+    <ol class="md-path__list">
+      
+        
+  
+  
+    <li class="md-path__item">
+      <a href="../.." class="md-path__link">
+        
+  <span class="md-ellipsis">
+    Home
+  </span>
+
+      </a>
+    </li>
+  
+
+      
+      
+        
+  
+  
+    
+    
+      <li class="md-path__item">
+        <a href="../" class="md-path__link">
+          
+  <span class="md-ellipsis">
+    Reference
+  </span>
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ol>
+  </nav>
+
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+<h1 id="alpha-test-cases-prdtst-reference">Alpha Test Cases (PRDTST) — Reference<a class="headerlink" href="#alpha-test-cases-prdtst-reference" title="Permanent link">&para;</a></h1>
+<p>Extracted from Jira project PRDTST on 2026-02-25.
+These test cases are the official product test suite for the Alpha device.
+They map to Concord validation Stages 3 and 4.
+Total Alpha test cases: 89</p>
+<h2 id="power-runtime-7-tests">Power / Runtime (7 tests)<a class="headerlink" href="#power-runtime-7-tests" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>PRDTST-331</strong>: Test Long-term Sleep Current Consumption Average</li>
+<li>
+<p>The device shall consume less than an average of 1.5mA over: 12-hour, 24-hour, 48-hour periods, and 1-week periods of continuous sleep.</p>
+</li>
+<li>
+<p><strong>PRDTST-340</strong>: Test Device Must Operate for 3 Days Under Worst-Case Conditions</p>
+</li>
+<li>
+<p>Verify that the device can operate for 3 days (72 hours) standalone, with continuous biometric and GPS sampling at the worst-case profile, and all messages sent via LTE.</p>
+</li>
+<li>
+<p><strong>PRDTST-341</strong>: Test Device Must Consume Less Than 150mA in Active Mode</p>
+</li>
+<li>
+<p>The device shall consume less than 150mA in active mode.</p>
+</li>
+<li>
+<p><strong>PRDTST-348</strong>: Test Device Must Consume Less than 500µA in Sleep Mode</p>
+</li>
+<li>
+<p>The device shall consume less than an average of 500µA in sleep mode.</p>
+</li>
+<li>
+<p><strong>PRDTST-361</strong>: Test Device Must Consume Less Than 400nA in Lockout Mode</p>
+</li>
+<li>
+<p>The device shall consume less than 400nA when the battery is locked out.</p>
+</li>
+<li>
+<p><strong>PRDTST-363</strong>: Test Device Must Operate for 3 Days Standalone Normal Use</p>
+</li>
+<li>
+<p>Verify that the device can operate for 3 days (72 hours) standalone, with continuous biometric and GPS sampling at</p>
+</li>
+<li>
+<p><strong>PRDTST-404</strong>: Test Device Must Consume Less than 50mA in Normal Use Mode</p>
+</li>
+<li>The device shall consume less than 50mA in active mode over a 10 minute period.</li>
+</ul>
+<h2 id="config-values-heartbeat-motion-gps-18-tests">Config Values (Heartbeat, Motion, GPS) (18 tests)<a class="headerlink" href="#config-values-heartbeat-motion-gps-18-tests" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>PRDTST-328</strong>: Test Motion Stop Acquisition Timeout Default Value</li>
+<li>
+<p>Verify that the device can be configured to run GPS for motion stop acquisitions at the default period.</p>
+</li>
+<li>
+<p><strong>PRDTST-330</strong>: Test Heartbeat Acquisition Timeout Default Value</p>
+</li>
+<li>
+<p>Verify that the device can be configured to run GPS for heartbeat acquisitions at the default period (60 seconds).</p>
+</li>
+<li>
+<p><strong>PRDTST-335</strong>: Test Zero Heartbeat Period</p>
+</li>
+<li>
+<p>Verify that the device can be configured to not send heartbeat messages.</p>
+</li>
+<li>
+<p><strong>PRDTST-342</strong>: Test Continuous Motion Period Default Value</p>
+</li>
+<li>
+<p>Verify that the device can be configured to send a continuous motion message at the default period.</p>
+</li>
+<li>
+<p><strong>PRDTST-344</strong>: Test Heartbeat Period Max Value</p>
+</li>
+<li>
+<p>Verify that the device can be configured to send a heartbeat message at the specified period. (2-byte value)</p>
+</li>
+<li>
+<p><strong>PRDTST-347</strong>: Test Stop Motion Timeout Non-Default Value</p>
+</li>
+<li>
+<p>Verify that the device can be configured to send a stop motion message at the specified period.</p>
+</li>
+<li>
+<p><strong>PRDTST-352</strong>: Test Heartbeat Period Default Value</p>
+</li>
+<li>
+<p>Verify that the device can be configured to send a heartbeat message at the default period.</p>
+</li>
+<li>
+<p><strong>PRDTST-353</strong>: Test Start Motion Window Start Default Value</p>
+</li>
+<li>
+<p>Verify that the device can be configured to begin the start motion window at the default period (3 seconds).</p>
+</li>
+<li>
+<p><strong>PRDTST-356</strong>: Test Heartbeat Period Non-Default Value</p>
+</li>
+<li>
+<p>Verify that the device can be configured to send a heartbeat message at the specified period.</p>
+</li>
+<li>
+<p><strong>PRDTST-359</strong>: Test Heartbeat Acquisition Timeout Non-Default Value</p>
+</li>
+<li>
+<p>Verify that the device can be configured to run GPS for heartbeat acquisitions at the specified period.</p>
+</li>
+<li>
+<p><strong>PRDTST-364</strong>: Test Continuous Motion Disabled</p>
+</li>
+<li>
+<p>Verify that the device can be configured to not send continuous motion messages.</p>
+</li>
+<li>
+<p><strong>PRDTST-369</strong>: Test Continuous Motion Period Non-Default Value</p>
+</li>
+<li>
+<p>Verify that the device can be configured to send a continuous motion message at the specified period.</p>
+</li>
+<li>
+<p><strong>PRDTST-371</strong>: Test Heartbeat Period Min Value</p>
+</li>
+<li>
+<p>Verify that the device can be configured to send a heartbeat message at the specified period.</p>
+</li>
+<li>
+<p><strong>PRDTST-374</strong>: Test Ground Mode Config sent on boot</p>
+</li>
+<li>
+<p>Verify that the device sends its current Ground Mode Config Message to the server on boot.</p>
+</li>
+<li>
+<p><strong>PRDTST-387</strong>: Test Continuous Motion Period Min Value</p>
+</li>
+<li>Verify that the device can be configured using a continuous motion period of 1 second.</li>
+</ul>
+<p><strong>TODO/TBD/NOTE:</strong> Application/device behavior at this setting is undefined and should.</p>
+<ul>
+<li><strong>PRDTST-388</strong>: Test Default Ground Mode Config Values</li>
+<li>
+<p>Verify that a fresh device has the default Ground Mode Config V2 Message values.</p>
+</li>
+<li>
+<p><strong>PRDTST-394</strong>: Test Continuous Motion Period Max Value</p>
+</li>
+<li>
+<p>Verify that the device can be configured using a continuous motion period of 65535 seconds (approximately 18.2 hours).</p>
+</li>
+<li>
+<p><strong>PRDTST-399</strong>: Test Stop Motion Timeout Default Value</p>
+</li>
+<li>Verify that the device can be configured to send a stop motion message at the default period (2 minutes)</li>
+</ul>
+<h2 id="motion-detection-5-tests">Motion Detection (5 tests)<a class="headerlink" href="#motion-detection-5-tests" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>PRDTST-324</strong>: Test Ignore motion below acceleration threshold</li>
+<li>
+<p>The device shall not detect motion when the acceleration is below the threshold, even if the duration is above the threshold.</p>
+</li>
+<li>
+<p><strong>PRDTST-326</strong>: Test Detect motion above thresholds with default config</p>
+</li>
+<li>
+<p>The device shall detect motion when the acceleration is above the threshold and the duration is above the threshold.</p>
+</li>
+<li>
+<p><strong>PRDTST-375</strong>: Test Ignore motion below duration threshold</p>
+</li>
+<li>
+<p>Verify the device does not detect motion when not moved over the time duration threshold but exceeding the acceleration threshold.</p>
+</li>
+<li>
+<p><strong>PRDTST-389</strong>: Test Axis independence</p>
+</li>
+<li>
+<p>The device shall detect motion in all three axes independently, meaning that motion in one axis should not affect the detection of motion in another axis.</p>
+</li>
+<li>
+<p><strong>PRDTST-393</strong>: Test Respect motion start window</p>
+</li>
+<li>The device shall not detect motion until the start motion window has elapsed, even if the acceleration is above the threshold and the duration is above the threshold.</li>
+</ul>
+<h2 id="charging-bms-29-tests">Charging / BMS (29 tests)<a class="headerlink" href="#charging-bms-29-tests" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>PRDTST-332</strong>: Test Charge Controller Temperature Measurement Short Circuit Start Charging</li>
+<li>
+<p>Verify that the charge controller will not charge the battery when the TS pin is shorted at the start of charging.</p>
+</li>
+<li>
+<p><strong>PRDTST-334</strong>: Test State of Charge (SoC) Reporting</p>
+</li>
+<li>
+<p>When the battery is discharged to 0% SoC, the device shall report SoC within ±2% of the true value as measured by external test equipment.</p>
+</li>
+<li>
+<p><strong>PRDTST-338</strong>: Test Device Must Communicate Charge Level via LEDs when button is pressed once</p>
+</li>
+<li>
+<p>The device shall communicate the charge level via the status LEDs across the entire battery SoC range when the button is pressed once (less than a 1 second press).</p>
+</li>
+<li>
+<p><strong>PRDTST-339</strong>: Test Charge Controller Temperature Measurement Short Circuit while</p>
+</li>
+<li>
+<p>Verify that the charge controller will not charge the battery when the TS pin is shorted.</p>
+</li>
+<li>
+<p><strong>PRDTST-349</strong>: Test No FUOTA on low battery</p>
+</li>
+<li>
+<p>Verify that FUOTAs can not complete when the battery is critically low (3.7v)</p>
+</li>
+<li>
+<p><strong>PRDTST-350</strong>: Test Battery Temperature Reported in Position Message</p>
+</li>
+<li>
+<p>The device shall report the battery temperature via the Position Message</p>
+</li>
+<li>
+<p><strong>PRDTST-351</strong>: Test Device Must Not charge at negative temperatures</p>
+</li>
+<li>
+<p>The device shall not charge the battery when the battery temperature is below 0°C.</p>
+</li>
+<li>
+<p><strong>PRDTST-354</strong>: Test Connecting Charger Must Delatch Device from Lockout</p>
+</li>
+<li>
+<p>The device shall wake up and start charging the battery when the charger is connected, even when the battery is locked out.</p>
+</li>
+<li>
+<p><strong>PRDTST-355</strong>: Test Device Must Communicate On-Charger State via LEDs</p>
+</li>
+<li>
+<p>The device shall communicate the on-charger state via the status LEDs across the entire battery SoC range.</p>
+</li>
+<li>
+<p><strong>PRDTST-365</strong>: Test Device Must Charge Using Charge Ladder</p>
+</li>
+<li>
+<p>The device shall charge the battery using a charge ladder to maximize cycle life.</p>
+</li>
+<li>
+<p><strong>PRDTST-366</strong>: Test BMS Battery SoC and Temp Reported in Position Message</p>
+</li>
+<li>
+<p>Verify that the device reports the battery SoC and temperature via the Position Message while in motion and on-skin</p>
+</li>
+<li>
+<p><strong>PRDTST-367</strong>: Test BMS Temperature Measurement Accuracy</p>
+</li>
+<li>
+<p>Verify the BMS reports the board temperature to within ±2°C of the value measured by an external calibrated thermometer, across the operating temperature range.</p>
+</li>
+<li>
+<p><strong>PRDTST-368</strong>: Test Device Must Report On-Charger State in Position Message</p>
+</li>
+<li>
+<p>The device shall report the on-charger state via the Position Message when the device is connected to a charger.</p>
+</li>
+<li>
+<p><strong>PRDTST-370</strong>: Test Device Must Charge from 3.5V to 4.2V in Under 3 Hours</p>
+</li>
+<li>
+<p>The device shall charge the battery from 3.5V to 4.2V in under three hours.</p>
+</li>
+<li>
+<p><strong>PRDTST-372</strong>: Test Device Must Not Charge Above 45°C</p>
+</li>
+<li>
+<p>The device shall not charge the battery when the battery temperature is above 45°C, measured at the battery terminals via the external thermistor wired to the charge controller.</p>
+</li>
+<li>
+<p><strong>PRDTST-373</strong>: Test Device Must Communicate Charge Level via LEDs while charging</p>
+</li>
+<li>
+<p>The device shall communicate the charge level via the status LEDs across the entire battery SoC range.</p>
+</li>
+<li>
+<p><strong>PRDTST-381</strong>: Test BMS Parameter Retention and Application</p>
+</li>
+<li>
+<p>Verify that the BMS retains and/or applies the correct configuration after a power cycle.</p>
+</li>
+<li>
+<p><strong>PRDTST-383</strong>: Test Device Must Not Charge Below 10°C</p>
+</li>
+<li>
+<p>The device shall not charge the battery when the battery temperature is below 10°C, measured at the battery terminals via the external thermistor wired to the charge controller.</p>
+</li>
+<li>
+<p><strong>PRDTST-385</strong>: Test Device Must Lockout Battery Discharge at 3.5V</p>
+</li>
+<li>
+<p>The device shall lock out battery discharge when the battery voltage falls below 3.5V.</p>
+</li>
+<li>
+<p><strong>PRDTST-386</strong>: Test Device Must Detect Charger Connection Low Battery Not Charging</p>
+</li>
+<li>
+<p>The device should detect on-charger state when the battery is not charging.</p>
+</li>
+<li>
+<p><strong>PRDTST-390</strong>: Test Charge Controller Temperature Measurement Open Circuit Start Charging</p>
+</li>
+<li>
+<p>Verify that the charge controller will not charge the battery when the TS pin is open circuit at the start of charging.</p>
+</li>
+<li>
+<p><strong>PRDTST-391</strong>: Test Device Must Stop Charging at 4.3V with 10mA Termination Current</p>
+</li>
+<li>
+<p>The device shall stop charging the battery at 4.3V with a 20mA termination current.</p>
+</li>
+<li>
+<p><strong>PRDTST-392</strong>: Test Device Must Trickle Charge Below 3.5V</p>
+</li>
+<li>
+<p>The device shall trickle charge the battery at 10mA when the battery voltage is below 3.5V.</p>
+</li>
+<li>
+<p><strong>PRDTST-397</strong>: Test Device Must Detect Charger Connection Full Battery</p>
+</li>
+<li>
+<p>The device shall detect when it is connected to a charger when the battery is fully charged.</p>
+</li>
+<li>
+<p><strong>PRDTST-402</strong>: Test Device Must Detect Charger Connection Low Battery</p>
+</li>
+<li>
+<p>The device should detect on-charger state across the entire battery voltage range.</p>
+</li>
+<li>
+<p><strong>PRDTST-407</strong>: Test Charge Controller Temperature Measurement Accuracy</p>
+</li>
+<li>
+<p>Verify that the charg controller reports the battery temperature within ±2°C of the value measured by an external calibrated thermometer, across the operating temperature range.</p>
+</li>
+<li>
+<p><strong>PRDTST-409</strong>: Test Charge Controller Temperature Measurement Open Circuit while Charging</p>
+</li>
+<li>
+<p>Verify that the charg controller will not charge the battery when the TS pin is open circuit.</p>
+</li>
+<li>
+<p><strong>PRDTST-411</strong>: Test BMS Recovery Voltage Behavior</p>
+</li>
+<li>
+<p>Verify the BMS clears the empty detection flag once the battery voltage rises above the recovery voltage (3.88 V).</p>
+</li>
+<li>
+<p><strong>PRDTST-412</strong>: Test Button Press to Check Battery Status</p>
+</li>
+<li>Verify the device reports it's battery level when the button is pressed once.</li>
+</ul>
+<h2 id="environmental-sensors-bme280-mlx90614-7-tests">Environmental Sensors (BME280, MLX90614) (7 tests)<a class="headerlink" href="#environmental-sensors-bme280-mlx90614-7-tests" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>PRDTST-329</strong>: Test Altitude Ceiling Measurement</li>
+<li>
+<p>The device must measure the altitude ceiling with in ±25 meters (±0.0295 inHg or ≈ ±1.0 hPa) accuracy, when compared to a calibrated altimeter.</p>
+</li>
+<li>
+<p><strong>PRDTST-336</strong>: Test Detect elevation change</p>
+</li>
+<li>
+<p>The device shall detect a 3 meter elevation change.</p>
+</li>
+<li>
+<p><strong>PRDTST-345</strong>: Test Absolute Temperature Measurement</p>
+</li>
+<li>
+<p>The device must calculate the absolute temperature with in ±0.5°C accuracy, when compared to a calibrated thermometer.</p>
+</li>
+<li>
+<p><strong>PRDTST-357</strong>: Test Absolute Pressure Measurement</p>
+</li>
+<li>
+<p>The device must calculate the absolute pressure with in ±0.05 inHg (≈ ±1.7 hPa) accuracy, when compared to a calibrated barometer.</p>
+</li>
+<li>
+<p><strong>PRDTST-398</strong>: Test Absolute Humidity Measurement</p>
+</li>
+<li>The device must calculate the absolute humidity with in ±3%RH accuracy, when compared to a calibrated hygrometer.</li>
+</ul>
+<p>Accuracy at 20%, 40%, 60%, and 80% RH is within ±3%RH.</p>
+<ul>
+<li><strong>PRDTST-405</strong>: Test Detect humidity change</li>
+<li>
+<p>The device shall detect a 5% change in relative humidity.</p>
+</li>
+<li>
+<p><strong>PRDTST-406</strong>: Test Detect temperature change</p>
+</li>
+<li>The device shall detect a 0.1°C change in relative temperature.</li>
+</ul>
+<h2 id="gnss-7-tests">GNSS (7 tests)<a class="headerlink" href="#gnss-7-tests" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>PRDTST-333</strong>: Test GNSS Position Based Heading Estimate</li>
+<li>
+<p>The device shall be able to estimate its heading based on GNSS position fixes with an accuracy of 10 degrees.</p>
+</li>
+<li>
+<p><strong>PRDTST-343</strong>: Test GNSS Position Fix Cold Start Aiding Disabled, Minimum Requirements</p>
+</li>
+<li>
+<p>The device shall be able to acquire a position fix within 1 minutes, under clear sky conditions, with an accuracy of 6 meter or better.</p>
+</li>
+<li>
+<p><strong>PRDTST-358</strong>: Test GNSS Position Based Speed Estimate</p>
+</li>
+<li>
+<p>The device shall be able to estimate its speed based on GNSS position fixes with an accuracy of 20%.</p>
+</li>
+<li>
+<p><strong>PRDTST-360</strong>: Test GNSS Position Fix Warm Start Aiding Disabled</p>
+</li>
+<li>
+<p>When GPS-Aiding is disabled, and the device is preforming a warm boot where the device has a valid position fix, the device shall be able to acquire a position fix within 30 seconds, under clear sky conditions, with an accuracy of 1 meter or better.</p>
+</li>
+<li>
+<p><strong>PRDTST-378</strong>: Test GNSS Position Fix Cold Start Aiding Enabled</p>
+</li>
+<li>
+<p>When GPS-Aiding is enabled, the device shall be able to acquire a position fix within 30 seconds, under clear sky conditions, with an accuracy of 1 meter or better.</p>
+</li>
+<li>
+<p><strong>PRDTST-384</strong>: Test GNSS Position Fix Cold Start Aiding Disabled, Extended Requirements</p>
+</li>
+<li>
+<p>The device shall be able to acquire a position fix within 3 minutes, under clear sky conditions, with an accuracy of 1 meter or better.</p>
+</li>
+<li>
+<p><strong>PRDTST-396</strong>: Test GNSS Position Fix Warm Start Aiding Enabled</p>
+</li>
+<li>When GPS-Aiding is enabled, and the device is preforming a warm boot where the device has a valid position fix, the device shall be able to acquire a position fix within 30 seconds, under clear sky conditions, with an accuracy of 1 meter or better.</li>
+</ul>
+<h2 id="on-skin-biometrics-3-tests">On-Skin / Biometrics (3 tests)<a class="headerlink" href="#on-skin-biometrics-3-tests" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>PRDTST-327</strong>: Test Biometric Data Messages Sent When On-Skin</li>
+<li>
+<p>The device shall send biometric data messages when it is on-skin.</p>
+</li>
+<li>
+<p><strong>PRDTST-379</strong>: Test Position Messages Sent When On-Skin</p>
+</li>
+<li>
+<p>The device shall send position messages when it is on-skin.</p>
+</li>
+<li>
+<p><strong>PRDTST-400</strong>: Test On-Skin Detection</p>
+</li>
+<li>The device shall detect when it is on-skin and when it is not.</li>
+</ul>
+<h2 id="button-sos-haptic-9-tests">Button / SOS / Haptic (9 tests)<a class="headerlink" href="#button-sos-haptic-9-tests" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>PRDTST-325</strong>: Negative Test Button Press to Enter SOS Emergency Mode</li>
+<li>
+<p>The device shall not enter SOS emergency mode when the button is pressed for less than 3 seconds or more than 6 seconds.</p>
+</li>
+<li>
+<p><strong>PRDTST-346</strong>: Test Button Press to Hard Reset Device</p>
+</li>
+<li>Verify the device performs a hard reset when the button is pressed 7 times in quick succession.</li>
+</ul>
+<p><strong>TODO/TBD:</strong> Need a way to verify that the VSM rebooted.</p>
+<ul>
+<li><strong>PRDTST-362</strong>: Test Haptic Feedback on SOS Emergency Mode Entry</li>
+<li>
+<p>Verify the device provides haptic feedback when it enters SOS emergency mode.</p>
+</li>
+<li>
+<p><strong>PRDTST-377</strong>: Test  Button Press to Enter Manufacturing Test Mode</p>
+</li>
+<li>
+<p>Verify the device enters manufacturing test mode when the button is double-clicked.</p>
+</li>
+<li>
+<p><strong>PRDTST-380</strong>: Test Haptic Feedback on SOS Acknowledgement</p>
+</li>
+<li>
+<p>Verify the device provides haptic feedback when it receives an SOS acknowledgement message.</p>
+</li>
+<li>
+<p><strong>PRDTST-382</strong>: Test Button Press to Enter SOS Emergency Mode</p>
+</li>
+<li>
+<p><code>The device shall enter SOS emergency mode when the button is pressed and held for between 3 and 6 seconds.</code></p>
+</li>
+<li>
+<p><strong>PRDTST-395</strong>: Negative Test Haptic Feedback on Button Press for 3 Seconds</p>
+</li>
+<li>
+<p>The device shall not provide haptic feedback when the button is pressed for less than 3 seconds.</p>
+</li>
+<li>
+<p><strong>PRDTST-403</strong>: Test Haptic Feedback on Manufacturing Test Entry and Exit</p>
+</li>
+<li>
+<p>Verify the device provides haptic feedback when it enters and exits manufacturing test mode.</p>
+</li>
+<li>
+<p><strong>PRDTST-408</strong>: Test Haptic Feedback on Button Press for 3 Seconds</p>
+</li>
+<li>Verify the device provides haptic feedback when the button is pressed for 3 seconds.</li>
+</ul>
+<h2 id="nfc-1-tests">NFC (1 tests)<a class="headerlink" href="#nfc-1-tests" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>PRDTST-337</strong>: Test NFC Broadcast Device ID</li>
+<li>Verify device broadcasts it's unique ID via NFC.</li>
+</ul>
+<h2 id="fuota-1-tests">FUOTA (1 tests)<a class="headerlink" href="#fuota-1-tests" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>PRDTST-376</strong>: Test FUOTA from previous release to current</li>
+<li>Verify the device can successfully FUOTA from the previous release to this build.</li>
+</ul>
+<h2 id="vsm-ipc-1-tests">VSM / IPC (1 tests)<a class="headerlink" href="#vsm-ipc-1-tests" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>PRDTST-410</strong>: Test VSM Power Cut-off Switch</li>
+<li>Verify that the VSM power cut-off switch is functional and can cut off power to the VMS.</li>
+</ul>
+<h2 id="operating-temperature-1-tests">Operating Temperature (1 tests)<a class="headerlink" href="#operating-temperature-1-tests" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>PRDTST-401</strong>: Test Device Must Operate Within -20°C to +60°C</li>
+<li>The device shall operate within a temperature range of -20°C to +60°C.</li>
+<li><strong>Note:</strong> Miscategorized as "Cloud Messages" in Jira. Correctly belongs under Power/Runtime (see arch-stage4 Section 5.1).</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://zensical.org/" target="_blank" rel="noopener">
+      Zensical
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      
+      <script id="__config" type="application/json">{"annotate":null,"base":"../..","features":["navigation.sections","navigation.expand","navigation.path","navigation.indexes","search.suggest","content.code.copy","toc.follow"],"search":"../../assets/javascripts/workers/search.e2d2d235.min.js","tags":null,"translations":{"clipboard.copied":"Copied to clipboard","clipboard.copy":"Copy to clipboard","search.result.more.one":"1 more on this page","search.result.more.other":"# more on this page","search.result.none":"No matching documents","search.result.one":"1 matching document","search.result.other":"# matching documents","search.result.placeholder":"Type to start searching","search.result.term.missing":"Missing","select.version":"Select version"},"version":null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.5fd3284f.min.js"></script>
+      
+        <script src="../../assets/js/external-links.js"></script>
+      
+    
+  </body>
+</html>

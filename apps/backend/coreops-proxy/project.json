@@ -1,0 +1,87 @@
+{
+  "name": "coreops-proxy",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/backend/coreops-proxy",
+  "projectType": "application",
+  "tags": ["scope:backend", "type:app"],
+  "targets": {
+    "build": {
+      "executor": "nx:run-commands",
+      "defaultConfiguration": "development",
+      "options": {
+        "cwd": "{workspaceRoot}"
+      },
+      "configurations": {
+        "development": {
+          "command": "nx run coreops-proxy:containerize -c development"
+        },
+        "staging": {
+          "command": "nx run coreops-proxy:containerize -c staging"
+        },
+        "production": {
+          "command": "nx run coreops-proxy:containerize -c production"
+        }
+      }
+    },
+    "containerize": {
+      "executor": "@nx-tools/nx-container:build",
+      "defaultConfiguration": "development",
+      "options": {
+        "context": "{workspaceRoot}",
+        "cwd": "{workspaceRoot}",
+        "file": "apps/backend/coreops-proxy/deploy/Dockerfile",
+        "push": false,
+        "load": true
+      },
+      "configurations": {
+        "development": {
+          "tags": ["concord/coreops-proxy:development"],
+          "platforms": []
+        },
+        "staging": {
+          "tags": [
+            "concord/coreops-proxy:staging",
+            "containers.ad.corekinect.com/concord-coreops-proxy:staging"
+          ]
+        },
+        "production": {
+          "tags": [
+            "concord/coreops-proxy:production",
+            "containers.ad.corekinect.com/concord-coreops-proxy:production"
+          ],
+          "push": true
+        }
+      }
+    },
+    "push": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["build"],
+      "options": {
+        "cwd": "{workspaceRoot}"
+      },
+      "defaultConfiguration": "staging",
+      "configurations": {
+        "staging": {
+          "command": "docker push containers.ad.corekinect.com/concord-coreops-proxy:staging"
+        },
+        "production": {
+          "command": "docker push containers.ad.corekinect.com/concord-coreops-proxy:production"
+        }
+      }
+    },
+    "serve": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/backend/coreops-proxy",
+        "command": "PYTHONPATH=src:. python3 -m src.main"
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/backend/coreops-proxy",
+        "command": "python3 -c \"import py_compile,glob;[py_compile.compile(f,doraise=True) for f in glob.glob('src/**/*.py',recursive=True)]\""
+      }
+    }
+  }
+}

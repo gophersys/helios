@@ -78,11 +78,16 @@ class Logger:
             self.enable_log_color = enable_log_color
             self.test_case_logger = test_case_logger
 
-    def __init__(self, config: Config = None, *, log_name: str = None):
+    def __init__(self, config: Config = None, *, log_name: str = None, debug_console: bool = False):
         """Initialize the Logger class with the given configuration."""
 
         if config is None:
-            config = Logger.Config(logger_name=log_name or "app_logger")
+            if debug_console:
+                console_log_level = logging.DEBUG
+            else:
+                console_log_level = logging.INFO
+
+            config = Logger.Config(logger_name=log_name or "app_logger", console_log_level=console_log_level)
 
         self.config = config
         self.logger = logging.getLogger(self.config.logger_name)

@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: Apache-2.0
+# CoreKinect ICLE v1.0 board configuration
+
+config BOARD_ICLE_V1_0
+	bool "CoreKinect ICLE v1.0"
+	depends on SOC_SERIES_ESP32
+	select SOC_ESP32_WROOM_32UE

@@ -20,10 +20,6 @@ from protocols.mtib.mtib_pb2 import (
     AdcReadRequest,
     AdcReadResponse,
     AdcReadAllResponse,
-    # Power types
-    DutPowerRequest,
-    DutPowerResponse,
-    DutPowerReadResponse,
     # Sensor types
     AltimeterReadResponse,
     AccelReadResponse,
@@ -52,6 +48,31 @@ from protocols.mtib.mtib_pb2 import (
     # UART types
     UartStreamRequest,
     UartStreamResponse,
+    # Power types
+    PowerChannel,
+    PowerResponse as PowerResponseProto,
+    PowerEnableRequest,
+    PowerDisableRequest,
+    PowerReadRequest,
+    PowerReadResponse as PowerReadResponseProto,
+    PowerMeasureRequest,
+    PowerMeasureResponse as PowerMeasureResponseProto,
+    PowerSample,
+    PowerStreamRequest,
+    PowerStreamResponse,
+    # GPIO watch types
+    GpioEdge,
+    GpioWatchRequest,
+    GpioWatchEvent,
+    # ADC stream types
+    AdcStreamRequest,
+    AdcStreamSample,
+    AdcStreamResponse,
+    # Observability types
+    GetSnapshotResponse as GetSnapshotResponseProto,
+    SnapshotPower,
+    SnapshotGpio,
+    SnapshotAdc,
 )
 
 
@@ -67,6 +88,11 @@ class MtibV1ServerInfo:
     name: str = ""
     version: str = ""
     hardware: Hardware = None
+
+
+class PowerChannel(IntEnum):
+    DUT = 0       # POWER_CHANNEL_DUT
+    CHARGER = 1   # POWER_CHANNEL_CHARGER
 
 
 class GpioDirection(IntEnum):
@@ -120,21 +146,6 @@ class AdcReadAllResponse:
     success: bool = False
     message: str = ""
     voltages_v: List[float] = None
-
-
-@dataclass
-class DutPowerResponse:
-    success: bool = False
-    message: str = ""
-
-
-@dataclass
-class DutPowerReadResponse:
-    success: bool = False
-    message: str = ""
-    current_a: float = 0.0
-    voltage_v: float = 0.0
-    power_w: float = 0.0
 
 
 @dataclass
@@ -219,3 +230,38 @@ class FlashFwFileResponse:
     success: bool = False
     message: str = ""
     time_ms: int = 0
+
+
+@dataclass
+class HealthCheckExtendedResponse:
+    ready: bool = False
+    errors: List[str] = None
+    hw_revision: str = ""
+    capabilities: List[str] = None
+
+
+@dataclass
+class PowerReadResult:
+    enabled: bool = False
+    voltage_v: float = 0.0
+    current_ma: float = 0.0
+    power_mw: float = 0.0
+
+
+@dataclass
+class PowerMeasureResult:
+    duration_s: float = 0.0
+    average_ma: float = 0.0
+    min_ma: float = 0.0
+    max_ma: float = 0.0
+    average_mv: float = 0.0
+    sample_count: int = 0
+
+
+@dataclass
+class SnapshotResult:
+    timestamp_ms: int = 0
+    hw_revision: str = ""
+    power: list = None
+    gpio: list = None
+    adc: list = None

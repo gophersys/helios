@@ -1,0 +1,259 @@
+# Alpha Validation Test Catalog
+# This is the source of truth for all test definitions.
+# Frontend and API sync from this file.
+
+version: "1.0.0"
+product: alpha
+board: alpha_b0
+
+# Stage definitions — one stage runs per container invocation
+stages:
+  smoke:
+    name: Smoke
+    description: Software tests on native_sim — no hardware required
+    timing_budget_s: 300
+    trigger: pr
+    directory: tests/smoke
+
+  silicon:
+    name: Silicon
+    description: Driver hardware tests on dev kits
+    timing_budget_s: 600
+    trigger: manual
+    directory: tests/silicon
+
+  integration:
+    name: Integration
+    description: Subsystem integration tests with harness instrumentation
+    timing_budget_s: 1800
+    trigger: manual
+    requires_harness: true
+    directory: tests/integration
+
+  nightly:
+    name: Nightly
+    description: Comprehensive product validation — nightly runs
+    timing_budget_s: 3600
+    trigger: cron
+    cron: "0 2 * * *"
+    directory: tests/nightly
+
+  fuota:
+    name: FUOTA
+    description: Over-the-air firmware update verification — blocks merge
+    timing_budget_s: 7200
+    trigger: pipeline
+    blocks_merge: true
+    directory: tests/fuota
+
+# Hardware capabilities referenced by tests
+hardware:
+  mtib:
+    description: Manufacturing Test Interface Board
+    required: true
+  jlink:
+    description: J-Link debugger for flashing
+    required: true
+  motion:
+    description: Linear rail motion stage
+    required: false
+  peltier:
+    description: Peltier heater for temperature simulation
+    required: false
+  ppg_servo:
+    description: Servo for PPG blocker
+    required: false
+
+# Test definitions
+tests:
+  # ═══════════════════════════════════════════════════════════════════════════
+  # FUOTA TESTS (Stage 5) - OTA firmware update, blocks merge
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  - id: FUOTA-ALPHA-001
+    name: test_all_fuota_transitions
+    stage: fuota
+    timeout_s: 7200
+    description: Run all FUOTA transitions from pipeline (flash, personalize, OTA, verify)
+    hardware: [mtib, jlink]
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # NIGHTLY TESTS (Stage 4) - Comprehensive validation
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # Power tests
+  - id: NIGHTLY-ALPHA-PWR-001
+    name: test_sleep_current
+    stage: nightly
+    timeout_s: 120
+    description: Verify sleep mode current < 50uA
+    hardware: [mtib]
+    category: power
+
+  - id: NIGHTLY-ALPHA-PWR-002
+    name: test_active_current
+    stage: nightly
+    timeout_s: 60
+    description: Verify active mode current in expected range
+    hardware: [mtib]
+    category: power
+
+  - id: NIGHTLY-ALPHA-PWR-003
+    name: test_modem_burst
+    stage: nightly
+    timeout_s: 180
+    description: Capture modem TX burst current profile
+    hardware: [mtib]
+    category: power
+
+  - id: NIGHTLY-ALPHA-PWR-004
+    name: test_power_profile
+    stage: nightly
+    timeout_s: 300
+    description: Full 5-minute power profile capture
+    hardware: [mtib]
+    category: power
+
+  # Sensor tests
+  - id: NIGHTLY-ALPHA-SENS-001
+    name: test_ppg_touch_detection
+    stage: nightly
+    timeout_s: 60
+    description: PPG sensor detects simulated touch
+    hardware: [mtib, ppg_servo]
+    category: sensors
+
+  - id: NIGHTLY-ALPHA-SENS-002
+    name: test_temperature_reading
+    stage: nightly
+    timeout_s: 60
+    description: MLX90614 returns valid temperature
+    hardware: [mtib, peltier]
+    category: sensors
+
+  - id: NIGHTLY-ALPHA-SENS-003
+    name: test_accelerometer
+    stage: nightly
+    timeout_s: 60
+    description: Accelerometer detects gravity vector
+    hardware: [mtib]
+    category: sensors
+
+  - id: NIGHTLY-ALPHA-SENS-004
+    name: test_barometer
+    stage: nightly
+    timeout_s: 60
+    description: Barometer returns valid pressure
+    hardware: [mtib]
+    category: sensors
+
+  # GPS tests
+  - id: NIGHTLY-ALPHA-GPS-001
+    name: test_gps_cold_start
+    stage: nightly
+    timeout_s: 120
+    description: GPS cold start TTFF
+    hardware: [mtib]
+    category: gps
+
+  - id: NIGHTLY-ALPHA-GPS-002
+    name: test_gps_warm_start
+    stage: nightly
+    timeout_s: 30
+    description: GPS warm start TTFF
+    hardware: [mtib]
+    category: gps
+
+  - id: NIGHTLY-ALPHA-GPS-003
+    name: test_gps_position
+    stage: nightly
+    timeout_s: 180
+    description: GPS acquires valid position fix
+    hardware: [mtib]
+    category: gps
+
+  # Charger tests
+  - id: NIGHTLY-ALPHA-CHG-001
+    name: test_charger_detection
+    stage: nightly
+    timeout_s: 30
+    description: BQ25180 detects charger connection
+    hardware: [mtib]
+    category: charger
+
+  - id: NIGHTLY-ALPHA-CHG-002
+    name: test_charging_current
+    stage: nightly
+    timeout_s: 60
+    description: Charging current in expected range
+    hardware: [mtib]
+    category: charger
+
+  - id: NIGHTLY-ALPHA-CHG-003
+    name: test_charger_disconnect
+    stage: nightly
+    timeout_s: 30
+    description: Clean transition on charger disconnect
+    hardware: [mtib]
+    category: charger
+
+  # Stimulus tests
+  - id: NIGHTLY-ALPHA-STIM-001
+    name: test_button_short_press
+    stage: nightly
+    timeout_s: 30
+    description: Short button press triggers state change
+    hardware: [mtib]
+    category: stimulus
+
+  - id: NIGHTLY-ALPHA-STIM-002
+    name: test_button_long_press
+    stage: nightly
+    timeout_s: 30
+    description: Long button press triggers SOS/shutdown
+    hardware: [mtib]
+    category: stimulus
+
+  - id: NIGHTLY-ALPHA-STIM-003
+    name: test_motion_detection
+    stage: nightly
+    timeout_s: 60
+    description: Motion stage triggers motion event
+    hardware: [mtib, motion]
+    category: stimulus
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # INTEGRATION TESTS (Stage 3) - Instrumented firmware
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  - id: INTEG-ALPHA-SM-001
+    name: test_idle_to_monitoring
+    stage: integration
+    timeout_s: 30
+    description: IDLE -> MONITORING on touch detection
+    hardware: [mtib]
+    category: state_machine
+
+  - id: INTEG-ALPHA-SM-002
+    name: test_monitoring_to_idle
+    stage: integration
+    timeout_s: 30
+    description: MONITORING -> IDLE on off-body timeout
+    hardware: [mtib]
+    category: state_machine
+
+  - id: INTEG-ALPHA-IPC-001
+    name: test_app_to_comms
+    stage: integration
+    timeout_s: 10
+    description: App->Comms message delivery
+    hardware: [mtib]
+    category: ipc
+
+  - id: INTEG-ALPHA-IPC-002
+    name: test_comms_to_app
+    stage: integration
+    timeout_s: 10
+    description: Comms->App message delivery
+    hardware: [mtib]
+    category: ipc

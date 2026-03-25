@@ -1,0 +1,6138 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Continuous delivery platform for embedded systems">
+      
+      
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="zensical-0.0.27">
+    
+    
+      
+        <title>System Implementation BOM: The Complete Validation Platform - Concord</title>
+      
+    
+    
+      
+        
+      
+      <link rel="stylesheet" href="../../../assets/stylesheets/modern/main.50057488.min.css">
+      
+        
+          
+        
+        <link rel="stylesheet" href="../../../assets/stylesheets/modern/palette.dfe2e883.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,500,500i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,t)=>(e<<5)-e+t.charCodeAt(0)),0),__md_get=(e,t=localStorage,a=__md_scope)=>JSON.parse(t.getItem(a.pathname+"."+e)),__md_set=(e,t,a=localStorage,_=__md_scope)=>{try{a.setItem(_.pathname+"."+e,JSON.stringify(t))}catch(e){}},document.documentElement.setAttribute("data-platform",navigator.platform)</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="deep-purple" data-md-color-accent="amber">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer" aria-label="Navigation"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#system-implementation-bom-the-complete-validation-platform" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../.." title="Concord" class="md-header__button md-logo" aria-label="Concord" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer" aria-label="Navigation">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-menu" viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h16"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Concord
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              System Implementation BOM: The Complete Validation Platform
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="none" data-md-color-scheme="slate" data-md-color-primary="deep-purple" data-md-color-accent="amber"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="none" data-md-color-scheme="default" data-md-color-primary="deep-purple" data-md-color-accent="amber"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search" aria-label="Search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-search" viewBox="0 0 24 24"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog" aria-label="Search">
+  <button type="button" class="md-search__button">
+    Search
+  </button>
+</div>
+      
+    
+    <div class="md-header__source">
+      
+    </div>
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="Concord" class="md-nav__button md-logo" aria-label="Concord" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+
+    </a>
+    Concord
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../vision/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vision
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2" id="__nav_2_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Vision
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../vision/thesis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Thesis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../vision/validation-philosophy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation Philosophy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../architecture/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3" id="__nav_3_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Architecture
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_2" id="__nav_3_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Platform
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Platform
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../architecture/platform/unified-platform/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Unified Platform
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../architecture/platform/hardware-registry/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hardware Registry
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../architecture/platform/log-streaming/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Log Streaming
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../architecture/platform/ci-pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CI Pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../architecture/platform/corecloud-library/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CoreCloud Library
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_3" id="__nav_3_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Validation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../architecture/validation/stages-overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stages Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../architecture/validation/system/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    System Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../architecture/validation/stage1-software-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 1: Software Tests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../architecture/validation/stage2-driver-hw-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 2: Driver HW Tests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../architecture/validation/stage3-integration-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 3: Integration Tests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../architecture/validation/stage4-product-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 4: Product Tests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../architecture/validation/stage4-fuota-flow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 4: FUOTA Flow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../architecture/validation/stage4-pr-flow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 4: PR Flow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../architecture/validation/stage5-gate-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 5: Gate Tests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../architecture/validation/test-runner/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Test Runner
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_4" id="__nav_3_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Build
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../architecture/build/build-service/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build Service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../architecture/build/builder-nodes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Builder Nodes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../reference/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/fuota-workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FUOTA Workflow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/fuota-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FUOTA API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/alpha-test-cases/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Alpha Test Cases
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/traceability-matrix/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Traceability Matrix
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/twister-hil/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Twister HIL
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/stage4-connectivity/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 4 Connectivity
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/stage4-long-term-vision/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 4 Long-Term Vision
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/validation-flow-ui/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation Flow UI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/interfaces/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interfaces
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../guides/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_2" id="__nav_5_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Alpha
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Alpha
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../guides/alpha/stage1/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 1
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../guides/alpha/stage2/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 2
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../guides/alpha/stage3/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 3
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../guides/alpha/stage4/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 4
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../guides/alpha/stage5/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 5
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../research/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Research
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_6" id="__nav_6_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Research
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../research/01-sigma5-firmware-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sigma5 Firmware
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../research/02-alpha-firmware-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Alpha Firmware
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../research/03-sensor-drivers-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sensor Drivers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../research/05-mtib-server-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MTIB Server
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../research/06-fuota-corecloud-v1/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FUOTA CoreCloud
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../research/07-alpha-manufacturing-firmware-and-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Alpha MFG Firmware
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../research/08-device-personalization-and-key-provisioning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Device Personalization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../research/08-firmware-build-and-fuota-delivery/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Firmware Build & FUOTA
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../research/09-corecloud-validation-integration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CoreCloud Integration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../journals/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Journals
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Journals
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-how-this-document-differs-from-the-component-bom" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. How This Document Differs from the Component BOM
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. How This Document Differs from the Component BOM">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#status-legend" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Status Legend
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-system-architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. System Architecture
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-interface-agreements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Interface Agreements
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Interface Agreements">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#31-mtib-grpc-interface" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.1 MTIB gRPC Interface
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#32-corecloud-sdk-interface" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.2 CoreCloud SDK Interface
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#33-concord-http-api-interface" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.3 Concord HTTP API Interface
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#34-k8s-job-interface" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.4 K8s Job Interface
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#35-build-service-interface" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.5 Build Service Interface
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#36-frontend-interface" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.6 Frontend Interface
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#37-manufacturing-validation-interface" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.7 Manufacturing ↔ Validation Interface
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-domain-firmware-validation-stages-1-4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Domain: Firmware Validation (Stages 1-4)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Domain: Firmware Validation (Stages 1-4)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#41-stage-1-software-tests-native_sim" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.1 Stage 1: Software Tests (native_sim)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#42-stage-2-driver-hardware-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.2 Stage 2: Driver Hardware Tests
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#43-stage-3-integration-tests-concord_harness" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.3 Stage 3: Integration Tests (concord_harness)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#44-stage-4-product-validation-black-box" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.4 Stage 4: Product Validation (black-box)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#45-prdtst-test-coverage-by-stage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.5 PRDTST Test Coverage by Stage
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-domain-fuota-validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Domain: FUOTA Validation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Domain: FUOTA Validation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#51-fuota-components" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.1 FUOTA Components
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#52-fuota-flow-interface-dependencies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.2 FUOTA Flow Interface Dependencies
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#53-fuota-open-questions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.3 FUOTA Open Questions
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-domain-manufacturing-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Domain: Manufacturing Integration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. Domain: Manufacturing Integration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#61-manufacturing-components" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.1 Manufacturing Components
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#62-manufacturing-validation-traceability-gap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.2 Manufacturing → Validation Traceability Gap
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-domain-corecloud-library" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Domain: CoreCloud Library
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7. Domain: CoreCloud Library">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#71-sdk-components" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.1 SDK Components
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#72-corecloud-gaps-for-validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.2 CoreCloud Gaps for Validation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-domain-platform-services" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Domain: Platform Services
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="8. Domain: Platform Services">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#81-pipeline-controller" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.1 Pipeline Controller
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#82-build-service" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.2 Build Service
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#83-container-images" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.3 Container Images
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#84-helm-k8s-deployment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.4 Helm / K8s Deployment
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#85-data-schemas" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.5 Data Schemas
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#86-artifact-storage-minio" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.6 Artifact Storage (MinIO)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#87-observability" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.7 Observability
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-component-inventory-exists-vs-needs-building" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Component Inventory: Exists vs Needs Building
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="9. Component Inventory: Exists vs Needs Building">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#91-production-ready-no-changes-needed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9.1 Production-Ready (No Changes Needed)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#92-needs-adaptation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9.2 Needs Adaptation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#93-must-be-built-from-scratch" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9.3 Must Be Built From Scratch
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-unified-effort-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. Unified Effort Summary
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="10. Unified Effort Summary">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#101-by-category" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10.1 By Category
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#102-by-stage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10.2 By Stage
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#103-by-interface-boundary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10.3 By Interface Boundary
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#104-critical-path" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10.4 Critical Path
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#11-blocked-items" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11. Blocked Items
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#12-open-design-decisions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12. Open Design Decisions
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#13-implementation-phases" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        13. Implementation Phases
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="13. Implementation Phases">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#phase-0-prerequisites-week-0-1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 0: Prerequisites (Week 0-1)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phase-1-parallel-foundation-weeks-1-4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 1: Parallel Foundation (Weeks 1-4)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phase-2-integration-stage-2-weeks-5-7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 2: Integration + Stage 2 (Weeks 5-7)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phase-3-stage-3-proof-weeks-7-9" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 3: Stage 3 Proof (Weeks 7-9)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phase-4-stage-4-proof-weeks-8-11" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 4: Stage 4 Proof (Weeks 8-11)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phase-5-hardening-dashboard-weeks-11-12" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 5: Hardening + Dashboard (Weeks 11-12)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#14-risk-register" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        14. Risk Register
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#15-cross-reference-to-architecture-documents" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        15. Cross-Reference to Architecture Documents
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+                
+
+
+
+  
+
+
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+<h1 id="system-implementation-bom-the-complete-validation-platform">System Implementation BOM: The Complete Validation Platform<a class="headerlink" href="#system-implementation-bom-the-complete-validation-platform" title="Permanent link">&para;</a></h1>
+<blockquote>
+<p>Comprehensive inventory of every component, interface agreement, and integration
+point required to implement the full Concord validation system — from Stage 1
+software tests through Stage 4 product validation, including manufacturing
+integration, FUOTA lifecycle testing, and CoreCloud backend connectivity.</p>
+<p><strong>Generated</strong>: 2026-02-26
+<strong>Scope</strong>: All stages (1-4), manufacturing, FUOTA, all repositories, all interfaces
+<strong>Companion to</strong>: <code>bom-validation-pipeline.md</code> (component-level tracking)
+<strong>Source documents</strong>: 00, 09, stage3, stage4, fuota-flow, test-runner-stack,
+corecloud-architecture, alpha-manufacturing-research</p>
+</blockquote>
+<hr />
+<h2 id="1-how-this-document-differs-from-the-component-bom">1. How This Document Differs from the Component BOM<a class="headerlink" href="#1-how-this-document-differs-from-the-component-bom" title="Permanent link">&para;</a></h2>
+<p>The component BOM (<code>bom-validation-pipeline.md</code>) tracks ~100 individual deliverables
+with hours, owners, and dependency chains — the sprint-planning view.</p>
+<p>This document is the <strong>system-level view</strong>. It answers:
+- What are the clearly defined interface agreements between system components?
+- How do all the moving pieces compose into a working whole?
+- What exists today (production code), what needs adaptation, and what is entirely new?
+- If we were to implement every stage for the entire system, what does the full picture look like?</p>
+<p>The organizing principle here is <strong>interfaces and integration boundaries</strong>, not
+individual file deliverables. Components that share an interface are grouped
+together. The goal is to see the system collectively — every connection point,
+every contract, every domain.</p>
+<h3 id="status-legend">Status Legend<a class="headerlink" href="#status-legend" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Status</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>PROD</code></td>
+<td>In production today. Battle-tested in manufacturing or existing services.</td>
+</tr>
+<tr>
+<td><code>EXISTS</code></td>
+<td>Code exists and works. May need minor adaptation for validation use cases.</td>
+</tr>
+<tr>
+<td><code>ADAPT</code></td>
+<td>Exists but needs structural changes for validation (new wrappers, new patterns).</td>
+</tr>
+<tr>
+<td><code>NEW</code></td>
+<td>Does not exist. Must be created from scratch.</td>
+</tr>
+<tr>
+<td><code>BLOCKED</code></td>
+<td>Depends on an external team (CoreCloud backend, firmware) for resolution.</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="2-system-architecture">2. System Architecture<a class="headerlink" href="#2-system-architecture" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>┌─────────────────────────────────────────────────────────────────────────────────────┐
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>│  CONCORD PLATFORM                                                                    │
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>│                                                                                      │
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>│  ┌──────────────┐  REST   ┌──────────────────┐  REST/K8s  ┌────────────────────┐    │
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>│  │   Frontend    │◄───────►│    HTTP API       │◄──────────►│ Pipeline Controller│    │
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>│  │  (SvelteKit)  │         │    (Flask)        │            │   (K8s Jobs)       │    │
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>│  └──────────────┘         └────────┬─────────┘            └────────┬───────────┘    │
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>│                                     │                               │                │
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>│                              ┌──────┴──────┐                 ┌──────┴──────┐         │
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>│                              │  Prisma ORM  │                 │ Build Service│         │
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>│                              │ (PostgreSQL)  │                 │  (west build)│         │
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>│                              └─────────────┘                 └─────────────┘         │
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>│                                                                                      │
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>├──────────────────────────────── K8s Job Boundary ───────────────────────────────────┤
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>│                                                                                      │
+<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>│  ┌─────────────────────────────────────────────────────────────────────────────┐     │
+<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>│  │  Test Pod (per-DUT K8s Job)                                                  │     │
+<a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>│  │                                                                               │     │
+<a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>│  │  ┌─────────────────────────────────────────────────────────────────────┐     │     │
+<a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>│  │  │  TestContext                                                         │     │     │
+<a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>│  │  │                                                                     │     │     │
+<a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>│  │  │  ┌──────────────┐  ┌──────────────┐  ┌────────────────────────┐   │     │     │
+<a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>│  │  │  │ CloudClient   │  │ MtibV2Client │  │  FixtureController     │   │     │     │
+<a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>│  │  │  │ (CoreCloud)   │  │ (MTIB gRPC)  │  │  (profile → pins)     │   │     │     │
+<a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a>│  │  │  └──────┬───────┘  └──────┬───────┘  └────────────┬───────────┘   │     │     │
+<a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a>│  │  │         │                  │                        │               │     │     │
+<a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a>│  │  │  ┌──────┴────┐  ┌────────┴────────┐  ┌───────────┴──────────┐   │     │     │
+<a id="__codelineno-0-28" name="__codelineno-0-28" href="#__codelineno-0-28"></a>│  │  │  │ PowerProf  │  │  UartDemuxer    │  │  HarnessTransport   │   │     │     │
+<a id="__codelineno-0-29" name="__codelineno-0-29" href="#__codelineno-0-29"></a>│  │  │  │            │  │                  │  │  (Stage 3 only)     │   │     │     │
+<a id="__codelineno-0-30" name="__codelineno-0-30" href="#__codelineno-0-30"></a>│  │  │  └────────────┘  └─────────────────┘  └────────────────────┘   │     │     │
+<a id="__codelineno-0-31" name="__codelineno-0-31" href="#__codelineno-0-31"></a>│  │  └─────────────────────────────────────────────────────────────────┘     │     │
+<a id="__codelineno-0-32" name="__codelineno-0-32" href="#__codelineno-0-32"></a>│  └─────────────────────────────────────────────────────────────────────────┘     │
+<a id="__codelineno-0-33" name="__codelineno-0-33" href="#__codelineno-0-33"></a>│                                                                                      │
+<a id="__codelineno-0-34" name="__codelineno-0-34" href="#__codelineno-0-34"></a>├──────────────────────────────── Network Boundary ───────────────────────────────────┤
+<a id="__codelineno-0-35" name="__codelineno-0-35" href="#__codelineno-0-35"></a>│                                                                                      │
+<a id="__codelineno-0-36" name="__codelineno-0-36" href="#__codelineno-0-36"></a>│  ┌────────────────┐        ┌────────────────┐        ┌─────────────────────────┐    │
+<a id="__codelineno-0-37" name="__codelineno-0-37" href="#__codelineno-0-37"></a>│  │ CoreCloud       │        │ MTIB V2 Server │        │ CoreCloud Backend       │    │
+<a id="__codelineno-0-38" name="__codelineno-0-38" href="#__codelineno-0-38"></a>│  │ PostgreSQL      │        │ (71 gRPC RPCs) │        │ (REST API, FUOTA mgmt)  │    │
+<a id="__codelineno-0-39" name="__codelineno-0-39" href="#__codelineno-0-39"></a>│  │ (VAL_1_0 env)   │        │ (Verdin node)  │        │ (External)              │    │
+<a id="__codelineno-0-40" name="__codelineno-0-40" href="#__codelineno-0-40"></a>│  └────────────────┘        └───────┬────────┘        └─────────────────────────┘    │
+<a id="__codelineno-0-41" name="__codelineno-0-41" href="#__codelineno-0-41"></a>│                                     │                                                │
+<a id="__codelineno-0-42" name="__codelineno-0-42" href="#__codelineno-0-42"></a>│                              ┌──────┴──────────────────────┐                         │
+<a id="__codelineno-0-43" name="__codelineno-0-43" href="#__codelineno-0-43"></a>│                              │ Physical Hardware             │                         │
+<a id="__codelineno-0-44" name="__codelineno-0-44" href="#__codelineno-0-44"></a>│                              │                               │                         │
+<a id="__codelineno-0-45" name="__codelineno-0-45" href="#__codelineno-0-45"></a>│                              │  ┌─────────────────────────┐ │                         │
+<a id="__codelineno-0-46" name="__codelineno-0-46" href="#__codelineno-0-46"></a>│                              │  │ DUT (Alpha B0 / Sigma5)  │ │                         │
+<a id="__codelineno-0-47" name="__codelineno-0-47" href="#__codelineno-0-47"></a>│                              │  │ nRF52840 + nRF9151       │ │                         │
+<a id="__codelineno-0-48" name="__codelineno-0-48" href="#__codelineno-0-48"></a>│                              │  └─────────────────────────┘ │                         │
+<a id="__codelineno-0-49" name="__codelineno-0-49" href="#__codelineno-0-49"></a>│                              │  ┌─────────────────────────┐ │                         │
+<a id="__codelineno-0-50" name="__codelineno-0-50" href="#__codelineno-0-50"></a>│                              │  │ Fixture Board             │ │                         │
+<a id="__codelineno-0-51" name="__codelineno-0-51" href="#__codelineno-0-51"></a>│                              │  │ GPIO, ADC, Motor, SWD    │ │                         │
+<a id="__codelineno-0-52" name="__codelineno-0-52" href="#__codelineno-0-52"></a>│                              │  └─────────────────────────┘ │                         │
+<a id="__codelineno-0-53" name="__codelineno-0-53" href="#__codelineno-0-53"></a>│                              └──────────────────────────────┘                         │
+<a id="__codelineno-0-54" name="__codelineno-0-54" href="#__codelineno-0-54"></a>└─────────────────────────────────────────────────────────────────────────────────────┘
+</code></pre></div>
+<hr />
+<h2 id="3-interface-agreements">3. Interface Agreements<a class="headerlink" href="#3-interface-agreements" title="Permanent link">&para;</a></h2>
+<p>The system has <strong>seven primary interface boundaries</strong>. Each boundary defines a
+contract between two components. Understanding these contracts is how the system
+composes into a working whole.</p>
+<h3 id="31-mtib-grpc-interface">3.1 MTIB gRPC Interface<a class="headerlink" href="#31-mtib-grpc-interface" title="Permanent link">&para;</a></h3>
+<p><strong>Between</strong>: Test Pod ↔ MTIB V2 Server (edge node)
+<strong>Protocol</strong>: gRPC (protobuf)
+<strong>Status</strong>: <code>PROD</code></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>┌──────────────┐      gRPC (50052)      ┌──────────────┐
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>│ MtibV2Client │ ◄───────────────────► │ MTIB V2      │
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>│ (Python)     │                        │ Server       │
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>│              │  71 RPCs across        │ (Python)     │
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>│              │  17 handlers           │              │
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>└──────────────┘                        └──────────────┘
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Aspect</th>
+<th>Detail</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Proto definition</td>
+<td><code>libs/protocols/mtib_v2/</code></td>
+</tr>
+<tr>
+<td>Python client</td>
+<td><code>libs/python/corekinect/mtib_client/v2/</code></td>
+</tr>
+<tr>
+<td>Server</td>
+<td><code>apps/edge/mtib-server-v2/src/</code></td>
+</tr>
+<tr>
+<td>Error convention</td>
+<td>Go-style: <code>Optional[str]</code> for errors, <code>Tuple[Optional[str], T]</code> for values</td>
+</tr>
+<tr>
+<td>Auth</td>
+<td>None (cluster-internal, node IP trusted)</td>
+</tr>
+<tr>
+<td>Connection pattern</td>
+<td><code>MtibV2Client(ClientConfig(net=NetConfig(addr=host, port=50052)))</code> then <code>.connect()</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>RPC categories used by validation</strong>:</p>
+<table>
+<thead>
+<tr>
+<th>Category</th>
+<th>RPCs</th>
+<th>Stage</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Power</td>
+<td><code>PowerEnable</code>, <code>PowerDisable</code>, <code>PowerMeasure</code>, <code>PowerStream</code></td>
+<td>2,3,4</td>
+<td>PROD</td>
+</tr>
+<tr>
+<td>Flash</td>
+<td><code>DebugConnect</code>, <code>FlashProgram</code>, <code>FlashVerify</code>, <code>DebugDisconnect</code></td>
+<td>2,3,4</td>
+<td>PROD</td>
+</tr>
+<tr>
+<td>UART</td>
+<td><code>UartOpen</code>, <code>UartClose</code>, <code>UartStream</code></td>
+<td>2,3,4</td>
+<td>PROD</td>
+</tr>
+<tr>
+<td>GPIO</td>
+<td><code>GpioConfig</code>, <code>GpioWrite</code>, <code>GpioRead</code>, <code>GpioStream</code></td>
+<td>2,4</td>
+<td>PROD</td>
+</tr>
+<tr>
+<td>Motor</td>
+<td><code>MotorOutput</code>, <code>MotorStop</code></td>
+<td>4</td>
+<td>PROD (unused in mfg)</td>
+</tr>
+<tr>
+<td>ADC</td>
+<td><code>AdcRead</code>, <code>AdcStream</code></td>
+<td>2,4</td>
+<td>PROD</td>
+</tr>
+<tr>
+<td>BLE</td>
+<td><code>BleSetup</code>, <code>BleStartScan</code>, <code>BleAdvDecode</code></td>
+<td>4 (future)</td>
+<td>PROD (unused in mfg)</td>
+</tr>
+<tr>
+<td>I2C</td>
+<td><code>I2cTransfer</code></td>
+<td>4 (NFC reader)</td>
+<td>PROD (unused in mfg)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>What validation adds</strong>: No new RPCs needed. The validation stack adds
+<em>composition</em> on top of existing RPCs: FixtureController (abstract actions →
+MTIB calls) and UartDemuxer (prefix-based UART routing).</p>
+<h3 id="32-corecloud-sdk-interface">3.2 CoreCloud SDK Interface<a class="headerlink" href="#32-corecloud-sdk-interface" title="Permanent link">&para;</a></h3>
+<p><strong>Between</strong>: Test Pod ↔ CoreCloud PostgreSQL + REST API
+<strong>Protocol</strong>: SQLAlchemy (DB) + HTTPS (REST)
+<strong>Status</strong>: <code>EXISTS</code> (DB reads), <code>ADAPT</code> (needs CloudClient polling wrappers)</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>┌──────────────┐    SQLAlchemy     ┌──────────────┐
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>│ CloudClient   │ ◄──────────────► │ PostgreSQL    │
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>│ (Python)     │    via SSH/direct │ (VAL_1_0)    │
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>│              │                    │              │
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>│              │    HTTPS (REST)   ┌──────────────┐
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>│              │ ◄──────────────► │ CoreCloud     │
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>│              │                    │ REST API     │
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>└──────────────┘                    └──────────────┘
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Aspect</th>
+<th>Detail</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>SDK location</td>
+<td><code>libs/python/corekinect/core_cloud/</code></td>
+</tr>
+<tr>
+<td>DB interface</td>
+<td><code>db_interface.py</code> — SQLAlchemy sessions, SSH tunnel, <code>CoreCloudDBInterface</code> context manager</td>
+</tr>
+<tr>
+<td>REST interface</td>
+<td><code>api_interface.py</code> — token auth, rate limiting, <code>CoreCloudRestInterface</code> singleton</td>
+</tr>
+<tr>
+<td>ORM models</td>
+<td><code>db_orm_v1_0.py</code> — PostgreSQL tables, including FUOTA tables</td>
+</tr>
+<tr>
+<td>Message defs</td>
+<td><code>msg_def_v1_0.py</code> — <code>MsgBase</code> (reads), <code>ConfMsgBase</code> (reads + writes)</td>
+</tr>
+<tr>
+<td>Namespace config</td>
+<td>Env vars: <code>{NS}_DB_HOST</code>, <code>{NS}_DB_NAME</code>, <code>{NS}_API_KEY</code>, etc.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Message types available for validation</strong>:</p>
+<table>
+<thead>
+<tr>
+<th>Class</th>
+<th>UID</th>
+<th>Base</th>
+<th>DB Read</th>
+<th>REST Write</th>
+<th>Validation Use</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>BootMsgV2</code></td>
+<td>548</td>
+<td><code>MsgBase</code></td>
+<td>Yes</td>
+<td>No</td>
+<td>FUOTA boot reason, FW version verification</td>
+</tr>
+<tr>
+<td><code>PositionMsgV6</code></td>
+<td>556</td>
+<td><code>MsgBase</code></td>
+<td>Yes</td>
+<td>No</td>
+<td>Motion, GNSS, config, power state</td>
+</tr>
+<tr>
+<td><code>BiometricDataMsg</code></td>
+<td>557</td>
+<td><code>MsgBase</code></td>
+<td>Yes</td>
+<td>No</td>
+<td>On-skin detection, heart rate, SpO2</td>
+</tr>
+<tr>
+<td><code>NetworkStatusMsgV4</code></td>
+<td>512</td>
+<td><code>MsgBase</code></td>
+<td>Yes</td>
+<td>No</td>
+<td>LTE connectivity, signal strength</td>
+</tr>
+<tr>
+<td><code>AlphaHwFailureMsg</code></td>
+<td>559</td>
+<td><code>MsgBase</code></td>
+<td>Yes</td>
+<td>No</td>
+<td>Hardware failure detection</td>
+</tr>
+<tr>
+<td><code>GPSConfMsg</code></td>
+<td>524</td>
+<td><code>ConfMsgBase</code></td>
+<td>Yes</td>
+<td><code>.send_via_rest()</code></td>
+<td>GNSS config delivery</td>
+</tr>
+<tr>
+<td><code>GroundModeConfigV2</code></td>
+<td>538</td>
+<td><code>MsgBase</code></td>
+<td>Yes</td>
+<td><strong>No</strong> (not ConfMsgBase)</td>
+<td><strong>BLOCKED</strong> — 18 tests deferred</td>
+</tr>
+<tr>
+<td><code>DeviceMessageLog</code></td>
+<td>—</td>
+<td><code>MsgBase</code></td>
+<td>Yes</td>
+<td>No</td>
+<td>Generic message audit trail</td>
+</tr>
+</tbody>
+</table>
+<p><strong>FUOTA ORM tables</strong> (exist in <code>db_orm_v1_0.py</code>):</p>
+<table>
+<thead>
+<tr>
+<th>Table</th>
+<th>Status</th>
+<th>Used For</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Fuotaplanstbl</code></td>
+<td>EXISTS</td>
+<td>FUOTA plan definition (create/read)</td>
+</tr>
+<tr>
+<td><code>Fuotaprogresshistorytbl</code></td>
+<td>EXISTS</td>
+<td>Per-device FUOTA progress tracking</td>
+</tr>
+<tr>
+<td><code>Fuotasettingsperdevicetypetbl</code></td>
+<td>EXISTS</td>
+<td>Device type FUOTA settings</td>
+</tr>
+</tbody>
+</table>
+<p><strong>What validation adds</strong>: <code>CloudClient</code> class — thin polling wrappers
+(<code>wait_for_position()</code>, <code>wait_for_boot()</code>, <code>wait_for_biometric()</code>) + FUOTA plan
+management (<code>create_fuota_plan()</code>, <code>wait_for_fuota_completion()</code>). See
+<code>test-runner-stack.md</code> Section 4 for full API design.</p>
+<h3 id="33-concord-http-api-interface">3.3 Concord HTTP API Interface<a class="headerlink" href="#33-concord-http-api-interface" title="Permanent link">&para;</a></h3>
+<p><strong>Between</strong>: Frontend/Build Service/Pipeline Controller ↔ Flask HTTP API
+<strong>Protocol</strong>: REST (JSON)
+<strong>Status</strong>: <code>EXISTS</code> (base API), <code>ADAPT</code> (validation endpoints needed)</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>┌──────────────┐                    ┌──────────────┐
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>│ Frontend      │                    │              │
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>│ (SvelteKit)   │    REST/JSON       │              │
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>│              │ ◄──────────────►   │  HTTP API    │
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>│              │                    │  (Flask +    │
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>├──────────────┤                    │   Blueprints) │
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>│ Build Service │                    │              │
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>│ Pipeline Ctrl │    REST/JSON       │              │
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>│              │ ◄──────────────►   │              │
+<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a>└──────────────┘                    └──────────────┘
+</code></pre></div>
+<p><strong>Existing endpoints relevant to validation</strong>:</p>
+<table>
+<thead>
+<tr>
+<th>Endpoint Group</th>
+<th>Path Pattern</th>
+<th>Status</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Validation tests</td>
+<td><code>POST /v2/validation/tests/run</code></td>
+<td>EXISTS</td>
+<td>Trigger test execution</td>
+</tr>
+<tr>
+<td>Test results</td>
+<td><code>GET /v2/validation/tests/{id}/results</code></td>
+<td>EXISTS</td>
+<td>Fetch test results</td>
+</tr>
+<tr>
+<td>Fixtures</td>
+<td><code>GET/POST/PUT /v2/fixtures/</code></td>
+<td>EXISTS</td>
+<td>Fixture CRUD</td>
+</tr>
+<tr>
+<td>MTIB nodes</td>
+<td><code>GET /v2/mtib/nodes/</code></td>
+<td>EXISTS</td>
+<td>Node listing</td>
+</tr>
+<tr>
+<td>MTIB commands</td>
+<td><code>POST /v2/mtib/nodes/{id}/{command}</code></td>
+<td>EXISTS</td>
+<td>Proxy commands to MTIB</td>
+</tr>
+<tr>
+<td>Observability</td>
+<td><code>GET /v2/observability/</code></td>
+<td>EXISTS</td>
+<td>Metrics, health</td>
+</tr>
+<tr>
+<td>K8s resources</td>
+<td><code>GET /v2/k8s/{resource}</code></td>
+<td>EXISTS</td>
+<td>Cluster resources</td>
+</tr>
+<tr>
+<td>Firmware catalog</td>
+<td><code>GET /v2/catalog/firmware/</code></td>
+<td>EXISTS</td>
+<td>Firmware builds</td>
+</tr>
+<tr>
+<td>Deployments</td>
+<td><code>GET/POST /v2/deployments/</code></td>
+<td>EXISTS</td>
+<td>Deployment CRUD</td>
+</tr>
+<tr>
+<td>ICLE devices</td>
+<td><code>GET /v2/icle/devices/</code></td>
+<td>EXISTS</td>
+<td>ICLE device management</td>
+</tr>
+</tbody>
+</table>
+<p><strong>New endpoints needed for validation pipeline</strong>:</p>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Status</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>POST /v2/validation/pipelines/trigger</code></td>
+<td>NEW</td>
+<td>Trigger full pipeline (webhook + manual)</td>
+</tr>
+<tr>
+<td><code>GET /v2/validation/pipelines/{id}</code></td>
+<td>NEW</td>
+<td>Pipeline status, stages, jobs</td>
+</tr>
+<tr>
+<td><code>GET /v2/validation/pipelines/{id}/stages</code></td>
+<td>NEW</td>
+<td>Stage-by-stage results</td>
+</tr>
+<tr>
+<td><code>POST /v2/validation/builds/trigger</code></td>
+<td>NEW</td>
+<td>Trigger firmware build</td>
+</tr>
+<tr>
+<td><code>GET /v2/validation/builds/{id}</code></td>
+<td>NEW</td>
+<td>Build status, artifacts</td>
+</tr>
+<tr>
+<td><code>GET /v2/validation/nodes/capabilities</code></td>
+<td>NEW</td>
+<td>MTIB node capability matching</td>
+</tr>
+<tr>
+<td><code>POST /v2/validation/jobs/{id}/results</code></td>
+<td>NEW</td>
+<td>Test pod reports results back</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Prisma schema</strong> — existing models that validation uses:</p>
+<table>
+<thead>
+<tr>
+<th>Model</th>
+<th>Status</th>
+<th>Used For</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Test</code></td>
+<td>EXISTS</td>
+<td>Test definitions</td>
+</tr>
+<tr>
+<td><code>TestExecution</code></td>
+<td>EXISTS</td>
+<td>Test run records</td>
+</tr>
+<tr>
+<td><code>TestResult</code></td>
+<td>EXISTS</td>
+<td>Per-test outcomes</td>
+</tr>
+<tr>
+<td><code>Session</code></td>
+<td>EXISTS</td>
+<td>Manufacturing sessions (reference)</td>
+</tr>
+<tr>
+<td><code>Device</code></td>
+<td>EXISTS</td>
+<td>DUT inventory</td>
+</tr>
+<tr>
+<td><code>Node</code></td>
+<td>EXISTS</td>
+<td>MTIB node records</td>
+</tr>
+<tr>
+<td><code>Fixture</code></td>
+<td>EXISTS</td>
+<td>Fixture definitions</td>
+</tr>
+<tr>
+<td><code>FixtureSlot</code></td>
+<td>EXISTS</td>
+<td>Slot assignments</td>
+</tr>
+<tr>
+<td><code>FirmwareBuild</code></td>
+<td>EXISTS</td>
+<td>Build records</td>
+</tr>
+<tr>
+<td><code>Deployment</code></td>
+<td>EXISTS</td>
+<td>Deployment tracking</td>
+</tr>
+<tr>
+<td><code>IcleDevice</code></td>
+<td>EXISTS</td>
+<td>ICLE devices</td>
+</tr>
+<tr>
+<td><code>ValidationPipeline</code></td>
+<td>NEW</td>
+<td>Pipeline state machine</td>
+</tr>
+<tr>
+<td><code>PipelineStage</code></td>
+<td>NEW</td>
+<td>Stage tracking (1-4)</td>
+</tr>
+<tr>
+<td><code>PipelineJob</code></td>
+<td>NEW</td>
+<td>Individual K8s Job records</td>
+</tr>
+<tr>
+<td><code>SubmoduleMapping</code></td>
+<td>NEW</td>
+<td>Cross-repo trigger routing</td>
+</tr>
+</tbody>
+</table>
+<h3 id="34-k8s-job-interface">3.4 K8s Job Interface<a class="headerlink" href="#34-k8s-job-interface" title="Permanent link">&para;</a></h3>
+<p><strong>Between</strong>: Pipeline Controller ↔ K8s API ↔ Test Pods
+<strong>Protocol</strong>: K8s API (Job creation, ConfigMap/Secret injection)
+<strong>Status</strong>: <code>ADAPT</code> (K8s client exists, Job template exists, controller is NEW)</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>┌──────────────┐   K8s API    ┌──────┐   Pod Spec   ┌──────────────┐
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>│ Pipeline      │ ───────────►│ K8s  │ ────────────►│ Test Pod     │
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>│ Controller    │              │ API  │              │ (per-DUT)    │
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>│              │◄─────────── │      │              │              │
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>│ (Job watcher)│  Job status  │      │              │ Env vars:    │
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>└──────────────┘              └──────┘              │ MTIB_HOST    │
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>                                                     │ DEVICE_ID    │
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>                                                     │ FIRMWARE_HEX │
+<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>                                                     │ PRODUCT      │
+<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>                                                     │ BUILD_VARIANT│
+<a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a>                                                     └──────────────┘
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Aspect</th>
+<th>Detail</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Job template</td>
+<td><code>apps/backend/http-api/assets/templates/validation_job.yaml</code> (EXISTS)</td>
+</tr>
+<tr>
+<td>K8s client</td>
+<td><code>apps/backend/http-api/src/services/kubernetes/client.py</code> (EXISTS)</td>
+</tr>
+<tr>
+<td>Node selector</td>
+<td><code>product=alpha</code> label on MTIB nodes</td>
+</tr>
+<tr>
+<td>Pod anti-affinity</td>
+<td>One test pod per MTIB node</td>
+</tr>
+<tr>
+<td>Env injection</td>
+<td>MTIB host, device ID, firmware path, product, variant, CoreCloud creds</td>
+</tr>
+<tr>
+<td>Result reporting</td>
+<td>Test pod POSTs results to HTTP API on completion</td>
+</tr>
+<tr>
+<td>Artifact storage</td>
+<td>MinIO upload from pod, path: <code>validation/pipelines/{id}/stages/{n}/</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="35-build-service-interface">3.5 Build Service Interface<a class="headerlink" href="#35-build-service-interface" title="Permanent link">&para;</a></h3>
+<p><strong>Between</strong>: Pipeline Controller ↔ Build Service
+<strong>Protocol</strong>: gRPC or internal REST (TBD)
+<strong>Status</strong>: <code>NEW</code></p>
+<p>The build service compiles firmware from source and uploads artifacts to MinIO.
+It reads <code>.concord/build.yaml</code> from the firmware repo for build configuration.</p>
+<table>
+<thead>
+<tr>
+<th>Aspect</th>
+<th>Detail</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Input</td>
+<td>Git repo URL + commit SHA + build variant</td>
+</tr>
+<tr>
+<td>Output</td>
+<td>Compiled <code>.hex</code> file in MinIO</td>
+</tr>
+<tr>
+<td>Build system</td>
+<td><code>west build --sysbuild</code> for Zephyr firmware</td>
+</tr>
+<tr>
+<td>Cross-repo</td>
+<td><code>west manifest --override</code> for submodule overrides</td>
+</tr>
+<tr>
+<td>Caching</td>
+<td>PVCs for ccache, west modules</td>
+</tr>
+</tbody>
+</table>
+<h3 id="36-frontend-interface">3.6 Frontend Interface<a class="headerlink" href="#36-frontend-interface" title="Permanent link">&para;</a></h3>
+<p><strong>Between</strong>: SvelteKit SPA ↔ HTTP API
+<strong>Protocol</strong>: REST (JSON), design token styling
+<strong>Status</strong>: <code>EXISTS</code> (framework), <code>NEW</code> (validation pages)</p>
+<p><strong>Existing pages</strong> (relevant to validation):</p>
+<table>
+<thead>
+<tr>
+<th>Page</th>
+<th>Status</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Test results list</td>
+<td>EXISTS</td>
+<td>Manufacturing test results</td>
+</tr>
+<tr>
+<td>MTIB node view</td>
+<td>EXISTS</td>
+<td>Node status and commands</td>
+</tr>
+<tr>
+<td>ICLE device view</td>
+<td>EXISTS</td>
+<td>Power monitoring devices</td>
+</tr>
+<tr>
+<td>Fixture management</td>
+<td>EXISTS</td>
+<td>Fixture CRUD</td>
+</tr>
+<tr>
+<td>Firmware catalog</td>
+<td>EXISTS</td>
+<td>Firmware build listing</td>
+</tr>
+<tr>
+<td>Deployment tracking</td>
+<td>EXISTS</td>
+<td>Deployment status</td>
+</tr>
+</tbody>
+</table>
+<p><strong>New pages needed</strong>:</p>
+<table>
+<thead>
+<tr>
+<th>Page</th>
+<th>Status</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Validation pipeline list</td>
+<td>NEW</td>
+<td>All pipeline runs, status, progress</td>
+</tr>
+<tr>
+<td>Pipeline detail view</td>
+<td>NEW</td>
+<td>Stages, jobs, results per pipeline</td>
+</tr>
+<tr>
+<td>Power trend charts</td>
+<td>NEW</td>
+<td>InfluxDB-backed power measurements</td>
+</tr>
+<tr>
+<td>Manual trigger UI</td>
+<td>NEW</td>
+<td>Kick off pipeline or individual stage</td>
+</tr>
+</tbody>
+</table>
+<h3 id="37-manufacturing-validation-interface">3.7 Manufacturing ↔ Validation Interface<a class="headerlink" href="#37-manufacturing-validation-interface" title="Permanent link">&para;</a></h3>
+<p><strong>Between</strong>: Manufacturing test scripts ↔ Validation pipeline
+<strong>Protocol</strong>: Shared libraries (MtibV2Client, ShellCommandHelper, CoreCloud SDK)
+<strong>Status</strong>: <code>PROD</code> (manufacturing), <code>ADAPT</code> (validation reuses same libraries)</p>
+<p>Manufacturing and validation share the same bottom layers but diverge at the
+orchestration level:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>MANUFACTURING                        VALIDATION
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>┌──────────────────────┐            ┌──────────────────────┐
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>│ gRPC Operator         │            │ Pipeline Controller   │
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>│ (multi-node parallel) │            │ (K8s Jobs, per-DUT)  │
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>└───────────┬──────────┘            └───────────┬──────────┘
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>            │                                    │
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>            ▼                                    ▼
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>┌──────────────────────┐            ┌──────────────────────┐
+<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>│ Test/TestStep         │            │ TestContext            │
+<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a>│ ThreadPoolExecutor    │            │ (single DUT)          │
+<a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a>│ usr_data[node]        │            │ ctx.mtib/cloud/fix    │
+<a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a>└───────────┬──────────┘            └───────────┬──────────┘
+<a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a>            │                                    │
+<a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a>            ▼                                    ▼
+<a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a>┌───────────────────────────────────────────────────────────┐
+<a id="__codelineno-5-16" name="__codelineno-5-16" href="#__codelineno-5-16"></a>│ SHARED LAYER                                               │
+<a id="__codelineno-5-17" name="__codelineno-5-17" href="#__codelineno-5-17"></a>│                                                             │
+<a id="__codelineno-5-18" name="__codelineno-5-18" href="#__codelineno-5-18"></a>│  MtibV2Client    ShellCommandHelper    CoreCloud SDK       │
+<a id="__codelineno-5-19" name="__codelineno-5-19" href="#__codelineno-5-19"></a>│  boot_and_lock_shells()    AlphaAppShellCommands           │
+<a id="__codelineno-5-20" name="__codelineno-5-20" href="#__codelineno-5-20"></a>│  CommsShellCommands        TestStepResult                  │
+<a id="__codelineno-5-21" name="__codelineno-5-21" href="#__codelineno-5-21"></a>└───────────────────────────────────────────────────────────┘
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Shared Component</th>
+<th>Mfg Uses</th>
+<th>Validation Uses</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>MtibV2Client</code></td>
+<td>Directly in test steps</td>
+<td>Via <code>TestContext.mtib</code></td>
+<td>PROD</td>
+</tr>
+<tr>
+<td><code>boot_and_lock_shells()</code></td>
+<td>POST test step 0</td>
+<td><code>TestContext.power_on()</code> → shell init</td>
+<td>PROD</td>
+</tr>
+<tr>
+<td><code>AlphaAppShellCommands</code></td>
+<td><code>post</code>, <code>config_show</code></td>
+<td>Stage 3 harness, Stage 4 diagnostics</td>
+<td>PROD</td>
+</tr>
+<tr>
+<td><code>CommsShellCommands</code></td>
+<td>SIM status, IMEI reads</td>
+<td>Network diagnostics</td>
+<td>PROD</td>
+</tr>
+<tr>
+<td>CoreCloud SDK</td>
+<td>Not used in mfg</td>
+<td><code>CloudClient</code> wrappers</td>
+<td>EXISTS</td>
+</tr>
+<tr>
+<td><code>TestStep</code>/<code>Test</code> framework</td>
+<td>Full mfg execution</td>
+<td>Result/reporting pattern only</td>
+<td>ADAPT</td>
+</tr>
+<tr>
+<td>Firmware <code>.hex</code> files</td>
+<td>Flashed via J-Link</td>
+<td>Same, from MinIO instead of local</td>
+<td>PROD</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="4-domain-firmware-validation-stages-1-4">4. Domain: Firmware Validation (Stages 1-4)<a class="headerlink" href="#4-domain-firmware-validation-stages-1-4" title="Permanent link">&para;</a></h2>
+<h3 id="41-stage-1-software-tests-native_sim">4.1 Stage 1: Software Tests (native_sim)<a class="headerlink" href="#41-stage-1-software-tests-native_sim" title="Permanent link">&para;</a></h3>
+<p>Pure software validation. No hardware, no network, no CoreCloud. Tests run on
+<code>native_sim</code> target via Zephyr's <code>twister</code> runner.</p>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Location</th>
+<th>Status</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>accel_drv</code> clean branch</td>
+<td><code>accel_drv/</code> (external repo)</td>
+<td>NEW</td>
+<td>Nuke legacy, restructure</td>
+</tr>
+<tr>
+<td>LSM6DSO stub driver</td>
+<td><code>accel_drv/stubs/</code></td>
+<td>NEW</td>
+<td>For <code>native_sim</code> tests</td>
+</tr>
+<tr>
+<td>DTS stub binding</td>
+<td><code>accel_drv/dts/bindings/ck,lsm6dso-stub.yaml</code></td>
+<td>NEW</td>
+<td></td>
+</tr>
+<tr>
+<td>Interface contract tests</td>
+<td><code>accel_drv/tests/interface/</code></td>
+<td>NEW</td>
+<td>12 Ztest cases</td>
+</tr>
+<tr>
+<td>Alpha app stub tests</td>
+<td><code>alpha_fw/tests/app/</code></td>
+<td>NEW</td>
+<td>~15 module stubs needed</td>
+</tr>
+<tr>
+<td><code>alpha_state_machine</code> getters</td>
+<td><code>alpha_fw/src/app/</code></td>
+<td>ADAPT</td>
+<td><code>#ifdef CONFIG_ZTEST</code> guards</td>
+</tr>
+<tr>
+<td><code>.concord/pipeline.yaml</code></td>
+<td>Each firmware repo</td>
+<td>NEW</td>
+<td>Pipeline definition</td>
+</tr>
+<tr>
+<td><code>.concord/build.yaml</code></td>
+<td>Each firmware repo</td>
+<td>NEW</td>
+<td>Build configuration</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Effort</strong>: ~130h | <strong>Dependencies</strong>: None (first stage, no HW)
+<strong>Interface touched</strong>: Build Service (compiles), Pipeline Controller (orchestrates)</p>
+<h3 id="42-stage-2-driver-hardware-tests">4.2 Stage 2: Driver Hardware Tests<a class="headerlink" href="#42-stage-2-driver-hardware-tests" title="Permanent link">&para;</a></h3>
+<p>First stage that touches real hardware. A dev-kit board on an MTIB node runs
+hardware-level driver tests.</p>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Location</th>
+<th>Status</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>LSM6DSO driver implementation</td>
+<td><code>accel_drv/drivers/lsm6dso/src/</code></td>
+<td>NEW</td>
+<td>40h — dominant effort</td>
+</tr>
+<tr>
+<td>DTS real binding</td>
+<td><code>accel_drv/dts/bindings/ck,lsm6dso.yaml</code></td>
+<td>NEW</td>
+<td></td>
+</tr>
+<tr>
+<td>HW test firmware</td>
+<td><code>accel_drv/tests/lsm6dso/</code></td>
+<td>NEW</td>
+<td>Ztest on real SPI</td>
+</tr>
+<tr>
+<td><code>test_spec.yaml</code></td>
+<td><code>accel_drv/tests/lsm6dso/test_spec.yaml</code></td>
+<td>NEW</td>
+<td>Pass/fail criteria</td>
+</tr>
+<tr>
+<td>Dev-kit board definition</td>
+<td><code>ck_boards/.../devkit_nrf52840_lsm6dso_spi/</code></td>
+<td>NEW</td>
+<td></td>
+</tr>
+<tr>
+<td><code>ztest_parser.py</code></td>
+<td>Test runner</td>
+<td>NEW</td>
+<td>Parse UART Ztest output</td>
+</tr>
+<tr>
+<td><code>power_profiler.py</code></td>
+<td>Test runner</td>
+<td>NEW</td>
+<td>Continuous measurement</td>
+</tr>
+<tr>
+<td><code>test_spec_evaluator.py</code></td>
+<td>Test runner</td>
+<td>NEW</td>
+<td>Spec vs result matching</td>
+</tr>
+<tr>
+<td><code>fixture_controller.py</code></td>
+<td>Test runner</td>
+<td>NEW</td>
+<td>Abstract → pin mapping</td>
+</tr>
+<tr>
+<td>Dev-kit fixture wiring</td>
+<td>Physical</td>
+<td>NEW (HW)</td>
+<td>nRF52840-DK + LSM6DSO</td>
+</tr>
+<tr>
+<td>Power isolation circuit</td>
+<td>Physical</td>
+<td>NEW (HW)</td>
+<td>Per-sensor relay + sense</td>
+</tr>
+<tr>
+<td>MTIB cable assembly</td>
+<td>Physical</td>
+<td>NEW (HW)</td>
+<td>SWD, UART, power, GPIO</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Effort</strong>: ~230h | <strong>Dependencies</strong>: Stage 1 infra, dev-kit hardware
+<strong>Interfaces touched</strong>: MTIB gRPC (power, flash, UART, GPIO, ADC)</p>
+<h3 id="43-stage-3-integration-tests-concord_harness">4.3 Stage 3: Integration Tests (concord_harness)<a class="headerlink" href="#43-stage-3-integration-tests-concord_harness" title="Permanent link">&para;</a></h3>
+<p>Instrumented firmware build with <code>concord_harness</code> Zephyr module. Software-driven
+stimulus via UART shell commands. Internal state observation that hardware tests
+cannot do.</p>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Location</th>
+<th>Status</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>concord_harness</code> module</td>
+<td><code>concord_harness/</code> (new repo)</td>
+<td>NEW</td>
+<td>GETTER/SETTER/INJECT/EVENT macros</td>
+</tr>
+<tr>
+<td><code>concord_harness.h</code> (public API)</td>
+<td><code>concord_harness/zephyr/include/</code></td>
+<td>NEW</td>
+<td>8h</td>
+</tr>
+<tr>
+<td><code>concord_shell.c</code></td>
+<td><code>concord_harness/zephyr/src/</code></td>
+<td>NEW</td>
+<td>Shell command handlers</td>
+</tr>
+<tr>
+<td><code>concord_registry.c</code></td>
+<td><code>concord_harness/zephyr/src/</code></td>
+<td>NEW</td>
+<td>STRUCT_SECTION lookup</td>
+</tr>
+<tr>
+<td><code>concord_emit.c</code></td>
+<td><code>concord_harness/zephyr/src/</code></td>
+<td>NEW</td>
+<td>Event emission (k_msgq)</td>
+</tr>
+<tr>
+<td>Alpha harness declarations</td>
+<td><code>alpha_fw/src/concord_harness.c</code></td>
+<td>NEW</td>
+<td>Binds getters/setters to FW state</td>
+</tr>
+<tr>
+<td><code>#ifdef</code> guards in alpha_fw</td>
+<td><code>alpha_fw/src/app/app.c</code> + others</td>
+<td>ADAPT</td>
+<td>Kill UART0 RX guard</td>
+</tr>
+<tr>
+<td><code>CONCORD_EMIT()</code> calls</td>
+<td><code>alpha_fw/src/app/</code> state machines</td>
+<td>ADAPT</td>
+<td>Event emission points</td>
+</tr>
+<tr>
+<td><code>harness_client.py</code></td>
+<td>Test runner</td>
+<td>NEW</td>
+<td>Shell protocol for harness</td>
+</tr>
+<tr>
+<td><code>cloud_client.py</code></td>
+<td>Test runner</td>
+<td>NEW</td>
+<td>CloudClient (optional in S3)</td>
+</tr>
+<tr>
+<td><code>UartDemuxer</code></td>
+<td>Test runner</td>
+<td>NEW</td>
+<td>Prefix routing: harness vs logs</td>
+</tr>
+<tr>
+<td><code>HarnessTransport</code></td>
+<td>Test runner</td>
+<td>NEW</td>
+<td>Harness shell protocol</td>
+</tr>
+<tr>
+<td>Integration test modules</td>
+<td><code>alpha_fw/.concord/tests/integration/</code></td>
+<td>NEW</td>
+<td>~25 test functions</td>
+</tr>
+<tr>
+<td>Alpha product fixture</td>
+<td>Physical</td>
+<td>NEW (HW)</td>
+<td>SWD, UART, power, GPIO</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Effort</strong>: ~194h | <strong>Dependencies</strong>: Stage 2 infra, Alpha HW, concord_harness module
+<strong>Interfaces touched</strong>: MTIB gRPC (power, flash, UART), CoreCloud (optional), Harness UART protocol</p>
+<h3 id="44-stage-4-product-validation-black-box">4.4 Stage 4: Product Validation (black-box)<a class="headerlink" href="#44-stage-4-product-validation-black-box" title="Permanent link">&para;</a></h3>
+<p>Production firmware on real hardware. No instrumentation. All verification through
+external observation: CoreCloud messages, MTIB power/GPIO/ADC measurements,
+fixture-driven stimulus. The PRD test suite (89 PRDTST tests).</p>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Location</th>
+<th>Status</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>TestContext</code></td>
+<td>Test runner</td>
+<td>NEW</td>
+<td>Composes all three pillars</td>
+</tr>
+<tr>
+<td><code>CloudClient</code></td>
+<td>Test runner</td>
+<td>NEW</td>
+<td>Polling wrappers over SDK</td>
+</tr>
+<tr>
+<td><code>FixtureController</code></td>
+<td>Test runner</td>
+<td>NEW (if not built in S2)</td>
+<td>Abstract → MTIB pins</td>
+</tr>
+<tr>
+<td><code>PowerProfiler</code></td>
+<td>Test runner</td>
+<td>EXISTS/ADAPT (from S2)</td>
+<td>Add trace storage</td>
+</tr>
+<tr>
+<td><code>ValidationRunner</code></td>
+<td>Test runner</td>
+<td>NEW</td>
+<td>pytest-based discovery + TestContext fixture</td>
+</tr>
+<tr>
+<td><code>alpha_validation_spec.yaml</code></td>
+<td>Test runner</td>
+<td>NEW</td>
+<td>89 PRDTST tests mapped</td>
+</tr>
+<tr>
+<td><code>FuotaPlanBuilder</code></td>
+<td>Test runner</td>
+<td>NEW</td>
+<td>Create FUOTA plans via DB/REST</td>
+</tr>
+<tr>
+<td><code>FuotaMonitor</code></td>
+<td>Test runner</td>
+<td>NEW</td>
+<td>Poll FUOTA progress</td>
+</tr>
+<tr>
+<td><code>nfc_client.py</code></td>
+<td>Test runner</td>
+<td>NEW</td>
+<td>NFC reader integration</td>
+</tr>
+<tr>
+<td>FUOTA validation flow</td>
+<td>Test runner</td>
+<td>NEW</td>
+<td>12-step orchestration</td>
+</tr>
+<tr>
+<td>Fixture peripherals</td>
+<td>Physical</td>
+<td>NEW (HW)</td>
+<td>Button, on-skin, charger relay, peltier, LED sensor, motion actuator</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Effort</strong>: ~158h | <strong>Dependencies</strong>: Stage 3 infra, CoreCloud access, fixture peripherals
+<strong>Interfaces touched</strong>: All — MTIB gRPC, CoreCloud SDK+REST, Fixture profiles, K8s Jobs</p>
+<h3 id="45-prdtst-test-coverage-by-stage">4.5 PRDTST Test Coverage by Stage<a class="headerlink" href="#45-prdtst-test-coverage-by-stage" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Domain</th>
+<th>Total</th>
+<th>Stage 3</th>
+<th>Stage 4 Commit</th>
+<th>Stage 4 Weekly</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Power / Runtime</td>
+<td>7</td>
+<td>2</td>
+<td>3</td>
+<td>7</td>
+<td>Endurance (72h) weekly only</td>
+</tr>
+<tr>
+<td>Config Values</td>
+<td>18</td>
+<td>6</td>
+<td>12</td>
+<td>18</td>
+<td><strong>18 BLOCKED</strong> on GroundModeConfigV2</td>
+</tr>
+<tr>
+<td>Motion Detection</td>
+<td>5</td>
+<td>3</td>
+<td>5</td>
+<td>5</td>
+<td>Needs motor/actuator</td>
+</tr>
+<tr>
+<td>Charging / BMS</td>
+<td>29</td>
+<td>4</td>
+<td>8</td>
+<td>29</td>
+<td>Full charge = 4h, weekly only</td>
+</tr>
+<tr>
+<td>Environmental</td>
+<td>7</td>
+<td>3</td>
+<td>4</td>
+<td>7</td>
+<td>Extreme temp = weekly only</td>
+</tr>
+<tr>
+<td>GNSS</td>
+<td>7</td>
+<td>0</td>
+<td>2</td>
+<td>7</td>
+<td>Indoor — needs GPS simulator</td>
+</tr>
+<tr>
+<td>On-Skin / Biometric</td>
+<td>3</td>
+<td>2</td>
+<td>3</td>
+<td>3</td>
+<td>Needs electrode simulation</td>
+</tr>
+<tr>
+<td>Button / SOS / Haptic</td>
+<td>9</td>
+<td>0</td>
+<td>5</td>
+<td>9</td>
+<td>Needs button actuator</td>
+</tr>
+<tr>
+<td>NFC</td>
+<td>1</td>
+<td>0</td>
+<td>1</td>
+<td>1</td>
+<td>Needs NFC reader</td>
+</tr>
+<tr>
+<td>FUOTA</td>
+<td>1</td>
+<td>0</td>
+<td>0</td>
+<td>1</td>
+<td>Weekly only (12-step flow)</td>
+</tr>
+<tr>
+<td>VSM / IPC</td>
+<td>1</td>
+<td>1</td>
+<td>0</td>
+<td>1</td>
+<td>Stage 3 via harness only</td>
+</tr>
+<tr>
+<td>Cloud Messages</td>
+<td>1</td>
+<td>0</td>
+<td>0</td>
+<td>1</td>
+<td>Weekly (needs temp chamber)</td>
+</tr>
+<tr>
+<td><strong>Total</strong></td>
+<td><strong>89</strong></td>
+<td><strong>21</strong></td>
+<td><strong>43</strong></td>
+<td><strong>89</strong></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="5-domain-fuota-validation">5. Domain: FUOTA Validation<a class="headerlink" href="#5-domain-fuota-validation" title="Permanent link">&para;</a></h2>
+<p>The 12-step FUOTA validation flow exercises every firmware transition path on
+real hardware. Full details in <code>stage4-fuota-validation-flow.md</code>.</p>
+<h3 id="51-fuota-components">5.1 FUOTA Components<a class="headerlink" href="#51-fuota-components" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Location</th>
+<th>Status</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>FUOTA ORM tables</td>
+<td><code>libs/python/corekinect/core_cloud/db_orm_v1_0.py</code></td>
+<td>EXISTS</td>
+<td><code>Fuotaplanstbl</code>, <code>Fuotaprogresshistorytbl</code>, <code>Fuotasettingsperdevicetypetbl</code></td>
+</tr>
+<tr>
+<td>DB query methods (MsgBase)</td>
+<td><code>libs/python/corekinect/core_cloud/msg_def_v1_0.py</code></td>
+<td>EXISTS</td>
+<td><code>.last()</code>, <code>.since_*()</code> for BootMsgV2</td>
+</tr>
+<tr>
+<td><code>FuotaPlanBuilder</code></td>
+<td>Test runner</td>
+<td>NEW</td>
+<td>Plan creation logic</td>
+</tr>
+<tr>
+<td><code>FuotaMonitor</code></td>
+<td>Test runner</td>
+<td>NEW</td>
+<td>Progress polling</td>
+</tr>
+<tr>
+<td>FUOTA flow orchestrator</td>
+<td>Test runner</td>
+<td>NEW</td>
+<td>12-step sequence logic</td>
+</tr>
+<tr>
+<td>Mfg firmware <code>.hex</code></td>
+<td><code>apps/firmware/products/alpha/alpha_mfg_fw</code></td>
+<td>EXISTS</td>
+<td>Manufacturing baseline</td>
+</tr>
+<tr>
+<td>Release firmware <code>.hex</code></td>
+<td>Build service output</td>
+<td>NEW per build</td>
+<td>Build service artifact</td>
+</tr>
+</tbody>
+</table>
+<h3 id="52-fuota-flow-interface-dependencies">5.2 FUOTA Flow Interface Dependencies<a class="headerlink" href="#52-fuota-flow-interface-dependencies" title="Permanent link">&para;</a></h3>
+<p>The 12-step FUOTA flow uses multiple interface boundaries:</p>
+<table>
+<thead>
+<tr>
+<th>Step</th>
+<th>Description</th>
+<th>Interfaces Used</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1. Electrical test</td>
+<td>Verify DUT health</td>
+<td>MTIB (power, ADC)</td>
+</tr>
+<tr>
+<td>2. Flash mfg FW</td>
+<td>J-Link flash</td>
+<td>MTIB (flash, SWD)</td>
+</tr>
+<tr>
+<td>3. POST + personalization</td>
+<td>Manufacturing checks</td>
+<td>MTIB (UART, shell)</td>
+</tr>
+<tr>
+<td>4. FUOTA mfg → mfg (same ver)</td>
+<td>Self-update test</td>
+<td>CoreCloud (FUOTA plan, boot msg)</td>
+</tr>
+<tr>
+<td>5. Re-run POST</td>
+<td>Verify HW after FUOTA</td>
+<td>MTIB (UART, shell)</td>
+</tr>
+<tr>
+<td>6. FUOTA mfg → prod debug</td>
+<td>Cross-variant update</td>
+<td>CoreCloud (FUOTA plan, boot msg)</td>
+</tr>
+<tr>
+<td>7. Validation tests (debug)</td>
+<td>Full PRDTST suite</td>
+<td>All interfaces</td>
+</tr>
+<tr>
+<td>8. FUOTA debug → debug (same ver)</td>
+<td>Self-update test</td>
+<td>CoreCloud (FUOTA plan, boot msg)</td>
+</tr>
+<tr>
+<td>9. FUOTA debug → release</td>
+<td>Final transition</td>
+<td>CoreCloud (FUOTA plan, boot msg)</td>
+</tr>
+<tr>
+<td>10. Validation tests (release)</td>
+<td>Full PRDTST suite</td>
+<td>All interfaces</td>
+</tr>
+<tr>
+<td>11. Flash prev prod FW</td>
+<td>Upgrade path baseline</td>
+<td>MTIB (flash, SWD)</td>
+</tr>
+<tr>
+<td>12. Upgrade path test</td>
+<td>Real-world update</td>
+<td>CoreCloud (FUOTA plan, boot msg)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="53-fuota-open-questions">5.3 FUOTA Open Questions<a class="headerlink" href="#53-fuota-open-questions" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Question</th>
+<th>Impact</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Q1</td>
+<td>Does a REST API exist for FUOTA plan creation?</td>
+<td>Clean interface vs DB ORM writes</td>
+<td>Ask CoreCloud team</td>
+</tr>
+<tr>
+<td>Q2</td>
+<td>5-minute cooldown between FUOTA completions — can it be shortened for testing?</td>
+<td>Flow takes 2+ hours with cooldowns</td>
+<td>Ask CoreCloud team</td>
+</tr>
+<tr>
+<td>Q3</td>
+<td>How does the nRF9151 comms coprocessor FUOTA work?</td>
+<td>Dual-MCU FUOTA must be tested separately</td>
+<td>Ask firmware team</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="6-domain-manufacturing-integration">6. Domain: Manufacturing Integration<a class="headerlink" href="#6-domain-manufacturing-integration" title="Permanent link">&para;</a></h2>
+<p>Manufacturing tests are production-proven on Alpha and Sigma5 hardware. The
+validation pipeline reuses the same libraries but with a different orchestration
+model.</p>
+<h3 id="61-manufacturing-components">6.1 Manufacturing Components<a class="headerlink" href="#61-manufacturing-components" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Location</th>
+<th>Status</th>
+<th>Validation Reuse</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Alpha mfg test scripts</td>
+<td><code>apps/manufacturing/alpha/src/tests/</code></td>
+<td>PROD</td>
+<td>Reference patterns, share libraries</td>
+</tr>
+<tr>
+<td>Electrical test (10 steps)</td>
+<td><code>apps/manufacturing/alpha/src/tests/electrical/</code></td>
+<td>PROD</td>
+<td>Step patterns → FixtureController</td>
+</tr>
+<tr>
+<td>FW flash test (3 steps)</td>
+<td><code>apps/manufacturing/alpha/src/tests/fw_flash/</code></td>
+<td>PROD</td>
+<td>Flash sequence → TestContext.flash_firmware()</td>
+</tr>
+<tr>
+<td>POST test (10 steps)</td>
+<td><code>apps/manufacturing/alpha/src/tests/post/</code></td>
+<td>PROD</td>
+<td>boot_and_lock_shells() pattern</td>
+</tr>
+<tr>
+<td>ThetaFixtureConfig</td>
+<td><code>apps/manufacturing/alpha/src/tests/shared/config.py</code></td>
+<td>PROD</td>
+<td>Pattern → FixtureProfile JSON</td>
+</tr>
+<tr>
+<td>Test/TestStep framework</td>
+<td><code>libs/python/corekinect/test/</code></td>
+<td>PROD</td>
+<td>TestStepResult reuse, execution model diverges</td>
+</tr>
+<tr>
+<td>gRPC operator</td>
+<td><code>deploy/manufacturing/sigma5/operator-deployment.yaml</code></td>
+<td>PROD</td>
+<td>Different model in validation (K8s Jobs)</td>
+</tr>
+<tr>
+<td>Mfg firmware binaries</td>
+<td><code>apps/firmware/products/alpha/alpha_mfg_fw</code></td>
+<td>PROD</td>
+<td>FUOTA baseline</td>
+</tr>
+</tbody>
+</table>
+<h3 id="62-manufacturing-validation-traceability-gap">6.2 Manufacturing → Validation Traceability Gap<a class="headerlink" href="#62-manufacturing-validation-traceability-gap" title="Permanent link">&para;</a></h3>
+<p>Today manufacturing and validation are disconnected systems. A device that passes
+manufacturing POST has no automated link to its validation test history.</p>
+<table>
+<thead>
+<tr>
+<th>Gap</th>
+<th>What's Missing</th>
+<th>Priority</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Device lifecycle linking</td>
+<td>Mfg session → validation pipeline run for same device</td>
+<td>Medium (future)</td>
+</tr>
+<tr>
+<td>POST result reuse</td>
+<td>Stage 4 Step 1 (electrical) duplicates mfg POST checks</td>
+<td>Low (different context)</td>
+</tr>
+<tr>
+<td>Firmware build provenance</td>
+<td>Mfg uses local <code>.hex</code>, validation uses MinIO artifact</td>
+<td>High (need consistent source)</td>
+</tr>
+<tr>
+<td>Personalization data</td>
+<td>nRF9151 certs/keys needed for LTE → CoreCloud</td>
+<td>High (FUOTA blocked without)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="7-domain-corecloud-library">7. Domain: CoreCloud Library<a class="headerlink" href="#7-domain-corecloud-library" title="Permanent link">&para;</a></h2>
+<p>Full analysis in <code>corecloud-library-architecture.md</code>. Summary of what validation
+needs from the CoreCloud SDK:</p>
+<h3 id="71-sdk-components">7.1 SDK Components<a class="headerlink" href="#71-sdk-components" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Status</th>
+<th>Validation Need</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>db_interface.py</code> (PostgreSQL sessions)</td>
+<td>PROD</td>
+<td>CloudClient DB reads</td>
+</tr>
+<tr>
+<td><code>api_interface.py</code> (REST client)</td>
+<td>PROD</td>
+<td>Config delivery, FUOTA (if REST exists)</td>
+</tr>
+<tr>
+<td><code>msg_def_v1_0.py</code> (message classes)</td>
+<td>PROD</td>
+<td>All message reads</td>
+</tr>
+<tr>
+<td><code>db_orm_v1_0.py</code> (ORM models)</td>
+<td>PROD</td>
+<td>FUOTA table access</td>
+</tr>
+<tr>
+<td><code>msg_def_v0_9.py</code> (legacy MySQL)</td>
+<td>PROD</td>
+<td>Not needed for validation — v0.9 deadweight</td>
+</tr>
+<tr>
+<td><code>db_orm_v0_9.py</code> (legacy MySQL)</td>
+<td>PROD</td>
+<td>Not needed for validation — v0.9 deadweight</td>
+</tr>
+</tbody>
+</table>
+<h3 id="72-corecloud-gaps-for-validation">7.2 CoreCloud Gaps for Validation<a class="headerlink" href="#72-corecloud-gaps-for-validation" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Gap</th>
+<th>Impact</th>
+<th>Resolution Path</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>GroundModeConfigV2</code> not <code>ConfMsgBase</code></td>
+<td>18 config tests deferred</td>
+<td>CoreCloud team adds REST endpoint</td>
+</tr>
+<tr>
+<td>No <code>BiometricConfig</code> message class</td>
+<td>Biometric config tests deferred</td>
+<td>CoreCloud team adds UID + endpoint</td>
+</tr>
+<tr>
+<td>No FUOTA plan creation API</td>
+<td>Must write DB directly or ask for REST</td>
+<td>CoreCloud team decision</td>
+</tr>
+<tr>
+<td>No <code>wait_for_*</code> polling wrappers</td>
+<td>Every test must implement polling</td>
+<td>Build CloudClient (validation team)</td>
+</tr>
+<tr>
+<td>v0.9/v1.0 dual code paths</td>
+<td>Complexity, maintenance burden</td>
+<td>Proposed: v1.0-only restructuring</td>
+</tr>
+<tr>
+<td>SSH tunnel requirement for DB</td>
+<td>Dev env complexity</td>
+<td>Direct connection in VAL_1_0</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="8-domain-platform-services">8. Domain: Platform Services<a class="headerlink" href="#8-domain-platform-services" title="Permanent link">&para;</a></h2>
+<p>Cross-cutting services that support all stages and domains.</p>
+<h3 id="81-pipeline-controller">8.1 Pipeline Controller<a class="headerlink" href="#81-pipeline-controller" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Aspect</th>
+<th>Detail</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Core function</td>
+<td>Watch firmware repos → trigger builds → create K8s Jobs → gate stages → report status</td>
+<td>NEW</td>
+</tr>
+<tr>
+<td>K8s integration</td>
+<td>Create/watch Jobs, inject env vars + ConfigMaps</td>
+<td>ADAPT (K8s client exists)</td>
+</tr>
+<tr>
+<td>Stage gating</td>
+<td>Stage N pass → unblock Stage N+1</td>
+<td>NEW</td>
+</tr>
+<tr>
+<td>MTIB work queue</td>
+<td>Match test requirements to MTIB node capabilities</td>
+<td>NEW</td>
+</tr>
+<tr>
+<td>Bitbucket integration</td>
+<td>Commit status reporting, webhook handling</td>
+<td>NEW</td>
+</tr>
+<tr>
+<td>Effort</td>
+<td>~40h (core) + 24h (gating, matching, reporting)</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h3 id="82-build-service">8.2 Build Service<a class="headerlink" href="#82-build-service" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Aspect</th>
+<th>Detail</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Core function</td>
+<td>Clone repo → <code>west build</code> → upload <code>.hex</code> to MinIO</td>
+<td>NEW</td>
+</tr>
+<tr>
+<td>Build variants</td>
+<td>Integration (harness), production debug, production release</td>
+<td>NEW</td>
+</tr>
+<tr>
+<td>Cross-repo builds</td>
+<td><code>west manifest --override</code> for submodule changes</td>
+<td>NEW</td>
+</tr>
+<tr>
+<td>Caching</td>
+<td>PVCs for ccache, west modules</td>
+<td>NEW</td>
+</tr>
+<tr>
+<td>Effort</td>
+<td>~32h</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h3 id="83-container-images">8.3 Container Images<a class="headerlink" href="#83-container-images" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Image</th>
+<th>Content</th>
+<th>Status</th>
+<th>Stage</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>concord-driver-test-runner</code></td>
+<td>Stage 2 test runner + MTIB client</td>
+<td>NEW</td>
+<td>2</td>
+</tr>
+<tr>
+<td><code>concord-integration-test-runner</code></td>
+<td>Stage 3 runner + harness client</td>
+<td>NEW</td>
+<td>3</td>
+</tr>
+<tr>
+<td><code>concord-validation-alpha</code></td>
+<td>Stage 4 runner + all clients</td>
+<td>NEW</td>
+<td>4</td>
+</tr>
+<tr>
+<td><code>concord-build-service</code></td>
+<td>West toolchain, ARM gcc, nRF tools</td>
+<td>NEW</td>
+<td>All</td>
+</tr>
+<tr>
+<td><code>concord-pipeline-controller</code></td>
+<td>Python + K8s client</td>
+<td>NEW</td>
+<td>All</td>
+</tr>
+</tbody>
+</table>
+<h3 id="84-helm-k8s-deployment">8.4 Helm / K8s Deployment<a class="headerlink" href="#84-helm-k8s-deployment" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Status</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Pipeline controller Deployment</td>
+<td>NEW</td>
+<td>Long-running controller</td>
+</tr>
+<tr>
+<td>Build service Deployment</td>
+<td>NEW</td>
+<td>Long-running build worker</td>
+</tr>
+<tr>
+<td>PVC definitions (ccache, west)</td>
+<td>NEW</td>
+<td>Build caching</td>
+</tr>
+<tr>
+<td>Vault secrets</td>
+<td>ADAPT</td>
+<td>Git SSH key, API keys, device creds</td>
+</tr>
+<tr>
+<td>CronJob (weekly/nightly Stage 4)</td>
+<td>NEW</td>
+<td>Scheduled full-suite runs</td>
+</tr>
+<tr>
+<td>Validation Job template</td>
+<td>EXISTS</td>
+<td>Test pod template</td>
+</tr>
+</tbody>
+</table>
+<h3 id="85-data-schemas">8.5 Data Schemas<a class="headerlink" href="#85-data-schemas" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Schema</th>
+<th>Status</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>pipeline.yaml</code></td>
+<td>NEW</td>
+<td>Pipeline definition per firmware repo</td>
+</tr>
+<tr>
+<td><code>build.yaml</code></td>
+<td>NEW</td>
+<td>Build configuration per firmware repo</td>
+</tr>
+<tr>
+<td><code>test_spec.yaml</code></td>
+<td>NEW</td>
+<td>Pass/fail criteria for Stage 2</td>
+</tr>
+<tr>
+<td><code>board_features.json</code></td>
+<td>NEW</td>
+<td>Board capability descriptor</td>
+</tr>
+<tr>
+<td>Fixture profile JSON</td>
+<td>NEW</td>
+<td>Per-node fixture wiring map</td>
+</tr>
+<tr>
+<td><code>alpha_validation_spec.yaml</code></td>
+<td>NEW</td>
+<td>89 PRDTST tests mapped to code</td>
+</tr>
+<tr>
+<td>JUnit XML extensions</td>
+<td>NEW</td>
+<td>Power data, PRDTST ID mapping</td>
+</tr>
+</tbody>
+</table>
+<h3 id="86-artifact-storage-minio">8.6 Artifact Storage (MinIO)<a class="headerlink" href="#86-artifact-storage-minio" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Path Pattern</th>
+<th>Content</th>
+<th>Stage</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>firmware/builds/{repo}/{commit}/</code></td>
+<td>Compiled <code>.hex</code> files</td>
+<td>All</td>
+</tr>
+<tr>
+<td><code>validation/pipelines/{id}/stages/{n}/</code></td>
+<td>Test results, power traces, UART logs</td>
+<td>2,3,4</td>
+</tr>
+<tr>
+<td><code>validation/pipelines/{id}/reports/</code></td>
+<td>JUnit XML, summary reports</td>
+<td>All</td>
+</tr>
+<tr>
+<td><code>firmware/products/{product}/{variant}/</code></td>
+<td>Production firmware catalog</td>
+<td>4</td>
+</tr>
+</tbody>
+</table>
+<h3 id="87-observability">8.7 Observability<a class="headerlink" href="#87-observability" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Status</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>InfluxDB (metrics)</td>
+<td>EXISTS</td>
+<td>Power measurement time series</td>
+</tr>
+<tr>
+<td>MinIO (artifacts)</td>
+<td>EXISTS</td>
+<td>Firmware builds, test artifacts</td>
+</tr>
+<tr>
+<td>PostgreSQL (Prisma)</td>
+<td>EXISTS</td>
+<td>Pipeline state, test results</td>
+</tr>
+<tr>
+<td>Structured logging</td>
+<td>EXISTS</td>
+<td>API + test runner logs</td>
+</tr>
+<tr>
+<td>Power trend charts</td>
+<td>NEW</td>
+<td>Frontend visualization</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="9-component-inventory-exists-vs-needs-building">9. Component Inventory: Exists vs Needs Building<a class="headerlink" href="#9-component-inventory-exists-vs-needs-building" title="Permanent link">&para;</a></h2>
+<h3 id="91-production-ready-no-changes-needed">9.1 Production-Ready (No Changes Needed)<a class="headerlink" href="#91-production-ready-no-changes-needed" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Component</th>
+<th>Location</th>
+<th>Used By</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>MTIB V2 Server (71 RPCs)</td>
+<td><code>apps/edge/mtib-server-v2/</code></td>
+<td>All HW stages</td>
+</tr>
+<tr>
+<td>2</td>
+<td>MtibV2Client (Python, mixin arch)</td>
+<td><code>libs/python/corekinect/mtib_client/v2/</code></td>
+<td>All HW stages</td>
+</tr>
+<tr>
+<td>3</td>
+<td>ShellCommandHelper + boot_and_lock_shells</td>
+<td><code>libs/python/corekinect/mtib_client/v2/client/shell.py</code></td>
+<td>Stages 3, 4</td>
+</tr>
+<tr>
+<td>4</td>
+<td>AlphaAppShellCommands, CommsShellCommands</td>
+<td><code>libs/python/corekinect/mtib_client/v2/client/cmd_*.py</code></td>
+<td>Stages 3, 4</td>
+</tr>
+<tr>
+<td>5</td>
+<td>CoreCloud DB Interface</td>
+<td><code>libs/python/corekinect/core_cloud/db_interface.py</code></td>
+<td>Stages 3, 4</td>
+</tr>
+<tr>
+<td>6</td>
+<td>CoreCloud REST Interface</td>
+<td><code>libs/python/corekinect/core_cloud/api_interface.py</code></td>
+<td>Stage 4</td>
+</tr>
+<tr>
+<td>7</td>
+<td>v1.0 Message Definitions</td>
+<td><code>libs/python/corekinect/core_cloud/msg_def_v1_0.py</code></td>
+<td>Stages 3, 4</td>
+</tr>
+<tr>
+<td>8</td>
+<td>v1.0 ORM Models (inc. FUOTA tables)</td>
+<td><code>libs/python/corekinect/core_cloud/db_orm_v1_0.py</code></td>
+<td>Stage 4</td>
+</tr>
+<tr>
+<td>9</td>
+<td>MTIB V2 Protobuf Definitions</td>
+<td><code>libs/protocols/mtib_v2/</code></td>
+<td>All HW stages</td>
+</tr>
+<tr>
+<td>10</td>
+<td>K3s Cluster (3 server + 3 agent)</td>
+<td>Infrastructure</td>
+<td>All stages</td>
+</tr>
+<tr>
+<td>11</td>
+<td>PostgreSQL (Concord DB)</td>
+<td>Infrastructure</td>
+<td>All stages</td>
+</tr>
+<tr>
+<td>12</td>
+<td>MinIO (object storage)</td>
+<td>Infrastructure</td>
+<td>All stages</td>
+</tr>
+<tr>
+<td>13</td>
+<td>InfluxDB (metrics)</td>
+<td>Infrastructure</td>
+<td>Stages 2, 3, 4</td>
+</tr>
+<tr>
+<td>14</td>
+<td>Vault (secrets)</td>
+<td>Infrastructure</td>
+<td>All stages</td>
+</tr>
+<tr>
+<td>15</td>
+<td>Container Registry</td>
+<td><code>containers.ad.corekinect.com</code></td>
+<td>All stages</td>
+</tr>
+<tr>
+<td>16</td>
+<td>Manufacturing Test Scripts</td>
+<td><code>apps/manufacturing/alpha/src/tests/</code></td>
+<td>Reference patterns</td>
+</tr>
+<tr>
+<td>17</td>
+<td>TestStep/Test Framework</td>
+<td><code>libs/python/corekinect/test/</code></td>
+<td>Result patterns</td>
+</tr>
+<tr>
+<td>18</td>
+<td>Flask HTTP API Framework</td>
+<td><code>apps/backend/http-api/</code></td>
+<td>Extended for validation</td>
+</tr>
+<tr>
+<td>19</td>
+<td>SvelteKit Frontend Framework</td>
+<td><code>apps/frontend/concord-app-svelte/</code></td>
+<td>Extended for validation</td>
+</tr>
+<tr>
+<td>20</td>
+<td>Prisma ORM + Schema</td>
+<td><code>prisma/schema.prisma</code></td>
+<td>Extended for validation</td>
+</tr>
+<tr>
+<td>21</td>
+<td>Helm Charts</td>
+<td><code>deploy/helm/concord/</code></td>
+<td>Extended for validation</td>
+</tr>
+<tr>
+<td>22</td>
+<td>Mfg Firmware Binaries</td>
+<td><code>apps/firmware/products/alpha/</code></td>
+<td>FUOTA baseline</td>
+</tr>
+</tbody>
+</table>
+<h3 id="92-needs-adaptation">9.2 Needs Adaptation<a class="headerlink" href="#92-needs-adaptation" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Component</th>
+<th>What Changes</th>
+<th>Effort</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Prisma Schema</td>
+<td>Add ValidationPipeline, PipelineStage, PipelineJob, SubmoduleMapping models</td>
+<td>8h</td>
+</tr>
+<tr>
+<td>2</td>
+<td>alpha_fw State Machine</td>
+<td>Add <code>#ifdef CONFIG_ZTEST</code> getters, move types to headers</td>
+<td>5h</td>
+</tr>
+<tr>
+<td>3</td>
+<td>alpha_fw Harness Integration</td>
+<td><code>CONFIG_CONCORD_HARNESS</code> guards, <code>CONCORD_EMIT()</code> calls</td>
+<td>7h</td>
+</tr>
+<tr>
+<td>4</td>
+<td>HTTP API Routes</td>
+<td>Add validation pipeline, build, and result endpoints</td>
+<td>16h</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Helm Values</td>
+<td>Add pipeline controller + build service deployments</td>
+<td>12h</td>
+</tr>
+<tr>
+<td>6</td>
+<td>Vault Secrets</td>
+<td>Add Git SSH key, CoreCloud API keys, device credentials</td>
+<td>4h</td>
+</tr>
+<tr>
+<td>7</td>
+<td>K8s Job Template</td>
+<td>Update env injection, ConfigMap mounting</td>
+<td>4h</td>
+</tr>
+</tbody>
+</table>
+<h3 id="93-must-be-built-from-scratch">9.3 Must Be Built From Scratch<a class="headerlink" href="#93-must-be-built-from-scratch" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Component</th>
+<th>Category</th>
+<th>Effort</th>
+<th>Stage</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><code>accel_drv</code> clean branch + stubs</td>
+<td>Firmware</td>
+<td>15h</td>
+<td>1</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Interface contract tests</td>
+<td>Firmware</td>
+<td>12h</td>
+<td>1</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Alpha app stub tests (~15 modules)</td>
+<td>Firmware</td>
+<td>24h</td>
+<td>1</td>
+</tr>
+<tr>
+<td>4</td>
+<td>LSM6DSO driver implementation</td>
+<td>Firmware</td>
+<td>40h</td>
+<td>2</td>
+</tr>
+<tr>
+<td>5</td>
+<td>HW test firmware + test_spec.yaml</td>
+<td>Firmware</td>
+<td>20h</td>
+<td>2</td>
+</tr>
+<tr>
+<td>6</td>
+<td>Dev-kit board definition</td>
+<td>Firmware</td>
+<td>8h</td>
+<td>2</td>
+</tr>
+<tr>
+<td>7</td>
+<td><code>concord_harness</code> Zephyr module</td>
+<td>Firmware/Infra</td>
+<td>41.5h</td>
+<td>3</td>
+</tr>
+<tr>
+<td>8</td>
+<td>Alpha harness declarations</td>
+<td>Firmware</td>
+<td>16h</td>
+<td>3</td>
+</tr>
+<tr>
+<td>9</td>
+<td>Integration test Python modules</td>
+<td>Firmware/Infra</td>
+<td>24h</td>
+<td>3</td>
+</tr>
+<tr>
+<td>10</td>
+<td>Pipeline controller</td>
+<td>Infra</td>
+<td>40h</td>
+<td>All</td>
+</tr>
+<tr>
+<td>11</td>
+<td>Build service</td>
+<td>Infra</td>
+<td>32h</td>
+<td>All</td>
+</tr>
+<tr>
+<td>12</td>
+<td>Pipeline trigger API</td>
+<td>Infra</td>
+<td>12h</td>
+<td>All</td>
+</tr>
+<tr>
+<td>13</td>
+<td><code>ztest_parser.py</code></td>
+<td>Infra</td>
+<td>8h</td>
+<td>2</td>
+</tr>
+<tr>
+<td>14</td>
+<td><code>power_profiler.py</code></td>
+<td>Infra</td>
+<td>12h</td>
+<td>2,3,4</td>
+</tr>
+<tr>
+<td>15</td>
+<td><code>test_spec_evaluator.py</code></td>
+<td>Infra</td>
+<td>8h</td>
+<td>2</td>
+</tr>
+<tr>
+<td>16</td>
+<td><code>fixture_controller.py</code></td>
+<td>Infra</td>
+<td>12h</td>
+<td>2,3,4</td>
+</tr>
+<tr>
+<td>17</td>
+<td><code>report_generator.py</code></td>
+<td>Infra</td>
+<td>8h</td>
+<td>2,3,4</td>
+</tr>
+<tr>
+<td>18</td>
+<td><code>artifact_manager.py</code></td>
+<td>Infra</td>
+<td>6h</td>
+<td>2,3,4</td>
+</tr>
+<tr>
+<td>19</td>
+<td><code>harness_client.py</code></td>
+<td>Infra</td>
+<td>12h</td>
+<td>3</td>
+</tr>
+<tr>
+<td>20</td>
+<td><code>cloud_client.py</code> (CloudClient)</td>
+<td>Infra</td>
+<td>8h</td>
+<td>3,4</td>
+</tr>
+<tr>
+<td>21</td>
+<td><code>TestContext</code></td>
+<td>Infra</td>
+<td>8h</td>
+<td>3,4</td>
+</tr>
+<tr>
+<td>22</td>
+<td><code>UartDemuxer</code></td>
+<td>Infra</td>
+<td>8h</td>
+<td>3,4</td>
+</tr>
+<tr>
+<td>23</td>
+<td><code>HarnessTransport</code></td>
+<td>Infra</td>
+<td>8h</td>
+<td>3</td>
+</tr>
+<tr>
+<td>24</td>
+<td><code>ValidationRunner</code> (pytest-based)</td>
+<td>Infra</td>
+<td>16h</td>
+<td>4</td>
+</tr>
+<tr>
+<td>25</td>
+<td><code>FuotaPlanBuilder</code> + <code>FuotaMonitor</code></td>
+<td>Infra</td>
+<td>8h</td>
+<td>4</td>
+</tr>
+<tr>
+<td>26</td>
+<td>FUOTA flow orchestrator (12-step)</td>
+<td>Infra</td>
+<td>12h</td>
+<td>4</td>
+</tr>
+<tr>
+<td>27</td>
+<td><code>nfc_client.py</code></td>
+<td>Infra</td>
+<td>6h</td>
+<td>4</td>
+</tr>
+<tr>
+<td>28</td>
+<td><code>alpha_validation_spec.yaml</code> (89 tests)</td>
+<td>Infra/QA</td>
+<td>24h</td>
+<td>4</td>
+</tr>
+<tr>
+<td>29</td>
+<td>5 Container images</td>
+<td>Infra</td>
+<td>18h</td>
+<td>All</td>
+</tr>
+<tr>
+<td>30</td>
+<td>Helm deployments (controller, build svc)</td>
+<td>Infra</td>
+<td>12h</td>
+<td>All</td>
+</tr>
+<tr>
+<td>31</td>
+<td>CronJob definitions</td>
+<td>Infra</td>
+<td>4h</td>
+<td>4</td>
+</tr>
+<tr>
+<td>32</td>
+<td>7 Data schemas</td>
+<td>Infra</td>
+<td>13h</td>
+<td>All</td>
+</tr>
+<tr>
+<td>33</td>
+<td>4 Frontend pages</td>
+<td>Frontend</td>
+<td>44h</td>
+<td>All</td>
+</tr>
+<tr>
+<td>34</td>
+<td><code>.concord/</code> configs (pipeline.yaml, build.yaml)</td>
+<td>Infra</td>
+<td>14h</td>
+<td>All</td>
+</tr>
+<tr>
+<td>35</td>
+<td>Dev-kit fixture (wiring, power, cables)</td>
+<td>HW</td>
+<td>28h</td>
+<td>2</td>
+</tr>
+<tr>
+<td>36</td>
+<td>Alpha product fixture + peripherals</td>
+<td>HW</td>
+<td>36h</td>
+<td>3,4</td>
+</tr>
+<tr>
+<td>37</td>
+<td>MTIB node registration (2 nodes)</td>
+<td>Infra</td>
+<td>4h</td>
+<td>2,3</td>
+</tr>
+<tr>
+<td>38</td>
+<td>12 Documentation items</td>
+<td>Docs</td>
+<td>54h</td>
+<td>All</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="10-unified-effort-summary">10. Unified Effort Summary<a class="headerlink" href="#10-unified-effort-summary" title="Permanent link">&para;</a></h2>
+<h3 id="101-by-category">10.1 By Category<a class="headerlink" href="#101-by-category" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Category</th>
+<th>Items</th>
+<th>Hours</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Firmware</strong></td>
+<td>Drivers, stubs, tests, harness, getters</td>
+<td>~238h</td>
+<td>40h LSM6DSO driver is largest item</td>
+</tr>
+<tr>
+<td><strong>Infrastructure</strong></td>
+<td>Pipeline, runners, images, APIs, schemas</td>
+<td>~399h</td>
+<td>40h pipeline controller is bottleneck</td>
+</tr>
+<tr>
+<td><strong>Hardware</strong></td>
+<td>Fixtures, wiring, procurement</td>
+<td>~100h</td>
+<td>+ $3,000-6,500 parts</td>
+</tr>
+<tr>
+<td><strong>Frontend</strong></td>
+<td>Dashboard, charts, trigger UI</td>
+<td>~44h</td>
+<td>Can be deferred</td>
+</tr>
+<tr>
+<td><strong>Documentation</strong></td>
+<td>Guides, runbooks, examples</td>
+<td>~54h</td>
+<td>Spread across team</td>
+</tr>
+<tr>
+<td><strong>TOTAL</strong></td>
+<td></td>
+<td><strong>~835h</strong></td>
+<td>Engineering hours only</td>
+</tr>
+</tbody>
+</table>
+<h3 id="102-by-stage">10.2 By Stage<a class="headerlink" href="#102-by-stage" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Stage</th>
+<th>FW (h)</th>
+<th>Infra (h)</th>
+<th>HW (h)</th>
+<th>FE (h)</th>
+<th>Docs (h)</th>
+<th>Total</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Stage 1: Software Tests</td>
+<td>55</td>
+<td>72</td>
+<td>0</td>
+<td>0</td>
+<td>3</td>
+<td>~130h</td>
+</tr>
+<tr>
+<td>Stage 2: Driver HW Tests</td>
+<td>93</td>
+<td>96</td>
+<td>36</td>
+<td>0</td>
+<td>5</td>
+<td>~230h</td>
+</tr>
+<tr>
+<td>Stage 3: Integration Tests</td>
+<td>74</td>
+<td>88</td>
+<td>20</td>
+<td>0</td>
+<td>12</td>
+<td>~194h</td>
+</tr>
+<tr>
+<td>Stage 4: Product Validation</td>
+<td>0</td>
+<td>102</td>
+<td>44</td>
+<td>0</td>
+<td>12</td>
+<td>~158h</td>
+</tr>
+<tr>
+<td>FUOTA Validation</td>
+<td>0</td>
+<td>20</td>
+<td>0</td>
+<td>0</td>
+<td>4</td>
+<td>~24h</td>
+</tr>
+<tr>
+<td>Manufacturing Integration</td>
+<td>0</td>
+<td>8</td>
+<td>0</td>
+<td>0</td>
+<td>4</td>
+<td>~12h</td>
+</tr>
+<tr>
+<td>Platform Services</td>
+<td>16</td>
+<td>13</td>
+<td>0</td>
+<td>44</td>
+<td>14</td>
+<td>~87h</td>
+</tr>
+<tr>
+<td><strong>TOTAL</strong></td>
+<td><strong>238h</strong></td>
+<td><strong>399h</strong></td>
+<td><strong>100h</strong></td>
+<td><strong>44h</strong></td>
+<td><strong>54h</strong></td>
+<td><strong>~835h</strong></td>
+</tr>
+</tbody>
+</table>
+<h3 id="103-by-interface-boundary">10.3 By Interface Boundary<a class="headerlink" href="#103-by-interface-boundary" title="Permanent link">&para;</a></h3>
+<p>This view shows where the integration complexity concentrates:</p>
+<table>
+<thead>
+<tr>
+<th>Interface</th>
+<th>Components That Touch It</th>
+<th>Total Effort (h)</th>
+<th>Risk</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>MTIB gRPC</td>
+<td>FixtureController, PowerProfiler, UartDemuxer, test functions, flash sequence</td>
+<td>~60h new code</td>
+<td>Low — interface is stable PROD</td>
+</tr>
+<tr>
+<td>CoreCloud SDK</td>
+<td>CloudClient, FuotaPlanBuilder, FuotaMonitor, test functions</td>
+<td>~30h new code</td>
+<td>Medium — FUOTA API unclear</td>
+</tr>
+<tr>
+<td>K8s API</td>
+<td>Pipeline controller, Job template, node matching, CronJobs</td>
+<td>~60h new code</td>
+<td>Medium — new orchestration</td>
+</tr>
+<tr>
+<td>HTTP API</td>
+<td>Pipeline endpoints, build endpoints, result reporting</td>
+<td>~28h new code</td>
+<td>Low — extends existing Flask</td>
+</tr>
+<tr>
+<td>Harness UART</td>
+<td>concord_harness module, HarnessTransport, UartDemuxer</td>
+<td>~70h new code</td>
+<td>High — novel, no reference impl</td>
+</tr>
+<tr>
+<td>Build System</td>
+<td>Build service, west toolchain, cross-repo builds</td>
+<td>~36h new code</td>
+<td>Medium — cross-repo is tricky</td>
+</tr>
+<tr>
+<td>Frontend REST</td>
+<td>4 new pages, existing API patterns</td>
+<td>~44h new code</td>
+<td>Low — established patterns</td>
+</tr>
+</tbody>
+</table>
+<h3 id="104-critical-path">10.4 Critical Path<a class="headerlink" href="#104-critical-path" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>Week 1-2:   Foundations (firmware stubs, Prisma schema, parser, harness API design)
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>Week 2-4:   Stage 1 firmware complete (interface tests, app tests)
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>Week 3-5:   Pipeline infra (build service, pipeline controller) *** BOTTLENECK ***
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>Week 5:     Stage 1 operational end-to-end
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>Week 3-6:   LSM6DSO driver (parallel with infra)
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>Week 5-7:   Stage 2 test runner modules
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>Week 4-6:   Dev-kit fixture HW ready
+<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>Week 7:     Stage 2 operational end-to-end
+<a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>Week 3-7:   concord_harness module (parallel)
+<a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a>Week 6-8:   Alpha harness integration
+<a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a>Week 7-9:   Stage 3 runner + tests
+<a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a>Week 9:     Stage 3 operational end-to-end
+<a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a>Week 8-10:  Stage 4 spec + runner + FUOTA flow
+<a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a>Week 8-10:  Alpha product fixture
+<a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a>Week 10-11: Stage 4 operational (commit subset: 43 tests)
+<a id="__codelineno-6-16" name="__codelineno-6-16" href="#__codelineno-6-16"></a>Week 12:    Stage 4 full suite (weekly: 89 tests) + FUOTA validation
+<a id="__codelineno-6-17" name="__codelineno-6-17" href="#__codelineno-6-17"></a>
+<a id="__codelineno-6-18" name="__codelineno-6-18" href="#__codelineno-6-18"></a>CRITICAL PATH: Pipeline Controller (40h) → Stage Gating (8h) → All stages after 1
+<a id="__codelineno-6-19" name="__codelineno-6-19" href="#__codelineno-6-19"></a>CALENDAR: 10-12 weeks with 3 parallel engineers + 1 HW engineer
+<a id="__codelineno-6-20" name="__codelineno-6-20" href="#__codelineno-6-20"></a>          24+ weeks single-threaded
+</code></pre></div>
+<hr />
+<h2 id="11-blocked-items">11. Blocked Items<a class="headerlink" href="#11-blocked-items" title="Permanent link">&para;</a></h2>
+<p>Items that cannot proceed until external decisions are made:</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Item</th>
+<th>Blocked By</th>
+<th>Impact</th>
+<th>Workaround</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>B1</td>
+<td><code>GroundModeConfigV2</code> REST delivery</td>
+<td>CoreCloud team: REST endpoint for UID 538</td>
+<td>18 config value tests deferred</td>
+<td>Defer tests; implement when endpoint exists</td>
+</tr>
+<tr>
+<td>B2</td>
+<td><code>BiometricConfig</code> message class</td>
+<td>CoreCloud team: UID + REST endpoint</td>
+<td>Biometric config tests deferred</td>
+<td>Defer tests</td>
+</tr>
+<tr>
+<td>B3</td>
+<td>FUOTA plan creation via REST</td>
+<td>CoreCloud team: REST API vs DB ORM decision</td>
+<td>Determines <code>FuotaPlanBuilder</code> implementation</td>
+<td>Fallback: DB ORM writes (works but bypasses business logic)</td>
+</tr>
+<tr>
+<td>B4</td>
+<td>FUOTA cooldown reduction</td>
+<td>CoreCloud team: is 5-min cooldown configurable?</td>
+<td>FUOTA flow takes 2+ hours</td>
+<td>Accept long run time for weekly suite</td>
+</tr>
+<tr>
+<td>B5</td>
+<td>Device personalization</td>
+<td>Firmware/operations team: nRF9151 certs/keys</td>
+<td>FUOTA and all CoreCloud-dependent tests</td>
+<td>Must personalize test DUTs before Stage 4</td>
+</tr>
+<tr>
+<td>B6</td>
+<td>nRF9151 comms coprocessor FUOTA</td>
+<td>Firmware team: dual-MCU FUOTA flow</td>
+<td>Full device FUOTA coverage</td>
+<td>Test nRF52840 FUOTA only initially</td>
+</tr>
+<tr>
+<td>B7</td>
+<td>CoreCloud <code>VAL_1_0</code> environment access</td>
+<td>CoreCloud team: credentials, DB access</td>
+<td>All CoreCloud-dependent tests</td>
+<td>Use <code>DEV_1_0</code> via SSH tunnel initially</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="12-open-design-decisions">12. Open Design Decisions<a class="headerlink" href="#12-open-design-decisions" title="Permanent link">&para;</a></h2>
+<p>Decisions that the implementation team must make before building:</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Decision</th>
+<th>Options</th>
+<th>Recommendation</th>
+<th>Document</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>D1</td>
+<td>FUOTA plan creation interface</td>
+<td>DB ORM vs REST API</td>
+<td>REST if available, DB ORM as fallback</td>
+<td>test-runner-stack.md §11.1</td>
+</tr>
+<tr>
+<td>D2</td>
+<td>GroundModeConfigV2 delivery</td>
+<td>REST endpoint, promote to ConfMsgBase, v0.9 shim, defer</td>
+<td>Defer until REST endpoint exists</td>
+<td>test-runner-stack.md §11.2</td>
+</tr>
+<tr>
+<td>D3</td>
+<td>Test framework architecture</td>
+<td>Adapt mfg TestStep/Test, new pytest-based, hybrid</td>
+<td>Hybrid: pytest execution + TestStepResult patterns</td>
+<td>test-runner-stack.md §11.3</td>
+</tr>
+<tr>
+<td>D4</td>
+<td>Async vs sync test functions</td>
+<td>Async (concurrent), sync (simple)</td>
+<td>Start sync, add async if needed</td>
+<td>test-runner-stack.md §11.4</td>
+</tr>
+<tr>
+<td>D5</td>
+<td>Fixture profile storage</td>
+<td>K8s ConfigMap, Concord DB, env var, MinIO</td>
+<td>Concord DB (Node.fixtureProfile)</td>
+<td>test-runner-stack.md §11.5</td>
+</tr>
+<tr>
+<td>D6</td>
+<td>UartDemuxer strategy</td>
+<td>Prefix-based, MTIB channel, shell+prefix</td>
+<td>Shell + prefix (matches ShellCommandHelper)</td>
+<td>test-runner-stack.md §11.6</td>
+</tr>
+<tr>
+<td>D7</td>
+<td>Build service interface</td>
+<td>gRPC, internal REST, K8s CRD</td>
+<td>Internal REST (simplest, HTTP API already exists)</td>
+<td>New</td>
+</tr>
+<tr>
+<td>D8</td>
+<td>Pipeline state machine</td>
+<td>In-memory, PostgreSQL, Redis</td>
+<td>PostgreSQL (Prisma, survives restart)</td>
+<td>New</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="13-implementation-phases">13. Implementation Phases<a class="headerlink" href="#13-implementation-phases" title="Permanent link">&para;</a></h2>
+<h3 id="phase-0-prerequisites-week-0-1">Phase 0: Prerequisites (Week 0-1)<a class="headerlink" href="#phase-0-prerequisites-week-0-1" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Deliverable</th>
+<th>Owner</th>
+<th>Hours</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>K3s cluster access verified</td>
+<td>Infra</td>
+<td>2</td>
+</tr>
+<tr>
+<td>Container registry access verified</td>
+<td>Infra</td>
+<td>1</td>
+</tr>
+<tr>
+<td>CoreCloud <code>VAL_1_0</code> credentials obtained</td>
+<td>Infra + CoreCloud</td>
+<td>4</td>
+</tr>
+<tr>
+<td>Alpha DUT personalized (nRF9151 certs)</td>
+<td>FW/Ops</td>
+<td>8</td>
+</tr>
+<tr>
+<td>Hardware procurement ordered</td>
+<td>HW</td>
+<td>2</td>
+</tr>
+<tr>
+<td>Design decision D1-D8 resolved</td>
+<td>All</td>
+<td>8</td>
+</tr>
+</tbody>
+</table>
+<h3 id="phase-1-parallel-foundation-weeks-1-4">Phase 1: Parallel Foundation (Weeks 1-4)<a class="headerlink" href="#phase-1-parallel-foundation-weeks-1-4" title="Permanent link">&para;</a></h3>
+<p>Five parallel streams:</p>
+<table>
+<thead>
+<tr>
+<th>Stream</th>
+<th>Components</th>
+<th>Owner</th>
+<th>Hours</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A: Firmware stubs + tests</td>
+<td>F01-F21 (accel_drv, alpha_fw stubs)</td>
+<td>FW</td>
+<td>55h</td>
+</tr>
+<tr>
+<td>B: Hardware fixtures</td>
+<td>H01-H05 (dev-kit wiring, procurement)</td>
+<td>HW</td>
+<td>28h</td>
+</tr>
+<tr>
+<td>C: Pipeline infra</td>
+<td>I01-I09 (Prisma, parser, trigger API, build svc, controller)</td>
+<td>Infra-1</td>
+<td>132h</td>
+</tr>
+<tr>
+<td>D: Test runner modules</td>
+<td>I10-I16 (MTIB updates, ztest parser, power profiler, fixture ctrl)</td>
+<td>Infra-2</td>
+<td>60h</td>
+</tr>
+<tr>
+<td>E: concord_harness</td>
+<td>F28-F37 (Zephyr module, shell, registry, emit)</td>
+<td>Infra-3</td>
+<td>41.5h</td>
+</tr>
+</tbody>
+</table>
+<h3 id="phase-2-integration-stage-2-weeks-5-7">Phase 2: Integration + Stage 2 (Weeks 5-7)<a class="headerlink" href="#phase-2-integration-stage-2-weeks-5-7" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Stream</th>
+<th>Components</th>
+<th>Owner</th>
+<th>Hours</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>LSM6DSO driver</td>
+<td>F05, F07, F38 (driver, DTS, board def)</td>
+<td>FW</td>
+<td>51h</td>
+</tr>
+<tr>
+<td>HW test firmware</td>
+<td>F12-F13, F16 (test FW, spec, board features)</td>
+<td>FW</td>
+<td>24h</td>
+</tr>
+<tr>
+<td>Stage 2 runner</td>
+<td>I21a, I27 (orchestration, Docker image)</td>
+<td>Infra-2</td>
+<td>16h</td>
+</tr>
+<tr>
+<td>Alpha harness</td>
+<td>F22-F24, F41 (harness declarations, #ifdef guards, EMIT calls)</td>
+<td>FW</td>
+<td>23h</td>
+</tr>
+</tbody>
+</table>
+<h3 id="phase-3-stage-3-proof-weeks-7-9">Phase 3: Stage 3 Proof (Weeks 7-9)<a class="headerlink" href="#phase-3-stage-3-proof-weeks-7-9" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Stream</th>
+<th>Components</th>
+<th>Owner</th>
+<th>Hours</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Harness client</td>
+<td>I17 (harness_client.py, protocol)</td>
+<td>Infra-3</td>
+<td>12h</td>
+</tr>
+<tr>
+<td>Cloud client</td>
+<td>I18, I23-I24 (CloudClient, message verification, GPS config)</td>
+<td>Infra-2</td>
+<td>16h</td>
+</tr>
+<tr>
+<td>Integration runner</td>
+<td>I21b, I28 (orchestration, Docker image)</td>
+<td>Infra-2</td>
+<td>16h</td>
+</tr>
+<tr>
+<td>Integration tests</td>
+<td>F28a-b (spec + Python test modules)</td>
+<td>FW/Infra</td>
+<td>28h</td>
+</tr>
+</tbody>
+</table>
+<h3 id="phase-4-stage-4-proof-weeks-8-11">Phase 4: Stage 4 Proof (Weeks 8-11)<a class="headerlink" href="#phase-4-stage-4-proof-weeks-8-11" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Stream</th>
+<th>Components</th>
+<th>Owner</th>
+<th>Hours</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>TestContext + runner</td>
+<td>TestContext, ValidationRunner, UartDemuxer</td>
+<td>Infra-2</td>
+<td>32h</td>
+</tr>
+<tr>
+<td>Validation spec</td>
+<td>I42 (89 PRDTST tests mapped)</td>
+<td>QA</td>
+<td>24h</td>
+</tr>
+<tr>
+<td>FUOTA flow</td>
+<td>FuotaPlanBuilder, FuotaMonitor, 12-step orchestrator</td>
+<td>Infra-3</td>
+<td>20h</td>
+</tr>
+<tr>
+<td>NFC + peripherals</td>
+<td>I19, H08a-h (NFC client, fixture peripherals)</td>
+<td>Infra/HW</td>
+<td>14h</td>
+</tr>
+<tr>
+<td>Container images</td>
+<td>I29 (validation image)</td>
+<td>Infra</td>
+<td>4h</td>
+</tr>
+</tbody>
+</table>
+<h3 id="phase-5-hardening-dashboard-weeks-11-12">Phase 5: Hardening + Dashboard (Weeks 11-12)<a class="headerlink" href="#phase-5-hardening-dashboard-weeks-11-12" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Stream</th>
+<th>Components</th>
+<th>Owner</th>
+<th>Hours</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Frontend pages</td>
+<td>I44-I47 (pipeline list, detail, power charts, trigger)</td>
+<td>FE</td>
+<td>44h</td>
+</tr>
+<tr>
+<td>CronJobs</td>
+<td>I36 (weekly/nightly schedules)</td>
+<td>Infra</td>
+<td>4h</td>
+</tr>
+<tr>
+<td>Documentation</td>
+<td>D01-D12 (all docs, spread across team)</td>
+<td>All</td>
+<td>54h</td>
+</tr>
+<tr>
+<td>Stage 4 full suite</td>
+<td>Weekly suite with all 89 tests operational</td>
+<td>Infra/QA</td>
+<td>16h</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="14-risk-register">14. Risk Register<a class="headerlink" href="#14-risk-register" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Risk</th>
+<th>Impact</th>
+<th>Mitigation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>R1</td>
+<td>Pipeline controller (40h) is critical bottleneck</td>
+<td>Blocks all stages beyond 1</td>
+<td>Start in Week 1; MVP scope; split into Job creation (Phase A) and stage gating (Phase B)</td>
+</tr>
+<tr>
+<td>R2</td>
+<td>PCB fabrication for dev-kit fixture takes 3-4 weeks</td>
+<td>Stage 2 HW delayed</td>
+<td>Order in Week 1; use point-to-point wiring as interim</td>
+</tr>
+<tr>
+<td>R3</td>
+<td>LSM6DSO driver (40h) may exceed estimate</td>
+<td>Stage 2 delayed</td>
+<td>Reference existing driver code; time-box to 2 weeks</td>
+</tr>
+<tr>
+<td>R4</td>
+<td><code>concord_harness</code> is novel infrastructure</td>
+<td>Stage 3 integration risk</td>
+<td>Thorough unit testing; demo app for validation; comprehensive docs</td>
+</tr>
+<tr>
+<td>R5</td>
+<td>CoreCloud <code>VAL_1_0</code> access not yet confirmed</td>
+<td>All Stage 3/4 CoreCloud tests blocked</td>
+<td>Use <code>DEV_1_0</code> via SSH tunnel initially</td>
+</tr>
+<tr>
+<td>R6</td>
+<td>FUOTA cooldown makes flow &gt;2 hours</td>
+<td>Weekly suite takes very long</td>
+<td>Accept for weekly; investigate cooldown reduction</td>
+</tr>
+<tr>
+<td>R7</td>
+<td>18 config tests blocked on GroundModeConfigV2</td>
+<td>Incomplete PRDTST coverage</td>
+<td>Defer; implement when REST endpoint exists</td>
+</tr>
+<tr>
+<td>R8</td>
+<td>Cross-repo build complexity (submodule overrides)</td>
+<td>Build service scope creep</td>
+<td>Direct-repo builds first; cross-repo as Phase B</td>
+</tr>
+<tr>
+<td>R9</td>
+<td>Temperature chamber ($2-5K) procurement</td>
+<td>7 temp-dependent tests blocked</td>
+<td>Defer to Phase 2; use manufacturing chamber if available</td>
+</tr>
+<tr>
+<td>R10</td>
+<td>UART0 RX killed by app for power savings</td>
+<td>Stage 3 harness completely broken</td>
+<td>Must add <code>#ifdef CONFIG_CONCORD_HARNESS</code> guard before any Stage 3 work</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="15-cross-reference-to-architecture-documents">15. Cross-Reference to Architecture Documents<a class="headerlink" href="#15-cross-reference-to-architecture-documents" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Document</th>
+<th>What It Defines</th>
+<th>BOM Section</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>00-validation-philosophy.md</code></td>
+<td>Why we test, the pyramid, the 3-domain lifecycle</td>
+<td>Entire document scope</td>
+</tr>
+<tr>
+<td><code>09-final-architecture.md</code></td>
+<td>K8s topology, pipeline state machine, Prisma schema</td>
+<td>§3.3, §3.4, §8.1</td>
+</tr>
+<tr>
+<td><code>stage3-integration-tests.md</code></td>
+<td>concord_harness design, shell protocol, Stage 3 tests</td>
+<td>§4.3, §3.7 (harness)</td>
+</tr>
+<tr>
+<td><code>stage4-product-tests.md</code></td>
+<td>89 PRDTST specs, test domains, acceptance criteria</td>
+<td>§4.4, §4.5</td>
+</tr>
+<tr>
+<td><code>stage4-fuota-validation-flow.md</code></td>
+<td>12-step FUOTA flow, timing, failure handling</td>
+<td>§5.1, §5.2</td>
+</tr>
+<tr>
+<td><code>test-runner-stack.md</code></td>
+<td>TestContext, CloudClient, FixtureController, walk-throughs</td>
+<td>§3.1-3.7, §9.3 (items 20-26)</td>
+</tr>
+<tr>
+<td><code>corecloud-library-architecture.md</code></td>
+<td>SDK analysis, v0.9 removal, missing capabilities</td>
+<td>§3.2, §7.1, §7.2</td>
+</tr>
+<tr>
+<td><code>bom-validation-pipeline.md</code></td>
+<td>Component-level tracking with hours and owners</td>
+<td>All (companion doc)</td>
+</tr>
+<tr>
+<td><code>plans/stage3-and-4/overview.md</code></td>
+<td>Stage 3+4 proof overview, BOM summary, dependency graph</td>
+<td>§10, §13</td>
+</tr>
+<tr>
+<td><code>plans/stage3-and-4/phases/</code></td>
+<td>Phase-by-phase execution plans</td>
+<td>§13 (Phases 1-5)</td>
+</tr>
+</tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://zensical.org/" target="_blank" rel="noopener">
+      Zensical
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      
+      <script id="__config" type="application/json">{"annotate":null,"base":"../../..","features":["navigation.sections","navigation.expand","navigation.path","navigation.indexes","search.suggest","content.code.copy","toc.follow"],"search":"../../../assets/javascripts/workers/search.e2d2d235.min.js","tags":null,"translations":{"clipboard.copied":"Copied to clipboard","clipboard.copy":"Copy to clipboard","search.result.more.one":"1 more on this page","search.result.more.other":"# more on this page","search.result.none":"No matching documents","search.result.one":"1 matching document","search.result.other":"# matching documents","search.result.placeholder":"Type to start searching","search.result.term.missing":"Missing","select.version":"Select version"},"version":null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.5fd3284f.min.js"></script>
+      
+        <script src="../../../assets/js/external-links.js"></script>
+      
+    
+  </body>
+</html>

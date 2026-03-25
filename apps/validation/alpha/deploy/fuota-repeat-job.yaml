@@ -1,0 +1,92 @@
+# FUOTA Repeatability Test — runs the standalone FUOTA script N times
+# to verify flash → personalize → FUOTA cycle is reliable.
+#
+# Apply:
+#   kubectl apply -f apps/validation/alpha/deploy/fuota-repeat-job.yaml
+#
+# Watch:
+#   kubectl logs -n validation -f job/fuota-repeat-2x
+#
+# Cleanup:
+#   kubectl delete job fuota-repeat-2x -n validation
+
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: fuota-repeat-2x
+  namespace: validation
+  labels:
+    app: validation-alpha
+    test: fuota-repeat
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 7200  # 2h hard limit
+  template:
+    metadata:
+      labels:
+        app: validation-alpha
+        test: fuota-repeat
+    spec:
+      restartPolicy: Never
+      terminationGracePeriodSeconds: 30
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+              - key: corekinect.com/role
+                operator: NotIn
+                values:
+                - edge
+      containers:
+      - name: fuota-repeat
+        image: containers.ad.corekinect.com/concord-validation-alpha:staging
+        imagePullPolicy: Always
+        command: ["python3", "-u", "/app/scripts/run_fuota_test.py"]
+        env:
+        # ── Test config ──
+        - name: FUOTA_REPEAT
+          value: "2"
+        - name: MTIB_HOST
+          value: "10.4.45.33"
+        - name: MTIB_PORT
+          value: "50053"
+        - name: DEVICE_ID
+          value: "70B3D584C01E1FCC"
+        - name: DEVICE_SNR
+          value: "0964"
+        - name: TLS_VERIFY
+          value: "false"
+        # ── CoreCloud VAL API (for FUOTA plans + key upload) ──
+        - name: VAL_1_0_API_REST_SERVER_HOST_NAME
+          value: "https://val.office.corekinect.cloud:2018/api"
+        - name: VAL_1_0_API_AUTH_SERVER_HOST_NAME
+          value: "https://auth.office.corekinect.cloud:2013"
+        - name: VAL_1_0_AUTH_URL
+          value: "https://auth.office.corekinect.cloud:2013/authentication/tokens/request"
+        - name: VAL_1_0_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: corecloud-validation
+              key: api-key
+        - name: VAL_1_0_API_AUTH_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: corecloud-validation
+              key: auth-username
+        - name: VAL_1_0_API_AUTH_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: corecloud-validation
+              key: auth-password
+        resources:
+          requests:
+            cpu: "250m"
+            memory: "200Mi"
+          limits:
+            cpu: "1000m"
+            memory: "1000Mi"

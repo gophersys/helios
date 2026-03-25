@@ -1,3 +1,0 @@
-from .core import TestConfig
-from .manufacturing import ManufacturingTestConfig, CompatibleManufacturingTestConfig
-from .validation import ValidationTestConfig, CompatibleValidationTestConfig

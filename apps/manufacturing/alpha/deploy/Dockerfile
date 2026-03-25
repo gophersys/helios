@@ -10,11 +10,9 @@ RUN apt-get update && \
     apt-get install -y \
     python3 \
     python3-pip \
-    screen \
     iputils-ping \
-    usbutils \
-    && apt-get clean \ 
-    && rm -rf /var/lib/apt/lists/* 
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
 # -----------------------------------------------------------------------------------------------------
 #                                                                                      App Dependencies
@@ -28,22 +26,21 @@ RUN pip install -e . && \
     pip cache purge
 
 # -----------------------------------------------------------------------------------------------------
-#                                                                                                   App  
+#                                                                                                   App
 # ---------------------------------------------------------------------------------------------------*/
 WORKDIR /app
 
-# Copy the libraries used by the app
+# Copy the protocols used by the app
+COPY libs/protocols /libs/protocols
+
+# Copy the corekinect python library
 COPY libs/python /libs/python
 
-# Copy the protocols used by the app
-COPY libs/protocols/mtib /libs/protocols/mtib
-
-# Set the PYTHONPATH to include the libs directory
-ENV PYTHONPATH="/libs:${PYTHONPATH}"
-ENV PYTHONPATH="/libs/python/:${PYTHONPATH}"
-
 # Import the paths to the python path
-ENV PYTHONPATH="/libs:${PYTHONPATH}"
+ENV PYTHONPATH="/libs:/libs/python:/libs/protocols"
+
+# Copy any assets we may need
+COPY apps/manufacturing/alpha/assets assets
 
 # Copy the app itself
 COPY apps/manufacturing/alpha/config config

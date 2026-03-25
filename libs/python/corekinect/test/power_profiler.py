@@ -1,0 +1,185 @@
+"""Power measurement wrapper for Stage 4 power budget tests.
+
+Records power measurements via MTIB V1 PowerMeasure/PowerStream RPCs
+and computes per-test statistics (avg, peak, energy).
+"""
+
+import threading
+import time
+from dataclasses import dataclass, field
+from typing import List, Optional, Tuple
+
+from corekinect.mtib_client.v1.client.core import MtibV1Client
+from corekinect.utils import Logger
+
+log = Logger(log_name="power_profiler")
+
+
+@dataclass
+class PowerMeasurement:
+    """Aggregated power measurement statistics."""
+    avg_current_ma: float
+    peak_current_ma: float
+    min_current_ma: float
+    avg_voltage_mv: float
+    energy_mwh: float
+    duration_s: float
+    samples: int
+
+
+@dataclass
+class PowerTrace:
+    """Full power trace with individual samples and aggregated stats."""
+    samples: List[Tuple[float, float, float]] = field(default_factory=list)
+    """List of (timestamp_s, voltage_mv, current_ma) tuples."""
+
+    measurement: Optional[PowerMeasurement] = None
+    """Aggregated statistics computed when trace is finalized."""
+
+    def compute_stats(self) -> PowerMeasurement:
+        """Compute statistics from the sample buffer."""
+        if not self.samples:
+            self.measurement = PowerMeasurement(
+                avg_current_ma=0, peak_current_ma=0, min_current_ma=0,
+                avg_voltage_mv=0, energy_mwh=0, duration_s=0, samples=0,
+            )
+            return self.measurement
+
+        currents = [s[2] for s in self.samples]
+        voltages = [s[1] for s in self.samples]
+        timestamps = [s[0] for s in self.samples]
+        duration = timestamps[-1] - timestamps[0] if len(timestamps) > 1 else 0
+
+        avg_v = sum(voltages) / len(voltages)
+        avg_i = sum(currents) / len(currents)
+        avg_power_mw = avg_v * avg_i / 1000  # mV * mA / 1000 = mW
+        energy_mwh = avg_power_mw * (duration / 3600) if duration > 0 else 0
+
+        self.measurement = PowerMeasurement(
+            avg_current_ma=avg_i,
+            peak_current_ma=max(currents),
+            min_current_ma=min(currents),
+            avg_voltage_mv=avg_v,
+            energy_mwh=energy_mwh,
+            duration_s=duration,
+            samples=len(self.samples),
+        )
+        return self.measurement
+
+
+class PowerProfiler:
+    """Power measurement wrapper for Stage 4 power budget tests.
+
+    Provides two modes:
+    - measure(): Single bounded measurement via PowerMeasure RPC.
+    - start_continuous() / stop_continuous(): Long-duration streaming
+      via PowerStream RPC for sleep mode and background current tests.
+
+    Args:
+        mtib: Connected MtibV1Client instance.
+    """
+
+    def __init__(self, mtib: MtibV1Client):
+        self._mtib = mtib
+        self._trace: Optional[PowerTrace] = None
+        self._streaming = False
+        self._stream_thread: Optional[threading.Thread] = None
+
+    def measure(self, channel: int = 0, duration_s: float = 10) -> PowerMeasurement:
+        """Take a bounded power measurement. Returns aggregated statistics.
+
+        Uses MTIB V1 PowerMeasure RPC which samples at ~100Hz for the
+        specified duration and returns server-side aggregated stats.
+
+        Args:
+            channel: Power channel (0=DUT, 1=charger).
+            duration_s: Measurement duration in seconds.
+        """
+        result, err = self._mtib.PowerMeasure(channel=channel, duration_s=duration_s)
+        if err:
+            raise RuntimeError(f"PowerMeasure failed: {err}")
+
+        return PowerMeasurement(
+            avg_current_ma=result.average_ma,
+            peak_current_ma=result.max_ma,
+            min_current_ma=result.min_ma,
+            avg_voltage_mv=result.average_mv,
+            energy_mwh=0,  # not provided by server
+            duration_s=result.duration_s,
+            samples=result.sample_count,
+        )
+
+    def start_continuous(self, channel: int = 0) -> None:
+        """Start continuous power sampling in background.
+
+        Uses PowerStream RPC for long-duration measurements (sleep mode
+        current tests). Samples are buffered and stats are computed on
+        stop_continuous().
+        """
+        if self._streaming:
+            raise RuntimeError("Continuous measurement already in progress")
+
+        self._trace = PowerTrace()
+        self._streaming = True
+        self._stream_thread = threading.Thread(
+            target=self._stream_loop,
+            args=(channel,),
+            daemon=True,
+            name="power-stream",
+        )
+        self._stream_thread.start()
+        log.info("Continuous power sampling started on channel %d", channel)
+
+    def stop_continuous(self) -> PowerTrace:
+        """Stop continuous sampling, return full trace with stats.
+
+        Returns:
+            PowerTrace with samples and computed statistics.
+        """
+        if not self._streaming:
+            raise RuntimeError("No continuous measurement in progress")
+
+        self._streaming = False
+        if self._stream_thread:
+            self._stream_thread.join(timeout=5)
+            self._stream_thread = None
+
+        trace = self._trace
+        self._trace = None
+
+        if trace:
+            trace.compute_stats()
+            log.info(
+                "Power trace: %d samples over %.1fs, avg=%.1fmA",
+                len(trace.samples),
+                trace.measurement.duration_s if trace.measurement else 0,
+                trace.measurement.avg_current_ma if trace.measurement else 0,
+            )
+
+        return trace
+
+    def _stream_loop(self, channel: int) -> None:
+        """Background thread consuming PowerStream responses."""
+        try:
+            start_time = time.monotonic()
+            for resp in self._mtib.PowerStream(channel=channel):
+                if not self._streaming:
+                    break
+                if hasattr(resp, "samples"):
+                    for sample in resp.samples:
+                        ts = time.monotonic() - start_time
+                        self._trace.samples.append((
+                            ts,
+                            sample.voltage_mv,
+                            sample.current_ma,
+                        ))
+        except Exception as e:
+            if self._streaming:
+                log.error("Power stream error: %s", e)
+
+    def quick_read(self, channel: int = 0) -> Tuple[float, float, float]:
+        """Single instantaneous power read. Returns (voltage_mv, current_ma, power_mw)."""
+        result, err = self._mtib.PowerRead(channel=channel)
+        if err:
+            raise RuntimeError(f"PowerRead failed: {err}")
+        return (result.voltage_v * 1000, result.current_ma, result.power_mw)

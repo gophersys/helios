@@ -1,0 +1,356 @@
+# =============================================================================
+# ClusterRoles
+# =============================================================================
+
+# Full cluster access - platform operators who manage production, RBAC, storage
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: concord-super-admin
+rules:
+  - apiGroups: ["*"]
+    resources: ["*"]
+    verbs: ["*"]
+  - nonResourceURLs: ["*"]
+    verbs: ["*"]
+
+---
+# Full CRUD on namespace-scoped workload resources
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: concord-namespace-admin
+rules:
+  - apiGroups: [""]
+    resources:
+      - pods
+      - pods/log
+      - pods/exec
+      - pods/portforward
+      - services
+      - endpoints
+      - configmaps
+      - secrets
+      - persistentvolumeclaims
+      - events
+      - serviceaccounts
+    verbs: ["*"]
+  - apiGroups: ["apps"]
+    resources:
+      - deployments
+      - replicasets
+      - statefulsets
+      - daemonsets
+    verbs: ["*"]
+  - apiGroups: ["batch"]
+    resources:
+      - jobs
+      - cronjobs
+    verbs: ["*"]
+  - apiGroups: ["networking.k8s.io"]
+    resources:
+      - ingresses
+      - networkpolicies
+    verbs: ["*"]
+  - apiGroups: ["autoscaling"]
+    resources:
+      - horizontalpodautoscalers
+    verbs: ["*"]
+
+---
+# Read-only access to namespace-scoped workload resources
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: concord-namespace-readonly
+rules:
+  - apiGroups: [""]
+    resources:
+      - pods
+      - pods/log
+      - services
+      - endpoints
+      - configmaps
+      - persistentvolumeclaims
+      - events
+      - serviceaccounts
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources:
+      - deployments
+      - replicasets
+      - statefulsets
+      - daemonsets
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["batch"]
+    resources:
+      - jobs
+      - cronjobs
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["networking.k8s.io"]
+    resources:
+      - ingresses
+      - networkpolicies
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["autoscaling"]
+    resources:
+      - horizontalpodautoscalers
+    verbs: ["get", "list", "watch"]
+
+# =============================================================================
+# Concord API — ServiceAccount + ClusterRole for System Monitor
+# The backend API uses this SA to interact with the K8s API.
+# App-level permissions (System.View vs System.Manage) are enforced in code;
+# the SA needs all operations any authorized user could trigger.
+# =============================================================================
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: concord-api
+  namespace: production
+  labels:
+    app.kubernetes.io/name: concord-api
+    app.kubernetes.io/component: backend
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: concord-api-system-monitor
+rules:
+  # Cluster-scoped reads (overview, node management, namespace selector)
+  - apiGroups: [""]
+    resources:
+      - nodes
+      - namespaces
+    verbs: ["get", "list", "watch"]
+  # Namespace-scoped resources — read
+  - apiGroups: [""]
+    resources:
+      - pods
+      - services
+      - endpoints
+      - configmaps
+      - secrets
+      - events
+      - serviceaccounts
+    verbs: ["get", "list", "watch"]
+  # Pod operations — logs, exec, delete
+  - apiGroups: [""]
+    resources:
+      - pods/log
+    verbs: ["get"]
+  - apiGroups: [""]
+    resources:
+      - pods/exec
+    verbs: ["create"]
+  - apiGroups: [""]
+    resources:
+      - pods
+    verbs: ["delete"]
+  # Apps — deployments (read, scale, restart via patch), daemonsets, statefulsets, replicasets
+  - apiGroups: ["apps"]
+    resources:
+      - deployments
+      - replicasets
+      - statefulsets
+      - daemonsets
+    verbs: ["get", "list", "watch", "patch"]
+  - apiGroups: ["apps"]
+    resources:
+      - deployments/scale
+    verbs: ["get", "patch", "update"]
+  # Batch — jobs (read, delete)
+  - apiGroups: ["batch"]
+    resources:
+      - jobs
+    verbs: ["get", "list", "watch", "delete"]
+  # Networking — ingresses (read, patch for YAML editor)
+  - apiGroups: ["networking.k8s.io"]
+    resources:
+      - ingresses
+    verbs: ["get", "list", "watch", "patch"]
+  # RBAC viewer — read-only across cluster
+  - apiGroups: ["rbac.authorization.k8s.io"]
+    resources:
+      - roles
+      - clusterroles
+      - rolebindings
+      - clusterrolebindings
+    verbs: ["get", "list"]
+  # Resource YAML editor — patch + delete on core resources
+  - apiGroups: [""]
+    resources:
+      - configmaps
+      - secrets
+      - services
+    verbs: ["patch", "delete"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: concord-api-system-monitor-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: concord-api-system-monitor
+subjects:
+  - kind: ServiceAccount
+    name: concord-api
+    namespace: production
+
+# =============================================================================
+# ClusterRoleBinding - Super Admin (cluster-wide)
+# =============================================================================
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: concord-super-admin-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: concord-super-admin
+subjects:
+  - kind: Group
+    name: concord-super-admins
+    apiGroup: rbac.authorization.k8s.io
+
+# =============================================================================
+# RoleBindings - Production
+# =============================================================================
+---
+# Admins: read-only in production
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: concord-admin-readonly
+  namespace: production
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: concord-namespace-readonly
+subjects:
+  - kind: Group
+    name: concord-admins
+    apiGroup: rbac.authorization.k8s.io
+
+---
+# Viewers: read-only in production
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: concord-viewer-readonly
+  namespace: production
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: concord-namespace-readonly
+subjects:
+  - kind: Group
+    name: concord-viewers
+    apiGroup: rbac.authorization.k8s.io
+
+# =============================================================================
+# RoleBindings - Staging
+# =============================================================================
+---
+# Admins: full access in staging
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: concord-admin-full
+  namespace: staging
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: concord-namespace-admin
+subjects:
+  - kind: Group
+    name: concord-admins
+    apiGroup: rbac.authorization.k8s.io
+
+---
+# Developers: full access in staging
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: concord-developer-full
+  namespace: staging
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: concord-namespace-admin
+subjects:
+  - kind: Group
+    name: concord-developers
+    apiGroup: rbac.authorization.k8s.io
+
+---
+# Viewers: read-only in staging
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: concord-viewer-readonly
+  namespace: staging
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: concord-namespace-readonly
+subjects:
+  - kind: Group
+    name: concord-viewers
+    apiGroup: rbac.authorization.k8s.io
+
+# =============================================================================
+# RoleBindings - Dev
+# =============================================================================
+---
+# Admins: full access in dev
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: concord-admin-full
+  namespace: dev
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: concord-namespace-admin
+subjects:
+  - kind: Group
+    name: concord-admins
+    apiGroup: rbac.authorization.k8s.io
+
+---
+# Developers: full access in dev
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: concord-developer-full
+  namespace: dev
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: concord-namespace-admin
+subjects:
+  - kind: Group
+    name: concord-developers
+    apiGroup: rbac.authorization.k8s.io
+
+---
+# Viewers: read-only in dev
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: concord-viewer-readonly
+  namespace: dev
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: concord-namespace-readonly
+subjects:
+  - kind: Group
+    name: concord-viewers
+    apiGroup: rbac.authorization.k8s.io

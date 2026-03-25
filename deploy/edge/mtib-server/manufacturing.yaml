@@ -7,7 +7,7 @@ metadata:
   labels:
     app: mtib-server-manufacturing
 spec:
-  replicas: 5 # <- 1 replica per MTIB host in the cluster
+  replicas: 4 # 1 replica per edge node labeled corekinect.com/purpose=manufacturing
   selector:
     matchLabels:
       app: mtib-server-manufacturing
@@ -16,7 +16,7 @@ spec:
     # instance of this container in a host, and then start the new one
     type: RollingUpdate
     rollingUpdate:
-      maxSurge: 1
+      maxSurge: 0
       maxUnavailable: 1
   template:
     metadata:
@@ -37,21 +37,18 @@ spec:
           requiredDuringSchedulingIgnoredDuringExecution:
             nodeSelectorTerms:
             - matchExpressions:
-              # This allows us to deploy exactly 1 container in each host
-              # in the cluster, as we've setup the hostnames of each host
-              # to match the physical slot where they're located
-              - key: "kubernetes.io/hostname"
+              - key: "corekinect.com/role"
                 operator: In
                 values:
-                - "verdin-imx8mm-15005679" # Stand Alone .32
-                - "verdin-imx8mm-15005658" # Slot 1 .35
-                - "verdin-imx8mm-15005689" # Slot 2 .36
-                - "verdin-imx8mm-15005816" # Slot 3 .33
-                - "verdin-imx8mm-15005817" # Slot 4 .34
+                - "edge"
+              - key: "corekinect.com/purpose"
+                operator: In
+                values:
+                - "manufacturing"
       tolerations:
-      - key: "role"
+      - key: "corekinect.com/role"
         operator: "Equal"
-        value: "manufacturing"
+        value: "edge"
         effect: "NoSchedule"
       containers:
       - name: mtib-server-manufacturing

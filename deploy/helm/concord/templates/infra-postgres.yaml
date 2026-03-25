@@ -1,0 +1,77 @@
+{{- if .Values.infrastructure.postgres.enabled }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: concord-postgres-pvc
+  labels:
+    {{- include "concord.labels" . | nindent 4 }}
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: {{ .Values.infrastructure.postgres.storage | default "5Gi" }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: concord-postgres
+  labels:
+    {{- include "concord.labels" . | nindent 4 }}
+    app.kubernetes.io/name: concord-postgres
+    app.kubernetes.io/component: database
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: concord-postgres
+  template:
+    metadata:
+      labels:
+        {{- include "concord.labels" . | nindent 8 }}
+        app.kubernetes.io/name: concord-postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_USER
+              value: {{ .Values.infrastructure.postgres.user | default "concord" }}
+            - name: POSTGRES_PASSWORD
+              value: {{ .Values.infrastructure.postgres.password | default "concord" }}
+            - name: POSTGRES_DB
+              value: {{ .Values.infrastructure.postgres.database | default "concord" }}
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /var/lib/postgresql/data
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+      volumes:
+        - name: postgres-data
+          persistentVolumeClaim:
+            claimName: concord-postgres-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: concord-postgres
+  labels:
+    {{- include "concord.labels" . | nindent 4 }}
+    app.kubernetes.io/name: concord-postgres
+spec:
+  type: ClusterIP
+  ports:
+    - port: 5432
+      targetPort: 5432
+  selector:
+    app.kubernetes.io/name: concord-postgres
+{{- end }}

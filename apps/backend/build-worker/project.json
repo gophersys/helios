@@ -1,0 +1,31 @@
+{
+  "name": "build-worker",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/backend/build-worker",
+  "projectType": "application",
+  "tags": ["scope:backend", "type:app"],
+  "implicitDependencies": ["protocols"],
+  "targets": {
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/backend/build-worker",
+        "command": "PYTHONPATH=src:$(pwd)/../../../libs/python:$(pwd)/../../../libs:$(pwd)/../../../libs/protocols:. pytest tests/ -v"
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/backend/build-worker",
+        "command": "python3 -c \"import py_compile,glob;[py_compile.compile(f,doraise=True) for f in glob.glob('src/**/*.py',recursive=True)]\""
+      }
+    },
+    "serve": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/backend/build-worker",
+        "command": "PYTHONPATH=src:$(pwd)/../../../libs/python:$(pwd)/../../../libs:$(pwd)/../../../libs/protocols:. python3 -m src.main"
+      }
+    }
+  }
+}

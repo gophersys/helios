@@ -1,0 +1,112 @@
+# Staging environment overrides
+# Usage: helm upgrade --install concord ./deploy/helm/concord -n staging -f ./deploy/helm/values-staging.yaml
+
+global:
+  environment: staging
+  imagePullPolicy: Always
+
+# Enable in-cluster infrastructure for staging
+infrastructure:
+  postgres:
+    enabled: true
+    user: concord
+    password: concord-staging
+    database: concord
+    storage: 5Gi
+  minio:
+    enabled: true
+    rootUser: minioadmin
+    rootPassword: minioadmin-staging
+    storage: 5Gi
+    enabled: true
+    user: admin
+    password: concord-staging
+    org: concord
+    bucket: telemetry_raw
+    storage: 5Gi
+
+httpApi:
+  replicas: 1
+  image:
+    repository: containers.ad.corekinect.com/concord-http-api
+    tag: staging
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+frontend:
+  replicas: 1
+  image:
+    repository: containers.ad.corekinect.com/concord-frontend
+    tag: staging
+
+ingress:
+  enabled: true
+  host: staging.concord.local
+  className: traefik
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+  tls:
+    secretName: staging-concord-tls
+
+config:
+  SERVER_PORT: "9001"
+  LOG_LEVEL: "4"
+  LOG_PATH: "logs"
+  AUTH_ENABLED: "true"
+  ASSETS_FOLDER: "assets"
+  CORS_ORIGINS: "https://staging.concord.local,http://staging.concord.local,http://localhost:4200"
+  MTIB_PORT: "50053"
+  GIT_POLLER_ENABLED: "true"
+  GIT_POLLER_INTERVAL_S: "15"
+  # CI Pipeline — device identity defaults for validation K8s Jobs
+  DEVICE_ID: "70B3D584C01E1FCC"
+  DEVICE_SNR: "0964"
+  FIXTURE_PROFILE_PATH: "fixtures/alpha_b0.json"
+  PROXY_SERVER_URL: "http://10.4.45.30:8001"
+  DEVICE_IMEI: "355025931735979"
+  DEVICE_ICCIDS: "89148000008770457338,89012230001000370694"
+
+# Build Worker — DaemonSet on builder nodes
+buildWorker:
+  enabled: true
+  image:
+    repository: containers.ad.corekinect.com/ncs-build
+    tag: "2.7.0"
+  resources:
+    requests:
+      cpu: "4"
+      memory: "8Gi"
+    limits:
+      cpu: "14"
+      memory: "28Gi"
+  # NCS 2.4.2 builder (disabled — no active products)
+  ncs242:
+    enabled: false
+    image: containers.ad.corekinect.com/ncs-build:2.4.2
+
+# Git Poller — polls firmware repos for new commits
+gitPoller:
+  enabled: true
+  pollInterval: "15"
+  image:
+    repository: containers.ad.corekinect.com/concord-git-poller
+    tag: staging
+
+secrets:
+  DATABASE_URL: "postgresql://concord:concord-staging@concord-postgres:5432/concord"
+  STORAGE_URL: "http://concord-minio:9000"
+  STORAGE_ACCESS_KEY: "minioadmin"
+  STORAGE_SECRET_ACCESS_KEY: "minioadmin-staging"
+  STORAGE_BUCKET_NAME: "concord"
+  JWT_SECRET_KEY: "concord-staging-jwt-secret-key-2026"
+  COREOPS_SERVER_URL: "http://10.4.45.30:8001"
+  AUTH_SERVER_URL: "https://auth.office.corekinect.cloud:2013"
+  AUTH_SERVER_API_KEY: "LWh0dHBzOi8vY29yZW9wcy5vZmZpY2UuY29yZWtpbmVjdC5jbG91ZDoyMDEzLwAUAAAAAAAAAAMAAAAAAAAAAmh//0ARflK7w17yvqU8VDyvJsfWFKnXJGKYZIRyzKjKEJD63QHu16/+BGn5EAK6ezr71bqOxlMML5GK60sL3HnY4eSR"
+  DELETE_ALL_KEY: "staging-delete-key"
+  BITBUCKET_WEBHOOK_SECRET: "concord-bitbucket-webhook-staging"

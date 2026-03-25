@@ -15,12 +15,12 @@ ui:
 injector:
   enabled: true
   nodeSelector:
-    role: "cloud"
+    corekinect.com/role: "server"
   tolerations:
-    - key: "role"
+    - key: "corekinect.com/role"
       operator: "Equal"
-      value: "cloud"
-      effect: "NoSchedule"
+      value: "server"
+      effect: "PreferNoSchedule"
   # Use the vault K8s Image
   image:
     repository: "hashicorp/vault-k8s"
@@ -38,12 +38,12 @@ injector:
 
 server:
   nodeSelector:
-    role: "cloud"
+    corekinect.com/role: "server"
   tolerations:
-    - key: "role"
+    - key: "corekinect.com/role"
       operator: "Equal"
-      value: "cloud"
-      effect: "NoSchedule"
+      value: "server"
+      effect: "PreferNoSchedule"
   # This configures the Vault Statefulset to create a PVC for data storage
   dataStorage:
     enabled: true

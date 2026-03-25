@@ -1,0 +1,55 @@
+{{- if .Values.gitPoller.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: concord-git-poller
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: concord-git-poller
+    app.kubernetes.io/component: git-poller
+    app.kubernetes.io/part-of: concord
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: concord-git-poller
+  template:
+    metadata:
+      labels:
+        app: concord-git-poller
+      annotations:
+        rollme: {{ randAlphaNum 10 | quote }}
+    spec:
+      containers:
+        - name: git-poller
+          image: "{{ .Values.gitPoller.image.repository }}:{{ .Values.gitPoller.image.tag }}"
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          env:
+            - name: GIT_SSH_KEY_PATH
+              value: "/root/.ssh/id_rsa"
+            - name: POLL_INTERVAL
+              value: {{ .Values.gitPoller.pollInterval | default "15" | quote }}
+            - name: CONCORD_API_URL
+              value: "http://concord-http-api:9001"
+            - name: CONCORD_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: concord-build-worker-secrets
+                  key: api-key
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "200m"
+              memory: "128Mi"
+          volumeMounts:
+            - name: ssh-key
+              mountPath: /root/.ssh
+              readOnly: true
+      volumes:
+        - name: ssh-key
+          secret:
+            secretName: bitbucket-ssh-key
+            defaultMode: 0600
+{{- end }}

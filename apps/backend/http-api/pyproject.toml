@@ -1,0 +1,4 @@
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src", ".", "../../../libs/python", "../../../libs", "../../../libs/protocols"]
+addopts = "-v --tb=short"

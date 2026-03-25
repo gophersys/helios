@@ -106,7 +106,7 @@ class CoreCloudDBInterface(metaclass=SingletonThreadSafeMeta):
     Attributes:
         db (optional[DBConfig]): Database configuration.
         ssh (optional[SSHConfig]): SSH tunnel configuration.
-        db_env (optional[str]): Environment namespace for DB and SSH settings.
+        env (optional[str]): Environment namespace for DB and SSH settings.
         test_query (optional[str]): Query to test the database connection.
 
     Example:
@@ -118,17 +118,21 @@ class CoreCloudDBInterface(metaclass=SingletonThreadSafeMeta):
         self,
         db: Optional[DBConfig] = None,
         ssh: Optional[SSHConfig] = None,
-        db_env: Optional[Literal["VAL_1_0", "DEV_1_0", "DEV_0_9"]] = "VAL_1_0",
+        env: Optional[Literal["VAL_1_0", "DEV_1_0", "DEV_0_9"]] = "VAL_1_0",
         *,
         test_query: Optional[str] = "SELECT 1",
+        sql_echo: bool = False,
     ):
         self._depth = 0
 
         load_dotenv(override=False)
-        _apply_namespace_env(db_env)
+        _apply_namespace_env(env)
 
-        self.db = db or DBConfig(namespace=db_env)
-        self.ssh = ssh or SSHConfig(namespace=db_env)
+        self.db = db or DBConfig(namespace=env)
+        if sql_echo:
+            self.db.echo = sql_echo
+
+        self.ssh = ssh or SSHConfig(namespace=env)
         self.test_query = test_query
 
         self.tunnel: Optional[SSHTunnelForwarder] = None
@@ -270,3 +274,26 @@ class CoreCloudDBInterface(metaclass=SingletonThreadSafeMeta):
 
         cols = [getattr(model, name) for name in field_names]
         return cols[0] if len(cols) == 1 else func.coalesce(*cols)
+
+
+def _run_codegen(conn_str, out_file):
+    import sys, subprocess
+
+    with open(out_file, "w", encoding="utf-8") as f:
+        subprocess.run(
+            [sys.executable, "-m", "sqlacodegen", conn_str],
+            check=True,
+            stdout=f,
+        )
+
+
+def _update_cc_test_data_v1p0_orm():
+    load_dotenv(override=False)
+    _apply_namespace_env("VAL_1_0")
+    db = DBConfig(namespace="VAL_1_0")
+    _run_codegen(f"{db.driver}://{db.username}:{db.password}@{db.host}:{db.port}/{db.database_name}", "db_orm_v1_0.py")
+
+
+if __name__ == "__main__":
+    _update_cc_test_data_v0p9_orm()
+    _update_cc_test_data_v1p0_orm()

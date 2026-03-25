@@ -1,0 +1,83 @@
+{{- if .Values.infrastructure.minio.enabled }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: concord-minio-pvc
+  labels:
+    {{- include "concord.labels" . | nindent 4 }}
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: {{ .Values.infrastructure.minio.storage | default "5Gi" }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: concord-minio
+  labels:
+    {{- include "concord.labels" . | nindent 4 }}
+    app.kubernetes.io/name: concord-minio
+    app.kubernetes.io/component: storage
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: concord-minio
+  template:
+    metadata:
+      labels:
+        {{- include "concord.labels" . | nindent 8 }}
+        app.kubernetes.io/name: concord-minio
+    spec:
+      containers:
+        - name: minio
+          image: minio/minio:latest
+          command: ["minio", "server", "/data", "--console-address", ":9001"]
+          ports:
+            - containerPort: 9000
+              name: api
+            - containerPort: 9001
+              name: console
+          env:
+            - name: MINIO_ROOT_USER
+              value: {{ .Values.infrastructure.minio.rootUser | default "minioadmin" }}
+            - name: MINIO_ROOT_PASSWORD
+              value: {{ .Values.infrastructure.minio.rootPassword | default "minioadmin" }}
+          volumeMounts:
+            - name: minio-data
+              mountPath: /data
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 300m
+              memory: 256Mi
+      volumes:
+        - name: minio-data
+          persistentVolumeClaim:
+            claimName: concord-minio-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: concord-minio
+  labels:
+    {{- include "concord.labels" . | nindent 4 }}
+    app.kubernetes.io/name: concord-minio
+spec:
+  type: ClusterIP
+  ports:
+    - port: 9000
+      targetPort: 9000
+      name: api
+    - port: 9001
+      targetPort: 9001
+      name: console
+  selector:
+    app.kubernetes.io/name: concord-minio
+{{- end }}

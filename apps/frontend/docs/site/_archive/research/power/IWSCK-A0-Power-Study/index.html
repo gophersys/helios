@@ -1,0 +1,2901 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Continuous delivery platform for embedded systems">
+      
+      
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../../assets/images/favicon.png">
+      <meta name="generator" content="zensical-0.0.27">
+    
+    
+      
+        <title>IWSCK A0 Power Study - Concord</title>
+      
+    
+    
+      
+        
+      
+      <link rel="stylesheet" href="../../../../assets/stylesheets/modern/main.50057488.min.css">
+      
+        
+          
+        
+        <link rel="stylesheet" href="../../../../assets/stylesheets/modern/palette.dfe2e883.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,500,500i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../../../..",location),__md_hash=e=>[...e].reduce(((e,t)=>(e<<5)-e+t.charCodeAt(0)),0),__md_get=(e,t=localStorage,a=__md_scope)=>JSON.parse(t.getItem(a.pathname+"."+e)),__md_set=(e,t,a=localStorage,_=__md_scope)=>{try{a.setItem(_.pathname+"."+e,JSON.stringify(t))}catch(e){}},document.documentElement.setAttribute("data-platform",navigator.platform)</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="deep-purple" data-md-color-accent="amber">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer" aria-label="Navigation"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#iwsck-a0-power-study" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../../.." title="Concord" class="md-header__button md-logo" aria-label="Concord" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer" aria-label="Navigation">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-menu" viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h16"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Concord
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              IWSCK A0 Power Study
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="none" data-md-color-scheme="slate" data-md-color-primary="deep-purple" data-md-color-accent="amber"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="none" data-md-color-scheme="default" data-md-color-primary="deep-purple" data-md-color-accent="amber"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search" aria-label="Search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-search" viewBox="0 0 24 24"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog" aria-label="Search">
+  <button type="button" class="md-search__button">
+    Search
+  </button>
+</div>
+      
+    
+    <div class="md-header__source">
+      
+    </div>
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../../.." title="Concord" class="md-nav__button md-logo" aria-label="Concord" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+
+    </a>
+    Concord
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../vision/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vision
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2" id="__nav_2_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Vision
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../vision/thesis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Thesis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../vision/validation-philosophy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation Philosophy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../architecture/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3" id="__nav_3_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Architecture
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_2" id="__nav_3_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Platform
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Platform
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/platform/unified-platform/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Unified Platform
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/platform/hardware-registry/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hardware Registry
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/platform/log-streaming/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Log Streaming
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/platform/ci-pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CI Pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/platform/corecloud-library/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CoreCloud Library
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_3" id="__nav_3_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Validation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/validation/stages-overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stages Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/validation/system/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    System Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/validation/stage1-software-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 1: Software Tests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/validation/stage2-driver-hw-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 2: Driver HW Tests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/validation/stage3-integration-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 3: Integration Tests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/validation/stage4-product-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 4: Product Tests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/validation/stage4-fuota-flow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 4: FUOTA Flow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/validation/stage4-pr-flow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 4: PR Flow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/validation/stage5-gate-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 5: Gate Tests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/validation/test-runner/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Test Runner
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_4" id="__nav_3_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Build
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/build/build-service/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build Service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/build/builder-nodes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Builder Nodes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../reference/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/fuota-workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FUOTA Workflow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/fuota-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FUOTA API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/alpha-test-cases/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Alpha Test Cases
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/traceability-matrix/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Traceability Matrix
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/twister-hil/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Twister HIL
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/stage4-connectivity/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 4 Connectivity
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/stage4-long-term-vision/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 4 Long-Term Vision
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/validation-flow-ui/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation Flow UI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/interfaces/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interfaces
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../guides/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_2" id="__nav_5_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Alpha
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Alpha
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../guides/alpha/stage1/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 1
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../guides/alpha/stage2/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 2
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../guides/alpha/stage3/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 3
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../guides/alpha/stage4/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 4
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../guides/alpha/stage5/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 5
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../research/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Research
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_6" id="__nav_6_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Research
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../research/01-sigma5-firmware-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sigma5 Firmware
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../research/02-alpha-firmware-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Alpha Firmware
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../research/03-sensor-drivers-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sensor Drivers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../research/05-mtib-server-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MTIB Server
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../research/06-fuota-corecloud-v1/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FUOTA CoreCloud
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../research/07-alpha-manufacturing-firmware-and-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Alpha MFG Firmware
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../research/08-device-personalization-and-key-provisioning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Device Personalization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../research/08-firmware-build-and-fuota-delivery/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Firmware Build & FUOTA
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../research/09-corecloud-validation-integration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CoreCloud Integration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../journals/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Journals
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Journals
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-hardware-setup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Hardware Setup
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-baseline-measurements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Baseline Measurements
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Baseline Measurements">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#datasheet-expectations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Datasheet expectations
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-firmware-optimization-7-rounds" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Firmware Optimization (7 Rounds)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Firmware Optimization (7 Rounds)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#what-actually-moved-the-needle" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What actually moved the needle
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-didnt-matter" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What didn't matter
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-ultra-low-power-modes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Ultra-Low Power Modes
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Ultra-Low Power Modes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#power-ultralow-ble-beacon-no-uart" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        power ultralow — BLE beacon, no UART
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#power-deadlow-nothing-running-no-ble" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        power deadlow — nothing running, no BLE
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#no-shell-firmware-the-real-floor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        No-shell firmware — the real floor
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-what-we-learned" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. What We Learned
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. What We Learned">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-median-was-misleading" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The median was misleading
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-board-cant-go-below-37-ma" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The board can't go below ~3.7 mA
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-firmware-can-vs-cant-do" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What firmware can vs can't do
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-a1-board-changes-needed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. A1 Board Changes Needed
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+                
+
+
+
+  
+
+
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+<h1 id="iwsck-a0-power-study">IWSCK A0 Power Study<a class="headerlink" href="#iwsck-a0-power-study" title="Permanent link">&para;</a></h1>
+<p><strong>Date:</strong> 2026-03-04
+<strong>Board:</strong> CoreKinect IWSCK A0 (nRF54L15-QFAA)
+<strong>Measurement:</strong> Joulescope JS220 inline on battery input, 1 MHz sampling
+<strong>Performed by:</strong> Mateo Segura</p>
+<hr />
+<h2 id="1-hardware-setup">1. Hardware Setup<a class="headerlink" href="#1-hardware-setup" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>Battery → TPS63802 (buck-boost) → +3.3V rail
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>                                    ├── nRF54L15 (MCU + BLE radio)
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>                                    ├── SP3232ECA-L (RS232 level shifter)
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>                                    ├── BQ35100 (fuel gauge, also from VBAT)
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>                                    └── EAST1616RGBB2 (RGB LED, 698 ohm series)
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Device</th>
+<th>Identifier</th>
+<th>Role</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Joulescope JS220</td>
+<td>Serial 001998</td>
+<td>Inline battery current (1 MHz)</td>
+</tr>
+<tr>
+<td>J-Link PLUS</td>
+<td>SNR 821009546</td>
+<td>SWD debug/flash</td>
+</tr>
+<tr>
+<td>FTDI UART</td>
+<td>/dev/ttyUSB1</td>
+<td>Console (uart30 @ 115200)</td>
+</tr>
+</tbody>
+</table>
+<p>One gotcha: nrfjprog doesn't know about nRF54L, and JLinkExe can connect as
+CORTEX-M33 but can't write RRAM. The only thing that works for flashing is
+<code>nrfutil device program --family nrf54l</code>.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>west<span class="w"> </span>build<span class="w"> </span>--pristine<span class="w"> </span>--no-sysbuild<span class="w"> </span>-b<span class="w"> </span>iwsck_a0/nrf54l15/cpuapp<span class="w"> </span>.
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>nrfutil<span class="w"> </span>device<span class="w"> </span>program<span class="w"> </span>--firmware<span class="w"> </span>build/zephyr/zephyr.hex<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">  </span>--serial-number<span class="w"> </span><span class="m">821009546</span><span class="w"> </span>--family<span class="w"> </span>nrf54l<span class="w"> </span>--core<span class="w"> </span>application<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">  </span>--options<span class="w"> </span><span class="nv">chip_erase_mode</span><span class="o">=</span>ERASE_ALL,reset<span class="o">=</span>RESET_SYSTEM,verify<span class="o">=</span>VERIFY_READ
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">joulescope</span><span class="o">,</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="n">js</span> <span class="o">=</span> <span class="n">joulescope</span><span class="o">.</span><span class="n">scan_require_one</span><span class="p">()</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="n">js</span><span class="o">.</span><span class="n">open</span><span class="p">()</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="n">data</span> <span class="o">=</span> <span class="n">js</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">contiguous_duration</span><span class="o">=</span><span class="mf">20.0</span><span class="p">)</span>  <span class="c1"># (samples, 2): [current_A, voltage_V]</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="n">current_ua</span> <span class="o">=</span> <span class="n">data</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="mf">1e6</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="n">js</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+</code></pre></div>
+<hr />
+<h2 id="2-baseline-measurements">2. Baseline Measurements<a class="headerlink" href="#2-baseline-measurements" title="Permanent link">&para;</a></h2>
+<p>Stock firmware, nothing special going on — just the shell sitting at idle.</p>
+<table>
+<thead>
+<tr>
+<th>Mode</th>
+<th>Mean (uA)</th>
+<th>P5 (uA)</th>
+<th>P95 (uA)</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Idle (shell, no BLE, LEDs off)</td>
+<td>3794</td>
+<td>180</td>
+<td>14040</td>
+<td>Baseline</td>
+</tr>
+<tr>
+<td>LED Green on</td>
+<td>4634</td>
+<td>420</td>
+<td>14873</td>
+<td>+840 uA</td>
+</tr>
+<tr>
+<td>LED Blue on</td>
+<td>4592</td>
+<td>407</td>
+<td>14823</td>
+<td>+798 uA</td>
+</tr>
+<tr>
+<td>LED Red on</td>
+<td>3795</td>
+<td>180</td>
+<td>14043</td>
+<td>+0 uA — red LED is dead (A0 errata)</td>
+</tr>
+<tr>
+<td>All LEDs on</td>
+<td>5436</td>
+<td>727</td>
+<td>15882</td>
+<td>+1642 uA</td>
+</tr>
+<tr>
+<td>BLE advertising (100ms)</td>
+<td>3356</td>
+<td>41</td>
+<td>13993</td>
+<td>BLE init takes ~60s (RC32K cal)</td>
+</tr>
+</tbody>
+</table>
+<p>Looking at the 1 MHz capture, the idle state is not quiet at all. The shell's UART RX
+polling causes ~17,000 wakeups/sec with ~35 us active bursts at 5 mA. 60% of the time
+the CPU is active, 40% it's between polls at ~190 uA.</p>
+<h3 id="datasheet-expectations">Datasheet expectations<a class="headerlink" href="#datasheet-expectations" title="Permanent link">&para;</a></h3>
+<p>For reference, here's what the datasheets say each part should draw:</p>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Mode</th>
+<th>Expected (uA)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>nRF54L15</td>
+<td>System ON idle (datasheet best case)</td>
+<td>3</td>
+</tr>
+<tr>
+<td>nRF54L15</td>
+<td>CONSTLAT + 2x UART + GRTC (realistic)</td>
+<td>600 - 1300</td>
+</tr>
+<tr>
+<td>TPS63802</td>
+<td>Quiescent (PFM)</td>
+<td>11</td>
+</tr>
+<tr>
+<td>BQ35100</td>
+<td>GE=HIGH, WAITING</td>
+<td>15</td>
+</tr>
+<tr>
+<td>BQ35100</td>
+<td>GE=LOW</td>
+<td>0.05</td>
+</tr>
+<tr>
+<td>SP3232ECA-L</td>
+<td>Charge pump running</td>
+<td>300</td>
+</tr>
+<tr>
+<td>SP3232ECA-L</td>
+<td>Shutdown</td>
+<td>&lt;1</td>
+</tr>
+</tbody>
+</table>
+<p>So naively you'd expect maybe 1-2 mA at the battery. We're at 3.8 mA. Something is off.</p>
+<hr />
+<h2 id="3-firmware-optimization-7-rounds">3. Firmware Optimization (7 Rounds)<a class="headerlink" href="#3-firmware-optimization-7-rounds" title="Permanent link">&para;</a></h2>
+<p>Went through these one at a time, measuring after each change. All 9 hardware tests
+kept passing throughout.</p>
+<table>
+<thead>
+<tr>
+<th>Round</th>
+<th>Change</th>
+<th>Mean (mA)</th>
+<th>Median (mA)</th>
+<th>Delta</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>Stock firmware</td>
+<td>3.794</td>
+<td>1.638</td>
+<td>--</td>
+</tr>
+<tr>
+<td>1</td>
+<td>Remove <code>CONFIG_SOC_NRF_FORCE_CONSTLAT</code></td>
+<td>3.024</td>
+<td>0.860</td>
+<td>-0.770</td>
+</tr>
+<tr>
+<td>2</td>
+<td>+ Minimal logging mode</td>
+<td>3.025</td>
+<td>0.847</td>
+<td>-0.001</td>
+</tr>
+<tr>
+<td>3</td>
+<td>+ <code>CONFIG_PM_DEVICE</code> / device PM</td>
+<td>3.024</td>
+<td>0.832</td>
+<td>-0.001</td>
+</tr>
+<tr>
+<td>4</td>
+<td>+ BQ35100 GE LOW at boot</td>
+<td>3.025</td>
+<td>0.789</td>
+<td>-0.001</td>
+</tr>
+<tr>
+<td>5</td>
+<td>+ uart20 disabled + tick 1kHz</td>
+<td>3.188</td>
+<td>0.600</td>
+<td>+0.163</td>
+</tr>
+<tr>
+<td>6</td>
+<td>+ UART async API (no effect)</td>
+<td>3.195</td>
+<td>0.589</td>
+<td>+0.007</td>
+</tr>
+<tr>
+<td><strong>Final</strong></td>
+<td><strong>All optimizations</strong></td>
+<td><strong>3.425</strong></td>
+<td><strong>0.528</strong></td>
+<td>--</td>
+</tr>
+<tr>
+<td>7a</td>
+<td>BLE slow adv (1s) + UART off</td>
+<td>3.006</td>
+<td>0.696</td>
+<td>--</td>
+</tr>
+<tr>
+<td>7b</td>
+<td>BLE slow adv + UART suspended</td>
+<td>3.340</td>
+<td>0.437</td>
+<td>--</td>
+</tr>
+<tr>
+<td>7c</td>
+<td>No-shell firmware (k_sleep only)</td>
+<td>3.775</td>
+<td>1.697</td>
+<td>--</td>
+</tr>
+</tbody>
+</table>
+<p>Median went from 1.638 to 0.528 mA — 68% drop in the sleep-state current.</p>
+<h3 id="what-actually-moved-the-needle">What actually moved the needle<a class="headerlink" href="#what-actually-moved-the-needle" title="Permanent link">&para;</a></h3>
+<p><strong>CONSTLAT removal (-770 uA).</strong> By far the biggest win. The board defconfig had
+<code>CONFIG_SOC_NRF_FORCE_CONSTLAT=y</code>, which pins the HF regulators on all the time. One
+line change, instant 770 uA off the mean.</p>
+<p><strong>BQ35100 GE pin LOW at boot.</strong> The fuel gauge was hogged HIGH in the DTS, burning
+15 uA for no reason. Ripped out the gpio-hog, added a SYS_INIT that drives P0.01 LOW,
+and the fuel shell commands now auto-enable GE on first use (with a 1s settling delay).</p>
+<p><strong>Disable uart20 + lazy RS232 init.</strong> The RS232 UART was running with IRQ RX enabled
+at all times. Set it to <code>status = "disabled"</code> in the DTS and added <code>rs232_ensure_active()</code>
+so the UART only spins up when you actually run an RS232 command.</p>
+<h3 id="what-didnt-matter">What didn't matter<a class="headerlink" href="#what-didnt-matter" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Minimal logging</strong> — the deferred log thread wasn't waking the system enough to care</li>
+<li><strong>UART Async API</strong> — doesn't help because the shell backend uses IRQ-driven internally</li>
+<li><strong><code>CONFIG_PM</code></strong> — flat out not available for nRF54L15 in NCS</li>
+<li><strong>Tick reduction (10kHz to 1kHz)</strong> — UART RX interrupts dominate, not the tick</li>
+</ul>
+<hr />
+<h2 id="4-ultra-low-power-modes">4. Ultra-Low Power Modes<a class="headerlink" href="#4-ultra-low-power-modes" title="Permanent link">&para;</a></h2>
+<p>To see how low we could actually go, added two shell commands that kill the UART and
+put the board into headless mode (power cycle to get the shell back).</p>
+<h3 id="power-ultralow-ble-beacon-no-uart"><code>power ultralow</code> — BLE beacon, no UART<a class="headerlink" href="#power-ultralow-ble-beacon-no-uart" title="Permanent link">&para;</a></h3>
+<p>Starts BLE advertising at 1s interval, calls <code>shell_uninit()</code> so the shell thread aborts,
+then a deferred work item kills UART30.</p>
+<table>
+<thead>
+<tr>
+<th>BLE Adv Interval</th>
+<th>Mean (mA)</th>
+<th>Median (mA)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Fast (100ms) + UART off</td>
+<td>3.845</td>
+<td>0.661</td>
+</tr>
+<tr>
+<td>Slow (1s) + UART off</td>
+<td>3.006</td>
+<td>0.696</td>
+</tr>
+<tr>
+<td>Slow (1s) + UART suspended</td>
+<td>3.340</td>
+<td>0.437</td>
+</tr>
+</tbody>
+</table>
+<h3 id="power-deadlow-nothing-running-no-ble"><code>power deadlow</code> — nothing running, no BLE<a class="headerlink" href="#power-deadlow-nothing-running-no-ble" title="Permanent link">&para;</a></h3>
+<p>Same idea but skips BLE. Just shell_uninit + UART off.</p>
+<h3 id="no-shell-firmware-the-real-floor">No-shell firmware — the real floor<a class="headerlink" href="#no-shell-firmware-the-real-floor" title="Permanent link">&para;</a></h3>
+<p>Built a stripped-down firmware that does literally nothing: <code>main()</code> calls
+<code>k_sleep(K_FOREVER)</code>. No shell, no BLE, no UART, no logging. 32 KB flash.</p>
+<p><strong>Result: 3.775 mA with zero quiet milliseconds.</strong></p>
+<p>The board never drops below 500 uA for even 1 ms. This is the hardware floor.</p>
+<hr />
+<h2 id="5-what-we-learned">5. What We Learned<a class="headerlink" href="#5-what-we-learned" title="Permanent link">&para;</a></h2>
+<h3 id="the-median-was-misleading">The median was misleading<a class="headerlink" href="#the-median-was-misleading" title="Permanent link">&para;</a></h3>
+<p>The shell firmware's median of 0.528 mA looked great, but it's a statistical artifact.
+The current has a bimodal distribution — ~52% of the time the shell's UART polling is
+active at 5-6 mA, ~48% of the time it's between polls at ~0.5 mA. That's not deep
+sleep, it's just the gaps between polling bursts.</p>
+<p>The no-shell firmware proved it. Without the bimodal pattern, you get a flat 3.7 mA
+with no dips at all.</p>
+<h3 id="the-board-cant-go-below-37-ma">The board can't go below ~3.7 mA<a class="headerlink" href="#the-board-cant-go-below-37-ma" title="Permanent link">&para;</a></h3>
+<p>Three things we can't fix in firmware:</p>
+<table>
+<thead>
+<tr>
+<th>Problem</th>
+<th>Current</th>
+<th>Fix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>SP3232 charge pump always on (no SHDN pin)</td>
+<td>~300 uA</td>
+<td>A1: add shutdown control</td>
+</tr>
+<tr>
+<td>No LFXO — HFXO fires every ~8s for LFRC cal</td>
+<td>~mA spikes</td>
+<td>A1: add 32.768 kHz crystal</td>
+</tr>
+<tr>
+<td>nRF54L15 Rev 1 silicon errata</td>
+<td>bulk of the floor</td>
+<td>Rev 2 silicon</td>
+</tr>
+</tbody>
+</table>
+<h3 id="what-firmware-can-vs-cant-do">What firmware can vs can't do<a class="headerlink" href="#what-firmware-can-vs-cant-do" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Target</th>
+<th>Firmware?</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CONSTLAT removal</td>
+<td>Yes</td>
+<td>-770 uA</td>
+</tr>
+<tr>
+<td>Disable unused peripherals</td>
+<td>Yes</td>
+<td>-50-100 uA</td>
+</tr>
+<tr>
+<td>BQ35100 on-demand</td>
+<td>Yes</td>
+<td>-15 uA</td>
+</tr>
+<tr>
+<td>SP3232 charge pump</td>
+<td>No</td>
+<td>Need SHDN pin</td>
+</tr>
+<tr>
+<td>LFRC calibration</td>
+<td>No</td>
+<td>Need LFXO</td>
+</tr>
+<tr>
+<td>Silicon errata</td>
+<td>No</td>
+<td>Need Rev 2</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="6-a1-board-changes-needed">6. A1 Board Changes Needed<a class="headerlink" href="#6-a1-board-changes-needed" title="Permanent link">&para;</a></h2>
+<p>To get anywhere near the datasheet's 3 uA System ON idle:</p>
+<ol>
+<li><strong>32.768 kHz LFXO crystal</strong> — kills the HFXO calibration spikes entirely</li>
+<li><strong>SP3232 shutdown control</strong> — GPIO-switched load switch or route the SHDN pin,
+   saves 300 uA when RS232 isn't needed</li>
+<li><strong>nRF54L15 Rev 2</strong> — whenever Nordic ships it, the System ON errata should be fixed</li>
+<li><strong>GPIO audit</strong> — check every pin for unnecessary pull resistors bleeding current</li>
+</ol>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://zensical.org/" target="_blank" rel="noopener">
+      Zensical
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      
+      <script id="__config" type="application/json">{"annotate":null,"base":"../../../..","features":["navigation.sections","navigation.expand","navigation.path","navigation.indexes","search.suggest","content.code.copy","toc.follow"],"search":"../../../../assets/javascripts/workers/search.e2d2d235.min.js","tags":null,"translations":{"clipboard.copied":"Copied to clipboard","clipboard.copy":"Copy to clipboard","search.result.more.one":"1 more on this page","search.result.more.other":"# more on this page","search.result.none":"No matching documents","search.result.one":"1 matching document","search.result.other":"# matching documents","search.result.placeholder":"Type to start searching","search.result.term.missing":"Missing","select.version":"Select version"},"version":null}</script>
+    
+    
+      <script src="../../../../assets/javascripts/bundle.5fd3284f.min.js"></script>
+      
+        <script src="../../../../assets/js/external-links.js"></script>
+      
+    
+  </body>
+</html>

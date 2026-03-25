@@ -1,0 +1,112 @@
+# Default values for Concord platform.
+# Override per-environment with values-staging.yaml or values-production.yaml.
+
+global:
+  environment: staging
+  imagePullPolicy: IfNotPresent
+
+# ── Infrastructure (optional, for staging/dev) ─────────────
+# Set enabled: false for production (use managed services instead)
+infrastructure:
+  postgres:
+    enabled: false
+    user: concord
+    password: concord
+    database: concord
+    storage: 5Gi
+  minio:
+    enabled: false
+    rootUser: minioadmin
+    rootPassword: minioadmin
+    storage: 5Gi
+    enabled: false
+    user: admin
+    password: concordpass
+    org: concord
+    bucket: telemetry_raw
+    storage: 5Gi
+
+# ── Backend (http-api) ──────────────────────────────────────
+httpApi:
+  enabled: true
+  image:
+    repository: concord/http-api
+    tag: staging
+  replicas: 1
+  port: 9001
+  migration:
+    enabled: true
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  serviceAccount:
+    create: true
+    name: concord-api
+  probes:
+    readiness:
+      path: /v2/docs
+      initialDelaySeconds: 10
+      periodSeconds: 10
+    liveness:
+      path: /v2/docs
+      initialDelaySeconds: 30
+      periodSeconds: 30
+
+# ── Frontend ────────────────────────────────────────────────
+frontend:
+  enabled: true
+  image:
+    repository: concord/frontend
+    tag: staging
+  replicas: 1
+  port: 80
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+# ── Ingress ─────────────────────────────────────────────────
+ingress:
+  enabled: true
+  host: staging.concord.local
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+
+# ── Config ──────────────────────────────────────────────────
+config:
+  SERVER_PORT: "9001"
+  LOG_LEVEL: "4"
+  LOG_PATH: "logs"
+  AUTH_ENABLED: "true"
+  ASSETS_FOLDER: "assets"
+  CORS_ORIGINS: "https://staging.concord.local"
+  MTIB_PORT: "50053"
+  GIT_POLLER_ENABLED: "true"
+  GIT_POLLER_INTERVAL_S: "300"
+
+# ── Git Poller ────────────────────────────────────────────────
+gitPoller:
+  enabled: false
+  pollInterval: "15"
+  image:
+    repository: containers.ad.corekinect.com/concord-git-poller
+    tag: latest
+
+# ── Secrets ─────────────────────────────────────────────────
+# IMPORTANT: Override these in your values-<env>.yaml or use --set
+secrets:
+  DATABASE_URL: "postgresql://concord:concord@concord-postgres:5432/concord"
+  STORAGE_URL: "http://concord-minio:9000"
+  STORAGE_ACCESS_KEY: "minioadmin"
+  STORAGE_SECRET_ACCESS_KEY: "minioadmin"
+  STORAGE_BUCKET_NAME: "concord"
+  JWT_SECRET_KEY: "concord-staging-jwt-secret"
+  COREOPS_SERVER_URL: "none"
+  DELETE_ALL_KEY: "staging-delete-key"

@@ -11,10 +11,11 @@ Use `msg_def_v1_0` for current systems. Each message type exposes classmethods f
 (e.g., latest record, ranges by time or record ID).
 
 Example – fetch last Position message and print key fields
+
 ```python
 from corekinect.core_cloud.msg_def_v1_0 import PositionMsgV6
 
-last_pos = PositionMsgV6.last(0x70B3D584C02002FE, db_env="DEV_1_0")
+last_pos = PositionMsgV6.last(0x70B3D584C02002FE, env="DEV_1_0")
 print(
     f"lat,lon: {last_pos.latitude},{last_pos.longitude}; "
     f"Alt: pressure={last_pos.pressure_altitude_feet} ft, gps={last_pos.gps_altitude_feet} ft"
@@ -22,6 +23,7 @@ print(
 ```
 
 Example – send a GPS configuration via REST
+
 ```python
 from corekinect.core_cloud.msg_def_v1_0 import GPSConfMsg
 
@@ -32,7 +34,7 @@ cfg = GPSConfMsg(
     target_fix_accuracy=10,
     target_fix_pdop=30,
 )
-resp = cfg.send_via_rest(device_id=0x70B3D584C020038F, env_namespace="VAL_1_0", raise_for_status=True)
+resp = cfg.send(device_id=0x70B3D584C020038F, env_namespace="VAL_1_0", raise_for_status=True)
 
 ```
 

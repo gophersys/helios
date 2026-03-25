@@ -1,0 +1,77 @@
+{
+  "station_id": "bench-33",
+  "product": "alpha",
+  "board": "alpha_b0",
+  "mtib_revision": "1.2",
+
+  "capabilities": ["button", "peltier", "charger_relay"],
+
+  "dut": {
+    "device_id": "70B3D584C01E1DDD",
+    "snr": "09J5",
+    "imei": "355025931651952",
+    "iccids": ["89148000009808560116", "89457300000037581199"]
+  },
+
+  "power": {
+    "battery_installed": true,
+    "dut_voltage": 4.5,
+    "charger_voltage": 5.0,
+    "boot_settle_s": 10
+  },
+
+  "button": {
+    "gpio_pin": 2,
+    "active_low": true,
+    "_doc": "Drives DUT button membrane line. LOW=pressed, HIGH=released. DUT has internal pull-up."
+  },
+
+  "peltier": {
+    "gpio_pin": 4,
+    "temp_adc_channel": 7,
+    "_doc": "MOSFET gate driving peltier heater element near MLX90614 IR temp sensor. HIGH=heat on. Simulates skin temperature for on-body detection threshold. temp_adc_channel is a fixture-side NTC thermistor near the peltier to verify heating (reads via ADC, not the DUT's MLX90614)."
+  },
+
+  "charger_relay": {
+    "gpio_pin": 5,
+    "active_high": true,
+    "_doc": "Relay switching ch1 PSU (5V) to DUT VCHG input. HIGH=relay closed (charger connected). Only enable when battery_installed=true."
+  },
+
+  "ppg_simulator": null,
+  "led_sensor": null,
+  "nfc_reader": null,
+  "motion": null,
+
+  "_hardware_notes": {
+    "ppg_simulator": {
+      "status": "NOT_WIRED",
+      "servo_pwm_pin": 7,
+      "servo_blocked_duty_us": 1000,
+      "servo_exposed_duty_us": 2000,
+      "hr_led_gpio_pin": 3,
+      "_doc": "IR blocker servo + green LED array. Blocked=IR absorbed (no touch). Exposed=IR reflects off green LED PCB (touch detected). HR LED toggles green LEDs at heart-rate frequency. BLOCKED: Needs PWM RPC in MTIB V1 proto."
+    },
+    "led_sensor": {
+      "status": "NOT_WIRED",
+      "red_adc_channel": 4,
+      "green_adc_channel": 5,
+      "blue_adc_channel": 6,
+      "_doc": "Photodiodes over DUT status LEDs. ADC ch 4-6 not connected on current fixture."
+    },
+    "nfc_reader": {
+      "status": "NOT_WIRED",
+      "interface": "i2c",
+      "bus": 1,
+      "_doc": "NFC reader for DUT NFC antenna verification. I2C not wired."
+    },
+    "motion": {
+      "status": "NOT_CONNECTED",
+      "_doc": "FluidNC linear rail for accelerometer stimulus. Not connected to validation MTIBs."
+    },
+    "swd_gpios": "GPIO 0+1 are RESERVED for SWD level shifter enable (always output LOW). Never assign to fixture.",
+    "pwm_pins": "GPIO 7=PWM_1 (SODIMM_15), GPIO 8=PWM_2 (SODIMM_16). Connected to Verdin iMX8MM PWM outputs.",
+    "gpio_pins": "GPIO 2=button, 3=HR LED array, 4=peltier MOSFET, 5=charger relay, 6=available.",
+    "manufacturing_adc": "ch0=power rail (~4.5V), ch1=battery divider (~2.5V), ch2=backup rail (~4.5V), ch3=SYS (~0V unused), ch7=3.3V ref"
+  }
+}

@@ -1,0 +1,4862 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Continuous delivery platform for embedded systems">
+      
+      
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../../assets/images/favicon.png">
+      <meta name="generator" content="zensical-0.0.27">
+    
+    
+      
+        <title>PAH8151 PPG Sensor Driver -- Deep Analysis - Concord</title>
+      
+    
+    
+      
+        
+      
+      <link rel="stylesheet" href="../../../../assets/stylesheets/modern/main.50057488.min.css">
+      
+        
+          
+        
+        <link rel="stylesheet" href="../../../../assets/stylesheets/modern/palette.dfe2e883.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,500,500i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../../../..",location),__md_hash=e=>[...e].reduce(((e,t)=>(e<<5)-e+t.charCodeAt(0)),0),__md_get=(e,t=localStorage,a=__md_scope)=>JSON.parse(t.getItem(a.pathname+"."+e)),__md_set=(e,t,a=localStorage,_=__md_scope)=>{try{a.setItem(_.pathname+"."+e,JSON.stringify(t))}catch(e){}},document.documentElement.setAttribute("data-platform",navigator.platform)</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="deep-purple" data-md-color-accent="amber">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer" aria-label="Navigation"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#pah8151-ppg-sensor-driver-deep-analysis" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../../.." title="Concord" class="md-header__button md-logo" aria-label="Concord" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer" aria-label="Navigation">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-menu" viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h16"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Concord
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              PAH8151 PPG Sensor Driver -- Deep Analysis
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="none" data-md-color-scheme="slate" data-md-color-primary="deep-purple" data-md-color-accent="amber"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="none" data-md-color-scheme="default" data-md-color-primary="deep-purple" data-md-color-accent="amber"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search" aria-label="Search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-search" viewBox="0 0 24 24"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog" aria-label="Search">
+  <button type="button" class="md-search__button">
+    Search
+  </button>
+</div>
+      
+    
+    <div class="md-header__source">
+      
+    </div>
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../../.." title="Concord" class="md-nav__button md-logo" aria-label="Concord" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+
+    </a>
+    Concord
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../vision/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vision
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2" id="__nav_2_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Vision
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../vision/thesis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Thesis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../vision/validation-philosophy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation Philosophy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../architecture/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3" id="__nav_3_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Architecture
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_2" id="__nav_3_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Platform
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Platform
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/platform/unified-platform/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Unified Platform
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/platform/hardware-registry/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hardware Registry
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/platform/log-streaming/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Log Streaming
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/platform/ci-pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CI Pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/platform/corecloud-library/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CoreCloud Library
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_3" id="__nav_3_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Validation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/validation/stages-overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stages Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/validation/system/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    System Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/validation/stage1-software-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 1: Software Tests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/validation/stage2-driver-hw-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 2: Driver HW Tests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/validation/stage3-integration-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 3: Integration Tests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/validation/stage4-product-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 4: Product Tests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/validation/stage4-fuota-flow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 4: FUOTA Flow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/validation/stage4-pr-flow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 4: PR Flow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/validation/stage5-gate-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 5: Gate Tests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/validation/test-runner/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Test Runner
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_4" id="__nav_3_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Build
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/build/build-service/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build Service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/build/builder-nodes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Builder Nodes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../reference/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/fuota-workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FUOTA Workflow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/fuota-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FUOTA API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/alpha-test-cases/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Alpha Test Cases
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/traceability-matrix/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Traceability Matrix
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/twister-hil/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Twister HIL
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/stage4-connectivity/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 4 Connectivity
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/stage4-long-term-vision/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 4 Long-Term Vision
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/validation-flow-ui/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation Flow UI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/interfaces/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interfaces
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../guides/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_2" id="__nav_5_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Alpha
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Alpha
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../guides/alpha/stage1/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 1
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../guides/alpha/stage2/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 2
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../guides/alpha/stage3/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 3
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../guides/alpha/stage4/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 4
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../guides/alpha/stage5/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage 5
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../research/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Research
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_6" id="__nav_6_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Research
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../research/01-sigma5-firmware-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sigma5 Firmware
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../research/02-alpha-firmware-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Alpha Firmware
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../research/03-sensor-drivers-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sensor Drivers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../research/05-mtib-server-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MTIB Server
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../research/06-fuota-corecloud-v1/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FUOTA CoreCloud
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../research/07-alpha-manufacturing-firmware-and-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Alpha MFG Firmware
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../research/08-device-personalization-and-key-provisioning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Device Personalization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../research/08-firmware-build-and-fuota-delivery/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Firmware Build & FUOTA
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../research/09-corecloud-validation-integration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CoreCloud Integration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../journals/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Journals
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Journals
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#table-of-contents" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Table of Contents
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1-sensor-architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Sensor Architecture
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. Sensor Architecture">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#source-file-inventory" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Source File Inventory
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#thread-architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Thread Architecture
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-operating-modes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Operating Modes
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Operating Modes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#work-modes-data-acquisition-strategy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Work Modes (Data Acquisition Strategy)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#operate-modes-functional-behavior" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Operate Modes (Functional Behavior)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#initialization-call" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Initialization Call
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ppg-led-on-modes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PPG LED On Modes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ppg-auto-power-saving" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PPG Auto Power Saving
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-sampling-rate-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Sampling Rate Configuration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Sampling Rate Configuration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#frame-rate-calculation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Frame Rate Calculation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#register-configuration-presets-and-sample-rates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Register Configuration Presets and Sample Rates
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#watermark-presets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Watermark Presets
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#maximum-watermark-calculation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Maximum Watermark Calculation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#timing-tuning" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Timing Tuning
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-led-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. LED Configuration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. LED Configuration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#led-to-channel-assignment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        LED-to-Channel Assignment
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#led-dac-maximum-values" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        LED DAC Maximum Values
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#auto-exposure-ae-control" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Auto-Exposure (AE) Control
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#maximum-exposure-times" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Maximum Exposure Times
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-channel-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Channel Configuration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Channel Configuration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#channel-enabledisable" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Channel Enable/Disable
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#config-5-channel-setup-currently-used" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Config 5 Channel Setup (Currently Used)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#channel-data-order-in-fifo" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Channel Data Order in FIFO
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#channel-mapping-in-ck-wrapper" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Channel Mapping in CK Wrapper
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#custom-zephyr-sensor-channels" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Custom Zephyr Sensor Channels
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-fifo-operation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. FIFO Operation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. FIFO Operation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fifo-parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        FIFO Parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fifo-read-sequence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        FIFO Read Sequence
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fifo-read-buffer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        FIFO Read Buffer
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#interrupt-driven-flow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Interrupt-Driven Flow
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fifo-overflow-handling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        FIFO Overflow Handling
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-register-defaults" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Register Defaults
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7. Register Defaults">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#initialization-sequence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Initialization Sequence
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#shutdown-sequence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Shutdown Sequence
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ppg-enable-register-values-config-5-current" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PPG Enable Register Values (Config 5 -- Current)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ppg-disable-register-values" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PPG Disable Register Values
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#other-configuration-presets-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Other Configuration Presets Summary
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-i2c-interface" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. I2C Interface
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="8. I2C Interface">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#bus-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bus Configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#register-banking" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Register Banking
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bank-caching" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bank Caching
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#retry-logic" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Retry Logic
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#read-operations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Read Operations
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#write-operations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Write Operations
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-data-format" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Data Format
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="9. Data Format">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ppg-raw-data-format" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PPG Raw Data Format
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#auto-exposure-information" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Auto-Exposure Information
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ppg-data-output-structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PPG Data Output Structure
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#processed-sample-structure-ck-wrapper" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Processed Sample Structure (CK Wrapper)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#touch-data-structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Touch Data Structure
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#timestamp-calculation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Timestamp Calculation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-factory-test-thresholds" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. Factory Test Thresholds
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="10. Factory Test Thresholds">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#factory-test-modes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Factory Test Modes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fpc-only-brightness-test" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        FPC Only Brightness Test
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#brightness-with-cover-test" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Brightness With Cover Test
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#light-leak-test" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Light Leak Test
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#touch-calibration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Touch Calibration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#int-pin-test-sequence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        INT Pin Test Sequence
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#demo-factory-test-sequence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Demo Factory Test Sequence
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#11-potential-issues-and-tuning-opportunities" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11. Potential Issues and Tuning Opportunities
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="11. Potential Issues and Tuning Opportunities">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#critical-bug-channel-mapping-inconsistency-in-ae-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CRITICAL BUG: Channel Mapping Inconsistency in AE Data
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dead-code-report_touch_data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dead Code: report_touch_data()
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#unsafe-ppg_data_ready-decrement" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Unsafe ppg_data_ready Decrement
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dual-bank-cache" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dual Bank Cache
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#global-buffer-not-mutex-protected" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Global Buffer Not Mutex-Protected
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#unimplemented-sensor-attributes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Unimplemented Sensor Attributes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hardcoded-i2c-address" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Hardcoded I2C Address
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#timestamp-assumption" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Timestamp Assumption
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#missing-low-power-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Missing Low Power Mode
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#capacitive-touch-disabled" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Capacitive Touch Disabled
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tuning-opportunities" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tuning Opportunities
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#appendix-build-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Appendix: Build Configuration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Appendix: Build Configuration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#kconfig-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Kconfig Options
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#devicetree-binding" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Devicetree Binding
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cmake-structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CMake Structure
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#appendix-return-codes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Appendix: Return Codes
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+                
+
+
+
+  
+
+
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+<h1 id="pah8151-ppg-sensor-driver-deep-analysis">PAH8151 PPG Sensor Driver -- Deep Analysis<a class="headerlink" href="#pah8151-ppg-sensor-driver-deep-analysis" title="Permanent link">&para;</a></h1>
+<p><strong>Date:</strong> 2026-02-09
+<strong>Sensor:</strong> PixArt PAH8151 Photoplethysmography (PPG) Optical Sensor
+<strong>Target Platform:</strong> Alpha Wearable (nRF52840, Zephyr RTOS)
+<strong>Driver Location:</strong> <code>_fw_build/pah8151_drv/drivers/corekinect/sensors/pah8151/</code></p>
+<hr />
+<h2 id="table-of-contents">Table of Contents<a class="headerlink" href="#table-of-contents" title="Permanent link">&para;</a></h2>
+<ol>
+<li><a href="#1-sensor-architecture">Sensor Architecture</a></li>
+<li><a href="#2-operating-modes">Operating Modes</a></li>
+<li><a href="#3-sampling-rate-configuration">Sampling Rate Configuration</a></li>
+<li><a href="#4-led-configuration">LED Configuration</a></li>
+<li><a href="#5-channel-configuration">Channel Configuration</a></li>
+<li><a href="#6-fifo-operation">FIFO Operation</a></li>
+<li><a href="#7-register-defaults">Register Defaults</a></li>
+<li><a href="#8-i2c-interface">I2C Interface</a></li>
+<li><a href="#9-data-format">Data Format</a></li>
+<li><a href="#10-factory-test-thresholds">Factory Test Thresholds</a></li>
+<li><a href="#11-potential-issues-and-tuning-opportunities">Potential Issues and Tuning Opportunities</a></li>
+</ol>
+<hr />
+<h2 id="1-sensor-architecture">1. Sensor Architecture<a class="headerlink" href="#1-sensor-architecture" title="Permanent link">&para;</a></h2>
+<p>The PAH8151 driver is organized in a three-tier architecture:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>+------------------------------------------------------------+
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>|  CK Zephyr Driver Wrapper (pah8151.c / pah8151.h)         |
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>|  - Zephyr sensor API: sample_fetch, channel_get,           |
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>|    trigger_set, attr_set                                    |
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>|  - Sensor processing thread (k_thread)                     |
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>|  - PPG sample buffer (32 samples)                          |
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>|  - Touch/PPG trigger callbacks                             |
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>+------------------------------------------------------------+
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>            |
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>            v
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>+------------------------------------------------------------+
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>|  PixArt SDK Main Layer (pah_815x_main.c / pah_815x_main.h)|
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>|  - State machine (AUTO_MODE, ALWAYS_PPG, TOUCH_ONLY)      |
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>|  - DRI (interrupt) and POLLING work modes                  |
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>|  - PPG enable/disable based on touch detection             |
+<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>|  - Global buffer[512] for FIFO reads                       |
+<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>|  - ppg_data_out accumulation and reporting                 |
+<a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>+------------------------------------------------------------+
+<a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>            |
+<a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>            v
+<a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>+------------------------------------------------------------+
+<a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>|  PixArt SDK Core (pah_815x.c / pah_815x.h)                |
+<a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>|  - Sensor initialization/start/stop lifecycle              |
+<a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>|  - FIFO read with chunked transfers                        |
+<a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a>|  - Watermark management                                    |
+<a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a>|  - Touch data reading (IR and capacitive)                  |
+<a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a>|  - Auto-exposure info reading                              |
+<a id="__codelineno-0-28" name="__codelineno-0-28" href="#__codelineno-0-28"></a>|  - Timing tuning (rpt_divider adjustment)                  |
+<a id="__codelineno-0-29" name="__codelineno-0-29" href="#__codelineno-0-29"></a>|  - PPG auto power saving                                   |
+<a id="__codelineno-0-30" name="__codelineno-0-30" href="#__codelineno-0-30"></a>+------------------------------------------------------------+
+<a id="__codelineno-0-31" name="__codelineno-0-31" href="#__codelineno-0-31"></a>            |
+<a id="__codelineno-0-32" name="__codelineno-0-32" href="#__codelineno-0-32"></a>            v
+<a id="__codelineno-0-33" name="__codelineno-0-33" href="#__codelineno-0-33"></a>+------------------------------------------------------------+
+<a id="__codelineno-0-34" name="__codelineno-0-34" href="#__codelineno-0-34"></a>|  HAL Layer (pah_815x_hal.c / pah_815x_hal.h)              |
+<a id="__codelineno-0-35" name="__codelineno-0-35" href="#__codelineno-0-35"></a>|  - Bank-switched register access (banks 0-9)               |
+<a id="__codelineno-0-36" name="__codelineno-0-36" href="#__codelineno-0-36"></a>|  - Power control, soft reset                               |
+<a id="__codelineno-0-37" name="__codelineno-0-37" href="#__codelineno-0-37"></a>|  - Register array write sequences                          |
+<a id="__codelineno-0-38" name="__codelineno-0-38" href="#__codelineno-0-38"></a>|  - PPG channel value extraction from register arrays       |
+<a id="__codelineno-0-39" name="__codelineno-0-39" href="#__codelineno-0-39"></a>|  - AE info reading (exposure time, LED DAC per channel)    |
+<a id="__codelineno-0-40" name="__codelineno-0-40" href="#__codelineno-0-40"></a>|  - PPG data extraction from FIFO bytes                     |
+<a id="__codelineno-0-41" name="__codelineno-0-41" href="#__codelineno-0-41"></a>|  - Frame rate calculation: 32000 / rpt_divider             |
+<a id="__codelineno-0-42" name="__codelineno-0-42" href="#__codelineno-0-42"></a>|  - Timing tuning adjustment algorithm                      |
+<a id="__codelineno-0-43" name="__codelineno-0-43" href="#__codelineno-0-43"></a>+------------------------------------------------------------+
+<a id="__codelineno-0-44" name="__codelineno-0-44" href="#__codelineno-0-44"></a>            |
+<a id="__codelineno-0-45" name="__codelineno-0-45" href="#__codelineno-0-45"></a>            v
+<a id="__codelineno-0-46" name="__codelineno-0-46" href="#__codelineno-0-46"></a>+------------------------------------------------------------+
+<a id="__codelineno-0-47" name="__codelineno-0-47" href="#__codelineno-0-47"></a>|  Communication Layer (pah_815x_comm.c / pah_815x_comm.h)   |
+<a id="__codelineno-0-48" name="__codelineno-0-48" href="#__codelineno-0-48"></a>|  - Zephyr I2C bus operations                               |
+<a id="__codelineno-0-49" name="__codelineno-0-49" href="#__codelineno-0-49"></a>|  - Hardcoded address 0x15                                  |
+<a id="__codelineno-0-50" name="__codelineno-0-50" href="#__codelineno-0-50"></a>|  - Bank caching (two separate caches: _curr_bank,          |
+<a id="__codelineno-0-51" name="__codelineno-0-51" href="#__codelineno-0-51"></a>|    _curr_bank_2)                                           |
+<a id="__codelineno-0-52" name="__codelineno-0-52" href="#__codelineno-0-52"></a>|  - Optional bus mutex (CONFIG_CK_PAH8151_BUS_MUTEX)        |
+<a id="__codelineno-0-53" name="__codelineno-0-53" href="#__codelineno-0-53"></a>|  - Retry logic: 3 attempts, 5ms delay between retries     |
+<a id="__codelineno-0-54" name="__codelineno-0-54" href="#__codelineno-0-54"></a>+------------------------------------------------------------+
+</code></pre></div>
+<h3 id="source-file-inventory">Source File Inventory<a class="headerlink" href="#source-file-inventory" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Layer</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>pah8151.c</code></td>
+<td>CK Wrapper</td>
+<td>Zephyr sensor API, thread, triggers</td>
+</tr>
+<tr>
+<td><code>pah8151.h</code></td>
+<td>CK Wrapper</td>
+<td>Public API, channel/trigger/attr enums, data structures</td>
+</tr>
+<tr>
+<td><code>pah8151_reg.h</code></td>
+<td>CK Wrapper</td>
+<td>CK-level register and constant definitions</td>
+</tr>
+<tr>
+<td><code>PAH8151/pah_sensor/pah_815x_main.c</code></td>
+<td>SDK Main</td>
+<td>State machine, mode management</td>
+</tr>
+<tr>
+<td><code>PAH8151/pah_sensor/pah_815x_main.h</code></td>
+<td>SDK Main</td>
+<td>State structures, enums, function declarations</td>
+</tr>
+<tr>
+<td><code>PAH8151/pah_sensor/pah_815x.c</code></td>
+<td>SDK Core</td>
+<td>Sensor lifecycle, FIFO, watermark</td>
+</tr>
+<tr>
+<td><code>PAH8151/pah_sensor/pah_815x.h</code></td>
+<td>SDK Core</td>
+<td>Core state/config structures, API declarations</td>
+</tr>
+<tr>
+<td><code>PAH8151/pah_sensor/pah_815x_hal.c</code></td>
+<td>HAL</td>
+<td>Register access, data extraction, timing tuning</td>
+</tr>
+<tr>
+<td><code>PAH8151/pah_sensor/pah_815x_hal.h</code></td>
+<td>HAL</td>
+<td>HAL function declarations</td>
+</tr>
+<tr>
+<td><code>PAH8151/pah_sensor/pah_815x_comm.c</code></td>
+<td>Comm</td>
+<td>Zephyr I2C implementation</td>
+</tr>
+<tr>
+<td><code>PAH8151/pah_sensor/pah_815x_comm.h</code></td>
+<td>Comm</td>
+<td>Comm function declarations</td>
+</tr>
+<tr>
+<td><code>PAH8151/pah_sensor/pah_815x_config.h</code></td>
+<td>Config</td>
+<td>Feature flags, watermarks, compile options</td>
+</tr>
+<tr>
+<td><code>PAH8151/pah_sensor/pah_815x_define.h</code></td>
+<td>Config</td>
+<td>Register addresses, constants, bit fields</td>
+</tr>
+<tr>
+<td><code>PAH8151/pah_sensor/pah_815x_data_types.h</code></td>
+<td>Config</td>
+<td>Additional type definitions</td>
+</tr>
+<tr>
+<td><code>PAH8151/pah_sensor/pah_815x_reg_default.h</code></td>
+<td>Config</td>
+<td>All register initialization arrays (5 presets)</td>
+</tr>
+<tr>
+<td><code>PAH8151/pah_sensor/pah_815x_reg_cap_cal.h</code></td>
+<td>Config</td>
+<td>Capacitive calibration register arrays</td>
+</tr>
+<tr>
+<td><code>PAH8151/pah/pah_plat.h</code></td>
+<td>Platform</td>
+<td>Platform abstraction interfaces</td>
+</tr>
+<tr>
+<td><code>PAH8151/pah/pah_reg.h</code></td>
+<td>Platform</td>
+<td>Register array type and setup macro</td>
+</tr>
+<tr>
+<td><code>PAH8151/pah/pah_ret.h</code></td>
+<td>Platform</td>
+<td>Return code enum</td>
+</tr>
+<tr>
+<td><code>PAH8151/pah/pah_util.h</code></td>
+<td>Platform</td>
+<td>Bit manipulation macros</td>
+</tr>
+<tr>
+<td><code>PAH8151/pah_factory_test/pah_815x_factory_test_v1.c</code></td>
+<td>Factory</td>
+<td>Zephyr-adapted factory test</td>
+</tr>
+<tr>
+<td><code>PAH8151/pah_factory_test/pah_815x_factory_test_v2.c</code></td>
+<td>Factory</td>
+<td>nRF-native factory test</td>
+</tr>
+<tr>
+<td><code>PAH8151/pah_factory_test/pah_815x_factory_test_v1.h</code></td>
+<td>Factory</td>
+<td>Test enums and structures</td>
+</tr>
+<tr>
+<td><code>PAH8151/pah_factory_test/pah_815x_verify_reg_v1.h</code></td>
+<td>Factory</td>
+<td>Register verification declarations</td>
+</tr>
+<tr>
+<td><code>PAH8151/pah_factory_test/demo_factory_v1.c</code></td>
+<td>Factory</td>
+<td>Demo factory test sequence</td>
+</tr>
+</tbody>
+</table>
+<h3 id="thread-architecture">Thread Architecture<a class="headerlink" href="#thread-architecture" title="Permanent link">&para;</a></h3>
+<p>The CK wrapper creates a dedicated sensor processing thread:</p>
+<ul>
+<li><strong>Stack size:</strong> 16,384 bytes (4096 * 4)</li>
+<li><strong>Thread priority:</strong> Configurable via <code>CONFIG_CK_PAH8151_THREAD_PRIORITY</code> (default: 8)</li>
+<li><strong>Thread name:</strong> <code>pah8151_thread</code></li>
+<li><strong>Signaling:</strong> Uses <code>k_poll</code> with two events:</li>
+<li><code>data_sem</code> -- signaled by GPIO ISR when sensor interrupt fires</li>
+<li><code>exit_sem</code> -- signaled by deinit to request thread shutdown</li>
+<li><strong>Data protection:</strong> <code>k_mutex data_mutex</code> protects <code>ppg_samples[]</code> buffer</li>
+</ul>
+<p>The thread loop calls <code>pah_sensor_task()</code> which dispatches to either <code>demo_data_ready_interrupt()</code> (DRI mode) or <code>demo_polling()</code> (polling mode) in the PixArt SDK layer.</p>
+<hr />
+<h2 id="2-operating-modes">2. Operating Modes<a class="headerlink" href="#2-operating-modes" title="Permanent link">&para;</a></h2>
+<h3 id="work-modes-data-acquisition-strategy">Work Modes (Data Acquisition Strategy)<a class="headerlink" href="#work-modes-data-acquisition-strategy" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Work Mode</th>
+<th>Enum</th>
+<th>Value</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Idle</td>
+<td><code>PAH815X_WORK_IDLE</code></td>
+<td>0</td>
+<td>No active acquisition</td>
+</tr>
+<tr>
+<td>DRI</td>
+<td><code>PAH815X_WORK_DRI</code></td>
+<td>1</td>
+<td>Data Ready Interrupt -- interrupt-driven</td>
+</tr>
+<tr>
+<td>Polling</td>
+<td><code>PAH815X_WORK_POLLING</code></td>
+<td>2</td>
+<td>Periodic polling at <code>POLLING_PERIOD_MS</code> (500ms)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Current configuration: DRI mode.</strong> The sensor asserts its interrupt pin when the FIFO watermark is reached, the GPIO ISR sets <code>has_interrupt = true</code> and signals the processing thread via <code>data_sem</code>.</p>
+<h3 id="operate-modes-functional-behavior">Operate Modes (Functional Behavior)<a class="headerlink" href="#operate-modes-functional-behavior" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Operate Mode</th>
+<th>Enum</th>
+<th>Value</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Idle</td>
+<td><code>PAH815X_INIT_IDLE</code></td>
+<td>0</td>
+<td>No sensing</td>
+</tr>
+<tr>
+<td>Auto Mode</td>
+<td><code>PAH815X_INIT_AUTO_MODE</code></td>
+<td>1</td>
+<td>Touch detection controls PPG on/off</td>
+</tr>
+<tr>
+<td>Always PPG</td>
+<td><code>PAH815X_INIT_ALWAYS_PPG</code></td>
+<td>2</td>
+<td>PPG always on, touch also enabled</td>
+</tr>
+<tr>
+<td>Touch Only</td>
+<td><code>PAH815X_INIT_TOUCH_ONLY</code></td>
+<td>3</td>
+<td>Only touch sensing, no PPG</td>
+</tr>
+<tr>
+<td>Cap Cal NoTouch</td>
+<td><code>PAH815X_INIT_CAP_CAL_NOTOUCH</code></td>
+<td>4</td>
+<td>Capacitive calibration without touch</td>
+</tr>
+<tr>
+<td>Cap Cal Touch</td>
+<td><code>PAH815X_INIT_CAP_CAL_TOUCH</code></td>
+<td>5</td>
+<td>Capacitive calibration with touch</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Current configuration: AUTO_MODE.</strong> Behavior:
+1. Sensor starts with only touch detection enabled.
+2. <code>touch_last_is_touched</code> is initialized to <code>2</code> (OFF).
+3. When a touch interrupt reports <code>ON</code> (1), <code>enable_ppg_sensor()</code> is called.
+4. When a touch interrupt reports <code>OFF</code> (2), <code>disable_ppg_sensor()</code> is called.
+5. This saves power by only running LEDs when the device is on skin.</p>
+<h3 id="initialization-call">Initialization Call<a class="headerlink" href="#initialization-call" title="Permanent link">&para;</a></h3>
+<p>From <code>pah8151.c</code> line 667:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">pah_sensor_start</span><span class="p">(</span><span class="n">PAH815X_WORK_DRI</span><span class="p">,</span><span class="w"> </span><span class="n">PAH815X_INIT_AUTO_MODE</span><span class="p">,</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">                 </span><span class="n">PAH815X_REG_SETTING_5</span><span class="p">,</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">                 </span><span class="n">PPG_WATERMARK_SpO2</span><span class="p">,</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">                 </span><span class="mi">1000</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">PPG_WATERMARK_SpO2</span><span class="p">);</span>
+</code></pre></div>
+<p>Parameters:
+- Work mode: DRI (interrupt-driven)
+- Operate mode: Auto (touch controls PPG)
+- Register setting: 5 (3-channel, 32Hz)
+- Interrupt report num: 32 (PPG_WATERMARK_SpO2)
+- Sample period: 31 (1000/32, in ms)</p>
+<h3 id="ppg-led-on-modes">PPG LED On Modes<a class="headerlink" href="#ppg-led-on-modes" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Mode</th>
+<th>Enum</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Instantly</td>
+<td><code>PAH_815X_PPG_LED_ON_INSTANTLY</code></td>
+<td>LED activates immediately when PPG is enabled</td>
+</tr>
+<tr>
+<td>Deferred</td>
+<td><code>PAH_815X_PPG_LED_ON_DEFERRED</code></td>
+<td>LED activates only after first touch detection</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ppg-auto-power-saving">PPG Auto Power Saving<a class="headerlink" href="#ppg-auto-power-saving" title="Permanent link">&para;</a></h3>
+<p>When <code>enable_ppg_auto_power_saving</code> is set, the SDK enters a low-power state (PPG PS mode) that reduces exposure times and LED DAC to minimum values when no touch is detected, then restores full settings when touch resumes. This is controlled by writing reduced register values for <code>max_expotime</code> and <code>led_dac_max</code> to all channels.</p>
+<hr />
+<h2 id="3-sampling-rate-configuration">3. Sampling Rate Configuration<a class="headerlink" href="#3-sampling-rate-configuration" title="Permanent link">&para;</a></h2>
+<h3 id="frame-rate-calculation">Frame Rate Calculation<a class="headerlink" href="#frame-rate-calculation" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>frame_rate_hz = 32000 / rpt_divider
+</code></pre></div>
+<p>Where <code>32000</code> is the <code>MAGIC_NUM</code> constant and <code>rpt_divider</code> is a 13-bit register value in Bank 2 registers <code>0x73</code> (low byte) and <code>0x74</code> (high 5 bits).</p>
+<h3 id="register-configuration-presets-and-sample-rates">Register Configuration Presets and Sample Rates<a class="headerlink" href="#register-configuration-presets-and-sample-rates" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Preset</th>
+<th>Macro</th>
+<th>rpt_divider</th>
+<th>Sample Rate</th>
+<th>Channels</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Config 1</td>
+<td><code>PAH_815X_REG_PPG_ENABLE_1</code></td>
+<td>0x03E8 (1000)</td>
+<td>32 Hz</td>
+<td>1 (Green)</td>
+</tr>
+<tr>
+<td>Config 2</td>
+<td><code>PAH_815X_REG_PPG_ENABLE_2</code></td>
+<td>0x0500 (1280)</td>
+<td>25 Hz</td>
+<td>1 (Green)</td>
+</tr>
+<tr>
+<td>Config 3</td>
+<td><code>PAH_815X_REG_PPG_ENABLE_3</code></td>
+<td>0x0500 (1280)</td>
+<td>25 Hz</td>
+<td>2 (Green + IR)</td>
+</tr>
+<tr>
+<td>Config 4</td>
+<td><code>PAH_815X_REG_PPG_ENABLE_4</code></td>
+<td>0x0500 (1280)</td>
+<td>25 Hz</td>
+<td>2 (IR + Red, SpO2)</td>
+</tr>
+<tr>
+<td>Config 5</td>
+<td><code>PAH_815X_REG_PPG_ENABLE_5</code></td>
+<td>0x03E8 (1000)</td>
+<td>32 Hz</td>
+<td>3 (Green + Red + IR)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Current configuration: Config 5 (32 Hz, 3-channel).</strong></p>
+<h3 id="watermark-presets">Watermark Presets<a class="headerlink" href="#watermark-presets" title="Permanent link">&para;</a></h3>
+<p>Defined in <code>pah_815x_config.h</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Preset</th>
+<th>Macro</th>
+<th>Value</th>
+<th>Use Case</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Default</td>
+<td><code>PPG_WATERMARK</code></td>
+<td>20</td>
+<td>Basic HR</td>
+</tr>
+<tr>
+<td>SpO2</td>
+<td><code>PPG_WATERMARK_SpO2</code></td>
+<td>32</td>
+<td>SpO2 measurement (currently used)</td>
+</tr>
+<tr>
+<td>HRV</td>
+<td><code>PPG_WATERMARK_HRV</code></td>
+<td>25</td>
+<td>Heart Rate Variability</td>
+</tr>
+<tr>
+<td>RR</td>
+<td><code>PPG_WATERMARK_RR</code></td>
+<td>25</td>
+<td>Respiratory Rate</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Current configuration: SpO2 watermark (32 samples).</strong></p>
+<p>With 3 channels at 32 Hz and watermark of 32, the interrupt fires every 1 second (32 samples / 32 Hz).</p>
+<h3 id="maximum-watermark-calculation">Maximum Watermark Calculation<a class="headerlink" href="#maximum-watermark-calculation" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>max_watermark = FIFO_SIZE / (ch_num * data_size)
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>             = 1584 / (3 * 4)
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>             = 132 samples
+</code></pre></div>
+<h3 id="timing-tuning">Timing Tuning<a class="headerlink" href="#timing-tuning" title="Permanent link">&para;</a></h3>
+<p>Enabled via <code>#define Timing_Tuning</code> in <code>pah_815x_config.h</code>.</p>
+<p>The timing tuning algorithm adjusts the <code>rpt_divider</code> register to lock the actual sample rate to the target. It uses a weighted average approach:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="n">time_target_avg</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">((</span><span class="n">_time_target</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">3</span><span class="p">)</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="p">(</span><span class="n">actual_sampling_time</span><span class="p">))</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">4</span><span class="p">;</span>
+</code></pre></div>
+<p>Key behavior:
+- Skips the first callback to establish a baseline (<code>time_target_init</code> flag)
+- Applies a deadband of +/- 0.02 of target (e.g., 31.25 +/- 0.02 ms for 32 Hz)
+- Rejects adjustments if error exceeds 20% of target (likely a measurement glitch)
+- Reads current <code>rpt_divider</code>, calculates correction factor, writes new value
+- Sets update flag register (<code>0x7D</code>) to apply changes immediately</p>
+<hr />
+<h2 id="4-led-configuration">4. LED Configuration<a class="headerlink" href="#4-led-configuration" title="Permanent link">&para;</a></h2>
+<h3 id="led-to-channel-assignment">LED-to-Channel Assignment<a class="headerlink" href="#led-to-channel-assignment" title="Permanent link">&para;</a></h3>
+<p>From register defaults in <code>pah_815x_reg_default.h</code> (Config 5):</p>
+<table>
+<thead>
+<tr>
+<th>SDK Channel</th>
+<th>Register</th>
+<th>Value</th>
+<th>LED Color</th>
+<th>Wavelength</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Channel A</td>
+<td>B2:0x4C</td>
+<td>0x12</td>
+<td>Green</td>
+<td>~520 nm</td>
+</tr>
+<tr>
+<td>Channel B</td>
+<td>B2:0x57</td>
+<td>0x18</td>
+<td>Red</td>
+<td>~660 nm</td>
+</tr>
+<tr>
+<td>Channel C</td>
+<td>B2:0x62</td>
+<td>0x11</td>
+<td>IR</td>
+<td>~880 nm</td>
+</tr>
+<tr>
+<td>Channel D</td>
+<td>B1:0x0C</td>
+<td>(unused)</td>
+<td>N/A</td>
+<td>N/A</td>
+</tr>
+</tbody>
+</table>
+<p>The LED register value format is:
+- Bits [3:0]: <code>led_bias_sel</code> -- selects LED bias configuration
+- Bits [7:4]: Additional LED driver settings</p>
+<h3 id="led-dac-maximum-values">LED DAC Maximum Values<a class="headerlink" href="#led-dac-maximum-values" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Channel</th>
+<th>Register</th>
+<th>Default Max</th>
+<th>Current (max)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Channel A (Green)</td>
+<td>B2:0x4B</td>
+<td>0x3F (63)</td>
+<td>63 * 0.4 = 25.2 mA</td>
+</tr>
+<tr>
+<td>Channel B (Red)</td>
+<td>B2:0x56</td>
+<td>0x7F (127)</td>
+<td>127 * 0.4 = 50.8 mA</td>
+</tr>
+<tr>
+<td>Channel C (IR)</td>
+<td>B2:0x61</td>
+<td>0x7F (127)</td>
+<td>127 * 0.4 = 50.8 mA</td>
+</tr>
+<tr>
+<td>Channel D</td>
+<td>B1:0x0B</td>
+<td>0x1F (31)</td>
+<td>31 * 0.4 = 12.4 mA</td>
+</tr>
+</tbody>
+</table>
+<p><strong>LED current formula:</strong> <code>current_mA = DAC_value * 0.4</code></p>
+<h3 id="auto-exposure-ae-control">Auto-Exposure (AE) Control<a class="headerlink" href="#auto-exposure-ae-control" title="Permanent link">&para;</a></h3>
+<p>Each channel has an AE register at:
+- Channel A: B2:0x4D (value 0x03)
+- Channel B: B2:0x58 (value 0x03)
+- Channel C: B2:0x63 (value 0x03)
+- Channel D: B1:0x10 (value 0x03)</p>
+<p>The AE value <code>0x03</code> means both bits are set:
+- Bit 0: <code>ae_enable</code> -- automatic exposure adjustment enabled
+- Bit 1: <code>auto_FP_enable</code> -- automatic frame period adjustment enabled</p>
+<h3 id="maximum-exposure-times">Maximum Exposure Times<a class="headerlink" href="#maximum-exposure-times" title="Permanent link">&para;</a></h3>
+<p>Per channel, exposure time is configured by three registers (3 bytes, 24-bit value):</p>
+<table>
+<thead>
+<tr>
+<th>Channel</th>
+<th>Max Expo Reg 1</th>
+<th>Max Expo Reg 2</th>
+<th>Max Expo Reg 3</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A (Green)</td>
+<td>B2:0x48 = 0x00</td>
+<td>B2:0x49 = 0x02</td>
+<td>B2:0x4A = 0x00</td>
+</tr>
+<tr>
+<td>B (Red)</td>
+<td>B2:0x53 = 0x19</td>
+<td>B2:0x54 = 0x00</td>
+<td>B2:0x55 = 0x00</td>
+</tr>
+<tr>
+<td>C (IR)</td>
+<td>B2:0x5E = 0x19</td>
+<td>B2:0x5F = 0x00</td>
+<td>B2:0x60 = 0x00</td>
+</tr>
+</tbody>
+</table>
+<p>Exposure time raw value * 0.25 = microseconds.</p>
+<hr />
+<h2 id="5-channel-configuration">5. Channel Configuration<a class="headerlink" href="#5-channel-configuration" title="Permanent link">&para;</a></h2>
+<h3 id="channel-enabledisable">Channel Enable/Disable<a class="headerlink" href="#channel-enabledisable" title="Permanent link">&para;</a></h3>
+<p>Each channel is controlled by a register with two critical bits:
+- Bit 0: <code>CH_X_ENABLE</code> -- enables the channel
+- Bit 1: <code>CH_X_FIFO_WRITE</code> -- enables FIFO data writing for the channel</p>
+<p>A channel is considered "active" only when both bits are set (enable=1, fifo_write=1), i.e., register value <code>0x03</code>.</p>
+<h3 id="config-5-channel-setup-currently-used">Config 5 Channel Setup (Currently Used)<a class="headerlink" href="#config-5-channel-setup-currently-used" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>Channel A (Green): B2:0x51 = 0x03 (enabled + FIFO write)
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>Channel B (Red):   B2:0x5C = 0x03 (enabled + FIFO write)
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>Channel C (IR):    B2:0x67 = 0x03 (enabled + FIFO write)
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>Channel D:         B1:0x11 = 0x00 (disabled)
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>Touch (T):         B2:0x6C = 0x01 (enabled, no FIFO write)
+</code></pre></div>
+<h3 id="channel-data-order-in-fifo">Channel Data Order in FIFO<a class="headerlink" href="#channel-data-order-in-fifo" title="Permanent link">&para;</a></h3>
+<p>When multiple channels are enabled, their data is interleaved per sample:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>Sample 0: [Ch_A data (4 bytes)] [Ch_B data (4 bytes)] [Ch_C data (4 bytes)]
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>Sample 1: [Ch_A data (4 bytes)] [Ch_B data (4 bytes)] [Ch_C data (4 bytes)]
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>...
+</code></pre></div>
+<p>With Config 5 (3 channels):
+- FIFO index 0 = Channel A (Green)
+- FIFO index 1 = Channel B (Red)
+- FIFO index 2 = Channel C (IR)</p>
+<h3 id="channel-mapping-in-ck-wrapper">Channel Mapping in CK Wrapper<a class="headerlink" href="#channel-mapping-in-ck-wrapper" title="Permanent link">&para;</a></h3>
+<p>From <code>pah8151.c</code> line 205-208:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="cm">/* Channel mapping: A=Green, B=Red, C=IR */</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="n">data</span><span class="o">-&gt;</span><span class="n">ppg_samples</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">green_intensity</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">raw_data</span><span class="p">[</span><span class="n">i</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">ppg_data</span><span class="p">.</span><span class="n">ch_num</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">0</span><span class="p">];</span><span class="w">  </span><span class="c1">// Ch A</span>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="n">data</span><span class="o">-&gt;</span><span class="n">ppg_samples</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">red_intensity</span><span class="w">   </span><span class="o">=</span><span class="w"> </span><span class="n">raw_data</span><span class="p">[</span><span class="n">i</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">ppg_data</span><span class="p">.</span><span class="n">ch_num</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">];</span><span class="w">  </span><span class="c1">// Ch B</span>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="n">data</span><span class="o">-&gt;</span><span class="n">ppg_samples</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">ir_intensity</span><span class="w">    </span><span class="o">=</span><span class="w"> </span><span class="n">raw_data</span><span class="p">[</span><span class="n">i</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">ppg_data</span><span class="p">.</span><span class="n">ch_num</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">2</span><span class="p">];</span><span class="w">  </span><span class="c1">// Ch C</span>
+</code></pre></div>
+<h3 id="custom-zephyr-sensor-channels">Custom Zephyr Sensor Channels<a class="headerlink" href="#custom-zephyr-sensor-channels" title="Permanent link">&para;</a></h3>
+<p>Defined in <code>pah8151.h</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Channel Enum</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>SENSOR_CHAN_PAH8151_SAMPLE_COUNT</code></td>
+<td>Number of samples in batch</td>
+</tr>
+<tr>
+<td><code>SENSOR_CHAN_PAH8151_TIMESTAMP</code></td>
+<td>Per-sample timestamp (ms since boot)</td>
+</tr>
+<tr>
+<td><code>SENSOR_CHAN_PAH8151_RED_INTENSITY</code></td>
+<td>Red channel raw ADC</td>
+</tr>
+<tr>
+<td><code>SENSOR_CHAN_PAH8151_RED_EXPO_US</code></td>
+<td>Red exposure time (us)</td>
+</tr>
+<tr>
+<td><code>SENSOR_CHAN_PAH8151_RED_DAC</code></td>
+<td>Red LED DAC (0-255)</td>
+</tr>
+<tr>
+<td><code>SENSOR_CHAN_PAH8151_RED_CURR_MA</code></td>
+<td>Red LED current (mA)</td>
+</tr>
+<tr>
+<td><code>SENSOR_CHAN_PAH8151_GREEN_INTENSITY</code></td>
+<td>Green channel raw ADC</td>
+</tr>
+<tr>
+<td><code>SENSOR_CHAN_PAH8151_GREEN_EXPO_US</code></td>
+<td>Green exposure time (us)</td>
+</tr>
+<tr>
+<td><code>SENSOR_CHAN_PAH8151_GREEN_DAC</code></td>
+<td>Green LED DAC (0-255)</td>
+</tr>
+<tr>
+<td><code>SENSOR_CHAN_PAH8151_GREEN_CURR_MA</code></td>
+<td>Green LED current (mA)</td>
+</tr>
+<tr>
+<td><code>SENSOR_CHAN_PAH8151_IR_INTENSITY</code></td>
+<td>IR channel raw ADC</td>
+</tr>
+<tr>
+<td><code>SENSOR_CHAN_PAH8151_IR_EXPO_US</code></td>
+<td>IR exposure time (us)</td>
+</tr>
+<tr>
+<td><code>SENSOR_CHAN_PAH8151_IR_DAC</code></td>
+<td>IR LED DAC (0-255)</td>
+</tr>
+<tr>
+<td><code>SENSOR_CHAN_PAH8151_IR_CURR_MA</code></td>
+<td>IR LED current (mA)</td>
+</tr>
+<tr>
+<td><code>SENSOR_CHAN_PAH8151_TOUCH</code></td>
+<td>Touch detection status</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="6-fifo-operation">6. FIFO Operation<a class="headerlink" href="#6-fifo-operation" title="Permanent link">&para;</a></h2>
+<h3 id="fifo-parameters">FIFO Parameters<a class="headerlink" href="#fifo-parameters" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Value</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Total FIFO size</td>
+<td>1584 bytes</td>
+<td><code>PAH_815X_FIFO_SIZE</code></td>
+</tr>
+<tr>
+<td>Data size per channel</td>
+<td>4 bytes</td>
+<td><code>PAH_815X_DEFAULT_PPG_DATA_SIZE</code></td>
+</tr>
+<tr>
+<td>Max channels</td>
+<td>4 (A, B, C, D)</td>
+<td><code>PAH_815X_MAX_PPG_CH_NUM</code></td>
+</tr>
+<tr>
+<td>Current channels</td>
+<td>3 (A, B, C)</td>
+<td>Config 5</td>
+</tr>
+<tr>
+<td>Bytes per sample</td>
+<td>12 (3 * 4)</td>
+<td>ch_num * data_size</td>
+</tr>
+<tr>
+<td>Max samples (3ch)</td>
+<td>132</td>
+<td>1584 / 12</td>
+</tr>
+<tr>
+<td>Current watermark</td>
+<td>32</td>
+<td><code>PPG_WATERMARK_SpO2</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="fifo-read-sequence">FIFO Read Sequence<a class="headerlink" href="#fifo-read-sequence" title="Permanent link">&para;</a></h3>
+<ol>
+<li>Switch to Bank 2</li>
+<li>Enable manual clock: write <code>0x03</code> to <code>B2:0x40</code></li>
+<li>Enable PPG FIFO chip select: write <code>0x0E</code> to <code>B2:0x3C</code></li>
+<li>Read data in chunks from <code>B2:0x7B</code> (FIFO data register)</li>
+<li>Chunk size limited by <code>plat-&gt;comm.max_length</code> (252 bytes)</li>
+<li>Chunks are aligned to <code>sample_size</code> boundaries</li>
+<li>Disable FIFO chip select: write <code>0x0F</code> to <code>B2:0x3C</code></li>
+<li>Disable manual clock: write <code>0x04</code> to <code>B2:0x40</code></li>
+<li>Clear FIFO: write <code>0x03</code> to <code>B2:0x39</code></li>
+</ol>
+<h3 id="fifo-read-buffer">FIFO Read Buffer<a class="headerlink" href="#fifo-read-buffer" title="Permanent link">&para;</a></h3>
+<p>The SDK uses a global <code>uint8_t buffer[512]</code> in <code>pah_815x_main.c</code>. With 3 channels at 4 bytes each and watermark of 32:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>Required bytes = 32 * 3 * 4 = 384 bytes
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>Buffer size    = 512 bytes
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>Margin         = 128 bytes (sufficient)
+</code></pre></div>
+<h3 id="interrupt-driven-flow">Interrupt-Driven Flow<a class="headerlink" href="#interrupt-driven-flow" title="Permanent link">&para;</a></h3>
+<ol>
+<li>Sensor fills FIFO with PPG data samples.</li>
+<li>When sample count reaches watermark (32), sensor asserts INT pin.</li>
+<li>Zephyr GPIO callback fires, sets <code>has_interrupt = true</code>, gives <code>data_sem</code>.</li>
+<li>Sensor thread wakes from <code>k_poll</code>, calls <code>pah_sensor_task()</code>.</li>
+<li><code>demo_data_ready_interrupt()</code> calls <code>process_interrupt()</code>:</li>
+<li>Reads interrupt status register (Bank 2, <code>0x3A</code>)</li>
+<li>If PPG data ready: reads sample count from FIFO num register, reads FIFO data</li>
+<li>If touch interrupt: reads touch flag and updates touch status</li>
+<li>If FIFO overflow: logs error, clears FIFO</li>
+<li>In AUTO_MODE: enables/disables PPG based on touch state change.</li>
+</ol>
+<h3 id="fifo-overflow-handling">FIFO Overflow Handling<a class="headerlink" href="#fifo-overflow-handling" title="Permanent link">&para;</a></h3>
+<p>The interrupt status union (<code>pah_815x_int_status</code>) has a <code>ppg_fifo_overflow</code> bit. The macro <code>PAH_815X_FIFO_IS_OVERFLOW()</code> checks <code>data[1] &amp; 0x07</code> for any overflow flag (PPG, IR, or CAP). On overflow, the SDK calls <code>process_flush()</code> which clears the FIFO.</p>
+<hr />
+<h2 id="7-register-defaults">7. Register Defaults<a class="headerlink" href="#7-register-defaults" title="Permanent link">&para;</a></h2>
+<h3 id="initialization-sequence">Initialization Sequence<a class="headerlink" href="#initialization-sequence" title="Permanent link">&para;</a></h3>
+<p>The sensor initialization writes registers across multiple banks in this order:</p>
+<p><strong><code>PAH_815X_REG_INIT</code> array (from <code>pah_815x_reg_default.h</code>):</strong></p>
+<ol>
+<li><strong>Bank 4:</strong> GPIO configuration</li>
+<li>GPIO0 mode: <code>0x01</code> (output)</li>
+<li>GPIO1 mode: <code>0x00</code></li>
+<li>GPIO2 mode: <code>0x00</code></li>
+<li>GPIO3 mode: <code>0x00</code></li>
+<li>
+<p>GPIO IOEB: <code>0x01</code></p>
+</li>
+<li>
+<p><strong>Bank 1:</strong> Touch detection thresholds</p>
+</li>
+<li>IR touch threshold: <code>0x00, 0x08, 0x00</code> (2048 decimal)</li>
+<li>IR no-touch threshold: <code>0x00, 0x04, 0x00</code> (1024 decimal)</li>
+<li>Touch pixel: <code>0x80, 0x02</code> (640 decimal)</li>
+<li>Touch frame period: <code>0x00, 0x08</code> (2048 decimal)</li>
+<li>
+<p>Channel T dummy mode enabled</p>
+</li>
+<li>
+<p><strong>Bank 2:</strong> Core sensor configuration</p>
+</li>
+<li>FIFO clear: <code>0x03</code> (clear PPG and IR FIFOs)</li>
+<li>FIFO checksum: <code>0x0F</code> (disabled)</li>
+<li>INT mode: <code>0x03</code></li>
+<li>INT mask: enables IR touch, IR no-touch, PPG data ready, PPG overflow</li>
+<li>PPG normalization mode</li>
+<li>Channel T configuration: enabled, exposure, LED DAC, ADC OSR, rpt_divider</li>
+<li>WR data turn: <code>0x13</code></li>
+<li>
+<p>RPT timer enable: <code>0x01</code></p>
+</li>
+<li>
+<p><strong>Bank 7:</strong> Analog configuration</p>
+</li>
+<li>IPGA control: <code>0xC1</code></li>
+<li>Bandgap level: <code>0x02</code></li>
+</ol>
+<h3 id="shutdown-sequence">Shutdown Sequence<a class="headerlink" href="#shutdown-sequence" title="Permanent link">&para;</a></h3>
+<p><code>PAH_815X_REG_DEINIT</code>:
+1. Bank 4: Global reset <code>0x00</code>
+2. Bank 4: Power down mode <code>0x01</code></p>
+<h3 id="ppg-enable-register-values-config-5-current">PPG Enable Register Values (Config 5 -- Current)<a class="headerlink" href="#ppg-enable-register-values-config-5-current" title="Permanent link">&para;</a></h3>
+<p>Key register writes for 3-channel 32 Hz configuration:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>Bank 2:
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>  0x39 = 0x03    # Clear FIFOs
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>  # Channel A (Green)
+<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>  0x48 = 0x00    # Max expo time byte 1
+<a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a>  0x49 = 0x02    # Max expo time byte 2
+<a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a>  0x4B = 0x3F    # DAC max = 63
+<a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a>  0x4C = 0x12    # LED A = Green (bias_sel=1, cfg=2)
+<a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a>  0x4D = 0x03    # AE enabled + auto_FP enabled
+<a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a>  0x4E = 0xE8    # Frame period low
+<a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a>  0x4F = 0x03    # Frame period high → 0x03E8 = 1000
+<a id="__codelineno-9-12" name="__codelineno-9-12" href="#__codelineno-9-12"></a>  0x51 = 0x03    # Ch A enabled + FIFO write
+<a id="__codelineno-9-13" name="__codelineno-9-13" href="#__codelineno-9-13"></a>
+<a id="__codelineno-9-14" name="__codelineno-9-14" href="#__codelineno-9-14"></a>  # Channel B (Red)
+<a id="__codelineno-9-15" name="__codelineno-9-15" href="#__codelineno-9-15"></a>  0x53 = 0x19    # Max expo time byte 1
+<a id="__codelineno-9-16" name="__codelineno-9-16" href="#__codelineno-9-16"></a>  0x54 = 0x00    # Max expo time byte 2
+<a id="__codelineno-9-17" name="__codelineno-9-17" href="#__codelineno-9-17"></a>  0x56 = 0x7F    # DAC max = 127
+<a id="__codelineno-9-18" name="__codelineno-9-18" href="#__codelineno-9-18"></a>  0x57 = 0x18    # LED B = Red (bias_sel=1, cfg=8)
+<a id="__codelineno-9-19" name="__codelineno-9-19" href="#__codelineno-9-19"></a>  0x58 = 0x03    # AE enabled
+<a id="__codelineno-9-20" name="__codelineno-9-20" href="#__codelineno-9-20"></a>  0x59 = 0xE8    # Frame period low
+<a id="__codelineno-9-21" name="__codelineno-9-21" href="#__codelineno-9-21"></a>  0x5A = 0x03    # Frame period high → 0x03E8 = 1000
+<a id="__codelineno-9-22" name="__codelineno-9-22" href="#__codelineno-9-22"></a>  0x5C = 0x03    # Ch B enabled + FIFO write
+<a id="__codelineno-9-23" name="__codelineno-9-23" href="#__codelineno-9-23"></a>
+<a id="__codelineno-9-24" name="__codelineno-9-24" href="#__codelineno-9-24"></a>  # Channel C (IR)
+<a id="__codelineno-9-25" name="__codelineno-9-25" href="#__codelineno-9-25"></a>  0x5E = 0x19    # Max expo time byte 1
+<a id="__codelineno-9-26" name="__codelineno-9-26" href="#__codelineno-9-26"></a>  0x5F = 0x00    # Max expo time byte 2
+<a id="__codelineno-9-27" name="__codelineno-9-27" href="#__codelineno-9-27"></a>  0x61 = 0x7F    # DAC max = 127
+<a id="__codelineno-9-28" name="__codelineno-9-28" href="#__codelineno-9-28"></a>  0x62 = 0x11    # LED C = IR (bias_sel=1, cfg=1)
+<a id="__codelineno-9-29" name="__codelineno-9-29" href="#__codelineno-9-29"></a>  0x63 = 0x03    # AE enabled
+<a id="__codelineno-9-30" name="__codelineno-9-30" href="#__codelineno-9-30"></a>  0x64 = 0xE8    # Frame period low
+<a id="__codelineno-9-31" name="__codelineno-9-31" href="#__codelineno-9-31"></a>  0x65 = 0x03    # Frame period high → 0x03E8 = 1000
+<a id="__codelineno-9-32" name="__codelineno-9-32" href="#__codelineno-9-32"></a>  0x67 = 0x03    # Ch C enabled + FIFO write
+<a id="__codelineno-9-33" name="__codelineno-9-33" href="#__codelineno-9-33"></a>
+<a id="__codelineno-9-34" name="__codelineno-9-34" href="#__codelineno-9-34"></a>  # Timing
+<a id="__codelineno-9-35" name="__codelineno-9-35" href="#__codelineno-9-35"></a>  0x73 = 0xE8    # RPT divider low
+<a id="__codelineno-9-36" name="__codelineno-9-36" href="#__codelineno-9-36"></a>  0x74 = 0x03    # RPT divider high → 0x03E8 = 1000 → 32 Hz
+<a id="__codelineno-9-37" name="__codelineno-9-37" href="#__codelineno-9-37"></a>  0x75 = 0x13    # WR data turn
+<a id="__codelineno-9-38" name="__codelineno-9-38" href="#__codelineno-9-38"></a>  0x76 = 0x01    # ON/OFF = on
+<a id="__codelineno-9-39" name="__codelineno-9-39" href="#__codelineno-9-39"></a>  0x7C = 0x01    # RPT timer enable
+<a id="__codelineno-9-40" name="__codelineno-9-40" href="#__codelineno-9-40"></a>  0x7D = 0x01    # Update flag
+</code></pre></div>
+<h3 id="ppg-disable-register-values">PPG Disable Register Values<a class="headerlink" href="#ppg-disable-register-values" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>Bank 2:
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>  0x51 = 0x00    # Ch A disabled
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>  0x5C = 0x00    # Ch B disabled
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>  0x67 = 0x00    # Ch C disabled
+<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>  0x39 = 0x01    # Clear PPG FIFO only
+</code></pre></div>
+<h3 id="other-configuration-presets-summary">Other Configuration Presets Summary<a class="headerlink" href="#other-configuration-presets-summary" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Preset</th>
+<th>rpt_divider</th>
+<th>Rate</th>
+<th>Ch A (Green)</th>
+<th>Ch B (Red)</th>
+<th>Ch C (IR)</th>
+<th>Ch D</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Config 1</td>
+<td>1000</td>
+<td>32 Hz</td>
+<td>0x03 (on)</td>
+<td>0x00 (off)</td>
+<td>0x00 (off)</td>
+<td>0x00</td>
+</tr>
+<tr>
+<td>Config 2</td>
+<td>1280</td>
+<td>25 Hz</td>
+<td>0x03 (on)</td>
+<td>0x00 (off)</td>
+<td>0x00 (off)</td>
+<td>0x00</td>
+</tr>
+<tr>
+<td>Config 3</td>
+<td>1280</td>
+<td>25 Hz</td>
+<td>0x03 (on)</td>
+<td>0x00 (off)</td>
+<td>0x03 (on)</td>
+<td>0x00</td>
+</tr>
+<tr>
+<td>Config 4</td>
+<td>1280</td>
+<td>25 Hz</td>
+<td>0x00 (off)</td>
+<td>0x03 (on)</td>
+<td>0x03 (on)</td>
+<td>0x00</td>
+</tr>
+<tr>
+<td>Config 5</td>
+<td>1000</td>
+<td>32 Hz</td>
+<td>0x03 (on)</td>
+<td>0x03 (on)</td>
+<td>0x03 (on)</td>
+<td>0x00</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="8-i2c-interface">8. I2C Interface<a class="headerlink" href="#8-i2c-interface" title="Permanent link">&para;</a></h2>
+<h3 id="bus-configuration">Bus Configuration<a class="headerlink" href="#bus-configuration" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Value</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>I2C address</td>
+<td>0x15 (7-bit)</td>
+<td>Hardcoded in <code>pah_815x_comm.c</code> and <code>PAH_815X_DEFAULT_I2C_SLAVE_ADDR</code></td>
+</tr>
+<tr>
+<td>Max transfer size</td>
+<td>252 bytes</td>
+<td><code>plat-&gt;comm.max_length</code> in <code>pah_sensor_init()</code></td>
+</tr>
+<tr>
+<td>Product ID</td>
+<td>0x8151</td>
+<td><code>PAH_815X_PRODUCT_ID</code></td>
+</tr>
+<tr>
+<td>Communication type</td>
+<td>I2C</td>
+<td><code>PAH_PLAT_COMM_I2C</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="register-banking">Register Banking<a class="headerlink" href="#register-banking" title="Permanent link">&para;</a></h3>
+<p>The PAH8151 uses a bank-switched register architecture accessed via register <code>0x7F</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Bank</th>
+<th>Value</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Bank 0</td>
+<td>0x00</td>
+<td>(default)</td>
+</tr>
+<tr>
+<td>Bank 1</td>
+<td>0x01</td>
+<td>Channel D config, touch thresholds, frame periods</td>
+</tr>
+<tr>
+<td>Bank 2</td>
+<td>0x02</td>
+<td>Product ID, interrupt status, channel A/B/C config, FIFO, AE info</td>
+</tr>
+<tr>
+<td>Bank 4</td>
+<td>0x04</td>
+<td>GPIO, power control, global reset</td>
+</tr>
+<tr>
+<td>Bank 7</td>
+<td>0x07</td>
+<td>Analog (IPGA, bandgap, drives count)</td>
+</tr>
+<tr>
+<td>Bank 9</td>
+<td>0x09</td>
+<td>Capacitive sensing (LPF, LLOB, IIR, noise avoidance)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="bank-caching">Bank Caching<a class="headerlink" href="#bank-caching" title="Permanent link">&para;</a></h3>
+<p>The communication layer maintains <strong>two separate bank caches</strong>:</p>
+<ol>
+<li><code>_curr_bank</code> -- used by <code>pah_815x_comm_write()</code> / <code>pah_815x_comm_read()</code> (direct functions)</li>
+<li><code>_curr_bank_2</code> -- used by <code>pah_plat_comm_i2c_write()</code> / <code>pah_plat_comm_i2c_read()</code> (platform abstraction)</li>
+</ol>
+<p>Both skip the bank switch I2C transaction if the requested bank matches the cached value. This is a potential issue -- see Section 11.</p>
+<h3 id="retry-logic">Retry Logic<a class="headerlink" href="#retry-logic" title="Permanent link">&para;</a></h3>
+<p>Without bus mutex (<code>CONFIG_CK_PAH8151_BUS_MUTEX</code> not defined):
+- Max retries: 3 (<code>MAX_I2C_TRIES</code>)
+- Delay between retries: 5 ms (<code>k_msleep(5)</code>)
+- Logs warning on each retry, error on final failure</p>
+<p>With bus mutex:
+- Uses <code>k_mutex_lock(_p_bus_mutex, K_FOREVER)</code> for thread safety
+- No retry logic -- single attempt per operation
+- Warning logged on failure</p>
+<h3 id="read-operations">Read Operations<a class="headerlink" href="#read-operations" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Single register: <code>i2c_burst_read(i2c_dev, 0x15, reg, data, 1)</code></li>
+<li>Burst read: <code>i2c_burst_read(i2c_dev, 0x15, reg, data, num)</code></li>
+<li>FIFO read: Chunked burst reads from <code>B2:0x7B</code>, each chunk &lt;= 252 bytes, aligned to sample size</li>
+</ul>
+<h3 id="write-operations">Write Operations<a class="headerlink" href="#write-operations" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Single register: <code>i2c_reg_write_byte(i2c_dev, 0x15, reg, data)</code></li>
+<li>Burst write: <code>i2c_burst_write(i2c_dev, 0x15, reg, data, num)</code></li>
+<li>Register arrays: Sequential single-byte writes from <code>{addr, value}</code> pairs</li>
+</ul>
+<hr />
+<h2 id="9-data-format">9. Data Format<a class="headerlink" href="#9-data-format" title="Permanent link">&para;</a></h2>
+<h3 id="ppg-raw-data-format">PPG Raw Data Format<a class="headerlink" href="#ppg-raw-data-format" title="Permanent link">&para;</a></h3>
+<p>Each PPG data sample is 4 bytes per channel, stored in the FIFO in little-endian format:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>Byte 0: bits [7:0]   (LSB)
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>Byte 1: bits [15:8]
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>Byte 2: bits [23:16]
+<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a>Byte 3: bits [31:24] (MSB)
+</code></pre></div>
+<p>Extraction function (<code>pah_815x_hal.c</code> line 699):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="kt">int32_t</span><span class="w"> </span><span class="n">value</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">((</span><span class="n">fifo</span><span class="p">[</span><span class="n">base</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">3</span><span class="p">]</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">24</span><span class="p">)</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="mh">0xFF000000</span><span class="p">)</span><span class="w"> </span><span class="o">|</span>
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="w">                </span><span class="p">((</span><span class="n">fifo</span><span class="p">[</span><span class="n">base</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">2</span><span class="p">]</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">16</span><span class="p">)</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="mh">0x00FF0000</span><span class="p">)</span><span class="w"> </span><span class="o">|</span>
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="w">                </span><span class="p">((</span><span class="n">fifo</span><span class="p">[</span><span class="n">base</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">]</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">8</span><span class="p">)</span><span class="w">  </span><span class="o">&amp;</span><span class="w"> </span><span class="mh">0x0000FF00</span><span class="p">)</span><span class="w"> </span><span class="o">|</span>
+<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="w">                </span><span class="p">((</span><span class="n">fifo</span><span class="p">[</span><span class="n">base</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w">  </span><span class="o">&amp;</span><span class="w"> </span><span class="mh">0x000000FF</span><span class="p">);</span>
+</code></pre></div>
+<p>The result is a signed 32-bit integer representing the raw ADC value.</p>
+<h3 id="auto-exposure-information">Auto-Exposure Information<a class="headerlink" href="#auto-exposure-information" title="Permanent link">&para;</a></h3>
+<p>AE info is read from Bank 2 registers after each FIFO read:</p>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Register</th>
+<th>Size</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Expo_time_A</td>
+<td>B2:0x17</td>
+<td>3 bytes</td>
+<td>Channel A exposure time (raw)</td>
+</tr>
+<tr>
+<td>Expo_time_B</td>
+<td>B2:0x1A</td>
+<td>3 bytes</td>
+<td>Channel B exposure time (raw)</td>
+</tr>
+<tr>
+<td>Expo_time_C</td>
+<td>B2:0x1D</td>
+<td>3 bytes</td>
+<td>Channel C exposure time (raw)</td>
+</tr>
+<tr>
+<td>Expo_time_D</td>
+<td>B2:0x20</td>
+<td>3 bytes</td>
+<td>Channel D exposure time (raw)</td>
+</tr>
+<tr>
+<td>LEDDAC_A</td>
+<td>B2:0x23</td>
+<td>1 byte</td>
+<td>Channel A LED DAC value</td>
+</tr>
+<tr>
+<td>LEDDAC_B</td>
+<td>B2:0x24</td>
+<td>1 byte</td>
+<td>Channel B LED DAC value</td>
+</tr>
+<tr>
+<td>LEDDAC_C</td>
+<td>B2:0x25</td>
+<td>1 byte</td>
+<td>Channel C LED DAC value</td>
+</tr>
+<tr>
+<td>LEDDAC_D</td>
+<td>B2:0x26</td>
+<td>1 byte</td>
+<td>Channel D LED DAC value</td>
+</tr>
+<tr>
+<td>Touch data</td>
+<td>B2:0x04</td>
+<td>3 bytes</td>
+<td>IR touch sensor value</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Exposure time conversion:</strong> <code>exposure_us = raw_value * 0.25</code></p>
+<p><strong>LED current conversion:</strong> <code>current_mA = DAC_value * 0.4</code></p>
+<h3 id="ppg-data-output-structure">PPG Data Output Structure<a class="headerlink" href="#ppg-data-output-structure" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="k">typedef</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="w">    </span><span class="kt">uint64_t</span><span class="w"> </span><span class="n">end_timestamp</span><span class="p">;</span><span class="w">          </span><span class="c1">// End time of measurement batch</span>
+<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="w">    </span><span class="kt">uint64_t</span><span class="w"> </span><span class="n">start_timestamp</span><span class="p">;</span><span class="w">        </span><span class="c1">// Start time of measurement batch</span>
+<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="w">    </span><span class="kt">uint8_t</span><span class="w"> </span><span class="n">ppg_data_ready</span><span class="p">;</span><span class="w">          </span><span class="c1">// Data ready flag (incremented per batch)</span>
+<a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a><span class="w">    </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">duration</span><span class="p">;</span><span class="w">               </span><span class="c1">// Measurement duration (ms)</span>
+<a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a><span class="w">    </span><span class="kt">uint8_t</span><span class="w"> </span><span class="n">is_touched</span><span class="p">;</span><span class="w">              </span><span class="c1">// Touch status during measurement</span>
+<a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a><span class="w">    </span><span class="kt">uint8_t</span><span class="w"> </span><span class="n">ch_num</span><span class="p">;</span><span class="w">                  </span><span class="c1">// Number of active channels (3)</span>
+<a id="__codelineno-13-8" name="__codelineno-13-8" href="#__codelineno-13-8"></a><span class="w">    </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">sample_num_per_ch</span><span class="p">;</span><span class="w">      </span><span class="c1">// Samples per channel (up to watermark)</span>
+<a id="__codelineno-13-9" name="__codelineno-13-9" href="#__codelineno-13-9"></a><span class="w">    </span><span class="kt">uint8_t</span><span class="w"> </span><span class="o">*</span><span class="n">ppg_raw_data</span><span class="p">;</span><span class="w">           </span><span class="c1">// Pointer to raw FIFO data buffer</span>
+<a id="__codelineno-13-10" name="__codelineno-13-10" href="#__codelineno-13-10"></a><span class="w">    </span><span class="n">pah_ae_info</span><span class="w"> </span><span class="n">pah_ae_info_data</span><span class="p">;</span><span class="w">    </span><span class="c1">// Auto-exposure info for all channels</span>
+<a id="__codelineno-13-11" name="__codelineno-13-11" href="#__codelineno-13-11"></a><span class="w">    </span><span class="n">pah_815x_touch_data</span><span class="w"> </span><span class="n">touch_data</span><span class="p">;</span><span class="w">  </span><span class="c1">// Touch sensor data</span>
+<a id="__codelineno-13-12" name="__codelineno-13-12" href="#__codelineno-13-12"></a><span class="p">}</span><span class="w"> </span><span class="n">ppg_data_out</span><span class="p">;</span>
+</code></pre></div>
+<h3 id="processed-sample-structure-ck-wrapper">Processed Sample Structure (CK Wrapper)<a class="headerlink" href="#processed-sample-structure-ck-wrapper" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="k">typedef</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">pah8151_ppg_sample</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="w">    </span><span class="kt">int64_t</span><span class="w"> </span><span class="n">timestamp</span><span class="p">;</span><span class="w">       </span><span class="c1">// Sample timestamp (ms since boot)</span>
+<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="w">    </span><span class="kt">int32_t</span><span class="w"> </span><span class="n">red_intensity</span><span class="p">;</span><span class="w">   </span><span class="c1">// Red channel raw ADC</span>
+<a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a><span class="w">    </span><span class="kt">int32_t</span><span class="w"> </span><span class="n">green_intensity</span><span class="p">;</span><span class="w"> </span><span class="c1">// Green channel raw ADC</span>
+<a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a><span class="w">    </span><span class="kt">int32_t</span><span class="w"> </span><span class="n">ir_intensity</span><span class="p">;</span><span class="w">    </span><span class="c1">// IR channel raw ADC</span>
+<a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a><span class="w">    </span><span class="kt">float</span><span class="w"> </span><span class="n">red_expo_us</span><span class="p">;</span><span class="w">       </span><span class="c1">// Red exposure time (us)</span>
+<a id="__codelineno-14-7" name="__codelineno-14-7" href="#__codelineno-14-7"></a><span class="w">    </span><span class="kt">float</span><span class="w"> </span><span class="n">green_expo_us</span><span class="p">;</span><span class="w">     </span><span class="c1">// Green exposure time (us)</span>
+<a id="__codelineno-14-8" name="__codelineno-14-8" href="#__codelineno-14-8"></a><span class="w">    </span><span class="kt">float</span><span class="w"> </span><span class="n">ir_expo_us</span><span class="p">;</span><span class="w">        </span><span class="c1">// IR exposure time (us)</span>
+<a id="__codelineno-14-9" name="__codelineno-14-9" href="#__codelineno-14-9"></a><span class="w">    </span><span class="kt">uint8_t</span><span class="w"> </span><span class="n">red_dac</span><span class="p">;</span><span class="w">         </span><span class="c1">// Red LED DAC (0-255)</span>
+<a id="__codelineno-14-10" name="__codelineno-14-10" href="#__codelineno-14-10"></a><span class="w">    </span><span class="kt">uint8_t</span><span class="w"> </span><span class="n">green_dac</span><span class="p">;</span><span class="w">       </span><span class="c1">// Green LED DAC (0-255)</span>
+<a id="__codelineno-14-11" name="__codelineno-14-11" href="#__codelineno-14-11"></a><span class="w">    </span><span class="kt">uint8_t</span><span class="w"> </span><span class="n">ir_dac</span><span class="p">;</span><span class="w">          </span><span class="c1">// IR LED DAC (0-255)</span>
+<a id="__codelineno-14-12" name="__codelineno-14-12" href="#__codelineno-14-12"></a><span class="w">    </span><span class="kt">uint8_t</span><span class="w"> </span><span class="n">red_curr_ma</span><span class="p">;</span><span class="w">     </span><span class="c1">// Red LED current (mA)</span>
+<a id="__codelineno-14-13" name="__codelineno-14-13" href="#__codelineno-14-13"></a><span class="w">    </span><span class="kt">uint8_t</span><span class="w"> </span><span class="n">green_curr_ma</span><span class="p">;</span><span class="w">   </span><span class="c1">// Green LED current (mA)</span>
+<a id="__codelineno-14-14" name="__codelineno-14-14" href="#__codelineno-14-14"></a><span class="w">    </span><span class="kt">uint8_t</span><span class="w"> </span><span class="n">ir_curr_ma</span><span class="p">;</span><span class="w">      </span><span class="c1">// IR LED current (mA)</span>
+<a id="__codelineno-14-15" name="__codelineno-14-15" href="#__codelineno-14-15"></a><span class="p">}</span><span class="w"> </span><span class="n">pah8151_ppg_sample_t</span><span class="p">;</span>
+</code></pre></div>
+<h3 id="touch-data-structure">Touch Data Structure<a class="headerlink" href="#touch-data-structure" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="k">typedef</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="w">    </span><span class="n">pah_815x_touch_status</span><span class="w"> </span><span class="n">status</span><span class="p">;</span><span class="w">  </span><span class="c1">// UNKNOWN=0, ON=1, OFF=2</span>
+<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="w">    </span><span class="kt">uint16_t</span><span class="w"> </span><span class="n">ir_value</span><span class="p">;</span><span class="w">             </span><span class="c1">// IR sensor ADC value</span>
+<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a><span class="w">    </span><span class="kt">int16_t</span><span class="w"> </span><span class="n">cap_value</span><span class="p">;</span><span class="w">             </span><span class="c1">// Capacitive sensor value</span>
+<a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a><span class="w">    </span><span class="kt">int16_t</span><span class="w"> </span><span class="n">cap_value_ref</span><span class="p">;</span><span class="w">         </span><span class="c1">// Capacitive reference</span>
+<a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a><span class="w">    </span><span class="kt">int16_t</span><span class="w"> </span><span class="n">cap_value_comp</span><span class="p">;</span><span class="w">        </span><span class="c1">// Capacitive compensation</span>
+<a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a><span class="p">}</span><span class="w"> </span><span class="n">pah_815x_touch_data</span><span class="p">;</span>
+</code></pre></div>
+<h3 id="timestamp-calculation">Timestamp Calculation<a class="headerlink" href="#timestamp-calculation" title="Permanent link">&para;</a></h3>
+<p>The CK wrapper distributes timestamps across samples in a batch:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="kt">uint64_t</span><span class="w"> </span><span class="n">base_timestamp</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ppg_data</span><span class="p">.</span><span class="n">end_timestamp</span><span class="p">;</span>
+<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="kt">uint32_t</span><span class="w"> </span><span class="n">total_duration_ms</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1000</span><span class="p">;</span>
+<a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a><span class="kt">uint32_t</span><span class="w"> </span><span class="n">actual_interval_ms</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">total_duration_ms</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">ppg_data</span><span class="p">.</span><span class="n">sample_num_per_ch</span><span class="p">;</span>
+<a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a><span class="kt">uint32_t</span><span class="w"> </span><span class="n">remainder_ms</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">total_duration_ms</span><span class="w"> </span><span class="o">%</span><span class="w"> </span><span class="n">ppg_data</span><span class="p">.</span><span class="n">sample_num_per_ch</span><span class="p">;</span>
+<a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a>
+<a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a><span class="c1">// Last sample gets base_timestamp directly</span>
+<a id="__codelineno-16-7" name="__codelineno-16-7" href="#__codelineno-16-7"></a><span class="c1">// Earlier samples: base - (samples_back * interval) - extra_ms</span>
+</code></pre></div>
+<p>With 32 samples and 1000ms duration, the interval is 31ms per sample. The <code>remainder_ms</code> distributes any leftover milliseconds to the most recent samples.</p>
+<hr />
+<h2 id="10-factory-test-thresholds">10. Factory Test Thresholds<a class="headerlink" href="#10-factory-test-thresholds" title="Permanent link">&para;</a></h2>
+<h3 id="factory-test-modes">Factory Test Modes<a class="headerlink" href="#factory-test-modes" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Test</th>
+<th>Enum</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Brightness (FPC Only)</td>
+<td><code>Check_Brightness_FPC_Only</code></td>
+<td>Tests LED brightness without optical cover</td>
+</tr>
+<tr>
+<td>INT Pin Test</td>
+<td><code>INT_TEST</code></td>
+<td>Verifies interrupt pin assertion</td>
+</tr>
+<tr>
+<td>Brightness (With Cover)</td>
+<td><code>Brightness_with_cover</code></td>
+<td>Tests LED brightness through optical cover</td>
+</tr>
+<tr>
+<td>Light Leak</td>
+<td><code>Light_Leak_Test</code></td>
+<td>Checks for optical light leakage</td>
+</tr>
+<tr>
+<td>Power Noise</td>
+<td><code>Power_Noise_Test</code></td>
+<td>Verifies power supply noise levels</td>
+</tr>
+<tr>
+<td>Touch Calibration</td>
+<td><code>touch_calibration</code></td>
+<td>Calibrates touch detection thresholds</td>
+</tr>
+</tbody>
+</table>
+<h3 id="fpc-only-brightness-test">FPC Only Brightness Test<a class="headerlink" href="#fpc-only-brightness-test" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Channels enabled</td>
+<td>A, B, C</td>
+</tr>
+<tr>
+<td>ADC min (pass)</td>
+<td>400</td>
+</tr>
+<tr>
+<td>ADC max (pass)</td>
+<td>3000</td>
+</tr>
+<tr>
+<td>Off ADC max</td>
+<td>400</td>
+</tr>
+<tr>
+<td>Number of reads</td>
+<td>3 (averaged)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="brightness-with-cover-test">Brightness With Cover Test<a class="headerlink" href="#brightness-with-cover-test" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Channels enabled</td>
+<td>A, B, C</td>
+</tr>
+<tr>
+<td>ADC min (pass)</td>
+<td>600</td>
+</tr>
+<tr>
+<td>ADC max (pass)</td>
+<td>4090</td>
+</tr>
+<tr>
+<td>Off ADC max</td>
+<td>400</td>
+</tr>
+<tr>
+<td>Touch ADC min</td>
+<td>1250</td>
+</tr>
+<tr>
+<td>Touch ADC max</td>
+<td>4090</td>
+</tr>
+<tr>
+<td>Exposure setting</td>
+<td>0x45</td>
+</tr>
+<tr>
+<td>Number of reads</td>
+<td>3 (averaged)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="light-leak-test">Light Leak Test<a class="headerlink" href="#light-leak-test" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Channels enabled</td>
+<td>A, B, C</td>
+</tr>
+<tr>
+<td>ADC difference min</td>
+<td>0</td>
+</tr>
+<tr>
+<td>ADC difference max</td>
+<td>50</td>
+</tr>
+<tr>
+<td>Off ADC max</td>
+<td>400</td>
+</tr>
+<tr>
+<td>Touch ADC min</td>
+<td>0</td>
+</tr>
+<tr>
+<td>Touch ADC max</td>
+<td>250</td>
+</tr>
+</tbody>
+</table>
+<p>Light leak test compares LED-on vs LED-off readings. The difference should be less than 50 ADC counts.</p>
+<h3 id="touch-calibration">Touch Calibration<a class="headerlink" href="#touch-calibration" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Target ADC min</td>
+<td>2250</td>
+</tr>
+<tr>
+<td>Target ADC max</td>
+<td>2750</td>
+</tr>
+<tr>
+<td>DAC search range</td>
+<td>1 to 127</td>
+</tr>
+<tr>
+<td>Algorithm</td>
+<td>Binary search for optimal DAC value</td>
+</tr>
+</tbody>
+</table>
+<h3 id="int-pin-test-sequence">INT Pin Test Sequence<a class="headerlink" href="#int-pin-test-sequence" title="Permanent link">&para;</a></h3>
+<ol>
+<li>Configures GPIO for INT pin observation</li>
+<li>Starts sensor in test mode</li>
+<li>Waits for INT pin assertion (rising edge)</li>
+<li>Verifies interrupt occurred within timeout</li>
+<li>Pass/fail based on INT pin state</li>
+</ol>
+<h3 id="demo-factory-test-sequence">Demo Factory Test Sequence<a class="headerlink" href="#demo-factory-test-sequence" title="Permanent link">&para;</a></h3>
+<p>From <code>demo_factory_v1.c</code>:</p>
+<ol>
+<li>Product ID check (expects low byte <code>0x51</code> from <code>0x8151</code>)</li>
+<li>INT pin test</li>
+<li>FPC-only brightness test</li>
+<li>Light leak test</li>
+<li>Brightness with cover test (exposure <code>0x45</code>)</li>
+<li>Power noise test</li>
+<li>Stop sensor</li>
+</ol>
+<hr />
+<h2 id="11-potential-issues-and-tuning-opportunities">11. Potential Issues and Tuning Opportunities<a class="headerlink" href="#11-potential-issues-and-tuning-opportunities" title="Permanent link">&para;</a></h2>
+<h3 id="critical-bug-channel-mapping-inconsistency-in-ae-data">CRITICAL BUG: Channel Mapping Inconsistency in AE Data<a class="headerlink" href="#critical-bug-channel-mapping-inconsistency-in-ae-data" title="Permanent link">&para;</a></h3>
+<p><strong>Location:</strong> <code>pah8151.c</code> lines 211-229</p>
+<p><strong>Problem:</strong> The intensity data correctly maps FIFO index 0 to Green (Channel A), index 1 to Red (Channel B), index 2 to IR (Channel C). However, the exposure time and LED DAC assignments are <strong>swapped between Red and Green</strong>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="c1">// CORRECT: Intensity mapping (lines 206-208)</span>
+<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a><span class="n">data</span><span class="o">-&gt;</span><span class="n">ppg_samples</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">green_intensity</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">raw_data</span><span class="p">[</span><span class="n">i</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">ch_num</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">0</span><span class="p">];</span><span class="w">  </span><span class="c1">// Ch A = Green</span>
+<a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a><span class="n">data</span><span class="o">-&gt;</span><span class="n">ppg_samples</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">red_intensity</span><span class="w">   </span><span class="o">=</span><span class="w"> </span><span class="n">raw_data</span><span class="p">[</span><span class="n">i</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">ch_num</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">];</span><span class="w">  </span><span class="c1">// Ch B = Red</span>
+<a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a><span class="n">data</span><span class="o">-&gt;</span><span class="n">ppg_samples</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">ir_intensity</span><span class="w">    </span><span class="o">=</span><span class="w"> </span><span class="n">raw_data</span><span class="p">[</span><span class="n">i</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">ch_num</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">2</span><span class="p">];</span><span class="w">  </span><span class="c1">// Ch C = IR</span>
+<a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a>
+<a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a><span class="c1">// INCORRECT: Exposure time mapping (lines 211-216)</span>
+<a id="__codelineno-17-7" name="__codelineno-17-7" href="#__codelineno-17-7"></a><span class="n">data</span><span class="o">-&gt;</span><span class="n">ppg_samples</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">red_expo_us</span><span class="w">   </span><span class="o">=</span><span class="w"> </span><span class="n">Expo_time_A</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mf">0.25f</span><span class="p">;</span><span class="w">  </span><span class="c1">// BUG: A=Green, not Red!</span>
+<a id="__codelineno-17-8" name="__codelineno-17-8" href="#__codelineno-17-8"></a><span class="n">data</span><span class="o">-&gt;</span><span class="n">ppg_samples</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">green_expo_us</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Expo_time_B</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mf">0.25f</span><span class="p">;</span><span class="w">  </span><span class="c1">// BUG: B=Red, not Green!</span>
+<a id="__codelineno-17-9" name="__codelineno-17-9" href="#__codelineno-17-9"></a><span class="n">data</span><span class="o">-&gt;</span><span class="n">ppg_samples</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">ir_expo_us</span><span class="w">    </span><span class="o">=</span><span class="w"> </span><span class="n">Expo_time_C</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mf">0.25f</span><span class="p">;</span><span class="w">  </span><span class="c1">// Correct: C=IR</span>
+<a id="__codelineno-17-10" name="__codelineno-17-10" href="#__codelineno-17-10"></a>
+<a id="__codelineno-17-11" name="__codelineno-17-11" href="#__codelineno-17-11"></a><span class="c1">// INCORRECT: LED DAC mapping (lines 219-221)</span>
+<a id="__codelineno-17-12" name="__codelineno-17-12" href="#__codelineno-17-12"></a><span class="n">data</span><span class="o">-&gt;</span><span class="n">ppg_samples</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">red_dac</span><span class="w">   </span><span class="o">=</span><span class="w"> </span><span class="n">LEDDAC_A</span><span class="p">;</span><span class="w">  </span><span class="c1">// BUG: A=Green, not Red!</span>
+<a id="__codelineno-17-13" name="__codelineno-17-13" href="#__codelineno-17-13"></a><span class="n">data</span><span class="o">-&gt;</span><span class="n">ppg_samples</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">green_dac</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">LEDDAC_B</span><span class="p">;</span><span class="w">  </span><span class="c1">// BUG: B=Red, not Green!</span>
+<a id="__codelineno-17-14" name="__codelineno-17-14" href="#__codelineno-17-14"></a><span class="n">data</span><span class="o">-&gt;</span><span class="n">ppg_samples</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">ir_dac</span><span class="w">    </span><span class="o">=</span><span class="w"> </span><span class="n">LEDDAC_C</span><span class="p">;</span><span class="w">  </span><span class="c1">// Correct: C=IR</span>
+<a id="__codelineno-17-15" name="__codelineno-17-15" href="#__codelineno-17-15"></a>
+<a id="__codelineno-17-16" name="__codelineno-17-16" href="#__codelineno-17-16"></a><span class="c1">// INCORRECT: LED current mapping (lines 224-229)</span>
+<a id="__codelineno-17-17" name="__codelineno-17-17" href="#__codelineno-17-17"></a><span class="n">data</span><span class="o">-&gt;</span><span class="n">ppg_samples</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">red_curr_ma</span><span class="w">   </span><span class="o">=</span><span class="w"> </span><span class="n">LEDDAC_A</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mf">0.4f</span><span class="p">;</span><span class="w">  </span><span class="c1">// BUG: same swap</span>
+<a id="__codelineno-17-18" name="__codelineno-17-18" href="#__codelineno-17-18"></a><span class="n">data</span><span class="o">-&gt;</span><span class="n">ppg_samples</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">green_curr_ma</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">LEDDAC_B</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mf">0.4f</span><span class="p">;</span><span class="w">  </span><span class="c1">// BUG: same swap</span>
+<a id="__codelineno-17-19" name="__codelineno-17-19" href="#__codelineno-17-19"></a><span class="n">data</span><span class="o">-&gt;</span><span class="n">ppg_samples</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">ir_curr_ma</span><span class="w">    </span><span class="o">=</span><span class="w"> </span><span class="n">LEDDAC_C</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mf">0.4f</span><span class="p">;</span><span class="w">  </span><span class="c1">// Correct</span>
+</code></pre></div>
+<p><strong>Impact:</strong> The exposure time, DAC value, and current reported for the Red channel actually belong to the Green channel, and vice versa. The raw intensity data is correct, but the associated metadata (exposure, DAC, current) is swapped. This affects any algorithm or logging that relies on per-channel exposure/DAC correlation.</p>
+<p><strong>Fix:</strong> Swap the assignments so <code>Expo_time_A</code> maps to <code>green_expo_us</code>, <code>Expo_time_B</code> maps to <code>red_expo_us</code>, and the same for DAC and current values.</p>
+<h3 id="dead-code-report_touch_data">Dead Code: report_touch_data()<a class="headerlink" href="#dead-code-report_touch_data" title="Permanent link">&para;</a></h3>
+<p><strong>Location:</strong> <code>pah_815x_main.c</code> lines 481-491</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="kt">void</span><span class="w"> </span><span class="nf">report_touch_data</span><span class="p">(</span><span class="kt">uint64_t</span><span class="w"> </span><span class="n">timestamp</span><span class="p">,</span><span class="w"> </span><span class="n">pah_815x_touch_status</span><span class="w"> </span><span class="n">touch_state</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">touch_state</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">PAH_815X_TOUCH_STATUS__UNKNOWN</span><span class="p">)</span>
+<a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a><span class="w">        </span><span class="k">return</span><span class="p">;</span>
+<a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a>
+<a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a><span class="w">    </span><span class="k">return</span><span class="p">;</span><span class="w">  </span><span class="c1">// &lt;-- Early return prevents all debug logging below</span>
+<a id="__codelineno-18-6" name="__codelineno-18-6" href="#__codelineno-18-6"></a>
+<a id="__codelineno-18-7" name="__codelineno-18-7" href="#__codelineno-18-7"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">touch_state</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">PAH_815X_TOUCH_STATUS__ON</span><span class="p">)</span>
+<a id="__codelineno-18-8" name="__codelineno-18-8" href="#__codelineno-18-8"></a><span class="w">        </span><span class="n">DEBUG_PRINT</span><span class="p">(</span><span class="s">&quot;TOUCH: time = { %lu }, status = { ON } &quot;</span><span class="p">,</span><span class="w"> </span><span class="n">timestamp</span><span class="p">);</span>
+<a id="__codelineno-18-9" name="__codelineno-18-9" href="#__codelineno-18-9"></a><span class="w">    </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">touch_state</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">PAH_815X_TOUCH_STATUS__OFF</span><span class="p">)</span>
+<a id="__codelineno-18-10" name="__codelineno-18-10" href="#__codelineno-18-10"></a><span class="w">        </span><span class="n">DEBUG_PRINT</span><span class="p">(</span><span class="s">&quot;TOUCH: time = { %lu }, status = { OFF } &quot;</span><span class="p">,</span><span class="w"> </span><span class="n">timestamp</span><span class="p">);</span>
+<a id="__codelineno-18-11" name="__codelineno-18-11" href="#__codelineno-18-11"></a><span class="p">}</span>
+</code></pre></div>
+<p>The unconditional <code>return;</code> on line 485 makes all touch debug logging dead code. This appears intentional (to reduce UART noise) but should be handled with a compile-time flag rather than dead code.</p>
+<h3 id="unsafe-ppg_data_ready-decrement">Unsafe ppg_data_ready Decrement<a class="headerlink" href="#unsafe-ppg_data_ready-decrement" title="Permanent link">&para;</a></h3>
+<p><strong>Location:</strong> <code>pah_815x_main.c</code> line 498</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="kt">void</span><span class="w"> </span><span class="nf">clear_ppg_data_ready</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a><span class="w">    </span><span class="n">_ppg_data_out</span><span class="p">.</span><span class="n">ppg_data_ready</span><span class="o">--</span><span class="p">;</span>
+<a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a><span class="p">}</span>
+</code></pre></div>
+<p>This uses decrement instead of clearing to zero. If called when <code>ppg_data_ready</code> is already 0, the unsigned underflow would wrap to 255, causing the system to believe data is ready when it is not. The CK wrapper does check <code>get_ppg_data_ready()</code> before calling <code>clear_ppg_data_ready()</code>, but it is fragile.</p>
+<h3 id="dual-bank-cache">Dual Bank Cache<a class="headerlink" href="#dual-bank-cache" title="Permanent link">&para;</a></h3>
+<p><strong>Location:</strong> <code>pah_815x_comm.c</code> lines 18-19</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="k">static</span><span class="w"> </span><span class="kt">uint8_t</span><span class="w"> </span><span class="n">_curr_bank</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mh">0xFF</span><span class="p">;</span>
+<a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a><span class="k">static</span><span class="w"> </span><span class="kt">uint8_t</span><span class="w"> </span><span class="n">_curr_bank_2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+</code></pre></div>
+<p>Two independent bank caches exist because there are two code paths that access registers:
+1. Direct functions (<code>pah_815x_comm_write</code>/<code>read</code>) using <code>_curr_bank</code>
+2. Platform abstraction functions (<code>pah_plat_comm_i2c_write</code>/<code>read</code>) using <code>_curr_bank_2</code></p>
+<p>If both code paths are used concurrently (e.g., factory test functions vs. normal operation), the caches can become desynchronized, leading to register reads/writes on the wrong bank. The bank caches are initialized to different values (<code>0xFF</code> and <code>0x00</code>), which means the first operation through each path will always perform the bank switch, but subsequent operations may be incorrect if the other path changed the bank.</p>
+<h3 id="global-buffer-not-mutex-protected">Global Buffer Not Mutex-Protected<a class="headerlink" href="#global-buffer-not-mutex-protected" title="Permanent link">&para;</a></h3>
+<p><strong>Location:</strong> <code>pah_815x_main.c</code> line 23</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="kt">uint8_t</span><span class="w"> </span><span class="n">buffer</span><span class="p">[</span><span class="mi">512</span><span class="p">];</span>
+</code></pre></div>
+<p>The global 512-byte FIFO read buffer is not protected by a mutex at the SDK level. While the CK wrapper's sensor thread is single-threaded, any direct calls to <code>pah_sensor_task()</code> from a different context would create a data race. This is currently safe because only one thread calls into the SDK, but it is fragile for future modifications.</p>
+<h3 id="unimplemented-sensor-attributes">Unimplemented Sensor Attributes<a class="headerlink" href="#unimplemented-sensor-attributes" title="Permanent link">&para;</a></h3>
+<p>The <code>attr_set</code> handler in the CK wrapper has stubs for:
+- <code>SENSOR_ATTR_PAH8151_SAMPLING_FREQUENCY</code> -- logs "TODO: implement" and returns 0
+- <code>SENSOR_ATTR_PAH8151_LED_CURRENT</code> -- logs "TODO: implement" and returns 0
+- <code>SENSOR_ATTR_PAH8151_EXPOSURE_TIME</code> -- logs "TODO: implement" and returns 0</p>
+<p>Only <code>SENSOR_ATTR_PAH8151_MODE</code> (touch-only vs active) is implemented.</p>
+<h3 id="hardcoded-i2c-address">Hardcoded I2C Address<a class="headerlink" href="#hardcoded-i2c-address" title="Permanent link">&para;</a></h3>
+<p>The I2C address <code>0x15</code> is hardcoded in multiple places in <code>pah_815x_comm.c</code> rather than being read from the devicetree configuration (<code>config-&gt;i2c.addr</code>). While PAH8151 devices always use address <code>0x15</code>, this prevents using the standard Zephyr I2C address from the DT spec.</p>
+<h3 id="timestamp-assumption">Timestamp Assumption<a class="headerlink" href="#timestamp-assumption" title="Permanent link">&para;</a></h3>
+<p>The CK wrapper assumes a fixed 1000ms total duration for each batch of samples:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="kt">uint32_t</span><span class="w"> </span><span class="n">total_duration_ms</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1000</span><span class="p">;</span>
+</code></pre></div>
+<p>This is correct for the current configuration (32 Hz, watermark 32 = 1 second), but would be incorrect if the watermark or sample rate were changed at runtime. A more robust approach would calculate the duration from the actual sample rate and sample count.</p>
+<h3 id="missing-low-power-mode">Missing Low Power Mode<a class="headerlink" href="#missing-low-power-mode" title="Permanent link">&para;</a></h3>
+<p>The <code>attr_set</code> handler for <code>SENSOR_ATTR_PAH8151_MODE</code> supports switching to <code>PAH8151_MODE_TOUCH_ONLY</code>, but the implementation only stops/starts the sensor. It does not implement a true low-power idle state that could be resumed quickly.</p>
+<h3 id="capacitive-touch-disabled">Capacitive Touch Disabled<a class="headerlink" href="#capacitive-touch-disabled" title="Permanent link">&para;</a></h3>
+<p>The configuration has <code>ENABLE_CAP_TOUCH_DETECT = 0</code>, relying solely on IR-based touch detection. IR touch detection is simpler but can be less reliable in certain conditions (e.g., dark skin, dry skin, strong ambient IR). Enabling capacitive touch would provide a more robust touch detection mechanism but requires calibration.</p>
+<h3 id="tuning-opportunities">Tuning Opportunities<a class="headerlink" href="#tuning-opportunities" title="Permanent link">&para;</a></h3>
+<ol>
+<li>
+<p><strong>Sample rate reduction for power saving:</strong> Config 2 (25 Hz, 1 channel) uses significantly less power than Config 5 (32 Hz, 3 channels). Consider switching to a lower config when only heart rate (not SpO2) is needed.</p>
+</li>
+<li>
+<p><strong>Watermark optimization:</strong> Increasing the watermark reduces interrupt frequency (less CPU wake-ups) but increases latency. The current value of 32 (1 second of data) is a good balance for SpO2 but could be reduced for lower-latency heart rate monitoring.</p>
+</li>
+<li>
+<p><strong>LED DAC max reduction:</strong> The Green channel DAC max is 63 (25.2 mA) while Red and IR are 127 (50.8 mA). If the optical path allows, reducing the Red/IR DAC max would save power.</p>
+</li>
+<li>
+<p><strong>PPG auto power saving:</strong> The <code>enable_ppg_auto_power_saving</code> flag is not explicitly set in the current initialization. Enabling it would reduce power when no touch is detected in ALWAYS_PPG mode by reducing exposure times and LED currents to minimum values.</p>
+</li>
+<li>
+<p><strong>FIFO checksum:</strong> Currently disabled (<code>pah_815x_ENABLE_FIFO_CHECKSUM</code> not defined). Enabling it adds data integrity verification at the cost of slightly increased FIFO read time.</p>
+</li>
+</ol>
+<hr />
+<h2 id="appendix-build-configuration">Appendix: Build Configuration<a class="headerlink" href="#appendix-build-configuration" title="Permanent link">&para;</a></h2>
+<h3 id="kconfig-options">Kconfig Options<a class="headerlink" href="#kconfig-options" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>CONFIG_CK_PAH8151</code></td>
+<td>n</td>
+<td>Enable PAH8151 driver</td>
+</tr>
+<tr>
+<td><code>CONFIG_CK_PAH8151_INIT_PRIORITY</code></td>
+<td>90</td>
+<td>Device init priority</td>
+</tr>
+<tr>
+<td><code>CONFIG_CK_PAH8151_LOG_LEVEL</code></td>
+<td>3 (WRN)</td>
+<td>Log level</td>
+</tr>
+<tr>
+<td><code>CONFIG_CK_PAH8151_BUS_MUTEX</code></td>
+<td>n</td>
+<td>Enable I2C bus mutex</td>
+</tr>
+<tr>
+<td><code>CONFIG_CK_PAH8151_THREAD_PRIORITY</code></td>
+<td>8</td>
+<td>Sensor thread priority</td>
+</tr>
+<tr>
+<td><code>CONFIG_CK_PAH8151_FACTORY_TEST</code></td>
+<td>n</td>
+<td>Enable factory test support</td>
+</tr>
+</tbody>
+</table>
+<h3 id="devicetree-binding">Devicetree Binding<a class="headerlink" href="#devicetree-binding" title="Permanent link">&para;</a></h3>
+<p>From <code>pixart,pah8151.yaml</code>:
+- Compatible: <code>pixart,pah8151</code>
+- Bus: I2C
+- Required: <code>irq-gpios</code> (interrupt GPIO)
+- Optional: <code>int1-gpios</code>, <code>int2-gpios</code> (factory test GPIOs), <code>int-pin</code> (touch interrupt pin number)</p>
+<h3 id="cmake-structure">CMake Structure<a class="headerlink" href="#cmake-structure" title="Permanent link">&para;</a></h3>
+<p>The build system has CMakeLists.txt files at multiple levels:
+1. Top-level: adds <code>drivers/</code> subdirectory
+2. Drivers: adds <code>corekinect/</code> subdirectory
+3. CoreKinect: adds <code>sensors/</code> subdirectory
+4. Sensors: adds <code>pah8151/</code> subdirectory
+5. PAH8151: compiles all <code>.c</code> files, adds include paths for <code>PAH8151/pah_sensor/</code>, <code>PAH8151/pah/</code>, <code>PAH8151/pah_factory_test/</code></p>
+<hr />
+<h2 id="appendix-return-codes">Appendix: Return Codes<a class="headerlink" href="#appendix-return-codes" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Code</th>
+<th>Enum</th>
+<th>Value</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Success</td>
+<td><code>PAH_RET_SUCCESS</code></td>
+<td>0</td>
+<td>Operation completed successfully</td>
+</tr>
+<tr>
+<td>Error</td>
+<td><code>PAH_RET_ERROR</code></td>
+<td>-1</td>
+<td>Generic error</td>
+</tr>
+<tr>
+<td>Pending</td>
+<td><code>PAH_RET_PENDING</code></td>
+<td>-2</td>
+<td>Operation in progress</td>
+</tr>
+<tr>
+<td>Failed</td>
+<td><code>PAH_RET_FAILED</code></td>
+<td>-3</td>
+<td>Operation failed</td>
+</tr>
+<tr>
+<td>Platform Failed</td>
+<td><code>PAH_RET_PLAT_FAILED</code></td>
+<td>-4</td>
+<td>Platform-level failure</td>
+</tr>
+<tr>
+<td>Verify Failed</td>
+<td><code>PAH_RET_VERIFY_FAILED</code></td>
+<td>-5</td>
+<td>Verification mismatch</td>
+</tr>
+<tr>
+<td>Not Implemented</td>
+<td><code>PAH_RET_NOT_IMPLEMENTED</code></td>
+<td>-6</td>
+<td>Feature not implemented</td>
+</tr>
+<tr>
+<td>Invalid Argument</td>
+<td><code>PAH_RET_INVALID_ARGUMENT</code></td>
+<td>-7</td>
+<td>Bad parameter</td>
+</tr>
+<tr>
+<td>Invalid Operation</td>
+<td><code>PAH_RET_INVALID_OPERATION</code></td>
+<td>-8</td>
+<td>Operation not allowed in current state</td>
+</tr>
+<tr>
+<td>FIFO Checksum Failed</td>
+<td><code>PAH_RET_FIFO_CKS_FAILED</code></td>
+<td>-9</td>
+<td>FIFO data integrity error</td>
+</tr>
+<tr>
+<td>FIFO Overflow</td>
+<td><code>PAH_RET_FIFO_OVERFLOW</code></td>
+<td>-10</td>
+<td>FIFO buffer overflow</td>
+</tr>
+<tr>
+<td>Async Pending</td>
+<td><code>PAH_RET_ASYNC_PENDING</code></td>
+<td>-11</td>
+<td>Asynchronous operation pending</td>
+</tr>
+<tr>
+<td>Null Pointer</td>
+<td><code>PAH_RET_NULL_POINTER</code></td>
+<td>-12</td>
+<td>Null pointer argument</td>
+</tr>
+</tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://zensical.org/" target="_blank" rel="noopener">
+      Zensical
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      
+      <script id="__config" type="application/json">{"annotate":null,"base":"../../../..","features":["navigation.sections","navigation.expand","navigation.path","navigation.indexes","search.suggest","content.code.copy","toc.follow"],"search":"../../../../assets/javascripts/workers/search.e2d2d235.min.js","tags":null,"translations":{"clipboard.copied":"Copied to clipboard","clipboard.copy":"Copy to clipboard","search.result.more.one":"1 more on this page","search.result.more.other":"# more on this page","search.result.none":"No matching documents","search.result.one":"1 matching document","search.result.other":"# matching documents","search.result.placeholder":"Type to start searching","search.result.term.missing":"Missing","select.version":"Select version"},"version":null}</script>
+    
+    
+      <script src="../../../../assets/javascripts/bundle.5fd3284f.min.js"></script>
+      
+        <script src="../../../../assets/js/external-links.js"></script>
+      
+    
+  </body>
+</html>
