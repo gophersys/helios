@@ -1,0 +1,89 @@
+# Copyright (c) 2024 CoreKinect Inc.
+
+description: |
+  Texas Instruments BQ35100 Primary Battery Fuel Gauge
+
+  The BQ35100 is a fuel gauge and end-of-service monitor for primary
+  (non-rechargeable) lithium batteries. It supports Li-SOCl2 and Li-MnO2
+  chemistries with ultra-low quiescent current (50 nA when disabled).
+
+  The device is host-controlled via the Gauge Enable (GE) pin — when GE
+  is LOW the device draws ~50 nA. When GE is HIGH the device powers up,
+  takes measurements, and communicates over I2C at address 0x55.
+
+  Three gauging modes are available:
+    - Accumulator (ACC): Coulomb counting, chemistry-independent
+    - State-of-Health (SOH): Voltage correlation for Li-MnO2
+    - End-of-Service (EOS): Impedance tracking for Li-SOCl2
+
+  Example devicetree configuration:
+
+    &i2c0 {
+        bq35100: bq35100@55 {
+            compatible = "ti,bq35100";
+            reg = <0x55>;
+            enable-gpios = <&gpio0 1 GPIO_ACTIVE_HIGH>;
+            alert-gpios = <&gpio0 0 GPIO_ACTIVE_LOW>;
+            design-capacity-mah = <2200>;
+            gauging-mode = "accumulator";
+        };
+    };
+
+compatible: "ti,bq35100"
+
+include: [i2c-device.yaml]
+
+properties:
+  enable-gpios:
+    type: phandle-array
+    required: true
+    description: |
+      GPIO connected to the BQ35100 GE (Gauge Enable) pin.
+      Must be configured as active-high output. When asserted, the
+      device powers up and begins taking measurements. When deasserted,
+      the device enters ultra-low-power shutdown (~50 nA).
+      The driver waits 250ms after assertion for the device to be ready.
+
+  alert-gpios:
+    type: phandle-array
+    required: false
+    description: |
+      GPIO connected to the BQ35100 ALERT pin (open-drain, active-low).
+      Triggers on configurable events: battery low, temperature threshold,
+      SOH low, end-of-service, gauge done, and initialization complete.
+      Reading BatteryAlert() clears the interrupt.
+
+  design-capacity-mah:
+    type: int
+    required: false
+    default: 2200
+    description: |
+      Design capacity of the primary battery in milliamp-hours.
+      Used for SOH percentage calculation. Should match the battery
+      datasheet nominal capacity. Range: 1-65535 mAh.
+
+  gauging-mode:
+    type: string
+    required: false
+    default: "accumulator"
+    enum:
+      - "accumulator"
+      - "soh"
+      - "eos"
+    description: |
+      Gauging mode selection:
+        "accumulator" - Coulomb counting, works with all chemistries.
+                        Measures V/I/T every 1s while active.
+        "soh"         - State-of-Health via voltage correlation.
+                        For Li-MnO2 batteries only.
+        "eos"         - End-of-Service via impedance tracking.
+                        For Li-SOCl2 batteries only.
+
+  power-up-delay-ms:
+    type: int
+    required: false
+    default: 250
+    description: |
+      Delay in milliseconds after GE assertion before I2C communication.
+      The BQ35100 requires at least 250ms to power up. Increase if
+      communication fails after enable.
