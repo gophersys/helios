@@ -114,12 +114,71 @@ export interface Product {
   buildWestDir: string | null;
   buildMfgDir: string | null;
   metadata: Record<string, unknown> | null;
+  buildConfig: BuildConfig | null;
   boardCount?: number;
   firmwareBuildCount?: number;
   boards?: Board[];
   firmwareBuilds?: FirmwareBuild[];
   createdAt: string;
   updatedAt: string;
+}
+
+// ── Build Config types ──────────────────────────────────────
+
+export interface BuildConfigTarget {
+  soc: string;
+  appId: number;
+  role: string;
+}
+
+export interface BuildConfigCfw {
+  deviceType: number;
+  deviceVariant: number;
+}
+
+export interface BuildConfig {
+  board: string;
+  ncsVersion: string;
+  boardRoot: string;
+  targets: Record<string, BuildConfigTarget>;
+  hasVsmMerge: boolean;
+  hasFips: boolean;
+  confFiles: Record<string, string[]>;
+  overlays: Record<string, string[]>;
+  postBuild: string[];
+  cfw: BuildConfigCfw;
+}
+
+// ── Board Discovery types ───────────────────────────────────
+
+export interface DtsPeripheral {
+  compatible: string;
+  type: string;
+  bus: string;
+}
+
+export interface BoardRevisionDetail {
+  name: string;
+  peripherals: DtsPeripheral[];
+}
+
+export interface BoardSummary {
+  board: string;
+  socs: string[];
+  revisions: string[];
+  variants: string[];
+}
+
+export interface BoardDetail {
+  board: string;
+  socs: string[];
+  revisions: BoardRevisionDetail[];
+  variants: string[];
+}
+
+export interface BoardBranchesResponse {
+  branches: string[];
+  tags: string[];
 }
 
 // ── Codebases types ──────────────────────────────────────────

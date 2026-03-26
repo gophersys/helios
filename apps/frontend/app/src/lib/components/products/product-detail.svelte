@@ -4,10 +4,11 @@
   import BoardList from './board-list.svelte';
   import FirmwareBuildManager from './firmware-app-list.svelte';
   import ProductStages from './product-stages.svelte';
-  import { GitBranch, Cpu, Layers } from 'lucide-svelte';
+  import BuildConfigCard from './build-config-card.svelte';
+  import { GitBranch, Cpu, Layers, Wrench } from 'lucide-svelte';
   import type { Product, Chipset } from '$lib/types/models';
 
-  type Tab = 'stages' | 'boards' | 'firmware' | 'usage';
+  type Tab = 'stages' | 'boards' | 'firmware' | 'build-config' | 'usage';
 
   interface Props {
     product: Product;
@@ -26,6 +27,7 @@
     { key: 'stages', label: 'Build & Test Stages' },
     { key: 'boards', label: 'Boards' },
     { key: 'firmware', label: 'Firmware' },
+    { key: 'build-config', label: 'Build Config' },
     { key: 'usage', label: 'Usage' },
   ];
 
@@ -130,6 +132,16 @@
           {canManage}
           {onRefresh}
         />
+      {/if}
+
+      {#if activeTab === 'build-config'}
+        {#if product.buildConfig}
+          <BuildConfigCard config={product.buildConfig} />
+        {:else}
+          <div class="py-8 text-center text-sm text-text-tertiary">
+            No build configuration set. Use the product creation wizard to auto-populate from ck_boards.
+          </div>
+        {/if}
       {/if}
 
       {#if activeTab === 'usage'}

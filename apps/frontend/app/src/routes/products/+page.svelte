@@ -1,12 +1,13 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
-  import { Plus, Check } from 'lucide-svelte';
+  import { Plus, Check, CircuitBoard } from 'lucide-svelte';
   import { getAuth } from '$lib/stores/auth.svelte';
   import { apiFetch, api } from '$lib/api';
   import { PageHeader, ErrorAlert, EmptyState, LoadingState, ConfirmDeleteDialog, FormCard } from '$lib/components/ui';
   import ProductCard from '$lib/components/products/product-card.svelte';
   import ProductDetail from '$lib/components/products/product-detail.svelte';
+  import ProductCreationWizard from '$lib/components/products/product-creation-wizard.svelte';
   import ChipsetManagement from '$lib/components/products/chipset-management.svelte';
   import { useChipsets } from '$lib/hooks/use-chipsets.svelte';
   import type { Product } from '$lib/types/models';
@@ -35,6 +36,9 @@
 
   // Detail state
   let selectedProduct = $state<Product | null>(null);
+
+  // Wizard state
+  let showWizard = $state(false);
 
   // Chipset state
   const chipsetState = useChipsets();
@@ -231,9 +235,16 @@
         </FormCard>
       {/if}
 
-      <!-- Add button -->
-      {#if canManage && !showForm}
-        <div class="mb-4 flex justify-end">
+      <!-- Add buttons -->
+      {#if canManage && !showForm && !showWizard}
+        <div class="mb-4 flex justify-end gap-2">
+          <button
+            onclick={() => { showWizard = true; }}
+            class="flex items-center gap-2 rounded-lg border border-accent px-3 py-2 text-sm font-medium text-accent hover:bg-accent/5"
+          >
+            <CircuitBoard size={16} />
+            New from ck_boards
+          </button>
           <button
             onclick={() => { resetForm(); showForm = true; }}
             class="flex items-center gap-2 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-white hover:bg-accent-hover"
@@ -241,6 +252,15 @@
             <Plus size={16} />
             New product
           </button>
+        </div>
+      {/if}
+
+      {#if showWizard && canManage}
+        <div class="mb-4">
+          <ProductCreationWizard
+            onCreated={() => { showWizard = false; fetchProducts(); }}
+            onCancel={() => { showWizard = false; }}
+          />
         </div>
       {/if}
 
