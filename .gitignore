@@ -9,9 +9,11 @@
 .nx/workspace-data
 
 # ---------------------------------------------------------------------------
-# Node.js
+# Node.js / Yarn
 # ---------------------------------------------------------------------------
 node_modules/
+.yarn/cache/
+.yarn/install-state.gz
 npm-debug.log
 yarn-error.log
 
