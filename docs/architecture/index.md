@@ -48,3 +48,4 @@ Firmware build orchestrator.
 | [build-service.md](build/build-service.md) | BuildEngine library, gRPC + HTTP interfaces, MinIO storage |
 | [builder-nodes.md](build/builder-nodes.md) | DaemonSet-based build worker deployment on WSL/K3s nodes |
 | [product-build-system.md](build/product-build-system.md) | Two-layer build redesign: ck_boards integration, product discovery, runner + hook |
+| [artifact-contract.md](build/artifact-contract.md) | Self-describing build.json manifest, stage input contracts, ArtifactResolver |

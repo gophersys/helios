@@ -81,6 +81,7 @@ nav:
       - Build Service: architecture/build/build-service.md
       - Builder Nodes: architecture/build/builder-nodes.md
       - Product & Build System: architecture/build/product-build-system.md
+      - Artifact Contract: architecture/build/artifact-contract.md
 
   - Reference:
     - reference/index.md
