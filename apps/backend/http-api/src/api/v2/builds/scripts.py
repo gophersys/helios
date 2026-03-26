@@ -6,6 +6,7 @@ from pathlib import Path
 
 from flask import jsonify, request
 
+from src.lib.audit import log_audit
 from src.lib.decorators import require_permissions
 from src.lib.errors import internal_error, not_found
 from src.lib.permissions import Permissions
@@ -189,6 +190,7 @@ def list_build_scripts():
 @require_permissions(Permissions.BUILDS_MANAGE)
 def upload_build_script(product: str):
     """POST /v2/builds/scripts/<product> — Upload a build script (not implemented)."""
+    log_audit("builds.script.upload_attempt", "BuildScript", None, {"product": product})
     return jsonify(ApiResponse.error(
         ErrorDetail(message="Use PUT /v2/products/{id}/stages/{stage} to update build scripts")
     ).to_dict()), 501
@@ -197,6 +199,7 @@ def upload_build_script(product: str):
 @require_permissions(Permissions.BUILDS_MANAGE)
 def delete_build_script(product: str):
     """DELETE /v2/builds/scripts/<product> — Delete a build script (not implemented)."""
+    log_audit("builds.script.delete_attempt", "BuildScript", None, {"product": product})
     return jsonify(ApiResponse.error(
         ErrorDetail(message="Use PUT /v2/products/{id}/stages/{stage} to manage build scripts")
     ).to_dict()), 501

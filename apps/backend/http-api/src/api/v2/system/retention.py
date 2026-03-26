@@ -9,6 +9,7 @@ import logging
 
 from flask import jsonify, request
 
+from src.lib.audit import log_audit
 from src.lib.decorators import require_permissions
 from src.lib.errors import bad_request, internal_error
 from src.lib.permissions import Permissions
@@ -45,6 +46,10 @@ def cleanup_validation_runs():
 
     try:
         result = cleanup_old_validation_runs(retention_days)
+        log_audit("retention.cleanup", "Session", None, {
+            "retentionDays": retention_days,
+            "result": result,
+        })
         return jsonify(ApiResponse.ok(result).to_dict()), 200
     except Exception as e:
         logger.error("Retention cleanup failed: %s", e)
