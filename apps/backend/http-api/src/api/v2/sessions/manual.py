@@ -248,11 +248,16 @@ def create_kubernetes_job(
         # Host header for ingress routing when using IP address
         job_yaml = job_yaml.replace("{{CONCORD_API_HOST}}", "staging.concord.local")
 
+        # Storage — inject from http-api's own config (no hardcoded creds in template)
+        job_yaml = job_yaml.replace("{{STORAGE_URL}}", env_config.STORAGE_URL)
+        job_yaml = job_yaml.replace("{{STORAGE_ACCESS_KEY}}", env_config.STORAGE_ACCESS_KEY)
+        job_yaml = job_yaml.replace("{{STORAGE_SECRET_ACCESS_KEY}}", env_config.STORAGE_SECRET_ACCESS_KEY)
+        job_yaml = job_yaml.replace("{{STORAGE_BUCKET_NAME}}", env_config.STORAGE_BUCKET_NAME)
+
         # Device/bench identity env vars — use passed params if available, else fall back to env
         job_yaml = job_yaml.replace("{{DEVICE_ID}}", device_id or os.environ.get("DEVICE_ID", ""))
         job_yaml = job_yaml.replace("{{DEVICE_SNR}}", device_snr or os.environ.get("DEVICE_SNR", ""))
         job_yaml = job_yaml.replace("{{FIXTURE_PROFILE_PATH}}", fixture_profile_path or os.environ.get("FIXTURE_PROFILE_PATH", "fixtures/alpha_b0.json"))
-        job_yaml = job_yaml.replace("{{PROXY_SERVER_URL}}", os.environ.get("PROXY_SERVER_URL", ""))
         job_yaml = job_yaml.replace("{{DEVICE_IMEI}}", device_imei or os.environ.get("DEVICE_IMEI", ""))
         job_yaml = job_yaml.replace("{{DEVICE_ICCIDS}}", device_iccids or os.environ.get("DEVICE_ICCIDS", ""))
         # Bench-specific: MTIB address from bench scheduler

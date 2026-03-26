@@ -13,7 +13,7 @@ Environment variables:
     STORAGE_URL:               MinIO endpoint (e.g., http://minio:9000)
     STORAGE_ACCESS_KEY:        MinIO access key
     STORAGE_SECRET_ACCESS_KEY: MinIO secret key
-    STORAGE_BUCKET:            Bucket name (default: concord)
+    STORAGE_BUCKET_NAME_NAME:       Bucket name (default: concord)
     FIRMWARE_BUCKET_FILE_PATH: Path to firmware in MinIO (optional, for K8s jobs)
     CONCORD_API_URL:           Concord HTTP API base URL (for PipelineAssets)
     CONCORD_API_KEY:           API key for auth (for PipelineAssets)
@@ -60,7 +60,7 @@ class _StorageConfig(EnvConfig):
     STORAGE_URL: Optional[str] = None
     STORAGE_ACCESS_KEY: Optional[str] = None
     STORAGE_SECRET_ACCESS_KEY: Optional[str] = None
-    STORAGE_BUCKET: str = "concord"
+    STORAGE_BUCKET_NAME: str = "concord"
 
     # Firmware path for K8s jobs (optional)
     FIRMWARE_BUCKET_FILE_PATH: Optional[str] = None
@@ -277,7 +277,7 @@ class FirmwareAssetManager:
         if minio is None:
             raise RuntimeError("MinIO storage not configured")
 
-        bucket = self._config.STORAGE_BUCKET
+        bucket = self._config.STORAGE_BUCKET_NAME
 
         # Create temp file with correct extension
         suffix = Path(storage_key).suffix or ".hex"
@@ -350,7 +350,7 @@ class _PipelineConfig(EnvConfig):
     STORAGE_URL: Optional[str] = None
     STORAGE_ACCESS_KEY: Optional[str] = None
     STORAGE_SECRET_ACCESS_KEY: Optional[str] = None
-    STORAGE_BUCKET: str = "concord"
+    STORAGE_BUCKET_NAME: str = "concord"
 
 
 @dataclass
@@ -588,7 +588,7 @@ class PipelineAssets:
     def _download(self, storage_key: str) -> str:
         """Download file from MinIO to temp directory, preserving original filename."""
         minio = self._get_minio()
-        bucket = self._config.STORAGE_BUCKET
+        bucket = self._config.STORAGE_BUCKET_NAME
 
         # Preserve the original filename so logs and MTIB uploads are readable
         original_name = Path(storage_key).name

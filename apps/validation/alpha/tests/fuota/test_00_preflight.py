@@ -152,7 +152,7 @@ class TestPreflight:
     def test_storage_access(self, pipeline_assets):
         """Verify MinIO storage is accessible for firmware artifacts."""
         storage_url = os.environ.get("STORAGE_URL", "?")
-        bucket = os.environ.get("STORAGE_BUCKET", "?")
+        bucket = os.environ.get("STORAGE_BUCKET_NAME", "?")
         print(f"MinIO URL:    {storage_url}")
         print(f"Bucket:       {bucket}")
 

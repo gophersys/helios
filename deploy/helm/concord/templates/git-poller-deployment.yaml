@@ -25,7 +25,7 @@ spec:
           image: "{{ .Values.gitPoller.image.repository }}:{{ .Values.gitPoller.image.tag }}"
           imagePullPolicy: {{ .Values.global.imagePullPolicy }}
           env:
-            - name: GIT_SSH_KEY_PATH
+            - name: SSH_KEY_PATH
               value: "/root/.ssh/id_rsa"
             - name: POLL_INTERVAL
               value: {{ .Values.gitPoller.pollInterval | default "15" | quote }}

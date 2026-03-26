@@ -11,7 +11,7 @@ Usage:
     python -m src.services.git_poller
 
 Environment:
-    GIT_SSH_KEY_PATH: Path to SSH private key (default: /root/.ssh/keys/bitbucket)
+    SSH_KEY_PATH: Path to SSH private key (default: /root/.ssh/keys/bitbucket)
     POLL_INTERVAL: Seconds between polls (default: 15)
     CONCORD_API_URL: Concord API base URL
     CONCORD_API_KEY: API key for triggering builds
@@ -305,7 +305,7 @@ class GitPoller:
 def main():
     """Entry point."""
     poller = GitPoller(
-        ssh_key_path=os.environ.get("GIT_SSH_KEY_PATH", "/root/.ssh/keys/bitbucket"),
+        ssh_key_path=os.environ.get("SSH_KEY_PATH", "/root/.ssh/keys/bitbucket"),
         poll_interval=int(os.environ.get("POLL_INTERVAL", "15")),
         api_url=os.environ.get("CONCORD_API_URL", "https://staging.concord.local"),
         api_key=os.environ.get("CONCORD_API_KEY", ""),

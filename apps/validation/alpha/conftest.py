@@ -22,7 +22,7 @@ Required environment variables (set by K8s Job template):
     VAL_1_0_API_REST_SERVER_HOST_NAME  - REST API (val.office.corekinect.cloud:2018/api)
 
     Storage (MinIO — from K8s configmap):
-    STORAGE_URL, STORAGE_ACCESS_KEY, STORAGE_SECRET_ACCESS_KEY, STORAGE_BUCKET
+    STORAGE_URL, STORAGE_ACCESS_KEY, STORAGE_SECRET_ACCESS_KEY, STORAGE_BUCKET_NAME
 
 Optional:
     MOCK_CLOUD       - "1" for mock mode (no hardware)
@@ -81,8 +81,6 @@ class ValidationConfig(EnvConfig):
     FW_RELEASE_COMMS_HEX: Optional[str] = None
     FW_MODEM_ZIP: Optional[str] = None
 
-    # CoreOps re-personalization
-    PROXY_SERVER_URL: Optional[str] = None
     DEVICE_IMEI: Optional[str] = None
     DEVICE_ICCIDS: Optional[str] = None
 
@@ -105,7 +103,7 @@ class ValidationConfig(EnvConfig):
     STORAGE_URL: Optional[str] = None
     STORAGE_ACCESS_KEY: Optional[str] = None
     STORAGE_SECRET_ACCESS_KEY: Optional[str] = None
-    STORAGE_BUCKET: str = "concord"
+    STORAGE_BUCKET_NAME: str = "concord"
 
 
 cfg = ValidationConfig()
@@ -607,7 +605,7 @@ def firmware_build(ctx: TestContext, request) -> str:
     In hardware mode:
       1. Uploads firmware files from local paths to the MTIB server (once per session)
       2. Flashes the firmware to the DUT
-      3. Re-personalizes if PROXY_SERVER_URL + DEVICE_SNR are set
+      3. Re-personalizes if COREOPS_SERVER_URL + DEVICE_SNR are set
 
     Firmware paths are read from env vars (FW_DEBUG_HEX, FW_RELEASE_HEX, etc.).
     Values can be local file paths (auto-uploaded) or bare filenames (pre-uploaded).
