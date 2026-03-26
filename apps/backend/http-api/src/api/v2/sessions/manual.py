@@ -20,7 +20,7 @@ from src.services.kubernetes.client import get_batch_v1_api
 from src.services.log.logger import get_logger
 from src.services.storage.client import get_bucket_name, get_storage_client, StoragePrefixes, storage_key
 
-from .manual_types import ValidationTestsRunRequest
+from .types import ValidationTestsRunRequest
 
 
 # -------------------------------------------------

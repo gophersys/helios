@@ -1,6 +1,6 @@
 """Tests for validation queue request type validation."""
 import pytest
-from api.v2.sessions.queue_types import QueueEntryCreateRequest, QueueEntryUpdateRequest
+from api.v2.sessions.types import QueueEntryCreateRequest, QueueEntryUpdateRequest
 
 
 class TestQueueEntryCreateRequest:
