@@ -4,22 +4,21 @@ import logging
 
 from flask import jsonify
 
-from src.lib.decorators import require_auth
+from src.lib.audit import log_audit
+from src.lib.decorators import require_permissions
 from src.lib.errors import not_found
+from src.lib.permissions import Permissions
 from src.lib.types import ApiResponse
 from src.services.database.prisma import get_db_client
 
 logger = logging.getLogger(__name__)
 
 
-@require_auth
+@require_permissions(Permissions.DEVICES_MANAGE)
 def acknowledge_command(command_id: str):
     """Mark a pending command as acknowledged.
 
     POST /v2/icle/commands/:id/ack
-
-    This endpoint requires basic auth but not specific permissions,
-    as it's called by devices to acknowledge commands.
     """
     db = get_db_client()
 
@@ -33,5 +32,7 @@ def acknowledge_command(command_id: str):
         where={"id": command_id},
         data={"acknowledged": True},
     )
+
+    log_audit("icle.command.acknowledge", "IclePendingCommand", command_id, {})
 
     return jsonify(ApiResponse.ok({"acknowledged": True}).to_dict()), 200

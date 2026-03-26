@@ -9,7 +9,8 @@ import random
 
 from flask import jsonify, request
 
-from src.lib.decorators import require_auth
+from src.lib.decorators import require_permissions
+from src.lib.permissions import Permissions
 from src.lib.errors import bad_request
 from src.lib.types import ApiResponse
 
@@ -38,7 +39,7 @@ DEMO_TESTS = [
 ]
 
 
-@require_auth
+@require_permissions(Permissions.VALIDATION_RUN)
 def simulate_run(run_id: str):
     """POST /v2/validation/runs/<id>/demo/simulate — Start a simulated run.
 

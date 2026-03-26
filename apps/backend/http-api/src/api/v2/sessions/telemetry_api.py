@@ -12,7 +12,8 @@ import logging
 
 from flask import Response, jsonify
 
-from src.lib.decorators import require_auth
+from src.lib.decorators import require_permissions
+from src.lib.permissions import Permissions
 from src.lib.errors import internal_error, not_found
 from src.lib.types import ApiResponse
 from src.services.database.prisma import get_db_client
@@ -33,7 +34,7 @@ def _get_session_or_404(db, run_id: str):
     return session, None
 
 
-@require_auth
+@require_permissions(Permissions.VALIDATION_VIEW)
 def get_telemetry_manifest(run_id: str):
     """GET /v2/sessions/<id>/telemetry/manifest
 
@@ -71,7 +72,7 @@ def get_telemetry_manifest(run_id: str):
         return internal_error("Failed to fetch telemetry manifest")
 
 
-@require_auth
+@require_permissions(Permissions.VALIDATION_VIEW)
 def get_telemetry_channel(run_id: str, channel: str):
     """GET /v2/sessions/<id>/telemetry/<channel>
 
