@@ -281,7 +281,7 @@ Version resolution (semver from git tags)
     → Collect outputs from OUTPUT_DIR
     → Generate CFW files (per target)
     → Validate artifacts (see Section 8)
-    → Produce build.json v2
+    → Produce build.json
     → Stream logs to WebSocket
     → Upload to MinIO
 ```
@@ -294,7 +294,7 @@ Version resolution (semver from git tags)
 - Call the product hook script
 - Generate `.cfw` files from `.hex` outputs using the [CFW generator](../../reference/fuota-workflow.md)
 - Validate all artifacts against the output contract
-- Write `build.json` v2 (self-describing manifest)
+- Write `build.json` (self-describing manifest)
 - Stream build logs via WebSocket
 - Upload final artifacts to MinIO
 
@@ -351,7 +351,7 @@ Every build MUST produce the following artifacts:
 
 ```
 OUTPUT_DIR/
-    build.json                    # v2 manifest (self-describing)
+    build.json                    # Build manifest (self-describing)
     build.log                     # Full build log
     hex/
         {appId}.{ver}-{track}.hex   # Plaintext hex per target (bootloader + app)
@@ -361,11 +361,11 @@ OUTPUT_DIR/
 
 See [Artifact Contract](artifact-contract.md) for the full manifest schema and stage input contracts.
 
-### build.json v2 Schema
+### build.json Schema
 
 ```json
 {
-  "version": 2,
+  "schemaVersion": 1,
   "product": "alpha",
   "buildVersion": "0.8.3",
   "track": "BM",
@@ -392,7 +392,7 @@ See [Artifact Contract](artifact-contract.md) for the full manifest schema and s
 }
 ```
 
-The `targets` array is the key improvement over v1 — it makes the manifest self-describing. Consumers (FUOTA, validation, flashing) iterate over targets instead of hardcoding AppID assumptions.
+The `targets` array makes the manifest self-describing. Consumers (FUOTA, validation, flashing) iterate over targets instead of hardcoding AppID assumptions.
 
 ---
 
@@ -414,7 +414,7 @@ The runner validates all artifacts before uploading to MinIO. Validation is mand
 
 CFW files include a header with metadata. The runner verifies:
 
-- Magic bytes match CFW v2 format
+- Magic bytes match expected CFW format
 - `appId` in header matches the target's configured appId
 - `deviceType` and `deviceVariant` match the product's `cfw` config
 - Version in header matches the build version
@@ -484,13 +484,8 @@ There is no global branch configuration. Each product controls its own trigger r
 1. **Deploy ck_boards integration** — bare clone + worktree support + discovery API
 2. **Create product wizard** — frontend flow backed by discovery endpoints
 3. **Migrate existing products** — run discovery against current ck_boards, populate `buildConfig` for Alpha and Sigma5, verify against current build outputs
-4. **Deploy two-layer build** — standard runner + product hooks, run in parallel with old system
-5. **Cut over** — switch webhook targets to new system, verify builds match
-6. **Remove old system** — delete `build.sh`, remove `REPO_PRODUCT_MAP` and `CI_TRIGGER_BRANCHES`
-
-### Backwards Compatibility
-
-During migration, both systems run in parallel. The new system writes to the same MinIO paths, so downstream consumers (FUOTA, validation, flashing) work unchanged. The `build.json` v2 format is additive — v1 consumers can ignore the `targets` array.
+4. **Deploy two-layer build** — standard runner + product hooks, verify builds match current `build.sh` output
+5. **Cut over** — switch webhook targets, delete `build.sh`, remove `REPO_PRODUCT_MAP` and `CI_TRIGGER_BRANCHES`
 
 ---
 

@@ -30,7 +30,7 @@ Adding a second product requires changing code in 15+ files. A self-describing m
 
 ---
 
-## 2. Build Manifest (build.json v2)
+## 2. Build Manifest (build.json)
 
 Every build MUST produce a `build.json` alongside its hex/cfw files. This is the single source of truth for what the build contains.
 
@@ -38,7 +38,7 @@ Every build MUST produce a `build.json` alongside its hex/cfw files. This is the
 
 ```json
 {
-  "schemaVersion": 2,
+  "schemaVersion": 1,
   "product": "alpha",
   "board": "alpha_b0",
   "version": "0.8.3",
@@ -96,7 +96,7 @@ Every build MUST produce a `build.json` alongside its hex/cfw files. This is the
 
 | Field | Required | Description |
 |-------|----------|-------------|
-| `schemaVersion` | Yes | Always `2`. Consumers check this before parsing. |
+| `schemaVersion` | Yes | Always `1`. Consumers check this before parsing. |
 | `product` | Yes | Product name (matches `Product.name` in DB) |
 | `board` | Yes | Board identifier from ck_boards |
 | `version` | Yes | Semver build version |
@@ -146,7 +146,7 @@ These checks prevent accidental downgrades, cross-track contamination, and App I
 
 ```json
 {
-  "schemaVersion": 2,
+  "schemaVersion": 1,
   "product": "sigma5",
   "board": "sigma5_std",
   "version": "1.0.0",
@@ -367,7 +367,7 @@ Build Worker
     │
     │  Runs build hook → produces hex files
     │  Generates CFW files from hex outputs
-    │  Writes build.json v2 (populated from buildConfig)
+    │  Writes build.json (populated from buildConfig)
     │  Uploads artifacts with role/processor metadata
     │
     ▼
@@ -413,7 +413,7 @@ No test code needs to know that Alpha uses App ID 109 for its nRF52840. That inf
 
 **Where:** Build worker (end of build, before upload)
 
-The build worker already has all the metadata — it just needs to serialize it. Generate `build.json` v2 from the `buildConfig` + build outputs. Upload it alongside hex/cfw files. Zero impact on existing consumers.
+The build worker already has all the metadata — it just needs to serialize it. Generate `build.json` from the `buildConfig` + build outputs. Upload it alongside hex/cfw files.
 
 ### Phase 2: Enhance Artifact Model
 

@@ -7,9 +7,9 @@ Arguments: None (reviews entire MTIB server)
 ## Scope
 
 Reviews the MTIB server implementation:
-- `apps/edge/mtib-server-v2/src/` - Core server implementation
-- `apps/edge/mtib-server-v2/tests/` - Test suite
-- `libs/protocols/mtib_v2/mtib_v2.proto` - Protocol definitions
+- `apps/edge/mtib-server/src/` - Core server implementation
+- `apps/edge/mtib-server/tests/` - Test suite
+- `libs/protocols/mtib/mtib.proto` - Protocol definitions
 
 ## Execution Strategy
 
@@ -17,7 +17,7 @@ Launch **parallel agents** (using the Task tool with `subagent_type: "general-pu
 
 ### Agent 1: gRPC Service Pattern Review
 
-Read all service implementation files in `apps/edge/mtib-server-v2/src/providers/` and verify:
+Read all service implementation files in `apps/edge/mtib-server/src/providers/` and verify:
 
 1. **Service structure** - Each provider follows the pattern:
    - `__init__.py` - Exports provider class
@@ -46,12 +46,12 @@ Read all service implementation files in `apps/edge/mtib-server-v2/src/providers
    - Handle cleanup errors gracefully
 
 **Reference files:**
-- `apps/edge/mtib-server-v2/src/providers/handlers/power.py`
-- `apps/edge/mtib-server-v2/src/providers/handlers/uart.py`
+- `apps/edge/mtib-server/src/providers/handlers/power.py`
+- `apps/edge/mtib-server/src/providers/handlers/uart.py`
 
 ### Agent 2: Protocol Compliance Review
 
-Read all provider implementations and compare against `libs/protocols/mtib_v2/mtib_v2.proto`:
+Read all provider implementations and compare against `libs/protocols/mtib/mtib.proto`:
 
 1. **Message types** - All providers:
    - Use correct request/response message types from proto
@@ -74,8 +74,8 @@ Read all provider implementations and compare against `libs/protocols/mtib_v2/mt
    - Version proto changes appropriately
 
 **Reference:**
-- `libs/protocols/mtib_v2/mtib_v2.proto`
-- `apps/edge/mtib-server-v2/src/providers/handlers/observability.py` (streaming example)
+- `libs/protocols/mtib/mtib.proto`
+- `apps/edge/mtib-server/src/providers/handlers/observability.py` (streaming example)
 
 ### Agent 3: Hardware Abstraction Review
 
@@ -102,12 +102,12 @@ Read all providers and verify proper hardware abstraction:
    - Document all config options
 
 **Reference files:**
-- `apps/edge/mtib-server-v2/src/shared/hardware.py`
-- `apps/edge/mtib-server-v2/src/providers/handlers/gpio.py`
+- `apps/edge/mtib-server/src/shared/hardware.py`
+- `apps/edge/mtib-server/src/providers/handlers/gpio.py`
 
 ### Agent 4: Type Safety & Code Quality Review
 
-Read all Python files in `apps/edge/mtib-server-v2/src/` and check:
+Read all Python files in `apps/edge/mtib-server/src/` and check:
 
 1. **Type hints** - All functions:
    - Have complete type hints (params and return)
@@ -170,11 +170,11 @@ Read all provider implementations and verify:
    - Validate state transitions
 
 **Reference:**
-- `apps/edge/mtib-server-v2/src/providers/handlers/analyzer.py` (complex state machine)
+- `apps/edge/mtib-server/src/providers/handlers/analyzer.py` (complex state machine)
 
 ### Agent 6: Testing Coverage Review
 
-Read all test files in `apps/edge/mtib-server-v2/tests/` and check:
+Read all test files in `apps/edge/mtib-server/tests/` and check:
 
 1. **Test coverage** - Every provider:
    - Has corresponding test file
@@ -204,8 +204,8 @@ Read all test files in `apps/edge/mtib-server-v2/tests/` and check:
    - Avoid duplication
 
 **Reference:**
-- `apps/edge/mtib-server-v2/tests/test_power.py`
-- `apps/edge/mtib-server-v2/tests/conftest.py`
+- `apps/edge/mtib-server/tests/test_power.py`
+- `apps/edge/mtib-server/tests/conftest.py`
 
 ## Output
 
@@ -242,7 +242,7 @@ Then apply auto-fixable changes (type hints, docstrings, simple error handling) 
 
 After applying fixes, run:
 ```bash
-cd apps/edge/mtib-server-v2
+cd apps/edge/mtib-server
 # Type checking
 python3 -m mypy src --strict --ignore-missing-imports
 
