@@ -1,5 +1,5 @@
 {
-  "name": "alpha-firmware",
+  "name": "firmware-alpha",
   "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
   "projectType": "application",
   "tags": ["scope:firmware", "type:app", "platform:nrf52"],

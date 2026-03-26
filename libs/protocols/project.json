@@ -2,7 +2,7 @@
   "name": "protocols",
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "libs/protocols",
-  "projectType": "application",
+  "projectType": "library",
   "targets": {
     "create": {
       "executor": "nx:run-commands",
