@@ -19,12 +19,6 @@ infrastructure:
     rootUser: minioadmin
     rootPassword: minioadmin
     storage: 5Gi
-    enabled: false
-    user: admin
-    password: concordpass
-    org: concord
-    bucket: telemetry_raw
-    storage: 5Gi
 
 # ── Backend (http-api) ──────────────────────────────────────
 httpApi:
@@ -90,6 +84,10 @@ config:
   MTIB_PORT: "50053"
   GIT_POLLER_ENABLED: "true"
   GIT_POLLER_INTERVAL_S: "300"
+  STORAGE_URL: "http://concord-minio:9000"
+  STORAGE_BUCKET_NAME: "concord"
+  AUTH_SERVER_URL: ""
+  COREOPS_PROXY_URL: "none"
 
 # ── Git Poller ────────────────────────────────────────────────
 gitPoller:
@@ -100,13 +98,15 @@ gitPoller:
     tag: latest
 
 # ── Secrets ─────────────────────────────────────────────────
-# IMPORTANT: Override these in your values-<env>.yaml or use --set
+# IMPORTANT: Real secret values should go in values-<env>-secrets.yaml (gitignored).
+# These defaults are safe placeholders. The secrets overlay file is auto-detected
+# by ctl.sh if it exists: deploy/helm/values-{env}-secrets.yaml
 secrets:
   DATABASE_URL: "postgresql://concord:concord@concord-postgres:5432/concord"
-  STORAGE_URL: "http://concord-minio:9000"
   STORAGE_ACCESS_KEY: "minioadmin"
   STORAGE_SECRET_ACCESS_KEY: "minioadmin"
-  STORAGE_BUCKET_NAME: "concord"
   JWT_SECRET_KEY: "concord-staging-jwt-secret"
-  COREOPS_SERVER_URL: "none"
+  AUTH_SERVER_API_KEY: ""
   DELETE_ALL_KEY: "staging-delete-key"
+  BITBUCKET_WEBHOOK_SECRET: ""
+  COREOPS_API_KEY: ""

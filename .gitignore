@@ -133,4 +133,5 @@ images/Screenshot*
 
 # Playwright test artifacts
 **/playwright-report/
-**/test-results/
+**/test-results/apps/docs/site/
+apps/firmware/products/alpha/temp_data.png

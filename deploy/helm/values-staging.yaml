@@ -18,12 +18,6 @@ infrastructure:
     rootUser: minioadmin
     rootPassword: minioadmin-staging
     storage: 5Gi
-    enabled: true
-    user: admin
-    password: concord-staging
-    org: concord
-    bucket: telemetry_raw
-    storage: 5Gi
 
 httpApi:
   replicas: 1
@@ -64,6 +58,10 @@ config:
   MTIB_PORT: "50053"
   GIT_POLLER_ENABLED: "true"
   GIT_POLLER_INTERVAL_S: "15"
+  STORAGE_URL: "http://concord-minio:9000"
+  STORAGE_BUCKET_NAME: "concord"
+  AUTH_SERVER_URL: "https://auth.office.corekinect.cloud:2013"
+  COREOPS_PROXY_URL: "http://10.4.45.30:8001"
   # CI Pipeline — device identity defaults for validation K8s Jobs
   DEVICE_ID: "70B3D584C01E1FCC"
   DEVICE_SNR: "0964"
@@ -100,13 +98,10 @@ gitPoller:
 
 secrets:
   DATABASE_URL: "postgresql://concord:concord-staging@concord-postgres:5432/concord"
-  STORAGE_URL: "http://concord-minio:9000"
-  STORAGE_ACCESS_KEY: "minioadmin"
-  STORAGE_SECRET_ACCESS_KEY: "minioadmin-staging"
-  STORAGE_BUCKET_NAME: "concord"
-  JWT_SECRET_KEY: "concord-staging-jwt-secret-key-2026"
-  COREOPS_SERVER_URL: "http://10.4.45.30:8001"
-  AUTH_SERVER_URL: "https://auth.office.corekinect.cloud:2013"
-  AUTH_SERVER_API_KEY: "LWh0dHBzOi8vY29yZW9wcy5vZmZpY2UuY29yZWtpbmVjdC5jbG91ZDoyMDEzLwAUAAAAAAAAAAMAAAAAAAAAAmh//0ARflK7w17yvqU8VDyvJsfWFKnXJGKYZIRyzKjKEJD63QHu16/+BGn5EAK6ezr71bqOxlMML5GK60sL3HnY4eSR"
-  DELETE_ALL_KEY: "staging-delete-key"
-  BITBUCKET_WEBHOOK_SECRET: "concord-bitbucket-webhook-staging"
+  STORAGE_ACCESS_KEY: "CHANGE-ME-use-secrets-overlay"
+  STORAGE_SECRET_ACCESS_KEY: "CHANGE-ME-use-secrets-overlay"
+  JWT_SECRET_KEY: "CHANGE-ME-use-secrets-overlay"
+  AUTH_SERVER_API_KEY: "CHANGE-ME-use-secrets-overlay"
+  DELETE_ALL_KEY: "CHANGE-ME-use-secrets-overlay"
+  BITBUCKET_WEBHOOK_SECRET: "CHANGE-ME-use-secrets-overlay"
+  COREOPS_API_KEY: "CHANGE-ME-use-secrets-overlay"
