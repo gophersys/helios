@@ -48,7 +48,9 @@ class BuildWorker:
         if not result or not result.get("data"):
             return None
 
-        jobs = result["data"]
+        # API returns { "data": { "data": [...], "total": N } } envelope
+        inner = result["data"]
+        jobs = inner.get("data", inner) if isinstance(inner, dict) else inner
         if not jobs:
             return None
 

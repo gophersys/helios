@@ -83,6 +83,7 @@ gitPoller:
 
 secrets:
   DATABASE_URL: "postgresql://concord:concord-prod-2026@concord-postgres:5432/concord"
+  DIRECT_DATABASE_URL: "postgresql://concord:concord-prod-2026@concord-postgres:5432/concord"
   STORAGE_ACCESS_KEY: "CHANGE-ME-use-secrets-overlay"
   STORAGE_SECRET_ACCESS_KEY: "CHANGE-ME-use-secrets-overlay"
   JWT_SECRET_KEY: "CHANGE-ME-use-secrets-overlay"

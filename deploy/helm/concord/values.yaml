@@ -104,6 +104,7 @@ gitPoller:
 # by ctl.sh if it exists: deploy/helm/values-{env}-secrets.yaml
 secrets:
   DATABASE_URL: "postgresql://concord:concord@concord-postgres:5432/concord"
+  DIRECT_DATABASE_URL: "postgresql://concord:concord@concord-postgres:5432/concord"
   STORAGE_ACCESS_KEY: "minioadmin"
   STORAGE_SECRET_ACCESS_KEY: "minioadmin"
   JWT_SECRET_KEY: "concord-staging-jwt-secret"
