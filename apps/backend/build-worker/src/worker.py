@@ -235,7 +235,7 @@ class BuildWorker:
                 if product_data:
                     build_config = product_data.get("buildConfig")
 
-            # 6.4. Generate build.json v2 manifest (if buildConfig available)
+            # 6.4. Generate build.json manifest (if buildConfig available)
             if build_config and build_config.get("targets"):
                 keys_dir = Path(f"/keys/{product_base}")
                 manifest_path = self.builder.write_manifest(
@@ -252,7 +252,7 @@ class BuildWorker:
                 if manifest_path and manifest_path not in artifacts:
                     artifacts.append(manifest_path)
             else:
-                log.info("No buildConfig available — skipping build.json v2 manifest generation")
+                log.info("No buildConfig available — skipping build.json manifest generation")
 
             # 6.5. Verify artifacts before upload
             valid, verify_msg = self.builder.verify_artifacts(output_dir, job.version_override)

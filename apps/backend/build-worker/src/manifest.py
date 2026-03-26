@@ -1,4 +1,4 @@
-"""Build manifest (build.json v2) generation.
+"""Build manifest (build.json) generation.
 
 Generates a self-describing manifest from Product.buildConfig and build outputs.
 The manifest is the single source of truth for what a build contains — consumers
@@ -153,7 +153,7 @@ def generate_build_manifest(
     branch: str,
     key_dir: Optional[Path] = None,
 ) -> Dict[str, Any]:
-    """Generate a build.json v2 manifest from buildConfig and build outputs.
+    """Generate a build.json manifest from buildConfig and build outputs.
 
     Args:
         build_config: Product.buildConfig from the API (targets, cfw, releaseTrack, ncsVersion)
@@ -167,7 +167,7 @@ def generate_build_manifest(
         key_dir: Optional path to signing key files for fingerprinting
 
     Returns:
-        Complete build.json v2 manifest as a dict, ready for json.dumps().
+        Complete build.json manifest as a dict, ready for json.dumps().
     """
     config_targets = build_config.get("targets", [])
     cfw_config = build_config.get("cfw", {})
@@ -205,7 +205,7 @@ def generate_build_manifest(
 
     # Build manifest
     manifest: Dict[str, Any] = {
-        "schemaVersion": 2,
+        "schemaVersion": 1,
         "product": product,
         "board": board,
         "version": version,
@@ -230,7 +230,7 @@ def generate_build_manifest(
         manifest["signing"] = {"keyFingerprints": fingerprints}
 
     log.info(
-        "Generated build.json v2: product=%s version=%s variant=%s track=%s targets=%d",
+        "Generated build.json: product=%s version=%s variant=%s track=%s targets=%d",
         product, version, variant, track, len(targets),
     )
 

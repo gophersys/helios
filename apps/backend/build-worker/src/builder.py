@@ -304,7 +304,7 @@ class BuildExecutor:
         branch: str,
         key_dir: Optional[Path] = None,
     ) -> Optional[Path]:
-        """Generate and write build.json v2 manifest to output directory.
+        """Generate and write build.json manifest to output directory.
 
         Returns the path to the written manifest, or None on failure.
         """
@@ -322,7 +322,7 @@ class BuildExecutor:
             )
             manifest_path = output_dir / "build.json"
             manifest_path.write_text(json.dumps(manifest, indent=2))
-            log.info("Wrote build.json v2 manifest to %s", manifest_path)
+            log.info("Wrote build.json manifest to %s", manifest_path)
             return manifest_path
         except Exception as e:
             log.error("Failed to generate build manifest: %s", e)

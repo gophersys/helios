@@ -1,4 +1,4 @@
-"""Tests for build.json v2 manifest generation."""
+"""Tests for build.json manifest generation."""
 
 import json
 import os
@@ -119,7 +119,7 @@ class TestGenerateBuildManifest:
             commit_sha="abc1234def5678",
             branch="main",
         )
-        assert manifest["schemaVersion"] == 2
+        assert manifest["schemaVersion"] == 1
 
     def test_required_top_level_fields(self, build_config, output_dir):
         manifest = generate_build_manifest(
@@ -366,7 +366,7 @@ class TestGenerateBuildManifest:
         # Should not raise
         serialized = json.dumps(manifest)
         parsed = json.loads(serialized)
-        assert parsed["schemaVersion"] == 2
+        assert parsed["schemaVersion"] == 1
 
     def test_empty_output_dir(self, build_config, tmp_path):
         """Manifest still generates with no artifacts — targets have null paths."""
