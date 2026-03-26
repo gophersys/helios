@@ -488,17 +488,17 @@ def _all_app_ids_completed(completed_versions: set, expected_app_id_strs: set) -
 def wait_for_fuota_completion(
     fuota_client,
     device_id: str,
+    expected_app_ids: set,
     timeout_s: int = 5400,
     mtib_client=None,
     power_cycle_interval_s: int = 180,
     max_stale_minutes: int = 5,
-    expected_app_ids: Optional[set] = None,
 ) -> None:
     """Wait for FUOTA delivery to complete for all target processors.
 
     Args:
         expected_app_ids: Set of app IDs to wait for (e.g., {108, 109}).
-            If None, defaults to {108, 109}.
+            Read from the manifest via resolver.get_targets().
 
     Polls CoreCloud progress endpoint. Handles:
     - Stale 100% from previous plans (only accepts 100% if seen < 100% first)
@@ -510,9 +510,6 @@ def wait_for_fuota_completion(
         pytest.fail: If timeout expires without completion or stale limit hit.
     """
 
-    # Default to alpha app IDs when not specified by caller
-    if expected_app_ids is None:
-        expected_app_ids = {108, 109}
     expected_app_id_strs = {str(aid) for aid in expected_app_ids}
 
     start = time.time()

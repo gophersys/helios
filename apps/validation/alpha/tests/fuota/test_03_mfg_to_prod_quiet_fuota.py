@@ -178,6 +178,7 @@ class TestMfgToProdQuietFuota:
         TestMfgToProdQuietFuota._target_cfw_paths = cfw_paths
         TestMfgToProdQuietFuota._target_strings = target_strings
         TestMfgToProdQuietFuota._target_version = fuota_build.version_string
+        TestMfgToProdQuietFuota._expected_app_ids = app_ids_found
 
         print(f"Ready: flash MFG v{flash_build.version_string} -> FUOTA to quiet prod v{fuota_build.version_string}")
 
@@ -351,6 +352,7 @@ class TestMfgToProdQuietFuota:
             device_id=TestMfgToProdQuietFuota._device_id,
             timeout_s=1200,
             mtib_client=ctx.mtib,
+            expected_app_ids=TestMfgToProdQuietFuota._expected_app_ids,
         )
 
         print("FUOTA delivery complete")

@@ -106,7 +106,11 @@ class ProductContext:
         # Derive app_ids from buildConfig.targets if available
         app_ids = metadata.get("appIds", {})
         if not app_ids and build_config.get("targets"):
-            for t in build_config["targets"]:
+            targets = build_config["targets"]
+            items = targets.values() if isinstance(targets, dict) else targets
+            for t in items:
+                if not isinstance(t, dict):
+                    continue
                 soc = t.get("soc", "")
                 aid = t.get("appId")
                 if soc and aid is not None:

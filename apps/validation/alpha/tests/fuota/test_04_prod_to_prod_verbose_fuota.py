@@ -179,14 +179,17 @@ class TestProdToProdVerboseFuota:
         assert setup_cfws, f"{SETUP_FUOTA_LABEL} has no CFW files"
 
         setup_targets = []
+        setup_app_ids = set()
         for cfw_path in setup_cfws:
             meta = parse_cfw_header(Path(cfw_path))
             setup_targets.append(meta["target_string"])
+            setup_app_ids.add(meta["app_id"])
             print(f"Setup CFW: {Path(cfw_path).name} -> {meta['target_string']}")
 
         cls._setup_cfw_paths = setup_cfws
         cls._setup_target_strings = setup_targets
         cls._setup_version = setup_build.version_string
+        cls._setup_app_ids = setup_app_ids
 
         # --- Upgrade CFW (PROD_VERBOSE_BUMP) ---
         upgrade_build = pipeline_assets.get_build(UPGRADE_FUOTA_LABEL)
@@ -197,14 +200,17 @@ class TestProdToProdVerboseFuota:
         assert upgrade_cfws, f"{UPGRADE_FUOTA_LABEL} has no CFW files"
 
         upgrade_targets = []
+        upgrade_app_ids = set()
         for cfw_path in upgrade_cfws:
             meta = parse_cfw_header(Path(cfw_path))
             upgrade_targets.append(meta["target_string"])
+            upgrade_app_ids.add(meta["app_id"])
             print(f"Upgrade CFW: {Path(cfw_path).name} -> {meta['target_string']}")
 
         cls._upgrade_cfw_paths = upgrade_cfws
         cls._upgrade_target_strings = upgrade_targets
         cls._upgrade_version = upgrade_build.version_string
+        cls._upgrade_app_ids = upgrade_app_ids
 
         print(f"\nPlan: MFG v{flash_build.version_string} -> PROD v{setup_build.version_string} -> PROD v{upgrade_build.version_string}")
 
@@ -348,6 +354,7 @@ class TestProdToProdVerboseFuota:
             device_id=cls._device_id,
             timeout_s=1200,
             mtib_client=ctx.mtib,
+            expected_app_ids=cls._setup_app_ids,
         )
         print("Setup FUOTA delivery complete")
 
@@ -433,6 +440,7 @@ class TestProdToProdVerboseFuota:
             device_id=cls._device_id,
             timeout_s=1200,
             mtib_client=ctx.mtib,
+            expected_app_ids=cls._upgrade_app_ids,
         )
         print("Upgrade FUOTA delivery complete")
 

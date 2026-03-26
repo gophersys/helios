@@ -260,6 +260,27 @@ def seed():
             "app_ids": {"nrf52840": 109, "nrf9151": 108},
             "corecloud_env": "VAL_1_0",
         }
+        alpha_build_config = {
+            "board": "alpha_b0",
+            "ncsVersion": "v2.9.0",
+            "boardRoot": "ck_boards",
+            "targets": {
+                "app": {"soc": "nrf52840", "appId": 109, "role": "application"},
+                "comms": {"soc": "nrf9151", "appId": 108, "role": "communications"},
+            },
+            "hasVsmMerge": True,
+            "hasFips": False,
+            "confFiles": {
+                "app": ["prj.conf", "boards/alpha_b0_nrf52840.conf"],
+                "comms": ["prj.conf", "boards/alpha_b0_nrf9151.conf"],
+            },
+            "overlays": {
+                "app": ["boards/alpha_b0_nrf52840.overlay"],
+                "comms": [],
+            },
+            "postBuild": ["sign_mcuboot", "generate_dfu_package"],
+            "cfw": {"deviceType": 2, "deviceVariant": 3},
+        }
         alpha_product = db.product.upsert(
             where={"name": "Alpha"},
             data={
@@ -279,6 +300,7 @@ def seed():
                     "buildBoard": "alpha_b0",
                     "buildWestDir": "apps/firmware/products/alpha/alpha_fw",
                     "buildMfgDir": "apps/firmware/products/alpha/alpha_mfg_fw",
+                    "buildConfig": Json(alpha_build_config),
                     "metadata": Json(alpha_metadata),
                 },
                 "update": {
@@ -291,6 +313,7 @@ def seed():
                     "buildBoard": "alpha_b0",
                     "buildWestDir": "apps/firmware/products/alpha/alpha_fw",
                     "buildMfgDir": "apps/firmware/products/alpha/alpha_mfg_fw",
+                    "buildConfig": Json(alpha_build_config),
                     "metadata": Json(alpha_metadata),
                 },
             },
@@ -951,6 +974,10 @@ def seed():
                 "fwRepoUrl": "git@bitbucket.org:corekinect/alpha_fw.git",
                 "fwRepoBranch": "concord-main",
                 "description": "Quick smoke build to verify compilation",
+                "buildMatrix": Json([
+                    {"role": "app", "firmware": "alpha_fw", "source": "head",
+                     "description": "Build app firmware from triggering commit"},
+                ]),
             },
             {
                 "stage": 2, "name": "Silicon", "enabled": False,
@@ -961,6 +988,7 @@ def seed():
                 "testDirectory": "tests/unit/",
                 "testMarker": "-m unit",
                 "description": "Native simulator unit tests",
+                "buildMatrix": Json([]),
             },
             {
                 "stage": 3, "name": "Integration", "enabled": False,
@@ -971,6 +999,12 @@ def seed():
                 "testDirectory": "tests/integration/",
                 "testMarker": "-m integration",
                 "description": "Subsystem integration tests with harness instrumentation",
+                "buildMatrix": Json([
+                    {"role": "mfg", "firmware": "alpha_mfg_fw", "source": "head",
+                     "description": "Manufacturing firmware for J-Link flash + personalization"},
+                    {"role": "app", "firmware": "alpha_fw", "source": "head",
+                     "description": "Application firmware from triggering commit"},
+                ]),
             },
             {
                 "stage": 4, "name": "Nightly", "enabled": False,
@@ -985,6 +1019,12 @@ def seed():
                 "testDirectory": "tests/nightly/",
                 "testMarker": "-m nightly",
                 "description": "Extended nightly test suite with power profiling",
+                "buildMatrix": Json([
+                    {"role": "mfg", "firmware": "alpha_mfg_fw", "source": "head",
+                     "description": "Manufacturing firmware for J-Link flash + personalization"},
+                    {"role": "app", "firmware": "alpha_fw", "source": "head",
+                     "description": "Application firmware from triggering commit"},
+                ]),
             },
             {
                 "stage": 5, "name": "FUOTA", "enabled": True,
