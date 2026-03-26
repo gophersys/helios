@@ -1,8 +1,7 @@
 """Product-agnostic artifact resolution for validation tests.
 
-Replaces PipelineAssets' filename pattern-matching with manifest-based
-resolution. Every artifact is discovered through the build.json v2 manifest's
-targets[] array — no hardcoded App IDs, chip names, or filename conventions.
+Every artifact is discovered through the build.json manifest's targets[] array
+— no hardcoded App IDs, chip names, or filename conventions.
 
 Usage:
     resolver = ArtifactResolver(
@@ -23,18 +22,12 @@ Usage:
     # Get target metadata without downloading
     target = resolver.get_target("MFG_BASE", role="app")
     # target.app_id == 109, target.host_type == "HOST_TYPE_NRF52840"
-
-Legacy fallback:
-    Builds produced before build.json v2 existed have no manifest artifact.
-    The resolver falls back to filename pattern-matching with a deprecation
-    warning. Legacy resolution requires app_id_hint for role-based lookups.
 """
 
 import json
 import os
 import shutil
 import tempfile
-import warnings
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
@@ -118,7 +111,7 @@ class ManifestTarget:
 
 @dataclass
 class BuildManifest:
-    """Parsed build.json v2 manifest."""
+    """Parsed build.json manifest."""
 
     schema_version: int
     product: str
@@ -141,11 +134,11 @@ class BuildManifest:
 
     @classmethod
     def from_dict(cls, data: dict) -> "BuildManifest":
-        schema = data.get("schemaVersion", 1)
-        if schema != 2:
+        schema = data.get("schemaVersion", 0)
+        if schema != 1:
             raise ValueError(
                 f"Unsupported build.json schema version {schema}. "
-                f"Expected 2. Update ArtifactResolver or regenerate manifests."
+                f"Expected 1. Update ArtifactResolver or regenerate manifests."
             )
 
         targets = [ManifestTarget.from_dict(t) for t in data.get("targets", [])]
@@ -265,8 +258,8 @@ class ArtifactResolver:
     manifests, and resolves artifacts by role + type using the manifest's
     targets[] array.
 
-    For builds without a manifest (pre-build.json v2), falls back to
-    filename pattern matching with a deprecation warning.
+    Every build must include a build.json manifest. Builds without a
+    manifest are invalid and will raise an error.
     """
 
     def __init__(
@@ -522,78 +515,6 @@ class ArtifactResolver:
         return self._ensure_artifact_downloaded(artifact)
 
     # ─────────────────────────────────────────────────────────────────────
-    # Legacy fallback (no manifest)
-    # ─────────────────────────────────────────────────────────────────────
-
-    _LEGACY_TYPE_TO_EXT = {
-        "plaintextHex": ".hex",
-        "encryptedCfw": ".cfw",
-    }
-
-    def _legacy_resolve_artifact(
-        self,
-        build: _BuildInfo,
-        role: str,
-        artifact_type: str,
-        app_id_hint: Optional[int] = None,
-    ) -> str:
-        """Fallback resolution for builds without build.json.
-
-        Uses filename pattern matching. Requires app_id_hint for
-        role-based disambiguation.
-        """
-        ext = self._LEGACY_TYPE_TO_EXT.get(artifact_type)
-        if ext is None:
-            raise ValueError(f"Unknown artifact type: {artifact_type}")
-
-        candidates = build.find_artifacts_by_extension(ext)
-        if not candidates:
-            raise ValueError(
-                f"No {ext} artifacts in build {build.matrix_label}. "
-                f"Available: {[a.name for a in build.artifacts]}"
-            )
-
-        if len(candidates) == 1:
-            return self._ensure_artifact_downloaded(candidates[0])
-
-        # Multiple candidates — need app_id_hint to disambiguate
-        if app_id_hint is not None:
-            prefix = f"{app_id_hint}."
-            for a in candidates:
-                if a.name.startswith(prefix):
-                    return self._ensure_artifact_downloaded(a)
-
-        # Try legacy name patterns
-        legacy_patterns = {
-            "app": ["app_nrf52840", "nrf52840"],
-            "comms": ["comms_nrf9151", "comms_nrf9160", "nrf9151", "nrf9160"],
-        }
-        for pattern in legacy_patterns.get(role, []):
-            for a in candidates:
-                if pattern in a.name:
-                    return self._ensure_artifact_downloaded(a)
-
-        raise ValueError(
-            f"Cannot disambiguate {ext} artifacts for role='{role}' in build "
-            f"{build.matrix_label} without manifest. Provide app_id_hint or "
-            f"add a build.json manifest. "
-            f"Candidates: {[a.name for a in candidates]}"
-        )
-
-    def _legacy_resolve_all(
-        self,
-        build: _BuildInfo,
-        artifact_type: str,
-    ) -> List[str]:
-        """Get all artifacts of a type from a legacy build."""
-        ext = self._LEGACY_TYPE_TO_EXT.get(artifact_type)
-        if ext is None:
-            raise ValueError(f"Unknown artifact type: {artifact_type}")
-
-        candidates = build.find_artifacts_by_extension(ext)
-        return [self._ensure_artifact_downloaded(a) for a in candidates]
-
-    # ─────────────────────────────────────────────────────────────────────
     # Public API
     # ─────────────────────────────────────────────────────────────────────
 
@@ -610,46 +531,21 @@ class ArtifactResolver:
     def get_manifest(self, label: str) -> BuildManifest:
         """Get parsed build.json manifest for a build.
 
-        For legacy builds (no manifest), returns a synthetic manifest
-        constructed from build metadata with a deprecation warning.
-
         Returns:
             BuildManifest instance.
 
         Raises:
             KeyError: If build label not found.
+            ValueError: If build has no build.json manifest.
         """
         manifest = self._get_or_load_manifest(label)
 
         if manifest is None:
-            build = self._get_build(label)
-            warnings.warn(
+            raise ValueError(
                 f"Build '{label}' has no build.json manifest. "
-                f"Artifact resolution will use legacy filename matching. "
-                f"Regenerate this build with manifest support.",
-                DeprecationWarning,
-                stacklevel=2,
+                f"All builds must include a build.json manifest. "
+                f"Regenerate this build with the current build worker."
             )
-            # Return a minimal synthetic manifest from build metadata
-            manifest = BuildManifest(
-                schema_version=1,
-                product=build.product,
-                board="",
-                version=build.version_string or "",
-                variant=build.variant,
-                track="",
-                release_track="",
-                ncs_version="",
-                commit_sha="",
-                branch="",
-                built_at="",
-                targets=[],
-                modem_firmware=None,
-                corecloud={},
-                _raw={},
-            )
-            # Cache so the warning is only emitted once per label
-            self._manifests[label] = manifest
 
         return manifest
 
@@ -658,7 +554,6 @@ class ArtifactResolver:
         label: str,
         role: str,
         artifact_type: str,
-        app_id_hint: Optional[int] = None,
     ) -> str:
         """Download and return local path to an artifact.
 
@@ -666,32 +561,26 @@ class ArtifactResolver:
             label: Build matrix label (e.g., "MFG_BASE", "PROD_VERBOSE")
             role: Target role (e.g., "app", "comms")
             artifact_type: "plaintextHex" or "encryptedCfw"
-            app_id_hint: For legacy builds only — app ID to match filename prefix.
 
         Returns:
             Local file path to the downloaded artifact.
 
         Raises:
             KeyError: Build label not found.
-            ValueError: Artifact not found for the given role + type.
+            ValueError: Artifact not found for the given role + type,
+                or build has no manifest.
         """
         build = self._get_build(label)
         manifest = self._get_or_load_manifest(label)
 
-        if manifest is not None and manifest.targets:
-            return self._resolve_artifact_from_manifest(
-                build, manifest, role, artifact_type
+        if manifest is None or not manifest.targets:
+            raise ValueError(
+                f"Build '{label}' has no build.json manifest. "
+                f"All builds must include a manifest."
             )
 
-        # Legacy fallback
-        warnings.warn(
-            f"Build '{label}' has no build.json manifest. "
-            f"Using legacy filename matching.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return self._legacy_resolve_artifact(
-            build, role, artifact_type, app_id_hint
+        return self._resolve_artifact_from_manifest(
+            build, manifest, role, artifact_type
         )
 
     def get_artifacts(
@@ -703,32 +592,32 @@ class ArtifactResolver:
 
         Returns:
             List of local file paths.
+
+        Raises:
+            KeyError: Build label not found.
+            ValueError: Build has no manifest.
         """
         build = self._get_build(label)
         manifest = self._get_or_load_manifest(label)
 
-        if manifest is not None and manifest.targets:
-            paths = []
-            for target in manifest.targets:
-                filename = target.get_file_for_type(artifact_type)
-                if filename is None:
-                    continue
-                basename = Path(filename).name
-                artifact = build.find_artifact_by_name(basename)
-                if artifact is None:
-                    artifact = build.find_artifact_by_name(filename)
-                if artifact is not None:
-                    paths.append(self._ensure_artifact_downloaded(artifact))
-            return paths
+        if manifest is None or not manifest.targets:
+            raise ValueError(
+                f"Build '{label}' has no build.json manifest. "
+                f"All builds must include a manifest."
+            )
 
-        # Legacy fallback
-        warnings.warn(
-            f"Build '{label}' has no build.json manifest. "
-            f"Using legacy filename matching.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return self._legacy_resolve_all(build, artifact_type)
+        paths = []
+        for target in manifest.targets:
+            filename = target.get_file_for_type(artifact_type)
+            if filename is None:
+                continue
+            basename = Path(filename).name
+            artifact = build.find_artifact_by_name(basename)
+            if artifact is None:
+                artifact = build.find_artifact_by_name(filename)
+            if artifact is not None:
+                paths.append(self._ensure_artifact_downloaded(artifact))
+        return paths
 
     def get_targets(self, label: str) -> List[ManifestTarget]:
         """Get all build targets from the manifest.
@@ -786,7 +675,7 @@ class ArtifactResolver:
         return self._ensure_artifact_downloaded(artifact)
 
     def get_modem_firmware_from_trigger(self) -> Optional[str]:
-        """Download modem firmware from pipeline triggerData (legacy path).
+        """Download modem firmware from pipeline triggerData.
 
         Some pipelines carry modem firmware in triggerData rather than
         per-build manifests. This method handles that case.
@@ -832,7 +721,7 @@ class ArtifactResolver:
         lines = [f"Pipeline: {self._pipeline_id}"]
         for label, build in sorted(self.builds.items(), key=lambda x: x[1].matrix_index):
             status_icon = "OK" if build.status in ("SUCCESS", "CACHED") else "FAIL"
-            manifest_flag = " [manifest]" if build.has_manifest else " [legacy]"
+            manifest_flag = " [manifest]" if build.has_manifest else " [NO MANIFEST]"
             artifacts = ", ".join(a.name for a in build.artifacts[:3])
             if len(build.artifacts) > 3:
                 artifacts += f" (+{len(build.artifacts) - 3} more)"

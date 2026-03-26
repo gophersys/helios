@@ -36,7 +36,8 @@ from .programmable_fixture import (
     CapabilityNotAvailable,
 )
 from .fixture_controller import FixtureController
-from .firmware import FirmwareAssetManager, FirmwareAsset, get_firmware_path_from_env, PipelineAssets, BuildArtifact, PipelineBuild
+from .firmware import FirmwareAssetManager, FirmwareAsset, get_firmware_path_from_env
+from .artifact_resolver import ArtifactResolver, BuildManifest, ManifestTarget
 from .pytest_integration import (
     requires_capability,
     requires_feature,
@@ -83,9 +84,10 @@ __all__ = [
     "FirmwareAssetManager",
     "FirmwareAsset",
     "get_firmware_path_from_env",
-    "PipelineAssets",
-    "BuildArtifact",
-    "PipelineBuild",
+    # Artifact resolver
+    "ArtifactResolver",
+    "BuildManifest",
+    "ManifestTarget",
     # Pytest integration
     "requires_capability",
     "requires_feature",

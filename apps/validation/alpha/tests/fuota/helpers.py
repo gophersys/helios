@@ -498,7 +498,7 @@ def wait_for_fuota_completion(
 
     Args:
         expected_app_ids: Set of app IDs to wait for (e.g., {108, 109}).
-            If None, defaults to {108, 109} for backwards compatibility.
+            If None, defaults to {108, 109}.
 
     Polls CoreCloud progress endpoint. Handles:
     - Stale 100% from previous plans (only accepts 100% if seen < 100% first)
@@ -510,7 +510,7 @@ def wait_for_fuota_completion(
         pytest.fail: If timeout expires without completion or stale limit hit.
     """
 
-    # Default to legacy alpha app IDs for backwards compatibility
+    # Default to alpha app IDs when not specified by caller
     if expected_app_ids is None:
         expected_app_ids = {108, 109}
     expected_app_id_strs = {str(aid) for aid in expected_app_ids}

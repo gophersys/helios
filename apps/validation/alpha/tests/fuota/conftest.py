@@ -7,12 +7,12 @@ MTIB, UART, power, and artifact infrastructure come from the root conftest's
 access, and get background UART capture + artifact streaming for free.
 
 FUOTA-specific fixtures (defined here):
-    pipeline_assets:  PipelineAssets — strict (fails if PIPELINE_ID missing)
+    pipeline_assets:  ArtifactResolver — strict (fails if PIPELINE_ID missing)
     fuota_client:     CoreCloud FUOTA API client
     device_config:    Device identity (SNR, device_id, IMEI, ICCIDs)
 
 Utilities:
-    parse_cfw_header:        Parse CFW v2 binary header
+    parse_cfw_header:        Parse CFW binary header
     register_fuota_cleanup:  atexit handler to disable FUOTA on exit
 """
 
@@ -184,7 +184,7 @@ def fuota_client():
 
 
 def parse_cfw_header(cfw_path: Path) -> Dict[str, Any]:
-    """Parse CFW v2 header (23 bytes) and return metadata.
+    """Parse CFW header (23 bytes) and return metadata.
 
     Returns:
         Dict with: app_id, major, minor, build, flags, target_string,
