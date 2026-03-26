@@ -142,7 +142,7 @@ def process_queue(db=None) -> dict:
     )
 
     # Attempt to trigger — this will find an available fixture (or return None/queued)
-    from src.api.v2.builds.pipelines import trigger_pipeline_validation
+    from src.services.pipeline_service import trigger_pipeline_validation
 
     result = trigger_pipeline_validation(entry.pipelineRunId, pipeline, builds)
 
