@@ -19,6 +19,7 @@ class ProductCreateRequest:
     buildBoard: Optional[str] = None
     buildWestDir: Optional[str] = None
     buildMfgDir: Optional[str] = None
+    buildConfig: Optional[Dict[str, Any]] = None
     metadata: Optional[Dict[str, Any]] = None
 
     @classmethod
@@ -65,6 +66,11 @@ class ProductCreateRequest:
         if build_mfg_dir is not None:
             build_mfg_dir = build_mfg_dir.strip() or None
 
+        # buildConfig must be a dict if provided
+        build_config = data.get("buildConfig")
+        if build_config is not None and not isinstance(build_config, dict):
+            return None, "buildConfig must be a JSON object"
+
         # Metadata must be a dict if provided
         metadata = data.get("metadata")
         if metadata is not None and not isinstance(metadata, dict):
@@ -83,6 +89,7 @@ class ProductCreateRequest:
             buildBoard=build_board,
             buildWestDir=build_west_dir,
             buildMfgDir=build_mfg_dir,
+            buildConfig=build_config,
             metadata=metadata,
         ), None
 
@@ -101,6 +108,7 @@ class ProductUpdateRequest:
     buildBoard: Optional[str] = None
     buildWestDir: Optional[str] = None
     buildMfgDir: Optional[str] = None
+    buildConfig: Optional[Dict[str, Any]] = None
     metadata: Optional[Dict[str, Any]] = None
     # Track explicitly-set-to-null vs omitted
     _has_description: bool = False
@@ -113,6 +121,7 @@ class ProductUpdateRequest:
     _has_build_board: bool = False
     _has_build_west_dir: bool = False
     _has_build_mfg_dir: bool = False
+    _has_build_config: bool = False
     _has_metadata: bool = False
 
     @classmethod
@@ -177,6 +186,11 @@ class ProductUpdateRequest:
         if build_mfg_dir is not None:
             build_mfg_dir = build_mfg_dir.strip() or None
 
+        build_config = data.get("buildConfig")
+        has_build_config = "buildConfig" in data
+        if has_build_config and build_config is not None and not isinstance(build_config, dict):
+            return None, "buildConfig must be a JSON object"
+
         metadata = data.get("metadata")
         has_metadata = "metadata" in data
         if has_metadata and metadata is not None and not isinstance(metadata, dict):
@@ -187,7 +201,8 @@ class ProductUpdateRequest:
             name is not None or has_description or active is not None or
             has_slug or has_repo_slug or has_repo_ssh_url or has_repo_branch or
             has_mfg_repo_slug or has_mfg_repo_ssh_url or
-            has_build_board or has_build_west_dir or has_build_mfg_dir or has_metadata
+            has_build_board or has_build_west_dir or has_build_mfg_dir or
+            has_build_config or has_metadata
         )
         if not has_any_field:
             return None, "No fields to update"
@@ -205,6 +220,7 @@ class ProductUpdateRequest:
             buildBoard=build_board,
             buildWestDir=build_west_dir,
             buildMfgDir=build_mfg_dir,
+            buildConfig=build_config,
             metadata=metadata,
             _has_description=has_description,
             _has_slug=has_slug,
@@ -216,6 +232,7 @@ class ProductUpdateRequest:
             _has_build_board=has_build_board,
             _has_build_west_dir=has_build_west_dir,
             _has_build_mfg_dir=has_build_mfg_dir,
+            _has_build_config=has_build_config,
             _has_metadata=has_metadata,
         ), None
 
@@ -245,6 +262,8 @@ class ProductUpdateRequest:
             update_data["buildWestDir"] = self.buildWestDir
         if self._has_build_mfg_dir:
             update_data["buildMfgDir"] = self.buildMfgDir
+        if self._has_build_config:
+            update_data["buildConfig"] = Json(self.buildConfig) if self.buildConfig else None
         if self._has_metadata:
             update_data["metadata"] = Json(self.metadata) if self.metadata else None
         return update_data

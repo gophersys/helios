@@ -157,7 +157,8 @@ model Product {
     buildWestDir String? /// "apps/firmware/products/alpha/alpha_fw"
     buildMfgDir  String? /// "apps/firmware/products/alpha/alpha_mfg_fw"
 
-    metadata  Json? /// additional product-specific config
+    buildConfig Json? /// structured build configuration (targets, overlays, post-build steps)
+    metadata    Json? /// additional product-specific config
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
 

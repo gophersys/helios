@@ -20,6 +20,7 @@ def _product_defaults() -> dict:
         "buildBoard": None,
         "buildWestDir": None,
         "buildMfgDir": None,
+        "buildConfig": None,
     }
 
 

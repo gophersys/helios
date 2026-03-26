@@ -33,6 +33,7 @@ def _serialize_product(p: Any, include_children: bool = False) -> dict:
         "buildBoard": p.buildBoard,
         "buildWestDir": p.buildWestDir,
         "buildMfgDir": p.buildMfgDir,
+        "buildConfig": p.buildConfig,
         "metadata": p.metadata,
         "createdAt": p.createdAt.isoformat(),
         "updatedAt": p.updatedAt.isoformat(),
@@ -195,6 +196,9 @@ def create_product():
         create_data["buildWestDir"] = data.buildWestDir
     if data.buildMfgDir is not None:
         create_data["buildMfgDir"] = data.buildMfgDir
+    if data.buildConfig is not None:
+        from database import Json as JsonWrap
+        create_data["buildConfig"] = JsonWrap(data.buildConfig)
     if data.metadata is not None:
         from database import Json
         create_data["metadata"] = Json(data.metadata)
