@@ -58,13 +58,13 @@ spec:
         - name: CONCORD_API_HOST
           value: "{{CONCORD_API_HOST}}"
         - name: STORAGE_URL
-          value: "http://concord-minio.staging.svc.cluster.local:9000"
+          value: "{{STORAGE_URL}}"
         - name: STORAGE_ACCESS_KEY
-          value: "minioadmin"
+          value: "{{STORAGE_ACCESS_KEY}}"
         - name: STORAGE_SECRET_ACCESS_KEY
-          value: "minioadmin-staging"
-        - name: STORAGE_BUCKET
-          value: "concord"
+          value: "{{STORAGE_SECRET_ACCESS_KEY}}"
+        - name: STORAGE_BUCKET_NAME
+          value: "{{STORAGE_BUCKET_NAME}}"
         - name: MTIB_HOST
           value: "{{MTIB_ADDRESS}}"
         - name: MTIB_PORT
