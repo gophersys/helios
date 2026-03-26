@@ -47,8 +47,12 @@ def _build_summary(**overrides):
     defaults = {
         "id": "build-001",
         "product": "alpha_fw",
+        "productId": "prod-alpha",
         "status": "QUEUED",
+        "target": "app",
         "variant": "debug",
+        "board": "alpha_b0",
+        "commitSha": "abc1234567890",
         "buildNum": None,
         "versionString": None,
         "durationSeconds": None,
@@ -56,6 +60,7 @@ def _build_summary(**overrides):
         "matrixIndex": None,
         "versionBump": False,
         "baseJobId": None,
+        "reusedFromId": None,
         "artifacts": [],
     }
     defaults.update(overrides)

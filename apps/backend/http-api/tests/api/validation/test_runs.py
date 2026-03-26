@@ -24,6 +24,7 @@ def _make_session(**overrides):
         name="Alpha REV1.2 Debug",
         productId="prod-1",
         fixtureId=None,
+        pipelineRunId=None,
         status="ACTIVE",
         config={"nodeId": "node-1", "serialNumber": "70B3D584C01E1FCC"},
         targetCount=3,
