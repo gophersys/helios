@@ -16,10 +16,7 @@ from src.lib.audit import log_audit
 from src.services.database.prisma import get_db_client
 
 from src.api.v2.builds.build_cache import compute_build_fingerprint, find_cached_build
-from src.api.v2.builds.stage_builds import (
-    ValidationStage,
-    get_stage_build_defs,
-)
+from src.api.v2.builds.stage_builds import ValidationStage
 
 logger = logging.getLogger(__name__)
 
@@ -284,13 +281,9 @@ def resolve_pipeline_context(db, data) -> Dict[str, Any]:
             db=db,
         )
     else:
-        build_specs = generate_build_specs(
-            stage=stage,
-            product_base=repo_base,
-            board=data.board,
-            branch=data.pr_branch or data.branch,
-            commit_sha=data.commit_sha,
-            mtib_rev="1.2",
+        raise ValueError(
+            f"Stage '{data.matrix_mode}' not configured for product '{product_record.name if product_record else 'unknown'}'. "
+            "Populate ProductStageConfig.buildMatrix for this product and stage."
         )
 
     return {
@@ -384,63 +377,6 @@ def create_pipeline_record(db, data, ctx: Dict[str, Any]):
     return pipeline, builds
 
 
-def generate_build_specs(
-    stage: ValidationStage,
-    product_base: str,
-    board: str,
-    branch: str,
-    commit_sha: Optional[str],
-    mtib_rev: str = "1.2",
-) -> List[Dict[str, Any]]:
-    """Generate build job specs from stage definitions.
-
-    Converts StageBuildDef entries to the dict format expected by BuildJob creation.
-    This is the single source of truth - all build requirements come from stage_builds.py.
-    """
-    defs = get_stage_build_defs(stage)
-    builds = []
-
-    for idx, d in enumerate(defs):
-        # Determine firmware type from fw_type field
-        if d.fw_type == "mfg":
-            fw_product = f"{product_base}_mfg_fw"
-        elif d.fw_type == "driver_test":
-            fw_product = f"{product_base}_fw"  # Driver tests use same repo
-        else:  # "app"
-            fw_product = f"{product_base}_fw"
-
-        # Resolve git ref based on git_ref field
-        if d.git_ref == "main":
-            git_branch = branch
-            git_commit = None
-        elif d.git_ref == "merge":
-            git_branch = branch
-            git_commit = None
-        else:  # "pr"
-            git_branch = branch
-            git_commit = commit_sha
-
-        # Version bump builds start BLOCKED until base completes
-        initial_status = "BLOCKED" if d.is_version_bump else "QUEUED"
-
-        builds.append({
-            "product": fw_product,
-            "board": board,
-            "target": "nrf52840",
-            "variant": d.variant,
-            "mtibRev": mtib_rev,
-            "branch": git_branch,
-            "commitSha": git_commit,
-            "status": initial_status,
-            "matrixLabel": d.label,
-            "matrixIndex": idx,
-            "versionBump": d.is_version_bump,
-            "baseLabel": d.base_label,
-        })
-
-    return builds
-
-
 def generate_matrix_build_specs(
     matrix: List[Dict[str, Any]],
     product_record: Any,
@@ -499,7 +435,6 @@ def generate_matrix_build_specs(
                         "board": board,
                         "target": target,
                         "variant": "release",
-                        "mtibRev": "1.2",
                         "branch": branch,
                         "commitSha": commit_sha,
                         "status": "QUEUED",
@@ -613,7 +548,6 @@ def create_build_jobs(
                 "board": spec["board"],
                 "target": spec["target"],
                 "variant": spec["variant"],
-                "mtibRev": spec["mtibRev"],
                 "branch": spec.get("branch", data.branch),
                 "commitSha": getattr(cached_build, "commitSha", None),
                 "status": "CACHED",
@@ -637,7 +571,6 @@ def create_build_jobs(
                 "board": spec["board"],
                 "target": spec["target"],
                 "variant": spec["variant"],
-                "mtibRev": spec["mtibRev"],
                 "branch": spec["branch"],
                 "commitSha": spec["commitSha"],
                 "status": spec["status"],
@@ -982,6 +915,16 @@ def trigger_pipeline_validation(pipeline_id: str, pipeline, builds: list) -> Opt
         image_tag = os.environ.get("ENVIRONMENT", "staging")
         git_commit = os.environ.get("GIT_COMMIT", "unknown")[:7]
 
+        # Load stage config for test routing
+        stage_config = None
+        stage_name = getattr(pipeline, "matrixMode", None) or "fuota"
+        stage_map = {"smoke": 1, "silicon": 2, "integration": 3, "nightly": 4, "fuota": 5}
+        stage_num = stage_map.get(stage_name)
+        if stage_num and product:
+            stage_config = db.productstageconfig.find_first(
+                where={"productId": product.id, "stage": stage_num},
+            )
+
         # Create K8s Job
         test_enable = {"electrical": False, "app_post": False, "comm_post": False}
 
@@ -1003,8 +946,10 @@ def trigger_pipeline_validation(pipeline_id: str, pipeline, builds: list) -> Opt
             device_iccids=",".join(slot.dutIccids) if slot.dutIccids else "",
             fixture_profile_path=fixture_profile_path,
             pipeline_id=pipeline_id,
-            stage="fuota",
+            stage=stage_name,
             image_tag=image_tag,
+            test_directory=getattr(stage_config, "testDirectory", None) if stage_config else None,
+            test_marker=getattr(stage_config, "testMarker", None) if stage_config else None,
         )
 
         if not job_name:

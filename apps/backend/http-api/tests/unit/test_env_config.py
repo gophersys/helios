@@ -86,6 +86,7 @@ class TestJwtSecretValidation:
         "LOG_PATH": "/tmp/test.log",
         "SERVER_PORT": "9001",
         "COREOPS_PROXY_URL": "http://localhost:50050",
+        "CONCORD_API_HOST": "test.concord.local",
         "ASSETS_FOLDER": "/tmp/test-assets",
         "STORAGE_URL": "http://localhost:9000",
         "STORAGE_ACCESS_KEY": "test",
@@ -199,6 +200,7 @@ _REQUIRED_CONFIG_KEYS = {
     "CORS_ORIGINS",
     "STORAGE_URL",
     "STORAGE_BUCKET_NAME",
+    "CONCORD_API_HOST",
 }
 
 # Secret keys that MUST be present in every Helm values file

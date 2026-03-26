@@ -57,10 +57,10 @@ class ProductContext:
     product_id: str = ""
     name: str = ""
     slug: str = ""
-    device_type_id: int = 2
-    device_variant_id: int = 3
-    app_ids: Dict[str, int] = field(default_factory=lambda: {"nrf52840": 109, "nrf9151": 108})
-    core_cloud_env: str = "VAL_1_0"
+    device_type_id: int = 0
+    device_variant_id: int = 0
+    app_ids: Dict[str, int] = field(default_factory=dict)
+    core_cloud_env: str = ""
     build_board: str = ""
     metadata: Dict[str, Any] = field(default_factory=dict)
 
@@ -102,37 +102,36 @@ class ProductContext:
     def from_dict(cls, data: dict) -> "ProductContext":
         """Create ProductContext from API response dict."""
         metadata = data.get("metadata") or {}
+        build_config = data.get("buildConfig") or {}
+        # Derive app_ids from buildConfig.targets if available
+        app_ids = metadata.get("appIds", {})
+        if not app_ids and build_config.get("targets"):
+            for t in build_config["targets"]:
+                soc = t.get("soc", "")
+                aid = t.get("appId")
+                if soc and aid is not None:
+                    app_ids[soc] = aid
         return cls(
             product_id=data.get("id", ""),
             name=data.get("name", ""),
             slug=data.get("slug", ""),
-            device_type_id=metadata.get("deviceTypeId", 2),
-            device_variant_id=metadata.get("deviceVariantId", 3),
-            app_ids=metadata.get("appIds", {"nrf52840": 109, "nrf9151": 108}),
-            core_cloud_env=metadata.get("coreCloudEnv", "VAL_1_0"),
+            device_type_id=metadata.get("deviceTypeId", 0),
+            device_variant_id=metadata.get("deviceVariantId", 0),
+            app_ids=app_ids,
+            core_cloud_env=metadata.get("coreCloudEnv", ""),
             build_board=data.get("buildBoard", ""),
             metadata=metadata,
         )
 
     @classmethod
-    def default(cls, product: str = "alpha", board: str = "b0") -> "ProductContext":
-        """Return hardcoded defaults for a known product.
+    def default(cls, product: str = "", board: str = "") -> "ProductContext":
+        """Return an empty ProductContext that must be populated from the Product API.
 
-        Used when the API is unavailable (local dev, offline testing).
+        All fields default to empty/None. The caller is expected to load product
+        configuration from /v2/products/by-slug/<slug> via from_api().
         """
-        defaults = {
-            "alpha_b0": cls(
-                name="Alpha B0",
-                slug="alpha_b0",
-                device_type_id=2,
-                device_variant_id=3,
-                app_ids={"nrf52840": 109, "nrf9151": 108},
-                core_cloud_env="VAL_1_0",
-                build_board="alpha_b0",
-            ),
-        }
-        key = f"{product}_{board}"
-        return defaults.get(key, cls(slug=key))
+        slug = f"{product}_{board}" if product and board else product or ""
+        return cls(slug=slug)
 
 
 # =============================================================================

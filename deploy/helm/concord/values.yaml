@@ -88,6 +88,7 @@ config:
   STORAGE_BUCKET_NAME: "concord"
   AUTH_SERVER_URL: ""
   COREOPS_PROXY_URL: "none"
+  CONCORD_API_HOST: "staging.concord.local"
 
 # ── Git Poller ────────────────────────────────────────────────
 gitPoller:

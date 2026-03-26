@@ -58,6 +58,7 @@ config:
   STORAGE_BUCKET_NAME: "concord"
   AUTH_SERVER_URL: "https://auth.office.corekinect.cloud:2013"
   COREOPS_PROXY_URL: "http://10.4.45.30:8001"
+  CONCORD_API_HOST: "concord.local"
 
 # Build Worker — DaemonSet on builder nodes
 buildWorker:

@@ -42,6 +42,9 @@ class AppConfig(EnvConfig):
     STORAGE_SECRET_ACCESS_KEY: str
     STORAGE_BUCKET_NAME: str
 
+    # Concord API host header for ingress routing (used in K8s validation jobs)
+    CONCORD_API_HOST: str = "staging.concord.local"
+
     # Validation — MTIB gRPC port
     MTIB_PORT: int = 50053
     # Validation — K8s namespace for validation jobs (privileged namespace for hardware access)

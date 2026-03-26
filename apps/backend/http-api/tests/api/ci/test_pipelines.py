@@ -312,6 +312,19 @@ class TestCreatePipeline:
         mock_db.product.find_unique.return_value = product
         mock_db.product.find_first.return_value = product
 
+        # Stage config with buildMatrix (required — no hardcoded fallback)
+        mock_db.productstageconfig.find_first.return_value = make_obj(
+            id="sc-1",
+            productId="prod-alpha",
+            stage=1,
+            buildMatrix=[
+                {"role": "mfg", "firmware": "alpha_mfg_fw", "source": "head"},
+                {"role": "app", "firmware": "alpha_fw", "source": "head"},
+            ],
+            testDirectory="tests/smoke/",
+            testMarker="",
+        )
+
         created_pipeline = _pipeline_obj(id=pipeline_id, status="PENDING")
         mock_db.pipelinerun.create.return_value = created_pipeline
 

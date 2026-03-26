@@ -203,6 +203,9 @@ def create_kubernetes_job(
     # Test filtering
     pytest_filter: Optional[str] = None,
     fuota_label: Optional[str] = None,
+    # Stage config: test directory and marker from ProductStageConfig
+    test_directory: Optional[str] = None,
+    test_marker: Optional[str] = None,
 ) -> Optional[str]:
     """
     Create a new kubernetes job with the new firmware file environment variables.
@@ -246,7 +249,7 @@ def create_kubernetes_job(
         job_yaml = job_yaml.replace("{{CONCORD_API_KEY}}", api_key or "")
         job_yaml = job_yaml.replace("{{CONCORD_API_URL}}", api_url or "https://10.4.45.11:443")
         # Host header for ingress routing when using IP address
-        job_yaml = job_yaml.replace("{{CONCORD_API_HOST}}", "staging.concord.local")
+        job_yaml = job_yaml.replace("{{CONCORD_API_HOST}}", env_config.CONCORD_API_HOST)
 
         # Storage — inject from http-api's own config (no hardcoded creds in template)
         job_yaml = job_yaml.replace("{{STORAGE_URL}}", env_config.STORAGE_URL)
@@ -257,7 +260,7 @@ def create_kubernetes_job(
         # Device/bench identity env vars — use passed params if available, else fall back to env
         job_yaml = job_yaml.replace("{{DEVICE_ID}}", device_id or os.environ.get("DEVICE_ID", ""))
         job_yaml = job_yaml.replace("{{DEVICE_SNR}}", device_snr or os.environ.get("DEVICE_SNR", ""))
-        job_yaml = job_yaml.replace("{{FIXTURE_PROFILE_PATH}}", fixture_profile_path or os.environ.get("FIXTURE_PROFILE_PATH", "fixtures/alpha_b0.json"))
+        job_yaml = job_yaml.replace("{{FIXTURE_PROFILE_PATH}}", fixture_profile_path or os.environ.get("FIXTURE_PROFILE_PATH", ""))
         job_yaml = job_yaml.replace("{{DEVICE_IMEI}}", device_imei or os.environ.get("DEVICE_IMEI", ""))
         job_yaml = job_yaml.replace("{{DEVICE_ICCIDS}}", device_iccids or os.environ.get("DEVICE_ICCIDS", ""))
         # Bench-specific: MTIB address from bench scheduler
@@ -278,6 +281,10 @@ def create_kubernetes_job(
         # Test filtering (temporary — revert once FUOTA debug-flag issue is resolved)
         job_yaml = job_yaml.replace("{{PYTEST_FILTER}}", pytest_filter or "")
         job_yaml = job_yaml.replace("{{FUOTA_LABEL}}", fuota_label or "")
+
+        # Stage config: test directory and marker from ProductStageConfig
+        job_yaml = job_yaml.replace("{{PYTEST_DIR}}", test_directory or "")
+        job_yaml = job_yaml.replace("{{PYTEST_MARKER}}", test_marker or "")
 
         # Parse the YAML and create the job
         job_spec = yaml.safe_load(job_yaml)

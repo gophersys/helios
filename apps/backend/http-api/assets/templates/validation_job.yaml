@@ -156,6 +156,10 @@ spec:
           value: "{{PYTEST_FILTER}}"
         - name: FUOTA_LABEL
           value: "{{FUOTA_LABEL}}"
+        - name: PYTEST_DIR
+          value: "{{PYTEST_DIR}}"
+        - name: PYTEST_MARKER
+          value: "{{PYTEST_MARKER}}"
         # ── Test Artifacts ──
         - name: ARTIFACTS_DIR
           value: "/var/log/validation"
