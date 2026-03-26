@@ -262,9 +262,10 @@ Build configuration is stored as a JSON blob in `Product.buildConfig`. It is aut
 ### Key Design Decisions
 
 - **`targets` is a map, not an array** — keyed by role name (`app`, `comms`). Every target has an `appId` and `soc`. This naturally supports single-processor (one key) and dual-processor (two keys) products.
-- **`overlays` is a revision × target matrix** — `null` means no overlay needed for that combination. This handles the Alpha REV 1.1 UART pin swap (needs overlay) vs REV 1.2 (no overlay).
+- **`overlays` is a per-target list** — additional DTS overlay files applied during `west build`. These are board-level overlays (e.g., enabling a peripheral), not test fixture adaptations.
 - **`postBuild` is an ordered list** — steps run after `west build` completes. Product-agnostic steps like MCUboot signing are shared; product-specific steps like VSM merge are conditional on `hasVsmMerge`.
 - **AppIDs come from humans** — ck_boards has no concept of CoreCloud AppIDs. These are assigned during product creation and stored here.
+- **No MTIB/fixture config in builds** — MTIB hardware revision (1.1 vs 1.2) is a test fixture property, not a product property. Pin swap overlays, GPIO mappings, and other fixture-specific adaptations are handled at test time via fixture profiles, not at build time. The build system builds firmware for a *board*; the test fixture adapts for the *test hardware*.
 
 ---
 
