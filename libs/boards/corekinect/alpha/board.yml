@@ -1,5 +1,0 @@
-board:
-  name: alpha
-  vendor: corekinect
-  socs:
-  - name: nrf52840

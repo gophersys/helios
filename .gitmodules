@@ -28,12 +28,6 @@
 [submodule "libs/zephyr/dut_gpio_config_drv"]
 	path = libs/zephyr/dut_gpio_config_drv
 	url = git@bitbucket.org:corekinect/dut_gpio_config_drv.git
-[submodule "libs/python/corekinect/iface"]
-	path = libs/python/corekinect/iface
-	url = git@bitbucket.org:corekinect/iface-posix.git
-[submodule "libs/python/corekinect/cipher"]
-	path = libs/python/corekinect/cipher
-	url = git@bitbucket.org:corekinect/cipher-posix.git
 [submodule "libs/zephyr/mlx90632_drv"]
 	path = libs/zephyr/mlx90632_drv
 	url = git@bitbucket.org:corekinect/mlx90632_drv.git

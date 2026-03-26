@@ -1,5 +1,0 @@
-commit 7cdce8d73215cb453cc6641229275f53f47290bc
-Author: Chris Burns <chris@corekinect.com>
-Date:   Fri Jan 23 22:13:15 2026 +0000
-
-    Change sensor_handler accelerometer wakeup threshold to 7
