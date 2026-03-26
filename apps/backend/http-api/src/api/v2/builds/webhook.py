@@ -18,10 +18,11 @@ from src.services.database.prisma import get_db_client
 from .builds import _serialize_build_job
 from .types import (
     BitbucketWebhookPayload,
-    CI_TRIGGER_BRANCHES,
     CiTriggerRequest,
-    REPO_PRODUCT_MAP,
 )
+
+# Default trigger branches — used when a product has no triggerBranches configured
+_DEFAULT_TRIGGER_BRANCHES = {"concord-main", "main", "develop"}
 
 
 def _resolve_product_by_repo(db, repo_slug: str):
@@ -34,24 +35,40 @@ def _resolve_product_by_repo(db, repo_slug: str):
     )
 
 
+def _get_trigger_branches(product) -> set:
+    """Get the set of branches that should trigger CI for this product.
+
+    Reads triggerBranches from product metadata, falls back to defaults.
+    """
+    metadata = product.metadata if isinstance(product.metadata, dict) else {}
+    branches = metadata.get("triggerBranches")
+    if branches and isinstance(branches, list):
+        return set(branches)
+    return _DEFAULT_TRIGGER_BRANCHES
+
+
 def _product_to_build_config(product, repo_slug: str) -> dict:
     """Convert a Product record into the build config dict used by webhook/trigger.
 
-    This replaces the static REPO_PRODUCT_MAP entries with live DB data.
+    Uses Product.buildConfig (structured build config) with fallback to metadata.
     """
     is_mfg = product.mfgRepoSlug == repo_slug
+    build_config = product.buildConfig if isinstance(getattr(product, "buildConfig", None), dict) else {}
     metadata = product.metadata if isinstance(product.metadata, dict) else {}
 
-    # Determine targets from metadata or default to dual-chip
-    targets = metadata.get("targets", ["app", "comms"])
+    # Prefer buildConfig.targets (map of role → config), fall back to metadata list
+    if build_config.get("targets"):
+        targets = list(build_config["targets"].keys())
+    else:
+        targets = metadata.get("targets", ["app", "comms"])
 
     return {
         "product_name": product.name,
         "firmware_type": repo_slug,
-        "board": product.buildBoard or "alpha_b0",
+        "board": build_config.get("board") or product.buildBoard or "alpha_b0",
         "targets": targets,
         "default_variant": "release" if is_mfg else "debug",
-        "ncs_version": metadata.get("ncsVersion", ""),
+        "ncs_version": build_config.get("ncsVersion") or metadata.get("ncsVersion", ""),
         "ssh_url": product.mfgRepoSshUrl if is_mfg else (product.repoSshUrl or ""),
         "build_script": metadata.get("buildScript", "scripts/build.sh"),
         "product_id": product.id,
@@ -138,27 +155,25 @@ def webhook_bitbucket():
     if error:
         return bad_request(error)
 
-    # Check if branch triggers CI
-    if payload.branch not in CI_TRIGGER_BRANCHES:
-        logger.info("Ignoring webhook for non-CI branch: %s", payload.branch)
-        return jsonify(ApiResponse.ok({"ignored": True, "reason": "non-CI branch"}).to_dict()), 200
-
     try:
         db = get_db_client()
 
-        # Resolve product from DB by repo slug (preferred), fall back to static map
+        # Resolve product from DB by repo slug
         product_record = _resolve_product_by_repo(db, payload.repo_slug)
-        if product_record:
-            product_config = _product_to_build_config(product_record, payload.repo_slug)
-            logger.info("Resolved product '%s' (id=%s) from DB for repo %s",
-                        product_record.name, product_record.id, payload.repo_slug)
-        else:
-            # Legacy fallback to static map
-            product_config = REPO_PRODUCT_MAP.get(payload.repo_slug)
-            if not product_config:
-                logger.info("Ignoring webhook for unmapped repo: %s", payload.repo_slug)
-                return jsonify(ApiResponse.ok({"ignored": True, "reason": "unmapped repo"}).to_dict()), 200
-            logger.info("Using legacy REPO_PRODUCT_MAP for repo %s", payload.repo_slug)
+        if not product_record:
+            logger.info("Ignoring webhook for unmapped repo: %s", payload.repo_slug)
+            return jsonify(ApiResponse.ok({"ignored": True, "reason": "unmapped repo"}).to_dict()), 200
+
+        # Check if branch triggers CI for this product
+        trigger_branches = _get_trigger_branches(product_record)
+        if payload.branch not in trigger_branches:
+            logger.info("Ignoring webhook for non-CI branch %s (product %s triggers on: %s)",
+                        payload.branch, product_record.name, trigger_branches)
+            return jsonify(ApiResponse.ok({"ignored": True, "reason": "non-CI branch"}).to_dict()), 200
+
+        product_config = _product_to_build_config(product_record, payload.repo_slug)
+        logger.info("Resolved product '%s' (id=%s) from DB for repo %s",
+                    product_record.name, product_record.id, payload.repo_slug)
 
         # Create build job(s) — one per target in the product config
         builds = []
@@ -282,30 +297,38 @@ def list_ci_repos():
     db = get_db_client()
 
     repos = []
-    seen_slugs = set()
 
-    # Primary source: Product model from DB
+    # All repos come from Product model in DB
     products = db.product.find_many(where={"active": True})
     for product in products:
+        build_config = product.buildConfig if isinstance(getattr(product, "buildConfig", None), dict) else {}
         metadata = product.metadata if isinstance(product.metadata, dict) else {}
-        targets = metadata.get("targets", ["app", "comms"])
+        trigger_branches = list(_get_trigger_branches(product))
+
+        # Prefer buildConfig.targets, fall back to metadata
+        if build_config.get("targets"):
+            targets = list(build_config["targets"].keys())
+        else:
+            targets = metadata.get("targets", ["app", "comms"])
+
+        board = build_config.get("board") or product.buildBoard or ""
+        ncs_version = build_config.get("ncsVersion") or metadata.get("ncsVersion", "")
 
         # Main firmware repo
         if product.repoSlug:
-            seen_slugs.add(product.repoSlug)
             repos.append({
                 "id": product.repoSlug,
                 "name": product.repoSlug,
                 "productId": product.id,
                 "productName": product.name,
                 "firmwareType": product.repoSlug,
-                "board": product.buildBoard or "",
+                "board": board,
                 "targets": targets,
                 "defaultVariant": "debug",
-                "ncsVersion": metadata.get("ncsVersion", ""),
+                "ncsVersion": ncs_version,
                 "webhookUrl": f"{base_url}/v2/builds/webhooks/bitbucket",
                 "connected": True,
-                "branches": list(CI_TRIGGER_BRANCHES),
+                "branches": trigger_branches,
                 "variants": ["debug", "release"],
                 "mtibRev": "1.2",
                 "lastEventAt": None,
@@ -316,20 +339,19 @@ def list_ci_repos():
 
         # Manufacturing firmware repo
         if product.mfgRepoSlug:
-            seen_slugs.add(product.mfgRepoSlug)
             repos.append({
                 "id": product.mfgRepoSlug,
                 "name": product.mfgRepoSlug,
                 "productId": product.id,
                 "productName": product.name,
                 "firmwareType": product.mfgRepoSlug,
-                "board": product.buildBoard or "",
+                "board": board,
                 "targets": targets,
                 "defaultVariant": "release",
-                "ncsVersion": metadata.get("ncsVersion", ""),
+                "ncsVersion": ncs_version,
                 "webhookUrl": f"{base_url}/v2/builds/webhooks/bitbucket",
                 "connected": True,
-                "branches": list(CI_TRIGGER_BRANCHES),
+                "branches": trigger_branches,
                 "variants": ["release"],
                 "mtibRev": "1.2",
                 "lastEventAt": None,
@@ -337,28 +359,5 @@ def list_ci_repos():
                 "buildScript": metadata.get("buildScript", "scripts/build.sh"),
                 "buildMfgDir": product.buildMfgDir or "",
             })
-
-    # Legacy fallback: include any static map entries not already covered by DB
-    for slug, config in REPO_PRODUCT_MAP.items():
-        if slug in seen_slugs:
-            continue
-        repos.append({
-            "id": slug,
-            "name": slug,
-            "productName": config["product_name"],
-            "firmwareType": config["firmware_type"],
-            "board": config.get("board", ""),
-            "targets": config.get("targets", []),
-            "defaultVariant": config.get("default_variant", "debug"),
-            "ncsVersion": config.get("ncs_version", ""),
-            "webhookUrl": f"{base_url}/v2/builds/webhooks/bitbucket",
-            "connected": True,
-            "branches": list(CI_TRIGGER_BRANCHES),
-            "variants": ["debug", "release"] if "mfg" not in slug else ["release"],
-            "mtibRev": "1.2",
-            "lastEventAt": None,
-            "sshUrl": config.get("ssh_url", ""),
-            "buildScript": config.get("build_script", "scripts/build.sh"),
-        })
 
     return jsonify(ApiResponse.ok(repos).to_dict()), 200

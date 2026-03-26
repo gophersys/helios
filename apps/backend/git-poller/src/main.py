@@ -55,8 +55,8 @@ class RepoConfig:
 class GitPoller:
     """Polls git repos for new commits and triggers CI builds.
 
-    Fetches repo configs from the Concord API, so new products can be
-    added to REPO_PRODUCT_MAP without changing this code.
+    Fetches repo configs from the Concord API, so new products are
+    discovered automatically from the Product model in DB.
     """
 
     def __init__(

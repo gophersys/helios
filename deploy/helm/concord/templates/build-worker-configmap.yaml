@@ -671,9 +671,8 @@ data:
         Each worker instance handles jobs for a specific NCS version.
         Multiple workers with different NCS versions can run in parallel.
 
-        Repo configs are fetched from the API at startup instead of hardcoded.
-        This allows adding new products via REPO_PRODUCT_MAP in types.py
-        without changing the worker code.
+        Repo configs are fetched from the API at startup from the Product model
+        in DB. New products are discovered automatically.
         """
 
         def __init__(self, config: BuildConfig):
