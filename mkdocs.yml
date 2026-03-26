@@ -77,8 +77,10 @@ nav:
       - "Stage 5: Gate Tests": architecture/validation/stage5-gate-tests.md
       - Test Runner: architecture/validation/test-runner.md
     - Build:
+      - architecture/build/index.md
       - Build Service: architecture/build/build-service.md
       - Builder Nodes: architecture/build/builder-nodes.md
+      - Product & Build System: architecture/build/product-build-system.md
 
   - Reference:
     - reference/index.md
