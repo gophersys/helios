@@ -1,18 +1,88 @@
-# See http://help.github.com/ignore-files/ for more about ignoring files.
+# ============================================================================
+# Concord Monorepo .gitignore
+# ============================================================================
 
-# Nx local cache
+# ---------------------------------------------------------------------------
+# Nx
+# ---------------------------------------------------------------------------
 .nx/cache
+.nx/workspace-data
 
-# compiled output
-dist
-tmp
+# ---------------------------------------------------------------------------
+# Node.js
+# ---------------------------------------------------------------------------
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# ---------------------------------------------------------------------------
+# Python
+# ---------------------------------------------------------------------------
+__pycache__/
+*.pyc
+*.egg-info/
+.pyenv/
+venv/
+.venv/
+.mypy_cache/
+.pytest_cache/
+
+# ---------------------------------------------------------------------------
+# Build outputs
+# ---------------------------------------------------------------------------
+dist/
+tmp/
+build/
 /out-tsc
 
-# dependencies
-node_modules
+# ---------------------------------------------------------------------------
+# SvelteKit
+# ---------------------------------------------------------------------------
+.svelte-kit/
 
-# IDEs and editors
-/.idea
+# ---------------------------------------------------------------------------
+# Vite / Vitest
+# ---------------------------------------------------------------------------
+vite.config.*.timestamp*
+vitest.config.*.timestamp*
+
+# ---------------------------------------------------------------------------
+# Prisma (generated client)
+# ---------------------------------------------------------------------------
+libs/python/database/
+
+# ---------------------------------------------------------------------------
+# Documentation build output
+# ---------------------------------------------------------------------------
+apps/docs/site/
+
+# ---------------------------------------------------------------------------
+# Firmware
+# ---------------------------------------------------------------------------
+# Build artifacts (hex, cfw) are generated — only source is committed
+apps/firmware/products/*/artifacts/
+*.tmp
+CMakeCache.tmp
+
+# ---------------------------------------------------------------------------
+# Secrets & credentials (NEVER commit)
+# ---------------------------------------------------------------------------
+.env
+deploy/helm/values-*-secrets.yaml
+*.pem
+*.key
+**/credentials.json
+apps/validation/**/.env
+
+# ---------------------------------------------------------------------------
+# IDE & editors
+# ---------------------------------------------------------------------------
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+/.idea/
 .project
 .classpath
 .c9/
@@ -20,118 +90,24 @@ node_modules
 .settings/
 *.sublime-workspace
 
-# IDE - VSCode
-.vscode/*
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
-!.vscode/extensions.json
-
-# misc
-/.sass-cache
-/connect.lock
-/coverage
-/libpeerconnection.log
-npm-debug.log
-yarn-error.log
-testem.log
-/typings
-
-# System Files
+# ---------------------------------------------------------------------------
+# OS files
+# ---------------------------------------------------------------------------
 .DS_Store
 Thumbs.db
 
-# Build outputs
-build
-
-# logs
-logs
-
-# Filesystem database
-db
-
-# Python
-.pyenv
-__pycache__
-*.pyc
-*.egg-info
-venv/
-.venv/
-.env
-.mypy_cache/
-
-# Build caches
-.cache/
-
-# Pytest
-.pytest_cache/
-
-# Firmware files
-*.hex
-*.zip
-
-# # Ignore generated files in the protos directory
-# *.pb.h
-# *.pb.c
-# *.cipher.h
-# *.cipher.c
-# *_grpc.py
-# *_cipher.py
-# *_pb2.py
-
-# # Ignore all files and directories except the protos directory itself
-# /*
-# !/protos/
-
-# # Ignore files matching the specified patterns within the protos directory
-# /protos/*.pb.h
-# /protos/*.pb.c
-# /protos/*.cipher.h
-# /protos/*.cipher.c
-# /protos/*_grpc.py
-# /protos/*_cipher.py
-# /protos/*_pb2.py
-
-# nx
-.nx/cache
-.nx/workspace-data
-
-# Prisma
-libs/python/database
-vite.config.*.timestamp*
-vitest.config.*.timestamp*
-
-# Helm secrets (never commit real credentials)
-deploy/helm/values-*-secrets.yaml
-
-# SvelteKit build artifacts
-.svelte-kit/
-apps/frontend/concord-app-svelte/coverage/
-apps/frontend/concord-app-svelte/dist/
-
-# Credential files
-*.pem
-*.key
-**/credentials.json
-apps/validation/**/.env
-
-# Firmware product build artifacts
-apps/firmware/products/*/artifacts/
-
-# Build temp files
-*.tmp
-*.bak
-.config.old
-CMakeCache.tmp
-
-# Test screenshots and debug images
-routes_*.png
-images/Screenshot*
-
-# Grade/quality reports (generated artifacts)
+# ---------------------------------------------------------------------------
+# Test artifacts
+# ---------------------------------------------------------------------------
+/coverage/
+**/playwright-report/
+**/test-results/
 **/grade-reports/
 
-# Playwright test artifacts
-**/playwright-report/
-**/test-results/apps/docs/site/
-apps/firmware/products/alpha/temp_data.png
+# ---------------------------------------------------------------------------
+# Misc
+# ---------------------------------------------------------------------------
+logs/
+.cache/
+*.bak
+.config.old
