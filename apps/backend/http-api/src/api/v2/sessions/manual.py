@@ -176,7 +176,7 @@ def upload_firmware_to_bucket(zip_file_path: str, job_id: str, product: str) -> 
 def create_kubernetes_job(
     product: str,
     job_id: str,
-    firmware_path: str,  # Legacy: MinIO path (deprecated, use pipeline_id)
+    firmware_path: str,  # MinIO path (prefer pipeline_id when available)
     test_type: str,
     test_enable: Dict[str, bool],
     required_features: Optional[Dict[str, str]] = None,

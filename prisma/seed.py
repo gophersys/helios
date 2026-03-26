@@ -412,7 +412,7 @@ def seed():
                 "create": {
                     "boardId": sigma5_board.id,
                     "version": "B0",
-                    "notes": "Sigma5 B0 - legacy revision (deprecated)",
+                    "notes": "Sigma5 B0 - previous revision, superseded by C0",
                 },
                 "update": {},
             },
