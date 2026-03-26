@@ -1,14 +1,16 @@
 """Build execution, artifact collection, and verification."""
 
+import json
 import logging
 import os
 import re
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from src.api_client import ConcordApiClient
+from src.manifest import generate_build_manifest, classify_artifact
 
 # Firmware validation - try to import, fallback if not available in container
 try:
@@ -290,11 +292,82 @@ class BuildExecutor:
             log.exception("Verification error: %s", e)
             return False, f"Verification error: {e}"
 
-    def upload_artifacts(self, job_id: str, artifacts: List[Path]) -> int:
-        """Upload all artifacts for a job. Returns count of successful uploads."""
+    def write_manifest(
+        self,
+        build_config: Dict[str, Any],
+        output_dir: Path,
+        product: str,
+        board: str,
+        version: str,
+        variant: str,
+        commit_sha: str,
+        branch: str,
+        key_dir: Optional[Path] = None,
+    ) -> Optional[Path]:
+        """Generate and write build.json v2 manifest to output directory.
+
+        Returns the path to the written manifest, or None on failure.
+        """
+        try:
+            manifest = generate_build_manifest(
+                build_config=build_config,
+                output_dir=output_dir,
+                product=product,
+                board=board,
+                version=version,
+                variant=variant,
+                commit_sha=commit_sha,
+                branch=branch,
+                key_dir=key_dir,
+            )
+            manifest_path = output_dir / "build.json"
+            manifest_path.write_text(json.dumps(manifest, indent=2))
+            log.info("Wrote build.json v2 manifest to %s", manifest_path)
+            return manifest_path
+        except Exception as e:
+            log.error("Failed to generate build manifest: %s", e)
+            return None
+
+    def upload_artifacts(self, job_id: str, artifacts: List[Path],
+                         build_config: Optional[Dict[str, Any]] = None) -> int:
+        """Upload all artifacts for a job with structured metadata.
+
+        Uses buildConfig.targets to map artifacts to roles/processors.
+        Returns count of successful uploads.
+        """
+        # Build appId -> target metadata lookup from buildConfig
+        target_lookup: Dict[int, Dict[str, str]] = {}
+        if build_config:
+            for t in build_config.get("targets", []):
+                target_lookup[t["appId"]] = {
+                    "role": t["role"],
+                    "processor": t["processor"],
+                }
+
         count = 0
         for artifact in artifacts:
-            log.info("Uploading %s...", artifact.name)
-            if self.api_client.upload_file(f"/v2/builds/{job_id}/artifacts", artifact, artifact.name):
+            metadata = {}
+
+            # Classify by filename
+            classification = classify_artifact(artifact.name)
+            if classification:
+                artifact_type, app_id = classification
+                metadata["artifactType"] = (
+                    "plaintext_hex" if artifact_type == "plaintextHex" else "encrypted_cfw"
+                )
+                # Look up role/processor from buildConfig
+                target_meta = target_lookup.get(app_id, {})
+                if target_meta:
+                    metadata["role"] = target_meta["role"]
+                    metadata["processor"] = target_meta["processor"]
+            elif artifact.name == "build.json":
+                metadata = {"role": "manifest", "artifactType": "manifest"}
+            elif artifact.name == "build.log":
+                metadata = {"role": "log", "artifactType": "log"}
+
+            log.info("Uploading %s (metadata=%s)...", artifact.name, metadata or "none")
+            if self.api_client.upload_file(
+                f"/v2/builds/{job_id}/artifacts", artifact, artifact.name, metadata=metadata
+            ):
                 count += 1
         return count

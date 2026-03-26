@@ -210,24 +210,7 @@ class BuildWorker:
                 self.api_client.upload_file(f"/v2/builds/{job.id}/artifacts", log_file, "build.log")
                 return False
 
-            # 6. Collect and upload artifacts (final hex/cfw only, no intermediates)
-            artifacts = self.builder.collect_artifacts(output_dir)
-            artifacts.append(log_file)  # Include build log
-
-            # 6.5. Verify artifacts before upload
-            valid, verify_msg = self.builder.verify_artifacts(output_dir, job.version_override)
-            if not valid:
-                log.error("Artifact verification failed: %s", verify_msg)
-                self.update_job(job.id, "FAILED", f"Verification failed: {verify_msg}", duration=duration)
-                # Still upload artifacts for debugging
-                self.api_client.upload_file(f"/v2/builds/{job.id}/artifacts", log_file, "build.log")
-                return False
-
-            # 7. Upload artifacts
-            artifact_count = self.builder.upload_artifacts(job.id, artifacts)
-            log.info("Uploaded %d artifacts", artifact_count)
-
-            # Extract version from build script output
+            # 6. Extract version from build script output (needed for manifest)
             # Build script prints "Resolved version: X.Y.Z" — use that, not greedy regex
             # (greedy regex picks up NCS container versions like "2.7.0" first)
             version_string = None
@@ -239,6 +222,50 @@ class BuildWorker:
                 all_versions = re.findall(r"(\d+\.\d+\.\d+)", log_output)
                 if all_versions:
                     version_string = all_versions[-1]
+
+            # 6.1. Collect artifacts (final hex/cfw only, no intermediates)
+            artifacts = self.builder.collect_artifacts(output_dir)
+            artifacts.append(log_file)  # Include build log
+
+            # 6.3. Fetch Product.buildConfig for manifest generation
+            build_config = None
+            product_id = getattr(job, "product_id", None) or job.config_flags.get("productId") if job.config_flags else None
+            if product_id:
+                product_data = self.api_client.get_product(product_id)
+                if product_data:
+                    build_config = product_data.get("buildConfig")
+
+            # 6.4. Generate build.json v2 manifest (if buildConfig available)
+            if build_config and build_config.get("targets"):
+                keys_dir = Path(f"/keys/{product_base}")
+                manifest_path = self.builder.write_manifest(
+                    build_config=build_config,
+                    output_dir=output_dir,
+                    product=product_base,
+                    board=job.board,
+                    version=version_string or "0.0.0",
+                    variant=job.variant or "release",
+                    commit_sha=job.commit_sha,
+                    branch=job.branch,
+                    key_dir=keys_dir if keys_dir.is_dir() else None,
+                )
+                if manifest_path and manifest_path not in artifacts:
+                    artifacts.append(manifest_path)
+            else:
+                log.info("No buildConfig available — skipping build.json v2 manifest generation")
+
+            # 6.5. Verify artifacts before upload
+            valid, verify_msg = self.builder.verify_artifacts(output_dir, job.version_override)
+            if not valid:
+                log.error("Artifact verification failed: %s", verify_msg)
+                self.update_job(job.id, "FAILED", f"Verification failed: {verify_msg}", duration=duration)
+                # Still upload artifacts for debugging
+                self.api_client.upload_file(f"/v2/builds/{job.id}/artifacts", log_file, "build.log")
+                return False
+
+            # 7. Upload artifacts with metadata from buildConfig
+            artifact_count = self.builder.upload_artifacts(job.id, artifacts, build_config=build_config)
+            log.info("Uploaded %d artifacts", artifact_count)
 
             self.update_job(job.id, "SUCCESS", version_string=version_string, duration=duration)
             log.info("Build %s completed in %ds", job.id[:8], duration)

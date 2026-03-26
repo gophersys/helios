@@ -78,13 +78,30 @@ class ConcordApiClient:
             log.error("API PATCH %s failed: %s", path, e)
             return None
 
-    def upload_file(self, path: str, file_path: Path, name: str) -> bool:
-        """Upload a file as multipart form data."""
+    def get_product(self, product_id: str) -> Optional[dict]:
+        """Fetch a product by ID, including buildConfig."""
+        result = self.api_get(f"/v2/products/{product_id}")
+        if not result or not result.get("data"):
+            return None
+        return result["data"]
+
+    def upload_file(self, path: str, file_path: Path, name: str,
+                    metadata: Optional[Dict[str, str]] = None) -> bool:
+        """Upload a file as multipart form data with optional metadata fields.
+
+        Args:
+            path: API endpoint path
+            file_path: Local file to upload
+            name: Filename for the upload
+            metadata: Optional dict of form fields (e.g., role, processor, artifactType)
+        """
         try:
+            form_data = metadata or {}
             with open(file_path, "rb") as f:
                 resp = requests.post(
                     f"{self.api_url}{path}",
                     files={"file": (name, f)},
+                    data=form_data,
                     headers={"Authorization": f"ApiKey {self.api_key}"},
                     timeout=120,
                     verify=False,
