@@ -7,6 +7,12 @@
 > and filename pattern-matching across the entire pipeline. Every consumer reads
 > the manifest instead of guessing.
 
+!!! note "Upstream Spec"
+    App IDs, version format (`major.minor.build`), release track flags, and CFW
+    structure all follow the **Device Firmware Versioning SS V1.0** specification
+    (Confluence). This document defines how Concord *implements* that spec in its
+    build and validation pipeline.
+
 ---
 
 ## 1. The Problem
@@ -38,6 +44,7 @@ Every build MUST produce a `build.json` alongside its hex/cfw files. This is the
   "version": "0.8.3",
   "variant": "mfg",
   "track": "BM",
+  "releaseTrack": "bench",
   "ncsVersion": "v2.9.0",
   "commitSha": "abc1234def5678",
   "branch": "main",
@@ -50,8 +57,8 @@ Every build MUST produce a `build.json` alongside its hex/cfw files. This is the
       "appId": 109,
       "hostType": "HOST_TYPE_NRF52840",
       "jlinkFamily": "NRF52",
-      "hex": "hex/109.0.8.3-BM.hex",
-      "cfw": "cfw/109.0.8.3-BM.cfw"
+      "plaintextHex": "hex/109.0.8.3-BM.hex",
+      "encryptedCfw": "cfw/109.0.8.3-BM.cfw"
     },
     {
       "role": "comms",
@@ -59,8 +66,8 @@ Every build MUST produce a `build.json` alongside its hex/cfw files. This is the
       "appId": 108,
       "hostType": "HOST_TYPE_NRF9151",
       "jlinkFamily": "NRF91",
-      "hex": "hex/108.0.8.3-BM.hex",
-      "cfw": "cfw/108.0.8.3-BM.cfw"
+      "plaintextHex": "hex/108.0.8.3-BM.hex",
+      "encryptedCfw": "cfw/108.0.8.3-BM.cfw"
     }
   ],
 
@@ -95,6 +102,7 @@ Every build MUST produce a `build.json` alongside its hex/cfw files. This is the
 | `version` | Yes | Semver build version |
 | `variant` | Yes | Build variant: `mfg`, `debug`, `release` |
 | `track` | Yes | CFW track string: `BM` (bench+mfg), `BMD` (bench+mfg+debug), `P` (production) |
+| `releaseTrack` | Yes | Release track: `bench`, `engineering`, or `production`. Determines signing keys and bootloader ID. Sourced from `Product.buildConfig.releaseTrack`. |
 | `ncsVersion` | Yes | nRF Connect SDK version used |
 | `commitSha` | Yes | Full git commit hash |
 | `branch` | Yes | Source branch |
@@ -106,6 +114,8 @@ Every build MUST produce a `build.json` alongside its hex/cfw files. This is the
 
 ### Target Fields
 
+Each target produces **two** artifact types per the Device Firmware Versioning SS V1.0:
+
 | Field | Description |
 |-------|-------------|
 | `role` | Logical role: `app`, `comms` |
@@ -113,8 +123,24 @@ Every build MUST produce a `build.json` alongside its hex/cfw files. This is the
 | `appId` | CoreCloud application ID (integer) |
 | `hostType` | MTIB gRPC `HostType` enum value for UART/flash routing |
 | `jlinkFamily` | nrfjprog `-f` argument: `NRF52`, `NRF91` |
-| `hex` | Relative path to Intel HEX file within the build artifact directory |
-| `cfw` | Relative path to CFW file, or `null` if CFW not produced for this target |
+| `plaintextHex` | Merged bootloader + plaintext application Intel HEX. Used by validation for J-Link flashing. |
+| `encryptedCfw` | Encrypted application image only, no bootloader. Used for FUOTA OTA delivery. `null` if CFW not produced for this target. |
+
+**Why two artifact types?** J-Link flashing needs the full image (bootloader + app, plaintext) because it writes the entire flash. FUOTA delivery needs only the encrypted application because MCUboot on the device handles the swap. These are fundamentally different artifacts with different security properties — plaintext hex should never leave the build/test environment, while encrypted CFW is safe to transmit over the air.
+
+### Design Decisions
+
+**MFG App ID enforcement.** Manufacturing firmware MUST share the same App ID as production firmware for the same chipset. The system enforces this — MFG builds inherit App IDs from `Product.buildConfig.cfw.appIds`. There is no way to configure a different App ID for MFG vs production. This ensures FUOTA transitions between MFG and production firmware work without App ID mismatches.
+
+**Release track determines signing.** The `releaseTrack` field (`bench`, `engineering`, `production`) controls which signing keys are used during the build and which bootloader ID is embedded in the CFW header. This is set in `Product.buildConfig.releaseTrack` and flows through to every build — it cannot be overridden per-build.
+
+**FUOTA pre-flight validation.** Before a CFW is uploaded for FUOTA delivery, the system validates:
+
+1. **Same App ID** — the CFW's App ID must match the device's current firmware App ID
+2. **Same release track** — bench CFW can only update bench firmware, production can only update production (no cross-track FUOTA)
+3. **Higher version** — `major.minor.build` must be strictly greater than the current version, except for MFG → production transitions where the version comparison is relaxed (MFG v0.5.0 → production v0.8.0 is valid regardless of track change)
+
+These checks prevent accidental downgrades, cross-track contamination, and App ID mismatches that would cause the device to reject the update.
 
 ### Single-Processor Example (Sigma5)
 
@@ -126,6 +152,7 @@ Every build MUST produce a `build.json` alongside its hex/cfw files. This is the
   "version": "1.0.0",
   "variant": "release",
   "track": "P",
+  "releaseTrack": "production",
   "ncsVersion": "v2.9.0",
   "commitSha": "789abcdef012",
   "branch": "release/v1.0",
@@ -138,8 +165,8 @@ Every build MUST produce a `build.json` alongside its hex/cfw files. This is the
       "appId": 201,
       "hostType": "HOST_TYPE_NRF52840",
       "jlinkFamily": "NRF52",
-      "hex": "hex/201.1.0.0-P.hex",
-      "cfw": "cfw/201.1.0.0-P.cfw"
+      "plaintextHex": "hex/201.1.0.0-P.hex",
+      "encryptedCfw": "cfw/201.1.0.0-P.cfw"
     }
   ],
 
@@ -178,7 +205,7 @@ Add structured metadata fields:
 |-----------|------|--------|---------|
 | `role` | Enum | `app`, `comms`, `modem`, `log`, `manifest` | What this artifact represents |
 | `processor` | String? | `nrf52840`, `nrf9151`, null | Which SoC (null for logs/manifests) |
-| `artifactType` | Enum | `hex`, `cfw`, `log`, `manifest`, `metadata` | File format/purpose |
+| `artifactType` | Enum | `plaintext_hex`, `encrypted_cfw`, `log`, `manifest`, `metadata` | File format/purpose |
 
 ### Query Examples
 
@@ -186,10 +213,10 @@ With these fields, API queries become straightforward:
 
 ```
 # Get all app processor hexes from pipeline 42
-GET /v2/ci/builds/42/artifacts?role=app&artifactType=hex
+GET /v2/ci/builds/42/artifacts?role=app&artifactType=plaintext_hex
 
-# Get all CFWs (for FUOTA upload)
-GET /v2/ci/builds/42/artifacts?artifactType=cfw
+# Get all encrypted CFWs (for FUOTA upload)
+GET /v2/ci/builds/42/artifacts?artifactType=encrypted_cfw
 
 # Get the build manifest
 GET /v2/ci/builds/42/artifacts?role=manifest
@@ -360,7 +387,7 @@ Validation Runner
 Test Code (product-agnostic)
     │
     │  for target in manifest.targets:
-    │      flash(target.hex, family=target.jlinkFamily)
+    │      flash(target.plaintextHex, family=target.jlinkFamily)
     │      open_uart(host_type=target.hostType)
     │      verify_version(target.appId, manifest.version)
 ```
@@ -374,7 +401,7 @@ Test Code (product-agnostic)
 | Host types | Derived from processor at build time | build.json → `manifest.targets[].hostType` |
 | J-Link families | Derived from processor at build time | build.json → `manifest.targets[].jlinkFamily` |
 | Device type/variant | `Product.buildConfig.cfw` | build.json → `manifest.corecloud` |
-| File paths | Build worker output | build.json → `manifest.targets[].hex`, `.cfw` |
+| File paths | Build worker output | build.json → `manifest.targets[].plaintextHex`, `.encryptedCfw` |
 
 No test code needs to know that Alpha uses App ID 109 for its nRF52840. That information flows from the product definition through the build manifest to the test resolver.
 
