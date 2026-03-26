@@ -415,6 +415,12 @@ class PipelineBuild:
 class PipelineAssets:
     """Fetches and manages firmware assets from a CI pipeline.
 
+    .. deprecated::
+        Use :class:`corekinect.test.artifact_resolver.ArtifactResolver` instead.
+        PipelineAssets uses hardcoded App IDs and filename pattern-matching.
+        ArtifactResolver reads the build.json v2 manifest for product-agnostic
+        artifact resolution.
+
     Connects to Concord API to get pipeline builds, then downloads
     artifacts from MinIO as needed.
     """
@@ -424,6 +430,15 @@ class PipelineAssets:
         pipeline_id: Optional[str] = None,
         logger: Optional[Logger] = None,
     ):
+        import warnings
+        warnings.warn(
+            "PipelineAssets is deprecated. Use ArtifactResolver from "
+            "corekinect.test.artifact_resolver instead — it reads the "
+            "build.json v2 manifest for product-agnostic resolution.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+
         self._config = _PipelineConfig()
         self._log = logger.from_parent("pipeline_assets") if logger else _pipeline_log
 

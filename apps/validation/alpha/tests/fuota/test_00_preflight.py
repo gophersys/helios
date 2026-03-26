@@ -138,11 +138,12 @@ class TestPreflight:
             f"Available: {list(pipeline_assets.builds.keys())}"
         )
 
-        print(f"{'Label':<24} {'Variant':<10} {'Version':<12} {'Status':<10} {'Artifacts'}")
-        print(f"{'-'*78}")
+        print(f"{'Label':<24} {'Variant':<10} {'Version':<12} {'Status':<10} {'Manifest':<10} {'Artifacts'}")
+        print(f"{'-'*88}")
         for label, build in sorted(pipeline_assets.builds.items()):
             art_count = len(build.artifacts)
-            print(f"{label:<24} {build.variant:<10} v{build.version_string or '?':<11} {build.status:<10} {art_count} files")
+            has_manifest = "yes" if build.has_manifest else "no"
+            print(f"{label:<24} {build.variant:<10} v{build.version_string or '?':<11} {build.status:<10} {has_manifest:<10} {art_count} files")
             assert build.status in ("SUCCESS", "CACHED"), (
                 f"Build {label} is {build.status}, expected SUCCESS or CACHED"
             )
@@ -158,8 +159,8 @@ class TestPreflight:
 
         first_label = next(iter(pipeline_assets.builds.keys()), None)
         if first_label:
-            build = pipeline_assets.get_build(first_label)
-            artifact_count = len(build.artifacts) if hasattr(build, 'artifacts') else 0
+            build = pipeline_assets.builds[first_label]
+            artifact_count = len(build.artifacts)
             print(f"Test build:   {first_label} ({artifact_count} artifacts)")
 
         print(f"Storage access OK")

@@ -142,13 +142,15 @@ def device_config(request) -> DeviceConfig:
 
 @pytest.fixture(scope="session")
 def pipeline_assets(request):
-    """Pipeline builds from Concord API. Downloads hex/CFW on demand.
+    """Artifact resolver for FUOTA builds. Downloads hex/CFW on demand.
 
     Shadows the root conftest's pipeline_assets fixture with a stricter
     version that fails immediately if PIPELINE_ID is not set (FUOTA stage
     always requires a pipeline).
+
+    Returns an ArtifactResolver instance.
     """
-    from corekinect.test.firmware import PipelineAssets
+    from corekinect.test.artifact_resolver import ArtifactResolver
 
     pipeline_id = (
         request.config.getoption("--pipeline-id", default=None)
@@ -157,12 +159,16 @@ def pipeline_assets(request):
     if not pipeline_id:
         pytest.fail("PIPELINE_ID is required for FUOTA tests")
 
-    assets = PipelineAssets(pipeline_id=pipeline_id)
-    log.info("Pipeline loaded: %s", pipeline_id)
+    resolver = ArtifactResolver(
+        pipeline_id=pipeline_id,
+        api_url=os.environ.get("CONCORD_API_URL", ""),
+        api_key=os.environ.get("CONCORD_API_KEY", ""),
+    )
+    log.info("ArtifactResolver loaded: %s", pipeline_id)
 
-    yield assets
+    yield resolver
 
-    assets.cleanup()
+    resolver.cleanup()
 
 
 @pytest.fixture(scope="session")

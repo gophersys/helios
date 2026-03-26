@@ -90,6 +90,38 @@ def read_total_current_ma(client, samples: int = 10, interval_s: float = 0.5) ->
 
 
 # =============================================================================
+# MANIFEST HELPERS
+# =============================================================================
+
+
+def host_type_from_manifest(host_type_str: str):
+    """Convert manifest hostType string to protobuf HostType enum.
+
+    Args:
+        host_type_str: e.g., "HOST_TYPE_NRF52840", "HOST_TYPE_NRF9151"
+
+    Returns:
+        HostType enum value.
+    """
+    from protocols.mtib.mtib_pb2 import HostType
+
+    mapping = {
+        "HOST_TYPE_NRF52840": HostType.HOST_TYPE_NRF52840,
+        "HOST_TYPE_NRF9151": HostType.HOST_TYPE_NRF9151,
+        "HOST_TYPE_NRF9160": HostType.HOST_TYPE_NRF9160,
+        "HOST_TYPE_NRF9151_MODEM": HostType.HOST_TYPE_NRF9151_MODEM,
+        "HOST_TYPE_NRF9160_MODEM": HostType.HOST_TYPE_NRF9160_MODEM,
+    }
+    result = mapping.get(host_type_str)
+    if result is None:
+        raise ValueError(
+            f"Unknown hostType: {host_type_str}. "
+            f"Valid: {list(mapping.keys())}"
+        )
+    return result
+
+
+# =============================================================================
 # FIRMWARE FLASHING
 # =============================================================================
 
@@ -439,6 +471,20 @@ def create_and_assign_fuota_plan(
     return plan_id
 
 
+def _completed_app_ids(completed_versions: set, expected_app_id_strs: set) -> set:
+    """Find which expected app IDs have completed versions."""
+    found = set()
+    for aid_str in expected_app_id_strs:
+        if any(aid_str in v for v in completed_versions):
+            found.add(aid_str)
+    return found
+
+
+def _all_app_ids_completed(completed_versions: set, expected_app_id_strs: set) -> bool:
+    """Check if all expected app IDs have at least one completed version."""
+    return _completed_app_ids(completed_versions, expected_app_id_strs) == expected_app_id_strs
+
+
 def wait_for_fuota_completion(
     fuota_client,
     device_id: str,
@@ -446,8 +492,13 @@ def wait_for_fuota_completion(
     mtib_client=None,
     power_cycle_interval_s: int = 180,
     max_stale_minutes: int = 5,
+    expected_app_ids: Optional[set] = None,
 ) -> None:
-    """Wait for FUOTA delivery to complete for both processors (108 + 109).
+    """Wait for FUOTA delivery to complete for all target processors.
+
+    Args:
+        expected_app_ids: Set of app IDs to wait for (e.g., {108, 109}).
+            If None, defaults to {108, 109} for backwards compatibility.
 
     Polls CoreCloud progress endpoint. Handles:
     - Stale 100% from previous plans (only accepts 100% if seen < 100% first)
@@ -459,6 +510,11 @@ def wait_for_fuota_completion(
         pytest.fail: If timeout expires without completion or stale limit hit.
     """
 
+    # Default to legacy alpha app IDs for backwards compatibility
+    if expected_app_ids is None:
+        expected_app_ids = {108, 109}
+    expected_app_id_strs = {str(aid) for aid in expected_app_ids}
+
     start = time.time()
     completed = set()
     seen_active = set()
@@ -468,7 +524,7 @@ def wait_for_fuota_completion(
     max_stale_s = max_stale_minutes * 60  # hard limit for pure stale data
 
     print(f"FUOTA delivery started (device={device_id})")
-    print(f"Targets: comms (108) + app (109)")
+    print(f"Targets: app IDs {sorted(expected_app_ids)}")
     print(f"Timeout: {timeout_s // 60:.0f} minutes (stale limit: {max_stale_minutes}m)")
     print(f"Power cycle: only if stalled for 3+ minutes")
     print(f"---")
@@ -522,7 +578,7 @@ def wait_for_fuota_completion(
 
                     # Announce when a processor first starts downloading
                     if ver not in seen_active and pct < 100:
-                        chip = "comms (nRF9151)" if "108" in ver else "app (nRF52840)" if "109" in ver else ver
+                        chip = ver  # Show version string as-is (product-agnostic)
                         elapsed_str = f"{int(elapsed_min)}m{int((elapsed_min % 1) * 60):02d}s" if elapsed_min >= 1 else f"{int(elapsed_min * 60)}s"
                         print(f"[{elapsed_str}] Starting download: {chip} -> {ver} ({total} pages)")
 
@@ -559,27 +615,24 @@ def wait_for_fuota_completion(
                             # Stale 100% counts as stall — CoreCloud hasn't started new plan yet
                             stall_cycles += 1
 
-                        if any("108" in v for v in completed) and any("109" in v for v in completed):
+                        if _all_app_ids_completed(completed, expected_app_id_strs):
                             elapsed_str = f"{int(elapsed_min)}m{int((elapsed_min % 1) * 60):02d}s"
-                            print(f"[{elapsed_str}] DONE: Both 108 (comms) + 109 (app) complete")
+                            print(f"[{elapsed_str}] DONE: All targets complete ({sorted(expected_app_ids)})")
                             return
 
             elif resp.status_code == 404:
-                has_108 = any("108" in v for v in completed)
-                has_109 = any("109" in v for v in completed)
                 elapsed_str = f"{int(elapsed_min)}m{int((elapsed_min % 1) * 60):02d}s" if elapsed_min >= 1 else f"{int(elapsed_min * 60)}s"
 
-                if has_108 and has_109:
-                    print(f"[{elapsed_str}] DONE: Both processors complete")
+                if _all_app_ids_completed(completed, expected_app_id_strs):
+                    print(f"[{elapsed_str}] DONE: All targets complete")
                     return
-                elif has_108 and not has_109:
-                    if last_status != "wait_109":
-                        print(f"[{elapsed_str}] Comms (108) delivered. Awaiting app (109) download to begin...")
-                        last_status = "wait_109"
-                elif has_109 and not has_108:
-                    if last_status != "wait_108":
-                        print(f"[{elapsed_str}] App (109) delivered. Awaiting comms (108) download to begin...")
-                        last_status = "wait_108"
+                elif completed:
+                    completed_ids = _completed_app_ids(completed, expected_app_id_strs)
+                    remaining = expected_app_id_strs - completed_ids
+                    status_key = f"wait_{sorted(remaining)}"
+                    if last_status != status_key:
+                        print(f"[{elapsed_str}] Delivered: {sorted(completed_ids)}. Awaiting: {sorted(remaining)}...")
+                        last_status = status_key
                 elif not completed:
                     if last_status != "wait_start":
                         print(f"[{elapsed_str}] Awaiting first CoreCloud check-in to begin FUOTA download...")
@@ -605,9 +658,7 @@ def wait_for_fuota_completion(
             time.sleep(10)
 
         # Timeout
-        has_108 = any("108" in v for v in completed)
-        has_109 = any("109" in v for v in completed)
-        if has_108 and has_109:
+        if _all_app_ids_completed(completed, expected_app_id_strs):
             return
 
         timeout_min = timeout_s / 60

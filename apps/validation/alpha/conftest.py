@@ -406,20 +406,21 @@ def mock_cloud(ctx):
 
 @pytest.fixture(scope="session")
 def pipeline_assets():
-    """Session-scoped pipeline assets manager for Stage 4 validation.
+    """Session-scoped artifact resolver for pipeline firmware.
 
     When PIPELINE_ID is set (from K8s Job trigger), provides access to
-    firmware artifacts from the CI pipeline. Tests can use this to:
+    firmware artifacts from the CI pipeline via the ArtifactResolver.
+    Tests use this to:
       - Download hex files for J-Link flashing
       - Download CFW files for FUOTA
-      - Get version strings for each matrix build
+      - Get version strings and target metadata per build
 
     Usage in tests:
         def test_fuota(ctx, pipeline_assets):
             if pipeline_assets:
-                mfg_app_hex = pipeline_assets.get_hex("MFG_BASE", "app")
-                mfg_comms_hex = pipeline_assets.get_hex("MFG_BASE", "comms")
-                cfw_files = pipeline_assets.get_cfw_files("MFG_BUMP")
+                app_hex = pipeline_assets.get_artifact("MFG_BASE", role="app", artifact_type="plaintextHex")
+                cfws = pipeline_assets.get_artifacts("MFG_BUMP", artifact_type="encryptedCfw")
+                targets = pipeline_assets.get_targets("MFG_BASE")
 
     Returns None if PIPELINE_ID is not set (manual run without CI trigger).
     """
@@ -429,17 +430,19 @@ def pipeline_assets():
         return
 
     try:
-        from corekinect.test.firmware import PipelineAssets
-        assets = PipelineAssets(
+        from corekinect.test.artifact_resolver import ArtifactResolver
+        resolver = ArtifactResolver(
             pipeline_id=cfg.PIPELINE_ID,
+            api_url=os.environ.get("CONCORD_API_URL", ""),
+            api_key=os.environ.get("CONCORD_API_KEY", ""),
             logger=log,
         )
-        log.info("PipelineAssets initialized: %s", cfg.PIPELINE_ID)
-        log.info(assets.summary())
-        yield assets
-        assets.cleanup()
+        log.info("ArtifactResolver initialized: %s", cfg.PIPELINE_ID)
+        log.info(resolver.summary())
+        yield resolver
+        resolver.cleanup()
     except Exception as e:
-        log.error("Failed to initialize PipelineAssets: %s", e)
+        log.error("Failed to initialize ArtifactResolver: %s", e)
         yield None
 
 
