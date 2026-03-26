@@ -23,7 +23,9 @@
     // Access to host's mount points (Windows drive access)
     "source=/mnt,target=/mnt,type=bind",
     // Access to host's ssh credentials for bitbucket access
-    "source=${localEnv:HOME}/.ssh-devcontainer,target=/root/.ssh,type=bind"
+    "source=${localEnv:HOME}/.ssh-devcontainer,target=/root/.ssh,type=bind",
+    // Access to host's Claude Code config (status bar, settings, memory)
+    "source=${localEnv:HOME}/.claude,target=/root/.claude,type=bind"
   ],
   // Vs Code Customizations
   "customizations": {

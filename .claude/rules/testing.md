@@ -1,7 +1,7 @@
 ---
 paths:
   - "apps/backend/http-api/src/**/*.py"
-  - "apps/frontend/concord-app/src/**/*.{ts,tsx}"
+  - "apps/frontend/app/src/**/*.{ts,svelte}"
   - "apps/frontend/app/src/**/*.{ts,svelte}"
   - "deploy/helm/**/*.yaml"
   - "deploy/local/**/*.yaml"
@@ -13,7 +13,7 @@ paths:
 After completing a new feature, bug fix, or significant refactor, run the test suites:
 
 - **Backend**: `cd apps/backend/http-api && PYTHONPATH=src:$(pwd)/../../../libs/python:$(pwd)/../../../libs:. pytest tests/ -v`
-- **Frontend**: `cd apps/frontend/concord-app && npx nx test concord-app`
+- **Frontend**: `cd apps/frontend/app && npx nx test app`
 
 ## Requirements
 

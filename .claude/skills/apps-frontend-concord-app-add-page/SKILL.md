@@ -14,12 +14,12 @@ Arguments: $ARGUMENTS
 ## Steps
 
 1. **Read the reference pattern** — Read these files to understand established conventions:
-   - `apps/frontend/concord-app/src/app/pages/products/products-page.tsx` (list page)
-   - `apps/frontend/concord-app/src/app/pages/products/product-card.tsx` (card component)
-   - `apps/frontend/concord-app/src/app/pages/products/product-detail.tsx` (detail view with tabs)
-   - `apps/frontend/concord-app/src/app/pages/products/board-revision-list.tsx` (sub-entity list)
-   - `apps/frontend/concord-app/src/app/components/ui/` (common components)
-   - `apps/frontend/concord-app/src/app/types/models.ts` (shared type definitions)
+   - `apps/frontend/app/src/app/pages/products/products-page.tsx` (list page)
+   - `apps/frontend/app/src/app/pages/products/product-card.tsx` (card component)
+   - `apps/frontend/app/src/app/pages/products/product-detail.tsx` (detail view with tabs)
+   - `apps/frontend/app/src/app/pages/products/board-revision-list.tsx` (sub-entity list)
+   - `apps/frontend/app/src/app/components/ui/` (common components)
+   - `apps/frontend/app/src/app/types/models.ts` (shared type definitions)
 
 2. **Add model types** to `src/app/types/models.ts` — never define interfaces locally in page files
 
@@ -46,7 +46,7 @@ Arguments: $ARGUMENTS
 6. **Add sidebar link** in `src/app/components/sidebar.tsx`:
    - Add entry with Lucide icon, gated by `hasPermission()`
 
-7. **Verify** — run `npx tsc --noEmit` and `npx vite build` from the concord-app directory
+7. **Verify** — run `npx tsc --noEmit` and `npx vite build` from the app directory
 
 8. **Test** — Add spec files following the patterns in `src/app/pages/products/`:
    - `<domain>-page.spec.tsx` — test permission guard, loading state, data rendering, form submission
@@ -54,4 +54,4 @@ Arguments: $ARGUMENTS
    - Use `renderApp()` from `src/testing/render-app` for provider wrapping
    - Use `mockFetch()` / `mockFetchRoutes()` from `src/testing/mock-api`
    - Use factory functions from `src/testing/fixtures.ts` (add new ones as needed)
-   - Run: `cd apps/frontend/concord-app && npx nx test concord-app`
+   - Run: `cd apps/frontend/app && npx nx test app`

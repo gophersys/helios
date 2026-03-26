@@ -45,7 +45,7 @@ Verify: `python3 -c "import py_compile,glob;[py_compile.compile(f,doraise=True) 
 
 ## Phase 3 — Frontend
 
-Follow the pattern in `apps/frontend/concord-app/src/app/pages/products/`:
+Follow the pattern in `apps/frontend/app/src/routes/products/`:
 
 1. **types/models.ts** — Add interfaces for new entities
 2. **<domain>-page.tsx** — List page with cards, inline form, detail routing
@@ -100,4 +100,4 @@ Verify: `npx tsc --noEmit && npx vite build`
 
 4. **Run both suites**:
    - `cd apps/backend/http-api && PYTHONPATH=src:$(pwd)/../../../libs/python:$(pwd)/../../../libs:. pytest tests/ -v`
-   - `cd apps/frontend/concord-app && npx nx test concord-app`
+   - `cd apps/frontend/app && npx nx test app`

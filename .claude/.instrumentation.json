@@ -75,7 +75,7 @@
       "action": "enriched",
       "sources": [
         "apps/manufacturing/alpha/",
-        "libs/python/corekinect/test/validation/device_personalizer.py"
+        "libs/python/corekinect/test/device_personalizer.py"
       ],
       "summary": "Re-personalization required after every J-Link flash. CoreOps API calls, key upload, IPC rekey."
     },
@@ -84,9 +84,67 @@
       "updated": "2026-03-13",
       "action": "created",
       "sources": [
-        "apps/firmware/products/icle/"
+        "apps/firmware/products/"
       ],
       "summary": "ICLE ESP32 power monitor: UART setup, SD card ops, log formats, device states."
+    },
+    ".claude/rules/testing.md": {
+      "created": "2026-03-01",
+      "updated": "2026-03-16",
+      "action": "enriched",
+      "sources": [
+        "apps/backend/http-api/src/",
+        "apps/frontend/app/src/"
+      ],
+      "summary": "Cross-environment test requirements, patterns, and commands for backend and frontend."
+    },
+    ".claude/rules/environments.md": {
+      "created": "2026-03-01",
+      "updated": "2026-03-13",
+      "action": "created",
+      "sources": [
+        "deploy/",
+        "apps/backend/http-api/src/lib/decorators.py"
+      ],
+      "summary": "Dev/staging/prod config wiring. Every new config field must exist in all three environments."
+    },
+    ".claude/rules/deployment.md": {
+      "created": "2026-03-01",
+      "updated": "2026-03-13",
+      "action": "created",
+      "sources": [
+        "deploy/",
+        "deploy/helm/"
+      ],
+      "summary": "Deployment architecture: Dockerfiles, project.json targets, Helm charts, ctl.sh commands."
+    },
+    ".claude/rules/concord-security.md": {
+      "created": "2026-03-01",
+      "updated": "2026-03-16",
+      "action": "enriched",
+      "sources": [
+        "apps/backend/http-api/src/",
+        "apps/frontend/app/src/"
+      ],
+      "summary": "Security enforcement: @require_permissions on every endpoint, RBAC permission format, audit logging."
+    },
+    ".claude/rules/apps-backend-http-api.md": {
+      "created": "2026-03-01",
+      "updated": "2026-03-16",
+      "action": "enriched",
+      "sources": [
+        "apps/backend/http-api/src/"
+      ],
+      "summary": "Backend API patterns: Blueprints, Prisma ORM, request validation via dataclasses, response envelope."
+    },
+    ".claude/rules/apps-frontend-concord-app.md": {
+      "created": "2026-03-01",
+      "updated": "2026-03-16",
+      "action": "enriched",
+      "sources": [
+        "apps/frontend/app/src/"
+      ],
+      "summary": "Frontend patterns: SvelteKit, TypeScript, Tailwind CSS, design tokens, component conventions."
     }
   }
 }

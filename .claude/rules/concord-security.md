@@ -1,7 +1,7 @@
 ---
 paths:
   - "apps/backend/http-api/**/*.py"
-  - "apps/frontend/concord-app/**/*.{ts,tsx}"
+  - "apps/frontend/app/**/*.{ts,svelte}"
 ---
 
 # Security Rules

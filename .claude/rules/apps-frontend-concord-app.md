@@ -1,6 +1,6 @@
 ---
 paths:
-  - "apps/frontend/concord-app/**/*.{ts,tsx}"
+  - "apps/frontend/app/**/*.{ts,svelte}"
 ---
 
 # Frontend React Rules
@@ -99,7 +99,7 @@ Common class patterns:
 
 Tests are colocated as `*.spec.tsx` / `*.spec.ts` next to source files. Run with:
 ```bash
-cd apps/frontend/concord-app && npx nx test concord-app
+cd apps/frontend/app && npx nx test app
 ```
 
 When creating **new** pages/components (via the `add-page` or `add-crud-feature` skill), add spec files. This is forward-looking only — existing pages without tests are not violations. Use test helpers from `src/testing/`:
