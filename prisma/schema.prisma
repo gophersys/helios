@@ -481,13 +481,16 @@ model BuildJob {
 
 /// A build artifact (hex, bin, elf) stored in MinIO.
 model BuildJobArtifact {
-    id         String   @id @default(cuid())
-    buildJobId String
-    name       String
-    storageKey String
-    sizeBytes  BigInt
-    checksum   String
-    createdAt  DateTime @default(now())
+    id           String   @id @default(cuid())
+    buildJobId   String
+    name         String
+    storageKey   String
+    sizeBytes    BigInt
+    checksum     String
+    role         String?  /// Artifact role: app, comms, modem, manifest, log
+    processor    String?  /// Target processor: nrf52840, nrf9151, etc.
+    artifactType String?  /// Artifact type: plaintextHex, encryptedCfw, manifest, log, metadata
+    createdAt    DateTime @default(now())
 
     buildJob BuildJob @relation(fields: [buildJobId], references: [id], onDelete: Cascade)
 

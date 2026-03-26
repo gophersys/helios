@@ -104,6 +104,9 @@ def _serialize_build_artifact(a: Any) -> dict:
         "storageKey": a.storageKey,
         "sizeBytes": int(a.sizeBytes),
         "checksum": a.checksum,
+        "role": getattr(a, "role", None),
+        "processor": getattr(a, "processor", None),
+        "artifactType": getattr(a, "artifactType", None),
         "createdAt": a.createdAt.isoformat(),
     }
 
@@ -191,8 +194,23 @@ def list_build_artifacts(build_id: str):
     if not build:
         return not_found("Build job not found")
 
+    where = {"buildJobId": build_id}
+
+    # Optional metadata filters
+    role = request.args.get("role")
+    if role:
+        where["role"] = role
+
+    artifact_type = request.args.get("type")
+    if artifact_type:
+        where["artifactType"] = artifact_type
+
+    processor = request.args.get("processor")
+    if processor:
+        where["processor"] = processor
+
     artifacts = db.buildjobartifact.find_many(
-        where={"buildJobId": build_id},
+        where=where,
         order={"createdAt": "asc"},
     )
 
@@ -534,16 +552,27 @@ def upload_build_artifact(build_id: str):
             length=size_bytes,
         )
 
+        # Extract optional metadata from form fields
+        role = request.form.get("role") or None
+        processor = request.form.get("processor") or None
+        artifact_type = request.form.get("artifactType") or None
+
         # Create artifact record
-        artifact = db.buildjobartifact.create(
-            data={
-                "buildJobId": build_id,
-                "name": file.filename,
-                "storageKey": key,
-                "sizeBytes": size_bytes,
-                "checksum": checksum,
-            },
-        )
+        create_data = {
+            "buildJobId": build_id,
+            "name": file.filename,
+            "storageKey": key,
+            "sizeBytes": size_bytes,
+            "checksum": checksum,
+        }
+        if role is not None:
+            create_data["role"] = role
+        if processor is not None:
+            create_data["processor"] = processor
+        if artifact_type is not None:
+            create_data["artifactType"] = artifact_type
+
+        artifact = db.buildjobartifact.create(data=create_data)
 
         log_audit("ci.artifact.upload", "BuildJobArtifact", artifact.id, {
             "buildJobId": build_id,
