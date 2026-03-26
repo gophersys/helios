@@ -91,13 +91,15 @@ def list_devices():
 
     pages = (total + limit - 1) // limit if total > 0 else 1
 
-    return jsonify(ApiResponse.paginated(
-        data=[_serialize_device(d) for d in devices],
-        page=page,
-        total_pages=pages,
-        total_results=total,
-        results_per_page=limit,
-    ).to_dict()), 200
+    return jsonify(ApiResponse.ok({
+        "data": [_serialize_device(d) for d in devices],
+        "pagination": {
+            "page": page,
+            "limit": limit,
+            "total": total,
+            "pages": pages,
+        },
+    }).to_dict()), 200
 
 
 @require_permissions(Permissions.DEVICES_VIEW)

@@ -80,13 +80,15 @@ def list_device_logs(device_id: str):
         )
         log_data.append(entry)
 
-    return jsonify(ApiResponse.paginated(
-        data=log_data,
-        page=page,
-        total_pages=pages,
-        total_results=total,
-        results_per_page=limit,
-    ).to_dict()), 200
+    return jsonify(ApiResponse.ok({
+        "data": log_data,
+        "pagination": {
+            "page": page,
+            "limit": limit,
+            "total": total,
+            "pages": pages,
+        },
+    }).to_dict()), 200
 
 
 @require_permissions(Permissions.DEVICES_MANAGE)

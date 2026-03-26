@@ -87,11 +87,12 @@ class TestListBuilds:
 
         body = json.loads(response.data)
         assert len(body["errors"]) == 0
-        assert isinstance(body["data"], list)
-        assert len(body["data"]) == 2
-        assert body["data"][0]["id"] == "build-001"
-        assert body["totalResults"] == 2
-        assert body["page"] == 1
+        result = body["data"]
+        assert isinstance(result["data"], list)
+        assert len(result["data"]) == 2
+        assert result["data"][0]["id"] == "build-001"
+        assert result["pagination"]["total"] == 2
+        assert result["pagination"]["page"] == 1
 
     def test_list_builds_empty(self, authed_client, mock_db):
         """List builds returns an empty list when no builds exist."""
@@ -103,8 +104,9 @@ class TestListBuilds:
 
         body = json.loads(response.data)
         assert len(body["errors"]) == 0
-        assert body["data"] == []
-        assert body["totalResults"] == 0
+        result = body["data"]
+        assert result["data"] == []
+        assert result["pagination"]["total"] == 0
 
     def test_list_builds_with_status_filter(self, authed_client, mock_db):
         """List builds filters by status query parameter."""
@@ -144,10 +146,11 @@ class TestListBuilds:
         assert response.status_code == 200
 
         body = json.loads(response.data)
-        assert body["page"] == 3
-        assert body["resultsPerPage"] == 10
-        assert body["totalResults"] == 100
-        assert body["totalPages"] == 10
+        pagination = body["data"]["pagination"]
+        assert pagination["page"] == 3
+        assert pagination["limit"] == 10
+        assert pagination["total"] == 100
+        assert pagination["pages"] == 10
 
         call_args = mock_db.buildjob.find_many.call_args
         assert call_args.kwargs["skip"] == 20  # (3 - 1) * 10
@@ -169,7 +172,7 @@ class TestListBuilds:
         assert response.status_code == 200
 
         body = json.loads(response.data)
-        assert body["data"][0]["artifactCount"] == 2
+        assert body["data"]["data"][0]["artifactCount"] == 2
 
     def test_list_builds_unauthorized(self, client):
         """List builds without authentication returns 401."""

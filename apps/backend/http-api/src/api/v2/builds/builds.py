@@ -151,13 +151,15 @@ def list_builds():
 
     pages = math.ceil(total / limit) if limit > 0 else 0
 
-    return jsonify(ApiResponse.paginated(
-        data=[_serialize_build_job(b) for b in builds],
-        page=page,
-        total_pages=pages,
-        total_results=total,
-        results_per_page=limit,
-    ).to_dict()), 200
+    return jsonify(ApiResponse.ok({
+        "data": [_serialize_build_job(b) for b in builds],
+        "pagination": {
+            "page": page,
+            "limit": limit,
+            "total": total,
+            "pages": pages,
+        },
+    }).to_dict()), 200
 
 
 @require_permissions(Permissions.BUILDS_VIEW)
@@ -430,7 +432,7 @@ def update_build(build_id: str):
 
             # When a build finishes, check if pipeline is complete
             if new_status in ("SUCCESS", "FAILED", "CANCELLED"):
-                from .pipelines import check_pipeline_completion
+                from src.services.pipeline_service import check_pipeline_completion
                 new_pipeline_status = check_pipeline_completion(updated.pipelineRunId)
                 if new_pipeline_status:
                     logger.info("Build %s finished, pipeline %s now %s",

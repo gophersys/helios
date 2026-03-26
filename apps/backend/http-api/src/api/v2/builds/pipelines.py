@@ -1,11 +1,13 @@
-"""CI Pipeline coordination — groups builds and triggers validation."""
+"""CI Pipeline route handlers — thin wrappers around pipeline_service."""
 
+import io
 import logging
+import re
+import zipfile
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict
 
-from database import Json
-from flask import jsonify, request
+from flask import Response, jsonify, request
 
 from src.lib.audit import log_audit
 from src.lib.decorators import require_permissions
@@ -13,379 +15,18 @@ from src.lib.errors import bad_request, internal_error, not_found
 from src.lib.permissions import Permissions
 from src.lib.types import ApiResponse
 from src.services.database.prisma import get_db_client
-
-from .build_cache import compute_build_fingerprint, find_cached_build
-from .types import PipelineCreateRequest
-from .stage_builds import (
-    ValidationStage,
-    StageBuildDef,
-    get_stage_build_defs,
+from src.services.pipeline_service import (
+    check_pipeline_completion,
+    create_pipeline_record,
+    resolve_pipeline_context,
+    serialize_pipeline,
+    serialize_pipeline_summary,
+    trigger_pipeline_validation,
 )
 
+from .types import PipelineCreateRequest
+
 logger = logging.getLogger(__name__)
-
-
-def _safe_product_str(obj, target: str | None = None) -> str | None:
-    """Safely extract product slug string from a model field that could be a string or relation.
-
-    If target is "mfg", returns mfgRepoSlug instead of repoSlug.
-    """
-    if isinstance(obj, str):
-        return obj
-    if obj and hasattr(obj, "repoSlug"):
-        if target == "mfg" and getattr(obj, "mfgRepoSlug", None):
-            return obj.mfgRepoSlug
-        return obj.repoSlug or obj.slug or obj.name
-    return None
-
-
-def _generate_build_specs(
-    stage: ValidationStage,
-    product_base: str,
-    board: str,
-    branch: str,
-    commit_sha: Optional[str],
-    mtib_rev: str = "1.2",
-) -> List[Dict[str, Any]]:
-    """Generate build job specs from stage definitions.
-
-    Converts StageBuildDef entries to the dict format expected by BuildJob creation.
-    This is the single source of truth - all build requirements come from stage_builds.py.
-    """
-    defs = get_stage_build_defs(stage)
-    builds = []
-
-    for idx, d in enumerate(defs):
-        # Determine firmware type from fw_type field
-        if d.fw_type == "mfg":
-            fw_product = f"{product_base}_mfg_fw"
-        elif d.fw_type == "driver_test":
-            fw_product = f"{product_base}_fw"  # Driver tests use same repo
-        else:  # "app"
-            fw_product = f"{product_base}_fw"
-
-        # Resolve git ref based on git_ref field
-        if d.git_ref == "main":
-            # Use pipeline branch as baseline — "main" means the pipeline's
-            # reference branch (e.g. concord-main), not literal git main.
-            # Firmware repos may have validation-specific branches that differ
-            # from upstream main (VAL server config, board fixes, etc.).
-            git_branch = branch
-            git_commit = None  # Use HEAD of the branch
-        elif d.git_ref == "merge":
-            # TODO: Support actual merge commits (git merge base into PR)
-            # For now, same as "main" — builds from pipeline branch HEAD
-            git_branch = branch
-            git_commit = None
-        else:  # "pr"
-            git_branch = branch
-            git_commit = commit_sha
-
-        # Version bump builds start BLOCKED until base completes
-        initial_status = "BLOCKED" if d.is_version_bump else "QUEUED"
-
-        builds.append({
-            "product": fw_product,
-            "board": board,
-            "target": "nrf52840",
-            "variant": d.variant,
-            "mtibRev": mtib_rev,
-            "branch": git_branch,
-            "commitSha": git_commit,
-            "status": initial_status,
-            "matrixLabel": d.label,
-            "matrixIndex": idx,
-            "versionBump": d.is_version_bump,
-            "baseLabel": d.base_label,
-        })
-
-    return builds
-
-
-def _auto_increment_version(db, product_id: str, variant: str, target: str = "app") -> Optional[str]:
-    """Auto-increment the build number from the latest successful build.
-
-    Finds the most recent SUCCESS build for the product+variant+target, parses its
-    version string (major.minor.build), and increments the build number.
-    Returns None if no previous build exists.
-    """
-    latest = db.buildjob.find_first(
-        where={"productId": product_id, "variant": variant, "target": target, "status": "SUCCESS"},
-        order={"createdAt": "desc"},
-    )
-    if latest and latest.versionString:
-        parts = latest.versionString.split(".")
-        if len(parts) >= 3:
-            try:
-                next_build = int(parts[2]) + 1
-                return f"{parts[0]}.{parts[1]}.{next_build}"
-            except ValueError:
-                pass
-    return None
-
-
-def _get_max_build_number(db, product_id: str, target: str = "app") -> tuple[Optional[str], int]:
-    """Get the highest build number across ALL variants for a product+target.
-
-    Returns (version_prefix, max_build_num) e.g. ("0.8", 17).
-    Used to allocate non-colliding version numbers for debug+release pairs.
-
-    CoreCloud strips the D (debug) flag from CFW version strings, so
-    debug v0.8.18-BD and release v0.8.18-B collide. By allocating
-    sequential build numbers (debug=N, release=N+1), each variant
-    gets a unique version on CoreCloud.
-    """
-    latest = db.buildjob.find_first(
-        where={
-            "productId": product_id,
-            "target": target,
-            "status": {"in": ["SUCCESS", "CACHED"]},
-        },
-        order={"buildNum": "desc"},
-    )
-    if latest and latest.versionString:
-        parts = latest.versionString.split(".")
-        if len(parts) >= 3:
-            try:
-                return f"{parts[0]}.{parts[1]}", int(parts[2])
-            except ValueError:
-                pass
-    return None, 0
-
-
-def _generate_matrix_build_specs(
-    matrix: List[Dict[str, Any]],
-    product_record: Any,
-    repo_base: str,
-    board: str,
-    branch: str,
-    commit_sha: Optional[str],
-    db: Any,
-) -> List[Dict[str, Any]]:
-    """Generate build specs from a ProductStageConfig buildMatrix.
-
-    Each matrix entry produces TWO builds (debug + release).
-    - source == "head": new build from the triggering commit, auto-versioned.
-    - source == "latest": reference to the latest successful build (CACHED).
-
-    The firmware field determines the target type:
-    - Contains "_mfg" -> target="mfg" (manufacturing firmware)
-    - Otherwise -> target="app" (production firmware)
-
-    Returns a flat list of build spec dicts.
-    """
-    builds = []
-    idx = 0
-    product_id = product_record.id if product_record else None
-
-    for entry in matrix:
-        role = entry.get("role", "unknown")
-        firmware = entry.get("firmware", f"{repo_base}_fw")
-        source = entry.get("source", "head")
-
-        # Derive target from firmware name
-        target = "mfg" if "_mfg" in firmware else "app"
-
-        # ── FUOTA Version & Variant Strategy ─────────────────────────────
-        #
-        # CoreCloud strips the 'D' (debug) flag from CFW version strings.
-        # This means debug (BD) and release (B) at the same version COLLIDE
-        # on CoreCloud — it delivers the release firmware even when the plan
-        # targets the debug version. The release firmware has CONFIG_LOG=n,
-        # producing zero UART output, making version detection impossible.
-        #
-        # SOLUTION: All builds use variant=release (CFW flags -B or -BM).
-        # "Verbose" builds add --force-log to enable CONFIG_LOG=y at build
-        # time without setting the debug flag. Each version number is unique.
-        #
-        # Build matrix (6 builds per FUOTA pipeline):
-        #   MFG_FLASH          mfg release  v0.5.N    BM  J-Link flash base
-        #   MFG_BUMP           mfg release  v0.5.N+1  BM  MFG→MFG FUOTA target
-        #   PROD_VERBOSE       app release  v0.8.M    B   Prod + UART logs (forceLog)
-        #   PROD_VERBOSE_BUMP  app release  v0.8.M+1  B   Prod→Prod logged target
-        #   PROD_QUIET         app release  v0.8.M+2  B   Prod without logs
-        #   PROD_QUIET_BUMP    app release  v0.8.M+3  B   Prod→Prod silent target
-        #
-        # Verified 2026-03-20: D-flag stripping causes silent FUOTA failures.
-        # ──────────────────────────────────────────────────────────────────
-
-        # All builds are release variant — no debug flag in CFW
-        variants = ("release",)
-
-        # For "head" app builds, generate 4 sub-builds with sequential versions:
-        # PROD_VERBOSE, PROD_VERBOSE_BUMP, PROD_QUIET, PROD_QUIET_BUMP
-        if source == "head" and target == "app":
-            prefix, max_build = _get_max_build_number(db, product_id, target) if product_id else (None, 0)
-            if prefix:
-                sub_builds = [
-                    ("PROD_VERBOSE",      prefix, max_build + 1, True),   # release + forceLog
-                    ("PROD_VERBOSE_BUMP", prefix, max_build + 2, True),   # release + forceLog (bumped)
-                    ("PROD_QUIET",        prefix, max_build + 3, False),  # release (no logs)
-                    ("PROD_QUIET_BUMP",   prefix, max_build + 4, False),  # release (bumped, no logs)
-                ]
-                logger.info(
-                    "FUOTA version allocation: VERBOSE=v%s.%d/%d, QUIET=v%s.%d/%d (max=%s.%d)",
-                    prefix, max_build + 1, max_build + 2,
-                    prefix, max_build + 3, max_build + 4,
-                    prefix, max_build,
-                )
-                for sub_label, ver_prefix, ver_build, force_log in sub_builds:
-                    config = {"forceLog": True} if force_log else {}
-                    builds.append({
-                        "board": board,
-                        "target": target,
-                        "variant": "release",
-                        "mtibRev": "1.2",
-                        "branch": branch,
-                        "commitSha": commit_sha,
-                        "status": "QUEUED",
-                        "matrixLabel": sub_label,
-                        "matrixIndex": idx,
-                        "versionBump": False,
-                        "source": "head",
-                        "firmware": firmware,
-                        "versionOverride": f"{ver_prefix}.{ver_build}",
-                        "extraConfig": config,
-                    })
-                    idx += 1
-                # Skip the normal variant loop — we generated all sub-builds
-                continue
-
-        for variant in variants:
-            # Mfg builds get clean label (no variant suffix since there's only one)
-            label = f"{role.upper()}_{variant.upper()}" if target != "mfg" else role.upper()
-
-            if source == "head":
-                version_override = _auto_increment_version(db, product_id, variant, target) if product_id else None
-
-                builds.append({
-                    "board": board,
-                    "target": target,
-                    "variant": variant,
-                    "mtibRev": "1.2",
-                    "branch": branch,
-                    "commitSha": commit_sha,
-                    "status": "QUEUED",
-                    "matrixLabel": label,
-                    "matrixIndex": idx,
-                    "versionBump": False,
-                    "source": "head",
-                    "firmware": firmware,
-                    "versionOverride": version_override,
-                })
-            elif source in ("latest", "latest_prev"):
-                # "latest" or "latest_prev" — will be resolved to CACHED in pipeline creation
-                builds.append({
-                    "board": board,
-                    "target": target,
-                    "variant": variant,
-                    "mtibRev": "1.2",
-                    "branch": branch,
-                    "commitSha": None,  # Will be filled from cached build
-                    "status": "QUEUED",
-                    "matrixLabel": label,
-                    "matrixIndex": idx,
-                    "versionBump": False,
-                    "source": source,
-                    "firmware": firmware,
-                })
-            idx += 1
-
-    return builds
-
-
-def _serialize_pipeline(p) -> Dict[str, Any]:
-    """Serialize a PipelineRun for API response."""
-    data = {
-        "id": p.id,
-        "name": p.name,
-        "product": _safe_product_str(getattr(p, "product", None)) or getattr(p, "productId", None),
-        "board": p.board,
-        "branch": p.branch,
-        "commitSha": p.commitSha,
-        "status": p.status,
-        "triggerType": p.triggerType,
-        "expectedBuilds": p.expectedBuilds,
-        "completedBuilds": p.completedBuilds,
-        "validationRunId": p.validationRunId,
-        "matrixMode": getattr(p, "matrixMode", None),
-        "autoValidate": getattr(p, "autoValidate", False),
-        "buildMatrix": p.buildMatrix if hasattr(p, "buildMatrix") else None,
-        "triggerData": p.triggerData if hasattr(p, "triggerData") else None,
-        "startedAt": p.startedAt.isoformat() if p.startedAt else None,
-        "finishedAt": p.finishedAt.isoformat() if p.finishedAt else None,
-        "createdAt": p.createdAt.isoformat(),
-        "updatedAt": p.updatedAt.isoformat(),
-    }
-
-    # Include builds if loaded
-    if hasattr(p, "builds") and p.builds:
-        data["builds"] = [
-            {
-                "id": b.id,
-                "product": _safe_product_str(getattr(b, "product", None), getattr(b, "target", None)) or getattr(b, "productId", None),
-                "status": b.status,
-                "target": b.target,
-                "variant": b.variant,
-                "board": b.board,
-                "commitSha": b.commitSha,
-                "buildNum": b.buildNum,
-                "versionString": b.versionString,
-                "durationSeconds": b.durationSeconds,
-                "artifactCount": len(b.artifacts) if hasattr(b, "artifacts") and b.artifacts else 0,
-                "reusedFromId": getattr(b, "reusedFromId", None),
-                "matrixLabel": getattr(b, "matrixLabel", None),
-                "matrixIndex": getattr(b, "matrixIndex", None),
-                "versionBump": getattr(b, "versionBump", False),
-                "baseJobId": getattr(b, "baseJobId", None),
-            }
-            for b in p.builds
-        ]
-
-    return data
-
-
-def _serialize_pipeline_summary(p) -> Dict[str, Any]:
-    """Serialize a PipelineRun for list view."""
-    data = {
-        "id": p.id,
-        "name": p.name,
-        "product": _safe_product_str(getattr(p, "product", None)) or getattr(p, "productId", None),
-        "branch": p.branch,
-        "commitSha": p.commitSha,
-        "status": p.status,
-        "triggerType": p.triggerType,
-        "expectedBuilds": p.expectedBuilds,
-        "completedBuilds": p.completedBuilds,
-        "matrixMode": getattr(p, "matrixMode", None),
-        "autoValidate": getattr(p, "autoValidate", False),
-        "validationRunId": getattr(p, "validationRunId", None),
-        "startedAt": p.startedAt.isoformat() if p.startedAt else None,
-        "finishedAt": p.finishedAt.isoformat() if p.finishedAt else None,
-        "createdAt": p.createdAt.isoformat(),
-    }
-
-    # Include builds summary
-    if hasattr(p, "builds") and p.builds:
-        data["builds"] = [
-            {
-                "id": b.id,
-                "product": _safe_product_str(getattr(b, "product", None), getattr(b, "target", None)) or getattr(b, "productId", None),
-                "status": b.status,
-                "target": b.target,
-                "variant": b.variant,
-                "commitSha": b.commitSha,
-                "versionString": b.versionString,
-                "durationSeconds": b.durationSeconds,
-                "reusedFromId": getattr(b, "reusedFromId", None),
-                "matrixLabel": getattr(b, "matrixLabel", None),
-                "matrixIndex": getattr(b, "matrixIndex", None),
-                "versionBump": getattr(b, "versionBump", False),
-            }
-            for b in sorted(p.builds, key=lambda x: getattr(x, "matrixIndex", 0) or 0)
-        ]
-
-    return data
 
 
 @require_permissions(Permissions.BUILDS_VIEW)
@@ -397,7 +38,6 @@ def list_pipelines():
     limit = min(max(1, request.args.get("limit", 20, type=int)), 100)
     skip = (page - 1) * limit
 
-    # Filters
     product = request.args.get("product")
     branch = request.args.get("branch")
     status = request.args.get("status")
@@ -420,18 +60,20 @@ def list_pipelines():
             skip=skip,
             take=limit,
             order={"createdAt": "desc"},
-            include={"builds": {"include": {"product": True}}, "product": True},  # Include builds for Stage 4 matrix display
+            include={"builds": {"include": {"product": True}}, "product": True},
         )
 
         pages = (total + limit - 1) // limit if limit > 0 else 0
 
-        return jsonify(ApiResponse.paginated(
-            data=[_serialize_pipeline_summary(p) for p in pipelines],
-            page=page,
-            total_pages=pages,
-            total_results=total,
-            results_per_page=limit,
-        ).to_dict()), 200
+        return jsonify(ApiResponse.ok({
+            "data": [serialize_pipeline_summary(p) for p in pipelines],
+            "pagination": {
+                "page": page,
+                "limit": limit,
+                "total": total,
+                "pages": pages,
+            },
+        }).to_dict()), 200
 
     except Exception as e:
         logger.error("Failed to list pipelines: %s", e)
@@ -451,7 +93,7 @@ def get_pipeline(pipeline_id: str):
         if not pipeline:
             return not_found(f"Pipeline not found: {pipeline_id}")
 
-        return jsonify(ApiResponse.ok(_serialize_pipeline(pipeline)).to_dict()), 200
+        return jsonify(ApiResponse.ok(serialize_pipeline(pipeline)).to_dict()), 200
 
     except Exception as e:
         logger.error("Failed to get pipeline %s: %s", pipeline_id, e)
@@ -460,30 +102,7 @@ def get_pipeline(pipeline_id: str):
 
 @require_permissions(Permissions.BUILDS_VIEW)
 def download_pipeline_artifacts(pipeline_id: str):
-    """GET /v2/builds/pipelines/<id>/artifacts/download — Download all artifacts as ZIP.
-
-    Creates a structured ZIP containing all builds:
-      <product>_<branch>_<sha>/
-        alpha_fw/
-          debug/
-            firmware/
-              app_nrf52840.hex
-              comms_nrf9151.hex
-            cfw/
-              108.x.x.x.cfw
-              109.x.x.x.cfw
-            build.json
-          release/
-            firmware/...
-            cfw/...
-        alpha_mfg_fw/
-          debug/...
-          release/...
-    """
-    import io
-    import re
-    import zipfile
-    from flask import Response
+    """GET /v2/builds/pipelines/<id>/artifacts/download — Download all artifacts as ZIP."""
     from src.services.storage.client import get_storage_client
 
     db = get_db_client()
@@ -499,12 +118,10 @@ def download_pipeline_artifacts(pipeline_id: str):
         return not_found("No builds found for this pipeline")
 
     def get_clean_name(name: str) -> str:
-        """Strip version/variant prefix from artifact name."""
         match = re.match(r'^\d+\.\d+\.\d+_(debug|no_debug|release)_(.+)$', name)
         return match.group(2) if match else name
 
     def get_folder(name: str) -> str:
-        """Determine subfolder for artifact."""
         if name.endswith('.hex') or name.endswith('.bin'):
             return "firmware"
         elif name.endswith('.cfw'):
@@ -514,7 +131,6 @@ def download_pipeline_artifacts(pipeline_id: str):
     try:
         storage = get_storage_client()
 
-        # Root folder name
         commit_short = pipeline.commitSha[:7] if pipeline.commitSha else "build"
         branch_safe = re.sub(r'[^\w\-]', '_', pipeline.branch or "main")
         root_folder = f"{pipeline.product}_{branch_safe}_{commit_short}"
@@ -526,7 +142,6 @@ def download_pipeline_artifacts(pipeline_id: str):
                     continue
 
                 variant = build.variant or "release"
-                # Map no_debug -> release for folder naming
                 variant_folder = "release" if variant == "no_debug" else variant
 
                 for artifact in build.artifacts:
@@ -568,306 +183,17 @@ def download_pipeline_artifacts(pipeline_id: str):
 
 @require_permissions(Permissions.BUILDS_TRIGGER)
 def create_pipeline():
-    """POST /v2/builds/pipelines — Create a new pipeline (triggers builds).
-
-    Can be triggered manually (UI) or by git poller. Git poller provides:
-    - productId: DB product ID for linking
-    - repoSlug: Git repo slug (e.g. "alpha_fw")
-    - commitSha: Commit to build
-    - triggerType: "poller"
-    - mfgRepoSlug: Manufacturing firmware repo (optional)
-    """
+    """POST /v2/builds/pipelines — Create a new pipeline (triggers builds)."""
     data, error = PipelineCreateRequest.from_json(request.get_json())
     if error:
         return bad_request(error)
 
     db = get_db_client()
 
-    # Get product info - either by ID (poller) or lookup by name/slug
-    product_record = None
-    if data.product_id:
-        product_record = db.product.find_unique(where={"id": data.product_id})
-    if not product_record:
-        # Try by slug or name
-        product_record = db.product.find_first(
-            where={"OR": [{"slug": data.product}, {"repoSlug": data.product}]}
-        )
-
-    # Determine product/repo base name for builds
-    # Prefer Product model fields when available
-    if product_record:
-        repo_slug = data.repo_slug or product_record.repoSlug or data.product
-        # Derive repo_base from Product slug or name
-        product_base = product_record.slug or product_record.name.lower().replace(" ", "_")
-        # Strip board suffixes for base name (alpha_b0 -> alpha)
-        repo_base = product_base
-        for suffix in ["_b0", "_a0", "_b1", "_a1"]:
-            repo_base = repo_base.replace(suffix, "")
-        repo_base = repo_base.strip("_")
-    else:
-        repo_slug = data.repo_slug or data.product
-        # Normalize: remove _fw/_mfg suffixes, spaces, board suffixes (b0/a0)
-        repo_base = repo_slug.lower().replace(" ", "_").replace("_fw", "").replace("_mfg", "")
-        for suffix in ["_b0", "_a0", "_b1", "_a1"]:
-            repo_base = repo_base.replace(suffix, "")
-        repo_base = repo_base.strip("_")
-        product_base = repo_base
-
-    # Determine which firmware builds are needed based on matrix mode
-    # Use Product model fields when available
-    if product_record and product_record.repoSlug:
-        main_fw = product_record.repoSlug  # e.g. "alpha_fw"
-    else:
-        main_fw = f"{repo_base}_fw"
-
-    if data.mfg_repo_slug:
-        mfg_fw = data.mfg_repo_slug
-    elif product_record and product_record.mfgRepoSlug:
-        mfg_fw = product_record.mfgRepoSlug  # e.g. "alpha_mfg_fw"
-    else:
-        mfg_fw = f"{repo_base}_mfg_fw"
-
-    # Map matrix mode to validation stage (all 5 stages supported)
-    stage_map = {
-        "smoke": ValidationStage.SMOKE,
-        "silicon": ValidationStage.SILICON,
-        "integration": ValidationStage.INTEGRATION,
-        "nightly": ValidationStage.NIGHTLY,
-        "fuota": ValidationStage.FUOTA,
-    }
-    # Use explicit stage parameter if provided, otherwise derive from matrixMode
-    stage_number = data.validation_config.get("stage") if data.validation_config else None
-    stage = stage_map.get(data.matrix_mode, ValidationStage.FUOTA)
-
-    # Look up ProductStageConfig for the product to read buildMatrix
-    stage_config = None
-    stage_config_matrix = None
-    if product_record:
-        stage_num = stage_number or {"smoke": 1, "silicon": 2, "integration": 3, "nightly": 4, "fuota": 5}.get(data.matrix_mode, 5)
-        stage_config = db.productstageconfig.find_first(
-            where={"productId": product_record.id, "stage": stage_num},
-        )
-        if stage_config and stage_config.buildMatrix:
-            stage_config_matrix = stage_config.buildMatrix if isinstance(stage_config.buildMatrix, list) else None
-
-    # If stage config has a buildMatrix, use it for FUOTA-style matrix builds
-    # Otherwise fall back to the stage_builds.py definitions
-    if stage_config_matrix:
-        build_specs = _generate_matrix_build_specs(
-            matrix=stage_config_matrix,
-            product_record=product_record,
-            repo_base=repo_base,
-            board=data.board,
-            branch=data.pr_branch or data.branch,
-            commit_sha=data.commit_sha,
-            db=db,
-        )
-    else:
-        build_specs = _generate_build_specs(
-            stage=stage,
-            product_base=repo_base,
-            board=data.board,
-            branch=data.pr_branch or data.branch,
-            commit_sha=data.commit_sha,
-            mtib_rev="1.2",
-        )
-
-    expected_builds = len(build_specs)
-
-    # Use autoValidate from stage config if available
-    auto_validate = data.auto_validate
-    if stage_config and hasattr(stage_config, "blocksMerge"):
-        # Stage configs with requiresFuota typically auto-validate
-        pass  # Keep the user-provided value unless overridden
-
     try:
-        # Create pipeline run
-        trigger_data = {
-            "source": data.trigger_type,
-            "repoSlug": data.repo_slug,
-            "mfgRepoSlug": data.mfg_repo_slug,
-            # Modem firmware is a product-level asset, always included
-            "modemFirmware": {
-                "storageKey": f"firmware/modem/{repo_base}/mfw_nrf91x1_2.0.2.zip",
-                "version": "2.0.2",
-                "name": "mfw_nrf91x1_2.0.2.zip",
-            },
-        }
-        if data.validation_config:
-            trigger_data.update(data.validation_config)
-
-        # Store matrix config in pipeline (include Product model fields for traceability)
-        matrix_config = {
-            "mode": data.matrix_mode,
-            "product": repo_base,
-            "productId": product_record.id if product_record else None,
-            "mainFw": main_fw,
-            "mfgFw": mfg_fw,
-            "mainCommit": data.main_commit or data.commit_sha,
-            "prBranch": data.pr_branch or data.branch,
-            "prCommit": data.commit_sha,
-        }
-        if stage_config_matrix:
-            matrix_config["buildMatrix"] = stage_config_matrix
-
-        # Build create data - conditionally include buildMatrix only when provided
-        create_data = {
-            "name": data.name or f"{product_base}-{data.branch[:8]}" + (f"-{data.commit_sha[:7]}" if data.commit_sha else ""),
-            "board": data.board,
-            "branch": data.branch,
-            "commitSha": data.commit_sha,
-            "status": "PENDING",
-            "triggerType": data.trigger_type,
-            "expectedBuilds": expected_builds,
-            "matrixMode": data.matrix_mode,
-            "autoValidate": auto_validate,
-            "triggerData": Json(trigger_data),
-            "startedAt": datetime.now(timezone.utc),
-        }
-        if product_record:
-            create_data["productId"] = product_record.id
-        if stage_config:
-            create_data["stageConfigId"] = stage_config.id
-            create_data["stage"] = stage_config.stage
-        # Always include buildMatrix (fuota/nightly modes always have config)
-        create_data["buildMatrix"] = Json(matrix_config)
-
-        pipeline = db.pipelinerun.create(data=create_data)
-
-        # Create build jobs based on mode
-        # Create build jobs from matrix specs
-        builds = []
-        label_to_id = {}  # Track created jobs for baseJobId linking
-        specs_with_builds = []  # Track specs with their created builds
-
-        for spec in build_specs:
-            # Check build cache
-            cached_build = None
-            fingerprint = None
-
-            if spec.get("source") in ("latest", "latest_prev"):
-                # Find successful build for this target+variant
-                # "latest" = most recent, "latest_prev" = second most recent (N-1)
-                skip_count = 1 if spec.get("source") == "latest_prev" else 0
-                cached_builds = db.buildjob.find_many(
-                        where={
-                            "productId": product_record.id if product_record else None,
-                            "variant": spec["variant"],
-                            "target": spec.get("target", "app"),
-                            "status": "SUCCESS",
-                        },
-                        include={"artifacts": True, "product": True},
-                        order={"buildNum": "desc"},
-                        take=skip_count + 1,
-                    )
-                cached_build = cached_builds[skip_count] if len(cached_builds) > skip_count else (cached_builds[0] if cached_builds else None)
-                if cached_build:
-                    logger.info("Cache %s: found %s v=%s (source=%s, skip=%d, total=%d)",
-                               spec.get("matrixLabel"), cached_build.id[:8], cached_build.versionString,
-                               spec.get("source"), skip_count, len(cached_builds))
-
-            elif spec.get("source") == "head" and spec.get("commitSha"):
-                # For "head" builds, check fingerprint cache to avoid rebuilding same commit
-                repo_url = product_record.repoSshUrl if product_record else ""
-                fingerprint = compute_build_fingerprint(
-                    repo_url=repo_url, commit_sha=spec["commitSha"],
-                    board=spec["board"], variant=spec["variant"], config_flags=None,
-                )
-                cached_build = find_cached_build(db, fingerprint)
-                if cached_build:
-                    logger.info("Cache hit for %s: reusing build %s", spec["matrixLabel"], cached_build.id[:8])
-
-            if cached_build and spec.get("source") in ("latest", "latest_prev"):
-                # Create a CACHED reference build
-                build_data = {
-                    "productId": product_record.id if product_record else None,
-                    "board": spec["board"],
-                    "target": spec["target"],
-                    "variant": spec["variant"],
-                    "mtibRev": spec["mtibRev"],
-                    "branch": spec.get("branch", data.branch),
-                    "commitSha": getattr(cached_build, "commitSha", None),
-                    "status": "CACHED",
-                    "pipelineRunId": pipeline.id,
-                    "matrixLabel": spec.get("matrixLabel"),
-                    "matrixIndex": spec.get("matrixIndex"),
-                    "versionBump": False,
-                    "buildFingerprint": fingerprint,
-                    "reusedFromId": cached_build.id,
-                    "versionString": cached_build.versionString,
-                    "webhookData": Json({
-                        "pipelineId": pipeline.id,
-                        "source": data.trigger_type,
-                        "matrixLabel": spec.get("matrixLabel"),
-                        "cachedFrom": cached_build.id,
-                    }),
-                }
-            else:
-                build_data = {
-                    "productId": product_record.id if product_record else None,
-                    "board": spec["board"],
-                    "target": spec["target"],
-                    "variant": spec["variant"],
-                    "mtibRev": spec["mtibRev"],
-                    "branch": spec["branch"],
-                    "commitSha": spec["commitSha"],
-                    "status": spec["status"],
-                    "pipelineRunId": pipeline.id,
-                    "matrixLabel": spec.get("matrixLabel"),
-                    "matrixIndex": spec.get("matrixIndex"),
-                    "versionBump": spec.get("versionBump", False),
-                    "webhookData": Json({
-                        "pipelineId": pipeline.id,
-                        "source": data.trigger_type,
-                        "matrixLabel": spec.get("matrixLabel"),
-                    }),
-                }
-                if fingerprint:
-                    build_data["buildFingerprint"] = fingerprint
-                # Auto-version for "head" source builds — put in configFlags
-                # so the build worker picks it up as VERSION_BUILD_OVERRIDE
-                if spec.get("versionOverride"):
-                    override_flags = {
-                        "pipelineId": pipeline.id,
-                        "source": data.trigger_type,
-                        "matrixLabel": spec.get("matrixLabel"),
-                        "versionOverride": spec["versionOverride"],
-                    }
-                    build_data["configFlags"] = Json(override_flags)
-                    build_data["webhookData"] = Json(override_flags)
-
-            build = db.buildjob.create(data=build_data)
-            builds.append(build)
-            label_to_id[spec.get("matrixLabel")] = build.id
-            specs_with_builds.append((spec, build))
-
-        # Second pass: link version bump builds to their base builds
-        for spec, build in specs_with_builds:
-            base_label = spec.get("baseLabel")
-            if base_label and base_label in label_to_id:
-                db.buildjob.update(
-                    where={"id": build.id},
-                    data={"baseJobId": label_to_id[base_label]},
-                )
-
-        # Keep pipeline PENDING - status changes to BUILDING when a worker starts a job
-        # This is handled by the build status update endpoint
-
-        log_audit("ci.pipeline.create", "PipelineRun", pipeline.id, {
-            "product": product_base,
-            "branch": data.branch,
-            "commitSha": data.commit_sha,
-            "triggerType": data.trigger_type,
-            "builds": [b.id for b in builds],
-        })
-
-        # Refetch with builds
-        pipeline = db.pipelinerun.find_unique(
-            where={"id": pipeline.id},
-            include={"builds": {"include": {"product": True}}, "product": True},
-        )
-
-        return jsonify(ApiResponse.created(_serialize_pipeline(pipeline)).to_dict()), 201
+        ctx = resolve_pipeline_context(db, data)
+        pipeline, builds = create_pipeline_record(db, data, ctx)
+        return jsonify(ApiResponse.created(serialize_pipeline(pipeline)).to_dict()), 201
 
     except Exception as e:
         logger.error("Failed to create pipeline: %s", e)
@@ -887,7 +213,6 @@ def cancel_pipeline(pipeline_id: str):
         if pipeline.status in ("SUCCESS", "FAILED", "CANCELLED"):
             return bad_request(f"Pipeline already in terminal state: {pipeline.status}")
 
-        # Cancel all pending/building jobs
         db.buildjob.update_many(
             where={
                 "pipelineRunId": pipeline_id,
@@ -896,7 +221,6 @@ def cancel_pipeline(pipeline_id: str):
             data={"status": "CANCELLED"},
         )
 
-        # Update pipeline
         pipeline = db.pipelinerun.update(
             where={"id": pipeline_id},
             data={"status": "CANCELLED", "finishedAt": datetime.now(timezone.utc)},
@@ -905,430 +229,11 @@ def cancel_pipeline(pipeline_id: str):
 
         log_audit("ci.pipeline.cancel", "PipelineRun", pipeline_id, {})
 
-        return jsonify(ApiResponse.ok(_serialize_pipeline(pipeline)).to_dict()), 200
+        return jsonify(ApiResponse.ok(serialize_pipeline(pipeline)).to_dict()), 200
 
     except Exception as e:
         logger.error("Failed to cancel pipeline %s: %s", pipeline_id, e)
         return internal_error("Failed to cancel pipeline")
-
-
-def check_pipeline_completion(pipeline_id: str) -> Optional[str]:
-    """
-    Check if all builds in a pipeline are complete and update status.
-    Returns the new status if changed, None otherwise.
-
-    Called by the build status update endpoint when a build finishes.
-    """
-    db = get_db_client()
-
-    try:
-        pipeline = db.pipelinerun.find_unique(
-            where={"id": pipeline_id},
-            include={"builds": {"include": {"product": True}}, "product": True},
-        )
-        if not pipeline:
-            return None
-
-        if pipeline.status not in ("PENDING", "CLONING", "BUILDING"):
-            return None  # Already in terminal state
-
-        builds = pipeline.builds or []
-        if not builds:
-            return None
-
-        # Count build statuses (CACHED counts as completed/succeeded)
-        completed = sum(1 for b in builds if b.status in ("SUCCESS", "CACHED", "FAILED", "CANCELLED"))
-        succeeded = sum(1 for b in builds if b.status in ("SUCCESS", "CACHED"))
-        failed = sum(1 for b in builds if b.status in ("FAILED", "CANCELLED"))
-
-        # Fail-fast: if any build fails, cancel all pending/blocked/building siblings
-        if failed > 0:
-            pending_builds = [b for b in builds if b.status in ("QUEUED", "BLOCKED", "CLONING", "BUILDING")]
-            if pending_builds:
-                logger.info("Build failed in pipeline %s, cancelling %d pending/blocked builds",
-                           pipeline_id, len(pending_builds))
-                for build in pending_builds:
-                    db.buildjob.update(
-                        where={"id": build.id},
-                        data={"status": "CANCELLED", "finishedAt": datetime.now(timezone.utc)},
-                    )
-                # Refresh completed count after cancellation
-                completed = sum(1 for b in builds if b.status in ("SUCCESS", "FAILED", "CANCELLED"))
-                completed += len(pending_builds)  # Add the just-cancelled builds
-
-        # Update completed count
-        if completed != pipeline.completedBuilds:
-            db.pipelinerun.update(
-                where={"id": pipeline_id},
-                data={"completedBuilds": completed},
-            )
-
-        # Check if all builds are done
-        if completed < len(builds):
-            return None  # Still waiting
-
-        # All builds complete - determine final status
-        if failed > 0:
-            new_status = "BUILD_FAILED"
-            db.pipelinerun.update(
-                where={"id": pipeline_id},
-                data={"status": new_status, "finishedAt": datetime.now(timezone.utc)},
-            )
-            logger.info("Pipeline %s failed: %d/%d builds failed", pipeline_id, failed, len(builds))
-            return new_status
-
-        # All builds succeeded
-        if getattr(pipeline, "autoValidate", False):
-            # Auto-trigger validation
-            new_status = "VALIDATING"
-            db.pipelinerun.update(
-                where={"id": pipeline_id},
-                data={"status": new_status},
-            )
-            logger.info("Pipeline %s builds complete, auto-triggering validation", pipeline_id)
-
-            result = trigger_pipeline_validation(pipeline_id, pipeline, builds)
-            if result and result.get("started"):
-                validation_run_id = result["sessionId"]
-                db.pipelinerun.update(
-                    where={"id": pipeline_id},
-                    data={"validationRunId": validation_run_id},
-                )
-                logger.info("Pipeline %s validation triggered: %s", pipeline_id, validation_run_id)
-            elif result and result.get("queued"):
-                # Queued — keep VALIDATING status so the frontend knows it's waiting
-                logger.info(
-                    "Pipeline %s validation queued: entry=%s reason=%s",
-                    pipeline_id, result["entryId"][:8], result.get("reason"),
-                )
-            else:
-                # Validation trigger failed (no bench, etc.) — mark SUCCESS, user can trigger manually
-                new_status = "SUCCESS"
-                db.pipelinerun.update(
-                    where={"id": pipeline_id},
-                    data={"status": new_status, "finishedAt": datetime.now(timezone.utc)},
-                )
-                logger.warning("Pipeline %s auto-validate failed (no bench?), set to SUCCESS", pipeline_id)
-        else:
-            # No auto-validate — builds are done
-            new_status = "SUCCESS"
-            db.pipelinerun.update(
-                where={"id": pipeline_id},
-                data={"status": new_status, "finishedAt": datetime.now(timezone.utc)},
-            )
-            logger.info("Pipeline %s builds complete (autoValidate=false), set to SUCCESS", pipeline_id)
-
-        return new_status
-
-    except Exception as e:
-        logger.error("Failed to check pipeline completion %s: %s", pipeline_id, e)
-        return None
-
-
-def trigger_pipeline_validation(pipeline_id: str, pipeline, builds: list) -> Optional[dict]:
-    """
-    Trigger a validation job for a completed pipeline.
-    Creates a validation session and K8s job with the build artifacts.
-    Uses the Fixture model (not legacy TestBench).
-
-    Returns:
-        ``{"started": True, "sessionId": "..."}`` — run started immediately
-        ``{"queued": True, "entryId": "..."}`` — queued for later execution
-        ``None`` — unrecoverable failure
-    """
-    import hashlib
-    import os
-    import secrets
-    from datetime import timedelta
-
-    from src.api.v2.sessions.manual import create_kubernetes_job
-
-    db = get_db_client()
-
-    try:
-        # Look up the product
-        product = db.product.find_unique(where={"id": pipeline.productId}) if pipeline.productId else None
-        if not product:
-            product = db.product.find_first(
-                where={"name": {"contains": pipeline.product, "mode": "insensitive"}} if hasattr(pipeline, "product") and pipeline.product else {},
-            )
-        if not product:
-            logger.warning("Product not found for pipeline %s", pipeline_id)
-            return None
-
-        # Find an available fixture with a ready slot:
-        # - Fixture: active, AVAILABLE (not locked by another run)
-        # - Slot: active, has DUT identity (snr + deviceId)
-        # - Node: linked to slot, ONLINE, has ipAddress
-        fixtures = db.fixture.find_many(
-            where={
-                "productId": product.id,
-                "active": True,
-            },
-            include={
-                "slots": {"include": {"node": True}},
-                "design": True,
-            },
-        )
-
-        fixture = None
-        slot = None
-        mtib_address = None
-
-        for f in fixtures:
-            if f.status != "AVAILABLE":
-                logger.debug("Fixture %s skipped: status=%s", f.name, f.status)
-                continue
-            for s in (f.slots or []):
-                if not (s.active and s.dutSnr and s.dutDeviceId):
-                    continue
-                node = getattr(s, "node", None)
-                if node and node.status == "ONLINE" and node.ipAddress:
-                    fixture = f
-                    slot = s
-                    mtib_address = node.ipAddress
-                    break
-            if fixture:
-                break
-
-        if not fixture:
-            # No ready bench — check why for a useful log
-            locked = [f.name for f in fixtures if f.status != "AVAILABLE"]
-            no_slot = [f.name for f in fixtures if f.status == "AVAILABLE"
-                       and not any(s.active and s.dutSnr for s in (f.slots or []))]
-            offline = [f.name for f in fixtures if f.status == "AVAILABLE"
-                       and any(s.active and s.dutSnr and getattr(getattr(s, "node", None), "status", None) != "ONLINE"
-                               for s in (f.slots or []))]
-            logger.info(
-                "No ready bench for %s: locked=%s offline=%s unconfigured=%s",
-                product.name, locked, offline, no_slot,
-            )
-
-            # If fixtures exist but are locked, queue instead of failing
-            if locked:
-                # Avoid duplicate QUEUED entries for the same pipeline
-                existing = db.validationqueueentry.find_first(
-                    where={"pipelineRunId": pipeline_id, "status": "QUEUED"},
-                )
-                if existing:
-                    logger.info("Queue entry already exists for pipeline %s: %s", pipeline_id[:8], existing.id[:8])
-                    return {"queued": True, "entryId": existing.id, "reason": f"Fixture locked: {locked}"}
-
-                reason_parts = []
-                if locked:
-                    reason_parts.append(f"locked={locked}")
-                if offline:
-                    reason_parts.append(f"offline={offline}")
-                if no_slot:
-                    reason_parts.append(f"unconfigured={no_slot}")
-                reason = f"No fixture available: {'; '.join(reason_parts)}"
-
-                queue_entry = db.validationqueueentry.create(data={
-                    "pipelineRunId": pipeline_id,
-                    "stage": 4,
-                    "priority": 0,
-                    "status": "QUEUED",
-                    "reason": reason,
-                    "requestedAt": datetime.now(timezone.utc),
-                })
-
-                logger.info(
-                    "Queued validation for pipeline %s: entry=%s reason=%s",
-                    pipeline_id[:8], queue_entry.id[:8], reason,
-                )
-                return {"queued": True, "entryId": queue_entry.id, "reason": reason}
-
-            # No fixtures at all (offline or unconfigured) — nothing to queue for
-            return None
-
-        logger.info(
-            "Selected: fixture=%s slot=%s (SNR=%s device=%s) MTIB=%s",
-            fixture.name, slot.id[:8], slot.dutSnr, slot.dutDeviceId, mtib_address,
-        )
-
-        # Lock the fixture
-        db.fixture.update(
-            where={"id": fixture.id},
-            data={
-                "status": "LOCKED",
-                "lockedBy": f"pipeline:{pipeline_id}",
-                "lockedAt": datetime.now(timezone.utc),
-            },
-        )
-        logger.info("Locked fixture %s for pipeline %s", fixture.name, pipeline_id[:8])
-
-        # Create a validation session
-        build_summaries = []
-        for b in builds:
-            slug = _derive_build_product_slug(b)
-            build_summaries.append({"id": b.id, "product": slug, "variant": b.variant, "version": b.versionString})
-
-        session = db.session.create(
-            data={
-                "name": f"FUOTA validation — {product.name} {pipeline.branch}",
-                "type": "VALIDATION",
-                "productId": product.id,
-                "fixtureId": fixture.id,
-                "pipelineRunId": pipeline_id,
-                "status": "ACTIVE",
-                "config": Json({
-                    "pipelineId": pipeline_id,
-                    "branch": pipeline.branch,
-                    "builds": build_summaries,
-                    "fixture": {
-                        "id": fixture.id,
-                        "name": fixture.name,
-                        "stationId": fixture.stationId,
-                    },
-                    "slot": {
-                        "dutDeviceId": slot.dutDeviceId,
-                        "dutSnr": slot.dutSnr,
-                        "dutImei": slot.dutImei,
-                        "dutIccids": slot.dutIccids,
-                    },
-                    "mtibAddress": mtib_address,
-                }),
-                "createdById": _get_system_user_id(db),
-            },
-        )
-
-        # Create device record (required by reporter for test execution tracking)
-        db.device.create(
-            data={
-                "serialNumber": slot.dutSnr,
-                "sessionId": session.id,
-                "status": "IN_PROGRESS",
-                "metadata": Json({
-                    "deviceId": slot.dutDeviceId,
-                    "imei": slot.dutImei,
-                    "iccids": slot.dutIccids,
-                    "fixtureSlotId": slot.id,
-                }),
-            },
-        )
-
-        # Create API key for the K8s job
-        raw_key = f"ck_run_{secrets.token_urlsafe(32)}"
-        key_hash = hashlib.sha256(raw_key.encode()).hexdigest()
-
-        db.apikey.create(
-            data={
-                "name": f"Pipeline validation {session.id}",
-                "keyHash": key_hash,
-                "keyPrefix": raw_key[:12],
-                "userId": _get_system_user_id(db),
-                "expiresAt": datetime.now(timezone.utc) + timedelta(hours=24),
-            },
-        )
-
-        # Get API URL for reporter — prefer internal cluster URL (no SSL issues)
-        api_url = os.environ.get("CONCORD_API_URL", "http://concord-http-api.staging.svc.cluster.local:9001")
-
-        # Get firmware version from the FUOTA target build (release variant)
-        firmware_version = None
-        for build in builds:
-            if build.versionString and build.variant == "release":
-                firmware_version = build.versionString
-                break
-        if not firmware_version:
-            for build in builds:
-                if build.versionString:
-                    firmware_version = build.versionString
-                    break
-
-        # Determine fixture profile path
-        fixture_profile_path = ""
-        if fixture.design and hasattr(fixture.design, "profileTemplate"):
-            fixture_profile_path = f"fixtures/{product.slug}.json"
-
-        # Validation image tag: use environment name (e.g., "staging").
-        # This is the stable tag that ctl.sh always pushes. imagePullPolicy=Always
-        # ensures the latest version is pulled. Git hash is stored as metadata
-        # for traceability but NOT used in the image reference — the API server's
-        # GIT_COMMIT may differ from the validation image's build commit.
-        image_tag = os.environ.get("ENVIRONMENT", "staging")
-        git_commit = os.environ.get("GIT_COMMIT", "unknown")[:7]
-
-        # Create K8s Job
-        test_enable = {"electrical": False, "app_post": False, "comm_post": False}
-
-        job_name = create_kubernetes_job(
-            product=product.name,
-            job_id=session.id,
-            firmware_path="",  # Validation runner fetches from MinIO by build ID
-            test_type="validation",
-            test_enable=test_enable,
-            firmware_version=firmware_version or "unknown",
-            run_id=session.id,
-            api_key=raw_key,
-            api_url=api_url,
-            mtib_address=mtib_address or "",
-            bench_id=fixture.id,
-            device_id=slot.dutDeviceId or "",
-            device_snr=slot.dutSnr or "",
-            device_imei=slot.dutImei or "",
-            device_iccids=",".join(slot.dutIccids) if slot.dutIccids else "",
-            fixture_profile_path=fixture_profile_path,
-            pipeline_id=pipeline_id,
-            stage="fuota",
-            image_tag=image_tag,
-        )
-
-        if not job_name:
-            logger.error("Failed to create K8s job for pipeline %s", pipeline_id)
-            # Unlock fixture
-            db.fixture.update(where={"id": fixture.id}, data={"status": "AVAILABLE", "lockedBy": None, "lockedAt": None})
-            return None
-
-        # Update session with job info
-        config = session.config if isinstance(session.config, dict) else {}
-        config["trigger"] = {
-            "jobName": job_name,
-            "firmwareVersion": firmware_version,
-            "imageTag": image_tag,
-            "apiCommit": git_commit,
-            "triggeredAt": datetime.now(timezone.utc).isoformat(),
-        }
-        config["apiUrl"] = api_url
-
-        db.session.update(
-            where={"id": session.id},
-            data={"config": Json(config)},
-        )
-
-        log_audit("ci.pipeline.validation_trigger", "PipelineRun", pipeline_id, {
-            "sessionId": session.id,
-            "jobName": job_name,
-            "fixtureId": fixture.id,
-            "fixtureStationId": fixture.stationId,
-        })
-
-        logger.info("Validation triggered for pipeline %s: session=%s, job=%s", pipeline_id[:8], session.id[:8], job_name)
-        return {"started": True, "sessionId": session.id}
-
-    except Exception as e:
-        logger.error("Failed to trigger validation for pipeline %s: %s", pipeline_id, e)
-        return None
-
-
-def _derive_build_product_slug(b) -> str:
-    """Get product slug from build for session metadata."""
-    product = getattr(b, "product", None)
-    if isinstance(product, str):
-        return product
-    if product and hasattr(product, "repoSlug"):
-        if getattr(b, "target", "") == "mfg" and getattr(product, "mfgRepoSlug", None):
-            return product.mfgRepoSlug
-        return product.repoSlug or product.slug
-    return getattr(b, "productId", "unknown")
-
-
-def _get_system_user_id(db) -> str:
-    """Get or create system user for automated actions."""
-    system_user = db.user.find_first(where={"email": "system@concord.local"})
-    if not system_user:
-        system_user = db.user.create(data={"name": "System", "email": "system@concord.local"})
-    return system_user.id
 
 
 @require_permissions(Permissions.BUILDS_VIEW)
@@ -1341,7 +246,6 @@ def list_pipeline_sessions(pipeline_id: str):
     skip = (page - 1) * limit
 
     try:
-        # Verify pipeline exists
         pipeline = db.pipelinerun.find_unique(where={"id": pipeline_id})
         if not pipeline:
             return not_found(f"Pipeline not found: {pipeline_id}")
@@ -1378,13 +282,15 @@ def list_pipeline_sessions(pipeline_id: str):
                 entry["product"] = {"id": s.product.id, "name": s.product.name}
             data.append(entry)
 
-        return jsonify(ApiResponse.paginated(
-            data=data,
-            page=page,
-            total_pages=pages,
-            total_results=total,
-            results_per_page=limit,
-        ).to_dict()), 200
+        return jsonify(ApiResponse.ok({
+            "data": data,
+            "pagination": {
+                "page": page,
+                "limit": limit,
+                "total": total,
+                "pages": pages,
+            },
+        }).to_dict()), 200
 
     except Exception as e:
         logger.error("Failed to list pipeline sessions %s: %s", pipeline_id, e)
@@ -1404,7 +310,6 @@ def validate_pipeline(pipeline_id: str):
         if not pipeline:
             return not_found(f"Pipeline not found: {pipeline_id}")
 
-        # Allow from SUCCESS, FAILED, BUILD_FAILED, or VALIDATING (queue another run)
         if pipeline.status not in ("SUCCESS", "FAILED", "BUILD_FAILED", "VALIDATING"):
             return bad_request(f"Cannot trigger validation for pipeline in {pipeline.status} state")
 
@@ -1413,12 +318,9 @@ def validate_pipeline(pipeline_id: str):
         if not succeeded:
             return bad_request("No successful builds — cannot trigger validation")
 
-        # If there's a prior validation run that already finished, allow re-trigger.
-        # If it's still ACTIVE, queue the new request instead of cancelling the running test.
         if pipeline.validationRunId:
             prior_run = db.session.find_unique(where={"id": pipeline.validationRunId})
             if prior_run and prior_run.status in ("ACTIVE", "RUNNING"):
-                # Prior run still active — queue this request, don't cancel it
                 logger.info("Prior run %s still active, queuing new validation", pipeline.validationRunId[:8])
                 result = {"queued": True, "entryId": None, "reason": "Prior run still active"}
                 try:
@@ -1447,20 +349,17 @@ def validate_pipeline(pipeline_id: str):
                     "status": "QUEUED",
                 }).to_dict()), 202
             elif prior_run and prior_run.status not in ("ACTIVE", "RUNNING"):
-                # Prior run finished — unlock its fixture if still locked
                 if prior_run.fixtureId:
                     db.fixture.update(where={"id": prior_run.fixtureId}, data={
                         "status": "AVAILABLE", "lockedBy": None, "lockedAt": None,
                     })
                 logger.info("Prior run %s finished (%s), unlocked fixture", pipeline.validationRunId[:8], prior_run.status)
 
-        # Trigger validation
         result = trigger_pipeline_validation(pipeline_id, pipeline, builds)
         if result is None:
             return internal_error("Failed to create validation run (no fixtures available)")
 
         if result.get("queued"):
-            # Queued — pipeline stays at current status, will move to VALIDATING when dequeued
             log_audit("ci.pipeline.validate_queued", "PipelineRun", pipeline_id, {
                 "queueEntryId": result["entryId"],
                 "reason": result.get("reason"),
@@ -1473,7 +372,6 @@ def validate_pipeline(pipeline_id: str):
                 "status": "QUEUED",
             }).to_dict()), 202
 
-        # Started immediately
         validation_run_id = result["sessionId"]
         db.pipelinerun.update(
             where={"id": pipeline_id},

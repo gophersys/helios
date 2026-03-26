@@ -107,9 +107,10 @@ class TestListPipelines:
 
         body = json.loads(response.data)
         assert len(body["errors"]) == 0
-        assert isinstance(body["data"], list)
-        assert len(body["data"]) == 2
-        assert body["totalResults"] == 2
+        result = body["data"]
+        assert isinstance(result["data"], list)
+        assert len(result["data"]) == 2
+        assert result["pagination"]["total"] == 2
 
     def test_list_pipelines_empty(self, authed_client, mock_db):
         """List pipelines returns empty list when none exist."""
@@ -120,8 +121,9 @@ class TestListPipelines:
         assert response.status_code == 200
 
         body = json.loads(response.data)
-        assert body["data"] == []
-        assert body["totalResults"] == 0
+        result = body["data"]
+        assert result["data"] == []
+        assert result["pagination"]["total"] == 0
 
     def test_list_pipelines_with_product_filter(self, authed_client, mock_db):
         """List pipelines filters by product query parameter."""
@@ -173,10 +175,11 @@ class TestListPipelines:
         assert response.status_code == 200
 
         body = json.loads(response.data)
-        assert body["page"] == 2
-        assert body["resultsPerPage"] == 5
-        assert body["totalResults"] == 50
-        assert body["totalPages"] == 10
+        pagination = body["data"]["pagination"]
+        assert pagination["page"] == 2
+        assert pagination["limit"] == 5
+        assert pagination["total"] == 50
+        assert pagination["pages"] == 10
 
         call_args = mock_db.pipelinerun.find_many.call_args
         assert call_args.kwargs["skip"] == 5  # (2 - 1) * 5
@@ -198,7 +201,7 @@ class TestListPipelines:
         assert response.status_code == 200
 
         body = json.loads(response.data)
-        pipeline_data = body["data"][0]
+        pipeline_data = body["data"]["data"][0]
         assert "builds" in pipeline_data
         assert len(pipeline_data["builds"]) == 2
 

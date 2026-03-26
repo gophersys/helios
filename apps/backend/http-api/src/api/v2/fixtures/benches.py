@@ -151,13 +151,15 @@ def list_benches():
 
         pages = math.ceil(total / limit) if limit > 0 else 0
 
-        return jsonify(ApiResponse.paginated(
-            data=[_serialize_bench(f) for f in fixtures],
-            page=page,
-            total_pages=pages,
-            total_results=total,
-            results_per_page=limit,
-        ).to_dict()), 200
+        return jsonify(ApiResponse.ok({
+            "data": [_serialize_bench(f) for f in fixtures],
+            "pagination": {
+                "page": page,
+                "limit": limit,
+                "total": total,
+                "pages": pages,
+            },
+        }).to_dict()), 200
 
     except Exception as e:
         logger.error("Failed to list benches: %s", e)

@@ -83,13 +83,15 @@ def list_designs():
 
         pages = math.ceil(total / limit) if limit > 0 else 0
 
-        return jsonify(ApiResponse.paginated(
-            data=[_serialize_design_summary(d) for d in designs],
-            page=page,
-            total_pages=pages,
-            total_results=total,
-            results_per_page=limit,
-        ).to_dict()), 200
+        return jsonify(ApiResponse.ok({
+            "data": [_serialize_design_summary(d) for d in designs],
+            "pagination": {
+                "page": page,
+                "limit": limit,
+                "total": total,
+                "pages": pages,
+            },
+        }).to_dict()), 200
 
     except Exception as e:
         logger.error("Failed to list fixture designs: %s", e)

@@ -61,15 +61,15 @@ def test_list_icle_devices_success(authed_client, mock_db):
     assert "errors" in body
     assert len(body["errors"]) == 0
 
-    # Paginated response has data as the list at top level
-    assert isinstance(body["data"], list)
-    assert len(body["data"]) == 2
-    assert body["data"][0]["deviceId"] == "ICLE-001"
-    assert body["data"][1]["deviceId"] == "ICLE-002"
+    result = body["data"]
+    assert isinstance(result["data"], list)
+    assert len(result["data"]) == 2
+    assert result["data"][0]["deviceId"] == "ICLE-001"
+    assert result["data"][1]["deviceId"] == "ICLE-002"
 
     # Pagination metadata
-    assert body["page"] == 1
-    assert body["totalResults"] == 2
+    assert result["pagination"]["page"] == 1
+    assert result["pagination"]["total"] == 2
 
 
 def test_list_icle_devices_empty(authed_client, mock_db):
@@ -81,9 +81,10 @@ def test_list_icle_devices_empty(authed_client, mock_db):
     assert response.status_code == 200
 
     body = json.loads(response.data)
-    assert body["data"] == []
-    assert body["totalResults"] == 0
-    assert body["totalPages"] == 1
+    result = body["data"]
+    assert result["data"] == []
+    assert result["pagination"]["total"] == 0
+    assert result["pagination"]["pages"] == 1
 
 
 def test_list_icle_devices_pagination(authed_client, mock_db):
@@ -98,10 +99,11 @@ def test_list_icle_devices_pagination(authed_client, mock_db):
     assert response.status_code == 200
 
     body = json.loads(response.data)
-    assert body["page"] == 2
-    assert body["totalResults"] == 150
-    assert body["totalPages"] == 3
-    assert body["resultsPerPage"] == 50
+    pagination = body["data"]["pagination"]
+    assert pagination["page"] == 2
+    assert pagination["total"] == 150
+    assert pagination["pages"] == 3
+    assert pagination["limit"] == 50
 
     # Verify skip was calculated correctly (page 2, limit 50 => skip 50)
     call_kwargs = mock_db.icledevice.find_many.call_args
