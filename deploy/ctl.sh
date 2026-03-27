@@ -211,6 +211,35 @@ _push_images() {
   fi
 }
 
+# ─── Build Worker File Sync ───────────────────────────────────
+
+_sync_build_worker_files() {
+  local src_dir="${REPO_ROOT}/apps/backend/build-worker/src"
+  local dst_dir="${SCRIPT_DIR}/helm/concord/files/build-worker"
+
+  if [[ ! -d "${src_dir}" ]]; then
+    warn "Build worker source not found: ${src_dir}"
+    return 0
+  fi
+
+  mkdir -p "${dst_dir}"
+  cp "${src_dir}"/*.py "${dst_dir}/"
+  info "  Synced build-worker source → helm files/"
+
+  # Validate: every .py referenced in the ConfigMap template must exist
+  local missing=0
+  for f in config.py api_client.py manifest.py git_ops.py builder.py worker.py main.py; do
+    if [[ ! -f "${dst_dir}/${f}" ]]; then
+      err "Missing build-worker file: ${f}"
+      missing=1
+    fi
+  done
+  if (( missing )); then
+    err "Build worker files incomplete — ConfigMap will be broken"
+    exit 1
+  fi
+}
+
 # ─── Helm Deploy ──────────────────────────────────────────────
 
 _helm_deploy() {
@@ -228,6 +257,9 @@ _helm_deploy() {
   if [[ -f "${SCRIPT_DIR}/helm/values-${env}-secrets.yaml" ]]; then
     helm_args+=(-f "${SCRIPT_DIR}/helm/values-${env}-secrets.yaml")
   fi
+
+  # Sync build worker source files into helm chart before upgrade
+  _sync_build_worker_files
 
   timer_start
   helm "${helm_args[@]}" --wait --timeout 180s
@@ -386,6 +418,9 @@ cmd_diff() {
   local env="${1:-staging}"
   local values_file="${SCRIPT_DIR}/helm/values-${env}.yaml"
   [[ ! -f "${values_file}" ]] && { err "No values file for: ${env}"; exit 1; }
+
+  # Sync build worker files so diff renders the current source
+  _sync_build_worker_files
 
   local helm_args=(diff upgrade concord "${SCRIPT_DIR}/helm/concord" -n "${env}" -f "${values_file}")
   [[ -f "${SCRIPT_DIR}/helm/values-${env}-secrets.yaml" ]] && helm_args+=(-f "${SCRIPT_DIR}/helm/values-${env}-secrets.yaml")

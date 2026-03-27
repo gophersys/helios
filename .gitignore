@@ -68,6 +68,11 @@ apps/firmware/products/*/artifacts/
 CMakeCache.tmp
 
 # ---------------------------------------------------------------------------
+# Helm auto-synced files (copied from source at deploy time)
+# ---------------------------------------------------------------------------
+deploy/helm/concord/files/build-worker/*.py
+
+# ---------------------------------------------------------------------------
 # Secrets & credentials (NEVER commit)
 # ---------------------------------------------------------------------------
 .env
