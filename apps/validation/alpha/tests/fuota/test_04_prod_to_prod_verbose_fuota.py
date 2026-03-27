@@ -122,18 +122,21 @@ class TestProdToProdVerboseFuota:
     _comms_hex: Optional[str] = None
     _modem_zip: Optional[str] = None
     _flash_version: Optional[str] = None
+    _flash_targets: list = []       # ManifestTarget list from resolver
 
     # Setup phase artifacts
     _setup_cfw_paths: List[str] = []
     _setup_target_strings: List[str] = []
     _setup_version: Optional[str] = None
     _setup_plan_id: Optional[int] = None
+    _setup_app_ids: set = set()
 
     # Upgrade phase artifacts
     _upgrade_cfw_paths: List[str] = []
     _upgrade_target_strings: List[str] = []
     _upgrade_version: Optional[str] = None
     _upgrade_plan_id: Optional[int] = None
+    _upgrade_app_ids: set = set()
 
     _device_id: Optional[str] = None
     _imei: Optional[str] = None
@@ -148,22 +151,30 @@ class TestProdToProdVerboseFuota:
         cls = TestProdToProdVerboseFuota
 
         # --- MFG firmware ---
-        flash_build = pipeline_assets.get_build(FLASH_LABEL)
-        assert flash_build, f"Build '{FLASH_LABEL}' not found"
-        assert flash_build.status in ("SUCCESS", "CACHED"), f"{FLASH_LABEL} is {flash_build.status}"
-        print(f"{FLASH_LABEL}: v{flash_build.version_string} [{flash_build.status}]")
+        flash_version = pipeline_assets.get_version(FLASH_LABEL)
+        print(f"{FLASH_LABEL}: v{flash_version}")
 
-        app_hex = pipeline_assets.get_hex(FLASH_LABEL, "app")
+        flash_targets = pipeline_assets.get_targets(FLASH_LABEL)
+        assert flash_targets, f"Build '{FLASH_LABEL}' has no targets"
+
+        app_hex = pipeline_assets.get_artifact(FLASH_LABEL, role="app", artifact_type="plaintextHex")
         assert app_hex and Path(app_hex).exists(), f"{FLASH_LABEL} app hex download failed"
-        comms_hex = pipeline_assets.get_hex(FLASH_LABEL, "comms")
-        assert comms_hex and Path(comms_hex).exists(), f"{FLASH_LABEL} comms hex download failed"
+
+        comms_target = pipeline_assets.get_target(FLASH_LABEL, role="comms")
+        comms_hex = None
+        if comms_target:
+            comms_hex = pipeline_assets.get_artifact(FLASH_LABEL, role="comms", artifact_type="plaintextHex")
+            assert comms_hex and Path(comms_hex).exists(), f"{FLASH_LABEL} comms hex download failed"
 
         cls._app_hex = app_hex
         cls._comms_hex = comms_hex
-        cls._flash_version = flash_build.version_string
+        cls._flash_version = flash_version
+        cls._flash_targets = flash_targets
 
         # --- Modem firmware ---
-        modem_zip = pipeline_assets.get_modem_firmware()
+        modem_zip = pipeline_assets.get_modem_firmware(FLASH_LABEL)
+        if modem_zip is None:
+            modem_zip = pipeline_assets.get_modem_firmware_from_trigger()
         if modem_zip:
             cls._modem_zip = modem_zip
             print(f"Modem FW:  {Path(modem_zip).name}")
@@ -171,13 +182,13 @@ class TestProdToProdVerboseFuota:
             print("WARNING: No modem firmware — modem flash will be skipped")
 
         # --- Setup CFW (PROD_VERBOSE) ---
-        setup_build = pipeline_assets.get_build(SETUP_FUOTA_LABEL)
-        assert setup_build, f"Build '{SETUP_FUOTA_LABEL}' not found"
-        assert setup_build.status in ("SUCCESS", "CACHED"), f"{SETUP_FUOTA_LABEL} is {setup_build.status}"
+        setup_version = pipeline_assets.get_version(SETUP_FUOTA_LABEL)
+        print(f"{SETUP_FUOTA_LABEL}: v{setup_version}")
 
-        setup_cfws = pipeline_assets.get_cfw_files(SETUP_FUOTA_LABEL)
+        setup_cfws = pipeline_assets.get_artifacts(SETUP_FUOTA_LABEL, artifact_type="encryptedCfw")
         assert setup_cfws, f"{SETUP_FUOTA_LABEL} has no CFW files"
 
+        setup_manifest_targets = pipeline_assets.get_targets(SETUP_FUOTA_LABEL)
         setup_targets = []
         setup_app_ids = set()
         for cfw_path in setup_cfws:
@@ -188,15 +199,14 @@ class TestProdToProdVerboseFuota:
 
         cls._setup_cfw_paths = setup_cfws
         cls._setup_target_strings = setup_targets
-        cls._setup_version = setup_build.version_string
+        cls._setup_version = setup_version
         cls._setup_app_ids = setup_app_ids
 
         # --- Upgrade CFW (PROD_VERBOSE_BUMP) ---
-        upgrade_build = pipeline_assets.get_build(UPGRADE_FUOTA_LABEL)
-        assert upgrade_build, f"Build '{UPGRADE_FUOTA_LABEL}' not found"
-        assert upgrade_build.status in ("SUCCESS", "CACHED"), f"{UPGRADE_FUOTA_LABEL} is {upgrade_build.status}"
+        upgrade_version = pipeline_assets.get_version(UPGRADE_FUOTA_LABEL)
+        print(f"{UPGRADE_FUOTA_LABEL}: v{upgrade_version}")
 
-        upgrade_cfws = pipeline_assets.get_cfw_files(UPGRADE_FUOTA_LABEL)
+        upgrade_cfws = pipeline_assets.get_artifacts(UPGRADE_FUOTA_LABEL, artifact_type="encryptedCfw")
         assert upgrade_cfws, f"{UPGRADE_FUOTA_LABEL} has no CFW files"
 
         upgrade_targets = []
@@ -209,37 +219,43 @@ class TestProdToProdVerboseFuota:
 
         cls._upgrade_cfw_paths = upgrade_cfws
         cls._upgrade_target_strings = upgrade_targets
-        cls._upgrade_version = upgrade_build.version_string
+        cls._upgrade_version = upgrade_version
         cls._upgrade_app_ids = upgrade_app_ids
 
-        print(f"\nPlan: MFG v{flash_build.version_string} -> PROD v{setup_build.version_string} -> PROD v{upgrade_build.version_string}")
+        print(f"\nPlan: MFG v{flash_version} -> PROD v{setup_version} -> PROD v{upgrade_version}")
 
     # =====================================================================
     # 02: Flash MFG firmware
     # =====================================================================
 
     def test_02_flash_firmware(self, ctx):
-        """Flash MFG firmware via J-Link."""
+        """Flash MFG firmware via J-Link using targets from manifest."""
         cls = TestProdToProdVerboseFuota
         assert cls._app_hex, "No app hex — test_01 must pass first"
-        assert cls._comms_hex, "No comms hex — test_01 must pass first"
 
         from protocols.mtib.mtib_pb2 import HostType
-        from .helpers import flash_processor
+        from .helpers import flash_processor, host_type_from_manifest
 
         print("Powering DUT for J-Link access...")
         power_on(ctx.mtib)
         time.sleep(3)
 
-        print(f"Flashing nRF52840: {Path(cls._app_hex).name}")
-        flash_processor(ctx.mtib, cls._app_hex, HostType.HOST_TYPE_NRF52840)
+        app_target = next((t for t in cls._flash_targets if t.role == "app"), None)
+        assert app_target, "No app target in flash build manifest"
+        app_host_type = host_type_from_manifest(app_target.host_type)
+        print(f"Flashing {app_target.processor}: {Path(cls._app_hex).name}")
+        flash_processor(ctx.mtib, cls._app_hex, app_host_type)
 
         if cls._modem_zip:
             print(f"Flashing modem: {Path(cls._modem_zip).name}")
             flash_processor(ctx.mtib, cls._modem_zip, HostType.HOST_TYPE_NRF9160_MODEM)
 
-        print(f"Flashing nRF9151: {Path(cls._comms_hex).name}")
-        flash_processor(ctx.mtib, cls._comms_hex, HostType.HOST_TYPE_NRF9151)
+        if cls._comms_hex:
+            comms_target = next((t for t in cls._flash_targets if t.role == "comms"), None)
+            assert comms_target, "No comms target in flash build manifest"
+            comms_host_type = host_type_from_manifest(comms_target.host_type)
+            print(f"Flashing {comms_target.processor}: {Path(cls._comms_hex).name}")
+            flash_processor(ctx.mtib, cls._comms_hex, comms_host_type)
 
         print("All processors flashed successfully")
 

@@ -166,27 +166,6 @@ def flash_processor(client, hex_path: str, host_type) -> int:
     return flash_ms
 
 
-def flash_both_processors(client, app_hex: str, comms_hex: str) -> Tuple[int, int]:
-    """Flash nRF52840 (app) and nRF9151 (comms) via J-Link.
-
-    DUT must be powered before calling this.
-
-    Returns:
-        (app_flash_ms, comms_flash_ms) tuple.
-    """
-    from protocols.mtib.mtib_pb2 import HostType
-
-    print(f"Flashing nRF52840: {Path(app_hex).name}")
-    app_ms = flash_processor(client, app_hex, HostType.HOST_TYPE_NRF52840)
-    print(f"nRF52840 flashed in {app_ms}ms")
-
-    print(f"Flashing nRF9151: {Path(comms_hex).name}")
-    comms_ms = flash_processor(client, comms_hex, HostType.HOST_TYPE_NRF9151)
-    print(f"nRF9151 flashed in {comms_ms}ms")
-
-    return app_ms, comms_ms
-
-
 # =============================================================================
 # PERSONALIZATION
 # =============================================================================

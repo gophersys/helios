@@ -34,7 +34,6 @@ import pytest
 from .conftest import DeviceConfig, parse_cfw_header, register_fuota_cleanup
 from .helpers import (
     create_and_assign_fuota_plan,
-    flash_both_processors,
     personalize_device,
     power_cycle,
     power_on,
