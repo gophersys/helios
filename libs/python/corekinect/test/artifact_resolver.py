@@ -133,16 +133,21 @@ class BuildManifest:
     _raw: Dict[str, Any] = field(default_factory=dict, repr=False)
 
     @classmethod
-    def from_dict(cls, data: dict) -> "BuildManifest":
+    def from_dict(cls, data: dict, artifact_names: Optional[List[str]] = None) -> "BuildManifest":
         schema = data.get("schemaVersion", 0)
-        if schema != 1:
+
+        if schema == 1:
+            targets = [ManifestTarget.from_dict(t) for t in data.get("targets", [])]
+            corecloud = data.get("corecloud", {})
+        elif schema == 0:
+            # Legacy build.json — infer targets from artifact filenames
+            targets = cls._infer_targets_from_artifacts(data, artifact_names or [])
+            corecloud = {}
+        else:
             raise ValueError(
                 f"Unsupported build.json schema version {schema}. "
-                f"Expected 1. Update ArtifactResolver or regenerate manifests."
+                f"Expected 0 or 1. Update ArtifactResolver or regenerate manifests."
             )
-
-        targets = [ManifestTarget.from_dict(t) for t in data.get("targets", [])]
-        corecloud = data.get("corecloud", {})
 
         return cls(
             schema_version=schema,
@@ -150,18 +155,73 @@ class BuildManifest:
             board=data.get("board", ""),
             version=data.get("version", ""),
             variant=data.get("variant", ""),
-            track=data.get("track", ""),
+            track=data.get("track", data.get("cfw_track", "")),
             release_track=data.get("releaseTrack", ""),
             ncs_version=data.get("ncsVersion", ""),
             commit_sha=data.get("commitSha", ""),
             branch=data.get("branch", ""),
-            built_at=data.get("builtAt", ""),
+            built_at=data.get("builtAt", data.get("built_at", "")),
             targets=targets,
             modem_firmware=data.get("modemFirmware"),
             corecloud=corecloud,
             signing=data.get("signing"),
             _raw=data,
         )
+
+    @staticmethod
+    def _infer_targets_from_artifacts(
+        data: dict, artifact_names: List[str]
+    ) -> List["ManifestTarget"]:
+        """Infer targets from legacy build artifact filenames.
+
+        Legacy artifacts follow: {appId}.{version}-{track}.{hex|cfw}
+        Known app IDs: 109=nRF52840 (app), 108=nRF9151 (comms).
+        """
+        # Map of known app IDs to role/processor/hostType/jlinkFamily
+        APP_ID_MAP = {
+            109: ("app", "nrf52840", "HOST_TYPE_NRF52840", "NRF52"),
+            108: ("comms", "nrf9151", "HOST_TYPE_NRF9151", "NRF91"),
+        }
+
+        # Find hex/cfw files and group by app ID
+        app_id_files: Dict[int, Dict[str, str]] = {}
+        for name in artifact_names:
+            if not (name.endswith(".hex") or name.endswith(".cfw")):
+                continue
+            # Parse: {appId}.{rest}
+            parts = name.split(".", 1)
+            if not parts[0].isdigit():
+                continue
+            app_id = int(parts[0])
+            if app_id not in app_id_files:
+                app_id_files[app_id] = {}
+            if name.endswith(".hex"):
+                app_id_files[app_id]["hex"] = name
+            elif name.endswith(".cfw"):
+                app_id_files[app_id]["cfw"] = name
+
+        targets = []
+        for app_id in sorted(app_id_files.keys()):
+            files = app_id_files[app_id]
+            if app_id in APP_ID_MAP:
+                role, processor, host_type, jlink_family = APP_ID_MAP[app_id]
+            else:
+                role = f"target_{app_id}"
+                processor = "unknown"
+                host_type = "unknown"
+                jlink_family = "unknown"
+
+            targets.append(ManifestTarget(
+                role=role,
+                processor=processor,
+                app_id=app_id,
+                host_type=host_type,
+                jlink_family=jlink_family,
+                plaintext_hex=files.get("hex"),
+                encrypted_cfw=files.get("cfw"),
+            ))
+
+        return targets
 
     def get_target(self, role: str) -> Optional[ManifestTarget]:
         """Find a target by role (e.g., 'app', 'comms')."""
@@ -459,7 +519,9 @@ class ArtifactResolver:
         with open(local_path) as f:
             data = json.load(f)
 
-        return BuildManifest.from_dict(data)
+        # Pass artifact names so legacy manifests can infer targets
+        artifact_names = [a.name for a in build.artifacts]
+        return BuildManifest.from_dict(data, artifact_names=artifact_names)
 
     def _get_or_load_manifest(self, label: str) -> Optional[BuildManifest]:
         """Get cached manifest or load from build."""
@@ -673,6 +735,40 @@ class ArtifactResolver:
             return None
 
         return self._ensure_artifact_downloaded(artifact)
+
+    @property
+    def modem_firmware_info(self) -> Optional[Dict[str, Any]]:
+        """Get modem firmware metadata without downloading.
+
+        Checks pipeline triggerData first, then falls back to the first
+        build manifest that has modemFirmware info.
+
+        Returns:
+            Dict with name, version, storageKey etc., or None.
+        """
+        # Try triggerData first
+        self._ensure_pipeline()
+        url = f"{self._api_url}/v2/builds/pipelines/{self._pipeline_id}"
+        try:
+            resp = self._session.get(url, timeout=30)
+            if resp.status_code == 200:
+                data = resp.json()
+                if "data" in data:
+                    data = data["data"]
+                trigger_data = data.get("triggerData") or {}
+                modem = trigger_data.get("modemFirmware")
+                if modem:
+                    return modem
+        except Exception:
+            pass
+
+        # Fall back to build manifests
+        for label in self._builds:
+            manifest = self._get_or_load_manifest(label)
+            if manifest and manifest.modem_firmware:
+                return manifest.modem_firmware
+
+        return None
 
     def get_modem_firmware_from_trigger(self) -> Optional[str]:
         """Download modem firmware from pipeline triggerData.
