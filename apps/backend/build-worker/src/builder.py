@@ -40,6 +40,7 @@ class BuildJob:
     matrix_label: str = None
     version_override: str = None  # Explicit version override (e.g., "0.5.0")
     config_flags: dict = None  # Extra build flags (e.g., {"forceLog": true})
+    product_id: str = None  # DB product ID for fetching buildConfig
 
 
 def _extract_version_override(job_data: dict) -> Optional[str]:
@@ -338,11 +339,19 @@ class BuildExecutor:
         # Build appId -> target metadata lookup from buildConfig
         target_lookup: Dict[int, Dict[str, str]] = {}
         if build_config:
-            for t in build_config.get("targets", []):
-                target_lookup[t["appId"]] = {
-                    "role": t["role"],
-                    "processor": t["processor"],
-                }
+            raw_targets = build_config.get("targets", [])
+            # Normalize dict format {"app": {...}} -> list
+            if isinstance(raw_targets, dict):
+                target_list = list(raw_targets.values())
+            else:
+                target_list = raw_targets
+            for t in target_list:
+                app_id = t.get("appId")
+                if app_id:
+                    target_lookup[app_id] = {
+                        "role": t.get("role", ""),
+                        "processor": t.get("processor") or t.get("soc", ""),
+                    }
 
         count = 0
         for artifact in artifacts:

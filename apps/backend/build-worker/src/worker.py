@@ -77,6 +77,7 @@ class BuildWorker:
                 matrix_label=j.get("matrixLabel"),
                 version_override=_extract_version_override(j),
                 config_flags=j.get("configFlags") or {},
+                product_id=j.get("productId"),
             )
 
         return None  # All queued jobs are for incompatible NCS versions
@@ -231,7 +232,7 @@ class BuildWorker:
 
             # 6.3. Fetch Product.buildConfig for manifest generation
             build_config = None
-            product_id = getattr(job, "product_id", None) or job.config_flags.get("productId") if job.config_flags else None
+            product_id = job.product_id or (job.config_flags.get("productId") if job.config_flags else None)
             if product_id:
                 product_data = self.api_client.get_product(product_id)
                 if product_data:
