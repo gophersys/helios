@@ -95,6 +95,32 @@ def output_dir_single_target(tmp_path):
 
 
 @pytest.fixture
+def output_dir_nested(tmp_path):
+    """Output dir mimicking real build script layout: OUTPUT_DIR/{version}/{variant}/."""
+    nested = tmp_path / "0.8.9" / "no_debug"
+    nested.mkdir(parents=True)
+    (nested / "109.0.8.9-B.hex").write_text("fake hex app")
+    (nested / "108.0.8.9-B.hex").write_text("fake hex comms")
+    (nested / "109.0.8.9-B.cfw").write_bytes(b"\x00" * 64)
+    (nested / "108.0.8.9-B.cfw").write_bytes(b"\x00" * 64)
+    # Also a build.log at root (should be ignored)
+    (tmp_path / "build.log").write_text("build output")
+    return tmp_path
+
+
+@pytest.fixture
+def output_dir_mixed_depth(tmp_path):
+    """Output dir with hex at root and cfw in subdirectory."""
+    (tmp_path / "109.0.8.3-BM.hex").write_text("fake hex app")
+    (tmp_path / "108.0.8.3-BM.hex").write_text("fake hex comms")
+    cfw_dir = tmp_path / "cfw"
+    cfw_dir.mkdir()
+    (cfw_dir / "109.0.8.3-BM.cfw").write_bytes(b"\x00" * 64)
+    (cfw_dir / "108.0.8.3-BM.cfw").write_bytes(b"\x00" * 64)
+    return tmp_path
+
+
+@pytest.fixture
 def key_dir(tmp_path):
     """Create mock signing key files."""
     keys = tmp_path / "keys"
@@ -383,6 +409,52 @@ class TestGenerateBuildManifest:
         app = next(t for t in manifest["targets"] if t["role"] == "app")
         assert app["plaintextHex"] is None
         assert app["encryptedCfw"] is None
+
+    def test_nested_subdirectory_artifacts(self, build_config, output_dir_nested):
+        """Artifacts in subdirs like {version}/{variant}/ are found and paths are relative."""
+        manifest = generate_build_manifest(
+            build_config=build_config,
+            output_dir=output_dir_nested,
+            product="alpha",
+            board="alpha_b0",
+            version="0.8.9",
+            variant="release",
+            commit_sha="abc1234",
+            branch="main",
+        )
+        app = next(t for t in manifest["targets"] if t["role"] == "app")
+        assert app["plaintextHex"] is not None
+        assert "109.0.8.9-B.hex" in app["plaintextHex"]
+        assert app["plaintextHex"].startswith("0.8.9/no_debug/")
+        assert app["encryptedCfw"] is not None
+        assert "109.0.8.9-B.cfw" in app["encryptedCfw"]
+
+        comms = next(t for t in manifest["targets"] if t["role"] == "comms")
+        assert comms["plaintextHex"] is not None
+        assert "108.0.8.9-B.hex" in comms["plaintextHex"]
+        assert comms["encryptedCfw"] is not None
+
+    def test_mixed_depth_artifacts(self, build_config, output_dir_mixed_depth):
+        """Hex at root, CFW in subdirectory — both found correctly."""
+        manifest = generate_build_manifest(
+            build_config=build_config,
+            output_dir=output_dir_mixed_depth,
+            product="alpha",
+            board="alpha_b0",
+            version="0.8.3",
+            variant="mfg",
+            commit_sha="abc1234",
+            branch="main",
+        )
+        app = next(t for t in manifest["targets"] if t["role"] == "app")
+        # Hex at root — relative path is just the filename
+        assert app["plaintextHex"] == "109.0.8.3-BM.hex"
+        # CFW in subdirectory
+        assert app["encryptedCfw"] == "cfw/109.0.8.3-BM.cfw"
+
+        comms = next(t for t in manifest["targets"] if t["role"] == "comms")
+        assert comms["plaintextHex"] == "108.0.8.3-BM.hex"
+        assert comms["encryptedCfw"] == "cfw/108.0.8.3-BM.cfw"
 
 
 class TestClassifyArtifact:

@@ -85,23 +85,28 @@ def _compute_track(variant: str, release_track: str) -> str:
 
 
 def _scan_artifacts(output_dir: Path) -> Dict[int, Dict[str, str]]:
-    """Scan output directory for hex/cfw files grouped by app ID.
+    """Scan output directory recursively for hex/cfw files grouped by app ID.
 
-    Returns: {app_id: {"plaintextHex": "filename.hex", "encryptedCfw": "filename.cfw"}}
+    Build scripts place artifacts in subdirectories like `{version}/{variant}/`,
+    so we glob recursively and store paths relative to output_dir.
+
+    Returns: {app_id: {"plaintextHex": "rel/path.hex", "encryptedCfw": "rel/path.cfw"}}
     """
     artifacts: Dict[int, Dict[str, str]] = {}
 
-    for f in output_dir.iterdir():
-        if not f.is_file():
-            continue
-        result = classify_artifact(f.name)
-        if result is None:
-            continue
+    for pattern in ("**/*.hex", "**/*.cfw"):
+        for f in output_dir.glob(pattern):
+            if not f.is_file():
+                continue
+            result = classify_artifact(f.name)
+            if result is None:
+                continue
 
-        artifact_type, app_id = result
-        if app_id not in artifacts:
-            artifacts[app_id] = {}
-        artifacts[app_id][artifact_type] = f.name
+            artifact_type, app_id = result
+            if app_id not in artifacts:
+                artifacts[app_id] = {}
+            # Store path relative to output_dir so the manifest is portable
+            artifacts[app_id][artifact_type] = str(f.relative_to(output_dir))
 
     return artifacts
 
@@ -121,13 +126,16 @@ def _compute_key_fingerprints(
     # Key files: encryption_key.pem (app processor), comms_encryption_key.pem (comms)
     key_mapping = {
         "app": "encryption_key.pem",
+        "application": "encryption_key.pem",
         "comms": "comms_encryption_key.pem",
+        "communications": "comms_encryption_key.pem",
     }
 
     for target in targets:
         role = target.get("role", "")
+        name = target.get("name", "")
         app_id = target.get("appId")
-        key_file_name = key_mapping.get(role)
+        key_file_name = key_mapping.get(role) or key_mapping.get(name)
         if not key_file_name or not app_id:
             continue
 
@@ -169,10 +177,25 @@ def generate_build_manifest(
     Returns:
         Complete build.json manifest as a dict, ready for json.dumps().
     """
-    config_targets = build_config.get("targets", [])
+    raw_targets = build_config.get("targets", [])
     cfw_config = build_config.get("cfw", {})
     release_track = build_config.get("releaseTrack", "bench")
     ncs_version = build_config.get("ncsVersion", "")
+
+    # Normalize targets: dict format {"app": {...}, "comms": {...}} -> list
+    if isinstance(raw_targets, dict):
+        config_targets = []
+        for key, val in raw_targets.items():
+            entry = dict(val)
+            entry.setdefault("name", key)
+            # Map "soc" -> "processor" if needed
+            if "processor" not in entry and "soc" in entry:
+                entry["processor"] = entry["soc"]
+            # Use "role" from value, or fall back to key name
+            entry.setdefault("role", key)
+            config_targets.append(entry)
+    else:
+        config_targets = list(raw_targets)
 
     # Scan output dir for artifacts keyed by app ID
     artifact_map = _scan_artifacts(output_dir)
@@ -184,8 +207,8 @@ def generate_build_manifest(
     targets = []
     for target_cfg in config_targets:
         app_id = target_cfg["appId"]
-        processor = target_cfg["processor"]
-        role = target_cfg["role"]
+        processor = target_cfg.get("processor") or target_cfg.get("soc", "unknown")
+        role = target_cfg.get("role", "unknown")
 
         # Look up processor-derived fields
         proc_info = PROCESSOR_MAP.get(processor, {})
