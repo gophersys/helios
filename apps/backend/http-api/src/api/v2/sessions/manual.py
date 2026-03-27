@@ -252,7 +252,20 @@ def create_kubernetes_job(
         job_yaml = job_yaml.replace("{{CONCORD_API_HOST}}", env_config.CONCORD_API_HOST)
 
         # Storage — inject from http-api's own config (no hardcoded creds in template)
-        job_yaml = job_yaml.replace("{{STORAGE_URL}}", env_config.STORAGE_URL)
+        # Qualify short service names with namespace FQDN so pods in other
+        # namespaces (e.g., validation) can resolve the MinIO service.
+        storage_url = env_config.STORAGE_URL
+        namespace = env_config.ENVIRONMENT  # staging or production
+        if "://" in storage_url and ".svc" not in storage_url:
+            # e.g. http://concord-minio:9000 -> http://concord-minio.staging.svc.cluster.local:9000
+            from urllib.parse import urlparse, urlunparse
+            parsed = urlparse(storage_url)
+            host_parts = parsed.hostname.split(".")
+            if len(host_parts) == 1:  # short name like "concord-minio"
+                fqdn = f"{parsed.hostname}.{namespace}.svc.cluster.local"
+                new_netloc = f"{fqdn}:{parsed.port}" if parsed.port else fqdn
+                storage_url = urlunparse(parsed._replace(netloc=new_netloc))
+        job_yaml = job_yaml.replace("{{STORAGE_URL}}", storage_url)
         job_yaml = job_yaml.replace("{{STORAGE_ACCESS_KEY}}", env_config.STORAGE_ACCESS_KEY)
         job_yaml = job_yaml.replace("{{STORAGE_SECRET_ACCESS_KEY}}", env_config.STORAGE_SECRET_ACCESS_KEY)
         job_yaml = job_yaml.replace("{{STORAGE_BUCKET_NAME}}", env_config.STORAGE_BUCKET_NAME)
