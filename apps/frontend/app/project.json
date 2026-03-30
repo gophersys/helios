@@ -27,13 +27,6 @@
         "command": "npx vite dev --port 4200"
       }
     },
-    "dev": {
-      "executor": "nx:run-commands",
-      "options": {
-        "cwd": "apps/frontend/app",
-        "command": "npx vite dev --port 4200"
-      }
-    },
     "build": {
       "executor": "nx:run-commands",
       "defaultConfiguration": "development",
