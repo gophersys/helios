@@ -1,3 +1,5 @@
+> **Archived 2026-03-30.** Implementation-complete. Work described here is done (22-model schema, unified Session/Fixture/TestStep, reporter protocol). Moved from `docs/specs/` (non-standard layer) to archive. Current backend architecture reflected in `apps/backend/http-api/` and the Prisma schema at `libs/python/database/schema.prisma`.
+
 # Backend Overhaul Spec
 
 **Status:** In Progress

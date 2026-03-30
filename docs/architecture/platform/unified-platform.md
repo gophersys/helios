@@ -156,7 +156,7 @@ apps/validation/alpha/conftest.py
 apps/validation/alpha/run.py
 apps/backend/http-api/src/api/v2/validation/runs/trigger.py
 apps/backend/http-api/src/api/v2/validation/catalog.py
-libs/python/corekinect/test/validation/runner.py
+libs/python/corekinect/test/runner.py
 ```
 
 ### Team 3: Build System Integration

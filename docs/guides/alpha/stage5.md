@@ -360,9 +360,9 @@ PIPELINE_ID=xxx pytest tests/stage5/ -v --timeout=900
 | File | Purpose |
 |------|---------|
 | `apps/validation/alpha/tests/stage5/test_gate.py` | Test implementation |
-| `libs/python/corekinect/test/validation/fuota_client.py` | FUOTA API |
-| `libs/python/corekinect/test/validation/pipeline_assets.py` | Firmware downloads |
-| `libs/python/corekinect/test/validation/device_personalizer.py` | Key provisioning |
+| `libs/python/corekinect/test/fuota_client.py` | FUOTA API |
+| `libs/python/corekinect/test/artifact_resolver.py` | Firmware artifact resolution |
+| `libs/python/corekinect/test/device_personalizer.py` | Key provisioning |
 
 ---
 

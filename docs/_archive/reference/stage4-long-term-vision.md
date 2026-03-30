@@ -1,3 +1,5 @@
+> **Archived 2026-03-30.** Planning note from 2026-03-06. The CI/CD pipeline vision described here is now implemented and documented in [architecture/platform/ci-pipeline.md](../../architecture/platform/ci-pipeline.md) and [architecture/build/build-service.md](../../architecture/build/build-service.md). Moved from `reference/` — planning notes are not lookup references.
+
 # Stage 4 Long-Term Vision
 
 ## CI/CD Build + Validation Pipeline

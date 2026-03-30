@@ -165,7 +165,7 @@ ValidationRunPage
 ### Stub Tests (CI — runs on every PR, no hardware)
 
 ```
-libs/python/corekinect/test/validation/tests/test_test_logic.py
+libs/python/corekinect/test/tests/test_test_logic.py
   98 tests, ~0.3s execution time
 
   Dimensions:

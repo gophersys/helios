@@ -317,9 +317,9 @@ Cuts transition time from ~30 min to ~5 min.
 
 **Q7: Build server integration** — PARALLEL TASK
 A dual-interface (gRPC + HTTP) build service is designed at
-`docs/architecture/build-service.md`. Architecture: library-first — all
+`docs/architecture/build/build-service.md`. Architecture: library-first — all
 business logic in `BuildEngine` class, wrapped by gRPC and HTTP transports.
-Protocol under `libs/protocols/build/`, server under `apps/backend/build/`.
+Protocol under `libs/protocols/build/`, server under `apps/backend/build-service/`.
 Triggered by Bitbucket webhooks. Stores artifacts in MinIO. Queryable by
 both gRPC clients and REST API. Like a headless TeamCity.
 

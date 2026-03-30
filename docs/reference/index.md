@@ -17,19 +17,6 @@ Lookup material: operational procedures, hardware specs, test catalogs.
 | [traceability-matrix.md](traceability-matrix.md) | Test case traceability matrix |
 | [twister-hil.md](twister-hil.md) | Twister test runner and HIL testing reference |
 
-## Stage 4
-
-| Document | Description |
-|----------|-------------|
-| [stage4-connectivity.md](stage4-connectivity.md) | Connectivity test specifications |
-| [stage4-long-term-vision.md](stage4-long-term-vision.md) | Long-term vision for Stage 4 |
-
-## UI
-
-| Document | Description |
-|----------|-------------|
-| [validation-flow-ui.md](validation-flow-ui.md) | Canvas-based validation design visualization (Svelte Flow) |
-
 ## Hardware
 
 | Document | Description |

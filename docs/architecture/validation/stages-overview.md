@@ -220,8 +220,8 @@ Quick reference for all 5 validation stages. Each stage has a dedicated implemen
 
 **Key Files**:
 - Test runner: `apps/validation/alpha/tests/stage5/`
-- FUOTA client: `libs/python/corekinect/test/validation/fuota_client.py`
-- Pipeline assets: `libs/python/corekinect/test/validation/pipeline_assets.py`
+- FUOTA client: `libs/python/corekinect/test/fuota_client.py`
+- Artifact resolver: `libs/python/corekinect/test/artifact_resolver.py`
 - Implementation doc: [stage5-gate-tests.md](./stage5-gate-tests.md)
 
 ---

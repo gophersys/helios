@@ -75,7 +75,7 @@ We need a unified wrapper that:
 The single entry point for all test execution:
 
 ```python
-# libs/python/corekinect/test/validation/runner.py
+# libs/python/corekinect/test/runner.py
 
 class ValidationRunner:
     """Unified test runner with preflight, execution, and reporting."""
@@ -556,7 +556,7 @@ class UartLatencyHandler:
 
 ## Next Steps
 
-1. Implement `ValidationRunner` in `libs/python/corekinect/test/validation/runner.py`
+1. Implement `ValidationRunner` in `libs/python/corekinect/test/runner.py`
 2. Implement `PreflightChecker`
 3. Update K8s Job template to use `run.py` entry point
 4. Add preflight endpoint to API for UI display

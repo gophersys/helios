@@ -775,8 +775,7 @@ def wait_for_fuota_completion(session, device_id, app_id, timeout_s=600):
 | DB Connection Interface | `libs/python/corekinect/core_cloud/db_interface.py` |
 | SDK README | `libs/python/corekinect/core_cloud/READ_ME.md` |
 | Environment Template | `libs/python/corekinect/core_cloud/.env.example` |
-| FUOTA Research | `docs/validation/research/06-fuota-corecloud-v1.md` |
-| CoreCloud Integration Research | `docs/validation/research/09-corecloud-validation-integration.md` |
-| Stage 4 FUOTA Flow | `docs/validation/architecture/stage4-fuota-validation-flow.md` |
-| Stage 4 Product Tests | `docs/validation/architecture/stage4-product-tests.md` |
-| Stage 3 & 4 Overview | `docs/validation/plans/stage3-and-4/overview.md` |
+| FUOTA Research | `docs/research/06-fuota-corecloud-v1.md` |
+| CoreCloud Integration Research | `docs/research/10-corecloud-validation-integration.md` |
+| Stage 4 FUOTA Flow | `docs/architecture/validation/stage4-fuota-flow.md` |
+| Stage 4 Product Tests | `docs/architecture/validation/stage4-product-tests.md` |

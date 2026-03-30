@@ -70,7 +70,7 @@ Concretely, Stage 4 tests verify:
 | Primary verification | CoreCloud REST API message inspection | Production devices communicate via LTE to CoreCloud; testing the device-cloud path catches protocol drift and serialization bugs |
 | Fixture control | MTIB GPIO/relay/actuator via `fixture_controller.py` | Black-box tests require physical stimulus; fixture profile decouples test logic from wiring |
 | Test ownership | Concord platform team (not firmware developers) | Stage 4 tests are inseparable from physical test infrastructure (fixture wiring, backend coordination, multi-day orchestration) |
-| Test library | `concord/libs/corekinect/test/validation/` | Shared library (test framework, clients, controllers) |
+| Test library | `libs/python/corekinect/test/` | Shared library (test framework, clients, controllers) |
 | Execution cadence | Tag-filtered: commit (fast subset), weekly (full suite), release (everything) | Per-commit catches regressions fast; weekly validates expensive/long-running tests |
 | Pass/fail source | CoreCloud messages + MTIB power measurements + fixture ADC reads | UART logs are diagnostic only (Debug build), never used for pass/fail decisions |
 
@@ -3143,7 +3143,7 @@ message system behavior:
 
 ```
 # Shared library (test framework, clients, controllers)
-concord/libs/corekinect/test/validation/
+libs/python/corekinect/test/
 ├── __init__.py
 ├── cloud_client.py                  # CoreCloud integration (Section 4.1)
 ├── mtib_client.py                   # MTIB gRPC wrapper (shared with Stages 2-3)

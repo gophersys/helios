@@ -1,3 +1,5 @@
+> **Archived 2026-03-30.** Point-in-time investigation note (2026-03-05). Auth issues documented here are resolved; FUOTA endpoint details superseded by [reference/fuota-api.md](../../reference/fuota-api.md). Moved from `reference/` — was incorrectly classified as a lookup reference.
+
 # Stage 4 Validation Connectivity Status
 
 ## Services Verified (2026-03-05)

@@ -1,3 +1,5 @@
+> **Archived 2026-03-30.** UI design spec and Prisma data model proposal from early 2026. The validation flow UI has since been implemented; the data model was superseded by the backend overhaul (see `docs/specs/backend-overhaul.md`). Moved from `reference/` — design specs belong in `architecture/`.
+
 # Validation Flow UI Design
 
 > Visual canvas for firmware validation pipelines. Shows real-time progress
