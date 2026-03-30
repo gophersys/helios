@@ -51,7 +51,28 @@ def login():
         include={"permissionSet": True},
     )
 
-    if not user:
+    if not user and is_dev_admin:
+        # Auto-create dev admin with all permissions on first login
+        from src.lib.permissions import Permissions
+        all_perms = [v for k, v in vars(Permissions).items() if not k.startswith("_")]
+        perm_set = db.permissionset.upsert(
+            where={"name": "Super Admin"},
+            data={
+                "create": {"name": "Super Admin", "permissions": all_perms},
+                "update": {"permissions": all_perms},
+            },
+        )
+        user = db.user.create(
+            data={
+                "email": "admin@concord.local",
+                "name": "Dev Admin",
+                "active": True,
+                "permissionSetId": perm_set.id,
+            },
+            include={"permissionSet": True},
+        )
+        logger.info("Auto-created dev admin user (id: %s)", user.id)
+    elif not user:
         return forbidden("Account not registered. Contact an administrator.")
 
     if not user.active:
