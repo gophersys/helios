@@ -289,30 +289,17 @@ def seed():
                     "slug": "alpha_b0",
                     "description": "Alpha wearable device platform",
                     "active": True,
-                    # Firmware repo config (git poller watches this)
-                    "repoSlug": "alpha_fw",
-                    "repoSshUrl": "git@bitbucket.org:corekinect/alpha_fw.git",
-                    "repoBranch": "concord-main",
-                    # Manufacturing firmware repo (cloned during build)
-                    "mfgRepoSlug": "alpha_mfg_fw",
-                    "mfgRepoSshUrl": "git@bitbucket.org:corekinect/alpha_mfg_fw.git",
-                    # Build config (build worker uses this)
-                    "buildBoard": "alpha_b0",
-                    "buildWestDir": "apps/firmware/products/alpha/alpha_fw",
-                    "buildMfgDir": "apps/firmware/products/alpha/alpha_mfg_fw",
                     "buildConfig": Json(alpha_build_config),
                     "metadata": Json(alpha_metadata),
+                    "targets": {
+                        "create": [
+                            {"role": "comms", "soc": "nRF9151", "appId": 108},
+                            {"role": "app", "soc": "nRF52840", "appId": 109},
+                        ],
+                    },
                 },
                 "update": {
                     "slug": "alpha_b0",
-                    "repoSlug": "alpha_fw",
-                    "repoSshUrl": "git@bitbucket.org:corekinect/alpha_fw.git",
-                    "repoBranch": "concord-main",
-                    "mfgRepoSlug": "alpha_mfg_fw",
-                    "mfgRepoSshUrl": "git@bitbucket.org:corekinect/alpha_mfg_fw.git",
-                    "buildBoard": "alpha_b0",
-                    "buildWestDir": "apps/firmware/products/alpha/alpha_fw",
-                    "buildMfgDir": "apps/firmware/products/alpha/alpha_mfg_fw",
                     "buildConfig": Json(alpha_build_config),
                     "metadata": Json(alpha_metadata),
                 },
@@ -320,17 +307,37 @@ def seed():
         )
         print(f"Product: {alpha_product.name} (id: {alpha_product.id})")
 
+        # Upsert ProductTargets (idempotent)
+        for target in [
+            {"role": "comms", "soc": "nRF9151", "appId": 108},
+            {"role": "app", "soc": "nRF52840", "appId": 109},
+        ]:
+            db.producttarget.upsert(
+                where={"productId_role": {"productId": alpha_product.id, "role": target["role"]}},
+                data={
+                    "create": {"productId": alpha_product.id, **target},
+                    "update": {"soc": target["soc"], "appId": target["appId"]},
+                },
+            )
+
         # Alpha B0 board
         alpha_board = db.board.upsert(
-            where={"productId_name": {"productId": alpha_product.id, "name": "Main Board"}},
+            where={"productId": alpha_product.id},
             data={
                 "create": {
                     "productId": alpha_product.id,
                     "name": "Main Board",
+                    "ckBoardsName": "alpha_b0",
+                    "ckBoardsBranch": "main",
+                    "vendor": "corekinect",
                     "description": "Alpha main board with nRF52840 + nRF9151",
                     "active": True,
                 },
-                "update": {},
+                "update": {
+                    "ckBoardsName": "alpha_b0",
+                    "ckBoardsBranch": "main",
+                    "vendor": "corekinect",
+                },
             },
         )
 
@@ -362,46 +369,53 @@ def seed():
                     "slug": "sigma5_c0",
                     "description": "Sigma 5 industrial IoT platform",
                     "active": True,
-                    # Firmware repo config (git poller watches this)
-                    "repoSlug": "sigma5_fw",
-                    "repoSshUrl": "git@bitbucket.org:corekinect/sigma5_fw.git",
-                    "repoBranch": "concord-main",
-                    # Manufacturing firmware repo (cloned during build)
-                    "mfgRepoSlug": "sigma5_mfg_fw",
-                    "mfgRepoSshUrl": "git@bitbucket.org:corekinect/sigma5_mfg_fw.git",
-                    # Build config (build worker uses this)
-                    "buildBoard": "sigma5_b0",
-                    "buildWestDir": "apps/firmware/products/sigma5/sigma5_fw",
-                    "buildMfgDir": "apps/firmware/products/sigma5/sigma5_mfg_fw",
                     "metadata": Json(sigma5_metadata),
+                    "targets": {
+                        "create": [
+                            {"role": "comms", "soc": "nRF9160", "appId": 104},
+                            {"role": "app", "soc": "nRF52840", "appId": 105},
+                        ],
+                    },
                 },
                 "update": {
                     "slug": "sigma5_c0",
-                    "repoSlug": "sigma5_fw",
-                    "repoSshUrl": "git@bitbucket.org:corekinect/sigma5_fw.git",
-                    "repoBranch": "concord-main",
-                    "mfgRepoSlug": "sigma5_mfg_fw",
-                    "mfgRepoSshUrl": "git@bitbucket.org:corekinect/sigma5_mfg_fw.git",
-                    "buildBoard": "sigma5_b0",
-                    "buildWestDir": "apps/firmware/products/sigma5/sigma5_fw",
-                    "buildMfgDir": "apps/firmware/products/sigma5/sigma5_mfg_fw",
                     "metadata": Json(sigma5_metadata),
                 },
             },
         )
         print(f"Product: {sigma5_product.name} (id: {sigma5_product.id})")
 
+        # Upsert ProductTargets for Sigma5
+        for target in [
+            {"role": "comms", "soc": "nRF9160", "appId": 104},
+            {"role": "app", "soc": "nRF52840", "appId": 105},
+        ]:
+            db.producttarget.upsert(
+                where={"productId_role": {"productId": sigma5_product.id, "role": target["role"]}},
+                data={
+                    "create": {"productId": sigma5_product.id, **target},
+                    "update": {"soc": target["soc"], "appId": target["appId"]},
+                },
+            )
+
         # Sigma 5 board
         sigma5_board = db.board.upsert(
-            where={"productId_name": {"productId": sigma5_product.id, "name": "Main Board"}},
+            where={"productId": sigma5_product.id},
             data={
                 "create": {
                     "productId": sigma5_product.id,
                     "name": "Main Board",
+                    "ckBoardsName": "sigma5_b0",
+                    "ckBoardsBranch": "main",
+                    "vendor": "corekinect",
                     "description": "Sigma 5 main board with nRF52840 + nRF9160",
                     "active": True,
                 },
-                "update": {},
+                "update": {
+                    "ckBoardsName": "sigma5_b0",
+                    "ckBoardsBranch": "main",
+                    "vendor": "corekinect",
+                },
             },
         )
 
@@ -448,42 +462,38 @@ def seed():
                     "slug": "theta_c0",
                     "description": "Theta asset tracker platform",
                     "active": True,
-                    # Firmware repo config (git poller watches this)
-                    "repoSlug": "theta_fw",
-                    "repoSshUrl": "git@bitbucket.org:corekinect/theta_fw.git",
-                    "repoBranch": "concord-main",
-                    # Manufacturing firmware repo (cloned during build)
-                    "mfgRepoSlug": "theta_mfg_fw",
-                    "mfgRepoSshUrl": "git@bitbucket.org:corekinect/theta_mfg_fw.git",
-                    # Build config (build worker uses this)
-                    "buildBoard": "theta_c0",
-                    "buildWestDir": "apps/firmware/products/theta/theta_fw",
-                    "buildMfgDir": "apps/firmware/products/theta/theta_mfg_fw",
                     "metadata": Json(theta_metadata),
                 },
                 "update": {
                     "slug": "theta_c0",
-                    "repoSlug": "theta_fw",
-                    "repoSshUrl": "git@bitbucket.org:corekinect/theta_fw.git",
-                    "repoBranch": "concord-main",
-                    "mfgRepoSlug": "theta_mfg_fw",
-                    "mfgRepoSshUrl": "git@bitbucket.org:corekinect/theta_mfg_fw.git",
-                    "buildBoard": "theta_c0",
-                    "buildWestDir": "apps/firmware/products/theta/theta_fw",
-                    "buildMfgDir": "apps/firmware/products/theta/theta_mfg_fw",
                     "metadata": Json(theta_metadata),
                 },
             },
         )
         print(f"Product: {theta_product.name} (id: {theta_product.id})")
 
+        # Theta ProductTargets
+        for target in [
+            {"role": "comms", "soc": "nRF9160", "appId": 104},
+            {"role": "app", "soc": "nRF52840", "appId": 105},
+        ]:
+            db.producttarget.upsert(
+                where={"productId_role": {"productId": theta_product.id, "role": target["role"]}},
+                data={
+                    "create": {"productId": theta_product.id, **target},
+                    "update": {"soc": target["soc"], "appId": target["appId"]},
+                },
+            )
+
         # Theta board
         theta_board = db.board.upsert(
-            where={"productId_name": {"productId": theta_product.id, "name": "Main Board"}},
+            where={"productId": theta_product.id},
             data={
                 "create": {
                     "productId": theta_product.id,
                     "name": "Main Board",
+                    "ckBoardsName": "theta_c0",
+                    "ckBoardsBranch": "main",
                     "description": "Theta main board with nRF52840 + nRF9160",
                     "active": True,
                 },
@@ -520,36 +530,34 @@ def seed():
                     "slug": "iwsck_a1",
                     "description": "IWSCK BLE-only device platform",
                     "active": True,
-                    # Firmware repo config (monorepo, no separate git poller)
-                    "repoSlug": None,
-                    "repoSshUrl": None,
-                    "repoBranch": None,
-                    # Manufacturing firmware repo (same as main)
-                    "mfgRepoSlug": None,
-                    "mfgRepoSshUrl": None,
-                    # Build config (build worker uses this)
-                    "buildBoard": "iwsck_a1",
-                    "buildWestDir": "apps/firmware/iwsck",
-                    "buildMfgDir": None,
                     "metadata": Json(iwsck_metadata),
                 },
                 "update": {
                     "slug": "iwsck_a1",
-                    "buildBoard": "iwsck_a1",
-                    "buildWestDir": "apps/firmware/iwsck",
                     "metadata": Json(iwsck_metadata),
                 },
             },
         )
         print(f"Product: {iwsck_product.name} (id: {iwsck_product.id})")
 
+        # IWSCK ProductTargets (single SoC)
+        db.producttarget.upsert(
+            where={"productId_role": {"productId": iwsck_product.id, "role": "app"}},
+            data={
+                "create": {"productId": iwsck_product.id, "role": "app", "soc": "nRF52840", "appId": 110},
+                "update": {"soc": "nRF52840", "appId": 110},
+            },
+        )
+
         # IWSCK board
         iwsck_board = db.board.upsert(
-            where={"productId_name": {"productId": iwsck_product.id, "name": "Main Board"}},
+            where={"productId": iwsck_product.id},
             data={
                 "create": {
                     "productId": iwsck_product.id,
                     "name": "Main Board",
+                    "ckBoardsName": "iwsck_a1",
+                    "ckBoardsBranch": "main",
                     "description": "IWSCK main board with nRF52840 only (no modem)",
                     "active": True,
                 },
