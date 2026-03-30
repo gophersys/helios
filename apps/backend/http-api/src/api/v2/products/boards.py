@@ -20,6 +20,9 @@ def _serialize_board(b: Any) -> dict:
         "id": b.id,
         "productId": b.productId,
         "name": b.name,
+        "ckBoardsName": getattr(b, "ckBoardsName", None),
+        "ckBoardsBranch": getattr(b, "ckBoardsBranch", "main"),
+        "vendor": getattr(b, "vendor", "corekinect"),
         "description": b.description,
         "active": b.active,
         "createdAt": b.createdAt.isoformat(),
@@ -62,10 +65,18 @@ def create_board(product_id: str):
     if existing:
         return conflict(f"Board '{data.name}' already exists for this product")
 
+    # Check ckBoardsName uniqueness
+    existing_ck = db.board.find_first(where={"ckBoardsName": data.ckBoardsName})
+    if existing_ck:
+        return conflict(f"Board with ckBoardsName '{data.ckBoardsName}' already exists")
+
     board = db.board.create(
         data={
             "productId": product_id,
             "name": data.name,
+            "ckBoardsName": data.ckBoardsName,
+            "ckBoardsBranch": data.ckBoardsBranch,
+            "vendor": data.vendor,
             "description": data.description,
             "active": data.active,
         },
@@ -105,7 +116,7 @@ def _serialize_board_revision(r: Any) -> dict:
         "id": r.id,
         "boardId": r.boardId,
         "version": r.version,
-        "selectedBuilds": r.selectedBuilds if hasattr(r, "selectedBuilds") and r.selectedBuilds else {},
+        "peripherals": r.peripherals if hasattr(r, "peripherals") and r.peripherals else None,
         "status": r.status,
         "notes": r.notes,
         "createdAt": r.createdAt.isoformat(),

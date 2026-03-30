@@ -184,7 +184,7 @@ def test_board_name_unique_per_product(authed_client, mock_db):
 
     response = authed_client.post(
         "/v2/products/prod-1/boards",
-        data=json.dumps({"name": "Main Board"}),
+        data=json.dumps({"name": "Main Board", "ckBoardsName": "main_board"}),
     )
     assert response.status_code == 409
 
@@ -199,6 +199,9 @@ def test_board_name_unique_per_product(authed_client, mock_db):
         id="board-new",
         productId="prod-2",
         name="Main Board",
+        ckBoardsName="main_board_beta",
+        ckBoardsBranch="main",
+        vendor="corekinect",
         description=None,
         active=True,
         createdAt=datetime(2025, 2, 1, tzinfo=timezone.utc),
@@ -209,7 +212,7 @@ def test_board_name_unique_per_product(authed_client, mock_db):
     with patch("src.api.v2.products.boards.log_audit"):
         response = authed_client.post(
             "/v2/products/prod-2/boards",
-            data=json.dumps({"name": "Main Board"}),
+            data=json.dumps({"name": "Main Board", "ckBoardsName": "main_board_beta"}),
         )
 
     assert response.status_code == 201
@@ -255,7 +258,7 @@ def test_revision_version_unique_per_board(authed_client, mock_db):
         id="rev-new",
         boardId="board-2",
         version="1.0",
-        selectedBuilds=None,
+        peripherals=None,
         status="ACTIVE",
         notes=None,
         createdAt=datetime(2025, 2, 1, tzinfo=timezone.utc),
@@ -268,7 +271,7 @@ def test_revision_version_unique_per_board(authed_client, mock_db):
         id="rev-new",
         boardId="board-2",
         version="1.0",
-        selectedBuilds=None,
+        peripherals=None,
         status="ACTIVE",
         notes=None,
         createdAt=datetime(2025, 2, 1, tzinfo=timezone.utc),
@@ -430,7 +433,7 @@ def test_update_revision_replaces_chipsets(authed_client, mock_db):
         id="rev-1",
         boardId="board-1",
         version="1.0",
-        selectedBuilds=None,
+        peripherals=None,
         status="ACTIVE",
         notes=None,
         createdAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
@@ -468,8 +471,8 @@ def test_update_revision_replaces_chipsets(authed_client, mock_db):
 # ── 10. Updating revision selected builds ──
 
 
-def test_update_revision_selected_builds(authed_client, mock_db):
-    """Updating a revision's selectedBuilds should persist and return them."""
+def test_update_revision_peripherals(authed_client, mock_db):
+    """Updating a revision's peripherals should persist and return them."""
     mock_db.board.find_first.return_value = make_obj(
         id="board-1",
         productId="prod-1",
@@ -486,12 +489,12 @@ def test_update_revision_selected_builds(authed_client, mock_db):
         updatedAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
     )
 
-    # Re-fetch after update includes selectedBuilds
+    # Re-fetch after update includes peripherals
     mock_db.boardrevision.find_unique.return_value = make_obj(
         id="rev-1",
         boardId="board-1",
         version="1.0",
-        selectedBuilds={"chip-1": "build-1"},
+        peripherals={"ppg": True, "peltier": True},
         status="ACTIVE",
         notes=None,
         createdAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
@@ -503,10 +506,10 @@ def test_update_revision_selected_builds(authed_client, mock_db):
         response = authed_client.put(
             "/v2/products/prod-1/boards/board-1/revisions/rev-1",
             data=json.dumps({
-                "selectedBuilds": {"chip-1": "build-1"},
+                "peripherals": {"ppg": True, "peltier": True},
             }),
         )
 
     assert response.status_code == 200
     data = json.loads(response.data)
-    assert data["data"]["selectedBuilds"] == {"chip-1": "build-1"}
+    assert data["data"]["peripherals"] == {"ppg": True, "peltier": True}

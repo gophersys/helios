@@ -59,7 +59,6 @@ _created_partial_types: Set[str] = set()
 class Product(bases.BaseProduct):
     """A hardware product that Concord tests: Sigma5, Theta, Alpha, etc.
     Everything flows from here -- fixtures, tests, sessions, builds.
-    Git poller and build worker read repo/build config from here.
     """
 
     id: _str
@@ -73,36 +72,8 @@ class Product(bases.BaseProduct):
 
     description: Optional[_str] = None
     active: _bool
-    repoSlug: Optional[_str] = None
-    """"alpha_fw" -- Bitbucket repo name
-    """
-
-    repoSshUrl: Optional[_str] = None
-    """"git@bitbucket.org:corekinect/alpha_fw.git"
-    """
-
-    repoBranch: Optional[_str] = None
-    """"concord-main" -- branch to watch
-    """
-
-    mfgRepoSlug: Optional[_str] = None
-    """"alpha_mfg_fw"
-    """
-
-    mfgRepoSshUrl: Optional[_str] = None
-    """"git@bitbucket.org:corekinect/alpha_mfg_fw.git"
-    """
-
-    buildBoard: Optional[_str] = None
-    """"alpha_b0" -- west board name
-    """
-
-    buildWestDir: Optional[_str] = None
-    """"apps/firmware/products/alpha/alpha_fw"
-    """
-
-    buildMfgDir: Optional[_str] = None
-    """"apps/firmware/products/alpha/alpha_mfg_fw"
+    buildConfig: Optional['fields.Json'] = None
+    """structured build configuration (overlays, post-build steps)
     """
 
     metadata: Optional['fields.Json'] = None
@@ -111,6 +82,7 @@ class Product(bases.BaseProduct):
 
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
+    targets: Optional[List['models.ProductTarget']] = None
     boards: Optional[List['models.Board']] = None
     firmwareBuilds: Optional[List['models.FirmwareBuild']] = None
     fixtures: Optional[List['models.Fixture']] = None
@@ -244,8 +216,153 @@ class Product(bases.BaseProduct):
         _created_partial_types.add(name)
 
 
+class ProductTarget(bases.BaseProductTarget):
+    """A firmware target within a product (e.g. "comms" on nRF9151, "app" on nRF52840).
+    Each target has a role, SoC, and unique appId used for OTA addressing.
+    """
+
+    id: _str
+    productId: _str
+    role: _str
+    """"comms", "app" -- functional role
+    """
+
+    soc: _str
+    """"nRF9151", "nRF52840" -- SoC identifier
+    """
+
+    appId: _int
+    """CoreCloud application ID (108, 109)
+    """
+
+    product: Optional['models.Product'] = None
+
+    # take *args and **kwargs so that other metaclasses can define arguments
+    def __init_subclass__(
+        cls,
+        *args: Any,
+        warn_subclass: Optional[bool] = None,
+        **kwargs: Any,
+    ) -> None:
+        super().__init_subclass__()
+        if warn_subclass is not None:
+            warnings.warn(
+                'The `warn_subclass` argument is deprecated as it is no longer necessary and will be removed in the next release',
+                DeprecationWarning,
+                stacklevel=3,
+            )
+
+
+    @staticmethod
+    def create_partial(
+        name: str,
+        include: Optional[Iterable['types.ProductTargetKeys']] = None,
+        exclude: Optional[Iterable['types.ProductTargetKeys']] = None,
+        required: Optional[Iterable['types.ProductTargetKeys']] = None,
+        optional: Optional[Iterable['types.ProductTargetKeys']] = None,
+        relations: Optional[Mapping['types.ProductTargetRelationalFieldKeys', str]] = None,
+        exclude_relational_fields: bool = False,
+    ) -> None:
+        if not os.environ.get('PRISMA_GENERATOR_INVOCATION'):
+            raise RuntimeError(
+                'Attempted to create a partial type outside of client generation.'
+            )
+
+        if name in _created_partial_types:
+            raise ValueError(f'Partial type "{name}" has already been created.')
+
+        if include is not None:
+            if exclude is not None:
+                raise TypeError('Exclude and include are mutually exclusive.')
+            if exclude_relational_fields is True:
+                raise TypeError('Include and exclude_relational_fields=True are mutually exclusive.')
+
+        if required and optional:
+            shared = set(required) & set(optional)
+            if shared:
+                raise ValueError(f'Cannot make the same field(s) required and optional {shared}')
+
+        if exclude_relational_fields and relations:
+            raise ValueError(
+                'exclude_relational_fields and relations are mutually exclusive'
+            )
+
+        fields: Dict['types.ProductTargetKeys', PartialModelField] = OrderedDict()
+
+        try:
+            if include:
+                for field in include:
+                    fields[field] = _ProductTarget_fields[field].copy()
+            elif exclude:
+                for field in exclude:
+                    if field not in _ProductTarget_fields:
+                        raise KeyError(field)
+
+                fields = {
+                    key: data.copy()
+                    for key, data in _ProductTarget_fields.items()
+                    if key not in exclude
+                }
+            else:
+                fields = {
+                    key: data.copy()
+                    for key, data in _ProductTarget_fields.items()
+                }
+
+            if required:
+                for field in required:
+                    fields[field]['optional'] = False
+
+            if optional:
+                for field in optional:
+                    fields[field]['optional'] = True
+
+            if exclude_relational_fields:
+                fields = {
+                    key: data
+                    for key, data in fields.items()
+                    if key not in _ProductTarget_relational_fields
+                }
+
+            if relations:
+                for field, type_ in relations.items():
+                    if field not in _ProductTarget_relational_fields:
+                        raise errors.UnknownRelationalFieldError('ProductTarget', field)
+
+                    # TODO: this method of validating types is not ideal
+                    # as it means we cannot two create partial types that
+                    # reference each other
+                    if type_ not in _created_partial_types:
+                        raise ValueError(
+                            f'Unknown partial type: "{type_}". '
+                            f'Did you remember to generate the {type_} type before this one?'
+                        )
+
+                    # TODO: support non prisma.partials models
+                    info = fields[field]
+                    if info['is_list']:
+                        info['type'] = f'List[\'partials.{type_}\']'
+                    else:
+                        info['type'] = f'\'partials.{type_}\''
+        except KeyError as exc:
+            raise ValueError(
+                f'{exc.args[0]} is not a valid ProductTarget / {name} field.'
+            ) from None
+
+        models = partial_models_ctx.get()
+        models.append(
+            {
+                'name': name,
+                'fields': cast(Mapping[str, PartialModelField], fields),
+                'from_model': 'ProductTarget',
+            }
+        )
+        _created_partial_types.add(name)
+
+
 class Board(bases.BaseBoard):
     """A distinct PCB design within a product (e.g. "Main Board", "Sensor Board").
+    Each product has exactly one board, linked to a ck_boards definition.
     """
 
     id: _str
@@ -254,6 +371,15 @@ class Board(bases.BaseBoard):
     """"Main Board", "Sensor Board"
     """
 
+    ckBoardsName: _str
+    """west board name from ck_boards repo, e.g. "alpha_b0"
+    """
+
+    ckBoardsBranch: _str
+    """branch in ck_boards repo
+    """
+
+    vendor: _str
     description: Optional[_str] = None
     active: _bool
     createdAt: datetime.datetime
@@ -395,8 +521,8 @@ class BoardRevision(bases.BaseBoardRevision):
     """
 
     status: 'enums.LifecycleStatus'
-    selectedBuilds: Optional['fields.Json'] = None
-    """Per-chipset build selection: {"<chipsetId>": "build-id", ...}
+    peripherals: Optional['fields.Json'] = None
+    """Board peripherals config (sensors, connectors, etc.)
     """
 
     notes: Optional[_str] = None
@@ -1029,7 +1155,7 @@ class ProductStageConfig(bases.BaseProductStageConfig):
     """
 
     testMarker: Optional[_str] = None
-    """Pytest marker: "-m gate"
+    """Pytest marker: "-m fuota"
     """
 
     testTimeout: _int
@@ -1037,7 +1163,7 @@ class ProductStageConfig(bases.BaseProductStageConfig):
     """
 
     priority: _int
-    """Higher = more urgent (Gate=100, Nightly=50)
+    """Higher = more urgent (FUOTA=100, Nightly=50)
     """
 
     blocksMerge: _bool
@@ -1589,6 +1715,10 @@ class BuildJob(bases.BaseBuildJob):
 
     pipelineRunId: Optional[_str] = None
     pipelineRun: Optional['models.PipelineRun'] = None
+    workerId: Optional[_str] = None
+    """Node/host that built this (e.g. "wanda")
+    """
+
     startedAt: Optional[datetime.datetime] = None
     finishedAt: Optional[datetime.datetime] = None
     durationSeconds: Optional[_int] = None
@@ -1732,6 +1862,18 @@ class BuildJobArtifact(bases.BaseBuildJobArtifact):
     storageKey: _str
     sizeBytes: _int
     checksum: _str
+    role: Optional[_str] = None
+    """Artifact role: app, comms, modem, manifest, log
+    """
+
+    processor: Optional[_str] = None
+    """Target processor: nrf52840, nrf9151, etc.
+    """
+
+    artifactType: Optional[_str] = None
+    """Artifact type: plaintextHex, encryptedCfw, manifest, log, metadata
+    """
+
     createdAt: datetime.datetime
     buildJob: Optional['models.BuildJob'] = None
 
@@ -4762,6 +4904,7 @@ class Log(bases.BaseLog):
 
 
 _Product_relational_fields: Set[str] = {
+        'targets',
         'boards',
         'firmwareBuilds',
         'fixtures',
@@ -4814,69 +4957,13 @@ _Product_fields: Dict['types.ProductKeys', PartialModelField] = OrderedDict(
             'is_relational': False,
             'documentation': None,
         }),
-        ('repoSlug', {
-            'name': 'repoSlug',
+        ('buildConfig', {
+            'name': 'buildConfig',
             'is_list': False,
             'optional': True,
-            'type': '_str',
+            'type': 'fields.Json',
             'is_relational': False,
-            'documentation': '''"alpha_fw" -- Bitbucket repo name''',
-        }),
-        ('repoSshUrl', {
-            'name': 'repoSshUrl',
-            'is_list': False,
-            'optional': True,
-            'type': '_str',
-            'is_relational': False,
-            'documentation': '''"git@bitbucket.org:corekinect/alpha_fw.git"''',
-        }),
-        ('repoBranch', {
-            'name': 'repoBranch',
-            'is_list': False,
-            'optional': True,
-            'type': '_str',
-            'is_relational': False,
-            'documentation': '''"concord-main" -- branch to watch''',
-        }),
-        ('mfgRepoSlug', {
-            'name': 'mfgRepoSlug',
-            'is_list': False,
-            'optional': True,
-            'type': '_str',
-            'is_relational': False,
-            'documentation': '''"alpha_mfg_fw"''',
-        }),
-        ('mfgRepoSshUrl', {
-            'name': 'mfgRepoSshUrl',
-            'is_list': False,
-            'optional': True,
-            'type': '_str',
-            'is_relational': False,
-            'documentation': '''"git@bitbucket.org:corekinect/alpha_mfg_fw.git"''',
-        }),
-        ('buildBoard', {
-            'name': 'buildBoard',
-            'is_list': False,
-            'optional': True,
-            'type': '_str',
-            'is_relational': False,
-            'documentation': '''"alpha_b0" -- west board name''',
-        }),
-        ('buildWestDir', {
-            'name': 'buildWestDir',
-            'is_list': False,
-            'optional': True,
-            'type': '_str',
-            'is_relational': False,
-            'documentation': '''"apps/firmware/products/alpha/alpha_fw"''',
-        }),
-        ('buildMfgDir', {
-            'name': 'buildMfgDir',
-            'is_list': False,
-            'optional': True,
-            'type': '_str',
-            'is_relational': False,
-            'documentation': '''"apps/firmware/products/alpha/alpha_mfg_fw"''',
+            'documentation': '''structured build configuration (overlays, post-build steps)''',
         }),
         ('metadata', {
             'name': 'metadata',
@@ -4900,6 +4987,14 @@ _Product_fields: Dict['types.ProductKeys', PartialModelField] = OrderedDict(
             'optional': False,
             'type': 'datetime.datetime',
             'is_relational': False,
+            'documentation': None,
+        }),
+        ('targets', {
+            'name': 'targets',
+            'is_list': True,
+            'optional': True,
+            'type': 'List[\'models.ProductTarget\']',
+            'is_relational': True,
             'documentation': None,
         }),
         ('boards', {
@@ -4977,6 +5072,62 @@ _Product_fields: Dict['types.ProductKeys', PartialModelField] = OrderedDict(
     ],
 )
 
+_ProductTarget_relational_fields: Set[str] = {
+        'product',
+    }
+_ProductTarget_fields: Dict['types.ProductTargetKeys', PartialModelField] = OrderedDict(
+    [
+        ('id', {
+            'name': 'id',
+            'is_list': False,
+            'optional': False,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('productId', {
+            'name': 'productId',
+            'is_list': False,
+            'optional': False,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('role', {
+            'name': 'role',
+            'is_list': False,
+            'optional': False,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''"comms", "app" -- functional role''',
+        }),
+        ('soc', {
+            'name': 'soc',
+            'is_list': False,
+            'optional': False,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''"nRF9151", "nRF52840" -- SoC identifier''',
+        }),
+        ('appId', {
+            'name': 'appId',
+            'is_list': False,
+            'optional': False,
+            'type': '_int',
+            'is_relational': False,
+            'documentation': '''CoreCloud application ID (108, 109)''',
+        }),
+        ('product', {
+            'name': 'product',
+            'is_list': False,
+            'optional': True,
+            'type': 'models.Product',
+            'is_relational': True,
+            'documentation': None,
+        }),
+    ],
+)
+
 _Board_relational_fields: Set[str] = {
         'product',
         'revisions',
@@ -5006,6 +5157,30 @@ _Board_fields: Dict['types.BoardKeys', PartialModelField] = OrderedDict(
             'type': '_str',
             'is_relational': False,
             'documentation': '''"Main Board", "Sensor Board"''',
+        }),
+        ('ckBoardsName', {
+            'name': 'ckBoardsName',
+            'is_list': False,
+            'optional': False,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''west board name from ck_boards repo, e.g. "alpha_b0"''',
+        }),
+        ('ckBoardsBranch', {
+            'name': 'ckBoardsBranch',
+            'is_list': False,
+            'optional': False,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''branch in ck_boards repo''',
+        }),
+        ('vendor', {
+            'name': 'vendor',
+            'is_list': False,
+            'optional': False,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
         }),
         ('description', {
             'name': 'description',
@@ -5096,13 +5271,13 @@ _BoardRevision_fields: Dict['types.BoardRevisionKeys', PartialModelField] = Orde
             'is_relational': False,
             'documentation': None,
         }),
-        ('selectedBuilds', {
-            'name': 'selectedBuilds',
+        ('peripherals', {
+            'name': 'peripherals',
             'is_list': False,
             'optional': True,
             'type': 'fields.Json',
             'is_relational': False,
-            'documentation': '''Per-chipset build selection: {"<chipsetId>": "build-id", ...}''',
+            'documentation': '''Board peripherals config (sensors, connectors, etc.)''',
         }),
         ('notes', {
             'name': 'notes',
@@ -5587,7 +5762,7 @@ _ProductStageConfig_fields: Dict['types.ProductStageConfigKeys', PartialModelFie
             'optional': True,
             'type': '_str',
             'is_relational': False,
-            'documentation': '''Pytest marker: "-m gate"''',
+            'documentation': '''Pytest marker: "-m fuota"''',
         }),
         ('testTimeout', {
             'name': 'testTimeout',
@@ -5603,7 +5778,7 @@ _ProductStageConfig_fields: Dict['types.ProductStageConfigKeys', PartialModelFie
             'optional': False,
             'type': '_int',
             'is_relational': False,
-            'documentation': '''Higher = more urgent (Gate=100, Nightly=50)''',
+            'documentation': '''Higher = more urgent (FUOTA=100, Nightly=50)''',
         }),
         ('blocksMerge', {
             'name': 'blocksMerge',
@@ -6296,6 +6471,14 @@ _BuildJob_fields: Dict['types.BuildJobKeys', PartialModelField] = OrderedDict(
             'is_relational': True,
             'documentation': None,
         }),
+        ('workerId', {
+            'name': 'workerId',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''Node/host that built this (e.g. "wanda")''',
+        }),
         ('startedAt', {
             'name': 'startedAt',
             'is_list': False,
@@ -6423,6 +6606,30 @@ _BuildJobArtifact_fields: Dict['types.BuildJobArtifactKeys', PartialModelField] 
             'type': '_str',
             'is_relational': False,
             'documentation': None,
+        }),
+        ('role', {
+            'name': 'role',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''Artifact role: app, comms, modem, manifest, log''',
+        }),
+        ('processor', {
+            'name': 'processor',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''Target processor: nrf52840, nrf9151, etc.''',
+        }),
+        ('artifactType', {
+            'name': 'artifactType',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''Artifact type: plaintextHex, encryptedCfw, manifest, log, metadata''',
         }),
         ('createdAt', {
             'name': 'createdAt',
@@ -8564,6 +8771,7 @@ from . import models, actions
 
 # required to support relationships between models
 model_rebuild(Product)
+model_rebuild(ProductTarget)
 model_rebuild(Board)
 model_rebuild(BoardRevision)
 model_rebuild(BoardRevisionChipset)

@@ -36,23 +36,16 @@ def _sanitize_filename(filename: str) -> str:
 # -------------------------------------------------
 
 def _derive_product_slug(b: Any) -> str | None:
-    """Derive the correct firmware repo slug from build + product relation.
-
-    For mfg variant builds, returns mfgRepoSlug (e.g. alpha_mfg_fw).
-    For all others, returns repoSlug (e.g. alpha_fw).
-    """
+    """Derive the product slug from build + product relation."""
     product = getattr(b, "product", None)
 
-    # Handle string product field (legacy/test mocks)
     if isinstance(product, str):
         return product
 
-    if not product or not hasattr(product, "repoSlug"):
+    if not product or not hasattr(product, "slug"):
         return getattr(b, "productId", None)
 
-    if getattr(b, "target", "") == "mfg" and getattr(product, "mfgRepoSlug", None):
-        return product.mfgRepoSlug
-    return product.repoSlug or product.slug
+    return product.slug or product.name
 
 
 def _serialize_build_job(b: Any) -> dict:
@@ -263,17 +256,16 @@ def create_build():
         product_record = db.product.find_first(
             where={"OR": [
                 {"slug": data.product},
-                {"repoSlug": data.product},
-                {"mfgRepoSlug": data.product},
                 {"name": {"contains": data.product, "mode": "insensitive"}},
-            ]}
+            ]},
+            include={"boards": True},
         )
     product_id = product_record.id if product_record else None
 
-    # Use board from Product model if available and not explicitly provided
+    # Use board from Product's Board model if available and not explicitly provided
     board = data.board
-    if product_record and product_record.buildBoard and not data.board:
-        board = product_record.buildBoard
+    if not board and product_record and hasattr(product_record, "boards") and product_record.boards:
+        board = product_record.boards[0].ckBoardsName
 
     # Build configFlags — merge versionOverride if present
     config_flags = dict(data.config) if data.config else {"source": data.trigger_type}
@@ -288,7 +280,7 @@ def create_build():
     else:
         # Compute build fingerprint for cache lookup
         fingerprint = compute_build_fingerprint(
-            repo_url=product_record.repoSshUrl if product_record and hasattr(product_record, "repoSshUrl") else "",
+            repo_url="",
             commit_sha=data.commit_sha or "",
             board=board,
             variant=data.variant,

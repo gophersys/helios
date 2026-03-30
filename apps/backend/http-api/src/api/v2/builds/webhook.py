@@ -26,12 +26,13 @@ _DEFAULT_TRIGGER_BRANCHES = {"concord-main", "main", "develop"}
 
 
 def _resolve_product_by_repo(db, repo_slug: str):
-    """Resolve a Product record by repo slug (main or mfg).
+    """Resolve a Product record by repo slug.
 
     Returns the Product DB record or None.
     """
     return db.product.find_first(
-        where={"OR": [{"repoSlug": repo_slug}, {"mfgRepoSlug": repo_slug}]}
+        where={"slug": repo_slug},
+        include={"boards": True, "targets": True},
     )
 
 
@@ -52,24 +53,30 @@ def _product_to_build_config(product, repo_slug: str) -> dict:
 
     Uses Product.buildConfig (structured build config) with fallback to metadata.
     """
-    is_mfg = product.mfgRepoSlug == repo_slug
     build_config = product.buildConfig if isinstance(getattr(product, "buildConfig", None), dict) else {}
     metadata = product.metadata if isinstance(product.metadata, dict) else {}
 
-    # Prefer buildConfig.targets (map of role → config), fall back to metadata list
-    if build_config.get("targets"):
+    # Derive targets from ProductTarget relation or fallback to metadata
+    if hasattr(product, "targets") and product.targets:
+        targets = [t.role for t in product.targets]
+    elif build_config.get("targets"):
         targets = list(build_config["targets"].keys())
     else:
         targets = metadata.get("targets", ["app", "comms"])
 
+    # Derive board from Board relation
+    board_name = build_config.get("board") or "alpha_b0"
+    if hasattr(product, "boards") and product.boards:
+        board_name = product.boards[0].ckBoardsName
+
     return {
         "product_name": product.name,
         "firmware_type": repo_slug,
-        "board": build_config.get("board") or product.buildBoard or "alpha_b0",
+        "board": board_name,
         "targets": targets,
-        "default_variant": "release" if is_mfg else "debug",
+        "default_variant": "release",
         "ncs_version": build_config.get("ncsVersion") or metadata.get("ncsVersion", ""),
-        "ssh_url": product.mfgRepoSshUrl if is_mfg else (product.repoSshUrl or ""),
+        "ssh_url": "",
         "build_script": metadata.get("buildScript", "scripts/build.sh"),
         "product_id": product.id,
     }
@@ -235,12 +242,11 @@ def trigger_pipeline():
     if not product:
         return bad_request("Product not found")
 
-    # Get build config from Product model, fall back to static map
+    # Get build config from Product model
     product_config = _product_to_build_config(product, data.repo_slug)
 
     try:
-        # Create build job with board from Product model
-        board = product.buildBoard or product_config.get("board", "alpha_b0")
+        board = product_config.get("board", "alpha_b0")
 
         # Store version override in configFlags if provided
         config_flags = {}
@@ -299,65 +305,46 @@ def list_ci_repos():
     repos = []
 
     # All repos come from Product model in DB
-    products = db.product.find_many(where={"active": True})
+    products = db.product.find_many(
+        where={"active": True},
+        include={"boards": True, "targets": True},
+    )
     for product in products:
         build_config = product.buildConfig if isinstance(getattr(product, "buildConfig", None), dict) else {}
         metadata = product.metadata if isinstance(product.metadata, dict) else {}
         trigger_branches = list(_get_trigger_branches(product))
 
-        # Prefer buildConfig.targets, fall back to metadata
-        if build_config.get("targets"):
+        # Derive targets from ProductTarget relation or fallback
+        if hasattr(product, "targets") and product.targets:
+            targets = [t.role for t in product.targets]
+        elif build_config.get("targets"):
             targets = list(build_config["targets"].keys())
         else:
             targets = metadata.get("targets", ["app", "comms"])
 
-        board = build_config.get("board") or product.buildBoard or ""
+        # Derive board from Board relation
+        board = build_config.get("board") or ""
+        if hasattr(product, "boards") and product.boards:
+            board = product.boards[0].ckBoardsName
         ncs_version = build_config.get("ncsVersion") or metadata.get("ncsVersion", "")
 
-        # Main firmware repo
-        if product.repoSlug:
-            repos.append({
-                "id": product.repoSlug,
-                "name": product.repoSlug,
-                "productId": product.id,
-                "productName": product.name,
-                "firmwareType": product.repoSlug,
-                "board": board,
-                "targets": targets,
-                "defaultVariant": "debug",
-                "ncsVersion": ncs_version,
-                "webhookUrl": f"{base_url}/v2/builds/webhooks/bitbucket",
-                "connected": True,
-                "branches": trigger_branches,
-                "variants": ["debug", "release"],
-                "mtibRev": "1.2",
-                "lastEventAt": None,
-                "sshUrl": product.repoSshUrl or "",
-                "buildScript": metadata.get("buildScript", "scripts/build.sh"),
-                "buildWestDir": product.buildWestDir or "",
-            })
-
-        # Manufacturing firmware repo
-        if product.mfgRepoSlug:
-            repos.append({
-                "id": product.mfgRepoSlug,
-                "name": product.mfgRepoSlug,
-                "productId": product.id,
-                "productName": product.name,
-                "firmwareType": product.mfgRepoSlug,
-                "board": board,
-                "targets": targets,
-                "defaultVariant": "release",
-                "ncsVersion": ncs_version,
-                "webhookUrl": f"{base_url}/v2/builds/webhooks/bitbucket",
-                "connected": True,
-                "branches": trigger_branches,
-                "variants": ["release"],
-                "mtibRev": "1.2",
-                "lastEventAt": None,
-                "sshUrl": product.mfgRepoSshUrl or "",
-                "buildScript": metadata.get("buildScript", "scripts/build.sh"),
-                "buildMfgDir": product.buildMfgDir or "",
-            })
+        product_slug = product.slug or product.name.lower().replace(" ", "_")
+        repos.append({
+            "id": product_slug,
+            "name": product_slug,
+            "productId": product.id,
+            "productName": product.name,
+            "firmwareType": product_slug,
+            "board": board,
+            "targets": targets,
+            "defaultVariant": "release",
+            "ncsVersion": ncs_version,
+            "webhookUrl": f"{base_url}/v2/builds/webhooks/bitbucket",
+            "connected": True,
+            "branches": trigger_branches,
+            "variants": ["debug", "release"],
+            "mtibRev": "1.2",
+            "lastEventAt": None,
+        })
 
     return jsonify(ApiResponse.ok(repos).to_dict()), 200

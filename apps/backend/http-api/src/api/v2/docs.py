@@ -168,7 +168,7 @@ def _build_spec() -> APISpec:
             "chipsets": {"type": "array", "items": {"type": "object", "properties": {
                 "id": {"type": "string"}, "name": {"type": "string"}, "isModem": {"type": "boolean"},
             }}},
-            "selectedBuilds": {"type": "object"},
+            "peripherals": {"type": "object", "nullable": True},
             "status": {"type": "string", "enum": ["ACTIVE", "DEPRECATED", "EOL"]},
             "notes": {"type": "string", "nullable": True},
             "createdAt": {"type": "string", "format": "date-time"},
@@ -750,7 +750,7 @@ def _build_spec() -> APISpec:
                 "type": "object", "properties": {
                     "version": {"type": "string"},
                     "chipsetIds": {"type": "array", "items": {"type": "string"}},
-                    "selectedBuilds": {"type": "object"},
+                    "peripherals": {"type": "object"},
                     "status": {"type": "string", "enum": ["ACTIVE", "DEPRECATED", "EOL"]},
                     "notes": {"type": "string"},
                 },

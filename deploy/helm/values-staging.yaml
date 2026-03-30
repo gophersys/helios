@@ -58,6 +58,8 @@ config:
   MTIB_PORT: "50053"
   GIT_POLLER_ENABLED: "true"
   GIT_POLLER_INTERVAL_S: "15"
+  CK_BOARDS_REPO_URL: "git@bitbucket.org:corekinect/ck_boards.git"
+  CK_BOARDS_FETCH_INTERVAL: "60"
   STORAGE_URL: "http://concord-minio:9000"
   STORAGE_BUCKET_NAME: "concord"
   AUTH_SERVER_URL: "https://auth.office.corekinect.cloud:2013"
@@ -71,12 +73,12 @@ config:
   DEVICE_IMEI: "355025931735979"
   DEVICE_ICCIDS: "89148000008770457338,89012230001000370694"
 
-# Build Worker — DaemonSet on builder nodes
-buildWorker:
+# Build Service — DaemonSet on builder nodes
+buildService:
   enabled: true
   image:
-    repository: containers.ad.corekinect.com/ncs-build
-    tag: "2.7.0"
+    repository: containers.ad.corekinect.com/concord-build-service
+    tag: staging
   resources:
     requests:
       cpu: "4"
@@ -84,10 +86,6 @@ buildWorker:
     limits:
       cpu: "14"
       memory: "28Gi"
-  # NCS 2.4.2 builder (disabled — no active products)
-  ncs242:
-    enabled: false
-    image: containers.ad.corekinect.com/ncs-build:2.4.2
 
 # Git Poller — polls firmware repos for new commits
 gitPoller:

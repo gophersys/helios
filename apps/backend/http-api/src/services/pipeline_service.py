@@ -25,16 +25,11 @@ logger = logging.getLogger(__name__)
 
 
 def safe_product_str(obj, target: str | None = None) -> str | None:
-    """Safely extract product slug string from a model field that could be a string or relation.
-
-    If target is "mfg", returns mfgRepoSlug instead of repoSlug.
-    """
+    """Safely extract product slug string from a model field that could be a string or relation."""
     if isinstance(obj, str):
         return obj
-    if obj and hasattr(obj, "repoSlug"):
-        if target == "mfg" and getattr(obj, "mfgRepoSlug", None):
-            return obj.mfgRepoSlug
-        return obj.repoSlug or obj.slug or obj.name
+    if obj and hasattr(obj, "slug"):
+        return obj.slug or obj.name
     return None
 
 
@@ -43,10 +38,8 @@ def derive_build_product_slug(b) -> str:
     product = getattr(b, "product", None)
     if isinstance(product, str):
         return product
-    if product and hasattr(product, "repoSlug"):
-        if getattr(b, "target", "") == "mfg" and getattr(product, "mfgRepoSlug", None):
-            return product.mfgRepoSlug
-        return product.repoSlug or product.slug
+    if product and hasattr(product, "slug"):
+        return product.slug or product.name
     return getattr(b, "productId", "unknown")
 
 
@@ -220,35 +213,24 @@ def resolve_pipeline_context(db, data) -> Dict[str, Any]:
         product_record = db.product.find_unique(where={"id": data.product_id})
     if not product_record:
         product_record = db.product.find_first(
-            where={"OR": [{"slug": data.product}, {"repoSlug": data.product}]}
+            where={"slug": data.product}
         )
 
     if product_record:
-        repo_slug = data.repo_slug or product_record.repoSlug or data.product
         product_base = product_record.slug or product_record.name.lower().replace(" ", "_")
         repo_base = product_base
         for suffix in ["_b0", "_a0", "_b1", "_a1"]:
             repo_base = repo_base.replace(suffix, "")
         repo_base = repo_base.strip("_")
     else:
-        repo_slug = data.repo_slug or data.product
-        repo_base = repo_slug.lower().replace(" ", "_").replace("_fw", "").replace("_mfg", "")
+        repo_base = (data.repo_slug or data.product or "").lower().replace(" ", "_").replace("_fw", "").replace("_mfg", "")
         for suffix in ["_b0", "_a0", "_b1", "_a1"]:
             repo_base = repo_base.replace(suffix, "")
         repo_base = repo_base.strip("_")
         product_base = repo_base
 
-    if product_record and product_record.repoSlug:
-        main_fw = product_record.repoSlug
-    else:
-        main_fw = f"{repo_base}_fw"
-
-    if data.mfg_repo_slug:
-        mfg_fw = data.mfg_repo_slug
-    elif product_record and product_record.mfgRepoSlug:
-        mfg_fw = product_record.mfgRepoSlug
-    else:
-        mfg_fw = f"{repo_base}_mfg_fw"
+    main_fw = data.repo_slug or f"{repo_base}_fw"
+    mfg_fw = data.mfg_repo_slug or f"{repo_base}_mfg_fw"
 
     stage_map = {
         "smoke": ValidationStage.SMOKE,
@@ -314,8 +296,8 @@ def create_pipeline_record(db, data, ctx: Dict[str, Any]):
 
     trigger_data = {
         "source": data.trigger_type,
-        "repoSlug": data.repo_slug,
-        "mfgRepoSlug": data.mfg_repo_slug,
+        "repoSlug": data.repo_slug,  # Kept in trigger metadata for build context
+        "mfgRepoSlug": data.mfg_repo_slug,  # Kept in trigger metadata for build context
         "modemFirmware": {
             "storageKey": f"firmware/modem/{repo_base}/mfw_nrf91x1_2.0.2.zip",
             "version": "2.0.2",
@@ -533,7 +515,7 @@ def create_build_jobs(
                            spec.get("source"), skip_count, len(cached_builds))
 
         elif spec.get("source") == "head" and spec.get("commitSha"):
-            repo_url = product_record.repoSshUrl if product_record else ""
+            repo_url = ""  # Fingerprint from commit SHA + board + variant
             fingerprint = compute_build_fingerprint(
                 repo_url=repo_url, commit_sha=spec["commitSha"],
                 board=spec["board"], variant=spec["variant"], config_flags=None,

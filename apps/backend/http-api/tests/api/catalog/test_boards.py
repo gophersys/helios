@@ -62,13 +62,16 @@ def test_create_board(authed_client, mock_db):
         name="Test Product",
     )
 
-    # No duplicate
+    # No duplicate (name check, then ckBoardsName check)
     mock_db.board.find_first.return_value = None
 
     mock_db.board.create.return_value = make_obj(
         id="board-new",
         productId="prod-1",
         name="New Board",
+        ckBoardsName="new_board",
+        ckBoardsBranch="main",
+        vendor="corekinect",
         description="A new PCB",
         active=True,
         createdAt=datetime(2025, 1, 15, tzinfo=timezone.utc),
@@ -81,6 +84,7 @@ def test_create_board(authed_client, mock_db):
             "/v2/products/prod-1/boards",
             data=json.dumps({
                 "name": "New Board",
+                "ckBoardsName": "new_board",
                 "description": "A new PCB",
             }),
         )
@@ -106,7 +110,7 @@ def test_create_board_duplicate_name(authed_client, mock_db):
 
     response = authed_client.post(
         "/v2/products/prod-1/boards",
-        data=json.dumps({"name": "Main Board"}),
+        data=json.dumps({"name": "Main Board", "ckBoardsName": "main_board"}),
     )
 
     assert response.status_code == 409
@@ -142,7 +146,7 @@ def test_get_board(authed_client, mock_db):
                 id="rev-1",
                 boardId="board-123",
                 version="1.0",
-                selectedBuilds=None,
+                peripherals=None,
                 status="ACTIVE",
                 notes="First rev",
                 createdAt=datetime(2025, 1, 10, tzinfo=timezone.utc),

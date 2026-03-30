@@ -21,7 +21,7 @@ def _serialize_revision(r) -> dict:
         "id": r.id,
         "boardId": r.boardId,
         "version": r.version,
-        "selectedBuilds": r.selectedBuilds if hasattr(r, "selectedBuilds") and r.selectedBuilds else {},
+        "peripherals": r.peripherals if hasattr(r, "peripherals") and r.peripherals else None,
         "status": r.status,
         "notes": r.notes,
         "createdAt": r.createdAt.isoformat(),

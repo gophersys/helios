@@ -135,7 +135,6 @@ enum PipelineStatus {
 
 /// A hardware product that Concord tests: Sigma5, Theta, Alpha, etc.
 /// Everything flows from here -- fixtures, tests, sessions, builds.
-/// Git poller and build worker read repo/build config from here.
 model Product {
   id          String  @id @default(cuid())
   name        String  @unique /// "Alpha B0", "Sigma5 C0"
@@ -143,24 +142,12 @@ model Product {
   description String?
   active      Boolean @default(true)
 
-  // Firmware repo config (git poller reads this)
-  repoSlug   String? /// "alpha_fw" -- Bitbucket repo name
-  repoSshUrl String? /// "git@bitbucket.org:corekinect/alpha_fw.git"
-  repoBranch String? /// "concord-main" -- branch to watch
+  buildConfig Json? /// structured build configuration (overlays, post-build steps)
+  metadata    Json? /// additional product-specific config
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  // Manufacturing firmware repo (cloned during build)
-  mfgRepoSlug   String? /// "alpha_mfg_fw"
-  mfgRepoSshUrl String? /// "git@bitbucket.org:corekinect/alpha_mfg_fw.git"
-
-  // Build config (build worker reads this)
-  buildBoard   String? /// "alpha_b0" -- west board name
-  buildWestDir String? /// "apps/firmware/products/alpha/alpha_fw"
-  buildMfgDir  String? /// "apps/firmware/products/alpha/alpha_mfg_fw"
-
-  metadata  Json? /// additional product-specific config
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
+  targets        ProductTarget[]
   boards         Board[]
   firmwareBuilds FirmwareBuild[]
   fixtures       Fixture[]
@@ -174,33 +161,53 @@ model Product {
   @@map("products")
 }
 
+/// A firmware target within a product (e.g. "comms" on nRF9151, "app" on nRF52840).
+/// Each target has a role, SoC, and unique appId used for OTA addressing.
+model ProductTarget {
+  id        String @id @default(cuid())
+  productId String
+  role      String /// "comms", "app" -- functional role
+  soc       String /// "nRF9151", "nRF52840" -- SoC identifier
+  appId     Int /// CoreCloud application ID (108, 109)
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, role])
+  @@unique([productId, appId])
+  @@map("product_targets")
+}
+
 /// A distinct PCB design within a product (e.g. "Main Board", "Sensor Board").
+/// Each product has exactly one board, linked to a ck_boards definition.
 model Board {
-  id          String   @id @default(cuid())
-  productId   String
-  name        String /// "Main Board", "Sensor Board"
-  description String?
-  active      Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id             String   @id @default(cuid())
+  productId      String   @unique
+  name           String /// "Main Board", "Sensor Board"
+  ckBoardsName   String /// west board name from ck_boards repo, e.g. "alpha_b0"
+  ckBoardsBranch String   @default("main") /// branch in ck_boards repo
+  vendor         String   @default("corekinect")
+  description    String?
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   product   Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
   revisions BoardRevision[]
 
-  @@unique([productId, name])
+  @@unique([ckBoardsName])
   @@map("boards")
 }
 
 /// A board revision (e.g. A0, B0, B1) -- a specific version of a Board PCB.
 model BoardRevision {
-  id             String          @id @default(cuid())
-  boardId        String
-  version        String /// e.g. "A0", "B0", "B1"
-  status         LifecycleStatus @default(ACTIVE)
-  selectedBuilds Json? /// Per-chipset build selection: {"<chipsetId>": "build-id", ...}
-  notes          String?
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
+  id          String          @id @default(cuid())
+  boardId     String
+  version     String /// e.g. "A0", "B0", "B1"
+  status      LifecycleStatus @default(ACTIVE)
+  peripherals Json? /// Board peripherals config (sensors, connectors, etc.)
+  notes       String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
 
   board    Board                  @relation(fields: [boardId], references: [id], onDelete: Cascade)
   chipsets BoardRevisionChipset[]
@@ -298,11 +305,11 @@ model ProductStageConfig {
 
   // Test configuration
   testDirectory String? /// Pytest path: "tests/stage5/"
-  testMarker    String? /// Pytest marker: "-m gate"
+  testMarker    String? /// Pytest marker: "-m fuota"
   testTimeout   Int     @default(900) /// Max seconds for test execution
 
   // Queue / scheduling
-  priority       Int     @default(50) /// Higher = more urgent (Gate=100, Nightly=50)
+  priority       Int     @default(50) /// Higher = more urgent (FUOTA=100, Nightly=50)
   blocksMerge    Boolean @default(false)
   requiresFuota  Boolean @default(false)
   requiresBench  Boolean @default(true) /// Stage 1 doesn't need hardware
@@ -454,6 +461,9 @@ model BuildJob {
   pipelineRunId String?
   pipelineRun   PipelineRun? @relation(fields: [pipelineRunId], references: [id])
 
+  // Worker info
+  workerId String? /// Node/host that built this (e.g. "wanda")
+
   // Timing
   startedAt       DateTime?
   finishedAt      DateTime?
@@ -477,13 +487,16 @@ model BuildJob {
 
 /// A build artifact (hex, bin, elf) stored in MinIO.
 model BuildJobArtifact {
-  id         String   @id @default(cuid())
-  buildJobId String
-  name       String
-  storageKey String
-  sizeBytes  BigInt
-  checksum   String
-  createdAt  DateTime @default(now())
+  id           String   @id @default(cuid())
+  buildJobId   String
+  name         String
+  storageKey   String
+  sizeBytes    BigInt
+  checksum     String
+  role         String? /// Artifact role: app, comms, modem, manifest, log
+  processor    String? /// Target processor: nrf52840, nrf9151, etc.
+  artifactType String? /// Artifact type: plaintextHex, encryptedCfw, manifest, log, metadata
+  createdAt    DateTime @default(now())
 
   buildJob BuildJob @relation(fields: [buildJobId], references: [id], onDelete: Cascade)
 
@@ -828,7 +841,7 @@ model Test {
   product    Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
   executions TestExecution[]
 
-  @@unique([productId, name])
+  @@unique([productId, name, category])
   @@map("tests")
 }
 

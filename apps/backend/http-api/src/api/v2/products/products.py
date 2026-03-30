@@ -16,6 +16,15 @@ from .types import ProductCreateRequest, ProductUpdateRequest
 logger = logging.getLogger(__name__)
 
 
+def _serialize_target(t: Any) -> dict:
+    return {
+        "id": t.id,
+        "role": t.role,
+        "soc": t.soc,
+        "appId": t.appId,
+    }
+
+
 def _serialize_product(p: Any, include_children: bool = False) -> dict:
     data = {
         "id": p.id,
@@ -23,21 +32,15 @@ def _serialize_product(p: Any, include_children: bool = False) -> dict:
         "slug": p.slug,
         "description": p.description,
         "active": p.active,
-        # Repo config (git poller uses these)
-        "repoSlug": p.repoSlug,
-        "repoSshUrl": p.repoSshUrl,
-        "repoBranch": p.repoBranch,
-        "mfgRepoSlug": p.mfgRepoSlug,
-        "mfgRepoSshUrl": p.mfgRepoSshUrl,
-        # Build config (build worker uses these)
-        "buildBoard": p.buildBoard,
-        "buildWestDir": p.buildWestDir,
-        "buildMfgDir": p.buildMfgDir,
         "buildConfig": p.buildConfig,
         "metadata": p.metadata,
         "createdAt": p.createdAt.isoformat(),
         "updatedAt": p.updatedAt.isoformat(),
     }
+    if hasattr(p, "targets") and p.targets is not None:
+        data["targets"] = [_serialize_target(t) for t in p.targets]
+    else:
+        data["targets"] = []
     if hasattr(p, "boards") and p.boards is not None:
         data["boardCount"] = len(p.boards)
         if include_children:
@@ -57,6 +60,9 @@ def _serialize_board_summary(b: Any) -> dict:
         "id": b.id,
         "productId": b.productId,
         "name": b.name,
+        "ckBoardsName": getattr(b, "ckBoardsName", None),
+        "ckBoardsBranch": getattr(b, "ckBoardsBranch", "main"),
+        "vendor": getattr(b, "vendor", "corekinect"),
         "description": b.description,
         "active": b.active,
         "createdAt": b.createdAt.isoformat(),
@@ -73,7 +79,7 @@ def _serialize_board_revision(r: Any) -> dict:
         "id": r.id,
         "boardId": r.boardId,
         "version": r.version,
-        "selectedBuilds": r.selectedBuilds if hasattr(r, "selectedBuilds") and r.selectedBuilds else {},
+        "peripherals": r.peripherals if hasattr(r, "peripherals") and r.peripherals else None,
         "status": r.status,
         "notes": r.notes,
         "createdAt": r.createdAt.isoformat(),
@@ -139,6 +145,7 @@ def list_products():
         take=limit,
         order={"name": "asc"},
         include={
+            "targets": True,
             "boards": {"include": {"revisions": True}},
             "firmwareBuilds": {"include": {"chipset": True}},
         },
@@ -172,45 +179,38 @@ def create_product():
         if existing_slug:
             return conflict("Product with this slug already exists")
 
-    # Build create data with all provided fields
+    from database import Json
+
     create_data = {
         "name": data.name,
         "description": data.description,
         "active": data.active,
+        "targets": {
+            "create": [
+                {"role": t.role, "soc": t.soc, "appId": t.appId}
+                for t in data.targets
+            ],
+        },
     }
     if data.slug is not None:
         create_data["slug"] = data.slug
-    if data.repoSlug is not None:
-        create_data["repoSlug"] = data.repoSlug
-    if data.repoSshUrl is not None:
-        create_data["repoSshUrl"] = data.repoSshUrl
-    if data.repoBranch is not None:
-        create_data["repoBranch"] = data.repoBranch
-    if data.mfgRepoSlug is not None:
-        create_data["mfgRepoSlug"] = data.mfgRepoSlug
-    if data.mfgRepoSshUrl is not None:
-        create_data["mfgRepoSshUrl"] = data.mfgRepoSshUrl
-    if data.buildBoard is not None:
-        create_data["buildBoard"] = data.buildBoard
-    if data.buildWestDir is not None:
-        create_data["buildWestDir"] = data.buildWestDir
-    if data.buildMfgDir is not None:
-        create_data["buildMfgDir"] = data.buildMfgDir
     if data.buildConfig is not None:
-        from database import Json as JsonWrap
-        create_data["buildConfig"] = JsonWrap(data.buildConfig)
+        create_data["buildConfig"] = Json(data.buildConfig)
     if data.metadata is not None:
-        from database import Json
         create_data["metadata"] = Json(data.metadata)
 
     product = db.product.create(
         data=create_data,
         include={
+            "targets": True,
             "boards": {"include": {"revisions": True}},
             "firmwareBuilds": {"include": {"chipset": True}},
         },
     )
-    log_audit("product.create", "Product", product.id, {"name": data.name})
+    log_audit("product.create", "Product", product.id, {
+        "name": data.name,
+        "targets": [{"role": t.role, "soc": t.soc, "appId": t.appId} for t in data.targets],
+    })
     return jsonify(ApiResponse.ok(_serialize_product(product)).to_dict()), 201
 
 
@@ -220,6 +220,7 @@ def get_product(product_id: str):
     product = db.product.find_unique(
         where={"id": product_id},
         include={
+            "targets": True,
             "boards": {
                 "order_by": {"name": "asc"},
                 "include": {
@@ -266,10 +267,23 @@ def update_product(product_id: str):
         if dup_slug:
             return conflict("Product with this slug already exists")
 
+    update_data = data.to_update_data()
+
+    # Handle targets replacement (delete-all + create-new)
+    if data._has_targets and data.targets is not None:
+        update_data["targets"] = {
+            "deleteMany": {},
+            "create": [
+                {"role": t.role, "soc": t.soc, "appId": t.appId}
+                for t in data.targets
+            ],
+        }
+
     product = db.product.update(
         where={"id": product_id},
-        data=data.to_update_data(),
+        data=update_data,
         include={
+            "targets": True,
             "boards": {"include": {"revisions": True}},
             "firmwareBuilds": {"include": {"chipset": True}},
         },
@@ -304,19 +318,10 @@ def delete_product(product_id: str):
 def get_product_by_slug(slug: str):
     """GET /v2/catalog/products/by-slug/<slug> — Find product by slug (for API consumers)."""
     db = get_db_client()
-    product = db.product.find_first(where={"slug": slug})
-    if not product:
-        return not_found(f"Product with slug '{slug}' not found")
-    return jsonify(ApiResponse.ok(_serialize_product(product)).to_dict()), 200
-
-
-@require_permissions(Permissions.PRODUCTS_VIEW)
-def get_product_by_repo(repo_slug: str):
-    """GET /v2/catalog/products/by-repo/<repo_slug> — Find product by repo slug (for git poller)."""
-    db = get_db_client()
     product = db.product.find_first(
-        where={"OR": [{"repoSlug": repo_slug}, {"mfgRepoSlug": repo_slug}]}
+        where={"slug": slug},
+        include={"targets": True},
     )
     if not product:
-        return not_found(f"Product with repo '{repo_slug}' not found")
+        return not_found(f"Product with slug '{slug}' not found")
     return jsonify(ApiResponse.ok(_serialize_product(product)).to_dict()), 200

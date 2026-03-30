@@ -54,14 +54,9 @@ def _get_script_from_db(product_key: str, stage: int | None = None) -> dict | No
     if not normalized:
         return None
 
-    # Find product by slug prefix or repoSlug
+    # Find product by slug prefix
     products = db.product.find_many(
-        where={
-            "OR": [
-                {"slug": {"startswith": normalized}},
-                {"repoSlug": {"startswith": normalized}},
-            ]
-        },
+        where={"slug": {"startswith": normalized}},
         take=1,
     )
 
@@ -156,7 +151,7 @@ def list_build_scripts():
     )
 
     for cfg in configs:
-        product_name = cfg.product.repoSlug or cfg.product.slug if cfg.product else "unknown"
+        product_name = cfg.product.slug or cfg.product.name if cfg.product else "unknown"
         key = f"{product_name}:{cfg.stage}"
         if key not in seen_products:
             seen_products.add(key)

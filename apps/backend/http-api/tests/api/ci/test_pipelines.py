@@ -73,14 +73,13 @@ def _product_obj(**overrides):
         "id": "prod-alpha",
         "name": "Alpha B0",
         "slug": "alpha_b0",
-        "repoSlug": "alpha_fw",
-        "mfgRepoSlug": "alpha_mfg_fw",
-        "buildBoard": "alpha_b0",
-        "buildWestDir": None,
-        "buildMfgDir": None,
-        "repoSshUrl": "git@bitbucket.org:corekinect/alpha_fw.git",
-        "mfgRepoSshUrl": "git@bitbucket.org:corekinect/alpha_mfg_fw.git",
         "metadata": {"targets": ["app", "comms"]},
+        "buildConfig": None,
+        "boards": [make_obj(ckBoardsName="alpha_b0")],
+        "targets": [
+            make_obj(role="comms", soc="nRF9151", appId=108),
+            make_obj(role="app", soc="nRF52840", appId=109),
+        ],
     }
     defaults.update(overrides)
     return make_obj(**defaults)

@@ -1,24 +1,23 @@
-from dataclasses import dataclass
-from typing import Any, Dict, Optional, Tuple
+from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional, Tuple
 
 from database import Json
 
 
 @dataclass
+class TargetInput:
+    role: str
+    soc: str
+    appId: int
+
+
+@dataclass
 class ProductCreateRequest:
     name: str
+    targets: List[TargetInput]
     description: Optional[str] = None
     active: bool = True
-    # Optional fields
     slug: Optional[str] = None
-    repoSlug: Optional[str] = None
-    repoSshUrl: Optional[str] = None
-    repoBranch: Optional[str] = None
-    mfgRepoSlug: Optional[str] = None
-    mfgRepoSshUrl: Optional[str] = None
-    buildBoard: Optional[str] = None
-    buildWestDir: Optional[str] = None
-    buildMfgDir: Optional[str] = None
     buildConfig: Optional[Dict[str, Any]] = None
     metadata: Optional[Dict[str, Any]] = None
 
@@ -35,60 +34,53 @@ class ProductCreateRequest:
         if not isinstance(active, bool):
             return None, "Active must be a boolean"
 
-        # Optional string fields - strip whitespace
+        # Targets are required
+        raw_targets = data.get("targets")
+        if not raw_targets or not isinstance(raw_targets, list):
+            return None, "targets is required and must be a non-empty array"
+        targets = []
+        seen_roles = set()
+        seen_app_ids = set()
+        for i, t in enumerate(raw_targets):
+            if not isinstance(t, dict):
+                return None, f"targets[{i}] must be an object"
+            role = (t.get("role") or "").strip()
+            soc = (t.get("soc") or "").strip()
+            app_id = t.get("appId")
+            if not role:
+                return None, f"targets[{i}].role is required"
+            if not soc:
+                return None, f"targets[{i}].soc is required"
+            if app_id is None or not isinstance(app_id, int):
+                return None, f"targets[{i}].appId is required and must be an integer"
+            if role in seen_roles:
+                return None, f"Duplicate target role: {role}"
+            if app_id in seen_app_ids:
+                return None, f"Duplicate target appId: {app_id}"
+            seen_roles.add(role)
+            seen_app_ids.add(app_id)
+            targets.append(TargetInput(role=role, soc=soc, appId=app_id))
+
         slug = data.get("slug")
         if slug is not None:
             slug = slug.strip()
             if not slug:
                 slug = None
-        repo_slug = data.get("repoSlug")
-        if repo_slug is not None:
-            repo_slug = repo_slug.strip() or None
-        repo_ssh_url = data.get("repoSshUrl")
-        if repo_ssh_url is not None:
-            repo_ssh_url = repo_ssh_url.strip() or None
-        repo_branch = data.get("repoBranch")
-        if repo_branch is not None:
-            repo_branch = repo_branch.strip() or None
-        mfg_repo_slug = data.get("mfgRepoSlug")
-        if mfg_repo_slug is not None:
-            mfg_repo_slug = mfg_repo_slug.strip() or None
-        mfg_repo_ssh_url = data.get("mfgRepoSshUrl")
-        if mfg_repo_ssh_url is not None:
-            mfg_repo_ssh_url = mfg_repo_ssh_url.strip() or None
-        build_board = data.get("buildBoard")
-        if build_board is not None:
-            build_board = build_board.strip() or None
-        build_west_dir = data.get("buildWestDir")
-        if build_west_dir is not None:
-            build_west_dir = build_west_dir.strip() or None
-        build_mfg_dir = data.get("buildMfgDir")
-        if build_mfg_dir is not None:
-            build_mfg_dir = build_mfg_dir.strip() or None
 
-        # buildConfig must be a dict if provided
         build_config = data.get("buildConfig")
         if build_config is not None and not isinstance(build_config, dict):
             return None, "buildConfig must be a JSON object"
 
-        # Metadata must be a dict if provided
         metadata = data.get("metadata")
         if metadata is not None and not isinstance(metadata, dict):
             return None, "Metadata must be a JSON object"
 
         return cls(
             name=name,
+            targets=targets,
             description=description.strip() if description else None,
             active=active,
             slug=slug,
-            repoSlug=repo_slug,
-            repoSshUrl=repo_ssh_url,
-            repoBranch=repo_branch,
-            mfgRepoSlug=mfg_repo_slug,
-            mfgRepoSshUrl=mfg_repo_ssh_url,
-            buildBoard=build_board,
-            buildWestDir=build_west_dir,
-            buildMfgDir=build_mfg_dir,
             buildConfig=build_config,
             metadata=metadata,
         ), None
@@ -100,29 +92,14 @@ class ProductUpdateRequest:
     description: Optional[str] = None
     active: Optional[bool] = None
     slug: Optional[str] = None
-    repoSlug: Optional[str] = None
-    repoSshUrl: Optional[str] = None
-    repoBranch: Optional[str] = None
-    mfgRepoSlug: Optional[str] = None
-    mfgRepoSshUrl: Optional[str] = None
-    buildBoard: Optional[str] = None
-    buildWestDir: Optional[str] = None
-    buildMfgDir: Optional[str] = None
     buildConfig: Optional[Dict[str, Any]] = None
     metadata: Optional[Dict[str, Any]] = None
-    # Track explicitly-set-to-null vs omitted
+    targets: Optional[List[TargetInput]] = None
     _has_description: bool = False
     _has_slug: bool = False
-    _has_repo_slug: bool = False
-    _has_repo_ssh_url: bool = False
-    _has_repo_branch: bool = False
-    _has_mfg_repo_slug: bool = False
-    _has_mfg_repo_ssh_url: bool = False
-    _has_build_board: bool = False
-    _has_build_west_dir: bool = False
-    _has_build_mfg_dir: bool = False
     _has_build_config: bool = False
     _has_metadata: bool = False
+    _has_targets: bool = False
 
     @classmethod
     def from_json(cls, data: dict) -> Tuple[Optional["ProductUpdateRequest"], Optional[str]]:
@@ -140,51 +117,10 @@ class ProductUpdateRequest:
         if active is not None and not isinstance(active, bool):
             return None, "Active must be a boolean"
 
-        # Optional string fields - track presence and strip values
         slug = data.get("slug")
         has_slug = "slug" in data
         if slug is not None:
             slug = slug.strip() or None
-
-        repo_slug = data.get("repoSlug")
-        has_repo_slug = "repoSlug" in data
-        if repo_slug is not None:
-            repo_slug = repo_slug.strip() or None
-
-        repo_ssh_url = data.get("repoSshUrl")
-        has_repo_ssh_url = "repoSshUrl" in data
-        if repo_ssh_url is not None:
-            repo_ssh_url = repo_ssh_url.strip() or None
-
-        repo_branch = data.get("repoBranch")
-        has_repo_branch = "repoBranch" in data
-        if repo_branch is not None:
-            repo_branch = repo_branch.strip() or None
-
-        mfg_repo_slug = data.get("mfgRepoSlug")
-        has_mfg_repo_slug = "mfgRepoSlug" in data
-        if mfg_repo_slug is not None:
-            mfg_repo_slug = mfg_repo_slug.strip() or None
-
-        mfg_repo_ssh_url = data.get("mfgRepoSshUrl")
-        has_mfg_repo_ssh_url = "mfgRepoSshUrl" in data
-        if mfg_repo_ssh_url is not None:
-            mfg_repo_ssh_url = mfg_repo_ssh_url.strip() or None
-
-        build_board = data.get("buildBoard")
-        has_build_board = "buildBoard" in data
-        if build_board is not None:
-            build_board = build_board.strip() or None
-
-        build_west_dir = data.get("buildWestDir")
-        has_build_west_dir = "buildWestDir" in data
-        if build_west_dir is not None:
-            build_west_dir = build_west_dir.strip() or None
-
-        build_mfg_dir = data.get("buildMfgDir")
-        has_build_mfg_dir = "buildMfgDir" in data
-        if build_mfg_dir is not None:
-            build_mfg_dir = build_mfg_dir.strip() or None
 
         build_config = data.get("buildConfig")
         has_build_config = "buildConfig" in data
@@ -196,13 +132,39 @@ class ProductUpdateRequest:
         if has_metadata and metadata is not None and not isinstance(metadata, dict):
             return None, "Metadata must be a JSON object"
 
-        # Check if any field was provided
+        raw_targets = data.get("targets")
+        has_targets = "targets" in data
+        targets = None
+        if has_targets:
+            if raw_targets is not None:
+                if not isinstance(raw_targets, list) or len(raw_targets) == 0:
+                    return None, "targets must be a non-empty array"
+                targets = []
+                seen_roles = set()
+                seen_app_ids = set()
+                for i, t in enumerate(raw_targets):
+                    if not isinstance(t, dict):
+                        return None, f"targets[{i}] must be an object"
+                    role = (t.get("role") or "").strip()
+                    soc = (t.get("soc") or "").strip()
+                    app_id = t.get("appId")
+                    if not role:
+                        return None, f"targets[{i}].role is required"
+                    if not soc:
+                        return None, f"targets[{i}].soc is required"
+                    if app_id is None or not isinstance(app_id, int):
+                        return None, f"targets[{i}].appId is required and must be an integer"
+                    if role in seen_roles:
+                        return None, f"Duplicate target role: {role}"
+                    if app_id in seen_app_ids:
+                        return None, f"Duplicate target appId: {app_id}"
+                    seen_roles.add(role)
+                    seen_app_ids.add(app_id)
+                    targets.append(TargetInput(role=role, soc=soc, appId=app_id))
+
         has_any_field = (
             name is not None or has_description or active is not None or
-            has_slug or has_repo_slug or has_repo_ssh_url or has_repo_branch or
-            has_mfg_repo_slug or has_mfg_repo_ssh_url or
-            has_build_board or has_build_west_dir or has_build_mfg_dir or
-            has_build_config or has_metadata
+            has_slug or has_build_config or has_metadata or has_targets
         )
         if not has_any_field:
             return None, "No fields to update"
@@ -212,28 +174,14 @@ class ProductUpdateRequest:
             description=description.strip() if description else description,
             active=active,
             slug=slug,
-            repoSlug=repo_slug,
-            repoSshUrl=repo_ssh_url,
-            repoBranch=repo_branch,
-            mfgRepoSlug=mfg_repo_slug,
-            mfgRepoSshUrl=mfg_repo_ssh_url,
-            buildBoard=build_board,
-            buildWestDir=build_west_dir,
-            buildMfgDir=build_mfg_dir,
             buildConfig=build_config,
             metadata=metadata,
+            targets=targets,
             _has_description=has_description,
             _has_slug=has_slug,
-            _has_repo_slug=has_repo_slug,
-            _has_repo_ssh_url=has_repo_ssh_url,
-            _has_repo_branch=has_repo_branch,
-            _has_mfg_repo_slug=has_mfg_repo_slug,
-            _has_mfg_repo_ssh_url=has_mfg_repo_ssh_url,
-            _has_build_board=has_build_board,
-            _has_build_west_dir=has_build_west_dir,
-            _has_build_mfg_dir=has_build_mfg_dir,
             _has_build_config=has_build_config,
             _has_metadata=has_metadata,
+            _has_targets=has_targets,
         ), None
 
     def to_update_data(self) -> Dict[str, Any]:
@@ -246,22 +194,6 @@ class ProductUpdateRequest:
             update_data["active"] = self.active
         if self._has_slug:
             update_data["slug"] = self.slug
-        if self._has_repo_slug:
-            update_data["repoSlug"] = self.repoSlug
-        if self._has_repo_ssh_url:
-            update_data["repoSshUrl"] = self.repoSshUrl
-        if self._has_repo_branch:
-            update_data["repoBranch"] = self.repoBranch
-        if self._has_mfg_repo_slug:
-            update_data["mfgRepoSlug"] = self.mfgRepoSlug
-        if self._has_mfg_repo_ssh_url:
-            update_data["mfgRepoSshUrl"] = self.mfgRepoSshUrl
-        if self._has_build_board:
-            update_data["buildBoard"] = self.buildBoard
-        if self._has_build_west_dir:
-            update_data["buildWestDir"] = self.buildWestDir
-        if self._has_build_mfg_dir:
-            update_data["buildMfgDir"] = self.buildMfgDir
         if self._has_build_config:
             update_data["buildConfig"] = Json(self.buildConfig) if self.buildConfig else None
         if self._has_metadata:
@@ -272,6 +204,9 @@ class ProductUpdateRequest:
 @dataclass
 class BoardCreateRequest:
     name: str
+    ckBoardsName: str
+    ckBoardsBranch: str = "main"
+    vendor: str = "corekinect"
     description: Optional[str] = None
     active: bool = True
 
@@ -282,12 +217,20 @@ class BoardCreateRequest:
         name = (data.get("name") or "").strip()
         if not name:
             return None, "Name is required"
+        ck_boards_name = (data.get("ckBoardsName") or "").strip()
+        if not ck_boards_name:
+            return None, "ckBoardsName is required"
+        ck_boards_branch = (data.get("ckBoardsBranch") or "main").strip()
+        vendor = (data.get("vendor") or "corekinect").strip()
         description = data.get("description")
         active = data.get("active", True)
         if not isinstance(active, bool):
             return None, "Active must be a boolean"
         return cls(
             name=name,
+            ckBoardsName=ck_boards_name,
+            ckBoardsBranch=ck_boards_branch,
+            vendor=vendor,
             description=description.strip() if description else None,
             active=active,
         ), None
@@ -296,9 +239,15 @@ class BoardCreateRequest:
 @dataclass
 class BoardUpdateRequest:
     name: Optional[str] = None
+    ckBoardsName: Optional[str] = None
+    ckBoardsBranch: Optional[str] = None
+    vendor: Optional[str] = None
     description: Optional[str] = None
     active: Optional[bool] = None
     _has_description: bool = False
+    _has_ck_boards_name: bool = False
+    _has_ck_boards_branch: bool = False
+    _has_vendor: bool = False
 
     @classmethod
     def from_json(cls, data: dict) -> Tuple[Optional["BoardUpdateRequest"], Optional[str]]:
@@ -309,26 +258,53 @@ class BoardUpdateRequest:
             name = name.strip()
             if not name:
                 return None, "Name cannot be empty"
+        ck_boards_name = data.get("ckBoardsName")
+        has_ck_boards_name = "ckBoardsName" in data
+        if ck_boards_name is not None:
+            ck_boards_name = ck_boards_name.strip()
+            if not ck_boards_name:
+                return None, "ckBoardsName cannot be empty"
+        ck_boards_branch = data.get("ckBoardsBranch")
+        has_ck_boards_branch = "ckBoardsBranch" in data
+        if ck_boards_branch is not None:
+            ck_boards_branch = ck_boards_branch.strip() or None
+        vendor = data.get("vendor")
+        has_vendor = "vendor" in data
+        if vendor is not None:
+            vendor = vendor.strip() or None
         description = data.get("description")
         has_description = "description" in data
         active = data.get("active")
         if active is not None and not isinstance(active, bool):
             return None, "Active must be a boolean"
 
-        if name is None and not has_description and active is None:
+        if (name is None and not has_description and active is None and
+                not has_ck_boards_name and not has_ck_boards_branch and not has_vendor):
             return None, "No fields to update"
 
         return cls(
             name=name,
+            ckBoardsName=ck_boards_name,
+            ckBoardsBranch=ck_boards_branch,
+            vendor=vendor,
             description=description.strip() if description else description,
             active=active,
             _has_description=has_description,
+            _has_ck_boards_name=has_ck_boards_name,
+            _has_ck_boards_branch=has_ck_boards_branch,
+            _has_vendor=has_vendor,
         ), None
 
     def to_update_data(self) -> Dict[str, Any]:
         update_data: Dict[str, Any] = {}
         if self.name is not None:
             update_data["name"] = self.name
+        if self._has_ck_boards_name:
+            update_data["ckBoardsName"] = self.ckBoardsName
+        if self._has_ck_boards_branch:
+            update_data["ckBoardsBranch"] = self.ckBoardsBranch
+        if self._has_vendor:
+            update_data["vendor"] = self.vendor
         if self._has_description:
             update_data["description"] = self.description
         if self.active is not None:
@@ -376,11 +352,11 @@ class BoardRevisionCreateRequest:
 class BoardRevisionUpdateRequest:
     version: Optional[str] = None
     chipsetIds: Optional[list] = None
-    selectedBuilds: Optional[dict] = None
+    peripherals: Optional[dict] = None
     status: Optional[str] = None
     notes: Optional[str] = None
     _has_chipset_ids: bool = False
-    _has_selected_builds: bool = False
+    _has_peripherals: bool = False
     _has_notes: bool = False
 
     @classmethod
@@ -399,17 +375,11 @@ class BoardRevisionUpdateRequest:
             if not isinstance(chipset_ids, list):
                 return None, "chipsetIds must be an array of strings"
             chipset_ids = [c.strip() for c in chipset_ids if isinstance(c, str) and c.strip()]
-        selected_builds = data.get("selectedBuilds")
-        has_selected_builds = "selectedBuilds" in data
-        if has_selected_builds and selected_builds is not None:
-            if not isinstance(selected_builds, dict):
-                return None, "selectedBuilds must be an object mapping chipset IDs to build IDs"
-            for k, v in selected_builds.items():
-                if not isinstance(k, str) or not k.strip():
-                    return None, "selectedBuilds keys must be non-empty chipset IDs"
-                if not isinstance(v, str) or not v.strip():
-                    return None, "selectedBuilds values must be non-empty build IDs"
-            selected_builds = {k.strip(): v.strip() for k, v in selected_builds.items()}
+        peripherals = data.get("peripherals")
+        has_peripherals = "peripherals" in data
+        if has_peripherals and peripherals is not None:
+            if not isinstance(peripherals, dict):
+                return None, "peripherals must be a JSON object"
         status = data.get("status")
         if status is not None:
             status = status.strip()
@@ -418,17 +388,17 @@ class BoardRevisionUpdateRequest:
         notes = data.get("notes")
         has_notes = "notes" in data
 
-        if version is None and status is None and not has_chipset_ids and not has_notes and not has_selected_builds:
+        if version is None and status is None and not has_chipset_ids and not has_notes and not has_peripherals:
             return None, "No fields to update"
 
         return cls(
             version=version,
             chipsetIds=chipset_ids,
-            selectedBuilds=selected_builds,
+            peripherals=peripherals,
             status=status,
             notes=notes.strip() if notes else notes,
             _has_chipset_ids=has_chipset_ids,
-            _has_selected_builds=has_selected_builds,
+            _has_peripherals=has_peripherals,
             _has_notes=has_notes,
         ), None
 
@@ -436,8 +406,8 @@ class BoardRevisionUpdateRequest:
         update_data: Dict[str, Any] = {}
         if self.version is not None:
             update_data["version"] = self.version
-        if self._has_selected_builds:
-            update_data["selectedBuilds"] = Json(self.selectedBuilds) if self.selectedBuilds else Json({})
+        if self._has_peripherals:
+            update_data["peripherals"] = Json(self.peripherals) if self.peripherals else None
         if self.status is not None:
             update_data["status"] = self.status
         if self._has_notes:

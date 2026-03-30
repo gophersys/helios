@@ -134,6 +134,13 @@ if __name__ == "__main__":
         # Start observability polling service
         init_observability_service(poll_interval_s=5)
 
+        # Initialize CkBoards service (board definition discovery)
+        try:
+            from src.api.v2.products.board_discovery import init_ck_boards_service
+            init_ck_boards_service()
+        except Exception as ck_err:
+            logger.warning("CkBoards service init failed (non-fatal): %s", ck_err)
+
         # Routes
         register_v2_routes(logger, server, socketio)
 

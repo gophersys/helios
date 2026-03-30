@@ -26,8 +26,7 @@ def _build_obj(**overrides):
     defaults = {
         "id": "build-001",
         "product": make_obj(
-            id="prod-alpha", slug="alpha", repoSlug="alpha_fw",
-            mfgRepoSlug="alpha_mfg_fw", name="Alpha B0",
+            id="prod-alpha", slug="alpha", name="Alpha B0",
         ),
         "productId": "prod-alpha",
         "board": "alpha_b0",

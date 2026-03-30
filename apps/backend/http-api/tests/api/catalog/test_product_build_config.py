@@ -33,15 +33,8 @@ ALPHA_BUILD_CONFIG = {
 def _product_defaults() -> dict:
     return {
         "slug": None,
-        "repoSlug": None,
-        "repoSshUrl": None,
-        "repoBranch": None,
-        "mfgRepoSlug": None,
-        "mfgRepoSshUrl": None,
-        "buildBoard": None,
-        "buildWestDir": None,
-        "buildMfgDir": None,
         "buildConfig": None,
+        "targets": [],
     }
 
 
@@ -68,6 +61,10 @@ def test_create_product_with_build_config(authed_client, mock_db):
             data=json.dumps({
                 "name": "Alpha B0",
                 "buildConfig": ALPHA_BUILD_CONFIG,
+                "targets": [
+                    {"role": "app", "soc": "nrf52840", "appId": 109},
+                    {"role": "comms", "soc": "nrf9151", "appId": 108},
+                ],
             }),
         )
 
@@ -96,7 +93,10 @@ def test_create_product_without_build_config(authed_client, mock_db):
     with patch("src.api.v2.products.products.log_audit"):
         response = authed_client.post(
             "/v2/products",
-            data=json.dumps({"name": "Sigma5"}),
+            data=json.dumps({
+                "name": "Sigma5",
+                "targets": [{"role": "app", "soc": "nrf52840", "appId": 105}],
+            }),
         )
 
     assert response.status_code == 201
@@ -108,7 +108,11 @@ def test_create_product_build_config_not_dict_rejected(authed_client, mock_db):
     """buildConfig must be a JSON object, not a string or array."""
     response = authed_client.post(
         "/v2/products",
-        data=json.dumps({"name": "Bad", "buildConfig": "not-a-dict"}),
+        data=json.dumps({
+            "name": "Bad",
+            "targets": [{"role": "app", "soc": "nrf52840", "appId": 109}],
+            "buildConfig": "not-a-dict",
+        }),
     )
     assert response.status_code == 400
 

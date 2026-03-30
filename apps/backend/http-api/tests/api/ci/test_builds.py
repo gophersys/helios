@@ -249,7 +249,7 @@ class TestCreateBuild:
         mock_db.product.find_first.return_value = make_obj(
             id="prod-alpha",
             slug="alpha",
-            buildBoard="alpha_b0",
+            boards=[make_obj(ckBoardsName="alpha_b0")],
         )
 
         created = _build_obj(id="build-new", status="QUEUED")
@@ -410,7 +410,7 @@ class TestCreateBuild:
         mock_db.product.find_first.return_value = make_obj(
             id="prod-linked",
             slug="alpha",
-            buildBoard="alpha_b0",
+            boards=[make_obj(ckBoardsName="alpha_b0")],
         )
         created = _build_obj(id="build-linked", productId="prod-linked")
         mock_db.buildjob.create.return_value = created
@@ -437,7 +437,7 @@ class TestCreateBuild:
         mock_db.product.find_first.return_value = make_obj(
             id="prod-board",
             slug="alpha",
-            buildBoard="custom_board_v2",
+            boards=[make_obj(ckBoardsName="custom_board_v2")],
         )
         created = _build_obj(id="build-board", board="custom_board_v2")
         mock_db.buildjob.create.return_value = created

@@ -54,6 +54,10 @@ class AppConfig(EnvConfig):
     GIT_POLLER_ENABLED: bool = True
     GIT_POLLER_INTERVAL_S: int = 300
 
+    # CkBoards — shared board definition repository
+    CK_BOARDS_REPO_URL: str = "git@bitbucket.org:corekinect/ck_boards.git"
+    CK_BOARDS_FETCH_INTERVAL: int = 60
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self._validate()

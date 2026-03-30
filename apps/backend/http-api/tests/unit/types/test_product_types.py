@@ -13,7 +13,15 @@ import pytest
 def test_product_create_valid():
     from src.api.v2.products.types import ProductCreateRequest
 
-    data = {"name": "Sigma5 Device", "description": "IoT sensor", "active": True}
+    data = {
+        "name": "Sigma5 Device",
+        "description": "IoT sensor",
+        "active": True,
+        "targets": [
+            {"role": "app", "soc": "nrf52840", "appId": 109},
+            {"role": "comms", "soc": "nrf9151", "appId": 108},
+        ],
+    }
     req, err = ProductCreateRequest.from_json(data)
 
     assert err is None
@@ -21,12 +29,15 @@ def test_product_create_valid():
     assert req.name == "Sigma5 Device"
     assert req.description == "IoT sensor"
     assert req.active is True
+    assert len(req.targets) == 2
+    assert req.targets[0].role == "app"
+    assert req.targets[0].appId == 109
 
 
 def test_product_create_missing_name():
     from src.api.v2.products.types import ProductCreateRequest
 
-    data = {"description": "IoT sensor"}
+    data = {"description": "IoT sensor", "targets": [{"role": "app", "soc": "nrf52840", "appId": 109}]}
     req, err = ProductCreateRequest.from_json(data)
 
     assert req is None
@@ -53,7 +64,7 @@ def test_product_create_empty_body():
 def test_product_create_active_non_bool():
     from src.api.v2.products.types import ProductCreateRequest
 
-    data = {"name": "Product", "active": "true"}
+    data = {"name": "Product", "active": "true", "targets": [{"role": "app", "soc": "nrf52840", "appId": 109}]}
     req, err = ProductCreateRequest.from_json(data)
 
     assert req is None
@@ -212,12 +223,15 @@ def test_chipset_update_to_update_data_nullable():
 def test_board_create_valid():
     from src.api.v2.products.types import BoardCreateRequest
 
-    data = {"name": "Main Board", "description": "Primary PCB", "active": True}
+    data = {"name": "Main Board", "ckBoardsName": "main_board", "description": "Primary PCB", "active": True}
     req, err = BoardCreateRequest.from_json(data)
 
     assert err is None
     assert req is not None
     assert req.name == "Main Board"
+    assert req.ckBoardsName == "main_board"
+    assert req.ckBoardsBranch == "main"
+    assert req.vendor == "corekinect"
     assert req.description == "Primary PCB"
     assert req.active is True
 
@@ -362,15 +376,15 @@ def test_board_revision_update_chipset_ids():
     assert "chipsetIds" not in update_data
 
 
-def test_board_revision_update_selected_builds():
+def test_board_revision_update_peripherals():
     from src.api.v2.products.types import BoardRevisionUpdateRequest
 
-    data = {"selectedBuilds": {"chip-1": "build-1", "chip-2": "build-2"}}
+    data = {"peripherals": {"ppg": True, "peltier": True}}
     req, err = BoardRevisionUpdateRequest.from_json(data)
 
     assert err is None
-    assert req._has_selected_builds is True
-    assert req.selectedBuilds == {"chip-1": "build-1", "chip-2": "build-2"}
+    assert req._has_peripherals is True
+    assert req.peripherals == {"ppg": True, "peltier": True}
 
 
 def test_board_revision_update_to_update_data():

@@ -12,15 +12,8 @@ def _product_defaults() -> dict:
     """Common product fields for test mocks."""
     return {
         "slug": None,
-        "repoSlug": None,
-        "repoSshUrl": None,
-        "repoBranch": None,
-        "mfgRepoSlug": None,
-        "mfgRepoSshUrl": None,
-        "buildBoard": None,
-        "buildWestDir": None,
-        "buildMfgDir": None,
         "buildConfig": None,
+        "targets": [],
     }
 
 
@@ -100,6 +93,9 @@ def test_create_product(authed_client, mock_db):
                 "name": "New Product",
                 "description": "A new product",
                 "active": True,
+                "targets": [
+                    {"role": "app", "soc": "nrf52840", "appId": 109},
+                ],
             }),
         )
 
@@ -124,7 +120,10 @@ def test_create_product_duplicate_name(authed_client, mock_db):
 
     response = authed_client.post(
         "/v2/products",
-        data=json.dumps({"name": "Existing Product"}),
+        data=json.dumps({
+            "name": "Existing Product",
+            "targets": [{"role": "app", "soc": "nrf52840", "appId": 109}],
+        }),
     )
 
     assert response.status_code == 409
@@ -168,7 +167,7 @@ def test_get_product(authed_client, mock_db):
                         id="rev-1",
                         boardId="board-1",
                         version="1.0",
-                        selectedBuilds=None,
+                        peripherals=None,
                         status="ACTIVE",
                         notes="First revision",
                         createdAt=datetime(2025, 1, 10, tzinfo=timezone.utc),

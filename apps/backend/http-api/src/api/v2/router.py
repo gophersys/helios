@@ -38,7 +38,6 @@ from .products.products import (
     create_product,
     delete_product,
     get_product,
-    get_product_by_repo,
     get_product_by_slug,
     list_products,
     update_product,
@@ -352,7 +351,6 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     v2.add_url_rule("/products",                                                                   view_func=list_products,          methods=["GET"])
     v2.add_url_rule("/products",                                                                   view_func=create_product,         methods=["POST"])
     v2.add_url_rule("/products/by-slug/<slug>",                                                    view_func=get_product_by_slug,    methods=["GET"])
-    v2.add_url_rule("/products/by-repo/<repo_slug>",                                               view_func=get_product_by_repo,    methods=["GET"])
     v2.add_url_rule("/products/<product_id>",                                                      view_func=get_product,            methods=["GET"])
     v2.add_url_rule("/products/<product_id>",                                                      view_func=update_product,         methods=["PUT"])
     v2.add_url_rule("/products/<product_id>",                                                      view_func=delete_product,         methods=["DELETE"])
