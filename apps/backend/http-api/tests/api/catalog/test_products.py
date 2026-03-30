@@ -360,3 +360,164 @@ def test_delete_product_with_tests(authed_client, mock_db):
     assert response.status_code == 409
     data = json.loads(response.data)
     assert len(data["errors"]) > 0
+
+
+# ── Target tests ───────────────────────────────────────────
+
+
+def test_create_product_with_targets_passes_nested_create(authed_client, mock_db):
+    """Targets are forwarded to Prisma as a nested create list."""
+    mock_db.product.find_unique.return_value = None
+
+    created = make_obj(
+        id="prod-t1",
+        name="Alpha",
+        description="",
+        active=True,
+        metadata={},
+        slug=None,
+        buildConfig=None,
+        createdAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
+        updatedAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
+        boards=[],
+        firmwareBuilds=[],
+        targets=[
+            make_obj(id="tgt-1", role="app", soc="nrf52840", appId=109),
+            make_obj(id="tgt-2", role="comms", soc="nrf9151", appId=108),
+        ],
+    )
+    mock_db.product.create.return_value = created
+
+    with patch("api.v2.products.products.log_audit"):
+        authed_client.post(
+            "/v2/products",
+            data=json.dumps({
+                "name": "Alpha",
+                "targets": [
+                    {"role": "app", "soc": "nrf52840", "appId": 109},
+                    {"role": "comms", "soc": "nrf9151", "appId": 108},
+                ],
+            }),
+        )
+
+    call_kwargs = mock_db.product.create.call_args[1]
+    nested = call_kwargs["data"]["targets"]["create"]
+    assert len(nested) == 2
+    assert {"role": "app", "soc": "nrf52840", "appId": 109} in nested
+    assert {"role": "comms", "soc": "nrf9151", "appId": 108} in nested
+
+
+def test_create_product_duplicate_target_role_returns_400(authed_client, mock_db):
+    """Two targets with the same role are rejected before hitting the DB."""
+    response = authed_client.post(
+        "/v2/products",
+        data=json.dumps({
+            "name": "Alpha",
+            "targets": [
+                {"role": "app", "soc": "nrf52840", "appId": 109},
+                {"role": "app", "soc": "nrf52840", "appId": 108},
+            ],
+        }),
+    )
+
+    assert response.status_code == 400
+    data = json.loads(response.data)
+    assert any("Duplicate target role" in e["message"] for e in data["errors"])
+    mock_db.product.create.assert_not_called()
+
+
+def test_create_product_duplicate_target_app_id_returns_400(authed_client, mock_db):
+    """Two targets with the same appId are rejected before hitting the DB."""
+    response = authed_client.post(
+        "/v2/products",
+        data=json.dumps({
+            "name": "Alpha",
+            "targets": [
+                {"role": "app", "soc": "nrf52840", "appId": 109},
+                {"role": "comms", "soc": "nrf9151", "appId": 109},
+            ],
+        }),
+    )
+
+    assert response.status_code == 400
+    data = json.loads(response.data)
+    assert any("Duplicate target appId" in e["message"] for e in data["errors"])
+    mock_db.product.create.assert_not_called()
+
+
+def test_get_product_includes_targets_in_response(authed_client, mock_db):
+    """GET /v2/products/<id> includes targets array with role/soc/appId."""
+    mock_db.product.find_unique.return_value = make_obj(
+        id="prod-with-targets",
+        name="Alpha",
+        description="",
+        active=True,
+        metadata={},
+        slug=None,
+        buildConfig=None,
+        createdAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
+        updatedAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
+        boards=[],
+        firmwareBuilds=[],
+        targets=[
+            make_obj(id="tgt-1", role="app", soc="nrf52840", appId=109),
+        ],
+    )
+
+    response = authed_client.get("/v2/products/prod-with-targets")
+    assert response.status_code == 200
+
+    data = json.loads(response.data)
+    targets = data["data"]["targets"]
+    assert len(targets) == 1
+    assert targets[0]["role"] == "app"
+    assert targets[0]["soc"] == "nrf52840"
+    assert targets[0]["appId"] == 109
+
+
+def test_get_product_empty_targets_returns_empty_list(authed_client, mock_db):
+    """GET /v2/products/<id> returns targets=[] when no targets exist."""
+    mock_db.product.find_unique.return_value = make_obj(
+        id="prod-no-targets",
+        name="Alpha",
+        description="",
+        active=True,
+        metadata={},
+        slug=None,
+        buildConfig=None,
+        createdAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
+        updatedAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
+        boards=[],
+        firmwareBuilds=[],
+        targets=[],
+    )
+
+    response = authed_client.get("/v2/products/prod-no-targets")
+    assert response.status_code == 200
+
+    data = json.loads(response.data)
+    assert data["data"]["targets"] == []
+
+
+def test_delete_product_with_targets_succeeds(authed_client, mock_db):
+    """Products with targets can be deleted — Prisma cascade handles cleanup."""
+    mock_db.product.find_unique.return_value = make_obj(
+        id="prod-cascade",
+        name="Alpha",
+        description="",
+        active=True,
+        metadata={},
+        createdAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
+        updatedAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
+        **_product_defaults(),
+    )
+    mock_db.session.find_first.return_value = None
+    mock_db.test.find_first.return_value = None
+
+    with patch("api.v2.products.products.log_audit"):
+        response = authed_client.delete("/v2/products/prod-cascade")
+
+    assert response.status_code == 200
+    data = json.loads(response.data)
+    assert data["data"]["deleted"] is True
+    mock_db.product.delete.assert_called_once_with(where={"id": "prod-cascade"})

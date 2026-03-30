@@ -2,6 +2,7 @@
 
 import json
 from datetime import datetime, timezone
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from tests.conftest import make_obj
@@ -323,3 +324,74 @@ def test_list_boards_empty(authed_client, mock_db):
     assert "data" in data
     assert isinstance(data["data"], list)
     assert len(data["data"]) == 0
+
+
+def test_create_board_duplicate_ck_boards_name_returns_409(authed_client, mock_db):
+    """Creating a board with a ckBoardsName already used by another board returns 409."""
+    mock_db.product.find_unique.return_value = make_obj(
+        id="prod-1",
+        name="Test Product",
+    )
+
+    # First find_first call (name uniqueness check) returns None — name is available.
+    # Second find_first call (ckBoardsName uniqueness check) returns an existing board.
+    mock_db.board.find_first.side_effect = [
+        None,
+        make_obj(id="other-board", productId="prod-2", name="Other Board", ckBoardsName="shared_ck_name"),
+    ]
+
+    response = authed_client.post(
+        "/v2/products/prod-1/boards",
+        data=json.dumps({"name": "New Board", "ckBoardsName": "shared_ck_name"}),
+    )
+
+    assert response.status_code == 409
+    data = json.loads(response.data)
+    assert any("shared_ck_name" in e["message"] for e in data["errors"])
+
+
+# ── Board discovery (CkBoardsService graceful degradation) ────────────────────
+
+
+def test_list_board_branches_service_not_configured_returns_500(authed_client):
+    """list_board_branches returns 500 when ck_boards service is not initialized."""
+    with patch("api.v2.products.board_discovery.get_ck_boards_service", return_value=None):
+        response = authed_client.get("/v2/products/boards/branches")
+
+    assert response.status_code == 500
+    data = json.loads(response.data)
+    assert len(data["errors"]) > 0
+
+
+def test_discover_boards_service_not_configured_returns_500(authed_client):
+    """discover_boards returns 500 when ck_boards service is not initialized."""
+    with patch("api.v2.products.board_discovery.get_ck_boards_service", return_value=None):
+        response = authed_client.get("/v2/products/boards/discover?branch=main")
+
+    assert response.status_code == 500
+    data = json.loads(response.data)
+    assert len(data["errors"]) > 0
+
+
+def test_discover_board_detail_service_not_configured_returns_500(authed_client):
+    """discover_board_detail returns 500 when ck_boards service is not initialized."""
+    with patch("api.v2.products.board_discovery.get_ck_boards_service", return_value=None):
+        response = authed_client.get("/v2/products/boards/discover/alpha_b0?branch=main")
+
+    assert response.status_code == 500
+    data = json.loads(response.data)
+    assert len(data["errors"]) > 0
+
+
+def test_discover_boards_service_exception_returns_500(authed_client):
+    """discover_boards returns 500 when the service raises an unexpected exception."""
+    from unittest.mock import MagicMock
+    mock_svc = MagicMock()
+    mock_svc.discover_boards.side_effect = RuntimeError("git broken")
+    with patch("api.v2.products.board_discovery.get_ck_boards_service", return_value=mock_svc):
+        response = authed_client.get("/v2/products/boards/discover?branch=main")
+
+    assert response.status_code == 500
+    data = json.loads(response.data)
+    # Must not leak the raw exception message to the client
+    assert "git broken" not in json.dumps(data["errors"])
