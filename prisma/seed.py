@@ -250,6 +250,25 @@ def seed():
             print("SEED_ADMIN_EMAIL not set. Skipping admin user creation.")
             print("Usage: SEED_ADMIN_EMAIL=you@company.com python3 seed.py")
 
+        # Development admin user (admin@concord.local / admin)
+        # Available in all environments for seeding, but login only works in development
+        dev_admin = db.user.upsert(
+            where={"email": "admin@concord.local"},
+            data={
+                "create": {
+                    "email": "admin@concord.local",
+                    "name": "Dev Admin",
+                    "permissionSetId": super_admin_set.id,
+                    "active": True,
+                },
+                "update": {
+                    "permissionSetId": super_admin_set.id,
+                    "active": True,
+                },
+            },
+        )
+        print(f"Dev admin user ready: admin@concord.local (id: {dev_admin.id})")
+
         # ── Products + Boards ──
         print("\n=== Seeding Products & Boards ===")
 

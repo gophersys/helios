@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 
 from flask import jsonify, request
 
+from config import env_config
 from src.lib.audit import log_audit
 from src.lib.errors import bad_request, forbidden, unauthorized
 from src.lib.types import ApiResponse
@@ -16,19 +17,31 @@ logger = logging.getLogger(__name__)
 
 
 def login():
-    """Exchange CoreKinect email/password credentials for a Concord JWT.
+    """Exchange credentials for a Concord JWT.
 
     Body: { "email": "...", "password": "..." }
     Returns: { "data": { "token": "<jwt>", "user": { ... } }, "errors": [] }
+
+    In development: admin@concord.local / admin bypasses CoreCloud auth.
     """
     data, error = LoginRequest.from_json(request.get_json())
     if error:
         return bad_request(error)
 
-    # Verify credentials against CoreKinect auth server
-    cc_user, error = authenticate_corecloud(data.email, data.password)
-    if error:
-        return unauthorized(error)
+    # Development-only: admin/admin bypass (never in staging/production)
+    is_dev_admin = (
+        env_config.ENVIRONMENT == "development"
+        and data.email == "admin@concord.local"
+        and data.password == "admin"
+    )
+
+    if is_dev_admin:
+        cc_user = {"email": "admin@concord.local"}
+    else:
+        # Verify credentials against CoreKinect auth server
+        cc_user, error = authenticate_corecloud(data.email, data.password)
+        if error:
+            return unauthorized(error)
 
     # Look up the user by email — must be pre-registered
     db = get_db_client()
