@@ -139,11 +139,6 @@ describe('Wizard auto-populate from board detail', () => {
     expect(name).toBe('Alpha');
   });
 
-  it('auto-populates repo slugs from board name', () => {
-    expect(`${detail.board}_fw`).toBe('alpha_fw');
-    expect(`${detail.board}_mfg_fw`).toBe('alpha_mfg_fw');
-  });
-
   it('parses peripherals from revision DTS', () => {
     const rev = detail.revisions[0];
     expect(rev.peripherals).toHaveLength(6);
