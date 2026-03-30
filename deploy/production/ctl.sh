@@ -13,12 +13,12 @@ set -euo pipefail
 #   production  — Kubernetes production namespace
 #
 # Targets (for build/deploy):
-#   api, frontend, git-poller, validation
+#   api, frontend, git-poller, validation, build-service
 #   Default: api frontend git-poller
 # ───────────────────────────────────────────────────────────────
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 cd "${REPO_ROOT}"
 
 REGISTRY="containers.ad.corekinect.com"
@@ -26,6 +26,7 @@ REGISTRY_API="${REGISTRY}/concord-http-api"
 REGISTRY_FRONTEND="${REGISTRY}/concord-frontend"
 REGISTRY_GIT_POLLER="${REGISTRY}/concord-git-poller"
 REGISTRY_VALIDATION="${REGISTRY}/concord-validation-alpha"
+REGISTRY_BUILD_SERVICE="${REGISTRY}/concord-build-service"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -168,9 +169,20 @@ cmd_build() {
         timer_end "Validation build"
         ;;
 
+      build-service)
+        timer_start
+        docker buildx build \
+          --build-arg APP_VERSION --build-arg ENVIRONMENT \
+          --build-arg GIT_COMMIT --build-arg GIT_BRANCH --build-arg BUILD_TIME \
+          --file apps/backend/build-service/deploy/Dockerfile \
+          --tag "${REGISTRY_BUILD_SERVICE}:${env}" \
+          --load . > /dev/null 2>&1
+        timer_end "Build-service build"
+        ;;
+
       *)
         err "Unknown build target: ${target}"
-        err "Valid: api, frontend, git-poller, validation"
+        err "Valid: api, frontend, git-poller, validation, build-service"
         exit 1
         ;;
     esac
@@ -194,6 +206,7 @@ _push_images() {
         frontend|fe|app|ui)       docker save "${REGISTRY_FRONTEND}:${env}" | sudo k3s ctr images import - 2>/dev/null || true ;;
         git-poller|poller)        docker save "${REGISTRY_GIT_POLLER}:${env}" | sudo k3s ctr images import - 2>/dev/null || true ;;
         validation|val)           docker save "${REGISTRY_VALIDATION}:${env}" | sudo k3s ctr images import - 2>/dev/null || true ;;
+        build-service)            docker save "${REGISTRY_BUILD_SERVICE}:${env}" | sudo k3s ctr images import - 2>/dev/null || true ;;
       esac
     done
   else
@@ -205,38 +218,10 @@ _push_images() {
         frontend|fe|app|ui)       docker push "${REGISTRY_FRONTEND}:${env}" > /dev/null 2>&1 || true ;;
         git-poller|poller)        docker push "${REGISTRY_GIT_POLLER}:${env}" > /dev/null 2>&1 || true ;;
         validation|val)           docker push "${REGISTRY_VALIDATION}:${env}" > /dev/null 2>&1 || true ;;
+        build-service)            docker push "${REGISTRY_BUILD_SERVICE}:${env}" > /dev/null 2>&1 || true ;;
       esac
     done
     timer_end "Push"
-  fi
-}
-
-# ─── Build Worker File Sync ───────────────────────────────────
-
-_sync_build_worker_files() {
-  local src_dir="${REPO_ROOT}/apps/backend/build-worker/src"
-  local dst_dir="${SCRIPT_DIR}/helm/concord/files/build-worker"
-
-  if [[ ! -d "${src_dir}" ]]; then
-    warn "Build worker source not found: ${src_dir}"
-    return 0
-  fi
-
-  mkdir -p "${dst_dir}"
-  cp "${src_dir}"/*.py "${dst_dir}/"
-  info "  Synced build-worker source → helm files/"
-
-  # Validate: every .py referenced in the ConfigMap template must exist
-  local missing=0
-  for f in config.py api_client.py manifest.py git_ops.py builder.py worker.py main.py; do
-    if [[ ! -f "${dst_dir}/${f}" ]]; then
-      err "Missing build-worker file: ${f}"
-      missing=1
-    fi
-  done
-  if (( missing )); then
-    err "Build worker files incomplete — ConfigMap will be broken"
-    exit 1
   fi
 }
 
@@ -257,9 +242,6 @@ _helm_deploy() {
   if [[ -f "${SCRIPT_DIR}/helm/values-${env}-secrets.yaml" ]]; then
     helm_args+=(-f "${SCRIPT_DIR}/helm/values-${env}-secrets.yaml")
   fi
-
-  # Sync build worker source files into helm chart before upgrade
-  _sync_build_worker_files
 
   timer_start
   helm "${helm_args[@]}" --wait --timeout 180s
@@ -299,28 +281,8 @@ _restart_targets() {
 
 # ─── Development ──────────────────────────────────────────────
 
-cmd_development() {
-  local action="${1:-up}"
-  local compose_dir="${SCRIPT_DIR}/cloud/development"
-
-  case "${action}" in
-    up)
-      log "Starting development infrastructure..."
-      if ! docker network ls | grep -q concord_network; then
-        docker network create concord_network
-      fi
-      docker compose -f "${compose_dir}/docker-compose.yaml" up -d
-      echo ""
-      log "Infrastructure running."
-      info "  npx nx serve http-api   # Backend on :9001"
-      info "  npx nx dev app          # Frontend on :4200"
-      ;;
-    down)   docker compose -f "${compose_dir}/docker-compose.yaml" down ;;
-    status) docker compose -f "${compose_dir}/docker-compose.yaml" ps ;;
-    logs)   docker compose -f "${compose_dir}/docker-compose.yaml" logs -f "${@:2}" ;;
-    *)      err "Usage: ctl.sh development {up|down|status|logs}" ; exit 1 ;;
-  esac
-}
+# Development is handled by: npx nx start platform -c development
+# See deploy/development/docker-compose.yaml
 
 # ─── Deploy (staging/production) ──────────────────────────────
 
@@ -419,9 +381,6 @@ cmd_diff() {
   local values_file="${SCRIPT_DIR}/helm/values-${env}.yaml"
   [[ ! -f "${values_file}" ]] && { err "No values file for: ${env}"; exit 1; }
 
-  # Sync build worker files so diff renders the current source
-  _sync_build_worker_files
-
   local helm_args=(diff upgrade concord "${SCRIPT_DIR}/helm/concord" -n "${env}" -f "${values_file}")
   [[ -f "${SCRIPT_DIR}/helm/values-${env}-secrets.yaml" ]] && helm_args+=(-f "${SCRIPT_DIR}/helm/values-${env}-secrets.yaml")
 
@@ -456,7 +415,7 @@ ${BOLD}Commands:${NC}
   ${GREEN}version${NC}                                  Show version string
 
 ${BOLD}Targets:${NC}
-  api, frontend, git-poller, validation
+  api, frontend, git-poller, validation, build-service
   Default: api frontend git-poller
 
 ${BOLD}Examples:${NC}
@@ -486,7 +445,7 @@ COMMAND="$1"
 shift
 
 case "${COMMAND}" in
-  development|dev) cmd_development "$@" ;;
+  development|dev) err "Use: npx nx start platform -c development" ; exit 1 ;;
   build)           cmd_build "$@" ;;
   staging)
     action="${1:-deploy}"

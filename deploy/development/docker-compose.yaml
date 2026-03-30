@@ -1,0 +1,43 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: concord
+      POSTGRES_PASSWORD: concord
+      POSTGRES_DB: concord
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  minio:
+    image: minio/minio:latest
+    environment:
+      MINIO_ROOT_USER: concord
+      MINIO_ROOT_PASSWORD: concordstorage!
+    ports:
+      - "8675:8675"
+      - "8676:8676"
+    command: server /data --address ":8675" --console-address ":8676"
+    volumes:
+      - minio_data:/data
+
+  influxdb:
+    image: influxdb:2
+    ports:
+      - "8086:8086"
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME: concord
+      DOCKER_INFLUXDB_INIT_PASSWORD: concordinflux!
+      DOCKER_INFLUXDB_INIT_ORG: concord
+      DOCKER_INFLUXDB_INIT_BUCKET: telemetry_raw
+      DOCKER_INFLUXDB_INIT_RETENTION: 90d
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: concord-influxdb-dev-token
+    volumes:
+      - influxdb_data:/var/lib/influxdb2
+
+volumes:
+  postgres_data:
+  minio_data:
+  influxdb_data:

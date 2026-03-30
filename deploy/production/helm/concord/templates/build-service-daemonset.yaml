@@ -1,0 +1,129 @@
+{{- if .Values.buildService.enabled }}
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: concord-build-service
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: concord-build-service
+    app.kubernetes.io/component: build-service
+    app.kubernetes.io/part-of: concord-ci
+spec:
+  selector:
+    matchLabels:
+      app: concord-build-service
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        app: concord-build-service
+    spec:
+      nodeSelector:
+        corekinect.com/purpose: builder
+      tolerations:
+        - key: "corekinect.com/purpose"
+          operator: "Equal"
+          value: "builder"
+          effect: "PreferNoSchedule"
+      containers:
+        - name: build-service
+          image: "{{ .Values.buildService.image.repository }}:{{ .Values.buildService.image.tag }}"
+          command: ["python3", "-m", "src.main"]
+          env:
+            - name: CONCORD_API_URL
+              value: "http://concord-http-api:9001"
+            - name: CONCORD_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: concord-build-service-secrets
+                  key: api-key
+            - name: BUILD_SERVICE_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: concord-build-service-secrets
+                  key: database-url
+            - name: BUILD_SERVICE_PORT
+              value: "9002"
+            - name: POLL_INTERVAL
+              value: "5"
+            - name: WORKER_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: NCS_VERSION
+              value: "2.7.0"
+            - name: SSH_KEY_PATH
+              value: "/root/.ssh/id_rsa"
+            - name: CCACHE_DIR
+              value: "/ccache"
+            - name: CCACHE_MAXSIZE
+              value: "10G"
+            - name: CMAKE_C_COMPILER_LAUNCHER
+              value: "ccache"
+            - name: CMAKE_CXX_COMPILER_LAUNCHER
+              value: "ccache"
+            - name: CMAKE_BUILD_PARALLEL_LEVEL
+              value: "14"
+          ports:
+            - containerPort: 9002
+              name: http
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 9002
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 9002
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: {{ .Values.buildService.resources.requests.cpu | default "4" | quote }}
+              memory: {{ .Values.buildService.resources.requests.memory | default "8Gi" | quote }}
+            limits:
+              cpu: {{ .Values.buildService.resources.limits.cpu | default "14" | quote }}
+              memory: {{ .Values.buildService.resources.limits.memory | default "28Gi" | quote }}
+          volumeMounts:
+            - name: ssh-key
+              mountPath: /root/.ssh
+              readOnly: true
+            - name: workspace
+              mountPath: /tmp/builds
+            - name: alpha-mcuboot-keys
+              mountPath: /keys/alpha
+              readOnly: true
+            - name: ccache
+              mountPath: /ccache
+      volumes:
+        - name: ssh-key
+          secret:
+            secretName: bitbucket-ssh-key
+            defaultMode: 0600
+        - name: alpha-mcuboot-keys
+          secret:
+            secretName: alpha-mcuboot-keys
+            defaultMode: 0400
+        - name: workspace
+          emptyDir:
+            sizeLimit: 30Gi
+        - name: ccache
+          emptyDir:
+            sizeLimit: 15Gi
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - key: kubernetes.io/arch
+                    operator: In
+                    values:
+                      - amd64
+{{- end }}

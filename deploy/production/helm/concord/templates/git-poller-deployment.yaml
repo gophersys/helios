@@ -34,7 +34,7 @@ spec:
             - name: CONCORD_API_KEY
               valueFrom:
                 secretKeyRef:
-                  name: concord-build-worker-secrets
+                  name: concord-build-service-secrets
                   key: api-key
           resources:
             requests:

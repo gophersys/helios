@@ -1,0 +1,122 @@
+{
+  "name": "platform",
+  "$schema": "../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "deploy",
+  "projectType": "application",
+  "targets": {
+    "start": {
+      "executor": "nx:run-commands",
+      "defaultConfiguration": "development",
+      "configurations": {
+        "development": {
+          "cwd": "{workspaceRoot}",
+          "parallel": false,
+          "commands": [
+            { "command": "docker compose -f deploy/development/docker-compose.yaml up -d" },
+            { "command": "echo '\\n  Postgres  → localhost:5432\\n  MinIO     → localhost:8675 (console :8676)\\n  InfluxDB  → localhost:8086\\n'" },
+            { "command": "echo 'Run backend:  npx nx serve http-api'" },
+            { "command": "echo 'Run frontend: npx nx dev app'" }
+          ]
+        },
+        "staging": {
+          "cwd": "{workspaceRoot}/deploy/production",
+          "parallel": false,
+          "commands": [
+            { "command": "chmod +x ctl.sh && ./ctl.sh staging deploy" }
+          ]
+        },
+        "production": {
+          "cwd": "{workspaceRoot}/deploy/production",
+          "parallel": false,
+          "commands": [
+            { "command": "chmod +x ctl.sh && ./ctl.sh production deploy" }
+          ]
+        }
+      }
+    },
+    "stop": {
+      "executor": "nx:run-commands",
+      "defaultConfiguration": "development",
+      "configurations": {
+        "development": {
+          "cwd": "{workspaceRoot}",
+          "commands": [
+            { "command": "docker compose -f deploy/development/docker-compose.yaml down" }
+          ]
+        },
+        "staging": {
+          "cwd": "{workspaceRoot}/deploy/production",
+          "commands": [
+            { "command": "chmod +x ctl.sh && ./ctl.sh staging stop" }
+          ]
+        },
+        "production": {
+          "cwd": "{workspaceRoot}/deploy/production",
+          "commands": [
+            { "command": "chmod +x ctl.sh && ./ctl.sh production stop" }
+          ]
+        }
+      }
+    },
+    "status": {
+      "executor": "nx:run-commands",
+      "defaultConfiguration": "development",
+      "configurations": {
+        "development": {
+          "cwd": "{workspaceRoot}",
+          "commands": [
+            { "command": "docker compose -f deploy/development/docker-compose.yaml ps" }
+          ]
+        },
+        "staging": {
+          "cwd": "{workspaceRoot}/deploy/production",
+          "commands": [
+            { "command": "chmod +x ctl.sh && ./ctl.sh staging status" }
+          ]
+        },
+        "production": {
+          "cwd": "{workspaceRoot}/deploy/production",
+          "commands": [
+            { "command": "chmod +x ctl.sh && ./ctl.sh production status" }
+          ]
+        }
+      }
+    },
+    "logs": {
+      "executor": "nx:run-commands",
+      "defaultConfiguration": "development",
+      "configurations": {
+        "development": {
+          "cwd": "{workspaceRoot}",
+          "commands": [
+            { "command": "docker compose -f deploy/development/docker-compose.yaml logs -f" }
+          ]
+        },
+        "staging": {
+          "cwd": "{workspaceRoot}/deploy/production",
+          "commands": [
+            { "command": "chmod +x ctl.sh && ./ctl.sh staging logs" }
+          ]
+        }
+      }
+    },
+    "diff": {
+      "executor": "nx:run-commands",
+      "configurations": {
+        "staging": {
+          "cwd": "{workspaceRoot}/deploy/production",
+          "commands": [
+            { "command": "chmod +x ctl.sh && ./ctl.sh diff staging" }
+          ]
+        },
+        "production": {
+          "cwd": "{workspaceRoot}/deploy/production",
+          "commands": [
+            { "command": "chmod +x ctl.sh && ./ctl.sh diff production" }
+          ]
+        }
+      }
+    }
+  },
+  "tags": []
+}
