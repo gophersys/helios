@@ -398,7 +398,8 @@
               <!-- Stage badge -->
               {#if stageBadge}
                 <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-2xs font-medium {stageBadge.color}">
-                  <svelte:component this={stageBadge.icon} size={10} />
+                  {@const StageBadgeIcon = stageBadge.icon}
+                  <StageBadgeIcon size={10} />
                   {stage.toUpperCase()}
                 </span>
               {/if}
@@ -431,7 +432,7 @@
               <!-- Trigger source (only non-pipeline sources) -->
               {#if triggerType === 'bitbucket'}
                 <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-info-muted text-info text-2xs font-medium">
-                  <svelte:component this={BitbucketIcon} size={10} />
+                  <BitbucketIcon size={10} />
                   {getTriggerLabel(run)}
                 </span>
               {:else if triggerType === 'scheduled'}

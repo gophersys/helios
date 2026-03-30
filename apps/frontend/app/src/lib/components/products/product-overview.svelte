@@ -81,7 +81,8 @@
         </div>
       {:else}
         <div class="flex items-center gap-2 text-[var(--color-text-tertiary)]">
-          <svelte:component this={card.icon} size={14} />
+          {@const CardIcon = card.icon}
+          <CardIcon size={14} />
           <span class="text-xs font-medium">{card.label}</span>
         </div>
         <p class="mt-2 text-2xl font-semibold text-[var(--color-text-primary)]">{card.value}</p>

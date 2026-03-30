@@ -593,7 +593,8 @@
           {/if}
           <!-- Trigger badge -->
           <span class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg {triggerDisplay.color} text-xs font-medium">
-            <svelte:component this={triggerDisplay.icon} size={14} />
+            {@const TriggerIcon = triggerDisplay.icon}
+            <TriggerIcon size={14} />
             {triggerDisplay.label}
           </span>
         </div>

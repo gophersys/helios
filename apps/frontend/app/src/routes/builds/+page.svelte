@@ -641,7 +641,8 @@
             <!-- Trigger source badge (only for non-manual triggers) -->
             {#if pipeline.triggerType && pipeline.triggerType !== 'manual'}
               <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded {trigger.color} font-medium">
-                <svelte:component this={trigger.icon} size={10} />
+                {@const TriggerIcon = trigger.icon}
+                <TriggerIcon size={10} />
                 {trigger.label}
               </span>
             {/if}
@@ -649,8 +650,9 @@
             {#if pipeline.matrixMode && STAGE_BADGE[pipeline.matrixMode]}
               {@const badge = STAGE_BADGE[pipeline.matrixMode]}
               {@const stage = STAGE_DISPLAY[pipeline.matrixMode as ValidationStage]}
+              {@const BadgeIcon = badge.icon}
               <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded {badge.color} font-medium" title={stage?.description ?? pipeline.matrixMode}>
-                <svelte:component this={badge.icon} size={10} />
+                <BadgeIcon size={10} />
                 {stage?.name ?? pipeline.matrixMode}
               </span>
             {/if}
