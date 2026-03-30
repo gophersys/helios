@@ -12,10 +12,9 @@
           "cwd": "{workspaceRoot}",
           "parallel": false,
           "commands": [
-            { "command": "docker compose -f deploy/development/docker-compose.yaml up -d" },
-            { "command": "echo '\\n  Postgres  → localhost:5432\\n  MinIO     → localhost:8675 (console :8676)\\n  InfluxDB  → localhost:8086\\n'" },
-            { "command": "echo 'Run backend:  npx nx serve http-api'" },
-            { "command": "echo 'Run frontend: npx nx dev app'" }
+            { "command": "nx run http-api:containerize -c development" },
+            { "command": "nx run app:containerize -c development" },
+            { "command": "docker compose -f deploy/development/docker-compose.yaml up -d" }
           ]
         },
         "staging": {
@@ -46,15 +45,11 @@
         },
         "staging": {
           "cwd": "{workspaceRoot}/deploy/production",
-          "commands": [
-            { "command": "chmod +x ctl.sh && ./ctl.sh staging stop" }
-          ]
+          "commands": [{ "command": "chmod +x ctl.sh && ./ctl.sh staging stop" }]
         },
         "production": {
           "cwd": "{workspaceRoot}/deploy/production",
-          "commands": [
-            { "command": "chmod +x ctl.sh && ./ctl.sh production stop" }
-          ]
+          "commands": [{ "command": "chmod +x ctl.sh && ./ctl.sh production stop" }]
         }
       }
     },
@@ -70,15 +65,11 @@
         },
         "staging": {
           "cwd": "{workspaceRoot}/deploy/production",
-          "commands": [
-            { "command": "chmod +x ctl.sh && ./ctl.sh staging status" }
-          ]
+          "commands": [{ "command": "chmod +x ctl.sh && ./ctl.sh staging status" }]
         },
         "production": {
           "cwd": "{workspaceRoot}/deploy/production",
-          "commands": [
-            { "command": "chmod +x ctl.sh && ./ctl.sh production status" }
-          ]
+          "commands": [{ "command": "chmod +x ctl.sh && ./ctl.sh production status" }]
         }
       }
     },
@@ -94,9 +85,7 @@
         },
         "staging": {
           "cwd": "{workspaceRoot}/deploy/production",
-          "commands": [
-            { "command": "chmod +x ctl.sh && ./ctl.sh staging logs" }
-          ]
+          "commands": [{ "command": "chmod +x ctl.sh && ./ctl.sh staging logs" }]
         }
       }
     },
@@ -105,15 +94,11 @@
       "configurations": {
         "staging": {
           "cwd": "{workspaceRoot}/deploy/production",
-          "commands": [
-            { "command": "chmod +x ctl.sh && ./ctl.sh diff staging" }
-          ]
+          "commands": [{ "command": "chmod +x ctl.sh && ./ctl.sh diff staging" }]
         },
         "production": {
           "cwd": "{workspaceRoot}/deploy/production",
-          "commands": [
-            { "command": "chmod +x ctl.sh && ./ctl.sh diff production" }
-          ]
+          "commands": [{ "command": "chmod +x ctl.sh && ./ctl.sh diff production" }]
         }
       }
     }

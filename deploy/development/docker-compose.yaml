@@ -1,4 +1,5 @@
 services:
+  # ── Infrastructure ────────────────────────────────────
   db:
     image: postgres:16
     environment:
@@ -9,6 +10,11 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U concord"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
   minio:
     image: minio/minio:latest
@@ -36,6 +42,47 @@ services:
       DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: concord-influxdb-dev-token
     volumes:
       - influxdb_data:/var/lib/influxdb2
+
+  # ── Backend ───────────────────────────────────────────
+  http-api:
+    image: concord/http-api:development
+    ports:
+      - "9001:9001"
+    environment:
+      ENVIRONMENT: development
+      AUTH_ENABLED: "false"
+      DATABASE_URL: postgresql://concord:concord@db:5432/concord
+      DIRECT_DATABASE_URL: postgresql://concord:concord@db:5432/concord
+      STORAGE_URL: http://minio:8675
+      STORAGE_ACCESS_KEY: concord
+      STORAGE_SECRET_ACCESS_KEY: concordstorage!
+      STORAGE_BUCKET_NAME: concord
+      JWT_SECRET_KEY: concord-dev-jwt-secret
+      COREOPS_PROXY_URL: http://localhost:8090
+      CK_BOARDS_REPO_URL: git@bitbucket.org:corekinect/ck_boards.git
+      CK_BOARDS_FETCH_INTERVAL: "60"
+      SERVER_PORT: "9001"
+      LOG_LEVEL: "4"
+      LOG_PATH: /tmp/logs
+      ASSETS_FOLDER: assets
+      DELETE_ALL_KEY: dev-delete-key
+    depends_on:
+      db:
+        condition: service_healthy
+      minio:
+        condition: service_started
+    restart: unless-stopped
+
+  # ── Frontend ──────────────────────────────────────────
+  frontend:
+    image: concord/frontend:development
+    ports:
+      - "4200:80"
+    environment:
+      API_HOST: http-api
+      API_PORT: "9001"
+    depends_on:
+      - http-api
 
 volumes:
   postgres_data:
