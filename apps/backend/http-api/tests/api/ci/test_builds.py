@@ -649,6 +649,40 @@ class TestUpdateBuild:
 
         assert response.status_code == 500
 
+    def test_update_build_log_size_cap(self, authed_client, mock_db):
+        """buildLog exceeding 10MB cap returns 400."""
+        existing = _build_obj(id="build-big")
+        mock_db.buildjob.find_unique.return_value = existing
+
+        big_log = "x" * (10 * 1024 * 1024 + 1)
+        response = self._patch(authed_client, "/v2/builds/build-big", {
+            "buildLog": big_log,
+        })
+
+        assert response.status_code == 400
+        body = json.loads(response.data)
+        assert "10MB" in body["errors"][0]["message"] or "too large" in body["errors"][0]["message"].lower()
+
+    def test_update_build_emits_audit_log(self, authed_client, mock_db):
+        """update_build calls log_audit on success."""
+        existing = _build_obj(id="build-audit", status="BUILDING")
+        mock_db.buildjob.find_unique.return_value = existing
+        updated = _build_obj(id="build-audit", status="SUCCESS")
+        mock_db.buildjob.update.return_value = updated
+
+        with patch("api.v2.builds.builds.log_audit") as mock_audit, \
+             patch("api.v2.builds.pipelines.check_pipeline_completion", return_value=None):
+            response = self._patch(authed_client, "/v2/builds/build-audit", {
+                "status": "SUCCESS",
+            })
+
+        assert response.status_code == 200
+        mock_audit.assert_called()
+        call_args = mock_audit.call_args[0]
+        assert call_args[0] == "ci.build.update"
+        assert call_args[1] == "BuildJob"
+        assert call_args[2] == "build-audit"
+
 
 # ---------------------------------------------------------------------------
 #  GET /v2/builds/<id>/artifacts — List build artifacts

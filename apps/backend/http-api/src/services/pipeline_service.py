@@ -672,6 +672,25 @@ def check_pipeline_completion(pipeline_id: str) -> Optional[str]:
             logger.info("Pipeline %s failed: %d/%d builds failed", pipeline_id, failed, len(builds))
             return new_status
 
+        # All builds succeeded — validate artifacts before proceeding
+        from src.services.artifact_validator import (
+            validate_pipeline_artifacts,
+            format_missing_artifacts_message,
+        )
+        validation_result = validate_pipeline_artifacts(db, pipeline_id)
+        if not validation_result["valid"]:
+            new_status = "BUILD_FAILED"
+            error_msg = format_missing_artifacts_message(validation_result["missing"])
+            db.pipelinerun.update(
+                where={"id": pipeline_id},
+                data={
+                    "status": new_status,
+                    "finishedAt": datetime.now(timezone.utc),
+                },
+            )
+            logger.warning("Pipeline %s artifact validation failed: %s", pipeline_id, error_msg)
+            return new_status
+
         if getattr(pipeline, "autoValidate", False):
             new_status = "VALIDATING"
             db.pipelinerun.update(

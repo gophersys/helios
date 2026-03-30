@@ -113,6 +113,8 @@ from .sessions.reporter import (
     report_test_result,
     report_finish,
     report_telemetry,
+    report_step_start,
+    report_step_result,
 )
 from .sessions.trigger import trigger_run
 from .sessions.demo import simulate_run
@@ -250,9 +252,9 @@ from .builds.pipelines import (
     cancel_pipeline as cancel_ci_pipeline,
     download_pipeline_artifacts as download_ci_pipeline_artifacts,
     validate_pipeline as validate_ci_pipeline,
+    validate_pipeline_artifacts_endpoint as validate_ci_pipeline_artifacts,
     list_pipeline_sessions as list_ci_pipeline_sessions,
 )
-from .builds.import_builds import import_builds, check_build_cache
 from .builds.scripts import (
     list_build_scripts,
     get_build_script,
@@ -423,6 +425,8 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     v2.add_url_rule("/sessions/<run_id>/report/test-list",                                          endpoint="report_test_list",             view_func=report_test_list,         methods=["POST"])
     v2.add_url_rule("/sessions/<run_id>/report/log-chunk",                                          endpoint="report_log_chunk",             view_func=report_log_chunk,         methods=["POST"])
     v2.add_url_rule("/sessions/<run_id>/report/telemetry",                                         endpoint="report_telemetry",             view_func=report_telemetry,         methods=["POST"])
+    v2.add_url_rule("/sessions/<run_id>/report/step-start",                                        endpoint="report_step_start",            view_func=report_step_start,        methods=["POST"])
+    v2.add_url_rule("/sessions/<run_id>/report/step-result",                                       endpoint="report_step_result",           view_func=report_step_result,       methods=["POST"])
 
     # Sessions - Log & artifact retrieval
     v2.add_url_rule("/sessions/<run_id>/logs/<path:file_path>",                                     endpoint="get_run_log_file",             view_func=get_log_file,             methods=["GET"])
@@ -577,10 +581,6 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     v2.add_url_rule("/kubernetes/rbac/cluster-role-bindings",               view_func=list_cluster_role_bindings, methods=["GET"])
     v2.add_url_rule("/kubernetes/rbac/service-accounts",                    view_func=list_service_accounts,   methods=["GET"])
 
-    # Builds - Import & Cache
-    v2.add_url_rule("/builds/import",                                                           endpoint="import_builds",            view_func=import_builds,         methods=["POST"])
-    v2.add_url_rule("/builds/cache",                                                            endpoint="check_build_cache",        view_func=check_build_cache,     methods=["GET"])
-
     # Builds - Webhooks & Triggers
     v2.add_url_rule("/builds/webhooks/bitbucket",                                               endpoint="ci_webhook_bitbucket",     view_func=webhook_bitbucket,     methods=["POST"])
     v2.add_url_rule("/builds/trigger",                                                          endpoint="ci_trigger_pipeline",      view_func=trigger_pipeline,      methods=["POST"])
@@ -606,6 +606,7 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     v2.add_url_rule("/builds/pipelines/<pipeline_id>/validate",                                endpoint="validate_ci_pipeline",     view_func=validate_ci_pipeline,  methods=["POST"])
     v2.add_url_rule("/builds/pipelines/<pipeline_id>/artifacts/download",                       endpoint="download_ci_pipeline_artifacts", view_func=download_ci_pipeline_artifacts, methods=["GET"])
     v2.add_url_rule("/builds/pipelines/<pipeline_id>/sessions",                               endpoint="list_ci_pipeline_sessions",view_func=list_ci_pipeline_sessions, methods=["GET"])
+    v2.add_url_rule("/builds/pipelines/<pipeline_id>/validate-artifacts",                     endpoint="validate_ci_pipeline_artifacts", view_func=validate_ci_pipeline_artifacts, methods=["POST"])
 
     # Builds - Settings
     v2.add_url_rule("/builds/settings/repos",                                                   endpoint="list_ci_repos",            view_func=list_ci_repos,         methods=["GET"])

@@ -489,13 +489,9 @@ class RunContext {
         }
 
         const hydratedTests: LiveTest[] = [];
-        console.log('[hydration] execMap keys:', Array.from(execMap.keys()).filter(k => k.includes('test_11')));
         for (const t of allTestNames) {
           const key = `${t.module || ''}::${t.name}`;
           const ex = execMap.get(key);
-          if (t.name.includes('test_11')) {
-            console.log(`[hydration] ${key} -> ex=${ex ? ex.status : 'NOT FOUND'}`);
-          }
 
           let status: LiveTest['status'] = 'queued';
           let logOutput: string | null = null;

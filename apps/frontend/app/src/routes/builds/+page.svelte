@@ -2,7 +2,6 @@
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import {
-    Calendar,
     ChevronLeft,
     ChevronRight,
     ChevronsLeft,
@@ -20,20 +19,23 @@
     Plus,
     Radio,
     RefreshCw,
-    User,
-    Webhook,
+    Upload,
+    X,
     Zap,
   } from 'lucide-svelte';
   import { getAuth } from '$lib/stores/auth.svelte';
-  import type { BuildJob, Pipeline, MatrixLabel, ValidationStage } from '$lib/types/ci';
+  import type { BuildJob, BuildJobArtifact, Pipeline, MatrixLabel, ValidationStage } from '$lib/types/ci';
   import { MATRIX_LABEL_DISPLAY, STAGE_DISPLAY } from '$lib/types/ci';
-  import type { Pagination } from '$lib/types/models';
-  import { fetchPipelines, fetchBuilds, triggerPipeline } from '$lib/services/ci';
+  import type { Pagination, Product } from '$lib/types/models';
+  import { fetchPipelines, fetchBuilds, triggerPipeline, createManualBuild, uploadBuildArtifact } from '$lib/services/ci';
+  import { fetchProducts as fetchProductList } from '$lib/services/products';
+  import { getTriggerConfig, getProductInfo } from '$lib/constants/builds';
   import { formatTimeAgo, formatDateTime, formatDuration } from '$lib/utils/formatting';
   import EmptyState from '$lib/components/ui/empty-state.svelte';
   import ErrorAlert from '$lib/components/ui/error-alert.svelte';
   import FormCard from '$lib/components/ui/form-card.svelte';
   import LoadingState from '$lib/components/ui/loading-state.svelte';
+  import Modal from '$lib/components/ui/modal.svelte';
   import PageHeader from '$lib/components/ui/page-header.svelte';
   import Select from '$lib/components/ui/select.svelte';
   import StatusBadge from '$lib/components/ui/status-badge.svelte';
@@ -57,6 +59,19 @@
     { value: 'fuota', label: 'FUOTA' },
   ];
 
+  const TRIGGER_TYPE_OPTIONS = [
+    { value: 'worker', label: 'Worker' },
+    { value: 'manual', label: 'Manual' },
+    { value: 'webhook', label: 'Webhook' },
+  ];
+
+  // Trigger type badge config for build jobs
+  const TRIGGER_TYPE_BADGE: Record<string, { color: string; label: string }> = {
+    worker: { color: 'text-text-secondary bg-surface-2', label: 'Worker' },
+    manual: { color: 'text-accent bg-accent-muted', label: 'Manual' },
+    webhook: { color: 'text-info bg-info-muted', label: 'Webhook' },
+  };
+
   // Per-stage icon and color config for list badges
   const STAGE_BADGE: Record<string, { icon: typeof Zap; color: string }> = {
     smoke:       { icon: Zap,    color: 'text-text-secondary bg-surface-2' },
@@ -65,30 +80,6 @@
     nightly:     { icon: Moon,   color: 'text-warning bg-warning-muted' },
     fuota:       { icon: Radio,  color: 'text-info bg-info-muted' },
   };
-
-  // Trigger source display config
-  const TRIGGER_CONFIG: Record<string, { icon: typeof Webhook; label: string; color: string }> = {
-    webhook: { icon: GitCommit, label: 'Bitbucket', color: 'text-info bg-info-muted' },
-    manual: { icon: User, label: 'Manual', color: 'text-accent bg-accent-muted' },
-    scheduled: { icon: Calendar, label: 'Scheduled', color: 'text-warning bg-warning-muted' },
-  };
-
-  function getTriggerConfig(type: string) {
-    return TRIGGER_CONFIG[type] || TRIGGER_CONFIG.manual;
-  }
-
-  // Product info mapping (board -> display name, repo slug, hardware rev)
-  const PRODUCT_INFO: Record<string, { name: string; repo: string; rev: string }> = {
-    alpha_b0: { name: 'Alpha', repo: 'alpha_fw', rev: 'B0' },
-    sigma5_b0: { name: 'Sigma5', repo: 'sigma5_fw', rev: 'B0' },
-    sigma5_c0: { name: 'Sigma5', repo: 'sigma5_fw', rev: 'C0' },
-    theta_c0: { name: 'Theta', repo: 'theta_fw', rev: 'C0' },
-  };
-
-  function getProductInfo(product: string): { name: string; repo: string; rev: string } {
-    const key = product.toLowerCase().replace(/\s+/g, '_');
-    return PRODUCT_INFO[key] ?? { name: product, repo: `${key}_fw`, rev: '' };
-  }
 
   // Get build matrix summary for validation pipelines
   function getMatrixSummary(pipeline: Pipeline): string | null {
@@ -131,9 +122,29 @@
   let productFilter = $state('');
   let branchFilter = $state('');
   let stageFilter = $state('');
+  let triggerTypeFilter = $state('');
   let currentPage = $state(1);
   let refreshing = $state(false);
   let productOptions = $state<{ value: string; label: string }[]>([]);
+
+  // Upload modal state
+  let showUploadModal = $state(false);
+  let uploadStep = $state<'details' | 'artifacts'>('details');
+  let uploadProducts = $state<Product[]>([]);
+  let uploadProductId = $state('');
+  let uploadBoard = $state('');
+  let uploadTarget = $state('');
+  let uploadVariant = $state('');
+  let uploadVersion = $state('');
+  let uploadBranch = $state('');
+  let uploadNotes = $state('');
+  let uploadSubmitting = $state(false);
+  let uploadBuildId = $state<string | null>(null);
+  let uploadingFile = $state(false);
+  let uploadedArtifacts = $state<BuildJobArtifact[]>([]);
+  let preselectedProductId = $state<string | null>(null);
+  let artifactRole = $state('');
+  let artifactProcessor = $state('');
 
   // Trigger form
   let showForm = $state(false);
@@ -181,6 +192,7 @@
         page: currentPage,
         limit: 25,
         status: statusFilter || undefined,
+        triggerType: triggerTypeFilter || undefined,
       });
       buildJobs = res.data;
       pagination = res.pagination;
@@ -239,6 +251,85 @@
     }
   }
 
+  async function loadUploadProducts(): Promise<void> {
+    try {
+      uploadProducts = await fetchProductList();
+    } catch {
+      uploadProducts = [];
+    }
+  }
+
+  function openUploadModal(productId?: string): void {
+    preselectedProductId = productId || null;
+    uploadStep = 'details';
+    uploadProductId = productId || '';
+    uploadBoard = '';
+    uploadTarget = '';
+    uploadVariant = '';
+    uploadVersion = '';
+    uploadBranch = '';
+    uploadNotes = '';
+    uploadBuildId = null;
+    uploadedArtifacts = [];
+    artifactRole = '';
+    artifactProcessor = '';
+    showUploadModal = true;
+    loadUploadProducts();
+  }
+
+  function closeUploadModal(): void {
+    showUploadModal = false;
+    if (uploadBuildId) {
+      loadData();
+    }
+  }
+
+  async function handleUploadCreate(e: Event): Promise<void> {
+    e.preventDefault();
+    error = null;
+    uploadSubmitting = true;
+    try {
+      const build = await createManualBuild({
+        product: uploadProducts.find(p => p.id === uploadProductId)?.name || uploadProductId,
+        board: uploadBoard,
+        target: uploadTarget,
+        variant: uploadVariant,
+        branch: uploadBranch,
+        versionString: uploadVersion || undefined,
+        notes: uploadNotes || undefined,
+        productId: uploadProductId,
+      });
+      uploadBuildId = build.id;
+      uploadStep = 'artifacts';
+    } catch (err: unknown) {
+      error = err instanceof Error ? err.message : 'Failed to create build';
+    } finally {
+      uploadSubmitting = false;
+    }
+  }
+
+  async function handleArtifactUpload(file: File, role: string, processor: string): Promise<void> {
+    if (!uploadBuildId) return;
+    uploadingFile = true;
+    try {
+      const artifactType = file.name.endsWith('.hex') ? 'plaintextHex'
+        : file.name.endsWith('.cfw') ? 'encryptedCfw'
+        : file.name.endsWith('.json') ? 'manifest'
+        : undefined;
+
+      const artifact = await uploadBuildArtifact(uploadBuildId, file, {
+        role: role || undefined,
+        processor: processor || undefined,
+        artifactType,
+      });
+      uploadedArtifacts = [...uploadedArtifacts, artifact];
+    } catch (err: unknown) {
+      error = err instanceof Error ? err.message : 'Failed to upload artifact';
+    } finally {
+      uploadingFile = false;
+    }
+  }
+
   function pipelineDuration(pipeline: Pipeline): string {
     // For list view, calculate from startedAt/finishedAt or use build durations
     if (pipeline.startedAt && pipeline.finishedAt) {
@@ -276,6 +367,7 @@
     const _p = productFilter;
     const _b = branchFilter;
     const _st = stageFilter;
+    const _tt = triggerTypeFilter;
     currentPage = 1;
   });
 </script>
@@ -364,6 +456,11 @@
       placeholder="All stages"
       options={STAGE_OPTIONS}
     />
+    <Select
+      bind:value={triggerTypeFilter}
+      placeholder="All triggers"
+      options={TRIGGER_TYPE_OPTIONS}
+    />
     <TextInput
       bind:value={branchFilter}
       placeholder="Filter by branch..."
@@ -380,6 +477,13 @@
       <RefreshCw size={14} class={refreshing ? 'animate-spin' : ''} />
     </button>
     {#if canManage}
+      <button
+        onclick={() => openUploadModal()}
+        class="btn btn-sm flex items-center gap-1.5"
+      >
+        <Upload size={14} />
+        Upload Build
+      </button>
       <button
         onclick={() => { showForm = true; }}
         class="btn btn-sm btn-primary flex items-center gap-1.5"
@@ -447,6 +551,12 @@
                 {#if build.versionString}
                   <span class="inline-flex items-center rounded bg-accent-muted px-1.5 py-0.5 text-2xs text-accent font-mono font-medium">
                     v{build.versionString}
+                  </span>
+                {/if}
+                {#if build.triggerType && build.triggerType !== 'worker'}
+                  {@const triggerBadge = TRIGGER_TYPE_BADGE[build.triggerType] || TRIGGER_TYPE_BADGE.worker}
+                  <span class="inline-flex items-center rounded px-1.5 py-0.5 text-2xs font-medium {triggerBadge.color}">
+                    {triggerBadge.label}
                   </span>
                 {/if}
                 <StatusBadge status={build.status} />
@@ -637,3 +747,139 @@
     </div>
   {/if}
 </div>
+
+<!-- Upload Build Modal -->
+<Modal open={showUploadModal} title={uploadStep === 'details' ? 'Upload Build' : 'Upload Artifacts'} onclose={closeUploadModal} size="lg">
+  {#if uploadStep === 'details'}
+    <form onsubmit={handleUploadCreate} class="space-y-3">
+      <Select
+        bind:value={uploadProductId}
+        label="Product"
+        placeholder="Select product"
+        options={uploadProducts.map(p => ({ value: p.id, label: p.name }))}
+        required
+        disabled={!!preselectedProductId}
+      />
+      <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <TextInput bind:value={uploadBoard} label="Board" placeholder="e.g. alpha_b0" required />
+        <Select
+          bind:value={uploadTarget}
+          label="Target"
+          placeholder="Select target"
+          options={[
+            { value: 'app', label: 'App' },
+            { value: 'mfg', label: 'Manufacturing' },
+          ]}
+          required
+        />
+      </div>
+      <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <Select
+          bind:value={uploadVariant}
+          label="Variant"
+          placeholder="Select variant"
+          options={[
+            { value: 'debug', label: 'Debug' },
+            { value: 'release', label: 'Release' },
+          ]}
+          required
+        />
+        <TextInput bind:value={uploadVersion} label="Version" placeholder="e.g. 0.8.3" />
+      </div>
+      <TextInput bind:value={uploadBranch} label="Branch" placeholder="e.g. main" required />
+      <div>
+        <label for="upload-notes" class="mb-1 block text-2xs font-medium text-text-tertiary">Notes</label>
+        <textarea
+          id="upload-notes"
+          bind:value={uploadNotes}
+          placeholder="Optional notes about this build..."
+          rows="2"
+          class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
+        ></textarea>
+      </div>
+      <div class="flex justify-end gap-2 pt-2">
+        <button type="button" onclick={closeUploadModal} class="btn btn-sm">Cancel</button>
+        <button type="submit" disabled={uploadSubmitting} class="btn btn-sm btn-primary">
+          {uploadSubmitting ? 'Creating...' : 'Create Build'}
+        </button>
+      </div>
+    </form>
+  {:else}
+    <!-- Artifact upload step -->
+    <div class="space-y-4">
+      <div class="rounded-lg border border-border bg-surface-0 p-3">
+        <div class="text-2xs text-text-tertiary mb-1">Build created</div>
+        <div class="text-sm font-mono text-text-primary">{uploadBuildId?.slice(0, 12)}</div>
+      </div>
+
+      {#if uploadedArtifacts.length > 0}
+        <div>
+          <div class="text-2xs font-medium text-text-tertiary mb-2">Uploaded ({uploadedArtifacts.length})</div>
+          <div class="space-y-1">
+            {#each uploadedArtifacts as artifact}
+              <div class="flex items-center gap-2 rounded border border-border bg-surface-0 px-3 py-1.5 text-sm">
+                <span class="flex-1 font-mono text-text-primary truncate">{artifact.name}</span>
+                <span class="text-2xs text-success">Uploaded</span>
+              </div>
+            {/each}
+          </div>
+        </div>
+      {/if}
+
+      <div class="rounded-lg border-2 border-dashed border-border bg-surface-0 p-4">
+        <div class="text-sm font-medium text-text-primary mb-3">Add Artifact</div>
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 mb-3">
+          <Select
+            bind:value={artifactRole}
+            label="Role"
+            placeholder="Select role"
+            options={[
+              { value: 'app', label: 'App' },
+              { value: 'comms', label: 'Comms' },
+              { value: 'modem', label: 'Modem' },
+            ]}
+          />
+          <Select
+            bind:value={artifactProcessor}
+            label="Processor"
+            placeholder="Select processor"
+            options={[
+              { value: 'nrf52840', label: 'nRF52840' },
+              { value: 'nrf9151', label: 'nRF9151' },
+            ]}
+          />
+        </div>
+        <label
+          for="upload-artifact-file"
+          class="flex cursor-pointer flex-col items-center gap-2 rounded-lg border border-dashed border-border p-4 transition-colors hover:border-text-tertiary hover:bg-surface-1"
+        >
+          <Upload size={20} class="text-text-tertiary" />
+          <span class="text-2xs text-text-tertiary">
+            {uploadingFile ? 'Uploading...' : 'Click to select .hex or .cfw file'}
+          </span>
+          <input
+            id="upload-artifact-file"
+            type="file"
+            accept=".hex,.cfw,.bin,.json"
+            class="hidden"
+            disabled={uploadingFile}
+            onchange={(e) => {
+              const input = e.target as HTMLInputElement;
+              const file = input.files?.[0];
+              if (file) {
+                handleArtifactUpload(file, artifactRole, artifactProcessor);
+              }
+              input.value = '';
+            }}
+          />
+        </label>
+      </div>
+
+      <div class="flex justify-end gap-2 pt-2">
+        <button onclick={closeUploadModal} class="btn btn-sm btn-primary">
+          Done
+        </button>
+      </div>
+    </div>
+  {/if}
+</Modal>

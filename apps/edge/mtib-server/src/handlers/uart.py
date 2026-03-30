@@ -262,7 +262,7 @@ class UartHandler:
         Uses smart batching to reduce gRPC overhead:
         - Flushes on newline (complete log line from Zephyr RTOS)
         - Flushes when buffer >= 256 bytes (prevent unbounded buffering)
-        - Flushes after 100ms timeout (for shell prompts without newline)
+        - Flushes after 50ms timeout (for shell prompts without newline)
 
         This ensures complete log lines are sent as single messages while
         still delivering partial data (like shell prompts) promptly.
@@ -282,7 +282,7 @@ class UartHandler:
 
         def rx_worker():
             uart = self.active_connections[target]
-            self.logger.info(f"RX thread started for {target} with batching (newline/256B/100ms)")
+            self.logger.info(f"RX thread started for {target} with batching (newline/256B/50ms)")
 
             buffer = bytearray()
             last_flush_time = time.time()

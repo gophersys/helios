@@ -58,7 +58,8 @@ def discover_boards():
         boards = svc.discover_boards(branch)
         return jsonify(ApiResponse.ok(boards).to_dict()), 200
     except ValueError as e:
-        return bad_request(str(e))
+        logger.warning("Board discovery validation error on branch %s: %s", branch, e)
+        return bad_request("Invalid branch or board configuration")
     except Exception as e:
         logger.exception("Failed to discover boards on branch %s", branch)
         return internal_error("Failed to discover boards")
@@ -80,8 +81,10 @@ def discover_board_detail(board_name: str):
     except ValueError as e:
         msg = str(e)
         if "not found" in msg.lower():
-            return not_found(msg)
-        return bad_request(msg)
+            logger.warning("Board not found: %s on branch %s: %s", board_name, branch, e)
+            return not_found(f"Board '{board_name}' not found on branch '{branch}'")
+        logger.warning("Board detail validation error for %s on %s: %s", board_name, branch, e)
+        return bad_request("Invalid board or branch configuration")
     except Exception as e:
         logger.exception("Failed to get detail for board %s on %s", board_name, branch)
         return internal_error("Failed to get board detail")

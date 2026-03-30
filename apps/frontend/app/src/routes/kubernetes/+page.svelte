@@ -53,7 +53,6 @@
     try {
       // Fetch cluster info
       const clusterRes = await api.get<{ data: ClusterInfo }>('/v2/kubernetes/info');
-      console.log('cluster response:', clusterRes);
       if (clusterRes?.data) {
         cluster = clusterRes.data;
       }
@@ -61,28 +60,25 @@
       // Fetch nodes (may fail if not available)
       try {
         const nodesRes = await api.get<{ data: NodeSummary[] }>('/v2/kubernetes/nodes');
-        console.log('nodes response:', nodesRes);
         if (nodesRes?.data) {
           nodes = nodesRes.data;
         }
-      } catch (e) {
-        console.warn('Failed to load nodes:', e);
+      } catch {
+        // Nodes endpoint may not be available
       }
 
       // Fetch events (may fail if not available)
       try {
         const eventsRes = await api.get<{ data: K8sEvent[] }>('/v2/kubernetes/events?limit=10');
-        console.log('events response:', eventsRes);
         if (eventsRes?.data) {
           events = eventsRes.data;
         }
-      } catch (e) {
-        console.warn('Failed to load events:', e);
+      } catch {
+        // Events endpoint may not be available
       }
 
       error = null;
     } catch (e) {
-      console.error('Failed to load cluster data:', e);
       error = e instanceof Error ? e.message : 'Failed to load cluster data';
     } finally {
       loading = false;

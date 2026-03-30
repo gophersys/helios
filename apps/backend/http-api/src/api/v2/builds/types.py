@@ -146,15 +146,28 @@ class BuildCreateRequest:
     commit_sha: Optional[str] = None
     config: Optional[Dict[str, Any]] = None
     version_override: Optional[str] = None
+    trigger_type: str = "worker"
+    notes: Optional[str] = None
+    product_id: Optional[str] = None
+    initial_status: Optional[str] = None
 
     @classmethod
     def from_json(cls, data: dict) -> Tuple[Optional["BuildCreateRequest"], Optional[str]]:
         if not data:
             return None, "Request body must contain JSON data"
 
+        trigger_type = (data.get("triggerType") or "worker").strip()
+        if trigger_type not in ("worker", "manual", "webhook"):
+            return None, "triggerType must be one of: worker, manual, webhook"
+
+        product_id = (data.get("productId") or "").strip() or None
+
         product = (data.get("product") or "").strip()
-        if not product:
-            return None, "product is required"
+        if not product and not product_id:
+            return None, "product or productId is required"
+
+        if trigger_type == "manual" and not product and not product_id:
+            return None, "manual builds require product or productId"
 
         board = (data.get("board") or "").strip()
         if not board:
@@ -186,6 +199,14 @@ class BuildCreateRequest:
         if version_override:
             version_override = str(version_override).strip()
 
+        notes = data.get("notes")
+        if notes is not None:
+            notes = str(notes).strip() or None
+
+        initial_status = (data.get("initialStatus") or "").strip() or None
+        if initial_status is not None and initial_status != "SUCCESS":
+            return None, "initialStatus must be 'SUCCESS' or omitted"
+
         return cls(
             product=product,
             board=board,
@@ -196,6 +217,10 @@ class BuildCreateRequest:
             commit_sha=commit_sha,
             config=config,
             version_override=version_override,
+            trigger_type=trigger_type,
+            notes=notes,
+            product_id=product_id,
+            initial_status=initial_status,
         ), None
 
 
@@ -290,67 +315,3 @@ class PipelineCreateRequest:
         ), None
 
 
-@dataclass
-class BuildImportBuild:
-    """A single build entry within a BuildImportRequest."""
-    product: str
-    variant: str
-    target: str = "nrf52840"
-    version_string: Optional[str] = None
-    reuse_from_pipeline: Optional[str] = None
-    # Artifacts are attached via multipart upload, not in JSON
-
-
-@dataclass
-class BuildImportRequest:
-    """Register externally-built firmware artifacts.
-
-    Creates a PipelineRun with triggerType='external' and associated BuildJobs.
-    """
-    product_id: str
-    board: str
-    branch: str
-    commit_sha: Optional[str] = None
-    source: str = "external"
-    builds: Optional[List[Dict[str, Any]]] = None
-
-    @classmethod
-    def from_json(cls, data: dict) -> Tuple[Optional["BuildImportRequest"], Optional[str]]:
-        if not data:
-            return None, "Request body must contain JSON data"
-
-        product_id = (data.get("productId") or "").strip()
-        if not product_id:
-            return None, "productId is required"
-
-        board = (data.get("board") or "").strip()
-        if not board:
-            return None, "board is required"
-
-        branch = (data.get("branch") or "").strip()
-        if not branch:
-            return None, "branch is required"
-
-        commit_sha = (data.get("commitSha") or "").strip() or None
-        source = (data.get("source") or "external").strip()
-
-        builds = data.get("builds")
-        if builds is not None:
-            if not isinstance(builds, list):
-                return None, "builds must be an array"
-            for i, b in enumerate(builds):
-                if not isinstance(b, dict):
-                    return None, f"builds[{i}] must be an object"
-                if not (b.get("product") or "").strip():
-                    return None, f"builds[{i}].product is required"
-                if not (b.get("variant") or "").strip():
-                    return None, f"builds[{i}].variant is required"
-
-        return cls(
-            product_id=product_id,
-            board=board,
-            branch=branch,
-            commit_sha=commit_sha,
-            source=source,
-            builds=builds,
-        ), None

@@ -88,6 +88,8 @@ def _serialize_build_job(b: Any) -> dict:
         "configFlags": getattr(b, "configFlags", None),
         "reusedFromId": getattr(b, "reusedFromId", None),
         "buildFingerprint": getattr(b, "buildFingerprint", None),
+        "triggerType": getattr(b, "triggerType", "worker"),
+        "notes": getattr(b, "notes", None),
     }
     if hasattr(b, "artifacts") and b.artifacts is not None:
         data["artifacts"] = [_serialize_build_artifact(a) for a in b.artifacts]
@@ -107,6 +109,7 @@ def _serialize_build_artifact(a: Any) -> dict:
         "role": getattr(a, "role", None),
         "processor": getattr(a, "processor", None),
         "artifactType": getattr(a, "artifactType", None),
+        "contentType": getattr(a, "contentType", None),
         "createdAt": a.createdAt.isoformat(),
     }
 
@@ -142,6 +145,14 @@ def list_builds():
     board = request.args.get("board")
     if board:
         where["board"] = board
+
+    trigger_type = request.args.get("triggerType")
+    if trigger_type:
+        where["triggerType"] = trigger_type
+
+    product_id = request.args.get("productId")
+    if product_id:
+        where["productId"] = product_id
 
     total = db.buildjob.count(where=where)
     builds = db.buildjob.find_many(
@@ -244,15 +255,19 @@ def create_build():
 
     db = get_db_client()
 
-    # Resolve Product by name, slug, or repo slug for productId linkage
-    product_record = db.product.find_first(
-        where={"OR": [
-            {"slug": data.product},
-            {"repoSlug": data.product},
-            {"mfgRepoSlug": data.product},
-            {"name": {"contains": data.product, "mode": "insensitive"}},
-        ]}
-    )
+    # Resolve Product: by direct ID if provided, otherwise by name/slug/repo slug
+    product_record = None
+    if data.product_id:
+        product_record = db.product.find_unique(where={"id": data.product_id})
+    elif data.product:
+        product_record = db.product.find_first(
+            where={"OR": [
+                {"slug": data.product},
+                {"repoSlug": data.product},
+                {"mfgRepoSlug": data.product},
+                {"name": {"contains": data.product, "mode": "insensitive"}},
+            ]}
+        )
     product_id = product_record.id if product_record else None
 
     # Use board from Product model if available and not explicitly provided
@@ -261,62 +276,85 @@ def create_build():
         board = product_record.buildBoard
 
     # Build configFlags — merge versionOverride if present
-    config_flags = dict(data.config) if data.config else {"source": "manual"}
+    config_flags = dict(data.config) if data.config else {"source": data.trigger_type}
     if data.version_override:
         config_flags["versionOverride"] = data.version_override
 
-    # Compute build fingerprint for cache lookup
-    fingerprint = compute_build_fingerprint(
-        repo_url=product_record.repoSshUrl if product_record and hasattr(product_record, "repoSshUrl") else "",
-        commit_sha=data.commit_sha or "",
-        board=board,
-        variant=data.variant,
-        config_flags=config_flags,
-    )
+    # Manual builds skip fingerprinting and cache
+    is_manual = data.trigger_type == "manual"
 
-    # Check cache — reuse existing build if same fingerprint and no version override
-    cached = find_cached_build(db, fingerprint)
-    if cached and not data.version_override:
-        try:
-            build = db.buildjob.create(
-                data={
-                    "productId": product_id,
-                    "board": board,
-                    "target": data.target,
-                    "variant": data.variant,
-                    "mtibRev": data.mtib_rev,
-                    "branch": data.branch,
-                    "commitSha": data.commit_sha,
-                    "status": "CACHED",
-                    "buildFingerprint": fingerprint,
-                    "reusedFromId": cached.id,
-                    "versionString": cached.versionString,
-                    "webhookData": Json(config_flags),
-                    "configFlags": Json(config_flags),
-                },
-                include={"artifacts": True, "product": True},
-            )
-            log_audit("ci.build.cached", "BuildJob", build.id, {"reusedFromId": cached.id})
-            return jsonify(ApiResponse.created(_serialize_build_job(build)).to_dict()), 201
-        except Exception as e:
-            logger.error("Failed to create cached build job: %s", e)
-            return internal_error("Failed to create build job")
+    if is_manual:
+        fingerprint = None
+    else:
+        # Compute build fingerprint for cache lookup
+        fingerprint = compute_build_fingerprint(
+            repo_url=product_record.repoSshUrl if product_record and hasattr(product_record, "repoSshUrl") else "",
+            commit_sha=data.commit_sha or "",
+            board=board,
+            variant=data.variant,
+            config_flags=config_flags,
+        )
+
+        # Check cache — reuse existing build if same fingerprint and no version override
+        cached = find_cached_build(db, fingerprint)
+        if cached and not data.version_override:
+            try:
+                build = db.buildjob.create(
+                    data={
+                        "productId": product_id,
+                        "board": board,
+                        "target": data.target,
+                        "variant": data.variant,
+                        "mtibRev": data.mtib_rev,
+                        "branch": data.branch,
+                        "commitSha": data.commit_sha,
+                        "status": "CACHED",
+                        "buildFingerprint": fingerprint,
+                        "reusedFromId": cached.id,
+                        "versionString": cached.versionString,
+                        "webhookData": Json(config_flags),
+                        "configFlags": Json(config_flags),
+                        "triggerType": data.trigger_type,
+                        "notes": data.notes,
+                    },
+                    include={"artifacts": True, "product": True},
+                )
+                log_audit("ci.build.cached", "BuildJob", build.id, {"reusedFromId": cached.id})
+                return jsonify(ApiResponse.created(_serialize_build_job(build)).to_dict()), 201
+            except Exception as e:
+                logger.error("Failed to create cached build job: %s", e)
+                return internal_error("Failed to create build job")
+
+    # Determine initial status
+    if is_manual and data.initial_status == "SUCCESS":
+        from datetime import datetime, timezone
+        initial_status = "SUCCESS"
+        now = datetime.now(timezone.utc)
+        extra_fields = {"startedAt": now, "finishedAt": now}
+    else:
+        initial_status = "QUEUED"
+        extra_fields = {}
 
     try:
+        create_data = {
+            "productId": product_id,
+            "board": board,
+            "target": data.target,
+            "variant": data.variant,
+            "mtibRev": data.mtib_rev,
+            "branch": data.branch,
+            "commitSha": data.commit_sha,
+            "status": initial_status,
+            "buildFingerprint": fingerprint,
+            "webhookData": Json(config_flags),
+            "configFlags": Json(config_flags),
+            "triggerType": data.trigger_type,
+            "notes": data.notes,
+            **extra_fields,
+        }
+
         build = db.buildjob.create(
-            data={
-                "productId": product_id,
-                "board": board,
-                "target": data.target,
-                "variant": data.variant,
-                "mtibRev": data.mtib_rev,
-                "branch": data.branch,
-                "commitSha": data.commit_sha,
-                "status": "QUEUED",
-                "buildFingerprint": fingerprint,
-                "webhookData": Json(config_flags),
-                "configFlags": Json(config_flags),
-            },
+            data=create_data,
             include={"artifacts": True, "product": True},
         )
 
@@ -327,6 +365,7 @@ def create_build():
             "target": data.target,
             "variant": data.variant,
             "branch": data.branch,
+            "triggerType": data.trigger_type,
         })
 
         return jsonify(ApiResponse.created(_serialize_build_job(build)).to_dict()), 201
@@ -393,6 +432,9 @@ def update_build(build_id: str):
             pass
 
     if "buildLog" in data:
+        max_log_size = 10 * 1024 * 1024  # 10MB cap, same as stream_build_log
+        if data["buildLog"] and len(data["buildLog"]) > max_log_size:
+            return bad_request("buildLog exceeds 10MB limit")
         update_data["buildLog"] = data["buildLog"]
 
     # Support updating version bump config (for matrix fixups)
@@ -455,6 +497,11 @@ def update_build(build_id: str):
                 if new_pipeline_status:
                     logger.info("Build %s finished, pipeline %s now %s",
                                build_id, updated.pipelineRunId, new_pipeline_status)
+
+        log_audit("ci.build.update", "BuildJob", build_id, {
+            "fields": list(update_data.keys()),
+            "status": update_data.get("status"),
+        })
 
         return jsonify(ApiResponse.ok(_serialize_build_job(updated)).to_dict()), 200
 
@@ -556,6 +603,7 @@ def upload_build_artifact(build_id: str):
         role = request.form.get("role") or None
         processor = request.form.get("processor") or None
         artifact_type = request.form.get("artifactType") or None
+        content_type = request.form.get("contentType") or None
 
         # Create artifact record
         create_data = {
@@ -571,6 +619,8 @@ def upload_build_artifact(build_id: str):
             create_data["processor"] = processor
         if artifact_type is not None:
             create_data["artifactType"] = artifact_type
+        if content_type is not None:
+            create_data["contentType"] = content_type
 
         artifact = db.buildjobartifact.create(data=create_data)
 

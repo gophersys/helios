@@ -15,6 +15,7 @@ from src.lib.errors import bad_request, internal_error, not_found
 from src.lib.permissions import Permissions
 from src.lib.types import ApiResponse
 from src.services.database.prisma import get_db_client
+from src.services.artifact_validator import validate_pipeline_artifacts as _validate_artifacts
 from src.services.pipeline_service import (
     check_pipeline_completion,
     create_pipeline_record,
@@ -24,6 +25,7 @@ from src.services.pipeline_service import (
     trigger_pipeline_validation,
 )
 
+from .builds import _sanitize_filename
 from .types import PipelineCreateRequest
 
 logger = logging.getLogger(__name__)
@@ -171,7 +173,7 @@ def download_pipeline_artifacts(pipeline_id: str):
             zip_buffer.getvalue(),
             mimetype="application/zip",
             headers={
-                "Content-Disposition": f'attachment; filename="{zip_filename}"',
+                "Content-Disposition": f'attachment; filename="{_sanitize_filename(zip_filename)}"',
                 "Content-Length": str(len(zip_buffer.getvalue())),
             },
         )
@@ -391,3 +393,26 @@ def validate_pipeline(pipeline_id: str):
     except Exception as e:
         logger.error("Failed to trigger validation for pipeline %s: %s", pipeline_id, e)
         return internal_error("Failed to trigger validation")
+
+
+@require_permissions(Permissions.BUILDS_VIEW)
+def validate_pipeline_artifacts_endpoint(pipeline_id: str):
+    """POST /v2/builds/pipelines/<id>/validate-artifacts
+
+    Returns a structured report of artifact completeness for a pipeline.
+    Does not mutate pipeline state — read-only validation check.
+    """
+    db = get_db_client()
+
+    try:
+        pipeline = db.pipelinerun.find_unique(where={"id": pipeline_id})
+        if not pipeline:
+            return not_found(f"Pipeline not found: {pipeline_id}")
+
+        result = _validate_artifacts(db, pipeline_id)
+
+        return jsonify(ApiResponse.ok(result).to_dict()), 200
+
+    except Exception as e:
+        logger.error("Failed to validate artifacts for pipeline %s: %s", pipeline_id, e)
+        return internal_error("Failed to validate pipeline artifacts")

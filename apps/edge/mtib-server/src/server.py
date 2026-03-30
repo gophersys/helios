@@ -517,8 +517,8 @@ class MtibV1Provider(MtibV1Servicer):
             return GetMotionStatusResponse(success=False, message="Motion is not enabled")
         return self._motion_handlers.get_status(request, context)
 
-    @grpc_method
     def MotionStart(self, request: MotionStartRequest, context: grpc.ServicerContext) -> MotionStartResponse:
+        self.logger.debug(f"MotionStart: Request received from {context.peer()}")
         if not self.config.MOTION_ENABLED:
             yield MotionStartResponse(success=False, message="Motion is not enabled")
             return
@@ -584,10 +584,14 @@ class MtibV1Provider(MtibV1Servicer):
     # -------------------------------------------------
     @grpc_method
     def NfcPoll(self, request: NfcPollRequest, context: grpc.ServicerContext) -> NfcPollResponse:
+        if self._nfc_handlers is None:
+            return NfcPollResponse(success=False, message="NFC handler not initialized", tag_present=False)
         return self._nfc_handlers.poll(request, context)
 
     @grpc_method
     def NfcReadNdef(self, request: NfcReadNdefRequest, context: grpc.ServicerContext) -> NfcReadNdefResponse:
+        if self._nfc_handlers is None:
+            return NfcReadNdefResponse(success=False, message="NFC handler not initialized")
         return self._nfc_handlers.read_ndef(request, context)
 
     # -------------------------------------------------

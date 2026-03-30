@@ -5,7 +5,7 @@
   import {
     AlertTriangle,
     ArrowLeft,
-    Calendar,
+    Check,
     CheckCircle2,
     ChevronDown,
     ChevronRight,
@@ -21,14 +21,16 @@
     Loader2,
     Package,
     RefreshCw,
-    User,
+    ShieldCheck,
+    X,
     XCircle,
   } from 'lucide-svelte';
   import { getAuth } from '$lib/stores/auth.svelte';
-  import { apiFetch } from '$lib/api';
   import type { Pipeline, PipelineBuildSummary, MatrixLabel, ValidationStage } from '$lib/types/ci';
   import { MATRIX_LABEL_DISPLAY, STAGE_DISPLAY } from '$lib/types/ci';
-  import { fetchPipeline, fetchBuildLog, fetchBuildArtifacts, resetBuild, downloadBuildArtifacts, downloadPipelineArtifacts, downloadSingleArtifact, triggerPipelineValidation } from '$lib/services/ci';
+  import { fetchPipeline, fetchBuildLog, fetchBuildArtifacts, resetBuild, downloadBuildArtifacts, downloadPipelineArtifacts, downloadSingleArtifact, triggerPipelineValidation, validatePipelineArtifacts, fetchPipelineSessions } from '$lib/services/ci';
+  import type { PipelineSessionSummary, ArtifactValidationReport } from '$lib/services/ci';
+  import { getTriggerConfig, getProductInfo } from '$lib/constants/builds';
   import type { BuildJobArtifact } from '$lib/types/ci';
   import {
     subscribeCiPipeline,
@@ -37,6 +39,7 @@
   import { formatTimeAgo, formatDateTime, formatDuration, formatSize, ansiToHtml, analyzeBuildLog, type LogAnalysis } from '$lib/utils/formatting';
   import ErrorAlert from '$lib/components/ui/error-alert.svelte';
   import LoadingState from '$lib/components/ui/loading-state.svelte';
+  import Modal from '$lib/components/ui/modal.svelte';
   import StatusBadge from '$lib/components/ui/status-badge.svelte';
   import Skeleton from '$lib/components/ui/skeleton.svelte';
 
@@ -62,34 +65,20 @@
   let downloadingBuilds = $state<Set<string>>(new Set());
   let downloadingArtifacts = $state<Set<string>>(new Set());
   let downloadingAll = $state(false);
+  let expandedIssues = $state<Set<string>>(new Set());
   let triggeringValidation = $state(false);
+  let validatingArtifacts = $state(false);
+  let artifactReport = $state<ArtifactValidationReport | null>(null);
+  let showArtifactReport = $state(false);
 
   // Validation runs triggered from this pipeline
-  interface ValidationRunSummary {
-    id: string;
-    name: string;
-    status: string;
-    startedAt: string | null;
-    finishedAt: string | null;
-    passedCount: number;
-    failedCount: number;
-    config: Record<string, unknown> | null;
-  }
-  let validationRuns = $state<ValidationRunSummary[]>([]);
+  let validationRuns = $state<PipelineSessionSummary[]>([]);
 
   async function fetchValidationRuns() {
     try {
-      const res = await apiFetch<Record<string, unknown>>(`/v2/builds/pipelines/${pipelineId}/sessions`);
-      console.log('[validation-runs] raw response:', JSON.stringify(res).slice(0, 200));
-      const items = res?.data;
-      if (Array.isArray(items)) {
-        validationRuns = items as ValidationRunSummary[];
-        console.log('[validation-runs] loaded', validationRuns.length, 'runs');
-      } else {
-        console.warn('[validation-runs] data is not array:', typeof items);
-      }
-    } catch (err) {
-      console.warn('[validation-runs] fetch failed:', err);
+      validationRuns = await fetchPipelineSessions(pipelineId);
+    } catch {
+      // Pipeline may not have sessions yet
     }
   }
 
@@ -170,6 +159,20 @@
     }
   }
 
+  async function handleValidateArtifacts(): Promise<void> {
+    if (!pipelineId || validatingArtifacts) return;
+    validatingArtifacts = true;
+    try {
+      artifactReport = await validatePipelineArtifacts(pipelineId);
+      showArtifactReport = true;
+      error = null;
+    } catch (err) {
+      error = err instanceof Error ? err.message : 'Failed to validate artifacts';
+    } finally {
+      validatingArtifacts = false;
+    }
+  }
+
   async function handleDownloadArtifact(buildId: string, artifactName: string, e: Event): Promise<void> {
     e.preventDefault();
     e.stopPropagation();
@@ -208,17 +211,6 @@
       resettingBuilds.delete(buildId);
       resettingBuilds = new Set(resettingBuilds);
     }
-  }
-
-  // Trigger source display
-  const TRIGGER_CONFIG: Record<string, { icon: typeof User; label: string; color: string }> = {
-    webhook: { icon: GitCommit, label: 'Bitbucket', color: 'text-info bg-info-muted' },
-    manual: { icon: User, label: 'Manual', color: 'text-accent bg-accent-muted' },
-    scheduled: { icon: Calendar, label: 'Scheduled', color: 'text-warning bg-warning-muted' },
-  };
-
-  function getTriggerConfig(type: string) {
-    return TRIGGER_CONFIG[type] || TRIGGER_CONFIG.manual;
   }
 
   const isRunning = $derived(
@@ -282,19 +274,6 @@
   function getMatrixDisplay(label: string | null | undefined) {
     if (!label) return null;
     return MATRIX_LABEL_DISPLAY[label as MatrixLabel] ?? null;
-  }
-
-  // Product info mapping (board -> display name, repo slug, hardware rev)
-  const PRODUCT_INFO: Record<string, { name: string; repo: string; rev: string }> = {
-    alpha_b0: { name: 'Alpha', repo: 'alpha_fw', rev: 'B0' },
-    sigma5_b0: { name: 'Sigma5', repo: 'sigma5_fw', rev: 'B0' },
-    sigma5_c0: { name: 'Sigma5', repo: 'sigma5_fw', rev: 'C0' },
-    theta_c0: { name: 'Theta', repo: 'theta_fw', rev: 'C0' },
-  };
-
-  function getProductInfo(product: string): { name: string; repo: string; rev: string } {
-    const key = product.toLowerCase().replace(/\s+/g, '_');
-    return PRODUCT_INFO[key] ?? { name: product, repo: `${key}_fw`, rev: '' };
   }
 
   // Bitbucket URL construction
@@ -629,6 +608,22 @@
         <span title={formatDateTime(pipeline.createdAt)}>
           {formatTimeAgo(pipeline.createdAt)}
         </span>
+        <!-- Validate Artifacts button -->
+        {#if hasAnyArtifacts}
+          <button
+            onclick={handleValidateArtifacts}
+            disabled={validatingArtifacts}
+            class="btn btn-sm flex items-center gap-1.5"
+            title="Validate that all required artifacts are present"
+          >
+            {#if validatingArtifacts}
+              <Loader2 size={14} class="animate-spin" />
+            {:else}
+              <ShieldCheck size={14} />
+            {/if}
+            Validate
+          </button>
+        {/if}
         <!-- Download All button -->
         {#if hasAnyArtifacts}
           <button
@@ -948,11 +943,16 @@
                             <!-- Error/Warning Summary Panel -->
                             {#if analysis && (analysis.errorCount > 0 || analysis.warningCount > 0)}
                               <div class="mb-4 rounded-lg border border-border bg-surface-0 overflow-hidden">
+                                {@const issuesOpen = expandedIssues.has(build.id)}
                                 <button
                                   class="w-full px-3 py-2 bg-surface-2 flex items-center gap-3 hover:bg-surface-1 transition-colors"
-                                  onclick={(e) => { e.stopPropagation(); const panel = e.currentTarget.nextElementSibling; if (panel) panel.classList.toggle('hidden'); }}
+                                  onclick={(e) => { e.stopPropagation(); if (expandedIssues.has(build.id)) { expandedIssues.delete(build.id); } else { expandedIssues.add(build.id); } expandedIssues = new Set(expandedIssues); }}
                                 >
-                                  <ChevronRight size={12} class="text-text-tertiary transition-transform" />
+                                  {#if issuesOpen}
+                                    <ChevronDown size={12} class="text-text-tertiary transition-transform" />
+                                  {:else}
+                                    <ChevronRight size={12} class="text-text-tertiary transition-transform" />
+                                  {/if}
                                   <span class="text-xs font-medium text-text-primary">Build Issues</span>
                                   {#if analysis.errorCount > 0}
                                     <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-error-muted text-error text-2xs font-medium">
@@ -967,6 +967,7 @@
                                     </span>
                                   {/if}
                                 </button>
+                                {#if issuesOpen}
                                 <div class="p-3 max-h-48 overflow-y-auto">
                                   {#if analysis.errors.length > 0}
                                     <div class="mb-3">
@@ -1005,6 +1006,7 @@
                                     </div>
                                   {/if}
                                 </div>
+                                {/if}
                               </div>
                             {/if}
 
@@ -1274,3 +1276,106 @@
     </div>
   {/if}
 </div>
+
+<!-- Artifact Validation Report Modal -->
+<Modal open={showArtifactReport} title="Artifact Validation" onclose={() => { showArtifactReport = false; }} size="lg">
+  {#if artifactReport}
+    <div class="space-y-4">
+      <!-- Overall status -->
+      <div class="flex items-center gap-3 rounded-lg p-3 {artifactReport.valid ? 'bg-success-muted' : 'bg-error-muted'}">
+        {#if artifactReport.valid}
+          <CheckCircle2 size={20} class="text-success" />
+          <span class="text-sm font-medium text-success">All artifacts present</span>
+        {:else}
+          <XCircle size={20} class="text-error" />
+          <span class="text-sm font-medium text-error">
+            Missing {artifactReport.missing.length} artifact{artifactReport.missing.length !== 1 ? 's' : ''}
+          </span>
+        {/if}
+      </div>
+
+      <!-- Per-build report -->
+      {#if artifactReport.builds.length > 0}
+        <div class="rounded-lg border border-border bg-surface-0 overflow-hidden">
+          <div class="px-4 py-2 bg-surface-2 text-2xs font-medium text-text-tertiary uppercase tracking-wider">
+            Build Artifacts
+          </div>
+          <div class="divide-y divide-border">
+            {#each artifactReport.builds as build}
+              <div class="px-4 py-3">
+                <div class="flex items-center gap-3 mb-2">
+                  <span class="text-sm font-medium text-text-primary">{build.label}</span>
+                  {#if build.status}
+                    <StatusBadge status={build.status} />
+                  {:else}
+                    <span class="inline-flex items-center rounded-full px-2 py-0.5 text-2xs font-medium bg-error-muted text-error">MISSING</span>
+                  {/if}
+                  {#if build.complete}
+                    <Check size={14} class="text-success" />
+                  {:else}
+                    <X size={14} class="text-error" />
+                  {/if}
+                </div>
+                <div class="flex flex-wrap gap-3 text-2xs">
+                  <!-- Plaintext HEX -->
+                  {#each Object.entries(build.artifacts.plaintextHex) as [role, present]}
+                    <span class="inline-flex items-center gap-1 rounded px-2 py-1 {present ? 'bg-success-muted text-success' : 'bg-error-muted text-error'}">
+                      {#if present}
+                        <Check size={10} />
+                      {:else}
+                        <X size={10} />
+                      {/if}
+                      HEX ({role})
+                    </span>
+                  {/each}
+                  <!-- Encrypted CFW -->
+                  {#each Object.entries(build.artifacts.encryptedCfw) as [role, present]}
+                    <span class="inline-flex items-center gap-1 rounded px-2 py-1 {present ? 'bg-success-muted text-success' : 'bg-error-muted text-error'}">
+                      {#if present}
+                        <Check size={10} />
+                      {:else}
+                        <X size={10} />
+                      {/if}
+                      CFW ({role})
+                    </span>
+                  {/each}
+                  <!-- Manifest -->
+                  <span class="inline-flex items-center gap-1 rounded px-2 py-1 {build.artifacts.manifest ? 'bg-success-muted text-success' : 'bg-error-muted text-error'}">
+                    {#if build.artifacts.manifest}
+                      <Check size={10} />
+                    {:else}
+                      <X size={10} />
+                    {/if}
+                    Manifest
+                  </span>
+                </div>
+              </div>
+            {/each}
+          </div>
+        </div>
+      {:else}
+        <div class="rounded-lg border border-border bg-surface-0 p-4 text-center text-sm text-text-tertiary">
+          No build matrix configured for this pipeline. Artifact validation skipped.
+        </div>
+      {/if}
+
+      <!-- Missing artifacts detail -->
+      {#if artifactReport.missing.length > 0}
+        <div class="rounded-lg border border-error/30 bg-error/5 p-4">
+          <div class="text-sm font-medium text-error mb-2">Missing Artifacts</div>
+          <div class="space-y-1">
+            {#each artifactReport.missing as item}
+              <div class="flex items-center gap-2 text-xs text-error/80">
+                <X size={12} />
+                <span class="font-medium">{item.label}</span>
+                <span class="text-text-tertiary">-</span>
+                <span>{item.artifactType}</span>
+                <span class="text-text-tertiary">(role: {item.role})</span>
+              </div>
+            {/each}
+          </div>
+        </div>
+      {/if}
+    </div>
+  {/if}
+</Modal>

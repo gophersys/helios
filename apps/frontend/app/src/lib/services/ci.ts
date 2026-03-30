@@ -1,4 +1,4 @@
-import { apiFetch, api, apiDownload } from '$lib/api';
+import { apiFetch, api, apiDownload, apiUpload } from '$lib/api';
 import type { ApiResponse } from '$lib/types';
 import type {
   BuildJob,
@@ -121,6 +121,7 @@ export async function fetchPipeline(id: string): Promise<Pipeline> {
     startedAt: pipeline.startedAt,
     finishedAt: pipeline.finishedAt,
     durationSeconds: builds[0].durationSeconds,
+    triggerType: pipeline.triggerType ?? 'worker',
     createdAt: pipeline.createdAt,
     artifacts: [],
   } : null;
@@ -141,6 +142,7 @@ export interface FetchBuildsParams {
   status?: string;
   branch?: string;
   product?: string;
+  triggerType?: string;
 }
 
 export async function fetchBuilds(
@@ -152,6 +154,7 @@ export async function fetchBuilds(
   if (params?.status) qs.set('status', params.status);
   if (params?.branch) qs.set('branch', params.branch);
   if (params?.product) qs.set('product', params.product);
+  if (params?.triggerType) qs.set('triggerType', params.triggerType);
 
   const res = await apiFetch<PaginatedApiResponse<BuildJob[]>>(
     `/v2/builds?${qs.toString()}`
@@ -187,6 +190,76 @@ export async function triggerBuild(config: TriggerBuildConfig): Promise<BuildJob
   return res.data;
 }
 
+export interface ManualBuildConfig {
+  product: string;
+  board: string;
+  target: string;
+  variant: string;
+  branch: string;
+  versionString?: string;
+  notes?: string;
+  productId?: string;
+}
+
+export async function createManualBuild(config: ManualBuildConfig): Promise<BuildJob> {
+  const res = await api.post<ApiResponse<BuildJob>>('/v2/builds', {
+    product: config.product,
+    board: config.board,
+    target: config.target,
+    variant: config.variant,
+    branch: config.branch,
+    versionString: config.versionString || undefined,
+    notes: config.notes || undefined,
+    productId: config.productId || undefined,
+    triggerType: 'manual',
+    initialStatus: 'SUCCESS',
+  });
+  return res.data;
+}
+
+export async function uploadBuildArtifact(
+  buildId: string,
+  file: File,
+  metadata: { role?: string; processor?: string; artifactType?: string; contentType?: string }
+): Promise<BuildJobArtifact> {
+  const formData = new FormData();
+  formData.append('file', file);
+  if (metadata.role) formData.append('role', metadata.role);
+  if (metadata.processor) formData.append('processor', metadata.processor);
+  if (metadata.artifactType) formData.append('artifactType', metadata.artifactType);
+  if (metadata.contentType) formData.append('contentType', metadata.contentType);
+
+  const res = await apiUpload<ApiResponse<BuildJobArtifact>>(`/v2/builds/${buildId}/artifacts`, formData);
+  return res.data;
+}
+
+export interface ArtifactValidationReport {
+  valid: boolean;
+  builds: Array<{
+    label: string;
+    buildId: string | null;
+    status: string | null;
+    artifacts: {
+      plaintextHex: Record<string, boolean>;
+      encryptedCfw: Record<string, boolean>;
+      manifest: boolean;
+    };
+    complete: boolean;
+  }>;
+  missing: Array<{
+    label: string;
+    role: string;
+    artifactType: string;
+  }>;
+}
+
+export async function validatePipelineArtifacts(pipelineId: string): Promise<ArtifactValidationReport> {
+  const res = await api.post<ApiResponse<ArtifactValidationReport>>(
+    `/v2/builds/pipelines/${pipelineId}/validate-artifacts`
+  );
+  return res.data;
+}
+
 export async function resetBuild(id: string): Promise<BuildJob> {
   const res = await api.post<ApiResponse<BuildJob>>(`/v2/builds/${id}/reset`, {});
   return res.data;
@@ -204,6 +277,26 @@ export async function triggerPipelineValidation(
     `/v2/builds/pipelines/${pipelineId}/validate`, {}
   );
   return res.data;
+}
+
+// ── Pipeline Sessions ──────────────────────────────────────────
+
+export interface PipelineSessionSummary {
+  id: string;
+  name: string;
+  status: string;
+  startedAt: string | null;
+  finishedAt: string | null;
+  passedCount: number;
+  failedCount: number;
+  config: Record<string, unknown> | null;
+}
+
+export async function fetchPipelineSessions(pipelineId: string): Promise<PipelineSessionSummary[]> {
+  const res = await apiFetch<ApiResponse<PipelineSessionSummary[]>>(
+    `/v2/builds/pipelines/${pipelineId}/sessions`
+  );
+  return Array.isArray(res.data) ? res.data : [];
 }
 
 // ── Downloads ───────────────────────────────────────────────────

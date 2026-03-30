@@ -1,0 +1,487 @@
+"""Unit tests for power handler.
+
+Tests PowerEnable, PowerDisable, PowerRead, PowerMeasure, and snapshot.
+INA219 and GPIO drivers are mocked — no hardware required.
+
+Run with:
+    cd apps/edge/mtib-server
+    PYTHONPATH=src:../../../libs/python:../../../libs/protocols:../../../libs \
+        pytest tests/test_power_handler.py -v
+"""
+
+import threading
+import time
+import unittest
+from unittest.mock import MagicMock, patch
+
+from src.shared.types import (
+    PowerChannel,
+    PowerDisableRequest,
+    PowerEnableRequest,
+    PowerMeasureRequest,
+    PowerReadRequest,
+)
+from src.handlers.power import PowerHandler
+
+
+def _make_handler(ina_read_returns=None):
+    """Construct a PowerHandler with all hardware mocked.
+
+    ina_read_returns: list of (error, voltage_v, current_ma, power_mw) tuples
+                      returned by successive _read_ina219 calls.
+                      Defaults to a healthy reading: (None, 4.5, 25.0, 112.5).
+    """
+    default_reading = (None, 4.5, 25.0, 112.5)
+    if ina_read_returns is None:
+        ina_read_returns = [default_reading]
+
+    logger = MagicMock()
+    logger.from_parent.return_value = logger
+
+    mcp4017 = MagicMock()
+
+    # Mock the GPIO class at the point where PowerHandler imports it.
+    # dut_pwr_en and dut_chg_en are both Gpio objects; we need init() and write()
+    # to succeed.
+    mock_gpio_instance = MagicMock()
+    mock_gpio_instance.init.return_value = None   # None == no error
+    mock_gpio_instance.write.return_value = None  # None == no error
+
+    # Mock INA219 — patch its __init__ to skip sysfs discovery.
+    with patch("src.handlers.power.Gpio", return_value=mock_gpio_instance), \
+         patch("src.handlers.power.INA219") as mock_ina_cls:
+        mock_ina = MagicMock()
+        mock_ina_cls.return_value = mock_ina
+
+        # Side-effect list so we can sequence multiple reads.
+        mock_ina.read.side_effect = list(ina_read_returns)
+        if not ina_read_returns:
+            mock_ina.read.return_value = default_reading
+
+        handler = PowerHandler(logger=logger, mcp4017=mcp4017)
+        # Store mocks on handler for assertion access in tests
+        handler._mock_ina = mock_ina
+        handler._mock_gpio = mock_gpio_instance
+        handler._mock_mcp4017 = mcp4017
+
+    return handler
+
+
+class TestPowerEnable(unittest.TestCase):
+    """Test PowerEnable RPC logic."""
+
+    def _make_ctx(self):
+        ctx = MagicMock()
+        ctx.is_active.return_value = True
+        return ctx
+
+    def test_enable_dut_channel_success(self):
+        """PowerEnable on DUT channel writes GPIO high."""
+        # Voltage 0 → skip voltage control, just enable GPIO
+        handler = _make_handler()
+        handler._mock_gpio.write.return_value = None
+
+        req = PowerEnableRequest(channel=PowerChannel.POWER_CHANNEL_DUT, voltage_v=0.0)
+        resp = handler.power_enable(req, self._make_ctx())
+
+        assert resp.success is True
+        assert "DUT" in resp.message
+
+    def test_enable_charger_channel_success(self):
+        handler = _make_handler()
+        req = PowerEnableRequest(channel=PowerChannel.POWER_CHANNEL_CHARGER, voltage_v=0.0)
+        resp = handler.power_enable(req, self._make_ctx())
+
+        assert resp.success is True
+        assert "charger" in resp.message
+
+    def test_enable_sets_enabled_state(self):
+        handler = _make_handler()
+        assert handler._is_enabled(PowerChannel.POWER_CHANNEL_DUT) is False
+
+        req = PowerEnableRequest(channel=PowerChannel.POWER_CHANNEL_DUT, voltage_v=0.0)
+        handler.power_enable(req, self._make_ctx())
+
+        assert handler._is_enabled(PowerChannel.POWER_CHANNEL_DUT) is True
+
+    def test_enable_voltage_out_of_range_rejected(self):
+        """Voltages outside 0–5.5 V must be rejected before touching hardware."""
+        handler = _make_handler()
+        req = PowerEnableRequest(channel=PowerChannel.POWER_CHANNEL_DUT, voltage_v=6.0)
+
+        # Reset the write call count accumulated during __init__ (which disables both GPIOs)
+        handler._mock_gpio.write.reset_mock()
+
+        resp = handler.power_enable(req, self._make_ctx())
+
+        assert resp.success is False
+        assert "6.0" in resp.message or "safe range" in resp.message
+        # GPIO must not have been driven after the range check
+        handler._mock_gpio.write.assert_not_called()
+
+    def test_enable_negative_voltage_rejected(self):
+        handler = _make_handler()
+        req = PowerEnableRequest(channel=PowerChannel.POWER_CHANNEL_DUT, voltage_v=-1.0)
+        resp = handler.power_enable(req, self._make_ctx())
+
+        assert resp.success is False
+
+    def test_enable_gpio_write_failure_returns_error(self):
+        handler = _make_handler()
+        handler._mock_gpio.write.return_value = "gpio fault"
+
+        req = PowerEnableRequest(channel=PowerChannel.POWER_CHANNEL_DUT, voltage_v=0.0)
+        resp = handler.power_enable(req, self._make_ctx())
+
+        assert resp.success is False
+        assert "gpio fault" in resp.message
+
+    def test_enable_with_voltage_invokes_mcp4017(self):
+        """When voltage_v > 0 on DUT channel, binary search must call mcp4017.set_step."""
+        # INA219 readings simulate successful voltage convergence:
+        # first call returns 4.5 V which is within 0.05 V of target 4.5 V.
+        readings = [(None, 4.5, 25.0, 112.5)] * 5
+        handler = _make_handler(ina_read_returns=readings)
+
+        req = PowerEnableRequest(channel=PowerChannel.POWER_CHANNEL_DUT, voltage_v=4.5)
+        resp = handler.power_enable(req, self._make_ctx())
+
+        assert resp.success is True
+        handler._mock_mcp4017.set_step.assert_called()
+
+    def test_enable_voltage_control_failure_returns_error(self):
+        """If voltage can't converge, PowerEnable fails."""
+        # Return a fixed voltage far from target on every iteration.
+        readings = [(None, 2.0, 0.0, 0.0)] * 15  # always 2 V, target 4.5 V
+        handler = _make_handler(ina_read_returns=readings)
+
+        req = PowerEnableRequest(channel=PowerChannel.POWER_CHANNEL_DUT, voltage_v=4.5)
+        resp = handler.power_enable(req, self._make_ctx())
+
+        assert resp.success is False
+        assert "voltage" in resp.message.lower() or "final" in resp.message.lower()
+
+    def test_enable_voltage_control_ina_error_returns_error(self):
+        """If INA219 errors during voltage control, PowerEnable fails."""
+        readings = [("ina read error", 0.0, 0.0, 0.0)] * 5
+        handler = _make_handler(ina_read_returns=readings)
+
+        req = PowerEnableRequest(channel=PowerChannel.POWER_CHANNEL_DUT, voltage_v=4.5)
+        resp = handler.power_enable(req, self._make_ctx())
+
+        assert resp.success is False
+
+
+class TestPowerDisable(unittest.TestCase):
+    """Test PowerDisable RPC logic."""
+
+    def _make_ctx(self):
+        ctx = MagicMock()
+        ctx.is_active.return_value = True
+        return ctx
+
+    def test_disable_dut_channel_success(self):
+        handler = _make_handler()
+        # First enable so state is True
+        handler._pwr_enabled = True
+
+        req = PowerDisableRequest(channel=PowerChannel.POWER_CHANNEL_DUT)
+        resp = handler.power_disable(req, self._make_ctx())
+
+        assert resp.success is True
+        assert "DUT" in resp.message
+
+    def test_disable_clears_enabled_state(self):
+        handler = _make_handler()
+        handler._pwr_enabled = True
+
+        req = PowerDisableRequest(channel=PowerChannel.POWER_CHANNEL_DUT)
+        handler.power_disable(req, self._make_ctx())
+
+        assert handler._is_enabled(PowerChannel.POWER_CHANNEL_DUT) is False
+
+    def test_disable_charger_channel(self):
+        handler = _make_handler()
+        handler._chg_enabled = True
+
+        req = PowerDisableRequest(channel=PowerChannel.POWER_CHANNEL_CHARGER)
+        resp = handler.power_disable(req, self._make_ctx())
+
+        assert resp.success is True
+        assert handler._is_enabled(PowerChannel.POWER_CHANNEL_CHARGER) is False
+
+    def test_disable_gpio_failure_returns_error(self):
+        handler = _make_handler()
+        handler._mock_gpio.write.return_value = "write error"
+
+        req = PowerDisableRequest(channel=PowerChannel.POWER_CHANNEL_DUT)
+        resp = handler.power_disable(req, self._make_ctx())
+
+        assert resp.success is False
+        assert "write error" in resp.message
+
+    def test_disable_does_not_read_ina219(self):
+        """Disabling power must never read INA219."""
+        handler = _make_handler()
+        req = PowerDisableRequest(channel=PowerChannel.POWER_CHANNEL_DUT)
+        handler.power_disable(req, self._make_ctx())
+
+        handler._mock_ina.read.assert_not_called()
+
+
+class TestPowerRead(unittest.TestCase):
+    """Test PowerRead RPC logic."""
+
+    def _make_ctx(self):
+        return MagicMock()
+
+    def test_read_dut_channel_success(self):
+        readings = [(None, 4.5, 25.0, 112.5)]
+        handler = _make_handler(ina_read_returns=readings)
+        handler._pwr_enabled = True
+
+        req = PowerReadRequest(channel=PowerChannel.POWER_CHANNEL_DUT)
+        resp = handler.power_read(req, self._make_ctx())
+
+        assert resp.success is True
+        assert resp.enabled is True
+        assert abs(resp.voltage_v - 4.5) < 0.001
+        assert abs(resp.current_ma - 25.0) < 0.001
+        assert abs(resp.power_mw - 112.5) < 0.001
+
+    def test_read_reflects_disabled_state(self):
+        readings = [(None, 4.5, 0.0, 0.0)]
+        handler = _make_handler(ina_read_returns=readings)
+        handler._pwr_enabled = False
+
+        req = PowerReadRequest(channel=PowerChannel.POWER_CHANNEL_DUT)
+        resp = handler.power_read(req, self._make_ctx())
+
+        assert resp.success is True
+        assert resp.enabled is False
+
+    def test_read_charger_channel(self):
+        readings = [(None, 5.0, 30.0, 150.0)]
+        handler = _make_handler(ina_read_returns=readings)
+        handler._chg_enabled = True
+
+        req = PowerReadRequest(channel=PowerChannel.POWER_CHANNEL_CHARGER)
+        resp = handler.power_read(req, self._make_ctx())
+
+        assert resp.success is True
+        assert abs(resp.voltage_v - 5.0) < 0.001
+        assert abs(resp.current_ma - 30.0) < 0.001
+
+    def test_read_ina219_error_returns_failure(self):
+        readings = [("sysfs read error", 0.0, 0.0, 0.0)]
+        handler = _make_handler(ina_read_returns=readings)
+
+        req = PowerReadRequest(channel=PowerChannel.POWER_CHANNEL_DUT)
+        resp = handler.power_read(req, self._make_ctx())
+
+        assert resp.success is False
+        assert "sysfs read error" in resp.message
+
+    def test_read_invalid_channel_returns_failure(self):
+        """A channel value with no INA219 mapping should fail gracefully."""
+        handler = _make_handler()
+        # Inject an unmapped channel value directly
+        req = PowerReadRequest(channel=99)
+        resp = handler.power_read(req, self._make_ctx())
+
+        assert resp.success is False
+
+
+class TestPowerMeasure(unittest.TestCase):
+    """Test PowerMeasure RPC logic."""
+
+    def _make_ctx(self, active=True):
+        ctx = MagicMock()
+        ctx.is_active.return_value = active
+        return ctx
+
+    def test_measure_returns_statistics(self):
+        """Measure over a short duration and verify stats computation."""
+        # Three INA219 samples: currents 10, 20, 30 mA; voltages 4.5 V each
+        readings = [
+            (None, 4.5, 10.0, 45.0),
+            (None, 4.5, 20.0, 90.0),
+            (None, 4.5, 30.0, 135.0),
+        ] * 10  # enough samples for a short duration
+        handler = _make_handler(ina_read_returns=readings)
+
+        req = PowerMeasureRequest(channel=PowerChannel.POWER_CHANNEL_DUT, duration_s=0.05)
+        resp = handler.power_measure(req, self._make_ctx())
+
+        assert resp.success is True
+        assert resp.sample_count > 0
+        assert resp.min_ma <= resp.average_ma <= resp.max_ma
+        assert resp.average_mv > 0
+
+    def test_measure_averages_correctly(self):
+        """All samples at same current → average equals that current."""
+        readings = [(None, 4.5, 25.0, 112.5)] * 20
+        handler = _make_handler(ina_read_returns=readings)
+
+        req = PowerMeasureRequest(channel=PowerChannel.POWER_CHANNEL_DUT, duration_s=0.05)
+        resp = handler.power_measure(req, self._make_ctx())
+
+        assert resp.success is True
+        assert abs(resp.average_ma - 25.0) < 0.1
+        assert abs(resp.min_ma - 25.0) < 0.1
+        assert abs(resp.max_ma - 25.0) < 0.1
+
+    def test_measure_min_max_correct(self):
+        """Verify min/max are correctly identified across samples."""
+        readings = [
+            (None, 4.5, 5.0, 22.5),
+            (None, 4.5, 50.0, 225.0),
+            (None, 4.5, 25.0, 112.5),
+        ] * 10
+        handler = _make_handler(ina_read_returns=readings)
+
+        req = PowerMeasureRequest(channel=PowerChannel.POWER_CHANNEL_DUT, duration_s=0.05)
+        resp = handler.power_measure(req, self._make_ctx())
+
+        assert resp.success is True
+        assert abs(resp.min_ma - 5.0) < 0.1
+        assert abs(resp.max_ma - 50.0) < 0.1
+
+    def test_measure_skips_bad_samples(self):
+        """INA219 errors during measure are skipped; good samples still counted."""
+        readings = [
+            ("transient error", 0.0, 0.0, 0.0),
+            (None, 4.5, 25.0, 112.5),
+            ("transient error", 0.0, 0.0, 0.0),
+            (None, 4.5, 25.0, 112.5),
+        ] * 5
+        handler = _make_handler(ina_read_returns=readings)
+
+        req = PowerMeasureRequest(channel=PowerChannel.POWER_CHANNEL_DUT, duration_s=0.05)
+        resp = handler.power_measure(req, self._make_ctx())
+
+        assert resp.success is True
+        assert resp.sample_count > 0
+
+    def test_measure_all_samples_fail_returns_error(self):
+        """If every INA219 read fails, measure must fail with 'No samples'."""
+        # Use a callable so the side_effect never exhausts regardless of call count
+        handler = _make_handler(ina_read_returns=None)
+        handler._mock_ina.read.side_effect = lambda addr: ("always fails", 0.0, 0.0, 0.0)
+
+        req = PowerMeasureRequest(channel=PowerChannel.POWER_CHANNEL_DUT, duration_s=0.05)
+        resp = handler.power_measure(req, self._make_ctx())
+
+        assert resp.success is False
+        assert "No samples" in resp.message
+
+    def test_measure_invalid_channel_returns_failure(self):
+        handler = _make_handler()
+        req = PowerMeasureRequest(channel=99, duration_s=0.1)
+        resp = handler.power_measure(req, self._make_ctx())
+
+        assert resp.success is False
+
+    def test_measure_stops_when_context_inactive(self):
+        """Measure exits early if gRPC context becomes inactive."""
+        readings = [(None, 4.5, 25.0, 112.5)] * 5
+        handler = _make_handler(ina_read_returns=readings)
+
+        # Context immediately inactive
+        ctx = self._make_ctx(active=False)
+        req = PowerMeasureRequest(channel=PowerChannel.POWER_CHANNEL_DUT, duration_s=10.0)
+
+        start = time.monotonic()
+        resp = handler.power_measure(req, ctx)
+        elapsed = time.monotonic() - start
+
+        # Should return quickly, not run for 10 seconds
+        assert elapsed < 1.0
+
+
+class TestPowerSnapshot(unittest.TestCase):
+    """Test get_snapshot_data helper."""
+
+    def test_snapshot_returns_both_channels(self):
+        # Two channels: DUT (0x40) and CHARGER (0x41)
+        readings = [
+            (None, 4.5, 25.0, 112.5),  # DUT
+            (None, 5.0, 10.0, 50.0),   # CHARGER
+        ]
+        handler = _make_handler(ina_read_returns=readings)
+        handler._pwr_enabled = True
+        handler._chg_enabled = False
+
+        data = handler.get_snapshot_data()
+
+        assert len(data) == 2
+        channels = {d.channel for d in data}
+        assert PowerChannel.POWER_CHANNEL_DUT in channels
+        assert PowerChannel.POWER_CHANNEL_CHARGER in channels
+
+    def test_snapshot_skips_failed_channels(self):
+        """If INA219 read fails for a channel, it's omitted from snapshot."""
+        readings = [
+            ("ina error", 0.0, 0.0, 0.0),  # DUT fails
+            (None, 5.0, 10.0, 50.0),        # CHARGER ok
+        ]
+        handler = _make_handler(ina_read_returns=readings)
+        data = handler.get_snapshot_data()
+
+        assert len(data) == 1
+        assert data[0].channel == PowerChannel.POWER_CHANNEL_CHARGER
+
+    def test_snapshot_reflects_enabled_state(self):
+        readings = [
+            (None, 4.5, 25.0, 112.5),
+            (None, 5.0, 10.0, 50.0),
+        ]
+        handler = _make_handler(ina_read_returns=readings)
+        handler._pwr_enabled = True
+        handler._chg_enabled = False
+
+        data = handler.get_snapshot_data()
+        by_channel = {d.channel: d for d in data}
+
+        assert by_channel[PowerChannel.POWER_CHANNEL_DUT].enabled is True
+        assert by_channel[PowerChannel.POWER_CHANNEL_CHARGER].enabled is False
+
+
+class TestPowerInternalHelpers(unittest.TestCase):
+    """Test internal helper methods."""
+
+    def test_get_ina_addr_dut(self):
+        handler = _make_handler()
+        assert handler._get_ina_addr(PowerChannel.POWER_CHANNEL_DUT) == 0x40
+
+    def test_get_ina_addr_charger(self):
+        handler = _make_handler()
+        assert handler._get_ina_addr(PowerChannel.POWER_CHANNEL_CHARGER) == 0x41
+
+    def test_get_ina_addr_invalid_returns_none(self):
+        handler = _make_handler()
+        assert handler._get_ina_addr(99) is None
+
+    def test_is_enabled_tracks_per_channel(self):
+        handler = _make_handler()
+        handler._pwr_enabled = True
+        handler._chg_enabled = False
+
+        assert handler._is_enabled(PowerChannel.POWER_CHANNEL_DUT) is True
+        assert handler._is_enabled(PowerChannel.POWER_CHANNEL_CHARGER) is False
+
+    def test_set_enabled_updates_correct_channel(self):
+        handler = _make_handler()
+        handler._set_enabled(PowerChannel.POWER_CHANNEL_DUT, True)
+        handler._set_enabled(PowerChannel.POWER_CHANNEL_CHARGER, True)
+
+        assert handler._pwr_enabled is True
+        assert handler._chg_enabled is True
+
+        handler._set_enabled(PowerChannel.POWER_CHANNEL_DUT, False)
+        assert handler._pwr_enabled is False
+        assert handler._chg_enabled is True  # unaffected
+
+
+if __name__ == "__main__":
+    unittest.main()

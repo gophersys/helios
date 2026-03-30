@@ -138,3 +138,48 @@ def test_discover_board_detail_not_found(authed_client, mock_ck_boards):
 
     response = authed_client.get("/v2/products/boards/discover/nope?branch=main")
     assert response.status_code == 404
+
+
+def test_discover_board_detail_not_found_does_not_leak_exception(authed_client, mock_ck_boards):
+    """404 message uses safe template — no raw exception text returned to client."""
+    mock_ck_boards.discover_board_detail.side_effect = ValueError(
+        "Board 'nope' not found: internal path /secrets/repo"
+    )
+
+    response = authed_client.get("/v2/products/boards/discover/nope?branch=main")
+    assert response.status_code == 404
+    body = json.loads(response.data)
+    msg = body["errors"][0]["message"]
+    assert "/secrets/repo" not in msg
+    assert "internal path" not in msg
+    # Safe template used
+    assert "nope" in msg
+    assert "main" in msg
+
+
+def test_discover_board_detail_validation_error_does_not_leak_exception(authed_client, mock_ck_boards):
+    """400 message for non-not-found ValueError is a safe generic message."""
+    mock_ck_boards.discover_board_detail.side_effect = ValueError(
+        "Schema parse error at /internal/config: unexpected token"
+    )
+
+    response = authed_client.get("/v2/products/boards/discover/alpha?branch=main")
+    assert response.status_code == 400
+    body = json.loads(response.data)
+    msg = body["errors"][0]["message"]
+    assert "/internal/config" not in msg
+    assert "unexpected token" not in msg
+
+
+def test_discover_boards_validation_error_does_not_leak_exception(authed_client, mock_ck_boards):
+    """discover_boards 400 does not expose raw ValueError text."""
+    mock_ck_boards.discover_boards.side_effect = ValueError(
+        "Ref 'bad' not found in /var/repo/.git"
+    )
+
+    response = authed_client.get("/v2/products/boards/discover?branch=bad")
+    assert response.status_code == 400
+    body = json.loads(response.data)
+    msg = body["errors"][0]["message"]
+    assert "/var/repo" not in msg
+    assert "not found in" not in msg

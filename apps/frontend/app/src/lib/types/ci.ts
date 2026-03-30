@@ -11,6 +11,7 @@ export interface BuildJobArtifact {
   storageKey: string;
   sizeBytes: number;
   checksum: string | null;
+  contentType?: string | null;
   downloadUrl?: string;
   createdAt: string;
 }
@@ -30,6 +31,8 @@ export interface BuildJob {
   finishedAt: string | null;
   durationSeconds: number | null;
   createdAt: string;
+  triggerType: string;  // "worker" | "manual" | "webhook"
+  notes?: string | null;
   artifacts: BuildJobArtifact[];
   // Stage matrix fields
   matrixLabel?: MatrixLabel | string | null;
