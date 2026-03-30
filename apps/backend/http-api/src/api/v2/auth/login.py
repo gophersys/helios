@@ -31,12 +31,13 @@ def login():
     # Development-only: admin/admin bypass (never in staging/production)
     is_dev_admin = (
         env_config.ENVIRONMENT == "development"
-        and data.email == "admin@concord.local"
+        and data.email in ("admin@concord.local", "admin")
         and data.password == "admin"
     )
 
     if is_dev_admin:
         cc_user = {"email": "admin@concord.local"}
+        logger.info("Dev admin login bypass (development only)")
     else:
         # Verify credentials against CoreKinect auth server
         cc_user, error = authenticate_corecloud(data.email, data.password)
