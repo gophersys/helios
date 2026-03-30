@@ -13,8 +13,39 @@
           "parallel": false,
           "commands": [
             { "command": "nx run http-api:containerize -c development" },
-            { "command": "nx run app:containerize -c development" },
-            { "command": "docker compose -f deploy/development/docker-compose.yaml up -d" }
+            { "command": "docker compose -f deploy/development/docker-compose.yaml up -d" },
+            { "command": "echo ''" },
+            { "command": "echo '  Backend   → http://localhost:9001'" },
+            { "command": "echo '  MinIO     → http://localhost:8676'" },
+            { "command": "echo '  Frontend  → run: nx dev app'" }
+          ]
+        },
+        "staging": {
+          "cwd": "{workspaceRoot}/deploy/production",
+          "parallel": false,
+          "commands": [
+            { "command": "chmod +x ctl.sh && ./ctl.sh staging deploy" }
+          ]
+        },
+        "production": {
+          "cwd": "{workspaceRoot}/deploy/production",
+          "parallel": false,
+          "commands": [
+            { "command": "chmod +x ctl.sh && ./ctl.sh production deploy" }
+          ]
+        }
+      }
+    },
+    "update": {
+      "executor": "nx:run-commands",
+      "defaultConfiguration": "development",
+      "configurations": {
+        "development": {
+          "cwd": "{workspaceRoot}",
+          "parallel": false,
+          "commands": [
+            { "command": "nx run http-api:containerize -c development" },
+            { "command": "docker compose -f deploy/development/docker-compose.yaml up -d http-api" }
           ]
         },
         "staging": {

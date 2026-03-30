@@ -73,17 +73,6 @@ services:
         condition: service_started
     restart: unless-stopped
 
-  # ── Frontend ──────────────────────────────────────────
-  frontend:
-    image: concord/frontend:development
-    ports:
-      - "4200:80"
-    environment:
-      API_HOST: http-api
-      API_PORT: "9001"
-    depends_on:
-      - http-api
-
 volumes:
   postgres_data:
   minio_data:
