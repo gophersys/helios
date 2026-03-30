@@ -51,15 +51,29 @@ def _parse_dts_compatibles(dts_content: str) -> List[str]:
 
 
 def _parse_board_yml(content: str) -> Dict[str, Any]:
-    """Parse a board.yml file into a structured dict."""
-    data = yaml.safe_load(content)
-    if not isinstance(data, dict):
+    """Parse a board.yml file into a structured dict.
+
+    Zephyr board.yml wraps everything under a top-level 'board:' key:
+      board:
+        name: alpha_b0
+        vendor: corekinect
+        socs: [...]
+        revision: {revisions: [...]}
+    """
+    raw = yaml.safe_load(content)
+    if not isinstance(raw, dict):
         raise ValueError("board.yml must be a YAML mapping")
+    # Unwrap the 'board:' key if present (standard Zephyr format)
+    data = raw.get("board", raw)
+    socs = data.get("socs", [])
+    revision_block = data.get("revision", {})
+    revisions = revision_block.get("revisions", []) if isinstance(revision_block, dict) else []
     return {
         "name": data.get("name", ""),
-        "socs": data.get("socs", []),
-        "revisions": data.get("revisions", []),
-        "variants": data.get("variants", []),
+        "vendor": data.get("vendor", ""),
+        "socs": [s.get("name", "") for s in socs if isinstance(s, dict)],
+        "revisions": [r.get("name", "") for r in revisions if isinstance(r, dict)],
+        "variants": [v.get("name", "") for s in socs if isinstance(s, dict) for v in s.get("variants", []) if isinstance(v, dict)],
     }
 
 
@@ -171,11 +185,24 @@ class CkBoardsService:
     # ------------------------------------------------------------------
 
     def _find_boards_dir(self, worktree_path: str) -> str:
-        """Find the boards directory in the worktree."""
+        """Find the boards directory in the worktree.
+
+        ck_boards uses Zephyr's custom board root convention:
+        current/boards/<vendor>/ — e.g., current/boards/corekinect/
+        """
+        # Primary: current/boards/<vendor>/ (ck_boards standard layout)
+        current_boards = os.path.join(worktree_path, "current", "boards")
+        if os.path.isdir(current_boards):
+            # Look for vendor subdirectory (e.g., corekinect)
+            for vendor in os.listdir(current_boards):
+                vendor_dir = os.path.join(current_boards, vendor)
+                if os.path.isdir(vendor_dir):
+                    return vendor_dir
+            return current_boards
+        # Fallback: boards/ at root (standard Zephyr layout)
         boards_dir = os.path.join(worktree_path, "boards")
         if os.path.isdir(boards_dir):
             return boards_dir
-        # Fallback: boards at root level
         return worktree_path
 
     def _scan_boards(self, worktree_path: str) -> List[Dict[str, Any]]:
