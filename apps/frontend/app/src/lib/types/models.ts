@@ -150,19 +150,9 @@ export interface BuildConfig {
 
 // ── Board Discovery types ───────────────────────────────────
 
-export interface DtsPeripheral {
-  compatible: string;
-  type: string;
-  bus: string;
-}
-
-export interface BoardRevisionDetail {
-  name: string;
-  peripherals: DtsPeripheral[];
-}
-
 export interface BoardSummary {
   board: string;
+  vendor: string;
   socs: string[];
   revisions: string[];
   variants: string[];
@@ -170,8 +160,9 @@ export interface BoardSummary {
 
 export interface BoardDetail {
   board: string;
+  vendor: string;
   socs: string[];
-  revisions: BoardRevisionDetail[];
+  revisions: string[];
   variants: string[];
 }
 

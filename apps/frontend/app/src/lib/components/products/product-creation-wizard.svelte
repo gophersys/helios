@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { ChevronLeft, ChevronRight, Check, Loader2, Cpu, CircuitBoard, Zap } from 'lucide-svelte';
+  import { ChevronLeft, ChevronRight, Check, Loader2, Cpu, CircuitBoard } from 'lucide-svelte';
   import { apiFetch, api } from '$lib/api';
   import type { ApiResponse } from '$lib/types';
   import type {
@@ -49,7 +49,7 @@
   // Step 5: Submitting
   let submitting = $state(false);
 
-  const stepLabels = ['Branch', 'Board', 'Review', 'Configure', 'Create'];
+  const stepLabels = ['Branch', 'Board', 'Configure', 'Create'];
 
   const selectedBoard = $derived(
     boardSummaries.find((b) => b.board === selectedBoardName)
@@ -59,8 +59,7 @@
     switch (step) {
       case 1: return selectedBranch !== '';
       case 2: return selectedBoardName !== '';
-      case 3: return boardDetail !== null;
-      case 4: return productName.trim() !== '' && Object.keys(targets).length > 0;
+      case 3: return productName.trim() !== '' && Object.keys(targets).length > 0;
       default: return false;
     }
   });
@@ -139,7 +138,7 @@
       loadBoardDetail();
     }
 
-    step = Math.min(step + 1, 5);
+    step = Math.min(step + 1, 4);
   }
 
   function handleBack() {
@@ -197,17 +196,6 @@
     loadBranches();
   });
 
-  function peripheralIcon(type: string): string {
-    const map: Record<string, string> = {
-      accelerometer: 'motion',
-      charger: 'battery',
-      'fuel-gauge': 'battery',
-      ppg: 'heart',
-      'ir-temp': 'thermometer',
-      'gpio-expander': 'chip',
-    };
-    return map[type] || 'chip';
-  }
 </script>
 
 <div class="rounded-xl border border-border bg-surface-1">
@@ -337,74 +325,8 @@
       </div>
     {/if}
 
-    <!-- Step 3: Review -->
+    <!-- Step 3: Configure -->
     {#if step === 3}
-      <div>
-        <h3 class="mb-1 text-base font-semibold text-text-primary">Review board details</h3>
-        <p class="mb-4 text-sm text-text-secondary">
-          Auto-populated from ck_boards. Review the hardware revisions and peripheral manifests.
-        </p>
-        {#if loadingDetail}
-          <div class="flex items-center gap-2 py-8 text-sm text-text-tertiary">
-            <Loader2 size={16} class="animate-spin" /> Parsing board DTS files...
-          </div>
-        {:else if boardDetail}
-          <div class="space-y-4">
-            <!-- SoCs -->
-            <div>
-              <span class="mb-2 block text-xs font-medium text-text-tertiary">Processors</span>
-              <div class="flex flex-wrap gap-2">
-                {#each boardDetail.socs as soc}
-                  <span class="rounded-full bg-accent/10 px-3 py-1 text-xs font-mono text-accent">
-                    {soc}
-                  </span>
-                {/each}
-              </div>
-            </div>
-
-            <!-- Variants -->
-            <div>
-              <span class="mb-2 block text-xs font-medium text-text-tertiary">Variants</span>
-              <div class="flex flex-wrap gap-2">
-                {#each boardDetail.variants as variant}
-                  <span class="rounded border border-border bg-surface-0 px-2.5 py-1 text-xs font-mono text-text-secondary">
-                    {variant}
-                  </span>
-                {/each}
-              </div>
-            </div>
-
-            <!-- Revisions with peripherals -->
-            {#each boardDetail.revisions as rev}
-              <div class="rounded-lg border border-border bg-surface-0 p-4">
-                <h4 class="mb-3 text-sm font-semibold text-text-primary">{rev.name}</h4>
-                {#if rev.peripherals.length === 0}
-                  <p class="text-2xs text-text-tertiary">No peripherals detected in DTS.</p>
-                {:else}
-                  <div class="grid gap-2 sm:grid-cols-2">
-                    {#each rev.peripherals as peripheral}
-                      <div class="flex items-center gap-2 rounded border border-border-subtle bg-surface-1 px-3 py-2">
-                        <Zap size={14} class="shrink-0 text-warning" />
-                        <div class="min-w-0 flex-1">
-                          <div class="text-2xs font-medium text-text-primary">{peripheral.type}</div>
-                          <div class="truncate font-mono text-2xs text-text-tertiary">{peripheral.compatible}</div>
-                        </div>
-                        <span class="shrink-0 rounded bg-surface-2 px-1.5 py-0.5 text-2xs text-text-tertiary uppercase">
-                          {peripheral.bus}
-                        </span>
-                      </div>
-                    {/each}
-                  </div>
-                {/if}
-              </div>
-            {/each}
-          </div>
-        {/if}
-      </div>
-    {/if}
-
-    <!-- Step 4: Configure -->
-    {#if step === 4}
       <div>
         <h3 class="mb-1 text-base font-semibold text-text-primary">Configure product</h3>
         <p class="mb-4 text-sm text-text-secondary">
@@ -514,7 +436,7 @@
     {/if}
 
     <!-- Step 5: Create -->
-    {#if step === 5}
+    {#if step === 4}
       <div>
         <h3 class="mb-1 text-base font-semibold text-text-primary">Confirm and create</h3>
         <p class="mb-4 text-sm text-text-secondary">

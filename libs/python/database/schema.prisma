@@ -204,7 +204,6 @@ model BoardRevision {
   boardId     String
   version     String /// e.g. "A0", "B0", "B1"
   status      LifecycleStatus @default(ACTIVE)
-  peripherals Json? /// Board peripherals config (sensors, connectors, etc.)
   notes       String?
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt

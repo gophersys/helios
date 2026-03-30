@@ -1,53 +1,19 @@
 """ck_boards git service — bare clone management, worktree checkout, board parsing.
 
 Maintains a bare git clone of the ck_boards repository and provides
-methods to list branches/tags, scan boards, and parse DTS files for
-peripheral discovery.
+methods to list branches/tags and scan boards for SoC topology.
 """
 
 import logging
 import os
-import re
 import shutil
 import subprocess
 import uuid
-from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import yaml
 
 logger = logging.getLogger(__name__)
-
-# ---------------------------------------------------------------------------
-# Known peripheral compatible strings → type + bus mapping
-# ---------------------------------------------------------------------------
-
-_PERIPHERAL_MAP: Dict[str, Dict[str, str]] = {
-    "bosch,bmi270": {"type": "accelerometer", "bus": "spi"},
-    "bosch,bmi160": {"type": "accelerometer", "bus": "spi"},
-    "st,lis2dh": {"type": "accelerometer", "bus": "i2c"},
-    "ti,bq25180": {"type": "charger", "bus": "i2c"},
-    "ti,bq35100": {"type": "fuel-gauge", "bus": "i2c"},
-    "nxp,tca9534a": {"type": "gpio-expander", "bus": "i2c"},
-    "pixart,pah8151": {"type": "ppg", "bus": "spi"},
-    "melexis,mlx90614": {"type": "ir-temp", "bus": "i2c"},
-    "microchip,mcp4017": {"type": "potentiometer", "bus": "i2c"},
-    "atmel,at24": {"type": "eeprom", "bus": "i2c"},
-    "nordic,nrf-uarte": {"type": "uart", "bus": "uart"},
-}
-
-
-def _classify_peripheral(compatible: str) -> Dict[str, str]:
-    """Map a DTS compatible string to a peripheral type and bus."""
-    info = _PERIPHERAL_MAP.get(compatible)
-    if info:
-        return {"compatible": compatible, **info}
-    return {"compatible": compatible, "type": "unknown", "bus": "unknown"}
-
-
-def _parse_dts_compatibles(dts_content: str) -> List[str]:
-    """Extract all compatible string values from DTS content."""
-    return re.findall(r'compatible\s*=\s*"([^"]+)"', dts_content)
 
 
 def _parse_board_yml(content: str) -> Dict[str, Any]:
@@ -63,7 +29,6 @@ def _parse_board_yml(content: str) -> Dict[str, Any]:
     raw = yaml.safe_load(content)
     if not isinstance(raw, dict):
         raise ValueError("board.yml must be a YAML mapping")
-    # Unwrap the 'board:' key if present (standard Zephyr format)
     data = raw.get("board", raw)
     socs = data.get("socs", [])
     revision_block = data.get("revision", {})
@@ -89,11 +54,7 @@ class CkBoardsService:
     # ------------------------------------------------------------------
 
     def list_refs(self) -> Dict[str, List[str]]:
-        """List all branches and tags from the bare repo.
-
-        Returns:
-            {"branches": ["main", "release/v2.1", ...], "tags": ["v1.0.0", ...]}
-        """
+        """List all branches and tags from the bare repo."""
         branches = self._git_list_branches()
         tags = self._git_list_tags()
         return {"branches": branches, "tags": tags}
@@ -103,10 +64,10 @@ class CkBoardsService:
         self._run_git(["fetch", "--prune", "origin"])
 
     def discover_boards(self, branch: str) -> List[Dict[str, Any]]:
-        """Scan all board directories on a branch. Lightweight — no DTS parsing.
+        """Scan all board directories on a branch.
 
         Returns list of:
-            {"board": "alpha", "socs": [...], "revisions": [...], "variants": [...]}
+            {"board": "alpha_b0", "vendor": "corekinect", "socs": [...], "revisions": [...], "variants": [...]}
         """
         self._validate_ref(branch)
         worktree_path = self._checkout_worktree(branch)
@@ -116,15 +77,30 @@ class CkBoardsService:
             self._remove_worktree(worktree_path)
 
     def discover_board_detail(self, board_name: str, branch: str) -> Dict[str, Any]:
-        """Deep scan of a single board — parses DTS for peripheral manifest.
+        """Get full details for a single board on a branch.
 
-        Returns:
-            {"board": "alpha", "socs": [...], "revisions": [{"name": ..., "peripherals": [...]}], "variants": [...]}
+        Returns same shape as discover_boards but for one board.
         """
         self._validate_ref(branch)
         worktree_path = self._checkout_worktree(branch)
         try:
-            return self._scan_board_detail(worktree_path, board_name)
+            boards_dir = self._find_boards_dir(worktree_path)
+            board_dir = os.path.join(boards_dir, board_name)
+            board_yml = os.path.join(board_dir, "board.yml")
+
+            if not os.path.isdir(board_dir) or not os.path.isfile(board_yml):
+                raise ValueError(f"Board '{board_name}' not found on this branch")
+
+            with open(board_yml) as f:
+                board_data = _parse_board_yml(f.read())
+
+            return {
+                "board": board_data["name"] or board_name,
+                "vendor": board_data["vendor"],
+                "socs": board_data["socs"],
+                "revisions": board_data["revisions"],
+                "variants": board_data["variants"],
+            }
         finally:
             self._remove_worktree(worktree_path)
 
@@ -163,7 +139,6 @@ class CkBoardsService:
         """Create a temporary worktree for the given ref."""
         worktree_id = f"{ref.replace('/', '_')}_{uuid.uuid4().hex[:8]}"
         worktree_path = os.path.join(self._worktree_base, worktree_id)
-
         self._run_git(["worktree", "add", "--detach", worktree_path, ref])
         return worktree_path
 
@@ -172,7 +147,6 @@ class CkBoardsService:
         try:
             self._run_git(["worktree", "remove", "--force", worktree_path])
         except RuntimeError:
-            # Fallback: force remove directory and prune
             if os.path.exists(worktree_path):
                 shutil.rmtree(worktree_path, ignore_errors=True)
             try:
@@ -187,19 +161,15 @@ class CkBoardsService:
     def _find_boards_dir(self, worktree_path: str) -> str:
         """Find the boards directory in the worktree.
 
-        ck_boards uses Zephyr's custom board root convention:
-        current/boards/<vendor>/ — e.g., current/boards/corekinect/
+        ck_boards layout: current/boards/<vendor>/
         """
-        # Primary: current/boards/<vendor>/ (ck_boards standard layout)
         current_boards = os.path.join(worktree_path, "current", "boards")
         if os.path.isdir(current_boards):
-            # Look for vendor subdirectory (e.g., corekinect)
             for vendor in os.listdir(current_boards):
                 vendor_dir = os.path.join(current_boards, vendor)
                 if os.path.isdir(vendor_dir):
                     return vendor_dir
             return current_boards
-        # Fallback: boards/ at root (standard Zephyr layout)
         boards_dir = os.path.join(worktree_path, "boards")
         if os.path.isdir(boards_dir):
             return boards_dir
@@ -218,52 +188,10 @@ class CkBoardsService:
                     board_data = _parse_board_yml(f.read())
                 results.append({
                     "board": board_data["name"] or entry,
+                    "vendor": board_data["vendor"],
                     "socs": board_data["socs"],
                     "revisions": board_data["revisions"],
                     "variants": board_data["variants"],
                 })
 
         return results
-
-    def _scan_board_detail(self, worktree_path: str, board_name: str) -> Dict[str, Any]:
-        """Deep scan a single board with DTS peripheral parsing."""
-        boards_dir = self._find_boards_dir(worktree_path)
-        board_dir = os.path.join(boards_dir, board_name)
-        board_yml = os.path.join(board_dir, "board.yml")
-
-        if not os.path.isdir(board_dir) or not os.path.isfile(board_yml):
-            raise ValueError(f"Board '{board_name}' not found on this branch")
-
-        with open(board_yml) as f:
-            board_data = _parse_board_yml(f.read())
-
-        # Parse DTS files for each revision directory
-        revisions = []
-        for rev_name in board_data.get("revisions", []):
-            rev_dir = os.path.join(board_dir, rev_name)
-            peripherals = []
-            if os.path.isdir(rev_dir):
-                peripherals = self._parse_revision_dts(rev_dir)
-            revisions.append({
-                "name": rev_name,
-                "peripherals": peripherals,
-            })
-
-        return {
-            "board": board_data["name"] or board_name,
-            "socs": board_data["socs"],
-            "revisions": revisions,
-            "variants": board_data["variants"],
-        }
-
-    def _parse_revision_dts(self, rev_dir: str) -> List[Dict[str, str]]:
-        """Parse all DTS files in a revision directory for peripherals."""
-        all_compatibles = set()
-        for filename in os.listdir(rev_dir):
-            if filename.endswith((".dts", ".dtsi", ".overlay")):
-                filepath = os.path.join(rev_dir, filename)
-                with open(filepath) as f:
-                    compatibles = _parse_dts_compatibles(f.read())
-                    all_compatibles.update(compatibles)
-
-        return [_classify_peripheral(c) for c in sorted(all_compatibles)]
