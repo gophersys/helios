@@ -352,11 +352,9 @@ class BoardRevisionCreateRequest:
 class BoardRevisionUpdateRequest:
     version: Optional[str] = None
     chipsetIds: Optional[list] = None
-    peripherals: Optional[dict] = None
     status: Optional[str] = None
     notes: Optional[str] = None
     _has_chipset_ids: bool = False
-    _has_peripherals: bool = False
     _has_notes: bool = False
 
     @classmethod
@@ -375,11 +373,6 @@ class BoardRevisionUpdateRequest:
             if not isinstance(chipset_ids, list):
                 return None, "chipsetIds must be an array of strings"
             chipset_ids = [c.strip() for c in chipset_ids if isinstance(c, str) and c.strip()]
-        peripherals = data.get("peripherals")
-        has_peripherals = "peripherals" in data
-        if has_peripherals and peripherals is not None:
-            if not isinstance(peripherals, dict):
-                return None, "peripherals must be a JSON object"
         status = data.get("status")
         if status is not None:
             status = status.strip()
@@ -388,17 +381,15 @@ class BoardRevisionUpdateRequest:
         notes = data.get("notes")
         has_notes = "notes" in data
 
-        if version is None and status is None and not has_chipset_ids and not has_notes and not has_peripherals:
+        if version is None and status is None and not has_chipset_ids and not has_notes:
             return None, "No fields to update"
 
         return cls(
             version=version,
             chipsetIds=chipset_ids,
-            peripherals=peripherals,
             status=status,
             notes=notes.strip() if notes else notes,
             _has_chipset_ids=has_chipset_ids,
-            _has_peripherals=has_peripherals,
             _has_notes=has_notes,
         ), None
 
@@ -406,8 +397,6 @@ class BoardRevisionUpdateRequest:
         update_data: Dict[str, Any] = {}
         if self.version is not None:
             update_data["version"] = self.version
-        if self._has_peripherals:
-            update_data["peripherals"] = Json(self.peripherals) if self.peripherals else None
         if self.status is not None:
             update_data["status"] = self.status
         if self._has_notes:

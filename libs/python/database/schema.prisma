@@ -200,13 +200,13 @@ model Board {
 
 /// A board revision (e.g. A0, B0, B1) -- a specific version of a Board PCB.
 model BoardRevision {
-  id          String          @id @default(cuid())
-  boardId     String
-  version     String /// e.g. "A0", "B0", "B1"
-  status      LifecycleStatus @default(ACTIVE)
-  notes       String?
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
+  id        String          @id @default(cuid())
+  boardId   String
+  version   String /// e.g. "A0", "B0", "B1"
+  status    LifecycleStatus @default(ACTIVE)
+  notes     String?
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
 
   board    Board                  @relation(fields: [boardId], references: [id], onDelete: Cascade)
   chipsets BoardRevisionChipset[]

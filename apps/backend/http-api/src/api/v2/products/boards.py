@@ -116,7 +116,6 @@ def _serialize_board_revision(r: Any) -> dict:
         "id": r.id,
         "boardId": r.boardId,
         "version": r.version,
-        "peripherals": r.peripherals if hasattr(r, "peripherals") and r.peripherals else None,
         "status": r.status,
         "notes": r.notes,
         "createdAt": r.createdAt.isoformat(),
