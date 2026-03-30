@@ -10,10 +10,6 @@ function createAlphaBuildConfig(): BuildConfig {
     board: 'alpha',
     ncsVersion: 'v2.9.0',
     boardRoot: 'ck_boards',
-    targets: {
-      app: { soc: 'nrf52840', appId: 109, role: 'application' },
-      comms: { soc: 'nrf9151', appId: 108, role: 'communications' },
-    },
     hasVsmMerge: true,
     hasFips: false,
     confFiles: {
@@ -34,9 +30,6 @@ function createSingleProcessorConfig(): BuildConfig {
     board: 'sigma5',
     ncsVersion: 'v2.9.0',
     boardRoot: 'ck_boards',
-    targets: {
-      app: { soc: 'nrf52840', appId: 201, role: 'application' },
-    },
     hasVsmMerge: false,
     hasFips: false,
     confFiles: { app: ['prj.conf'] },
@@ -49,29 +42,6 @@ function createSingleProcessorConfig(): BuildConfig {
 describe('BuildConfig data model', () => {
   describe('dual-processor (Alpha)', () => {
     const config = createAlphaBuildConfig();
-
-    it('has two targets', () => {
-      const entries = Object.entries(config.targets);
-      expect(entries).toHaveLength(2);
-    });
-
-    it('targets are keyed by role name', () => {
-      expect(config.targets).toHaveProperty('app');
-      expect(config.targets).toHaveProperty('comms');
-    });
-
-    it('each target has soc, appId, role', () => {
-      expect(config.targets.app).toEqual({
-        soc: 'nrf52840',
-        appId: 109,
-        role: 'application',
-      });
-      expect(config.targets.comms).toEqual({
-        soc: 'nrf9151',
-        appId: 108,
-        role: 'communications',
-      });
-    });
 
     it('cfw has deviceType and deviceVariant', () => {
       expect(config.cfw.deviceType).toBe(2);
@@ -97,14 +67,6 @@ describe('BuildConfig data model', () => {
 
   describe('single-processor (Sigma5)', () => {
     const config = createSingleProcessorConfig();
-
-    it('has one target', () => {
-      expect(Object.entries(config.targets)).toHaveLength(1);
-    });
-
-    it('has no comms target', () => {
-      expect(config.targets).not.toHaveProperty('comms');
-    });
 
     it('hasVsmMerge is false', () => {
       expect(config.hasVsmMerge).toBe(false);

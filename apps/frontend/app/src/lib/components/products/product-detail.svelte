@@ -8,7 +8,7 @@
   import FirmwareBuildManager from './firmware-app-list.svelte';
   import ProductStages from './product-stages.svelte';
   import BuildConfigCard from './build-config-card.svelte';
-  import { GitBranch, Cpu, Layers, Upload, Wrench } from 'lucide-svelte';
+  import { Cpu, Layers, Upload, Wrench } from 'lucide-svelte';
   import type { Product, Chipset } from '$lib/types/models';
   import type { BuildJobArtifact } from '$lib/types/ci';
   import { createManualBuild, uploadBuildArtifact } from '$lib/services/ci';
@@ -154,15 +154,14 @@
           {#if product.slug}
             <span class="font-mono bg-surface-2 px-2 py-0.5 rounded">{product.slug}</span>
           {/if}
-          {#if product.repoSlug}
-            <span class="flex items-center gap-1">
-              <GitBranch size={12} />
-              <span class="font-mono">{product.repoSlug}</span>
-              {#if product.repoBranch}
-                <span class="text-text-tertiary/50">:</span>
-                <span class="font-mono">{product.repoBranch}</span>
-              {/if}
-            </span>
+          {#if product.targets && product.targets.length > 0}
+            {#each product.targets as target}
+              <span class="inline-flex items-center gap-1 rounded-full bg-accent/10 px-2 py-0.5 text-2xs font-mono text-accent">
+                <Cpu size={10} />
+                {target.soc}
+                <span class="text-accent/60">#{target.appId}</span>
+              </span>
+            {/each}
           {/if}
           <span class="flex items-center gap-1">
             <Layers size={12} />

@@ -170,7 +170,6 @@ describe('Wizard buildConfig assembly', () => {
       board: productSlug,
       ncsVersion,
       boardRoot: 'ck_boards',
-      targets,
       hasVsmMerge: false,
       hasFips: false,
       confFiles: Object.fromEntries(Object.keys(targets).map((k) => [k, ['prj.conf']])),
@@ -180,8 +179,6 @@ describe('Wizard buildConfig assembly', () => {
     };
 
     expect(buildConfig.board).toBe('alpha');
-    expect(buildConfig.targets.app.appId).toBe(109);
-    expect(buildConfig.targets.comms.appId).toBe(108);
     expect(buildConfig.cfw).toEqual({ deviceType: 2, deviceVariant: 3 });
     expect(buildConfig.confFiles).toEqual({
       app: ['prj.conf'],

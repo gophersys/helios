@@ -8,7 +8,6 @@
     BoardDetail,
     DtsPeripheral,
     BuildConfig,
-    BuildConfigTarget,
   } from '$lib/types/models';
 
   interface Props {
@@ -41,8 +40,6 @@
   let productName = $state('');
   let productSlug = $state('');
   let productDescription = $state('');
-  let fwRepoSlug = $state('');
-  let mfgRepoSlug = $state('');
   let ncsVersion = $state('v2.9.0');
   let targets = $state<Record<string, { soc: string; appId: number; role: string }>>({});
   let deviceType = $state(0);
@@ -110,8 +107,6 @@
       // Auto-populate step 4 fields from discovery
       productName = boardDetail.board.charAt(0).toUpperCase() + boardDetail.board.slice(1);
       productSlug = boardDetail.board;
-      fwRepoSlug = `${boardDetail.board}_fw`;
-      mfgRepoSlug = `${boardDetail.board}_mfg_fw`;
       // Build targets from SoCs
       const newTargets: Record<string, { soc: string; appId: number; role: string }> = {};
       const socs = boardDetail.socs;
@@ -160,9 +155,6 @@
       board: productSlug,
       ncsVersion,
       boardRoot: 'ck_boards',
-      targets: Object.fromEntries(
-        Object.entries(targets).map(([key, t]) => [key, { soc: t.soc, appId: t.appId, role: t.role }])
-      ),
       hasVsmMerge: false,
       hasFips: false,
       confFiles: Object.fromEntries(Object.keys(targets).map((k) => [k, ['prj.conf']])),
@@ -171,24 +163,26 @@
       cfw: { deviceType, deviceVariant },
     };
 
+    const targetArray = Object.entries(targets).map(([, t]) => ({
+      role: t.role,
+      soc: t.soc,
+      appId: t.appId,
+    }));
+
     try {
       await api.post('/v2/products', {
         name: productName.trim(),
         slug: productSlug.trim() || null,
         description: productDescription.trim() || null,
-        repoSlug: fwRepoSlug.trim() || null,
-        mfgRepoSlug: mfgRepoSlug.trim() || null,
-        buildConfig,
-        triggerBranches: triggerBranches.split(',').map((b) => b.trim()).filter(Boolean),
-        boardDiscovery: boardDetail
+        board: boardDetail
           ? {
-              branch: selectedBranch,
-              board: selectedBoardName,
-              socs: boardDetail.socs,
-              revisions: boardDetail.revisions,
-              variants: boardDetail.variants,
+              ckBoardsName: selectedBoardName,
+              ckBoardsBranch: selectedBranch,
             }
           : null,
+        targets: targetArray,
+        buildConfig,
+        triggerBranches: triggerBranches.split(',').map((b) => b.trim()).filter(Boolean),
       });
       onCreated();
     } catch (e) {
@@ -447,26 +441,6 @@
             />
           </label>
 
-          <!-- Repos -->
-          <div class="grid gap-3 sm:grid-cols-2">
-            <label class="block">
-              <span class="mb-1 block text-2xs font-medium text-text-tertiary">FW Repo Slug</span>
-              <input
-                type="text"
-                bind:value={fwRepoSlug}
-                class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm font-mono text-text-primary focus:border-accent focus:outline-none"
-              />
-            </label>
-            <label class="block">
-              <span class="mb-1 block text-2xs font-medium text-text-tertiary">Mfg Repo Slug</span>
-              <input
-                type="text"
-                bind:value={mfgRepoSlug}
-                class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm font-mono text-text-primary focus:border-accent focus:outline-none"
-              />
-            </label>
-          </div>
-
           <!-- NCS Version -->
           <label class="block max-w-xs">
             <span class="mb-1 block text-2xs font-medium text-text-tertiary">NCS Version</span>
@@ -555,8 +529,6 @@
                 ['Board', selectedBoardName],
                 ['Branch', selectedBranch],
                 ['NCS Version', ncsVersion],
-                ['FW Repo', fwRepoSlug || '(none)'],
-                ['Mfg Repo', mfgRepoSlug || '(none)'],
                 ['Device Type', String(deviceType)],
                 ['Device Variant', String(deviceVariant)],
                 ['Trigger Branches', triggerBranches || '(none)'],

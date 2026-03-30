@@ -99,22 +99,22 @@ export interface FirmwareBuild {
   updatedAt: string;
 }
 
+export interface ProductTarget {
+  id: string;
+  role: string;
+  soc: string;
+  appId: number;
+}
+
 export interface Product {
   id: string;
   name: string;
   slug: string | null;
   description: string | null;
   active: boolean;
-  repoSlug: string | null;
-  repoSshUrl: string | null;
-  repoBranch: string | null;
-  mfgRepoSlug: string | null;
-  mfgRepoSshUrl: string | null;
-  buildBoard: string | null;
-  buildWestDir: string | null;
-  buildMfgDir: string | null;
   metadata: Record<string, unknown> | null;
   buildConfig: BuildConfig | null;
+  targets: ProductTarget[];
   boardCount?: number;
   firmwareBuildCount?: number;
   boards?: Board[];
@@ -140,7 +140,6 @@ export interface BuildConfig {
   board: string;
   ncsVersion: string;
   boardRoot: string;
-  targets: Record<string, BuildConfigTarget>;
   hasVsmMerge: boolean;
   hasFips: boolean;
   confFiles: Record<string, string[]>;

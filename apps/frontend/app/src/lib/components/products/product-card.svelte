@@ -1,16 +1,15 @@
 <script lang="ts">
-  import { Package, Pencil, Trash2, GitBranch, Cpu, Layers } from 'lucide-svelte';
+  import { Package, Trash2, Cpu, Layers } from 'lucide-svelte';
   import type { Product } from '$lib/types/models';
 
   interface Props {
     product: Product;
     canManage: boolean;
-    onEdit: (p: Product) => void;
     onDelete: (id: string) => void;
     onSelect: (p: Product) => void;
   }
 
-  let { product, canManage, onEdit, onDelete, onSelect }: Props = $props();
+  let { product, canManage, onDelete, onSelect }: Props = $props();
 </script>
 
 <div
@@ -48,15 +47,16 @@
       <p class="text-2xs text-text-tertiary mb-3 line-clamp-2">{product.description}</p>
     {/if}
 
-    <!-- Repo info -->
-    {#if product.repoSlug}
-      <div class="flex items-center gap-1.5 mb-3 text-2xs text-text-tertiary">
-        <GitBranch size={12} class="shrink-0" />
-        <span class="font-mono truncate">{product.repoSlug}</span>
-        {#if product.repoBranch}
-          <span class="text-text-tertiary/50">/</span>
-          <span class="font-mono">{product.repoBranch}</span>
-        {/if}
+    <!-- Targets -->
+    {#if product.targets && product.targets.length > 0}
+      <div class="flex flex-wrap gap-1.5 mb-3">
+        {#each product.targets as target}
+          <span class="inline-flex items-center gap-1 rounded-full bg-accent/10 px-2 py-0.5 text-2xs font-mono text-accent">
+            <Cpu size={10} />
+            {target.soc}
+            <span class="text-accent/60">#{target.appId}</span>
+          </span>
+        {/each}
       </div>
     {/if}
 
@@ -82,14 +82,6 @@
       onclick={(e) => e.stopPropagation()}
       onkeydown={(e) => e.stopPropagation()}
     >
-      <button
-        onclick={() => onEdit(product)}
-        class="rounded-lg bg-surface-1/90 p-1.5 text-text-tertiary shadow-sm backdrop-blur hover:text-text-primary"
-        title="Edit"
-        aria-label="Edit"
-      >
-        <Pencil size={14} />
-      </button>
       <button
         onclick={() => onDelete(product.id)}
         class="rounded-lg bg-surface-1/90 p-1.5 text-text-tertiary shadow-sm backdrop-blur hover:text-error"

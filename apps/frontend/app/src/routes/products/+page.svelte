@@ -1,10 +1,10 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
-  import { Plus, Check, CircuitBoard } from 'lucide-svelte';
+  import { Plus } from 'lucide-svelte';
   import { getAuth } from '$lib/stores/auth.svelte';
   import { apiFetch, api } from '$lib/api';
-  import { PageHeader, ErrorAlert, EmptyState, LoadingState, ConfirmDeleteDialog, FormCard } from '$lib/components/ui';
+  import { PageHeader, ErrorAlert, EmptyState, LoadingState, ConfirmDeleteDialog } from '$lib/components/ui';
   import ProductCard from '$lib/components/products/product-card.svelte';
   import ProductDetail from '$lib/components/products/product-detail.svelte';
   import ProductCreationWizard from '$lib/components/products/product-creation-wizard.svelte';
@@ -22,14 +22,6 @@
   let products = $state<Product[]>([]);
   let loading = $state(true);
   let error = $state<string | null>(null);
-
-  // Form state
-  let showForm = $state(false);
-  let editingId = $state<string | null>(null);
-  let formName = $state('');
-  let formDescription = $state('');
-  let formActive = $state(true);
-  let submitting = $state(false);
 
   // Delete confirmation
   let deleteTarget = $state<{ id: string; name: string } | null>(null);
@@ -71,49 +63,6 @@
     }
     fetchProducts();
   });
-
-  function resetForm() {
-    formName = '';
-    formDescription = '';
-    formActive = true;
-    editingId = null;
-    showForm = false;
-  }
-
-  function startEdit(p: Product) {
-    formName = p.name;
-    formDescription = p.description || '';
-    formActive = p.active;
-    editingId = p.id;
-    showForm = true;
-    selectedProduct = null;
-  }
-
-  async function handleSubmit(e: Event) {
-    e.preventDefault();
-    error = null;
-    submitting = true;
-
-    const body = {
-      name: formName,
-      description: formDescription || null,
-      active: formActive,
-    };
-
-    try {
-      if (editingId) {
-        await api.put(`/v2/products/${editingId}`, body);
-      } else {
-        await api.post('/v2/products', body);
-      }
-      resetForm();
-      fetchProducts();
-    } catch (err) {
-      error = err instanceof Error ? err.message : 'Failed to save product';
-    } finally {
-      submitting = false;
-    }
-  }
 
   function promptDelete(id: string) {
     const target = products.find((p) => p.id === id);
@@ -180,77 +129,15 @@
     {#if topTab === 'products'}
       <ErrorAlert message={error} />
 
-      {#if showForm && canManage}
-        <FormCard title={editingId ? 'Edit product' : 'New product'} onClose={resetForm}>
-          <form onsubmit={handleSubmit}>
-            <div class="mb-3 grid grid-cols-2 gap-3">
-              <label>
-                <span class="mb-1 block text-2xs font-medium text-text-tertiary">Name</span>
-                <input
-                  type="text"
-                  required
-                  bind:value={formName}
-                  placeholder="e.g. Sigma5"
-                  class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
-                />
-              </label>
-              <label>
-                <span class="mb-1 block text-2xs font-medium text-text-tertiary">Description</span>
-                <input
-                  type="text"
-                  bind:value={formDescription}
-                  placeholder="Optional description"
-                  class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
-                />
-              </label>
-            </div>
-            <div class="mb-4">
-              <label class="flex items-center gap-2 text-sm text-text-primary">
-                <input
-                  type="checkbox"
-                  bind:checked={formActive}
-                  class="rounded border-border"
-                />
-                Active
-              </label>
-            </div>
-            <div class="flex gap-2">
-              <button
-                type="submit"
-                disabled={submitting}
-                class="flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover disabled:opacity-50"
-              >
-                <Check size={16} />
-                {submitting ? 'Saving...' : editingId ? 'Save changes' : 'Create'}
-              </button>
-              <button
-                type="button"
-                onclick={resetForm}
-                class="rounded-lg px-4 py-2 text-sm font-medium text-text-secondary hover:bg-surface-2"
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
-        </FormCard>
-      {/if}
-
-      <!-- Add buttons -->
-      {#if canManage && !showForm && !showWizard}
-        <div class="mb-4 flex justify-end gap-2">
+      <!-- Add button -->
+      {#if canManage && !showWizard}
+        <div class="mb-4 flex justify-end">
           <button
             onclick={() => { showWizard = true; }}
-            class="flex items-center gap-2 rounded-lg border border-accent px-3 py-2 text-sm font-medium text-accent hover:bg-accent/5"
-          >
-            <CircuitBoard size={16} />
-            New from ck_boards
-          </button>
-          <button
-            onclick={() => { resetForm(); showForm = true; }}
             class="flex items-center gap-2 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-white hover:bg-accent-hover"
           >
             <Plus size={16} />
-            New product
+            New Product
           </button>
         </div>
       {/if}
@@ -273,7 +160,6 @@
             <ProductCard
               product={p}
               {canManage}
-              onEdit={startEdit}
               onDelete={promptDelete}
               onSelect={(prod) => fetchDetail(prod.id)}
             />
