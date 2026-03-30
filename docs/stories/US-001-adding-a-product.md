@@ -1,36 +1,27 @@
 **Last reviewed:** 2026-03-30
-**Status:** Draft
+**Status:** Active
 
 # US-001: Adding a Product to Concord
 
 ## Story
 
-> As a **hardware engineer or product owner**, I want to **add a new product to Concord by selecting a board from the ck_boards repository**, so that **the platform can automatically derive the build, manufacturing, and validation configuration from the Zephyr board definition**.
+> As an engineer, I want to add a new product to Concord by selecting a board from the ck_boards repository, so that the platform automatically derives build, manufacturing, and validation configuration from the Zephyr board definition.
 
 ## Context
 
-When CK designs a new product (e.g., "Sigma X"), the hardware team creates a board definition in the `ck_boards` repository under a feature branch. The board definition follows the Zephyr board format (`board.yml`, DTS files, Kconfig). Once the board is pushed to origin, a Concord user should be able to create a product from it — the platform parses the board definition, extracts hardware topology (SoCs, peripherals, revisions), and sets up the build, manufacturing, and validation pipelines automatically.
+Every Concord product originates from a Zephyr board definition in the `ck_boards` repository. When a new product is designed (e.g., "Sigma X"), an engineer creates a board definition (`board.yml`, DTS files, Kconfig) and pushes it to a branch in ck_boards. From there, any engineer can open Concord, walk through the product creation wizard, and the platform parses the board definition -- extracting SoC topology, peripherals, and hardware revisions -- to set up the build, manufacturing, and validation pipelines automatically.
 
-**Concord only supports Zephyr boards from ck_boards.** There is no manual product creation path. Every product is derived from a board definition.
-
-## Personas
-
-| Persona | Role | Actions |
-|---------|------|---------|
-| **Hardware Engineer** | Creates board definition in ck_boards | Pushes board.yml + DTS to feature branch |
-| **Product Owner** | Adds product to Concord | Selects branch → board → confirms config → creates product |
-| **Build Engineer** | Configures build pipeline | Sets AppIDs, release tracks, trigger branches |
-| **Validation Engineer** | Runs tests against product builds | Uses product config to select fixtures and test suites |
+There is no manual product creation path. Every product is derived from a board definition.
 
 ## User Flow
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│ 1. HW Engineer pushes board to ck_boards (feature branch)   │
+│ 1. Engineer pushes board definition to ck_boards             │
 └──────────────────────────┬──────────────────────────────────┘
                            │
 ┌──────────────────────────▼──────────────────────────────────┐
-│ 2. User opens Concord → Products → "New Product"            │
+│ 2. Open Concord → Products → "New Product"                   │
 └──────────────────────────┬──────────────────────────────────┘
                            │
 ┌──────────────────────────▼──────────────────────────────────┐
@@ -55,27 +46,26 @@ When CK designs a new product (e.g., "Sigma X"), the hardware team creates a boa
                            │
 ┌──────────────────────────▼──────────────────────────────────┐
 │ 6. Configure product identity                                │
-│    - Product name (human-readable, auto-derived from board)  │
+│    - Product name (auto-derived from board, editable)        │
 │    - Per-target AppID (required, per CK firmware spec)        │
 │    - Device Type + Device Variant (CoreCloud identifiers)     │
-│    - Release track defaults (Bench for dev, Production)       │
-│    - Trigger branches for CI/CD                               │
+│    - NCS version, trigger branches for CI/CD                  │
 └──────────────────────────┬──────────────────────────────────┘
                            │
 ┌──────────────────────────▼──────────────────────────────────┐
 │ 7. Create product                                            │
-│    - Prisma record created with full config                  │
-│    - Board + chipsets + revisions + peripherals stored        │
+│    - Prisma records created: Product, Board, BoardRevision,  │
+│      BoardRevisionChipset, ProductTarget                     │
 │    - Build pipeline ready to trigger                         │
-│    - Product visible in Concord UI                            │
+│    - Product visible across Concord UI                        │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 ## Technical Design
 
-### 1. Prisma Schema
+### 1. Data Model
 
-The Product model is **foundational** — build, manufacturing, and validation all derive from it. The schema must align with the [CK Device Firmware Versioning Spec](https://corekinect.atlassian.net/wiki/spaces/EN/pages/2604630046/Device+Firmware+Versioning+SS+V1.0).
+The Product model is foundational -- build, manufacturing, and validation all derive from it. The schema aligns with the [CK Device Firmware Versioning Spec](https://corekinect.atlassian.net/wiki/spaces/EN/pages/2604630046/Device+Firmware+Versioning+SS+V1.0).
 
 #### Key Concepts from CK Spec
 
@@ -84,181 +74,126 @@ The Product model is **foundational** — build, manufacturing, and validation a
 | **AppID** | 2-byte int identifying chipset + software feature set | `ProductTarget.appId` |
 | **Chipset** | Hardware config from purview of single MCU (same DTS = same chipset) | `Chipset` model |
 | **Flags** | Release track (B/E/P) + manufacturing bit + debug bit | Per-build, not per-product |
-| **Version** | Major.Minor.Build — per firmware image | `FirmwareBuild` / `BuildJob` |
-| **Device Type** | CoreCloud product type identifier | `Product.deviceType` |
-| **Device Variant** | CoreCloud revision variant identifier | `Product.deviceVariant` |
+| **Version** | Major.Minor.Build -- per firmware image | `FirmwareBuild` / `BuildJob` |
+| **Device Type** | CoreCloud product type identifier | `Product.buildConfig.deviceType` |
+| **Device Variant** | CoreCloud revision variant identifier | `Product.buildConfig.deviceVariant` |
 
-#### Schema Changes: Product (clean up)
+#### Product
 
-**Remove** all legacy fields that duplicate `buildConfig` or can be derived from conventions:
+The root entity. Everything flows from here -- fixtures, tests, sessions, builds.
 
-```diff
+```prisma
 model Product {
   id          String  @id @default(cuid())
-  name        String  @unique
-  slug        String? @unique
+  name        String  @unique   // "Alpha B0", "Sigma5 C0"
+  slug        String? @unique   // "alpha_b0" -- URL-safe identifier
   description String?
   active      Boolean @default(true)
+  buildConfig Json?             // Structured build configuration
+  metadata    Json?             // Additional product-specific config
 
-- repoSlug      String?
-- repoSshUrl    String?
-- repoBranch    String?
-- mfgRepoSlug   String?
-- mfgRepoSshUrl String?
-- buildBoard    String?
-- buildWestDir  String?
-- buildMfgDir   String?
-
-  buildConfig   Json?
-  metadata      Json?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relations (unchanged)
-  boards           Board[]
-+ targets          ProductTarget[]
-  firmwareBuilds   FirmwareBuild[]
-  fixtures         Fixture[]
-  sessions         Session[]
-  buildJobs        BuildJob[]
-  pipelineRuns     PipelineRun[]
+  targets        ProductTarget[]
+  boards         Board[]
+  firmwareBuilds FirmwareBuild[]
+  fixtures       Fixture[]
+  sessions       Session[]
+  buildJobs      BuildJob[]
+  pipelineRuns   PipelineRun[]
   // ...
 }
 ```
 
-**Derivation rules** (computed at runtime, not stored):
-- Firmware repo SSH URL: `git@bitbucket.org:corekinect/{slug}_fw.git`
-- Mfg firmware repo SSH URL: `git@bitbucket.org:corekinect/{slug}_mfg_fw.git`
-- West board name: from `buildConfig.board` or `Board.ckBoardsName`
-- Build directories: convention-based from product slug
+Repo URLs are derived at runtime from the slug (e.g., `{slug}_fw`, `{slug}_mfg_fw`), not stored as columns.
 
-#### Schema Changes: ProductTarget (new model)
+#### ProductTarget
 
-Normalizes the `buildConfig.targets` JSON into a queryable, referenceable model. Every downstream system (build, FUOTA, manufacturing, validation) needs to know the AppID → SoC → role mapping.
+Every downstream system -- build, FUOTA, manufacturing, validation -- needs to know the AppID-to-SoC-to-role mapping. This is a first-class model, not buried in JSON.
 
 ```prisma
 model ProductTarget {
   id        String @id @default(cuid())
   productId String
-  role      String   // "app", "comms", "modem"
-  soc       String   // "nrf52840", "nrf9151" — references Chipset.name
-  appId     Int      // CK AppID (2-byte, per firmware versioning spec)
+  role      String   // "comms", "app"
+  soc       String   // "nRF9151", "nRF52840"
+  appId     Int      // CoreCloud application ID (108, 109)
 
   product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@unique([productId, role])
   @@unique([productId, appId])
-  @@index([appId])
 }
 ```
 
-**Why normalize?**
-- AppIDs are referenced by: build artifacts, CFW generation, FUOTA plans, CoreCloud device registration, manufacturing shell personalization
-- Storing them in a JSON blob means every consumer must parse JSON and hope the shape hasn't changed
-- A proper model enables: `db.producttarget.find_many(where={"appId": 109})` — "which product uses this AppID?"
+#### Board
 
-#### Schema Changes: Board (align with ck_boards)
+Each product has exactly one board, linked to a `ck_boards` definition.
 
 ```prisma
 model Board {
   id             String  @id @default(cuid())
-  productId      String  @unique  // 1:1 for now (can relax later)
-  ckBoardsName   String  // "alpha_b0" — exact directory name in ck_boards
-  ckBoardsBranch String  // "main", "feature/sigma-x" — branch it was discovered on
+  productId      String  @unique  // 1:1 with Product
+  name           String           // "Main Board"
+  ckBoardsName   String           // "alpha_b0" -- exact ck_boards directory name
+  ckBoardsBranch String  @default("main")  // Branch it was discovered on
   vendor         String  @default("corekinect")
 
-  product   Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  product   Product         @relation(...)
   revisions BoardRevision[]
 
   @@unique([ckBoardsName])
 }
 ```
 
-**Changes from current:**
-- `productId` becomes `@unique` (1:1 with Product)
-- `name` replaced with `ckBoardsName` (exact ck_boards directory name)
-- Added `ckBoardsBranch` to track provenance
-- Added `vendor` (from board.yml, always "corekinect" for now)
-- Removed old `name` field that was ambiguous ("Main Board" vs "alpha_b0")
+#### BoardRevision
 
-#### Schema Changes: BoardRevision (hardware revisions)
+Hardware revisions (A0, B0, B1) with cached peripheral data from DTS parsing.
 
 ```prisma
 model BoardRevision {
-  id             String          @id @default(cuid())
-  boardId        String
-  version        String          // "A0", "B0", "B1" — PCB hardware revision
-  status         LifecycleStatus @default(ACTIVE)
-  peripherals    Json?           // Cached DTS peripheral manifest
-  notes          String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id          String          @id @default(cuid())
+  boardId     String
+  version     String          // "A0", "B0"
+  status      LifecycleStatus @default(ACTIVE)
+  peripherals Json?           // Cached DTS results: [{compatible, type, bus}]
 
-  board    Board                  @relation(fields: [boardId], references: [id], onDelete: Cascade)
-  chipsets BoardRevisionChipset[]
+  board    Board                  @relation(...)
+  chipsets BoardRevisionChipset[] // Many-to-many with Chipset
 
   @@unique([boardId, version])
 }
 ```
 
-**Changes:**
-- `selectedBuilds` removed (legacy, unused)
-- Added `peripherals` JSON (cached DTS parse results — `[{compatible, type, bus}]`)
-- `version` stores hardware revision ("A0", "B0"), NOT firmware version
+#### buildConfig JSON
 
-#### Schema Changes: Product.buildConfig (restructured JSON)
-
-`buildConfig` remains JSON but with a cleaner, well-defined structure. Targets are normalized into `ProductTarget` — `buildConfig` stores only build-time configuration:
+Stored on Product, contains build-time configuration. Targets are normalized into `ProductTarget` -- `buildConfig` stores only build settings:
 
 ```jsonc
 {
-  // Board identity (from ck_boards)
   "board": "alpha_b0",
   "ncsVersion": "v2.9.0",
   "boardRoot": "ck_boards",
-
-  // Device identity (CoreCloud)
   "deviceType": 2,
   "deviceVariant": 3,
-
-  // Build configuration (per-target)
-  "confFiles": {
-    "app": ["prj.conf"],
-    "comms": ["prj.conf"]
-  },
-  "overlays": {
-    "app": [],
-    "comms": []
-  },
-
-  // Post-build pipeline
+  "confFiles": { "app": ["prj.conf"], "comms": ["prj.conf"] },
+  "overlays": { "app": [], "comms": [] },
   "postBuild": ["sign_mcuboot", "generate_dfu_package"],
-
-  // Trigger configuration
   "triggerBranches": ["main"],
-
-  // Build features
   "hasVsmMerge": false,
   "hasFips": false
 }
 ```
 
-**Removed from buildConfig** (now in proper models):
-- `targets` → `ProductTarget` model
-- `cfw.deviceType` / `cfw.deviceVariant` → `buildConfig` top-level (simpler)
+### 2. Board Discovery Service
 
-### 2. HTTP API: Board Discovery
+The HTTP API maintains a bare clone of `ck_boards` and exposes it through discovery endpoints.
 
 #### Git Clone Lifecycle
 
-The HTTP API maintains a **bare clone** of ck_boards in `/tmp/ck_boards.git`:
-
 ```
 App Startup:
-  1. Clone bare repo if not present: git clone --bare git@bitbucket.org:corekinect/ck_boards.git /tmp/ck_boards.git
+  1. Clone bare repo: git clone --bare <ck_boards_url> /tmp/ck_boards.git
   2. Start background fetch timer (every 60 seconds)
-  3. Initialize CkBoardsService with bare repo path
+  3. Initialize CkBoardsService singleton
 
 Per-Request:
   1. git worktree add --detach /tmp/ck_boards-wt/<uuid> <branch>
@@ -278,17 +213,11 @@ Periodic Fetch (every 60s):
 | Staging | All | Pre-prod validation of new boards |
 | Production | `main` only | Only validated boards go to production |
 
-Enforced server-side in `CkBoardsService.list_refs()` — filters branches based on `AppConfig.ENVIRONMENT`.
+Enforced server-side in `CkBoardsService.list_refs()` based on `AppConfig.ENVIRONMENT`.
 
-#### Board Validation
+#### Board Health Reporting
 
-When scanning boards, the service must detect and report:
-- Missing `board.yml` (skip board, log warning)
-- Invalid `board.yml` format (report error in response, don't crash)
-- DTS parse failures (report error per-revision, include partial results)
-- Boards that don't follow naming conventions (flag in response)
-
-Response shape includes a `health` field per board:
+The service detects and reports issues per board without crashing the wizard:
 
 ```json
 {
@@ -300,14 +229,15 @@ Response shape includes a `health` field per board:
 }
 ```
 
+Boards with parse errors are selectable but flagged:
+
 ```json
 {
   "board": "broken_board",
   "socs": [],
   "revisions": [],
-  "variants": [],
   "health": "error",
-  "errors": ["board.yml missing 'socs' field", "DTS parse failed: syntax error in line 42"]
+  "errors": ["board.yml missing 'socs' field", "DTS parse failed: syntax error"]
 }
 ```
 
@@ -316,13 +246,11 @@ Response shape includes a `health` field per board:
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/v2/products/boards/branches` | List available ck_boards branches (env-gated) |
-| GET | `/v2/products/boards/discover?branch=main` | List all boards on a branch |
-| GET | `/v2/products/boards/discover/{board}?branch=main` | Full board detail with peripherals |
-| POST | `/v2/products` | Create product from board discovery data |
+| GET | `/v2/products/boards/discover?branch=main` | List all boards on a branch with health |
+| GET | `/v2/products/boards/discover/{board}?branch=main` | Full board detail: SoCs, peripherals, revisions |
+| POST | `/v2/products` | Create product from discovery data |
 
-#### Product Creation Endpoint
-
-`POST /v2/products` accepts:
+#### Product Creation Payload
 
 ```json
 {
@@ -349,85 +277,49 @@ Response shape includes a `health` field per board:
   "buildConfig": {
     "board": "sigma_x_a0",
     "ncsVersion": "v2.9.0",
-    "boardRoot": "ck_boards",
     "deviceType": 5,
     "deviceVariant": 1,
-    "confFiles": {"app": ["prj.conf"], "comms": ["prj.conf"]},
-    "overlays": {"app": [], "comms": []},
-    "postBuild": ["sign_mcuboot"],
-    "triggerBranches": ["main"],
-    "hasVsmMerge": false,
-    "hasFips": false
+    "triggerBranches": ["main"]
   }
 }
 ```
 
-The backend:
-1. Creates `Product` record
-2. Creates `Board` record with `ckBoardsName` and `ckBoardsBranch`
-3. Creates `BoardRevision` records with chipset relations and cached peripherals
-4. Creates `ProductTarget` records for each target (app, comms)
-5. Ensures `Chipset` records exist (upsert by name)
-6. Audit logs the creation
+The backend creates all records in a single transaction: Product, Board, BoardRevision(s), BoardRevisionChipset(s), ProductTarget(s), and upserts Chipset records. The creation is audit-logged.
 
-### 3. Frontend
+### 3. Frontend Wizard
 
-#### Single Creation Flow
+A single "New Product" button opens the five-step wizard (`product-creation-wizard.svelte`). There is no manual creation form.
 
-Remove the dual-button UI ("New Product" / "New from ck_boards"). Replace with a single **"New Product"** button that always goes through the ck_boards wizard flow. There is no manual product creation path.
+| Step | Title | What Happens |
+|------|-------|-------------|
+| 1 | Branch | Fetch branches from API, engineer picks one (defaults to `main`) |
+| 2 | Board | Show boards on that branch with health indicators |
+| 3 | Review | Display SoC topology, peripherals, and revisions from DTS parsing |
+| 4 | Configure | Product name (auto-populated), AppIDs per target, device type/variant, NCS version, trigger branches |
+| 5 | Create | Summary review, then POST to create the product |
 
-#### Wizard Steps (revised)
-
-| Step | Title | Data |
-|------|-------|------|
-| 1 | Select Branch | Fetch branches from API, user picks one |
-| 2 | Select Board | Show boards on branch with health indicators |
-| 3 | Review Hardware | SoCs, peripherals, revisions from DTS parsing |
-| 4 | Configure Identity | Product name, AppIDs per target, device type/variant, trigger branches |
-| 5 | Confirm & Create | Summary → POST /v2/products |
+The wizard auto-populates Step 4 fields from the board discovery data -- product name and slug from the board name, targets from the SoC list, with smart role assignment (nRF52840 = app, nRF9151 = comms).
 
 #### Error Handling
 
-- **Board health errors**: Show inline warnings on Step 2 — boards with parse errors are selectable but flagged
-- **Branch not found**: Show error state on Step 1 with retry
-- **Service unavailable** (git clone not ready): Show loading state with "Syncing board repository..."
-
-### 4. ck_boards Service Initialization
-
-Currently broken — `init_ck_boards_service()` is never called. Fix:
-
-```python
-# In main.py, after register_v2_routes()
-from services.ck_boards.service import CkBoardsService
-
-ck_boards_svc = CkBoardsService(
-    bare_repo_url="git@bitbucket.org:corekinect/ck_boards.git",
-    bare_repo_path="/tmp/ck_boards.git",
-    worktree_base="/tmp/ck_boards-wt",
-    environment=app_config.ENVIRONMENT,  # gates branches
-    fetch_interval_seconds=60,
-)
-ck_boards_svc.start()  # clones + starts background fetch timer
-```
-
-Add to `AppConfig`:
-```python
-CK_BOARDS_REPO_URL: str = "git@bitbucket.org:corekinect/ck_boards.git"
-CK_BOARDS_FETCH_INTERVAL: int = 60  # seconds
-```
+- **Board health errors**: Inline warnings on Step 2 -- boards with parse errors are selectable but flagged
+- **Branch not found**: Error state on Step 1 with retry
+- **Service unavailable** (git clone not ready): Loading state with "Syncing board repository..."
 
 ## Firmware Versioning Alignment
 
 Per the [CK Device Firmware Versioning Spec](https://corekinect.atlassian.net/wiki/spaces/EN/pages/2604630046/Device+Firmware+Versioning+SS+V1.0):
 
-### AppID Rules (enforced by Concord)
-- AppID is per **chipset + software feature set**, not per product
-- Manufacturing firmware **shares the same AppID** as the production image
-- AppID is unique within the `ProductTarget` table: `@@unique([productId, appId])`
-- If two products share a chipset + feature set, they share an AppID (rare, but valid)
+### AppID Rules
 
-### Build Artifact Requirements
-Each build must produce, per target:
+- AppID identifies a chipset + software feature set, not a product
+- Manufacturing firmware shares the same AppID as the production image for the same target
+- AppID is unique within a product: `@@unique([productId, appId])`
+- If two products share a chipset + feature set, they can share an AppID (rare, but valid)
+
+### Build Artifacts
+
+Each build produces, per target:
 
 | Artifact | Format | Use Case |
 |----------|--------|----------|
@@ -436,20 +328,22 @@ Each build must produce, per target:
 | Encrypted CFW | `.cfw` (app only, no bootloader) | FUOTA / OTA updates |
 
 ### Version String Format
+
 `{AppId}.{Major}.{Minor}.{Build}-{Flags}`
 
 Example: `109.0.5.2-BM` = AppID 109, version 0.5.2, Bench Manufacturing build
 
 ### Flags
+
 | Flag | Bit | Values |
 |------|-----|--------|
 | Release Track | [2:1] | B=Bench, E=Engineering, P=Production |
 | Manufacturing | [0] | M=Yes, omit=No |
 | Debug | [3] | D=Yes, omit=No |
 
-## Downstream Impact
+## How Product Drives Downstream Systems
 
-The Product definition drives everything downstream. Getting it right here means:
+The Product definition is the single source of truth for every downstream system:
 
 | System | What It Reads from Product |
 |--------|---------------------------|
@@ -457,91 +351,32 @@ The Product definition drives everything downstream. Getting it right here means
 | **Manufacturing** | `ProductTarget` (AppIDs for personalization), `buildConfig.deviceType/deviceVariant` (CoreCloud registration) |
 | **Validation** | `ProductTarget` (AppIDs for FUOTA plans), `Board` (fixture design matching), `buildConfig` (stage configs) |
 | **Git Poller** | `buildConfig.triggerBranches`, derived repo URLs from `Product.slug` |
-| **Frontend** | Everything — product detail, build pages, validation run context |
+| **Frontend** | Everything -- product detail, build pages, validation run context |
 
 ## Acceptance Criteria
 
-- [ ] Single "New Product" button (no manual creation path)
+- [ ] Single "New Product" button opens ck_boards wizard (no manual creation path)
 - [ ] Board discovery works against live ck_boards repo (cloned on startup, fetched every 60s)
 - [ ] Environment gating: staging/dev show all branches, production shows only main
 - [ ] Boards with DTS parse errors are flagged but don't crash the wizard
 - [ ] Product creation stores: Product, Board, BoardRevision, BoardRevisionChipset, ProductTarget
-- [ ] Legacy Product fields removed (repoSlug, repoSshUrl, repoBranch, buildBoard, buildWestDir, buildMfgDir, mfgRepoSlug, mfgRepoSshUrl)
 - [ ] ProductTarget model stores normalized AppID/SoC/role per target
-- [ ] buildConfig JSON follows the restructured format (no targets duplication)
-- [ ] Existing products migrated to new schema (Alpha B0 data preserved)
-- [ ] All existing tests pass after migration
+- [ ] buildConfig JSON follows the documented structure (no targets duplication)
+- [ ] All existing tests pass
 - [ ] New unit tests for: schema validation, board discovery service, product creation endpoint, wizard component
-- [ ] Integration tests for: end-to-end product creation flow (API → DB → query back)
+- [ ] Integration tests for: end-to-end product creation flow (API to DB to query back)
 
 ## Test Plan
 
 ### Unit Tests
+
 - **Schema**: ProductTarget uniqueness constraints, Board 1:1 with Product, cascade deletes
 - **Board Discovery Service**: branch listing, board scanning, DTS parsing, peripheral classification, error handling for malformed boards
 - **Product Creation Endpoint**: happy path, validation errors, duplicate product, missing AppIDs, invalid board reference
 - **Frontend Wizard**: step navigation, auto-populate from board data, AppID validation, environment branch gating
 
 ### Integration Tests
-- **End-to-end creation**: POST product → verify DB records (Product, Board, BoardRevision, ProductTarget, Chipset) → GET product back → verify response shape
-- **Build pipeline**: create product → trigger build → verify build worker reads correct AppIDs and config
+
+- **End-to-end creation**: POST product with full payload, verify all DB records (Product, Board, BoardRevision, ProductTarget, Chipset), GET product back, verify response shape
+- **Build pipeline**: create product, trigger build, verify build worker reads correct AppIDs and config
 - **Board sync**: verify fetch timer updates branch list, new boards appear in discovery
-
-## Implementation Phases
-
-### Phase 1: Schema Foundation
-1. Add `ProductTarget` model to schema.prisma
-2. Remove legacy fields from Product
-3. Update Board model (ckBoardsName, ckBoardsBranch, vendor, unique productId)
-4. Update BoardRevision (add peripherals JSON, remove selectedBuilds)
-5. Write migration + seed script for existing Alpha B0 data
-6. Run full test suite, fix broken references
-
-### Phase 2: Board Discovery Service
-1. Wire up `init_ck_boards_service()` in app startup
-2. Add AppConfig fields (CK_BOARDS_REPO_URL, CK_BOARDS_FETCH_INTERVAL)
-3. Add environment gating to branch listing
-4. Add board health validation + error reporting
-5. Add to all environment configs (dev, staging, production)
-6. Integration tests with real git operations
-
-### Phase 3: API + Frontend
-1. Update product creation endpoint to accept new payload shape
-2. Create ProductTarget records during product creation
-3. Merge wizard into single "New Product" flow
-4. Remove manual product creation form and "New from ck_boards" button
-5. Update product detail view to show targets and board info
-6. Update TypeScript types to match new API response
-
-### Phase 4: Migration + Verification
-1. Migrate existing Alpha B0 product to new schema
-2. Verify build pipeline still works with new schema
-3. Verify FUOTA can read AppIDs from ProductTarget
-4. Deploy to staging, run full validation suite
-5. Archive legacy code paths
-
-## Open Questions
-
-1. **AppID registry**: Is there a master list of assigned AppIDs? Or are they ad-hoc? Should Concord enforce global uniqueness across products?
-2. **Device Type/Variant registry**: Same question — is there a canonical list, or assigned per-product?
-3. **Board revision source of truth**: Should Concord track hardware revisions from ck_boards `board.yml` `revision.revisions` field, or are they manually entered? The team may not keep `board.yml` revisions up to date.
-4. **Multi-board products**: The schema supports 1:1 Product→Board. If a future product has multiple PCBs (e.g., main board + sensor board), should this be multiple Products or should we relax to 1:many?
-5. **Firmware repo naming convention**: Is `{slug}_fw` / `{slug}_mfg_fw` always the pattern? Any exceptions?
-
----
-
-## Template Notes
-
-This document follows the Concord user story template. When creating new user stories, copy this structure:
-
-1. **Story**: One-sentence user story (As a..., I want..., so that...)
-2. **Context**: Background and motivation
-3. **Personas**: Who is involved and their actions
-4. **User Flow**: Visual step-by-step flow
-5. **Technical Design**: Schema, API, Frontend, Services
-6. **Spec Alignment**: Reference to relevant CK specs
-7. **Downstream Impact**: What other systems are affected
-8. **Acceptance Criteria**: Checkboxes for "done"
-9. **Test Plan**: Unit, integration, E2E tests
-10. **Implementation Phases**: Ordered work breakdown
-11. **Open Questions**: Unresolved design decisions
