@@ -8,7 +8,7 @@ pytest fixture.
 import os
 import threading
 import time
-from typing import Optional
+from typing import Optional, Tuple
 
 from corekinect.mtib_client.v1.client.core import MtibV1Client
 from corekinect.mtib_client.v1.client.config import NetConfig
@@ -88,9 +88,117 @@ class TestContext:
         # Accelerometer profiler — probed and started in connect() if hardware supports it
         self.accel: Optional[AccelerationProfiler] = None
 
+        # Background power polling state — initialized in connect(), checked in disconnect()
+        self._power_poll_stop: Optional[threading.Event] = None
+        self._power_poll_thread: Optional[threading.Thread] = None
+
+    # ═══════════════════════════════════════════════════════════════════════
+    # from_env() and its helper methods
+    # ═══════════════════════════════════════════════════════════════════════
+
+    @staticmethod
+    def _load_mtib_config() -> Tuple[str, int]:
+        """Parse MTIB host and port from environment variables.
+
+        MTIB_ADDRESS (set by bench scheduler) takes precedence over MTIB_HOST.
+        MTIB_ADDRESS can include port as ``host:port``; otherwise MTIB_PORT
+        is read separately (default 50053).
+
+        Returns:
+            Tuple of (host, port).
+
+        Raises:
+            ValueError: If neither MTIB_ADDRESS nor MTIB_HOST is set.
+        """
+        mtib_addr = os.environ.get("MTIB_ADDRESS") or os.environ.get("MTIB_HOST")
+        if not mtib_addr:
+            raise ValueError("MTIB_ADDRESS or MTIB_HOST must be set")
+
+        if ":" in mtib_addr:
+            host, port_str = mtib_addr.rsplit(":", 1)
+            return host, int(port_str)
+
+        return mtib_addr, int(os.environ.get("MTIB_PORT", "50053"))
+
+    @staticmethod
+    def _load_fixture_profile(
+        bench_id: Optional[str],
+        api_url: Optional[str],
+        api_key: Optional[str],
+    ) -> FixtureProfile:
+        """Load fixture profile from the Concord API or a local JSON file.
+
+        API mode is preferred when ``bench_id``, ``api_url``, and ``api_key``
+        are all provided. Falls back to the ``FIXTURE_PROFILE_PATH`` env var.
+
+        Returns:
+            Loaded FixtureProfile instance.
+
+        Raises:
+            ValueError: If neither API credentials nor a profile path is available.
+        """
+        if bench_id and api_url and api_key:
+            log.info(f"Loading fixture profile from API: {api_url}/benches/{bench_id}")
+            return FixtureProfile.from_api(bench_id, api_url, api_key)
+
+        profile_path = os.environ.get("FIXTURE_PROFILE_PATH")
+        if not profile_path:
+            raise ValueError(
+                "Either BENCH_ID+CONCORD_API_URL+CONCORD_API_KEY or "
+                "FIXTURE_PROFILE_PATH must be set"
+            )
+        log.info(f"Loading fixture profile from file: {profile_path}")
+        return FixtureProfile.from_json(profile_path)
+
+    @staticmethod
+    def _load_product_context(
+        product_slug: str,
+        api_url: Optional[str],
+        api_key: Optional[str],
+    ):
+        """Load product metadata from the Concord catalog API.
+
+        Attempts an API lookup first. If that fails or credentials are missing,
+        builds a default ProductContext from the slug (``product_board``).
+
+        Args:
+            product_slug: Product identifier like ``alpha_b0``.
+            api_url: Concord API base URL (optional).
+            api_key: Concord API key (optional).
+
+        Returns:
+            A ProductContext instance (from API or defaults).
+        """
+        from .runner import ProductContext
+
+        if api_url and api_key:
+            try:
+                product_ctx = ProductContext.from_api(product_slug, api_url, api_key)
+                log.info(
+                    "Loaded product context from API: %s (deviceType=%d, deviceVariant=%d)",
+                    product_ctx.name,
+                    product_ctx.device_type_id,
+                    product_ctx.device_variant_id,
+                )
+                return product_ctx
+            except Exception as e:
+                log.warning("Failed to load product context from API: %s — using defaults", e)
+
+        parts = product_slug.rsplit("_", 1)
+        product_name = parts[0] if len(parts) == 2 else product_slug
+        board_name = parts[1] if len(parts) == 2 else ""
+        product_ctx = ProductContext.default(product_name, board_name)
+        log.info("Using default product context for %s", product_slug)
+        return product_ctx
+
     @classmethod
     def from_env(cls) -> "TestContext":
         """Create TestContext from environment variables.
+
+        Delegates to helper methods for each concern:
+        - ``_load_mtib_config()`` — MTIB address parsing
+        - ``_load_fixture_profile()`` — profile from API or JSON file
+        - ``_load_product_context()`` — product metadata from API
 
         Required env vars:
             MTIB_HOST or MTIB_ADDRESS: MTIB server address (e.g., 10.4.45.33:50053)
@@ -107,76 +215,32 @@ class TestContext:
             File mode (fallback):
                 FIXTURE_PROFILE_PATH: Path to fixture profile JSON
 
-        MTIB_ADDRESS takes precedence over MTIB_HOST (bench scheduler sets MTIB_ADDRESS).
-        MTIB_ADDRESS can include port (e.g., "10.4.45.33:50053").
-
         Returns:
             Configured TestContext instance (not yet connected).
         """
-        # MTIB_ADDRESS from bench scheduler takes precedence over MTIB_HOST
-        mtib_addr = os.environ.get("MTIB_ADDRESS") or os.environ.get("MTIB_HOST")
-        if not mtib_addr:
-            raise ValueError("MTIB_ADDRESS or MTIB_HOST must be set")
-
-        # Parse host:port if present in address
-        if ":" in mtib_addr:
-            mtib_host, port_str = mtib_addr.rsplit(":", 1)
-            mtib_port = int(port_str)
-        else:
-            mtib_host = mtib_addr
-            mtib_port = int(os.environ.get("MTIB_PORT", "50053"))
+        mtib_host, mtib_port = cls._load_mtib_config()
 
         device_id_hex = os.environ["DEVICE_ID"]
         db_env = os.environ.get("CORECLOUD_DB_ENV", "DEV_1_0")
-
-        # Parse device ID (hex string -> int)
         device_id = int(device_id_hex, 16)
 
-        # Load fixture profile — prefer API if configured, fall back to file
         bench_id = os.environ.get("BENCH_ID")
         api_url = os.environ.get("CONCORD_API_URL")
         api_key = os.environ.get("CONCORD_API_KEY")
 
-        if bench_id and api_url and api_key:
-            log.info(f"Loading fixture profile from API: {api_url}/benches/{bench_id}")
-            profile = FixtureProfile.from_api(bench_id, api_url, api_key)
-        else:
-            # Fallback to file-based loading
-            profile_path = os.environ.get("FIXTURE_PROFILE_PATH")
-            if not profile_path:
-                raise ValueError(
-                    "Either BENCH_ID+CONCORD_API_URL+CONCORD_API_KEY or "
-                    "FIXTURE_PROFILE_PATH must be set"
-                )
-            log.info(f"Loading fixture profile from file: {profile_path}")
-            profile = FixtureProfile.from_json(profile_path)
+        profile = cls._load_fixture_profile(bench_id, api_url, api_key)
 
-        # Load product context from API if available
-        product_ctx = None
+        # Determine product slug — explicit env var or derived from profile
         product_slug = os.environ.get("PRODUCT_SLUG")
         if not product_slug and profile:
-            # Derive slug from fixture profile product+board (e.g., "alpha" + "b0" -> "alpha_b0")
             product_slug = f"{profile.product}_{profile.board}"
 
-        if product_slug and api_url and api_key:
-            try:
-                from .runner import ProductContext
-                product_ctx = ProductContext.from_api(product_slug, api_url, api_key)
-                log.info("Loaded product context from API: %s (deviceType=%d, deviceVariant=%d)",
-                         product_ctx.name, product_ctx.device_type_id, product_ctx.device_variant_id)
-                # Use product's coreCloudEnv if available
-                if product_ctx.core_cloud_env:
-                    db_env = product_ctx.core_cloud_env
-            except Exception as e:
-                log.warning("Failed to load product context from API: %s — using defaults", e)
-
-        if not product_ctx and product_slug:
-            from .runner import ProductContext
-            parts = product_slug.rsplit("_", 1)
-            product_name = parts[0] if len(parts) == 2 else product_slug
-            board_name = parts[1] if len(parts) == 2 else ""
-            product_ctx = ProductContext.default(product_name, board_name)
-            log.info("Using default product context for %s", product_slug)
+        # Load product context and apply its coreCloudEnv override
+        product_ctx = None
+        if product_slug:
+            product_ctx = cls._load_product_context(product_slug, api_url, api_key)
+            if product_ctx and product_ctx.core_cloud_env:
+                db_env = product_ctx.core_cloud_env
 
         # Build MTIB client
         config = MtibV1Client.Config(net=NetConfig(addr=mtib_host, port=mtib_port))
@@ -197,8 +261,23 @@ class TestContext:
             product=product_ctx,
         )
 
+    # ═══════════════════════════════════════════════════════════════════════
+    # Lifecycle
+    # ═══════════════════════════════════════════════════════════════════════
+
     def connect(self) -> None:
-        """Connect to MTIB server, start UART capture and telemetry streaming."""
+        """Connect to the MTIB server and start all background services.
+
+        Performs three steps in order:
+        1. Establishes the gRPC connection and verifies MTIB health.
+        2. Starts UART capture, wires it to the telemetry streamer,
+           and begins telemetry streaming.
+        3. Starts background power polling (both DUT and charger channels
+           at 2 Hz) and probes the accelerometer profiler.
+
+        Raises:
+            ConnectionError: If the MTIB connection or health check fails.
+        """
         err = self.mtib.connect()
         if err:
             raise ConnectionError(f"MTIB connection failed: {err}")
@@ -233,9 +312,18 @@ class TestContext:
             log.info("Accelerometer not available — profiler disabled")
 
     def disconnect(self) -> None:
-        """Stop power polling, telemetry, UART capture, cleanup firmware assets, and disconnect from MTIB."""
+        """Tear down all background services and disconnect from MTIB.
+
+        Stops services in reverse-start order:
+        1. Power polling thread (signal + join with 3s timeout).
+        2. Accelerometer profiler (if running).
+        3. Telemetry streamer (flushes pending data).
+        4. UART capture.
+        5. Firmware asset cleanup (best-effort).
+        6. MTIB gRPC disconnect.
+        """
         # Stop power polling
-        if hasattr(self, '_power_poll_stop'):
+        if self._power_poll_stop is not None:
             self._power_poll_stop.set()
             if self._power_poll_thread and self._power_poll_thread.is_alive():
                 self._power_poll_thread.join(timeout=3)
@@ -257,7 +345,17 @@ class TestContext:
         log.info("Disconnected from MTIB")
 
     def _power_poll_loop(self) -> None:
-        """Background thread: read power from both channels every 500ms."""
+        """Poll DUT and charger power channels at ~2 Hz, pushing readings to telemetry.
+
+        Reads both INA219 channels (DUT ch0 and charger ch1) every 500ms and
+        forwards the measurements to the telemetry streamer for live display
+        and storage. Runs as a daemon thread; exits when ``_power_poll_stop``
+        is set.
+
+        Errors from individual reads are logged at debug level to avoid
+        flooding logs during transient power state changes (e.g., power
+        cycling between tests).
+        """
         from corekinect.mtib_client.v1.client.types import PowerChannel
 
         while not self._power_poll_stop.wait(0.5):
@@ -277,13 +375,19 @@ class TestContext:
             except Exception as exc:
                 log.debug("Power poll read error: %s", exc)
 
+    # ═══════════════════════════════════════════════════════════════════════
+    # Per-test lifecycle
+    # ═══════════════════════════════════════════════════════════════════════
+
     def setup_test(self, test_name: Optional[str] = None, module: Optional[str] = None) -> None:
         """Per-test setup: mark test start time, clear UART buffer, reset fixture state."""
         self.cloud.mark_test_start()
         self.uart.clear()
         if test_name:
             self.telemetry.set_test(test_name, module=module)
-        # Reset transient mock fixture state (button press, etc.) between tests.
+        # Reset transient fixture state (button press, etc.) between tests.
+        # Mock, stub, and programmable fixtures track _button_pressed; the
+        # real FixtureController does not (it drives GPIO directly).
         if hasattr(self.fixture, '_button_pressed'):
             self.fixture._button_pressed = False
 

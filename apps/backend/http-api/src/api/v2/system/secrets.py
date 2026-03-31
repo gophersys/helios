@@ -8,7 +8,7 @@ from flask import jsonify, request
 
 from src.lib.audit import log_audit
 from src.lib.decorators import require_permissions
-from src.lib.errors import bad_request, conflict, not_found
+from src.lib.errors import bad_request, conflict, internal_error, not_found
 from src.lib.permissions import Permissions
 from src.lib.types import ApiResponse
 from src.services.database.prisma import get_db_client

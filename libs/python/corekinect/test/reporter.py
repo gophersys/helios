@@ -174,9 +174,27 @@ class NoOpReporter:
 
 
 class ConcordReporter:
-    """pytest plugin that reports validation results to Concord HTTP API."""
+    """pytest plugin that streams validation results to the Concord HTTP API.
+
+    When activated (CONCORD_RUN_ID + CONCORD_API_URL set), this plugin hooks
+    into pytest's session lifecycle to report test starts, results, sub-steps,
+    and live log output back to the Concord backend. All HTTP calls are
+    fire-and-forget so the reporter never interferes with test execution.
+
+    When not activated, the plugin is inert and imposes no overhead.
+    """
 
     def __init__(self, config: Optional[Any] = None):
+        """Initialize the reporter from environment variables.
+
+        Reads CONCORD_RUN_ID, CONCORD_API_URL, and CONCORD_API_KEY from the
+        environment to determine whether reporting is active. Sets up internal
+        counters, per-test tracking dicts, sub-step state, and live log
+        streaming infrastructure (stream capture + background flush thread).
+
+        If ``config`` is provided, stores a reference on it so the ``report``
+        fixture can locate this instance later.
+        """
         self.run_id = os.environ.get("CONCORD_RUN_ID") or ""
         self.api_url = (os.environ.get("CONCORD_API_URL") or "").rstrip("/")
         self.api_key = os.environ.get("CONCORD_API_KEY") or ""
@@ -290,6 +308,7 @@ class ConcordReporter:
                 return None
             return resp.json()
         except Exception as e:
+            # Reporter must never fail tests — log and continue
             log.warning("ConcordReporter: %s failed: %s", path, e)
             return None
 
@@ -298,6 +317,9 @@ class ConcordReporter:
 
         Strips None-valued keys from the payload for backwards compatibility
         (e.g., omits ``deviceSerial`` when no device is set).
+
+        Errors are swallowed intentionally — the reporter must never cause
+        a test to fail. See ``_post()`` for the same rationale.
         """
         if not self.enabled:
             return
@@ -320,7 +342,13 @@ class ConcordReporter:
                 self._test_output[nodeid] = prev + data
 
     def _flush_log_buffer(self) -> None:
-        """Send buffered log data to API."""
+        """Drain the log buffer and POST it to the log-chunk endpoint.
+
+        Encoding pipeline: raw str -> UTF-8 bytes -> base64 ASCII. The base64
+        step ensures binary-safe transport over JSON. The ``offset`` field
+        tracks cumulative byte position so the backend can reassemble the
+        full output stream in order.
+        """
         with self._log_buffer_lock:
             if not self._log_buffer:
                 return
@@ -350,6 +378,7 @@ class ConcordReporter:
             self._post("report/log-chunk", payload)
             self._log_offset += len(data.encode("utf-8", errors="replace"))
         except Exception as e:
+            # Reporter must never fail tests — log and continue
             log.warning("ConcordReporter: log flush failed: %s", e)
 
     def _flush_loop(self) -> None:
@@ -460,32 +489,34 @@ class ConcordReporter:
 
         self._post("report/test-start", payload)
 
-    @pytest.hookimpl(hookwrapper=True)
-    def pytest_runtest_makereport(self, item: pytest.Item, call: pytest.CallInfo) -> None:
-        """Called to create a TestReport for each test phase (setup/call/teardown)."""
-        outcome = yield
-        if not self.enabled:
-            return
+    # -- Report helpers (extracted from pytest_runtest_makereport) -------
 
-        report = outcome.get_result()
+    def _handle_skip_result(self, item: pytest.Item) -> None:
+        """Report a skipped test result to the API.
 
-        # Handle skips during setup phase (no call phase will follow)
-        if report.when == "setup" and report.skipped:
-            self._total += 1
-            payload: Dict[str, Any] = {
-                "testName": item.name,
-                "passed": True,
-                "durationS": 0,
-                "errorMessage": None,
-                "measurements": None,
-                "skipped": True,
-            }
-            if self._current_device is not None:
-                payload["deviceSerial"] = self._current_device
-            self._post("report/test-result", payload)
-            return
+        Called when a test is skipped during the setup phase (e.g., via
+        ``pytest.mark.skip`` or ``skipIf``). Since no call phase follows,
+        we report immediately with ``skipped=True``.
+        """
+        self._total += 1
+        payload: Dict[str, Any] = {
+            "testName": item.name,
+            "passed": True,
+            "durationS": 0,
+            "errorMessage": None,
+            "measurements": None,
+            "skipped": True,
+        }
+        if self._current_device is not None:
+            payload["deviceSerial"] = self._current_device
+        self._post("report/test-result", payload)
 
-        # Accumulate captured output from all phases
+    def _accumulate_output(self, item: pytest.Item, report) -> None:
+        """Accumulate captured stdout, stderr, caplog, and sections from a test phase.
+
+        Called for every phase (setup/call/teardown) so that the final
+        test-result payload contains the full log output across all phases.
+        """
         captured = ""
         if report.capstdout:
             captured += report.capstdout
@@ -501,10 +532,13 @@ class ConcordReporter:
             prev = self._test_output.get(item.nodeid, "")
             self._test_output[item.nodeid] = prev + captured
 
-        # Only report on the "call" phase (the actual test), not setup/teardown
-        if report.when != "call":
-            return
+    def _report_test_result(self, item: pytest.Item, report) -> None:
+        """Build and send the test-result payload for a completed test.
 
+        Called once during the ``call`` phase. Gathers duration, error
+        message, log output, power measurements, and module name, then
+        POSTs the result to the Concord API.
+        """
         self._total += 1
         test_name = item.name
         passed = report.passed
@@ -531,7 +565,7 @@ class ConcordReporter:
         self._flush_log_buffer()
 
         # Collect captured log output for this test.
-        # Sources: pytest capstdout (lines 468-482) + StreamCapture _on_output
+        # Sources: pytest captured output + StreamCapture _on_output
         log_output = self._test_output.pop(item.nodeid, None)
         if log_output:
             log_output = log_output.strip()[:10000]  # Cap at 10KB
@@ -559,7 +593,7 @@ class ConcordReporter:
             if file_part.endswith(".py"):
                 module = file_part[:-3]
 
-        payload = {
+        payload: Dict[str, Any] = {
             "testName": test_name,
             "module": module,
             "passed": passed,
@@ -573,6 +607,35 @@ class ConcordReporter:
             payload["deviceSerial"] = self._current_device
 
         self._post("report/test-result", payload)
+
+    # -- pytest hook: makereport ----------------------------------------
+
+    @pytest.hookimpl(hookwrapper=True)
+    def pytest_runtest_makereport(self, item: pytest.Item, call: pytest.CallInfo) -> None:
+        """Called to create a TestReport for each test phase (setup/call/teardown).
+
+        Dispatches to helper methods for skip handling, output accumulation,
+        and result reporting to keep each concern isolated.
+        """
+        outcome = yield
+        if not self.enabled:
+            return
+
+        report = outcome.get_result()
+
+        # Handle skips during setup phase (no call phase will follow)
+        if report.when == "setup" and report.skipped:
+            self._handle_skip_result(item)
+            return
+
+        # Accumulate captured output from all phases
+        self._accumulate_output(item, report)
+
+        # Only report on the "call" phase (the actual test), not setup/teardown
+        if report.when != "call":
+            return
+
+        self._report_test_result(item, report)
 
     def pytest_sessionfinish(self, session: pytest.Session, exitstatus: int) -> None:
         """Called after whole test run finished."""

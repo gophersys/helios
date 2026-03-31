@@ -17,6 +17,7 @@ from corekinect.mtib_client.v1.client.types import GpioDirection, GpioResistorCo
 from corekinect.utils import Logger
 from protocols.mtib.mtib_pb2 import HostType
 
+from .errors import HardwareError
 from .profiles import Capability, FixtureProfile
 from .programmable_fixture import CapabilityNotAvailable
 
@@ -74,7 +75,7 @@ class FixtureController:
 
     def _check_error(self, err: Optional[str], operation: str) -> None:
         if err:
-            raise RuntimeError(f"{operation} failed: {err}")
+            raise HardwareError(f"{operation} failed: {err}")
 
     def configure_stimulus_gpios(self) -> None:
         """Configure all stimulus GPIOs as OUTPUT with safe initial states.
@@ -128,16 +129,23 @@ class FixtureController:
                 not self._profile.charger_relay.active_high,  # open
             ))
 
+        failed_gpios = []
         for name, gpio, initial_state in stimulus_pins:
             err = self._mtib.GpioConfig(gpio, GpioDirection.OUTPUT, GpioResistorConfig.NONE)
             if err:
                 log.warning("Failed to configure %s GPIO %d as OUTPUT: %s", name, gpio, err)
+                failed_gpios.append(name)
                 continue
             err = self._mtib.GpioWrite(gpio, initial_state)
             if err:
                 log.warning("Failed to set %s GPIO %d initial state: %s", name, gpio, err)
+                failed_gpios.append(name)
 
-        self._gpios_configured = True
+        if failed_gpios:
+            self._gpios_configured = False
+            log.warning("GPIO configuration incomplete — failed: %s", ", ".join(failed_gpios))
+        else:
+            self._gpios_configured = True
         log.info("Stimulus GPIOs configured: %s",
                  {name: gpio for name, gpio, _ in stimulus_pins})
 
@@ -186,6 +194,8 @@ class FixtureController:
             with_charger = self._profile.power.battery_installed
 
         v = voltage if voltage is not None else self._profile.power.dut_voltage
+        if v < 0 or v > 6.0:
+            raise HardwareError(f"Voltage {v}V out of safe range [0, 6.0]V")
         self._configure_swd_gpios()
         self.configure_stimulus_gpios()
         err = self._mtib.PowerEnable(channel=PowerChannel.DUT, voltage_v=v)
@@ -501,6 +511,9 @@ class FixtureController:
         ]:
             value, err = self._mtib.AdcRead(ch)
             self._check_error(err, f"AdcRead(ch={ch})")
+            if value is None:
+                log.warning("AdcRead(ch=%d) returned None for %s, skipping", ch, name)
+                continue
             result[name] = value
         return result
 

@@ -68,7 +68,7 @@ from .system.logs import register_log_handlers
 from .system.exec import register_exec_handlers
 from .system.observability_ws import register_observability_handlers, register_icle_handlers
 from .system.retention import cleanup_validation_runs, get_validation_storage_usage
-from .system.secrets import list_secrets, create_secret, delete_secret
+from .system.secrets import list_secrets as list_platform_secrets, create_secret as create_platform_secret, delete_secret as delete_platform_secret
 
 # Kubernetes handlers (was system/ cluster endpoints)
 from .kubernetes.cluster import get_cluster, get_namespaces
@@ -398,9 +398,9 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     v2.add_url_rule("/system/retention/validation/usage",     endpoint="get_validation_storage_usage", view_func=get_validation_storage_usage, methods=["GET"])
 
     # Secrets
-    v2.add_url_rule("/system/secrets",              view_func=list_secrets,   methods=["GET"])
-    v2.add_url_rule("/system/secrets",              view_func=create_secret,  methods=["POST"])
-    v2.add_url_rule("/system/secrets/<secret_id>",  view_func=delete_secret,  methods=["DELETE"])
+    v2.add_url_rule("/system/secrets",              endpoint="list_platform_secrets",  view_func=list_platform_secrets,   methods=["GET"])
+    v2.add_url_rule("/system/secrets",              endpoint="create_platform_secret", view_func=create_platform_secret,  methods=["POST"])
+    v2.add_url_rule("/system/secrets/<secret_id>",  endpoint="delete_platform_secret", view_func=delete_platform_secret,  methods=["DELETE"])
 
     # Storage download
     from .storage_download import download_storage_file

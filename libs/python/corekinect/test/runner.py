@@ -314,10 +314,14 @@ class PreflightChecker:
         address = os.environ.get("MTIB_ADDRESS")
         if not address:
             host = os.environ.get("MTIB_HOST")
-            port = os.environ.get("MTIB_PORT", "50053")
+            port_str = os.environ.get("MTIB_PORT", "50053")
             if not host:
                 return False, "MTIB_ADDRESS or MTIB_HOST not set"
-            address = f"{host}:{port}"
+            try:
+                port_num = int(port_str)
+            except ValueError:
+                return False, f"MTIB_PORT is not a valid integer: {port_str}"
+            address = f"{host}:{port_num}"
 
         try:
             from corekinect.mtib_client.v1.client.config import NetConfig
@@ -509,11 +513,14 @@ class ArtifactCollector:
 
         count = 0
         for pattern in self.config.artifact_patterns:
-            for path in self.artifacts_dir.glob(pattern):
-                if path.is_file():
-                    log.info("Artifact: %s (%d bytes)", path.name, path.stat().st_size)
-                    # TODO: Upload to API/MinIO
-                    count += 1
+            try:
+                for path in self.artifacts_dir.glob(pattern):
+                    if path.is_file():
+                        log.info("Artifact: %s (%d bytes)", path.name, path.stat().st_size)
+                        # TODO: Upload to API/MinIO
+                        count += 1
+            except Exception as exc:
+                log.warning("Failed to collect artifacts for pattern %s: %s", pattern, exc)
 
         return count
 

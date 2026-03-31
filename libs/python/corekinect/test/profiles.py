@@ -9,11 +9,11 @@ This module provides the core data model for dynamic test scheduling
 and capability-based test skipping.
 """
 
+import json
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Dict, List, Optional, Set
-import json
+from typing import Any, Dict, List, Optional, Set
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -100,79 +100,138 @@ FEATURE_REQUIREMENTS: Dict[Feature, List[Capability]] = {
 
 @dataclass(frozen=True)
 class ButtonConfig:
-    """Button stimulus configuration."""
+    """Button stimulus configuration.
 
+    Controls how the fixture drives the DUT's physical button line
+    via a GPIO pin on the MTIB.
+    """
+
+    #: MTIB GPIO pin connected to the DUT button line.
     gpio_pin: int
+    #: Whether the button signal is active-low (pulled to GND to press).
     active_low: bool = True
 
 
 @dataclass(frozen=True)
 class PpgSimulatorConfig:
-    """PPG skin contact simulator configuration."""
+    """PPG skin contact simulator configuration.
 
+    Controls the servo-driven IR blocker and green LED array used
+    to simulate skin contact and heart rate for the PAH8151 PPG sensor.
+    """
+
+    #: PWM pin driving the servo that positions the IR blocker.
     servo_pwm_pin: int
+    #: Servo pulse width (microseconds) for the blocked (no-skin) position.
     servo_blocked_duty_us: int
+    #: Servo pulse width (microseconds) for the exposed (skin-contact) position.
     servo_exposed_duty_us: int
+    #: GPIO pin driving the green LED array for heart-rate simulation.
     hr_led_gpio_pin: int
 
 
 @dataclass(frozen=True)
 class PeltierConfig:
-    """Peltier heater configuration."""
+    """Peltier heater configuration.
 
+    Controls the peltier element used to simulate skin temperature
+    for the MLX90614 IR sensor.
+    """
+
+    #: GPIO pin that enables the peltier heater.
     gpio_pin: int
+    #: ADC channel for reading the peltier/surface temperature.
     temp_adc_channel: int
 
 
 @dataclass(frozen=True)
 class ChargerRelayConfig:
-    """Charger relay configuration."""
+    """Charger relay configuration.
 
+    Controls the relay that connects or disconnects the charger
+    power supply (ch1) to the DUT VCHG rail.
+    """
+
+    #: GPIO pin driving the charger relay.
     gpio_pin: int
+    #: Whether the relay closes (connects charger) on a HIGH signal.
     active_high: bool = True
 
 
 @dataclass(frozen=True)
 class LedSensorConfig:
-    """LED photodiode sensor configuration."""
+    """LED photodiode sensor configuration.
 
+    Maps ADC channels to the RGB photodiodes used for detecting
+    DUT LED color and brightness.
+    """
+
+    #: ADC channel for the red photodiode.
     red_adc_channel: int
+    #: ADC channel for the green photodiode.
     green_adc_channel: int
+    #: ADC channel for the blue photodiode.
     blue_adc_channel: int
 
 
 @dataclass(frozen=True)
 class NfcReaderConfig:
-    """NFC reader configuration."""
+    """NFC reader configuration.
 
+    Settings for the I2C NFC reader used to verify DUT NFC tag presence
+    and data exchange.
+    """
+
+    #: Communication interface type (e.g., "i2c").
     interface: str = "i2c"
+    #: I2C bus number the NFC reader is connected to.
     bus: int = 1
 
 
 @dataclass(frozen=True)
 class MotionConfig:
-    """Motion actuator configuration."""
+    """Motion actuator configuration.
 
+    Controls the FluidNC linear rail used to physically move the DUT
+    for accelerometer and motion sensor testing.
+    """
+
+    #: Whether the motion actuator is connected and available.
     enabled: bool = False
 
 
 @dataclass(frozen=True)
 class PowerConfig:
-    """Power supply configuration."""
+    """Power supply configuration.
 
+    Defines how the MTIB power channels should be configured to
+    power the DUT, including battery simulation and charger rails.
+    """
+
+    #: Whether a battery is physically installed in the DUT.
     battery_installed: bool
+    #: Voltage for ch0 (battery simulation rail), in volts.
     dut_voltage: float = 4.5
+    #: Voltage for ch1 (charger rail), in volts.
     charger_voltage: float = 5.0
+    #: Time to wait after power-on for DUT to finish booting, in seconds.
     boot_settle_s: float = 10.0
 
 
 @dataclass(frozen=True)
 class DutConfig:
-    """DUT identity configuration."""
+    """DUT identity configuration.
 
+    Identifies the specific device-under-test installed in the fixture.
+    """
+
+    #: CoreCloud device ID (DevEUI hex string).
     device_id: str
+    #: Device serial number (label on enclosure).
     snr: str
+    #: IMEI of the cellular modem, if known.
     imei: Optional[str] = None
+    #: List of SIM ICCIDs provisioned on the device.
     iccids: Optional[List[str]] = None
 
 
@@ -325,6 +384,27 @@ class FixtureProfile:
 
         return cls.from_dict(profile_data)
 
+    @staticmethod
+    def _parse_hardware_block(
+        data: dict, key: str, config_cls: type, field_map: Dict[str, Any]
+    ) -> Optional[Any]:
+        """Parse an optional hardware block from profile data.
+
+        Args:
+            data: Full profile dict.
+            key: Key name in the dict (e.g., "button").
+            config_cls: Dataclass to construct (e.g., ButtonConfig).
+            field_map: Mapping of field_name -> default_value.
+
+        Returns:
+            Constructed config instance, or None if block is absent/null.
+        """
+        block = data.get(key)
+        if not block or not isinstance(block, dict):
+            return None
+        kwargs = {field: block.get(field, default) for field, default in field_map.items()}
+        return config_cls(**kwargs)
+
     @classmethod
     def from_dict(cls, data: dict) -> "FixtureProfile":
         """Create fixture profile from dictionary."""
@@ -351,61 +431,44 @@ class FixtureProfile:
         )
 
         # Parse optional hardware blocks
-        button = None
-        if "button" in data and data["button"]:
-            b = data["button"]
-            button = ButtonConfig(
-                gpio_pin=b.get("gpio_pin", 2),
-                active_low=b.get("active_low", True),
-            )
+        parse = cls._parse_hardware_block
 
-        ppg_simulator = None
-        if "ppg_simulator" in data and data["ppg_simulator"]:
-            p = data["ppg_simulator"]
-            ppg_simulator = PpgSimulatorConfig(
-                servo_pwm_pin=p.get("servo_pwm_pin", 7),
-                servo_blocked_duty_us=p.get("servo_blocked_duty_us", 1000),
-                servo_exposed_duty_us=p.get("servo_exposed_duty_us", 2000),
-                hr_led_gpio_pin=p.get("hr_led_gpio_pin", 3),
-            )
+        button = parse(data, "button", ButtonConfig, {
+            "gpio_pin": 2,
+            "active_low": True,
+        })
 
-        peltier = None
-        if "peltier" in data and data["peltier"]:
-            p = data["peltier"]
-            peltier = PeltierConfig(
-                gpio_pin=p.get("gpio_pin", 4),
-                temp_adc_channel=p.get("temp_adc_channel", 7),
-            )
+        ppg_simulator = parse(data, "ppg_simulator", PpgSimulatorConfig, {
+            "servo_pwm_pin": 7,
+            "servo_blocked_duty_us": 1000,
+            "servo_exposed_duty_us": 2000,
+            "hr_led_gpio_pin": 3,
+        })
 
-        charger_relay = None
-        if "charger_relay" in data and data["charger_relay"]:
-            c = data["charger_relay"]
-            charger_relay = ChargerRelayConfig(
-                gpio_pin=c.get("gpio_pin", 5),
-                active_high=c.get("active_high", True),
-            )
+        peltier = parse(data, "peltier", PeltierConfig, {
+            "gpio_pin": 4,
+            "temp_adc_channel": 7,
+        })
 
-        led_sensor = None
-        if "led_sensor" in data and data["led_sensor"]:
-            l = data["led_sensor"]
-            led_sensor = LedSensorConfig(
-                red_adc_channel=l.get("red_adc_channel", 4),
-                green_adc_channel=l.get("green_adc_channel", 5),
-                blue_adc_channel=l.get("blue_adc_channel", 6),
-            )
+        charger_relay = parse(data, "charger_relay", ChargerRelayConfig, {
+            "gpio_pin": 5,
+            "active_high": True,
+        })
 
-        nfc_reader = None
-        if "nfc_reader" in data and data["nfc_reader"]:
-            n = data["nfc_reader"]
-            nfc_reader = NfcReaderConfig(
-                interface=n.get("interface", "i2c"),
-                bus=n.get("bus", 1),
-            )
+        led_sensor = parse(data, "led_sensor", LedSensorConfig, {
+            "red_adc_channel": 4,
+            "green_adc_channel": 5,
+            "blue_adc_channel": 6,
+        })
 
-        motion = None
-        if "motion" in data and data["motion"]:
-            m = data["motion"]
-            motion = MotionConfig(enabled=m.get("enabled", False))
+        nfc_reader = parse(data, "nfc_reader", NfcReaderConfig, {
+            "interface": "i2c",
+            "bus": 1,
+        })
+
+        motion = parse(data, "motion", MotionConfig, {
+            "enabled": False,
+        })
 
         return cls(
             station_id=data.get("station_id", "unknown"),

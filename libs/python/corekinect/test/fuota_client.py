@@ -14,6 +14,7 @@ import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from corekinect.test.errors import CloudError
 from corekinect.utils import Logger
 
 # TLS verification — enabled by default, can be disabled for local dev with self-signed certs
@@ -73,6 +74,19 @@ class FuotaClient:
         resp = sess.request(method, url, headers=headers, verify=_TLS_VERIFY, timeout=30, **kwargs)
         return resp
 
+    def _safe_json(self, resp, context: str) -> dict:
+        """Parse JSON response with validation.
+
+        Raises CloudError if response body is not valid JSON or not a dict.
+        """
+        try:
+            data = resp.json()
+        except Exception as exc:
+            raise CloudError(f"{context}: invalid JSON response: {exc}")
+        if not isinstance(data, dict):
+            raise CloudError(f"{context}: expected dict, got {type(data).__name__}")
+        return data
+
     # ------------------------------------------------------------------
     # Device Registration
     # ------------------------------------------------------------------
@@ -118,7 +132,7 @@ class FuotaClient:
             json={"deviceIds": [device_id]},
         )
         if resp.status_code == 200:
-            data = resp.json()
+            data = self._safe_json(resp, "Device search")
             devices = data.get("devices", data if isinstance(data, list) else [])
             for d in devices:
                 if d.get("deviceId") == device_id:
@@ -143,11 +157,11 @@ class FuotaClient:
         resp = self._api_request("POST", "System/Devices/Register", json=payload)
 
         if resp.status_code != 200:
-            raise RuntimeError(
+            raise CloudError(
                 f"Device registration failed: {resp.status_code} {resp.text[:300]}"
             )
 
-        result = resp.json()
+        result = self._safe_json(resp, "Device registration")
         registered = result.get("registeredDevices", [])
         already = result.get("devicesAlreadyRegistered", [])
 
@@ -158,7 +172,7 @@ class FuotaClient:
             self._log.info("Device %s was already registered", device_id)
             return False
         else:
-            raise RuntimeError(f"Unexpected registration result: {result}")
+            raise CloudError(f"Unexpected registration result: {result}")
 
     # ------------------------------------------------------------------
     # CFW Upload
@@ -194,7 +208,7 @@ class FuotaClient:
             self._log.info("CFW already uploaded: %s (skipping)", p.name)
             return
         if resp.status_code not in (200, 204):
-            raise RuntimeError(
+            raise CloudError(
                 f"CFW upload failed: {resp.status_code} {resp.text[:200]}"
             )
         self._log.info("CFW uploaded: %s", p.name)
@@ -223,7 +237,7 @@ class FuotaClient:
             self._log.info("CFW not found (already deleted?): %s", cfw_name)
             return False
         if resp.status_code not in (200, 204):
-            raise RuntimeError(
+            raise CloudError(
                 f"CFW delete failed: {resp.status_code} {resp.text[:200]}"
             )
         self._log.info("CFW deleted: %s", cfw_name)
@@ -269,12 +283,14 @@ class FuotaClient:
         resp = self._singleton_request("POST", "firmwareupdates/plans", json=payload)
 
         if resp.status_code != 200:
-            raise RuntimeError(
+            raise CloudError(
                 f"Plan creation failed: {resp.status_code} {resp.text[:300]}"
             )
 
-        plan = resp.json()
-        plan_id = plan["planId"]
+        plan = self._safe_json(resp, "Plan creation")
+        plan_id = plan.get("planId")
+        if plan_id is None:
+            raise CloudError(f"Plan creation response missing 'planId': {plan}")
         self._log.info(
             "Plan created: id=%d, stages=%d (raw response: %s)",
             plan_id, len(stages), str(plan)[:200],
@@ -345,11 +361,11 @@ class FuotaClient:
         )
 
         if resp.status_code != 200:
-            raise RuntimeError(
+            raise CloudError(
                 f"Device assignment failed: {resp.status_code} {resp.text[:300]}"
             )
 
-        result = resp.json()
+        result = self._safe_json(resp, "Device assignment")
         self._log.info("Assignment result: %s", result)
         return result
 
@@ -397,7 +413,7 @@ class FuotaClient:
         if resp.status_code == 404:
             return None
         resp.raise_for_status()
-        return resp.json()
+        return self._safe_json(resp, "FUOTA progress")
 
     def wait_for_stage_complete(
         self,
